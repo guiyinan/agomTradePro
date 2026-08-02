@@ -27,11 +27,13 @@ from apps.data_center.application.query_services import (
     query_macro_fact_series,
     query_published_a_share_behavior_payload,
     query_published_capital_flow_series,
+    query_published_financial_facts,
     query_published_macro_fact_series,
     query_published_market_news,
     query_published_price_bar_series,
     query_published_quote_payloads,
     query_published_sector_memberships,
+    query_published_valuation_facts,
     query_valuation_facts,
 )
 from apps.data_center.application.reconciliation import RecordReconciliationEvidenceUseCase
@@ -402,6 +404,38 @@ def get_published_capital_flow_series(
     )
 
 
+def get_published_financial_facts(
+    asset_code: str,
+    *,
+    limit: int = 20,
+    publication_key: str = "current",
+) -> dict[str, object]:
+    """Read decision-facing financial facts behind a publication gate."""
+
+    return query_published_financial_facts(
+        asset_code,
+        limit=limit,
+        publication_key=publication_key,
+    )
+
+
+def get_published_valuation_facts(
+    asset_code: str,
+    *,
+    as_of: date | None = None,
+    limit: int | None = None,
+    publication_key: str = "current",
+) -> dict[str, object]:
+    """Read decision-facing valuation facts behind a publication gate."""
+
+    return query_published_valuation_facts(
+        asset_code,
+        as_of=as_of,
+        limit=limit,
+        publication_key=publication_key,
+    )
+
+
 def get_macro_indicator_catalog(indicator_code: str) -> dict[str, Any]:
     """Read one indicator catalog entry through the application port."""
 
@@ -659,9 +693,11 @@ __all__ = [
     "get_published_macro_fact_series",
     "get_published_market_news",
     "get_published_capital_flow_series",
+    "get_published_financial_facts",
     "get_published_price_bar_series",
     "get_published_quote_payloads",
     "get_published_sector_memberships",
+    "get_published_valuation_facts",
     "record_reconciliation_evidence",
     "get_valuation_facts",
     "get_valuation_fact_repository_port",

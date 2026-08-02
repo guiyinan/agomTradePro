@@ -1086,6 +1086,38 @@
       ]
     },
     {
+      "id": "data_center.publication_only_d4_d5",
+      "surface": "Current financial and valuation reads use Data Center publication-only ports",
+      "source_files": [
+        "apps/data_center/application/query_services.py",
+        "apps/data_center/application/public.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/query_services.py": [
+          "def query_published_financial_facts(",
+          "def query_published_valuation_facts(",
+          "equity.financial.fact",
+          "equity.valuation.fact"
+        ],
+        "apps/data_center/application/public.py": [
+          "def get_published_financial_facts(",
+          "def get_published_valuation_facts("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "financial_valuation_publication_evidence",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_financial_and_valuation_facts_preserve_gate_evidence"
+        },
+        {
+          "case": "financial_missing_publication_blocks",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_financial_facts_fail_closed_before_repository_query"
+        }
+      ]
+    },
+    {
       "id": "data_center.publication_only_d7_d9",
       "surface": "Data Center Public Ports for sector membership, market news, and capital flow",
       "source_files": [

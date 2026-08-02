@@ -110,3 +110,55 @@ def test_published_capital_flow_blocks_before_querying_repository(monkeypatch) -
 
     assert result["rows"] == []
     assert result["blocked_reason"] == "canonical_publication_missing"
+
+
+def test_published_financial_and_valuation_facts_preserve_gate_evidence(monkeypatch) -> None:
+    """D4/D5 public ports return rows only after their own publications exist."""
+
+    publication_repo = SimpleNamespace(get_current=lambda *_args: _publication())
+    financial = SimpleNamespace(to_dict=lambda: {"metric_code": "revenue", "value": 10.0})
+    valuation = SimpleNamespace(to_dict=lambda: {"pe_ttm": 12.0})
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: publication_repo,
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_financial_fact_repository",
+        lambda: SimpleNamespace(get_facts=lambda *_args, **_kwargs: [financial]),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_valuation_fact_repository",
+        lambda: SimpleNamespace(get_series=lambda *_args, **_kwargs: [valuation]),
+    )
+
+    financial_result = query_services.query_published_financial_facts("600000.SH")
+    valuation_result = query_services.query_published_valuation_facts("600000.SH")
+
+    assert financial_result["rows"] == [{"metric_code": "revenue", "value": 10.0}]
+    assert valuation_result["rows"] == [{"pe_ttm": 12.0}]
+    assert financial_result["publication_id"] == "pub-2026-08-02"
+    assert valuation_result["must_not_use_for_decision"] is False
+
+
+def test_published_financial_facts_fail_closed_before_repository_query(monkeypatch) -> None:
+    """Missing D4 publication blocks before a financial repository call."""
+
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: SimpleNamespace(get_current=lambda *_args: None),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_financial_fact_repository",
+        lambda: (_ for _ in ()).throw(AssertionError("financial repository must not be read")),
+    )
+
+    result = query_services.query_published_financial_facts("600000.SH")
+
+    assert result["rows"] == []
+    assert result["must_not_use_for_decision"] is True
+    assert result["blocked_reason"] == "canonical_publication_missing"

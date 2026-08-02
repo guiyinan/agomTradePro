@@ -259,6 +259,38 @@ def query_published_price_bar_series(
     }
 
 
+def query_published_financial_facts(
+    asset_code: str,
+    *,
+    limit: int = 20,
+    publication_key: str = "current",
+) -> dict[str, object]:
+    """Read financial facts only after the current financial publication gate."""
+
+    gate = _publication_gate("equity.financial.fact", publication_key)
+    if gate is None:
+        return _blocked_publication_result()
+    return {"rows": query_financial_facts(asset_code, limit=limit), **gate}
+
+
+def query_published_valuation_facts(
+    asset_code: str,
+    *,
+    as_of: date | None = None,
+    limit: int | None = None,
+    publication_key: str = "current",
+) -> dict[str, object]:
+    """Read valuation facts only after the current valuation publication gate."""
+
+    gate = _publication_gate("equity.valuation.fact", publication_key)
+    if gate is None:
+        return _blocked_publication_result()
+    return {
+        "rows": query_valuation_facts(asset_code, as_of=as_of, limit=limit),
+        **gate,
+    }
+
+
 def query_published_sector_memberships(
     sector_code: str,
     *,

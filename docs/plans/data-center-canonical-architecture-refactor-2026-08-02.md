@@ -264,6 +264,25 @@
 
 - 本地 filesystem/SQLite 画像不能替代生产 PostgreSQL relation、TOAST/WAL、Docker/Redis/backup/logs 全盘画像；真实生产 policy、增长率和 12 个月预测仍待授权环境采集。
 - 容量 observation 尚未接入真实 beat/task monitor、故障注入和 readiness 观察窗口；PostgreSQL rollback/备份恢复、M9/M10 及 D0-D9 全入口收口继续未完成。
+- 最新 `0055`/`0007` 变更的临时 PostgreSQL 全量迁移在本机 15 分钟预算内未完成，容器已清理；不把这次 timeout 当作通过，仍保留此前独立 PostgreSQL `unapplied=0` 证据，待 CI/Linux runner 重跑。
+
+## 实施记录（2026-08-03，第十一批）
+
+本批次继续推进 D4/D5 的 current Publication-only 查询面，并把 PostgreSQL 容量观测接入 nightly 迁移链路；不部署、不 push。
+
+已落地：
+
+- 新增 `query_published_financial_facts` / `query_published_valuation_facts` 及对应 Public Port；缺少 D4/D5 active Publication 时在读取事实表前 fail closed，并返回稳定 publication evidence。
+- `governance/current_data_contracts.json` 新增 D4/D5 publication-only surface 与精确测试 nodeid；nightly PostgreSQL job 在 Catalog 初始化后显式激活 `nightly-ci` StorageBudgetPolicy 并记录容量 observation。
+
+第十一批机器证据：
+
+- `pytest tests/unit/data_center/test_published_query_ports.py -q --no-migrations --reuse-db --timeout=180`：5 passed；`python scripts/check_current_data_contracts.py`：29 surfaces。
+
+仍未完成及风险：
+
+- D4/D5 内部 Alpha/Factor 历史/批量端口仍保留兼容语义，尚未完成全消费者切读和生产 publication 观察；不能以新增 Public Port 代替全域退出条件。
+- nightly PostgreSQL capacity step 尚未在 GitHub Actions 实际运行；本机最新全量迁移 timeout 仍是未验证项。
 
 ## 1. 结论先行
 

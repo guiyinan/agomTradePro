@@ -378,6 +378,15 @@ jobs:
           python manage.py initialize_data_center_catalog
           python scripts/check_data_center_runtime_catalog.py
 
+      - name: Record PostgreSQL storage capacity observation
+        run: |
+          python manage.py initialize_storage_budget \
+            --profile-key nightly-ci \
+            --capacity-gib 1 \
+            --policy-version 1 \
+            --activate
+          python manage.py collect_storage_capacity_profile --environment nightly-ci
+
       - name: Prepare pre-migrated PostgreSQL test database
         env:
           PGPASSWORD: critical-test-password
