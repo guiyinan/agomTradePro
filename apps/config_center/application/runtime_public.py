@@ -5,6 +5,7 @@ from __future__ import annotations
 from apps.config_center.application.runtime_repository_provider import (
     get_runtime_config_service,
     get_storage_budget_query_service,
+    get_storage_capacity_observation_service,
 )
 from apps.config_center.application.storage_budget import StoragePressureGuard
 from apps.config_center.domain.runtime_config import (
@@ -12,6 +13,7 @@ from apps.config_center.domain.runtime_config import (
     RuntimeConfigSnapshot,
     RuntimeConfigValue,
     StorageBudgetPolicy,
+    StorageCapacityObservation,
 )
 
 
@@ -123,14 +125,32 @@ def evaluate_storage_pressure(
     }
 
 
+def record_storage_capacity_observation(
+    observation: StorageCapacityObservation,
+) -> StorageCapacityObservation:
+    """Persist one filesystem/database capacity observation."""
+
+    return get_storage_capacity_observation_service().record(observation)
+
+
+def get_latest_storage_capacity_observation(
+    environment: str,
+) -> StorageCapacityObservation | None:
+    """Return the latest capacity observation without a fallback."""
+
+    return get_storage_capacity_observation_service().get_latest(environment)
+
+
 __all__ = [
     "activate_runtime_profile",
     "evaluate_storage_pressure",
     "get_active_runtime_profile",
     "get_active_storage_budget",
     "get_latest_runtime_snapshot",
+    "get_latest_storage_capacity_observation",
     "require_active_storage_budget",
     "preview_runtime_profile",
     "rollback_runtime_profile",
+    "record_storage_capacity_observation",
     "validate_runtime_values",
 ]

@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 56,
-    "current_surface_references": 2835,
+    "current_surface_references": 2838,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
     "legacy_fact_references": 141,
@@ -4177,6 +4177,11 @@
       "text": "\"summary\": {\"title\": title, \"subtitle\": subtitle},"
     },
     {
+      "line": 47,
+      "path": "apps/config_center/application/capacity_profile.py",
+      "text": "\"\"\"Return the latest observation for an environment.\"\"\""
+    },
+    {
       "line": 1,
       "path": "apps/config_center/application/config_summary_service.py",
       "text": "\"\"\"Config-center owned runtime and summary service.\"\"\""
@@ -4197,9 +4202,19 @@
       "text": "\"\"\"Return the latest immutable resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 31,
+      "line": 33,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Read the latest resolved snapshot for a profile key.\"\"\""
+    },
+    {
+      "line": 139,
+      "path": "apps/config_center/application/runtime_public.py",
+      "text": "\"\"\"Return the latest capacity observation without a fallback.\"\"\""
+    },
+    {
+      "line": 62,
+      "path": "apps/config_center/infrastructure/capacity_observer.py",
+      "text": "\"\"\"Collect one read-only capacity snapshot from the current host/database.\"\"\""
     },
     {
       "line": 1,
@@ -4837,77 +4852,77 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 252,
+      "line": 280,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 300,
+      "line": 328,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 302,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
-    },
-    {
-      "line": 310,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 315,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
       "line": 330,
       "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
+      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 346,
+      "line": 338,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 364,
+      "line": 343,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
+    },
+    {
+      "line": 358,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 402,
+      "line": 374,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 392,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 430,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 405,
+      "line": 433,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 409,
+      "line": 437,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 411,
+      "line": 439,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 414,
+      "line": 442,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 415,
+      "line": 443,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 512,
+      "line": 540,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -5082,12 +5097,12 @@
       "text": "\"summary\": self.summary,"
     },
     {
-      "line": 141,
+      "line": 142,
       "path": "apps/data_center/domain/protocols.py",
       "text": "\"\"\"Optional provider capability for one-request current valuation batches.\"\"\""
     },
     {
-      "line": 33,
+      "line": 34,
       "path": "apps/data_center/domain/reconciliation.py",
       "text": "\"\"\"Immutable summary suitable for audit logs and CI evidence.\"\"\""
     },

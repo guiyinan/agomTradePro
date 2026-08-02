@@ -22,7 +22,7 @@ class Command(BaseCommand):
 
         parser.add_argument("--profile-key", default="production-90g")
         parser.add_argument("--capacity-gib", type=int, default=90)
-        parser.add_argument("--version", type=int, default=1)
+        parser.add_argument("--policy-version", type=int, default=1)
         parser.add_argument("--activate", action="store_true")
         parser.add_argument("--actor", default="bootstrap")
         parser.add_argument("--reason", default="explicit storage policy initialization")
@@ -31,7 +31,7 @@ class Command(BaseCommand):
         """Persist a typed policy with explicit activation intent."""
 
         capacity_gib = options.get("capacity_gib")
-        version = options.get("version")
+        version = options.get("policy_version")
         if isinstance(capacity_gib, bool) or not isinstance(capacity_gib, int) or capacity_gib <= 0:
             raise CommandError("capacity-gib must be a positive integer")
         if isinstance(version, bool) or not isinstance(version, int) or version <= 0:
@@ -50,7 +50,11 @@ class Command(BaseCommand):
             active=bool(options.get("activate")),
         )
         repository = StorageBudgetPolicyRepository()
-        saved = repository.activate(policy) if bool(options.get("activate")) else repository.save(policy)
+        saved = (
+            repository.activate(policy)
+            if bool(options.get("activate"))
+            else repository.save(policy)
+        )
         self.stdout.write(
             self.style.SUCCESS(
                 f"storage policy {saved.policy_key} v{saved.version} saved; active={saved.active}"

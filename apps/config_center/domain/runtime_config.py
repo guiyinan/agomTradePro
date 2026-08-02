@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from enum import Enum
+from math import isfinite
 from typing import Any
 
 
@@ -102,7 +103,9 @@ class RuntimeConfigDefinition:
                 decimal_value = Decimal(str(value))
             except (InvalidOperation, ValueError, TypeError) as exc:
                 raise ValueError(f"{self.key} requires decimal") from exc
-            if self.value_type is RuntimeValueType.PERCENTAGE and not Decimal("0") <= decimal_value <= Decimal("1"):
+            if self.value_type is RuntimeValueType.PERCENTAGE and not Decimal(
+                "0"
+            ) <= decimal_value <= Decimal("1"):
                 raise ValueError(f"{self.key} percentage must be in [0, 1]")
         elif self.value_type is RuntimeValueType.STRING and not isinstance(value, str):
             raise ValueError(f"{self.key} requires string")
@@ -267,8 +270,62 @@ class StorageBudgetPolicy:
             raise ValueError("StorageBudgetPolicy ratios must be in [0, 1]")
         if self.warning_ratio >= self.critical_ratio:
             raise ValueError("warning_ratio must be below critical_ratio")
-        if self.raw_budget_ratio + self.quarantine_budget_ratio + self.database_budget_ratio + self.logs_budget_ratio + self.emergency_reserve_ratio > 1.0:
+        if (
+            self.raw_budget_ratio
+            + self.quarantine_budget_ratio
+            + self.database_budget_ratio
+            + self.logs_budget_ratio
+            + self.emergency_reserve_ratio
+            > 1.0
+        ):
             raise ValueError("StorageBudgetPolicy sub-budgets exceed capacity")
+
+
+@dataclass(frozen=True)
+class StorageCapacityObservation:
+    """Immutable filesystem/database capacity evidence for one observation."""
+
+    observation_id: str
+    environment: str
+    observed_at: datetime
+    filesystem_total_bytes: int
+    filesystem_used_bytes: int
+    filesystem_free_bytes: int
+    database_size_bytes: int
+    relation_sizes: dict[str, int] = field(default_factory=dict)
+    policy_key: str = ""
+    configured_capacity_bytes: int | None = None
+    effective_capacity_bytes: int | None = None
+    usage_ratio: float | None = None
+    pressure_state: str = ""
+    source: str = ""
+    metadata: dict[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not self.observation_id.strip() or not self.environment.strip():
+            raise ValueError("StorageCapacityObservation identifiers are required")
+        if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
+            raise ValueError("StorageCapacityObservation.observed_at must be timezone-aware")
+        byte_values = (
+            self.filesystem_total_bytes,
+            self.filesystem_used_bytes,
+            self.filesystem_free_bytes,
+            self.database_size_bytes,
+        )
+        if any(isinstance(value, bool) or value < 0 for value in byte_values):
+            raise ValueError("StorageCapacityObservation byte values must be non-negative")
+        if self.filesystem_used_bytes + self.filesystem_free_bytes > self.filesystem_total_bytes:
+            raise ValueError("filesystem used + free cannot exceed total capacity")
+        if any(isinstance(value, bool) or value < 0 for value in self.relation_sizes.values()):
+            raise ValueError("relation sizes must be non-negative")
+        if self.configured_capacity_bytes is not None and self.configured_capacity_bytes <= 0:
+            raise ValueError("configured capacity must be positive when provided")
+        if self.effective_capacity_bytes is not None and self.effective_capacity_bytes <= 0:
+            raise ValueError("effective capacity must be positive when provided")
+        if self.usage_ratio is not None and (
+            not isfinite(self.usage_ratio) or self.usage_ratio < 0.0
+        ):
+            raise ValueError("usage ratio must be finite and non-negative")
 
 
 __all__ = [
@@ -282,4 +339,5 @@ __all__ = [
     "RuntimeProfileStatus",
     "RuntimeValueType",
     "StorageBudgetPolicy",
+    "StorageCapacityObservation",
 ]

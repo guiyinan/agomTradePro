@@ -245,6 +245,26 @@
 - 当前 command 只消费维护导出的 JSON 快照；生产 D0-D9 导出、至少 2/3 个调度观察窗口、差异 owner/期限登记和自动告警尚未接入，不能把本地 evidence 当作生产 shadow 通过。
 - PostgreSQL relation/P95/锁预算、容量画像、备份恢复、M9/M10 和全入口 Publication-only 仍未完成；按约束不触发部署。
 
+## 实施记录（2026-08-03，第十批）
+
+本批次补齐容量画像的本地证据链，并修复 Storage Budget 初始化命令无法启动的参数冲突；仍不部署、不 push。
+
+已落地：
+
+- 新增 `StorageCapacityObservation` Domain、`StorageCapacityObservationModel`（迁移 `config_center.0007_storagecapacityobservationmodel.py`）、Repository、Application Service 和只读 filesystem/database observer，记录 active policy、effective capacity、usage ratio、pressure state、SQLite/PostgreSQL relation sizes 与 metadata。
+- 新增 `collect_storage_capacity_profile` 命令；无 active StorageBudgetPolicy 时 fail closed，观测结果通过 Config Center Application Port 写入，不读取代码级容量 fallback。
+- 修复 `initialize_storage_budget` 使用 Django 保留 `--version` 参数导致 parser 冲突的问题，统一改用 `--policy-version`。
+
+第十批机器证据：
+
+- 本地 SQLite 应用 `config_center.0007` 后，显式激活 development policy 并执行 `collect_storage_capacity_profile` 成功写入 observation；容量压力按 active policy 正确计算为 `emergency`，未伪造 healthy。
+- `pytest tests/unit/config_center/test_capacity_observations.py tests/unit/config_center/test_runtime_config_control_plane.py -q --no-migrations --reuse-db --timeout=180`：13 passed；容量相关 ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- 本地 filesystem/SQLite 画像不能替代生产 PostgreSQL relation、TOAST/WAL、Docker/Redis/backup/logs 全盘画像；真实生产 policy、增长率和 12 个月预测仍待授权环境采集。
+- 容量 observation 尚未接入真实 beat/task monitor、故障注入和 readiness 观察窗口；PostgreSQL rollback/备份恢复、M9/M10 及 D0-D9 全入口收口继续未完成。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
