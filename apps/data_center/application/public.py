@@ -14,7 +14,6 @@ from typing import Any
 
 from apps.data_center.application.query_services import (
     fetch_price_bar_payloads,
-    get_latest_a_share_behavior_payload,
     get_latest_macro_indicator_value,
     get_macro_indicator_metadata,
     get_runtime_macro_metadata_map,
@@ -26,6 +25,7 @@ from apps.data_center.application.query_services import (
     query_financial_facts,
     query_latest_quote_payloads,
     query_macro_fact_series,
+    query_published_a_share_behavior_payload,
     query_published_capital_flow_series,
     query_published_macro_fact_series,
     query_published_market_news,
@@ -43,17 +43,27 @@ from apps.data_center.composition import (
     get_asset_repository,
     get_canonical_publication_repository,
     get_capital_flow_repository,
+    get_data_owner_registry_repository,
+    get_dataset_contract_repository,
     get_fund_nav_repository,
     get_macro_fact_repository,
     get_macro_projection_repository,
     get_news_repository,
     get_price_bar_repository,
+    get_provider_binding_repository,
     get_provider_config_repository,
     get_provider_registry,
+    get_publication_policy_repository,
     get_quote_snapshot_repository,
     get_raw_audit_repository,
     get_sector_membership_repository,
     get_valuation_fact_repository,
+)
+from apps.data_center.domain.contracts import (
+    DataOwnerRegistration,
+    DatasetContract,
+    ProviderBinding,
+    PublicationPolicy,
 )
 from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.macro_semantics import (
@@ -82,6 +92,42 @@ def get_macro_projection_repository_port() -> object:
     """
 
     return get_macro_projection_repository()
+
+
+def list_active_dataset_contracts() -> list[DatasetContract]:
+    """Return the active version of every persisted Dataset Contract."""
+
+    return get_dataset_contract_repository().list_active()
+
+
+def get_active_dataset_contract(dataset_key: str) -> DatasetContract | None:
+    """Return one active Dataset Contract or ``None`` when unregistered."""
+
+    return get_dataset_contract_repository().get_active(dataset_key)
+
+
+def list_active_provider_bindings(dataset_key: str | None = None) -> list[ProviderBinding]:
+    """Return active provider bindings for a dataset or the full catalog."""
+
+    return get_provider_binding_repository().list_active(dataset_key)
+
+
+def get_active_publication_policy(dataset_key: str) -> PublicationPolicy | None:
+    """Return the active publication policy for one dataset."""
+
+    return get_publication_policy_repository().get_active(dataset_key)
+
+
+def list_active_publication_policies() -> list[PublicationPolicy]:
+    """Return all active Dataset Publication Policies in stable order."""
+
+    return get_publication_policy_repository().list_active()
+
+
+def list_active_data_owner_registrations() -> list[DataOwnerRegistration]:
+    """Return active Data Center ownership registrations."""
+
+    return get_data_owner_registry_repository().list_active()
 
 
 def get_asset_repository_port() -> AssetRepositoryProtocol:
@@ -420,7 +466,7 @@ def list_macro_indicator_codes() -> list[str]:
 def get_market_breadth_snapshot() -> dict[str, Any]:
     """Read the canonical market-breadth snapshot and reliability contract."""
 
-    return get_latest_a_share_behavior_payload()
+    return query_published_a_share_behavior_payload()
 
 
 def list_active_stock_codes() -> list[str]:
@@ -550,10 +596,16 @@ def get_publication_as_of(
 __all__ = [
     "backfill_asset_master_codes_port",
     "get_asset_repository_port",
+    "get_active_dataset_contract",
+    "get_active_publication_policy",
     "get_financial_facts",
     "get_akshare_eastmoney_gateway_port",
     "get_akshare_module_port",
     "get_current_publication",
+    "list_active_data_owner_registrations",
+    "list_active_dataset_contracts",
+    "list_active_provider_bindings",
+    "list_active_publication_policies",
     "get_fund_nav_repository_port",
     "get_macro_fact_series",
     "is_direct_macro_input_allowed",
@@ -564,6 +616,7 @@ __all__ = [
     "get_macro_indicator_value",
     "get_market_breadth_snapshot",
     "get_latest_quote_payloads",
+    "query_published_a_share_behavior_payload",
     "get_price_bar_series",
     "get_price_bar_repository_port",
     "get_quote_snapshot_repository_port",

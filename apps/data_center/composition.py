@@ -17,6 +17,12 @@ from apps.data_center.domain.protocols import ProviderConfigRepositoryProtocol
 from apps.data_center.infrastructure.cache_warmup_queries import (
     MacroFactCacheWarmupRepository,
 )
+from apps.data_center.infrastructure.catalog_runtime_repositories import (
+    DataOwnerRegistryRepository,
+    DatasetContractRepository,
+    ProviderBindingRepository,
+    PublicationPolicyRepository,
+)
 from apps.data_center.infrastructure.control_plane_repositories import (
     CanonicalPublicationRepository,
     QuarantineRepository,
@@ -32,6 +38,7 @@ from apps.data_center.infrastructure.raw_landing_repositories import (
     RawLandingRepository,
     SchemaFingerprintRepository,
 )
+from apps.data_center.infrastructure.repositories import MacroGovernanceRepository  # noqa: F401
 from apps.data_center.infrastructure.repositories import (
     AssetRepository,
     CapitalFlowRepository,
@@ -41,7 +48,6 @@ from apps.data_center.infrastructure.repositories import (
     IndicatorCatalogRepository,
     IndicatorUnitRuleRepository,
     MacroFactRepository,
-    MacroGovernanceRepository,  # noqa: F401
     MarketThermometerConfigRepository,
     MarketThermometerSnapshotRepository,
     MarketThermometerUserOverrideRepository,
@@ -67,7 +73,9 @@ __all__ = [
     "CapitalFlowRepository",
     "CanonicalPublicationRepository",
     "DataCenterDiagnosticRepository",
+    "DataOwnerRegistryRepository",
     "DataProviderSettingsRepository",
+    "DatasetContractRepository",
     "FinancialFactRepository",
     "FundNavRepository",
     "IndicatorCatalogRepository",
@@ -84,8 +92,10 @@ __all__ = [
     "PriceBarRepository",
     "ProductionCoverageUniverseConfigRepository",
     "ProviderConfigRepository",
+    "ProviderBindingRepository",
     "ProviderRegistry",
     "PublisherCatalogRepository",
+    "PublicationPolicyRepository",
     "QuoteSnapshotRepository",
     "QuarantineRepository",
     "RawAuditRepository",
@@ -110,7 +120,9 @@ __all__ = [
     "get_canonical_publication_repository",
     "get_capital_flow_repository",
     "get_data_center_diagnostic_repository",
+    "get_data_owner_registry_repository",
     "get_data_provider_settings_repository",
+    "get_dataset_contract_repository",
     "get_financial_fact_repository",
     "get_fund_nav_repository",
     "get_indicator_catalog_repository",
@@ -125,8 +137,10 @@ __all__ = [
     "get_price_bar_repository",
     "get_production_coverage_universe_config_repository",
     "get_provider_config_repository",
+    "get_provider_binding_repository",
     "get_provider_registry",
     "get_publisher_catalog_repository",
+    "get_publication_policy_repository",
     "get_quote_snapshot_repository",
     "get_quarantine_repository",
     "get_raw_audit_repository",
@@ -223,6 +237,30 @@ def get_fund_nav_repository() -> FundNavRepository:
 
 def get_indicator_catalog_repository() -> IndicatorCatalogRepository:
     return IndicatorCatalogRepository()
+
+
+def get_dataset_contract_repository() -> DatasetContractRepository:
+    """Return the persisted Dataset Contract repository."""
+
+    return DatasetContractRepository()
+
+
+def get_provider_binding_repository() -> ProviderBindingRepository:
+    """Return the persisted provider-binding repository."""
+
+    return ProviderBindingRepository()
+
+
+def get_publication_policy_repository() -> PublicationPolicyRepository:
+    """Return the persisted publication-policy repository."""
+
+    return PublicationPolicyRepository()
+
+
+def get_data_owner_registry_repository() -> DataOwnerRegistryRepository:
+    """Return the persisted dataset ownership repository."""
+
+    return DataOwnerRegistryRepository()
 
 
 def get_publisher_catalog_repository() -> PublisherCatalogRepository:

@@ -50,3 +50,30 @@ def test_provider_capability_recent_success_is_healthy() -> None:
     assert payload["status"] == "healthy"
     assert payload["must_not_use_for_decision"] is False
     assert payload["success_age_hours"] == 2.0
+
+
+def test_dataset_keyed_health_evidence_overrides_legacy_capability_key() -> None:
+    """Provider health must not merge two capabilities into one dataset slot."""
+
+    payload = build_capability_health_payload(
+        {
+            "provider_name": "tushare",
+            "capability": "financial",
+            "dataset_key": "equity.financial.fact",
+            "status": "healthy",
+        },
+        {
+            "health_metrics": {
+                "financial": {"last_success_at": (NOW - timedelta(days=10)).isoformat()}
+            },
+            "health_metrics_by_dataset": {
+                "equity.financial.fact": {"last_success_at": (NOW - timedelta(hours=1)).isoformat()}
+            },
+            "health_max_age_hours_by_dataset": {"equity.financial.fact": 24},
+        },
+        now=NOW,
+    )
+
+    assert payload["dataset_key"] == "equity.financial.fact"
+    assert payload["status"] == "healthy"
+    assert payload["must_not_use_for_decision"] is False

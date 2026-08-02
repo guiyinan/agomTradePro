@@ -6,6 +6,7 @@ import dataclasses
 
 from apps.data_center.application.provider_capabilities import SOURCE_TYPE_CAPABILITIES
 from apps.data_center.domain.entities import ConnectionTestResult, ProviderConfig
+from apps.data_center.domain.enums import DataCapability
 from apps.data_center.domain.protocols import (
     ConnectionTesterProtocol,
     ProviderConfigRepositoryProtocol,
@@ -77,8 +78,15 @@ class RunProviderConnectionTestUseCase:
         extra_config["provider_last_error"] = "" if result.success else result.summary
 
         capability_metrics = dict(extra_config.get("health_metrics") or {})
+        dataset_metrics = dict(extra_config.get("health_metrics_by_dataset") or {})
         for capability in SOURCE_TYPE_CAPABILITIES.get(config.source_type, ()):
-            metric = dict(capability_metrics.get(capability) or {})
+            try:
+                dataset_key = DataCapability(capability).dataset_key
+            except ValueError:
+                dataset_key = capability
+            metric = dict(
+                dataset_metrics.get(dataset_key) or capability_metrics.get(capability) or {}
+            )
             if result.success:
                 metric.update(
                     last_success_at=recorded_at.isoformat(),
@@ -94,6 +102,8 @@ class RunProviderConnectionTestUseCase:
                     last_error=result.summary,
                 )
             capability_metrics[capability] = metric
+            dataset_metrics[dataset_key] = metric
 
         extra_config["health_metrics"] = capability_metrics
+        extra_config["health_metrics_by_dataset"] = dataset_metrics
         self._repo.save(dataclasses.replace(config, extra_config=extra_config))

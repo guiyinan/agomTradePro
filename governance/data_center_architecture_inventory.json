@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 56,
-    "current_surface_references": 2834,
+    "current_surface_references": 2835,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
     "legacy_fact_references": 141,
@@ -4572,52 +4572,52 @@
       "text": "\"\"\"Fetch latest realtime prices through the owning realtime use case.\"\"\""
     },
     {
-      "line": 478,
+      "line": 485,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Build the latest quote query use case.\"\"\""
     },
     {
-      "line": 484,
+      "line": 491,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Fetch real-time prices from the realtime app fallback service.\"\"\""
     },
     {
-      "line": 586,
+      "line": 593,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Return the latest market-thermometer payload for UI/API consumers.\"\"\""
     },
     {
-      "line": 703,
+      "line": 710,
       "path": "apps/data_center/application/interface_services.py",
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
     {
-      "line": 849,
+      "line": 856,
       "path": "apps/data_center/application/interface_services.py",
       "text": "latest = MarketThermometerSnapshotRepository().get_latest()"
     },
     {
-      "line": 850,
+      "line": 857,
       "path": "apps/data_center/application/interface_services.py",
       "text": "if latest is None:"
     },
     {
-      "line": 854,
+      "line": 861,
       "path": "apps/data_center/application/interface_services.py",
       "text": "latest_observed_at = latest.observed_at.isoformat()"
     },
     {
-      "line": 856,
+      "line": 863,
       "path": "apps/data_center/application/interface_services.py",
       "text": "latest_is_blocked = latest.must_not_use_for_decision"
     },
     {
-      "line": 860,
+      "line": 867,
       "path": "apps/data_center/application/interface_services.py",
       "text": "skipped_payload = latest.to_dict()"
     },
     {
-      "line": 1039,
+      "line": 1046,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Build the current valuation batch sync use case.\"\"\""
     },
@@ -4817,17 +4817,17 @@
       "text": "return latest"
     },
     {
-      "line": 38,
+      "line": 39,
       "path": "apps/data_center/application/provider_connection_workflow.py",
       "text": "summary=_redact_text(result.summary, secrets),"
     },
     {
-      "line": 77,
+      "line": 78,
       "path": "apps/data_center/application/provider_connection_workflow.py",
       "text": "extra_config[\"provider_last_error\"] = \"\" if result.success else result.summary"
     },
     {
-      "line": 94,
+      "line": 102,
       "path": "apps/data_center/application/provider_connection_workflow.py",
       "text": "last_error=result.summary,"
     },
@@ -4837,34 +4837,9 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 206,
+      "line": 252,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
-    },
-    {
-      "line": 254,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 256,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
-    },
-    {
-      "line": 264,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 269,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
-    },
-    {
-      "line": 284,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
     },
     {
       "line": 300,
@@ -4872,42 +4847,67 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 318,
+      "line": 302,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
+    },
+    {
+      "line": 310,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 356,
+      "line": 315,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
+    },
+    {
+      "line": 330,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 346,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 364,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 402,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 359,
+      "line": 405,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 363,
+      "line": 409,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 365,
+      "line": 411,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 368,
+      "line": 414,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 369,
+      "line": 415,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 466,
+      "line": 512,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -4987,12 +4987,17 @@
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 435,
+      "line": 438,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "\"\"\"Read current market breadth only after every component is published."
+    },
+    {
+      "line": 486,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 448,
+      "line": 499,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return the latest market thermometer snapshot as a JSON-safe payload.\"\"\""
     },
@@ -5077,7 +5082,7 @@
       "text": "\"summary\": self.summary,"
     },
     {
-      "line": 134,
+      "line": 141,
       "path": "apps/data_center/domain/protocols.py",
       "text": "\"\"\"Optional provider capability for one-request current valuation batches.\"\"\""
     },
@@ -8917,7 +8922,7 @@
       "text": "\"\"\"Application facade for realtime market-summary breadth reads.\"\"\""
     },
     {
-      "line": 13,
+      "line": 11,
       "path": "apps/realtime/application/market_summary_queries.py",
       "text": "\"\"\"Return governed current A-share behavior facts for the realtime API.\"\"\""
     },

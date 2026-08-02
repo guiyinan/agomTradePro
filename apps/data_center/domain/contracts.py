@@ -212,15 +212,15 @@ class DataEnvelope(Generic[T]):
             "schema_version": self.dataset.schema_version,
             "natural_key": self.natural_key.as_dict(),
             "value": self.value,
-            "observed_at": self.observation.observed_at.isoformat()
-            if self.observation.observed_at
-            else None,
-            "published_at": self.observation.published_at.isoformat()
-            if self.observation.published_at
-            else None,
-            "available_at": self.observation.available_at.isoformat()
-            if self.observation.available_at
-            else None,
+            "observed_at": (
+                self.observation.observed_at.isoformat() if self.observation.observed_at else None
+            ),
+            "published_at": (
+                self.observation.published_at.isoformat() if self.observation.published_at else None
+            ),
+            "available_at": (
+                self.observation.available_at.isoformat() if self.observation.available_at else None
+            ),
             "fetched_at": self.observation.fetched_at.isoformat(),
             "source": self.evidence.source,
             "source_capability": self.evidence.source_capability,
@@ -371,6 +371,27 @@ class DatasetContract:
 
 
 @dataclass(frozen=True)
+class DataOwnerRegistration:
+    """Ownership and acceptance responsibilities for one canonical dataset."""
+
+    dataset_key: str
+    data_platform_owner: str
+    business_owner: str
+    acceptance_owner: str
+    active: bool = True
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("dataset_key", self.dataset_key),
+            ("data_platform_owner", self.data_platform_owner),
+            ("business_owner", self.business_owner),
+            ("acceptance_owner", self.acceptance_owner),
+        ):
+            if not value.strip():
+                raise ValueError(f"DataOwnerRegistration.{name} cannot be empty")
+
+
+@dataclass(frozen=True)
 class ProviderBinding:
     """Versioned provider binding for one dataset capability."""
 
@@ -417,6 +438,7 @@ class PublicationPolicy:
 
 __all__ = [
     "DataEnvelope",
+    "DataOwnerRegistration",
     "DatasetContract",
     "DatasetFieldContract",
     "DatasetKey",

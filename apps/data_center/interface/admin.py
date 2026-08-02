@@ -10,7 +10,11 @@ from django.http import HttpRequest
 
 from apps.data_center.application.interface_services import can_create_provider_settings
 from apps.data_center.models import (
+    DataOwnerRegistrationModel,
     DataProviderSettingsModel,
+    DatasetContractModel,
+    DatasetProviderBindingModel,
+    DatasetPublicationPolicyModel,
     IndicatorCatalogModel,
     IndicatorUnitRuleModel,
     ProductionCoverageUniverseConfigModel,
@@ -243,3 +247,143 @@ class IndicatorUnitRuleAdmin(TypedModelAdmin[IndicatorUnitRuleModel]):
     search_fields = ("indicator_code", "original_unit", "storage_unit", "display_unit")
     ordering = ("indicator_code", "-priority", "source_type", "original_unit")
     readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(DatasetContractModel)
+class DatasetContractAdmin(TypedModelAdmin[DatasetContractModel]):
+    """Expose versioned contracts without allowing ad-hoc admin edits."""
+
+    list_display = (
+        "dataset_key",
+        "contract_version",
+        "schema_version",
+        "owner",
+        "decision_critical",
+        "active",
+        "updated_at",
+    )
+    list_filter = ("decision_critical", "active", "owner")
+    search_fields = ("dataset_key", "owner", "comparable_group")
+    readonly_fields = (
+        "dataset_key",
+        "contract_version",
+        "schema_version",
+        "owner",
+        "frequency",
+        "decision_critical",
+        "fields",
+        "freshness_seconds",
+        "comparable_group",
+        "active",
+        "created_at",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Require catalog bootstrap/Application ownership for new rows."""
+
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: DatasetContractModel | None = None,
+    ) -> bool:
+        """Prevent destructive edits from the admin surface."""
+
+        return False
+
+
+@admin.register(DatasetProviderBindingModel)
+class DatasetProviderBindingAdmin(TypedModelAdmin[DatasetProviderBindingModel]):
+    """Expose provider routing evidence as read-only governance data."""
+
+    list_display = (
+        "dataset_key",
+        "provider",
+        "capability",
+        "priority",
+        "validator_key",
+        "enabled",
+        "updated_at",
+    )
+    list_filter = ("enabled", "provider", "capability")
+    search_fields = ("dataset_key", "provider", "capability", "validator_key")
+    readonly_fields = tuple(field.name for field in DatasetProviderBindingModel._meta.fields)
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Require catalog bootstrap/Application ownership for new rows."""
+
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: DatasetProviderBindingModel | None = None,
+    ) -> bool:
+        """Prevent destructive edits from the admin surface."""
+
+        return False
+
+
+@admin.register(DatasetPublicationPolicyModel)
+class DatasetPublicationPolicyAdmin(TypedModelAdmin[DatasetPublicationPolicyModel]):
+    """Expose publication gates as read-only governance data."""
+
+    list_display = (
+        "dataset_key",
+        "contract_version",
+        "minimum_coverage_ratio",
+        "allow_partial",
+        "conflict_action",
+        "retention_days",
+        "active",
+    )
+    list_filter = ("allow_partial", "conflict_action", "active")
+    search_fields = ("dataset_key", "contract_version", "conflict_action")
+    readonly_fields = tuple(field.name for field in DatasetPublicationPolicyModel._meta.fields)
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Require catalog bootstrap/Application ownership for new rows."""
+
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: DatasetPublicationPolicyModel | None = None,
+    ) -> bool:
+        """Prevent destructive edits from the admin surface."""
+
+        return False
+
+
+@admin.register(DataOwnerRegistrationModel)
+class DataOwnerRegistrationAdmin(TypedModelAdmin[DataOwnerRegistrationModel]):
+    """Expose ownership and acceptance accountability as read-only data."""
+
+    list_display = (
+        "dataset_key",
+        "data_platform_owner",
+        "business_owner",
+        "acceptance_owner",
+        "active",
+        "updated_at",
+    )
+    list_filter = ("active", "business_owner", "acceptance_owner")
+    search_fields = ("dataset_key", "data_platform_owner", "business_owner", "acceptance_owner")
+    readonly_fields = tuple(field.name for field in DataOwnerRegistrationModel._meta.fields)
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Require catalog bootstrap/Application ownership for new rows."""
+
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: DataOwnerRegistrationModel | None = None,
+    ) -> bool:
+        """Prevent destructive edits from the admin surface."""
+
+        return False

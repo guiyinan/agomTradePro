@@ -7,9 +7,16 @@ Domain / application layers depend only on these abstractions.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import date
 from typing import Any, Protocol, runtime_checkable
 
+from apps.data_center.domain.contracts import (
+    DataOwnerRegistration,
+    DatasetContract,
+    ProviderBinding,
+    PublicationPolicy,
+)
 from apps.data_center.domain.entities import (
     AssetMaster,
     CapitalFlowFact,
@@ -211,6 +218,42 @@ class PublisherCatalogRepositoryProtocol(Protocol):
     def list_active(self) -> list[PublisherCatalog]: ...
     def upsert(self, publisher: PublisherCatalog) -> PublisherCatalog: ...
     def delete(self, code: str) -> None: ...
+
+
+@runtime_checkable
+class DatasetContractRepositoryProtocol(Protocol):
+    """Persistence contract for versioned dataset definitions."""
+
+    def list_active(self) -> list[DatasetContract]: ...
+    def get_active(self, dataset_key: str) -> DatasetContract | None: ...
+    def save(self, contract: DatasetContract) -> DatasetContract: ...
+
+
+@runtime_checkable
+class ProviderBindingRepositoryProtocol(Protocol):
+    """Persistence contract for dataset/provider routing bindings."""
+
+    def list_active(self, dataset_key: str | None = None) -> list[ProviderBinding]: ...
+    def save(self, binding: ProviderBinding) -> ProviderBinding: ...
+    def synchronize(self, bindings: Iterable[ProviderBinding]) -> int: ...
+
+
+@runtime_checkable
+class PublicationPolicyRepositoryProtocol(Protocol):
+    """Persistence contract for dataset publication policies."""
+
+    def list_active(self, dataset_key: str | None = None) -> list[PublicationPolicy]: ...
+    def get_active(self, dataset_key: str) -> PublicationPolicy | None: ...
+    def save(self, policy: PublicationPolicy) -> PublicationPolicy: ...
+
+
+@runtime_checkable
+class DataOwnerRegistryRepositoryProtocol(Protocol):
+    """Persistence contract for dataset owner and acceptance registrations."""
+
+    def list_active(self) -> list[DataOwnerRegistration]: ...
+    def save(self, registration: DataOwnerRegistration) -> DataOwnerRegistration: ...
+    def synchronize(self, registrations: Iterable[DataOwnerRegistration]) -> int: ...
 
 
 @runtime_checkable

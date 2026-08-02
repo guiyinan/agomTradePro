@@ -189,6 +189,7 @@ class ProviderHealthSnapshotSerializer(serializers.Serializer[Any]):
 
     provider_name = serializers.CharField()
     capability = serializers.CharField()
+    dataset_key = serializers.CharField(required=False, allow_blank=True)
     status = serializers.CharField()
     consecutive_failures = serializers.IntegerField()
     last_success_at = serializers.DateTimeField(allow_null=True, default_timezone=UTC)

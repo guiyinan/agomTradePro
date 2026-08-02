@@ -356,12 +356,19 @@ def get_decision_provider_capability_health_payload() -> dict[str, Any]:
             supported = SOURCE_TYPE_CAPABILITIES.get(provider.source_type, ())
             if capability not in set(supported):
                 continue
-            metric = dict((provider.extra_config.get("health_metrics") or {}).get(capability) or {})
+            dataset_key = DataCapability(capability).dataset_key
+            dataset_metrics = provider.extra_config.get("health_metrics_by_dataset") or {}
+            metric = dict(
+                (dataset_metrics.get(dataset_key) if isinstance(dataset_metrics, dict) else None)
+                or (provider.extra_config.get("health_metrics") or {}).get(capability)
+                or {}
+            )
             candidates.append(
                 build_capability_health_payload(
                     {
                         "provider_name": provider.name,
                         "capability": capability,
+                        "dataset_key": dataset_key,
                         "status": metric.get("last_status", "unknown"),
                         "consecutive_failures": metric.get("consecutive_failures", 0),
                         "last_success_at": metric.get("last_success_at"),

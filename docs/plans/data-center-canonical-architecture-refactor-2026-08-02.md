@@ -1,6 +1,6 @@
 # 数据中台唯一真源与数据可靠性架构重构计划（2026-08-02）
 
-> 状态：实施中（M0-M4 控制面、D0/D1/D4-D7 本地关键消费者和 D2/D3/D8-D9 的本地 Publication-only 端口已收口；本地 PostgreSQL 空库迁移图已验证；生产观察窗口、PostgreSQL 生产预算/M9-M10 尚未完成）
+> 状态：实施中（M0-M4 控制面、D0/D1/D4-D7 本地关键消费者和 D2/D3/D8-D9 的本地 Publication-only 端口已收口；Dataset Catalog/owner registry 已持久化并可幂等初始化，Provider×dataset health 和 A-share composite publication gate 已接入；本地 PostgreSQL 空库迁移图已验证；生产观察窗口、PostgreSQL 生产预算/M9-M10 尚未完成）
 > 级别：架构级 / 数据级 / 生产级重构  
 > 适用版本：0.8.0 之后的下一条独立主线  
 > 目标：所有外部事实数据及所有业务计算输入统一经过 Data Center；系统只有一个可发布的数据真源、一套可靠性语义和一条可审计的数据链路，并能在生产默认 90 GiB、运行时可调整的容量策略下持续运行  
@@ -202,6 +202,29 @@
 - CI 迁移链路已修复并待下一次 GitHub Actions 实际运行确认；本地 Windows Docker 的 PostgreSQL flush 性能不能替代 Linux runner 证据。
 - D0-D9 生产数据画像、legacy/canonical shadow reconciliation、PostgreSQL 生产索引/P95/锁预算、备份恢复、至少 2/3 个生产调度观察窗口、M9 旧表清理与 M10 生产切读仍未完成。
 - 按用户当前指令不部署、不 push；生产证据和破坏性迁移必须在单独授权、verified backup/restore 和 release 窗口后执行。
+
+## 实施记录（2026-08-03，第八批）
+
+本批次补齐运行时 Catalog 和数据集级可靠性边界；仍只做本地代码与可重复验证，不部署、不 push、不连接 VPS、不删除旧表。
+
+已落地：
+
+- 新增 `DatasetContractModel`、`DatasetProviderBindingModel`、`DatasetPublicationPolicyModel` 和 `DataOwnerRegistrationModel`，迁移为 `0054_dataownerregistrationmodel_datasetcontractmodel_and_more.py`；通过 Application Protocol、Repository 和 Public Port 访问，治理 JSON 只作为可审计投影，不再是运行时唯一真源。
+- 新增 `initialize_data_center_catalog` 幂等初始化命令及 `check_data_center_runtime_catalog.py`，校验 active contract、provider binding、publication policy 和 owner registry 与治理投影的集合一致性；nightly PostgreSQL 链路已接入迁移后初始化/校验步骤。
+- 所有数据域 owner 登记补齐 `acceptance_owner`；Provider Health 的主键扩展为 `provider × dataset_key`（保留旧配置兼容读写），避免同一 Provider 不同数据集共享错误健康状态。
+- realtime A-share breadth 改为四个指标逐项通过 Canonical Publication 后才读取事实；任一 publication 缺失即返回稳定的 `canonical_publication_missing` 阻断，不把非空旧事实包装成当前数据。
+
+第八批机器证据：
+
+- 本地 SQLite 完成从现有开发库到最新 migration，Catalog 初始化重复执行两次均输出 `contracts=10, bindings=12, policies=10, owners=10`；运行时 Catalog checker 通过。
+- `pytest tests/unit/test_data_center_catalog_contracts.py tests/unit/data_center/test_catalog_runtime.py tests/unit/data_center/test_provider_capability_health.py tests/unit/data_center/test_a_share_behavior_query_service.py tests/api/test_realtime_api.py -q --no-migrations --reuse-db --timeout=180`：20 passed；Provider/phase3/use-case 回归：45 passed。
+- 变更生产文件 `check_mypy_regression.py`：19 files、0 regression；ruff/black/isort 通过；Django check、迁移 dry-run、architecture boundary/audit、current-data、Celery、legacy-fact、catalog、governance consistency 全部通过。
+
+仍未完成及风险：
+
+- 本地运行时 Catalog 和 SQLite round-trip 不能替代生产 PostgreSQL profile、真实行数/覆盖率、P95/锁预算和调度观察窗口；CI nightly 仍需下一次实际运行确认。
+- Provider Health 仍保留旧 `health_metrics` 兼容投影，待所有生产配置迁移并完成观察窗口后才能删除；其他 current 查询仍有维护/历史兼容端口，尚未证明 D0-D9 全部只依赖 Publication。
+- 生产 shadow reconciliation、verified backup/restore、M9 旧表清理与 M10 生产切读继续保持未完成；遵守用户“先不部署”约束。
 
 ## 1. 结论先行
 
@@ -1293,7 +1316,7 @@ Data Center Public Port → 业务 Application 聚合 → REST DTO → SDK/MCP/T
 
 - [x] 建立 DataEnvelope、SourceEvidence、QualityAssessment、SyncOutcome、PublicationDecision。
 - 将 shared/domain/reliability.py 收敛为 Data Center 可复用的纯 Domain 契约，或明确 shared 只保存技术中立基础类型；全仓只保留一个 ReliabilityStatus 定义。
-- [x] 建立 Dataset Contract / Field Contract / Provider Binding / Freshness / Reconciliation / Publication Policy 模型（Domain 类型 + 版本化清单；持久化 Catalog 尚未完成）。
+- [x] 建立 Dataset Contract / Field Contract / Provider Binding / Freshness / Reconciliation / Publication Policy 模型（Domain 类型 + 版本化清单 + `0054` 持久化 Catalog/幂等初始化）。
 - [x] 在 Config Center 建立 RuntimeConfigDefinition / Profile / Value / Revision / Snapshot，以及 owner Application registration（首批 data-center/storage owner；全域 owner registry 仍需扩展）。
 - 以 storage / backup / logging / task_monitor / readiness 作为首批 active runtime profile。
 - 通过 migration 和幂等初始化命令导入现有 IndicatorCatalog、IndicatorUnitRule 和 Provider 配置。
@@ -1330,7 +1353,7 @@ Data Center Public Port → 业务 Application 聚合 → REST DTO → SDK/MCP/T
 - [x] 将 shared/infrastructure/tushare_client.py 私有化到 Data Center。
 - [x] Provider Registry 已能接受 `FetchResult`；既有 adapter 的裸 list 兼容面仍需按 D0-D9 收口。
 - [x] 建立 Raw Landing、Schema Fingerprint、Quarantine、SyncRun/Batch/Checkpoint。
-- [ ] Provider Health 升级为 provider + dataset_key。
+- [x] Provider Health 升级为 provider + dataset_key（本地运行时已接入；旧配置兼容投影待生产观察窗口后删除）。
 - [x] Beat、Provider Catalog、MCP Catalog 使用 deterministic desired-state reconcile contract（实际部署 reconcile 尚未接入）。
 
 测试：
@@ -1355,7 +1378,7 @@ Data Center Public Port → 业务 Application 聚合 → REST DTO → SDK/MCP/T
 交付：
 
 - [x] CanonicalPublication、PublicationMember、CoverageSnapshot。
-- D0-D9 的 Publication Policy。
+- [x] D0-D9 的 Publication Policy（治理投影与 `DatasetPublicationPolicyModel` active rows 均有校验）。
 - Publication、SyncRun 和关键查询响应记录 runtime config snapshot_id/hash。
 - [x] 小型 Public Query Ports 和版本化 DTO。
 - [x] as_of / publication_id / current 三种明确查询模式（published gate 已提供；全入口强制切换未完成）。

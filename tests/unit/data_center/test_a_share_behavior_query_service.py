@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime
 from apps.data_center.application.query_services import (
     A_SHARE_BEHAVIOR_INDICATORS,
     get_latest_a_share_behavior_payload,
+    query_published_a_share_behavior_payload,
 )
 from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.enums import DataQualityStatus
@@ -18,6 +19,22 @@ class _Repository:
 
     def get_latest(self, indicator_code: str) -> MacroFact | None:
         return self._facts.get(indicator_code)
+
+
+class _Publication:
+    def __init__(self, publication_id: str) -> None:
+        self.publication_id = publication_id
+
+
+class _PublicationRepository:
+    def __init__(self, missing: set[str] | None = None) -> None:
+        self.missing = missing or set()
+
+    def get_current(self, dataset_key: str, publication_key: str) -> _Publication | None:
+        assert dataset_key == "macro.fact"
+        if publication_key in self.missing:
+            return None
+        return _Publication(f"publication-{publication_key}")
 
 
 def _fact(indicator_code: str, observed_at: date, value: float) -> MacroFact:
@@ -81,3 +98,49 @@ def test_behavior_payload_blocks_missing_and_stale_values(monkeypatch) -> None:
     assert payload["contract"]["blocked_reason"] == "market_breadth_incomplete"
     assert payload["contract"]["missing_fields"] == ["limit_up_count", "limit_down_count"]
     assert payload["contract"]["stale_fields"] == ["up_count", "down_count"]
+
+
+def test_published_behavior_fails_closed_before_reading_facts(monkeypatch) -> None:
+    """Missing one component publication must block the composite read."""
+
+    repository = _PublicationRepository(missing={"CN_A_LIMIT_UP_COUNT"})
+    monkeypatch.setattr(
+        "apps.data_center.application.query_services.get_canonical_publication_repository",
+        lambda: repository,
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.query_services.get_macro_fact_repository",
+        lambda: (_ for _ in ()).throw(AssertionError("facts must not be read before publication")),
+    )
+
+    payload = query_published_a_share_behavior_payload()
+
+    assert payload["stats_available"] is False
+    assert payload["contract"]["blocked_reason"] == "canonical_publication_missing"
+    assert payload["contract"]["missing_fields"] == ["limit_up_count"]
+
+
+def test_published_behavior_carries_each_component_publication_id(monkeypatch) -> None:
+    """A complete composite keeps the publication evidence for every component."""
+
+    observed_at = date(2026, 7, 30)
+    repository = _Repository(
+        {
+            indicator_code: _fact(indicator_code, observed_at, 1)
+            for indicator_code in A_SHARE_BEHAVIOR_INDICATORS.values()
+        }
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.query_services.get_canonical_publication_repository",
+        lambda: _PublicationRepository(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.query_services.get_macro_fact_repository",
+        lambda: repository,
+    )
+
+    payload = query_published_a_share_behavior_payload(now=datetime(2026, 7, 30, 8, 30, tzinfo=UTC))
+
+    assert payload["stats_available"] is True
+    assert set(payload["publication_ids"]) == set(A_SHARE_BEHAVIOR_INDICATORS.values())
+    assert payload["contract"]["must_not_use_for_decision"] is False

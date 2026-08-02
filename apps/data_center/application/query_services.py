@@ -431,6 +431,57 @@ def get_latest_a_share_behavior_payload(
     }
 
 
+def query_published_a_share_behavior_payload(
+    *,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Read current market breadth only after every component is published.
+
+    A breadth payload is a composite of four macro facts.  Checking a single
+    aggregate publication would allow one missing component to be hidden by a
+    non-empty legacy row, so each component has its own publication scope.
+    """
+
+    publication_repository = get_canonical_publication_repository()
+    publication_ids: dict[str, str] = {}
+    missing_publications: list[str] = []
+    for indicator_code in A_SHARE_BEHAVIOR_INDICATORS.values():
+        publication = publication_repository.get_current("macro.fact", indicator_code)
+        if publication is None:
+            missing_publications.append(indicator_code)
+        else:
+            publication_ids[indicator_code] = publication.publication_id
+    if missing_publications:
+        missing_fields = [
+            field_name
+            for field_name, indicator_code in A_SHARE_BEHAVIOR_INDICATORS.items()
+            if indicator_code in missing_publications
+        ]
+        return {
+            **dict.fromkeys(A_SHARE_BEHAVIOR_INDICATORS, None),
+            "stats_available": False,
+            "publication_ids": publication_ids,
+            "contract": {
+                "observed_at": None,
+                "market_data_as_of": None,
+                "expected_market_session": None,
+                "observed_by_field": {},
+                "is_reliable": False,
+                "is_stale": False,
+                "must_not_use_for_decision": True,
+                "blocked_reason": "canonical_publication_missing",
+                "missing_fields": missing_fields,
+                "stale_fields": [],
+                "missing_publications": missing_publications,
+                "publication_ids": publication_ids,
+            },
+        }
+    payload = get_latest_a_share_behavior_payload(now=now)
+    contract = dict(payload.get("contract") or {})
+    contract["publication_ids"] = publication_ids
+    return {**payload, "publication_ids": publication_ids, "contract": contract}
+
+
 def list_latest_macro_indicator_payloads(limit: int = 50) -> list[dict[str, Any]]:
     """Return latest macro indicator payloads for cache warmup."""
 

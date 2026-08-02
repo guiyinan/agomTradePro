@@ -34,7 +34,17 @@ def persist_provider_health_metric(
     )
     extra_config = dict(config.extra_config or {})
     capability_metrics = dict(extra_config.get("health_metrics") or {})
-    metric = dict(capability_metrics.get(capability) or {})
+    try:
+        dataset_key = DataCapability(capability).dataset_key
+    except ValueError:
+        dataset_key = capability
+    dataset_metrics = dict(extra_config.get("health_metrics_by_dataset") or {})
+    metric = dict(
+        dataset_metrics.get(dataset_key)
+        or capability_metrics.get(capability)
+        or capability_metrics.get(dataset_key)
+        or {}
+    )
     if effective_success:
         success_count = int(metric.get("success_count", 0)) + 1
         previous_avg = metric.get("avg_latency_ms")
@@ -86,6 +96,8 @@ def persist_provider_health_metric(
         extra_config["provider_last_error"] = effective_error
     capability_metrics[capability] = metric
     extra_config["health_metrics"] = capability_metrics
+    dataset_metrics[dataset_key] = metric
+    extra_config["health_metrics_by_dataset"] = dataset_metrics
     provider_repo.save(dataclasses.replace(config, extra_config=extra_config))
     try:
         runtime_capability = DataCapability(capability)

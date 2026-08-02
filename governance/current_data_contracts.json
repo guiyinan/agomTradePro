@@ -26,7 +26,8 @@
         ],
         "apps/data_center/application/query_services.py": [
           "expected_session = latest_completed_cn_market_session(current_now)",
-          "\"must_not_use_for_decision\": not is_reliable"
+          "\"must_not_use_for_decision\": not is_reliable",
+          "def query_published_a_share_behavior_payload("
         ],
         "apps/realtime/application/market_summary_queries.py": [
           "def get_market_breadth_payload()"
@@ -75,6 +76,11 @@
           "case": "breadth_api_projection",
           "test_file": "tests/api/test_realtime_api.py",
           "test_function": "test_market_summary_reads_governed_market_breadth"
+        },
+        {
+          "case": "breadth_publication_gate",
+          "test_file": "tests/unit/data_center/test_a_share_behavior_query_service.py",
+          "test_function": "test_published_behavior_fails_closed_before_reading_facts"
         }
       ]
     },

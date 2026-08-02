@@ -8,6 +8,17 @@ from typing import Any
 from shared.numeric import safe_float
 
 
+def _dataset_key_for_capability(capability: str) -> str:
+    """Resolve the canonical dataset key without failing unknown capabilities."""
+
+    from apps.data_center.domain.enums import DataCapability
+
+    try:
+        return DataCapability(capability).dataset_key
+    except ValueError:
+        return capability
+
+
 def _parse_aware_datetime(value: object) -> datetime | None:
     if isinstance(value, datetime):
         parsed = value
@@ -40,12 +51,28 @@ def build_capability_health_payload(
 
     current_now = (now or datetime.now(UTC)).astimezone(UTC)
     capability = str(snapshot.get("capability") or "")
+    dataset_key = str(snapshot.get("dataset_key") or "").strip() or _dataset_key_for_capability(
+        capability
+    )
     health_metrics = extra_config.get("health_metrics") or {}
+    dataset_metrics = extra_config.get("health_metrics_by_dataset") or {}
     metric = (
-        dict(health_metrics.get(capability) or {})
-        if isinstance(health_metrics, dict) and capability != "N/A"
+        dict(dataset_metrics.get(dataset_key) or {})
+        if isinstance(dataset_metrics, dict) and dataset_key not in {"", "N/A"}
         else {}
     )
+    if not metric:
+        metric = (
+            dict(health_metrics.get(capability) or {})
+            if isinstance(health_metrics, dict) and capability != "N/A"
+            else {}
+        )
+    if not metric:
+        metric = (
+            dict(health_metrics.get(dataset_key) or {})
+            if isinstance(health_metrics, dict) and dataset_key not in {"", "N/A"}
+            else {}
+        )
     enriched = dict(snapshot)
     last_success_at = _parse_aware_datetime(
         enriched.get("last_success_at")
@@ -53,9 +80,16 @@ def build_capability_health_payload(
         or extra_config.get("provider_last_success_at")
     )
     max_age_by_capability = extra_config.get("health_max_age_hours") or {}
+    max_age_by_dataset = extra_config.get("health_max_age_hours_by_dataset") or {}
     configured_max_age = (
-        max_age_by_capability.get(capability) if isinstance(max_age_by_capability, dict) else None
+        max_age_by_dataset.get(dataset_key) if isinstance(max_age_by_dataset, dict) else None
     )
+    if configured_max_age is None:
+        configured_max_age = (
+            max_age_by_capability.get(capability)
+            if isinstance(max_age_by_capability, dict)
+            else None
+        )
     try:
         max_age_hours = float(configured_max_age or 24.0)
     except (TypeError, ValueError):
@@ -86,6 +120,7 @@ def build_capability_health_payload(
     enriched.update(
         {
             "status": status,
+            "dataset_key": dataset_key,
             "last_success_at": last_success_at,
             "consecutive_failures": consecutive_failures,
             "max_age_hours": max_age_hours,

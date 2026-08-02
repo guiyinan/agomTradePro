@@ -40,6 +40,19 @@ def get_registry() -> Any:
 
 
 def _get_provider_health_metric(extra_config: dict[str, Any], capability: str) -> dict[str, Any]:
+    """Read dataset-keyed health evidence, retaining capability-keyed compatibility."""
+
+    from apps.data_center.domain.enums import DataCapability
+
+    try:
+        dataset_key = DataCapability(capability).dataset_key
+    except ValueError:
+        dataset_key = capability
+    dataset_metrics = extra_config.get("health_metrics_by_dataset") or {}
+    if isinstance(dataset_metrics, dict):
+        metric = dataset_metrics.get(dataset_key)
+        if isinstance(metric, dict):
+            return dict(metric)
     if capability and capability != "N/A":
         health_metrics = extra_config.get("health_metrics") or {}
         metric = health_metrics.get(capability)

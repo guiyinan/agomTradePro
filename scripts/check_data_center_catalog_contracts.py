@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATASETS = ROOT / "governance" / "dataset_contracts.json"
 BINDINGS = ROOT / "governance" / "provider_bindings.json"
 POLICIES = ROOT / "governance" / "publication_policies.json"
+OWNERS = ROOT / "governance" / "data_ownership_contracts.json"
 EXPECTED_DATASETS = {
     "asset.master",
     "equity.price.bar",
@@ -38,21 +39,40 @@ def validate() -> None:
     datasets = _read(DATASETS)
     bindings = _read(BINDINGS)
     policies = _read(POLICIES)
+    owners = _read(OWNERS)
     dataset_keys = {str(item["dataset_key"]) for item in datasets["contracts"]}  # type: ignore[index]
     binding_keys = {str(item["dataset_key"]) for item in bindings["bindings"]}  # type: ignore[index]
     policy_keys = {str(item["dataset_key"]) for item in policies["policies"]}  # type: ignore[index]
+    owner_rows = owners.get("datasets")
+    if not isinstance(owner_rows, list):
+        raise ValueError("data ownership manifest must contain datasets")
+    owner_keys = {str(item["dataset_key"]) for item in owner_rows if isinstance(item, dict)}
     if dataset_keys != EXPECTED_DATASETS:
-        raise ValueError(f"dataset contract keys differ: {sorted(dataset_keys ^ EXPECTED_DATASETS)}")
+        raise ValueError(
+            f"dataset contract keys differ: {sorted(dataset_keys ^ EXPECTED_DATASETS)}"
+        )
     if binding_keys != EXPECTED_DATASETS:
-        raise ValueError(f"provider binding keys differ: {sorted(binding_keys ^ EXPECTED_DATASETS)}")
+        raise ValueError(
+            f"provider binding keys differ: {sorted(binding_keys ^ EXPECTED_DATASETS)}"
+        )
     if policy_keys != EXPECTED_DATASETS:
-        raise ValueError(f"publication policy keys differ: {sorted(policy_keys ^ EXPECTED_DATASETS)}")
+        raise ValueError(
+            f"publication policy keys differ: {sorted(policy_keys ^ EXPECTED_DATASETS)}"
+        )
+    if not EXPECTED_DATASETS <= owner_keys:
+        raise ValueError(f"data ownership keys missing: {sorted(EXPECTED_DATASETS - owner_keys)}")
     for item in datasets["contracts"]:  # type: ignore[index]
         if not item.get("fields"):  # type: ignore[union-attr]
             raise ValueError(f"dataset {item['dataset_key']} has no fields")  # type: ignore[index]
     for item in policies["policies"]:  # type: ignore[index]
         if not item.get("required_evidence"):  # type: ignore[union-attr]
             raise ValueError(f"dataset {item['dataset_key']} has no evidence policy")  # type: ignore[index]
+    for item in owner_rows:
+        if not isinstance(item, dict):
+            raise ValueError("data ownership row must be an object")
+        for field in ("owner", "business_owner", "acceptance_owner"):
+            if not str(item.get(field) or "").strip():
+                raise ValueError(f"dataset {item.get('dataset_key')} has no {field}")
 
 
 def main() -> int:

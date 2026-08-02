@@ -373,6 +373,11 @@ jobs:
       - name: Verify complete PostgreSQL migration graph
         run: python scripts/check_migration_graph.py
 
+      - name: Initialize and verify runtime Data Center catalog
+        run: |
+          python manage.py initialize_data_center_catalog
+          python scripts/check_data_center_runtime_catalog.py
+
       - name: Prepare pre-migrated PostgreSQL test database
         env:
           PGPASSWORD: critical-test-password
