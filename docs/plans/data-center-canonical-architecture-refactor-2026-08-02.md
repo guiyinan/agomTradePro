@@ -1,6 +1,6 @@
 # 数据中台唯一真源与数据可靠性架构重构计划（2026-08-02）
 
-> 状态：实施中（M0-M4 控制面、D0/D1/D4-D7 本地关键消费者和 D2/D3/D8-D9 的本地 Publication-only 端口已收口；生产观察窗口、PostgreSQL/M9-M10 尚未完成）
+> 状态：实施中（M0-M4 控制面、D0/D1/D4-D7 本地关键消费者和 D2/D3/D8-D9 的本地 Publication-only 端口已收口；本地 PostgreSQL 空库迁移图已验证；生产观察窗口、PostgreSQL 生产预算/M9-M10 尚未完成）
 > 级别：架构级 / 数据级 / 生产级重构  
 > 适用版本：0.8.0 之后的下一条独立主线  
 > 目标：所有外部事实数据及所有业务计算输入统一经过 Data Center；系统只有一个可发布的数据真源、一套可靠性语义和一条可审计的数据链路，并能在生产默认 90 GiB、运行时可调整的容量策略下持续运行  
@@ -178,6 +178,30 @@
 - 生产 PostgreSQL migration/索引锁预算、D0-D9 真实行数/覆盖率/最新观测时间画像、legacy/canonical shadow export 和至少 2/3 个调度观察窗口；本地 SQLite 只能证明代码契约，不能替代生产验收。
 - M9 旧表、旧 admin、历史迁移和 maintenance Query Port 仍保留，等待生产零访问窗口、verified backup/restore 和独立 release；不以静态 guard 通过冒充删表完成。
 - VPS/备份/恢复、真实容量水位与 WAL/Redis/Raw 预算、M10 生产切读均未执行；遵守用户“先不部署”的约束。
+
+## 实施记录（2026-08-03，第七批）
+
+本批次针对迁移证据和 CI 执行链路收口；仍不部署、不 push、不连接 VPS、不删除旧表。
+
+已落地：
+
+- 删除无生产调用方的 `core/integration/data_center_business_sources.py` 反向业务桥；Data Center 不再保留这条依赖倒置入口。架构边界与 legacy-access guard 复扫通过，历史基线中的 B4 关闭。
+- 新增 `scripts/check_migration_graph.py`，使用 Django `MigrationExecutor` 检查当前数据库全部 migration leaves，拒绝以 `django_migrations` 总行数代替“迁移完成”判断。
+- nightly PostgreSQL job 在空库迁移后执行 `MigrationExecutor` 零未应用校验；从已迁移服务库复制独立测试库，critical 套件使用 `--reuse-db --no-migrations`，迁移完整性测试单独保留 migration modules，避免测试库重复迁移并保持迁移回归真实有效。
+- 本地一次性 PostgreSQL 16 容器已完成全量迁移（约 11 分钟），`scripts/check_migration_graph.py` 返回 `unapplied=0`；临时容器仅用于本地证据，未触碰现有 home-lab 容器。
+
+第七批机器证据：
+
+- `python scripts/check_migration_graph.py`：`Migration graph verified: unapplied=0`。
+- `pytest tests/unit/data_center/test_published_query_ports.py tests/unit/data_center/test_reconciliation_and_query_budget.py tests/unit/config_center/test_runtime_config_control_plane.py -q --reuse-db --no-migrations --timeout=180`：19 passed（PostgreSQL）。
+- PostgreSQL critical 套件业务断言 20 passed；本机 Docker Desktop 在 Django transaction teardown 的大批量 `TRUNCATE` 上超过 600 秒，导致进程退出 1；迁移完整性用例本身已在 migration modules 开启时通过，未将本地慢速 teardown 误报为业务失败。
+- `ruff check scripts/check_migration_graph.py`、`python -m py_compile scripts/check_migration_graph.py`：通过。
+
+仍未完成及风险：
+
+- CI 迁移链路已修复并待下一次 GitHub Actions 实际运行确认；本地 Windows Docker 的 PostgreSQL flush 性能不能替代 Linux runner 证据。
+- D0-D9 生产数据画像、legacy/canonical shadow reconciliation、PostgreSQL 生产索引/P95/锁预算、备份恢复、至少 2/3 个生产调度观察窗口、M9 旧表清理与 M10 生产切读仍未完成。
+- 按用户当前指令不部署、不 push；生产证据和破坏性迁移必须在单独授权、verified backup/restore 和 release 窗口后执行。
 
 ## 1. 结论先行
 

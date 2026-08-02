@@ -4,7 +4,7 @@
     "current_surface_references": 2834,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
-    "legacy_fact_references": 144,
+    "legacy_fact_references": 141,
     "provider_imports_outside_data_center": 0,
     "runtime_parameter_references": 49
   },
@@ -15380,21 +15380,6 @@
       {
         "line": 621,
         "path": "apps/strategy/application/rule_evaluator.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 8,
-        "path": "core/integration/data_center_business_sources.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 26,
-        "path": "core/integration/data_center_business_sources.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 31,
-        "path": "core/integration/data_center_business_sources.py",
         "symbol": "MacroIndicator"
       }
     ],

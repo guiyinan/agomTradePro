@@ -370,12 +370,34 @@ jobs:
       - name: Apply full migration graph to empty PostgreSQL database
         run: python manage.py migrate --noinput
 
-      - name: Run PostgreSQL critical reliability and migration tests
+      - name: Verify complete PostgreSQL migration graph
+        run: python scripts/check_migration_graph.py
+
+      - name: Prepare pre-migrated PostgreSQL test database
+        env:
+          PGPASSWORD: critical-test-password
+        run: |
+          psql --host=127.0.0.1 --port=5432 --username=agomtradepro --dbname=postgres \
+            -v ON_ERROR_STOP=1 \
+            -c "DROP DATABASE IF EXISTS test_agomtradepro_critical WITH (FORCE);" \
+            -c "CREATE DATABASE test_agomtradepro_critical TEMPLATE agomtradepro_critical;"
+
+      - name: Run PostgreSQL critical reliability tests
         env:
           PYTHONFAULTHANDLER: "1"
         run: |
-          python -m pytest tests/critical/ tests/migrations/test_research_integrity_migrations.py -v \
+          python -m pytest tests/critical/ -v \
+            --reuse-db \
+            --no-migrations \
             --timeout=180 \
+            --timeout-method=thread \
+            --durations=20
+
+      - name: Run PostgreSQL migration integrity tests
+        run: |
+          python -m pytest tests/migrations/test_research_integrity_migrations.py -v \
+            --reuse-db \
+            --timeout=600 \
             --timeout-method=thread \
             --durations=20
 
@@ -385,4 +407,4 @@ jobs:
             tests/unit/data_center/test_published_query_ports.py \
             tests/unit/data_center/test_reconciliation_and_query_budget.py \
             tests/unit/config_center/test_runtime_config_control_plane.py \
-            -q --timeout=180
+            -q --reuse-db --no-migrations --timeout=180
