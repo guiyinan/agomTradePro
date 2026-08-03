@@ -50,6 +50,14 @@ jobs:
       - name: Prepare database
         run: python manage.py migrate --noinput
 
+      - name: Run registered current-data contract nodeids
+        run: |
+          python scripts/run_current_data_contract_tests.py \
+            --pytest-arg=-q \
+            --pytest-arg=--reuse-db \
+            --pytest-arg=--no-migrations \
+            --pytest-arg=--timeout=300
+
       - name: Enforce full-production mypy debt ceiling
         run: python scripts/check_mypy_debt_ceiling.py
 
