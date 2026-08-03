@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Sequence
 from datetime import date
 
+from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import PriceBar, QuoteSnapshot
 from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
@@ -178,8 +181,72 @@ class QuoteSnapshotRepository:
             count += 1
         return count
 
+    def list_publication_candidates(
+        self, quotes: Sequence[QuoteSnapshot]
+    ) -> list[PublicationFactReference]:
+        """Resolve persisted quotes to exact fact references.
+
+        The source ``snapshot_at`` is preserved as ``observed_at``.  The
+        ingestion ``fetched_at`` field is evidence of retrieval only and never
+        becomes the realtime observation boundary.
+        """
+
+        references: list[PublicationFactReference] = []
+        seen_fact_pks: set[str] = set()
+        for quote in quotes:
+            row = (
+                QuoteSnapshotModel._default_manager.filter(
+                    asset_code=quote.asset_code,
+                    snapshot_at=quote.snapshot_at,
+                    source=quote.source,
+                )
+                .order_by("id")
+                .first()
+            )
+            if row is None or str(row.pk) in seen_fact_pks:
+                continue
+            fact_pk = str(row.pk)
+            seen_fact_pks.add(fact_pk)
+            natural_key = f"{row.asset_code}:{row.snapshot_at.isoformat()}:{row.source}"
+            references.append(
+                PublicationFactReference(
+                    natural_key=natural_key,
+                    source=row.source,
+                    source_record_id=row.source_record_id or natural_key,
+                    fact_table="data_center_quote_snapshot",
+                    fact_pk=fact_pk,
+                    observed_at=row.snapshot_at,
+                    raw_payload_hash=row.raw_payload_hash or _quote_payload_hash(row),
+                    quality_status=row.quality_status,
+                    revision_number=row.revision_number,
+                )
+            )
+        return references
+
     def delete_all(self) -> int:
         """Delete all quote snapshots for an explicitly gated production rebuild."""
 
         deleted_count, _ = QuoteSnapshotModel.objects.all().delete()
         return int(deleted_count)
+
+
+def _quote_payload_hash(row: QuoteSnapshotModel) -> str:
+    """Return deterministic evidence for one persisted quote snapshot."""
+
+    payload = {
+        "asset_code": row.asset_code,
+        "snapshot_at": row.snapshot_at.isoformat(),
+        "current_price": str(row.current_price),
+        "open": str(row.open) if row.open is not None else None,
+        "high": str(row.high) if row.high is not None else None,
+        "low": str(row.low) if row.low is not None else None,
+        "prev_close": str(row.prev_close) if row.prev_close is not None else None,
+        "volume": str(row.volume) if row.volume is not None else None,
+        "amount": str(row.amount) if row.amount is not None else None,
+        "bid": str(row.bid) if row.bid is not None else None,
+        "ask": str(row.ask) if row.ask is not None else None,
+        "source": row.source,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()

@@ -49,6 +49,7 @@ from .publication_sync import (
     PublishCapitalFlowBatchUseCase,
     PublishFundNavBatchUseCase,
     PublishNewsBatchUseCase,
+    PublishQuoteSnapshotBatchUseCase,
 )
 
 FactT = TypeVar("FactT")
@@ -449,9 +450,11 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
         provider_registry: ProviderRegistryProtocol,
         fact_repo: QuoteSnapshotRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
+        publication_publisher: PublishQuoteSnapshotBatchUseCase | None = None,
     ) -> None:
         super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
+        self._publication_publisher = publication_publisher
 
     def execute(self, request: SyncQuoteRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
@@ -464,6 +467,11 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(quotes)
+            if self._publication_publisher is not None and quotes:
+                self._publication_publisher.execute(
+                    quotes,
+                    provider_name=provider.provider_name(),
+                )
             audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(

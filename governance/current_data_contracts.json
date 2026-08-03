@@ -1811,7 +1811,8 @@
         "apps/data_center/infrastructure/control_plane_repositories.py",
         "apps/data_center/application/publication_sync.py",
         "apps/data_center/infrastructure/market_breadth_repositories.py",
-        "apps/data_center/infrastructure/fundamental_fact_repositories.py"
+        "apps/data_center/infrastructure/fundamental_fact_repositories.py",
+        "apps/data_center/infrastructure/market_data_repositories.py"
       ],
       "required_markers": {
         "apps/data_center/application/control_plane.py": [
@@ -1830,11 +1831,13 @@
           "class PublishNewsBatchUseCase:",
           "class PublishCapitalFlowBatchUseCase:",
           "class PublishFundNavBatchUseCase:",
+          "class PublishQuoteSnapshotBatchUseCase:",
           "publication_hash = _publication_hash(references)",
           "missing_count=requested_count - len(references)",
           "as_of = max(reference.observed_at for reference in references)",
           "capital-flow observation cannot be later than publication time",
-          "fund NAV observation cannot be later than publication time"
+          "fund NAV observation cannot be later than publication time",
+          "quote snapshot cannot be later than publication time"
         ],
         "apps/data_center/infrastructure/market_breadth_repositories.py": [
           "def list_publication_candidates(",
@@ -1845,6 +1848,11 @@
           "def list_publication_candidates(",
           "observed_at=datetime.combine(row.nav_date, time.min, tzinfo=UTC)",
           "row.raw_payload_hash or _fund_nav_payload_hash(row)"
+        ],
+        "apps/data_center/infrastructure/market_data_repositories.py": [
+          "def list_publication_candidates(",
+          "observed_at=row.snapshot_at",
+          "row.raw_payload_hash or _quote_payload_hash(row)"
         ]
       },
       "required_tests": [
@@ -1922,6 +1930,21 @@
           "case": "fund_nav_candidate_observation_boundary",
           "test_file": "tests/unit/data_center/test_fund_nav_publication_sync.py",
           "test_function": "test_fund_nav_repository_candidate_preserves_nav_date_observation"
+        },
+        {
+          "case": "quote_publication_snapshot_observation",
+          "test_file": "tests/unit/data_center/test_quote_snapshot_publication_sync.py",
+          "test_function": "test_quote_publication_preserves_snapshot_observation_and_member_pk"
+        },
+        {
+          "case": "quote_publication_idempotency",
+          "test_file": "tests/unit/data_center/test_quote_snapshot_publication_sync.py",
+          "test_function": "test_quote_publication_is_idempotent_for_same_snapshot"
+        },
+        {
+          "case": "quote_candidate_snapshot_boundary",
+          "test_file": "tests/unit/data_center/test_quote_snapshot_publication_sync.py",
+          "test_function": "test_quote_repository_candidate_keeps_snapshot_at_not_fetched_at"
         }
       ]
     }

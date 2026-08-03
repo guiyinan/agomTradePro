@@ -82,6 +82,7 @@ from .publication_sync import (
     PublishCapitalFlowBatchUseCase,
     PublishFundNavBatchUseCase,
     PublishNewsBatchUseCase,
+    PublishQuoteSnapshotBatchUseCase,
 )
 from .use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
@@ -990,11 +991,17 @@ def make_sync_price_use_case() -> SyncPriceUseCase:
 def make_sync_quote_use_case() -> SyncQuoteUseCase:
     """Build the quote sync use case."""
 
+    quote_repository = QuoteSnapshotRepository()
     return SyncQuoteUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
-        fact_repo=QuoteSnapshotRepository(),
+        fact_repo=quote_repository,
         raw_audit_repo=_make_raw_audit_repo(),
+        publication_publisher=PublishQuoteSnapshotBatchUseCase(
+            fact_repository=quote_repository,
+            publication_repository=CanonicalPublicationRepository(),
+            policy_repository=PublicationPolicyRepository(),
+        ),
     )
 
 
