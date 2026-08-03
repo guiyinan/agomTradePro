@@ -277,6 +277,7 @@ class CanonicalPublicationRepository:
             raise ValueError("Published publication requires an explicit as_of boundary")
         if publication.as_of > now:
             raise ValueError("Publication as_of cannot be later than published_at")
+        self._ensure_publish_time_is_monotonic(publication)
         if publication.coverage.publication_id != publication.publication_id:
             raise ValueError("Publication coverage must reference the same publication")
         if publication.coverage.selected_count != publication.member_count:
@@ -328,6 +329,7 @@ class CanonicalPublicationRepository:
         """
 
         self._validate_publish_batch(publication, members)
+        self._ensure_publish_time_is_monotonic(publication)
         publication_id = _uuid(publication.publication_id)
         expected_keys = {member.natural_key for member in members}
         existing_keys = set(
@@ -405,6 +407,37 @@ class CanonicalPublicationRepository:
                 raise ValueError("Published publication members require observed_at")
             if member.observed_at > publication.as_of:
                 raise ValueError("Publication member observed_at exceeds publication as_of")
+
+    @staticmethod
+    def _ensure_publish_time_is_monotonic(publication: CanonicalPublication) -> None:
+        """Reject a late publication that would rewind the current scope.
+
+        ``get_as_of`` relies on published/superseded timestamps forming valid
+        intervals.  Superseding an already-current row with an earlier (or
+        equal) ``published_at`` would make its interval end before it starts
+        and could expose an out-of-order snapshot as current.  Keep this
+        invariant at the repository boundary for both publication entry
+        points.
+        """
+
+        published_at = publication.published_at
+        if published_at is None:
+            raise ValueError("Published publication requires published_at")
+
+        active = CanonicalPublicationModel._default_manager.filter(
+            dataset_key=publication.dataset_key,
+            publication_key=publication.publication_key,
+            state=PublicationState.PUBLISHED.value,
+        ).exclude(publication_id=_uuid(publication.publication_id))
+        if active.filter(published_at__isnull=True).exists():
+            raise ValueError("Cannot publish while current publication has no published_at")
+        latest = active.order_by("-published_at").first()
+        if (
+            latest is not None
+            and latest.published_at is not None
+            and published_at <= latest.published_at
+        ):
+            raise ValueError("Publication published_at must be later than current publication")
 
     def get_current(self, dataset_key: str, publication_key: str) -> CanonicalPublication | None:
         """Return only the active published publication for a scope."""

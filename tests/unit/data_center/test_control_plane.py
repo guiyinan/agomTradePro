@@ -410,3 +410,31 @@ def test_publish_with_members_rolls_back_candidate_and_members_on_failure(monkey
     assert not PublicationMemberModel._default_manager.filter(
         publication_id=publication.publication_id
     ).exists()
+
+
+@pytest.mark.django_db
+def test_publish_with_members_rejects_out_of_order_snapshot() -> None:
+    """A late provider response must not rewind the current publication."""
+
+    repository = CanonicalPublicationRepository()
+    current_id = str(uuid4())
+    current, current_members = _publication_with_members(
+        publication_id=current_id,
+        member_count=1,
+    )
+    repository.publish_with_members(current, current_members)
+
+    late_time = NOW.replace(hour=4, minute=59)
+    late_id = str(uuid4())
+    late, late_members = _publication_with_members(
+        publication_id=late_id,
+        member_count=1,
+        as_of=late_time,
+    )
+    with pytest.raises(ValueError, match="later than current"):
+        repository.publish_with_members(late, late_members)
+
+    active = repository.get_current("equity.daily", "current")
+    assert active is not None
+    assert active.publication_id == current_id
+    assert not CanonicalPublicationModel._default_manager.filter(publication_id=late_id).exists()

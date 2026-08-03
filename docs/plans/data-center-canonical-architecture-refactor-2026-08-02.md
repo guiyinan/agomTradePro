@@ -1408,13 +1408,16 @@
 机器证据（本地）：
 
 - `pytest tests/unit/data_center/test_core_data_backfill_task.py -q`：8 passed（含成功、部分失败、全失败、Provider 缺失、市场日历阻断、noop、非法输入和重试幂等）；`pytest tests/component/data_center/test_core_data_backfill_control_plane.py -q`：1 passed（真实 Django 测试库读取三张 control-plane 表）。
+- `pytest tests/unit/data_center/test_control_plane.py -q`：9 passed，新增乱序 `published_at` 防回拨测试；`python scripts/check_data_center_query_budgets.py`：3 budgets validated（D0-D6 未填充未经测量的数字）。
 - `python scripts/check_mypy_regression.py apps/data_center/application/tasks.py`：0 regressions；`ruff`、`black --check`、`isort --check-only`：通过。
 - `python scripts/check_celery_task_contracts.py`：14 tasks / 4 governed files；`python scripts/verify_architecture.py --include-audit --format text`：boundary 0、audit 0。
 
 仍未完成及风险：
 
 - 当前只证明回填出口能写入 durable control plane，尚未在临时 PostgreSQL 中用真实 fake-provider 全链路运行一次回填并读取持久化 `run_id/batch_id/checkpoint`；生产回填、限速、锁/P95、coverage reconciliation、跨批 resume 观察仍未执行。
-- 全域 Publication supersede/rollback、legacy/canonical 对账、D0-D9 query budget、PostgreSQL 生产规模、备份恢复、Retention/Archive 实际调度、CI Linux 同构、真实 MCP/生产观察以及 M9/M10/VPS 仍保持未验证；继续不部署。
+- 查询预算目前只登记 3 个 D7-D9 端口；D0-D6 尚无真实 PostgreSQL `CaptureQueriesContext`/重复采样 P95 基线，不能用合成数字冒充预算，后续需先建立可复现观测证据再登记。
+- Publication repository 已增加 `published_at` 单调性护栏：乱序/同时间快照在 supersede 前 fail closed，不会把当前 Publication 回拨到旧数据；新增 control-plane 回归覆盖当前快照保持不变。
+- 全域 Publication rollback（显式恢复旧版本）、legacy/canonical 对账、D0-D9 query budget、PostgreSQL 生产规模、备份恢复、Retention/Archive 实际调度、CI Linux 同构、真实 MCP/生产观察以及 M9/M10/VPS 仍保持未验证；继续不部署。
 
 ## 1. 结论先行
 
