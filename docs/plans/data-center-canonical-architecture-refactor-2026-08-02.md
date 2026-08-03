@@ -1286,6 +1286,28 @@
 - Config Center 目前只覆盖两个 Data Center failover 参数，SystemSettings 全量退役、所有全局运行参数 owner/非默认 profile 验证仍未完成。
 - PostgreSQL 最新迁移/性能、备份恢复、容量故障注入、旧表退役和 VPS 部署仍未验证；继续保持不部署。
 
+## 实施记录（2026-08-04，equity.quote.snapshot Publication 收口）
+
+本批次补齐实时报价快照的事实写入后发布路径，仍不部署、不 push、不接触生产数据。
+
+已落地：
+
+- `SyncQuoteUseCase` 的正式 composition root 注入 `PublishQuoteSnapshotBatchUseCase`；按 `(asset_code, snapshot_at, source)` 精确解析 canonical quote fact PK，生成成员绑定 Publication、coverage、确定性 hash/UUID5 和幂等重试路径。
+- quote member 的 `observed_at/as_of` 固定使用源 `snapshot_at`；`fetched_at` 只保留为抓取证据，不被包装成实时观测时间。缺失 raw hash 时由持久化快照字段生成确定性证据 hash，并保留 source record、quality、revision 和 fact PK。
+- current-data manifest 增加 quote writer/repository source markers 和 3 个精确回归 nodeid；报价同步现在具有实际同步→Publication 写入路径，供 published quote 查询使用。
+
+机器证据（本地）：
+
+- `pytest tests/unit/data_center/test_quote_snapshot_publication_sync.py --reuse-db --no-migrations`：3 passed；quote 既有同步/freshness/repository 扩展回归：35 passed。
+- current-data runner：165 个登记 nodeid，实际 204 个测试项全部通过（`--reuse-db --no-migrations`）。
+- `check_current_data_contracts.py`：36 surfaces；runtime config coverage 49；governance consistency 0；architecture boundary/audit 0；变更生产文件 mypy regression 0；ruff/black/isort、manage check、makemigrations check 通过。
+
+仍未完成及风险：
+
+- price bar、financial、valuation、sector membership 等同步任务仍未全部接入同等的 Publication writer/backfill；全域 checkpoint、覆盖对账、生产观察窗口和 CI/Linux PostgreSQL 证据仍缺失。
+- 当前 quote policy 的 `fetched_at` 仍是事实表审计证据，Publication member 对外只发布不可伪造的 `observed_at`；若未来要求成员级抓取时间可查询，需要单独扩展契约，不能复用观测时间字段。
+- PostgreSQL 最新迁移/性能、备份恢复、容量故障注入、旧表退役和 VPS 部署仍未验证；继续保持不部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
