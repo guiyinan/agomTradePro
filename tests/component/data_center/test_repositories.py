@@ -1,8 +1,9 @@
 from datetime import UTC, date, datetime, timedelta
+from uuid import uuid4
 
 import pytest
 from django.contrib.auth.models import User
-from django.db import OperationalError
+from django.db import OperationalError, models
 
 from apps.data_center.domain.entities import (
     MacroFact,
@@ -16,15 +17,18 @@ from apps.data_center.infrastructure.a_share_universe_sync import (
     AShareUniverseSyncService,
     JsonFileAshareCodeNameProvider,
 )
+from apps.data_center.infrastructure.catalog_models import DatasetContractModel
 from apps.data_center.infrastructure.diagnostic_queries import DataCenterDiagnosticRepository
 from apps.data_center.infrastructure.models import (
     AssetMasterModel,
+    CanonicalPublicationModel,
     FinancialFactModel,
     MacroFactModel,
     MarketThermometerSnapshotModel,
     NewsFactModel,
     PriceBarModel,
     ProductionCoverageUniverseConfigModel,
+    PublicationMemberModel,
     PublisherCatalogModel,
     ValuationFactModel,
 )
@@ -470,14 +474,367 @@ def test_data_center_diagnostic_repository_summarizes_active_stock_fact_coverage
     assert payload["asset_count"] == 2
     assert payload["universe_quality"]["status"] == "incomplete"
     assert "active_a_share_universe_too_narrow" in payload["universe_quality"]["issues"]
-    assert payload["domains"]["price"] == {
-        "covered_count": 1,
-        "missing_count": 1,
-        "latest_date": "2026-07-03",
-        "status": "incomplete",
-    }
+    assert payload["domains"]["price"]["covered_count"] == 1
+    assert payload["domains"]["price"]["missing_count"] == 1
+    assert payload["domains"]["price"]["latest_date"] == "2026-07-03"
+    assert payload["domains"]["price"]["status"] == "incomplete"
+    assert payload["domains"]["price"]["published_status"] == "blocked"
+    assert payload["domains"]["price"]["publication"]["blocked_reason"] == (
+        "canonical_publication_missing"
+    )
     assert payload["domains"]["valuation"]["covered_count"] == 1
     assert payload["domains"]["financial"]["latest_date"] == "2026-03-31"
+
+
+def _configure_diagnostic_test_universe() -> list[str]:
+    """Create a small valid universe for publication coverage diagnostics."""
+
+    codes = ["600000.SH", "000001.SZ"]
+    AssetMasterModel.objects.bulk_create(
+        [
+            AssetMasterModel(
+                code=code,
+                name=code,
+                asset_type="stock",
+                exchange="SSE" if code.endswith(".SH") else "SZSE",
+                is_active=True,
+            )
+            for code in codes
+        ]
+    )
+    ProductionCoverageUniverseConfigRepository().save(
+        ProductionCoverageUniverseConfig(
+            universe_id="diagnostic_test",
+            asset_type="stock",
+            exchanges=["SSE", "SZSE"],
+            min_active_asset_count=1,
+            min_star_market_count=0,
+            min_chinext_count=0,
+            min_bse_count=0,
+        )
+    )
+    return codes
+
+
+def _save_diagnostic_contract(dataset_key: str, *, freshness_seconds: int = 86_400) -> None:
+    """Persist the minimum runtime contract required by the freshness gate."""
+
+    DatasetContractModel.objects.create(
+        dataset_key=dataset_key,
+        contract_version="test-1",
+        schema_version="1.0",
+        owner="data-platform",
+        frequency="daily",
+        decision_critical=True,
+        fields=[
+            {
+                "name": "observed_at",
+                "value_type": "datetime",
+                "nullable": False,
+                "zero_allowed": False,
+            }
+        ],
+        freshness_seconds=freshness_seconds,
+        active=True,
+    )
+
+
+def _save_diagnostic_publication(
+    *,
+    dataset_key: str,
+    fact_table: str,
+    fact_rows: list[models.Model],
+    observed_at: datetime,
+) -> None:
+    """Persist a complete synthetic current publication and its members."""
+
+    publication_id = uuid4()
+    publication_time = observed_at + timedelta(minutes=1)
+    CanonicalPublicationModel.objects.create(
+        publication_id=publication_id,
+        dataset_key=dataset_key,
+        publication_key="current",
+        policy_version="test-1:1.0",
+        state="published",
+        selected_source="test",
+        publication_hash=f"hash-{uuid4().hex}",
+        member_count=len(fact_rows),
+        coverage_requested_count=len(fact_rows),
+        coverage_eligible_count=len(fact_rows),
+        coverage_selected_count=len(fact_rows),
+        coverage_missing_count=0,
+        coverage_conflict_count=0,
+        as_of=observed_at,
+        published_at=publication_time,
+        must_not_use_for_decision=False,
+    )
+    for row in fact_rows:
+        fact_pk = str(row.pk)
+        asset_code = str(row.asset_code)
+        PublicationMemberModel.objects.create(
+            member_id=uuid4(),
+            publication_id=publication_id,
+            dataset_key=dataset_key,
+            natural_key=f"{asset_code}:{fact_table}:{fact_pk}",
+            source="test",
+            source_record_id=f"{fact_table}:{fact_pk}",
+            fact_table=fact_table,
+            fact_pk=fact_pk,
+            observed_at=observed_at,
+            raw_payload_hash=f"raw-{fact_pk}",
+            quality_status="accepted",
+            revision_number=1,
+        )
+
+
+@pytest.mark.django_db
+def test_diagnostic_coverage_does_not_treat_complete_legacy_facts_as_published():
+    """Fact-table rows alone must remain blocked without current publications."""
+
+    codes = _configure_diagnostic_test_universe()
+    today = date.today()
+    for code in codes:
+        PriceBarModel.objects.create(
+            asset_code=code,
+            bar_date=today,
+            freq="1d",
+            adjustment="none",
+            open="1",
+            high="1",
+            low="1",
+            close="1",
+            source="test",
+        )
+        ValuationFactModel.objects.create(
+            asset_code=code,
+            val_date=today,
+            pe_ttm="10",
+            source="test",
+        )
+        FinancialFactModel.objects.create(
+            asset_code=code,
+            period_end=today,
+            period_type="quarterly",
+            metric_code="revenue",
+            value="100",
+            source="test",
+        )
+
+    payload = DataCenterDiagnosticRepository().get_active_stock_fact_coverage_summary()
+
+    assert all(domain["covered_count"] == 2 for domain in payload["domains"].values())
+    assert all(domain["published_covered_count"] == 0 for domain in payload["domains"].values())
+    assert all(domain["published_status"] == "blocked" for domain in payload["domains"].values())
+    assert all(
+        domain["publication"]["blocked_reason"] == "canonical_publication_missing"
+        for domain in payload["domains"].values()
+    )
+    assert payload["status"] == "incomplete"
+
+
+@pytest.mark.django_db
+def test_diagnostic_coverage_reports_member_bound_subset_as_incomplete():
+    """A publication missing one active asset cannot pass coverage diagnostics."""
+
+    codes = _configure_diagnostic_test_universe()
+    today = date.today()
+    price_rows = [
+        PriceBarModel.objects.create(
+            asset_code=code,
+            bar_date=today,
+            freq="1d",
+            adjustment="none",
+            open="1",
+            high="1",
+            low="1",
+            close="1",
+            source="test",
+        )
+        for code in codes
+    ]
+    # Only one price row is selected; the other domains intentionally have no
+    # publication and should remain blocked as well.
+    _save_diagnostic_contract("equity.price.bar")
+    _save_diagnostic_publication(
+        dataset_key="equity.price.bar",
+        fact_table="data_center_price_bar",
+        fact_rows=price_rows[:1],
+        observed_at=datetime.now(UTC) - timedelta(minutes=1),
+    )
+
+    payload = DataCenterDiagnosticRepository().get_active_stock_fact_coverage_summary()
+    price = payload["domains"]["price"]
+
+    assert price["covered_count"] == 2
+    assert price["published_covered_count"] == 1
+    assert price["published_missing_count"] == 1
+    assert price["published_status"] == "blocked"
+    assert price["publication"]["blocked_reason"] == ("canonical_publication_coverage_incomplete")
+    assert payload["status"] == "incomplete"
+
+
+@pytest.mark.django_db
+def test_diagnostic_coverage_requires_fresh_complete_publication_members():
+    """All active assets and fresh members are required for an ``ok`` status."""
+
+    codes = _configure_diagnostic_test_universe()
+    today = date.today()
+    price_rows = [
+        PriceBarModel.objects.create(
+            asset_code=code,
+            bar_date=today,
+            freq="1d",
+            adjustment="none",
+            open="1",
+            high="1",
+            low="1",
+            close="1",
+            source="test",
+        )
+        for code in codes
+    ]
+    valuation_rows = [
+        ValuationFactModel.objects.create(
+            asset_code=code,
+            val_date=today,
+            pe_ttm="10",
+            source="test",
+        )
+        for code in codes
+    ]
+    financial_rows = [
+        FinancialFactModel.objects.create(
+            asset_code=code,
+            period_end=today,
+            period_type="quarterly",
+            metric_code="revenue",
+            value="100",
+            source="test",
+        )
+        for code in codes
+    ]
+    observed_at = datetime.now(UTC) - timedelta(minutes=1)
+    for dataset_key in (
+        "equity.price.bar",
+        "equity.valuation.fact",
+        "equity.financial.fact",
+    ):
+        _save_diagnostic_contract(dataset_key)
+    _save_diagnostic_publication(
+        dataset_key="equity.price.bar",
+        fact_table="data_center_price_bar",
+        fact_rows=price_rows,
+        observed_at=observed_at,
+    )
+    _save_diagnostic_publication(
+        dataset_key="equity.valuation.fact",
+        fact_table="data_center_valuation_fact",
+        fact_rows=valuation_rows,
+        observed_at=observed_at,
+    )
+    _save_diagnostic_publication(
+        dataset_key="equity.financial.fact",
+        fact_table="data_center_financial_fact",
+        fact_rows=financial_rows,
+        observed_at=observed_at,
+    )
+
+    payload = DataCenterDiagnosticRepository().get_active_stock_fact_coverage_summary()
+
+    assert payload["status"] == "ok"
+    for domain in payload["domains"].values():
+        assert domain["published_status"] == "ok"
+        assert domain["published_covered_count"] == 2
+        assert domain["published_missing_count"] == 0
+        assert domain["publication"]["freshness_status"] == "fresh"
+        assert domain["publication"]["must_not_use_for_decision"] is False
+        assert domain["publication"]["blocked_reason"] == ""
+
+
+@pytest.mark.django_db
+def test_diagnostic_coverage_blocks_publication_without_published_at():
+    """A published row without a publication timestamp is not current evidence."""
+
+    codes = _configure_diagnostic_test_universe()
+    today = date.today()
+    price_rows = [
+        PriceBarModel.objects.create(
+            asset_code=code,
+            bar_date=today,
+            freq="1d",
+            adjustment="none",
+            open="1",
+            high="1",
+            low="1",
+            close="1",
+            source="test",
+        )
+        for code in codes
+    ]
+    observed_at = datetime.now(UTC) - timedelta(minutes=1)
+    _save_diagnostic_contract("equity.price.bar")
+    _save_diagnostic_publication(
+        dataset_key="equity.price.bar",
+        fact_table="data_center_price_bar",
+        fact_rows=price_rows,
+        observed_at=observed_at,
+    )
+    publication = CanonicalPublicationModel.objects.get(
+        dataset_key="equity.price.bar",
+        publication_key="current",
+    )
+    publication.published_at = None
+    publication.save(update_fields=["published_at"])
+
+    payload = DataCenterDiagnosticRepository().get_active_stock_fact_coverage_summary()
+
+    assert payload["domains"]["price"]["published_status"] == "blocked"
+    assert payload["domains"]["price"]["publication"]["blocked_reason"] == (
+        "publication_published_at_missing"
+    )
+
+
+@pytest.mark.django_db
+def test_diagnostic_coverage_blocks_member_observed_after_publication_as_of():
+    """A member observed after the publication boundary invalidates the snapshot."""
+
+    codes = _configure_diagnostic_test_universe()
+    today = date.today()
+    price_rows = [
+        PriceBarModel.objects.create(
+            asset_code=code,
+            bar_date=today,
+            freq="1d",
+            adjustment="none",
+            open="1",
+            high="1",
+            low="1",
+            close="1",
+            source="test",
+        )
+        for code in codes
+    ]
+    observed_at = datetime.now(UTC) - timedelta(minutes=1)
+    _save_diagnostic_contract("equity.price.bar")
+    _save_diagnostic_publication(
+        dataset_key="equity.price.bar",
+        fact_table="data_center_price_bar",
+        fact_rows=price_rows,
+        observed_at=observed_at,
+    )
+    member = PublicationMemberModel.objects.filter(
+        dataset_key="equity.price.bar",
+    ).first()
+    assert member is not None
+    member.observed_at = observed_at + timedelta(hours=1)
+    member.save(update_fields=["observed_at"])
+
+    payload = DataCenterDiagnosticRepository().get_active_stock_fact_coverage_summary()
+
+    assert payload["domains"]["price"]["published_status"] == "blocked"
+    assert payload["domains"]["price"]["publication"]["blocked_reason"] == (
+        "publication_observation_after_as_of"
+    )
 
 
 @pytest.mark.django_db
