@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 56,
-    "current_surface_references": 2849,
+    "current_surface_references": 2866,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
     "legacy_fact_references": 141,
@@ -2512,7 +2512,7 @@
       "text": "\"\"\"Return the latest cache row for one universe since a cutoff.\"\"\""
     },
     {
-      "line": 75,
+      "line": 74,
       "path": "apps/alpha/interface/views.py",
       "text": "\"\"\"Return a 403 response when the current user is not staff.\"\"\""
     },
@@ -4397,7 +4397,7 @@
       "text": "\"summary\": advice.summary,"
     },
     {
-      "line": 560,
+      "line": 565,
       "path": "apps/dashboard/infrastructure/repositories.py",
       "text": "\"\"\"Return the latest macro indicator value for one code.\"\"\""
     },
@@ -6327,167 +6327,227 @@
       "text": "\"summary\": plan.summary,"
     },
     {
-      "line": 36,
+      "line": 43,
       "path": "apps/equity/application/query_services.py",
       "text": "\"\"\"Return stock info and latest local daily context keyed by requested code.\"\"\""
     },
     {
-      "line": 685,
+      "line": 161,
+      "path": "apps/equity/application/query_services.py",
+      "text": "latest = rows[-1]"
+    },
+    {
+      "line": 163,
+      "path": "apps/equity/application/query_services.py",
+      "text": "\"trade_date\": _context_date(latest.get(\"timestamp\")),"
+    },
+    {
+      "line": 164,
+      "path": "apps/equity/application/query_services.py",
+      "text": "\"close\": safe_float(latest.get(\"close\"), default=None),"
+    },
+    {
+      "line": 165,
+      "path": "apps/equity/application/query_services.py",
+      "text": "\"volume\": safe_float(latest.get(\"volume\"), default=None),"
+    },
+    {
+      "line": 175,
+      "path": "apps/equity/application/query_services.py",
+      "text": "latest = rows[-1]"
+    },
+    {
+      "line": 176,
+      "path": "apps/equity/application/query_services.py",
+      "text": "pe_value = latest.get(\"pe_ttm\")"
+    },
+    {
+      "line": 178,
+      "path": "apps/equity/application/query_services.py",
+      "text": "\"valuation_trade_date\": _context_date(latest.get(\"val_date\")),"
+    },
+    {
+      "line": 180,
+      "path": "apps/equity/application/query_services.py",
+      "text": "pe_value if pe_value is not None else latest.get(\"pe_static\"),"
+    },
+    {
+      "line": 183,
+      "path": "apps/equity/application/query_services.py",
+      "text": "\"pb\": safe_float(latest.get(\"pb\"), default=None),"
+    },
+    {
+      "line": 184,
+      "path": "apps/equity/application/query_services.py",
+      "text": "\"ps\": safe_float(latest.get(\"ps_ttm\"), default=None),"
+    },
+    {
+      "line": 185,
+      "path": "apps/equity/application/query_services.py",
+      "text": "\"dividend_yield\": safe_float(latest.get(\"dv_ratio\"), default=None),"
+    },
+    {
+      "line": 192,
+      "path": "apps/equity/application/query_services.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 723,
       "path": "apps/equity/application/use_cases.py",
       "text": "latest = None"
-    },
-    {
-      "line": 693,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "latest = valuation_history[-1]"
-    },
-    {
-      "line": 700,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "if latest.pe is None or latest.pb is None:"
-    },
-    {
-      "line": 703,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"pe\": latest.pe,"
-    },
-    {
-      "line": 704,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"pb\": latest.pb,"
-    },
-    {
-      "line": 705,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"ps\": latest.ps,"
-    },
-    {
-      "line": 708,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"total_mv\": float(latest.total_mv) if latest.total_mv is not None else None,"
-    },
-    {
-      "line": 709,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"circ_mv\": float(latest.circ_mv) if latest.circ_mv is not None else None,"
-    },
-    {
-      "line": 710,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"dividend_yield\": latest.dividend_yield,"
-    },
-    {
-      "line": 712,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"trade_date\": latest.trade_date.isoformat(),"
-    },
-    {
-      "line": 713,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"updated_at\": latest.fetched_at.isoformat() if latest.fetched_at else None,"
-    },
-    {
-      "line": 715,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "latest = None"
-    },
-    {
-      "line": 717,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "pe_percentile = analyzer.calculate_pe_percentile(latest.pe, pe_history)"
-    },
-    {
-      "line": 718,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "pb_percentile = analyzer.calculate_pb_percentile(latest.pb, pb_history)"
-    },
-    {
-      "line": 725,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"pe\": latest.pe if latest.pe > 0 else None,"
-    },
-    {
-      "line": 726,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"pb\": latest.pb if latest.pb > 0 else None,"
-    },
-    {
-      "line": 727,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"ps\": latest.ps if latest.ps is not None and latest.ps > 0 else None,"
-    },
-    {
-      "line": 730,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"total_mv\": float(latest.total_mv) if latest.total_mv is not None else None,"
     },
     {
       "line": 731,
       "path": "apps/equity/application/use_cases.py",
-      "text": "\"circ_mv\": float(latest.circ_mv) if latest.circ_mv is not None else None,"
-    },
-    {
-      "line": 733,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "latest.dividend_yield"
-    },
-    {
-      "line": 734,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "if latest.dividend_yield is not None and latest.dividend_yield > 0"
+      "text": "latest = valuation_history[-1]"
     },
     {
       "line": 738,
       "path": "apps/equity/application/use_cases.py",
+      "text": "if latest.pe is None or latest.pb is None:"
+    },
+    {
+      "line": 741,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"pe\": latest.pe,"
+    },
+    {
+      "line": 742,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"pb\": latest.pb,"
+    },
+    {
+      "line": 743,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"ps\": latest.ps,"
+    },
+    {
+      "line": 746,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"total_mv\": float(latest.total_mv) if latest.total_mv is not None else None,"
+    },
+    {
+      "line": 747,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"circ_mv\": float(latest.circ_mv) if latest.circ_mv is not None else None,"
+    },
+    {
+      "line": 748,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"dividend_yield\": latest.dividend_yield,"
+    },
+    {
+      "line": 750,
+      "path": "apps/equity/application/use_cases.py",
       "text": "\"trade_date\": latest.trade_date.isoformat(),"
     },
     {
-      "line": 739,
+      "line": 751,
       "path": "apps/equity/application/use_cases.py",
       "text": "\"updated_at\": latest.fetched_at.isoformat() if latest.fetched_at else None,"
     },
     {
-      "line": 790,
+      "line": 753,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "latest = None"
+    },
+    {
+      "line": 755,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "pe_percentile = analyzer.calculate_pe_percentile(latest.pe, pe_history)"
+    },
+    {
+      "line": 756,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "pb_percentile = analyzer.calculate_pb_percentile(latest.pb, pb_history)"
+    },
+    {
+      "line": 763,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"pe\": latest.pe if latest.pe > 0 else None,"
+    },
+    {
+      "line": 764,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"pb\": latest.pb if latest.pb > 0 else None,"
+    },
+    {
+      "line": 765,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"ps\": latest.ps if latest.ps is not None and latest.ps > 0 else None,"
+    },
+    {
+      "line": 768,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"total_mv\": float(latest.total_mv) if latest.total_mv is not None else None,"
+    },
+    {
+      "line": 769,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"circ_mv\": float(latest.circ_mv) if latest.circ_mv is not None else None,"
+    },
+    {
+      "line": 771,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "latest.dividend_yield"
+    },
+    {
+      "line": 772,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "if latest.dividend_yield is not None and latest.dividend_yield > 0"
+    },
+    {
+      "line": 776,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"trade_date\": latest.trade_date.isoformat(),"
+    },
+    {
+      "line": 777,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"updated_at\": latest.fetched_at.isoformat() if latest.fetched_at else None,"
+    },
+    {
+      "line": 828,
       "path": "apps/equity/application/use_cases.py",
       "text": "current_pe=latest.pe if latest is not None else None,"
     },
     {
-      "line": 792,
+      "line": 830,
       "path": "apps/equity/application/use_cases.py",
       "text": "current_pb=latest.pb if latest is not None else None,"
     },
     {
-      "line": 1195,
+      "line": 1233,
       "path": "apps/equity/application/use_cases.py",
       "text": "current = start_date"
     },
     {
-      "line": 1198,
+      "line": 1236,
       "path": "apps/equity/application/use_cases.py",
       "text": "while current <= end_date:"
     },
     {
-      "line": 1200,
+      "line": 1238,
       "path": "apps/equity/application/use_cases.py",
       "text": "if current in regime_history:"
     },
     {
-      "line": 1201,
+      "line": 1239,
       "path": "apps/equity/application/use_cases.py",
       "text": "result[current] = regime_history[current]"
     },
     {
-      "line": 1202,
+      "line": 1240,
       "path": "apps/equity/application/use_cases.py",
       "text": "last_regime = regime_history[current]"
     },
     {
-      "line": 1204,
+      "line": 1242,
       "path": "apps/equity/application/use_cases.py",
       "text": "result[current] = last_regime"
     },
     {
-      "line": 1206,
+      "line": 1244,
       "path": "apps/equity/application/use_cases.py",
       "text": "current += timedelta(days=1)"
     },
@@ -6762,6 +6822,11 @@
       "text": "from apps.realtime.infrastructure.repositories import ("
     },
     {
+      "line": 108,
+      "path": "apps/equity/infrastructure/stock_info_repository.py",
+      "text": "Current/decision-facing callers must be able to resolve display metadata"
+    },
+    {
       "line": 62,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"筛选个股\","
@@ -6832,12 +6897,12 @@
       "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
     },
     {
-      "line": 399,
+      "line": 407,
       "path": "apps/equity/interface/serializers.py",
       "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
     },
     {
-      "line": 499,
+      "line": 507,
       "path": "apps/equity/interface/serializers.py",
       "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
     },
@@ -10637,6 +10702,11 @@
       "text": "reason = f\"Current regime: {current_regime}\""
     },
     {
+      "line": 138,
+      "path": "apps/rotation/infrastructure/adapters/price_adapter.py",
+      "text": "\"\"\"Read prices using either the current publication or historical port.\"\"\""
+    },
+    {
       "line": 226,
       "path": "apps/rotation/infrastructure/repositories.py",
       "text": "summary: dict[str, int] = {"
@@ -14010,6 +14080,21 @@
       "line": 35,
       "path": "core/integration/policy_hedging_registry.py",
       "text": "\"\"\"Return the registered Realtime price repository.\"\"\""
+    },
+    {
+      "line": 56,
+      "path": "core/integration/price_history.py",
+      "text": "\"\"\"Return close prices behind the canonical current-price publication gate."
+    },
+    {
+      "line": 59,
+      "path": "core/integration/price_history.py",
+      "text": "directly for replay/backtest callers.  Current decision consumers must use"
+    },
+    {
+      "line": 76,
+      "path": "core/integration/price_history.py",
+      "text": "publication_key=\"current\","
     },
     {
       "line": 1,

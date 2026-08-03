@@ -778,8 +778,9 @@
 
 - `pytest tests/unit/equity/test_published_stock_context.py -q --disable-warnings --maxfail=1 --timeout=30`：2 passed。
 - `pytest apps/alpha/tests/test_ai_filter.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=30`：9 passed。
-- `pytest apps/dashboard/tests/test_alpha_context_repository.py apps/equity/tests/test_stock_context_repository.py -q --no-migrations --reuse-db --timeout=180`：18 passed（其中 Alpha context 8、stock repository 10）。
-- `ruff`、`black`、`isort`（变更文件）通过；`check_current_data_contracts.py` 待本批治理 JSON 与完整回归一起执行。
+- `pytest apps/alpha/tests/test_ai_filter.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=30`：9 passed；`pytest apps/dashboard/tests/test_alpha_context_repository.py tests/unit/equity/test_published_stock_context.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=60`：11 passed。
+- `pytest apps/equity/tests/test_stock_context_repository.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=30`：pytest 输出 11 passed 后 teardown 超时，未把进程退出当作通过；其余定向测试正常退出。
+- `ruff`、`black`、`isort`（变更文件）通过；`check_current_data_contracts.py`：32 surfaces。
 
 仍未完成及风险：
 
@@ -798,7 +799,7 @@
 
 第三十七批机器证据：
 
-- `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --timeout=180 -k intraday`：3 passed。
+- `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --timeout=180 -k intraday`：4 passed。
 - `check_current_data_contracts.py`、`ruff`、`black`、`isort`（变更文件）通过。
 
 仍未完成及风险：
@@ -823,7 +824,8 @@
 - `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --timeout=180 -k technical`：5 passed。
 - `pytest tests/api/test_rotation_api_edges.py -q --no-migrations --reuse-db --timeout=180 -k 'compare or correlation'`：12 passed。
 - `pytest tests/component/test_runtime_degradation_logging.py tests/component/test_mock_fallback_remediation.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=60`：13 passed。
-- 变更生产文件 mypy regression 0；black/isort/ruff 通过；current-data contract 待完整门禁执行。
+- 变更生产文件 mypy regression 0；black/isort/ruff 通过；`check_current_data_contracts.py`：35 surfaces。
+- `python scripts/data_center_architecture_inventory.py --write`：`provider_imports_outside_data_center=0`、`cross_app_orm_imports=56`、`legacy_fact_references=141`、`current_surface_references=2866`、`data_write_task_decorators=51`、`runtime_parameter_references=49`。
 
 仍未完成及风险：
 
