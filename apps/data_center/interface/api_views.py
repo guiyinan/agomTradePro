@@ -20,7 +20,7 @@ No business logic here — only HTTP plumbing + delegation to use cases.
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from rest_framework import status
@@ -141,6 +141,86 @@ from apps.data_center.provider_runtime import get_registry
 from shared.request_payload import request_data_mapping
 
 logger = logging.getLogger(__name__)
+
+
+def _published_as_of_datetime(publication: dict[str, object] | None) -> datetime | None:
+    """Return the publication knowledge boundary as an aware datetime."""
+
+    if not publication:
+        return None
+    raw_as_of = publication.get("as_of")
+    if isinstance(raw_as_of, datetime):
+        parsed = raw_as_of
+    elif isinstance(raw_as_of, date):
+        parsed = datetime.combine(raw_as_of, datetime.min.time(), tzinfo=UTC)
+    elif isinstance(raw_as_of, str) and raw_as_of.strip():
+        try:
+            parsed = datetime.fromisoformat(raw_as_of)
+        except ValueError:
+            try:
+                parsed = datetime.combine(date.fromisoformat(raw_as_of), datetime.min.time())
+            except ValueError:
+                return None
+    else:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed.astimezone(UTC)
+
+
+def _published_as_of_date(publication: dict[str, object] | None) -> date | None:
+    """Return the date portion of a publication knowledge boundary."""
+
+    as_of = _published_as_of_datetime(publication)
+    return as_of.date() if as_of is not None else None
+
+
+def _published_bounded_end(
+    requested_end: date | None,
+    publication: dict[str, object] | None,
+) -> date | None:
+    """Intersect a requested date upper bound with publication ``as_of``."""
+
+    publication_end = _published_as_of_date(publication)
+    if publication_end is None:
+        return requested_end
+    if requested_end is None:
+        return publication_end
+    return min(requested_end, publication_end)
+
+
+def _published_empty_intersection_response(
+    *,
+    identity_field: str,
+    identity_value: str,
+    publication: dict[str, object],
+) -> Response:
+    """Fail closed when a requested date range lies after publication ``as_of``."""
+
+    publication_key = str(publication.get("publication_key") or "current")
+    blocked_reason = "publication_as_of_before_requested_range"
+    return Response(
+        {
+            identity_field: identity_value,
+            "total": 0,
+            "data": [],
+            "status": "blocked",
+            "publication_id": publication.get("publication_id"),
+            "publication": publication,
+            "must_not_use_for_decision": True,
+            "blocked_reason": blocked_reason,
+            "freshness_status": publication.get("freshness_status", "fresh"),
+            "observed_at": publication.get("observed_at"),
+            "contract": {
+                "mode": "published",
+                "publication_key": publication_key,
+                "must_not_use_for_decision": True,
+                "blocked_reason": blocked_reason,
+                "freshness_status": publication.get("freshness_status", "fresh"),
+            },
+        },
+        status=status.HTTP_200_OK,
+    )
 
 
 def _published_gate(
@@ -657,10 +737,24 @@ def macro_series(request: Request) -> Response:
             return None
 
     try:
+        requested_start = _parse_date(request.query_params.get("start", ""))
+        requested_end = _parse_date(request.query_params.get("end", ""))
+        bounded_end = _published_bounded_end(requested_end, publication)
+        if (
+            requested_start is not None
+            and bounded_end is not None
+            and requested_start > bounded_end
+            and publication is not None
+        ):
+            return _published_empty_intersection_response(
+                identity_field="indicator_code",
+                identity_value=indicator_code,
+                publication=publication,
+            )
         req = MacroSeriesRequest(
             indicator_code=indicator_code,
-            start=_parse_date(request.query_params.get("start", "")),
-            end=_parse_date(request.query_params.get("end", "")),
+            start=requested_start,
+            end=bounded_end,
             limit=int(request.query_params.get("limit", 500)),
             source=request.query_params.get("source") or None,
         )
@@ -714,10 +808,25 @@ def price_history(request: Request) -> Response:
         except (ValueError, AttributeError):
             return None
 
+    requested_start = _parse_date(request.query_params.get("start", ""))
+    requested_end = _parse_date(request.query_params.get("end", ""))
+    bounded_end = _published_bounded_end(requested_end, publication)
+    if (
+        requested_start is not None
+        and bounded_end is not None
+        and requested_start > bounded_end
+        and publication is not None
+    ):
+        return _published_empty_intersection_response(
+            identity_field="asset_code",
+            identity_value=asset_code,
+            publication=publication,
+        )
+
     req = PriceHistoryRequest(
         asset_code=asset_code,
-        start=_parse_date(request.query_params.get("start", "")),
-        end=_parse_date(request.query_params.get("end", "")),
+        start=requested_start,
+        end=bounded_end,
         freq=request.query_params.get("freq", "1d"),
         adjustment=request.query_params.get("adjustment", "none"),
         limit=int(request.query_params.get("limit", 500)),
@@ -785,7 +894,23 @@ def price_latest_quote(request: Request) -> Response:
         )
     )
 
-    if result is None or (strict_freshness and result.must_not_use_for_decision):
+    publication_as_of = _published_as_of_datetime(publication)
+    if publication is not None and publication_as_of is not None and result is not None:
+        if result.snapshot_at > publication_as_of:
+            payload = result.to_dict()
+            payload.update(
+                {
+                    "status": "blocked",
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": "quote_observation_after_publication_as_of",
+                    "publication_id": publication["publication_id"],
+                    "publication": publication,
+                }
+            )
+            return Response(payload, status=status.HTTP_200_OK)
+    if publication_as_of is None and (
+        result is None or (strict_freshness and result.must_not_use_for_decision)
+    ):
         fallback_prices = fetch_latest_realtime_prices([asset_code])
         if fallback_prices:
             fallback = fallback_prices[0]
@@ -808,6 +933,18 @@ def price_latest_quote(request: Request) -> Response:
             )
 
     if result is None:
+        if publication_as_of is not None and publication is not None:
+            return Response(
+                {
+                    "asset_code": asset_code,
+                    "status": "blocked",
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": "canonical_quote_missing_before_publication_as_of",
+                    "publication_id": publication["publication_id"],
+                    "publication": publication,
+                },
+                status=status.HTTP_200_OK,
+            )
         return Response({"detail": "No quote found."}, status=status.HTTP_404_NOT_FOUND)
 
     if strict_freshness and result.must_not_use_for_decision:
@@ -847,10 +984,25 @@ def fund_nav_series(request: Request) -> Response:
         except (ValueError, AttributeError):
             return None
 
+    requested_start = _parse_date(request.query_params.get("start", ""))
+    requested_end = _parse_date(request.query_params.get("end", ""))
+    bounded_end = _published_bounded_end(requested_end, publication)
+    if (
+        requested_start is not None
+        and bounded_end is not None
+        and requested_start > bounded_end
+        and publication is not None
+    ):
+        return _published_empty_intersection_response(
+            identity_field="fund_code",
+            identity_value=fund_code,
+            publication=publication,
+        )
+
     data = make_query_fund_nav_use_case().execute(
         fund_code=fund_code,
-        start=_parse_date(request.query_params.get("start", "")),
-        end=_parse_date(request.query_params.get("end", "")),
+        start=requested_start,
+        end=bounded_end,
     )
     payload: dict[str, object] = {"fund_code": fund_code, "total": len(data), "data": data}
     if publication is not None:
@@ -879,11 +1031,20 @@ def financials(request: Request) -> Response:
     period_type_raw = request.query_params.get("period_type", "").strip()
     period_type = FinancialPeriodType(period_type_raw) if period_type_raw else None
     limit = int(request.query_params.get("limit", 20))
-    data = make_query_financials_use_case().execute(
-        asset_code=asset_code,
-        period_type=period_type,
-        limit=limit,
-    )
+    financial_use_case = make_query_financials_use_case()
+    if publication is None:
+        data = financial_use_case.execute(
+            asset_code=asset_code,
+            period_type=period_type,
+            limit=limit,
+        )
+    else:
+        data = financial_use_case.execute(
+            asset_code=asset_code,
+            period_type=period_type,
+            limit=limit,
+            end=_published_as_of_date(publication),
+        )
     payload = {"asset_code": asset_code, "total": len(data), "data": data}
     if publication is not None:
         payload["publication_id"] = publication["publication_id"]
@@ -914,10 +1075,25 @@ def valuations(request: Request) -> Response:
         except (ValueError, AttributeError):
             return None
 
+    requested_start = _parse_date(request.query_params.get("start", ""))
+    requested_end = _parse_date(request.query_params.get("end", ""))
+    bounded_end = _published_bounded_end(requested_end, publication)
+    if (
+        requested_start is not None
+        and bounded_end is not None
+        and requested_start > bounded_end
+        and publication is not None
+    ):
+        return _published_empty_intersection_response(
+            identity_field="asset_code",
+            identity_value=asset_code,
+            publication=publication,
+        )
+
     data = make_query_valuations_use_case().execute(
         asset_code=asset_code,
-        start=_parse_date(request.query_params.get("start", "")),
-        end=_parse_date(request.query_params.get("end", "")),
+        start=requested_start,
+        end=bounded_end,
     )
     payload = {"asset_code": asset_code, "total": len(data), "data": data}
     if publication is not None:
@@ -951,6 +1127,9 @@ def sector_constituents(request: Request) -> Response:
             as_of = date_cls.fromisoformat(as_of_raw)
         except ValueError:
             return Response({"detail": "Invalid 'as_of' date."}, status=400)
+    publication_as_of = _published_as_of_date(publication)
+    if publication_as_of is not None and (as_of is None or as_of > publication_as_of):
+        as_of = publication_as_of
 
     data = make_query_sector_constituents_use_case().execute(
         sector_code=sector_code,
@@ -980,7 +1159,15 @@ def news(request: Request) -> Response:
     if blocked is not None:
         return blocked
     limit = int(request.query_params.get("limit", 50))
-    data = make_query_news_use_case().execute(asset_code=asset_code, limit=limit)
+    news_use_case = make_query_news_use_case()
+    if publication is None:
+        data = news_use_case.execute(asset_code=asset_code, limit=limit)
+    else:
+        data = news_use_case.execute(
+            asset_code=asset_code,
+            limit=limit,
+            end=_published_as_of_date(publication),
+        )
     payload: dict[str, object] = {"asset_code": asset_code, "total": len(data), "data": data}
     if publication is not None:
         payload["publication_id"] = publication["publication_id"]
@@ -1000,20 +1187,39 @@ def capital_flows(request: Request) -> Response:
     )
     if blocked is not None:
         return blocked
-    serializer = CapitalFlowQuerySerializer(data=request.query_params)
+    query_params = request.query_params.copy()
+    # ``mode``/``publication_key`` belong to the shared publication gate, not
+    # the fact-range serializer's domain payload.
+    query_params.pop("mode", None)
+    query_params.pop("publication_key", None)
+    serializer = CapitalFlowQuerySerializer(data=query_params)
     serializer.is_valid(raise_exception=True)
     query = serializer.validated_data
+    requested_start = query.get("start")
+    requested_end = query.get("end")
+    bounded_end = _published_bounded_end(requested_end, publication)
+    if (
+        requested_start is not None
+        and bounded_end is not None
+        and requested_start > bounded_end
+        and publication is not None
+    ):
+        return _published_empty_intersection_response(
+            identity_field="asset_code",
+            identity_value=query["asset_code"],
+            publication=publication,
+        )
     data = make_query_capital_flows_use_case().execute(
         asset_code=query["asset_code"],
-        start=query.get("start"),
-        end=query.get("end"),
+        start=requested_start,
+        end=bounded_end,
         limit=query["limit"],
     )
     payload: dict[str, object] = {
         "asset_code": query["asset_code"],
         "query": {
             "start": query["start"].isoformat() if query.get("start") else None,
-            "end": query["end"].isoformat() if query.get("end") else None,
+            "end": bounded_end.isoformat() if bounded_end else None,
             "limit": query["limit"],
         },
         "total": len(data),

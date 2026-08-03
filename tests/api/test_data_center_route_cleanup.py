@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -894,6 +895,249 @@ def test_data_center_published_financials_blocks_stale_publication_before_query(
     assert payload["freshness_status"] == "stale"
     assert payload["blocked_reason"] == "canonical_publication_stale"
     assert payload["must_not_use_for_decision"] is True
+
+
+@pytest.mark.django_db
+def test_data_center_published_views_bound_rows_to_publication_as_of(
+    authenticated_client,
+    monkeypatch,
+):
+    """Every published date-bearing REST read must honor the publication boundary."""
+
+    publication = {
+        "publication_id": "pub-as-of",
+        "dataset_key": "test",
+        "publication_key": "current",
+        "as_of": "2026-08-01T12:00:00+00:00",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
+    }
+    freshness = {
+        "publication_id": "pub-as-of",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
+        "freshness_status": "fresh",
+        "observed_at": "2026-08-01T12:00:00+00:00",
+    }
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.get_current_publication",
+        lambda dataset_key, publication_key: {**publication, "dataset_key": dataset_key},
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.get_current_publication_freshness_gate",
+        lambda *_args: dict(freshness),
+    )
+
+    seen: dict[str, object] = {}
+
+    class _MacroUseCase:
+        def execute(self, request):
+            seen["macro_start"] = request.start
+            seen["macro_end"] = request.end
+            return SimpleNamespace(to_dict=lambda: {"data": []})
+
+    class _PriceUseCase:
+        def execute(self, request):
+            seen["price_start"] = request.start
+            seen["price_end"] = request.end
+            return []
+
+    class _FundUseCase:
+        def execute(self, **kwargs):
+            seen["fund_start"] = kwargs["start"]
+            seen["fund_end"] = kwargs["end"]
+            return []
+
+    class _FinancialUseCase:
+        def execute(self, **kwargs):
+            seen["financial_end"] = kwargs["end"]
+            return []
+
+    class _ValuationUseCase:
+        def execute(self, **kwargs):
+            seen["valuation_start"] = kwargs["start"]
+            seen["valuation_end"] = kwargs["end"]
+            return []
+
+    class _SectorUseCase:
+        def execute(self, **kwargs):
+            seen["sector_as_of"] = kwargs["as_of"]
+            return []
+
+    class _NewsUseCase:
+        def execute(self, **kwargs):
+            seen["news_end"] = kwargs["end"]
+            return []
+
+    class _CapitalFlowUseCase:
+        def execute(self, **kwargs):
+            seen["flow_start"] = kwargs["start"]
+            seen["flow_end"] = kwargs["end"]
+            return []
+
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.make_query_macro_series_use_case",
+        lambda: _MacroUseCase(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.make_query_price_history_use_case",
+        lambda: _PriceUseCase(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.make_query_fund_nav_use_case",
+        lambda: _FundUseCase(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.make_query_financials_use_case",
+        lambda: _FinancialUseCase(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.make_query_valuations_use_case",
+        lambda: _ValuationUseCase(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.make_query_sector_constituents_use_case",
+        lambda: _SectorUseCase(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.make_query_news_use_case",
+        lambda: _NewsUseCase(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.make_query_capital_flows_use_case",
+        lambda: _CapitalFlowUseCase(),
+    )
+
+    assert (
+        authenticated_client.get(
+            "/api/data-center/macro/series/?indicator_code=CN_PMI&start=2026-07-01"
+            "&end=2026-08-03&mode=published"
+        ).status_code
+        == 200
+    )
+    assert (
+        authenticated_client.get(
+            "/api/data-center/prices/history/?asset_code=600000.SH&start=2026-07-01"
+            "&end=2026-08-03&mode=published"
+        ).status_code
+        == 200
+    )
+    assert (
+        authenticated_client.get(
+            "/api/data-center/funds/nav/?fund_code=110011.OF&start=2026-07-01"
+            "&end=2026-08-03&mode=published"
+        ).status_code
+        == 200
+    )
+    assert (
+        authenticated_client.get(
+            "/api/data-center/financials/?asset_code=600000.SH&mode=published"
+        ).status_code
+        == 200
+    )
+    assert (
+        authenticated_client.get(
+            "/api/data-center/valuations/?asset_code=600000.SH&start=2026-07-01"
+            "&end=2026-08-03&mode=published"
+        ).status_code
+        == 200
+    )
+    assert (
+        authenticated_client.get(
+            "/api/data-center/sectors/constituents/?sector_code=801010"
+            "&as_of=2026-08-03&mode=published"
+        ).status_code
+        == 200
+    )
+    assert (
+        authenticated_client.get(
+            "/api/data-center/news/?asset_code=600000.SH&mode=published"
+        ).status_code
+        == 200
+    )
+    assert (
+        authenticated_client.get(
+            "/api/data-center/capital-flows/?asset_code=600000.SH&start=2026-07-01"
+            "&end=2026-08-03&mode=published"
+        ).status_code
+        == 200
+    )
+
+    expected_start = date(2026, 7, 1)
+    expected_end = date(2026, 8, 1)
+    assert seen == {
+        "macro_start": expected_start,
+        "macro_end": expected_end,
+        "price_start": expected_start,
+        "price_end": expected_end,
+        "fund_start": expected_start,
+        "fund_end": expected_end,
+        "financial_end": expected_end,
+        "valuation_start": expected_start,
+        "valuation_end": expected_end,
+        "sector_as_of": expected_end,
+        "news_end": expected_end,
+        "flow_start": expected_start,
+        "flow_end": expected_end,
+    }
+
+
+@pytest.mark.django_db
+def test_data_center_published_quote_does_not_fallback_past_publication_as_of(
+    authenticated_client,
+    monkeypatch,
+):
+    """A quote newer than publication.as_of must block without realtime fallback."""
+
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.get_current_publication",
+        lambda *_args: {
+            "publication_id": "pub-quote-as-of",
+            "publication_key": "current",
+            "as_of": "2026-08-01T12:00:00+00:00",
+            "must_not_use_for_decision": False,
+            "blocked_reason": "",
+        },
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.get_current_publication_freshness_gate",
+        lambda *_args: {
+            "must_not_use_for_decision": False,
+            "freshness_status": "fresh",
+            "observed_at": "2026-08-01T12:00:00+00:00",
+        },
+    )
+
+    class _QuoteUseCase:
+        def execute(self, request):
+            return SimpleNamespace(
+                snapshot_at=datetime(2026, 8, 2, tzinfo=UTC),
+                must_not_use_for_decision=False,
+                to_dict=lambda: {
+                    "asset_code": request.asset_code,
+                    "snapshot_at": "2026-08-02T00:00:00+00:00",
+                    "must_not_use_for_decision": False,
+                },
+            )
+
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.make_query_latest_quote_use_case",
+        lambda: _QuoteUseCase(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.fetch_latest_realtime_prices",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("published quote must not fallback")),
+    )
+
+    response = authenticated_client.get(
+        "/api/data-center/prices/quotes/?asset_code=600000.SH&mode=published"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "blocked"
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["blocked_reason"] == "quote_observation_after_publication_as_of"
 
 
 @pytest.mark.django_db

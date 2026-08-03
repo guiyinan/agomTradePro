@@ -41,10 +41,16 @@ class QueryFinancialsUseCase:
         asset_code: str,
         period_type: FinancialPeriodType | None = None,
         limit: int = 20,
+        end: date | None = None,
     ) -> list[dict[str, object]]:
         return [
             fact.to_dict()
-            for fact in self._repo.get_facts(asset_code, period_type=period_type, limit=limit)
+            for fact in self._repo.get_facts(
+                asset_code,
+                period_type=period_type,
+                limit=limit,
+                end=end,
+            )
         ]
 
 
@@ -88,8 +94,9 @@ class QueryNewsUseCase:
         self,
         asset_code: str | None = None,
         limit: int = 50,
+        end: date | None = None,
     ) -> list[dict[str, object]]:
-        return [fact.to_dict() for fact in self._repo.get_recent(asset_code, limit)]
+        return [fact.to_dict() for fact in self._repo.get_recent(asset_code, limit, end)]
 
 
 class QueryCapitalFlowsUseCase:
