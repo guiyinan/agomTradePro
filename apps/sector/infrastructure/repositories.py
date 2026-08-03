@@ -14,6 +14,7 @@ from typing import Any
 
 from apps.data_center.application.public import (
     get_current_publication,
+    get_publication_member_fact_pks,
     get_sector_membership_repository_port,
 )
 from shared.numeric import safe_float
@@ -141,9 +142,23 @@ class DjangoSectorRepository:
     def get_stock_sector_name_map(self) -> dict[str, list[str]]:
         """Return current stock-to-sector-name mapping for policy influence checks."""
 
-        if get_current_publication("sector.membership", "current") is None:
+        publication = get_current_publication("sector.membership", "current")
+        if publication is None:
             return {}
-        canonical_rows = self._dc_membership_repo.list_current(as_of=date.today())
+        publication_id = str(publication.get("publication_id") or "")
+        if not publication_id:
+            return {}
+        member_pks = get_publication_member_fact_pks(
+            publication_id,
+            dataset_key="sector.membership",
+            expected_fact_table="data_center_sector_membership_fact",
+        )
+        if member_pks is None or member_pks == []:
+            return {}
+        canonical_rows = self._dc_membership_repo.list_current(
+            as_of=date.today(),
+            fact_pks=member_pks,
+        )
         canonical_mapping: dict[str, list[str]] = {}
         for canonical_row in canonical_rows:
             if not canonical_row.asset_code or not canonical_row.sector_name:

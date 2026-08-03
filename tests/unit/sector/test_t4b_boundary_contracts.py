@@ -250,12 +250,20 @@ def test_repository_builds_deduplicated_stock_sector_map_and_handles_saves() -> 
         ),
         patch(
             "apps.sector.infrastructure.repositories.get_current_publication",
-            return_value=SimpleNamespace(publication_id="pub-sector"),
+            return_value={"publication_id": "pub-sector"},
+        ),
+        patch(
+            "apps.sector.infrastructure.repositories.get_publication_member_fact_pks",
+            return_value=["1", "2"],
         ),
     ):
         assert DjangoSectorRepository().get_stock_sector_name_map() == {
             "000001.SZ": ["Agriculture"]
         }
+    membership_repo.list_current.assert_called_once_with(
+        as_of=date.today(),
+        fact_pks=["1", "2"],
+    )
 
     membership_repo.list_current.return_value = []
     with (
@@ -265,7 +273,11 @@ def test_repository_builds_deduplicated_stock_sector_map_and_handles_saves() -> 
         ),
         patch(
             "apps.sector.infrastructure.repositories.get_current_publication",
-            return_value=SimpleNamespace(publication_id="pub-sector"),
+            return_value={"publication_id": "pub-sector"},
+        ),
+        patch(
+            "apps.sector.infrastructure.repositories.get_publication_member_fact_pks",
+            return_value=[],
         ),
     ):
         assert DjangoSectorRepository().get_stock_sector_name_map() == {}
