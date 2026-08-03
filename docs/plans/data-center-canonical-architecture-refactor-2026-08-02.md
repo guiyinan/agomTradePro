@@ -1264,6 +1264,28 @@
 - runtime definition 目前只覆盖首个 failover key；全局运行参数、SystemSettings 退役和非默认 profile/无 active profile 的生产观察仍未完成。
 - PostgreSQL 最新迁移/性能、生产 publication/member 观察、备份恢复、容量故障注入、旧表退役和 VPS 部署仍未验证；继续保持不部署。
 
+## 实施记录（2026-08-04，fund.nav Publication 与 failover 开关定义收口）
+
+本批次继续沿同一“事实写入后才能发布、配置必须有定义”原则推进，不部署、不 push、不接触生产数据。
+
+已落地：
+
+- `SyncFundNavUseCase` 的正式 composition root 注入 `PublishFundNavBatchUseCase`；按 `(fund_code, nav_date, source)` 解析精确 canonical fact PK，以源 `nav_date` 的 UTC 日界作为 `observed_at/as_of`，保留 raw hash/source record/quality/revision，并执行 coverage gate 与确定性幂等 Publication。
+- `FundNavRepositoryProtocol` 和 infrastructure repository 增加 candidate port；current-data manifest 登记 fund NAV writer/repository markers 和 4 个精确回归 nodeid。
+- `data_center.provider.enable_failover` 纳入 Config Center definition reconcile；failover adapter 优先读取 typed active snapshot，缺失/异常/非法值才回退已登记的 DataProviderSettings owner compatibility 值。
+
+机器证据（本地）：
+
+- `pytest tests/unit/config_center/test_runtime_definition_reconcile.py tests/unit/data_center/test_macro_failover_adapter.py tests/unit/data_center/test_fund_nav_publication_sync.py --reuse-db --no-migrations`：23 passed。
+- current-data runner：162 个登记 nodeid，实际 201 个测试项全部通过（`--reuse-db --no-migrations`）。
+- `check_current_data_contracts.py`：36 surfaces；runtime config coverage 49；governance consistency 0；architecture boundary/audit 0；12 个变更生产文件 mypy regression 0；ruff/black/isort、manage check、makemigrations check 通过。
+
+仍未完成及风险：
+
+- quote、price bar、financial、valuation、sector membership 等同步任务仍未全部接入 Publication writer/backfill；全域 checkpoint、覆盖对账、生产观察窗口和 CI/Linux PostgreSQL 证据仍缺失。
+- Config Center 目前只覆盖两个 Data Center failover 参数，SystemSettings 全量退役、所有全局运行参数 owner/非默认 profile 验证仍未完成。
+- PostgreSQL 最新迁移/性能、备份恢复、容量故障注入、旧表退役和 VPS 部署仍未验证；继续保持不部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
