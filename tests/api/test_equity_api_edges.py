@@ -875,7 +875,11 @@ def test_equity_published_valuation_blocks_stale_publication_before_use_case(
     with (
         patch(
             "apps.equity.interface.analysis_actions.get_decision_publication_gate",
-            side_effect=[fresh_financial_publication, stale_valuation_publication],
+            side_effect=[
+                fresh_financial_publication,
+                stale_valuation_publication,
+                fresh_financial_publication,
+            ],
         ),
         patch(
             "apps.equity.interface.analysis_actions.AnalyzeValuationUseCase",
@@ -918,7 +922,11 @@ def test_equity_published_valuation_blocks_stale_financial_publication_before_us
     with (
         patch(
             "apps.equity.interface.analysis_actions.get_decision_publication_gate",
-            side_effect=[stale_financial_publication, fresh_valuation_publication],
+            side_effect=[
+                stale_financial_publication,
+                fresh_valuation_publication,
+                fresh_valuation_publication,
+            ],
         ),
         patch(
             "apps.equity.interface.analysis_actions.AnalyzeValuationUseCase",
@@ -1020,6 +1028,78 @@ def test_equity_published_valuation_calculators_block_stale_publication_before_u
     assert body["success"] is False
     assert body["status"] == "blocked"
     assert body["error"] == "publication_observation_stale"
+    assert body["must_not_use_for_decision"] is True
+    assert expected_marker in body
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("method", "path", "use_case_path", "payload", "expected_marker"),
+    (
+        (
+            "post",
+            "/api/equity/screen/",
+            "apps.equity.interface.analysis_actions.ScreenStocksUseCase",
+            {"mode": "published", "regime": "Recovery"},
+            "stock_codes",
+        ),
+        (
+            "get",
+            "/api/equity/valuation/300308.SZ/?mode=published",
+            "apps.equity.interface.analysis_actions.AnalyzeValuationUseCase",
+            None,
+            "latest_valuation",
+        ),
+        (
+            "post",
+            "/api/equity/dcf/",
+            "apps.equity.interface.analysis_actions.CalculateDCFUseCase",
+            {"stock_code": "300308.SZ", "mode": "published"},
+            "intrinsic_value",
+        ),
+        (
+            "post",
+            "/api/equity/comprehensive-valuation/",
+            "apps.equity.interface.analysis_actions.ComprehensiveValuationUseCase",
+            {"stock_code": "300308.SZ", "mode": "published"},
+            "overall_score",
+        ),
+    ),
+)
+def test_equity_published_reads_block_without_member_snapshot(
+    authenticated_client,
+    method: str,
+    path: str,
+    use_case_path: str,
+    payload: dict[str, object] | None,
+    expected_marker: str,
+):
+    fresh_publication = {
+        "publication_id": "equity-data-2026-08-03",
+        "published_at": "2026-08-03T08:00:00+00:00",
+        "observed_at": "2026-08-03T07:00:00+00:00",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
+        "freshness_status": "fresh",
+    }
+
+    with (
+        patch(
+            "apps.equity.interface.analysis_actions.get_decision_publication_gate",
+            side_effect=[fresh_publication, fresh_publication, fresh_publication],
+        ),
+        patch(use_case_path, side_effect=AssertionError("member snapshot absence must block")),
+    ):
+        if method == "get":
+            response = authenticated_client.get(path)
+        else:
+            response = authenticated_client.post(path, payload, format="json")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["status"] == "blocked"
+    assert body["error"] == "canonical_publication_member_snapshot_missing"
     assert body["must_not_use_for_decision"] is True
     assert expected_marker in body
 

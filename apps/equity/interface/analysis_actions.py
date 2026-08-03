@@ -138,6 +138,22 @@ class EquityAnalysisActionsMixin:
                     },
                     status=status.HTTP_200_OK,
                 )
+            return Response(
+                {
+                    "success": False,
+                    "status": "blocked",
+                    "regime": str(data.get("regime") or ""),
+                    "stock_codes": [],
+                    "items": [],
+                    "screening_criteria": data.get("custom_rule") or {},
+                    "error": "canonical_publication_member_snapshot_missing",
+                    "mode": mode,
+                    "publication_key": publication_key,
+                    "publication_gates": publication_gates,
+                    "must_not_use_for_decision": True,
+                },
+                status=status.HTTP_200_OK,
+            )
 
         # 2. 构造请求对象
         use_case_request = ScreenStocksRequest(
@@ -280,6 +296,30 @@ class EquityAnalysisActionsMixin:
                     },
                     status=status.HTTP_200_OK,
                 )
+            return Response(
+                {
+                    "success": False,
+                    "status": "blocked",
+                    "stock_code": data["stock_code"],
+                    "stock_name": "",
+                    "sector": "",
+                    "market": "",
+                    "list_date": None,
+                    "current_pe": None,
+                    "pe_percentile": 0.0,
+                    "current_pb": None,
+                    "pb_percentile": 0.0,
+                    "is_undervalued": False,
+                    "latest_valuation": None,
+                    "financial_data": None,
+                    "error": "canonical_publication_member_snapshot_missing",
+                    "publication_id": None,
+                    "publication": publication,
+                    "publication_gates": publication_gates,
+                    "must_not_use_for_decision": True,
+                },
+                status=status.HTTP_200_OK,
+            )
 
         # 2. 构造请求对象
         use_case_request = AnalyzeValuationRequest(
@@ -428,6 +468,24 @@ class EquityAnalysisActionsMixin:
                     },
                     status=status.HTTP_200_OK,
                 )
+            return Response(
+                {
+                    "success": False,
+                    "status": "blocked",
+                    "stock_code": str(data["stock_code"]),
+                    "stock_name": "",
+                    "intrinsic_value": None,
+                    "intrinsic_value_per_share": None,
+                    "current_price": None,
+                    "upside": None,
+                    "error": "canonical_publication_member_snapshot_missing",
+                    "mode": mode,
+                    "publication_key": publication_key,
+                    "publication_gates": publication_gates,
+                    "must_not_use_for_decision": True,
+                },
+                status=status.HTTP_200_OK,
+            )
 
         # 2. 构造请求对象
         use_case_request = CalculateDCFRequest(
@@ -670,6 +728,25 @@ class EquityAnalysisActionsMixin:
                     },
                     status=status.HTTP_200_OK,
                 )
+            return Response(
+                {
+                    "success": False,
+                    "status": "blocked",
+                    "stock_code": str(data["stock_code"]),
+                    "stock_name": "",
+                    "overall_score": 0.0,
+                    "overall_signal": "hold",
+                    "recommendation": "",
+                    "confidence": 0.0,
+                    "scores": [],
+                    "error": "canonical_publication_member_snapshot_missing",
+                    "mode": mode,
+                    "publication_key": publication_key,
+                    "publication_gates": publication_gates,
+                    "must_not_use_for_decision": True,
+                },
+                status=status.HTTP_200_OK,
+            )
 
         # 2. 构造请求对象
         use_case_request = ComprehensiveValuationRequest(

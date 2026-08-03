@@ -8,6 +8,8 @@ Following AgomSaaS architecture rules:
 """
 
 import logging
+import math
+from collections.abc import Mapping
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from importlib import import_module
@@ -26,6 +28,8 @@ from apps.data_center.application.public import (
     get_akshare_eastmoney_gateway_port,
     get_akshare_module_port,
     get_price_bar_repository_port,
+    get_published_price_bar_series,
+    get_published_quote_payloads,
     get_quote_snapshot_repository_port,
 )
 from apps.data_center.domain.entities import QuoteSnapshot as DataCenterQuoteSnapshot
@@ -67,6 +71,116 @@ def _daily_bar_observed_at(bar_date: date) -> datetime:
         time(hour=15),
         tzinfo=_CHINA_MARKET_TIMEZONE,
     ).astimezone(UTC)
+
+
+def _finite_float(value: object) -> float | None:
+    """Return one finite numeric payload value, rejecting booleans."""
+
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    converted = float(value)
+    return converted if math.isfinite(converted) else None
+
+
+def _aware_datetime(value: object) -> datetime | None:
+    """Parse one source observation timestamp without inventing a clock time."""
+
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed
+
+
+def _published_data_center_price(
+    asset_code: str,
+    asset_type: AssetType,
+) -> RealtimePrice | None:
+    """Read a current Data Center quote/bar only behind publication gates.
+
+    Quote snapshots are preferred, while a daily bar is an explicitly gated
+    fallback.  A raw repository read is intentionally not used here: an
+    unpublished or stale fact must not be presented as realtime data.
+    """
+
+    try:
+        quote_payload = get_published_quote_payloads([asset_code], publication_key="current")
+    except Exception:
+        logger.warning(
+            "Current quote publication unavailable for %s",
+            asset_code,
+            exc_info=True,
+        )
+        return None
+    quote_rows = quote_payload.get("rows")
+    if not bool(quote_payload.get("must_not_use_for_decision")) and isinstance(quote_rows, list):
+        for row in quote_rows:
+            if not isinstance(row, Mapping):
+                continue
+            price = _finite_float(row.get("current_price"))
+            observed_at = _aware_datetime(row.get("snapshot_at"))
+            if price is None or observed_at is None:
+                continue
+            fetched_at = _aware_datetime(row.get("fetched_at"))
+            return RealtimePrice(
+                asset_code=asset_code,
+                asset_type=asset_type,
+                price=Decimal(str(price)),
+                change=None,
+                change_pct=None,
+                volume=(
+                    int(volume_value)
+                    if (volume_value := _finite_float(row.get("volume"))) is not None
+                    else None
+                ),
+                timestamp=observed_at,
+                source=str(row.get("source") or "data_center"),
+                fetched_at=fetched_at,
+            )
+
+    try:
+        bar_payload = get_published_price_bar_series(
+            asset_code,
+            publication_key="current",
+            limit=1,
+        )
+    except Exception:
+        logger.warning(
+            "Current price-bar publication unavailable for %s",
+            asset_code,
+            exc_info=True,
+        )
+        return None
+    bar_rows = bar_payload.get("rows")
+    if bool(bar_payload.get("must_not_use_for_decision")) or not isinstance(bar_rows, list):
+        return None
+    for row in reversed(bar_rows):
+        if not isinstance(row, Mapping):
+            continue
+        close = _finite_float(row.get("close"))
+        raw_date = row.get("timestamp") or row.get("bar_date")
+        if close is None or not isinstance(raw_date, str):
+            continue
+        try:
+            bar_date = date.fromisoformat(raw_date[:10])
+        except ValueError:
+            continue
+        volume_value = _finite_float(row.get("volume"))
+        return RealtimePrice(
+            asset_code=asset_code,
+            asset_type=asset_type,
+            price=Decimal(str(close)),
+            change=None,
+            change_pct=None,
+            volume=int(volume_value) if volume_value is not None else None,
+            timestamp=_daily_bar_observed_at(bar_date),
+            source=str(row.get("source") or "data_center"),
+        )
+    return None
 
 
 def get_akshare_module() -> ModuleType:
@@ -390,35 +504,10 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
         注意：Tushare免费版只能获取历史数据，"实时"实际上是最新交易日数据
         """
         try:
-            quote = self._quote_repo.get_latest(asset_code)
-            if quote is not None:
-                return RealtimePrice(
-                    asset_code=asset_code,
-                    asset_type=self._get_asset_type(asset_code),
-                    price=Decimal(str(quote.current_price)),
-                    change=None,
-                    change_pct=None,
-                    volume=int(quote.volume) if quote.volume is not None else None,
-                    timestamp=quote.snapshot_at,
-                    source=quote.source or "data_center",
-                    fetched_at=quote.fetched_at,
-                )
-
-            latest_bar = self._price_repo.get_latest(asset_code)
-            if latest_bar is None:
+            price = _published_data_center_price(asset_code, self._get_asset_type(asset_code))
+            if price is None:
                 logger.warning(f"No price data found for {asset_code}")
-                return None
-
-            return RealtimePrice(
-                asset_code=asset_code,
-                asset_type=self._get_asset_type(asset_code),
-                price=Decimal(str(latest_bar.close)),
-                change=None,
-                change_pct=None,
-                volume=int(latest_bar.volume) if latest_bar.volume is not None else None,
-                timestamp=_daily_bar_observed_at(latest_bar.bar_date),
-                source=latest_bar.source or "data_center",
-            )
+            return price
 
         except Exception as e:
             logger.error(f"Failed to get realtime price for {asset_code}: {e}")
@@ -720,35 +809,9 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         self,
         asset_code: str,
     ) -> RealtimePrice | None:
-        """读取已持久化的最新报价或价格条，避免重复触发远端抓取。"""
-        quote = self._quote_repo.get_latest(asset_code)
-        if quote is not None:
-            return RealtimePrice(
-                asset_code=asset_code,
-                asset_type=self._get_asset_type(asset_code),
-                price=Decimal(str(quote.current_price)),
-                change=None,
-                change_pct=None,
-                volume=int(quote.volume) if quote.volume is not None else None,
-                timestamp=quote.snapshot_at,
-                source=quote.source or "data_center",
-                fetched_at=quote.fetched_at,
-            )
+        """Read persisted current facts only after Data Center gate validation."""
 
-        latest_bar = self._price_repo.get_latest(asset_code)
-        if latest_bar is None:
-            return None
-
-        return RealtimePrice(
-            asset_code=asset_code,
-            asset_type=self._get_asset_type(asset_code),
-            price=Decimal(str(latest_bar.close)),
-            change=None,
-            change_pct=None,
-            volume=int(latest_bar.volume) if latest_bar.volume is not None else None,
-            timestamp=_daily_bar_observed_at(latest_bar.bar_date),
-            source=latest_bar.source or "data_center",
-        )
+        return _published_data_center_price(asset_code, self._get_asset_type(asset_code))
 
     def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
         """获取单个资产的实时价格
@@ -905,33 +968,7 @@ class DataCenterPriceDataProvider(PriceDataProviderProtocol):
 
     def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
         try:
-            quote = self._quote_repo.get_latest(asset_code)
-            if quote is not None:
-                return RealtimePrice(
-                    asset_code=asset_code,
-                    asset_type=self._get_asset_type(asset_code),
-                    price=Decimal(str(quote.current_price)),
-                    change=None,
-                    change_pct=None,
-                    volume=int(quote.volume) if quote.volume is not None else None,
-                    timestamp=quote.snapshot_at,
-                    source=quote.source,
-                    fetched_at=quote.fetched_at,
-                )
-
-            bar = self._bar_repo.get_latest(asset_code)
-            if bar is None:
-                return None
-            return RealtimePrice(
-                asset_code=asset_code,
-                asset_type=self._get_asset_type(asset_code),
-                price=Decimal(str(bar.close)),
-                change=None,
-                change_pct=None,
-                volume=int(bar.volume) if bar.volume is not None else None,
-                timestamp=_daily_bar_observed_at(bar.bar_date),
-                source=bar.source,
-            )
+            return _published_data_center_price(asset_code, self._get_asset_type(asset_code))
         except Exception:
             logger.warning(
                 "Failed to read realtime price from data_center: %s",
