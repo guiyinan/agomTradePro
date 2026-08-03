@@ -430,3 +430,23 @@ jobs:
             tests/unit/data_center/test_reconciliation_and_query_budget.py \
             tests/unit/config_center/test_runtime_config_control_plane.py \
             -q --reuse-db --no-migrations --timeout=180
+
+      - name: Run current-data contract manifest on PostgreSQL
+        run: |
+          python scripts/run_current_data_contract_tests.py \
+            --pytest-arg=--reuse-db \
+            --pytest-arg=--no-migrations \
+            --pytest-arg=--disable-warnings \
+            --pytest-arg=--maxfail=1
+
+      - name: Run backfill coverage and retention control-plane evidence on PostgreSQL
+        run: |
+          python -m pytest \
+            tests/unit/data_center/test_core_data_backfill_task.py \
+            tests/component/data_center/test_core_data_backfill_control_plane.py \
+            tests/component/data_center/test_repositories.py \
+            tests/unit/data_center/test_retention_tasks.py \
+            tests/unit/data_center/test_raw_landing.py \
+            tests/unit/data_center/test_retention_control_plane.py \
+            -q -k "diagnostic or backfill or retention or raw_landing" \
+            --reuse-db --no-migrations --timeout=240
