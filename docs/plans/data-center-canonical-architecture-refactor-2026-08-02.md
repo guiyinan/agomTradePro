@@ -1206,6 +1206,15 @@
 
 - Sector index/relative-strength 仍属于业务派生缓存，不是 D7 membership facts；其当前/历史读取需继续按数据产品契约区分。生产 publication/member 观测和 PostgreSQL 仍未验证。
 
+## 实施记录（2026-08-03，本地 PostgreSQL 迁移重测）
+
+本次只做本地 PostgreSQL 16 空库迁移验证，不接 VPS、不使用生产数据；临时容器已清理。
+
+机器证据：
+
+- `docker run postgres:16` 临时库启动成功，`pg_isready` 通过；`python manage.py migrate --noinput` 在 15 分钟预算内未完成，过程中已创建 184 张表，最终按超时终止。
+- 未把该次迁移当作通过；PostgreSQL 全迁移/关键链路仍需 CI/Linux 或专门迁移性能修复后重新验证。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
