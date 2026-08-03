@@ -86,6 +86,7 @@ from .publication_sync import (
     PublishPriceBarBatchUseCase,
     PublishQuoteSnapshotBatchUseCase,
     PublishSectorMembershipBatchUseCase,
+    PublishValuationBatchUseCase,
 )
 from .use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
@@ -1078,22 +1079,34 @@ def get_active_provider_id_by_source(source_type: str) -> int | None:
 def make_sync_valuation_use_case() -> SyncValuationUseCase:
     """Build the valuation sync use case."""
 
+    valuation_repository = ValuationFactRepository()
     return SyncValuationUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
-        fact_repo=ValuationFactRepository(),
+        fact_repo=valuation_repository,
         raw_audit_repo=_make_raw_audit_repo(),
+        publication_publisher=PublishValuationBatchUseCase(
+            fact_repository=valuation_repository,
+            publication_repository=CanonicalPublicationRepository(),
+            policy_repository=PublicationPolicyRepository(),
+        ),
     )
 
 
 def make_sync_current_valuation_batch_use_case() -> SyncCurrentValuationBatchUseCase:
     """Build the current valuation batch sync use case."""
 
+    valuation_repository = ValuationFactRepository()
     return SyncCurrentValuationBatchUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
-        fact_repo=ValuationFactRepository(),
+        fact_repo=valuation_repository,
         raw_audit_repo=_make_raw_audit_repo(),
+        publication_publisher=PublishValuationBatchUseCase(
+            fact_repository=valuation_repository,
+            publication_repository=CanonicalPublicationRepository(),
+            policy_repository=PublicationPolicyRepository(),
+        ),
     )
 
 

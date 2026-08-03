@@ -29,6 +29,7 @@ from apps.data_center.application.publication_sync import (
     PublishPriceBarBatchUseCase,
     PublishQuoteSnapshotBatchUseCase,
     PublishSectorMembershipBatchUseCase,
+    PublishValuationBatchUseCase,
 )
 from apps.data_center.application.query_use_cases import (
     DEFAULT_LATEST_QUOTE_MAX_AGE_HOURS,
@@ -89,6 +90,7 @@ __all__ = [
     "PublishPriceBarBatchUseCase",
     "PublishQuoteSnapshotBatchUseCase",
     "PublishSectorMembershipBatchUseCase",
+    "PublishValuationBatchUseCase",
     "RECOVERABLE_DATA_CENTER_EXCEPTIONS",
     "RepairDecisionDataReliabilityUseCase",
     "ResolveAssetUseCase",

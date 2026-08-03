@@ -14,6 +14,7 @@ from apps.data_center.domain.protocols import (
     ValuationFactRepositoryProtocol,
 )
 
+from .publication_sync import PublishValuationBatchUseCase
 from .sync_use_cases import RECOVERABLE_DATA_CENTER_EXCEPTIONS, _BaseSyncUseCase
 
 
@@ -26,9 +27,11 @@ class SyncCurrentValuationBatchUseCase(_BaseSyncUseCase):
         provider_registry: ProviderRegistryProtocol,
         fact_repo: ValuationFactRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
+        publication_publisher: PublishValuationBatchUseCase | None = None,
     ) -> None:
         super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
+        self._publication_publisher = publication_publisher
 
     def execute(
         self,
@@ -54,6 +57,11 @@ class SyncCurrentValuationBatchUseCase(_BaseSyncUseCase):
                 for fact in facts
             ]
             stored_count = self._facts.bulk_upsert(facts)
+            if self._publication_publisher is not None and facts:
+                self._publication_publisher.execute(
+                    facts,
+                    provider_name=provider.provider_name(),
+                )
             succeeded_asset_codes = sorted({fact.asset_code for fact in facts})
             complete = len(succeeded_asset_codes) == len(asset_codes)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000

@@ -28,6 +28,11 @@ from apps.data_center.domain.entities import (
 from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtocol
 
 from .control_plane import CanonicalPublicationRepositoryPort, PublishCanonicalDatasetUseCase
+from .publication_utils import publication_hash as _publication_hash
+from .valuation_publication import (
+    PublishValuationBatchUseCase,
+    ValuationPublicationCandidateRepositoryProtocol,
+)
 
 
 class NewsPublicationCandidateRepositoryProtocol(Protocol):
@@ -1192,27 +1197,6 @@ def _article_content_identity(article: NewsFact) -> str:
     ).hexdigest()
 
 
-def _publication_hash(references: Sequence[PublicationFactReference]) -> str:
-    payload = [
-        {
-            "natural_key": reference.natural_key,
-            "source": reference.source,
-            "fact_table": reference.fact_table,
-            "fact_pk": reference.fact_pk,
-            "observed_at": reference.observed_at.isoformat(),
-            "raw_payload_hash": reference.raw_payload_hash,
-            "quality_status": reference.quality_status,
-            "revision_number": reference.revision_number,
-        }
-        for reference in references
-    ]
-    return hashlib.sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
-            "utf-8"
-        )
-    ).hexdigest()
-
-
 __all__ = [
     "CapitalFlowPublicationCandidateRepositoryProtocol",
     "FinancialPublicationCandidateRepositoryProtocol",
@@ -1221,6 +1205,7 @@ __all__ = [
     "PriceBarPublicationCandidateRepositoryProtocol",
     "QuoteSnapshotPublicationCandidateRepositoryProtocol",
     "SectorMembershipPublicationCandidateRepositoryProtocol",
+    "ValuationPublicationCandidateRepositoryProtocol",
     "PublishCapitalFlowBatchUseCase",
     "PublishFinancialBatchUseCase",
     "PublishFundNavBatchUseCase",
@@ -1228,4 +1213,5 @@ __all__ = [
     "PublishPriceBarBatchUseCase",
     "PublishQuoteSnapshotBatchUseCase",
     "PublishSectorMembershipBatchUseCase",
+    "PublishValuationBatchUseCase",
 ]

@@ -1810,6 +1810,8 @@
         "apps/data_center/application/control_plane.py",
         "apps/data_center/infrastructure/control_plane_repositories.py",
         "apps/data_center/application/publication_sync.py",
+        "apps/data_center/application/valuation_publication.py",
+        "apps/data_center/application/publication_utils.py",
         "apps/data_center/application/sync_use_cases.py",
         "apps/data_center/application/interface_services.py",
         "apps/data_center/infrastructure/market_breadth_repositories.py",
@@ -1849,14 +1851,22 @@
           "price-bar observation cannot be later than publication time",
           "sector membership observation cannot be later than publication time"
         ],
+        "apps/data_center/application/valuation_publication.py": [
+          "class ValuationPublicationCandidateRepositoryProtocol(Protocol):",
+          "class PublishValuationBatchUseCase:",
+          "publication_digest = _publication_hash(references)",
+          "valuation observation cannot be later than publication time"
+        ],
         "apps/data_center/application/sync_use_cases.py": [
           "publication_publisher: PublishPriceBarBatchUseCase | None = None",
           "publication_publisher: PublishFinancialBatchUseCase | None = None",
+          "publication_publisher: PublishValuationBatchUseCase | None = None",
           "self._publication_publisher.execute("
         ],
         "apps/data_center/application/interface_services.py": [
           "publication_publisher=PublishPriceBarBatchUseCase(",
           "publication_publisher=PublishFinancialBatchUseCase("
+          ,"publication_publisher=PublishValuationBatchUseCase("
         ],
         "apps/data_center/infrastructure/market_breadth_repositories.py": [
           "def list_publication_candidates(",
@@ -1872,7 +1882,10 @@
           "observed_at=row.available_at",
           "row.raw_payload_hash or _financial_payload_hash(row)",
           "observed_at=datetime.combine(row.nav_date, time.min, tzinfo=UTC)",
-          "row.raw_payload_hash or _fund_nav_payload_hash(row)"
+          "row.raw_payload_hash or _fund_nav_payload_hash(row)",
+          "observed_at=datetime.combine(row.val_date, time.min, tzinfo=UTC)",
+          "available_at_unverified",
+          "valuation available_at cannot be in the future"
         ],
         "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
           "available_at=_available_at_from_report_date(report_date)"
@@ -2038,6 +2051,41 @@
           "case": "financial_sync_invokes_publication_writer",
           "test_file": "tests/unit/data_center/test_financial_publication_sync.py",
           "test_function": "test_sync_financial_use_case_invokes_publication_after_fact_write"
+        },
+        {
+          "case": "valuation_publication_members_and_as_of",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_valuation_publication_uses_val_date_and_exact_members"
+        },
+        {
+          "case": "valuation_publication_idempotency",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_valuation_publication_is_idempotent_for_same_snapshot"
+        },
+        {
+          "case": "valuation_publication_coverage_fail_closed",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_valuation_publication_fails_closed_below_coverage_policy"
+        },
+        {
+          "case": "valuation_candidate_observation_boundary",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_valuation_repository_candidate_preserves_val_date_and_evidence"
+        },
+        {
+          "case": "valuation_candidate_future_available_at_blocks",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_valuation_repository_rejects_future_available_at"
+        },
+        {
+          "case": "valuation_sync_invokes_publication_writer",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_sync_valuation_use_case_invokes_publication_after_fact_write"
+        },
+        {
+          "case": "current_valuation_batch_invokes_publication_writer",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_current_valuation_batch_invokes_publication_after_fact_write"
         },
         {
           "case": "tushare_report_date_becomes_available_at",

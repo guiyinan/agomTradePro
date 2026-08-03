@@ -587,6 +587,7 @@ class ValuationFact:
     float_market_cap: float | None = None
     dv_ratio: float | None = None
     source: str = ""
+    available_at: datetime | None = None
     fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -608,6 +609,10 @@ class ValuationFact:
                 or not math.isfinite(value)
             ):
                 raise ValueError(f"ValuationFact.{field_name} must be finite")
+        if self.available_at is not None and (
+            self.available_at.tzinfo is None or self.available_at.utcoffset() is None
+        ):
+            raise ValueError("ValuationFact.available_at must be timezone-aware")
         for field_name, value in (
             ("market_cap", self.market_cap),
             ("float_market_cap", self.float_market_cap),
@@ -627,6 +632,7 @@ class ValuationFact:
             "float_market_cap": self.float_market_cap,
             "dv_ratio": self.dv_ratio,
             "source": self.source,
+            "available_at": self.available_at.isoformat() if self.available_at else None,
             "fetched_at": self.fetched_at.isoformat(),
             "extra": self.extra,
         }
