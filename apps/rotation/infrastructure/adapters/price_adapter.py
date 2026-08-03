@@ -5,11 +5,20 @@ Rotation Module Infrastructure Layer - Price Data Adapter
 """
 
 import logging
+from collections.abc import Mapping
 from datetime import date, datetime, timedelta
+from typing import Literal
 
 from django.utils import timezone
 
-from core.integration.price_history import fetch_close_prices_from_data_center
+from core.integration.price_history import (
+    fetch_close_prices_from_data_center as _fetch_historical_close_prices,
+)
+from core.integration.price_history import (
+    fetch_published_close_prices_from_data_center as fetch_close_prices_from_data_center,
+)
+
+PriceReadMode = Literal["published", "historical"]
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +30,7 @@ class PriceDataCache:
         self._cache: dict[str, tuple[list[float], datetime]] = {}
         self._ttl = timedelta(seconds=ttl_seconds)
 
-    def get(
-        self,
-        asset_code: str,
-        end_date: date
-    ) -> list[float] | None:
+    def get(self, asset_code: str, end_date: date) -> list[float] | None:
         """Get cached prices if available and not expired"""
         cache_key = f"{asset_code}_{end_date}"
 
@@ -38,12 +43,7 @@ class PriceDataCache:
 
         return None
 
-    def set(
-        self,
-        asset_code: str,
-        end_date: date,
-        prices: list[float]
-    ) -> None:
+    def set(self, asset_code: str, end_date: date, prices: list[float]) -> None:
         """Cache prices"""
         cache_key = f"{asset_code}_{end_date}"
         self._cache[cache_key] = (prices, timezone.now())
@@ -73,6 +73,7 @@ class RotationPriceDataService:
         days_back: int = 252,
         *,
         cache_result: bool = True,
+        mode: PriceReadMode = "published",
     ) -> list[float] | None:
         """
         获取资产历史收盘价。
@@ -87,15 +88,20 @@ class RotationPriceDataService:
             收盘价列表（从旧到新），或 None
         """
         # 优先查缓存
-        cached_prices = self.cache.get(asset_code, end_date)
+        if mode not in {"published", "historical"}:
+            raise ValueError("mode must be 'published' or 'historical'")
+
+        # Keep historical and decision-facing reads in separate cache
+        # namespaces.  A historical replay must never warm the current view.
+        cache_asset_code = f"{mode}:{asset_code}"
+        cached_prices = self.cache.get(cache_asset_code, end_date)
         if cached_prices and len(cached_prices) >= days_back:
             return cached_prices[-days_back:]
 
-        # 从 data_center 事实表获取
-        prices = self._fetch_from_data_center(asset_code, end_date, days_back)
+        prices = self._fetch_from_data_center(asset_code, end_date, days_back, mode=mode)
 
         if prices and cache_result:
-            self.cache.set(asset_code, end_date, prices)
+            self.cache.set(cache_asset_code, end_date, prices)
 
         return prices
 
@@ -103,13 +109,15 @@ class RotationPriceDataService:
         self,
         asset_codes: list[str],
         end_date: date,
-        days_back: int = 252
+        days_back: int = 252,
+        *,
+        mode: PriceReadMode = "published",
     ) -> dict[str, list[float]]:
         """批量获取多个资产的历史价格。"""
-        result = {}
+        result: dict[str, list[float]] = {}
 
         for asset_code in asset_codes:
-            prices = self.get_prices(asset_code, end_date, days_back)
+            prices = self.get_prices(asset_code, end_date, days_back, mode=mode)
             if prices:
                 result[asset_code] = prices
 
@@ -124,14 +132,36 @@ class RotationPriceDataService:
         asset_code: str,
         end_date: date,
         days_back: int,
+        *,
+        mode: PriceReadMode = "published",
     ) -> list[float] | None:
-        """从 data_center 事实表读取历史价格"""
+        """Read prices using either the current publication or historical port."""
         try:
-            prices = fetch_close_prices_from_data_center(
-                asset_code=asset_code,
-                end_date=end_date,
-                days_back=days_back,
-            )
+            if mode == "historical":
+                prices = _fetch_historical_close_prices(
+                    asset_code=asset_code,
+                    end_date=end_date,
+                    days_back=days_back,
+                )
+            else:
+                published_payload: object = fetch_close_prices_from_data_center(
+                    asset_code=asset_code,
+                    end_date=end_date,
+                    days_back=days_back,
+                )
+                if isinstance(published_payload, Mapping):
+                    raw_prices: object = published_payload.get("prices")
+                else:
+                    # Keep the narrow module-level patch seam used by legacy
+                    # rotation/factor tests while production returns metadata.
+                    raw_prices = published_payload
+                if not isinstance(raw_prices, list):
+                    return None
+                prices = [
+                    float(price)
+                    for price in raw_prices
+                    if not isinstance(price, bool) and isinstance(price, (int, float))
+                ]
             if not prices:
                 return None
             return prices

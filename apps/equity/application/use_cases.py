@@ -421,6 +421,10 @@ class GetTechnicalChartResponse:
     signals: list[EquityPayload]
     latest_signal: EquityPayload | None
     error: str | None = None
+    observed_at: str | None = None
+    freshness_status: str = "unverified"
+    must_not_use_for_decision: bool = True
+    blocked_reason: str | None = None
 
 
 @dataclass
@@ -478,6 +482,11 @@ class GetTechnicalChartUseCase:
 
             aggregated_bars = self.chart_service.aggregate_bars(bars, request.timeframe)
             signals = self.chart_service.detect_crossovers(aggregated_bars)
+            latest_trade_date = max(bar.trade_date for bar in aggregated_bars)
+            age_days = max((date.today() - latest_trade_date).days, 0)
+            freshness_status = "fresh" if age_days <= 5 else "stale"
+            must_not_use_for_decision = freshness_status != "fresh"
+            blocked_reason = "technical_observation_stale" if must_not_use_for_decision else None
 
             candle_payload: list[EquityPayload] = [
                 {
@@ -518,6 +527,10 @@ class GetTechnicalChartUseCase:
                 candles=candle_payload,
                 signals=signal_payload,
                 latest_signal=signal_payload[-1] if signal_payload else None,
+                observed_at=latest_trade_date.isoformat(),
+                freshness_status=freshness_status,
+                must_not_use_for_decision=must_not_use_for_decision,
+                blocked_reason=blocked_reason,
             )
         except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as exc:
             logger.warning("GetTechnicalChartUseCase.execute failed: %s", exc)
@@ -530,6 +543,9 @@ class GetTechnicalChartUseCase:
                 signals=[],
                 latest_signal=None,
                 error=str(exc),
+                freshness_status="unverified",
+                must_not_use_for_decision=True,
+                blocked_reason="technical_observation_unavailable",
             )
 
     @staticmethod

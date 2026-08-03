@@ -1605,6 +1605,81 @@
           "test_function": "test_equity_intraday_chart_degrades_cleanly_when_sources_fail"
         }
       ]
+    },
+    {
+      "id": "equity.technical_chart",
+      "surface": "GET /api/equity/technical/{stock_code}/",
+      "source_files": [
+        "apps/equity/application/use_cases.py",
+        "apps/equity/interface/serializers.py"
+      ],
+      "required_markers": {
+        "apps/equity/application/use_cases.py": [
+          "class GetTechnicalChartResponse",
+          "technical_observation_stale",
+          "freshness_status",
+          "must_not_use_for_decision"
+        ],
+        "apps/equity/interface/serializers.py": [
+          "class TechnicalChartResponseSerializer",
+          "observed_at = serializers.CharField",
+          "freshness_status = serializers.CharField"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "technical_chart_freshness_evidence",
+          "test_file": "tests/api/test_equity_api_edges.py",
+          "test_function": "test_equity_technical_chart_returns_candles_and_latest_signal"
+        },
+        {
+          "case": "technical_chart_stale_observation_diagnostic",
+          "test_file": "tests/api/test_equity_api_edges.py",
+          "test_function": "test_equity_technical_chart_preserves_stale_observation_diagnostics"
+        }
+      ]
+    },
+    {
+      "id": "rotation.published_price_reads",
+      "surface": "Rotation current price/compare/correlation reads",
+      "source_files": [
+        "core/integration/price_history.py",
+        "apps/rotation/infrastructure/adapters/price_adapter.py",
+        "apps/rotation/infrastructure/services.py"
+      ],
+      "required_markers": {
+        "core/integration/price_history.py": [
+          "def fetch_published_close_prices_from_data_center(",
+          "get_published_price_bar_series(",
+          "must_not_use_for_decision"
+        ],
+        "apps/rotation/infrastructure/adapters/price_adapter.py": [
+          "PriceReadMode = Literal[\"published\", \"historical\"]",
+          "mode: PriceReadMode = \"published\"",
+          "historical and decision-facing reads in separate cache"
+        ],
+        "apps/rotation/infrastructure/services.py": [
+          "self.price_service.get_prices(",
+          "get_correlation_matrix"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "published_price_stale_blocks",
+          "test_file": "tests/unit/core/test_price_history.py",
+          "test_function": "test_fetch_published_close_prices_blocks_stale_publication"
+        },
+        {
+          "case": "published_price_fresh_preserves_rows",
+          "test_file": "tests/unit/core/test_price_history.py",
+          "test_function": "test_fetch_published_close_prices_preserves_fresh_rows"
+        },
+        {
+          "case": "rotation_compare_and_correlation",
+          "test_file": "tests/api/test_rotation_api_edges.py",
+          "test_function": "test_rotation_compare_is_pure_compute_without_price_cache_writes"
+        }
+      ]
     }
   ]
 }

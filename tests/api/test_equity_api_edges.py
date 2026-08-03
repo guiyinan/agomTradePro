@@ -13,6 +13,7 @@ from apps.data_center.infrastructure.models import (
     PriceBarModel,
     ValuationFactModel,
 )
+from apps.equity.domain.entities import TechnicalBar
 from apps.equity.infrastructure.models import (
     FinancialDataModel,
     StockDailyModel,
@@ -616,6 +617,69 @@ def test_equity_technical_chart_returns_candles_and_latest_signal(authenticated_
     assert len(payload["candles"]) == 21
     assert payload["latest_signal"]["signal_type"] == "golden_cross"
     assert payload["candles"][-1]["close"] == 10.5
+    assert payload["observed_at"] == payload["candles"][-1]["trade_date"]
+    assert payload["freshness_status"] == "fresh"
+    assert payload["must_not_use_for_decision"] is False
+    assert payload["blocked_reason"] is None
+
+
+@pytest.mark.django_db
+def test_equity_technical_chart_preserves_stale_observation_diagnostics(authenticated_client):
+    today = timezone.localdate()
+    StockInfoModel.objects.create(
+        stock_code="000001.SZ",
+        name="平安银行",
+        sector="银行",
+        market="SZ",
+        list_date=today,
+        is_active=True,
+    )
+    AssetMasterModel.objects.create(
+        code="000001.SZ",
+        name="平安银行",
+        short_name="平安银行",
+        asset_type="stock",
+        exchange="SZSE",
+        is_active=True,
+    )
+    stale_date = today - timedelta(days=30)
+    technical_bars = [
+        TechnicalBar(
+            stock_code="000001.SZ",
+            trade_date=stale_date - timedelta(days=1 - index),
+            open=Decimal("10.00"),
+            high=Decimal("10.60"),
+            low=Decimal("9.90"),
+            close=Decimal("10.00"),
+            volume=1000 + index,
+            amount=Decimal("1000000.00"),
+            ma5=None,
+            ma20=None,
+            ma60=None,
+            macd=None,
+            macd_signal=None,
+            macd_hist=None,
+            rsi=None,
+        )
+        for index in range(2)
+    ]
+
+    with patch(
+        "apps.equity.infrastructure.repositories.DjangoStockRepository.get_technical_bars",
+        return_value=technical_bars,
+    ):
+        response = authenticated_client.get(
+            "/api/equity/technical/000001.SZ/?timeframe=day&lookback_days=30"
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["candles"]
+    assert payload["observed_at"] == stale_date.isoformat()
+    assert payload["freshness_status"] == "stale"
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["blocked_reason"] == "technical_observation_stale"
 
 
 @pytest.mark.django_db

@@ -172,7 +172,7 @@ def test_rotation_price_service_returns_none_when_market_data_unavailable(monkey
     monkeypatch.setattr(
         RotationPriceDataService,
         "_fetch_from_data_center",
-        staticmethod(lambda asset_code, end_date, days_back: None),
+        staticmethod(lambda asset_code, end_date, days_back, *, mode="published": None),
     )
     service = RotationPriceDataService()
     result = service.get_prices("510300", date.today(), 5)

@@ -806,6 +806,30 @@
 - 分时远端备用源仍由现有 Infrastructure failover 负责，尚未把 quote publication_id 绑定进分时点批量响应；因此它是带可靠性标记的诊断读，不是正式决策事实。
 - 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、真实备份恢复、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
 
+## 实施记录（2026-08-03，第三十八批）
+
+本批次并行审计发现并收口两个价格旁路：Equity 技术图表缺少观测时间投影，Rotation 当前价格/比较/相关性仍通过原始 PriceBar bridge 读取；仍不部署、不 push。
+
+已落地：
+
+- `GetTechnicalChartResponse` 增加 `observed_at`、`freshness_status`、`must_not_use_for_decision`、`blocked_reason`；技术图表保留 stale 诊断 candles，但不再暗示其可作为当前决策证据。
+- `core.integration.price_history` 新增 published close-price bridge，先经 `get_published_price_bar_series`，Publication 缺失/stale 时返回空 prices 和阻断证据；历史回放仍使用原始 historical bridge。
+- Rotation `RotationPriceDataService` 默认 `published`，为 historical/published 使用隔离缓存命名空间，避免历史回放污染 current；compare/correlation/generate signal 均通过新默认模式。
+- current-data contract 增加 `equity.technical_chart`、`rotation.published_price_reads` 两个 surface；补充 fresh/stale/诊断和缓存隔离回归。
+
+第三十八批机器证据：
+
+- `pytest tests/unit/core/test_price_history.py -q --disable-warnings --maxfail=1 --timeout=30`：3 passed。
+- `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --timeout=180 -k technical`：5 passed。
+- `pytest tests/api/test_rotation_api_edges.py -q --no-migrations --reuse-db --timeout=180 -k 'compare or correlation'`：12 passed。
+- `pytest tests/component/test_runtime_degradation_logging.py tests/component/test_mock_fallback_remediation.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=60`：13 passed。
+- 变更生产文件 mypy regression 0；black/isort/ruff 通过；current-data contract 待完整门禁执行。
+
+仍未完成及风险：
+
+- Rotation current 价格响应仍以兼容的 `list[float] | None` 供旧 Domain 使用，阻断原因尚未向所有 Rotation REST response envelope 逐层透传；但 blocked 时不再返回旧非空价格。
+- Equity technical/intraday 当前仍是带可靠性标记的诊断读，尚未绑定到同一 Publication member snapshot；生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、真实备份恢复、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

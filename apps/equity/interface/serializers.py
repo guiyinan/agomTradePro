@@ -331,6 +331,10 @@ class TechnicalChartResponseSerializer(serializers.Serializer[GetTechnicalChartR
     signals = serializers.ListField(child=serializers.DictField(), required=False)
     latest_signal = serializers.DictField(required=False, allow_null=True)
     error = serializers.CharField(allow_null=True, required=False)
+    observed_at = serializers.CharField(allow_null=True, required=False)
+    freshness_status = serializers.CharField(required=False)
+    must_not_use_for_decision = serializers.BooleanField(required=False)
+    blocked_reason = serializers.CharField(allow_null=True, required=False)
 
 
 class IntradayChartRequestSerializer(StrictFieldsSerializer):
