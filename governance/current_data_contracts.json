@@ -1809,12 +1809,14 @@
       "source_files": [
         "apps/data_center/application/control_plane.py",
         "apps/data_center/infrastructure/control_plane_repositories.py",
+        "apps/data_center/application/macro_publication.py",
         "apps/data_center/application/publication_sync.py",
         "apps/data_center/application/valuation_publication.py",
         "apps/data_center/application/publication_utils.py",
         "apps/data_center/application/sync_use_cases.py",
         "apps/data_center/application/interface_services.py",
         "apps/data_center/infrastructure/market_breadth_repositories.py",
+        "apps/data_center/infrastructure/macro_fact_repositories.py",
         "apps/data_center/infrastructure/fundamental_fact_repositories.py",
         "apps/data_center/infrastructure/_provider_adapter_tushare.py",
         "apps/data_center/infrastructure/_provider_adapter_akshare.py",
@@ -1857,13 +1859,20 @@
           "publication_digest = _publication_hash(references)",
           "valuation observation cannot be later than publication time"
         ],
+        "apps/data_center/application/macro_publication.py": [
+          "class MacroPublicationCandidateRepositoryProtocol(Protocol):",
+          "class PublishMacroBatchUseCase:",
+          "macro observation cannot be later than publication time"
+        ],
         "apps/data_center/application/sync_use_cases.py": [
+          "publication_publisher: PublishMacroBatchUseCase | None = None",
           "publication_publisher: PublishPriceBarBatchUseCase | None = None",
           "publication_publisher: PublishFinancialBatchUseCase | None = None",
           "publication_publisher: PublishValuationBatchUseCase | None = None",
           "self._publication_publisher.execute("
         ],
         "apps/data_center/application/interface_services.py": [
+          "publication_publisher=PublishMacroBatchUseCase(",
           "publication_publisher=PublishPriceBarBatchUseCase(",
           "publication_publisher=PublishFinancialBatchUseCase("
           ,"publication_publisher=PublishValuationBatchUseCase("
@@ -1886,6 +1895,11 @@
           "observed_at=datetime.combine(row.val_date, time.min, tzinfo=UTC)",
           "available_at_unverified",
           "valuation available_at cannot be in the future"
+        ],
+        "apps/data_center/infrastructure/macro_fact_repositories.py": [
+          "def list_publication_candidates(",
+          "observed_at=datetime.combine(row.published_at, time.min, tzinfo=UTC)",
+          "row.raw_payload_hash or _macro_payload_hash(row)"
         ],
         "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
           "available_at=_available_at_from_report_date(report_date)"
@@ -2051,6 +2065,31 @@
           "case": "financial_sync_invokes_publication_writer",
           "test_file": "tests/unit/data_center/test_financial_publication_sync.py",
           "test_function": "test_sync_financial_use_case_invokes_publication_after_fact_write"
+        },
+        {
+          "case": "macro_publication_members_and_as_of",
+          "test_file": "tests/unit/data_center/test_macro_publication_sync.py",
+          "test_function": "test_macro_publication_uses_source_published_at_and_exact_member"
+        },
+        {
+          "case": "macro_publication_idempotency",
+          "test_file": "tests/unit/data_center/test_macro_publication_sync.py",
+          "test_function": "test_macro_publication_is_idempotent_for_same_snapshot"
+        },
+        {
+          "case": "macro_publication_missing_published_at_blocks",
+          "test_file": "tests/unit/data_center/test_macro_publication_sync.py",
+          "test_function": "test_macro_publication_blocks_missing_published_at_candidate"
+        },
+        {
+          "case": "macro_candidate_published_at_boundary",
+          "test_file": "tests/unit/data_center/test_macro_publication_sync.py",
+          "test_function": "test_macro_repository_candidate_preserves_published_at_and_evidence"
+        },
+        {
+          "case": "macro_sync_invokes_publication_writer",
+          "test_file": "tests/unit/data_center/test_macro_publication_sync.py",
+          "test_function": "test_sync_macro_use_case_invokes_publication_after_fact_write"
         },
         {
           "case": "valuation_publication_members_and_as_of",

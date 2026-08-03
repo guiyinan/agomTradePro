@@ -44,6 +44,7 @@ from apps.data_center.domain.protocols import (
 )
 
 from .macro_fact_governance import MacroFactGovernanceNormalizer
+from .macro_publication import PublishMacroBatchUseCase
 from .provider_health_recorder import persist_provider_health_metric
 from .publication_sync import (
     PublishCapitalFlowBatchUseCase,
@@ -227,10 +228,12 @@ class SyncMacroUseCase(_BaseSyncUseCase):
         catalog_repo: IndicatorCatalogRepositoryProtocol,
         unit_rule_repo: IndicatorUnitRuleRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
+        publication_publisher: PublishMacroBatchUseCase | None = None,
     ) -> None:
         super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
         self._normalizer = MacroFactGovernanceNormalizer(catalog_repo, unit_rule_repo)
+        self._publication_publisher = publication_publisher
 
     def _normalize_macro_facts(
         self,
@@ -260,6 +263,11 @@ class SyncMacroUseCase(_BaseSyncUseCase):
                 facts=facts,
             )
             stored_count = self._facts.bulk_upsert(normalized)
+            if self._publication_publisher is not None and normalized:
+                self._publication_publisher.execute(
+                    normalized,
+                    provider_name=provider.provider_name(),
+                )
             audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(

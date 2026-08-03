@@ -15,6 +15,7 @@ from apps.data_center.application.fact_query_use_cases import (
 from apps.data_center.application.macro_governance_use_cases import (
     RunMacroGovernanceActionUseCase,
 )
+from apps.data_center.application.macro_publication import PublishMacroBatchUseCase
 from apps.data_center.application.provider_catalog_use_cases import (
     ManageIndicatorCatalogUseCase,
     ManageIndicatorUnitRuleUseCase,
@@ -86,6 +87,7 @@ __all__ = [
     "PublishCapitalFlowBatchUseCase",
     "PublishFinancialBatchUseCase",
     "PublishFundNavBatchUseCase",
+    "PublishMacroBatchUseCase",
     "PublishNewsBatchUseCase",
     "PublishPriceBarBatchUseCase",
     "PublishQuoteSnapshotBatchUseCase",

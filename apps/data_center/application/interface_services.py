@@ -69,6 +69,7 @@ from .business_runtime_gateway import (
     run_alpha_score_prediction_now as _run_alpha_score_prediction_now,
 )
 from .current_valuation_sync import SyncCurrentValuationBatchUseCase
+from .macro_publication import PublishMacroBatchUseCase
 from .market_thermometer import (
     CalculateMarketThermometerUseCase,
     ImportInvestorAccountsUseCase,
@@ -951,13 +952,19 @@ def make_decision_repair_use_case(
 def make_sync_macro_use_case() -> SyncMacroUseCase:
     """Build the macro sync use case."""
 
+    macro_repository = _make_macro_fact_repository()
     return SyncMacroUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
-        fact_repo=_make_macro_fact_repository(),
+        fact_repo=macro_repository,
         catalog_repo=_make_indicator_catalog_repo(),
         unit_rule_repo=_make_indicator_unit_rule_repo(),
         raw_audit_repo=_make_raw_audit_repo(),
+        publication_publisher=PublishMacroBatchUseCase(
+            fact_repository=macro_repository,
+            publication_repository=CanonicalPublicationRepository(),
+            policy_repository=PublicationPolicyRepository(),
+        ),
     )
 
 
@@ -966,13 +973,19 @@ def make_sync_macro_batch_use_case() -> SyncMacroBatchUseCase:
 
     provider_repo = _make_provider_repo()
     provider_registry = _get_provider_registry()
+    macro_repository = _make_macro_fact_repository()
     sync_use_case = SyncMacroUseCase(
         provider_repo=provider_repo,
         provider_registry=provider_registry,
-        fact_repo=_make_macro_fact_repository(),
+        fact_repo=macro_repository,
         catalog_repo=_make_indicator_catalog_repo(),
         unit_rule_repo=_make_indicator_unit_rule_repo(),
         raw_audit_repo=_make_raw_audit_repo(),
+        publication_publisher=PublishMacroBatchUseCase(
+            fact_repository=macro_repository,
+            publication_repository=CanonicalPublicationRepository(),
+            policy_repository=PublicationPolicyRepository(),
+        ),
     )
     return SyncMacroBatchUseCase(
         provider_repo=provider_repo,

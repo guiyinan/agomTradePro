@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from typing import Any
 
 from django.db import transaction
 from django.db.models import Count, Max, Q
 
+from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.enums import DataQualityStatus
 from apps.data_center.infrastructure._repository_helpers import _coerce_bool
@@ -201,6 +204,65 @@ class MacroFactRepository:
         for f in facts:
             retry_macro_fact_upsert(MacroFactModel.objects, f)
         return len(facts)
+
+    def list_publication_candidates(
+        self, facts: Sequence[MacroFact]
+    ) -> list[PublicationFactReference]:
+        """Resolve exact macro facts and require source publication dates."""
+
+        references: list[PublicationFactReference] = []
+        seen_fact_pks: set[str] = set()
+        for fact in facts:
+            row = (
+                MacroFactModel._default_manager.filter(
+                    indicator_code=fact.indicator_code,
+                    reporting_period=fact.reporting_period,
+                    source=fact.source,
+                    revision_number=fact.revision_number,
+                )
+                .order_by("id")
+                .first()
+            )
+            if row is None or row.published_at is None or str(row.pk) in seen_fact_pks:
+                continue
+            fact_pk = str(row.pk)
+            seen_fact_pks.add(fact_pk)
+            natural_key = (
+                f"{row.indicator_code}:{row.reporting_period.isoformat()}:{row.source}:"
+                f"{row.revision_number}"
+            )
+            references.append(
+                PublicationFactReference(
+                    natural_key=natural_key,
+                    source=row.source,
+                    source_record_id=row.source_record_id or natural_key,
+                    fact_table="data_center_macro_fact",
+                    fact_pk=fact_pk,
+                    observed_at=datetime.combine(row.published_at, time.min, tzinfo=UTC),
+                    raw_payload_hash=row.raw_payload_hash or _macro_payload_hash(row),
+                    quality_status=row.quality_status,
+                    revision_number=row.revision_number,
+                )
+            )
+        return references
+
+
+def _macro_payload_hash(row: MacroFactModel) -> str:
+    """Return deterministic evidence for one persisted macro fact."""
+
+    payload = {
+        "indicator_code": row.indicator_code,
+        "reporting_period": row.reporting_period.isoformat(),
+        "value": str(row.value),
+        "unit": row.unit,
+        "source": row.source,
+        "revision_number": row.revision_number,
+        "published_at": row.published_at.isoformat() if row.published_at else None,
+        "quality": row.quality,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
 
 
 class MacroGovernanceRepository:

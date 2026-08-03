@@ -336,6 +336,9 @@ class MacroFactRepositoryProtocol(Protocol):
 
     def get_latest(self, indicator_code: str) -> MacroFact | None: ...
     def bulk_upsert(self, facts: list[MacroFact]) -> int: ...
+    def list_publication_candidates(
+        self, facts: Sequence[MacroFact]
+    ) -> list[PublicationFactReference]: ...
 
 
 @runtime_checkable
