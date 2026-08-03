@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date
 from typing import Any, cast
 
@@ -39,10 +40,15 @@ class SectorMembershipRepository:
         )
 
     def get_members(
-        self, sector_code: str, as_of: date | None = None
+        self,
+        sector_code: str,
+        as_of: date | None = None,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[SectorMembershipFact]:
         sector_code = _validated_code(sector_code, field_name="sector_code")
         qs = SectorMembershipFactModel.objects.filter(sector_code=sector_code)
+        if fact_pks is not None:
+            qs = qs.filter(pk__in=list(fact_pks))
         if as_of:
             qs = qs.filter(effective_date__lte=as_of).filter(expiry_date__isnull=True) | qs.filter(
                 effective_date__lte=as_of, expiry_date__gte=as_of
@@ -111,11 +117,14 @@ class NewsRepository:
         asset_code: str | None = None,
         limit: int = 50,
         end: date | None = None,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[NewsFact]:
         limit = _validated_limit(limit)
         if asset_code is not None:
             asset_code = _validated_code(asset_code, field_name="asset_code")
         qs = NewsFactModel.objects.all()
+        if fact_pks is not None:
+            qs = qs.filter(pk__in=list(fact_pks))
         if end is not None:
             qs = qs.filter(published_at__date__lte=end)
         if not asset_code:
@@ -131,14 +140,16 @@ class NewsRepository:
         self,
         target_date: date,
         limit: int = 50,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[NewsFact]:
         """Return market-wide news published on one date."""
 
         limit = _validated_limit(limit)
 
-        rows = NewsFactModel.objects.filter(asset_code="", published_at__date=target_date).order_by(
-            "-published_at", "-id"
-        )[:limit]
+        queryset = NewsFactModel.objects.filter(asset_code="", published_at__date=target_date)
+        if fact_pks is not None:
+            queryset = queryset.filter(pk__in=list(fact_pks))
+        rows = queryset.order_by("-published_at", "-id")[:limit]
         return [self._from_model(m) for m in rows]
 
     def bulk_insert(self, articles: list[NewsFact]) -> int:
@@ -245,6 +256,7 @@ class CapitalFlowRepository:
         start: date | None = None,
         end: date | None = None,
         limit: int | None = None,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[CapitalFlowFact]:
         asset_code = _validated_code(asset_code, field_name="asset_code")
         _validate_date_range(start, end)
@@ -252,6 +264,8 @@ class CapitalFlowRepository:
             limit = _validated_limit(limit)
         for candidate in _resolve_asset_code_candidates(asset_code):
             qs = CapitalFlowFactModel.objects.filter(asset_code=candidate)
+            if fact_pks is not None:
+                qs = qs.filter(pk__in=list(fact_pks))
             if start:
                 qs = qs.filter(flow_date__gte=start)
             if end:

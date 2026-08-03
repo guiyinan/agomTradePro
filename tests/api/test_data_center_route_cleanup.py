@@ -927,6 +927,10 @@ def test_data_center_published_views_bound_rows_to_publication_as_of(
         "apps.data_center.interface.api_views.get_current_publication_freshness_gate",
         lambda *_args: dict(freshness),
     )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.get_publication_member_fact_pks",
+        lambda _publication_id, *, dataset_key, expected_fact_table: [f"{expected_fact_table}:1"],
+    )
 
     seen: dict[str, object] = {}
 
@@ -940,6 +944,7 @@ def test_data_center_published_views_bound_rows_to_publication_as_of(
         def execute(self, request):
             seen["price_start"] = request.start
             seen["price_end"] = request.end
+            seen["price_pks"] = request.fact_pks
             return []
 
     class _FundUseCase:
@@ -951,28 +956,33 @@ def test_data_center_published_views_bound_rows_to_publication_as_of(
     class _FinancialUseCase:
         def execute(self, **kwargs):
             seen["financial_end"] = kwargs["end"]
+            seen["financial_pks"] = kwargs["fact_pks"]
             return []
 
     class _ValuationUseCase:
         def execute(self, **kwargs):
             seen["valuation_start"] = kwargs["start"]
             seen["valuation_end"] = kwargs["end"]
+            seen["valuation_pks"] = kwargs["fact_pks"]
             return []
 
     class _SectorUseCase:
         def execute(self, **kwargs):
             seen["sector_as_of"] = kwargs["as_of"]
+            seen["sector_pks"] = kwargs["fact_pks"]
             return []
 
     class _NewsUseCase:
         def execute(self, **kwargs):
             seen["news_end"] = kwargs["end"]
+            seen["news_pks"] = kwargs["fact_pks"]
             return []
 
     class _CapitalFlowUseCase:
         def execute(self, **kwargs):
             seen["flow_start"] = kwargs["start"]
             seen["flow_end"] = kwargs["end"]
+            seen["flow_pks"] = kwargs["fact_pks"]
             return []
 
     monkeypatch.setattr(
@@ -1070,15 +1080,21 @@ def test_data_center_published_views_bound_rows_to_publication_as_of(
         "macro_end": expected_end,
         "price_start": expected_start,
         "price_end": expected_end,
+        "price_pks": ["data_center_price_bar:1"],
         "fund_start": expected_start,
         "fund_end": expected_end,
         "financial_end": expected_end,
+        "financial_pks": ["data_center_financial_fact:1"],
         "valuation_start": expected_start,
         "valuation_end": expected_end,
+        "valuation_pks": ["data_center_valuation_fact:1"],
         "sector_as_of": expected_end,
+        "sector_pks": ["data_center_sector_membership:1"],
         "news_end": expected_end,
+        "news_pks": ["data_center_news_fact:1"],
         "flow_start": expected_start,
         "flow_end": expected_end,
+        "flow_pks": ["data_center_capital_flow_fact:1"],
     }
 
 
@@ -1093,6 +1109,7 @@ def test_data_center_published_quote_does_not_fallback_past_publication_as_of(
         "apps.data_center.interface.api_views.get_current_publication",
         lambda *_args: {
             "publication_id": "pub-quote-as-of",
+            "dataset_key": "equity.quote.snapshot",
             "publication_key": "current",
             "as_of": "2026-08-01T12:00:00+00:00",
             "must_not_use_for_decision": False,
@@ -1106,6 +1123,10 @@ def test_data_center_published_quote_does_not_fallback_past_publication_as_of(
             "freshness_status": "fresh",
             "observed_at": "2026-08-01T12:00:00+00:00",
         },
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.get_publication_member_fact_pks",
+        lambda *_args, **_kwargs: ["quote-1"],
     )
 
     class _QuoteUseCase:

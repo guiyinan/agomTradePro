@@ -10,6 +10,17 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 PublicationLookup = Callable[[str, str], dict[str, object] | None]
+MemberFactLookup = Callable[..., list[str] | None]
+
+PUBLISHED_FACT_TABLES: dict[str, str] = {
+    "equity.price.bar": "data_center_price_bar",
+    "equity.quote.snapshot": "data_center_quote_snapshot",
+    "equity.financial.fact": "data_center_financial_fact",
+    "equity.valuation.fact": "data_center_valuation_fact",
+    "sector.membership": "data_center_sector_membership",
+    "market.news": "data_center_news_fact",
+    "market.capital_flow": "data_center_capital_flow_fact",
+}
 
 
 def published_as_of_datetime(publication: dict[str, object] | None) -> datetime | None:
@@ -94,6 +105,101 @@ def published_empty_intersection_response(
         },
         status=status.HTTP_200_OK,
     )
+
+
+def published_member_fact_pks_or_block(
+    publication: dict[str, object] | None,
+    *,
+    identity_field: str,
+    identity_value: str,
+    get_member_fact_pks: MemberFactLookup,
+) -> list[str] | None | Response:
+    """Resolve one publication's selected fact rows or return a block response."""
+
+    if publication is None:
+        return None
+    publication_id = publication.get("publication_id")
+    dataset_key = publication.get("dataset_key")
+    expected_fact_table = PUBLISHED_FACT_TABLES.get(str(dataset_key or ""))
+    if not isinstance(publication_id, str) or not isinstance(dataset_key, str):
+        return None
+    if expected_fact_table is None:
+        return None
+    member_pks = get_member_fact_pks(
+        publication_id,
+        dataset_key=dataset_key,
+        expected_fact_table=expected_fact_table,
+    )
+    if member_pks != []:
+        return member_pks
+    publication_key = str(publication.get("publication_key") or "current")
+    blocked_reason = "canonical_publication_members_missing"
+    return Response(
+        {
+            identity_field: identity_value,
+            "total": 0,
+            "data": [],
+            "status": "blocked",
+            "publication_id": publication.get("publication_id"),
+            "publication": publication,
+            "must_not_use_for_decision": True,
+            "blocked_reason": blocked_reason,
+            "contract": {
+                "mode": "published",
+                "publication_key": publication_key,
+                "must_not_use_for_decision": True,
+                "blocked_reason": blocked_reason,
+            },
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+def apply_published_gate_with_members(
+    request: Request,
+    *,
+    dataset_key: str,
+    default_publication_key: str,
+    identity_field: str,
+    identity_value: str,
+    get_publication: PublicationLookup,
+    get_freshness_gate: PublicationLookup,
+    get_member_fact_pks: MemberFactLookup,
+) -> tuple[dict[str, object] | None, Response | None]:
+    """Apply freshness and member selection gates for a current-data read."""
+
+    publication, blocked = apply_published_gate(
+        request,
+        dataset_key=dataset_key,
+        default_publication_key=default_publication_key,
+        identity_field=identity_field,
+        identity_value=identity_value,
+        get_publication=get_publication,
+        get_freshness_gate=get_freshness_gate,
+    )
+    if blocked is not None or publication is None:
+        return publication, blocked
+    member_pks = published_member_fact_pks_or_block(
+        publication,
+        identity_field=identity_field,
+        identity_value=identity_value,
+        get_member_fact_pks=get_member_fact_pks,
+    )
+    if isinstance(member_pks, Response):
+        return None, member_pks
+    publication["_member_fact_pks"] = member_pks
+    return publication, None
+
+
+def publication_member_pks(publication: dict[str, object] | None) -> list[str] | None:
+    """Return validated member ids attached by the shared publication gate."""
+
+    if publication is None:
+        return None
+    value = publication.get("_member_fact_pks")
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        return None
+    return value
 
 
 def apply_published_gate(
@@ -182,6 +288,9 @@ def apply_published_gate(
 
 __all__ = [
     "apply_published_gate",
+    "apply_published_gate_with_members",
+    "published_member_fact_pks_or_block",
+    "publication_member_pks",
     "published_as_of_date",
     "published_as_of_datetime",
     "published_bounded_end",

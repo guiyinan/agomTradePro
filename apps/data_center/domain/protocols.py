@@ -7,7 +7,7 @@ Domain / application layers depend only on these abstractions.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import date
 from typing import Any, Protocol, runtime_checkable
 
@@ -346,9 +346,14 @@ class PriceBarRepositoryProtocol(Protocol):
         start: date | None = None,
         end: date | None = None,
         limit: int = 500,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[PriceBar]: ...
 
-    def get_latest(self, asset_code: str) -> PriceBar | None: ...
+    def get_latest(
+        self,
+        asset_code: str,
+        fact_pks: Sequence[str] | None = None,
+    ) -> PriceBar | None: ...
     def bulk_upsert(self, bars: list[PriceBar]) -> int: ...
 
 
@@ -356,7 +361,11 @@ class PriceBarRepositoryProtocol(Protocol):
 class QuoteSnapshotRepositoryProtocol(Protocol):
     """Persistence contract for real-time / intraday quote snapshots."""
 
-    def get_latest(self, asset_code: str) -> QuoteSnapshot | None: ...
+    def get_latest(
+        self,
+        asset_code: str,
+        fact_pks: Sequence[str] | None = None,
+    ) -> QuoteSnapshot | None: ...
     def get_series(
         self,
         asset_code: str,
@@ -393,6 +402,7 @@ class FinancialFactRepositoryProtocol(Protocol):
         period_type: FinancialPeriodType | None = None,
         limit: int = 20,
         end: date | None = None,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[FinancialFact]: ...
 
     def get_latest(
@@ -411,6 +421,7 @@ class ValuationFactRepositoryProtocol(Protocol):
         asset_code: str,
         start: date | None = None,
         end: date | None = None,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[ValuationFact]: ...
 
     def get_latest(self, asset_code: str) -> ValuationFact | None: ...
@@ -424,7 +435,10 @@ class SectorMembershipRepositoryProtocol(Protocol):
     """Persistence contract for sector / index constituent membership."""
 
     def get_members(
-        self, sector_code: str, as_of: date | None = None
+        self,
+        sector_code: str,
+        as_of: date | None = None,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[SectorMembershipFact]: ...
 
     def get_sectors_for_asset(
@@ -445,12 +459,14 @@ class NewsRepositoryProtocol(Protocol):
         asset_code: str | None = None,
         limit: int = 50,
         end: date | None = None,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[NewsFact]: ...
 
     def list_market_news_for_date(
         self,
         target_date: date,
         limit: int = 50,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[NewsFact]: ...
 
     def bulk_insert(self, articles: list[NewsFact]) -> int: ...
@@ -471,6 +487,7 @@ class CapitalFlowRepositoryProtocol(Protocol):
         start: date | None = None,
         end: date | None = None,
         limit: int | None = None,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[CapitalFlowFact]: ...
 
     def get_latest(self, asset_code: str) -> CapitalFlowFact | None: ...

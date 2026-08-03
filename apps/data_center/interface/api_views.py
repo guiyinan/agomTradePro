@@ -93,6 +93,7 @@ from apps.data_center.application.pit_use_cases import BuildPITManifestRequest
 from apps.data_center.application.public import (
     get_current_publication,
     get_current_publication_freshness_gate,
+    get_publication_member_fact_pks,
 )
 from apps.data_center.application.query_services import get_active_stock_fact_coverage_payload
 from apps.data_center.application.use_cases import (
@@ -141,8 +142,9 @@ from apps.data_center.provider_runtime import get_registry
 from shared.request_payload import request_data_mapping
 
 from .publication_guards import (
-    apply_published_gate,
+    apply_published_gate_with_members,
 )
+from .publication_guards import publication_member_pks as _publication_member_pks
 from .publication_guards import published_as_of_date as _published_as_of_date
 from .publication_guards import published_as_of_datetime as _published_as_of_datetime
 from .publication_guards import published_bounded_end as _published_bounded_end
@@ -163,10 +165,9 @@ def _published_gate(
 ) -> tuple[dict[str, object] | None, Response | None]:
     """Apply the shared publication gate while preserving this module's patch seam."""
 
-    # Required current-data markers: canonical_publication_missing and
-    # canonical_publication_stale are emitted by ``apply_published_gate``.
+    # Required current-data markers: canonical_publication_missing; canonical_publication_stale.
 
-    return apply_published_gate(
+    return apply_published_gate_with_members(
         request,
         dataset_key=dataset_key,
         default_publication_key=default_publication_key,
@@ -174,6 +175,7 @@ def _published_gate(
         identity_value=identity_value,
         get_publication=get_current_publication,
         get_freshness_gate=get_current_publication_freshness_gate,
+        get_member_fact_pks=get_publication_member_fact_pks,
     )
 
 
@@ -191,9 +193,7 @@ def provider_status(request: Request) -> Response:
     return _provider_status(request)
 
 
-def _make_decision_repair_use_case(
-    user: Any,
-) -> RepairDecisionDataReliabilityUseCase:
+def _make_decision_repair_use_case(user: Any) -> RepairDecisionDataReliabilityUseCase:
     return make_decision_repair_use_case(user)
 
 
@@ -683,6 +683,7 @@ def price_history(request: Request) -> Response:
     requested_start = _parse_date(request.query_params.get("start", ""))
     requested_end = _parse_date(request.query_params.get("end", ""))
     bounded_end = _published_bounded_end(requested_end, publication)
+    member_pks = _publication_member_pks(publication)
     if (
         requested_start is not None
         and bounded_end is not None
@@ -702,6 +703,7 @@ def price_history(request: Request) -> Response:
         freq=request.query_params.get("freq", "1d"),
         adjustment=request.query_params.get("adjustment", "none"),
         limit=int(request.query_params.get("limit", 500)),
+        fact_pks=member_pks,
     )
 
     uc = make_query_price_history_use_case()
@@ -758,11 +760,13 @@ def price_latest_quote(request: Request) -> Response:
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
+    member_pks = _publication_member_pks(publication)
     uc = make_query_latest_quote_use_case()
     result = uc.execute(
         LatestQuoteRequest(
             asset_code=asset_code,
             max_age_hours=max_age_hours,
+            fact_pks=member_pks,
         )
     )
 
@@ -903,6 +907,7 @@ def financials(request: Request) -> Response:
     period_type_raw = request.query_params.get("period_type", "").strip()
     period_type = FinancialPeriodType(period_type_raw) if period_type_raw else None
     limit = int(request.query_params.get("limit", 20))
+    member_pks = _publication_member_pks(publication)
     financial_use_case = make_query_financials_use_case()
     if publication is None:
         data = financial_use_case.execute(
@@ -916,6 +921,7 @@ def financials(request: Request) -> Response:
             period_type=period_type,
             limit=limit,
             end=_published_as_of_date(publication),
+            fact_pks=member_pks,
         )
     payload = {"asset_code": asset_code, "total": len(data), "data": data}
     if publication is not None:
@@ -950,6 +956,7 @@ def valuations(request: Request) -> Response:
     requested_start = _parse_date(request.query_params.get("start", ""))
     requested_end = _parse_date(request.query_params.get("end", ""))
     bounded_end = _published_bounded_end(requested_end, publication)
+    member_pks = _publication_member_pks(publication)
     if (
         requested_start is not None
         and bounded_end is not None
@@ -966,6 +973,7 @@ def valuations(request: Request) -> Response:
         asset_code=asset_code,
         start=requested_start,
         end=bounded_end,
+        fact_pks=member_pks,
     )
     payload = {"asset_code": asset_code, "total": len(data), "data": data}
     if publication is not None:
@@ -1002,10 +1010,12 @@ def sector_constituents(request: Request) -> Response:
     publication_as_of = _published_as_of_date(publication)
     if publication_as_of is not None and (as_of is None or as_of > publication_as_of):
         as_of = publication_as_of
+    member_pks = _publication_member_pks(publication)
 
     data = make_query_sector_constituents_use_case().execute(
         sector_code=sector_code,
         as_of=as_of,
+        fact_pks=member_pks,
     )
     payload: dict[str, object] = {
         "sector_code": sector_code,
@@ -1031,6 +1041,7 @@ def news(request: Request) -> Response:
     if blocked is not None:
         return blocked
     limit = int(request.query_params.get("limit", 50))
+    member_pks = _publication_member_pks(publication)
     news_use_case = make_query_news_use_case()
     if publication is None:
         data = news_use_case.execute(asset_code=asset_code, limit=limit)
@@ -1039,6 +1050,7 @@ def news(request: Request) -> Response:
             asset_code=asset_code,
             limit=limit,
             end=_published_as_of_date(publication),
+            fact_pks=member_pks,
         )
     payload: dict[str, object] = {"asset_code": asset_code, "total": len(data), "data": data}
     if publication is not None:
@@ -1070,6 +1082,7 @@ def capital_flows(request: Request) -> Response:
     requested_start = query.get("start")
     requested_end = query.get("end")
     bounded_end = _published_bounded_end(requested_end, publication)
+    member_pks = _publication_member_pks(publication)
     if (
         requested_start is not None
         and bounded_end is not None
@@ -1086,6 +1099,7 @@ def capital_flows(request: Request) -> Response:
         start=requested_start,
         end=bounded_end,
         limit=query["limit"],
+        fact_pks=member_pks,
     )
     payload: dict[str, object] = {
         "asset_code": query["asset_code"],

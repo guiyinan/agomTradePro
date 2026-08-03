@@ -999,6 +999,7 @@ class TestRepositoryErrorHandling:
 
     def test_save_existing_indicator(self):
         """测试保存已存在的指标（更新）"""
+        _seed_indicator_rule(code="CN_PMI", original_unit="指数")
         repository = DataCenterMacroRepository()
         indicator = MacroIndicator(
             code="CN_PMI",
@@ -1028,6 +1029,7 @@ class TestRepositoryErrorHandling:
 
     def test_save_existing_indicator_advances_fetched_at(self):
         """Refreshing an existing legacy projection records the new fetch time."""
+        _seed_indicator_rule(code="CN_PMI", original_unit="指数")
         repository = DataCenterMacroRepository()
         indicator = MacroIndicator(
             code="CN_PMI",

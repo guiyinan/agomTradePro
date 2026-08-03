@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date
 
 from apps.data_center.domain.entities import PriceBar, QuoteSnapshot
@@ -36,9 +37,12 @@ class PriceBarRepository:
         start: date | None = None,
         end: date | None = None,
         limit: int = 500,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[PriceBar]:
         for candidate in _resolve_asset_code_candidates(asset_code):
             qs = PriceBarModel.objects.filter(asset_code=candidate)
+            if fact_pks is not None:
+                qs = qs.filter(pk__in=list(fact_pks))
             if start:
                 qs = qs.filter(bar_date__gte=start)
             if end:
@@ -48,9 +52,16 @@ class PriceBarRepository:
                 return [self._from_model(m) for m in rows]
         return []
 
-    def get_latest(self, asset_code: str) -> PriceBar | None:
+    def get_latest(
+        self,
+        asset_code: str,
+        fact_pks: Sequence[str] | None = None,
+    ) -> PriceBar | None:
         for candidate in _resolve_asset_code_candidates(asset_code):
-            m = PriceBarModel.objects.filter(asset_code=candidate).order_by("-bar_date").first()
+            qs = PriceBarModel.objects.filter(asset_code=candidate)
+            if fact_pks is not None:
+                qs = qs.filter(pk__in=list(fact_pks))
+            m = qs.order_by("-bar_date").first()
             if m is not None:
                 return self._from_model(m)
         return None
@@ -61,9 +72,7 @@ class PriceBarRepository:
         queryset = PriceBarModel.objects.all()
         if as_of is not None:
             queryset = queryset.filter(bar_date__lte=as_of)
-        return list(
-            queryset.order_by("asset_code").values_list("asset_code", flat=True).distinct()
-        )
+        return list(queryset.order_by("asset_code").values_list("asset_code", flat=True).distinct())
 
     def bulk_upsert(self, bars: list[PriceBar]) -> int:
         if not bars:
@@ -116,13 +125,16 @@ class QuoteSnapshotRepository:
             extra=m.extra or {},
         )
 
-    def get_latest(self, asset_code: str) -> QuoteSnapshot | None:
+    def get_latest(
+        self,
+        asset_code: str,
+        fact_pks: Sequence[str] | None = None,
+    ) -> QuoteSnapshot | None:
         for candidate in _resolve_asset_code_candidates(asset_code):
-            m = (
-                QuoteSnapshotModel.objects.filter(asset_code=candidate)
-                .order_by("-snapshot_at")
-                .first()
-            )
+            qs = QuoteSnapshotModel.objects.filter(asset_code=candidate)
+            if fact_pks is not None:
+                qs = qs.filter(pk__in=list(fact_pks))
+            m = qs.order_by("-snapshot_at").first()
             if m is not None:
                 return self._from_model(m)
         return None

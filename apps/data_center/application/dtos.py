@@ -7,6 +7,7 @@ Plain dataclasses — no ORM, no Django imports.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
@@ -468,6 +469,7 @@ class PriceHistoryRequest:
     freq: str = "1d"
     adjustment: str = "none"
     limit: int = 500
+    fact_pks: Sequence[str] | None = None
 
 
 @dataclass
@@ -504,6 +506,7 @@ class LatestQuoteRequest:
 
     asset_code: str
     max_age_hours: float = 4.0
+    fact_pks: Sequence[str] | None = None
 
 
 @dataclass

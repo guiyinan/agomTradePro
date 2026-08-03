@@ -530,12 +530,21 @@ class QueryPriceHistoryUseCase:
         self._repo = repo
 
     def execute(self, request: PriceHistoryRequest) -> list[PriceBarResponse]:
-        bars = self._repo.get_bars(
-            asset_code=request.asset_code,
-            start=request.start,
-            end=request.end,
-            limit=request.limit,
-        )
+        if request.fact_pks is None:
+            bars = self._repo.get_bars(
+                asset_code=request.asset_code,
+                start=request.start,
+                end=request.end,
+                limit=request.limit,
+            )
+        else:
+            bars = self._repo.get_bars(
+                asset_code=request.asset_code,
+                start=request.start,
+                end=request.end,
+                limit=request.limit,
+                fact_pks=request.fact_pks,
+            )
         return [
             PriceBarResponse(
                 asset_code=b.asset_code,
@@ -648,7 +657,11 @@ class QueryLatestQuoteUseCase:
         )
 
     def execute(self, request: LatestQuoteRequest) -> QuoteResponse | None:
-        quote = self._repo.get_latest(request.asset_code)
+        quote = (
+            self._repo.get_latest(request.asset_code)
+            if request.fact_pks is None
+            else self._repo.get_latest(request.asset_code, fact_pks=request.fact_pks)
+        )
         if quote is None:
             return None
         return self.build_response(

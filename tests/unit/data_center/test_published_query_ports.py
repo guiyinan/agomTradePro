@@ -462,3 +462,201 @@ def test_published_quotes_reject_snapshots_after_publication_as_of(monkeypatch) 
 
     assert result["rows"] == []
     assert result["as_of"] == "2026-08-01T12:00:00+00:00"
+
+
+def test_published_core_queries_are_bound_to_publication_member_fact_pks(monkeypatch) -> None:
+    """Published core reads must query only fact rows selected by that publication."""
+
+    tables = {
+        "equity.price.bar": "data_center_price_bar",
+        "equity.quote.snapshot": "data_center_quote_snapshot",
+        "equity.financial.fact": "data_center_financial_fact",
+        "equity.valuation.fact": "data_center_valuation_fact",
+    }
+    member_pks = {dataset_key: f"{index + 1}" for index, dataset_key in enumerate(tables)}
+
+    class _PublicationRepository:
+        def get_current(self, dataset_key, _publication_key):
+            return SimpleNamespace(
+                publication_id=dataset_key,
+                dataset_key=dataset_key,
+                publication_key="current",
+                published_at=datetime(2026, 8, 2, tzinfo=UTC),
+                as_of=datetime(2026, 8, 1, 12, tzinfo=UTC),
+                must_not_use_for_decision=False,
+                blocked_reason="",
+            )
+
+        def list_members(self, publication_id):
+            dataset_key = str(publication_id)
+            return [
+                SimpleNamespace(
+                    dataset_key=dataset_key,
+                    natural_key=f"600000.SH|{dataset_key}",
+                    fact_table=tables[dataset_key],
+                    fact_pk=member_pks[dataset_key],
+                )
+            ]
+
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: _PublicationRepository(),
+    )
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        query_services,
+        "get_price_bar_repository",
+        lambda: SimpleNamespace(
+            get_bars=lambda *args, **kwargs: captured.update(price_pks=kwargs["fact_pks"]) or []
+        ),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_quote_snapshot_repository",
+        lambda: SimpleNamespace(
+            get_latest=lambda *args, **kwargs: captured.update(quote_pks=kwargs["fact_pks"]) or None
+        ),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_financial_fact_repository",
+        lambda: SimpleNamespace(
+            get_facts=lambda *args, **kwargs: captured.update(financial_pks=kwargs["fact_pks"])
+            or []
+        ),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_valuation_fact_repository",
+        lambda: SimpleNamespace(
+            get_series=lambda *args, **kwargs: captured.update(valuation_pks=kwargs["fact_pks"])
+            or []
+        ),
+    )
+
+    query_services.query_published_price_bar_series("600000.SH")
+    query_services.query_published_quote_payloads(["600000.SH"])
+    query_services.query_published_financial_facts("600000.SH")
+    query_services.query_published_valuation_facts("600000.SH")
+
+    assert captured == {
+        "price_pks": [member_pks["equity.price.bar"]],
+        "quote_pks": [member_pks["equity.quote.snapshot"]],
+        "financial_pks": [member_pks["equity.financial.fact"]],
+        "valuation_pks": [member_pks["equity.valuation.fact"]],
+    }
+
+
+def test_published_query_blocks_when_publication_members_are_missing(monkeypatch) -> None:
+    """A current publication without selected members must never fall back to full tables."""
+
+    class _PublicationRepository:
+        def get_current(self, dataset_key, _publication_key):
+            return SimpleNamespace(
+                publication_id="pub-empty",
+                dataset_key=dataset_key,
+                publication_key="current",
+                published_at=datetime(2026, 8, 2, tzinfo=UTC),
+                as_of=datetime(2026, 8, 1, 12, tzinfo=UTC),
+                must_not_use_for_decision=False,
+                blocked_reason="",
+            )
+
+        def list_members(self, _publication_id):
+            return []
+
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: _PublicationRepository(),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_financial_fact_repository",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("memberless publication must not query facts")
+        ),
+    )
+
+    result = query_services.query_published_financial_facts("600000.SH")
+
+    assert result["rows"] == []
+    assert result["must_not_use_for_decision"] is True
+    assert result["blocked_reason"] == "canonical_publication_members_missing"
+
+
+def test_published_d7_d9_queries_are_bound_to_publication_member_fact_pks(monkeypatch) -> None:
+    """Sector, news, and capital-flow current reads must share publication members."""
+
+    tables = {
+        "sector.membership": "data_center_sector_membership",
+        "market.news": "data_center_news_fact",
+        "market.capital_flow": "data_center_capital_flow_fact",
+    }
+
+    class _PublicationRepository:
+        def get_current(self, dataset_key, _publication_key):
+            return SimpleNamespace(
+                publication_id=dataset_key,
+                dataset_key=dataset_key,
+                publication_key="current",
+                published_at=datetime(2026, 8, 2, tzinfo=UTC),
+                as_of=datetime(2026, 8, 1, 12, tzinfo=UTC),
+                must_not_use_for_decision=False,
+                blocked_reason="",
+            )
+
+        def list_members(self, publication_id):
+            return [
+                SimpleNamespace(
+                    dataset_key=publication_id,
+                    natural_key=f"600000.SH|{publication_id}",
+                    fact_table=tables[publication_id],
+                    fact_pk=f"{publication_id}-1",
+                )
+            ]
+
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: _PublicationRepository(),
+    )
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        query_services,
+        "get_sector_membership_repository",
+        lambda: SimpleNamespace(
+            get_members=lambda *args, **kwargs: captured.update(sector_pks=kwargs["fact_pks"]) or []
+        ),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_news_repository",
+        lambda: SimpleNamespace(
+            get_recent=lambda *args, **kwargs: captured.update(news_pks=kwargs["fact_pks"]) or [],
+            list_market_news_for_date=lambda *args, **kwargs: captured.update(
+                market_news_pks=kwargs["fact_pks"]
+            )
+            or [],
+        ),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_capital_flow_repository",
+        lambda: SimpleNamespace(
+            get_series=lambda *args, **kwargs: captured.update(flow_pks=kwargs["fact_pks"]) or []
+        ),
+    )
+
+    query_services.query_published_sector_memberships("SW1_BANK")
+    query_services.query_published_market_news(asset_code="600000.SH")
+    query_services.query_published_market_news(target_date=date(2026, 8, 1))
+    query_services.query_published_capital_flow_series("600000.SH")
+
+    assert captured == {
+        "sector_pks": ["sector.membership-1"],
+        "news_pks": ["market.news-1"],
+        "market_news_pks": ["market.news-1"],
+        "flow_pks": ["market.capital_flow-1"],
+    }

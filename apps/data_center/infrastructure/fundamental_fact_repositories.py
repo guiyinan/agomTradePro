@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date
 
 from django.db.models import Max
@@ -97,9 +98,12 @@ class FinancialFactRepository:
         period_type: FinancialPeriodType | None = None,
         limit: int = 20,
         end: date | None = None,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[FinancialFact]:
         for candidate in _resolve_asset_code_candidates(asset_code):
             qs = FinancialFactModel.objects.filter(asset_code=candidate)
+            if fact_pks is not None:
+                qs = qs.filter(pk__in=list(fact_pks))
             if period_type:
                 qs = qs.filter(period_type=period_type.value)
             if end is not None:
@@ -173,9 +177,12 @@ class ValuationFactRepository:
         asset_code: str,
         start: date | None = None,
         end: date | None = None,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[ValuationFact]:
         for candidate in _resolve_asset_code_candidates(asset_code):
             qs = ValuationFactModel.objects.filter(asset_code=candidate)
+            if fact_pks is not None:
+                qs = qs.filter(pk__in=list(fact_pks))
             if start:
                 qs = qs.filter(val_date__gte=start)
             if end:

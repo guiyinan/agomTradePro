@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 55,
-    "current_surface_references": 2870,
+    "current_surface_references": 2879,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
     "legacy_fact_references": 141,
@@ -4542,7 +4542,7 @@
       "text": "raise RuntimeError(\"Data-center config summary repository is not configured\")"
     },
     {
-      "line": 114,
+      "line": 116,
       "path": "apps/data_center/application/control_plane.py",
       "text": "\"\"\"Apply a publication policy before exposing selected facts as current.\"\"\""
     },
@@ -4562,12 +4562,12 @@
       "text": "\"\"\"Fetch and store one current valuation row per available asset.\"\"\""
     },
     {
-      "line": 503,
+      "line": 505,
       "path": "apps/data_center/application/dtos.py",
       "text": "\"\"\"Input DTO for fetching the latest quote snapshot.\"\"\""
     },
     {
-      "line": 675,
+      "line": 678,
       "path": "apps/data_center/application/dtos.py",
       "text": "\"\"\"Result of one current-valuation batch sync.\"\"\""
     },
@@ -4847,207 +4847,207 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 283,
+      "line": 284,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 332,
+      "line": 333,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 339,
+      "line": 340,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 364,
+      "line": 365,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 366,
+      "line": 367,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 374,
+      "line": 375,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 379,
+      "line": 380,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 394,
+      "line": 395,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 410,
+      "line": 411,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 428,
+      "line": 429,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 445,
+      "line": 446,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 461,
+      "line": 462,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 498,
+      "line": 499,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 501,
+      "line": 502,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 505,
+      "line": 506,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 507,
+      "line": 508,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 510,
+      "line": 511,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 511,
+      "line": 512,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 613,
+      "line": 614,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
     {
-      "line": 40,
+      "line": 41,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return data-center summary counts for operational diagnostics.\"\"\""
     },
     {
-      "line": 115,
+      "line": 121,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest canonical quote payloads, preserving source observation time.\"\"\""
     },
     {
-      "line": 138,
+      "line": 148,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return the latest canonical macro indicator value for one code.\"\"\""
     },
     {
-      "line": 140,
+      "line": 150,
       "path": "apps/data_center/application/query_services.py",
       "text": "latest = get_macro_fact_repository().get_latest(indicator_code)"
     },
     {
-      "line": 141,
+      "line": 151,
       "path": "apps/data_center/application/query_services.py",
       "text": "return float(latest.value) if latest is not None else None"
     },
     {
-      "line": 181,
+      "line": 191,
       "path": "apps/data_center/application/query_services.py",
       "text": "This explicit current-data port prevents a non-empty, unpublished, or"
     },
     {
-      "line": 296,
+      "line": 308,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a freshness-validated gate for one current publication.\"\"\""
     },
     {
-      "line": 321,
+      "line": 408,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Parse a publication knowledge boundary for current-row upper bounds.\"\"\""
     },
     {
-      "line": 345,
+      "line": 432,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Limit a current-data query to the publication's knowledge boundary.\"\"\""
     },
     {
-      "line": 357,
+      "line": 444,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 376,
+      "line": 470,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 406,
+      "line": 507,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 408,
+      "line": 509,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read financial facts only after the current financial publication gate.\"\"\""
     },
     {
-      "line": 428,
+      "line": 536,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 430,
+      "line": 538,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read valuation facts only after the current valuation publication gate.\"\"\""
     },
     {
-      "line": 446,
+      "line": 565,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 465,
+      "line": 592,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 491,
+      "line": 637,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 571,
+      "line": 731,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 629,
+      "line": 789,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read current market breadth only after every component is published."
     },
     {
-      "line": 719,
+      "line": 879,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 732,
+      "line": 892,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return the latest market thermometer snapshot as a JSON-safe payload.\"\"\""
     },
@@ -5342,12 +5342,12 @@
       "text": "\"\"\"Read data-center summary counts for operational diagnostics.\"\"\""
     },
     {
-      "line": 55,
+      "line": 56,
       "path": "apps/data_center/infrastructure/fundamental_fact_repositories.py",
       "text": "value = FundNavFactModel._default_manager.aggregate(latest=Max(\"nav_date\"))[\"latest\"]"
     },
     {
-      "line": 202,
+      "line": 209,
       "path": "apps/data_center/infrastructure/fundamental_fact_repositories.py",
       "text": "value = ValuationFactModel._default_manager.aggregate(latest=Max(\"val_date\"))[\"latest\"]"
     },
@@ -5627,17 +5627,17 @@
       "text": "\"\"\"Resolve the SHIBOR 1-week tenor column from current or legacy casing.\"\"\""
     },
     {
-      "line": 99,
+      "line": 105,
       "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
       "text": "summary=m.summary,"
     },
     {
-      "line": 152,
+      "line": 163,
       "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
       "text": "summary=a.summary,"
     },
     {
-      "line": 168,
+      "line": 179,
       "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
       "text": "\"summary\": a.summary,"
     },
@@ -5787,52 +5787,62 @@
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 740,
+      "line": 742,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 846,
+      "line": 850,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 896,
+      "line": 900,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 937,
+      "line": 943,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 1027,
+      "line": 1037,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 1056,
+      "line": 1068,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 1109,
+      "line": 1123,
       "path": "apps/data_center/interface/api_views.py",
       "text": "\"\"\"Return the latest market-thermometer payload.\"\"\""
     },
     {
-      "line": 1161,
+      "line": 1175,
       "path": "apps/data_center/interface/api_views.py",
       "text": "\"\"\"Return or update current user's threshold override.\"\"\""
     },
     {
-      "line": 73,
+      "line": 84,
       "path": "apps/data_center/interface/publication_guards.py",
       "text": "publication_key = str(publication.get(\"publication_key\") or \"current\")"
     },
     {
-      "line": 109,
+      "line": 135,
+      "path": "apps/data_center/interface/publication_guards.py",
+      "text": "publication_key = str(publication.get(\"publication_key\") or \"current\")"
+    },
+    {
+      "line": 169,
+      "path": "apps/data_center/interface/publication_guards.py",
+      "text": "\"\"\"Apply freshness and member selection gates for a current-data read.\"\"\""
+    },
+    {
+      "line": 215,
       "path": "apps/data_center/interface/publication_guards.py",
       "text": "\"\"\"Apply an explicit current-publication gate to a Data Center read.\"\"\""
     },
@@ -6842,32 +6852,32 @@
       "text": "summary=\"筛选个股\","
     },
     {
-      "line": 166,
+      "line": 182,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"估值分析（个股详情）\","
     },
     {
-      "line": 305,
+      "line": 345,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"技术图表数据\","
     },
     {
-      "line": 331,
+      "line": 371,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"分时图数据\","
     },
     {
-      "line": 351,
+      "line": 391,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"DCF 绝对估值\","
     },
     {
-      "line": 456,
+      "line": 514,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"Regime 相关性分析\","
     },
     {
-      "line": 559,
+      "line": 617,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"综合估值分析\","
     },
@@ -9592,122 +9602,157 @@
       "text": "Realtime Module - Infrastructure Layer Repositories"
     },
     {
-      "line": 32,
+      "line": 36,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.application.simulated_trading_gateway import ("
     },
     {
-      "line": 35,
+      "line": 39,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.domain.entities import ("
     },
     {
-      "line": 44,
+      "line": 48,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.domain.protocols import ("
     },
     {
-      "line": 57,
+      "line": 61,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "\"\"\"Minimal quote gateway contract consumed by the realtime adapter.\"\"\""
     },
     {
-      "line": 121,
+      "line": 103,
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "text": "\"\"\"Read a current Data Center quote/bar only behind publication gates."
+    },
+    {
+      "line": 107,
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "text": "unpublished or stale fact must not be presented as realtime data."
+    },
+    {
+      "line": 111,
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "text": "quote_payload = get_published_quote_payloads([asset_code], publication_key=\"current\")"
+    },
+    {
+      "line": 114,
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "text": "\"Current quote publication unavailable for %s\","
+    },
+    {
+      "line": 148,
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "text": "publication_key=\"current\","
+    },
+    {
+      "line": 153,
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "text": "\"Current price-bar publication unavailable for %s\","
+    },
+    {
+      "line": 235,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 130,
+      "line": 244,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 138,
+      "line": 252,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 155,
+      "line": 269,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 178,
+      "line": 292,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 189,
+      "line": 303,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 208,
+      "line": 322,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 233,
+      "line": 347,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "\"\"\"Django ORM repository for durable realtime subscriptions.\"\"\""
     },
     {
-      "line": 238,
+      "line": 352,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceSubscriptionModel"
     },
     {
-      "line": 251,
+      "line": 365,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceSubscriptionModel"
     },
     {
-      "line": 263,
+      "line": 377,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceSubscriptionModel"
     },
     {
-      "line": 275,
+      "line": 389,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceSubscriptionModel"
     },
     {
-      "line": 285,
+      "line": 399,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceSubscriptionModel"
     },
     {
-      "line": 305,
+      "line": 419,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "缓存键格式: realtime:price:{asset_code}"
     },
     {
-      "line": 309,
+      "line": 423,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "CACHE_KEY_PREFIX = \"realtime:price\""
     },
     {
-      "line": 424,
+      "line": 513,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "logger.error(f\"Failed to get realtime price for {asset_code}: {e}\")"
     },
     {
-      "line": 785,
+      "line": 812,
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "text": "\"\"\"Read persisted current facts only after Data Center gate validation.\"\"\""
+    },
+    {
+      "line": 848,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "logger.error(f\"Failed to get realtime price for {asset_code} from AKShare: {e}\")"
     },
     {
-      "line": 937,
+      "line": 974,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "\"Failed to read realtime price from data_center: %s\","
     },
     {
-      "line": 1002,
+      "line": 1039,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "\"Ignoring stale realtime price from %s for %s observed_at=%s\","
     },
     {
-      "line": 1036,
+      "line": 1073,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "\"Ignoring stale realtime price from %s for %s observed_at=%s\","
     },

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -80,17 +81,16 @@ def query_financial_facts(
     *,
     limit: int = 20,
     end: date | None = None,
+    fact_pks: Sequence[str] | None = None,
 ) -> list[dict[str, object]]:
     """Return canonical financial facts through the application query port."""
 
-    return [
-        fact.to_dict()
-        for fact in get_financial_fact_repository().get_facts(
-            asset_code,
-            limit=limit,
-            end=end,
-        )
-    ]
+    repository = get_financial_fact_repository()
+    if fact_pks is None:
+        facts = repository.get_facts(asset_code, limit=limit, end=end)
+    else:
+        facts = repository.get_facts(asset_code, limit=limit, end=end, fact_pks=fact_pks)
+    return [fact.to_dict() for fact in facts]
 
 
 def query_valuation_facts(
@@ -98,10 +98,15 @@ def query_valuation_facts(
     *,
     as_of: date | None = None,
     limit: int | None = None,
+    fact_pks: Sequence[str] | None = None,
 ) -> list[dict[str, object]]:
     """Return canonical valuation facts through the application query port."""
 
-    facts = get_valuation_fact_repository().get_series(asset_code, end=as_of)
+    repository = get_valuation_fact_repository()
+    if fact_pks is None:
+        facts = repository.get_series(asset_code, end=as_of)
+    else:
+        facts = repository.get_series(asset_code, end=as_of, fact_pks=fact_pks)
     selected = facts[:limit] if limit is not None else facts
     return [fact.to_dict() for fact in selected]
 
@@ -111,13 +116,18 @@ def query_latest_quote_payloads(
     *,
     observed_after: datetime | None = None,
     observed_before: datetime | None = None,
+    fact_pks: Sequence[str] | None = None,
 ) -> list[dict[str, object]]:
     """Return latest canonical quote payloads, preserving source observation time."""
 
     rows: list[dict[str, object]] = []
     repository = get_quote_snapshot_repository()
     for asset_code in asset_codes:
-        quote = repository.get_latest(asset_code)
+        quote = (
+            repository.get_latest(asset_code)
+            if fact_pks is None
+            else repository.get_latest(asset_code, fact_pks=fact_pks)
+        )
         if quote is None:
             continue
         if observed_after is not None and quote.snapshot_at < observed_after:
@@ -213,6 +223,8 @@ def _publication_gate(
     publication_as_of = getattr(publication, "as_of", None)
     gate: dict[str, object] = {
         "publication_id": publication.publication_id,
+        "dataset_key": getattr(publication, "dataset_key", dataset_key),
+        "publication_key": getattr(publication, "publication_key", publication_key),
         "published_at": publication.published_at.isoformat() if publication.published_at else None,
         "as_of": publication_as_of.isoformat() if publication_as_of else None,
         "must_not_use_for_decision": publication.must_not_use_for_decision,
@@ -317,6 +329,81 @@ def _blocked_publication_result(
     return result
 
 
+def get_publication_member_fact_pks(
+    publication_id: str,
+    *,
+    dataset_key: str,
+    expected_fact_table: str,
+) -> list[str] | None:
+    """Return selected fact primary keys for one publication-bound dataset.
+
+    ``None`` is reserved for compatibility fakes that do not expose the member
+    reader yet. A real publication repository always exposes ``list_members``;
+    an empty or malformed member set therefore fails closed at the query port.
+    """
+
+    member_reader = getattr(get_canonical_publication_repository(), "list_members", None)
+    if not callable(member_reader):
+        return None
+    try:
+        members = member_reader(publication_id)
+    except Exception:
+        return []
+    selected_pks: list[str] = []
+    for member in members:
+        if isinstance(member, dict):
+            member_dataset = member.get("dataset_key")
+            member_table = member.get("fact_table")
+            member_pk = member.get("fact_pk")
+            natural_key = member.get("natural_key")
+        else:
+            member_dataset = getattr(member, "dataset_key", None)
+            member_table = getattr(member, "fact_table", None)
+            member_pk = getattr(member, "fact_pk", None)
+            natural_key = getattr(member, "natural_key", None)
+        if (
+            member_dataset != dataset_key
+            or member_table != expected_fact_table
+            or not str(natural_key or "").strip()
+            or not str(member_pk or "").strip()
+        ):
+            return []
+        selected_pks.append(str(member_pk))
+    return selected_pks
+
+
+def _publication_member_fact_pks(
+    gate: dict[str, object],
+    *,
+    expected_fact_table: str,
+) -> list[str] | None:
+    """Return selected fact primary keys for a publication gate."""
+
+    publication_id = gate.get("publication_id")
+    dataset_key = gate.get("dataset_key")
+    if not isinstance(publication_id, str) or not publication_id:
+        return []
+    if not isinstance(dataset_key, str) or not dataset_key:
+        return []
+    return get_publication_member_fact_pks(
+        publication_id,
+        dataset_key=dataset_key,
+        expected_fact_table=expected_fact_table,
+    )
+
+
+def _blocked_publication_members_result(
+    gate: dict[str, object],
+    *,
+    reason: str = "canonical_publication_members_missing",
+) -> dict[str, object]:
+    """Return a stable blocked envelope when selected members are unusable."""
+
+    result = _blocked_publication_result(gate)
+    result["blocked_reason"] = reason
+    return result
+
+
 def _publication_as_of_datetime(gate: dict[str, object]) -> datetime | None:
     """Parse a publication knowledge boundary for current-row upper bounds."""
 
@@ -361,10 +448,17 @@ def query_published_quote_payloads(
     gate = _publication_gate("equity.quote.snapshot", publication_key)
     if gate is None or bool(gate.get("must_not_use_for_decision")):
         return _blocked_publication_result(gate)
+    member_pks = _publication_member_fact_pks(
+        gate,
+        expected_fact_table="data_center_quote_snapshot",
+    )
+    if member_pks == []:
+        return _blocked_publication_members_result(gate)
     return {
         "rows": query_latest_quote_payloads(
             asset_codes,
             observed_before=_publication_as_of_datetime(gate),
+            fact_pks=member_pks,
         ),
         **gate,
     }
@@ -383,6 +477,12 @@ def query_published_price_bar_series(
     gate = _publication_gate("equity.price.bar", publication_key)
     if gate is None or bool(gate.get("must_not_use_for_decision")):
         return _blocked_publication_result(gate)
+    member_pks = _publication_member_fact_pks(
+        gate,
+        expected_fact_table="data_center_price_bar",
+    )
+    if member_pks == []:
+        return _blocked_publication_members_result(gate)
     bounded_end = _bounded_end_date(end, _publication_as_of_date(gate))
     if start is not None and bounded_end is not None and start > bounded_end:
         rows: list[dict[str, Any]] = []
@@ -392,6 +492,7 @@ def query_published_price_bar_series(
             start_date=start,
             end_date=bounded_end,
             limit=limit,
+            fact_pks=member_pks,
         )
     return {
         "rows": rows,
@@ -410,11 +511,18 @@ def query_published_financial_facts(
     gate = _publication_gate("equity.financial.fact", publication_key)
     if gate is None or bool(gate.get("must_not_use_for_decision")):
         return _blocked_publication_result(gate)
+    member_pks = _publication_member_fact_pks(
+        gate,
+        expected_fact_table="data_center_financial_fact",
+    )
+    if member_pks == []:
+        return _blocked_publication_members_result(gate)
     return {
         "rows": query_financial_facts(
             asset_code,
             limit=limit,
             end=_publication_as_of_date(gate),
+            fact_pks=member_pks,
         ),
         **gate,
     }
@@ -432,9 +540,20 @@ def query_published_valuation_facts(
     gate = _publication_gate("equity.valuation.fact", publication_key)
     if gate is None or bool(gate.get("must_not_use_for_decision")):
         return _blocked_publication_result(gate)
+    member_pks = _publication_member_fact_pks(
+        gate,
+        expected_fact_table="data_center_valuation_fact",
+    )
+    if member_pks == []:
+        return _blocked_publication_members_result(gate)
     bounded_as_of = _bounded_end_date(as_of, _publication_as_of_date(gate))
     return {
-        "rows": query_valuation_facts(asset_code, as_of=bounded_as_of, limit=limit),
+        "rows": query_valuation_facts(
+            asset_code,
+            as_of=bounded_as_of,
+            limit=limit,
+            fact_pks=member_pks,
+        ),
         **gate,
     }
 
@@ -450,10 +569,18 @@ def query_published_sector_memberships(
     gate = _publication_gate("sector.membership", publication_key)
     if gate is None or bool(gate.get("must_not_use_for_decision")):
         return _blocked_publication_result(gate)
-    rows = get_sector_membership_repository().get_members(
-        sector_code,
-        _bounded_end_date(as_of, _publication_as_of_date(gate)),
+    member_pks = _publication_member_fact_pks(
+        gate,
+        expected_fact_table="data_center_sector_membership",
     )
+    if member_pks == []:
+        return _blocked_publication_members_result(gate)
+    repository = get_sector_membership_repository()
+    bounded_as_of = _bounded_end_date(as_of, _publication_as_of_date(gate))
+    if member_pks is None:
+        rows = repository.get_members(sector_code, bounded_as_of)
+    else:
+        rows = repository.get_members(sector_code, bounded_as_of, fact_pks=member_pks)
     return {"rows": [row.to_dict() for row in rows], **gate}
 
 
@@ -469,16 +596,35 @@ def query_published_market_news(
     gate = _publication_gate("market.news", publication_key)
     if gate is None or bool(gate.get("must_not_use_for_decision")):
         return _blocked_publication_result(gate)
+    member_pks = _publication_member_fact_pks(
+        gate,
+        expected_fact_table="data_center_news_fact",
+    )
+    if member_pks == []:
+        return _blocked_publication_members_result(gate)
     repository = get_news_repository()
     publication_as_of = _publication_as_of_date(gate)
     if target_date is not None and not asset_code:
-        rows = (
-            []
-            if publication_as_of is not None and target_date > publication_as_of
-            else repository.list_market_news_for_date(target_date, limit=limit)
-        )
+        if publication_as_of is not None and target_date > publication_as_of:
+            rows = []
+        elif member_pks is None:
+            rows = repository.list_market_news_for_date(target_date, limit=limit)
+        else:
+            rows = repository.list_market_news_for_date(
+                target_date,
+                limit=limit,
+                fact_pks=member_pks,
+            )
     else:
-        rows = repository.get_recent(asset_code, limit=limit, end=publication_as_of)
+        if member_pks is None:
+            rows = repository.get_recent(asset_code, limit=limit, end=publication_as_of)
+        else:
+            rows = repository.get_recent(
+                asset_code,
+                limit=limit,
+                end=publication_as_of,
+                fact_pks=member_pks,
+            )
     return {"rows": [row.to_dict() for row in rows], **gate}
 
 
@@ -495,11 +641,25 @@ def query_published_capital_flow_series(
     gate = _publication_gate("market.capital_flow", publication_key)
     if gate is None or bool(gate.get("must_not_use_for_decision")):
         return _blocked_publication_result(gate)
+    member_pks = _publication_member_fact_pks(
+        gate,
+        expected_fact_table="data_center_capital_flow_fact",
+    )
+    if member_pks == []:
+        return _blocked_publication_members_result(gate)
     bounded_end = _bounded_end_date(end, _publication_as_of_date(gate))
     if start is not None and bounded_end is not None and start > bounded_end:
         rows: list[CapitalFlowFact] = []
-    else:
+    elif member_pks is None:
         rows = get_capital_flow_repository().get_series(asset_code, start, bounded_end, limit)
+    else:
+        rows = get_capital_flow_repository().get_series(
+            asset_code,
+            start,
+            bounded_end,
+            limit,
+            fact_pks=member_pks,
+        )
     return {"rows": [row.to_dict() for row in rows], **gate}
 
 
@@ -773,15 +933,26 @@ def fetch_price_bar_payloads(
     start_date: date | None = None,
     end_date: date | None = None,
     limit: int = 100,
+    fact_pks: Sequence[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Return canonical OHLCV facts, oldest to newest, for cross-app reads."""
 
-    bars = get_price_bar_repository().get_bars(
-        asset_code,
-        start=start_date,
-        end=end_date,
-        limit=limit,
-    )
+    repository = get_price_bar_repository()
+    if fact_pks is None:
+        bars = repository.get_bars(
+            asset_code,
+            start=start_date,
+            end=end_date,
+            limit=limit,
+        )
+    else:
+        bars = repository.get_bars(
+            asset_code,
+            start=start_date,
+            end=end_date,
+            limit=limit,
+            fact_pks=fact_pks,
+        )
     return [
         {
             "asset_code": bar.asset_code,
