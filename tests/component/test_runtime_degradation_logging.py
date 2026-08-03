@@ -96,6 +96,35 @@ def test_rotation_price_service_silences_expected_missing_history(monkeypatch, c
     assert not [record for record in caplog.records if record.levelno >= logging.WARNING]
 
 
+def test_rotation_published_cache_revalidates_publication_gate(monkeypatch):
+    responses = iter(
+        [
+            {
+                "prices": [5.0, 5.1],
+                "must_not_use_for_decision": False,
+                "freshness_status": "fresh",
+            },
+            {
+                "prices": [],
+                "must_not_use_for_decision": True,
+                "blocked_reason": "canonical_publication_stale",
+            },
+        ]
+    )
+    monkeypatch.setattr(
+        rotation_price_adapter,
+        "fetch_close_prices_from_data_center",
+        lambda **kwargs: next(responses),
+    )
+    service = rotation_price_adapter.RotationPriceDataService()
+
+    assert service.get_prices("510300", date.today(), 2) == [5.0, 5.1]
+    assert service.get_prices("510300", date.today(), 2) is None
+    contract = service.get_last_read_contract("510300")
+    assert contract["must_not_use_for_decision"] is True
+    assert contract["blocked_reason"] == "canonical_publication_missing_or_unusable"
+
+
 def test_hedge_failover_is_quiet_when_all_sources_return_none(caplog):
     class NullSource(HedgeDataSource):
         def get_asset_prices(self, asset_code: str, end_date: date, days: int = 60):

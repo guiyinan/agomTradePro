@@ -1660,7 +1660,8 @@
         ],
         "apps/rotation/infrastructure/services.py": [
           "self.price_service.get_prices(",
-          "get_correlation_matrix"
+          "get_correlation_matrix",
+          "price_reliability"
         ]
       },
       "required_tests": [
@@ -1678,6 +1679,11 @@
           "case": "rotation_compare_and_correlation",
           "test_file": "tests/api/test_rotation_api_edges.py",
           "test_function": "test_rotation_compare_is_pure_compute_without_price_cache_writes"
+        },
+        {
+          "case": "published_cache_revalidates_gate",
+          "test_file": "tests/component/test_runtime_degradation_logging.py",
+          "test_function": "test_rotation_published_cache_revalidates_publication_gate"
         }
       ]
     }

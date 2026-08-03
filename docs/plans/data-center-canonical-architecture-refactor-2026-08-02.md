@@ -829,7 +829,7 @@
 
 仍未完成及风险：
 
-- Rotation current 价格响应仍以兼容的 `list[float] | None` 供旧 Domain 使用，阻断原因尚未向所有 Rotation REST response envelope 逐层透传；但 blocked 时不再返回旧非空价格。
+- Rotation Domain 内部仍以兼容的 `list[float] | None` 计算，但 asset detail、compare、correlation 和 signal response 已增加 `price_reliability`；blocked 时不再返回旧非空价格，published cache 也不会绕过二次 gate。
 - Equity technical/intraday 当前仍是带可靠性标记的诊断读，尚未绑定到同一 Publication member snapshot；生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、真实备份恢复、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
 
 ## 1. 结论先行

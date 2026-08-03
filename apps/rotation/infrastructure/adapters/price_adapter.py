@@ -65,6 +65,7 @@ class RotationPriceDataService:
         cache: PriceDataCache | None = None,
     ):
         self.cache = cache or PriceDataCache()
+        self._last_read_contracts: dict[str, dict[str, object]] = {}
 
     def get_prices(
         self,
@@ -94,16 +95,57 @@ class RotationPriceDataService:
         # Keep historical and decision-facing reads in separate cache
         # namespaces.  A historical replay must never warm the current view.
         cache_asset_code = f"{mode}:{asset_code}"
+        # A published read must revalidate the publication on every request;
+        # otherwise a previously non-empty cache entry could outlive its gate.
         cached_prices = self.cache.get(cache_asset_code, end_date)
-        if cached_prices and len(cached_prices) >= days_back:
+        if mode == "historical" and cached_prices and len(cached_prices) >= days_back:
+            self._last_read_contracts[asset_code] = {
+                "status": "historical_cached",
+                "freshness_status": "historical",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "historical_mode",
+            }
             return cached_prices[-days_back:]
 
         prices = self._fetch_from_data_center(asset_code, end_date, days_back, mode=mode)
 
-        if prices and cache_result:
+        if prices and cache_result and mode == "historical":
             self.cache.set(cache_asset_code, end_date, prices)
+        self._last_read_contracts[asset_code] = {
+            "status": (
+                "published"
+                if mode == "published" and prices
+                else ("blocked" if mode == "published" else mode)
+            ),
+            "freshness_status": (
+                "fresh"
+                if mode == "published" and prices
+                else ("missing" if mode == "published" else mode)
+            ),
+            "must_not_use_for_decision": mode == "published" and not bool(prices),
+            "blocked_reason": (
+                None
+                if prices or mode == "historical"
+                else "canonical_publication_missing_or_unusable"
+            ),
+        }
 
         return prices
+
+    def get_last_read_contract(self, asset_code: str) -> dict[str, object]:
+        """Return reliability evidence for the most recent asset read."""
+
+        return dict(
+            self._last_read_contracts.get(
+                asset_code,
+                {
+                    "status": "unverified",
+                    "freshness_status": "unverified",
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": "price_read_not_executed",
+                },
+            )
+        )
 
     def get_multiple_prices(
         self,

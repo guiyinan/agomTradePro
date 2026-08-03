@@ -118,6 +118,7 @@ class RotationIntegrationService:
                 "reason": signal.reason,
                 "momentum_ranking": signal.momentum_ranking,
                 "data_quality": self._build_signal_data_quality(signal, config),
+                "price_reliability": self._build_price_reliability(config.asset_universe),
             }
 
             # Save to database when the ORM configuration is available.
@@ -142,6 +143,7 @@ class RotationIntegrationService:
                     "reason": str(e),
                     "target_allocation": {},
                     "momentum_ranking": [],
+                    "price_reliability": self._build_price_reliability(config.asset_universe),
                 }
             else:
                 logger.error(f"Failed to generate signal for {config_name}: {e}")
@@ -193,6 +195,7 @@ class RotationIntegrationService:
             "calc_date": timezone.localdate().isoformat(),
             "lookback_days": lookback_days,
             "assets": comparison,
+            "price_reliability": self._build_price_reliability(asset_codes),
         }
 
     def get_correlation_matrix(
@@ -228,6 +231,7 @@ class RotationIntegrationService:
             return {
                 "error": "No price data available",
                 "calc_date": timezone.localdate().isoformat(),
+                "price_reliability": self._build_price_reliability(asset_codes),
             }
 
         # Calculate correlation matrix
@@ -247,6 +251,26 @@ class RotationIntegrationService:
             "window_days": window_days,
             "assets": asset_codes,
             "correlation_matrix": matrix_dict,
+            "price_reliability": self._build_price_reliability(asset_codes),
+        }
+
+    def _build_price_reliability(self, asset_codes: list[str]) -> dict[str, Any]:
+        """Aggregate current price-read evidence for rotation responses."""
+
+        contracts = {code: self.price_service.get_last_read_contract(code) for code in asset_codes}
+        blocked_assets = [
+            code
+            for code, contract in contracts.items()
+            if bool(contract.get("must_not_use_for_decision"))
+        ]
+        return {
+            "status": "blocked" if blocked_assets else "published",
+            "must_not_use_for_decision": bool(blocked_assets),
+            "blocked_reason": (
+                "canonical_publication_missing_or_unusable" if blocked_assets else None
+            ),
+            "blocked_assets": blocked_assets,
+            "by_asset": contracts,
         }
 
     def get_rotation_recommendation(
@@ -548,12 +572,14 @@ class RotationIntegrationService:
                     else 0
                 ),
                 "has_price_data": True,
+                "price_reliability": self.price_service.get_last_read_contract(asset_code),
             }
         else:
             price_info = {
                 "current_price": None,
                 "change_20d": None,
                 "has_price_data": False,
+                "price_reliability": self.price_service.get_last_read_contract(asset_code),
             }
 
         return {
