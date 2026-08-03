@@ -1353,6 +1353,27 @@
 - financial 旧管理命令和 legacy equity 投影仍处于兼容期；只有 Data Center 正式同步入口具备 Publication 编排，旧入口迁移/零读写尚未完成。
 - PostgreSQL 生产画像、Linux/CI 同构迁移性能、备份恢复、全域 checkpoint/覆盖对账、生产观察窗口、M9/M10 和 VPS 部署仍未验证；继续保持不部署。
 
+## 实施记录（2026-08-04，equity.valuation.fact Publication 与 writer 文件边界收口）
+
+本批次完成 D5 估值事实的同步→Publication 编排，并修复 Publication writer 单文件超长治理问题；继续不部署、不 push、不接触生产数据。
+
+已落地：
+
+- `ValuationFact` 与 repository 显式保留模型已有 `available_at`；candidate 严格按 `(asset_code, val_date, source)` 绑定 fact PK，`observed_at/as_of` 使用 `val_date` UTC 日界，绝不使用 `fetched_at`。
+- `available_at` 若为未来或 naive 立即阻断；缺失时只标记 `available_at_unverified`，不伪造时间，符合估值 policy 的可选可用性语义。Publication 仍要求 source/observed_at/raw hash，并执行 coverage、未来观测阻断、确定性 hash/UUID5 和原子成员写入。
+- `SyncValuationUseCase` 与 `SyncCurrentValuationBatchUseCase` 两个入口均注入同一 writer；补齐单资产和批量事实写入后的 Publication invocation 回归。
+- 为满足 `large_python_file` 治理上限，将 valuation writer 拆至 `apps/data_center/application/valuation_publication.py`，共享 hash 拆至 `publication_utils.py`；manifest source markers 同步更新，主 `publication_sync.py` 回到 1200 行以内。
+
+机器证据（本地）：
+
+- valuation Publication / repository / 两个 sync 入口定向回归：8 passed；current-data runner：189 个登记 nodeid，实际 228 个测试项全部通过（`--reuse-db --no-migrations`）。
+- current-data manifest 36 surfaces；architecture boundary/audit 0；large-file/legacy/governance guards 0；变更 10 个生产文件 mypy regression 0；ruff/black/isort、Celery contract、runtime config coverage、manage check、makemigrations check 全部通过。
+
+仍未完成及风险：
+
+- valuation provider 当前通常只给 `val_date`，缺失 `available_at` 时 Publication 会明确发布为未验证可用性；历史回放若需要严格 PIT，仍需把 available boundary 纳入 member/query contract，而不能静默补抓取时间。
+- D0-D9 全域 checkpoint/backfill/coverage 对账、生产 publication/member 观察、PostgreSQL 生产规模性能、备份恢复、Retention/Archive 实际调度、CI Linux 同构、M9/M10 和 VPS 部署仍未验证；继续保持不部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
