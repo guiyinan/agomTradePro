@@ -18,6 +18,7 @@ from apps.config_center.application.runtime_config import (
 )
 
 _runtime_service: RuntimeConfigService | None = None
+_runtime_definition_repository: RuntimeConfigDefinitionRepositoryPort | None = None
 _storage_budget_service: StorageBudgetQueryService | None = None
 _capacity_observation_service: StorageCapacityObservationService | None = None
 
@@ -34,7 +35,9 @@ def configure_runtime_config_services(
 ) -> None:
     """Configure concrete infrastructure repositories at the composition root."""
 
-    global _runtime_service, _storage_budget_service, _capacity_observation_service
+    global _runtime_service, _runtime_definition_repository
+    global _storage_budget_service, _capacity_observation_service
+    _runtime_definition_repository = definitions
     _runtime_service = RuntimeConfigService(definitions, profiles, values, revisions, snapshots)
     _storage_budget_service = StorageBudgetQueryService(storage_budget)
     _capacity_observation_service = StorageCapacityObservationService(capacity_observations)
@@ -46,6 +49,14 @@ def get_runtime_config_service() -> RuntimeConfigService:
     if _runtime_service is None:
         raise RuntimeError("Runtime config services are not configured")
     return _runtime_service
+
+
+def get_runtime_definition_repository() -> RuntimeConfigDefinitionRepositoryPort:
+    """Return the configured definition registry application port."""
+
+    if _runtime_definition_repository is None:
+        raise RuntimeError("Runtime config definition repository is not configured")
+    return _runtime_definition_repository
 
 
 def get_storage_budget_query_service() -> StorageBudgetQueryService:
@@ -66,6 +77,7 @@ def get_storage_capacity_observation_service() -> StorageCapacityObservationServ
 
 __all__ = [
     "configure_runtime_config_services",
+    "get_runtime_definition_repository",
     "get_runtime_config_service",
     "get_storage_budget_query_service",
     "get_storage_capacity_observation_service",

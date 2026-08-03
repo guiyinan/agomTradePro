@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+from apps.config_center.application.runtime_definition_reconcile import (
+    reconcile_runtime_definitions as _reconcile_runtime_definitions,
+)
 from apps.config_center.application.runtime_repository_provider import (
     get_runtime_config_service,
+    get_runtime_definition_repository,
     get_storage_budget_query_service,
     get_storage_capacity_observation_service,
 )
 from apps.config_center.application.storage_budget import StoragePressureGuard
 from apps.config_center.domain.runtime_config import (
+    RuntimeConfigDefinition,
     RuntimeConfigProfile,
     RuntimeConfigSnapshot,
     RuntimeConfigValue,
@@ -58,6 +63,18 @@ def get_active_runtime_value(*, environment: str, definition_key: str) -> object
     if snapshot.profile_id != profile.profile_id or snapshot.profile_version != profile.version:
         return None
     return snapshot.resolved_values.get(normalized_key)
+
+
+def reconcile_runtime_definitions() -> tuple[RuntimeConfigDefinition, ...]:
+    """Idempotently reconcile the Config Center-owned definition catalog."""
+
+    return _reconcile_runtime_definitions(get_runtime_definition_repository())
+
+
+def validate_active_runtime_profile(environment: str) -> dict[str, object]:
+    """Validate the active profile without changing runtime state."""
+
+    return get_runtime_config_service().validate_active_profile(environment)
 
 
 def preview_runtime_profile(
@@ -174,9 +191,11 @@ __all__ = [
     "get_active_storage_budget",
     "get_latest_runtime_snapshot",
     "get_latest_storage_capacity_observation",
+    "reconcile_runtime_definitions",
     "require_active_storage_budget",
     "preview_runtime_profile",
     "rollback_runtime_profile",
     "record_storage_capacity_observation",
     "validate_runtime_values",
+    "validate_active_runtime_profile",
 ]

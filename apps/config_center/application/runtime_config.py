@@ -25,6 +25,8 @@ class RuntimeConfigDefinitionRepositoryPort(Protocol):
 
     def get(self, key: str) -> RuntimeConfigDefinition | None: ...
 
+    def save(self, definition: RuntimeConfigDefinition) -> RuntimeConfigDefinition: ...
+
 
 class RuntimeConfigProfileRepositoryPort(Protocol):
     """Persistence port for profiles."""
@@ -93,6 +95,56 @@ class RuntimeConfigService:
 
         return self._snapshots.get_latest(profile_key)
 
+    def validate_active_profile(self, environment: str) -> dict[str, object]:
+        """Validate values belonging to the active profile for one environment.
+
+        This is intentionally a read-only check used by bootstrap/reconcile
+        commands and readiness evidence.  It does not activate or mutate a
+        profile, and it applies the same definition validation as activation.
+        """
+
+        normalized_environment = str(environment or "").strip()
+        if not normalized_environment:
+            return {
+                "valid": False,
+                "environment": normalized_environment,
+                "errors": ("environment_required",),
+                "profile_id": None,
+                "profile_key": None,
+            }
+        profile = self._profiles.get_active(normalized_environment)
+        if profile is None:
+            return {
+                "valid": False,
+                "environment": normalized_environment,
+                "errors": ("active_profile_missing",),
+                "profile_id": None,
+                "profile_key": None,
+            }
+        values = tuple(self._values.list_for_profile(profile.profile_id))
+        validation = self.validate_values(values)
+        errors = list(cast(tuple[str, ...], validation["errors"]))
+        if any(value.profile_id != profile.profile_id for value in values):
+            errors.append("profile_id_mismatch")
+        definitions = {item.key: item for item in self._definitions.list_all()}
+        supplied = {value.definition_key for value in values}
+        errors.extend(
+            f"missing_critical_definition:{definition.key}"
+            for definition in definitions.values()
+            if definition.criticality.value in {"bootstrap", "critical"}
+            and not definition.is_deprecated
+            and definition.key not in supplied
+        )
+        return {
+            "valid": not errors,
+            "environment": normalized_environment,
+            "errors": tuple(errors),
+            "validated": validation["validated"],
+            "profile_id": profile.profile_id,
+            "profile_key": profile.profile_key,
+            "profile_version": profile.version,
+        }
+
     def validate_values(self, values: tuple[RuntimeConfigValue, ...]) -> dict[str, object]:
         """Validate values against the registered definitions."""
 
@@ -140,11 +192,11 @@ class RuntimeConfigService:
             item.definition_key: item.secret_ref if item.secret_ref else item.value_json
             for item in values
         }
-        changed_keys = tuple(sorted(key for key in set(before) | set(after) if before.get(key) != after.get(key)))
+        changed_keys = tuple(
+            sorted(key for key in set(before) | set(after) if before.get(key) != after.get(key))
+        )
         reload_modes = {
-            key: definitions[key].reload_mode.value
-            for key in changed_keys
-            if key in definitions
+            key: definitions[key].reload_mode.value for key in changed_keys if key in definitions
         }
         return {
             "valid": bool(validation["valid"]),
@@ -209,7 +261,9 @@ class RuntimeConfigService:
             and definition.key not in supplied
         ]
         if missing_critical:
-            raise ValueError("Missing critical runtime definitions: " + ", ".join(sorted(missing_critical)))
+            raise ValueError(
+                "Missing critical runtime definitions: " + ", ".join(sorted(missing_critical))
+            )
         resolved = {
             item.definition_key: item.secret_ref if item.secret_ref else item.value_json
             for item in values
@@ -237,12 +291,15 @@ class RuntimeConfigService:
                 {
                     item.definition_key: item.value_json
                     for item in self._values.list_for_profile(previous.profile_id)
-                    if item.definition_key in definitions and not definitions[item.definition_key].secret
+                    if item.definition_key in definitions
+                    and not definitions[item.definition_key].secret
                 }
                 if previous is not None
                 else {}
             ),
-            after_projection={key: value for key, value in resolved.items() if not definitions[key].secret},
+            after_projection={
+                key: value for key, value in resolved.items() if not definitions[key].secret
+            },
             actor=actor,
             reason=reason,
             release_ref=release_ref,
@@ -254,7 +311,9 @@ class RuntimeConfigService:
             profile_key=saved_profile.profile_key,
             profile_version=saved_profile.version,
             snapshot_hash=snapshot_hash,
-            resolved_values={key: value for key, value in resolved.items() if not definitions[key].secret},
+            resolved_values={
+                key: value for key, value in resolved.items() if not definitions[key].secret
+            },
             effective_from=saved_profile.activated_at,
             validation_report={"valid": True, "validated": validation["validated"]},
         )

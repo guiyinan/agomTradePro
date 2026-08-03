@@ -36,15 +36,21 @@
       "namespace": "data_center",
       "owner": "data-platform",
       "type": "decimal",
+      "criticality": "critical",
       "current_source": "config_center_runtime_profile",
       "fallback": "data_center_provider_settings_compatibility",
       "migration_status": "consumer_cutover_in_progress",
       "consumers": [
         "apps/data_center/infrastructure/macro_sources/failover_adapter.py::_resolve_failover_tolerance"
       ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
       "tests": [
         "tests/unit/data_center/test_macro_failover_adapter.py::test_runtime_failover_tolerance_is_preferred",
-        "tests/unit/config_center/test_runtime_public.py::test_active_runtime_value_fails_closed_for_stale_snapshot"
+        "tests/unit/config_center/test_runtime_public.py::test_active_runtime_value_fails_closed_for_stale_snapshot",
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_runtime_definition_reconcile_is_idempotent",
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_active_profile_passes_reconciled_definition_validation",
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_active_profile_reports_missing_critical_definition"
       ]
     },
     {
