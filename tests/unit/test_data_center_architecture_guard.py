@@ -40,12 +40,11 @@ _SDK_IMPORT_RE = re.compile(
 # is now a hard failure.
 _LEGACY_SDK_VIOLATIONS: set[Path] = set()
 
-# One legacy macro compatibility repository still owns a CRUD facade while
-# its application replacement is staged.  This is a ratchet: new files may
-# not be added and the exception should disappear in the destructive phase.
-_LEGACY_DATA_CENTER_ORM_VIOLATIONS = {
-    _ROOT / "apps" / "macro" / "infrastructure" / "data_center_fact_repository.py",
-}
+# No production business module is allowed to import Data Center ORM models.
+# The former macro CRUD facade now resolves its persistence dependency through
+# ``apps.data_center.application.public`` and therefore no longer needs a
+# ratchet exception here.
+_LEGACY_DATA_CENTER_ORM_VIOLATIONS: set[Path] = set()
 
 
 def _is_in_allowed_dir(path: Path) -> bool:
@@ -195,3 +194,13 @@ def test_business_apps_do_not_import_data_center_orm_outside_ratchet() -> None:
     assert not violations, "New cross-app Data Center ORM imports found:\n" + "\n".join(
         sorted(violations)
     )
+
+
+def test_macro_compatibility_facade_uses_typed_public_port() -> None:
+    """The macro compatibility adapter must stay above Data Center infrastructure."""
+
+    facade = _ROOT / "apps" / "macro" / "infrastructure" / "data_center_fact_repository.py"
+    source = facade.read_text(encoding="utf-8")
+    assert "apps.data_center.application.public" in source
+    assert "MacroProjectionRepositoryProtocol" in source
+    assert "apps.data_center.infrastructure" not in source
