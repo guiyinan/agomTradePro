@@ -1215,6 +1215,30 @@
 - `docker run postgres:16` 临时库启动成功，`pg_isready` 通过；`python manage.py migrate --noinput` 在 15 分钟预算内未完成，过程中已创建 184 张表，最终按超时终止。
 - 未把该次迁移当作通过；PostgreSQL 全迁移/关键链路仍需 CI/Linux 或专门迁移性能修复后重新验证。
 
+## 实施记录（2026-08-03，market.news 同步→Publication 与运行配置切换）
+
+本批次只收口两个可独立验收的可靠性切口：新闻同步写入后的 canonical Publication，以及 Data Center failover 容差的 Config Center 运行时读取；不部署、不 push、不触碰生产数据。
+
+已落地：
+
+- `SyncNewsUseCase` 的正式 composition root 注入 `PublishNewsBatchUseCase`；事实写入后按稳定内容/Provider 标识解析精确持久化 fact，计算 `requested/eligible/selected/missing` coverage，以成员最大 `observed_at` 生成显式 `as_of`，并通过既有事务 writer 原子写入 Publication members、coverage 和 supersede 状态。
+- `market.news` Publication 使用确定性 hash/UUID5，重复同步同一成员快照返回现有 current；成员缺失、coverage 低于 policy 或未来/无时区观测时间 fail closed。空 `external_id` 使用内容 hash，避免重试产生重复事实。
+- 新增 `PublicationFactReference` ORM-free domain value object 与 News candidate query port；current-data manifest 登记 writer source/markers 和精确回归 nodeid。
+- `data_center.provider.failover_tolerance` 增加 Config Center active profile/snapshot Public Port；profile 与 immutable snapshot 的 `profile_id/version` 不一致时返回 `None`，消费者只保留已登记的 DataProviderSettings compatibility fallback，并记录迁移状态。
+
+机器证据（本地）：
+
+- `pytest tests/unit/data_center/test_news_publication_sync.py tests/unit/data_center/test_macro_failover_adapter.py tests/unit/data_center/test_control_plane.py tests/unit/data_center/test_phase3_sync_use_cases.py --reuse-db --no-migrations`：29 passed；扩展 News/Query/Sentiment 回归：55 passed；Config Center active snapshot public-port：4 passed；memberless 同 hash 修复回归：5 passed。
+- current-data runner：154 个登记 nodeid，实际 193 个测试项全部通过（`--reuse-db --no-migrations`）。
+- `check_current_data_contracts.py`：36 surfaces；`check_runtime_config_coverage.py`：49 references；`check_celery_task_contracts.py`：14 tasks；`check_governance_consistency.py`：0 violations；`verify_architecture.py --include-audit`：boundary/audit 0；legacy fact access guard 通过。
+- 9 个变更生产文件 mypy regression 为 0；变更文件 ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- 本批只把 `market.news` 接入真实同步→Publication 主链，D0-D9 其他同步用例仍需按数据域分批接入 writer/backfill、checkpoint、覆盖对账和观察窗口；不能据此宣称全域 current 已完成。
+- Config Center 目前仍有已登记的兼容来源，SystemSettings 全量退役和所有全局运行参数迁移尚未完成。
+- PostgreSQL 最新 migration/性能、生产 publication/member 观察、备份恢复、M9/M10 旧表清理和 VPS 部署仍未验证；遵守“先不部署”约束。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
