@@ -229,6 +229,10 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
     # Realtime
     "realtime": [
         "tests/api/test_realtime_api.py",
+        # Data Center-backed current-price provider guard: a realtime module
+        # change must exercise the publication-member/freshness fail-closed
+        # path, not only the legacy realtime API tests.
+        "tests/component/test_realtime_data_center_provider.py",
         "tests/integration/test_realtime_*.py",
         "tests/unit/test_realtime*.py",
     ],
