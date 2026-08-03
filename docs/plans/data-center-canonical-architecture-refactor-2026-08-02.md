@@ -1,6 +1,6 @@
 # 数据中台唯一真源与数据可靠性架构重构计划（2026-08-02）
 
-> 状态：实施中（M0-M4 控制面、D0/D1/D4-D7 本地关键消费者和 D2/D3/D8-D9 的本地 Publication-only 端口已收口；Dataset Catalog/owner registry 已持久化并可幂等初始化，Provider×dataset health 和 A-share composite publication gate 已接入；本地 PostgreSQL 空库迁移图已验证；生产观察窗口、PostgreSQL 生产预算/M9-M10 尚未完成）
+> 状态：实施中（M0-M4 控制面、D0/D1/D4-D7 本地关键消费者和 D2/D3/D8-D9 的本地 Publication-only 端口已收口；D4-D9 published Query Port 与 REST 已增加同一 Publication 的 member-bound fact_pk 过滤；Dataset Catalog/owner registry 已持久化并可幂等初始化，Provider×dataset health 和 A-share composite publication gate 已接入；本地 PostgreSQL 空库迁移图已验证；生产观察窗口、PostgreSQL 生产预算/M9-M10 尚未完成）
 > 级别：架构级 / 数据级 / 生产级重构  
 > 适用版本：0.8.0 之后的下一条独立主线  
 > 目标：所有外部事实数据及所有业务计算输入统一经过 Data Center；系统只有一个可发布的数据真源、一套可靠性语义和一条可审计的数据链路，并能在生产默认 90 GiB、运行时可调整的容量策略下持续运行  
@@ -999,6 +999,32 @@
 仍未完成及风险：
 
 - MCP 快照已阻断空 required rows，但仍依赖 REST/Public Port 提供真实 publication/member 一致性；同一 publication `fact_pk` 原子过滤、生产观察窗口、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
+
+## 实施记录（2026-08-03，第四十七批）
+
+本批次继续只做本地可靠性收口，不部署、不 push、不连接 VPS。重点是把“Publication gate 已通过”与“读取的事实行属于同一 Publication”分开，避免 gate 通过后又从全表挑到同日旧版本；同时阻断 realtime 旁路和尚未具备 member-snapshot 注入能力的 Equity 旧用例。
+
+已落地：
+
+- Publication repository/application port 暴露 `list_members(publication_id)`；D4/D5 行情、报价、财务、估值及 D7-D9 板块成员、新闻、资金流的 published Query Port 校验 `dataset_key/fact_table/natural_key/fact_pk`，并只向 canonical repository 传入该 Publication 的 `fact_pks`。成员缺失、错表、空主键或读取异常统一 fail closed；无成员读取能力的历史测试 fake 仅保留迁移兼容，不作为生产路径。
+- PriceBar、QuoteSnapshot、FinancialFact、ValuationFact、SectorMembership、News、CapitalFlow repository 增加可选 `fact_pks` 过滤；同一 Publication 的行集合成为当前读取的原子边界，并保留 historical/maintenance 调用签名。
+- Realtime 的 Tushare、AKShare cached fallback、Data Center provider 不再直接读取未发布的 latest QuoteSnapshot/PriceBar；统一通过 published/freshness Public Port，Publication 缺失、过期或异常返回 `None`，外部 AKShare spot 仍可继续 failover。历史日线只保留真实日末观测时间，不包装成请求时间。
+- `mode=published` 的 Equity screen、Analyze Valuation、DCF、Comprehensive 在全局 gate fresh 但旧 UseCase 尚不能证明 member snapshot 时显式返回 `canonical_publication_member_snapshot_missing`，不再调用 legacy latest/context 查询；historical 模式保持原行为。这是安全阻断，不宣称这些旧计算器已经完成 member-aware 重写。
+
+第四十七批机器证据：
+
+- `pytest tests/unit/data_center/test_published_query_ports.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=60`：16 passed，覆盖 D4-D9 成员主键绑定和空成员阻断。
+- `pytest tests/api/test_equity_api_edges.py -q -k "published_reads_block or published_valuation_calculators_block_stale or published_valuation_blocks_stale_publication or published_screen_blocks_stale" --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=120`：8 passed。
+- `pytest tests/component/test_realtime_data_center_provider.py tests/unit/test_realtime_akshare_provider.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=120`：10 passed，覆盖 fresh quote、missing/stale publication 和 fallback。
+- `pytest tests/api/test_data_center_route_cleanup.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=60`：34 passed；`pytest tests/unit/data_center/test_use_cases.py tests/unit/data_center/test_published_query_ports.py -q`：52 passed；SDK/MCP Data Center/Equity 回归 59 passed；Terminal/SDK client/internal SSL 41 passed。
+- `python scripts/data_center_architecture_inventory.py --write`：`provider_imports_outside_data_center=0`、`cross_app_orm_imports=55`、`legacy_fact_references=141`、`current_surface_references=2879`、`data_write_task_decorators=51`、`runtime_parameter_references=49`；`check_current_data_contracts.py`：35 surfaces；`check_governance_consistency.py`、`verify_architecture.py --include-audit`、legacy/query-budget/Celery guards 均通过。
+- `manage.py check`、`makemigrations --check --dry-run`：0 issues / No changes；14 个受影响生产文件 black/isort/ruff 和 mypy regression 0。
+
+未完成及风险：
+
+- 宏观 current Query Port、部分 D0-D3 组合和 Agent/Terminal/TUI 仍需逐入口核对 member-bound；Equity screen/估值旧 UseCase 目前安全阻断而非完成迁移，后续必须注入 canonical member snapshot 后再放开 published 计算。
+- 真实 publication member 写入器、生产观察窗口、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行；本批不触发部署。
+- `tests/component/infrastructure/test_repositories.py` 初次合并时暴露 `CN_PMI@test` 缺少 unit-rule fixture；已补齐测试级治理规则种子，当前组件回归为 47 passed。生产运行仍不允许对缺失 unit rule 静默回退。
 
 ## 1. 结论先行
 
