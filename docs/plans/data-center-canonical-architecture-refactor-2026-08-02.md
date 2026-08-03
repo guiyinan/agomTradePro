@@ -498,6 +498,21 @@
 - SDK 的 historical 模式仍可被调用者显式选择，这是回测/维护所需的受控兼容面；生产决策入口必须继续使用 published gate。
 - 生产 publication/member 观测、全 D0-D9 入口快照、备份恢复、P95/WAL、M9/M10 和 VPS 仍未执行。
 
+## 实施记录（2026-08-03，第二十三批）
+
+本批次在一次性 PostgreSQL 16 容器中完成 custom-format backup/restore 演练；容器使用 tmpfs，已停止并删除，不触碰现有 home-lab 容器、不部署、不 push。
+
+第二十三批机器证据：
+
+- 空 PostgreSQL 16 从零迁移到当前代码最新 leaf，`django_migrations=357`；Data Center Catalog 初始化为 contracts=10、bindings=12、policies=10、owners=10，并显式激活 `backup-test` StorageBudgetPolicy。
+- `pg_dump --format=custom --compress=6 --no-owner --no-acl` 生成非空备份，大小 `1,591,366` bytes，SHA-256：`0ae76e5d06835e03f45b9715c1c5e6ccc1a7171c537f27a0224d2efc148be44c`；`pg_restore --list` 可读。
+- 恢复到同容器独立 `agomtradepro_restore` 数据库，`pg_restore --exit-on-error` 成功；恢复库核对 `django_migrations=357`、`data_center_dataset_contract=10`、`config_center_storage_budget_policy=1`。
+
+仍未完成及风险：
+
+- 这是空库/治理样本的本地恢复证据，不是生产 custom-format 备份、VPS 外部下载、SHA 交叉核对、恢复时长/SLO 或真实数据行数证据；因此仍禁止 M9 破坏性迁移。
+- 生产 publication/member 观测、D0-D9 全入口快照、P95/WAL、M9/M10 和 VPS 仍未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
