@@ -15,7 +15,16 @@ def _payload_has_evidence(payload: object) -> bool:
         return bool(payload)
     if not isinstance(payload, dict):
         return False
-    for key in ("results", "data", "bars", "financials", "valuations", "news", "flows"):
+    for key in (
+        "rows",
+        "results",
+        "data",
+        "bars",
+        "financials",
+        "valuations",
+        "news",
+        "flows",
+    ):
         value = payload.get(key)
         if isinstance(value, list):
             return bool(value)

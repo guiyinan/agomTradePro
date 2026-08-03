@@ -127,6 +127,34 @@ def test_research_snapshot_does_not_treat_blocked_publication_metadata_as_eviden
     assert result["sections"]["financials"]["block_reason_code"] == ("canonical_publication_stale")
 
 
+def test_research_snapshot_does_not_treat_empty_rows_as_evidence(monkeypatch) -> None:
+    """Publication metadata cannot turn an empty required section into evidence."""
+
+    class EmptyFinancialDataCenter(_FakeDataCenter):
+        def get_financials(self, code, limit, *, mode=None):
+            assert mode == "published"
+            return {
+                "rows": [],
+                "publication_id": "pub-empty",
+                "must_not_use_for_decision": False,
+                "freshness_status": "fresh",
+            }
+
+    class EmptyFinancialClient(_FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.data_center = EmptyFinancialDataCenter()
+
+    monkeypatch.setattr("agomtradepro.AgomTradeProClient", EmptyFinancialClient)
+
+    result = _internal_handler_equity_read_research_snapshot("通富微电")
+
+    assert result["status"] == "blocked"
+    assert result["must_not_use_for_decision"] is True
+    assert result["sections"]["financials"]["status"] == "missing"
+    assert result["sections"]["financials"]["block_reason_code"] == "section_evidence_missing"
+
+
 def test_research_snapshot_executes_through_core_native_handler(monkeypatch) -> None:
     """Prove core-only agom_capability_call wiring via INTERNAL_GOVERNED_HANDLERS."""
 
