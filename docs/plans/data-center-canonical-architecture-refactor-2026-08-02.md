@@ -1419,6 +1419,28 @@
 - Publication repository 已增加 `published_at` 单调性护栏：乱序/同时间快照在 supersede 前 fail closed，不会把当前 Publication 回拨到旧数据；新增 control-plane 回归覆盖当前快照保持不变。
 - 全域 Publication rollback（显式恢复旧版本）、legacy/canonical 对账、D0-D9 query budget、PostgreSQL 生产规模、备份恢复、Retention/Archive 实际调度、CI Linux 同构、真实 MCP/生产观察以及 M9/M10/VPS 仍保持未验证；继续不部署。
 
+## 实施记录（2026-08-04，coverage evidence 与 retention fail-closed 收口）
+
+本批次继续只做本地可验证的诊断和数据保留安全修复，不部署、不 push、不触碰生产数据。
+
+已落地：
+
+- active-A-share coverage 诊断不再把事实表 `distinct asset_code` 当成当前数据证据；price/valuation/financial 三个域新增当前 Publication、member_count、fact_pk 绑定覆盖、`as_of/published_at`、最早成员观测、freshness、`must_not_use_for_decision` 和稳定阻断原因。顶层 `status=ok` 必须同时满足事实覆盖、Universe 质量、三份 current Publication、成员绑定完整和 Dataset Contract freshness。
+- coverage 诊断对缺 Publication、candidate/blocked 状态、memberless/错表/成员不完整、缺失或 naive 发布边界、`as_of > published_at`、成员观测晚于 `as_of`、缺 freshness policy 和 stale 观测全部 fail closed；保留原有事实覆盖字段供迁移期 UI 兼容，但新增 `published_*` 字段明确区分语义。
+- Raw retention candidate 同时遵守 dataset retention policy 与单行 `RawPayload.retention_until`；Repository 使用同一操作时钟过滤 future deadline，Application 层对旧/不安全 candidate adapter 再做一次阻断，避免未来保留期数据被删除。
+- `ArchiveManifestRepository.mark_verified` 拒绝 naive `verified_at`、空 checksum 以及 failed/deleted manifest 被直接提升为 verified；保留外部归档对象 checksum 校验由归档 worker 执行的边界。
+
+机器证据（本地）：
+
+- `pytest tests/component/data_center/test_repositories.py -q`：28 passed；`pytest tests/component/data_center/test_repositories.py -q --no-migrations --reuse-db -k diagnostic`：7 passed；`pytest tests/api/test_data_center_universe_config_api.py -q --no-migrations --reuse-db`：4 passed。
+- `pytest tests/unit/data_center/test_retention_tasks.py tests/unit/data_center/test_raw_landing.py tests/unit/data_center/test_retention_control_plane.py -q`：13 passed。
+- 变更生产文件 `ruff/black/isort`、`python scripts/check_mypy_regression.py`：0 regression；architecture boundary/audit 仍为 0。
+
+仍未完成及风险：
+
+- 当前仍没有实际 RetentionPolicy 初始化/真实 beat 执行、归档对象恢复和容量故障注入证据；默认 dry-run/无 active policy 的 fail-closed 是安全行为，不等于生产 retention 已运行。
+- D0-D6 查询预算仍没有真实 PostgreSQL `CaptureQueriesContext`/重复采样 P95 基线，不能用本地 SQLite 或合成数字填充；全域 shadow reconciliation、PostgreSQL 生产规模、备份恢复、CI Linux、生产观察、显式 Publication rollback、旧链退役和 VPS release 仍未完成。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
