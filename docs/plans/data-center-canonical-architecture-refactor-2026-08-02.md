@@ -852,6 +852,92 @@
 - Publication gate 仍是读取前的控制面校验；底层事实查询尚未按同一 Publication member 的 `fact_pk` 做原子快照过滤，读取与 gate 之间仍存在竞态，需在后续批次完成 member-bound query port。
 - 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
 
+## 实施记录（2026-08-03，第四十批）
+
+本批次清理 Dashboard Alpha 名称回填的跨 App ORM 旁路；事实/行情仍由前序批次的 canonical published context 负责，未扩大到 Fund Holdings canonical 迁移。仍不部署、不 push、不连接 VPS。
+
+已落地：
+
+- `DashboardAlphaContextRepository` 不再直接 import/use `FundHoldingModel`，改调用 Fund Application 的 `resolve_fund_holding_names` facade；批量解析 aliases，异常时返回空上下文并记录类型化日志。
+- 名称展示与事实读取保持分离：holding 名称只能作为兼容展示回填，不能触发外部数据抓取，也不会覆盖已存在的 AssetMaster 名称。
+- 新增单元测试证明 Dashboard 通过 Fund Application Port 解析 legacy holding 名称；历史 API 回归仍覆盖“读取名称但不写 AssetMaster”。
+
+第四十批机器证据：
+
+- `pytest apps/dashboard/tests/test_alpha_context_repository.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=30`：10 passed。
+- `pytest tests/api/test_dashboard_api_edges.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=30 -k legacy_holding_name`：1 passed，14 deselected。
+- Dashboard 变更文件 mypy regression 0；ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- Fund Holdings 仍是 Fund App 自有维护投影，尚无 Data Center FundHoldingFact/Publication Port；Alpha ETF 仍直接读写该旧模型，需独立 D6 holdings 子项目后再迁移，不能在本批次用不完整的 facade 假装已 canonicalize。
+- 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
+
+## 实施记录（2026-08-03，第四十一批）
+
+本批次把 Publication 的知识边界从 freshness gate 继续传递到 published 事实查询，阻止 publication 之后写入的行穿透到 current/latest 结果；仍不部署、不 push、不连接 VPS。
+
+已落地：
+
+- `publication.as_of` 进入所有 published query port 的行集上界：PriceBar、FinancialFact、ValuationFact、SectorMembership、CapitalFlow、News 均限制日期，Quote 限制 `snapshot_at`；请求区间与 publication 边界取交集，start 超过边界或未来新闻返回空结果。
+- News repository 增加可选 end 日期过滤，保持历史读取默认行为不变；Public Port 继续在 gate 阻断时先返回空 rows。
+- gate metadata 显式透传 `as_of`，让 REST/SDK/MCP 能审计事实知识边界，而不是只看到 published_at/observed_at。
+- 新增 query-port 回归覆盖“member 新但 publication.as_of 旧”“publication 之后的价格/财务/估值/新闻/资金流行”“越界 quote snapshot”不会泄漏。
+
+第四十一批机器证据：
+
+- `pytest tests/unit/data_center/test_published_query_ports.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=30`：13 passed。
+- `pytest tests/api/test_data_center_route_cleanup.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=30 -k published`：3 passed，29 deselected；`pytest tests/unit/data_center/test_a_share_behavior_query_service.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=30`：5 passed。
+- `pytest sdk/tests/test_mcp/test_equity_research_snapshot_registry.py -q --no-migrations --disable-warnings --maxfail=1 --timeout=30`：5 passed。
+- 变更生产文件 mypy regression 0；ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- 当前按 publication.as_of 做日期上界，但尚未按同一 publication 的 `fact_pk` 成员集合做原子查询；如果同一日期存在多个来源/版本，仍需 member-bound query port 解决快照一致性。
+- 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
+
+## 实施记录（2026-08-03，第四十二批）
+
+本批次修正 Equity SDK financial history 的 published 旁路：gate 通过后不得再读取旧 Equity 财务投影；仍不部署、不 push、不连接 VPS。
+
+已落地：
+
+- `mode=published` 的 `/api/equity/financials/<stock>/` 先检查 Data Center `equity.financial.fact` gate，再通过 `get_published_financial_facts` 读取 canonical rows，并按 `(period_end, period_type)` 聚合为兼容的 period snapshots。
+- canonical rows 缺失、二次 gate 阻断或 publication 不可用时返回空结果和 `must_not_use_for_decision=true`；`mode=historical` 保留显式历史兼容路径。
+- published 响应透传 `publication_id`、`as_of/observed_at`、freshness 和阻断字段；回归测试断言 legacy `list_stock_financial_payloads` 不会被调用。
+
+第四十二批机器证据：
+
+- `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=30 -k 'financial_history or financials'`：4 passed，42 deselected。
+- `pytest sdk/tests/test_sdk/test_equity_module.py -q --disable-warnings --maxfail=1 --timeout=30 -k financial`：1 passed，17 deselected。
+- 变更生产文件 mypy regression 0；ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- Equity DCF/comprehensive/analyze-valuation published 分支仍需额外纳入 `equity.price.bar` gate，不能只凭 financial/valuation gate 将旧 daily_prices/current_price 当作当前价格。
+- 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
+
+## 实施记录（2026-08-03，第四十三批）
+
+本批次补齐 Equity 筛选与估值计算器对当前价格的 Publication gate，防止 financial/valuation gate 通过后仍从旧 `daily_prices/current_price` 读取价格；仍不部署、不 push、不连接 VPS。
+
+已落地：
+
+- Equity `screen`、`analyze_valuation`、DCF、comprehensive valuation 的 `mode=published` 统一检查 `equity.financial.fact`、`equity.valuation.fact` 和 `equity.price.bar` 三个 gate。
+- 任一价格 Publication 缺失、stale 或未验证时，先返回空/hold 阻断证据，不进入对应 UseCase；historical 模式仍保持显式兼容。
+- 回归测试对估值详情、DCF、综合估值逐一 patch UseCase 为失败，证明 stale price 会在计算前阻断。
+
+第四十三批机器证据：
+
+- `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=30 -k 'published_valuation_reads_block_stale_price_publication or published_valuation_calculators_block_stale_publication or financial_history'`：9 passed，40 deselected。
+- `apps/equity/interface/analysis_actions.py` mypy regression 0；ruff/black/isort 通过。
+- `python scripts/data_center_architecture_inventory.py --write`：`cross_app_orm_imports=55`、`current_surface_references=2869`、`provider_imports_outside_data_center=0`；`check_current_data_contracts.py`：35 surfaces，治理/legacy/architecture guards 通过。
+
+仍未完成及风险：
+
+- 估值 UseCase 内部仍可在 historical 模式读取旧模型；published 当前只在入口 gate 阻断，尚未把同一 Publication member rows 注入 UseCase，仍需统一 member-bound query port。
+- 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

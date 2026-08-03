@@ -1,7 +1,7 @@
 {
   "counts": {
-    "cross_app_orm_imports": 56,
-    "current_surface_references": 2866,
+    "cross_app_orm_imports": 55,
+    "current_surface_references": 2869,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
     "legacy_fact_references": 141,
@@ -193,11 +193,6 @@
       "import": "apps.regime.infrastructure.models",
       "line": 17,
       "path": "apps/audit/management/commands/validate_high_frequency_indicators.py"
-    },
-    {
-      "import": "apps.fund.infrastructure.models",
-      "line": 24,
-      "path": "apps/dashboard/infrastructure/repositories.py"
     },
     {
       "import": "apps.alpha_trigger.infrastructure.models",
@@ -4397,7 +4392,7 @@
       "text": "\"summary\": advice.summary,"
     },
     {
-      "line": 565,
+      "line": 575,
       "path": "apps/dashboard/infrastructure/repositories.py",
       "text": "\"\"\"Return the latest macro indicator value for one code.\"\"\""
     },
@@ -4947,102 +4942,112 @@
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
     {
-      "line": 39,
+      "line": 40,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return data-center summary counts for operational diagnostics.\"\"\""
     },
     {
-      "line": 113,
+      "line": 115,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest canonical quote payloads, preserving source observation time.\"\"\""
     },
     {
-      "line": 134,
+      "line": 138,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return the latest canonical macro indicator value for one code.\"\"\""
     },
     {
-      "line": 136,
+      "line": 140,
       "path": "apps/data_center/application/query_services.py",
       "text": "latest = get_macro_fact_repository().get_latest(indicator_code)"
     },
     {
-      "line": 137,
+      "line": 141,
       "path": "apps/data_center/application/query_services.py",
       "text": "return float(latest.value) if latest is not None else None"
     },
     {
-      "line": 177,
+      "line": 181,
       "path": "apps/data_center/application/query_services.py",
       "text": "This explicit current-data port prevents a non-empty, unpublished, or"
     },
     {
-      "line": 274,
+      "line": 296,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a freshness-validated gate for one current publication.\"\"\""
     },
     {
-      "line": 301,
+      "line": 321,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "\"\"\"Parse a publication knowledge boundary for current-row upper bounds.\"\"\""
+    },
+    {
+      "line": 345,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "\"\"\"Limit a current-data query to the publication's knowledge boundary.\"\"\""
+    },
+    {
+      "line": 357,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 314,
+      "line": 376,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 339,
+      "line": 406,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 341,
+      "line": 408,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read financial facts only after the current financial publication gate.\"\"\""
     },
     {
-      "line": 354,
+      "line": 428,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 356,
+      "line": 430,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read valuation facts only after the current valuation publication gate.\"\"\""
     },
     {
-      "line": 371,
+      "line": 446,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 387,
+      "line": 465,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 409,
+      "line": 491,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 485,
+      "line": 571,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 543,
+      "line": 629,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read current market breadth only after every component is published."
     },
     {
-      "line": 633,
+      "line": 719,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 646,
+      "line": 732,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return the latest market thermometer snapshot as a JSON-safe payload.\"\"\""
     },
@@ -5627,12 +5632,12 @@
       "text": "summary=m.summary,"
     },
     {
-      "line": 149,
+      "line": 152,
       "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
       "text": "summary=a.summary,"
     },
     {
-      "line": 165,
+      "line": 168,
       "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
       "text": "\"summary\": a.summary,"
     },
@@ -6832,32 +6837,32 @@
       "text": "summary=\"筛选个股\","
     },
     {
-      "line": 162,
+      "line": 166,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"估值分析（个股详情）\","
     },
     {
-      "line": 297,
+      "line": 305,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"技术图表数据\","
     },
     {
-      "line": 323,
+      "line": 331,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"分时图数据\","
     },
     {
-      "line": 343,
+      "line": 351,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"DCF 绝对估值\","
     },
     {
-      "line": 444,
+      "line": 456,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"Regime 相关性分析\","
     },
     {
-      "line": 547,
+      "line": 559,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"综合估值分析\","
     },
@@ -10702,7 +10707,7 @@
       "text": "reason = f\"Current regime: {current_regime}\""
     },
     {
-      "line": 138,
+      "line": 180,
       "path": "apps/rotation/infrastructure/adapters/price_adapter.py",
       "text": "\"\"\"Read prices using either the current publication or historical port.\"\"\""
     },
@@ -10792,22 +10797,27 @@
       "text": "\"\"\"Typed summary for scheduled signal generation.\"\"\""
     },
     {
-      "line": 607,
+      "line": 258,
+      "path": "apps/rotation/infrastructure/services.py",
+      "text": "\"\"\"Aggregate current price-read evidence for rotation responses.\"\"\""
+    },
+    {
+      "line": 633,
       "path": "apps/rotation/infrastructure/services.py",
       "text": "Get current macro regime from regime module."
     },
     {
-      "line": 610,
+      "line": 636,
       "path": "apps/rotation/infrastructure/services.py",
       "text": "Current regime name or None"
     },
     {
-      "line": 620,
+      "line": 646,
       "path": "apps/rotation/infrastructure/services.py",
       "text": "logger.warning(f\"Failed to get current regime: {e}\")"
     },
     {
-      "line": 655,
+      "line": 681,
       "path": "apps/rotation/infrastructure/services.py",
       "text": "Summary of signal generation"
     },
