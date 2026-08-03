@@ -13,7 +13,9 @@ from apps.data_center.domain.retention import (
     RetentionRun,
     StorageHold,
 )
+from apps.data_center.infrastructure.models import ArchiveManifestModel
 from apps.data_center.infrastructure.retention_repositories import (
+    ArchiveManifestRepository,
     RetentionRunRepository,
     StorageHoldRepository,
 )
@@ -88,3 +90,38 @@ def test_storage_hold_blocks_retention_delete_until_release_or_expiry() -> None:
     guard = RetentionGuard(repository)
     assert not guard.can_delete("dataset", "equity.daily", now=NOW)
     assert guard.can_delete("dataset", "equity.daily", now=NOW + timedelta(days=2))
+
+
+@pytest.mark.django_db
+def test_archive_manifest_verification_rejects_failed_state_and_missing_checksum() -> None:
+    repository = ArchiveManifestRepository()
+    failed = ArchiveManifest(
+        archive_id=str(uuid4()),
+        dataset_key="market.raw",
+        object_count=1,
+        size_bytes=10,
+        location="s3://external/archive.tar.zst",
+        checksum="sha256:archive",
+        state=ArchiveState.FAILED,
+        created_at=NOW,
+    )
+    repository.save(failed)
+    with pytest.raises(ValueError, match="state_not_verifiable"):
+        repository.mark_verified(failed.archive_id, verified_at=NOW)
+
+    missing_checksum_id = uuid4()
+    ArchiveManifestModel._default_manager.create(
+        archive_id=missing_checksum_id,
+        dataset_key="market.raw",
+        object_count=1,
+        size_bytes=10,
+        location="s3://external/archive.tar.zst",
+        checksum="",
+        state=ArchiveState.EXPORTED.value,
+        created_at=NOW,
+    )
+    with pytest.raises(ValueError, match="checksum_missing"):
+        repository.mark_verified(str(missing_checksum_id), verified_at=NOW)
+
+    with pytest.raises(ValueError, match="timezone_aware"):
+        repository.mark_verified(failed.archive_id, verified_at=datetime(2026, 8, 2, 5, 0))

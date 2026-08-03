@@ -158,10 +158,26 @@ class ArchiveManifestRepository:
     def mark_verified(
         self, archive_id: str, *, verified_at: datetime | None = None
     ) -> ArchiveManifest:
-        """Mark an archive as verified only with a timestamp."""
+        """Mark an export as verified after checking its local manifest state.
+
+        A failed/deleted manifest cannot be promoted by accident, and legacy
+        rows with an empty checksum fail closed before any state mutation.
+        This validates the manifest evidence only; external object bytes are
+        still verified by the archive worker before calling this method.
+        """
 
         moment = verified_at or datetime.now(UTC)
+        if moment.tzinfo is None or moment.utcoffset() is None:
+            raise ValueError("archive_manifest_verified_at_must_be_timezone_aware")
         model = ArchiveManifestModel._default_manager.get(archive_id=_uuid(archive_id))
+        if not str(model.checksum).strip():
+            raise ValueError("archive_manifest_checksum_missing")
+        if model.state not in {
+            ArchiveState.PLANNED.value,
+            ArchiveState.EXPORTED.value,
+            ArchiveState.VERIFIED.value,
+        }:
+            raise ValueError("archive_manifest_state_not_verifiable")
         model.state = ArchiveState.VERIFIED.value
         model.verified_at = moment
         model.save(update_fields=["state", "verified_at"])

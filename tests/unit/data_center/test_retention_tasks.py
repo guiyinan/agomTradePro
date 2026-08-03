@@ -43,9 +43,20 @@ class _Candidates:
         self.rows = rows
         self.deleted: list[str] = []
 
-    def list_expired(self, dataset_key: str, *, before: datetime, limit: int) -> list[RawPayload]:
+    def list_expired(
+        self,
+        dataset_key: str,
+        *,
+        before: datetime,
+        limit: int,
+        now: datetime | None = None,
+    ) -> list[RawPayload]:
         return [
-            row for row in self.rows if row.dataset_key == dataset_key and row.fetched_at < before
+            row
+            for row in self.rows
+            if row.dataset_key == dataset_key
+            and row.fetched_at < before
+            and (row.retention_until is None or now is None or row.retention_until <= now)
         ][:limit]
 
     def delete(self, payload_id: str) -> int:
@@ -72,7 +83,7 @@ def _policy() -> RetentionPolicy:
     )
 
 
-def _payload() -> RawPayload:
+def _payload(*, retention_until: datetime | None = None) -> RawPayload:
     return RawPayload(
         payload_id=str(uuid4()),
         dataset_key="market.raw",
@@ -82,6 +93,7 @@ def _payload() -> RawPayload:
         payload={"value": 1},
         fetched_at=NOW - timedelta(days=31),
         payload_size_bytes=128,
+        retention_until=retention_until,
     )
 
 
@@ -167,3 +179,52 @@ def test_retention_task_reports_partial_for_active_hold(monkeypatch) -> None:  #
     assert result["outcome"] == "partial"
     assert result["held"] == 1
     assert result["deleted"] == 0
+
+
+def test_retention_task_does_not_delete_before_row_retention_deadline(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    payload = _payload(retention_until=datetime.now(UTC) + timedelta(days=1))
+    candidates = _Candidates([payload])
+    runs = _Runs()
+    _patch_task_dependencies(
+        monkeypatch, _Policies(_policy()), _Holds(), _Archives(True), candidates, runs
+    )
+
+    result = cleanup_expired_raw_payloads_task(dataset_key="market.raw", limit=10, dry_run=False)
+
+    assert result["outcome"] == "noop"
+    assert result["deleted"] == 0
+    assert candidates.deleted == []
+
+
+class _UnsafeCandidates(_Candidates):
+    """Legacy candidate adapter that ignores row-level retention deadlines."""
+
+    def list_expired(
+        self,
+        dataset_key: str,
+        *,
+        before: datetime,
+        limit: int,
+        now: datetime | None = None,
+    ) -> list[RawPayload]:
+        del now
+        return [
+            row for row in self.rows if row.dataset_key == dataset_key and row.fetched_at < before
+        ][:limit]
+
+
+def test_retention_task_fails_closed_for_legacy_future_deadline_candidate(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    payload = _payload(retention_until=datetime.now(UTC) + timedelta(days=1))
+    candidates = _UnsafeCandidates([payload])
+    runs = _Runs()
+    _patch_task_dependencies(
+        monkeypatch, _Policies(_policy()), _Holds(), _Archives(True), candidates, runs
+    )
+
+    result = cleanup_expired_raw_payloads_task(dataset_key="market.raw", limit=10, dry_run=False)
+
+    assert result["outcome"] == "blocked"
+    assert result["reason"] == "retention_until_not_reached"
+    assert result["blocked"] == 1
+    assert result["deleted"] == 0
+    assert candidates.deleted == []

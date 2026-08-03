@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from django.db import transaction
+from django.db.models import Q
 
 from apps.data_center.domain.raw_landing import RawPayload, SchemaFingerprint
 
@@ -58,11 +59,27 @@ class RawLandingRepository:
         *,
         before: datetime,
         limit: int,
+        now: datetime | None = None,
     ) -> list[RawPayload]:
-        """Return bounded expired payloads ordered oldest first for retention."""
+        """Return bounded expired payloads ordered oldest first for retention.
+
+        ``retention_until`` is an independent row-level deadline and must be
+        elapsed before a payload can become a deletion candidate.  ``now`` is
+        optional for backwards-compatible callers; production cleanup passes
+        its operation timestamp so the candidate query and application gate
+        share one clock.
+        """
+
+        moment = now or datetime.now(UTC)
+        if moment.tzinfo is None or moment.utcoffset() is None:
+            raise ValueError("now must be timezone-aware")
 
         models = (
-            RawPayloadModel._default_manager.filter(dataset_key=dataset_key, fetched_at__lt=before)
+            RawPayloadModel._default_manager.filter(
+                dataset_key=dataset_key,
+                fetched_at__lt=before,
+            )
+            .filter(Q(retention_until__isnull=True) | Q(retention_until__lte=moment))
             .order_by("fetched_at", "payload_id")[:limit]
         )
         return [model.to_domain() for model in models]

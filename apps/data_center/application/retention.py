@@ -59,6 +59,7 @@ class RetentionCandidateRepositoryPort(Protocol):
         *,
         before: datetime,
         limit: int,
+        now: datetime | None = None,
     ) -> list[RawPayload]: ...
 
     def delete(self, payload_id: str) -> int: ...
@@ -208,7 +209,12 @@ class RetentionCleanupUseCase:
             self._record_run(result, dry_run=dry_run, started_at=moment, finished_at=moment)
             return result
         cutoff = moment - timedelta(days=policy.retention_days)
-        rows = self._candidates.list_expired(dataset_key, before=cutoff, limit=limit)
+        rows = self._candidates.list_expired(
+            dataset_key,
+            before=cutoff,
+            limit=limit,
+            now=moment,
+        )
         if not rows:
             result = RetentionCleanupResult(
                 outcome="noop",
@@ -232,10 +238,19 @@ class RetentionCleanupUseCase:
         blocked = 0
         bytes_planned = 0
         bytes_deleted = 0
+        retention_blocked = 0
         for row in rows:
             payload_size = int(row.payload_size_bytes)
             if not self._guard.can_delete("raw_payload", row.payload_id, now=moment):
                 held += 1
+                continue
+            # The row-level retention deadline is an independent, stricter
+            # guard than the dataset policy.  Keep this check in the
+            # application layer as a fail-closed defence for legacy/custom
+            # candidate repositories that do not filter it themselves.
+            if row.retention_until is not None and row.retention_until > moment:
+                blocked += 1
+                retention_blocked += 1
                 continue
             if not archive_ready:
                 blocked += 1
@@ -248,7 +263,10 @@ class RetentionCleanupUseCase:
                 deleted += deleted_count
                 if deleted_count > 0:
                     bytes_deleted += payload_size
-        if blocked and deleted == 0 and planned == 0:
+        if retention_blocked and deleted == 0 and planned == 0 and held == 0:
+            outcome = "blocked"
+            reason = "retention_until_not_reached"
+        elif blocked and deleted == 0 and planned == 0:
             outcome = "blocked"
             reason = "verified_archive_missing"
         elif held or blocked:
