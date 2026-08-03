@@ -18,6 +18,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.data_center.application.public import get_decision_publication_gate
+from apps.equity.application.query_services import get_published_stock_context_map
 from apps.equity.application.use_cases import (
     ScreenStocksRequest,
     ScreenStocksUseCase,
@@ -145,6 +146,43 @@ class EquityPoolActionsMixin:
                         status=status.HTTP_200_OK,
                     )
 
+                published_context = get_published_stock_context_map(
+                    stock_codes[:100],
+                    publication_key=publication_key,
+                    include_price=False,
+                )
+                blocked_contexts = [
+                    row
+                    for row in published_context.values()
+                    if bool(row.get("must_not_use_for_decision"))
+                ]
+                if len(published_context) < min(len(stock_codes), 100) or blocked_contexts:
+                    first_block = blocked_contexts[0] if blocked_contexts else {}
+                    return Response(
+                        {
+                            "success": False,
+                            "status": "blocked",
+                            "regime": displayed_regime,
+                            "count": 0,
+                            "update_time": (pool_info or {}).get("updated_at"),
+                            "avg_roe": None,
+                            "avg_pe": None,
+                            "stocks": [],
+                            "sector_distribution": [],
+                            "mode": mode,
+                            "publication_key": publication_key,
+                            "publication_gates": publication_gates,
+                            "must_not_use_for_decision": True,
+                            "blocked_reason": str(
+                                first_block.get("blocked_reason")
+                                or "canonical_publication_members_missing"
+                            ),
+                        },
+                        status=status.HTTP_200_OK,
+                    )
+            else:
+                published_context = {}
+
             # 获取股票详细信息
             stocks: list[dict[str, object]] = []
             total_roe = 0.0
@@ -159,16 +197,28 @@ class EquityPoolActionsMixin:
                 if not stock_info:
                     continue
 
-                # 获取最新估值和财务数据
-                valuations = self.stock_repo.get_valuation_history(stock_code, start_date, end_date)
-                latest_valuation = valuations[-1] if valuations else None
+                if mode == "published":
+                    context = published_context[stock_code]
+                    roe = safe_float(context.get("roe"), default=None)
+                    revenue_growth = safe_float(context.get("revenue_growth"), default=None)
+                    profit_growth = safe_float(context.get("profit_growth"), default=None)
+                    pe = safe_float(context.get("pe"), default=None)
+                    pb = safe_float(context.get("pb"), default=None)
+                else:
+                    # 获取最新估值和财务数据
+                    valuations = self.stock_repo.get_valuation_history(
+                        stock_code,
+                        start_date,
+                        end_date,
+                    )
+                    latest_valuation = valuations[-1] if valuations else None
 
-                financial = self.stock_repo.get_latest_financial_data(stock_code)
-                roe = safe_float(financial.roe) if financial else None
-                revenue_growth = safe_float(financial.revenue_growth) if financial else None
-                profit_growth = safe_float(financial.net_profit_growth) if financial else None
-                pe = safe_float(latest_valuation.pe) if latest_valuation else None
-                pb = safe_float(latest_valuation.pb) if latest_valuation else None
+                    financial = self.stock_repo.get_latest_financial_data(stock_code)
+                    roe = safe_float(financial.roe) if financial else None
+                    revenue_growth = safe_float(financial.revenue_growth) if financial else None
+                    profit_growth = safe_float(financial.net_profit_growth) if financial else None
+                    pe = safe_float(latest_valuation.pe) if latest_valuation else None
+                    pb = safe_float(latest_valuation.pb) if latest_valuation else None
                 pe = pe if pe is not None and pe > 0 else None
                 pb = pb if pb is not None and pb > 0 else None
 

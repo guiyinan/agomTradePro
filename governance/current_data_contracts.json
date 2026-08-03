@@ -1249,6 +1249,9 @@
         "apps/equity/interface/pool_actions.py": [
           "get_decision_publication_gate(",
           "mode = str(serializer.validated_data[\"mode\"])",
+          "get_published_stock_context_map(",
+          "include_price=False",
+          "canonical_publication_members_missing",
           "must_not_use_for_decision"
         ],
         "sdk/agomtradepro/modules/equity.py": [
@@ -1382,6 +1385,16 @@
           "case": "published_fact_rows_are_member_bound",
           "test_file": "tests/unit/data_center/test_published_query_ports.py",
           "test_function": "test_published_core_queries_are_bound_to_publication_member_fact_pks"
+        },
+        {
+          "case": "equity_pool_reads_publication_member_context",
+          "test_file": "tests/api/test_equity_published_pool_member_bound.py",
+          "test_function": "test_published_pool_uses_publication_member_context_instead_of_legacy_latest_reads"
+        },
+        {
+          "case": "equity_pool_member_context_missing_blocks",
+          "test_file": "tests/api/test_equity_published_pool_member_bound.py",
+          "test_function": "test_published_pool_blocks_when_publication_member_context_is_missing"
         }
       ]
     },

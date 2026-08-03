@@ -141,3 +141,35 @@ def test_published_stock_context_drops_stale_rows_and_preserves_block_reason(mon
     assert row["must_not_use_for_decision"] is True
     assert row["blocked_reason"] == "canonical_publication_stale"
     assert row["publication_gates"]["price"]["freshness_status"] == "stale"
+
+
+def test_published_stock_context_blocks_missing_member_rows(monkeypatch) -> None:
+    """A fresh gate with no selected member rows must remain unusable."""
+
+    monkeypatch.setattr(
+        query_services,
+        "get_equity_stock_repository",
+        lambda: _StockRepository(),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_published_price_bar_series",
+        lambda *args, **kwargs: {"rows": [], **_fresh_gate()},
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_published_financial_facts",
+        lambda *args, **kwargs: {"rows": [], **_fresh_gate()},
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_published_valuation_facts",
+        lambda *args, **kwargs: {"rows": [], **_fresh_gate()},
+    )
+
+    context = query_services.get_published_stock_context_map(["000001.SZ"])
+    row = context["000001.SZ"]
+
+    assert row["must_not_use_for_decision"] is True
+    assert row["blocked_reason"] == "canonical_publication_members_missing"
+    assert row["missing_datasets"] == ["financial", "valuation", "price"]

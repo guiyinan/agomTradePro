@@ -190,6 +190,7 @@ def get_published_stock_context_map(
     stock_codes: list[str],
     *,
     publication_key: str = "current",
+    include_price: bool = True,
 ) -> dict[str, dict[str, Any]]:
     """Return stock context using only publication-gated canonical facts.
 
@@ -210,11 +211,13 @@ def get_published_stock_context_map(
     for requested_code in requested_codes:
         master = master_map.get(requested_code, {})
         asset_code = str(master.get("asset_code") or requested_code).upper()
-        price_payload = get_published_price_bar_series(
-            asset_code,
-            publication_key=publication_key,
-            limit=1,
-        )
+        price_payload: object = {}
+        if include_price:
+            price_payload = get_published_price_bar_series(
+                asset_code,
+                publication_key=publication_key,
+                limit=1,
+            )
         financial_payload = get_published_financial_facts(
             asset_code,
             publication_key=publication_key,
@@ -225,11 +228,12 @@ def get_published_stock_context_map(
             publication_key=publication_key,
             limit=1,
         )
-        gates = {
-            "price": _payload_gate(price_payload),
+        gates: dict[str, dict[str, object]] = {
             "financial": _payload_gate(financial_payload),
             "valuation": _payload_gate(valuation_payload),
         }
+        if include_price:
+            gates["price"] = _payload_gate(price_payload)
         blocked_gates = [gate for gate in gates.values() if gate.get("must_not_use_for_decision")]
         blocked_reason = next(
             (
@@ -247,7 +251,20 @@ def get_published_stock_context_map(
             "must_not_use_for_decision": bool(blocked_gates),
             "blocked_reason": blocked_reason or None,
         }
-        row.update(_published_price_context(price_payload))
+        missing_datasets = [
+            dataset_name
+            for dataset_name, payload in (
+                [("financial", financial_payload), ("valuation", valuation_payload)]
+                + ([("price", price_payload)] if include_price else [])
+            )
+            if not _payload_rows(payload)
+        ]
+        if missing_datasets and not blocked_gates:
+            row["must_not_use_for_decision"] = True
+            row["blocked_reason"] = "canonical_publication_members_missing"
+            row["missing_datasets"] = missing_datasets
+        if include_price:
+            row.update(_published_price_context(price_payload))
         row.update(_published_financial_context(financial_payload))
         row.update(_published_valuation_context(valuation_payload))
         context[requested_code] = row
