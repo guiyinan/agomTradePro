@@ -725,6 +725,22 @@
 - DCF/综合估值 UseCase 内部仍读取 canonical latest facts，尚未将事实读取绑定到同一 Publication member snapshot。
 - Technical/Intraday 等价格图表接口仍需下一批审计其 current freshness 语义；生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
 
+## 实施记录（2026-08-03，本地收口回归）
+
+本地代码批次完成统一回归；仅验证本地 SQLite/SDK/MCP 和静态治理，不推送、不部署。
+
+机器证据：
+
+- `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --timeout=180`：44 passed。
+- `pytest sdk/tests/test_sdk/test_equity_module.py sdk/tests/test_mcp/test_core_registry_owner_equity.py sdk/tests/test_mcp/test_equity_hedge_tools.py sdk/tests/test_mcp/test_sdk_alignment_read_registry.py -q --disable-warnings --maxfail=1 --timeout=60`：59 passed。
+- `python manage.py check`：0 issues；`check_current_data_contracts.py`：31 surfaces；`check_governance_consistency.py`、`check_data_center_legacy_fact_access.py`、`verify_architecture.py` 均通过。
+- 本地通富微电真实 SQLite 画像仍无 canonical facts/current Publication；published ports 明确返回 `canonical_publication_missing` 阻断，未把空数据包装成最新行情。
+
+本地批次结论：
+
+- Equity financial/valuation/screen/pool/DCF/comprehensive/score/analysis 的 REST/SDK/MCP 入口已补齐可追踪的 published gate 和 blocked metadata；历史兼容入口仍要求调用方显式选择 published 才能用于当前决策。
+- 这不是全计划完成声明。生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、真实备份恢复、Retention/Archive 调度、CI Linux nodeid、M9 旧表清理、M10 生产切读和 VPS 部署仍未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
