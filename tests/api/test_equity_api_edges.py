@@ -1025,6 +1025,79 @@ def test_equity_published_valuation_calculators_block_stale_publication_before_u
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("method", "path", "use_case_path", "payload", "expected_marker"),
+    (
+        (
+            "get",
+            "/api/equity/valuation/300308.SZ/?mode=published",
+            "apps.equity.interface.analysis_actions.AnalyzeValuationUseCase",
+            None,
+            "latest_valuation",
+        ),
+        (
+            "post",
+            "/api/equity/dcf/",
+            "apps.equity.interface.analysis_actions.CalculateDCFUseCase",
+            {"stock_code": "300308.SZ", "mode": "published"},
+            "intrinsic_value",
+        ),
+        (
+            "post",
+            "/api/equity/comprehensive-valuation/",
+            "apps.equity.interface.analysis_actions.ComprehensiveValuationUseCase",
+            {"stock_code": "300308.SZ", "mode": "published"},
+            "overall_score",
+        ),
+    ),
+)
+def test_equity_published_valuation_reads_block_stale_price_publication(
+    authenticated_client,
+    method: str,
+    path: str,
+    use_case_path: str,
+    payload: dict[str, object] | None,
+    expected_marker: str,
+):
+    fresh_publication = {
+        "publication_id": "equity-data-2026-08-03",
+        "published_at": "2026-08-03T08:00:00+00:00",
+        "as_of": "2026-07-31",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
+        "freshness_status": "fresh",
+    }
+    stale_price_publication = {
+        "publication_id": "equity-prices-2026-08-03",
+        "published_at": "2026-08-03T08:00:00+00:00",
+        "as_of": "2026-07-31",
+        "must_not_use_for_decision": True,
+        "blocked_reason": "canonical_publication_stale",
+        "freshness_status": "stale",
+    }
+
+    with (
+        patch(
+            "apps.equity.interface.analysis_actions.get_decision_publication_gate",
+            side_effect=[fresh_publication, fresh_publication, stale_price_publication],
+        ),
+        patch(use_case_path, side_effect=AssertionError("stale price must block before use case")),
+    ):
+        if method == "get":
+            response = authenticated_client.get(path)
+        else:
+            response = authenticated_client.post(path, payload, format="json")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["status"] == "blocked"
+    assert body["error"] == "canonical_publication_stale"
+    assert body["must_not_use_for_decision"] is True
+    assert expected_marker in body
+
+
+@pytest.mark.django_db
 def test_equity_valuation_returns_basic_info_when_valuation_missing(authenticated_client):
     today = timezone.localdate()
     asset = AssetMasterModel.objects.create(

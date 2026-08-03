@@ -100,7 +100,11 @@ class EquityAnalysisActionsMixin:
         publication_key = str(data["publication_key"])
         publication_gates: dict[str, dict[str, object] | None] = {}
         if mode == "published":
-            for dataset_key in ("equity.financial.fact", "equity.valuation.fact"):
+            for dataset_key in (
+                "equity.financial.fact",
+                "equity.valuation.fact",
+                "equity.price.bar",
+            ):
                 publication_gates[dataset_key] = get_decision_publication_gate(
                     dataset_key,
                     publication_key,
@@ -225,7 +229,11 @@ class EquityAnalysisActionsMixin:
         publication: dict[str, object] | None = None
         publication_gates: dict[str, dict[str, object] | None] = {}
         if mode == "published":
-            for dataset_key in ("equity.financial.fact", "equity.valuation.fact"):
+            for dataset_key in (
+                "equity.financial.fact",
+                "equity.valuation.fact",
+                "equity.price.bar",
+            ):
                 publication_gates[dataset_key] = get_decision_publication_gate(
                     dataset_key,
                     publication_key,
@@ -380,7 +388,11 @@ class EquityAnalysisActionsMixin:
         publication_key = str(data["publication_key"])
         publication_gates: dict[str, dict[str, object] | None] = {}
         if mode == "published":
-            for dataset_key in ("equity.financial.fact", "equity.valuation.fact"):
+            for dataset_key in (
+                "equity.financial.fact",
+                "equity.valuation.fact",
+                "equity.price.bar",
+            ):
                 publication_gates[dataset_key] = get_decision_publication_gate(
                     dataset_key,
                     publication_key,
@@ -617,7 +629,11 @@ class EquityAnalysisActionsMixin:
         publication_key = str(data["publication_key"])
         publication_gates: dict[str, dict[str, object] | None] = {}
         if mode == "published":
-            for dataset_key in ("equity.financial.fact", "equity.valuation.fact"):
+            for dataset_key in (
+                "equity.financial.fact",
+                "equity.valuation.fact",
+                "equity.price.bar",
+            ):
                 publication_gates[dataset_key] = get_decision_publication_gate(
                     dataset_key,
                     publication_key,
