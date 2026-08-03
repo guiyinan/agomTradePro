@@ -20,6 +20,7 @@ from .base import (
 logger = logging.getLogger(__name__)
 
 RUNTIME_FAILOVER_TOLERANCE_KEY = "data_center.provider.failover_tolerance"
+RUNTIME_FAILOVER_ENABLED_KEY = "data_center.provider.enable_failover"
 
 
 def _resolve_failover_tolerance(
@@ -76,6 +77,46 @@ def _resolve_failover_tolerance(
         return float(persisted_tolerance)
     logger.info("Using Config Center failover tolerance for environment %s", environment)
     return resolved
+
+
+def _resolve_failover_enabled(
+    persisted_enabled: bool,
+    *,
+    environment: str,
+) -> bool:
+    """Prefer Config Center's typed failover switch with an explicit owner fallback."""
+
+    try:
+        from apps.config_center.application.runtime_public import (
+            get_active_runtime_value,
+        )
+
+        raw_value = get_active_runtime_value(
+            environment=environment,
+            definition_key=RUNTIME_FAILOVER_ENABLED_KEY,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Config Center failover switch unavailable; using owner setting " "(error_type=%s)",
+            type(exc).__name__,
+        )
+        return bool(persisted_enabled)
+
+    if raw_value is None:
+        logger.info(
+            "Config Center failover switch is not active for environment %s; "
+            "using owner compatibility setting",
+            environment,
+        )
+        return bool(persisted_enabled)
+    if not isinstance(raw_value, bool):
+        logger.error(
+            "Invalid Config Center failover switch; using owner setting " "(value_type=%s)",
+            type(raw_value).__name__,
+        )
+        return bool(persisted_enabled)
+    logger.info("Using Config Center failover switch for environment %s", environment)
+    return raw_value
 
 
 class FailoverAdapter(MacroAdapterProtocol):
@@ -391,10 +432,13 @@ def create_default_adapter(
 
             settings_obj = load_data_provider_settings()
 
-            default_source = settings_obj.default_source
-            enable_failover = settings_obj.enable_failover
             runtime_environment = (
                 "production" if not bool(getattr(settings, "DEBUG", True)) else "development"
+            )
+            default_source = settings_obj.default_source
+            enable_failover = _resolve_failover_enabled(
+                settings_obj.enable_failover,
+                environment=runtime_environment,
             )
             tolerance = _resolve_failover_tolerance(
                 settings_obj.failover_tolerance,

@@ -14,6 +14,7 @@ from apps.data_center.infrastructure.macro_sources.base import (
 from apps.data_center.infrastructure.macro_sources.failover_adapter import (
     FailoverAdapter,
     MultiSourceAdapter,
+    _resolve_failover_enabled,
     _resolve_failover_tolerance,
 )
 
@@ -92,6 +93,32 @@ def test_runtime_failover_tolerance_keeps_owner_compatibility_on_missing_profile
     )
 
     assert _resolve_failover_tolerance(0.01, environment="development") == pytest.approx(0.01)
+
+
+def test_runtime_failover_switch_is_preferred(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "apps.config_center.application.runtime_public.get_active_runtime_value",
+        lambda *, environment, definition_key: (
+            True
+            if environment == "production"
+            and definition_key == "data_center.provider.enable_failover"
+            else None
+        ),
+    )
+
+    assert _resolve_failover_enabled(False, environment="production") is True
+
+
+def test_runtime_failover_switch_keeps_owner_compatibility_on_invalid_value(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "apps.config_center.application.runtime_public.get_active_runtime_value",
+        lambda **_: "true",
+    )
+
+    assert _resolve_failover_enabled(True, environment="development") is True
+    assert _resolve_failover_enabled(False, environment="development") is False
 
 
 def test_primary_data_is_retained_when_backup_disagrees(caplog) -> None:

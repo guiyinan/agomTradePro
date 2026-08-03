@@ -24,6 +24,16 @@ DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
         description="Cross-provider consistency tolerance for macro failover.",
         user_impact="Controls when provider responses are considered inconsistent.",
     ),
+    RuntimeConfigDefinition(
+        key="data_center.provider.enable_failover",
+        namespace="data_center",
+        owner_app="data_center",
+        value_type=RuntimeValueType.BOOL,
+        criticality=RuntimeConfigCriticality.NORMAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="Whether the macro provider adapter may fail over to a backup source.",
+        user_impact="Disabling failover leaves only the configured primary provider.",
+    ),
 )
 
 
