@@ -1047,6 +1047,25 @@
 - 真实 PostgreSQL migration/integration、P95、WAL/锁等待、pg_dump 隔离恢复与 rollback、真实 beat Retention/Archive 调度、非默认容量故障注入和 VPS 备份证据仍未验证；本地没有 AgomTradePro PostgreSQL 容器，且用户明确要求暂不部署。
 - 生产 publication writer/backfill 尚未证明为 D0-D9 每个事实写入 `PublicationMember`；现有生产 publication 若没有成员会安全阻断，不能把“有数据”解释为“已发布”。
 
+## 实施记录（2026-08-03，第四十九批）
+
+本批次补齐 Dashboard 的 current quote 旁路，不部署、不 push、不连接 VPS。
+
+已落地：
+
+- `DashboardApplicationGateway.query_latest_quote` 从直接 `LatestQuoteUseCase` 读取改为 Data Center `get_published_quote_payloads`；missing/stale/memberless publication 返回 `None`，不会把 canonical 全表 latest quote 当成当前价格。
+- Dashboard infrastructure 同时兼容 Public Port mapping 和历史测试 fake entity，保留源 `snapshot_at` 文本/日期，不用请求时间重写观测时间。
+- 增加 Dashboard fresh/stale quote 回归，并把 current-data contract marker 绑定到该测试。
+
+第四十九批机器证据：
+
+- `pytest tests/unit/dashboard/test_data_center_publication_gate.py -q --no-migrations --reuse-db`：4 passed；Dashboard 两个生产文件 black/isort/ruff/mypy regression 0。
+- current-data 35 surfaces、governance 0、architecture boundary/audit 0；inventory 仍为 `cross_app_orm_imports=55`、`current_surface_references=2882`、`provider_imports_outside_data_center=0`。
+
+仍未完成：
+
+- Dashboard 之外的 Equity stock repository、Agent/Terminal/TUI、Factor/Valuation 等维护/组合入口仍需逐项确认是否属于 current 语义；真实 publication writer/backfill 和 PostgreSQL/生产证据仍未完成。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

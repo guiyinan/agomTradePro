@@ -56,10 +56,15 @@ class DashboardApplicationGateway:
         return make_resolve_asset_use_case().execute(ResolveAssetRequest(code=code))
 
     def query_latest_quote(self, asset_code: str) -> Any | None:
-        from apps.data_center.application.dtos import LatestQuoteRequest
-        from apps.data_center.application.interface_services import make_query_latest_quote_use_case
+        from apps.data_center.application.public import get_published_quote_payloads
 
-        return make_query_latest_quote_use_case().execute(LatestQuoteRequest(asset_code=asset_code))
+        payload = get_published_quote_payloads([asset_code])
+        if not isinstance(payload, Mapping) or bool(payload.get("must_not_use_for_decision")):
+            return None
+        rows = payload.get("rows")
+        if not isinstance(rows, (list, tuple)):
+            return None
+        return next((dict(row) for row in rows if isinstance(row, Mapping)), None)
 
     def list_actionable_alpha_candidates(self, *, limit: int) -> list[Any]:
         from apps.alpha_trigger.application.repository_provider import (

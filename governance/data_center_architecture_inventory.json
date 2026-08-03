@@ -4392,7 +4392,7 @@
       "text": "\"summary\": advice.summary,"
     },
     {
-      "line": 575,
+      "line": 588,
       "path": "apps/dashboard/infrastructure/repositories.py",
       "text": "\"\"\"Return the latest macro indicator value for one code.\"\"\""
     },

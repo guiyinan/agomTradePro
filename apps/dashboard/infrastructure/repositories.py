@@ -5,6 +5,7 @@ Dashboard Infrastructure Repositories
 """
 
 import logging
+from collections.abc import Mapping
 from datetime import date
 from typing import Any
 
@@ -376,14 +377,26 @@ class DashboardAlphaContextRepository:
                 quote = self._integration_gateway.query_latest_quote(str(alias).upper())
                 if quote is None:
                     continue
-                snapshot_at = quote.snapshot_at
+                if isinstance(quote, Mapping):
+                    snapshot_at = quote.get("snapshot_at")
+                    current_price = quote.get("current_price")
+                    volume = quote.get("volume")
+                    source = quote.get("source")
+                else:
+                    snapshot_at = quote.snapshot_at
+                    current_price = quote.current_price
+                    volume = quote.volume
+                    source = quote.source
+                snapshot_text = (
+                    snapshot_at.isoformat()
+                    if isinstance(snapshot_at, date)
+                    else str(snapshot_at or "")
+                )
                 context[code] = {
-                    "current_price": (
-                        float(quote.current_price) if quote.current_price is not None else None
-                    ),
-                    "volume": float(quote.volume) if quote.volume is not None else None,
-                    "snapshot_at": snapshot_at.isoformat() if snapshot_at else None,
-                    "source": quote.source or "",
+                    "current_price": (float(current_price) if current_price is not None else None),
+                    "volume": float(volume) if volume is not None else None,
+                    "snapshot_at": snapshot_text or None,
+                    "source": str(source or ""),
                 }
                 break
         return context

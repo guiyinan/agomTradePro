@@ -32,3 +32,35 @@ def test_dashboard_macro_value_blocks_stale_publication(monkeypatch) -> None:
     )
 
     assert DashboardApplicationGateway().get_latest_macro_indicator_value("PMI") is None
+
+
+def test_dashboard_quote_reads_published_payload(monkeypatch) -> None:
+    """Dashboard quote context must use the publication-gated payload."""
+
+    monkeypatch.setattr(
+        "apps.data_center.application.public.get_published_quote_payloads",
+        lambda _codes: {
+            "rows": [{"current_price": 12.3, "snapshot_at": "2026-08-03T09:30:00+00:00"}],
+            "must_not_use_for_decision": False,
+        },
+    )
+
+    assert DashboardApplicationGateway().query_latest_quote("600000.SH") == {
+        "current_price": 12.3,
+        "snapshot_at": "2026-08-03T09:30:00+00:00",
+    }
+
+
+def test_dashboard_quote_blocks_stale_publication(monkeypatch) -> None:
+    """Stale quote evidence must not be used as a dashboard current price."""
+
+    monkeypatch.setattr(
+        "apps.data_center.application.public.get_published_quote_payloads",
+        lambda _codes: {
+            "rows": [{"current_price": 12.3}],
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_stale",
+        },
+    )
+
+    assert DashboardApplicationGateway().query_latest_quote("600000.SH") is None
