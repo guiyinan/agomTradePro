@@ -34,7 +34,7 @@
 
 未完成及明确风险：
 
-- `apps/macro/infrastructure/data_center_fact_repository.py` 仍是一个遗留 CRUD facade，尚未迁移到 Data Center Application；这是当前唯一生产侧 Data Center ORM 例外（测试 fixture 不计入）。
+- `apps/macro/infrastructure/data_center_fact_repository.py` 已完成迁移为仅依赖 Data Center Application Public Port 的兼容适配器；不再导入 Data Center ORM，旧 ratchet 例外已删除。其 `MacroIndicator` 转换和历史 CRUD 形状仍因 macro 应用/维护脚本兼容性保留，属于待退役的适配层而非生产 ORM 真源。
 - `apps/data_center/apps.py` 的 PIT 回调已迁入 `apps.data_center.application.pit_provider`；其他非 PIT 的跨领域 registry 仍按 owner 保留在 `core.integration`，不属于 Data Center Provider 入口。
 - Raw Landing/Schema Fingerprint/Quarantine、SyncRun/Batch/Checkpoint、CanonicalPublication 持久化、Config Center Definition/Profile/Revision/Snapshot 模型、StorageBudget/Retention/Archive/容量故障注入尚未实施。
 - D0-D9 的生产数据画像、legacy/canonical shadow reconciliation、PostgreSQL 全链路、VPS/备份/恢复、M9 旧表清理和 M10 生产证据均未验证；因此本计划不能标记为完成，也不触发部署。
@@ -1086,6 +1086,66 @@
 
 - 真实 MCP 接入页、生产 publication/member 观测和当前数据仍需在授权环境验证；本地 fake/SQLite 不能替代生产证据。
 - PostgreSQL 生产画像、备份恢复、全入口 publication 快照、M9/M10 和 VPS 部署继续未执行。
+
+## 实施记录（2026-08-03，Macro Public Port facade 收口）
+
+本专项审计并收口宏观兼容 CRUD 适配层；不部署、不 push、不删除旧表。
+
+已落地：
+
+- `apps/data_center/application/public.py` 新增类型化 `MacroProjectionRepositoryProtocol`，`get_macro_projection_repository_port()` 不再返回裸 `object`。
+- `apps/macro/infrastructure/data_center_fact_repository.py` 删除本地临时 Protocol/cast，改为直接消费 Data Center Application Public Port；文件不包含 `apps.data_center.infrastructure` 或 ORM import，canonical 读写继续由 Data Center infrastructure 承担。
+- `tests/unit/test_data_center_architecture_guard.py` 删除宏观 facade 的 Data Center ORM ratchet 例外，并新增 Public Port 依赖断言；宏观 CRUD/读模型回归保持通过。
+
+机器证据（本地）：
+
+- `pytest tests/unit/test_data_center_architecture_guard.py tests/component/macro/test_data_center_fact_crud_contracts.py -q --no-migrations --reuse-db --timeout=120`：7 passed。
+- `python scripts/check_mypy_regression.py apps/data_center/application/public.py apps/macro/infrastructure/data_center_fact_repository.py`：0 regression；目标文件 ruff/black/isort 通过。
+- `python scripts/data_center_architecture_inventory.py --write`：`provider_imports_outside_data_center=0`、`cross_app_orm_imports=55`、`legacy_fact_references=143`、`current_surface_references=2885`；`check_data_center_legacy_fact_access.py`、`verify_architecture.py --include-audit` 和 governance consistency 均通过。
+
+仍未完成及风险：
+
+- `DataCenterMacroRepository`/`DataCenterMacroReadRepository` 仍是 macro domain 的兼容形状，生产与维护调用方尚未全部改成直接消费 Data Center `MacroFact` Public Port；在 macro Application/脚本完成 DTO 迁移前不得删除该适配器。
+- 当前直接调用方已盘点为 macro `repository_provider`（应用组合根）及 7 个维护/回测脚本；测试 fixture 另有独立引用。删除适配器会改变 macro Application 现有 `MacroIndicator`/serialized-row 契约，需先完成 DTO 迁移和脚本切换。
+- 真实 PostgreSQL/生产 publication、全 D0-D9 影子对账、M9/M10 和 VPS 仍未验证；本专项不触发部署。
+
+## 实施记录（2026-08-03，Equity pool member-bound 收口）
+
+本批次修复股票池 `published` 模式在 Publication gate 通过后仍读取未绑定 latest 财务/估值事实的旁路；历史模式保持兼容，不部署、不 push。
+
+已落地：
+
+- `apps/equity/interface/pool_actions.py` 的 `mode=published` 改为统一消费 `get_published_stock_context_map(..., include_price=False)`；不再调用 legacy `get_valuation_history` 或 `get_latest_financial_data`。
+- `get_published_stock_context_map` 对 fresh gate 但无 publication member rows 的情况显式返回 `canonical_publication_members_missing`，股票池整体 `status=blocked`，不把空结果当成有效事实。
+- 新增 member-bound pool API 回归，并将 source markers 与两个精确 nodeid 登记到 `data_center.publication_only_d4_d5` current-data contract。
+
+机器证据（本地）：
+
+- `pytest tests/api/test_equity_published_pool_member_bound.py tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=120`：55 passed。
+- `pytest tests/unit/equity/test_published_stock_context.py -q --no-migrations --reuse-db`：3 passed；`check_current_data_contracts.py`：35 surfaces；legacy-access、mypy、ruff/black/isort 均通过。
+
+仍未完成及风险：
+
+- `published` pool 目前按 Public Port 分区读取，尚未把财务/估值 rows 绑定到同一 Publication member snapshot 事务；生产 publication/member 观测、PostgreSQL 与 M9/M10 仍未验证。
+
+## 实施记录（2026-08-03，current-data manifest runner 收口）
+
+本批次把 current-data 治理清单从静态标记提升为可执行 pytest nodeid runner，并接入 nightly CI；本地只做收口验证，不部署、不 push。
+
+已落地：
+
+- 新增 `scripts/run_current_data_contract_tests.py`：先运行 manifest validator，再从 `required_tests` 解析并去重 nodeid；对测试类方法自动补全 pytest class nodeid，manifest 无效或无可执行 nodeid 时直接拒绝执行。
+- 新增 runner 单元测试，覆盖去重、类方法 nodeid 解析和非法 manifest 阻断。
+- `.github/workflows/nightly-tests.yml` 在数据库迁移后执行 runner，确保登记的 current-data evidence 在 CI 中实际收集/运行，而不是只由 source marker 扫描代替。
+
+机器证据（本地）：
+
+- `pytest tests/unit/test_current_data_contract_runner.py -q`：3 passed。
+- runner 完整执行：143 个登记 nodeid 均可解析并执行，pytest 实际通过 182 个测试项；`check_current_data_contracts.py`：35 surfaces，治理一致性通过。
+
+仍未完成及风险：
+
+- 本地 Windows/SQLite 的完整执行不等于生产链路通过；仍需 Linux CI/受控 PostgreSQL 的独立证据。CI 实跑成功前，Definition of Done 中的“manifest nodeid 在 CI 实际执行”仍保持未完成。
 
 ## 1. 结论先行
 

@@ -1,10 +1,10 @@
 {
   "counts": {
     "cross_app_orm_imports": 55,
-    "current_surface_references": 2882,
+    "current_surface_references": 2885,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
-    "legacy_fact_references": 141,
+    "legacy_fact_references": 143,
     "provider_imports_outside_data_center": 0,
     "runtime_parameter_references": 49
   },
@@ -4847,102 +4847,102 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 285,
+      "line": 430,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 333,
+      "line": 478,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 353,
+      "line": 498,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 360,
+      "line": 505,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 385,
+      "line": 530,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 387,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
-    },
-    {
-      "line": 395,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 400,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
-    },
-    {
-      "line": 415,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 431,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 449,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 466,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 482,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 519,
-      "path": "apps/data_center/application/public.py",
-      "text": "current = existing[0] if existing else None"
-    },
-    {
-      "line": 522,
-      "path": "apps/data_center/application/public.py",
-      "text": "id=current.id if current is not None else None,"
-    },
-    {
-      "line": 526,
-      "path": "apps/data_center/application/public.py",
-      "text": "priority=current.priority if current is not None else 100,"
-    },
-    {
-      "line": 528,
-      "path": "apps/data_center/application/public.py",
-      "text": "api_secret=current.api_secret if current is not None else \"\","
-    },
-    {
-      "line": 531,
-      "path": "apps/data_center/application/public.py",
-      "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
       "line": 532,
       "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
+    },
+    {
+      "line": 540,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 545,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
+    },
+    {
+      "line": 560,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 576,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 594,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 611,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 627,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 664,
+      "path": "apps/data_center/application/public.py",
+      "text": "current = existing[0] if existing else None"
+    },
+    {
+      "line": 667,
+      "path": "apps/data_center/application/public.py",
+      "text": "id=current.id if current is not None else None,"
+    },
+    {
+      "line": 671,
+      "path": "apps/data_center/application/public.py",
+      "text": "priority=current.priority if current is not None else 100,"
+    },
+    {
+      "line": 673,
+      "path": "apps/data_center/application/public.py",
+      "text": "api_secret=current.api_secret if current is not None else \"\","
+    },
+    {
+      "line": 676,
+      "path": "apps/data_center/application/public.py",
+      "text": "extra_config=current.extra_config if current is not None else {},"
+    },
+    {
+      "line": 677,
+      "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 634,
+      "line": 779,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -7477,17 +7477,17 @@
       "text": "\"Latest Macro data lookup failed; indicator=%s; exception_type=%s\","
     },
     {
-      "line": 346,
+      "line": 322,
       "path": "apps/macro/infrastructure/data_center_fact_repository.py",
       "text": "\"\"\"Return canonical macro storage summary.\"\"\""
     },
     {
-      "line": 376,
+      "line": 352,
       "path": "apps/macro/infrastructure/data_center_fact_repository.py",
       "text": "\"\"\"Return latest serialized indicator row.\"\"\""
     },
     {
-      "line": 391,
+      "line": 367,
       "path": "apps/macro/infrastructure/data_center_fact_repository.py",
       "text": "\"\"\"Return latest values for a bounded code list.\"\"\""
     },
@@ -8892,52 +8892,52 @@
       "text": "\"\"\"Return a macro summary for the requested indicators.\"\"\""
     },
     {
-      "line": 124,
+      "line": 146,
       "path": "apps/prompt/infrastructure/adapters/macro_adapter.py",
       "text": "\"summary\": \"PMI回升至50.8，显示制造业温和扩张...\""
     },
     {
-      "line": 147,
+      "line": 169,
       "path": "apps/prompt/infrastructure/adapters/macro_adapter.py",
       "text": "summary = \"\""
     },
     {
-      "line": 150,
+      "line": 172,
       "path": "apps/prompt/infrastructure/adapters/macro_adapter.py",
       "text": "summary = \"，\".join(summary_parts) + \"。\""
     },
     {
-      "line": 152,
+      "line": 174,
       "path": "apps/prompt/infrastructure/adapters/macro_adapter.py",
       "text": "summary = \"，\".join(summary_parts[:-1]) + f\"，{summary_parts[-1]}\""
     },
     {
-      "line": 157,
+      "line": 179,
       "path": "apps/prompt/infrastructure/adapters/macro_adapter.py",
       "text": "\"summary\": summary,"
     },
     {
-      "line": 277,
+      "line": 309,
       "path": "apps/prompt/infrastructure/adapters/macro_adapter.py",
       "text": "current = series[-1][\"value\"]"
     },
     {
-      "line": 280,
+      "line": 312,
       "path": "apps/prompt/infrastructure/adapters/macro_adapter.py",
       "text": "change = current - previous"
     },
     {
-      "line": 315,
+      "line": 347,
       "path": "apps/prompt/infrastructure/adapters/macro_adapter.py",
       "text": "- LATEST(indicator): 获取最新值"
     },
     {
-      "line": 325,
+      "line": 357,
       "path": "apps/prompt/infrastructure/adapters/macro_adapter.py",
       "text": "if function_name == \"LATEST\":"
     },
     {
-      "line": 340,
+      "line": 372,
       "path": "apps/prompt/infrastructure/adapters/macro_adapter.py",
       "text": "raise ValueError(\"LATEST function requires 'indicator' parameter\")"
     },
@@ -10542,9 +10542,24 @@
       "text": "\"\"\"Read the current catalog period type without retaining stale governance state.\"\"\""
     },
     {
-      "line": 542,
+      "line": 174,
+      "path": "apps/regime/infrastructure/macro_data_provider.py",
+      "text": "\"\"\"Return a current decision-facing series through the publication port."
+    },
+    {
+      "line": 177,
+      "path": "apps/regime/infrastructure/macro_data_provider.py",
+      "text": "with ``use_pit=True``.  This method is intentionally separate so current"
+    },
+    {
+      "line": 577,
       "path": "apps/regime/infrastructure/macro_data_provider.py",
       "text": "logger.error(f\"Error getting latest observation date for {indicator_code}: {e}\")"
+    },
+    {
+      "line": 694,
+      "path": "apps/regime/infrastructure/macro_data_provider.py",
+      "text": "\"\"\"Return a publication-gated current series from Data Center.\"\"\""
     },
     {
       "line": 474,
@@ -15368,62 +15383,62 @@
         "symbol": "MacroIndicator"
       },
       {
-        "line": 16,
+        "line": 19,
         "path": "apps/macro/infrastructure/data_center_fact_repository.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 58,
+        "line": 28,
         "path": "apps/macro/infrastructure/data_center_fact_repository.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 67,
+        "line": 37,
         "path": "apps/macro/infrastructure/data_center_fact_repository.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 95,
+        "line": 65,
         "path": "apps/macro/infrastructure/data_center_fact_repository.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 98,
+        "line": 68,
         "path": "apps/macro/infrastructure/data_center_fact_repository.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 134,
+        "line": 104,
         "path": "apps/macro/infrastructure/data_center_fact_repository.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 136,
+        "line": 106,
         "path": "apps/macro/infrastructure/data_center_fact_repository.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 149,
+        "line": 119,
         "path": "apps/macro/infrastructure/data_center_fact_repository.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 165,
+        "line": 135,
         "path": "apps/macro/infrastructure/data_center_fact_repository.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 209,
+        "line": 179,
         "path": "apps/macro/infrastructure/data_center_fact_repository.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 244,
+        "line": 214,
         "path": "apps/macro/infrastructure/data_center_fact_repository.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 258,
+        "line": 230,
         "path": "apps/macro/infrastructure/data_center_fact_repository.py",
         "symbol": "MacroIndicator"
       },
@@ -15513,92 +15528,102 @@
         "symbol": "MacroIndicator"
       },
       {
-        "line": 170,
+        "line": 173,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 181,
+        "line": 199,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 205,
+        "line": 210,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 217,
+        "line": 238,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 247,
+        "line": 252,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 289,
+        "line": 282,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 318,
+        "line": 324,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 321,
+        "line": 353,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 403,
+        "line": 356,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 412,
+        "line": 438,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 424,
+        "line": 447,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 435,
+        "line": 459,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 631,
+        "line": 470,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 653,
+        "line": 666,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 660,
+        "line": 693,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 697,
+        "line": 706,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 723,
+        "line": 713,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 751,
+        "line": 750,
+        "path": "apps/regime/infrastructure/macro_data_provider.py",
+        "symbol": "MacroIndicator"
+      },
+      {
+        "line": 776,
+        "path": "apps/regime/infrastructure/macro_data_provider.py",
+        "symbol": "MacroIndicator"
+      },
+      {
+        "line": 804,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
