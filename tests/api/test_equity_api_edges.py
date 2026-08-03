@@ -847,6 +847,56 @@ def test_equity_published_screen_blocks_stale_publication_before_use_case(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("path", "use_case_path", "expected_marker"),
+    (
+        (
+            "/api/equity/dcf/",
+            "apps.equity.interface.analysis_actions.CalculateDCFUseCase",
+            "intrinsic_value",
+        ),
+        (
+            "/api/equity/comprehensive-valuation/",
+            "apps.equity.interface.analysis_actions.ComprehensiveValuationUseCase",
+            "overall_score",
+        ),
+    ),
+)
+def test_equity_published_valuation_calculators_block_stale_publication_before_use_case(
+    authenticated_client,
+    path: str,
+    use_case_path: str,
+    expected_marker: str,
+):
+    stale_publication = {
+        "publication_id": "equity-financials-2026-08-03",
+        "published_at": "2026-08-03T08:00:00+00:00",
+        "as_of": "2026-07-31",
+        "must_not_use_for_decision": True,
+        "blocked_reason": "publication_observation_stale",
+        "freshness_status": "stale",
+    }
+    payload = {"stock_code": "300308.SZ", "mode": "published"}
+
+    with (
+        patch(
+            "apps.equity.interface.analysis_actions.get_decision_publication_gate",
+            return_value=stale_publication,
+        ),
+        patch(use_case_path, side_effect=AssertionError("blocked publication must not run")),
+    ):
+        response = authenticated_client.post(path, payload, format="json")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["status"] == "blocked"
+    assert body["error"] == "publication_observation_stale"
+    assert body["must_not_use_for_decision"] is True
+    assert expected_marker in body
+
+
+@pytest.mark.django_db
 def test_equity_valuation_returns_basic_info_when_valuation_missing(authenticated_client):
     today = timezone.localdate()
     asset = AssetMasterModel.objects.create(

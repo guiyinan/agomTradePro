@@ -705,6 +705,26 @@
 - 原始 SDK score/detail/analysis 兼容调用不传 mode 时仍允许 historical；仅 MCP/capability 用户面强制 published 默认。
 - 生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
 
+## 实施记录（2026-08-03，第三十三批）
+
+本批次补齐 DCF 与综合估值计算的财务/估值事实双门禁，避免计算器绕过已收口的 Equity 详情与筛选 gate；不部署、不 push。
+
+已落地：
+
+- `CalculateDCFRequestSerializer`、`ComprehensiveValuationRequestSerializer` 增加 `mode`/`publication_key`，兼容默认 historical。
+- `published` DCF/综合估值请求在进入对应 UseCase 前同时校验 `equity.financial.fact` 与 `equity.valuation.fact`；任一 stale/missing/unverified 返回空估值、`status=blocked`、`must_not_use_for_decision=true`、稳定原因和 gate evidence。
+- 成功响应与 OpenAPI response serializer 同步发布 mode、publication key、gate evidence；current-data contract 增加计算器阻断 nodeid。
+
+第三十三批机器证据：
+
+- `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --timeout=180 -k 'valuation_calculators or dcf or comprehensive'`：4 passed。
+- `check_mypy_regression.py`（2 个 Equity Interface 文件）：0 regression；ruff/black 通过。
+
+仍未完成及风险：
+
+- DCF/综合估值 UseCase 内部仍读取 canonical latest facts，尚未将事实读取绑定到同一 Publication member snapshot。
+- Technical/Intraday 等价格图表接口仍需下一批审计其 current freshness 语义；生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

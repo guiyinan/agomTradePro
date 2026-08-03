@@ -376,6 +376,46 @@ class EquityAnalysisActionsMixin:
         serializer = CalculateDCFRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        mode = str(data["mode"])
+        publication_key = str(data["publication_key"])
+        publication_gates: dict[str, dict[str, object] | None] = {}
+        if mode == "published":
+            for dataset_key in ("equity.financial.fact", "equity.valuation.fact"):
+                publication_gates[dataset_key] = get_decision_publication_gate(
+                    dataset_key,
+                    publication_key,
+                )
+            blocked_publication = next(
+                (
+                    gate
+                    for gate in publication_gates.values()
+                    if gate is None or bool(gate.get("must_not_use_for_decision"))
+                ),
+                None,
+            )
+            if blocked_publication is not None:
+                return Response(
+                    {
+                        "success": False,
+                        "status": "blocked",
+                        "stock_code": str(data["stock_code"]),
+                        "stock_name": "",
+                        "intrinsic_value": None,
+                        "intrinsic_value_per_share": None,
+                        "current_price": None,
+                        "upside": None,
+                        "error": (
+                            blocked_publication.get("blocked_reason")
+                            if blocked_publication
+                            else "canonical_publication_missing"
+                        ),
+                        "mode": mode,
+                        "publication_key": publication_key,
+                        "publication_gates": publication_gates,
+                        "must_not_use_for_decision": True,
+                    },
+                    status=status.HTTP_200_OK,
+                )
 
         # 2. 构造请求对象
         use_case_request = CalculateDCFRequest(
@@ -392,7 +432,13 @@ class EquityAnalysisActionsMixin:
 
         # 4. 返回响应
         response_serializer = CalculateDCFResponseSerializer(use_case_response)
-        return Response(response_serializer.data, status=status.HTTP_200_OK)
+        payload = dict(response_serializer.data)
+        payload["mode"] = mode
+        payload["publication_key"] = publication_key
+        if mode == "published":
+            payload["publication_gates"] = publication_gates
+            payload["must_not_use_for_decision"] = False
+        return Response(payload, status=status.HTTP_200_OK)
 
     @typed_schema(
         summary="Regime 相关性分析",
@@ -567,6 +613,47 @@ class EquityAnalysisActionsMixin:
         serializer = ComprehensiveValuationRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        mode = str(data["mode"])
+        publication_key = str(data["publication_key"])
+        publication_gates: dict[str, dict[str, object] | None] = {}
+        if mode == "published":
+            for dataset_key in ("equity.financial.fact", "equity.valuation.fact"):
+                publication_gates[dataset_key] = get_decision_publication_gate(
+                    dataset_key,
+                    publication_key,
+                )
+            blocked_publication = next(
+                (
+                    gate
+                    for gate in publication_gates.values()
+                    if gate is None or bool(gate.get("must_not_use_for_decision"))
+                ),
+                None,
+            )
+            if blocked_publication is not None:
+                return Response(
+                    {
+                        "success": False,
+                        "status": "blocked",
+                        "stock_code": str(data["stock_code"]),
+                        "stock_name": "",
+                        "overall_score": 0.0,
+                        "overall_signal": "hold",
+                        "recommendation": "",
+                        "confidence": 0.0,
+                        "scores": [],
+                        "error": (
+                            blocked_publication.get("blocked_reason")
+                            if blocked_publication
+                            else "canonical_publication_missing"
+                        ),
+                        "mode": mode,
+                        "publication_key": publication_key,
+                        "publication_gates": publication_gates,
+                        "must_not_use_for_decision": True,
+                    },
+                    status=status.HTTP_200_OK,
+                )
 
         # 2. 构造请求对象
         use_case_request = ComprehensiveValuationRequest(
@@ -583,7 +670,13 @@ class EquityAnalysisActionsMixin:
 
         # 4. 返回响应
         response_serializer = ComprehensiveValuationResponseSerializer(use_case_response)
-        return Response(response_serializer.data, status=status.HTTP_200_OK)
+        payload = dict(response_serializer.data)
+        payload["mode"] = mode
+        payload["publication_key"] = publication_key
+        if mode == "published":
+            payload["publication_gates"] = publication_gates
+            payload["must_not_use_for_decision"] = False
+        return Response(payload, status=status.HTTP_200_OK)
 
 
 __all__ = ["EquityAnalysisActionsMixin"]

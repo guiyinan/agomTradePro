@@ -1167,10 +1167,12 @@
           "mode = str(query.validated_data[\"mode\"])",
           "must_not_use_for_decision"
         ],
-        "apps/equity/interface/analysis_actions.py": [
+          "apps/equity/interface/analysis_actions.py": [
           "get_decision_publication_gate(",
           "mode = str(data[\"mode\"])",
           "equity.financial.fact",
+          "CalculateDCFUseCase",
+          "ComprehensiveValuationUseCase",
           "ScreenStocksUseCase",
           "publication_gates",
           "must_not_use_for_decision"
@@ -1296,6 +1298,11 @@
           "case": "equity_score_analysis_raw_mcp_preserves_publication_block",
           "test_file": "sdk/tests/test_mcp/test_equity_hedge_tools.py",
           "test_function": "test_stock_score_and_analysis_raw_tools_keep_blocked_publication_metadata"
+        },
+        {
+          "case": "equity_valuation_calculators_block_before_use_case",
+          "test_file": "tests/api/test_equity_api_edges.py",
+          "test_function": "test_equity_published_valuation_calculators_block_stale_publication_before_use_case"
         }
       ]
     },

@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 56,
-    "current_surface_references": 2847,
+    "current_surface_references": 2849,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
     "legacy_fact_references": 141,
@@ -6787,12 +6787,12 @@
       "text": "summary=\"DCF 绝对估值\","
     },
     {
-      "line": 398,
+      "line": 444,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"Regime 相关性分析\","
     },
     {
-      "line": 501,
+      "line": 547,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"综合估值分析\","
     },
@@ -6828,6 +6828,16 @@
     },
     {
       "line": 239,
+      "path": "apps/equity/interface/serializers.py",
+      "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
+    },
+    {
+      "line": 399,
+      "path": "apps/equity/interface/serializers.py",
+      "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
+    },
+    {
+      "line": 499,
       "path": "apps/equity/interface/serializers.py",
       "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
     },

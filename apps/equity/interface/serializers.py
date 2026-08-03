@@ -391,6 +391,12 @@ class CalculateDCFRequestSerializer(StrictFieldsSerializer):
     projection_years = serializers.IntegerField(
         required=False, default=5, min_value=1, max_value=10, help_text="预测年数（默认 5 年）"
     )
+    mode = serializers.ChoiceField(
+        choices=("historical", "published"),
+        required=False,
+        default="historical",
+    )
+    publication_key = serializers.CharField(required=False, default="current", max_length=160)
 
 
 class CalculateDCFResponseSerializer(serializers.Serializer[CalculateDCFResponse]):
@@ -410,6 +416,11 @@ class CalculateDCFResponseSerializer(serializers.Serializer[CalculateDCFResponse
     )
     upside = serializers.FloatField(allow_null=True, required=False, help_text="上涨空间（百分比）")
     error = serializers.CharField(allow_null=True, required=False)
+    status = serializers.CharField(required=False)
+    mode = serializers.CharField(required=False)
+    publication_key = serializers.CharField(required=False)
+    publication_gates = serializers.DictField(required=False)
+    must_not_use_for_decision = serializers.BooleanField(required=False)
 
 
 # ============================================================================
@@ -480,6 +491,12 @@ class ComprehensiveValuationRequestSerializer(StrictFieldsSerializer):
         max_value=0.2,
         help_text="无风险利率（默认 0.03，即 3%）",
     )
+    mode = serializers.ChoiceField(
+        choices=("historical", "published"),
+        required=False,
+        default="historical",
+    )
+    publication_key = serializers.CharField(required=False, default="current", max_length=160)
 
 
 class ValuationScoreSerializer(serializers.Serializer[dict[str, Any]]):
@@ -509,6 +526,11 @@ class ComprehensiveValuationResponseSerializer(
     confidence = serializers.FloatField(help_text="置信度（0-1）")
     scores = ValuationScoreSerializer(many=True, help_text="各方法评分详情")
     error = serializers.CharField(allow_null=True, required=False)
+    status = serializers.CharField(required=False)
+    mode = serializers.CharField(required=False)
+    publication_key = serializers.CharField(required=False)
+    publication_gates = serializers.DictField(required=False)
+    must_not_use_for_decision = serializers.BooleanField(required=False)
 
 
 # ============================================================================
