@@ -444,6 +444,7 @@ class NewsRepositoryProtocol(Protocol):
         self,
         asset_code: str | None = None,
         limit: int = 50,
+        end: date | None = None,
     ) -> list[NewsFact]: ...
 
     def list_market_news_for_date(

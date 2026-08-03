@@ -347,3 +347,118 @@ def test_published_gate_blocks_naive_member_observation(monkeypatch) -> None:
     assert result["rows"] == []
     assert result["freshness_status"] == "invalid"
     assert result["blocked_reason"] == "publication_observation_naive"
+
+
+def test_published_rows_are_bounded_by_publication_as_of(monkeypatch) -> None:
+    """A current publication must not expose facts observed after its knowledge boundary."""
+
+    publication = SimpleNamespace(
+        publication_id="pub-as-of",
+        published_at=datetime(2026, 8, 2, tzinfo=UTC),
+        as_of=datetime(2026, 8, 1, 12, tzinfo=UTC),
+        must_not_use_for_decision=False,
+        blocked_reason="",
+    )
+    publication_repo = SimpleNamespace(get_current=lambda *_args: publication)
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: publication_repo,
+    )
+
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        query_services,
+        "get_price_bar_repository",
+        lambda: SimpleNamespace(
+            get_bars=lambda asset_code, start=None, end=None, limit=500: captured.update(
+                price_end=end
+            )
+            or []
+        ),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_financial_fact_repository",
+        lambda: SimpleNamespace(
+            get_facts=lambda asset_code, period_type=None, limit=20, end=None: captured.update(
+                financial_end=end
+            )
+            or []
+        ),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_valuation_fact_repository",
+        lambda: SimpleNamespace(
+            get_series=lambda asset_code, start=None, end=None: captured.update(valuation_end=end)
+            or []
+        ),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_capital_flow_repository",
+        lambda: SimpleNamespace(
+            get_series=lambda asset_code, start=None, end=None, limit=None: captured.update(
+                capital_flow_end=end
+            )
+            or []
+        ),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_news_repository",
+        lambda: SimpleNamespace(
+            get_recent=lambda asset_code=None, limit=50, end=None: captured.update(news_end=end)
+            or []
+        ),
+    )
+
+    query_services.query_published_price_bar_series("600000.SH")
+    query_services.query_published_financial_facts("600000.SH")
+    query_services.query_published_valuation_facts("600000.SH")
+    query_services.query_published_capital_flow_series("600000.SH")
+    query_services.query_published_market_news(asset_code="600000.SH")
+
+    expected_end = date(2026, 8, 1)
+    assert captured == {
+        "price_end": expected_end,
+        "financial_end": expected_end,
+        "valuation_end": expected_end,
+        "capital_flow_end": expected_end,
+        "news_end": expected_end,
+    }
+
+
+def test_published_quotes_reject_snapshots_after_publication_as_of(monkeypatch) -> None:
+    """A quote newer than the selected publication cannot leak into its current read."""
+
+    publication_repo = SimpleNamespace(
+        get_current=lambda *_args: SimpleNamespace(
+            publication_id="pub-quote-as-of",
+            published_at=datetime(2026, 8, 2, tzinfo=UTC),
+            as_of=datetime(2026, 8, 1, 12, tzinfo=UTC),
+            must_not_use_for_decision=False,
+            blocked_reason="",
+        )
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: publication_repo,
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_quote_snapshot_repository",
+        lambda: SimpleNamespace(
+            get_latest=lambda _asset_code: SimpleNamespace(
+                snapshot_at=datetime(2026, 8, 2, tzinfo=UTC),
+                to_dict=lambda: {"snapshot_at": "2026-08-02T00:00:00+00:00"},
+            )
+        ),
+    )
+
+    result = query_services.query_published_quote_payloads(["600000.SH"])
+
+    assert result["rows"] == []
+    assert result["as_of"] == "2026-08-01T12:00:00+00:00"

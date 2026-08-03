@@ -110,11 +110,14 @@ class NewsRepository:
         self,
         asset_code: str | None = None,
         limit: int = 50,
+        end: date | None = None,
     ) -> list[NewsFact]:
         limit = _validated_limit(limit)
         if asset_code is not None:
             asset_code = _validated_code(asset_code, field_name="asset_code")
         qs = NewsFactModel.objects.all()
+        if end is not None:
+            qs = qs.filter(published_at__date__lte=end)
         if not asset_code:
             return [self._from_model(m) for m in qs.order_by("-published_at")[:limit]]
 
