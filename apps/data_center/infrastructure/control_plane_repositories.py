@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 from uuid import UUID
 
@@ -204,9 +205,25 @@ class QuarantineRepository:
 class CanonicalPublicationRepository:
     """Persist publication decisions and selected fact references."""
 
-    @transaction.atomic
     def save(self, publication: CanonicalPublication) -> CanonicalPublication:
-        """Save a publication and its immutable coverage snapshot atomically."""
+        """Save a publication and its immutable coverage snapshot atomically.
+
+        A published row is never written without its selected member set.  The
+        staged ``publish_with_members`` path writes candidates first and only
+        calls this method after the member count has been verified.
+        """
+
+        if publication.state is PublicationState.PUBLISHED:
+            persisted_count = PublicationMemberModel._default_manager.filter(
+                publication_id=_uuid(publication.publication_id)
+            ).count()
+            if persisted_count != publication.member_count:
+                raise ValueError("Published publication requires a complete persisted member set")
+        return self._save_unchecked(publication)
+
+    @transaction.atomic
+    def _save_unchecked(self, publication: CanonicalPublication) -> CanonicalPublication:
+        """Persist a candidate or a publication after caller-side checks."""
 
         model, _ = CanonicalPublicationModel._default_manager.update_or_create(
             publication_id=_uuid(publication.publication_id),
@@ -256,6 +273,36 @@ class CanonicalPublicationRepository:
         now = publication.published_at
         if now is None:
             raise ValueError("Published publication requires published_at")
+        if publication.as_of is None:
+            raise ValueError("Published publication requires an explicit as_of boundary")
+        if publication.as_of > now:
+            raise ValueError("Publication as_of cannot be later than published_at")
+        if publication.coverage.publication_id != publication.publication_id:
+            raise ValueError("Publication coverage must reference the same publication")
+        if publication.coverage.selected_count != publication.member_count:
+            raise ValueError("Publication member_count must match selected coverage count")
+        persisted_count = PublicationMemberModel._default_manager.filter(
+            publication_id=_uuid(publication.publication_id)
+        ).count()
+        if persisted_count != publication.member_count:
+            raise ValueError("Published publication requires a complete persisted member set")
+        persisted_members = list(
+            PublicationMemberModel._default_manager.filter(
+                publication_id=_uuid(publication.publication_id)
+            ).values("member_id", "fact_table", "fact_pk", "observed_at")
+        )
+        if any(
+            row["observed_at"] is None or row["observed_at"] > publication.as_of
+            for row in persisted_members
+        ):
+            raise ValueError("Published publication members exceed publication as_of")
+        if len({row["member_id"] for row in persisted_members}) != persisted_count:
+            raise ValueError("Published publication members must have unique member_id values")
+        if (
+            len({(row["fact_table"], row["fact_pk"]) for row in persisted_members})
+            != persisted_count
+        ):
+            raise ValueError("Published publication members must reference unique canonical facts")
         CanonicalPublicationModel._default_manager.filter(
             dataset_key=publication.dataset_key,
             publication_key=publication.publication_key,
@@ -264,7 +311,100 @@ class CanonicalPublicationRepository:
             state=PublicationState.SUPERSEDED.value,
             superseded_at=now,
         )
-        return self.save(publication)
+        return self._save_unchecked(publication)
+
+    @transaction.atomic
+    def publish_with_members(
+        self,
+        publication: CanonicalPublication,
+        members: tuple[PublicationMember, ...],
+    ) -> CanonicalPublication:
+        """Atomically stage, attach, verify and publish one member snapshot.
+
+        Facts are never exposed through the published state while members are
+        being written.  Any member mismatch or persistence failure rolls back
+        both the candidate and its member rows, leaving the previous
+        publication untouched.
+        """
+
+        self._validate_publish_batch(publication, members)
+        publication_id = _uuid(publication.publication_id)
+        expected_keys = {member.natural_key for member in members}
+        existing_keys = set(
+            PublicationMemberModel._default_manager.filter(
+                publication_id=publication_id
+            ).values_list("natural_key", flat=True)
+        )
+        if existing_keys and existing_keys != expected_keys:
+            raise ValueError("Existing publication members do not match requested snapshot")
+
+        # Keep the row invisible to current readers until all members are
+        # present and verified.  ``published_at``/``as_of`` remain attached to
+        # the candidate for auditability but its state is not current.
+        self._save_unchecked(replace(publication, state=PublicationState.CANDIDATE))
+        for member in members:
+            self.add_member(member)
+
+        persisted_members = PublicationMemberModel._default_manager.filter(
+            publication_id=publication_id
+        )
+        persisted_keys = set(persisted_members.values_list("natural_key", flat=True))
+        persisted_count = persisted_members.count()
+        if persisted_count != publication.member_count or persisted_keys != expected_keys:
+            raise ValueError("Persisted publication member snapshot is incomplete")
+
+        now = publication.published_at
+        if now is None:
+            raise ValueError("Published publication requires published_at")
+        CanonicalPublicationModel._default_manager.filter(
+            dataset_key=publication.dataset_key,
+            publication_key=publication.publication_key,
+            state=PublicationState.PUBLISHED.value,
+        ).exclude(publication_id=publication_id).update(
+            state=PublicationState.SUPERSEDED.value,
+            superseded_at=now,
+        )
+        return self._save_unchecked(publication)
+
+    @staticmethod
+    def _validate_publish_batch(
+        publication: CanonicalPublication,
+        members: tuple[PublicationMember, ...],
+    ) -> None:
+        """Defend the atomic writer when called outside its Application port."""
+
+        if publication.state is not PublicationState.PUBLISHED:
+            raise ValueError("publish_with_members() requires a PUBLISHED publication")
+        if publication.as_of is None:
+            raise ValueError("Published publication requires an explicit as_of boundary")
+        if publication.published_at is None:
+            raise ValueError("Published publication requires published_at")
+        if publication.as_of > publication.published_at:
+            raise ValueError("Publication as_of cannot be later than published_at")
+        if publication.coverage.publication_id != publication.publication_id:
+            raise ValueError("Publication coverage must reference the same publication")
+        if publication.coverage.selected_count != publication.member_count:
+            raise ValueError("Publication member_count must match selected coverage count")
+        if len(members) != publication.member_count:
+            raise ValueError("Publication member_count does not match supplied members")
+        natural_keys = [member.natural_key for member in members]
+        if len(set(natural_keys)) != len(natural_keys):
+            raise ValueError("Publication members must have unique natural_key values")
+        member_ids = [member.member_id for member in members]
+        if len(set(member_ids)) != len(member_ids):
+            raise ValueError("Publication members must have unique member_id values")
+        fact_refs = [(member.fact_table, member.fact_pk) for member in members]
+        if len(set(fact_refs)) != len(fact_refs):
+            raise ValueError("Publication members must reference unique canonical facts")
+        for member in members:
+            if member.dataset_key != publication.dataset_key:
+                raise ValueError("Publication member dataset_key mismatch")
+            if member.publication_id != publication.publication_id:
+                raise ValueError("Publication member publication_id mismatch")
+            if member.observed_at is None:
+                raise ValueError("Published publication members require observed_at")
+            if member.observed_at > publication.as_of:
+                raise ValueError("Publication member observed_at exceeds publication as_of")
 
     def get_current(self, dataset_key: str, publication_key: str) -> CanonicalPublication | None:
         """Return only the active published publication for a scope."""

@@ -51,6 +51,12 @@ class CanonicalPublicationRepositoryPort(Protocol):
 
     def publish(self, publication: CanonicalPublication) -> CanonicalPublication: ...
 
+    def publish_with_members(
+        self,
+        publication: CanonicalPublication,
+        members: tuple[PublicationMember, ...],
+    ) -> CanonicalPublication: ...
+
     def add_member(self, member: PublicationMember) -> PublicationMember: ...
 
     def list_members(self, publication_id: str) -> list[PublicationMember]: ...
@@ -135,17 +141,40 @@ class PublishCanonicalDatasetUseCase:
             raise ValueError("Publication contains conflicts blocked by policy")
         if publication.must_not_use_for_decision:
             raise ValueError("Blocked publication cannot be published")
+        if publication.coverage.publication_id != publication.publication_id:
+            raise ValueError("Publication coverage must reference the same publication")
+        if publication.coverage.selected_count != publication.member_count:
+            raise ValueError("Publication member_count must match selected coverage count")
+        if publication.as_of is None:
+            raise ValueError("Published publication requires an explicit as_of boundary")
+        if publication.published_at is None:
+            raise ValueError("Published publication requires published_at")
+        if publication.as_of > publication.published_at:
+            raise ValueError("Publication as_of cannot be later than published_at")
         if len(members) != publication.member_count:
             raise ValueError("Publication member_count does not match supplied members")
+
+        natural_keys = [member.natural_key for member in members]
+        if len(set(natural_keys)) != len(natural_keys):
+            raise ValueError("Publication members must have unique natural_key values")
+        member_ids = [member.member_id for member in members]
+        if len(set(member_ids)) != len(member_ids):
+            raise ValueError("Publication members must have unique member_id values")
+        fact_refs = [(member.fact_table, member.fact_pk) for member in members]
+        if len(set(fact_refs)) != len(fact_refs):
+            raise ValueError("Publication members must reference unique canonical facts")
         for member in members:
             if member.dataset_key != publication.dataset_key:
                 raise ValueError("Publication member dataset_key mismatch")
             if member.publication_id != publication.publication_id:
                 raise ValueError("Publication member publication_id mismatch")
-            self._repository.add_member(member)
+            if member.observed_at is None:
+                raise ValueError("Published publication members require observed_at")
+            if member.observed_at > publication.as_of:
+                raise ValueError("Publication member observed_at exceeds publication as_of")
         if publication.state is not PublicationState.PUBLISHED:
             raise ValueError("Publication must be in published state before committing")
-        return self._repository.publish(publication)
+        return self._repository.publish_with_members(publication, tuple(members))
 
 
 __all__ = [
