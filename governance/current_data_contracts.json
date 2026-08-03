@@ -1827,11 +1827,16 @@
         ],
         "apps/data_center/application/publication_sync.py": [
           "class PublishNewsBatchUseCase:",
+          "class PublishCapitalFlowBatchUseCase:",
           "publication_hash = _publication_hash(references)",
-          "missing_count=requested_count - len(references)"
+          "missing_count=requested_count - len(references)",
+          "as_of = max(reference.observed_at for reference in references)",
+          "capital-flow observation cannot be later than publication time"
         ],
         "apps/data_center/infrastructure/market_breadth_repositories.py": [
-          "def list_publication_candidates("
+          "def list_publication_candidates(",
+          "observed_at=datetime.combine(row.flow_date, time.min, tzinfo=UTC)",
+          "row.raw_payload_hash"
         ]
       },
       "required_tests": [
@@ -1869,6 +1874,26 @@
           "case": "news_sync_invokes_publication_writer",
           "test_file": "tests/unit/data_center/test_news_publication_sync.py",
           "test_function": "test_sync_news_use_case_invokes_publication_after_fact_write"
+        },
+        {
+          "case": "capital_flow_publication_members_and_as_of",
+          "test_file": "tests/unit/data_center/test_capital_flow_publication_sync.py",
+          "test_function": "test_capital_flow_publication_uses_flow_date_as_of_and_exact_members"
+        },
+        {
+          "case": "capital_flow_publication_idempotency",
+          "test_file": "tests/unit/data_center/test_capital_flow_publication_sync.py",
+          "test_function": "test_capital_flow_publication_is_idempotent_for_same_snapshot"
+        },
+        {
+          "case": "capital_flow_publication_coverage_fail_closed",
+          "test_file": "tests/unit/data_center/test_capital_flow_publication_sync.py",
+          "test_function": "test_capital_flow_publication_fails_closed_below_coverage_policy"
+        },
+        {
+          "case": "capital_flow_candidate_observation_boundary",
+          "test_file": "tests/unit/data_center/test_capital_flow_publication_sync.py",
+          "test_function": "test_capital_flow_repository_candidate_preserves_flow_date_observation"
         }
       ]
     }

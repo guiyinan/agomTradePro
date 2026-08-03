@@ -78,7 +78,7 @@ from .market_thermometer import (
     build_market_thermometer_override_payload,
 )
 from .provider_connection_workflow import RunProviderConnectionTestUseCase
-from .publication_sync import PublishNewsBatchUseCase
+from .publication_sync import PublishCapitalFlowBatchUseCase, PublishNewsBatchUseCase
 from .use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
     ManageIndicatorCatalogUseCase,
@@ -1178,9 +1178,15 @@ def sync_market_news_for_sentiment(*, limit: int = 100) -> SyncResult:
 def make_sync_capital_flow_use_case() -> SyncCapitalFlowUseCase:
     """Build the capital flow sync use case."""
 
+    flow_repository = CapitalFlowRepository()
     return SyncCapitalFlowUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
-        fact_repo=CapitalFlowRepository(),
+        fact_repo=flow_repository,
         raw_audit_repo=_make_raw_audit_repo(),
+        publication_publisher=PublishCapitalFlowBatchUseCase(
+            fact_repository=flow_repository,
+            publication_repository=CanonicalPublicationRepository(),
+            policy_repository=PublicationPolicyRepository(),
+        ),
     )

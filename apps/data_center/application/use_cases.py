@@ -21,7 +21,10 @@ from apps.data_center.application.provider_catalog_use_cases import (
     ManageProviderConfigUseCase,
     ManagePublisherCatalogUseCase,
 )
-from apps.data_center.application.publication_sync import PublishNewsBatchUseCase
+from apps.data_center.application.publication_sync import (
+    PublishCapitalFlowBatchUseCase,
+    PublishNewsBatchUseCase,
+)
 from apps.data_center.application.query_use_cases import (
     DEFAULT_LATEST_QUOTE_MAX_AGE_HOURS,
     GetProviderStatusUseCase,
@@ -74,6 +77,7 @@ __all__ = [
     "QueryPriceHistoryUseCase",
     "QuerySectorConstituentsUseCase",
     "QueryValuationsUseCase",
+    "PublishCapitalFlowBatchUseCase",
     "PublishNewsBatchUseCase",
     "RECOVERABLE_DATA_CENTER_EXCEPTIONS",
     "RepairDecisionDataReliabilityUseCase",
