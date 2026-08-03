@@ -149,6 +149,29 @@ def test_dashboard_alpha_context_uses_gateway_for_local_stock_context():
     assert context["000001.SZ"]["pe"] == pytest.approx(5.6)
     assert context["000001.SZ"]["pb"] == pytest.approx(0.72)
 
+
+def test_dashboard_alpha_context_preserves_blocked_publication_evidence():
+    gateway = _build_gateway(
+        get_stock_context_map=lambda codes: {
+            code: {
+                "name": "平安银行",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "canonical_publication_stale",
+                "publication_gates": {
+                    "price": {"freshness_status": "stale"},
+                },
+            }
+            for code in codes
+        }
+    )
+
+    context = DashboardAlphaContextRepository(gateway).load_stock_context(["000001.SZ"])
+
+    assert context["000001.SZ"]["must_not_use_for_decision"] is True
+    assert context["000001.SZ"]["blocked_reason"] == "canonical_publication_stale"
+    assert context["000001.SZ"]["publication_gates"]["price"]["freshness_status"] == "stale"
+
+
 def test_dashboard_alpha_context_uses_gateway_for_actionable_map():
     captured: dict[str, object] = {}
 

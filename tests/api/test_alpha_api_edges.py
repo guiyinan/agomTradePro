@@ -13,7 +13,7 @@ def stub_stock_context_lookup(monkeypatch):
     """Keep Alpha API contracts isolated from read-through market-data backfills."""
 
     monkeypatch.setattr(
-        "apps.equity.application.query_services.get_stock_context_map",
+        "apps.equity.application.query_services.get_stock_name_map",
         lambda _codes: {},
     )
 

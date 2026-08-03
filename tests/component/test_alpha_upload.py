@@ -22,7 +22,7 @@ def stub_stock_context_lookup(monkeypatch):
     """Keep Alpha API unit tests isolated from external stock-name providers."""
 
     monkeypatch.setattr(
-        "apps.equity.application.query_services.get_stock_context_map",
+        "apps.equity.application.query_services.get_stock_name_map",
         lambda _codes: {},
     )
 

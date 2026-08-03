@@ -16,7 +16,7 @@ from apps.alpha.domain.entities import AlphaResult, StockScore
 from apps.data_center.application.query_services import (
     get_latest_market_thermometer_snapshot_payload,
 )
-from apps.equity.application.query_services import get_stock_context_map
+from apps.equity.application.query_services import get_published_stock_context_map
 
 logger = logging.getLogger(__name__)
 
@@ -126,10 +126,17 @@ class AlphaAISecondPassFilterService:
         )
 
     def _load_stock_context(self, scores: list[StockScore]) -> dict[str, dict[str, Any]]:
-        """Load stock context through the equity application boundary."""
+        """Load publication-gated stock context through the equity boundary."""
 
         try:
-            return get_stock_context_map([score.code for score in scores])
+            context = get_published_stock_context_map([score.code for score in scores])
+            if any(
+                bool(row.get("must_not_use_for_decision"))
+                for row in context.values()
+                if isinstance(row, Mapping)
+            ):
+                raise RuntimeError("stock_context_publication_blocked")
+            return context
         except Exception as exc:
             logger.warning(
                 "Alpha AI filter stock context unavailable (error_type=%s)",

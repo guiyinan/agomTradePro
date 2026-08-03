@@ -1509,6 +1509,64 @@
           "test_function": "test_research_snapshot_does_not_treat_blocked_publication_metadata_as_evidence"
         }
       ]
+    },
+    {
+      "id": "equity.published_stock_context",
+      "surface": "Dashboard Alpha and Alpha AI stock context",
+      "source_files": [
+        "apps/equity/application/query_services.py",
+        "apps/equity/infrastructure/stock_info_repository.py",
+        "apps/dashboard/application/integration_gateways.py",
+        "apps/dashboard/infrastructure/repositories.py",
+        "apps/alpha/application/ai_filter.py",
+        "apps/alpha/interface/views.py"
+      ],
+      "required_markers": {
+        "apps/equity/application/query_services.py": [
+          "def get_published_stock_context_map(",
+          "get_published_price_bar_series(",
+          "get_published_financial_facts(",
+          "get_published_valuation_facts(",
+          "must_not_use_for_decision",
+          "publication_gates"
+        ],
+        "apps/equity/infrastructure/stock_info_repository.py": [
+          "def get_stock_master_rows(",
+          "without accidentally loading an un-gated price"
+        ],
+        "apps/dashboard/application/integration_gateways.py": [
+          "get_published_stock_context_map"
+        ],
+        "apps/alpha/application/ai_filter.py": [
+          "get_published_stock_context_map",
+          "stock_context_publication_blocked"
+        ],
+        "apps/alpha/interface/views.py": [
+          "get_stock_name_map"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "published_context_aggregates_same_financial_period",
+          "test_file": "tests/unit/equity/test_published_stock_context.py",
+          "test_function": "test_published_stock_context_aggregates_same_financial_period"
+        },
+        {
+          "case": "stale_context_drops_rows_and_preserves_reason",
+          "test_file": "tests/unit/equity/test_published_stock_context.py",
+          "test_function": "test_published_stock_context_drops_stale_rows_and_preserves_block_reason"
+        },
+        {
+          "case": "alpha_ai_fails_closed_on_blocked_context",
+          "test_file": "apps/alpha/tests/test_ai_filter.py",
+          "test_function": "test_ai_filter_fails_closed_when_stock_publication_is_blocked"
+        },
+        {
+          "case": "dashboard_preserves_blocked_context_evidence",
+          "test_file": "apps/dashboard/tests/test_alpha_context_repository.py",
+          "test_function": "test_dashboard_alpha_context_preserves_blocked_publication_evidence"
+        }
+      ]
     }
   ]
 }

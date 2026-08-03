@@ -102,6 +102,35 @@ class StockInfoRepositoryMixin:
                     resolved[requested_code] = data_center_name
         return resolved
 
+    def get_stock_master_rows(self, stock_codes: list[str]) -> dict[str, dict[str, str]]:
+        """Return canonical asset-master metadata without reading market facts.
+
+        Current/decision-facing callers must be able to resolve display metadata
+        without accidentally loading an un-gated price, financial, or valuation
+        row.  This deliberately uses only the canonical AssetMaster repository;
+        fact reads belong to the publication-gated Data Center application port.
+        """
+
+        normalized_codes = [str(code).strip().upper() for code in stock_codes if code]
+        if not normalized_codes:
+            return {}
+
+        market_map = {"SSE": "SH", "SZSE": "SZ", "BSE": "BJ"}
+        rows: dict[str, dict[str, str]] = {}
+        for requested_code in dict.fromkeys(normalized_codes):
+            for candidate in self._build_stock_code_candidates(requested_code):
+                asset = self._dc_asset_repo.get_by_code(candidate)
+                if asset is None or not asset.is_active or asset.asset_type.value != "stock":
+                    continue
+                rows[requested_code] = {
+                    "asset_code": asset.code.upper(),
+                    "name": str(asset.short_name or asset.name or ""),
+                    "sector": str(asset.sector or asset.industry or ""),
+                    "market": market_map.get(asset.exchange.value, ""),
+                }
+                break
+        return rows
+
     def _resolve_stock_name_from_data_center(self, stock_code: str) -> str:
         """Resolve a stock display name from data_center asset master data."""
 
@@ -196,10 +225,7 @@ class StockInfoRepositoryMixin:
             asset
             for asset in self._dc_asset_repo.list_active()
             if asset.asset_type.value == "stock"
-            and (
-                not normalized_codes
-                or asset.code.upper() in normalized_codes
-            )
+            and (not normalized_codes or asset.code.upper() in normalized_codes)
         ]
         canonical_assets.sort(key=lambda asset: asset.code)
         for asset in canonical_assets:

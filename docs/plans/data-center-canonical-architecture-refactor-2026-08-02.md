@@ -763,6 +763,29 @@
 - Decision Rhythm 的 technical/fundamental gate 目前是入口级 Publication freshness 证据，底层 repository 仍需后续绑定同一 Publication member snapshot，避免 gate 与读取之间出现更新竞态。
 - 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、真实备份恢复、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
 
+## 实施记录（2026-08-03，第三十六批）
+
+本批次收口 Dashboard Alpha 与 Alpha AI 的股票上下文旁路：当前用户面不再直接读取未发布的 latest 价格/财务/估值事实；名称展示单独走 AssetMaster 元数据，避免为展示名称触发外部回填。仍不部署、不 push。
+
+已落地：
+
+- 新增 `get_published_stock_context_map`，通过 Data Center Public Ports 分别读取 `equity.price.bar`、`equity.financial.fact`、`equity.valuation.fact`，按最新财务报告期聚合同期指标，并保留每个分区的 publication/freshness evidence。
+- 缺失、stale、invalid 或未验证的分区不返回旧事实；上下文 row 发布 `must_not_use_for_decision`、`blocked_reason` 和 `publication_gates`，Alpha AI 遇阻断直接失败闭环并保留原 Alpha Top-N。
+- Dashboard Alpha gateway 改用 published context；页面上下文透传可靠性证据。Alpha REST 名称 enrich 改用只读 AssetMaster 的 `get_stock_name_map`，不再因名称缺失触发远端行情/资产回填。
+- 新增 `get_stock_master_rows`，明确与事实读取分离；current-data contract 增加 `equity.published_stock_context` surface。
+
+第三十六批机器证据：
+
+- `pytest tests/unit/equity/test_published_stock_context.py -q --disable-warnings --maxfail=1 --timeout=30`：2 passed。
+- `pytest apps/alpha/tests/test_ai_filter.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=30`：9 passed。
+- `pytest apps/dashboard/tests/test_alpha_context_repository.py apps/equity/tests/test_stock_context_repository.py -q --no-migrations --reuse-db --timeout=180`：18 passed（其中 Alpha context 8、stock repository 10）。
+- `ruff`、`black`、`isort`（变更文件）通过；`check_current_data_contracts.py` 待本批治理 JSON 与完整回归一起执行。
+
+仍未完成及风险：
+
+- published context 目前按分区 Public Port 读取，尚未把多个分区绑定到同一 Publication member snapshot 事务；读取与 gate 之间仍存在小窗口竞态，后续需以 publication_id/member snapshot 做批量查询。
+- 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、真实备份恢复、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

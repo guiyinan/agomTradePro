@@ -2,15 +2,22 @@
 
 from __future__ import annotations
 
-from datetime import date
+from collections.abc import Mapping
+from datetime import date, datetime
 from typing import Any
 
+from apps.data_center.application.public import (
+    get_published_financial_facts,
+    get_published_price_bar_series,
+    get_published_valuation_facts,
+)
 from apps.equity.application.repository_provider import (
     get_equity_asset_master_query_repository,
     get_equity_market_data_repository,
     get_equity_stock_repository,
     get_equity_valuation_repair_repository,
 )
+from shared.numeric import safe_float
 
 
 def _resolved_financial_period_type(financial: Any) -> str:
@@ -39,6 +46,212 @@ def get_stock_context_map(stock_codes: list[str]) -> dict[str, dict[str, Any]]:
     if not normalized_codes:
         return {}
     return get_equity_stock_repository().get_stock_context_rows(normalized_codes)
+
+
+def get_stock_name_map(stock_codes: list[str]) -> dict[str, str]:
+    """Return display names without loading any market or fundamental facts."""
+
+    master_rows = get_equity_stock_repository().get_stock_master_rows(stock_codes)
+    return {
+        code: str(row.get("name") or "")
+        for code, row in master_rows.items()
+        if str(row.get("name") or "")
+    }
+
+
+def _context_date(value: object) -> date | None:
+    """Normalize a canonical fact date without accepting malformed values."""
+
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return date.fromisoformat(text[:10])
+    except ValueError:
+        return None
+
+
+def _payload_rows(payload: object) -> list[Mapping[str, object]]:
+    """Extract mapping rows from a publication-gated payload."""
+
+    if not isinstance(payload, Mapping) or bool(payload.get("must_not_use_for_decision")):
+        return []
+    rows = payload.get("rows")
+    if not isinstance(rows, (list, tuple)):
+        return []
+    return [row for row in rows if isinstance(row, Mapping)]
+
+
+def _payload_gate(payload: object) -> dict[str, object]:
+    """Keep stable freshness/provenance evidence for a context row."""
+
+    if not isinstance(payload, Mapping):
+        return {
+            "must_not_use_for_decision": True,
+            "blocked_reason": "published_payload_invalid",
+        }
+    return {
+        key: payload[key]
+        for key in (
+            "publication_id",
+            "published_at",
+            "observed_at",
+            "age_seconds",
+            "max_age_seconds",
+            "freshness_status",
+            "must_not_use_for_decision",
+            "blocked_reason",
+        )
+        if key in payload
+    }
+
+
+def _published_financial_context(payload: object) -> dict[str, object]:
+    """Aggregate one published financial fact payload by its newest period."""
+
+    rows = _payload_rows(payload)
+    grouped: dict[date, list[Mapping[str, object]]] = {}
+    for row in rows:
+        period_end = _context_date(row.get("period_end"))
+        if period_end is not None:
+            grouped.setdefault(period_end, []).append(row)
+    if not grouped:
+        return {}
+
+    latest_period = max(grouped)
+    metrics = {
+        str(row.get("metric_code") or ""): row
+        for row in grouped[latest_period]
+        if str(row.get("metric_code") or "")
+    }
+
+    def metric_value(metric_code: str) -> float | None:
+        row = metrics.get(metric_code)
+        return safe_float(row.get("value"), default=None) if row else None
+
+    report_date = next(
+        (
+            report_date
+            for report_date in (
+                _context_date(row.get("report_date")) for row in grouped[latest_period]
+            )
+            if report_date is not None
+        ),
+        latest_period,
+    )
+    return {
+        "report_date": report_date,
+        "roe": metric_value("roe"),
+        "debt_ratio": metric_value("debt_ratio"),
+        "revenue_growth": metric_value("revenue_growth"),
+        "profit_growth": metric_value("net_profit_growth"),
+    }
+
+
+def _published_price_context(payload: object) -> dict[str, object]:
+    """Select the newest row from a published daily-price payload."""
+
+    rows = _payload_rows(payload)
+    if not rows:
+        return {}
+    latest = rows[-1]
+    return {
+        "trade_date": _context_date(latest.get("timestamp")),
+        "close": safe_float(latest.get("close"), default=None),
+        "volume": safe_float(latest.get("volume"), default=None),
+    }
+
+
+def _published_valuation_context(payload: object) -> dict[str, object]:
+    """Select the newest row from a published valuation payload."""
+
+    rows = _payload_rows(payload)
+    if not rows:
+        return {}
+    latest = rows[-1]
+    pe_value = latest.get("pe_ttm")
+    return {
+        "valuation_trade_date": _context_date(latest.get("val_date")),
+        "pe": safe_float(
+            pe_value if pe_value is not None else latest.get("pe_static"),
+            default=None,
+        ),
+        "pb": safe_float(latest.get("pb"), default=None),
+        "ps": safe_float(latest.get("ps_ttm"), default=None),
+        "dividend_yield": safe_float(latest.get("dv_ratio"), default=None),
+    }
+
+
+def get_published_stock_context_map(
+    stock_codes: list[str],
+    *,
+    publication_key: str = "current",
+) -> dict[str, dict[str, Any]]:
+    """Return stock context using only publication-gated canonical facts.
+
+    Asset metadata is read from the canonical master table, while price,
+    financial, and valuation values are read through Data Center Public Ports.
+    A blocked dataset contributes no values and its stable gate evidence is
+    retained in the row so callers can fail closed instead of mistaking an
+    empty payload for a valid zero.
+    """
+
+    normalized_codes = [str(code).strip().upper() for code in stock_codes if code]
+    if not normalized_codes:
+        return {}
+
+    requested_codes = list(dict.fromkeys(normalized_codes))
+    master_map = get_equity_stock_repository().get_stock_master_rows(requested_codes)
+    context: dict[str, dict[str, Any]] = {}
+    for requested_code in requested_codes:
+        master = master_map.get(requested_code, {})
+        asset_code = str(master.get("asset_code") or requested_code).upper()
+        price_payload = get_published_price_bar_series(
+            asset_code,
+            publication_key=publication_key,
+            limit=1,
+        )
+        financial_payload = get_published_financial_facts(
+            asset_code,
+            publication_key=publication_key,
+            limit=100,
+        )
+        valuation_payload = get_published_valuation_facts(
+            asset_code,
+            publication_key=publication_key,
+            limit=1,
+        )
+        gates = {
+            "price": _payload_gate(price_payload),
+            "financial": _payload_gate(financial_payload),
+            "valuation": _payload_gate(valuation_payload),
+        }
+        blocked_gates = [gate for gate in gates.values() if gate.get("must_not_use_for_decision")]
+        blocked_reason = next(
+            (
+                str(gate.get("blocked_reason") or "")
+                for gate in blocked_gates
+                if str(gate.get("blocked_reason") or "")
+            ),
+            "",
+        )
+        row: dict[str, Any] = {
+            "name": str(master.get("name") or ""),
+            "sector": str(master.get("sector") or ""),
+            "market": str(master.get("market") or ""),
+            "publication_gates": gates,
+            "must_not_use_for_decision": bool(blocked_gates),
+            "blocked_reason": blocked_reason or None,
+        }
+        row.update(_published_price_context(price_payload))
+        row.update(_published_financial_context(financial_payload))
+        row.update(_published_valuation_context(valuation_payload))
+        context[requested_code] = row
+    return context
 
 
 def list_asset_master_stock_candidate_codes() -> list[str]:

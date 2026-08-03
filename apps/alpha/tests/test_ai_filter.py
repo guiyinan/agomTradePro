@@ -63,7 +63,7 @@ def _decision(
 
 def _patch_context(monkeypatch) -> None:
     monkeypatch.setattr(
-        "apps.alpha.application.ai_filter.get_stock_context_map",
+        "apps.alpha.application.ai_filter.get_published_stock_context_map",
         lambda codes: {
             code: {
                 "name": code,
@@ -170,7 +170,7 @@ def test_ai_filter_preserves_original_top_n_when_ai_json_is_invalid(monkeypatch)
 
 def test_ai_filter_handles_missing_stock_context(monkeypatch):
     monkeypatch.setattr(
-        "apps.alpha.application.ai_filter.get_stock_context_map",
+        "apps.alpha.application.ai_filter.get_published_stock_context_map",
         lambda codes: {},
     )
     monkeypatch.setattr(
@@ -197,6 +197,35 @@ def test_ai_filter_handles_missing_stock_context(monkeypatch):
 
     assert [score.code for score in result.scores] == ["000001.SZ", "000002.SZ"]
     assert result.metadata["ai_filter"]["status"] == "applied"
+
+
+def test_ai_filter_fails_closed_when_stock_publication_is_blocked(monkeypatch):
+    monkeypatch.setattr(
+        "apps.alpha.application.ai_filter.get_published_stock_context_map",
+        lambda codes: {
+            code: {
+                "name": code,
+                "must_not_use_for_decision": True,
+                "blocked_reason": "canonical_publication_stale",
+            }
+            for code in codes
+        },
+    )
+    monkeypatch.setattr(
+        "apps.alpha.application.ai_filter.get_latest_market_thermometer_snapshot_payload",
+        lambda: {"score": 55.0, "band": "warm", "must_not_use_for_decision": False},
+    )
+
+    result = AlphaAISecondPassFilterService().apply(
+        _alpha_result([_score("000001.SZ", 1), _score("000002.SZ", 2)]),
+        top_n=2,
+        user=None,
+        trade_date=date(2026, 5, 6),
+    )
+
+    assert [score.code for score in result.scores] == ["000001.SZ", "000002.SZ"]
+    assert result.metadata["ai_filter"]["status"] == "failed"
+    assert result.metadata["ai_filter"]["failure_reason"] == "alpha_ai_filter_failed"
 
 
 def _authenticated_client() -> Client:
@@ -238,8 +267,8 @@ def test_alpha_scores_api_enriches_stock_names(monkeypatch):
 
     monkeypatch.setattr("apps.alpha.interface.views.AlphaService", lambda: FakeAlphaService())
     monkeypatch.setattr(
-        "apps.equity.application.query_services.get_stock_context_map",
-        lambda codes: {"000001.SZ": {"name": "平安银行"}},
+        "apps.equity.application.query_services.get_stock_name_map",
+        lambda codes: {"000001.SZ": "平安银行"},
     )
 
     response = _authenticated_client().get("/api/alpha/scores/?top_n=1")

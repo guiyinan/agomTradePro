@@ -38,9 +38,9 @@ class DashboardApplicationGateway:
     """Bridge dashboard repositories to other apps through application APIs."""
 
     def get_stock_context_map(self, codes: list[str]) -> dict[str, dict[str, Any]]:
-        from apps.equity.application.query_services import get_stock_context_map
+        from apps.equity.application.query_services import get_published_stock_context_map
 
-        raw_context = get_stock_context_map(codes)
+        raw_context = get_published_stock_context_map(codes)
         if not isinstance(raw_context, Mapping):
             return {}
         return {

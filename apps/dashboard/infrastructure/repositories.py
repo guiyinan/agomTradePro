@@ -276,6 +276,11 @@ class DashboardAlphaContextRepository:
                     "pb": latest_daily.get("pb"),
                     "ps": latest_daily.get("ps"),
                     "dividend_yield": latest_daily.get("dividend_yield"),
+                    "must_not_use_for_decision": bool(
+                        latest_daily.get("must_not_use_for_decision")
+                    ),
+                    "blocked_reason": latest_daily.get("blocked_reason"),
+                    "publication_gates": latest_daily.get("publication_gates", {}),
                     "quote_snapshot_at": quote_context.get(code, {}).get("snapshot_at"),
                     "quote_source": quote_context.get(code, {}).get("source", ""),
                 }

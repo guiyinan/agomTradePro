@@ -56,17 +56,16 @@ def _enrich_stock_score_names(stocks: list[dict[str, Any]]) -> list[dict[str, An
         return stocks
 
     try:
-        from apps.equity.application.query_services import get_stock_context_map
+        from apps.equity.application.query_services import get_stock_name_map
 
-        stock_context = get_stock_context_map(codes)
+        stock_context = get_stock_name_map(codes)
     except Exception as exc:
         logger.warning("Failed to enrich alpha stock score names: %s", exc)
         stock_context = {}
 
     for stock in stocks:
         code = str(stock.get("code") or "").strip()
-        context = stock_context.get(code) or stock_context.get(code.upper()) or {}
-        name = str(context.get("name") or "").strip()
+        name = str(stock_context.get(code) or stock_context.get(code.upper()) or "").strip()
         stock["name"] = name or code
     return stocks
 
