@@ -938,6 +938,28 @@
 - 估值 UseCase 内部仍可在 historical 模式读取旧模型；published 当前只在入口 gate 阻断，尚未把同一 Publication member rows 注入 UseCase，仍需统一 member-bound query port。
 - 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
 
+## 实施记录（2026-08-03，第四十四批）
+
+本批次把 `publication.as_of` 从 Application Public Port 继续接到 REST Data Center 接口，覆盖 SDK/MCP 实际使用的 HTTP 地址；仍不部署、不 push、不连接 VPS。
+
+已落地：
+
+- REST published 读取在进入 Query UseCase 前，将 macro、price、fund NAV、financial、valuation、sector、news、capital flow 的查询上界与 publication `as_of` 取交集；请求范围完全落在边界之后时 fail closed，返回空数据和阻断原因。
+- published quote 不再把超出 publication `as_of` 的 snapshot 或 realtime fallback 当作当前证据；缺少边界内 quote 时返回 `canonical_quote_missing_before_publication_as_of`。
+- `QueryFinancialsUseCase`、`QueryNewsUseCase` 增加可选 end 边界，historical 旧调用保持原参数形状；capital-flow 路由剥离 gate 专用 `mode/publication_key` 后再做事实查询校验。
+- REST 回归覆盖所有日期型 published view 的边界传递，以及 quote 越界不 fallback。
+
+第四十四批机器证据：
+
+- `pytest tests/api/test_data_center_route_cleanup.py -q --no-migrations --reuse-db --disable-warnings --maxfail=1 --timeout=30`：34 passed。
+- `apps/data_center/interface/api_views.py`、`apps/data_center/application/fact_query_use_cases.py` mypy regression 0；ruff/black/isort 通过。
+- `python manage.py check`：0 issues；`python manage.py makemigrations --check --dry-run`：No changes detected。
+
+仍未完成及风险：
+
+- REST/Public Port 现在都受 `publication.as_of` 日期上界保护，但尚未按同一 Publication `fact_pk` 成员集合做原子快照过滤；同日多来源/版本仍需 member-bound query port。
+- 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
