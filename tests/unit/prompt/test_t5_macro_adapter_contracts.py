@@ -57,6 +57,38 @@ def test_indicator_value_and_series_normalize_missing_and_timestamp_data() -> No
     ]
 
 
+def test_current_trend_requires_published_series_and_does_not_use_raw_facts() -> None:
+    """Default/current trend reads fail closed when publication has no rows."""
+
+    adapter = _adapter()
+    adapter.macro_repository.get_latest_observation_date.return_value = date(2026, 7, 1)
+    adapter.macro_repository.get_published_series.return_value = []
+    adapter.macro_repository.get_series.return_value = [
+        SimpleNamespace(reporting_period=date(2026, 6, 1), value=50.0, published_at=None),
+        SimpleNamespace(reporting_period=date(2026, 7, 1), value=60.0, published_at=None),
+    ]
+
+    assert adapter._calculate_change("CN_PMI", None) == ("0.0", "stable")
+    adapter.macro_repository.get_published_series.assert_called_once()
+    adapter.macro_repository.get_series.assert_not_called()
+
+
+def test_historical_trend_keeps_point_in_time_raw_series() -> None:
+    """Explicit as-of trend reads retain PIT semantics for historical research."""
+
+    adapter = _adapter()
+    adapter.macro_repository.get_series.return_value = [
+        SimpleNamespace(reporting_period=date(2026, 6, 1), value=50.0, published_at=None),
+        SimpleNamespace(reporting_period=date(2026, 7, 1), value=60.0, published_at=None),
+    ]
+
+    result = adapter.calculate_trend("CN_PMI", "3m", date(2026, 7, 1))
+
+    assert result["trend"] == "up"
+    adapter.macro_repository.get_series.assert_called_once()
+    adapter.macro_repository.get_published_series.assert_not_called()
+
+
 def test_macro_summary_formats_up_down_stable_and_empty_results(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -176,16 +208,16 @@ def test_function_executor_dispatches_latest_series_and_trend_contracts(
     monkeypatch.setattr(
         adapter,
         "get_indicator_series",
-        lambda *_args: [{"value": 100}, {"value": 98}],
+        lambda *_args, **_kwargs: [{"value": 100}, {"value": 98}],
     )
     assert executor.execute_function("TREND", {"indicator": "PMI"})["trend"] == "down"
     monkeypatch.setattr(
         adapter,
         "get_indicator_series",
-        lambda *_args: [{"value": 0}, {"value": 0}],
+        lambda *_args, **_kwargs: [{"value": 0}, {"value": 0}],
     )
     assert executor.execute_function("TREND", {"indicator": "PMI"})["trend"] == "flat"
-    monkeypatch.setattr(adapter, "get_indicator_series", lambda *_args: [])
+    monkeypatch.setattr(adapter, "get_indicator_series", lambda *_args, **_kwargs: [])
     assert executor.execute_function("TREND", {"indicator": "PMI"})["trend"] == "unknown"
     with pytest.raises(ValueError, match="indicator"):
         executor.execute_function("TREND", {})

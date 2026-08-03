@@ -2,6 +2,7 @@ from datetime import date, timedelta
 
 import pytest
 
+import apps.regime.infrastructure.macro_data_provider as macro_provider
 from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.regime.application.use_cases import (
     CalculateRegimeRequest,
@@ -22,7 +23,9 @@ def _month_start(base: date, offset: int) -> date:
 
 
 @pytest.mark.django_db
-def test_django_macro_data_provider_reads_data_center_facts() -> None:
+def test_django_macro_data_provider_reads_data_center_facts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     IndicatorCatalogModel.objects.update_or_create(
         code="CN_PMI",
         defaults={
@@ -40,6 +43,24 @@ def test_django_macro_data_provider_reads_data_center_facts() -> None:
         unit="指数",
         source="akshare",
         published_at=date(2025, 1, 3),
+    )
+    monkeypatch.setattr(
+        macro_provider,
+        "get_published_macro_fact_series",
+        lambda *_args, **_kwargs: {
+            "rows": [
+                {
+                    "indicator_code": "CN_PMI",
+                    "reporting_period": "2025-01-01",
+                    "value": 50.8,
+                    "unit": "指数",
+                    "published_at": "2025-01-03",
+                    "source": "akshare",
+                    "extra": {"period_type": "M"},
+                }
+            ],
+            "must_not_use_for_decision": False,
+        },
     )
 
     provider = DjangoMacroDataProvider()

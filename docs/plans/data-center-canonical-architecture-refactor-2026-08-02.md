@@ -1066,6 +1066,27 @@
 
 - Dashboard 之外的 Equity stock repository、Agent/Terminal/TUI、Factor/Valuation 等维护/组合入口仍需逐项确认是否属于 current 语义；真实 publication writer/backfill 和 PostgreSQL/生产证据仍未完成。
 
+## 实施记录（2026-08-03，Prompt Macro current gate 专项）
+
+本专项收口 Prompt/Agent 的宏观 current/latest 旁路；显式 `as_of_date` 仍保留 point-in-time 历史语义，不部署、不 push。
+
+已落地：
+
+- `DataCenterMacroRepositoryAdapter` / `MacroRepositoryAdapter` 新增独立 `get_published_series` Public Port；Prompt `MacroDataAdapter` 的默认 current trend、`SERIES` 和摘要变化计算只接受 publication-gated rows，缺失或 stale publication 直接返回无证据的 `unknown`/空结果。
+- 显式 `as_of_date` 继续走 `get_series(..., use_pit=True)`，不把历史回放改写成 current；源 `reporting_period`/`published_at` 仍由 Data Center fact 转换保留。
+- PIT 序列和 publication series 在 Prompt 输出按 `reporting_period` 升序，latest/as-of 选择按观测日期取最大值，避免 newest-first 仓储结果被 `[-1]` 误读成旧值或反转趋势。
+- `governance/current_data_contracts.json` 将 Prompt Macro adapter、published-series marker 及 missing/stale fail-closed component 回归纳入 D2/D3 contract。
+
+机器证据（本地）：
+
+- `pytest tests/unit/prompt/test_t5_macro_adapter_contracts.py -q`：11 passed。
+- `pytest tests/component/test_prompt_macro_data_center.py tests/component/test_regime_data_center_macro_provider.py -q --no-migrations --reuse-db`：8 passed（含真实 Data Center adapter 的 PIT cutoff、latest/series 顺序、current publication 缺失/stale 阻断）。变更文件 ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- 真实 MCP 接入页、生产 publication/member 观测和当前数据仍需在授权环境验证；本地 fake/SQLite 不能替代生产证据。
+- PostgreSQL 生产画像、备份恢复、全入口 publication 快照、M9/M10 和 VPS 部署继续未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

@@ -1079,7 +1079,8 @@
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/data_center.py",
         "apps/alpha/infrastructure/adapters/simple_adapter.py",
         "apps/pulse/infrastructure/data_provider.py",
-        "apps/regime/infrastructure/macro_data_provider.py"
+        "apps/regime/infrastructure/macro_data_provider.py",
+        "apps/prompt/infrastructure/adapters/macro_adapter.py"
       ],
       "required_markers": {
         "apps/data_center/application/public.py": [
@@ -1124,7 +1125,14 @@
         ],
         "apps/regime/infrastructure/macro_data_provider.py": [
           "get_published_macro_fact_series(code, limit=1)",
-          "get_published_macro_fact_series(indicator_code, limit=max(limit, 1))"
+          "get_published_series(indicator_code, limit=limit)"
+        ],
+        "apps/prompt/infrastructure/adapters/macro_adapter.py": [
+          "published_only",
+          "get_published_series",
+          "if as_of_date is None",
+          "sorted(indicators, key=lambda item: item.reporting_period)",
+          "key=lambda item: item.reporting_period"
         ]
       },
       "required_tests": [
@@ -1182,6 +1190,16 @@
           "case": "fund_nav_rows_are_member_bound",
           "test_file": "tests/unit/data_center/test_published_query_ports.py",
           "test_function": "test_published_fund_nav_uses_only_publication_members"
+        },
+        {
+          "case": "prompt_current_macro_publication_required",
+          "test_file": "tests/component/test_prompt_macro_data_center.py",
+          "test_function": "test_prompt_current_trend_does_not_fall_back_to_unpublished_macro_facts"
+        },
+        {
+          "case": "prompt_pit_latest_and_series_order",
+          "test_file": "tests/component/test_prompt_macro_data_center.py",
+          "test_function": "test_prompt_macro_tools_preserve_publication_cutoff_and_real_trend"
         }
       ]
     },

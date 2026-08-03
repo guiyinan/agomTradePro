@@ -66,13 +66,21 @@ class MacroDataAdapter:
                 end_date=as_of_date,
                 use_pit=True,
             )
-            indicator = observations[-1] if observations else None
+            indicator = (
+                max(observations, key=lambda item: item.reporting_period) if observations else None
+            )
         else:
             indicator = self.macro_repository.get_latest_observation(indicator_code)
         return float(indicator.value) if indicator else None
 
     def get_indicator_series(
-        self, indicator_code: str, start_date: date, end_date: date, use_pit: bool = True
+        self,
+        indicator_code: str,
+        start_date: date,
+        end_date: date,
+        use_pit: bool = True,
+        *,
+        published_only: bool = False,
     ) -> list[dict[str, Any]]:
         """获取指标时序数据
 
@@ -89,9 +97,23 @@ class MacroDataAdapter:
                 ...
             ]
         """
-        indicators = self.macro_repository.get_series(
-            code=indicator_code, start_date=start_date, end_date=end_date, use_pit=use_pit
-        )
+        if published_only:
+            published_reader = getattr(self.macro_repository, "get_published_series", None)
+            if not callable(published_reader):
+                return []
+            try:
+                indicators = published_reader(
+                    code=indicator_code,
+                    start_date=start_date,
+                    end_date=end_date,
+                    limit=500,
+                )
+            except Exception:
+                return []
+        else:
+            indicators = self.macro_repository.get_series(
+                code=indicator_code, start_date=start_date, end_date=end_date, use_pit=use_pit
+            )
 
         return [
             {
@@ -99,7 +121,7 @@ class MacroDataAdapter:
                 "value": float(ind.value),
                 "published_at": ind.published_at.isoformat() if ind.published_at else None,
             }
-            for ind in indicators
+            for ind in sorted(indicators, key=lambda item: item.reporting_period)
         ]
 
     def get_macro_summary(
@@ -177,10 +199,14 @@ class MacroDataAdapter:
         if days is None:
             raise ValueError("unsupported trend period")
         end_date = as_of_date or date.today()
+        series_kwargs: dict[str, Any] = {}
+        if as_of_date is None:
+            series_kwargs["published_only"] = True
         series = self.get_indicator_series(
             indicator_code,
             end_date - timedelta(days=days),
             end_date,
+            **series_kwargs,
         )
         if len(series) < 2:
             return self._unknown_trend(indicator_code, period)
@@ -267,8 +293,14 @@ class MacroDataAdapter:
             return ("0.0", "stable")
 
         # 获取最近两期数据
+        series_kwargs: dict[str, Any] = {}
+        if as_of_date is None:
+            series_kwargs["published_only"] = True
         series = self.get_indicator_series(
-            indicator_code, start_date=current_date - timedelta(days=90), end_date=current_date
+            indicator_code,
+            start_date=current_date - timedelta(days=90),
+            end_date=current_date,
+            **series_kwargs,
         )
 
         if len(series) < 2:
@@ -353,7 +385,15 @@ class FunctionExecutor:
         end_date = as_of_date or date.today()
         start_date = end_date - timedelta(days=days)
 
-        return self.macro_adapter.get_indicator_series(indicator, start_date, end_date)
+        series_kwargs: dict[str, Any] = {}
+        if as_of_date is None:
+            series_kwargs["published_only"] = True
+        return self.macro_adapter.get_indicator_series(
+            indicator,
+            start_date,
+            end_date,
+            **series_kwargs,
+        )
 
     def _execute_trend(self, params: dict[str, Any]) -> dict[str, Any]:
         """执行TREND函数"""

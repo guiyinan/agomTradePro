@@ -160,7 +160,36 @@ class DataCenterMacroRepositoryAdapter:
             use_pit=use_pit,
             source=source,
         )
-        return [self._to_macro_indicator(row) for row in rows]
+        indicators = [self._to_macro_indicator(row) for row in rows]
+        return sorted(indicators, key=lambda item: item.reporting_period)
+
+    def get_published_series(
+        self,
+        code: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        limit: int = 500,
+        publication_key: str | None = None,
+    ) -> list[MacroIndicator]:
+        """Return a current decision-facing series through the publication port.
+
+        Explicit point-in-time research must continue to use :meth:`get_series`
+        with ``use_pit=True``.  This method is intentionally separate so current
+        prompt/agent reads cannot silently fall back to unpublished facts.
+        """
+
+        published = get_published_macro_fact_series(
+            code,
+            publication_key=publication_key,
+            start=start_date,
+            end=end_date,
+            limit=limit,
+        )
+        rows = cast(list[dict[str, Any]], published.get("rows", []))
+        if bool(published.get("must_not_use_for_decision")):
+            return []
+        indicators = [self._to_macro_indicator(row) for row in rows]
+        return sorted(indicators, key=lambda item: item.reporting_period)
 
     def get_observations_for_period(
         self,
@@ -179,9 +208,10 @@ class DataCenterMacroRepositoryAdapter:
         indicator_code: str,
         limit: int = 24,
     ) -> list[MacroIndicator]:
-        published = get_published_macro_fact_series(indicator_code, limit=max(limit, 1))
-        rows = cast(list[dict[str, Any]], published.get("rows", []))
-        return [self._to_macro_indicator(row) for row in reversed(rows[-limit:])]
+        if limit <= 0:
+            return []
+        observations = self.get_published_series(indicator_code, limit=limit)
+        return observations[-limit:]
 
     def get_latest_observation_date(
         self,
@@ -196,7 +226,10 @@ class DataCenterMacroRepositoryAdapter:
             ]
         else:
             observations = self.get_series(code=code, end_date=as_of_date, use_pit=True)
-        return observations[-1].reporting_period if observations else None
+        return max(
+            (observation.reporting_period for observation in observations),
+            default=None,
+        )
 
     def get_latest_observation(
         self,
@@ -212,7 +245,9 @@ class DataCenterMacroRepositoryAdapter:
         else:
             end_date = before_date - date.resolution
             observations = self.get_series(code=code, end_date=end_date, use_pit=True)
-        return observations[-1] if observations else None
+        if not observations:
+            return None
+        return max(observations, key=lambda observation: observation.reporting_period)
 
     def get_by_code_and_date(self, code: str, observed_at: date) -> MacroIndicator | None:
         observations = self.get_series(code=code, start_date=observed_at, end_date=observed_at)
@@ -646,6 +681,24 @@ class MacroRepositoryAdapter:
             indicator_code=indicator_code,
             start_date=start_date,
             end_date=end_date,
+        )
+
+    def get_published_series(
+        self,
+        code: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        limit: int = 500,
+        publication_key: str | None = None,
+    ) -> list[MacroIndicator]:
+        """Return a publication-gated current series from Data Center."""
+
+        return self._get_repository().get_published_series(
+            code,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+            publication_key=publication_key,
         )
 
     def get_latest_observation(
