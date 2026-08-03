@@ -286,9 +286,10 @@ class TestSelectTests(unittest.TestCase):
         self.assertIn("tests/api/test_terminal_api_edges.py", tests)
 
     def test_select_tests_with_realtime_changes_include_api_tests(self):
-        """realtime 变更必须带上 API 测试。"""
+        """realtime 变更必须覆盖 API 与 Data Center provider guard。"""
         tests = select_tests_func({"realtime"}, ["apps/realtime/interface/views.py"])
         self.assertIn("tests/api/test_realtime_api.py", tests)
+        self.assertIn("tests/component/test_realtime_data_center_provider.py", tests)
 
     def test_select_tests_with_filter_changes_include_api_tests(self):
         """filter 变更必须带上 API 测试。"""
