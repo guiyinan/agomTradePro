@@ -17,6 +17,7 @@ from apps.data_center.domain.contracts import (
     ProviderBinding,
     PublicationPolicy,
 )
+from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import (
     AssetMaster,
     CapitalFlowFact,
@@ -476,6 +477,10 @@ class NewsRepositoryProtocol(Protocol):
     ) -> list[NewsFact]: ...
 
     def bulk_insert(self, articles: list[NewsFact]) -> int: ...
+
+    def list_publication_candidates(
+        self, articles: Sequence[NewsFact]
+    ) -> list[PublicationFactReference]: ...
     def aggregate_market_daily(
         self,
         start: date | None = None,

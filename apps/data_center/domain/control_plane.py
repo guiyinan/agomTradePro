@@ -50,6 +50,35 @@ class QuarantineResolution(str, Enum):
     SUPERSEDED = "superseded"
 
 
+@dataclass(frozen=True)
+class PublicationFactReference:
+    """Canonical fact identity selected by a publication writer.
+
+    The reference deliberately contains no ORM model. Ingestion adapters can
+    return this value object after persisting facts, allowing the application
+    publication service to bind one immutable member snapshot to the exact
+    rows written by the sync run.
+    """
+
+    natural_key: str
+    source: str
+    source_record_id: str
+    fact_table: str
+    fact_pk: str
+    observed_at: datetime
+    raw_payload_hash: str = ""
+    quality_status: str = "accepted"
+    revision_number: int = 1
+
+    def __post_init__(self) -> None:
+        for name in ("natural_key", "source", "source_record_id", "fact_table", "fact_pk"):
+            if not getattr(self, name).strip():
+                raise ValueError(f"PublicationFactReference.{name} cannot be empty")
+        _require_aware(self.observed_at, "PublicationFactReference.observed_at")
+        if self.revision_number < 1:
+            raise ValueError("PublicationFactReference.revision_number must be positive")
+
+
 class PublicationState(str, Enum):
     """Canonical publication lifecycle."""
 
@@ -405,6 +434,7 @@ __all__ = [
     "CanonicalPublication",
     "CoverageSnapshot",
     "PublicationMember",
+    "PublicationFactReference",
     "PublicationState",
     "QuarantineRecord",
     "QuarantineResolution",

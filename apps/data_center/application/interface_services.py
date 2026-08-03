@@ -18,6 +18,7 @@ from apps.data_center.application.provider_capabilities import SOURCE_TYPE_CAPAB
 from apps.data_center.application.provider_health import build_capability_health_payload
 from apps.data_center.composition import (
     AssetRepository,
+    CanonicalPublicationRepository,
     CapitalFlowRepository,
     DataProviderSettingsRepository,
     FinancialFactRepository,
@@ -33,6 +34,7 @@ from apps.data_center.composition import (
     PriceBarRepository,
     ProductionCoverageUniverseConfigRepository,
     ProviderConfigRepository,
+    PublicationPolicyRepository,
     PublisherCatalogRepository,
     QuoteSnapshotRepository,
     RawAuditRepository,
@@ -49,7 +51,10 @@ from apps.data_center.domain.entities import (
     ProviderConfig,
 )
 from apps.data_center.domain.enums import DataCapability
-from apps.data_center.domain.protocols import ProviderRegistryProtocol
+from apps.data_center.domain.protocols import (
+    MacroFactRepositoryProtocol,
+    ProviderRegistryProtocol,
+)
 from apps.task_monitor.application.tracking import record_pending_task
 from core.exceptions import DataFetchError
 
@@ -73,6 +78,7 @@ from .market_thermometer import (
     build_market_thermometer_override_payload,
 )
 from .provider_connection_workflow import RunProviderConnectionTestUseCase
+from .publication_sync import PublishNewsBatchUseCase
 from .use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
     ManageIndicatorCatalogUseCase,
@@ -102,6 +108,12 @@ from .use_cases import (
     SyncSectorMembershipUseCase,
     SyncValuationUseCase,
 )
+
+
+def _make_macro_fact_repository() -> MacroFactRepositoryProtocol:
+    """Adapt the concrete PIT-aware repository to the application port."""
+
+    return cast(MacroFactRepositoryProtocol, MacroFactRepository())
 
 
 class _AlphaScopeProtocol(Protocol):
@@ -468,7 +480,7 @@ def make_query_macro_series_use_case() -> QueryMacroSeriesUseCase:
     """Build the macro series query use case."""
 
     return QueryMacroSeriesUseCase(
-        MacroFactRepository(),
+        _make_macro_fact_repository(),
         _make_indicator_catalog_repo(),
         _make_indicator_unit_rule_repo(),
         _make_publisher_catalog_repo(),
@@ -550,7 +562,7 @@ def make_calculate_market_thermometer_use_case() -> CalculateMarketThermometerUs
         config_repo=MarketThermometerConfigRepository(),
         snapshot_repo=MarketThermometerSnapshotRepository(),
         override_repo=MarketThermometerUserOverrideRepository(),
-        macro_repo=MacroFactRepository(),
+        macro_repo=_make_macro_fact_repository(),
     )
 
 
@@ -564,7 +576,7 @@ def make_sync_market_thermometer_inputs_use_case() -> SyncMarketThermometerInput
     return SyncMarketThermometerInputsUseCase(
         provider_repo=ProviderConfigRepository(),
         provider_registry=get_provider_registry(),
-        macro_repo=MacroFactRepository(),
+        macro_repo=_make_macro_fact_repository(),
         news_repo=NewsRepository(),
         raw_audit_repo=RawAuditRepository(),
         macro_normalizer=MacroFactGovernanceNormalizer(catalog_repo, unit_rule_repo),
@@ -577,7 +589,7 @@ def make_import_investor_accounts_use_case() -> ImportInvestorAccountsUseCase:
     from .macro_fact_governance import MacroFactGovernanceNormalizer
 
     return ImportInvestorAccountsUseCase(
-        MacroFactRepository(),
+        _make_macro_fact_repository(),
         MacroFactGovernanceNormalizer(
             IndicatorCatalogRepository(),
             IndicatorUnitRuleRepository(),
@@ -915,7 +927,7 @@ def make_decision_repair_use_case(
     return RepairDecisionDataReliabilityUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
-        macro_fact_repo=MacroFactRepository(),
+        macro_fact_repo=_make_macro_fact_repository(),
         indicator_catalog_repo=_make_indicator_catalog_repo(),
         indicator_unit_rule_repo=_make_indicator_unit_rule_repo(),
         price_bar_repo=PriceBarRepository(),
@@ -933,7 +945,7 @@ def make_sync_macro_use_case() -> SyncMacroUseCase:
     return SyncMacroUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
-        fact_repo=MacroFactRepository(),
+        fact_repo=_make_macro_fact_repository(),
         catalog_repo=_make_indicator_catalog_repo(),
         unit_rule_repo=_make_indicator_unit_rule_repo(),
         raw_audit_repo=_make_raw_audit_repo(),
@@ -948,7 +960,7 @@ def make_sync_macro_batch_use_case() -> SyncMacroBatchUseCase:
     sync_use_case = SyncMacroUseCase(
         provider_repo=provider_repo,
         provider_registry=provider_registry,
-        fact_repo=MacroFactRepository(),
+        fact_repo=_make_macro_fact_repository(),
         catalog_repo=_make_indicator_catalog_repo(),
         unit_rule_repo=_make_indicator_unit_rule_repo(),
         raw_audit_repo=_make_raw_audit_repo(),
@@ -1083,11 +1095,17 @@ def make_on_demand_data_center_service() -> OnDemandDataCenterService:
 def make_sync_news_use_case() -> SyncNewsUseCase:
     """Build the news sync use case."""
 
+    news_repository = NewsRepository()
     return SyncNewsUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
-        fact_repo=NewsRepository(),
+        fact_repo=news_repository,
         raw_audit_repo=_make_raw_audit_repo(),
+        publication_publisher=PublishNewsBatchUseCase(
+            fact_repository=news_repository,
+            publication_repository=CanonicalPublicationRepository(),
+            policy_repository=PublicationPolicyRepository(),
+        ),
     )
 
 

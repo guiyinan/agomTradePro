@@ -45,6 +45,7 @@ from apps.data_center.domain.protocols import (
 
 from .macro_fact_governance import MacroFactGovernanceNormalizer
 from .provider_health_recorder import persist_provider_health_metric
+from .publication_sync import PublishNewsBatchUseCase
 
 FactT = TypeVar("FactT")
 
@@ -478,7 +479,9 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                     latency_ms,
                 )
             )
-            return SyncResult("realtime_quote", provider.provider_name(), stored_count, result_status)
+            return SyncResult(
+                "realtime_quote", provider.provider_name(), stored_count, result_status
+            )
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
@@ -729,9 +732,11 @@ class SyncNewsUseCase(_BaseSyncUseCase):
         provider_registry: ProviderRegistryProtocol,
         fact_repo: NewsRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
+        publication_publisher: PublishNewsBatchUseCase | None = None,
     ) -> None:
         super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
+        self._publication_publisher = publication_publisher
 
     def execute(self, request: SyncNewsRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
@@ -745,6 +750,11 @@ class SyncNewsUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_insert(facts)
+            if self._publication_publisher is not None and facts:
+                self._publication_publisher.execute(
+                    facts,
+                    provider_name=provider.provider_name(),
+                )
             audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(

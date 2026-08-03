@@ -1808,7 +1808,9 @@
       "surface": "Canonical publication writer and member snapshot commit",
       "source_files": [
         "apps/data_center/application/control_plane.py",
-        "apps/data_center/infrastructure/control_plane_repositories.py"
+        "apps/data_center/infrastructure/control_plane_repositories.py",
+        "apps/data_center/application/publication_sync.py",
+        "apps/data_center/infrastructure/market_breadth_repositories.py"
       ],
       "required_markers": {
         "apps/data_center/application/control_plane.py": [
@@ -1822,6 +1824,14 @@
           "state=PublicationState.CANDIDATE",
           "Persisted publication member snapshot is incomplete",
           "@transaction.atomic"
+        ],
+        "apps/data_center/application/publication_sync.py": [
+          "class PublishNewsBatchUseCase:",
+          "publication_hash = _publication_hash(references)",
+          "missing_count=requested_count - len(references)"
+        ],
+        "apps/data_center/infrastructure/market_breadth_repositories.py": [
+          "def list_publication_candidates("
         ]
       },
       "required_tests": [
@@ -1834,6 +1844,31 @@
           "case": "atomic_member_write_rollback",
           "test_file": "tests/unit/data_center/test_control_plane.py",
           "test_function": "test_publish_with_members_rolls_back_candidate_and_members_on_failure"
+        },
+        {
+          "case": "news_sync_publication_members_and_as_of",
+          "test_file": "tests/unit/data_center/test_news_publication_sync.py",
+          "test_function": "test_news_sync_publication_binds_members_and_as_of_boundary"
+        },
+        {
+          "case": "news_sync_publication_idempotency",
+          "test_file": "tests/unit/data_center/test_news_publication_sync.py",
+          "test_function": "test_news_sync_publication_is_idempotent_for_same_member_snapshot"
+        },
+        {
+          "case": "news_sync_publication_repairs_memberless_same_hash",
+          "test_file": "tests/unit/data_center/test_news_publication_sync.py",
+          "test_function": "test_news_sync_repairs_memberless_same_hash_publication"
+        },
+        {
+          "case": "news_sync_publication_coverage_fail_closed",
+          "test_file": "tests/unit/data_center/test_news_publication_sync.py",
+          "test_function": "test_news_sync_publication_fails_closed_below_coverage_policy"
+        },
+        {
+          "case": "news_sync_invokes_publication_writer",
+          "test_file": "tests/unit/data_center/test_news_publication_sync.py",
+          "test_function": "test_sync_news_use_case_invokes_publication_after_fact_write"
         }
       ]
     }
