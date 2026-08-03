@@ -403,6 +403,70 @@ def test_equity_published_financial_history_blocks_stale_publication_before_read
 
 
 @pytest.mark.django_db
+def test_equity_published_financial_history_reads_canonical_facts_only(authenticated_client):
+    fresh_publication = {
+        "publication_id": "equity-financials-2026-08-03",
+        "published_at": "2026-08-03T08:00:00+00:00",
+        "observed_at": "2026-08-03T07:00:00+00:00",
+        "must_not_use_for_decision": False,
+        "freshness_status": "fresh",
+    }
+    canonical_payload = {
+        "rows": [
+            {
+                "asset_code": "000001.SZ",
+                "period_end": "2025-12-31",
+                "period_type": "annual",
+                "metric_code": "revenue",
+                "value": 100.0,
+                "unit": "元",
+                "source": "canonical-test",
+                "report_date": "2026-03-01",
+                "fetched_at": "2026-08-03T07:00:00+00:00",
+            },
+            {
+                "asset_code": "000001.SZ",
+                "period_end": "2025-12-31",
+                "period_type": "annual",
+                "metric_code": "roe",
+                "value": 12.5,
+                "unit": "%",
+                "source": "canonical-test",
+                "report_date": "2026-03-01",
+                "fetched_at": "2026-08-03T07:00:00+00:00",
+            },
+        ],
+        **fresh_publication,
+    }
+
+    with (
+        patch(
+            "apps.equity.interface.sdk_contract_actions.get_decision_publication_gate",
+            return_value=fresh_publication,
+        ),
+        patch(
+            "apps.equity.interface.sdk_contract_actions.get_published_financial_facts",
+            return_value=canonical_payload,
+        ),
+        patch(
+            "apps.equity.interface.sdk_contract_actions.list_stock_financial_payloads",
+            side_effect=AssertionError("published mode must not read legacy financial rows"),
+        ),
+    ):
+        response = authenticated_client.get("/api/equity/financials/000001.SZ/?mode=published")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "published"
+    assert payload["count"] == 1
+    assert payload["results"][0]["period_end"] == "2025-12-31"
+    assert payload["results"][0]["report_date"] == "2026-03-01"
+    assert payload["results"][0]["revenue"] == "100.0"
+    assert payload["results"][0]["roe"] == 12.5
+    assert payload["must_not_use_for_decision"] is False
+
+
+@pytest.mark.django_db
 def test_equity_refresh_pool_requires_staff(authenticated_client):
     response = authenticated_client.post("/api/equity/pool/refresh/", {}, format="json")
 
