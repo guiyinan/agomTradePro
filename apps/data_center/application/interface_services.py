@@ -78,7 +78,11 @@ from .market_thermometer import (
     build_market_thermometer_override_payload,
 )
 from .provider_connection_workflow import RunProviderConnectionTestUseCase
-from .publication_sync import PublishCapitalFlowBatchUseCase, PublishNewsBatchUseCase
+from .publication_sync import (
+    PublishCapitalFlowBatchUseCase,
+    PublishFundNavBatchUseCase,
+    PublishNewsBatchUseCase,
+)
 from .use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
     ManageIndicatorCatalogUseCase,
@@ -1003,11 +1007,17 @@ def purge_all_quote_snapshots_for_rebuild() -> int:
 def make_sync_fund_nav_use_case() -> SyncFundNavUseCase:
     """Build the fund NAV sync use case."""
 
+    fund_nav_repository = FundNavRepository()
     return SyncFundNavUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
-        fact_repo=FundNavRepository(),
+        fact_repo=fund_nav_repository,
         raw_audit_repo=_make_raw_audit_repo(),
+        publication_publisher=PublishFundNavBatchUseCase(
+            fact_repository=fund_nav_repository,
+            publication_repository=CanonicalPublicationRepository(),
+            policy_repository=PublicationPolicyRepository(),
+        ),
     )
 
 

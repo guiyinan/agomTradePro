@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Sequence
-from datetime import date
+from datetime import UTC, date, datetime, time
 
 from django.db.models import Max
 
+from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import FinancialFact, FundNavFact, ValuationFact
 from apps.data_center.domain.enums import FinancialPeriodType
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
@@ -75,6 +78,59 @@ class FundNavRepository:
             )
             count += 1
         return count
+
+    def list_publication_candidates(
+        self, facts: Sequence[FundNavFact]
+    ) -> list[PublicationFactReference]:
+        """Resolve persisted NAV rows to exact publication member references."""
+
+        references: list[PublicationFactReference] = []
+        seen_fact_pks: set[str] = set()
+        for fact in facts:
+            row = (
+                FundNavFactModel._default_manager.filter(
+                    fund_code=fact.fund_code,
+                    nav_date=fact.nav_date,
+                    source=fact.source,
+                )
+                .order_by("id")
+                .first()
+            )
+            if row is None or str(row.pk) in seen_fact_pks:
+                continue
+            fact_pk = str(row.pk)
+            seen_fact_pks.add(fact_pk)
+            natural_key = f"{row.fund_code}:{row.nav_date.isoformat()}:{row.source}"
+            references.append(
+                PublicationFactReference(
+                    natural_key=natural_key,
+                    source=row.source,
+                    source_record_id=row.source_record_id or natural_key,
+                    fact_table="data_center_fund_nav_fact",
+                    fact_pk=fact_pk,
+                    observed_at=datetime.combine(row.nav_date, time.min, tzinfo=UTC),
+                    raw_payload_hash=row.raw_payload_hash or _fund_nav_payload_hash(row),
+                    quality_status=row.quality_status,
+                    revision_number=row.revision_number,
+                )
+            )
+        return references
+
+
+def _fund_nav_payload_hash(row: FundNavFactModel) -> str:
+    """Return deterministic evidence for one persisted NAV fact."""
+
+    payload = {
+        "fund_code": row.fund_code,
+        "nav_date": row.nav_date.isoformat(),
+        "nav": str(row.nav),
+        "acc_nav": str(row.acc_nav) if row.acc_nav is not None else None,
+        "daily_return": str(row.daily_return) if row.daily_return is not None else None,
+        "source": row.source,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
 
 
 class FinancialFactRepository:

@@ -45,7 +45,11 @@ from apps.data_center.domain.protocols import (
 
 from .macro_fact_governance import MacroFactGovernanceNormalizer
 from .provider_health_recorder import persist_provider_health_metric
-from .publication_sync import PublishCapitalFlowBatchUseCase, PublishNewsBatchUseCase
+from .publication_sync import (
+    PublishCapitalFlowBatchUseCase,
+    PublishFundNavBatchUseCase,
+    PublishNewsBatchUseCase,
+)
 
 FactT = TypeVar("FactT")
 
@@ -512,9 +516,11 @@ class SyncFundNavUseCase(_BaseSyncUseCase):
         provider_registry: ProviderRegistryProtocol,
         fact_repo: FundNavRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
+        publication_publisher: PublishFundNavBatchUseCase | None = None,
     ) -> None:
         super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
+        self._publication_publisher = publication_publisher
 
     def execute(self, request: SyncFundNavRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
@@ -532,6 +538,11 @@ class SyncFundNavUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(facts)
+            if self._publication_publisher is not None and facts:
+                self._publication_publisher.execute(
+                    facts,
+                    provider_name=provider.provider_name(),
+                )
             audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(

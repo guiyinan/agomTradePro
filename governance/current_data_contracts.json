@@ -1810,7 +1810,8 @@
         "apps/data_center/application/control_plane.py",
         "apps/data_center/infrastructure/control_plane_repositories.py",
         "apps/data_center/application/publication_sync.py",
-        "apps/data_center/infrastructure/market_breadth_repositories.py"
+        "apps/data_center/infrastructure/market_breadth_repositories.py",
+        "apps/data_center/infrastructure/fundamental_fact_repositories.py"
       ],
       "required_markers": {
         "apps/data_center/application/control_plane.py": [
@@ -1828,15 +1829,22 @@
         "apps/data_center/application/publication_sync.py": [
           "class PublishNewsBatchUseCase:",
           "class PublishCapitalFlowBatchUseCase:",
+          "class PublishFundNavBatchUseCase:",
           "publication_hash = _publication_hash(references)",
           "missing_count=requested_count - len(references)",
           "as_of = max(reference.observed_at for reference in references)",
-          "capital-flow observation cannot be later than publication time"
+          "capital-flow observation cannot be later than publication time",
+          "fund NAV observation cannot be later than publication time"
         ],
         "apps/data_center/infrastructure/market_breadth_repositories.py": [
           "def list_publication_candidates(",
           "observed_at=datetime.combine(row.flow_date, time.min, tzinfo=UTC)",
           "row.raw_payload_hash"
+        ],
+        "apps/data_center/infrastructure/fundamental_fact_repositories.py": [
+          "def list_publication_candidates(",
+          "observed_at=datetime.combine(row.nav_date, time.min, tzinfo=UTC)",
+          "row.raw_payload_hash or _fund_nav_payload_hash(row)"
         ]
       },
       "required_tests": [
@@ -1894,6 +1902,26 @@
           "case": "capital_flow_candidate_observation_boundary",
           "test_file": "tests/unit/data_center/test_capital_flow_publication_sync.py",
           "test_function": "test_capital_flow_repository_candidate_preserves_flow_date_observation"
+        },
+        {
+          "case": "fund_nav_publication_members_and_as_of",
+          "test_file": "tests/unit/data_center/test_fund_nav_publication_sync.py",
+          "test_function": "test_fund_nav_publication_uses_nav_date_as_of_and_exact_members"
+        },
+        {
+          "case": "fund_nav_publication_idempotency",
+          "test_file": "tests/unit/data_center/test_fund_nav_publication_sync.py",
+          "test_function": "test_fund_nav_publication_is_idempotent_for_same_snapshot"
+        },
+        {
+          "case": "fund_nav_publication_coverage_fail_closed",
+          "test_file": "tests/unit/data_center/test_fund_nav_publication_sync.py",
+          "test_function": "test_fund_nav_publication_fails_closed_below_coverage_policy"
+        },
+        {
+          "case": "fund_nav_candidate_observation_boundary",
+          "test_file": "tests/unit/data_center/test_fund_nav_publication_sync.py",
+          "test_function": "test_fund_nav_repository_candidate_preserves_nav_date_observation"
         }
       ]
     }

@@ -23,6 +23,7 @@ from apps.data_center.application.provider_catalog_use_cases import (
 )
 from apps.data_center.application.publication_sync import (
     PublishCapitalFlowBatchUseCase,
+    PublishFundNavBatchUseCase,
     PublishNewsBatchUseCase,
 )
 from apps.data_center.application.query_use_cases import (
@@ -78,6 +79,7 @@ __all__ = [
     "QuerySectorConstituentsUseCase",
     "QueryValuationsUseCase",
     "PublishCapitalFlowBatchUseCase",
+    "PublishFundNavBatchUseCase",
     "PublishNewsBatchUseCase",
     "RECOVERABLE_DATA_CENTER_EXCEPTIONS",
     "RepairDecisionDataReliabilityUseCase",
