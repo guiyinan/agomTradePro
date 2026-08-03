@@ -28,6 +28,8 @@ MANIFESTS = [
                 "sector": {"type": "string"},
                 "min_score": {"type": "number"},
                 "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+                "mode": {"type": "string", "enum": ["historical", "published"]},
+                "publication_key": {"type": "string"},
             },
             "required": [],
         },

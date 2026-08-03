@@ -172,6 +172,13 @@ class ScreenStocksRequestSerializer(StrictFieldsSerializer):
 class PoolActionRequestSerializer(StrictFieldsSerializer):
     """Reject all undeclared inputs for stock-pool read and refresh actions."""
 
+    mode = serializers.ChoiceField(
+        choices=("historical", "published"),
+        required=False,
+        default="historical",
+    )
+    publication_key = serializers.CharField(required=False, default="current", max_length=160)
+
 
 class ScreenStocksResponseSerializer(serializers.Serializer[ScreenStocksResponse]):
     """筛选个股响应序列化器"""

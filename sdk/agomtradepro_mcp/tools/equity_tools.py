@@ -42,6 +42,8 @@ def register_equity_tools(server: FastMCP) -> None:
         sector: str | None = None,
         min_score: float | None = None,
         limit: int = 50,
+        mode: str = "published",
+        publication_key: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         获取股票列表
@@ -50,6 +52,8 @@ def register_equity_tools(server: FastMCP) -> None:
             sector: 行业过滤（可选）
             min_score: 最低评分过滤（可选）
             limit: 返回数量限制
+            mode: 数据模式；默认 published，历史研究必须显式传 historical
+            publication_key: 发布快照键（默认 current）
 
         Returns:
             股票列表
@@ -58,7 +62,13 @@ def register_equity_tools(server: FastMCP) -> None:
             >>> stocks = list_stocks(sector="银行", min_score=60)
         """
         client = AgomTradeProClient()
-        return client.equity.list_stocks(sector=sector, min_score=min_score, limit=limit)
+        return client.equity.list_stocks(
+            sector=sector,
+            min_score=min_score,
+            limit=limit,
+            mode=mode,
+            publication_key=publication_key,
+        )
 
     @server.tool()
     def get_stock_detail(stock_code: str) -> dict[str, Any]:

@@ -17,6 +17,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from apps.data_center.application.public import get_decision_publication_gate
 from apps.equity.application.use_cases import (
     ScreenStocksRequest,
     ScreenStocksUseCase,
@@ -76,6 +77,8 @@ class EquityPoolActionsMixin:
         """
         serializer = PoolActionRequestSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
+        mode = str(serializer.validated_data["mode"])
+        publication_key = str(serializer.validated_data["publication_key"])
 
         try:
             # 获取当前股票池
@@ -102,6 +105,45 @@ class EquityPoolActionsMixin:
                         "sector_distribution": [],
                     }
                 )
+
+            publication_gates: dict[str, object] = {}
+            if mode == "published":
+                for dataset_key in ("equity.financial.fact", "equity.valuation.fact"):
+                    publication_gates[dataset_key] = get_decision_publication_gate(
+                        dataset_key,
+                        publication_key,
+                    )
+                blocked_gates = [
+                    gate
+                    for gate in publication_gates.values()
+                    if not isinstance(gate, dict) or bool(gate.get("must_not_use_for_decision"))
+                ]
+                if blocked_gates:
+                    first_gate = blocked_gates[0]
+                    blocked_reason = (
+                        str(first_gate.get("blocked_reason") or "canonical_publication_missing")
+                        if isinstance(first_gate, dict)
+                        else "canonical_publication_missing"
+                    )
+                    return Response(
+                        {
+                            "success": False,
+                            "status": "blocked",
+                            "regime": displayed_regime,
+                            "count": 0,
+                            "update_time": (pool_info or {}).get("updated_at"),
+                            "avg_roe": None,
+                            "avg_pe": None,
+                            "stocks": [],
+                            "sector_distribution": [],
+                            "mode": mode,
+                            "publication_key": publication_key,
+                            "publication_gates": publication_gates,
+                            "must_not_use_for_decision": True,
+                            "blocked_reason": blocked_reason,
+                        },
+                        status=status.HTTP_200_OK,
+                    )
 
             # 获取股票详细信息
             stocks: list[dict[str, object]] = []
@@ -153,18 +195,26 @@ class EquityPoolActionsMixin:
             avg_roe = total_roe / valid_roe_count if valid_roe_count > 0 else None
             avg_pe = total_pe / valid_pe_count if valid_pe_count > 0 else None
 
-            return Response(
-                {
-                    "success": True,
-                    "regime": displayed_regime,
-                    "count": len(stocks),
-                    "update_time": (pool_info or {}).get("updated_at"),
-                    "avg_roe": round(avg_roe, 2) if avg_roe is not None else None,
-                    "avg_pe": round(avg_pe, 2) if avg_pe is not None else None,
-                    "stocks": stocks,
-                    "sector_distribution": _build_sector_distribution(stocks),
-                }
-            )
+            payload: dict[str, object] = {
+                "success": True,
+                "regime": displayed_regime,
+                "count": len(stocks),
+                "update_time": (pool_info or {}).get("updated_at"),
+                "avg_roe": round(avg_roe, 2) if avg_roe is not None else None,
+                "avg_pe": round(avg_pe, 2) if avg_pe is not None else None,
+                "stocks": stocks,
+                "sector_distribution": _build_sector_distribution(stocks),
+            }
+            if mode == "published":
+                payload.update(
+                    {
+                        "mode": mode,
+                        "publication_key": publication_key,
+                        "publication_gates": publication_gates,
+                        "must_not_use_for_decision": False,
+                    }
+                )
+            return Response(payload)
 
         except Exception:
             logger.exception("Failed to load equity stock pool")

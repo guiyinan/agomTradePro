@@ -47,12 +47,14 @@ class _FakeClient:
             }
 
         self.equity = SimpleNamespace(
-            list_stocks=lambda sector=None, min_score=None, limit=50: [
+            list_stocks=lambda sector=None, min_score=None, limit=50, mode=None, publication_key=None: [
                 {
                     "code": "600000.SH",
                     "sector": sector,
                     "score": min_score,
                     "limit": limit,
+                    "mode": mode,
+                    "publication_key": publication_key,
                 }
             ],
             get_valuation=get_valuation,
@@ -145,6 +147,7 @@ def test_list_stocks_executes_through_legacy_raw_tool(
     assert "银行" in rendered
     assert "70.0" in rendered
     assert "12" in rendered
+    assert "published" in rendered
 
 
 def test_stock_valuation_executes_through_legacy_raw_tool(

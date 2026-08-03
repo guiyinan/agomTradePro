@@ -67,6 +67,33 @@ class TestEquityModuleReadContracts:
             limit=5,
         )
 
+    def test_equity_pool_propagates_publication_gate_parameters(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        with patch.object(
+            client,
+            "get",
+            return_value={
+                "success": False,
+                "status": "blocked",
+                "stocks": [],
+                "publication_key": "current",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "publication_observation_stale",
+            },
+        ) as mock_get:
+            result = client.equity.get_stock_pool(
+                mode="published",
+                publication_key="current",
+            )
+
+        assert result["status"] == "blocked"
+        assert result["must_not_use_for_decision"] is True
+        mock_get.assert_called_once_with(
+            "/api/equity/pool/",
+            params={"mode": "published", "publication_key": "current"},
+        )
+
     def test_get_valuation_uses_canonical_lookback_contract(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")
 

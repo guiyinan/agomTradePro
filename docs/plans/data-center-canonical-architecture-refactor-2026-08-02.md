@@ -596,6 +596,27 @@
 - Alpha/Factor 仍保留历史 facts 的兼容读取，这是回放语义，不应被误改为 current published；生产 current 入口仍须走 Publication-only Port。
 - 生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
 
+## 实施记录（2026-08-03，第二十八批）
+
+本批次为 Equity stock-pool 兼容入口增加显式 Publication mode，阻断 MCP/SDK 通过股票池接口看到 stale 财务/估值事实；不部署、不 push。
+
+已落地：
+
+- `/api/equity/pool/` 增加 `mode`/`publication_key`；显式 `mode=published` 时同时校验财务和估值 Publication freshness，缺失或过期在进入逐股事实读取前返回 `status=blocked`、空股票列表和 gate evidence。
+- SDK `get_stock_pool`/`list_stocks` 传播 gate 参数并保留 blocked metadata；MCP `list_stocks` 和 legacy pool fallback 默认 `published`，历史研究必须显式传 `mode="historical"`。
+- MCP capability schema、current-data manifest 和 API/SDK/MCP 回归均同步更新；默认历史 REST/SDK 兼容路径保持不变。
+
+第二十八批机器证据：
+
+- `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --timeout=180`：40 passed。
+- `pytest sdk/tests/test_sdk/test_equity_module.py -q`：15 passed；`pytest sdk/tests/test_mcp/test_core_registry_owner_equity.py sdk/tests/test_mcp/test_equity_hedge_tools.py -q --timeout=60`：15 passed。
+- `python scripts/check_current_data_contracts.py`：31 surfaces；pool/serializer mypy regression 0、Django check 0 issues、ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- MCP 原始 `list_stocks` 为历史数组兼容返回，blocked metadata 主要通过 SDK envelope/Capability fallback 暴露；决策型全量查询仍应优先使用 `equity.read.research_snapshot`。
+- 生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

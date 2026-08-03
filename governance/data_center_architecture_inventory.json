@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 56,
-    "current_surface_references": 2845,
+    "current_surface_references": 2846,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
     "legacy_fact_references": 141,
@@ -6797,27 +6797,32 @@
       "text": "summary=\"综合估值分析\","
     },
     {
-      "line": 59,
+      "line": 60,
       "path": "apps/equity/interface/pool_actions.py",
       "text": "\"\"\"Current-pool query and Regime-driven pool refresh actions.\"\"\""
     },
     {
-      "line": 264,
+      "line": 314,
       "path": "apps/equity/interface/pool_actions.py",
       "text": "\"\"\"Resolve a canonical current Regime for display without inventing a fallback.\"\"\""
     },
     {
-      "line": 271,
+      "line": 321,
       "path": "apps/equity/interface/pool_actions.py",
       "text": "logger.warning(\"Current Regime unavailable while loading stock pool\", exc_info=True)"
     },
     {
-      "line": 201,
+      "line": 180,
       "path": "apps/equity/interface/serializers.py",
       "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
     },
     {
-      "line": 220,
+      "line": 208,
+      "path": "apps/equity/interface/serializers.py",
+      "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
+    },
+    {
+      "line": 227,
       "path": "apps/equity/interface/serializers.py",
       "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
     },

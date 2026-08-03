@@ -1144,6 +1144,7 @@
         "apps/data_center/application/public.py",
         "apps/equity/interface/sdk_contract_actions.py",
         "apps/equity/interface/analysis_actions.py",
+        "apps/equity/interface/pool_actions.py",
         "sdk/agomtradepro/modules/equity.py",
         "sdk/agomtradepro_mcp/tools/equity_tools.py",
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py"
@@ -1171,9 +1172,15 @@
           "mode = str(data[\"mode\"])",
           "must_not_use_for_decision"
         ],
+        "apps/equity/interface/pool_actions.py": [
+          "get_decision_publication_gate(",
+          "mode = str(serializer.validated_data[\"mode\"])",
+          "must_not_use_for_decision"
+        ],
         "sdk/agomtradepro/modules/equity.py": [
           "def get_financials(",
           "def get_valuation(",
+          "def get_stock_pool(",
           "params[\"mode\"] = mode",
           "params[\"publication_key\"] = publication_key"
         ],
@@ -1222,6 +1229,21 @@
           "case": "equity_mcp_defaults_to_published",
           "test_file": "sdk/tests/test_mcp/test_equity_hedge_tools.py",
           "test_function": "test_stock_valuation_executes_through_legacy_raw_tool"
+        },
+        {
+          "case": "equity_pool_stale_publication_blocks_before_fact_reads",
+          "test_file": "tests/api/test_equity_api_edges.py",
+          "test_function": "test_equity_published_pool_blocks_stale_publication_before_fact_reads"
+        },
+        {
+          "case": "equity_pool_sdk_publication_parameters_propagated",
+          "test_file": "sdk/tests/test_sdk/test_equity_module.py",
+          "test_function": "test_equity_pool_propagates_publication_gate_parameters"
+        },
+        {
+          "case": "equity_pool_mcp_defaults_to_published",
+          "test_file": "sdk/tests/test_mcp/test_equity_hedge_tools.py",
+          "test_function": "test_list_stocks_executes_through_legacy_raw_tool"
         }
       ]
     },

@@ -65,6 +65,9 @@ class EquityModule(BaseModule):
         min_score: float | None = None,
         max_score: float | None = None,
         limit: int = 100,
+        *,
+        mode: str | None = None,
+        publication_key: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         获取股票列表
@@ -87,11 +90,18 @@ class EquityModule(BaseModule):
             >>> for stock in stocks:
             ...     print(f"{stock['code']}: {stock['name']}")
         """
+        pool_kwargs: dict[str, Any] = {
+            "sector": sector,
+            "min_score": min_score,
+            "max_score": max_score,
+            "limit": limit,
+        }
+        if mode is not None:
+            pool_kwargs["mode"] = mode
+        if publication_key is not None:
+            pool_kwargs["publication_key"] = publication_key
         result = self.get_stock_pool(
-            sector=sector,
-            min_score=min_score,
-            max_score=max_score,
-            limit=limit,
+            **pool_kwargs,
         )
         return result["stocks"]
 
@@ -101,9 +111,19 @@ class EquityModule(BaseModule):
         min_score: float | None = None,
         max_score: float | None = None,
         limit: int = 100,
+        *,
+        mode: str | None = None,
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         """Read the current persisted stock-pool snapshot with stable metadata."""
-        response = self._get("pool/")
+        params: dict[str, Any] | None = None
+        if mode or publication_key:
+            params = {}
+            if mode:
+                params["mode"] = mode
+            if publication_key:
+                params["publication_key"] = publication_key
+        response = self._get("pool/", params=params)
         stocks = response.get("stocks", response.get("results", []))
         if not isinstance(stocks, list):
             stocks = []
@@ -124,7 +144,7 @@ class EquityModule(BaseModule):
             filtered.append(stock)
 
         selected = filtered[:limit]
-        return {
+        result: dict[str, Any] = {
             "success": bool(response.get("success", True)),
             "regime": response.get("regime", "Unknown"),
             "update_time": response.get("update_time"),
@@ -139,6 +159,17 @@ class EquityModule(BaseModule):
                 "limit": limit,
             },
         }
+        for key in (
+            "status",
+            "mode",
+            "publication_key",
+            "publication_gates",
+            "must_not_use_for_decision",
+            "blocked_reason",
+        ):
+            if key in response:
+                result[key] = response[key]
+        return result
 
     def get_stock_detail(self, stock_code: str) -> dict[str, Any]:
         """

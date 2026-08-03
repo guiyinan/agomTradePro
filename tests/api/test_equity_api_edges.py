@@ -195,7 +195,7 @@ def test_equity_pool_default_read_chain_does_not_persist_business_state(
     )
     before = {model: model.objects.count() for model in tracked_models}
 
-    response = authenticated_client.get("/api/equity/pool/")
+    response = authenticated_client.get("/api/equity/pool/?mode=historical")
 
     after = {model: model.objects.count() for model in tracked_models}
     assert response.status_code == 200
@@ -247,7 +247,7 @@ def test_equity_pool_keeps_missing_metrics_explicit(authenticated_client):
         is_active=True,
     )
 
-    response = authenticated_client.get("/api/equity/pool/")
+    response = authenticated_client.get("/api/equity/pool/?mode=historical")
 
     assert response.status_code == 200
     payload = response.json()
@@ -257,6 +257,47 @@ def test_equity_pool_keeps_missing_metrics_explicit(authenticated_client):
     assert payload["stocks"][0]["pe"] is None
     assert payload["stocks"][0]["pb"] is None
     assert payload["stocks"][0]["score"] is None
+
+
+@pytest.mark.django_db
+def test_equity_published_pool_blocks_stale_publication_before_fact_reads(
+    authenticated_client,
+):
+    stale_publication = {
+        "publication_id": "equity-pool-2026-08-03",
+        "published_at": "2026-08-03T08:00:00+00:00",
+        "as_of": "2026-07-31",
+        "must_not_use_for_decision": True,
+        "blocked_reason": "publication_observation_stale",
+        "freshness_status": "stale",
+    }
+
+    with (
+        patch(
+            "apps.equity.infrastructure.adapters.StockPoolRepositoryAdapter.get_current_pool",
+            return_value=["000001.SZ"],
+        ),
+        patch(
+            "apps.equity.infrastructure.adapters.StockPoolRepositoryAdapter.get_latest_pool_info",
+            return_value={"regime": "Recovery", "updated_at": "2026-08-03"},
+        ),
+        patch(
+            "apps.equity.interface.pool_actions.get_decision_publication_gate",
+            side_effect=[stale_publication, stale_publication],
+        ),
+        patch(
+            "apps.equity.infrastructure.repositories.DjangoStockRepository.get_stock_info",
+            side_effect=AssertionError("blocked pool must not read stock facts"),
+        ),
+    ):
+        response = authenticated_client.get("/api/equity/pool/?mode=published")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "blocked"
+    assert payload["stocks"] == []
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["blocked_reason"] == "publication_observation_stale"
 
 
 @pytest.mark.django_db
