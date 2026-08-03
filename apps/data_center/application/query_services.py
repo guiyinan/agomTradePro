@@ -14,6 +14,7 @@ from apps.data_center.composition import (
     get_data_center_diagnostic_repository,
     get_dataset_contract_repository,
     get_financial_fact_repository,
+    get_fund_nav_repository,
     get_indicator_catalog_repository,
     get_indicator_unit_rule_repository,
     get_macro_fact_cache_warmup_repository,
@@ -159,6 +160,7 @@ def query_macro_fact_series(
     limit: int = 500,
     use_pit: bool = False,
     source: str | None = None,
+    fact_pks: Sequence[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Return canonical macro facts for cross-app consumers.
 
@@ -166,13 +168,24 @@ def query_macro_fact_series(
     repository; consumers never need to import ``MacroFactModel``.
     """
 
-    facts = get_macro_fact_repository().get_series(
-        indicator_code,
-        start=start,
-        end=end,
-        limit=limit,
-        use_pit=use_pit,
-    )
+    repository = get_macro_fact_repository()
+    if fact_pks is None:
+        facts = repository.get_series(
+            indicator_code,
+            start=start,
+            end=end,
+            limit=limit,
+            use_pit=use_pit,
+        )
+    else:
+        facts = repository.get_series(
+            indicator_code,
+            start=start,
+            end=end,
+            limit=limit,
+            use_pit=use_pit,
+            fact_pks=fact_pks,
+        )
     if source:
         facts = [fact for fact in facts if fact.source == source]
     return [fact.to_dict() for fact in facts]
@@ -197,15 +210,66 @@ def query_published_macro_fact_series(
     gate = _publication_gate("macro.fact", key)
     if gate is None or bool(gate.get("must_not_use_for_decision")):
         return _blocked_publication_result(gate)
+    member_pks = _publication_member_fact_pks(
+        gate,
+        expected_fact_table="data_center_macro_fact",
+    )
+    if member_pks == []:
+        return _blocked_publication_members_result(gate)
+    bounded_end = _bounded_end_date(end, _publication_as_of_date(gate))
+    if start is not None and bounded_end is not None and start > bounded_end:
+        result = _blocked_publication_result(gate)
+        result["blocked_reason"] = "publication_as_of_before_requested_range"
+        return result
     return {
         "rows": query_macro_fact_series(
             indicator_code,
             start=start,
-            end=end,
+            end=bounded_end,
             limit=limit,
+            fact_pks=member_pks,
         ),
         **gate,
     }
+
+
+def query_published_fund_nav_series(
+    fund_code: str,
+    *,
+    publication_key: str = "current",
+    start: date | None = None,
+    end: date | None = None,
+    limit: int | None = None,
+) -> dict[str, object]:
+    """Read fund NAV facts only from the selected current publication members."""
+
+    gate = _publication_gate("fund.nav", publication_key)
+    if gate is None or bool(gate.get("must_not_use_for_decision")):
+        return _blocked_publication_result(gate)
+    member_pks = _publication_member_fact_pks(
+        gate,
+        expected_fact_table="data_center_fund_nav_fact",
+    )
+    if member_pks == []:
+        return _blocked_publication_members_result(gate)
+    bounded_end = _bounded_end_date(end, _publication_as_of_date(gate))
+    if start is not None and bounded_end is not None and start > bounded_end:
+        result = _blocked_publication_result(gate)
+        result["blocked_reason"] = "publication_as_of_before_requested_range"
+        return result
+    repository = get_fund_nav_repository()
+    if member_pks is None:
+        facts = repository.get_series(fund_code, start, bounded_end)
+    else:
+        facts = repository.get_series(
+            fund_code,
+            start,
+            bounded_end,
+            fact_pks=member_pks,
+        )
+    if limit is not None:
+        facts = facts[:limit]
+    return {"rows": [fact.to_dict() for fact in facts], **gate}
 
 
 def _publication_gate(

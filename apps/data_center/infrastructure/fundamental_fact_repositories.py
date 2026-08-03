@@ -38,8 +38,11 @@ class FundNavRepository:
         fund_code: str,
         start: date | None = None,
         end: date | None = None,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[FundNavFact]:
         qs = FundNavFactModel.objects.filter(fund_code=fund_code)
+        if fact_pks is not None:
+            qs = qs.filter(pk__in=list(fact_pks))
         if start:
             qs = qs.filter(nav_date__gte=start)
         if end:

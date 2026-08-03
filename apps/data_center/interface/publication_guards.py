@@ -13,6 +13,8 @@ PublicationLookup = Callable[[str, str], dict[str, object] | None]
 MemberFactLookup = Callable[..., list[str] | None]
 
 PUBLISHED_FACT_TABLES: dict[str, str] = {
+    "macro.fact": "data_center_macro_fact",
+    "fund.nav": "data_center_fund_nav_fact",
     "equity.price.bar": "data_center_price_bar",
     "equity.quote.snapshot": "data_center_quote_snapshot",
     "equity.financial.fact": "data_center_financial_fact",

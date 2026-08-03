@@ -1026,6 +1026,27 @@
 - 真实 publication member 写入器、生产观察窗口、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行；本批不触发部署。
 - `tests/component/infrastructure/test_repositories.py` 初次合并时暴露 `CN_PMI@test` 缺少 unit-rule fixture；已补齐测试级治理规则种子，当前组件回归为 47 passed。生产运行仍不允许对缺失 unit rule 静默回退。
 
+## 实施记录（2026-08-03，第四十八批）
+
+本批次继续只做本地查询边界与 CI 选择器收口，不部署、不 push、不连接 VPS。
+
+已落地：
+
+- `macro.fact` 与 `fund.nav` 纳入 Publication member-bound：Macro/Fund repository、Protocol、DTO、Query UseCase、Application Public Port 和 REST published route 均按同一 Publication 的 `fact_pk` 过滤；`publication.as_of` 同时作为上界，成员缺失/错表/空主键仍 fail closed。Historical 与旧 fake reader 保持兼容。
+- CI 的 realtime 模块选择器补入 `tests/component/test_realtime_data_center_provider.py`，并补选择器单测，防止后续只跑 API 而漏掉 published/freshness provider 旁路。
+- PostgreSQL/容量/Retention 审计确认本地控制面与契约可验证，但没有把 SQLite 或 Docker 中的其它 PostgreSQL 容器冒充 AgomTradePro 生产证据。
+
+第四十八批机器证据：
+
+- `pytest tests/unit/data_center/test_published_query_ports.py -q --no-migrations --reuse-db`：18 passed（含 macro/fund member-bound）；REST member wiring 定向 `published_views_bound_rows_to_publication_as_of`：1 passed；相关 10 个生产文件 mypy regression 0、ruff/black/isort 通过。
+- `pytest tests/unit/ci/test_select_tests.py -q`：49 passed；realtime changed-module selection 明确包含 provider guard。
+- 本地关键链路另行通过：critical safety 18 passed；Retention/Raw Landing/Storage/Query Budget/Backup contract/Repository retention safety 共 50+ 项通过；`check_storage_budget_contract.py`、`check_runtime_desired_state.py`、`check_current_data_contracts.py`、`check_governance_consistency.py`、`verify_architecture.py --include-audit`、Celery/legacy/query-budget guards 均通过。
+
+未完成及风险：
+
+- 真实 PostgreSQL migration/integration、P95、WAL/锁等待、pg_dump 隔离恢复与 rollback、真实 beat Retention/Archive 调度、非默认容量故障注入和 VPS 备份证据仍未验证；本地没有 AgomTradePro PostgreSQL 容器，且用户明确要求暂不部署。
+- 生产 publication writer/backfill 尚未证明为 D0-D9 每个事实写入 `PublicationMember`；现有生产 publication 若没有成员会安全阻断，不能把“有数据”解释为“已发布”。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

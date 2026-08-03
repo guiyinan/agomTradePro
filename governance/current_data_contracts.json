@@ -1089,7 +1089,11 @@
         ],
         "apps/data_center/application/query_services.py": [
           "def query_published_macro_fact_series(",
+          "def query_published_fund_nav_series(",
           "_publication_gate(\"macro.fact\"",
+          "_publication_member_fact_pks(",
+          "data_center_macro_fact",
+          "data_center_fund_nav_fact",
           "canonical_publication_stale"
         ],
         "apps/dashboard/application/integration_gateways.py": [
@@ -1162,6 +1166,16 @@
           "case": "sdk_data_center_defaults_to_published",
           "test_file": "sdk/tests/test_sdk/test_data_center_module.py",
           "test_function": "test_data_center_module_endpoints"
+        },
+        {
+          "case": "macro_rows_are_member_bound",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_macro_facts_use_only_publication_members"
+        },
+        {
+          "case": "fund_nav_rows_are_member_bound",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_fund_nav_uses_only_publication_members"
         }
       ]
     },

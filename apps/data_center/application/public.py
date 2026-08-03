@@ -30,6 +30,7 @@ from apps.data_center.application.query_services import (
     query_published_a_share_behavior_payload,
     query_published_capital_flow_series,
     query_published_financial_facts,
+    query_published_fund_nav_series,
     query_published_macro_fact_series,
     query_published_market_news,
     query_published_price_bar_series,
@@ -319,6 +320,25 @@ def get_published_macro_fact_series(
 
     return query_published_macro_fact_series(
         indicator_code,
+        publication_key=publication_key,
+        start=start,
+        end=end,
+        limit=limit,
+    )
+
+
+def get_published_fund_nav_series(
+    fund_code: str,
+    *,
+    publication_key: str = "current",
+    start: date | None = None,
+    end: date | None = None,
+    limit: int | None = None,
+) -> dict[str, object]:
+    """Read decision-facing fund NAV facts behind a publication gate."""
+
+    return query_published_fund_nav_series(
+        fund_code,
         publication_key=publication_key,
         start=start,
         end=end,
@@ -737,6 +757,7 @@ __all__ = [
     "get_published_market_news",
     "get_published_capital_flow_series",
     "get_published_financial_facts",
+    "get_published_fund_nav_series",
     "get_published_price_bar_series",
     "get_published_quote_payloads",
     "get_published_sector_memberships",

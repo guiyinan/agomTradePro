@@ -27,8 +27,13 @@ class QueryFundNavUseCase:
         fund_code: str,
         start: date | None = None,
         end: date | None = None,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[dict[str, object]]:
-        return [fact.to_dict() for fact in self._repo.get_series(fund_code, start, end)]
+        if fact_pks is None:
+            facts = self._repo.get_series(fund_code, start, end)
+        else:
+            facts = self._repo.get_series(fund_code, start, end, fact_pks=fact_pks)
+        return [fact.to_dict() for fact in facts]
 
 
 class QueryFinancialsUseCase:

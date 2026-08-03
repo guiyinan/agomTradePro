@@ -938,6 +938,7 @@ def test_data_center_published_views_bound_rows_to_publication_as_of(
         def execute(self, request):
             seen["macro_start"] = request.start
             seen["macro_end"] = request.end
+            seen["macro_pks"] = request.fact_pks
             return SimpleNamespace(to_dict=lambda: {"data": []})
 
     class _PriceUseCase:
@@ -951,6 +952,7 @@ def test_data_center_published_views_bound_rows_to_publication_as_of(
         def execute(self, **kwargs):
             seen["fund_start"] = kwargs["start"]
             seen["fund_end"] = kwargs["end"]
+            seen["fund_pks"] = kwargs["fact_pks"]
             return []
 
     class _FinancialUseCase:
@@ -1078,11 +1080,13 @@ def test_data_center_published_views_bound_rows_to_publication_as_of(
     assert seen == {
         "macro_start": expected_start,
         "macro_end": expected_end,
+        "macro_pks": ["data_center_macro_fact:1"],
         "price_start": expected_start,
         "price_end": expected_end,
         "price_pks": ["data_center_price_bar:1"],
         "fund_start": expected_start,
         "fund_end": expected_end,
+        "fund_pks": ["data_center_fund_nav_fact:1"],
         "financial_end": expected_end,
         "financial_pks": ["data_center_financial_fact:1"],
         "valuation_start": expected_start,

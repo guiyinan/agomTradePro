@@ -309,6 +309,7 @@ class MacroSeriesRequest:
     end: date | None = None
     limit: int = 500
     source: str | None = None  # if None, return all sources
+    fact_pks: Sequence[str] | None = None
 
 
 @dataclass

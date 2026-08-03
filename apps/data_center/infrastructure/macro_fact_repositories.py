@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -96,10 +96,13 @@ class MacroFactRepository:
         limit: int = 500,
         *,
         use_pit: bool = False,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[MacroFact]:
         if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
             raise ValueError("limit must be a positive integer")
         qs = MacroFactModel.objects.filter(indicator_code=indicator_code)
+        if fact_pks is not None:
+            qs = qs.filter(pk__in=list(fact_pks))
         if start:
             qs = qs.filter(reporting_period__gte=start)
         if end:

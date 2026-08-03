@@ -330,6 +330,7 @@ class MacroFactRepositoryProtocol(Protocol):
         start: date | None = None,
         end: date | None = None,
         limit: int = 500,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[MacroFact]: ...
 
     def get_latest(self, indicator_code: str) -> MacroFact | None: ...
@@ -385,6 +386,7 @@ class FundNavRepositoryProtocol(Protocol):
         fund_code: str,
         start: date | None = None,
         end: date | None = None,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[FundNavFact]: ...
 
     def get_latest(self, fund_code: str) -> FundNavFact | None: ...

@@ -176,6 +176,88 @@ def test_published_macro_facts_block_old_member_observation(monkeypatch) -> None
     assert result["blocked_reason"] == "canonical_publication_stale"
 
 
+def test_published_macro_facts_use_only_publication_members(monkeypatch) -> None:
+    """A current macro read must pass selected fact primary keys to the repository."""
+
+    publication = SimpleNamespace(
+        publication_id="pub-macro-members",
+        dataset_key="macro.fact",
+        publication_key="CN_PMI",
+        published_at=datetime(2026, 8, 2, tzinfo=UTC),
+        as_of=datetime(2026, 8, 2, tzinfo=UTC),
+        must_not_use_for_decision=False,
+        blocked_reason="",
+    )
+    publication_repo = SimpleNamespace(
+        get_current=lambda *_args: publication,
+        list_members=lambda *_args: [
+            SimpleNamespace(
+                dataset_key="macro.fact",
+                fact_table="data_center_macro_fact",
+                natural_key="CN_PMI|2026-08-01|tushare",
+                fact_pk="41",
+            )
+        ],
+    )
+    seen: dict[str, object] = {}
+    macro_repo = SimpleNamespace(
+        get_series=lambda *_args, **kwargs: (
+            seen.update(kwargs),
+            [SimpleNamespace(to_dict=lambda: {"reporting_period": "2026-08-01"})],
+        )[1]
+    )
+    monkeypatch.setattr(
+        query_services, "get_canonical_publication_repository", lambda: publication_repo
+    )
+    monkeypatch.setattr(query_services, "get_macro_fact_repository", lambda: macro_repo)
+
+    result = query_services.query_published_macro_fact_series("CN_PMI")
+
+    assert result["rows"] == [{"reporting_period": "2026-08-01"}]
+    assert seen["fact_pks"] == ["41"]
+
+
+def test_published_fund_nav_uses_only_publication_members(monkeypatch) -> None:
+    """The fund NAV publication port must not query unselected canonical rows."""
+
+    publication = SimpleNamespace(
+        publication_id="pub-fund-members",
+        dataset_key="fund.nav",
+        publication_key="current",
+        published_at=datetime(2026, 8, 2, tzinfo=UTC),
+        as_of=datetime(2026, 8, 2, tzinfo=UTC),
+        must_not_use_for_decision=False,
+        blocked_reason="",
+    )
+    publication_repo = SimpleNamespace(
+        get_current=lambda *_args: publication,
+        list_members=lambda *_args: [
+            SimpleNamespace(
+                dataset_key="fund.nav",
+                fact_table="data_center_fund_nav_fact",
+                natural_key="110011.OF|2026-08-01|tushare",
+                fact_pk="73",
+            )
+        ],
+    )
+    seen: dict[str, object] = {}
+    fund_repo = SimpleNamespace(
+        get_series=lambda *_args, **kwargs: (
+            seen.update(kwargs),
+            [SimpleNamespace(to_dict=lambda: {"nav_date": "2026-08-01"})],
+        )[1]
+    )
+    monkeypatch.setattr(
+        query_services, "get_canonical_publication_repository", lambda: publication_repo
+    )
+    monkeypatch.setattr(query_services, "get_fund_nav_repository", lambda: fund_repo)
+
+    result = query_services.query_published_fund_nav_series("110011.OF")
+
+    assert result["rows"] == [{"nav_date": "2026-08-01"}]
+    assert seen["fact_pks"] == ["73"]
+
+
 def test_published_financial_facts_fail_closed_before_repository_query(monkeypatch) -> None:
     """Missing D4 publication blocks before a financial repository call."""
 

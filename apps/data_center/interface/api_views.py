@@ -163,9 +163,7 @@ def _published_gate(
     identity_field: str,
     identity_value: str,
 ) -> tuple[dict[str, object] | None, Response | None]:
-    """Apply the shared publication gate while preserving this module's patch seam."""
-
-    # Required current-data markers: canonical_publication_missing; canonical_publication_stale.
+    """Apply the shared gate seam; emits canonical_publication_missing and canonical_publication_stale."""
 
     return apply_published_gate_with_members(
         request,
@@ -537,11 +535,6 @@ def production_coverage_summary(request: Request) -> Response:
     return Response(get_active_stock_fact_coverage_payload())
 
 
-# ---------------------------------------------------------------------------
-# Phase 2 — Data query endpoints
-# ---------------------------------------------------------------------------
-
-
 @api_view(["GET"])
 def asset_resolve(request: Request) -> Response:
     """GET /api/data-center/assets/resolve/?code=&source_type=
@@ -629,6 +622,7 @@ def macro_series(request: Request) -> Response:
             end=bounded_end,
             limit=int(request.query_params.get("limit", 500)),
             source=request.query_params.get("source") or None,
+            fact_pks=_publication_member_pks(publication),
         )
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -879,11 +873,14 @@ def fund_nav_series(request: Request) -> Response:
         fund_code=fund_code,
         start=requested_start,
         end=bounded_end,
+        **({"fact_pks": _publication_member_pks(publication)} if publication is not None else {}),
     )
     payload: dict[str, object] = {"fund_code": fund_code, "total": len(data), "data": data}
     if publication is not None:
-        payload["publication_id"] = publication["publication_id"]
-        payload["publication"] = publication
+        payload.update(
+            publication_id=publication["publication_id"],
+            publication=publication,
+        )
     return Response(payload)
 
 
