@@ -368,6 +368,19 @@ class TestSentimentDailyTask:
         with pytest.raises(ValueError, match="YYYY-MM-DD"):
             calculate_daily_sentiment_index.run(target_date="2026-02-30")
 
+    def test_invalid_news_mode_fails_without_retry(self, monkeypatch):
+        monkeypatch.setattr(
+            calculate_daily_sentiment_index,
+            "retry",
+            lambda **_kwargs: pytest.fail("invalid mode must not retry"),
+        )
+
+        with pytest.raises(ValueError, match="published.*historical"):
+            calculate_daily_sentiment_index.run(
+                target_date="2026-06-26",
+                mode="latest",
+            )
+
     def test_policy_analysis_runtime_failure_requests_retry(self, monkeypatch):
         class _FailingPolicyRepo:
             @staticmethod

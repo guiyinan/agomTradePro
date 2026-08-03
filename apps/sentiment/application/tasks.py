@@ -49,7 +49,11 @@ def _parse_target_date(target_date: str | None) -> date:
         raise ValueError("target_date must use YYYY-MM-DD format") from exc
 
 
-def _calculate_daily_sentiment_index(target_date_obj: date) -> dict[str, object]:
+def _calculate_daily_sentiment_index(
+    target_date_obj: date,
+    *,
+    news_mode: str = "published",
+) -> dict[str, object]:
     """Calculate and persist one date-labelled sentiment index."""
 
     from apps.ai_provider.application.repository_provider import get_ai_provider_repository
@@ -99,7 +103,14 @@ def _calculate_daily_sentiment_index(target_date_obj: date) -> dict[str, object]
                 exc,
             )
 
-    news_items = get_market_news_for_sentiment(target_date_obj, limit=50)
+    if news_mode == "published":
+        news_items = get_market_news_for_sentiment(target_date_obj, limit=50)
+    else:
+        news_items = get_market_news_for_sentiment(
+            target_date_obj,
+            limit=50,
+            mode=news_mode,
+        )
     logger.info("找到 %s 条市场新闻", len(news_items))
     news_scores: list[float] = []
     for news_item in news_items:
@@ -195,12 +206,15 @@ def _calculate_daily_sentiment_index(target_date_obj: date) -> dict[str, object]
 def calculate_daily_sentiment_index(
     self: BoundTask,
     target_date: str | None = None,
+    mode: str = "published",
 ) -> dict[str, object]:
-    """Calculate one sentiment index from already-persisted source facts."""
+    """Calculate one sentiment index from published or explicit historical facts."""
 
     target_date_obj = _parse_target_date(target_date)
+    if mode not in {"published", "historical"}:
+        raise ValueError("mode must be 'published' or 'historical'")
     try:
-        return _calculate_daily_sentiment_index(target_date_obj)
+        return _calculate_daily_sentiment_index(target_date_obj, news_mode=mode)
     except Exception as exc:
         logger.exception("计算情绪指数失败")
         raise self.retry(exc=exc, countdown=300) from exc
