@@ -1308,6 +1308,28 @@
 - 当前 quote policy 的 `fetched_at` 仍是事实表审计证据，Publication member 对外只发布不可伪造的 `observed_at`；若未来要求成员级抓取时间可查询，需要单独扩展契约，不能复用观测时间字段。
 - PostgreSQL 最新迁移/性能、备份恢复、容量故障注入、旧表退役和 VPS 部署仍未验证；继续保持不部署。
 
+## 实施记录（2026-08-04，price bar / sector membership Publication 与本地 PostgreSQL 迁移验证）
+
+本批次继续只做本地可复现验证，不部署、不 push、不接触生产数据。
+
+已落地：
+
+- `SyncPriceUseCase` 注入 `PublishPriceBarBatchUseCase`；按 `(asset_code, bar_date, source)` 精确绑定 canonical price fact，使用源 `bar_date` UTC 日界作为 `observed_at/as_of`，并保留 source record、raw hash、quality、revision 与事实主键。
+- `SyncSectorMembershipUseCase` 注入 `PublishSectorMembershipBatchUseCase`；按 `(asset_code, sector_code, effective_date)` 精确绑定 canonical membership fact，使用源 `effective_date` UTC 日界作为观测边界，执行已有 `sector.membership` coverage policy、成员绑定和幂等发布。
+- 两条路径均在事实写入成功后才调用原子 Publication writer；current-data manifest 登记 writer/repository markers 和精确 nodeid，未把 `fetched_at` 洗白为业务观测时间。
+
+机器证据（本地）：
+
+- price bar + sector membership 定向回归：8 passed；current-data runner：173 个登记 nodeid，实际 212 个测试项全部通过（`--reuse-db --no-migrations`）。
+- 临时 PostgreSQL 16 干净库：`python manage.py migrate --noinput` 全部 migration 成功；完成后计数为 357 migrations、47 apps、320 张 public 表；第二次 migrate 返回 `No migrations to apply`。
+- 迁移耗时约 15 分 23 秒，说明 schema 完整性已验证但初始化性能仍需后续拆分/剖析；临时容器已销毁，未使用生产数据库。
+
+仍未完成及风险：
+
+- financial、valuation 以及其他非上述同步任务仍未全部接入受控 Publication writer/backfill；全域 checkpoint、覆盖对账、生产观察窗口、备份恢复和容量故障注入仍缺失。
+- PostgreSQL 已有本地全迁移证据，但 15 分钟级初始化仍不满足生产运维窗口；尚未完成 Linux/CI 同构验证、增量迁移性能基线和生产备份恢复演练。
+- Config Center 全局运行参数 owner、SystemSettings 全量退役、真实 MCP/生产数据观察和 VPS 部署仍未验证；继续保持不部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
