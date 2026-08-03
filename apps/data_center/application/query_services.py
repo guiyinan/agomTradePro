@@ -234,6 +234,22 @@ def _publication_gate(
     else:
         max_age_seconds = None
         oldest_observed_at = getattr(publication, "as_of", None) or publication.published_at
+
+    # ``as_of`` is the publication's knowledge boundary.  A publication can
+    # otherwise look fresh when a member was re-indexed or its ingestion
+    # timestamp was refreshed while the selected fact set still represents an
+    # older market snapshot.  Current reads must be bounded by both pieces of
+    # evidence; use the oldest aware boundary so metadata cannot wash stale
+    # facts into a decision-facing response.
+    publication_as_of = getattr(publication, "as_of", None)
+    if publication_as_of is not None and oldest_observed_at is not None:
+        if (
+            publication_as_of.tzinfo is not None
+            and publication_as_of.utcoffset() is not None
+            and oldest_observed_at.tzinfo is not None
+            and oldest_observed_at.utcoffset() is not None
+        ):
+            oldest_observed_at = min(oldest_observed_at, publication_as_of)
     if oldest_observed_at is None:
         gate.update(
             must_not_use_for_decision=True,

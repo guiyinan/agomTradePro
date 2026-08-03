@@ -832,6 +832,26 @@
 - Rotation Domain 内部仍以兼容的 `list[float] | None` 计算，但 asset detail、compare、correlation 和 signal response 已增加 `price_reliability`；blocked 时不再返回旧非空价格，published cache 也不会绕过二次 gate。
 - Equity technical/intraday 当前仍是带可靠性标记的诊断读，尚未绑定到同一 Publication member snapshot；生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、真实备份恢复、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
 
+## 实施记录（2026-08-03，第三十九批）
+
+本批次修正 Publication freshness 的另一条洗白路径：Publication member 的抓取/重建时间较新时，旧的 `publication.as_of` 不得被忽略；仍不部署、不 push、不连接 VPS。
+
+已落地：
+
+- `_publication_gate` 现在同时约束最老 member `observed_at` 与 Publication `as_of`，取两者中更早的时点计算 freshness；旧知识边界会直接返回 `canonical_publication_stale`，不会进入事实表查询。
+- 新增回归测试覆盖“member 被重新索引到当前时间、但 publication.as_of 仍停留在 2025”的场景，证明 SDK/MCP 走的 published Public Port 会 fail closed。
+
+第三十九批机器证据：
+
+- `pytest tests/unit/data_center/test_published_query_ports.py -q --no-migrations --timeout=30`：11 passed。
+- `pytest sdk/tests/test_mcp/test_equity_research_snapshot_registry.py -q --no-migrations --timeout=30`：5 passed。
+- `python scripts/check_current_data_contracts.py`：35 surfaces；`check_data_center_legacy_fact_access.py` 通过；`verify_architecture.py --include-audit --format text`：boundary/audit 0 violation。
+
+仍未完成及风险：
+
+- Publication gate 仍是读取前的控制面校验；底层事实查询尚未按同一 Publication member 的 `fact_pk` 做原子快照过滤，读取与 gate 之间仍存在竞态，需在后续批次完成 member-bound query port。
+- 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

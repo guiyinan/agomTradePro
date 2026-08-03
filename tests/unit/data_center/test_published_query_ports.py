@@ -235,6 +235,45 @@ def test_published_gate_blocks_old_member_observation_even_when_publication_is_n
     assert result["blocked_reason"] == "canonical_publication_stale"
 
 
+def test_published_gate_blocks_old_publication_as_of_even_when_member_was_reindexed(
+    monkeypatch,
+) -> None:
+    """A refreshed member index must not hide an old publication knowledge boundary."""
+
+    publication_repo = SimpleNamespace(
+        get_current=lambda *_args: SimpleNamespace(
+            publication_id="pub-reindexed",
+            published_at=datetime(2026, 8, 2, tzinfo=UTC),
+            as_of=datetime(2025, 7, 1, tzinfo=UTC),
+            must_not_use_for_decision=False,
+            blocked_reason="",
+        ),
+        get_oldest_member_observed_at=lambda *_args: datetime(2026, 8, 2, tzinfo=UTC),
+    )
+    monkeypatch.setattr(
+        query_services, "get_canonical_publication_repository", lambda: publication_repo
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_dataset_contract_repository",
+        lambda: SimpleNamespace(
+            get_active=lambda *_args: SimpleNamespace(freshness_seconds=86_400)
+        ),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_financial_fact_repository",
+        lambda: (_ for _ in ()).throw(AssertionError("old publication must not be read")),
+    )
+
+    result = query_services.query_published_financial_facts("600000.SH")
+
+    assert result["rows"] == []
+    assert result["publication_id"] == "pub-reindexed"
+    assert result["freshness_status"] == "stale"
+    assert result["blocked_reason"] == "canonical_publication_stale"
+
+
 def test_published_gate_blocks_when_member_freshness_policy_is_missing(monkeypatch) -> None:
     """A real publication repository must not bypass an absent freshness contract."""
 
