@@ -1374,6 +1374,26 @@
 - valuation provider 当前通常只给 `val_date`，缺失 `available_at` 时 Publication 会明确发布为未验证可用性；历史回放若需要严格 PIT，仍需把 available boundary 纳入 member/query contract，而不能静默补抓取时间。
 - D0-D9 全域 checkpoint/backfill/coverage 对账、生产 publication/member 观察、PostgreSQL 生产规模性能、备份恢复、Retention/Archive 实际调度、CI Linux 同构、M9/M10 和 VPS 部署仍未验证；继续保持不部署。
 
+## 实施记录（2026-08-04，macro.fact Publication 与 D0 同步入口收口）
+
+本批次补齐 D0 宏观事实的同步→Publication 编排，继续不部署、不 push、不接触生产数据。
+
+已落地：
+
+- `MacroFactRepository.list_publication_candidates` 按 `(indicator_code, reporting_period, source, revision_number)` 精确解析 fact PK；只接受源 `published_at` 非空的行，并以其 UTC 日界作为 `observed_at`，缺失时不使用 `reporting_period` 或 `fetched_at` 替代。
+- `PublishMacroBatchUseCase` 执行 macro policy（coverage 1.0、published-at evidence）、未来边界校验、确定性 hash/UUID5、幂等和原子 member 写入；无可发布候选时稳定 fail closed。
+- `SyncMacroUseCase` 正式注入 writer；`SyncMacroBatchUseCase` 通过同一同步入口复用 Publication 编排；新增 macro source markers 与 5 个精确回归 nodeid。
+
+机器证据（本地）：
+
+- macro Publication/repository/sync 定向回归：5 passed；current-data runner：194 个登记 nodeid，实际 233 个测试项全部通过（`--reuse-db --no-migrations`）。
+- current-data manifest 36 surfaces；architecture boundary/audit、legacy、large-file、governance guards 0；变更 11 个生产文件 mypy regression 0；ruff/black/isort、Celery contract、runtime config coverage、manage check、makemigrations check 全部通过。
+
+仍未完成及风险：
+
+- D0-D9 现在已有各主要事实域的本地 writer，但全域 checkpoint、backfill、coverage reconciliation、supersede/rollback 及生产调度观察仍未实施；“本地 writer 通过”不等于生产数据已发布。
+- PostgreSQL 生产规模/P95/WAL/锁预算、备份恢复、Retention/Archive 实际调度、CI Linux 同构、真实 MCP/生产 publication 观察、M9/M10 和 VPS 部署仍未验证；继续保持不部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
