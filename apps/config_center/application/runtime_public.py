@@ -35,6 +35,31 @@ def get_latest_runtime_snapshot(profile_key: str) -> RuntimeConfigSnapshot | Non
     return get_runtime_config_service().get_latest_snapshot(profile_key)
 
 
+def get_active_runtime_value(*, environment: str, definition_key: str) -> object | None:
+    """Read one value from the active, version-matched runtime snapshot.
+
+    Consumers must not read a raw profile value directly.  The active profile and
+    its immutable snapshot are checked together so a stale snapshot cannot be
+    mistaken for the currently active configuration.  Missing or unavailable
+    configuration is represented by ``None`` and the caller owns its declared
+    compatibility/fail-closed policy.
+    """
+
+    normalized_environment = str(environment or "").strip()
+    normalized_key = str(definition_key or "").strip()
+    if not normalized_environment or not normalized_key:
+        return None
+    profile = get_active_runtime_profile(normalized_environment)
+    if profile is None:
+        return None
+    snapshot = get_latest_runtime_snapshot(profile.profile_key)
+    if snapshot is None:
+        return None
+    if snapshot.profile_id != profile.profile_id or snapshot.profile_version != profile.version:
+        return None
+    return snapshot.resolved_values.get(normalized_key)
+
+
 def preview_runtime_profile(
     profile: RuntimeConfigProfile,
     values: tuple[RuntimeConfigValue, ...],
@@ -145,6 +170,7 @@ __all__ = [
     "activate_runtime_profile",
     "evaluate_storage_pressure",
     "get_active_runtime_profile",
+    "get_active_runtime_value",
     "get_active_storage_budget",
     "get_latest_runtime_snapshot",
     "get_latest_storage_capacity_observation",

@@ -14,6 +14,7 @@ from apps.data_center.infrastructure.macro_sources.base import (
 from apps.data_center.infrastructure.macro_sources.failover_adapter import (
     FailoverAdapter,
     MultiSourceAdapter,
+    _resolve_failover_tolerance,
 )
 
 
@@ -66,6 +67,31 @@ def _point(
 def test_failover_rejects_invalid_tolerance(tolerance) -> None:
     with pytest.raises(ValueError, match="tolerance must be finite"):
         FailoverAdapter([_Adapter("primary")], tolerance=tolerance)
+
+
+def test_runtime_failover_tolerance_is_preferred(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "apps.config_center.application.runtime_public.get_active_runtime_value",
+        lambda *, environment, definition_key: (
+            0.025
+            if environment == "production"
+            and definition_key == "data_center.provider.failover_tolerance"
+            else None
+        ),
+    )
+
+    assert _resolve_failover_tolerance(0.01, environment="production") == pytest.approx(0.025)
+
+
+def test_runtime_failover_tolerance_keeps_owner_compatibility_on_missing_profile(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "apps.config_center.application.runtime_public.get_active_runtime_value",
+        lambda **_: None,
+    )
+
+    assert _resolve_failover_tolerance(0.01, environment="development") == pytest.approx(0.01)
 
 
 def test_primary_data_is_retained_when_backup_disagrees(caplog) -> None:

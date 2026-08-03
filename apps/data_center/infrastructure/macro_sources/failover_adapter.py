@@ -19,6 +19,64 @@ from .base import (
 
 logger = logging.getLogger(__name__)
 
+RUNTIME_FAILOVER_TOLERANCE_KEY = "data_center.provider.failover_tolerance"
+
+
+def _resolve_failover_tolerance(
+    persisted_tolerance: float,
+    *,
+    environment: str,
+) -> float:
+    """Prefer the active Config Center snapshot for provider consistency checks.
+
+    ``DataProviderSettings`` remains a short-lived compatibility source while
+    existing profiles are migrated.  It is deliberately passed in by the
+    caller; this helper never invents a module-level tolerance when the runtime
+    profile is absent.  Malformed runtime values also fall back to the already
+    validated owner setting and are logged for remediation.
+    """
+
+    try:
+        from apps.config_center.application.runtime_public import (
+            get_active_runtime_value,
+        )
+
+        raw_value = get_active_runtime_value(
+            environment=environment,
+            definition_key=RUNTIME_FAILOVER_TOLERANCE_KEY,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Config Center failover tolerance unavailable; using owner setting " "(error_type=%s)",
+            type(exc).__name__,
+        )
+        return float(persisted_tolerance)
+
+    if raw_value is None:
+        logger.info(
+            "Config Center failover tolerance is not active for environment %s; "
+            "using owner compatibility setting",
+            environment,
+        )
+        return float(persisted_tolerance)
+
+    try:
+        if isinstance(raw_value, bool):
+            raise ValueError("boolean is not a numeric tolerance")
+        if not isinstance(raw_value, (int, float, str)):
+            raise ValueError("runtime value is not a numeric scalar")
+        resolved = float(raw_value)
+        if not math.isfinite(resolved) or not 0.0 <= resolved <= 1.0:
+            raise ValueError("tolerance must be finite and between 0 and 1")
+    except (TypeError, ValueError) as exc:
+        logger.error(
+            "Invalid Config Center failover tolerance; using owner setting " "(error=%s)",
+            str(exc),
+        )
+        return float(persisted_tolerance)
+    logger.info("Using Config Center failover tolerance for environment %s", environment)
+    return resolved
+
 
 class FailoverAdapter(MacroAdapterProtocol):
     """
@@ -335,7 +393,13 @@ def create_default_adapter(
 
             default_source = settings_obj.default_source
             enable_failover = settings_obj.enable_failover
-            tolerance = settings_obj.failover_tolerance
+            runtime_environment = (
+                "production" if not bool(getattr(settings, "DEBUG", True)) else "development"
+            )
+            tolerance = _resolve_failover_tolerance(
+                settings_obj.failover_tolerance,
+                environment=runtime_environment,
+            )
 
             logger.info(
                 f"从数据库加载数据源设置: default={default_source}, "

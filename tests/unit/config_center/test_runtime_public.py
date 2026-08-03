@@ -1,0 +1,103 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime
+
+import pytest
+
+from apps.config_center.application import runtime_public
+from apps.config_center.domain.runtime_config import (
+    RuntimeConfigProfile,
+    RuntimeConfigSnapshot,
+    RuntimeProfileStatus,
+)
+
+NOW = datetime(2026, 8, 3, 12, 0, tzinfo=UTC)
+
+
+def _profile(*, version: int = 1) -> RuntimeConfigProfile:
+    return RuntimeConfigProfile(
+        profile_id="profile-1",
+        profile_key="data-center-development",
+        environment="development",
+        version=version,
+        status=RuntimeProfileStatus.ACTIVE,
+        content_hash="profile-hash",
+        created_at=NOW,
+        activated_at=NOW,
+    )
+
+
+def _snapshot(*, profile_id: str = "profile-1", version: int = 1) -> RuntimeConfigSnapshot:
+    return RuntimeConfigSnapshot(
+        snapshot_id="snapshot-1",
+        profile_id=profile_id,
+        profile_key="data-center-development",
+        profile_version=version,
+        snapshot_hash="snapshot-hash",
+        resolved_values={"data_center.provider.failover_tolerance": 0.025},
+        generated_at=NOW,
+    )
+
+
+def test_active_runtime_value_requires_profile_snapshot_identity_match(monkeypatch) -> None:
+    profile = _profile(version=2)
+    snapshot = _snapshot(version=2)
+    monkeypatch.setattr(runtime_public, "get_active_runtime_profile", lambda _environment: profile)
+    monkeypatch.setattr(
+        runtime_public,
+        "get_latest_runtime_snapshot",
+        lambda _profile_key: snapshot,
+    )
+
+    assert (
+        runtime_public.get_active_runtime_value(
+            environment="development",
+            definition_key="data_center.provider.failover_tolerance",
+        )
+        == 0.025
+    )
+
+
+@pytest.mark.parametrize(
+    ("snapshot_profile_id", "snapshot_version"),
+    [("other-profile", 2), ("profile-1", 1)],
+)
+def test_active_runtime_value_fails_closed_for_stale_snapshot(
+    monkeypatch,
+    snapshot_profile_id: str,
+    snapshot_version: int,
+) -> None:
+    profile = _profile(version=2)
+    snapshot = _snapshot(profile_id=snapshot_profile_id, version=snapshot_version)
+    monkeypatch.setattr(runtime_public, "get_active_runtime_profile", lambda _environment: profile)
+    monkeypatch.setattr(
+        runtime_public,
+        "get_latest_runtime_snapshot",
+        lambda _profile_key: snapshot,
+    )
+
+    assert (
+        runtime_public.get_active_runtime_value(
+            environment="development",
+            definition_key="data_center.provider.failover_tolerance",
+        )
+        is None
+    )
+
+
+def test_active_runtime_value_rejects_blank_lookup_keys(monkeypatch) -> None:
+    called = False
+
+    def _unexpected_lookup(_environment: str) -> RuntimeConfigProfile:
+        nonlocal called
+        called = True
+        return _profile()
+
+    monkeypatch.setattr(runtime_public, "get_active_runtime_profile", _unexpected_lookup)
+
+    assert runtime_public.get_active_runtime_value(environment="", definition_key="key") is None
+    assert (
+        runtime_public.get_active_runtime_value(environment="development", definition_key="")
+        is None
+    )
+    assert called is False
