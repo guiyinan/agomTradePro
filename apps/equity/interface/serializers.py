@@ -193,6 +193,12 @@ class FinancialHistoryQuerySerializer(serializers.Serializer[dict[str, Any]]):
         default="all",
     )
     limit = serializers.IntegerField(required=False, default=5, min_value=1, max_value=40)
+    mode = serializers.ChoiceField(
+        choices=("historical", "published"),
+        required=False,
+        default="historical",
+    )
+    publication_key = serializers.CharField(required=False, default="current", max_length=160)
 
 
 class AnalyzeValuationRequestSerializer(StrictFieldsSerializer):
@@ -206,6 +212,12 @@ class AnalyzeValuationRequestSerializer(StrictFieldsSerializer):
         max_value=1260,
         help_text="回看天数（默认 252，即 1 年）",
     )
+    mode = serializers.ChoiceField(
+        choices=("historical", "published"),
+        required=False,
+        default="historical",
+    )
+    publication_key = serializers.CharField(required=False, default="current", max_length=160)
 
 
 class LatestValuationSerializer(serializers.Serializer[dict[str, Any]]):

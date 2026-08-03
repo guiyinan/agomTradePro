@@ -114,6 +114,16 @@ def test_equity_pool_default_read_chain_does_not_persist_business_state(
         list_date=today,
         is_active=True,
     )
+    AssetMasterModel.objects.create(
+        code="000001.SZ",
+        name="平安银行",
+        short_name="平安银行",
+        asset_type="stock",
+        exchange="SZSE",
+        sector="银行",
+        industry="银行",
+        is_active=True,
+    )
     FinancialDataModel.objects.create(
         stock_code="000001.SZ",
         report_date=today,
@@ -137,6 +147,42 @@ def test_equity_pool_default_read_chain_does_not_persist_business_state(
         ps=1.0,
         total_mv=Decimal("1000000000"),
         circ_mv=Decimal("800000000"),
+    )
+    FinancialFactModel.objects.bulk_create(
+        [
+            FinancialFactModel(
+                asset_code="000001.SZ",
+                period_end=today,
+                period_type="annual",
+                metric_code=metric_code,
+                value=value,
+                unit="元" if metric_code not in {"roe", "roa", "debt_ratio"} else "%",
+                source="test",
+                report_date=today,
+            )
+            for metric_code, value in {
+                "revenue": Decimal("1000000"),
+                "net_profit": Decimal("100000"),
+                "revenue_growth": Decimal("8"),
+                "net_profit_growth": Decimal("10"),
+                "total_assets": Decimal("5000000"),
+                "total_liabilities": Decimal("3000000"),
+                "equity": Decimal("2000000"),
+                "roe": Decimal("12"),
+                "roa": Decimal("2"),
+                "debt_ratio": Decimal("60"),
+            }.items()
+        ]
+    )
+    ValuationFactModel.objects.create(
+        asset_code="000001.SZ",
+        val_date=today,
+        pe_ttm=Decimal("10"),
+        pb=Decimal("1.2"),
+        ps_ttm=Decimal("1"),
+        market_cap=Decimal("1000000000"),
+        float_market_cap=Decimal("800000000"),
+        source="test",
     )
     tracked_models = (
         StockPoolSnapshot,
@@ -190,6 +236,16 @@ def test_equity_pool_keeps_missing_metrics_explicit(authenticated_client):
         list_date=today,
         is_active=True,
     )
+    AssetMasterModel.objects.create(
+        code="000001.SZ",
+        name="平安银行",
+        short_name="平安银行",
+        asset_type="stock",
+        exchange="SZSE",
+        sector="银行",
+        industry="银行",
+        is_active=True,
+    )
 
     response = authenticated_client.get("/api/equity/pool/")
 
@@ -207,29 +263,43 @@ def test_equity_pool_keeps_missing_metrics_explicit(authenticated_client):
 def test_equity_financial_history_is_persisted_only_and_filters_period_type(
     authenticated_client,
 ):
-    FinancialDataModel.objects.create(
-        stock_code="000001.SZ",
-        report_date="2025-12-31",
-        report_type="4Q",
-        revenue=Decimal("100"),
-        net_profit=Decimal("10"),
-        total_assets=Decimal("500"),
-        total_liabilities=Decimal("300"),
-        equity=Decimal("200"),
-        roe=5.0,
-        debt_ratio=60.0,
-    )
-    FinancialDataModel.objects.create(
-        stock_code="000001.SZ",
-        report_date="2025-09-30",
-        report_type="3Q",
-        revenue=Decimal("75"),
-        net_profit=Decimal("7"),
-        total_assets=Decimal("480"),
-        total_liabilities=Decimal("290"),
-        equity=Decimal("190"),
-        roe=4.0,
-        debt_ratio=60.4,
+    metric_values = {
+        "revenue": Decimal("100"),
+        "net_profit": Decimal("10"),
+        "total_assets": Decimal("500"),
+        "total_liabilities": Decimal("300"),
+        "equity": Decimal("200"),
+        "roe": Decimal("5"),
+        "debt_ratio": Decimal("60"),
+    }
+    quarterly_metric_values = {
+        **metric_values,
+        "revenue": Decimal("75"),
+        "net_profit": Decimal("7"),
+        "total_assets": Decimal("480"),
+        "total_liabilities": Decimal("290"),
+        "equity": Decimal("190"),
+        "roe": Decimal("4"),
+        "debt_ratio": Decimal("60.4"),
+    }
+    FinancialFactModel.objects.bulk_create(
+        [
+            FinancialFactModel(
+                asset_code="000001.SZ",
+                period_end=period_end,
+                period_type=period_type,
+                metric_code=metric_code,
+                value=value,
+                unit="元" if metric_code not in {"roe", "debt_ratio"} else "%",
+                source="test",
+                report_date=period_end,
+            )
+            for period_end, period_type, values in (
+                ("2025-12-31", "annual", metric_values),
+                ("2025-09-30", "quarterly", quarterly_metric_values),
+            )
+            for metric_code, value in values.items()
+        ]
     )
 
     with patch(
@@ -253,6 +323,41 @@ def test_equity_financial_history_rejects_invalid_path_stock_code(authenticated_
 
     assert response.status_code == 400
     assert "BAD:CODE" not in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_equity_published_financial_history_blocks_stale_publication_before_read(
+    authenticated_client,
+):
+    stale_publication = {
+        "publication_id": "equity-financials-2026-08-03",
+        "published_at": "2026-08-03T08:00:00+00:00",
+        "as_of": "2026-07-31",
+        "must_not_use_for_decision": True,
+        "blocked_reason": "publication_observation_stale",
+        "freshness_status": "stale",
+    }
+
+    with (
+        patch(
+            "apps.equity.interface.sdk_contract_actions.get_decision_publication_gate",
+            return_value=stale_publication,
+        ),
+        patch(
+            "apps.equity.interface.sdk_contract_actions.list_stock_financial_payloads",
+            side_effect=AssertionError("blocked publication must not query facts"),
+        ),
+    ):
+        response = authenticated_client.get("/api/equity/financials/000001.SZ/?mode=published")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "blocked"
+    assert payload["results"] == []
+    assert payload["count"] == 0
+    assert payload["publication_id"] == stale_publication["publication_id"]
+    assert payload["blocked_reason"] == "publication_observation_stale"
+    assert payload["must_not_use_for_decision"] is True
 
 
 @pytest.mark.django_db
@@ -432,42 +537,30 @@ def test_equity_technical_chart_returns_candles_and_latest_signal(authenticated_
         list_date=today,
         is_active=True,
     )
-    StockDailyModel.objects.bulk_create(
+    AssetMasterModel.objects.create(
+        code="000001.SZ",
+        name="平安银行",
+        short_name="平安银行",
+        asset_type="stock",
+        exchange="SZSE",
+        is_active=True,
+    )
+    PriceBarModel.objects.bulk_create(
         [
-            StockDailyModel(
-                stock_code="000001.SZ",
-                trade_date=today - timedelta(days=3),
-                open="10.00",
-                high="10.20",
-                low="9.90",
-                close="10.00",
-                volume=1000,
-                amount="1000000.00",
-                ma5="9.90",
-                ma20="10.00",
-                ma60=None,
-                macd=-0.10,
-                macd_signal=-0.12,
-                macd_hist=0.02,
-                rsi=48.0,
-            ),
-            StockDailyModel(
-                stock_code="000001.SZ",
-                trade_date=today - timedelta(days=2),
+            PriceBarModel(
+                asset_code="000001.SZ",
+                bar_date=today - timedelta(days=21 - index),
+                freq="1d",
+                adjustment="none",
                 open="10.00",
                 high="10.60",
-                low="9.95",
-                close="10.50",
-                volume=1200,
-                amount="1200000.00",
-                ma5="10.10",
-                ma20="10.00",
-                ma60=None,
-                macd=0.12,
-                macd_signal=0.05,
-                macd_hist=0.07,
-                rsi=55.0,
-            ),
+                low="9.90",
+                close="10.50" if index == 20 else "10.00",
+                volume=1000 + index,
+                amount="1000000.00",
+                source="test",
+            )
+            for index in range(21)
         ]
     )
 
@@ -479,7 +572,7 @@ def test_equity_technical_chart_returns_candles_and_latest_signal(authenticated_
     payload = response.json()
     assert payload["success"] is True
     assert payload["stock_code"] == "000001.SZ"
-    assert len(payload["candles"]) == 2
+    assert len(payload["candles"]) == 21
     assert payload["latest_signal"]["signal_type"] == "golden_cross"
     assert payload["candles"][-1]["close"] == 10.5
 
@@ -493,6 +586,14 @@ def test_equity_intraday_chart_returns_points(authenticated_client):
         sector="银行",
         market="SZ",
         list_date=today,
+        is_active=True,
+    )
+    AssetMasterModel.objects.create(
+        code="000001.SZ",
+        name="平安银行",
+        short_name="平安银行",
+        asset_type="stock",
+        exchange="SZSE",
         is_active=True,
     )
 
@@ -537,6 +638,14 @@ def test_equity_intraday_chart_degrades_cleanly_when_sources_fail(authenticated_
         list_date=today,
         is_active=True,
     )
+    AssetMasterModel.objects.create(
+        code="002709.SZ",
+        name="天赐材料",
+        short_name="天赐材料",
+        asset_type="stock",
+        exchange="SZSE",
+        is_active=True,
+    )
 
     with patch(
         "apps.equity.infrastructure.repositories.DjangoStockRepository.get_intraday_points",
@@ -571,6 +680,41 @@ def test_equity_valuation_rejects_invalid_or_unknown_query(
     response = authenticated_client.get(f"/api/equity/valuation/300308.SZ/?{query}")
 
     assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_equity_published_valuation_blocks_stale_publication_before_use_case(
+    authenticated_client,
+):
+    stale_publication = {
+        "publication_id": "equity-valuation-2026-08-03",
+        "published_at": "2026-08-03T08:00:00+00:00",
+        "as_of": "2026-07-31",
+        "must_not_use_for_decision": True,
+        "blocked_reason": "publication_observation_stale",
+        "freshness_status": "stale",
+    }
+
+    with (
+        patch(
+            "apps.equity.interface.analysis_actions.get_decision_publication_gate",
+            return_value=stale_publication,
+        ),
+        patch(
+            "apps.equity.interface.analysis_actions.AnalyzeValuationUseCase",
+            side_effect=AssertionError("blocked publication must not run valuation"),
+        ),
+    ):
+        response = authenticated_client.get("/api/equity/valuation/300308.SZ/?mode=published")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is False
+    assert payload["status"] == "blocked"
+    assert payload["stock_code"] == "300308.SZ"
+    assert payload["publication_id"] == stale_publication["publication_id"]
+    assert payload["error"] == "publication_observation_stale"
+    assert payload["must_not_use_for_decision"] is True
 
 
 @pytest.mark.django_db
@@ -787,7 +931,7 @@ def test_equity_technical_chart_uses_tushare_gateway_bar_fallback(authenticated_
     assert payload["stock_name"] == "中际旭创"
     assert len(payload["candles"]) == 2
     assert payload["candles"][-1]["close"] == 606.52
-    cached_rows = StockDailyModel.objects.filter(stock_code="300308.SZ").order_by("trade_date")
+    cached_rows = PriceBarModel.objects.filter(asset_code="300308.SZ").order_by("bar_date")
     assert cached_rows.count() == 2
     assert cached_rows.last().close == Decimal("606.52")
 
@@ -878,7 +1022,7 @@ def test_equity_regime_correlation_uses_tushare_gateway_daily_price_fallback(aut
     assert payload["stock_code"] == "300308.SZ"
     assert payload["stock_name"] == "中际旭创"
     assert len(payload["regime_performance"]) == 4
-    cached_rows = StockDailyModel.objects.filter(stock_code="300308.SZ").order_by("trade_date")
+    cached_rows = PriceBarModel.objects.filter(asset_code="300308.SZ").order_by("bar_date")
     assert cached_rows.count() == len(remote_prices)
     assert cached_rows.last().close == Decimal("606.52")
 

@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 56,
-    "current_surface_references": 2844,
+    "current_surface_references": 2846,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
     "legacy_fact_references": 141,
@@ -4862,82 +4862,87 @@
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 340,
+      "line": 339,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 342,
+      "line": 364,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 366,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 350,
+      "line": 374,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 355,
+      "line": 379,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 370,
+      "line": 394,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 386,
+      "line": 410,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 404,
+      "line": 428,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 421,
+      "line": 445,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 437,
+      "line": 461,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 474,
+      "line": 498,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 477,
+      "line": 501,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 481,
+      "line": 505,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 483,
+      "line": 507,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 486,
+      "line": 510,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 487,
+      "line": 511,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 584,
+      "line": 608,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -4967,82 +4972,77 @@
       "text": "return float(latest.value) if latest is not None else None"
     },
     {
-      "line": 170,
-      "path": "apps/data_center/application/query_services.py",
-      "text": "\"\"\"Read macro facts only when a current publication exists."
-    },
-    {
       "line": 172,
       "path": "apps/data_center/application/query_services.py",
-      "text": "This explicit current-data port prevents a non-empty but unpublished fact"
+      "text": "This explicit current-data port prevents a non-empty, unpublished, or"
     },
     {
-      "line": 277,
+      "line": 269,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a freshness-validated gate for one current publication.\"\"\""
     },
     {
-      "line": 304,
+      "line": 296,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 317,
+      "line": 309,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 342,
+      "line": 334,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 344,
+      "line": 336,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read financial facts only after the current financial publication gate.\"\"\""
     },
     {
-      "line": 357,
+      "line": 349,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 359,
+      "line": 351,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read valuation facts only after the current valuation publication gate.\"\"\""
     },
     {
-      "line": 374,
+      "line": 366,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 390,
+      "line": 382,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 412,
+      "line": 404,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 488,
+      "line": 480,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 546,
+      "line": 538,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read current market breadth only after every component is published."
     },
     {
-      "line": 594,
+      "line": 628,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 607,
+      "line": 641,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return the latest market thermometer snapshot as a JSON-safe payload.\"\"\""
     },
@@ -6762,37 +6762,37 @@
       "text": "from apps.realtime.infrastructure.repositories import ("
     },
     {
-      "line": 61,
+      "line": 62,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"筛选个股\","
     },
     {
-      "line": 117,
+      "line": 118,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"估值分析（个股详情）\","
     },
     {
-      "line": 193,
+      "line": 236,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"技术图表数据\","
     },
     {
-      "line": 219,
+      "line": 262,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"分时图数据\","
     },
     {
-      "line": 239,
+      "line": 282,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"DCF 绝对估值\","
     },
     {
-      "line": 294,
+      "line": 337,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"Regime 相关性分析\","
     },
     {
-      "line": 397,
+      "line": 440,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"综合估值分析\","
     },
@@ -6810,6 +6810,16 @@
       "line": 271,
       "path": "apps/equity/interface/pool_actions.py",
       "text": "logger.warning(\"Current Regime unavailable while loading stock pool\", exc_info=True)"
+    },
+    {
+      "line": 201,
+      "path": "apps/equity/interface/serializers.py",
+      "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
+    },
+    {
+      "line": 220,
+      "path": "apps/equity/interface/serializers.py",
+      "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
     },
     {
       "line": 62,

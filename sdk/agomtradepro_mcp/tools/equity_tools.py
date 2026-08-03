@@ -125,6 +125,8 @@ def register_equity_tools(server: FastMCP) -> None:
         stock_code: str,
         report_type: str = "annual",
         limit: int = 5,
+        mode: str = "published",
+        publication_key: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         获取股票财务数据
@@ -133,6 +135,8 @@ def register_equity_tools(server: FastMCP) -> None:
             stock_code: 股票代码
             report_type: 报告类型（annual/quarterly）
             limit: 返回数量限制
+            mode: 数据模式；默认 published，历史研究必须显式传 historical
+            publication_key: 发布快照键（默认 current）
 
         Returns:
             财务数据列表
@@ -141,12 +145,20 @@ def register_equity_tools(server: FastMCP) -> None:
             >>> financials = get_stock_financials("000001.SZ")
         """
         client = AgomTradeProClient()
-        return client.equity.get_financials(stock_code, report_type, limit)
+        return client.equity.get_financials(
+            stock_code,
+            report_type,
+            limit,
+            mode=mode,
+            publication_key=publication_key,
+        )
 
     @server.tool()
     def get_stock_valuation(
         stock_code: str,
         lookback_days: int = 252,
+        mode: str = "published",
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         """
         获取股票估值数据
@@ -154,6 +166,8 @@ def register_equity_tools(server: FastMCP) -> None:
         Args:
             stock_code: 股票代码
             lookback_days: 历史估值回看天数
+            mode: 数据模式；默认 published，历史研究必须显式传 historical
+            publication_key: 发布快照键（默认 current）
 
         Returns:
             估值数据
@@ -162,7 +176,12 @@ def register_equity_tools(server: FastMCP) -> None:
             >>> valuation = get_stock_valuation("000001.SZ")
         """
         client = AgomTradeProClient()
-        return client.equity.get_valuation(stock_code, lookback_days=lookback_days)
+        return client.equity.get_valuation(
+            stock_code,
+            lookback_days=lookback_days,
+            mode=mode,
+            publication_key=publication_key,
+        )
 
     # =========================================================================
     # 估值修复跟踪工具

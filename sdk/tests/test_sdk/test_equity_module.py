@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from agomtradepro import AgomTradeProClient
 
@@ -82,6 +82,51 @@ class TestEquityModuleReadContracts:
             "/api/equity/valuation/000001.SZ/",
             params={"lookback_days": 365},
         )
+
+    def test_equity_module_propagates_publication_gate_parameters(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        with patch.object(
+            client,
+            "get",
+            side_effect=[
+                {"results": [{"period_type": "annual"}]},
+                {"success": True, "stock_code": "000001.SZ"},
+            ],
+        ) as mock_get:
+            financials = client.equity.get_financials(
+                "000001.SZ",
+                mode="published",
+                publication_key="current",
+            )
+            valuation = client.equity.get_valuation(
+                "000001.SZ",
+                lookback_days=365,
+                mode="published",
+                publication_key="current",
+            )
+
+        assert financials == [{"period_type": "annual"}]
+        assert valuation["stock_code"] == "000001.SZ"
+        assert mock_get.call_args_list == [
+            call(
+                "/api/equity/financials/000001.SZ/",
+                params={
+                    "report_type": "annual",
+                    "limit": 5,
+                    "mode": "published",
+                    "publication_key": "current",
+                },
+            ),
+            call(
+                "/api/equity/valuation/000001.SZ/",
+                params={
+                    "lookback_days": 365,
+                    "mode": "published",
+                    "publication_key": "current",
+                },
+            ),
+        ]
 
     def test_list_valuation_repairs_uses_snapshot_list_endpoint(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")

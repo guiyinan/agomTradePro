@@ -12,6 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from apps.data_center.application.public import get_decision_publication_gate
 from apps.equity.application.repository_provider import (
     get_equity_regime_history_repository,
 )
@@ -175,6 +176,44 @@ class EquityAnalysisActionsMixin:
         serializer = AnalyzeValuationRequestSerializer(data=query)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        mode = str(data["mode"])
+        publication_key = str(data["publication_key"])
+        publication = None
+        if mode == "published":
+            publication = get_decision_publication_gate(
+                "equity.valuation.fact",
+                publication_key,
+            )
+            if publication is None or bool(publication.get("must_not_use_for_decision")):
+                return Response(
+                    {
+                        "success": False,
+                        "status": "blocked",
+                        "stock_code": data["stock_code"],
+                        "stock_name": "",
+                        "sector": "",
+                        "market": "",
+                        "list_date": None,
+                        "current_pe": None,
+                        "pe_percentile": 0.0,
+                        "current_pb": None,
+                        "pb_percentile": 0.0,
+                        "is_undervalued": False,
+                        "latest_valuation": None,
+                        "financial_data": None,
+                        "error": (
+                            publication.get("blocked_reason")
+                            if publication
+                            else "canonical_publication_missing"
+                        ),
+                        "publication_id": (
+                            publication.get("publication_id") if publication else None
+                        ),
+                        "publication": publication,
+                        "must_not_use_for_decision": True,
+                    },
+                    status=status.HTTP_200_OK,
+                )
 
         # 2. 构造请求对象
         use_case_request = AnalyzeValuationRequest(
@@ -187,7 +226,11 @@ class EquityAnalysisActionsMixin:
 
         # 4. 返回响应
         response_serializer = AnalyzeValuationResponseSerializer(use_case_response)
-        return Response(response_serializer.data, status=status.HTTP_200_OK)
+        payload = dict(response_serializer.data)
+        payload["mode"] = mode
+        payload["publication_key"] = publication_key
+        payload["publication"] = publication
+        return Response(payload, status=status.HTTP_200_OK)
 
     @typed_schema(
         summary="技术图表数据",

@@ -44,8 +44,20 @@ def test_equity_read_fallbacks_use_canonical_sdk_methods(
                 },
             }
 
-        def get_valuation(self, stock_code, *, lookback_days):
-            calls.append(("get_valuation", (stock_code, lookback_days)))
+        def get_valuation(
+            self,
+            stock_code,
+            *,
+            lookback_days,
+            mode=None,
+            publication_key=None,
+        ):
+            calls.append(
+                (
+                    "get_valuation",
+                    (stock_code, lookback_days, mode, publication_key),
+                )
+            )
             return {
                 "success": True,
                 "stock_code": stock_code,
@@ -116,7 +128,7 @@ def test_equity_read_fallbacks_use_canonical_sdk_methods(
     assert quality["primary_source"] == "akshare"
     assert calls == [
         ("get_stock_pool", ("银行", 60, 20)),
-        ("get_valuation", ("000001.SZ", 365)),
+        ("get_valuation", ("000001.SZ", 365, "published", None)),
         ("list_valuation_repairs", ("all_active", "repairing", 20)),
         ("get_valuation_data_freshness", None),
         ("get_valuation_data_quality_latest", None),

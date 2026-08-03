@@ -264,6 +264,9 @@ class EquityModule(BaseModule):
         stock_code: str,
         report_type: str = "annual",
         limit: int = 5,
+        *,
+        mode: str | None = None,
+        publication_key: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         获取财务数据
@@ -282,10 +285,12 @@ class EquityModule(BaseModule):
             >>> for f in financials:
             ...     print(f"{f['report_date']}: 营收 {f['revenue']}")
         """
-        response = self._get(
-            f"financials/{stock_code}/",
-            params={"report_type": report_type, "limit": limit},
-        )
+        params: dict[str, Any] = {"report_type": report_type, "limit": limit}
+        if mode:
+            params["mode"] = mode
+        if publication_key:
+            params["publication_key"] = publication_key
+        response = self._get(f"financials/{stock_code}/", params=params)
         results = response.get("results", response)
         if not isinstance(results, list):
             raise ValueError("financial history response must contain a list")
@@ -295,6 +300,9 @@ class EquityModule(BaseModule):
         self,
         stock_code: str,
         lookback_days: int = 252,
+        *,
+        mode: str | None = None,
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         """
         获取股票估值详情（完整数据）
@@ -327,10 +335,12 @@ class EquityModule(BaseModule):
             >>> print(f"PE: {valuation['latest_valuation']['pe']}")
             >>> print(f"ROE: {valuation['financial_data']['roe']}%")
         """
-        return self._get(
-            f"valuation/{stock_code}/",
-            params={"lookback_days": lookback_days},
-        )
+        params: dict[str, Any] = {"lookback_days": lookback_days}
+        if mode:
+            params["mode"] = mode
+        if publication_key:
+            params["publication_key"] = publication_key
+        return self._get(f"valuation/{stock_code}/", params=params)
 
     # =========================================================================
     # 估值修复跟踪 API

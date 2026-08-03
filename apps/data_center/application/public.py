@@ -334,6 +334,30 @@ def get_current_publication_freshness_gate(
     return get_current_publication_gate(dataset_key, publication_key)
 
 
+def get_decision_publication_gate(
+    dataset_key: str,
+    publication_key: str = "current",
+) -> dict[str, object] | None:
+    """Return one merged publication and freshness gate for decision APIs.
+
+    This port keeps Interface, SDK and MCP callers on the same fail-closed
+    semantics without exposing Data Center repositories outside Application.
+    """
+
+    publication = get_current_publication(dataset_key, publication_key)
+    if publication is None:
+        return None
+    freshness = get_current_publication_freshness_gate(dataset_key, publication_key)
+    if freshness is None:
+        return {
+            **publication,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "publication_freshness_unverified",
+            "freshness_status": "unverified",
+        }
+    return {**publication, **freshness}
+
+
 def get_published_quote_payloads(
     asset_codes: list[str],
     *,
@@ -675,6 +699,7 @@ __all__ = [
     "get_akshare_module_port",
     "get_current_publication",
     "get_current_publication_freshness_gate",
+    "get_decision_publication_gate",
     "list_active_data_owner_registrations",
     "list_active_dataset_contracts",
     "list_active_provider_bindings",

@@ -1141,7 +1141,12 @@
       "surface": "Current financial and valuation reads use Data Center publication-only ports",
       "source_files": [
         "apps/data_center/application/query_services.py",
-        "apps/data_center/application/public.py"
+        "apps/data_center/application/public.py",
+        "apps/equity/interface/sdk_contract_actions.py",
+        "apps/equity/interface/analysis_actions.py",
+        "sdk/agomtradepro/modules/equity.py",
+        "sdk/agomtradepro_mcp/tools/equity_tools.py",
+        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py"
       ],
       "required_markers": {
         "apps/data_center/application/query_services.py": [
@@ -1153,7 +1158,33 @@
         ],
         "apps/data_center/application/public.py": [
           "def get_published_financial_facts(",
-          "def get_published_valuation_facts("
+          "def get_published_valuation_facts(",
+          "def get_decision_publication_gate("
+        ],
+        "apps/equity/interface/sdk_contract_actions.py": [
+          "get_decision_publication_gate(",
+          "mode = str(query.validated_data[\"mode\"])",
+          "must_not_use_for_decision"
+        ],
+        "apps/equity/interface/analysis_actions.py": [
+          "get_decision_publication_gate(",
+          "mode = str(data[\"mode\"])",
+          "must_not_use_for_decision"
+        ],
+        "sdk/agomtradepro/modules/equity.py": [
+          "def get_financials(",
+          "def get_valuation(",
+          "params[\"mode\"] = mode",
+          "params[\"publication_key\"] = publication_key"
+        ],
+        "sdk/agomtradepro_mcp/tools/equity_tools.py": [
+          "mode: str = \"published\"",
+          "publication_key: str | None = None"
+        ],
+        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py": [
+          "def _fallback_equity_read_valuation_analysis(",
+          "mode: str = \"published\"",
+          "publication_key: str | None = None"
         ]
       },
       "required_tests": [
@@ -1171,6 +1202,26 @@
           "case": "old_member_observation_blocks_new_publication",
           "test_file": "tests/unit/data_center/test_published_query_ports.py",
           "test_function": "test_published_gate_blocks_old_member_observation_even_when_publication_is_new"
+        },
+        {
+          "case": "equity_financials_stale_publication_blocks_before_read",
+          "test_file": "tests/api/test_equity_api_edges.py",
+          "test_function": "test_equity_published_financial_history_blocks_stale_publication_before_read"
+        },
+        {
+          "case": "equity_valuation_stale_publication_blocks_before_use_case",
+          "test_file": "tests/api/test_equity_api_edges.py",
+          "test_function": "test_equity_published_valuation_blocks_stale_publication_before_use_case"
+        },
+        {
+          "case": "equity_sdk_publication_parameters_propagated",
+          "test_file": "sdk/tests/test_sdk/test_equity_module.py",
+          "test_function": "test_equity_module_propagates_publication_gate_parameters"
+        },
+        {
+          "case": "equity_mcp_defaults_to_published",
+          "test_file": "sdk/tests/test_mcp/test_equity_hedge_tools.py",
+          "test_function": "test_stock_valuation_executes_through_legacy_raw_tool"
         }
       ]
     },

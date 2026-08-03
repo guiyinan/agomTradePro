@@ -214,6 +214,8 @@ def _fallback_equity_read_pool_catalog(
 def _fallback_equity_read_valuation_analysis(
     stock_code: str,
     lookback_days: int = 252,
+    mode: str = "published",
+    publication_key: str | None = None,
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
@@ -221,6 +223,8 @@ def _fallback_equity_read_valuation_analysis(
     return client.equity.get_valuation(
         stock_code,
         lookback_days=lookback_days,
+        mode=mode,
+        publication_key=publication_key,
     )
 
 

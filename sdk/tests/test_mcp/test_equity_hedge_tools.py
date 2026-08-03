@@ -11,6 +11,41 @@ import pytest
 
 class _FakeClient:
     def __init__(self) -> None:
+        def get_financials(
+            stock_code: str,
+            report_type: str = "annual",
+            limit: int = 5,
+            *,
+            mode: str | None = None,
+            publication_key: str | None = None,
+        ) -> list[dict[str, object]]:
+            return [
+                {
+                    "stock_code": stock_code,
+                    "report_type": report_type,
+                    "limit": limit,
+                    "mode": mode,
+                    "publication_key": publication_key,
+                }
+            ]
+
+        def get_valuation(
+            stock_code: str,
+            lookback_days: int = 252,
+            *,
+            mode: str | None = None,
+            publication_key: str | None = None,
+        ) -> dict[str, object]:
+            return {
+                "success": True,
+                "stock_code": stock_code,
+                "stock_name": "平安银行",
+                "lookback_days": lookback_days,
+                "latest_valuation": {"pe": 5.2},
+                "mode": mode,
+                "publication_key": publication_key,
+            }
+
         self.equity = SimpleNamespace(
             list_stocks=lambda sector=None, min_score=None, limit=50: [
                 {
@@ -20,13 +55,8 @@ class _FakeClient:
                     "limit": limit,
                 }
             ],
-            get_valuation=lambda stock_code, lookback_days=252: {
-                "success": True,
-                "stock_code": stock_code,
-                "stock_name": "平安银行",
-                "lookback_days": lookback_days,
-                "latest_valuation": {"pe": 5.2},
-            },
+            get_valuation=get_valuation,
+            get_financials=get_financials,
             get_valuation_repair_status=lambda stock_code, lookback_days=756: {
                 "stock_code": stock_code,
                 "lookback_days": lookback_days,
@@ -135,6 +165,24 @@ def test_stock_valuation_executes_through_legacy_raw_tool(
     assert "000001.SZ" in rendered
     assert "365" in rendered
     assert "5.2" in rendered
+    assert "published" in rendered
+
+
+def test_stock_financials_executes_through_legacy_raw_tool_with_published_default(
+    legacy_enabled_mcp_server,
+    patched_client: None,
+) -> None:
+    result = asyncio.run(
+        legacy_enabled_mcp_server.call_tool(
+            "get_stock_financials",
+            {"stock_code": "000001.SZ"},
+        )
+    )
+
+    rendered = str(result)
+    assert "000001.SZ" in rendered
+    assert "annual" in rendered
+    assert "published" in rendered
 
 
 @pytest.mark.parametrize(

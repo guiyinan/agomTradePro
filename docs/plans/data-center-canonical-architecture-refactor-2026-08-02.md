@@ -513,6 +513,29 @@
 - 这是空库/治理样本的本地恢复证据，不是生产 custom-format 备份、VPS 外部下载、SHA 交叉核对、恢复时长/SLO 或真实数据行数证据；因此仍禁止 M9 破坏性迁移。
 - 生产 publication/member 观测、D0-D9 全入口快照、P95/WAL、M9/M10 和 VPS 仍未执行。
 
+## 实施记录（2026-08-03，第二十四批）
+
+本批次收口 Equity 财务/估值兼容入口，补上 REST、SDK、MCP 之间的 Publication mode 传播和 stale fail-closed 证据；不部署、不 push。
+
+已落地：
+
+- 新增 Data Center Application `get_decision_publication_gate`，为 Equity REST 入口合并 publication 与成员观测 freshness gate；缺失、过期或未验证时在进入事实查询/估值用例前返回空结果、`status=blocked`、`must_not_use_for_decision=true` 和稳定阻断原因。
+- Equity financial-history 与 valuation API 增加显式 `mode`/`publication_key`；`historical` 保留为历史查询兼容语义，`published` 才执行当前 Publication gate，并把 publication evidence 透传给 SDK/调用方。
+- SDK Equity financials/valuation 方法保留 `mode`/`publication_key` 参数；MCP `get_stock_financials`、`get_stock_valuation` 以及 legacy valuation fallback 默认使用 `published`，历史研究必须显式传 `mode="historical"`。
+- 将 Equity API 边界测试数据迁移为 canonical `FinancialFactModel`，不再用已冻结的旧 `FinancialDataModel` 投影验证 D4/D5 生产读取；同步登记 `current_data_contracts.json` 与架构 inventory。
+
+第二十四批机器证据：
+
+- `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --timeout=180`：39 passed。
+- `pytest sdk/tests/test_sdk/test_equity_module.py -q`：14 passed；`pytest sdk/tests/test_mcp/test_core_registry_owner_equity.py sdk/tests/test_mcp/test_equity_hedge_tools.py -q --timeout=60`：15 passed；`pytest sdk/tests/test_mcp/test_sdk_alignment_read_registry.py -q --timeout=60`：21 passed。
+- `python scripts/check_current_data_contracts.py`：29 surfaces；`check_governance_consistency.py`、`verify_architecture.py`、`check_data_center_legacy_fact_access.py`、`check_data_center_catalog_contracts.py` 均通过；`check_mypy_regression.py`：4 个生产文件 0 regression；`python manage.py check`：0 issues；变更文件 ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- 本批只证明本地 REST/SDK/MCP 的阻断顺序和参数契约；真实 MCP 接入页、VPS 生产 publication/member 观测、2026-07 当前数据、跨入口 publication/reliability 快照仍未验证。
+- SDK Equity 直接调用不传 `mode` 仍保留 historical 兼容默认；MCP 用户面已强制默认 published，后续如要改变 SDK 兼容默认必须单独评估并登记迁移批次。
+- PostgreSQL 生产数据画像、P95/WAL、真实备份恢复、M9/M10 和 VPS 仍未执行，按用户要求不部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
