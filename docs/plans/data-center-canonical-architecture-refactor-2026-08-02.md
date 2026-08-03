@@ -1330,6 +1330,29 @@
 - PostgreSQL 已有本地全迁移证据，但 15 分钟级初始化仍不满足生产运维窗口；尚未完成 Linux/CI 同构验证、增量迁移性能基线和生产备份恢复演练。
 - Config Center 全局运行参数 owner、SystemSettings 全量退役、真实 MCP/生产数据观察和 VPS 部署仍未验证；继续保持不部署。
 
+## 实施记录（2026-08-04，equity.financial.fact Publication 与 PIT available_at 收口）
+
+本批次补齐 D4 财务事实的受控同步→Publication 链路，继续不部署、不 push、不接触生产数据。
+
+已落地：
+
+- `FinancialFact` domain entity 和 `FinancialFactRepository` 现在显式传递模型已有的 `available_at`；bulk upsert 不再丢失该 PIT 边界。
+- Tushare/AKShare 仅在源记录带有公告/通知日期时转换为 UTC `available_at`；兼容网关只有 period end 时保持 `available_at=None`，不会把 `period_end` 或 `fetched_at` 冒充可用时间。
+- `FinancialFactRepository.list_publication_candidates` 按 `(asset_code, period_end, period_type, metric_code, source)` 精确绑定 fact PK，并要求 `available_at`；缺失候选由 `PublishFinancialBatchUseCase` 稳定 fail closed，不能出现事实写入成功但无 Publication 却返回成功的假象。
+- `SyncFinancialUseCase` 正式注入 writer；Publication 使用 available-at 作为 member `observed_at/as_of`，执行 coverage、未来时间阻断、确定性 hash/UUID5 和原子成员写入。current-data manifest 登记 source markers 与精确测试 nodeid。
+
+机器证据（本地）：
+
+- 财务 Publication、provider available-at、核心 upsert 和 sync failure matrix 定向回归：51 passed。
+- current-data runner：182 个登记 nodeid，实际 221 个测试项全部通过（`--reuse-db --no-migrations`）。
+- current-data manifest 36 surfaces；architecture boundary/audit 0；legacy fact access guard 通过；变更 9 个生产文件 mypy regression 0；ruff/black/isort、manage check、makemigrations check 通过。
+
+仍未完成及风险：
+
+- `equity.valuation.fact` 尚未接入同步→Publication writer；其 `available_at`/历史 PIT 查询语义仍需单独收口，不能用估值日期或抓取时间替代公告可用边界。
+- financial 旧管理命令和 legacy equity 投影仍处于兼容期；只有 Data Center 正式同步入口具备 Publication 编排，旧入口迁移/零读写尚未完成。
+- PostgreSQL 生产画像、Linux/CI 同构迁移性能、备份恢复、全域 checkpoint/覆盖对账、生产观察窗口、M9/M10 和 VPS 部署仍未验证；继续保持不部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
