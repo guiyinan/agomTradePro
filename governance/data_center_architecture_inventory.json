@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 56,
-    "current_surface_references": 2846,
+    "current_surface_references": 2845,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
     "legacy_fact_references": 141,
@@ -13837,17 +13837,12 @@
       "text": "\"\"\"Return the latest asset-analysis valuation when available.\"\"\""
     },
     {
-      "line": 117,
+      "line": 109,
       "path": "apps/valuation/infrastructure/providers.py",
-      "text": "latest = repository.get_latest(security_code)"
+      "text": "\"\"\"Return normalized recent facts only after the current publication gate.\"\"\""
     },
     {
-      "line": 118,
-      "path": "apps/valuation/infrastructure/providers.py",
-      "text": "facts = [latest] if latest is not None else []"
-    },
-    {
-      "line": 166,
+      "line": 197,
       "path": "apps/valuation/infrastructure/providers.py",
       "text": "or freshness not in {\"realtime\", \"close_fallback\"}"
     },

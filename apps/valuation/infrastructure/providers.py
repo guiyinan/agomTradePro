@@ -12,7 +12,7 @@ from apps.data_center.application.price_service import (
     PriceLookupResult,
     UnifiedPriceService,
 )
-from apps.data_center.application.public import get_valuation_fact_repository_port
+from apps.data_center.application.public import get_published_valuation_facts
 from core.exceptions import DataFetchError
 
 from ..domain.rules import ValuationPayloadPolicy
@@ -66,12 +66,12 @@ class AssetAnalysisValuationSource:
         if valuation is None:
             return None
         return {
-            "fair_value": getattr(valuation, "fair_value", 0),
-            "entry_price_low": getattr(valuation, "entry_price_low", 0),
-            "entry_price_high": getattr(valuation, "entry_price_high", 0),
-            "target_price_low": getattr(valuation, "target_price_low", 0),
-            "target_price_high": getattr(valuation, "target_price_high", 0),
-            "stop_loss_price": getattr(valuation, "stop_loss_price", 0),
+            "fair_value": getattr(valuation, "fair_value", None),
+            "entry_price_low": getattr(valuation, "entry_price_low", None),
+            "entry_price_high": getattr(valuation, "entry_price_high", None),
+            "target_price_low": getattr(valuation, "target_price_low", None),
+            "target_price_high": getattr(valuation, "target_price_high", None),
+            "stop_loss_price": getattr(valuation, "stop_loss_price", None),
             "valuation_date": self._first_present_attr(
                 valuation,
                 (
@@ -106,17 +106,23 @@ class DataCenterValuationFactSource:
         start: date,
         end: date,
     ) -> list[dict[str, Any]]:
-        """Return normalized recent facts, newest first when supported."""
+        """Return normalized recent facts only after the current publication gate."""
         try:
-            repository = get_valuation_fact_repository_port()
-            get_series = getattr(repository, "get_series", None)
-            facts = (
-                get_series(security_code, start=start, end=end) if callable(get_series) else None
+            payload = get_published_valuation_facts(
+                security_code,
+                as_of=end,
+                limit=None,
             )
-            if not isinstance(facts, list):
-                latest = repository.get_latest(security_code)
-                facts = [latest] if latest is not None else []
-            return [self._normalize(fact) for fact in facts]
+            if bool(payload.get("must_not_use_for_decision")):
+                return []
+            rows = payload.get("rows", [])
+            if not isinstance(rows, list):
+                return []
+            return [
+                self._normalize(fact)
+                for fact in rows
+                if isinstance(fact, dict) and self._within_window(fact, start=start, end=end)
+            ]
         except Exception as exc:
             logger.debug(
                 "Data center valuation fact lookup failed for %s: error_type=%s",
@@ -127,12 +133,37 @@ class DataCenterValuationFactSource:
 
     @staticmethod
     def _normalize(fact: Any) -> dict[str, Any]:
-        fact_date = getattr(fact, "val_date", None)
+        if isinstance(fact, dict):
+            fact_date = fact.get("val_date")
+            fetched_at = fact.get("fetched_at")
+            extra = fact.get("extra") or {}
+        else:
+            fact_date = getattr(fact, "val_date", None)
+            fetched_at = getattr(fact, "fetched_at", None)
+            extra = getattr(fact, "extra", None) or {}
         return {
-            "valuation_fact_date": fact_date.isoformat() if fact_date else None,
-            "fetched_at": getattr(fact, "fetched_at", None),
-            "extra": getattr(fact, "extra", None) or {},
+            "valuation_fact_date": (
+                fact_date.isoformat() if isinstance(fact_date, date) else fact_date
+            ),
+            "fetched_at": fetched_at,
+            "extra": extra,
         }
+
+    @staticmethod
+    def _within_window(fact: dict[str, Any], *, start: date, end: date) -> bool:
+        """Keep only valuation observations inside the requested as-of window."""
+
+        raw_date = fact.get("val_date")
+        if isinstance(raw_date, date):
+            fact_date = raw_date
+        elif isinstance(raw_date, str):
+            try:
+                fact_date = date.fromisoformat(raw_date[:10])
+            except ValueError:
+                return False
+        else:
+            return False
+        return start <= fact_date <= end
 
 
 class ObservableMarketPriceSource:

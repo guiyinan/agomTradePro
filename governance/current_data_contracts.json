@@ -1226,6 +1226,39 @@
       ]
     },
     {
+      "id": "valuation.formal_missing_fields",
+      "surface": "Legacy formal valuation adapter preserves missing price fields as unknown",
+      "source_files": [
+        "apps/valuation/infrastructure/providers.py"
+      ],
+      "required_markers": {
+        "apps/valuation/infrastructure/providers.py": [
+          "getattr(valuation, \"fair_value\", None)",
+          "getattr(valuation, \"entry_price_low\", None)",
+          "getattr(valuation, \"stop_loss_price\", None)",
+          "get_published_valuation_facts(",
+          "must_not_use_for_decision"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "missing_formal_price_fields_remain_unknown",
+          "test_file": "tests/unit/valuation/test_asset_valuation_service.py",
+          "test_function": "test_legacy_formal_missing_price_fields_remain_unknown"
+        },
+        {
+          "case": "canonical_valuation_stale_publication_blocks",
+          "test_file": "tests/unit/valuation/test_asset_valuation_service.py",
+          "test_function": "test_canonical_valuation_source_blocks_unpublished_rows"
+        },
+        {
+          "case": "canonical_valuation_publication_preserves_rows",
+          "test_file": "tests/unit/valuation/test_asset_valuation_service.py",
+          "test_function": "test_canonical_valuation_source_preserves_published_observation"
+        }
+      ]
+    },
+    {
       "id": "data_center.publication_only_d7_d9",
       "surface": "Data Center Public Ports for sector membership, market news, and capital flow",
       "source_files": [

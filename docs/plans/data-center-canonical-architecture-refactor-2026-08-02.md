@@ -536,6 +536,46 @@
 - SDK Equity 直接调用不传 `mode` 仍保留 historical 兼容默认；MCP 用户面已强制默认 published，后续如要改变 SDK 兼容默认必须单独评估并登记迁移批次。
 - PostgreSQL 生产数据画像、P95/WAL、真实备份恢复、M9/M10 和 VPS 仍未执行，按用户要求不部署。
 
+## 实施记录（2026-08-03，第二十五批）
+
+本批次修正 Valuation legacy formal adapter 的缺失值语义，防止缺失价格字段被序列化成 `0` 并污染决策证据；不部署、不 push。
+
+已落地：
+
+- `AssetAnalysisValuationSource` 对缺失的 fair value、entry/target/stop-loss 字段保留 `None`，由既有 `ValuationPayloadPolicy` 继续执行正值、质量和 freshness 校验；不再把未知值伪造成零值。
+- 新增 current-data contract 与回归测试，锁定 legacy adapter 的 missing-field 语义。
+
+第二十五批机器证据：
+
+- `pytest tests/unit/valuation/test_asset_valuation_service.py tests/unit/valuation/test_asset_valuation_service_safety.py -q --no-migrations --reuse-db --timeout=120`：17 passed。
+- `python scripts/check_current_data_contracts.py`：30 surfaces；变更文件 ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- 本批只修正一个 legacy valuation compatibility source 的响应语义；生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
+
+## 实施记录（2026-08-03，第二十六批）
+
+本批次将 `apps/valuation` 的 canonical valuation fact 读取切换到 Data Center Publication-only Port，并修正远端行情缓存的可选成交量语义；不部署、不 push。
+
+已落地：
+
+- `DataCenterValuationFactSource` 不再直接取 `ValuationFactRepository`；改用 `get_published_valuation_facts`，对缺失/过期/阻断 Publication 返回空事实，避免 stale valuation 旁路进入决策服务。
+- 保留 `start/end` as-of 窗口过滤与 `valuation_fact_date/fetched_at/extra` 证据字段，fresh published rows 才能进入既有 valuation policy。
+- 远端历史行情写入 canonical `PriceBar` 时，缺失的可选 `volume/amount` 保留为 `None`，不再写成零值。
+- current-data contract 扩展 valuation source 的 Publication gate 与 missing-value 回归标记。
+
+第二十六批机器证据：
+
+- `pytest tests/unit/valuation/test_asset_valuation_service.py tests/unit/valuation/test_asset_valuation_service_safety.py -q --no-migrations --reuse-db --timeout=120`：19 passed。
+- `pytest tests/component/test_equity_repository_daily.py -q --no-migrations --reuse-db --timeout=120`：5 passed；变更文件 ruff/black/isort 通过。
+- `python scripts/check_current_data_contracts.py`：30 surfaces。
+
+仍未完成及风险：
+
+- 估值服务在 valuation facts 被阻断时仍可按既有契约回退到显式标注的 canonical current-price fallback；这不是 valuation fact 的替代证据，生产 UI/MCP 仍需展示 fallback/blocked 语义。
+- 生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

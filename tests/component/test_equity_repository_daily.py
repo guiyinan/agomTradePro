@@ -83,6 +83,34 @@ def test_get_daily_prices_falls_back_to_akshare_when_tushare_unavailable(monkeyp
     ]
 
 
+def test_cache_remote_bars_preserves_missing_optional_volume(monkeypatch):
+    repository = DjangoStockRepository()
+    captured = []
+    monkeypatch.setattr(
+        repository._dc_price_bar_repo,
+        "bulk_upsert",
+        lambda bars: captured.extend(bars),
+    )
+
+    repository._cache_remote_historical_bars(
+        "TEST0001.SZ",
+        [
+            SimpleNamespace(
+                trade_date=date(2026, 3, 20),
+                open="10.00",
+                high="10.50",
+                low="9.80",
+                close="10.20",
+                amount=None,
+            )
+        ],
+    )
+
+    assert len(captured) == 1
+    assert captured[0].volume is None
+    assert captured[0].amount is None
+
+
 @pytest.mark.django_db
 def test_get_technical_bars_does_not_stop_at_sparse_data_center_cache(monkeypatch):
     repository = DjangoStockRepository()

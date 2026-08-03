@@ -43,6 +43,7 @@ class _HistoricalPriceBar(Protocol):
     amount: float | None
     source: str
 
+
 if TYPE_CHECKING:
     from apps.data_center.application.on_demand import OnDemandDataCenterService
 
@@ -262,9 +263,7 @@ class StockMarketDataRepositoryMixin:
 
         return self._get_akshare_gateway_historical_bars(stock_code, start_date, end_date)
 
-    def _bars_to_daily_prices(
-        self, bars: list[_HistoricalPriceBar]
-    ) -> list[tuple[date, Decimal]]:
+    def _bars_to_daily_prices(self, bars: list[_HistoricalPriceBar]) -> list[tuple[date, Decimal]]:
         prices: list[tuple[date, Decimal]] = []
         for bar in bars:
             trade_date = getattr(bar, "trade_date", None)
@@ -408,6 +407,7 @@ class StockMarketDataRepositoryMixin:
                 high_price = self._safe_decimal(getattr(bar, "high", None))
                 low_price = self._safe_decimal(getattr(bar, "low", None))
                 close_price = self._safe_decimal(getattr(bar, "close", None))
+                volume = self._safe_decimal(getattr(bar, "volume", None))
                 amount = self._safe_decimal(getattr(bar, "amount", None))
 
                 if (
@@ -433,7 +433,7 @@ class StockMarketDataRepositoryMixin:
                         close=float(close_price),
                         freq="1d",
                         adjustment=PriceAdjustment.NONE,
-                        volume=float(getattr(bar, "volume", 0) or 0),
+                        volume=float(volume) if volume is not None else None,
                         amount=float(amount) if amount is not None else None,
                         source=str(getattr(bar, "source", "") or "remote"),
                     )

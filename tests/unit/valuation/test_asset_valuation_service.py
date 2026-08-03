@@ -9,7 +9,11 @@ from unittest.mock import patch
 
 from apps.valuation.application.use_cases import AssetValuationService
 from apps.valuation.domain.entities import ValuationSnapshot
-from apps.valuation.infrastructure.providers import ObservableMarketPriceSource
+from apps.valuation.infrastructure.providers import (
+    AssetAnalysisValuationSource,
+    DataCenterValuationFactSource,
+    ObservableMarketPriceSource,
+)
 
 
 class _FormalSource:
@@ -147,6 +151,7 @@ def test_observable_market_price_uses_canonical_freshness_service() -> None:
             freshness="close_fallback",
         )
     )
+
     with patch(
         "apps.valuation.infrastructure.providers.UnifiedPriceService",
         return_value=unified,
@@ -155,6 +160,82 @@ def test_observable_market_price_uses_canonical_freshness_service() -> None:
 
     assert price == Decimal("10.25")
     assert source == "daily_close:close_fallback"
+
+
+def test_legacy_formal_missing_price_fields_remain_unknown() -> None:
+    class _LegacyValuationService:
+        def get_latest_valuation(self, security_code: str) -> object:
+            return SimpleNamespace(fair_value=12)
+
+    with patch(
+        "apps.valuation.infrastructure.providers.import_module",
+        return_value=SimpleNamespace(ValuationService=_LegacyValuationService),
+    ):
+        payload = AssetAnalysisValuationSource().get_payload("000001.SZ")
+
+    assert payload is not None
+    assert payload["fair_value"] == 12
+    assert payload["entry_price_low"] is None
+    assert payload["entry_price_high"] is None
+    assert payload["target_price_low"] is None
+    assert payload["target_price_high"] is None
+    assert payload["stop_loss_price"] is None
+
+
+def test_canonical_valuation_source_blocks_unpublished_rows(monkeypatch) -> None:
+    published_payload = {
+        "rows": [
+            {
+                "val_date": "2026-07-20",
+                "fetched_at": "2026-07-20T08:00:00+00:00",
+                "extra": {"intrinsic_value_per_share": "11.8"},
+            }
+        ],
+        "must_not_use_for_decision": True,
+        "blocked_reason": "publication_observation_stale",
+    }
+    monkeypatch.setattr(
+        "apps.valuation.infrastructure.providers.get_published_valuation_facts",
+        lambda *args, **kwargs: published_payload,
+    )
+
+    facts = DataCenterValuationFactSource().list_recent(
+        "000001.SZ",
+        date(2026, 7, 1),
+        date(2026, 7, 20),
+    )
+
+    assert facts == []
+
+
+def test_canonical_valuation_source_preserves_published_observation(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "apps.valuation.infrastructure.providers.get_published_valuation_facts",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "val_date": "2026-07-20",
+                    "fetched_at": "2026-07-20T08:00:00+00:00",
+                    "extra": {"intrinsic_value_per_share": "11.8"},
+                }
+            ],
+            "must_not_use_for_decision": False,
+        },
+    )
+
+    facts = DataCenterValuationFactSource().list_recent(
+        "000001.SZ",
+        date(2026, 7, 1),
+        date(2026, 7, 20),
+    )
+
+    assert facts == [
+        {
+            "valuation_fact_date": "2026-07-20",
+            "fetched_at": "2026-07-20T08:00:00+00:00",
+            "extra": {"intrinsic_value_per_share": "11.8"},
+        }
+    ]
 
 
 def test_persisted_price_fallback_cannot_bypass_canonical_price() -> None:
