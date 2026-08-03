@@ -1141,7 +1141,7 @@
 机器证据（本地）：
 
 - `pytest tests/unit/test_current_data_contract_runner.py -q`：3 passed。
-- runner 完整执行：143 个登记 nodeid 均可解析并执行，pytest 实际通过 182 个测试项；`check_current_data_contracts.py`：35 surfaces，治理一致性通过。
+- runner 完整执行：149 个登记 nodeid 均可解析并执行，pytest 实际通过 188 个测试项；`check_current_data_contracts.py`：36 surfaces，治理一致性通过。
 
 仍未完成及风险：
 
@@ -1186,6 +1186,25 @@
 仍未完成及风险：
 
 - 当前同步 use cases 尚未把每个 D0-D9 bulk upsert 自动编排成 publication candidate/member 写入和 coverage reconciliation；仍需在受控调度窗口接入 writer/backfill，并在 PostgreSQL 观察窗口验证 supersede/rollback。
+
+## 实施记录（2026-08-03，Sector membership consumer member-bound 收口）
+
+本批次修复 Sector policy-influence 聚合在 Publication gate 通过后仍读取全部 canonical membership rows 的旁路；provider/历史同步路径保持不变。
+
+已落地：
+
+- `DjangoSectorRepository.get_stock_sector_name_map` 现在读取当前 `sector.membership` publication 的 member fact PK 集合，再按同一集合查询 canonical membership；publication/member 缺失时返回空 mapping。
+- Data Center `SectorMembershipRepositoryProtocol.list_current` 与 infrastructure repository 增加 `fact_pks` 绑定参数，避免“有 publication 但读到未选中事实”。
+- current-data D7-D9 contract 增加 sector consumer marker 和精确 member-bound 回归 nodeid。
+
+机器证据（本地）：
+
+- `pytest tests/unit/sector -q --no-migrations --reuse-db`：32 passed。
+- `check_current_data_contracts.py`：36 surfaces；Sector/Data Center 变更文件 ruff/black/isort、mypy regression 通过。
+
+仍未完成及风险：
+
+- Sector index/relative-strength 仍属于业务派生缓存，不是 D7 membership facts；其当前/历史读取需继续按数据产品契约区分。生产 publication/member 观测和 PostgreSQL 仍未验证。
 
 ## 1. 结论先行
 

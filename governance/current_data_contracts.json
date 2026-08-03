@@ -1521,7 +1521,9 @@
           "def get_published_capital_flow_series("
         ],
         "apps/sector/infrastructure/repositories.py": [
-          "get_current_publication(\"sector.membership\", \"current\")"
+          "get_current_publication(\"sector.membership\", \"current\")",
+          "get_publication_member_fact_pks(",
+          "fact_pks=member_pks"
         ],
         "apps/sentiment/application/repository_provider.py": [
           "get_published_market_news(",
@@ -1559,6 +1561,11 @@
           "case": "sdk_publication_parameters_propagated",
           "test_file": "sdk/tests/test_sdk/test_data_center_module.py",
           "test_function": "test_data_center_module_propagates_publication_gate_for_news_and_sectors"
+        },
+        {
+          "case": "sector_consumer_uses_publication_members",
+          "test_file": "tests/unit/sector/test_t4b_boundary_contracts.py",
+          "test_function": "test_repository_builds_deduplicated_stock_sector_map_and_handles_saves"
         }
       ]
     },
