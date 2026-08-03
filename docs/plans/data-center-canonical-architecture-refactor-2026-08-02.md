@@ -1239,6 +1239,31 @@
 - Config Center 目前仍有已登记的兼容来源，SystemSettings 全量退役和所有全局运行参数迁移尚未完成。
 - PostgreSQL 最新 migration/性能、生产 publication/member 观察、备份恢复、M9/M10 旧表清理和 VPS 部署仍未验证；遵守“先不部署”约束。
 
+## 实施记录（2026-08-04，market.capital_flow Publication 与 runtime definition 收口）
+
+本批次继续只推进可验证的本地控制面和数据域切口，不部署、不 push、不接触生产数据。
+
+已落地：
+
+- `SyncCapitalFlowUseCase` 的正式 composition root 注入 `PublishCapitalFlowBatchUseCase`；capital-flow facts 写入后按 `(asset_code, flow_date, source)` 精确解析 canonical fact PK，生成成员绑定 Publication、coverage、确定性 hash/UUID5 和幂等重试路径。
+- capital-flow member 的 `observed_at` 固定由源 `flow_date` 转换为 UTC 日界，不使用 `fetched_at` 包装旧数据；candidate 同时保留 source record、raw hash、quality 和 revision 证据。
+- current-data manifest 增加 capital-flow writer/repository source markers 和 4 个精确测试 nodeid；D7-D9 的 capital-flow current 查询现在有实际同步→Publication 写入路径。
+- Config Center 新增 `DEFAULT_RUNTIME_DEFINITIONS` 与 `initialize_runtime_definitions` 幂等初始化命令；active profile 校验通过同一 registered definition catalog，缺失/非法定义不被静默接受。
+
+机器证据（本地）：
+
+- `pytest tests/unit/config_center/test_runtime_definition_reconcile.py tests/unit/config_center/test_runtime_public.py tests/unit/data_center/test_capital_flow_publication_sync.py tests/unit/data_center/test_news_publication_sync.py tests/unit/data_center/test_macro_failover_adapter.py tests/unit/data_center/test_control_plane.py tests/unit/data_center/test_phase3_sync_use_cases.py tests/unit/data_center/test_published_query_ports.py --reuse-db --no-migrations`：61 passed。
+- Capital-flow 扩展同步/查询/adapter 回归：84 passed；`python manage.py initialize_runtime_definitions` 成功幂等 reconcile。
+- current-data runner：158 个登记 nodeid，实际 197 个测试项全部通过（`--reuse-db --no-migrations`）。
+- `check_current_data_contracts.py`：36 surfaces；`check_runtime_config_coverage.py`：49 references；`check_celery_task_contracts.py`：14 tasks；`check_governance_consistency.py`：0 violations；`check_data_center_legacy_fact_access.py` 通过。
+- 10 个变更生产文件 mypy regression 为 0；architecture boundary/audit 0；manage check、makemigrations check、ruff/black/isort 全部通过。
+
+仍未完成及风险：
+
+- 目前只完成 `market.news`、`market.capital_flow` 两个同步→Publication writer；quote、price bar、fund NAV、financial、valuation、sector membership 等同步任务仍需同样的受控 writer/backfill、checkpoint 和覆盖对账。
+- runtime definition 目前只覆盖首个 failover key；全局运行参数、SystemSettings 退役和非默认 profile/无 active profile 的生产观察仍未完成。
+- PostgreSQL 最新迁移/性能、生产 publication/member 观察、备份恢复、容量故障注入、旧表退役和 VPS 部署仍未验证；继续保持不部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
