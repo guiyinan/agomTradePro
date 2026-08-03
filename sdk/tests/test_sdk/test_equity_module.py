@@ -189,6 +189,98 @@ class TestEquityModuleReadContracts:
             },
         )
 
+    def test_recommendations_payload_preserves_blocked_publication_metadata(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        blocked_payload = {
+            "success": False,
+            "status": "blocked",
+            "stock_codes": [],
+            "items": [],
+            "screening_criteria": {},
+            "mode": "published",
+            "publication_key": "current",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_missing",
+        }
+        with patch.object(client, "post", return_value=blocked_payload) as mock_post:
+            result = client.equity.get_recommendations_payload(
+                regime="Recovery",
+                limit=10,
+                mode="published",
+                publication_key="current",
+            )
+
+        assert result["status"] == "blocked"
+        assert result["must_not_use_for_decision"] is True
+        assert result["blocked_reason"] == "canonical_publication_missing"
+        mock_post.assert_called_once_with(
+            "/api/equity/screen/",
+            data=None,
+            json={
+                "max_count": 10,
+                "regime": "Recovery",
+                "mode": "published",
+                "publication_key": "current",
+            },
+        )
+
+    def test_score_and_analysis_propagate_publication_parameters(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        with (
+            patch.object(
+                client.equity,
+                "get_stock_detail",
+                return_value={
+                    "success": True,
+                    "stock_code": "000001.SZ",
+                    "score": 88.0,
+                    "status": "fresh",
+                    "mode": "published",
+                    "publication_key": "current",
+                    "must_not_use_for_decision": False,
+                },
+            ) as mock_detail,
+            patch.object(
+                client.equity,
+                "get_valuation",
+                return_value={
+                    "success": True,
+                    "stock_code": "000001.SZ",
+                    "status": "fresh",
+                    "mode": "published",
+                    "publication_key": "current",
+                    "must_not_use_for_decision": False,
+                },
+            ) as mock_valuation,
+        ):
+            score = client.equity.get_stock_score(
+                "000001.SZ",
+                mode="published",
+                publication_key="current",
+            )
+            analysis = client.equity.analyze_stock(
+                "000001.SZ",
+                mode="published",
+                publication_key="current",
+            )
+
+        assert score["overall_score"] == 88.0
+        assert score["must_not_use_for_decision"] is False
+        assert analysis["valuation"]["status"] == "fresh"
+        mock_detail.assert_any_call(
+            "000001.SZ",
+            mode="published",
+            publication_key="current",
+        )
+        mock_valuation.assert_called_once_with(
+            "000001.SZ",
+            lookback_days=252,
+            mode="published",
+            publication_key="current",
+        )
+
     def test_list_valuation_repairs_uses_snapshot_list_endpoint(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")
 

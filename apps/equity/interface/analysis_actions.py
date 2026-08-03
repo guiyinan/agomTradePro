@@ -96,6 +96,44 @@ class EquityAnalysisActionsMixin:
         serializer = ScreenStocksRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        mode = str(data["mode"])
+        publication_key = str(data["publication_key"])
+        publication_gates: dict[str, dict[str, object] | None] = {}
+        if mode == "published":
+            for dataset_key in ("equity.financial.fact", "equity.valuation.fact"):
+                publication_gates[dataset_key] = get_decision_publication_gate(
+                    dataset_key,
+                    publication_key,
+                )
+            blocked_publication = next(
+                (
+                    gate
+                    for gate in publication_gates.values()
+                    if gate is None or bool(gate.get("must_not_use_for_decision"))
+                ),
+                None,
+            )
+            if blocked_publication is not None:
+                return Response(
+                    {
+                        "success": False,
+                        "status": "blocked",
+                        "regime": str(data.get("regime") or ""),
+                        "stock_codes": [],
+                        "items": [],
+                        "screening_criteria": data.get("custom_rule") or {},
+                        "error": (
+                            blocked_publication.get("blocked_reason")
+                            if blocked_publication
+                            else "canonical_publication_missing"
+                        ),
+                        "mode": mode,
+                        "publication_key": publication_key,
+                        "publication_gates": publication_gates,
+                        "must_not_use_for_decision": True,
+                    },
+                    status=status.HTTP_200_OK,
+                )
 
         # 2. 构造请求对象
         use_case_request = ScreenStocksRequest(
@@ -112,7 +150,13 @@ class EquityAnalysisActionsMixin:
 
         # 4. 返回响应
         response_serializer = ScreenStocksResponseSerializer(use_case_response)
-        return Response(response_serializer.data, status=status.HTTP_200_OK)
+        payload = dict(response_serializer.data)
+        payload["mode"] = mode
+        payload["publication_key"] = publication_key
+        if mode == "published":
+            payload["publication_gates"] = publication_gates
+            payload["must_not_use_for_decision"] = False
+        return Response(payload, status=status.HTTP_200_OK)
 
     @typed_schema(
         summary="估值分析（个股详情）",

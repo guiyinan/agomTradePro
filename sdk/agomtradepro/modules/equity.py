@@ -30,6 +30,9 @@ class EquityModule(BaseModule):
         self,
         stock_code: str,
         as_of_date: date | None = None,
+        *,
+        mode: str | None = None,
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         """
         获取股票评分
@@ -50,14 +53,29 @@ class EquityModule(BaseModule):
             >>> print(f"综合评分: {score['overall_score']}")
             >>> print(f"估值分数: {score['valuation_score']}")
         """
-        detail = self.get_stock_detail(stock_code)
-        return {
+        detail = self.get_stock_detail(
+            stock_code,
+            mode=mode,
+            publication_key=publication_key,
+        )
+        result: dict[str, Any] = {
             "success": detail.get("success", True),
             "stock_code": stock_code,
             "as_of_date": as_of_date.isoformat() if as_of_date else None,
             "overall_score": detail.get("score"),
             "data": detail,
         }
+        for key in (
+            "status",
+            "mode",
+            "publication_key",
+            "publication_gates",
+            "must_not_use_for_decision",
+            "blocked_reason",
+        ):
+            if key in detail:
+                result[key] = detail[key]
+        return result
 
     def list_stocks(
         self,
@@ -192,7 +210,13 @@ class EquityModule(BaseModule):
                 result[key] = response[key]
         return result
 
-    def get_stock_detail(self, stock_code: str) -> dict[str, Any]:
+    def get_stock_detail(
+        self,
+        stock_code: str,
+        *,
+        mode: str | None = None,
+        publication_key: str | None = None,
+    ) -> dict[str, Any]:
         """
         获取股票详情
 
@@ -211,20 +235,58 @@ class EquityModule(BaseModule):
             >>> print(f"股票名称: {detail['name']}")
             >>> print(f"行业: {detail['sector']}")
         """
-        stocks = self.list_stocks(limit=500)
+        pool_payload: dict[str, Any] | None = None
+        if mode is not None or publication_key is not None:
+            pool_payload = self.get_stock_pool_payload(
+                limit=500,
+                mode=mode,
+                publication_key=publication_key,
+            )
+            stocks = pool_payload.get("stocks", [])
+            if not isinstance(stocks, list):
+                stocks = []
+        else:
+            stocks = self.list_stocks(limit=500)
         for stock in stocks:
             if stock.get("code") == stock_code or stock.get("stock_code") == stock_code:
-                return stock
-        return {
+                result = dict(stock)
+                if pool_payload is not None:
+                    for key in (
+                        "status",
+                        "mode",
+                        "publication_key",
+                        "publication_gates",
+                        "must_not_use_for_decision",
+                        "blocked_reason",
+                    ):
+                        if key in pool_payload:
+                            result[key] = pool_payload[key]
+                return result
+        result = {
             "success": False,
             "stock_code": stock_code,
             "error": "stock detail is unavailable in current pool snapshot",
         }
+        if pool_payload is not None:
+            for key in (
+                "status",
+                "mode",
+                "publication_key",
+                "publication_gates",
+                "must_not_use_for_decision",
+                "blocked_reason",
+            ):
+                if key in pool_payload:
+                    result[key] = pool_payload[key]
+        return result
 
     def get_recommendations(
         self,
         regime: str | None = None,
         limit: int = 20,
+        *,
+        mode: str | None = None,
+        publication_key: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         获取股票推荐
@@ -242,11 +304,12 @@ class EquityModule(BaseModule):
             >>> for stock in recs:
             ...     print(f"{stock['code']}: {stock['reason']}")
         """
-        payload: dict[str, Any] = {"max_count": limit}
-        if regime is not None:
-            payload["regime"] = regime
-
-        response = self._post("screen/", json=payload)
+        response = self.get_recommendations_payload(
+            regime=regime,
+            limit=limit,
+            mode=mode,
+            publication_key=publication_key,
+        )
         stock_codes = response.get("stock_codes", [])
         if not isinstance(stock_codes, list):
             return []
@@ -260,10 +323,35 @@ class EquityModule(BaseModule):
             for stock_code in stock_codes[:limit]
         ]
 
+    def get_recommendations_payload(
+        self,
+        regime: str | None = None,
+        limit: int = 20,
+        *,
+        mode: str | None = None,
+        publication_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Return screening response with publication/freshness metadata intact."""
+
+        payload: dict[str, Any] = {"max_count": limit}
+        if regime is not None:
+            payload["regime"] = regime
+        if mode is not None:
+            payload["mode"] = mode
+        if publication_key is not None:
+            payload["publication_key"] = publication_key
+        response = self._post("screen/", json=payload)
+        if not isinstance(response, dict):
+            raise ValueError("equity screening response must be an object")
+        return dict(response)
+
     def analyze_stock(
         self,
         stock_code: str,
         as_of_date: date | None = None,
+        *,
+        mode: str | None = None,
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         """
         分析股票
@@ -283,15 +371,36 @@ class EquityModule(BaseModule):
             >>> print(f"基本面分析: {analysis['fundamental']}")
             >>> print(f"技术面分析: {analysis['technical']}")
         """
-        detail = self.get_stock_detail(stock_code)
-        valuation = self.get_valuation(stock_code, as_of_date)
-        return {
+        detail = self.get_stock_detail(
+            stock_code,
+            mode=mode,
+            publication_key=publication_key,
+        )
+        valuation = self.get_valuation(
+            stock_code,
+            lookback_days=252,
+            mode=mode,
+            publication_key=publication_key,
+        )
+        result: dict[str, Any] = {
             "success": detail.get("success", True),
             "stock_code": stock_code,
             "as_of_date": as_of_date.isoformat() if as_of_date else None,
             "detail": detail,
             "valuation": valuation,
         }
+        for source in (detail, valuation):
+            for key in (
+                "status",
+                "mode",
+                "publication_key",
+                "publication_gates",
+                "must_not_use_for_decision",
+                "blocked_reason",
+            ):
+                if key in source and key not in result:
+                    result[key] = source[key]
+        return result
 
     def get_sector_stocks(self, sector: str) -> list[dict[str, Any]]:
         """

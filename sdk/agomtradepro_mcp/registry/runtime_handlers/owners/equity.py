@@ -563,6 +563,8 @@ def _internal_handler_equity_activate_valuation_repair_config(
 def _fallback_equity_read_score(
     stock_code: str,
     as_of_date: str | None = None,
+    mode: str = "published",
+    publication_key: str | None = None,
 ) -> dict[str, Any]:
     from datetime import date
 
@@ -570,26 +572,82 @@ def _fallback_equity_read_score(
 
     client = AgomTradeProClient()
     parsed_date = date.fromisoformat(as_of_date) if as_of_date else None
-    return client.equity.get_stock_score(stock_code, parsed_date)
+    return client.equity.get_stock_score(
+        stock_code,
+        parsed_date,
+        mode=mode,
+        publication_key=publication_key,
+    )
 
 
 def _fallback_equity_compute_recommendations(
     regime: str | None = None,
     limit: int = 20,
+    mode: str = "published",
+    publication_key: str | None = None,
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    recommendations = client.equity.get_recommendations(regime=regime, limit=limit)
+    payload_reader = getattr(client.equity, "get_recommendations_payload", None)
+    if callable(payload_reader):
+        payload = payload_reader(
+            regime=regime,
+            limit=limit,
+            mode=mode,
+            publication_key=publication_key,
+        )
+        recommendations = payload.get("items", payload.get("recommendations", []))
+        if not isinstance(recommendations, list):
+            recommendations = []
+        if not recommendations:
+            stock_codes = payload.get("stock_codes", [])
+            if isinstance(stock_codes, list):
+                recommendations = [
+                    {
+                        "code": code,
+                        "regime": payload.get("regime"),
+                        "screening_criteria": payload.get("screening_criteria", {}),
+                    }
+                    for code in stock_codes[:limit]
+                    if isinstance(code, str)
+                ]
+        return {
+            "recommendations": recommendations,
+            "total_count": len(recommendations),
+            "mode": mode,
+            "publication_key": publication_key or "current",
+            **{
+                key: payload[key]
+                for key in (
+                    "status",
+                    "publication_gates",
+                    "must_not_use_for_decision",
+                    "blocked_reason",
+                )
+                if key in payload
+            },
+        }
+    recommendations = client.equity.get_recommendations(
+        regime=regime,
+        limit=limit,
+        mode=mode,
+        publication_key=publication_key,
+    )
     return {
         "recommendations": recommendations,
         "total_count": len(recommendations),
+        "mode": mode,
+        "publication_key": publication_key or "current",
+        "must_not_use_for_decision": False,
     }
 
 
 def _fallback_equity_compute_analysis(
     stock_code: str,
     as_of_date: str | None = None,
+    mode: str = "published",
+    publication_key: str | None = None,
 ) -> dict[str, Any]:
     from datetime import date
 
@@ -597,7 +655,12 @@ def _fallback_equity_compute_analysis(
 
     client = AgomTradeProClient()
     parsed_date = date.fromisoformat(as_of_date) if as_of_date else None
-    return client.equity.analyze_stock(stock_code, parsed_date)
+    return client.equity.analyze_stock(
+        stock_code,
+        parsed_date,
+        mode=mode,
+        publication_key=publication_key,
+    )
 
 
 def _internal_handler_equity_run_valuation_repair_scan(

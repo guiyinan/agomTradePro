@@ -660,6 +660,51 @@
 - 旧 SDK 直接 `get_financials`/`list_stocks` 仍是历史 list 兼容形状，调用方若主动绕过 MCP envelope 仍需自行选择 `mode=published` 并读取 API gate；MCP capability/工具用户面已不再静默丢失阻断信息。
 - 生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
 
+## 实施记录（2026-08-03，第三十一批）
+
+本批次把 Equity 推荐/筛选入口接入财务与估值双 Publication gate；兼容 REST/SDK 默认 historical，MCP 用户面默认 published；不部署、不 push。
+
+已落地：
+
+- `/api/equity/screen/` 增加 `mode`/`publication_key`；`published` 请求在执行 `ScreenStocksUseCase` 前同时校验 `equity.financial.fact` 与 `equity.valuation.fact`。
+- 任一分区 stale/missing/unverified 时返回空 `stock_codes/items`、`status=blocked`、`must_not_use_for_decision=true`、稳定阻断原因和 gate evidence，不执行筛选用例。
+- SDK 新增 `get_recommendations_payload`，保留 `get_recommendations` 的旧 list 形状；MCP 推荐 raw tool 与 capability fallback 默认 published 并保留 envelope 元数据。
+- Screen response schema、capability input/output、current-data contract 同步更新。
+
+第三十一批机器证据：
+
+- `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --timeout=180 -k 'screen or published_screen'`：10 passed。
+- `pytest sdk/tests/test_sdk/test_sdk_alignment_read_candidates.py sdk/tests/test_mcp/test_sdk_alignment_read_registry.py -q --disable-warnings --maxfail=1 --timeout=60`：23 passed。
+- `pytest sdk/tests/test_sdk/test_equity_module.py sdk/tests/test_sdk/test_sdk_alignment_read_candidates.py -q --disable-warnings --maxfail=1 --timeout=60`：20 passed。
+- `pytest sdk/tests/test_mcp/test_equity_hedge_tools.py -q --disable-warnings --maxfail=1 --timeout=60`：15 passed，覆盖 raw MCP score/analysis blocked envelope。
+- `check_current_data_contracts.py`：31 surfaces；`check_governance_consistency.py`、mypy、ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- Screen 的 `published` 只在入口处校验 gate，底层筛选用例仍由 canonical repository 读取 latest facts，尚未把筛选批次绑定到单一 Publication member snapshot。
+- 生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
+
+## 实施记录（2026-08-03，第三十二批）
+
+本批次收口评分、详情和组合分析的 Equity MCP 旁路，避免它们通过股票池/估值接口静默落到 historical 或丢失阻断状态；不部署、不 push。
+
+已落地：
+
+- SDK `get_stock_score`、`get_stock_detail`、`analyze_stock` 增加可选 `mode`/`publication_key`；旧 SDK 默认保持兼容，`analyze_stock` 不再把 `date` 误传给 `lookback_days`。
+- MCP 原始工具和 capability fallback 的评分/分析读取默认 `published`；SDK 端透传 `publication_gates`、`must_not_use_for_decision` 和 `blocked_reason`。
+- Equity score/analysis capability schema 登记 Publication 参数和可靠性输出字段，current-data contract 增加对应 markers。
+
+第三十二批机器证据：
+
+- `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --timeout=180`：42 passed。
+- `pytest sdk/tests/test_sdk/test_equity_module.py sdk/tests/test_sdk/test_sdk_alignment_read_candidates.py -q --disable-warnings --maxfail=1 --timeout=60`：20 passed。
+- `check_current_data_contracts.py`：31 surfaces；`check_governance_consistency.py`、mypy、ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- 原始 SDK score/detail/analysis 兼容调用不传 mode 时仍允许 historical；仅 MCP/capability 用户面强制 published 默认。
+- 生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

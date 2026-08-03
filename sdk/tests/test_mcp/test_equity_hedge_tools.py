@@ -286,6 +286,123 @@ def test_stock_financials_raw_tool_keeps_blocked_publication_metadata(
     assert "must_not_use_for_decision" in rendered
 
 
+def test_stock_recommendations_raw_tool_keeps_blocked_publication_metadata(
+    legacy_enabled_mcp_server,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = importlib.import_module("agomtradepro_mcp.tools.equity_tools")
+
+    def get_recommendations_payload(
+        *,
+        regime: str | None,
+        limit: int,
+        mode: str,
+        publication_key: str | None,
+    ) -> dict[str, object]:
+        assert (regime, limit, mode, publication_key) == (
+            None,
+            20,
+            "published",
+            None,
+        )
+        return {
+            "success": False,
+            "status": "blocked",
+            "stock_codes": [],
+            "items": [],
+            "screening_criteria": {},
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_missing",
+        }
+
+    monkeypatch.setattr(
+        module,
+        "AgomTradeProClient",
+        lambda: SimpleNamespace(
+            equity=SimpleNamespace(get_recommendations_payload=get_recommendations_payload)
+        ),
+    )
+
+    result = asyncio.run(legacy_enabled_mcp_server.call_tool("get_stock_recommendations", {}))
+
+    rendered = str(result)
+    assert "blocked" in rendered
+    assert "canonical_publication_missing" in rendered
+    assert "must_not_use_for_decision" in rendered
+
+
+def test_stock_score_and_analysis_raw_tools_keep_blocked_publication_metadata(
+    legacy_enabled_mcp_server,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = importlib.import_module("agomtradepro_mcp.tools.equity_tools")
+
+    def get_stock_score(
+        stock_code: str,
+        as_of_date,
+        *,
+        mode: str,
+        publication_key: str | None,
+    ) -> dict[str, object]:
+        assert (stock_code, as_of_date, mode, publication_key) == (
+            "000001.SZ",
+            None,
+            "published",
+            None,
+        )
+        return {
+            "success": False,
+            "status": "blocked",
+            "stock_code": stock_code,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_missing",
+        }
+
+    def analyze_stock(
+        stock_code: str,
+        as_of_date,
+        *,
+        mode: str,
+        publication_key: str | None,
+    ) -> dict[str, object]:
+        assert (stock_code, as_of_date, mode, publication_key) == (
+            "000001.SZ",
+            None,
+            "published",
+            None,
+        )
+        return {
+            "success": False,
+            "status": "blocked",
+            "stock_code": stock_code,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_missing",
+        }
+
+    monkeypatch.setattr(
+        module,
+        "AgomTradeProClient",
+        lambda: SimpleNamespace(
+            equity=SimpleNamespace(
+                get_stock_score=get_stock_score,
+                analyze_stock=analyze_stock,
+            )
+        ),
+    )
+
+    score = asyncio.run(
+        legacy_enabled_mcp_server.call_tool("get_stock_score", {"stock_code": "000001.SZ"})
+    )
+    analysis = asyncio.run(
+        legacy_enabled_mcp_server.call_tool("analyze_stock", {"stock_code": "000001.SZ"})
+    )
+
+    assert "canonical_publication_missing" in str(score)
+    assert "canonical_publication_missing" in str(analysis)
+    assert "must_not_use_for_decision" in str(score)
+    assert "must_not_use_for_decision" in str(analysis)
+
+
 @pytest.mark.parametrize(
     ("tool_name", "arguments", "marker"),
     [

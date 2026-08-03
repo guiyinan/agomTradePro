@@ -19,6 +19,8 @@ def register_equity_tools(server: FastMCP) -> None:
     def get_stock_score(
         stock_code: str,
         as_of_date: str | None = None,
+        mode: str = "published",
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         """
         获取股票评分
@@ -35,7 +37,12 @@ def register_equity_tools(server: FastMCP) -> None:
         """
         client = AgomTradeProClient()
         parsed_date = date.fromisoformat(as_of_date) if as_of_date else None
-        return client.equity.get_stock_score(stock_code, parsed_date)
+        return client.equity.get_stock_score(
+            stock_code,
+            parsed_date,
+            mode=mode,
+            publication_key=publication_key,
+        )
 
     @server.tool()
     def list_stocks(
@@ -87,7 +94,11 @@ def register_equity_tools(server: FastMCP) -> None:
         }
 
     @server.tool()
-    def get_stock_detail(stock_code: str) -> dict[str, Any]:
+    def get_stock_detail(
+        stock_code: str,
+        mode: str = "published",
+        publication_key: str | None = None,
+    ) -> dict[str, Any]:
         """
         获取股票详情
 
@@ -101,13 +112,19 @@ def register_equity_tools(server: FastMCP) -> None:
             >>> detail = get_stock_detail("000001.SZ")
         """
         client = AgomTradeProClient()
-        return client.equity.get_stock_detail(stock_code)
+        return client.equity.get_stock_detail(
+            stock_code,
+            mode=mode,
+            publication_key=publication_key,
+        )
 
     @server.tool()
     def get_stock_recommendations(
         regime: str | None = None,
         limit: int = 20,
-    ) -> list[dict[str, Any]]:
+        mode: str = "published",
+        publication_key: str | None = None,
+    ) -> dict[str, Any]:
         """
         获取股票推荐
 
@@ -116,18 +133,41 @@ def register_equity_tools(server: FastMCP) -> None:
             limit: 返回数量限制
 
         Returns:
-            推荐股票列表
+            推荐股票及 publication/freshness evidence
 
         Example:
             >>> recs = get_stock_recommendations(regime="Recovery")
         """
         client = AgomTradeProClient()
-        return client.equity.get_recommendations(regime=regime, limit=limit)
+        payload_reader = getattr(client.equity, "get_recommendations_payload", None)
+        if callable(payload_reader):
+            return payload_reader(
+                regime=regime,
+                limit=limit,
+                mode=mode,
+                publication_key=publication_key,
+            )
+        recommendations = client.equity.get_recommendations(
+            regime=regime,
+            limit=limit,
+            mode=mode,
+            publication_key=publication_key,
+        )
+        return {
+            "stock_codes": [item.get("code") for item in recommendations],
+            "recommendations": recommendations,
+            "total_count": len(recommendations),
+            "mode": mode,
+            "publication_key": publication_key or "current",
+            "must_not_use_for_decision": False,
+        }
 
     @server.tool()
     def analyze_stock(
         stock_code: str,
         as_of_date: str | None = None,
+        mode: str = "published",
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         """
         分析股票
@@ -144,7 +184,12 @@ def register_equity_tools(server: FastMCP) -> None:
         """
         client = AgomTradeProClient()
         parsed_date = date.fromisoformat(as_of_date) if as_of_date else None
-        return client.equity.analyze_stock(stock_code, parsed_date)
+        return client.equity.analyze_stock(
+            stock_code,
+            parsed_date,
+            mode=mode,
+            publication_key=publication_key,
+        )
 
     @server.tool()
     def get_stock_financials(

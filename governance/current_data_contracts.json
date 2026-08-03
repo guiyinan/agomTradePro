@@ -1171,6 +1171,7 @@
           "get_decision_publication_gate(",
           "mode = str(data[\"mode\"])",
           "equity.financial.fact",
+          "ScreenStocksUseCase",
           "publication_gates",
           "must_not_use_for_decision"
         ],
@@ -1185,6 +1186,9 @@
           "def get_valuation(",
           "def get_stock_pool(",
           "def get_stock_pool_payload(",
+          "def get_recommendations_payload(",
+          "def get_stock_score(",
+          "def analyze_stock(",
           "params[\"mode\"] = mode",
           "params[\"publication_key\"] = publication_key"
         ],
@@ -1192,11 +1196,17 @@
           "mode: str = \"published\"",
           "get_financials_payload",
           "get_stock_pool_payload",
+          "get_recommendations_payload",
+          "get_stock_score",
+          "analyze_stock",
           "publication_key: str | None = None"
         ],
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py": [
           "def _fallback_equity_read_valuation_analysis(",
           "def _fallback_equity_read_financial_history(",
+          "def _fallback_equity_compute_recommendations(",
+          "def _fallback_equity_read_score(",
+          "def _fallback_equity_compute_analysis(",
           "mode: str = \"published\"",
           "publication_key: str | None = None"
         ]
@@ -1271,6 +1281,21 @@
           "case": "equity_pool_raw_mcp_preserves_publication_block",
           "test_file": "sdk/tests/test_mcp/test_equity_hedge_tools.py",
           "test_function": "test_list_stocks_raw_tool_keeps_blocked_publication_metadata"
+        },
+        {
+          "case": "equity_screen_stale_publication_blocks_before_use_case",
+          "test_file": "tests/api/test_equity_api_edges.py",
+          "test_function": "test_equity_published_screen_blocks_stale_publication_before_use_case"
+        },
+        {
+          "case": "equity_recommendation_raw_mcp_preserves_publication_block",
+          "test_file": "sdk/tests/test_mcp/test_equity_hedge_tools.py",
+          "test_function": "test_stock_recommendations_raw_tool_keeps_blocked_publication_metadata"
+        },
+        {
+          "case": "equity_score_analysis_raw_mcp_preserves_publication_block",
+          "test_file": "sdk/tests/test_mcp/test_equity_hedge_tools.py",
+          "test_function": "test_stock_score_and_analysis_raw_tools_keep_blocked_publication_metadata"
         }
       ]
     },

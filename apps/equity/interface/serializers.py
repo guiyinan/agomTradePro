@@ -136,6 +136,13 @@ class ScreenStocksRequestSerializer(StrictFieldsSerializer):
     max_count = serializers.IntegerField(
         required=False, min_value=1, max_value=100, help_text="最多返回个股数量"
     )
+    mode = serializers.ChoiceField(
+        choices=("historical", "published"),
+        required=False,
+        default="historical",
+        help_text="数据模式；published 才允许用于当前决策",
+    )
+    publication_key = serializers.CharField(required=False, default="current", max_length=160)
     min_roe = serializers.FloatField(required=False, write_only=True)
     max_pe = serializers.FloatField(required=False, write_only=True)
     max_pb = serializers.FloatField(required=False, write_only=True)
@@ -189,6 +196,11 @@ class ScreenStocksResponseSerializer(serializers.Serializer[ScreenStocksResponse
     items = serializers.ListField(child=serializers.DictField(), required=False)
     screening_criteria = serializers.DictField()
     error = serializers.CharField(allow_null=True, required=False)
+    status = serializers.CharField(required=False)
+    mode = serializers.CharField(required=False)
+    publication_key = serializers.CharField(required=False)
+    publication_gates = serializers.DictField(required=False)
+    must_not_use_for_decision = serializers.BooleanField(required=False)
 
 
 class FinancialHistoryQuerySerializer(serializers.Serializer[dict[str, Any]]):

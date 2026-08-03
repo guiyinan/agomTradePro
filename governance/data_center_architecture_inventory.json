@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 56,
-    "current_surface_references": 2846,
+    "current_surface_references": 2847,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
     "legacy_fact_references": 141,
@@ -6767,32 +6767,32 @@
       "text": "summary=\"筛选个股\","
     },
     {
-      "line": 118,
+      "line": 162,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"估值分析（个股详情）\","
     },
     {
-      "line": 253,
+      "line": 297,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"技术图表数据\","
     },
     {
-      "line": 279,
+      "line": 323,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"分时图数据\","
     },
     {
-      "line": 299,
+      "line": 343,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"DCF 绝对估值\","
     },
     {
-      "line": 354,
+      "line": 398,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"Regime 相关性分析\","
     },
     {
-      "line": 457,
+      "line": 501,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"综合估值分析\","
     },
@@ -6812,17 +6812,22 @@
       "text": "logger.warning(\"Current Regime unavailable while loading stock pool\", exc_info=True)"
     },
     {
-      "line": 180,
+      "line": 145,
       "path": "apps/equity/interface/serializers.py",
       "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
     },
     {
-      "line": 208,
+      "line": 187,
       "path": "apps/equity/interface/serializers.py",
       "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
     },
     {
-      "line": 227,
+      "line": 220,
+      "path": "apps/equity/interface/serializers.py",
+      "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
+    },
+    {
+      "line": 239,
       "path": "apps/equity/interface/serializers.py",
       "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
     },

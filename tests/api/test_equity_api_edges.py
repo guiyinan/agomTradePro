@@ -809,6 +809,44 @@ def test_equity_published_valuation_blocks_stale_financial_publication_before_us
 
 
 @pytest.mark.django_db
+def test_equity_published_screen_blocks_stale_publication_before_use_case(
+    authenticated_client,
+):
+    stale_publication = {
+        "publication_id": "equity-financials-2026-08-03",
+        "published_at": "2026-08-03T08:00:00+00:00",
+        "as_of": "2026-07-31",
+        "must_not_use_for_decision": True,
+        "blocked_reason": "publication_observation_stale",
+        "freshness_status": "stale",
+    }
+
+    with (
+        patch(
+            "apps.equity.interface.analysis_actions.get_decision_publication_gate",
+            return_value=stale_publication,
+        ),
+        patch(
+            "apps.equity.interface.analysis_actions.ScreenStocksUseCase",
+            side_effect=AssertionError("blocked publication must not run screening"),
+        ),
+    ):
+        response = authenticated_client.post(
+            "/api/equity/screen/",
+            {"mode": "published", "regime": "Recovery"},
+            format="json",
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is False
+    assert payload["status"] == "blocked"
+    assert payload["stock_codes"] == []
+    assert payload["error"] == "publication_observation_stale"
+    assert payload["must_not_use_for_decision"] is True
+
+
+@pytest.mark.django_db
 def test_equity_valuation_returns_basic_info_when_valuation_missing(authenticated_client):
     today = timezone.localdate()
     asset = AssetMasterModel.objects.create(
