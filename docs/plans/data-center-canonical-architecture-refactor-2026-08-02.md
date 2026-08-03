@@ -1394,6 +1394,28 @@
 - D0-D9 现在已有各主要事实域的本地 writer，但全域 checkpoint、backfill、coverage reconciliation、supersede/rollback 及生产调度观察仍未实施；“本地 writer 通过”不等于生产数据已发布。
 - PostgreSQL 生产规模/P95/WAL/锁预算、备份恢复、Retention/Archive 实际调度、CI Linux 同构、真实 MCP/生产 publication 观察、M9/M10 和 VPS 部署仍未验证；继续保持不部署。
 
+## 实施记录（2026-08-04，A 股核心回填 durable control plane 收口）
+
+本批次只处理回填任务的可恢复执行证据，继续不部署、不 push、不接触生产数据。
+
+已落地：
+
+- `backfill_active_a_share_core_data_batch_task` 在输入、无剩余资产、Provider 缺失、市场日历阻断和正常批次五条出口统一生成稳定幂等键；以 UUID5 派生 `run_id`、`batch_id` 和 cursor checkpoint，Celery 重试会更新同一 `SyncRun`/`SyncBatch`，不会重复创建批次。
+- 每个通过边界校验的执行出口都通过 Data Center composition getters 写入 `SyncRunRepository`、`SyncBatchRepository`、`SyncCheckpointRepository`；checkpoint 保留 `offset/next_offset/total_assets/complete`，并把失败原因、processed/failed 和窗口边界写入 durable control plane。非法输入严格在任何 Repository/Provider 访问前返回，仅保留内存中的兼容 checkpoint 形状。
+- 任务返回契约保持 `success/outcome/requested/succeeded/failed/stored/checkpoint`，新增 `published`（仅在同步结果显式暴露 publication/member count 时计数，不用 stored_count 猜测），并保持 `failed/blocked/noop` 的标准业务 outcome。
+- 单元测试增加重试幂等断言，并使用 fake repository fixture 验证写入调用，不让无 `django_db` 标记的快速测试隐式触碰 SQLite。
+
+机器证据（本地）：
+
+- `pytest tests/unit/data_center/test_core_data_backfill_task.py -q`：8 passed（含成功、部分失败、全失败、Provider 缺失、市场日历阻断、noop、非法输入和重试幂等）；`pytest tests/component/data_center/test_core_data_backfill_control_plane.py -q`：1 passed（真实 Django 测试库读取三张 control-plane 表）。
+- `python scripts/check_mypy_regression.py apps/data_center/application/tasks.py`：0 regressions；`ruff`、`black --check`、`isort --check-only`：通过。
+- `python scripts/check_celery_task_contracts.py`：14 tasks / 4 governed files；`python scripts/verify_architecture.py --include-audit --format text`：boundary 0、audit 0。
+
+仍未完成及风险：
+
+- 当前只证明回填出口能写入 durable control plane，尚未在临时 PostgreSQL 中用真实 fake-provider 全链路运行一次回填并读取持久化 `run_id/batch_id/checkpoint`；生产回填、限速、锁/P95、coverage reconciliation、跨批 resume 观察仍未执行。
+- 全域 Publication supersede/rollback、legacy/canonical 对账、D0-D9 query budget、PostgreSQL 生产规模、备份恢复、Retention/Archive 实际调度、CI Linux 同构、真实 MCP/生产观察以及 M9/M10/VPS 仍保持未验证；继续不部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

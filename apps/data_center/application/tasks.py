@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import shutil
-from datetime import date, timedelta
+from collections.abc import Mapping
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from uuid import NAMESPACE_URL, uuid5
 
 from celery import shared_task
 from django.core.cache import cache
@@ -19,6 +23,16 @@ from apps.data_center.composition import (
     get_retention_policy_repository,
     get_retention_run_repository,
     get_storage_hold_repository,
+    get_sync_batch_repository,
+    get_sync_checkpoint_repository,
+    get_sync_run_repository,
+)
+from apps.data_center.domain.control_plane import (
+    SyncBatch,
+    SyncCheckpoint,
+    SyncItemState,
+    SyncRun,
+    SyncRunStatus,
 )
 from shared.domain.task_outcomes import TaskBusinessOutcome
 from shared.infrastructure.operational_alert_registry import record_operational_alert
@@ -47,6 +61,196 @@ from .retention import RetentionCleanupUseCase
 logger = logging.getLogger(__name__)
 
 DECISION_QUOTE_DEGRADED_STREAK_KEY = "task_monitor:decision_quote_degraded_streak:v1"
+BACKFILL_DATASET_KEY = "equity.core.backfill"
+BACKFILL_TASK_NAME = "celery.backfill_a_share_core"
+
+
+def _backfill_idempotency_key(
+    source: object,
+    offset: object,
+    batch_size: object,
+    history_days: object,
+    financial_periods: object,
+) -> str:
+    """Build a bounded, deterministic key for one requested backfill window.
+
+    The visible portion keeps the dataset/source/offset/window dimensions
+    operator-readable.  A digest retains the complete raw request for invalid
+    inputs without exceeding the database's 240-character key limit.
+    """
+
+    try:
+        source_text = str(source or "").strip().lower() or "unknown"
+    except Exception:
+        source_text = "unknown"
+    source_text = source_text[:32]
+    material = "|".join(
+        (
+            BACKFILL_DATASET_KEY,
+            f"source={source!r}",
+            f"offset={offset!r}",
+            f"batch_size={batch_size!r}",
+            f"history_days={history_days!r}",
+            f"financial_periods={financial_periods!r}",
+        )
+    )
+    digest = hashlib.sha256(material.encode("utf-8", errors="replace")).hexdigest()[:16]
+    visible = (
+        f"{BACKFILL_DATASET_KEY}:{source_text}:"
+        f"offset={str(offset)[:24]}:"
+        f"window={str(batch_size)[:24]}"
+    )
+    return f"{visible}:{digest}"
+
+
+def _backfill_control_plane_ids(idempotency_key: str) -> tuple[str, str]:
+    """Return stable run and batch UUIDs for one idempotent task window."""
+
+    run_id = str(uuid5(NAMESPACE_URL, f"agomtradepro:sync-run:{idempotency_key}"))
+    batch_id = str(uuid5(NAMESPACE_URL, f"agomtradepro:sync-batch:{idempotency_key}"))
+    return run_id, batch_id
+
+
+def _backfill_sync_status(
+    outcome: TaskBusinessOutcome,
+    *,
+    published: int,
+) -> tuple[SyncRunStatus, SyncItemState]:
+    """Map task business outcomes to durable control-plane lifecycle states."""
+
+    if outcome is TaskBusinessOutcome.SUCCESS:
+        return (
+            SyncRunStatus.PUBLISHED if published > 0 else SyncRunStatus.STORED,
+            SyncItemState.SUCCEEDED,
+        )
+    if outcome is TaskBusinessOutcome.NOOP:
+        return SyncRunStatus.STORED, SyncItemState.SKIPPED
+    if outcome is TaskBusinessOutcome.BLOCKED:
+        return SyncRunStatus.BLOCKED, SyncItemState.FAILED
+    if outcome is TaskBusinessOutcome.PARTIAL:
+        return SyncRunStatus.STORED, SyncItemState.FAILED
+    return SyncRunStatus.FAILED, SyncItemState.FAILED
+
+
+def _published_count_from_result(result: object) -> int:
+    """Extract an optional publication count without inventing one.
+
+    Current domain sync DTOs expose ``stored_count`` only, so the durable
+    control-plane record deliberately persists zero until a result or attached
+    publication explicitly exposes a selected member count.
+    """
+
+    for candidate in (
+        getattr(result, "published_count", None),
+        getattr(result, "published", None),
+    ):
+        if isinstance(candidate, int) and not isinstance(candidate, bool) and candidate >= 0:
+            return candidate
+    publication = getattr(result, "publication", None)
+    member_count = getattr(publication, "member_count", None)
+    if isinstance(member_count, int) and not isinstance(member_count, bool) and member_count >= 0:
+        return member_count
+    return 0
+
+
+def _persist_backfill_control_plane(
+    *,
+    idempotency_key: str,
+    provider_name: str,
+    outcome: TaskBusinessOutcome,
+    requested: int,
+    succeeded: int,
+    failed: int,
+    stored: int,
+    published: int,
+    checkpoint: Mapping[str, object],
+    window_start: date | None,
+    window_end: date | None,
+    started_at: datetime,
+    error_code: str = "",
+    error_message: str = "",
+) -> None:
+    """Persist one backfill run, batch and cursor using application ports.
+
+    Repository ``save`` methods are update-or-create operations, so Celery
+    retries converge on the same rows identified by the deterministic UUIDs
+    and idempotency key instead of creating duplicate batches.
+    """
+
+    finished_at = datetime.now(UTC)
+    run_id, batch_id = _backfill_control_plane_ids(idempotency_key)
+    run_status, batch_state = _backfill_sync_status(outcome, published=published)
+    if run_status is SyncRunStatus.BLOCKED and not error_code:
+        error_code = "blocked"
+    elif outcome is TaskBusinessOutcome.FAILED and not error_code:
+        error_code = "failed"
+    elif outcome is TaskBusinessOutcome.PARTIAL and not error_code:
+        error_code = "partial_failure"
+    run = SyncRun(
+        run_id=run_id,
+        dataset_key=BACKFILL_DATASET_KEY,
+        trigger=BACKFILL_TASK_NAME,
+        status=run_status,
+        outcome=outcome.value,
+        requested=requested,
+        fetched=stored,
+        validated=succeeded,
+        succeeded=succeeded,
+        failed=failed,
+        stored=stored,
+        published=published,
+        provider_name=provider_name or "unknown",
+        contract_version="1.0",
+        started_at=started_at,
+        finished_at=finished_at,
+        error_code=error_code,
+        error_message=error_message,
+    )
+    batch = SyncBatch(
+        batch_id=batch_id,
+        run_id=run_id,
+        dataset_key=BACKFILL_DATASET_KEY,
+        provider_name=provider_name or "unknown",
+        idempotency_key=idempotency_key,
+        state=batch_state,
+        requested=requested,
+        fetched=stored,
+        validated=succeeded,
+        succeeded=succeeded,
+        failed=failed,
+        stored=stored,
+        published=published,
+        window_start=window_start,
+        window_end=window_end,
+        started_at=started_at,
+        finished_at=finished_at,
+        error_code=error_code,
+        error_message=error_message,
+    )
+    cursor_value = json.dumps(checkpoint, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    checkpoint_id = str(
+        uuid5(NAMESPACE_URL, f"agomtradepro:sync-checkpoint:{batch_id}:asset_offset:{cursor_value}")
+    )
+    checkpoint_state = (
+        SyncItemState.SUCCEEDED
+        if outcome in {TaskBusinessOutcome.SUCCESS, TaskBusinessOutcome.NOOP}
+        else SyncItemState.FAILED
+    )
+    durable_checkpoint = SyncCheckpoint(
+        checkpoint_id=checkpoint_id,
+        run_id=run_id,
+        batch_id=batch_id,
+        cursor_name="asset_offset",
+        cursor_value=cursor_value,
+        state=checkpoint_state,
+        processed=succeeded,
+        failed=failed,
+        recorded_at=finished_at,
+        error_code=error_code,
+    )
+    get_sync_run_repository().save(run)
+    get_sync_batch_repository().save(batch)
+    get_sync_checkpoint_repository().save(durable_checkpoint)
 
 
 def _resolve_market_thermometer_as_of_date(raw_as_of_date: str = "") -> date:
@@ -184,6 +388,14 @@ def backfill_active_a_share_core_data_batch_task(
 ) -> dict[str, Any]:
     """Backfill one resumable active-A-share core-data batch."""
 
+    started_at = datetime.now(UTC)
+    idempotency_key = _backfill_idempotency_key(
+        source,
+        offset,
+        batch_size,
+        history_days,
+        financial_periods,
+    )
     try:
         validated_offset = _validated_backfill_int(
             offset,
@@ -213,6 +425,12 @@ def backfill_active_a_share_core_data_batch_task(
         if not normalized_source or len(normalized_source) > 32:
             raise ValueError("source must be a non-empty identifier")
     except ValueError as exc:
+        checkpoint = {
+            "offset": 0,
+            "next_offset": 0,
+            "total_assets": 0,
+            "complete": False,
+        }
         return {
             "success": False,
             "outcome": TaskBusinessOutcome.FAILED.value,
@@ -222,6 +440,7 @@ def backfill_active_a_share_core_data_batch_task(
             "succeeded": 0,
             "failed": 0,
             "stored": 0,
+            "checkpoint": checkpoint,
         }
 
     asset_codes = list_active_stock_codes_for_backfill()
@@ -235,6 +454,20 @@ def backfill_active_a_share_core_data_batch_task(
         "complete": next_offset >= total_assets,
     }
     if not batch_codes:
+        _persist_backfill_control_plane(
+            idempotency_key=idempotency_key,
+            provider_name=normalized_source,
+            outcome=TaskBusinessOutcome.NOOP,
+            requested=0,
+            succeeded=0,
+            failed=0,
+            stored=0,
+            published=0,
+            checkpoint=checkpoint,
+            window_start=None,
+            window_end=None,
+            started_at=started_at,
+        )
         return {
             "success": True,
             "outcome": TaskBusinessOutcome.NOOP.value,
@@ -249,30 +482,66 @@ def backfill_active_a_share_core_data_batch_task(
 
     provider_id = get_active_provider_id_by_source(normalized_source)
     if provider_id is None:
+        failed_count = len(batch_codes)
+        blocked_checkpoint = {**checkpoint, "complete": False}
+        _persist_backfill_control_plane(
+            idempotency_key=idempotency_key,
+            provider_name=normalized_source,
+            outcome=TaskBusinessOutcome.FAILED,
+            requested=failed_count,
+            succeeded=0,
+            failed=failed_count,
+            stored=0,
+            published=0,
+            checkpoint=blocked_checkpoint,
+            window_start=None,
+            window_end=None,
+            started_at=started_at,
+            error_code="provider_unavailable",
+            error_message=f"no active provider for source: {normalized_source}",
+        )
         return {
             "success": False,
             "outcome": TaskBusinessOutcome.FAILED.value,
             "stage": "provider",
             "error": f"no active provider for source: {normalized_source}",
-            "requested": len(batch_codes),
+            "requested": failed_count,
             "succeeded": 0,
-            "failed": len(batch_codes),
+            "failed": failed_count,
             "stored": 0,
-            "checkpoint": {**checkpoint, "complete": False},
+            "checkpoint": blocked_checkpoint,
         }
 
     end_date = latest_completed_cn_market_session(timezone.now())
     if end_date is None:
+        failed_count = len(batch_codes)
+        blocked_checkpoint = {**checkpoint, "complete": False}
+        _persist_backfill_control_plane(
+            idempotency_key=idempotency_key,
+            provider_name=normalized_source,
+            outcome=TaskBusinessOutcome.BLOCKED,
+            requested=failed_count,
+            succeeded=0,
+            failed=failed_count,
+            stored=0,
+            published=0,
+            checkpoint=blocked_checkpoint,
+            window_start=None,
+            window_end=None,
+            started_at=started_at,
+            error_code="market_calendar_unavailable",
+            error_message="latest completed China market session is unavailable",
+        )
         return {
             "success": False,
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "stage": "market_calendar",
             "error": "latest completed China market session is unavailable",
-            "requested": len(batch_codes),
+            "requested": failed_count,
             "succeeded": 0,
-            "failed": len(batch_codes),
+            "failed": failed_count,
             "stored": 0,
-            "checkpoint": {**checkpoint, "complete": False},
+            "checkpoint": blocked_checkpoint,
         }
     start_date = end_date - timedelta(days=validated_history_days)
     quote_use_case = make_sync_quote_use_case()
@@ -284,12 +553,14 @@ def backfill_active_a_share_core_data_batch_task(
         name: {"requested": len(batch_codes), "succeeded": 0, "failed": 0, "stored": 0}
         for name in ("quote", "price", "valuation", "financial")
     }
+    published_total = 0
     errors: list[dict[str, str]] = []
     failed_asset_codes: set[str] = set()
     try:
         quote_result = quote_use_case.execute(
             SyncQuoteRequest(provider_id=provider_id, asset_codes=batch_codes)
         )
+        published_total += _published_count_from_result(quote_result)
         quote_stored = int(quote_result.stored_count)
         domain_counts["quote"]["stored"] = quote_stored
         domain_counts["quote"]["succeeded"] = min(quote_stored, len(batch_codes))
@@ -304,6 +575,7 @@ def backfill_active_a_share_core_data_batch_task(
             asset_codes=batch_codes,
             as_of_date=end_date,
         )
+        published_total += _published_count_from_result(valuation_result)
         valuation_succeeded = set(valuation_result.succeeded_asset_codes)
         valuation_missing = set(batch_codes) - valuation_succeeded
         domain_counts["valuation"]["stored"] = int(valuation_result.stored_count)
@@ -339,6 +611,7 @@ def backfill_active_a_share_core_data_batch_task(
                             periods=validated_periods,
                         )
                     )
+                published_total += _published_count_from_result(result)
                 stored_count = int(result.stored_count)
                 domain_counts[domain_name]["stored"] += stored_count
                 if stored_count > 0:
@@ -378,6 +651,26 @@ def backfill_active_a_share_core_data_batch_task(
     else:
         outcome = TaskBusinessOutcome.SUCCESS
 
+    _persist_backfill_control_plane(
+        idempotency_key=idempotency_key,
+        provider_name=normalized_source,
+        outcome=outcome,
+        requested=len(batch_codes),
+        succeeded=succeeded_total,
+        failed=failed_total,
+        stored=stored_total,
+        published=published_total,
+        checkpoint=checkpoint,
+        window_start=start_date,
+        window_end=end_date,
+        started_at=started_at,
+        error_code=(
+            "zero_output"
+            if outcome is TaskBusinessOutcome.FAILED and stored_total == 0
+            else ("partial_failure" if outcome is TaskBusinessOutcome.PARTIAL else "")
+        ),
+        error_message=(errors[0]["error"] if errors else ""),
+    )
     return {
         "success": outcome not in {TaskBusinessOutcome.FAILED, TaskBusinessOutcome.BLOCKED},
         "outcome": outcome.value,
@@ -390,6 +683,7 @@ def backfill_active_a_share_core_data_batch_task(
         "succeeded": succeeded_total,
         "failed": failed_total,
         "stored": stored_total,
+        "published": published_total,
         "domains": domain_counts,
         "errors": errors,
         "checkpoint": checkpoint,

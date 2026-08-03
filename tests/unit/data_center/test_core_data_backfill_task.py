@@ -1,11 +1,27 @@
 """Active A-share core-data backfill task outcome contracts."""
 
+import json
 from datetime import date
 from types import SimpleNamespace
+
+import pytest
 
 from apps.data_center.application.tasks import (
     backfill_active_a_share_core_data_batch_task,
 )
+
+
+@pytest.fixture(autouse=True)
+def _patch_control_plane_repositories(mocker):
+    """Keep unit tests in-memory while exercising the durable save calls."""
+
+    repositories = {name: mocker.Mock() for name in ("run", "batch", "checkpoint")}
+    for name, repository in repositories.items():
+        mocker.patch(
+            f"apps.data_center.application.tasks.get_sync_{name}_repository",
+            return_value=repository,
+        )
+    return repositories
 
 
 def _patch_backfill_dependencies(mocker, *, stored_count=1, failure=None) -> None:
@@ -65,7 +81,10 @@ def _patch_backfill_dependencies(mocker, *, stored_count=1, failure=None) -> Non
     )
 
 
-def test_backfill_batch_rejects_invalid_input_before_repository_access(mocker) -> None:
+def test_backfill_batch_rejects_invalid_input_before_repository_access(
+    mocker,
+    _patch_control_plane_repositories,
+) -> None:
     universe = mocker.patch(
         "apps.data_center.application.tasks.list_active_stock_codes_for_backfill"
     )
@@ -75,6 +94,8 @@ def test_backfill_batch_rejects_invalid_input_before_repository_access(mocker) -
     assert result["outcome"] == "failed"
     assert result["stage"] == "input"
     universe.assert_not_called()
+    for repository in _patch_control_plane_repositories.values():
+        repository.save.assert_not_called()
 
 
 def test_backfill_batch_reports_all_success_with_checkpoint(mocker) -> None:
@@ -93,6 +114,34 @@ def test_backfill_batch_reports_all_success_with_checkpoint(mocker) -> None:
         "total_assets": 2,
         "complete": True,
     }
+
+
+def test_backfill_batch_persists_stable_run_batch_and_cursor_on_retry(
+    mocker,
+    _patch_control_plane_repositories,
+) -> None:
+    _patch_backfill_dependencies(mocker)
+
+    first = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+    second = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+
+    run_saves = _patch_control_plane_repositories["run"].save.call_args_list
+    batch_saves = _patch_control_plane_repositories["batch"].save.call_args_list
+    checkpoint_saves = _patch_control_plane_repositories["checkpoint"].save.call_args_list
+    assert len(run_saves) == len(batch_saves) == len(checkpoint_saves) == 2
+    assert run_saves[0].args[0].run_id == run_saves[1].args[0].run_id
+    assert batch_saves[0].args[0].batch_id == batch_saves[1].args[0].batch_id
+    assert (
+        batch_saves[0].args[0].idempotency_key
+        == "equity.core.backfill:tushare:offset=0:window=2:"
+        + batch_saves[0].args[0].idempotency_key.rsplit(":", 1)[-1]
+    )
+    assert batch_saves[0].args[0].requested == 2
+    assert batch_saves[0].args[0].succeeded == 2
+    assert batch_saves[0].args[0].stored == 8
+    assert batch_saves[0].args[0].published == 0
+    assert json.loads(checkpoint_saves[0].args[0].cursor_value) == first["checkpoint"]
+    assert json.loads(checkpoint_saves[1].args[0].cursor_value) == second["checkpoint"]
 
 
 def test_backfill_batch_reports_partial_failure(mocker) -> None:
