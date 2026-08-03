@@ -982,6 +982,24 @@
 - guard 已拆出但仍是入口级控制面，事实查询尚未按同一 Publication `fact_pk` 成员集合做原子快照过滤；同日多来源/版本仍需 member-bound query port。
 - 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
 
+## 实施记录（2026-08-03，第四十六批）
+
+本批次修复 MCP Equity research snapshot 的空证据判定：`rows=[]` 不能因 publication 元数据非空而被视为已获取事实；仍不部署、不 push、不连接 VPS。
+
+已落地：
+
+- `_payload_has_evidence` 纳入 `rows` 容器判定；required section 只带 publication_id/freshness 等控制元数据、但没有事实行时标记 `missing`，整体快照 fail closed。
+- 新增“fresh publication + empty rows”回归，覆盖通富微电中文名称经 MCP research snapshot 路由时的核心财务分区。
+
+第四十六批机器证据：
+
+- `pytest sdk/tests/test_mcp/test_equity_research_snapshot_registry.py -q --disable-warnings --maxfail=1 --timeout=30`：6 passed。
+- SDK/MCP 变更文件 ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- MCP 快照已阻断空 required rows，但仍依赖 REST/Public Port 提供真实 publication/member 一致性；同一 publication `fact_pk` 原子过滤、生产观察窗口、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
