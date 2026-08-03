@@ -6187,42 +6187,42 @@
       "text": "\"\"\"Return latest workspace recommendation state for one account.\"\"\""
     },
     {
-      "line": 19,
+      "line": 20,
       "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
       "text": "from apps.realtime.domain.entities import PricePollingConfig"
     },
     {
-      "line": 35,
+      "line": 36,
       "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
       "text": "from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository"
     },
     {
-      "line": 276,
+      "line": 331,
       "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
       "text": "\"\"\"Return the latest sentiment quality contract for one security.\"\"\""
     },
     {
-      "line": 341,
+      "line": 396,
       "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
       "text": "\"\"\"Return the latest flow quality contract for one security.\"\"\""
     },
     {
-      "line": 349,
+      "line": 404,
       "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
       "text": "from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository"
     },
     {
-      "line": 677,
+      "line": 784,
       "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
       "text": "\"\"\"Check the gate with caller-supplied context or current feature values.\"\"\""
     },
     {
-      "line": 833,
+      "line": 942,
       "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
       "text": "\"\"\"Fetch latest Alpha ranking scores through the owning application service.\"\"\""
     },
     {
-      "line": 868,
+      "line": 977,
       "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
       "text": "logger.warning(f\"Failed to get latest alpha ranking candidates: {e}\")"
     },

@@ -309,6 +309,8 @@ class GenerateUnifiedRecommendationsUseCase:
                 # 收集特征，并在取值后读取提供者保留的源观测质量。
                 sentiment_score = self.feature_provider.get_sentiment_score(security_code)
                 flow_score = self.feature_provider.get_flow_score(security_code)
+                technical_score = self.feature_provider.get_technical_score(security_code)
+                fundamental_score = self.feature_provider.get_fundamental_score(security_code)
                 feature_freshness = self._get_feature_freshness_contracts(security_code)
                 regime_freshness = self._get_regime_freshness_contract(regime_data)
                 if regime_freshness is not None:
@@ -323,8 +325,8 @@ class GenerateUnifiedRecommendationsUseCase:
                     beta_gate_passed=beta_gate_passed,
                     sentiment_score=sentiment_score,
                     flow_score=flow_score,
-                    technical_score=self.feature_provider.get_technical_score(security_code),
-                    fundamental_score=self.feature_provider.get_fundamental_score(security_code),
+                    technical_score=technical_score,
+                    fundamental_score=fundamental_score,
                     alpha_model_score=self.feature_provider.get_alpha_model_score(security_code),
                     extra_features={"feature_freshness": feature_freshness},
                 )

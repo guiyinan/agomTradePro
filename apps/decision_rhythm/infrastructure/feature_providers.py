@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 from django.utils import timezone
 
 from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
+from apps.data_center.application.public import get_decision_publication_gate
 from apps.realtime.domain.entities import PricePollingConfig
 from shared.numeric import safe_float
 
@@ -37,6 +38,60 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _resolve_recent_closed_trade_date: CallableTradeDateResolver = resolve_recent_closed_trade_date
+
+
+def _publication_freshness_contract(
+    dataset_keys: tuple[str, ...],
+) -> FeatureFreshnessContract:
+    """Convert one or more Data Center publication gates to feature evidence."""
+
+    gates = [get_decision_publication_gate(dataset_key) for dataset_key in dataset_keys]
+    has_blocked_gate = any(
+        gate is None or bool(gate.get("must_not_use_for_decision")) for gate in gates
+    )
+    blocked_gate = next(
+        (
+            gate
+            for gate in gates
+            if isinstance(gate, dict) and bool(gate.get("must_not_use_for_decision"))
+        ),
+        None,
+    )
+    observed_values = [
+        str(gate.get("observed_at"))
+        for gate in gates
+        if isinstance(gate, dict) and gate.get("observed_at")
+    ]
+    observed_at = min(observed_values) if observed_values else None
+    if not has_blocked_gate:
+        statuses = {
+            str(gate.get("freshness_status") or "unverified")
+            for gate in gates
+            if isinstance(gate, dict)
+        }
+        freshness_status = "fresh" if statuses == {"fresh"} else "unverified"
+        return FeatureFreshnessContract(
+            observed_at=observed_at,
+            freshness_status=freshness_status,
+            must_not_use_for_decision=freshness_status != "fresh",
+            blocked_reason=(
+                "publication_freshness_unverified" if freshness_status != "fresh" else ""
+            ),
+        )
+    return FeatureFreshnessContract(
+        observed_at=observed_at,
+        freshness_status=(
+            str(blocked_gate.get("freshness_status") or "missing")
+            if isinstance(blocked_gate, dict)
+            else "missing"
+        ),
+        must_not_use_for_decision=True,
+        blocked_reason=(
+            str(blocked_gate.get("blocked_reason") or "canonical_publication_missing")
+            if isinstance(blocked_gate, dict)
+            else "canonical_publication_missing"
+        ),
+    )
 
 
 class CallableTradeDateResolver(Protocol):
@@ -445,6 +500,16 @@ class TechnicalFeatureProvider:
 
     def __init__(self) -> None:
         self._technical_repository: DjangoStockRepository | None = None
+        self._technical_freshness: dict[str, FeatureFreshnessContract] = {}
+
+    def get_feature_freshness_contracts(
+        self,
+        security_code: str,
+    ) -> dict[str, FeatureFreshnessContract]:
+        """Return the price-bar publication evidence used by technical features."""
+
+        contract = self._technical_freshness.get(security_code)
+        return {"technical": contract} if contract is not None else {}
 
     def _get_technical_repository(self) -> DjangoStockRepository:
         """延迟加载 repository"""
@@ -465,6 +530,15 @@ class TechnicalFeatureProvider:
             技术面分数 (0-1)
         """
         try:
+            contract = _publication_freshness_contract(("equity.price.bar",))
+            self._technical_freshness[security_code] = contract
+            if contract["must_not_use_for_decision"]:
+                logger.warning(
+                    "Technical feature blocked for %s: %s",
+                    security_code,
+                    contract["blocked_reason"],
+                )
+                return 0.5
             # 尝试从 equity 模块获取技术评分
             # 目前返回默认值，后续可以集成技术分析模块
             repo = self._get_technical_repository()
@@ -481,6 +555,12 @@ class TechnicalFeatureProvider:
 
         except Exception as e:
             logger.warning(f"Failed to get technical score for {security_code}: {e}")
+            self._technical_freshness[security_code] = FeatureFreshnessContract(
+                observed_at=None,
+                freshness_status="unavailable",
+                must_not_use_for_decision=True,
+                blocked_reason="technical_feature_failed",
+            )
             return 0.5
 
 
@@ -493,6 +573,16 @@ class FundamentalFeatureProvider:
 
     def __init__(self) -> None:
         self._fundamental_repository: DjangoStockRepository | None = None
+        self._fundamental_freshness: dict[str, FeatureFreshnessContract] = {}
+
+    def get_feature_freshness_contracts(
+        self,
+        security_code: str,
+    ) -> dict[str, FeatureFreshnessContract]:
+        """Return the financial/valuation publication evidence used by fundamentals."""
+
+        contract = self._fundamental_freshness.get(security_code)
+        return {"fundamental": contract} if contract is not None else {}
 
     def _get_fundamental_repository(self) -> DjangoStockRepository:
         """延迟加载 repository"""
@@ -513,6 +603,17 @@ class FundamentalFeatureProvider:
             基本面分数 (0-1)
         """
         try:
+            contract = _publication_freshness_contract(
+                ("equity.financial.fact", "equity.valuation.fact")
+            )
+            self._fundamental_freshness[security_code] = contract
+            if contract["must_not_use_for_decision"]:
+                logger.warning(
+                    "Fundamental feature blocked for %s: %s",
+                    security_code,
+                    contract["blocked_reason"],
+                )
+                return 0.5
             # 尝试从 equity 模块获取基本面评分
             repo = self._get_fundamental_repository()
             stocks = repo.get_all_stocks_with_fundamentals()
@@ -532,6 +633,12 @@ class FundamentalFeatureProvider:
 
         except Exception as e:
             logger.warning(f"Failed to get fundamental score for {security_code}: {e}")
+            self._fundamental_freshness[security_code] = FeatureFreshnessContract(
+                observed_at=None,
+                freshness_status="unavailable",
+                must_not_use_for_decision=True,
+                blocked_reason="fundamental_feature_failed",
+            )
             return 0.5
 
 
@@ -711,6 +818,8 @@ class CompositeFeatureProvider(
         return {
             **SentimentFeatureProvider.get_feature_freshness_contracts(self, security_code),
             **FlowFeatureProvider.get_feature_freshness_contracts(self, security_code),
+            **TechnicalFeatureProvider.get_feature_freshness_contracts(self, security_code),
+            **FundamentalFeatureProvider.get_feature_freshness_contracts(self, security_code),
         }
 
     def get_technical_score(self, security_code: str) -> float:

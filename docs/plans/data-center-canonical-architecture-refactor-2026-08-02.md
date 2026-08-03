@@ -741,6 +741,28 @@
 - Equity financial/valuation/screen/pool/DCF/comprehensive/score/analysis 的 REST/SDK/MCP 入口已补齐可追踪的 published gate 和 blocked metadata；历史兼容入口仍要求调用方显式选择 published 才能用于当前决策。
 - 这不是全计划完成声明。生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、真实备份恢复、Retention/Archive 调度、CI Linux nodeid、M9 旧表清理、M10 生产切读和 VPS 部署仍未执行。
 
+## 实施记录（2026-08-03，第三十五批）
+
+本批次收口 Decision Rhythm 技术/基本面特征的 Publication freshness 旁路，并校正估值事实测试对 canonical Public Port 的契约；不部署、不 push。
+
+已落地：
+
+- `TechnicalFeatureProvider` 通过 `equity.price.bar` Publication gate 记录 `technical` freshness contract；`FundamentalFeatureProvider` 同时校验 `equity.financial.fact` 与 `equity.valuation.fact`，缺失/过期时只返回中性值并标记 `must_not_use_for_decision`。
+- `CompositeFeatureProvider` 发布技术/基本面 freshness；推荐用例先读取技术/基本面，再收集 freshness，阻断信息不会因调用顺序丢失，最终方向进入 HOLD、置信度归零并保留原因码。
+- 估值 provider component tests 改用 `get_published_valuation_facts` Public Port，移除对旧 `ValuationFactRepository` mock 的旁路依赖。
+- current-data contract 增加技术/基本面 gate markers 和阻断/顺序回归 nodeid。
+
+第三十五批机器证据：
+
+- `pytest tests/component/test_feature_providers.py tests/unit/decision_rhythm/test_flow_feature_freshness.py tests/unit/test_unified_recommendation_use_cases.py -q --no-migrations --reuse-db --timeout=180`：57 passed。
+- `pytest tests/unit/test_unified_recommendation_use_cases.py -q --no-migrations --reuse-db --timeout=180`：19 passed。
+- 变更生产文件 mypy regression 0；ruff/black 通过；`check_current_data_contracts.py` 保持 31 surfaces。
+
+仍未完成及风险：
+
+- Decision Rhythm 的 technical/fundamental gate 目前是入口级 Publication freshness 证据，底层 repository 仍需后续绑定同一 Publication member snapshot，避免 gate 与读取之间出现更新竞态。
+- 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、真实备份恢复、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

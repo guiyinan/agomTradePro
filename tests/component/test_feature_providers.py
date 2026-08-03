@@ -285,6 +285,24 @@ class TestTechnicalFeatureProvider:
 
             assert result == 0.5
 
+    def test_get_technical_score_records_missing_publication_contract(self):
+        """技术特征缺少价格发布时必须保留阻断证据。"""
+
+        with (
+            patch(
+                "apps.decision_rhythm.infrastructure.feature_providers.get_decision_publication_gate",
+                return_value=None,
+            ),
+            patch("apps.equity.infrastructure.repositories.DjangoStockRepository"),
+        ):
+            provider = TechnicalFeatureProvider()
+            assert provider.get_technical_score("000001.SZ") == 0.5
+
+        contract = provider.get_feature_freshness_contracts("000001.SZ")["technical"]
+        assert contract["freshness_status"] == "missing"
+        assert contract["must_not_use_for_decision"] is True
+        assert contract["blocked_reason"] == "canonical_publication_missing"
+
 
 class TestFundamentalFeatureProvider:
     """测试基本面特征提供者"""
@@ -324,6 +342,30 @@ class TestFundamentalFeatureProvider:
             result = provider.get_fundamental_score("000001.SZ")
 
             assert result == 0.5
+
+    def test_get_fundamental_score_records_stale_publication_contract(self):
+        """财务/估值发布过期时，基本面中性分不能伪装成可用分数。"""
+
+        stale_gate = {
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_stale",
+            "freshness_status": "stale",
+            "observed_at": "2026-07-31T08:00:00+00:00",
+        }
+        with (
+            patch(
+                "apps.decision_rhythm.infrastructure.feature_providers.get_decision_publication_gate",
+                return_value=stale_gate,
+            ),
+            patch("apps.equity.infrastructure.repositories.DjangoStockRepository"),
+        ):
+            provider = FundamentalFeatureProvider()
+            assert provider.get_fundamental_score("000001.SZ") == 0.5
+
+        contract = provider.get_feature_freshness_contracts("000001.SZ")["fundamental"]
+        assert contract["freshness_status"] == "stale"
+        assert contract["must_not_use_for_decision"] is True
+        assert contract["blocked_reason"] == "canonical_publication_stale"
 
 
 class TestAlphaModelFeatureProvider:
@@ -505,18 +547,21 @@ class TestAssetValuationProvider:
         """测试优先使用 data_center 估值事实中的正式估值字段"""
         with (
             patch(
-                "apps.data_center.infrastructure.repositories.ValuationFactRepository"
-            ) as mock_fact_repo_class,
+                "apps.valuation.infrastructure.providers.get_published_valuation_facts"
+            ) as mock_fact_reader,
             patch(
                 "apps.valuation.infrastructure.providers.UnifiedPriceService"
             ) as mock_price_service_class,
         ):
-            mock_fact_repo = MagicMock()
-            mock_fact_repo.get_latest.return_value = SimpleNamespace(
-                val_date=timezone.localdate(),
-                extra={"intrinsic_value_per_share": "12.00"},
-            )
-            mock_fact_repo_class.return_value = mock_fact_repo
+            mock_fact_reader.return_value = {
+                "rows": [
+                    {
+                        "val_date": timezone.localdate(),
+                        "extra": {"intrinsic_value_per_share": "12.00"},
+                    }
+                ],
+                "must_not_use_for_decision": False,
+            }
 
             provider = AssetValuationProvider()
             result = provider.get_valuation("000003.SZ")
@@ -537,19 +582,25 @@ class TestAssetValuationProvider:
 
         with (
             patch(
-                "apps.data_center.infrastructure.repositories.ValuationFactRepository"
-            ) as mock_fact_repo_class,
+                "apps.valuation.infrastructure.providers.get_published_valuation_facts"
+            ) as mock_fact_reader,
             patch(
                 "apps.valuation.infrastructure.providers.UnifiedPriceService"
             ) as mock_price_service_class,
         ):
-            mock_fact_repo = MagicMock()
-            mock_fact_repo.get_latest.return_value = SimpleNamespace(
-                val_date=timezone.localdate()
-                - timedelta(days=AssetValuationProvider.MAX_FORMAL_VALUATION_AGE_DAYS + 1),
-                extra={"intrinsic_value_per_share": "12.00", "quality_flag": "ok"},
-            )
-            mock_fact_repo_class.return_value = mock_fact_repo
+            mock_fact_reader.return_value = {
+                "rows": [
+                    {
+                        "val_date": timezone.localdate()
+                        - timedelta(days=AssetValuationProvider.MAX_FORMAL_VALUATION_AGE_DAYS + 1),
+                        "extra": {
+                            "intrinsic_value_per_share": "12.00",
+                            "quality_flag": "ok",
+                        },
+                    }
+                ],
+                "must_not_use_for_decision": False,
+            }
             mock_price_service_class.return_value.require_latest_price_result.return_value = (
                 SimpleNamespace(
                     price=Decimal("10.00"),
@@ -572,22 +623,25 @@ class TestAssetValuationProvider:
 
         with (
             patch(
-                "apps.data_center.infrastructure.repositories.ValuationFactRepository"
-            ) as mock_fact_repo_class,
+                "apps.valuation.infrastructure.providers.get_published_valuation_facts"
+            ) as mock_fact_reader,
             patch(
                 "apps.valuation.infrastructure.providers.UnifiedPriceService"
             ) as mock_price_service_class,
         ):
-            mock_fact_repo = MagicMock()
-            mock_fact_repo.get_latest.return_value = SimpleNamespace(
-                val_date=timezone.localdate(),
-                extra={
-                    "intrinsic_value_per_share": "12.00",
-                    "is_valid": False,
-                    "quality_flag": "invalid_pb",
-                },
-            )
-            mock_fact_repo_class.return_value = mock_fact_repo
+            mock_fact_reader.return_value = {
+                "rows": [
+                    {
+                        "val_date": timezone.localdate(),
+                        "extra": {
+                            "intrinsic_value_per_share": "12.00",
+                            "is_valid": False,
+                            "quality_flag": "invalid_pb",
+                        },
+                    }
+                ],
+                "must_not_use_for_decision": False,
+            }
             mock_price_service_class.return_value.require_latest_price_result.return_value = (
                 SimpleNamespace(
                     price=Decimal("10.00"),
@@ -608,28 +662,32 @@ class TestAssetValuationProvider:
         """测试最新估值质量差时继续查找窗口内可用正式估值"""
         with (
             patch(
-                "apps.data_center.infrastructure.repositories.ValuationFactRepository"
-            ) as mock_fact_repo_class,
+                "apps.valuation.infrastructure.providers.get_published_valuation_facts"
+            ) as mock_fact_reader,
             patch(
                 "apps.valuation.infrastructure.providers.UnifiedPriceService"
             ) as mock_price_service_class,
         ):
-            mock_fact_repo = MagicMock()
-            mock_fact_repo.get_series.return_value = [
-                SimpleNamespace(
-                    val_date=timezone.localdate(),
-                    extra={
-                        "intrinsic_value_per_share": "12.00",
-                        "is_valid": False,
-                        "quality_flag": "invalid_pb",
+            mock_fact_reader.return_value = {
+                "rows": [
+                    {
+                        "val_date": timezone.localdate(),
+                        "extra": {
+                            "intrinsic_value_per_share": "12.00",
+                            "is_valid": False,
+                            "quality_flag": "invalid_pb",
+                        },
                     },
-                ),
-                SimpleNamespace(
-                    val_date=timezone.localdate() - timedelta(days=1),
-                    extra={"intrinsic_value_per_share": "11.80", "quality_flag": "ok"},
-                ),
-            ]
-            mock_fact_repo_class.return_value = mock_fact_repo
+                    {
+                        "val_date": timezone.localdate() - timedelta(days=1),
+                        "extra": {
+                            "intrinsic_value_per_share": "11.80",
+                            "quality_flag": "ok",
+                        },
+                    },
+                ],
+                "must_not_use_for_decision": False,
+            }
 
             provider = AssetValuationProvider()
             result = provider.get_valuation("000007.SZ")
@@ -637,7 +695,7 @@ class TestAssetValuationProvider:
         assert result is not None
         assert result["valuation_source"] == "data_center_valuation_fact"
         assert result["fair_value"] == 11.8
-        mock_fact_repo.get_latest.assert_not_called()
+        mock_fact_reader.assert_called_once()
         mock_price_service_class.return_value.require_latest_price_result.assert_not_called()
 
     @pytest.mark.django_db

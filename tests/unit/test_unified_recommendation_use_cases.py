@@ -377,6 +377,48 @@ class TestGenerateUnifiedRecommendationsUseCase:
             "blocked_reason": "sentiment_index_stale",
         }
 
+    def test_generate_collects_technical_freshness_after_feature_read(self, setup, monkeypatch):
+        """技术/基本面取值后才读取 freshness，阻断不能被顺序丢失。"""
+
+        feature_provider = setup["feature_provider"]
+        feature_provider.set_scores(
+            "000001.SZ",
+            {"technical": 0.8, "fundamental": 0.8, "alpha": 0.9},
+        )
+
+        def blocked_technical_score(security_code: str) -> float:
+            feature_provider.set_feature_contracts(
+                security_code,
+                {
+                    "technical": {
+                        "observed_at": None,
+                        "freshness_status": "missing",
+                        "must_not_use_for_decision": True,
+                        "blocked_reason": "canonical_publication_missing",
+                    }
+                },
+            )
+            return 0.8
+
+        monkeypatch.setattr(feature_provider, "get_technical_score", blocked_technical_score)
+
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(
+                account_id="account_001",
+                security_codes=["000001.SZ"],
+            )
+        )
+
+        assert response.success is True
+        recommendation = response.recommendations[0]
+        assert recommendation.side == "HOLD"
+        assert "FEATURE_BLOCKED_CANONICAL_PUBLICATION_MISSING" in recommendation.reason_codes
+        snapshot = next(iter(setup["recommendation_repo"]._snapshots.values()))
+        assert (
+            snapshot.extra_features["feature_freshness"]["technical"]["must_not_use_for_decision"]
+            is True
+        )
+
     def test_generate_holds_when_regime_is_blocked(self, setup):
         """Regime resolver 的阻断状态必须贯穿快照与推荐。"""
         setup["feature_provider"]._regime = {

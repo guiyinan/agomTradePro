@@ -698,7 +698,13 @@
         "apps/decision_rhythm/infrastructure/feature_providers.py": [
           "resolve_current_sentiment()",
           "resolve_current_regime()",
-          "def get_feature_freshness_contracts("
+          "def get_feature_freshness_contracts(",
+          "get_decision_publication_gate",
+          "equity.price.bar",
+          "equity.financial.fact",
+          "equity.valuation.fact",
+          "technical",
+          "fundamental"
         ],
         "apps/decision_rhythm/application/decision_recommendation_use_cases.py": [
           "extra_features={\"feature_freshness\": feature_freshness}",
@@ -720,6 +726,21 @@
           "case": "blocked_regime_forces_hold",
           "test_file": "tests/unit/test_unified_recommendation_use_cases.py",
           "test_function": "test_generate_holds_when_regime_is_blocked"
+        },
+        {
+          "case": "technical_missing_publication_records_block",
+          "test_file": "tests/component/test_feature_providers.py",
+          "test_function": "test_get_technical_score_records_missing_publication_contract"
+        },
+        {
+          "case": "fundamental_stale_publication_records_block",
+          "test_file": "tests/component/test_feature_providers.py",
+          "test_function": "test_get_fundamental_score_records_stale_publication_contract"
+        },
+        {
+          "case": "technical_freshness_collected_after_feature_read",
+          "test_file": "tests/unit/test_unified_recommendation_use_cases.py",
+          "test_function": "test_generate_collects_technical_freshness_after_feature_read"
         }
       ]
     },
