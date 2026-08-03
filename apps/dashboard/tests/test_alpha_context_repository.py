@@ -150,6 +150,29 @@ def test_dashboard_alpha_context_uses_gateway_for_local_stock_context():
     assert context["000001.SZ"]["pb"] == pytest.approx(0.72)
 
 
+def test_dashboard_alpha_context_uses_fund_application_port_for_legacy_names(monkeypatch):
+    captured: dict[str, list[str]] = {}
+
+    def _resolve(codes: list[str]) -> dict[str, str]:
+        captured["codes"] = list(codes)
+        return {"000001.SZ": "平安银行"}
+
+    monkeypatch.setattr(
+        "apps.dashboard.infrastructure.repositories.resolve_fund_holding_names",
+        _resolve,
+    )
+    repo = DashboardAlphaContextRepository(_build_gateway())
+
+    context = repo._load_legacy_holding_asset_context(
+        ["000001.SZ"],
+        {"000001.SZ": {"000001.SZ", "000001"}},
+        persist_asset_names=False,
+    )
+
+    assert context == {"000001.SZ": {"name": "平安银行"}}
+    assert captured["codes"] == ["000001", "000001.SZ"]
+
+
 def test_dashboard_alpha_context_preserves_blocked_publication_evidence():
     gateway = _build_gateway(
         get_stock_context_map=lambda codes: {

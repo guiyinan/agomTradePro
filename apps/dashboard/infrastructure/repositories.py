@@ -21,7 +21,7 @@ from apps.dashboard.domain.entities import (
     DashboardPreferences,
 )
 from apps.data_center.application.public import update_asset_display_name
-from apps.fund.infrastructure.models import FundHoldingModel
+from apps.fund.application.repository_provider import resolve_fund_holding_names
 
 from .models import (
     AlphaRecommendationRunModel,
@@ -329,20 +329,30 @@ class DashboardAlphaContextRepository:
         *,
         persist_asset_names: bool,
     ) -> dict[str, dict[str, str]]:
+        lookup_codes = sorted(
+            {
+                alias.upper()
+                for code in codes
+                for alias in code_aliases.get(str(code).strip().upper(), {str(code).upper()})
+                if alias
+            }
+        )
+        if not lookup_codes:
+            return {}
+        try:
+            holding_names = resolve_fund_holding_names(lookup_codes)
+        except Exception as exc:
+            logger.warning(
+                "Fund holding name lookup failed through application port: %s",
+                type(exc).__name__,
+            )
+            return {}
+
         context: dict[str, dict[str, str]] = {}
         for code in codes:
             normalized_code = str(code).strip().upper()
             for alias in code_aliases.get(normalized_code, {normalized_code}):
-                holding = (
-                    FundHoldingModel._default_manager.filter(stock_code=alias)
-                    .exclude(stock_name__exact="")
-                    .order_by("-report_date", "-id")
-                    .first()
-                )
-                if holding is None:
-                    continue
-
-                stock_name = str(holding.stock_name or "").strip()
+                stock_name = str(holding_names.get(alias.upper()) or "").strip()
                 if not stock_name:
                     continue
 
