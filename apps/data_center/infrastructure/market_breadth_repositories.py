@@ -102,6 +102,43 @@ class SectorMembershipRepository:
             count += 1
         return count
 
+    def list_publication_candidates(
+        self, facts: Sequence[SectorMembershipFact]
+    ) -> list[PublicationFactReference]:
+        """Resolve persisted membership rows to exact publication members."""
+
+        references: list[PublicationFactReference] = []
+        seen_fact_pks: set[str] = set()
+        for fact in facts:
+            row = (
+                SectorMembershipFactModel._default_manager.filter(
+                    asset_code=fact.asset_code,
+                    sector_code=fact.sector_code,
+                    effective_date=fact.effective_date,
+                )
+                .order_by("id")
+                .first()
+            )
+            if row is None or str(row.pk) in seen_fact_pks:
+                continue
+            fact_pk = str(row.pk)
+            seen_fact_pks.add(fact_pk)
+            natural_key = f"{row.asset_code}:{row.sector_code}:{row.effective_date.isoformat()}"
+            references.append(
+                PublicationFactReference(
+                    natural_key=natural_key,
+                    source=row.source,
+                    source_record_id=row.source_record_id or natural_key,
+                    fact_table="data_center_sector_membership",
+                    fact_pk=fact_pk,
+                    observed_at=datetime.combine(row.effective_date, time.min, tzinfo=UTC),
+                    raw_payload_hash=row.raw_payload_hash or _sector_membership_payload_hash(row),
+                    quality_status=row.quality_status,
+                    revision_number=row.revision_number,
+                )
+            )
+        return references
+
 
 class NewsRepository:
     """ORM-backed repository for news articles."""
@@ -457,6 +494,23 @@ def _capital_flow_payload_hash(row: CapitalFlowFactModel) -> str:
         "large_net": str(row.large_net) if row.large_net is not None else None,
         "medium_net": str(row.medium_net) if row.medium_net is not None else None,
         "small_net": str(row.small_net) if row.small_net is not None else None,
+        "source": row.source,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+
+
+def _sector_membership_payload_hash(row: SectorMembershipFactModel) -> str:
+    """Return deterministic evidence for one persisted membership row."""
+
+    payload = {
+        "asset_code": row.asset_code,
+        "sector_code": row.sector_code,
+        "sector_name": row.sector_name,
+        "effective_date": row.effective_date.isoformat(),
+        "expiry_date": row.expiry_date.isoformat() if row.expiry_date else None,
+        "weight": str(row.weight) if row.weight is not None else None,
         "source": row.source,
     }
     return hashlib.sha256(

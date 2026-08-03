@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Sequence
-from datetime import date
+from datetime import UTC, date, datetime, time
 
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import PriceBar, QuoteSnapshot
@@ -104,6 +104,49 @@ class PriceBarRepository:
             unique_fields=["asset_code", "bar_date", "freq", "adjustment", "source"],
         )
         return len(models)
+
+    def list_publication_candidates(
+        self, bars: Sequence[PriceBar]
+    ) -> list[PublicationFactReference]:
+        """Resolve written bars to exact rows without washing out ``bar_date``."""
+
+        references: list[PublicationFactReference] = []
+        seen_fact_pks: set[str] = set()
+        for bar in bars:
+            row = (
+                PriceBarModel._default_manager.filter(
+                    asset_code=bar.asset_code,
+                    bar_date=bar.bar_date,
+                    freq=bar.freq,
+                    adjustment=bar.adjustment.value,
+                    source=bar.source,
+                )
+                .order_by("id")
+                .first()
+            )
+            if row is None or str(row.pk) in seen_fact_pks:
+                continue
+            fact_pk = str(row.pk)
+            seen_fact_pks.add(fact_pk)
+            natural_key = (
+                f"{row.asset_code}:{row.bar_date.isoformat()}:{row.freq}:"
+                f"{row.adjustment}:{row.source}"
+            )
+            observed_at = datetime.combine(row.bar_date, time.min, tzinfo=UTC)
+            references.append(
+                PublicationFactReference(
+                    natural_key=natural_key,
+                    source=row.source,
+                    source_record_id=row.source_record_id or natural_key,
+                    fact_table="data_center_price_bar",
+                    fact_pk=fact_pk,
+                    observed_at=observed_at,
+                    raw_payload_hash=row.raw_payload_hash or _price_bar_payload_hash(row),
+                    quality_status=row.quality_status,
+                    revision_number=row.revision_number,
+                )
+            )
+        return references
 
 
 class QuoteSnapshotRepository:
@@ -228,6 +271,27 @@ class QuoteSnapshotRepository:
 
         deleted_count, _ = QuoteSnapshotModel.objects.all().delete()
         return int(deleted_count)
+
+
+def _price_bar_payload_hash(row: PriceBarModel) -> str:
+    """Return deterministic evidence for one persisted price bar."""
+
+    payload = {
+        "asset_code": row.asset_code,
+        "bar_date": row.bar_date.isoformat(),
+        "freq": row.freq,
+        "adjustment": row.adjustment,
+        "open": str(row.open),
+        "high": str(row.high),
+        "low": str(row.low),
+        "close": str(row.close),
+        "volume": str(row.volume) if row.volume is not None else None,
+        "amount": str(row.amount) if row.amount is not None else None,
+        "source": row.source,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
 
 
 def _quote_payload_hash(row: QuoteSnapshotModel) -> str:

@@ -357,6 +357,9 @@ class PriceBarRepositoryProtocol(Protocol):
         fact_pks: Sequence[str] | None = None,
     ) -> PriceBar | None: ...
     def bulk_upsert(self, bars: list[PriceBar]) -> int: ...
+    def list_publication_candidates(
+        self, bars: Sequence[PriceBar]
+    ) -> list[PublicationFactReference]: ...
 
 
 @runtime_checkable
@@ -461,6 +464,9 @@ class SectorMembershipRepositoryProtocol(Protocol):
     ) -> list[SectorMembershipFact]: ...
 
     def bulk_upsert(self, facts: list[SectorMembershipFact]) -> int: ...
+    def list_publication_candidates(
+        self, facts: Sequence[SectorMembershipFact]
+    ) -> list[PublicationFactReference]: ...
 
 
 @runtime_checkable

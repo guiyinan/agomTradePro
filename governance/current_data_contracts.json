@@ -1810,6 +1810,8 @@
         "apps/data_center/application/control_plane.py",
         "apps/data_center/infrastructure/control_plane_repositories.py",
         "apps/data_center/application/publication_sync.py",
+        "apps/data_center/application/sync_use_cases.py",
+        "apps/data_center/application/interface_services.py",
         "apps/data_center/infrastructure/market_breadth_repositories.py",
         "apps/data_center/infrastructure/fundamental_fact_repositories.py",
         "apps/data_center/infrastructure/market_data_repositories.py"
@@ -1832,17 +1834,30 @@
           "class PublishCapitalFlowBatchUseCase:",
           "class PublishFundNavBatchUseCase:",
           "class PublishQuoteSnapshotBatchUseCase:",
+          "class PublishPriceBarBatchUseCase:",
+          "class PublishSectorMembershipBatchUseCase:",
           "publication_hash = _publication_hash(references)",
           "missing_count=requested_count - len(references)",
           "as_of = max(reference.observed_at for reference in references)",
           "capital-flow observation cannot be later than publication time",
           "fund NAV observation cannot be later than publication time",
-          "quote snapshot cannot be later than publication time"
+          "quote snapshot cannot be later than publication time",
+          "price-bar observation cannot be later than publication time",
+          "sector membership observation cannot be later than publication time"
+        ],
+        "apps/data_center/application/sync_use_cases.py": [
+          "publication_publisher: PublishPriceBarBatchUseCase | None = None",
+          "self._publication_publisher.execute("
+        ],
+        "apps/data_center/application/interface_services.py": [
+          "publication_publisher=PublishPriceBarBatchUseCase("
         ],
         "apps/data_center/infrastructure/market_breadth_repositories.py": [
           "def list_publication_candidates(",
           "observed_at=datetime.combine(row.flow_date, time.min, tzinfo=UTC)",
-          "row.raw_payload_hash"
+          "row.raw_payload_hash",
+          "observed_at=datetime.combine(row.effective_date, time.min, tzinfo=UTC)",
+          "row.raw_payload_hash or _sector_membership_payload_hash(row)"
         ],
         "apps/data_center/infrastructure/fundamental_fact_repositories.py": [
           "def list_publication_candidates(",
@@ -1851,6 +1866,8 @@
         ],
         "apps/data_center/infrastructure/market_data_repositories.py": [
           "def list_publication_candidates(",
+          "observed_at = datetime.combine(row.bar_date, time.min, tzinfo=UTC)",
+          "row.raw_payload_hash or _price_bar_payload_hash(row)",
           "observed_at=row.snapshot_at",
           "row.raw_payload_hash or _quote_payload_hash(row)"
         ]
@@ -1945,6 +1962,46 @@
           "case": "quote_candidate_snapshot_boundary",
           "test_file": "tests/unit/data_center/test_quote_snapshot_publication_sync.py",
           "test_function": "test_quote_repository_candidate_keeps_snapshot_at_not_fetched_at"
+        },
+        {
+          "case": "price_bar_publication_members_and_as_of",
+          "test_file": "tests/unit/data_center/test_price_bar_publication_sync.py",
+          "test_function": "test_price_bar_publication_uses_bar_date_as_of_and_exact_members"
+        },
+        {
+          "case": "price_bar_publication_idempotency",
+          "test_file": "tests/unit/data_center/test_price_bar_publication_sync.py",
+          "test_function": "test_price_bar_publication_is_idempotent_for_same_snapshot"
+        },
+        {
+          "case": "price_bar_publication_coverage_fail_closed",
+          "test_file": "tests/unit/data_center/test_price_bar_publication_sync.py",
+          "test_function": "test_price_bar_publication_fails_closed_below_coverage_policy"
+        },
+        {
+          "case": "price_bar_candidate_observation_boundary",
+          "test_file": "tests/unit/data_center/test_price_bar_publication_sync.py",
+          "test_function": "test_price_bar_repository_candidate_preserves_bar_date_and_source_evidence"
+        },
+        {
+          "case": "price_bar_sync_invokes_publication_writer",
+          "test_file": "tests/unit/data_center/test_price_bar_publication_sync.py",
+          "test_function": "test_sync_price_use_case_invokes_publication_after_fact_write"
+        },
+        {
+          "case": "sector_publication_effective_date_observation",
+          "test_file": "tests/unit/data_center/test_sector_membership_publication_sync.py",
+          "test_function": "test_sector_publication_uses_effective_date_as_of_and_exact_members"
+        },
+        {
+          "case": "sector_publication_idempotency",
+          "test_file": "tests/unit/data_center/test_sector_membership_publication_sync.py",
+          "test_function": "test_sector_publication_is_idempotent_for_same_snapshot"
+        },
+        {
+          "case": "sector_candidate_effective_date_boundary",
+          "test_file": "tests/unit/data_center/test_sector_membership_publication_sync.py",
+          "test_function": "test_sector_repository_candidate_preserves_effective_date_observation"
         }
       ]
     }

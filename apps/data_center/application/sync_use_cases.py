@@ -49,7 +49,9 @@ from .publication_sync import (
     PublishCapitalFlowBatchUseCase,
     PublishFundNavBatchUseCase,
     PublishNewsBatchUseCase,
+    PublishPriceBarBatchUseCase,
     PublishQuoteSnapshotBatchUseCase,
+    PublishSectorMembershipBatchUseCase,
 )
 
 FactT = TypeVar("FactT")
@@ -373,9 +375,11 @@ class SyncPriceUseCase(_BaseSyncUseCase):
         provider_registry: ProviderRegistryProtocol,
         fact_repo: PriceBarRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
+        publication_publisher: PublishPriceBarBatchUseCase | None = None,
     ) -> None:
         super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
+        self._publication_publisher = publication_publisher
 
     def execute(self, request: SyncPriceRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
@@ -390,6 +394,11 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                 for bar in bars
             ]
             stored_count = self._facts.bulk_upsert(bars)
+            if self._publication_publisher is not None and bars:
+                self._publication_publisher.execute(
+                    bars,
+                    provider_name=provider.provider_name(),
+                )
             audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
@@ -689,9 +698,11 @@ class SyncSectorMembershipUseCase(_BaseSyncUseCase):
         provider_registry: ProviderRegistryProtocol,
         fact_repo: SectorMembershipRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
+        publication_publisher: PublishSectorMembershipBatchUseCase | None = None,
     ) -> None:
         super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
+        self._publication_publisher = publication_publisher
 
     def execute(self, request: SyncSectorMembershipRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
@@ -715,6 +726,11 @@ class SyncSectorMembershipUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(facts)
+            if self._publication_publisher is not None and facts:
+                self._publication_publisher.execute(
+                    facts,
+                    provider_name=provider.provider_name(),
+                )
             audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(

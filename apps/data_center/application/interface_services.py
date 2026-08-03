@@ -82,7 +82,9 @@ from .publication_sync import (
     PublishCapitalFlowBatchUseCase,
     PublishFundNavBatchUseCase,
     PublishNewsBatchUseCase,
+    PublishPriceBarBatchUseCase,
     PublishQuoteSnapshotBatchUseCase,
+    PublishSectorMembershipBatchUseCase,
 )
 from .use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
@@ -980,11 +982,17 @@ def make_sync_macro_batch_use_case() -> SyncMacroBatchUseCase:
 def make_sync_price_use_case() -> SyncPriceUseCase:
     """Build the historical price sync use case."""
 
+    price_repository = PriceBarRepository()
     return SyncPriceUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
-        fact_repo=PriceBarRepository(),
+        fact_repo=price_repository,
         raw_audit_repo=_make_raw_audit_repo(),
+        publication_publisher=PublishPriceBarBatchUseCase(
+            fact_repository=price_repository,
+            publication_repository=CanonicalPublicationRepository(),
+            policy_repository=PublicationPolicyRepository(),
+        ),
     )
 
 
@@ -1085,11 +1093,17 @@ def make_sync_current_valuation_batch_use_case() -> SyncCurrentValuationBatchUse
 def make_sync_sector_membership_use_case() -> SyncSectorMembershipUseCase:
     """Build the sector membership sync use case."""
 
+    membership_repository = SectorMembershipRepository()
     return SyncSectorMembershipUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
-        fact_repo=SectorMembershipRepository(),
+        fact_repo=membership_repository,
         raw_audit_repo=_make_raw_audit_repo(),
+        publication_publisher=PublishSectorMembershipBatchUseCase(
+            fact_repository=membership_repository,
+            publication_repository=CanonicalPublicationRepository(),
+            policy_repository=PublicationPolicyRepository(),
+        ),
     )
 
 
