@@ -143,6 +143,53 @@ def test_equity_read_fallbacks_use_canonical_sdk_methods(
     ]
 
 
+def test_equity_financial_history_fallback_preserves_publication_block(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import agomtradepro
+    import agomtradepro_mcp.server as server_module
+
+    class _Equity:
+        def get_financials_payload(
+            self,
+            stock_code,
+            *,
+            report_type,
+            limit,
+            mode,
+            publication_key,
+        ):
+            assert (stock_code, report_type, limit, mode, publication_key) == (
+                "000001.SZ",
+                "annual",
+                5,
+                "published",
+                None,
+            )
+            return {
+                "results": [],
+                "status": "blocked",
+                "publication_id": "equity-financials-2026-08-03",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "publication_observation_stale",
+            }
+
+    monkeypatch.setattr(
+        agomtradepro,
+        "AgomTradeProClient",
+        lambda: SimpleNamespace(equity=_Equity()),
+    )
+
+    result = server_module.INTERNAL_LEGACY_TOOL_FALLBACKS["equity_read_financial_history"](
+        stock_code="000001.SZ"
+    )
+
+    assert result["financials"] == []
+    assert result["status"] == "blocked"
+    assert result["must_not_use_for_decision"] is True
+    assert result["blocked_reason"] == "publication_observation_stale"
+
+
 def test_equity_create_valuation_repair_config_previews_version_before_draft_create(
     monkeypatch: pytest.MonkeyPatch,
 ):

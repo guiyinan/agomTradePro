@@ -727,7 +727,15 @@ def test_equity_valuation_rejects_invalid_or_unknown_query(
 def test_equity_published_valuation_blocks_stale_publication_before_use_case(
     authenticated_client,
 ):
-    stale_publication = {
+    fresh_financial_publication = {
+        "publication_id": "equity-financials-2026-08-03",
+        "published_at": "2026-08-03T08:00:00+00:00",
+        "as_of": "2026-07-31",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
+        "freshness_status": "fresh",
+    }
+    stale_valuation_publication = {
         "publication_id": "equity-valuation-2026-08-03",
         "published_at": "2026-08-03T08:00:00+00:00",
         "as_of": "2026-07-31",
@@ -739,7 +747,7 @@ def test_equity_published_valuation_blocks_stale_publication_before_use_case(
     with (
         patch(
             "apps.equity.interface.analysis_actions.get_decision_publication_gate",
-            return_value=stale_publication,
+            side_effect=[fresh_financial_publication, stale_valuation_publication],
         ),
         patch(
             "apps.equity.interface.analysis_actions.AnalyzeValuationUseCase",
@@ -753,8 +761,50 @@ def test_equity_published_valuation_blocks_stale_publication_before_use_case(
     assert payload["success"] is False
     assert payload["status"] == "blocked"
     assert payload["stock_code"] == "300308.SZ"
-    assert payload["publication_id"] == stale_publication["publication_id"]
+    assert payload["publication_id"] == stale_valuation_publication["publication_id"]
     assert payload["error"] == "publication_observation_stale"
+    assert payload["must_not_use_for_decision"] is True
+
+
+@pytest.mark.django_db
+def test_equity_published_valuation_blocks_stale_financial_publication_before_use_case(
+    authenticated_client,
+):
+    stale_financial_publication = {
+        "publication_id": "equity-financials-2026-08-03",
+        "published_at": "2026-08-03T08:00:00+00:00",
+        "as_of": "2026-07-31",
+        "must_not_use_for_decision": True,
+        "blocked_reason": "publication_observation_stale",
+        "freshness_status": "stale",
+    }
+    fresh_valuation_publication = {
+        "publication_id": "equity-valuation-2026-08-03",
+        "published_at": "2026-08-03T08:00:00+00:00",
+        "as_of": "2026-07-31",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
+        "freshness_status": "fresh",
+    }
+
+    with (
+        patch(
+            "apps.equity.interface.analysis_actions.get_decision_publication_gate",
+            side_effect=[stale_financial_publication, fresh_valuation_publication],
+        ),
+        patch(
+            "apps.equity.interface.analysis_actions.AnalyzeValuationUseCase",
+            side_effect=AssertionError("blocked publication must not run valuation"),
+        ),
+    ):
+        response = authenticated_client.get("/api/equity/valuation/300308.SZ/?mode=published")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is False
+    assert payload["status"] == "blocked"
+    assert payload["error"] == "publication_observation_stale"
+    assert payload["publication_id"] == stale_financial_publication["publication_id"]
     assert payload["must_not_use_for_decision"] is True
 
 

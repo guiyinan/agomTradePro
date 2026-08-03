@@ -178,13 +178,24 @@ class EquityAnalysisActionsMixin:
         data = serializer.validated_data
         mode = str(data["mode"])
         publication_key = str(data["publication_key"])
-        publication = None
+        publication: dict[str, object] | None = None
+        publication_gates: dict[str, dict[str, object] | None] = {}
         if mode == "published":
-            publication = get_decision_publication_gate(
-                "equity.valuation.fact",
-                publication_key,
+            for dataset_key in ("equity.financial.fact", "equity.valuation.fact"):
+                publication_gates[dataset_key] = get_decision_publication_gate(
+                    dataset_key,
+                    publication_key,
+                )
+            publication = publication_gates["equity.valuation.fact"]
+            blocked_publication = next(
+                (
+                    gate
+                    for gate in publication_gates.values()
+                    if gate is None or bool(gate.get("must_not_use_for_decision"))
+                ),
+                None,
             )
-            if publication is None or bool(publication.get("must_not_use_for_decision")):
+            if blocked_publication is not None:
                 return Response(
                     {
                         "success": False,
@@ -202,14 +213,17 @@ class EquityAnalysisActionsMixin:
                         "latest_valuation": None,
                         "financial_data": None,
                         "error": (
-                            publication.get("blocked_reason")
-                            if publication
+                            blocked_publication.get("blocked_reason")
+                            if blocked_publication
                             else "canonical_publication_missing"
                         ),
                         "publication_id": (
-                            publication.get("publication_id") if publication else None
+                            blocked_publication.get("publication_id")
+                            if blocked_publication
+                            else None
                         ),
                         "publication": publication,
+                        "publication_gates": publication_gates,
                         "must_not_use_for_decision": True,
                     },
                     status=status.HTTP_200_OK,
@@ -230,6 +244,9 @@ class EquityAnalysisActionsMixin:
         payload["mode"] = mode
         payload["publication_key"] = publication_key
         payload["publication"] = publication
+        if mode == "published":
+            payload["publication_gates"] = publication_gates
+            payload["must_not_use_for_decision"] = False
         return Response(payload, status=status.HTTP_200_OK)
 
     @typed_schema(

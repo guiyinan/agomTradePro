@@ -617,6 +617,49 @@
 - MCP 原始 `list_stocks` 为历史数组兼容返回，blocked metadata 主要通过 SDK envelope/Capability fallback 暴露；决策型全量查询仍应优先使用 `equity.read.research_snapshot`。
 - 生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
 
+## 实施记录（2026-08-03，第二十九批）
+
+本批次补齐 Equity 估值详情中隐含的财务事实旁路：`published` 估值请求现在必须同时通过财务与估值 Publication freshness gate；不部署、不 push。
+
+已落地：
+
+- `/api/equity/valuation/{stock_code}/` 在进入 `AnalyzeValuationUseCase` 前同时校验 `equity.financial.fact` 与 `equity.valuation.fact`。
+- 任一分区缺失、过期或未验证时返回 `status=blocked`、`must_not_use_for_decision=true`、稳定 `blocked_reason` 和两分区 `publication_gates`，用例不会执行。
+- current-data contract 增加“估值详情因财务分区 stale 而阻断”的精确测试证据。
+
+第二十九批机器证据：
+
+- `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --timeout=180`：41 passed。
+- `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --timeout=120 -k published_valuation`：2 passed。
+- `check_mypy_regression.py apps/equity/interface/analysis_actions.py`：0 regression；ruff/black/isort 通过；Django check 保持 0 issues。
+
+仍未完成及风险：
+
+- 本批只修正 REST 估值详情的双分区阻断顺序；用例内部仍读取 canonical latest facts，尚未把 Publication member 选择绑定为同一快照事务。
+- 生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
+
+## 实施记录（2026-08-03，第三十批）
+
+本批次修复 MCP Equity 兼容读取丢失 Publication 阻断证据的问题；保留 SDK 旧 list 返回兼容性，不部署、不 push。
+
+已落地：
+
+- SDK 新增 `get_financials_payload`、`get_stock_pool_payload` envelope 方法；原有 `get_financials`/`list_stocks` 继续返回历史 list，避免直接破坏现有 SDK 调用方。
+- MCP `list_stocks` 与 `get_stock_financials` 默认请求 `published`，优先返回带 `status`、`publication_id`、`freshness_status`、`must_not_use_for_decision` 和 `blocked_reason` 的 envelope；旧 double 仍走明确兼容包装。
+- `equity.read.financial_history` capability 增加 `mode`/`publication_key` 输入和 publication/freshness 输出字段；legacy financial fallback 默认 published 并保留阻断元数据。
+- MCP pool/financial capability schema、current-data manifest 和回归测试同步更新。
+
+第三十批机器证据：
+
+- `pytest sdk/tests/test_sdk/test_equity_module.py sdk/tests/test_mcp/test_core_registry_owner_equity.py sdk/tests/test_mcp/test_equity_hedge_tools.py -q --disable-warnings --maxfail=1 --timeout=60`：32 passed；其中 raw MCP financial/pool blocked envelope 定向集 13 passed。
+- `python scripts/check_current_data_contracts.py`：31 surfaces；ruff/black/isort 通过。
+- 本地 SQLite 真实画像（`002156.SZ`/通富微电）当前无 canonical price/financial/valuation facts 和 current Publication；`get_published_financial_facts`、`get_published_valuation_facts` 均返回空 rows、`must_not_use_for_decision=true`、`blocked_reason=canonical_publication_missing`，证明空库不会伪造“最新”。
+
+仍未完成及风险：
+
+- 旧 SDK 直接 `get_financials`/`list_stocks` 仍是历史 list 兼容形状，调用方若主动绕过 MCP envelope 仍需自行选择 `mode=published` 并读取 API gate；MCP capability/工具用户面已不再静默丢失阻断信息。
+- 生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

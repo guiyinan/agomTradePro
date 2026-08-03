@@ -105,6 +105,27 @@ class EquityModule(BaseModule):
         )
         return result["stocks"]
 
+    def get_stock_pool_payload(
+        self,
+        sector: str | None = None,
+        min_score: float | None = None,
+        max_score: float | None = None,
+        limit: int = 100,
+        *,
+        mode: str | None = None,
+        publication_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Return the stock-pool envelope, including publication evidence."""
+
+        return self.get_stock_pool(
+            sector=sector,
+            min_score=min_score,
+            max_score=max_score,
+            limit=limit,
+            mode=mode,
+            publication_key=publication_key,
+        )
+
     def get_stock_pool(
         self,
         sector: str | None = None,
@@ -316,16 +337,46 @@ class EquityModule(BaseModule):
             >>> for f in financials:
             ...     print(f"{f['report_date']}: 营收 {f['revenue']}")
         """
+        response = self.get_financials_payload(
+            stock_code,
+            report_type=report_type,
+            limit=limit,
+            mode=mode,
+            publication_key=publication_key,
+        )
+        results = response.get("results", response)
+        if not isinstance(results, list):
+            raise ValueError("financial history response must contain a list")
+        return results
+
+    def get_financials_payload(
+        self,
+        stock_code: str,
+        report_type: str = "annual",
+        limit: int = 5,
+        *,
+        mode: str | None = None,
+        publication_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Return financial history with publication/freshness metadata intact."""
+
         params: dict[str, Any] = {"report_type": report_type, "limit": limit}
         if mode:
             params["mode"] = mode
         if publication_key:
             params["publication_key"] = publication_key
         response = self._get(f"financials/{stock_code}/", params=params)
+        if not isinstance(response, dict):
+            raise ValueError("financial history response must be an object")
         results = response.get("results", response)
         if not isinstance(results, list):
             raise ValueError("financial history response must contain a list")
-        return results
+        payload = dict(response)
+        payload.setdefault("stock_code", stock_code)
+        payload.setdefault("report_type", report_type)
+        payload.setdefault("results", results)
+        payload.setdefault("count", len(results))
+        return payload
 
     def get_valuation(
         self,

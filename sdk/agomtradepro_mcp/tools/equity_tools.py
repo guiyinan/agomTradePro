@@ -44,7 +44,7 @@ def register_equity_tools(server: FastMCP) -> None:
         limit: int = 50,
         mode: str = "published",
         publication_key: str | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> dict[str, Any]:
         """
         获取股票列表
 
@@ -56,19 +56,35 @@ def register_equity_tools(server: FastMCP) -> None:
             publication_key: 发布快照键（默认 current）
 
         Returns:
-            股票列表
+            股票池列表及 publication/freshness evidence
 
         Example:
-            >>> stocks = list_stocks(sector="银行", min_score=60)
+            >>> pool = list_stocks(sector="银行", min_score=60)
         """
         client = AgomTradeProClient()
-        return client.equity.list_stocks(
+        pool_reader = getattr(client.equity, "get_stock_pool_payload", None)
+        if callable(pool_reader):
+            return pool_reader(
+                sector=sector,
+                min_score=min_score,
+                limit=limit,
+                mode=mode,
+                publication_key=publication_key,
+            )
+        stocks = client.equity.list_stocks(
             sector=sector,
             min_score=min_score,
             limit=limit,
             mode=mode,
             publication_key=publication_key,
         )
+        return {
+            "stocks": stocks,
+            "total_count": len(stocks),
+            "mode": mode,
+            "publication_key": publication_key or "current",
+            "must_not_use_for_decision": False,
+        }
 
     @server.tool()
     def get_stock_detail(stock_code: str) -> dict[str, Any]:
@@ -137,7 +153,7 @@ def register_equity_tools(server: FastMCP) -> None:
         limit: int = 5,
         mode: str = "published",
         publication_key: str | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> dict[str, Any]:
         """
         获取股票财务数据
 
@@ -149,19 +165,38 @@ def register_equity_tools(server: FastMCP) -> None:
             publication_key: 发布快照键（默认 current）
 
         Returns:
-            财务数据列表
+            财务数据及 publication/freshness evidence
 
         Example:
             >>> financials = get_stock_financials("000001.SZ")
+            >>> rows = financials["results"]
         """
         client = AgomTradeProClient()
-        return client.equity.get_financials(
+        payload_reader = getattr(client.equity, "get_financials_payload", None)
+        if callable(payload_reader):
+            return payload_reader(
+                stock_code,
+                report_type,
+                limit,
+                mode=mode,
+                publication_key=publication_key,
+            )
+        financials = client.equity.get_financials(
             stock_code,
             report_type,
             limit,
             mode=mode,
             publication_key=publication_key,
         )
+        return {
+            "stock_code": stock_code,
+            "report_type": report_type,
+            "results": financials,
+            "count": len(financials),
+            "mode": mode,
+            "publication_key": publication_key or "current",
+            "must_not_use_for_decision": False,
+        }
 
     @server.tool()
     def get_stock_valuation(

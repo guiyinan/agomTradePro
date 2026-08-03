@@ -206,7 +206,10 @@ def _fallback_equity_read_pool_catalog(
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    return client.equity.get_stock_pool(
+    pool_reader = getattr(client.equity, "get_stock_pool_payload", None)
+    if not callable(pool_reader):
+        pool_reader = client.equity.get_stock_pool
+    return pool_reader(
         sector=sector,
         min_score=min_score,
         limit=limit,
@@ -330,15 +333,20 @@ def _fallback_equity_read_financial_history(
     stock_code: str,
     report_type: str = "annual",
     limit: int = 5,
+    mode: str = "published",
+    publication_key: str | None = None,
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    financials = client.equity.get_financials(
+    financial_payload = client.equity.get_financials_payload(
         stock_code,
         report_type=report_type,
         limit=limit,
+        mode=mode,
+        publication_key=publication_key,
     )
+    financials = financial_payload.get("results", financial_payload)
     if not isinstance(financials, list):
         raise ValueError("equity.read.financial_history returned an invalid payload")
     return {
@@ -346,6 +354,20 @@ def _fallback_equity_read_financial_history(
         "report_type": report_type,
         "financials": financials,
         "total_count": len(financials),
+        "mode": mode,
+        "publication_key": publication_key or "current",
+        **{
+            key: financial_payload[key]
+            for key in (
+                "status",
+                "publication",
+                "publication_id",
+                "must_not_use_for_decision",
+                "blocked_reason",
+                "freshness_status",
+            )
+            if key in financial_payload
+        },
     }
 
 

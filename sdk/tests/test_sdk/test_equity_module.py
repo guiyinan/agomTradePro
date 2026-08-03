@@ -155,6 +155,40 @@ class TestEquityModuleReadContracts:
             ),
         ]
 
+    def test_financials_payload_preserves_blocked_publication_metadata(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        blocked_payload = {
+            "stock_code": "000001.SZ",
+            "report_type": "annual",
+            "results": [],
+            "count": 0,
+            "status": "blocked",
+            "publication_id": "equity-financials-2026-08-03",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "publication_observation_stale",
+        }
+        with patch.object(client, "get", return_value=blocked_payload) as mock_get:
+            result = client.equity.get_financials_payload(
+                "000001.SZ",
+                mode="published",
+                publication_key="current",
+            )
+
+        assert result["results"] == []
+        assert result["status"] == "blocked"
+        assert result["must_not_use_for_decision"] is True
+        assert result["blocked_reason"] == "publication_observation_stale"
+        mock_get.assert_called_once_with(
+            "/api/equity/financials/000001.SZ/",
+            params={
+                "report_type": "annual",
+                "limit": 5,
+                "mode": "published",
+                "publication_key": "current",
+            },
+        )
+
     def test_list_valuation_repairs_uses_snapshot_list_endpoint(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")
 

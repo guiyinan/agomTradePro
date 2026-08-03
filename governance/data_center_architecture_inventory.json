@@ -6772,27 +6772,27 @@
       "text": "summary=\"估值分析（个股详情）\","
     },
     {
-      "line": 236,
+      "line": 253,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"技术图表数据\","
     },
     {
-      "line": 262,
+      "line": 279,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"分时图数据\","
     },
     {
-      "line": 282,
+      "line": 299,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"DCF 绝对估值\","
     },
     {
-      "line": 337,
+      "line": 354,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"Regime 相关性分析\","
     },
     {
-      "line": 440,
+      "line": 457,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"综合估值分析\","
     },

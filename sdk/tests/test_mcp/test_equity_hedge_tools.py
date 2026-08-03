@@ -150,6 +150,52 @@ def test_list_stocks_executes_through_legacy_raw_tool(
     assert "published" in rendered
 
 
+def test_list_stocks_raw_tool_keeps_blocked_publication_metadata(
+    legacy_enabled_mcp_server,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = importlib.import_module("agomtradepro_mcp.tools.equity_tools")
+
+    def get_stock_pool_payload(
+        *,
+        sector: str | None,
+        min_score: float | None,
+        limit: int,
+        mode: str,
+        publication_key: str | None,
+    ) -> dict[str, object]:
+        assert (sector, min_score, limit, mode, publication_key) == (
+            None,
+            None,
+            50,
+            "published",
+            None,
+        )
+        return {
+            "success": False,
+            "stocks": [],
+            "total_count": 0,
+            "status": "blocked",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_missing",
+        }
+
+    monkeypatch.setattr(
+        module,
+        "AgomTradeProClient",
+        lambda: SimpleNamespace(
+            equity=SimpleNamespace(get_stock_pool_payload=get_stock_pool_payload)
+        ),
+    )
+
+    result = asyncio.run(legacy_enabled_mcp_server.call_tool("list_stocks", {}))
+
+    rendered = str(result)
+    assert "blocked" in rendered
+    assert "canonical_publication_missing" in rendered
+    assert "must_not_use_for_decision" in rendered
+
+
 def test_stock_valuation_executes_through_legacy_raw_tool(
     legacy_enabled_mcp_server,
     patched_client: None,
@@ -186,6 +232,58 @@ def test_stock_financials_executes_through_legacy_raw_tool_with_published_defaul
     assert "000001.SZ" in rendered
     assert "annual" in rendered
     assert "published" in rendered
+
+
+def test_stock_financials_raw_tool_keeps_blocked_publication_metadata(
+    legacy_enabled_mcp_server,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = importlib.import_module("agomtradepro_mcp.tools.equity_tools")
+
+    def get_financials_payload(
+        stock_code: str,
+        report_type: str,
+        limit: int,
+        *,
+        mode: str,
+        publication_key: str | None,
+    ) -> dict[str, object]:
+        assert (stock_code, report_type, limit, mode, publication_key) == (
+            "000001.SZ",
+            "annual",
+            5,
+            "published",
+            None,
+        )
+        return {
+            "stock_code": stock_code,
+            "report_type": report_type,
+            "results": [],
+            "count": 0,
+            "status": "blocked",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "publication_observation_stale",
+        }
+
+    monkeypatch.setattr(
+        module,
+        "AgomTradeProClient",
+        lambda: SimpleNamespace(
+            equity=SimpleNamespace(get_financials_payload=get_financials_payload)
+        ),
+    )
+
+    result = asyncio.run(
+        legacy_enabled_mcp_server.call_tool(
+            "get_stock_financials",
+            {"stock_code": "000001.SZ"},
+        )
+    )
+
+    rendered = str(result)
+    assert "blocked" in rendered
+    assert "publication_observation_stale" in rendered
+    assert "must_not_use_for_decision" in rendered
 
 
 @pytest.mark.parametrize(
