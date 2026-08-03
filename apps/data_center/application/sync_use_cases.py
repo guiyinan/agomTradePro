@@ -47,6 +47,7 @@ from .macro_fact_governance import MacroFactGovernanceNormalizer
 from .provider_health_recorder import persist_provider_health_metric
 from .publication_sync import (
     PublishCapitalFlowBatchUseCase,
+    PublishFinancialBatchUseCase,
     PublishFundNavBatchUseCase,
     PublishNewsBatchUseCase,
     PublishPriceBarBatchUseCase,
@@ -594,9 +595,11 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
         provider_registry: ProviderRegistryProtocol,
         fact_repo: FinancialFactRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
+        publication_publisher: PublishFinancialBatchUseCase | None = None,
     ) -> None:
         super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
+        self._publication_publisher = publication_publisher
 
     def execute(self, request: SyncFinancialRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
@@ -610,6 +613,11 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(facts)
+            if self._publication_publisher is not None and facts:
+                self._publication_publisher.execute(
+                    facts,
+                    provider_name=provider.provider_name(),
+                )
             audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(

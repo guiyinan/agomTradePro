@@ -7,7 +7,7 @@ standardized data_center domain entities only.
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from time import sleep
 from typing import Any
 
@@ -45,6 +45,15 @@ from apps.data_center.infrastructure.sse_investor_accounts import fetch_investor
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
+
+
+def _available_at_from_report_date(report_date: date | None) -> datetime | None:
+    """Convert an AKShare notice/report date into an explicit availability instant."""
+
+    if report_date is None:
+        return None
+    return datetime.combine(report_date, datetime.min.time(), tzinfo=UTC)
+
 
 _A_SHARE_BEHAVIOR_CODES = frozenset(
     {
@@ -519,9 +528,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         normalized_code = fund_code.split(".")[0]
         fetcher = getattr(ak, "fund_open_fund_info_em", None)
         df = (
-            fetcher(fund=normalized_code, indicator="单位净值走势")
-            if fetcher is not None
-            else None
+            fetcher(fund=normalized_code, indicator="单位净值走势") if fetcher is not None else None
         )
         if df is None or df.empty:
             return []
@@ -629,6 +636,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                         unit=unit,
                         source=self.provider_source(),
                         report_date=report_date,
+                        available_at=_available_at_from_report_date(report_date),
                         extra=self._provider_extra(
                             {"derived_from": derived_metrics[metric_code]}
                             if metric_code in derived_metrics

@@ -422,6 +422,9 @@ class FinancialFactRepositoryProtocol(Protocol):
     ) -> FinancialFact | None: ...
 
     def bulk_upsert(self, facts: list[FinancialFact]) -> int: ...
+    def list_publication_candidates(
+        self, facts: Sequence[FinancialFact]
+    ) -> list[PublicationFactReference]: ...
 
 
 @runtime_checkable

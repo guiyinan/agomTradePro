@@ -18,6 +18,7 @@ from apps.data_center.domain.control_plane import (
 )
 from apps.data_center.domain.entities import (
     CapitalFlowFact,
+    FinancialFact,
     FundNavFact,
     NewsFact,
     PriceBar,
@@ -487,6 +488,156 @@ class PublishFundNavBatchUseCase:
             previous = by_natural_key.get(reference.natural_key)
             if previous is not None and previous.fact_pk != reference.fact_pk:
                 raise ValueError("Fund NAV natural key resolves to multiple facts")
+            if reference.fact_pk in by_fact_pk:
+                continue
+            by_natural_key[reference.natural_key] = reference
+            by_fact_pk.add(reference.fact_pk)
+        return sorted(by_natural_key.values(), key=lambda item: item.natural_key)
+
+
+class FinancialPublicationCandidateRepositoryProtocol(Protocol):
+    """Port for resolving persisted financial facts to canonical ids."""
+
+    def list_publication_candidates(
+        self, facts: Sequence[FinancialFact]
+    ) -> list[PublicationFactReference]: ...
+
+
+class PublishFinancialBatchUseCase:
+    """Publish financial facts only when source availability is explicit."""
+
+    dataset_key = "equity.financial.fact"
+    fact_table = "data_center_financial_fact"
+
+    def __init__(
+        self,
+        *,
+        fact_repository: FinancialPublicationCandidateRepositoryProtocol,
+        publication_repository: CanonicalPublicationRepositoryPort,
+        policy_repository: PublicationPolicyRepositoryProtocol,
+    ) -> None:
+        self._facts = fact_repository
+        self._publications = publication_repository
+        self._policies = policy_repository
+        self._publisher = PublishCanonicalDatasetUseCase(publication_repository)
+
+    def execute(
+        self,
+        facts: Sequence[FinancialFact],
+        *,
+        provider_name: str,
+        publication_key: str = "current",
+        run_id: str = "",
+        published_at: datetime | None = None,
+    ) -> CanonicalPublication | None:
+        """Resolve and atomically publish only facts with available-at evidence."""
+
+        normalized_key = publication_key.strip()
+        if not normalized_key:
+            raise ValueError("publication_key cannot be empty")
+        provider = provider_name.strip()
+        if not provider:
+            raise ValueError("provider_name cannot be empty")
+        unique_facts = _unique_financial_facts(facts)
+        if not unique_facts:
+            return None
+        references = self._deduplicate_references(
+            self._facts.list_publication_candidates(unique_facts)
+        )
+        if not references:
+            raise ValueError(
+                "No publication candidates with source available_at for equity.financial.fact"
+            )
+        policy = self._policies.get_active(self.dataset_key)
+        if policy is None:
+            raise ValueError(f"No active publication policy for {self.dataset_key}")
+        if policy.dataset.value != self.dataset_key:
+            raise ValueError("Publication policy dataset mismatch")
+        as_of = max(reference.observed_at for reference in references)
+        publish_time = published_at or datetime.now(UTC)
+        if publish_time.tzinfo is None or publish_time.utcoffset() is None:
+            raise ValueError("published_at must be timezone-aware")
+        if as_of > publish_time:
+            raise ValueError("financial availability cannot be later than publication time")
+
+        publication_hash = _publication_hash(references)
+        current = self._publications.get_current(self.dataset_key, normalized_key)
+        if current is not None and current.publication_hash == publication_hash:
+            member_count_matches = current.member_count == len(references)
+            member_reader = getattr(self._publications, "list_members", None)
+            if member_count_matches and callable(member_reader):
+                persisted_members = member_reader(current.publication_id)
+                expected_keys = {reference.natural_key for reference in references}
+                member_count_matches = (
+                    len(persisted_members) == len(references)
+                    and {member.natural_key for member in persisted_members} == expected_keys
+                )
+            if member_count_matches:
+                return current
+
+        publication_id = str(
+            uuid5(
+                NAMESPACE_URL,
+                f"agomtradepro:{self.dataset_key}:{normalized_key}:{publication_hash}",
+            )
+        )
+        members = tuple(
+            PublicationMember(
+                member_id=str(uuid5(uuid5(NAMESPACE_URL, publication_id), reference.natural_key)),
+                publication_id=publication_id,
+                dataset_key=self.dataset_key,
+                natural_key=reference.natural_key,
+                source=reference.source,
+                source_record_id=reference.source_record_id,
+                fact_table=reference.fact_table,
+                fact_pk=reference.fact_pk,
+                observed_at=reference.observed_at,
+                raw_payload_hash=reference.raw_payload_hash,
+                quality_status=reference.quality_status,
+                revision_number=reference.revision_number,
+            )
+            for reference in references
+        )
+        publication = CanonicalPublication(
+            publication_id=publication_id,
+            dataset_key=self.dataset_key,
+            publication_key=normalized_key,
+            policy_version=f"{policy.dataset.contract_version}:{policy.dataset.schema_version}",
+            state=PublicationState.PUBLISHED,
+            selected_source=provider,
+            publication_hash=publication_hash,
+            coverage=CoverageSnapshot(
+                coverage_id=str(uuid5(NAMESPACE_URL, f"coverage:{publication_id}")),
+                publication_id=publication_id,
+                requested_count=len(unique_facts),
+                eligible_count=len(references),
+                selected_count=len(references),
+                missing_count=len(unique_facts) - len(references),
+                conflict_count=0,
+                generated_at=publish_time,
+            ),
+            member_count=len(members),
+            conflict_count=0,
+            as_of=as_of,
+            published_at=publish_time,
+            created_by="sync.financial_fact",
+            run_id=run_id,
+        )
+        return self._publisher.execute(policy=policy, publication=publication, members=members)
+
+    @classmethod
+    def _deduplicate_references(
+        cls,
+        references: Sequence[PublicationFactReference],
+    ) -> list[PublicationFactReference]:
+        by_natural_key: dict[str, PublicationFactReference] = {}
+        by_fact_pk: set[str] = set()
+        for reference in references:
+            if reference.fact_table != cls.fact_table:
+                raise ValueError("Financial publication candidate fact table mismatch")
+            previous = by_natural_key.get(reference.natural_key)
+            if previous is not None and previous.fact_pk != reference.fact_pk:
+                raise ValueError("Financial natural key resolves to multiple facts")
             if reference.fact_pk in by_fact_pk:
                 continue
             by_natural_key[reference.natural_key] = reference
@@ -968,6 +1119,24 @@ def _unique_fund_nav_facts(facts: Sequence[FundNavFact]) -> list[FundNavFact]:
     return list(unique.values())
 
 
+def _unique_financial_facts(facts: Sequence[FinancialFact]) -> list[FinancialFact]:
+    """Deduplicate financial facts by their canonical natural key."""
+
+    unique: dict[tuple[str, object, str, str, str], FinancialFact] = {}
+    for fact in facts:
+        unique.setdefault(
+            (
+                fact.asset_code,
+                fact.period_end,
+                fact.period_type.value,
+                fact.metric_code,
+                fact.source,
+            ),
+            fact,
+        )
+    return list(unique.values())
+
+
 def _unique_price_bars(bars: Sequence[PriceBar]) -> list[PriceBar]:
     """Deduplicate bars by their canonical natural key before coverage."""
 
@@ -1046,12 +1215,14 @@ def _publication_hash(references: Sequence[PublicationFactReference]) -> str:
 
 __all__ = [
     "CapitalFlowPublicationCandidateRepositoryProtocol",
+    "FinancialPublicationCandidateRepositoryProtocol",
     "FundNavPublicationCandidateRepositoryProtocol",
     "NewsPublicationCandidateRepositoryProtocol",
     "PriceBarPublicationCandidateRepositoryProtocol",
     "QuoteSnapshotPublicationCandidateRepositoryProtocol",
     "SectorMembershipPublicationCandidateRepositoryProtocol",
     "PublishCapitalFlowBatchUseCase",
+    "PublishFinancialBatchUseCase",
     "PublishFundNavBatchUseCase",
     "PublishNewsBatchUseCase",
     "PublishPriceBarBatchUseCase",

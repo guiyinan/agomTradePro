@@ -1814,6 +1814,8 @@
         "apps/data_center/application/interface_services.py",
         "apps/data_center/infrastructure/market_breadth_repositories.py",
         "apps/data_center/infrastructure/fundamental_fact_repositories.py",
+        "apps/data_center/infrastructure/_provider_adapter_tushare.py",
+        "apps/data_center/infrastructure/_provider_adapter_akshare.py",
         "apps/data_center/infrastructure/market_data_repositories.py"
       ],
       "required_markers": {
@@ -1832,6 +1834,7 @@
         "apps/data_center/application/publication_sync.py": [
           "class PublishNewsBatchUseCase:",
           "class PublishCapitalFlowBatchUseCase:",
+          "class PublishFinancialBatchUseCase:",
           "class PublishFundNavBatchUseCase:",
           "class PublishQuoteSnapshotBatchUseCase:",
           "class PublishPriceBarBatchUseCase:",
@@ -1840,6 +1843,7 @@
           "missing_count=requested_count - len(references)",
           "as_of = max(reference.observed_at for reference in references)",
           "capital-flow observation cannot be later than publication time",
+          "financial availability cannot be later than publication time",
           "fund NAV observation cannot be later than publication time",
           "quote snapshot cannot be later than publication time",
           "price-bar observation cannot be later than publication time",
@@ -1847,10 +1851,12 @@
         ],
         "apps/data_center/application/sync_use_cases.py": [
           "publication_publisher: PublishPriceBarBatchUseCase | None = None",
+          "publication_publisher: PublishFinancialBatchUseCase | None = None",
           "self._publication_publisher.execute("
         ],
         "apps/data_center/application/interface_services.py": [
-          "publication_publisher=PublishPriceBarBatchUseCase("
+          "publication_publisher=PublishPriceBarBatchUseCase(",
+          "publication_publisher=PublishFinancialBatchUseCase("
         ],
         "apps/data_center/infrastructure/market_breadth_repositories.py": [
           "def list_publication_candidates(",
@@ -1861,8 +1867,18 @@
         ],
         "apps/data_center/infrastructure/fundamental_fact_repositories.py": [
           "def list_publication_candidates(",
+          "available_at=m.available_at",
+          "if row.available_at is None",
+          "observed_at=row.available_at",
+          "row.raw_payload_hash or _financial_payload_hash(row)",
           "observed_at=datetime.combine(row.nav_date, time.min, tzinfo=UTC)",
           "row.raw_payload_hash or _fund_nav_payload_hash(row)"
+        ],
+        "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
+          "available_at=_available_at_from_report_date(report_date)"
+        ],
+        "apps/data_center/infrastructure/_provider_adapter_akshare.py": [
+          "available_at=_available_at_from_report_date(report_date)"
         ],
         "apps/data_center/infrastructure/market_data_repositories.py": [
           "def list_publication_candidates(",
@@ -1987,6 +2003,51 @@
           "case": "price_bar_sync_invokes_publication_writer",
           "test_file": "tests/unit/data_center/test_price_bar_publication_sync.py",
           "test_function": "test_sync_price_use_case_invokes_publication_after_fact_write"
+        },
+        {
+          "case": "financial_publication_members_and_as_of",
+          "test_file": "tests/unit/data_center/test_financial_publication_sync.py",
+          "test_function": "test_financial_publication_uses_available_at_and_exact_members"
+        },
+        {
+          "case": "financial_publication_idempotency",
+          "test_file": "tests/unit/data_center/test_financial_publication_sync.py",
+          "test_function": "test_financial_publication_is_idempotent_for_same_snapshot"
+        },
+        {
+          "case": "financial_publication_coverage_fail_closed",
+          "test_file": "tests/unit/data_center/test_financial_publication_sync.py",
+          "test_function": "test_financial_publication_fails_closed_below_coverage_policy"
+        },
+        {
+          "case": "financial_publication_missing_available_at_blocks",
+          "test_file": "tests/unit/data_center/test_financial_publication_sync.py",
+          "test_function": "test_financial_publication_blocks_when_available_at_is_missing"
+        },
+        {
+          "case": "financial_publication_future_available_at_blocks",
+          "test_file": "tests/unit/data_center/test_financial_publication_sync.py",
+          "test_function": "test_financial_publication_rejects_future_available_at"
+        },
+        {
+          "case": "financial_candidate_requires_available_at",
+          "test_file": "tests/unit/data_center/test_financial_publication_sync.py",
+          "test_function": "test_financial_repository_candidate_requires_available_at_and_preserves_evidence"
+        },
+        {
+          "case": "financial_sync_invokes_publication_writer",
+          "test_file": "tests/unit/data_center/test_financial_publication_sync.py",
+          "test_function": "test_sync_financial_use_case_invokes_publication_after_fact_write"
+        },
+        {
+          "case": "tushare_report_date_becomes_available_at",
+          "test_file": "tests/unit/data_center/test_phase3_provider_adapters.py",
+          "test_function": "test_tushare_unified_provider_adapter_builds_typed_financial_facts"
+        },
+        {
+          "case": "akshare_notice_date_becomes_available_at",
+          "test_file": "tests/unit/data_center/test_phase3_provider_adapters.py",
+          "test_function": "test_akshare_financials_preserve_partial_metrics_and_notice_date"
         },
         {
           "case": "sector_publication_effective_date_observation",

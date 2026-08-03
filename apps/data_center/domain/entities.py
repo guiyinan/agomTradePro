@@ -539,6 +539,7 @@ class FinancialFact:
     unit: str = ""
     source: str = ""
     report_date: date | None = None
+    available_at: datetime | None = None
     fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -551,6 +552,10 @@ class FinancialFact:
             or not math.isfinite(self.value)
         ):
             raise ValueError("FinancialFact.value must be finite")
+        if self.available_at is not None and (
+            self.available_at.tzinfo is None or self.available_at.utcoffset() is None
+        ):
+            raise ValueError("FinancialFact.available_at must be timezone-aware")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -562,6 +567,7 @@ class FinancialFact:
             "unit": self.unit,
             "source": self.source,
             "report_date": self.report_date.isoformat() if self.report_date else None,
+            "available_at": self.available_at.isoformat() if self.available_at else None,
             "fetched_at": self.fetched_at.isoformat(),
             "extra": self.extra,
         }

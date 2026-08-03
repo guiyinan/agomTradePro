@@ -190,6 +190,10 @@ def test_tushare_unified_provider_adapter_builds_typed_financial_facts(monkeypat
     assert len(facts) == 10
     assert by_metric["revenue"].period_end == date(2025, 12, 31)
     assert by_metric["revenue"].period_type.value == "annual"
+    # The compatibility gateway exposes a period end, not a source announcement
+    # boundary; it must remain unavailable for PIT publication rather than
+    # treating period_end as available_at.
+    assert by_metric["revenue"].available_at is None
     assert by_metric["revenue"].unit == "元"
     assert by_metric["roa"].value == 0.083
     assert by_metric["net_profit_growth"].value == -74.65
@@ -639,6 +643,7 @@ def test_akshare_unified_provider_adapter_fetches_financial_facts(monkeypatch):
     assert by_metric["revenue"].extra["provider_name"] == "AKShare Public"
     assert by_metric["revenue"].extra["source_type"] == "akshare"
     assert by_metric["revenue"].report_date is None
+    assert by_metric["revenue"].available_at is None
 
 
 def test_akshare_financials_preserve_partial_metrics_and_notice_date(monkeypatch):
@@ -667,6 +672,7 @@ def test_akshare_financials_preserve_partial_metrics_and_notice_date(monkeypatch
     assert [(fact.metric_code, fact.value) for fact in facts] == [("revenue", 1_000_000.0)]
     assert facts[0].period_end == date(2025, 12, 31)
     assert facts[0].report_date == date(2026, 3, 31)
+    assert facts[0].available_at == datetime(2026, 3, 31, tzinfo=UTC)
     assert "derived_from" not in facts[0].extra
 
 

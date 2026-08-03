@@ -80,6 +80,7 @@ from .market_thermometer import (
 from .provider_connection_workflow import RunProviderConnectionTestUseCase
 from .publication_sync import (
     PublishCapitalFlowBatchUseCase,
+    PublishFinancialBatchUseCase,
     PublishFundNavBatchUseCase,
     PublishNewsBatchUseCase,
     PublishPriceBarBatchUseCase,
@@ -1039,11 +1040,17 @@ def make_sync_fund_nav_use_case() -> SyncFundNavUseCase:
 def make_sync_financial_use_case() -> SyncFinancialUseCase:
     """Build the financial facts sync use case."""
 
+    financial_repository = FinancialFactRepository()
     return SyncFinancialUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
-        fact_repo=FinancialFactRepository(),
+        fact_repo=financial_repository,
         raw_audit_repo=_make_raw_audit_repo(),
+        publication_publisher=PublishFinancialBatchUseCase(
+            fact_repository=financial_repository,
+            publication_repository=CanonicalPublicationRepository(),
+            policy_repository=PublicationPolicyRepository(),
+        ),
     )
 
 

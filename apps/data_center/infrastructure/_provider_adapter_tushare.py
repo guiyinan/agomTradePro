@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, Protocol, cast
 
 from apps.data_center.domain.entities import (
@@ -57,18 +57,14 @@ def build_tushare_fund_adapter(*, token: str, http_url: str | None = None) -> An
     return None
 
 
-def build_tushare_financial_gateway(
-    *, token: str, http_url: str | None = None
-) -> Any | None:
+def build_tushare_financial_gateway(*, token: str, http_url: str | None = None) -> Any | None:
     """Return no compatibility gateway by default; retained for migration fakes."""
 
     del token, http_url
     return None
 
 
-def build_tushare_valuation_gateway(
-    *, token: str, http_url: str | None = None
-) -> Any | None:
+def build_tushare_valuation_gateway(*, token: str, http_url: str | None = None) -> Any | None:
     """Return no compatibility gateway by default; retained for migration fakes."""
 
     del token, http_url
@@ -156,6 +152,14 @@ def _optional_nonnegative_float(value: object) -> float | None:
     return parsed
 
 
+def _available_at_from_report_date(report_date: date | None) -> datetime | None:
+    """Convert the provider's announcement date into an explicit availability instant."""
+
+    if report_date is None:
+        return None
+    return datetime.combine(report_date, datetime.min.time(), tzinfo=UTC)
+
+
 def _financial_fact_builder(
     *,
     asset_code: str,
@@ -179,6 +183,7 @@ def _financial_fact_builder(
             unit=unit,
             source=source,
             report_date=report_date,
+            available_at=_available_at_from_report_date(report_date),
             extra=extra,
         )
 
@@ -738,9 +743,9 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 continue
             report_date = _safe_date(_first_present(row, "ann_date", "announced_date"))
             report_type = (
-                "1Q" if period_end.month == 3 else
-                "2Q" if period_end.month == 6 else
-                "3Q" if period_end.month == 9 else "4Q"
+                "1Q"
+                if period_end.month == 3
+                else "2Q" if period_end.month == 6 else "3Q" if period_end.month == 9 else "4Q"
             )
             build_fact = _financial_fact_builder(
                 asset_code=normalize_asset_code(asset_code, "tushare"),
