@@ -1259,6 +1259,48 @@
       ]
     },
     {
+      "id": "data_center.financial_as_of_reads",
+      "surface": "Historical financial reads preserve an explicit as-of boundary",
+      "source_files": [
+        "apps/data_center/application/query_services.py",
+        "apps/data_center/application/public.py",
+        "apps/data_center/infrastructure/fundamental_fact_repositories.py",
+        "apps/alpha/infrastructure/adapters/simple_adapter.py",
+        "apps/factor/infrastructure/adapters/__init__.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/query_services.py": [
+          "end: date | None = None",
+          "end=end"
+        ],
+        "apps/data_center/application/public.py": [
+          "as_of: date | None = None",
+          "end=as_of"
+        ],
+        "apps/data_center/infrastructure/fundamental_fact_repositories.py": [
+          "period_end__lte=end"
+        ],
+        "apps/alpha/infrastructure/adapters/simple_adapter.py": [
+          "as_of=trade_date"
+        ],
+        "apps/factor/infrastructure/adapters/__init__.py": [
+          "get_financial_facts(stock_code, limit=200, as_of=trade_date)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "repository_honors_as_of_end_date",
+          "test_file": "tests/component/data_center/test_core_fact_bulk_upserts.py",
+          "test_function": "test_financial_fact_repository_honors_as_of_end_date"
+        },
+        {
+          "case": "alpha_requests_trade_date_boundary",
+          "test_file": "tests/unit/alpha/test_t3b_provider_contracts.py",
+          "test_function": "test_simple_fundamentals_requests_financial_facts_as_of_trade_date"
+        }
+      ]
+    },
+    {
       "id": "data_center.publication_only_d7_d9",
       "surface": "Data Center Public Ports for sector membership, market news, and capital flow",
       "source_files": [

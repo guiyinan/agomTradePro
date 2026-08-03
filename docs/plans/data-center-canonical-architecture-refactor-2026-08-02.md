@@ -576,6 +576,26 @@
 - 估值服务在 valuation facts 被阻断时仍可按既有契约回退到显式标注的 canonical current-price fallback；这不是 valuation fact 的替代证据，生产 UI/MCP 仍需展示 fallback/blocked 语义。
 - 生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
 
+## 实施记录（2026-08-03，第二十七批）
+
+本批次补齐财务事实历史读取的 as-of 边界，消除 Alpha/Factor 在回放或历史评分中取到未来财务期末数据的后视偏差；不部署、不 push。
+
+已落地：
+
+- Data Center FinancialFact repository、Application Query Port 和 Public Port 增加可选 `end/as_of` 过滤，并在 ORM 查询层执行 `period_end__lte=end`。
+- Alpha Simple provider 和 Factor adapter 按 `trade_date` 显式请求财务 facts，历史计算不再先取未界定的最新 100/200 行再自行猜测期末。
+- current-data contract 登记 repository as-of marker 和 Alpha 回归 nodeid；不改变显式 current Publication gate 的语义。
+
+第二十七批机器证据：
+
+- `pytest tests/component/data_center/test_core_fact_bulk_upserts.py tests/unit/alpha/test_t3b_provider_contracts.py -q --no-migrations --reuse-db --timeout=180`：13 passed。
+- `python scripts/check_current_data_contracts.py`：31 surfaces；6 个生产文件 `check_mypy_regression.py`：0 regression；ruff/black/isort、legacy-access、governance、architecture 均通过。
+
+仍未完成及风险：
+
+- Alpha/Factor 仍保留历史 facts 的兼容读取，这是回放语义，不应被误改为 current published；生产 current 入口仍须走 Publication-only Port。
+- 生产 publication/member 观测、全 D0-D9 影子对账、PostgreSQL 规模性能、备份恢复、旧表删除和 M9/M10 仍未完成。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

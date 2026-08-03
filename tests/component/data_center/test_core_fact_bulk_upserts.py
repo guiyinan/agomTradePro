@@ -104,3 +104,37 @@ def test_financial_and_valuation_bulk_upserts_update_natural_keys() -> None:
     assert ValuationFactModel._default_manager.get().pe_ttm == 12.0
     assert FinancialFactModel._default_manager.count() == 1
     assert ValuationFactModel._default_manager.count() == 1
+
+
+def test_financial_fact_repository_honors_as_of_end_date() -> None:
+    repository = FinancialFactRepository()
+    repository.bulk_upsert(
+        [
+            FinancialFact(
+                asset_code="000001.SZ",
+                period_end=date(2026, 7, 31),
+                period_type=FinancialPeriodType.QUARTERLY,
+                metric_code="roe",
+                value=10.0,
+                unit="%",
+                source="test",
+            ),
+            FinancialFact(
+                asset_code="000001.SZ",
+                period_end=date(2026, 8, 31),
+                period_type=FinancialPeriodType.QUARTERLY,
+                metric_code="roe",
+                value=20.0,
+                unit="%",
+                source="test",
+            ),
+        ]
+    )
+
+    rows = repository.get_facts(
+        "000001.SZ",
+        limit=20,
+        end=date(2026, 7, 31),
+    )
+
+    assert [row.period_end for row in rows] == [date(2026, 7, 31)]

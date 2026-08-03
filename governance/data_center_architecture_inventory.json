@@ -4942,7 +4942,7 @@
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 608,
+      "line": 613,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -4952,97 +4952,97 @@
       "text": "\"\"\"Return data-center summary counts for operational diagnostics.\"\"\""
     },
     {
-      "line": 108,
+      "line": 113,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest canonical quote payloads, preserving source observation time.\"\"\""
     },
     {
-      "line": 129,
+      "line": 134,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return the latest canonical macro indicator value for one code.\"\"\""
     },
     {
-      "line": 131,
+      "line": 136,
       "path": "apps/data_center/application/query_services.py",
       "text": "latest = get_macro_fact_repository().get_latest(indicator_code)"
     },
     {
-      "line": 132,
+      "line": 137,
       "path": "apps/data_center/application/query_services.py",
       "text": "return float(latest.value) if latest is not None else None"
     },
     {
-      "line": 172,
+      "line": 177,
       "path": "apps/data_center/application/query_services.py",
       "text": "This explicit current-data port prevents a non-empty, unpublished, or"
     },
     {
-      "line": 269,
+      "line": 274,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a freshness-validated gate for one current publication.\"\"\""
     },
     {
-      "line": 296,
+      "line": 301,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 309,
+      "line": 314,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 334,
+      "line": 339,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 336,
+      "line": 341,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read financial facts only after the current financial publication gate.\"\"\""
     },
     {
-      "line": 349,
+      "line": 354,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 351,
+      "line": 356,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read valuation facts only after the current valuation publication gate.\"\"\""
     },
     {
-      "line": 366,
+      "line": 371,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 382,
+      "line": 387,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 404,
+      "line": 409,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 480,
+      "line": 485,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 538,
+      "line": 543,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read current market breadth only after every component is published."
     },
     {
-      "line": 628,
+      "line": 633,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 641,
+      "line": 646,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return the latest market thermometer snapshot as a JSON-safe payload.\"\"\""
     },
@@ -5342,7 +5342,7 @@
       "text": "value = FundNavFactModel._default_manager.aggregate(latest=Max(\"nav_date\"))[\"latest\"]"
     },
     {
-      "line": 199,
+      "line": 202,
       "path": "apps/data_center/infrastructure/fundamental_fact_repositories.py",
       "text": "value = ValuationFactModel._default_manager.aggregate(latest=Max(\"val_date\"))[\"latest\"]"
     },

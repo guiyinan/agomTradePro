@@ -78,12 +78,17 @@ def query_financial_facts(
     asset_code: str,
     *,
     limit: int = 20,
+    end: date | None = None,
 ) -> list[dict[str, object]]:
     """Return canonical financial facts through the application query port."""
 
     return [
         fact.to_dict()
-        for fact in get_financial_fact_repository().get_facts(asset_code, limit=limit)
+        for fact in get_financial_fact_repository().get_facts(
+            asset_code,
+            limit=limit,
+            end=end,
+        )
     ]
 
 

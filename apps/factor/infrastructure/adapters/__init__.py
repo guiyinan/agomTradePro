@@ -103,7 +103,7 @@ def _get_factor_from_data_center(
     if factor_code in financial_metric_map:
         financial_facts = [
             row
-            for row in get_financial_facts(stock_code, limit=200)
+            for row in get_financial_facts(stock_code, limit=200, as_of=trade_date)
             if row.get("metric_code") == financial_metric_map[factor_code]
             and str(row.get("period_end") or "") <= trade_date.isoformat()
         ]

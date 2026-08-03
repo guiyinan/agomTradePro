@@ -351,7 +351,11 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             for stock_code in stock_list:
                 valuation_rows = get_valuation_facts(stock_code, as_of=trade_date, limit=1)
                 valuation = valuation_rows[0] if valuation_rows else None
-                financial_rows = get_financial_facts(stock_code, limit=100)
+                financial_rows = get_financial_facts(
+                    stock_code,
+                    limit=100,
+                    as_of=trade_date,
+                )
                 latest_period = max(
                     (str(row.get("period_end")) for row in financial_rows if row.get("period_end")),
                     default="",

@@ -583,10 +583,15 @@ def list_valuation_covered_codes(as_of: date | None = None) -> list[str]:
     return list_valuation_covered_asset_codes(as_of)
 
 
-def get_financial_facts(asset_code: str, *, limit: int = 20) -> list[dict[str, object]]:
-    """Read canonical financial facts for one asset."""
+def get_financial_facts(
+    asset_code: str,
+    *,
+    limit: int = 20,
+    as_of: date | None = None,
+) -> list[dict[str, object]]:
+    """Read canonical financial facts for one asset through an optional as-of date."""
 
-    return query_financial_facts(asset_code, limit=limit)
+    return query_financial_facts(asset_code, limit=limit, end=as_of)
 
 
 def get_valuation_facts(

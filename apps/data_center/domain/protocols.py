@@ -392,6 +392,7 @@ class FinancialFactRepositoryProtocol(Protocol):
         asset_code: str,
         period_type: FinancialPeriodType | None = None,
         limit: int = 20,
+        end: date | None = None,
     ) -> list[FinancialFact]: ...
 
     def get_latest(

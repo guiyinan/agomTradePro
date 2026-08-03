@@ -96,11 +96,14 @@ class FinancialFactRepository:
         asset_code: str,
         period_type: FinancialPeriodType | None = None,
         limit: int = 20,
+        end: date | None = None,
     ) -> list[FinancialFact]:
         for candidate in _resolve_asset_code_candidates(asset_code):
             qs = FinancialFactModel.objects.filter(asset_code=candidate)
             if period_type:
                 qs = qs.filter(period_type=period_type.value)
+            if end is not None:
+                qs = qs.filter(period_end__lte=end)
             rows = list(qs.order_by("-period_end")[:limit])
             if rows:
                 return [self._from_model(m) for m in rows]
@@ -202,7 +205,9 @@ class ValuationFactRepository:
     def list_by_date(self, as_of_date: date) -> list[ValuationFact]:
         """Return canonical valuation facts for one date in deterministic order."""
 
-        rows = ValuationFactModel._default_manager.filter(val_date=as_of_date).order_by("asset_code")
+        rows = ValuationFactModel._default_manager.filter(val_date=as_of_date).order_by(
+            "asset_code"
+        )
         return [self._from_model(row) for row in rows]
 
     def list_asset_codes(self, as_of: date | None = None) -> list[str]:
@@ -211,9 +216,7 @@ class ValuationFactRepository:
         queryset = ValuationFactModel.objects.all()
         if as_of is not None:
             queryset = queryset.filter(val_date__lte=as_of)
-        return list(
-            queryset.order_by("asset_code").values_list("asset_code", flat=True).distinct()
-        )
+        return list(queryset.order_by("asset_code").values_list("asset_code", flat=True).distinct())
 
     def bulk_upsert(self, facts: list[ValuationFact]) -> int:
         if not facts:
