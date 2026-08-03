@@ -42,6 +42,8 @@ def _fallback_data_center_get_macro_series(
     start: str | None = None,
     end: str | None = None,
     limit: int | None = None,
+    mode: str = "published",
+    publication_key: str | None = None,
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
@@ -51,6 +53,8 @@ def _fallback_data_center_get_macro_series(
         start=start,
         end=end,
         limit=limit,
+        mode=mode,
+        publication_key=publication_key,
     )
 
 
@@ -72,6 +76,8 @@ def _fallback_data_center_get_price_history(
     freq: str | None = None,
     adjustment: str | None = None,
     limit: int | None = None,
+    mode: str = "published",
+    publication_key: str | None = None,
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
@@ -83,6 +89,8 @@ def _fallback_data_center_get_price_history(
         freq=freq,
         adjustment=adjustment,
         limit=limit,
+        mode=mode,
+        publication_key=publication_key,
     )
 
 
@@ -90,6 +98,8 @@ def _fallback_data_center_get_quotes(
     asset_code: str,
     strict_freshness: bool | None = None,
     max_age_hours: float | None = None,
+    mode: str = "published",
+    publication_key: str | None = None,
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
@@ -98,17 +108,26 @@ def _fallback_data_center_get_quotes(
         asset_code,
         strict_freshness=strict_freshness,
         max_age_hours=max_age_hours,
+        mode=mode,
+        publication_key=publication_key,
     )
 
 
 def _fallback_data_center_get_news(
     asset_code: str,
     limit: int = 20,
+    mode: str = "published",
+    publication_key: str | None = None,
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    return client.data_center.get_news(asset_code, limit=limit)
+    return client.data_center.get_news(
+        asset_code,
+        limit=limit,
+        mode=mode,
+        publication_key=publication_key,
+    )
 
 
 def _fallback_data_center_get_capital_flows(
@@ -116,6 +135,8 @@ def _fallback_data_center_get_capital_flows(
     start: str | None = None,
     end: str | None = None,
     limit: int = 100,
+    mode: str = "published",
+    publication_key: str | None = None,
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
@@ -125,6 +146,8 @@ def _fallback_data_center_get_capital_flows(
         start=start,
         end=end,
         limit=limit,
+        mode=mode,
+        publication_key=publication_key,
     )
 
 

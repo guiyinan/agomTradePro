@@ -161,6 +161,7 @@ def client():
                     "start": "2026-01-01",
                     "end": "2026-03-31",
                     "limit": 12,
+                    "mode": "published",
                 }
             },
             {"ok": True},
@@ -206,6 +207,7 @@ def client():
                     "freq": "1d",
                     "adjustment": "qfq",
                     "limit": 5,
+                    "mode": "published",
                 }
             },
             {"ok": True},
@@ -214,7 +216,7 @@ def client():
             lambda c: c.data_center.get_latest_quotes("000001.SZ"),
             "GET",
             "/api/data-center/prices/quotes/",
-            {"params": {"asset_code": "000001.SZ"}},
+            {"params": {"asset_code": "000001.SZ", "mode": "published"}},
             {"ok": True},
         ),
         (
@@ -230,6 +232,7 @@ def client():
                     "asset_code": "000001.SZ",
                     "strict_freshness": "true",
                     "max_age_hours": 1.5,
+                    "mode": "published",
                 }
             },
             {"ok": True},
@@ -238,7 +241,13 @@ def client():
             lambda c: c.data_center.get_news("000001.SZ", limit=5),
             "GET",
             "/api/data-center/news/",
-            {"params": {"asset_code": "000001.SZ", "limit": 5}},
+            {
+                "params": {
+                    "asset_code": "000001.SZ",
+                    "limit": 5,
+                    "mode": "published",
+                }
+            },
             {"ok": True},
         ),
         (
@@ -256,6 +265,7 @@ def client():
                     "start": "2026-04-01",
                     "end": "2026-04-10",
                     "limit": 10,
+                    "mode": "published",
                 }
             },
             {"ok": True},

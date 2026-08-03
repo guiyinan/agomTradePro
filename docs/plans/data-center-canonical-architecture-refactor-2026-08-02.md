@@ -454,6 +454,50 @@
 
 - Dashboard 只收口当前宏观摘要入口；生产 publication/member 观测、全 D0-D9 入口快照、备份恢复、P95/WAL、M9/M10 和 VPS 仍未执行。
 
+## 实施记录（2026-08-03，第二十一批）
+
+本批次收紧 MCP 通用 Data Center 读取入口：默认 `mode="published"`，历史研究必须显式选择 historical；不部署、不 push。
+
+已落地：
+
+- `data_center_get_quotes`、`data_center_get_price_history`、`data_center_get_macro_series`、`data_center_get_news`、`data_center_get_capital_flows` 及 core fallback 均默认传递 `mode="published"` 与 `publication_key`。
+- 工具文案明确历史研究需要显式 historical，避免 MCP 调用者以“latest/current”名义获得未发布旧值。
+- MCP 测试 fixture 固定后端身份，避免 RBAC 审计测试因外部 profile 网络请求挂起；新增 fallback 默认 published 断言。
+- current-data manifest 登记 MCP 工具与 fallback marker。
+
+第二十一批机器证据：
+
+- `pytest sdk/tests/test_mcp/test_data_center_tools.py -q --timeout=60`：25 passed（本机工具注册/重载耗时约 168 秒）。
+- `pytest sdk/tests/test_mcp/test_core_registry_owner_data_center_01.py sdk/tests/test_mcp/test_t5_owner_fallback_contracts.py -q --timeout=60`：20 passed。
+- `pytest sdk/tests/test_mcp/test_core_registry_read_matrix_data_center.py -q --timeout=60`：9 passed。
+- `python scripts/check_current_data_contracts.py`：29 surfaces；MCP 变更文件 ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- SDK 直接调用若不显式传 `mode` 仍保留兼容的 historical 默认；本批已保证 MCP 用户面和 fallback 不再静默使用该默认，SDK 默认值统一仍需单独兼容性批次。
+- 生产 publication/member 观测、全 D0-D9 入口快照、备份恢复、P95/WAL、M9/M10 和 VPS 仍未执行。
+
+## 实施记录（2026-08-03，第二十二批）
+
+本批次完成 SDK Data Center 读取方法的默认语义收口：未显式指定时统一请求 `published`，历史读取必须显式传 `mode="historical"`；不部署、不 push。
+
+已落地：
+
+- SDK `get_macro_series`、`get_price_history`、`get_latest_quotes`、`get_fund_nav`、`get_financials`、`get_valuations`、`get_sector_constituents`、`get_news`、`get_capital_flows` 默认 `mode="published"`。
+- 清理 capital-flow SDK 重复 mode/publication 参数写入，避免请求契约出现重复键路径。
+- SDK endpoint、MCP generic read、equity snapshot 与 realtime delegation 回归保持一致。
+
+第二十二批机器证据：
+
+- `pytest sdk/tests/test_sdk/test_data_center_module.py -q --timeout=60`：30 passed。
+- `pytest sdk/tests/test_sdk/test_realtime_module.py sdk/tests/test_mcp/test_equity_research_snapshot_registry.py sdk/tests/test_mcp/test_data_center_tools.py -q --timeout=60`：38 passed。
+- SDK MCP fallback/core read matrix：此前第二十一批 15 + 20 + 9 passed；current-data 29 surfaces、MCP 工具格式/契约门禁通过。
+
+仍未完成及风险：
+
+- SDK 的 historical 模式仍可被调用者显式选择，这是回测/维护所需的受控兼容面；生产决策入口必须继续使用 published gate。
+- 生产 publication/member 观测、全 D0-D9 入口快照、备份恢复、P95/WAL、M9/M10 和 VPS 仍未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

@@ -1045,6 +1045,9 @@
         "apps/data_center/application/public.py",
         "apps/data_center/application/query_services.py",
         "apps/dashboard/application/integration_gateways.py",
+        "sdk/agomtradepro/modules/data_center.py",
+        "sdk/agomtradepro_mcp/tools/data_center_tools.py",
+        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/data_center.py",
         "apps/alpha/infrastructure/adapters/simple_adapter.py",
         "apps/pulse/infrastructure/data_provider.py",
         "apps/regime/infrastructure/macro_data_provider.py"
@@ -1063,6 +1066,18 @@
         "apps/dashboard/application/integration_gateways.py": [
           "get_published_macro_fact_series(indicator_code, limit=1)",
           "must_not_use_for_decision"
+        ],
+        "sdk/agomtradepro/modules/data_center.py": [
+          "mode: str | None = \"published\"",
+          "params[\"mode\"] = mode"
+        ],
+        "sdk/agomtradepro_mcp/tools/data_center_tools.py": [
+          "mode: str = \"published\"",
+          "publication_key: str | None = None"
+        ],
+        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/data_center.py": [
+          "mode: str = \"published\"",
+          "mode=mode"
         ],
         "apps/alpha/infrastructure/adapters/simple_adapter.py": [
           "get_published_quote_payloads(active_codes)",
@@ -1108,6 +1123,16 @@
           "case": "dashboard_stale_publication_blocks",
           "test_file": "tests/unit/dashboard/test_data_center_publication_gate.py",
           "test_function": "test_dashboard_macro_value_blocks_stale_publication"
+        },
+        {
+          "case": "mcp_data_center_defaults_to_published",
+          "test_file": "sdk/tests/test_mcp/test_core_registry_owner_data_center_01.py",
+          "test_function": "test_data_center_read_fallbacks_default_to_published_mode"
+        },
+        {
+          "case": "sdk_data_center_defaults_to_published",
+          "test_file": "sdk/tests/test_sdk/test_data_center_module.py",
+          "test_function": "test_data_center_module_endpoints"
         }
       ]
     },

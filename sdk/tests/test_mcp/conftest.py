@@ -25,6 +25,13 @@ def _reload_server_module(
 @pytest.fixture
 def core_only_mcp_server(monkeypatch: pytest.MonkeyPatch):
     """Reload MCP server with only governed core tools enabled."""
+    import agomtradepro_mcp.rbac as rbac
+
+    monkeypatch.setattr(
+        rbac,
+        "_get_backend_profile",
+        lambda: {"user_id": 1, "username": "mcp-test", "rbac_role": "admin"},
+    )
     try:
         server_module = _reload_server_module(
             monkeypatch,
@@ -43,6 +50,13 @@ def core_only_mcp_server(monkeypatch: pytest.MonkeyPatch):
 @pytest.fixture
 def legacy_enabled_mcp_server(monkeypatch: pytest.MonkeyPatch):
     """Reload MCP server with legacy raw tools enabled for compatibility tests."""
+    import agomtradepro_mcp.rbac as rbac
+
+    monkeypatch.setattr(
+        rbac,
+        "_get_backend_profile",
+        lambda: {"user_id": 1, "username": "mcp-test", "rbac_role": "admin"},
+    )
     try:
         server_module = _reload_server_module(
             monkeypatch,

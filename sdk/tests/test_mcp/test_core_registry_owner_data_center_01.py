@@ -14,13 +14,23 @@ def test_data_center_capital_flows_fallback_uses_formal_sdk_contract(
 
     class _FakeDataCenterModule:
         @staticmethod
-        def get_capital_flows(asset_code, *, start=None, end=None, limit=None):
+        def get_capital_flows(
+            asset_code,
+            *,
+            start=None,
+            end=None,
+            limit=None,
+            mode=None,
+            publication_key=None,
+        ):
             calls.append(
                 {
                     "asset_code": asset_code,
                     "start": start,
                     "end": end,
                     "limit": limit,
+                    "mode": mode,
+                    "publication_key": publication_key,
                 }
             )
             return {
@@ -51,8 +61,56 @@ def test_data_center_capital_flows_fallback_uses_formal_sdk_contract(
             "start": "2026-04-01",
             "end": "2026-04-10",
             "limit": 10,
+            "mode": "published",
+            "publication_key": None,
         }
     ]
+
+
+def test_data_center_read_fallbacks_default_to_published_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Generic Data Center MCP reads must not silently fall back to historical mode."""
+
+    import agomtradepro
+    import agomtradepro_mcp.registry.runtime_handlers.owners.data_center as data_center
+
+    calls: list[dict[str, object]] = []
+
+    class _FakeDataCenterModule:
+        def _record(self, name: str, **kwargs: object) -> dict[str, object]:
+            calls.append({"name": name, **kwargs})
+            return {"ok": True}
+
+        def get_macro_series(self, *_args, **kwargs):  # type: ignore[no-untyped-def]
+            return self._record("macro", **kwargs)
+
+        def get_price_history(self, *_args, **kwargs):  # type: ignore[no-untyped-def]
+            return self._record("price", **kwargs)
+
+        def get_latest_quotes(self, *_args, **kwargs):  # type: ignore[no-untyped-def]
+            return self._record("quotes", **kwargs)
+
+        def get_news(self, *_args, **kwargs):  # type: ignore[no-untyped-def]
+            return self._record("news", **kwargs)
+
+        def get_capital_flows(self, *_args, **kwargs):  # type: ignore[no-untyped-def]
+            return self._record("flows", **kwargs)
+
+    monkeypatch.setattr(
+        agomtradepro,
+        "AgomTradeProClient",
+        lambda: SimpleNamespace(data_center=_FakeDataCenterModule()),
+    )
+
+    data_center._fallback_data_center_get_macro_series("CN_PMI")
+    data_center._fallback_data_center_get_price_history("000001.SZ")
+    data_center._fallback_data_center_get_quotes("000001.SZ")
+    data_center._fallback_data_center_get_news("000001.SZ")
+    data_center._fallback_data_center_get_capital_flows("000001.SZ")
+
+    assert [item["name"] for item in calls] == ["macro", "price", "quotes", "news", "flows"]
+    assert all(item["mode"] == "published" for item in calls)
 
 
 def test_agom_capability_call_reads_data_center_provider_catalog_in_core_only_mode(

@@ -257,13 +257,17 @@ def register_data_center_tools(server: FastMCP) -> None:
         asset_code: str,
         strict_freshness: bool | None = None,
         max_age_hours: float | None = None,
+        mode: str = "published",
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
-        """读取指定资产的最新行情快照，可选启用 freshness 严格模式。"""
+        """读取指定资产的最新行情快照；默认只返回已发布事实。"""
         client = AgomTradeProClient()
         return client.data_center.get_latest_quotes(
             asset_code,
             strict_freshness=strict_freshness,
             max_age_hours=max_age_hours,
+            mode=mode,
+            publication_key=publication_key,
         )
 
     @server.tool()
@@ -272,10 +276,19 @@ def register_data_center_tools(server: FastMCP) -> None:
         start: str | None = None,
         end: str | None = None,
         limit: int | None = None,
+        mode: str = "published",
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
-        """读取指定资产的历史价格。"""
+        """读取指定资产的价格；默认只返回已发布事实。"""
         client = AgomTradeProClient()
-        return client.data_center.get_price_history(asset_code, start=start, end=end, limit=limit)
+        return client.data_center.get_price_history(
+            asset_code,
+            start=start,
+            end=end,
+            limit=limit,
+            mode=mode,
+            publication_key=publication_key,
+        )
 
     @server.tool()
     def data_center_get_macro_series(
@@ -283,8 +296,13 @@ def register_data_center_tools(server: FastMCP) -> None:
         start: str | None = None,
         end: str | None = None,
         limit: int | None = None,
+        mode: str = "published",
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         """读取指定宏观指标的标准化时序。
+
+        默认只返回已发布且通过 freshness gate 的宏观事实；历史研究请显式
+        传入 ``mode="historical"``。
 
         返回值会携带宏观 provenance 契约字段，用于区分：
         - `official` 官方数据
@@ -305,7 +323,14 @@ def register_data_center_tools(server: FastMCP) -> None:
         其中 `derived` 序列默认仅供研究，不可直接用于决策。
         """
         client = AgomTradeProClient()
-        return client.data_center.get_macro_series(indicator_code, start=start, end=end, limit=limit)
+        return client.data_center.get_macro_series(
+            indicator_code,
+            start=start,
+            end=end,
+            limit=limit,
+            mode=mode,
+            publication_key=publication_key,
+        )
 
     @server.tool()
     def data_center_sync_macro(
@@ -351,14 +376,18 @@ def register_data_center_tools(server: FastMCP) -> None:
         start: str | None = None,
         end: str | None = None,
         limit: int = 100,
+        mode: str = "published",
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
-        """读取指定资产的资金流数据。"""
+        """读取指定资产的资金流数据；默认只返回已发布事实。"""
         client = AgomTradeProClient()
         return client.data_center.get_capital_flows(
             asset_code,
             start=start,
             end=end,
             limit=limit,
+            mode=mode,
+            publication_key=publication_key,
         )
 
     @server.tool()
@@ -381,10 +410,17 @@ def register_data_center_tools(server: FastMCP) -> None:
     def data_center_get_news(
         asset_code: str,
         limit: int = 20,
+        mode: str = "published",
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
-        """读取指定资产的新闻事实。"""
+        """读取指定资产的新闻事实；默认只返回已发布事实。"""
         client = AgomTradeProClient()
-        return client.data_center.get_news(asset_code, limit=limit)
+        return client.data_center.get_news(
+            asset_code,
+            limit=limit,
+            mode=mode,
+            publication_key=publication_key,
+        )
 
     @server.tool()
     def data_center_sync_news(

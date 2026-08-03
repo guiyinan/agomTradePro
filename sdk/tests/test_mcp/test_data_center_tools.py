@@ -51,37 +51,50 @@ class _FakeClient:
                 "indicator_code": indicator_code,
                 "id": rule_id,
             },
-            get_latest_quotes=lambda asset_code, strict_freshness=None, max_age_hours=None: {
+            get_latest_quotes=lambda asset_code, strict_freshness=None, max_age_hours=None, mode=None, publication_key=None: {
                 "asset_code": asset_code,
                 "strict_freshness": strict_freshness,
                 "max_age_hours": max_age_hours,
+                "mode": mode,
+                "publication_key": publication_key,
                 "price": 12.34,
             },
-            get_price_history=lambda asset_code, start=None, end=None, limit=None: {
+            get_price_history=lambda asset_code, start=None, end=None, limit=None, mode=None, publication_key=None: {
                 "asset_code": asset_code,
                 "start": start,
                 "end": end,
                 "limit": limit,
+                "mode": mode,
+                "publication_key": publication_key,
             },
-            get_macro_series=lambda indicator_code, start=None, end=None, limit=None: {
+            get_macro_series=lambda indicator_code, start=None, end=None, limit=None, mode=None, publication_key=None: {
                 "indicator_code": indicator_code,
                 "start": start,
                 "end": end,
                 "limit": limit,
+                "mode": mode,
+                "publication_key": publication_key,
             },
             sync_macro=lambda payload: {"ok": True, "payload": payload},
             repair_decision_data_reliability=lambda **kwargs: {
                 "ok": True,
                 "payload": kwargs,
             },
-            get_capital_flows=lambda asset_code, start=None, end=None, limit=100: {
+            get_capital_flows=lambda asset_code, start=None, end=None, limit=100, mode=None, publication_key=None: {
                 "asset_code": asset_code,
                 "start": start,
                 "end": end,
                 "limit": limit,
+                "mode": mode,
+                "publication_key": publication_key,
             },
             sync_capital_flows=lambda payload: {"ok": True, "payload": payload},
-            get_news=lambda asset_code, limit=20: {"asset_code": asset_code, "limit": limit},
+            get_news=lambda asset_code, limit=20, mode=None, publication_key=None: {
+                "asset_code": asset_code,
+                "limit": limit,
+                "mode": mode,
+                "publication_key": publication_key,
+            },
             sync_news=lambda payload: {"ok": True, "payload": payload},
         )
         self.config_center = SimpleNamespace(

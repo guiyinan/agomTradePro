@@ -136,7 +136,7 @@ class DataCenterModule(BaseModule):
         end: str | None = None,
         limit: int | None = None,
         source: str | None = None,
-        mode: str | None = None,
+        mode: str | None = "published",
         publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"indicator_code": indicator_code}
@@ -165,7 +165,7 @@ class DataCenterModule(BaseModule):
         freq: str | None = None,
         adjustment: str | None = None,
         limit: int | None = None,
-        mode: str | None = None,
+        mode: str | None = "published",
         publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
@@ -194,7 +194,7 @@ class DataCenterModule(BaseModule):
         *,
         strict_freshness: bool | None = None,
         max_age_hours: float | None = None,
-        mode: str | None = None,
+        mode: str | None = "published",
         publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
@@ -240,7 +240,7 @@ class DataCenterModule(BaseModule):
         start: str | None = None,
         end: str | None = None,
         limit: int | None = None,
-        mode: str | None = None,
+        mode: str | None = "published",
         publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"fund_code": fund_code}
@@ -264,7 +264,7 @@ class DataCenterModule(BaseModule):
         asset_code: str,
         limit: int | None = None,
         *,
-        mode: str | None = None,
+        mode: str | None = "published",
         publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
@@ -285,7 +285,7 @@ class DataCenterModule(BaseModule):
         start: str | None = None,
         end: str | None = None,
         limit: int | None = None,
-        mode: str | None = None,
+        mode: str | None = "published",
         publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
@@ -309,7 +309,7 @@ class DataCenterModule(BaseModule):
         sector_code: str,
         as_of: str | None = None,
         *,
-        mode: str | None = None,
+        mode: str | None = "published",
         publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"sector_code": sector_code}
@@ -329,7 +329,7 @@ class DataCenterModule(BaseModule):
         asset_code: str,
         limit: int | None = None,
         *,
-        mode: str | None = None,
+        mode: str | None = "published",
         publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
@@ -350,7 +350,7 @@ class DataCenterModule(BaseModule):
         start: str | None = None,
         end: str | None = None,
         limit: int | None = None,
-        mode: str | None = None,
+        mode: str | None = "published",
         publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
@@ -360,10 +360,6 @@ class DataCenterModule(BaseModule):
             params["end"] = end
         if limit is not None:
             params["limit"] = limit
-        if mode:
-            params["mode"] = mode
-        if publication_key:
-            params["publication_key"] = publication_key
         if mode:
             params["mode"] = mode
         if publication_key:
