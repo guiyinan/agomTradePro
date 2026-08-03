@@ -349,6 +349,10 @@ class IntradayChartResponseSerializer(serializers.Serializer[GetIntradayChartRes
     latest_point = serializers.DictField(required=False, allow_null=True)
     session_date = serializers.CharField(allow_null=True, required=False)
     error = serializers.CharField(allow_null=True, required=False)
+    observed_at = serializers.CharField(allow_null=True, required=False)
+    freshness_status = serializers.CharField(required=False)
+    must_not_use_for_decision = serializers.BooleanField(required=False)
+    blocked_reason = serializers.CharField(allow_null=True, required=False)
 
     def get_fields(self) -> dict[str, SerializerField]:
         """Register the API ``source`` field without overriding DRF internals."""

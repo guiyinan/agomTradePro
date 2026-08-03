@@ -9,7 +9,7 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from math import isfinite
 from typing import Protocol, TypeAlias, cast
@@ -442,6 +442,10 @@ class GetIntradayChartResponse:
     session_date: str | None
     source: str | None
     error: str | None = None
+    observed_at: str | None = None
+    freshness_status: str = "unverified"
+    must_not_use_for_decision: bool = True
+    blocked_reason: str | None = None
 
 
 class GetTechnicalChartUseCase:
@@ -566,6 +570,20 @@ class GetIntradayChartUseCase:
                 }
                 for point in points
             ]
+            observed_at = points[-1].timestamp
+            blocked_reason: str | None
+            if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+                freshness_status = "unverified"
+                must_not_use_for_decision = True
+                blocked_reason = "intraday_observation_naive"
+            else:
+                age_days = max(
+                    (datetime.now(UTC) - observed_at.astimezone(UTC)).total_seconds() / 86400,
+                    0.0,
+                )
+                freshness_status = "fresh" if age_days <= 5 else "stale"
+                must_not_use_for_decision = freshness_status != "fresh"
+                blocked_reason = "intraday_observation_stale" if must_not_use_for_decision else None
 
             return GetIntradayChartResponse(
                 success=True,
@@ -575,6 +593,10 @@ class GetIntradayChartUseCase:
                 latest_point=payload[-1] if payload else None,
                 session_date=points[-1].timestamp.date().isoformat() if points else None,
                 source=self.stock_repo.get_last_intraday_source() or "akshare",
+                observed_at=observed_at.isoformat(),
+                freshness_status=freshness_status,
+                must_not_use_for_decision=must_not_use_for_decision,
+                blocked_reason=blocked_reason,
             )
         except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as exc:
             logger.warning("GetIntradayChartUseCase.execute failed: %s", exc)

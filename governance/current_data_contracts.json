@@ -1567,6 +1567,44 @@
           "test_function": "test_dashboard_alpha_context_preserves_blocked_publication_evidence"
         }
       ]
+    },
+    {
+      "id": "equity.intraday_chart",
+      "surface": "GET /api/equity/intraday/{stock_code}/",
+      "source_files": [
+        "apps/equity/application/use_cases.py",
+        "apps/equity/interface/serializers.py",
+        "apps/equity/infrastructure/intraday_repository.py"
+      ],
+      "required_markers": {
+        "apps/equity/application/use_cases.py": [
+          "class GetIntradayChartResponse",
+          "freshness_status",
+          "intraday_observation_stale",
+          "must_not_use_for_decision"
+        ],
+        "apps/equity/interface/serializers.py": [
+          "class IntradayChartResponseSerializer",
+          "observed_at = serializers.CharField",
+          "freshness_status = serializers.CharField"
+        ],
+        "apps/equity/infrastructure/intraday_repository.py": [
+          "_has_usable_intraday_snapshot_points",
+          "Skip stale or sparse quote snapshots"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "intraday_response_preserves_observation_and_staleness",
+          "test_file": "tests/api/test_equity_api_edges.py",
+          "test_function": "test_equity_intraday_chart_returns_points"
+        },
+        {
+          "case": "intraday_source_failures_remain_explicit",
+          "test_file": "tests/api/test_equity_api_edges.py",
+          "test_function": "test_equity_intraday_chart_degrades_cleanly_when_sources_fail"
+        }
+      ]
     }
   ]
 }

@@ -786,6 +786,26 @@
 - published context 目前按分区 Public Port 读取，尚未把多个分区绑定到同一 Publication member snapshot 事务；读取与 gate 之间仍存在小窗口竞态，后续需以 publication_id/member snapshot 做批量查询。
 - 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、真实备份恢复、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
 
+## 实施记录（2026-08-03，第三十七批）
+
+本批次补充 Equity 分时图的观测时间与可靠性投影，避免“最新分时”只返回点位而不说明源观察时间；仍不部署、不 push。
+
+已落地：
+
+- `GetIntradayChartResponse` 透传最后一个点的 `observed_at`、`freshness_status`、`must_not_use_for_decision` 和 `blocked_reason`。
+- 分时点时间为 naive 或超过 5 个自然日时，不抹平为当前时间；响应标记 `unverified`/`stale`，但保留诊断图表数据，调用方不得把它当决策证据。
+- Intraday serializer 与 current-data contract 同步登记；原有本地 quote snapshot 已有稀疏/过期拒绝逻辑继续生效。
+
+第三十七批机器证据：
+
+- `pytest tests/api/test_equity_api_edges.py -q --no-migrations --reuse-db --timeout=180 -k intraday`：3 passed。
+- `check_current_data_contracts.py`、`ruff`、`black`、`isort`（变更文件）通过。
+
+仍未完成及风险：
+
+- 分时远端备用源仍由现有 Infrastructure failover 负责，尚未把 quote publication_id 绑定进分时点批量响应；因此它是带可靠性标记的诊断读，不是正式决策事实。
+- 生产 publication/member 观测、D0-D9 shadow reconciliation、PostgreSQL 生产容量/P95/WAL/锁预算、真实备份恢复、Retention/Archive 调度、CI Linux nodeid、M9/M10 和 VPS 仍未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
