@@ -437,8 +437,9 @@
       "id": "sentiment.current",
       "surface": "Latest sentiment -> Fund, Asset Analysis, Pulse and TUI decision consumers",
       "source_files": [
-        "apps/sentiment/application/current_sentiment.py",
-        "apps/sentiment/application/interface_services.py",
+    "apps/sentiment/application/current_sentiment.py",
+    "apps/sentiment/application/repository_provider.py",
+    "apps/sentiment/application/interface_services.py",
         "apps/sentiment/application/pulse_facade.py",
         "apps/sentiment/interface/tui_views.py",
         "apps/pulse/infrastructure/data_provider.py",
@@ -446,11 +447,18 @@
         "apps/fund/application/interface_services.py"
       ],
       "required_markers": {
-        "apps/sentiment/application/current_sentiment.py": [
+    "apps/sentiment/application/current_sentiment.py": [
           "def resolve_current_sentiment(",
           "blocked_reason=\"sentiment_index_stale\"",
-          "blocked_reason=\"sentiment_data_insufficient\""
-        ],
+      "blocked_reason=\"sentiment_data_insufficient\""
+    ],
+    "apps/sentiment/application/repository_provider.py": [
+      "SentimentNewsReadMode = Literal[\"published\", \"historical\"]",
+      "def get_market_news_for_sentiment(",
+      "mode: str = \"published\"",
+      "get_published_market_news(",
+      "if bool(payload.get(\"must_not_use_for_decision\"))"
+    ],
         "apps/sentiment/application/interface_services.py": [
           "\"must_not_use_for_decision\": current.must_not_use_for_decision"
         ],
@@ -497,11 +505,26 @@
           "test_file": "tests/unit/sentiment/test_pulse_facade.py",
           "test_function": "test_sentiment_pulse_series_fails_closed_when_latest_is_insufficient"
         },
-        {
-          "case": "asset_pool_cannot_neutralize_stale_sentiment",
-          "test_file": "tests/unit/asset_analysis/test_current_sentiment_safety.py",
-          "test_function": "test_asset_pool_context_does_not_score_with_stale_sentiment"
-        }
+    {
+      "case": "asset_pool_cannot_neutralize_stale_sentiment",
+      "test_file": "tests/unit/asset_analysis/test_current_sentiment_safety.py",
+      "test_function": "test_asset_pool_context_does_not_score_with_stale_sentiment"
+    },
+    {
+      "case": "published_news_members_feed_sentiment",
+      "test_file": "tests/unit/sentiment/test_news_publication_contract.py",
+      "test_function": "test_current_sentiment_news_uses_publication_members"
+    },
+    {
+      "case": "missing_news_publication_blocks_sentiment",
+      "test_file": "tests/unit/sentiment/test_news_publication_contract.py",
+      "test_function": "test_current_sentiment_news_blocks_without_publication"
+    },
+    {
+      "case": "historical_news_mode_is_explicit",
+      "test_file": "tests/unit/sentiment/test_news_publication_contract.py",
+      "test_function": "test_historical_sentiment_news_requires_explicit_legacy_mode"
+    }
       ]
     },
     {
@@ -1501,7 +1524,9 @@
           "get_current_publication(\"sector.membership\", \"current\")"
         ],
         "apps/sentiment/application/repository_provider.py": [
-          "get_current_publication(\"market.news\", \"current\")"
+          "get_published_market_news(",
+          "mode: str = \"published\"",
+          "if bool(payload.get(\"must_not_use_for_decision\"))"
         ],
         "sdk/agomtradepro/modules/data_center.py": [
           "def get_sector_constituents(",
@@ -1768,6 +1793,40 @@
           "case": "published_cache_revalidates_gate",
           "test_file": "tests/component/test_runtime_degradation_logging.py",
           "test_function": "test_rotation_published_cache_revalidates_publication_gate"
+        }
+      ]
+    },
+    {
+      "id": "data_center.publication_writer_atomicity",
+      "surface": "Canonical publication writer and member snapshot commit",
+      "source_files": [
+        "apps/data_center/application/control_plane.py",
+        "apps/data_center/infrastructure/control_plane_repositories.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/control_plane.py": [
+          "def publish_with_members(",
+          "Publication member_count must match selected coverage count",
+          "Publication members must have unique natural_key values",
+          "Publication member observed_at exceeds publication as_of"
+        ],
+        "apps/data_center/infrastructure/control_plane_repositories.py": [
+          "def publish_with_members(",
+          "state=PublicationState.CANDIDATE",
+          "Persisted publication member snapshot is incomplete",
+          "@transaction.atomic"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "duplicate_members_rejected",
+          "test_file": "tests/unit/data_center/test_control_plane.py",
+          "test_function": "test_publish_use_case_rejects_duplicate_member_snapshot"
+        },
+        {
+          "case": "atomic_member_write_rollback",
+          "test_file": "tests/unit/data_center/test_control_plane.py",
+          "test_function": "test_publish_with_members_rolls_back_candidate_and_members_on_failure"
         }
       ]
     }

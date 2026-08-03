@@ -1147,6 +1147,46 @@
 
 - 本地 Windows/SQLite 的完整执行不等于生产链路通过；仍需 Linux CI/受控 PostgreSQL 的独立证据。CI 实跑成功前，Definition of Done 中的“manifest nodeid 在 CI 实际执行”仍保持未完成。
 
+## 实施记录（2026-08-03，Sentiment 新闻输入 publication 收口）
+
+本批次将情绪指数的市场新闻输入切到 Data Center Publication/member-bound Public Port；历史回放保留显式兼容模式，不部署、不 push。
+
+已落地：
+
+- `get_market_news_for_sentiment` 默认 `mode="published"`，只消费 `get_published_market_news` 返回的已发布 member rows；缺失、过期或阻断 publication 时返回空证据，不再读取未绑定的 latest 新闻。
+- 历史计算必须显式传 `mode="historical"`，继续使用日期边界的历史端口；新闻的 `published_at`/`fetched_at` 保留源时间，解析失败的行直接丢弃。
+- `calculate_daily_sentiment_index` 增加显式新闻模式边界，非法模式在任务入口阻断；当前刷新任务保持 published 语义。
+- current-data contract 将新闻源 marker、阻断和三个模式回归 nodeid 登记到 `sentiment.current` 与 D7-D9 contract。
+
+机器证据（本地）：
+
+- `pytest tests/unit/sentiment/test_news_publication_contract.py tests/unit/sentiment/test_current_sentiment_contract.py tests/unit/test_sentiment.py -q --no-migrations --reuse-db`：43 passed。
+- `pytest tests/unit/sentiment/test_t4b_task_contracts.py tests/unit/sentiment/test_sentiment_operational_readiness.py -q --no-migrations --reuse-db`：15 passed；current-data 36 surfaces、Celery 14 tasks、mypy/architecture/legacy/governance 均通过。
+
+仍未完成及风险：
+
+- 新闻同步任务仍只负责 canonical facts 写入；publication writer/backfill 必须在受控调度中创建包含完整 members 的新版本后，published 情绪刷新才会产生可用输入。生产 publication 观测和 PostgreSQL 证据仍未完成。
+
+## 实施记录（2026-08-03，Canonical Publication 原子 writer 收口）
+
+本批次修复 publication writer 在成员逐条写入期间可能暴露半套快照的问题；不部署、不 push、不删除旧表。
+
+已落地：
+
+- `PublishCanonicalDatasetUseCase` 强制校验 coverage/publication 一致、selected/member 数量一致、成员 natural key/member id/fact 引用唯一、`as_of` 边界存在且所有 member `observed_at` 不晚于边界。
+- `CanonicalPublicationRepository.publish_with_members` 以事务原子写入 candidate、members、coverage 并在完整校验后切换 published；任何成员写入失败都会回滚 candidate/member，旧 current publication 不受影响。
+- 直接调用 repository `publish`/`save` 也要求完整 member 集合和时间边界，不能绕过 Application 校验发布半成品。
+- current-data contract 新增 publication writer atomicity surface，覆盖重复 member 拒绝与事务回滚 nodeid。
+
+机器证据（本地）：
+
+- `pytest tests/unit/data_center/test_control_plane.py -q --no-migrations --reuse-db`：8 passed，含 member write failure 的 rollback 断言。
+- `python scripts/check_current_data_contracts.py`：36 surfaces；`check_celery_task_contracts.py`：14 tasks；目标文件 ruff/black/isort/mypy regression 通过。
+
+仍未完成及风险：
+
+- 当前同步 use cases 尚未把每个 D0-D9 bulk upsert 自动编排成 publication candidate/member 写入和 coverage reconciliation；仍需在受控调度窗口接入 writer/backfill，并在 PostgreSQL 观察窗口验证 supersede/rollback。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
