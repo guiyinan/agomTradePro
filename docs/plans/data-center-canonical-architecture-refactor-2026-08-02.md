@@ -3917,3 +3917,12 @@ Git SHA / 镜像 / migration：
   - `python scripts/verify_architecture.py --include-audit --format text`：boundary 0 / audit 0；`check_mypy_regression.py`：0；Ruff OK。
 - 明确未做：Classic staff macro management page 继续保留 raw/historical 维护语义；本批未修改本地/VPS provider 状态、未部署、未执行生产 PostgreSQL 或观察窗口。
 - 未验证风险：生产 Publication 覆盖、宏观同步任务实际创建完整成员快照、生产 TUI 网络链路和 PostgreSQL 性能仍未有证据。
+
+## 29. 2026-08-05：Strategy 宏观 provider 旁路清理
+
+- 目标：阻断策略脚本/AI 执行链通过 `IndicatorService` 读取未发布宏观 latest。
+- 变更：`apps/strategy/infrastructure/providers.py` 的 `DjangoMacroDataProvider` 改用 `get_macro_indicator_value` 与 `list_latest_published_macro_values`，Publication 缺失/异常时分别返回 `None`/空映射，不再动态导入 `apps.macro.application.indicator_service`。
+- 治理：把 Strategy provider 纳入 `data_center.publication_only_d2_d3` 的 source/marker/test 登记。
+- 已运行测试：`pytest tests/unit/strategy/test_provider_edges.py tests/unit/strategy/test_external_providers.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：10 passed；current-data 37 surfaces；architecture boundary/audit 0；mypy 0；Ruff/Black OK。
+- 明确未做：未修改 Strategy 其他业务配置、未修改本地/VPS provider 状态、未部署。
+- 未验证风险：生产策略脚本实际调用、生产 Publication 覆盖和 PostgreSQL 性能仍待生产阶段证据。

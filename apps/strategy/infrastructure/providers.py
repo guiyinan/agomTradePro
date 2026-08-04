@@ -10,6 +10,10 @@ Infrastructure层:
 import logging
 from typing import Any, Protocol, cast
 
+from apps.data_center.application.public import (
+    get_macro_indicator_value,
+    list_latest_published_macro_values,
+)
 from apps.strategy.application.simulated_trading_gateway import get_simulated_trading_facade
 from apps.strategy.domain.entities import OrderIntent
 from apps.strategy.domain.protocols import ExecutionAdapterProtocol
@@ -85,16 +89,13 @@ class DjangoMacroDataProvider:
             指标值，如果不存在返回 None
         """
         try:
-            from apps.macro.application.indicator_service import IndicatorService
-
-            indicator = IndicatorService.get_indicator_by_code(indicator_code)
-            if indicator and indicator.get("latest_value") is not None:
-                return float(indicator["latest_value"])
-
-            return None
-
-        except Exception as e:
-            logger.error(f"Error getting macro indicator {indicator_code}: {e}")
+            return get_macro_indicator_value(indicator_code)
+        except Exception as exc:
+            logger.warning(
+                "Error getting published macro indicator %s; exception_type=%s",
+                indicator_code,
+                type(exc).__name__,
+            )
             return None
 
     def get_all_indicators(self) -> dict[str, float]:
@@ -105,17 +106,23 @@ class DjangoMacroDataProvider:
             指标代码到值的映射
         """
         try:
-            from apps.macro.application.indicator_service import IndicatorService
-
-            indicators = IndicatorService.get_available_indicators(include_stats=False)
-            return {
-                indicator["code"]: float(indicator["latest_value"])
-                for indicator in indicators
-                if indicator.get("latest_value") is not None
-            }
-
-        except Exception as e:
-            logger.error(f"Error getting all macro indicators: {e}")
+            rows = list_latest_published_macro_values(limit=500)
+            result: dict[str, float] = {}
+            for row in rows:
+                code = str(row.get("indicator_code") or "").strip()
+                raw_value = row.get("value")
+                if not code or isinstance(raw_value, bool) or raw_value is None:
+                    continue
+                try:
+                    result[code] = float(raw_value)
+                except (TypeError, ValueError):
+                    continue
+            return result
+        except Exception as exc:
+            logger.warning(
+                "Error getting published macro indicators; exception_type=%s",
+                type(exc).__name__,
+            )
             return {}
 
 

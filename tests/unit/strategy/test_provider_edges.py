@@ -21,21 +21,15 @@ from apps.strategy.infrastructure.providers import (
 
 def test_macro_and_regime_providers_normalize_application_payloads(monkeypatch) -> None:
     """Macro and Regime providers convert values and preserve fail-safe defaults."""
-    from apps.macro.application import indicator_service
     from apps.regime.application import current_regime
 
     monkeypatch.setattr(
-        indicator_service.IndicatorService,
-        "get_indicator_by_code",
-        lambda code: {"latest_value": "50.2"} if code == "PMI" else None,
+        "apps.strategy.infrastructure.providers.get_macro_indicator_value",
+        lambda code: 50.2 if code == "PMI" else None,
     )
     monkeypatch.setattr(
-        indicator_service.IndicatorService,
-        "get_available_indicators",
-        lambda include_stats=False: [
-            {"code": "PMI", "latest_value": "50.2"},
-            {"code": "EMPTY", "latest_value": None},
-        ],
+        "apps.strategy.infrastructure.providers.list_latest_published_macro_values",
+        lambda limit: [{"indicator_code": "PMI", "value": 50.2}],
     )
     macro = DjangoMacroDataProvider()
     assert macro.get_indicator("PMI") == 50.2

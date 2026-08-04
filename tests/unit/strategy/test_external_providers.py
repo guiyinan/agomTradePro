@@ -9,25 +9,17 @@ from apps.strategy.infrastructure.providers import (
 )
 
 
-def test_macro_data_provider_uses_indicator_service(monkeypatch):
-    class StubIndicatorService:
-        @classmethod
-        def get_indicator_by_code(cls, code: str) -> dict | None:
-            assert code == "CN_PMI_MANUFACTURING"
-            return {"latest_value": "51.2"}
-
-        @classmethod
-        def get_available_indicators(cls, include_stats: bool = True) -> list[dict]:
-            assert include_stats is False
-            return [
-                {"code": "CN_PMI_MANUFACTURING", "latest_value": "51.2"},
-                {"code": "CN_CPI_YOY", "latest_value": 0},
-                {"code": "CN_M2", "latest_value": None},
-            ]
-
+def test_macro_data_provider_uses_published_data_center_port(monkeypatch):
     monkeypatch.setattr(
-        "apps.macro.application.indicator_service.IndicatorService",
-        StubIndicatorService,
+        "apps.strategy.infrastructure.providers.get_macro_indicator_value",
+        lambda code: 51.2 if code == "CN_PMI_MANUFACTURING" else None,
+    )
+    monkeypatch.setattr(
+        "apps.strategy.infrastructure.providers.list_latest_published_macro_values",
+        lambda limit: [
+            {"indicator_code": "CN_PMI_MANUFACTURING", "value": 51.2},
+            {"indicator_code": "CN_CPI_YOY", "value": 0},
+        ],
     )
 
     provider = DjangoMacroDataProvider()
@@ -37,6 +29,22 @@ def test_macro_data_provider_uses_indicator_service(monkeypatch):
         "CN_PMI_MANUFACTURING": 51.2,
         "CN_CPI_YOY": 0.0,
     }
+
+
+def test_macro_data_provider_fails_closed_when_publication_port_is_unavailable(monkeypatch):
+    monkeypatch.setattr(
+        "apps.strategy.infrastructure.providers.get_macro_indicator_value",
+        lambda code: (_ for _ in ()).throw(RuntimeError("publication unavailable")),
+    )
+    monkeypatch.setattr(
+        "apps.strategy.infrastructure.providers.list_latest_published_macro_values",
+        lambda limit: (_ for _ in ()).throw(RuntimeError("publication unavailable")),
+    )
+
+    provider = DjangoMacroDataProvider()
+
+    assert provider.get_indicator("CN_PMI_MANUFACTURING") is None
+    assert provider.get_all_indicators() == {}
 
 
 def test_asset_pool_provider_aggregates_application_repository(monkeypatch):
