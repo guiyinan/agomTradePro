@@ -1618,6 +1618,8 @@ CI 观察结论：
 - 各批写入计数合计：估值至少 100 条、行情快照 100 条、历史价格约 50,000 条、财务事实约 7,995 条；系统返回 `checkpoint.next_offset=100`，可从该 offset 继续。
 - 样本 `000001.SZ` 的最新估值 `val_date=2026-08-04`，保留有效 PE/PB/市值，来源链路为 AKShare 的 Tencent fallback；没有用请求时间覆盖观测日期。
 - 回填控制面未报告 `partial/failed/blocked`，未发现零产出成功；AKShare 适配器日志显示东方财富失败时继续降级腾讯并成功返回历史数据。
+- VPS on-demand `ensure_valuations("000404.SZ", 2025-08-04..2026-08-04)` 从稀疏覆盖补水为 `status=fresh`、`points_count=368`、`coverage_end=2026-08-04`、`hydrated=true`；质量证据保留 `errors=["tushare: no records"]`，最终返回源为 AKShare/Tencent fallback。
+- 本地护栏复核通过：`check_data_center_legacy_fact_access.py`；`check_current_data_contracts.py`（36 surfaces）；`check_celery_task_contracts.py`（18 tasks / 4 governed files）；`verify_architecture.py --include-audit`（boundary 0、audit 0）。
 
 仍未完成：
 
