@@ -209,13 +209,22 @@ class QueryMacroSeriesUseCase:
         self._publishers = publisher_repo
 
     def execute(self, request: MacroSeriesRequest) -> MacroSeriesResponse:
-        facts = self._facts.get_series(
-            indicator_code=request.indicator_code,
-            start=request.start,
-            end=request.end,
-            limit=max(request.limit * 4, request.limit),
-            fact_pks=request.fact_pks,
-        )
+        query_limit = max(request.limit * 4, request.limit)
+        if request.fact_pks is None:
+            facts = self._facts.get_series(
+                indicator_code=request.indicator_code,
+                start=request.start,
+                end=request.end,
+                limit=query_limit,
+            )
+        else:
+            facts = self._facts.get_series(
+                indicator_code=request.indicator_code,
+                start=request.start,
+                end=request.end,
+                limit=query_limit,
+                fact_pks=request.fact_pks,
+            )
         if request.source:
             facts = [f for f in facts if f.source == request.source]
         facts = self._dedupe_facts_by_source_period(facts)[: request.limit]
