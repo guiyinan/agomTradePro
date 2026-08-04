@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -11,7 +10,7 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.data_center.application.public import record_reconciliation_evidence
-from apps.data_center.application.reconciliation import build_reconciliation_report
+from apps.data_center.application.reconciliation import export_reconciliation_snapshot
 
 
 def _read_snapshot(path: Path) -> dict[str, object]:
@@ -24,19 +23,6 @@ def _read_snapshot(path: Path) -> dict[str, object]:
     if not isinstance(payload, dict):
         raise CommandError(f"reconciliation snapshot {path} must contain a JSON object")
     return {str(key): value for key, value in payload.items()}
-
-
-def _snapshot_hash(snapshot: dict[str, object]) -> str:
-    """Return a stable hash for an exported snapshot."""
-
-    canonical = json.dumps(
-        snapshot,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-        default=str,
-    ).encode("utf-8")
-    return hashlib.sha256(canonical).hexdigest()
 
 
 def _observed_at(raw: object) -> datetime:
@@ -75,18 +61,30 @@ class Command(BaseCommand):
             raise CommandError("dataset_key cannot be empty")
         legacy = _read_snapshot(Path(str(options["legacy_snapshot"])).resolve())
         canonical = _read_snapshot(Path(str(options["canonical_snapshot"])).resolve())
-        report = build_reconciliation_report(dataset_key, legacy, canonical)
+        try:
+            export = export_reconciliation_snapshot(dataset_key, legacy, canonical)
+        except ValueError as exc:
+            raise CommandError(f"invalid reconciliation snapshot: {exc}") from exc
         evidence = record_reconciliation_evidence(
-            report,
+            export.report,
             evidence_id=(str(options["evidence_id"]) if options.get("evidence_id") else None),
-            legacy_snapshot_hash=_snapshot_hash(legacy),
-            canonical_snapshot_hash=_snapshot_hash(canonical),
+            legacy_snapshot_hash=export.legacy_snapshot_hash,
+            canonical_snapshot_hash=export.canonical_snapshot_hash,
             observed_at=_observed_at(options.get("observed_at")),
+        )
+        classification_evidence = json.dumps(
+            export.classification_evidence,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
         )
         self.stdout.write(
             self.style.SUCCESS(
                 "Data Center reconciliation recorded: "
                 f"evidence_id={evidence.evidence_id}, dataset={dataset_key}, "
-                f"clean={evidence.report.is_clean}, counts={evidence.report.counts}"
+                f"clean={evidence.report.is_clean}, counts={evidence.report.counts}, "
+                f"legacy_hash={export.legacy_snapshot_hash}, "
+                f"canonical_hash={export.canonical_snapshot_hash}, "
+                f"classification_evidence={classification_evidence}"
             )
         )

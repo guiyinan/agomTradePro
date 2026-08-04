@@ -136,3 +136,8 @@ def test_reconciliation_command_hashes_snapshots_and_persists_report(tmp_path) -
     assert loaded.report.is_clean is True
     assert len(loaded.legacy_snapshot_hash) == 64
     assert "clean=True" in output.getvalue()
+    assert f"legacy_hash={loaded.legacy_snapshot_hash}" in output.getvalue()
+    assert f"canonical_hash={loaded.canonical_snapshot_hash}" in output.getvalue()
+    assert 'classification_evidence=[{"classification":"same","natural_key":"row-1"}]' in (
+        output.getvalue()
+    )
