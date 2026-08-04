@@ -210,11 +210,21 @@ def get_published_fund_nav_payload(
     closed when the current fund publication is missing or stale.
     """
 
-    payload = get_published_fund_nav_series(
-        _normalize_fund_code(fund_code),
-        publication_key="current",
-        limit=limit,
-    )
+    normalized_code = _normalize_fund_code(fund_code)
+    try:
+        payload = get_published_fund_nav_series(
+            normalized_code,
+            publication_key="current",
+            limit=limit,
+        )
+    except Exception:
+        return {
+            "rows": [],
+            "publication_id": None,
+            "freshness_status": "unavailable",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_query_failed",
+        }
     rows = payload.get("rows")
     normalized_rows: list[dict[str, Any]] = []
     if isinstance(rows, list):
@@ -223,7 +233,7 @@ def get_published_fund_nav_payload(
                 continue
             normalized_rows.append(
                 {
-                    "fund_code": str(row.get("fund_code") or _normalize_fund_code(fund_code)),
+                    "fund_code": str(row.get("fund_code") or normalized_code),
                     "nav_date": row.get("nav_date"),
                     "unit_nav": row.get("nav"),
                     "accum_nav": row.get("acc_nav"),

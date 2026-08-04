@@ -369,6 +369,23 @@ def test_fund_nav_default_blocks_missing_publication(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_fund_nav_default_blocks_publication_query_errors(authenticated_client):
+    with patch(
+        "apps.fund.interface.views.interface_services.get_published_fund_nav_payload",
+        return_value={
+            "rows": [],
+            "freshness_status": "unavailable",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_query_failed",
+        },
+    ):
+        response = authenticated_client.get("/api/fund/nav/000001/")
+
+    assert response.status_code == 409
+    assert response.json()["contract"]["blocked_reason"] == "canonical_publication_query_failed"
+
+
+@pytest.mark.django_db
 def test_fund_holdings_success_contract(authenticated_client):
     holdings = [
         FundHolding(

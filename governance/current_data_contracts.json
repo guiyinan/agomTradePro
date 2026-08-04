@@ -2312,6 +2312,11 @@
           "case": "fund_missing_publication_blocks",
           "test_file": "tests/api/test_fund_api_edges.py",
           "test_function": "test_fund_nav_default_blocks_missing_publication"
+        },
+        {
+          "case": "fund_publication_query_error_blocks",
+          "test_file": "tests/api/test_fund_api_edges.py",
+          "test_function": "test_fund_nav_default_blocks_publication_query_errors"
         }
       ]
     }
