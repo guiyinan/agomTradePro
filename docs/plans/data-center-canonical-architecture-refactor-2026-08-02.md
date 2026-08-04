@@ -1737,7 +1737,7 @@ CI 观察结论：
 机器证据（本地）：
 
 - Data Center published/query、Agent Runtime context safety：36 passed；组件 context snapshot：2 passed。
-- `python scripts/check_current_data_contracts.py`：36 surfaces；current-data runner 收集 198 个登记 nodeid、237 个测试项。
+- `python scripts/check_current_data_contracts.py`：36 surfaces；current-data runner 收集 199 个登记 nodeid、238 个测试项并全部通过（在干净 detached worktree 执行）。
 - 变更文件 ruff、mypy regression、architecture/audit 通过；未改变 historical/PIT 宏观端口。
 - 架构 inventory 刷新通过：`provider_imports_outside_data_center=0`、`cross_app_orm_imports=55`、`legacy_fact_references=143`、`current_surface_references=3051`；该清单仍是静态源代码盘点，不替代生产数据画像。
 
