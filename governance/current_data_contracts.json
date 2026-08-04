@@ -1125,6 +1125,7 @@
           "def get_published_macro_fact_series("
         ],
     "apps/data_center/application/query_services.py": [
+      "def get_latest_macro_indicator_value(",
       "def query_published_macro_fact_series(",
       "def list_latest_published_macro_indicator_payloads(",
       "def query_published_fund_nav_series(",
@@ -1230,6 +1231,11 @@
       "case": "macro_summary_uses_published_values",
       "test_file": "tests/unit/data_center/test_published_query_ports.py",
       "test_function": "test_latest_published_macro_values_are_catalog_bounded_and_fail_closed"
+    },
+    {
+      "case": "macro_scalar_port_uses_publication_gate",
+      "test_file": "tests/unit/data_center/test_published_query_ports.py",
+      "test_function": "test_latest_macro_indicator_value_cannot_bypass_publication_gate"
     },
     {
       "case": "agent_macro_freshness_uses_publication_gate",

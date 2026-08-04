@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from typing import Any
@@ -146,10 +147,25 @@ def macro_fact_exists_on_or_before(reporting_period: date) -> bool:
 
 
 def get_latest_macro_indicator_value(indicator_code: str) -> float | None:
-    """Return the latest canonical macro indicator value for one code."""
+    """Return a current macro value only when its Publication gate passes."""
 
-    latest = get_macro_fact_repository().get_latest(indicator_code)
-    return float(latest.value) if latest is not None else None
+    published = query_published_macro_fact_series(indicator_code, limit=1)
+    if bool(published.get("must_not_use_for_decision")):
+        return None
+    rows = published.get("rows")
+    if not isinstance(rows, list) or not rows:
+        return None
+    row = rows[-1]
+    if not isinstance(row, dict):
+        return None
+    raw_value = row.get("value")
+    if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float, str)):
+        return None
+    try:
+        value = float(raw_value)
+    except (TypeError, ValueError):
+        return None
+    return value if math.isfinite(value) else None
 
 
 def query_macro_fact_series(

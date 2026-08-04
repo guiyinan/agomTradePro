@@ -1745,6 +1745,24 @@ CI 观察结论：
 
 - Agent Runtime 其它 regime/policy/portfolio 运维摘要属于业务状态，不是外部事实 Publication；生产 PostgreSQL publication/member 数据、观察窗口、全入口快照和 VPS release 仍未验证。
 
+## 实施记录（2026-08-04，宏观 scalar Public Port 旁路清理）
+
+本批次继续清理“名字含 latest 但直接读事实表”的兼容端口；不部署、不 push。
+
+已落地：
+
+- `get_latest_macro_indicator_value` 不再调用裸 `MacroFactRepository.get_latest`，改为复用 `query_published_macro_fact_series`，Publication 缺失、stale、memberless 或非有限值统一返回 `None`。
+- current-data contract 新增 scalar port marker/test，锁定公共兼容入口也不能绕过 Publication gate。
+
+机器证据（本地）：
+
+- 目标文件 ruff、`check_mypy_regression.py`、`py_compile` 通过；宏观 published/query 回归已扩展。
+- 当前工作区另有未提交的 Strategy/Risk Center 改动存在语法错误（`apps/strategy/infrastructure/models.py:635`），导致全局 current-data checker/pytest setup 暂时不能在该脏工作区复跑；该外部改动未被本批次触碰或提交。
+
+仍未完成及风险：
+
+- 需要在工作区其它未提交改动恢复可解析后重跑本端到端 pytest/current-data runner；生产 Publication 数据、观察窗口和 VPS release 仍未验证。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

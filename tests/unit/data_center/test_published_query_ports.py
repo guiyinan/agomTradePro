@@ -65,6 +65,26 @@ def test_latest_published_macro_values_are_catalog_bounded_and_fail_closed(monke
     ]
 
 
+def test_latest_macro_indicator_value_cannot_bypass_publication_gate(monkeypatch) -> None:
+    """The compatibility scalar port must not read an unpublished fact directly."""
+
+    monkeypatch.setattr(
+        query_services,
+        "query_published_macro_fact_series",
+        lambda *_args, **_kwargs: {
+            "rows": [{"value": 51.2}],
+            "must_not_use_for_decision": True,
+        },
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_macro_fact_repository",
+        lambda: (_ for _ in ()).throw(AssertionError("raw macro repository must not be read")),
+    )
+
+    assert query_services.get_latest_macro_indicator_value("CN_PMI") is None
+
+
 def _publication() -> SimpleNamespace:
     """Return the minimum publication metadata used by the query gate."""
 
