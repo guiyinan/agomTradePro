@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Protocol
 
 from django.utils import timezone
 
 from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
+from apps.data_center.application.public import get_published_quote_payloads
 from apps.equity.application.query_services import get_published_stock_context_map
 from apps.realtime.domain.entities import PricePollingConfig
 from shared.numeric import safe_float
@@ -33,7 +34,6 @@ if TYPE_CHECKING:
     from apps.alpha.domain.entities import AlphaResult
     from apps.beta_gate.application.use_cases import EvaluateBetaGateUseCase
     from apps.policy.infrastructure.repositories import DjangoPolicyRepository
-    from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository
 
 logger = logging.getLogger(__name__)
 
@@ -399,7 +399,6 @@ class FlowFeatureProvider:
     """
 
     def __init__(self, polling_config: PricePollingConfig | None = None) -> None:
-        self._flow_repository: RedisRealtimePriceRepository | None = None
         self._polling_config = polling_config or PricePollingConfig()
         self._flow_freshness: dict[str, FeatureFreshnessContract] = {}
 
@@ -412,14 +411,6 @@ class FlowFeatureProvider:
         contract = self._flow_freshness.get(security_code)
         return {"flow": contract} if contract is not None else {}
 
-    def _get_flow_repository(self) -> RedisRealtimePriceRepository:
-        """延迟加载 repository"""
-        if self._flow_repository is None:
-            from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository
-
-            self._flow_repository = RedisRealtimePriceRepository()
-        return self._flow_repository
-
     def get_flow_score(self, security_code: str) -> float:
         """
         获取资金流向分数
@@ -431,67 +422,112 @@ class FlowFeatureProvider:
             资金流向分数 (0-1)
         """
         try:
-            # 尝试从行情数据获取资金流向
-            repo = self._get_flow_repository()
-            price = repo.get_latest_price(security_code)
-            reference_time = timezone.now()
-
-            if price is not None and price.is_fresh(
-                reference_time=reference_time,
-                max_age=timedelta(
-                    seconds=self._polling_config.max_price_age_seconds,
-                ),
-            ):
-                self._flow_freshness[security_code] = FeatureFreshnessContract(
-                    observed_at=price.timestamp.isoformat(),
-                    freshness_status="fresh",
-                    must_not_use_for_decision=False,
-                    blocked_reason="",
-                )
-                # 使用成交量作为资金流向的代理指标
-                # 成交量越大，表示资金越活跃
-                if hasattr(price, "volume") and price.volume:
-                    volume = float(price.volume)
-                    # 归一化：使用 sigmoid 函数将成交量映射到 0-1
-                    # 假设 1亿成交量对应 0.5 分
-                    if volume > 0:
-                        import math
-
-                        mid_point = 100_000_000  # 1亿
-                        score = 1 / (1 + math.exp(-(volume - mid_point) / mid_point))
-                        return max(0.0, min(1.0, score))
-                self._flow_freshness[security_code] = FeatureFreshnessContract(
-                    observed_at=price.timestamp.isoformat(),
-                    freshness_status="insufficient",
-                    must_not_use_for_decision=True,
-                    blocked_reason="flow_volume_missing",
-                )
-            elif price is not None:
-                if timezone.is_naive(price.timestamp):
-                    status = "naive"
-                elif price.timestamp > reference_time:
-                    status = "future"
-                else:
-                    status = "stale"
-                self._flow_freshness[security_code] = FeatureFreshnessContract(
-                    observed_at=price.timestamp.isoformat(),
-                    freshness_status=status,
-                    must_not_use_for_decision=True,
-                    blocked_reason=f"flow_price_{status}",
-                )
+            normalized_code = str(security_code).strip().upper()
+            payload = get_published_quote_payloads([normalized_code])
+            publication_contract = _freshness_contract_from_gates([payload])
+            if publication_contract["must_not_use_for_decision"]:
+                self._flow_freshness[security_code] = publication_contract
                 logger.info(
-                    "Ignore unusable flow observation for %s: observed_at=%s",
+                    "Flow feature blocked for %s: %s",
                     security_code,
-                    price.timestamp,
+                    publication_contract["blocked_reason"],
                 )
-            else:
+                return 0.5
+
+            rows = payload.get("rows") if isinstance(payload, Mapping) else None
+            row = (
+                next(
+                    (
+                        candidate
+                        for candidate in rows
+                        if isinstance(candidate, Mapping)
+                        and str(candidate.get("asset_code") or "").upper() == normalized_code
+                    ),
+                    None,
+                )
+                if isinstance(rows, (list, tuple))
+                else None
+            )
+            if row is None:
+                self._flow_freshness[security_code] = FeatureFreshnessContract(
+                    observed_at=publication_contract["observed_at"],
+                    freshness_status="missing",
+                    must_not_use_for_decision=True,
+                    blocked_reason="canonical_quote_member_missing",
+                )
+                return 0.5
+
+            raw_observed_at = (
+                row.get("snapshot_at") or row.get("observed_at") or row.get("timestamp")
+            )
+            if not isinstance(raw_observed_at, str) or not raw_observed_at.strip():
                 self._flow_freshness[security_code] = FeatureFreshnessContract(
                     observed_at=None,
                     freshness_status="missing",
                     must_not_use_for_decision=True,
-                    blocked_reason="flow_price_missing",
+                    blocked_reason="flow_price_observation_missing",
                 )
+                return 0.5
+            try:
+                observed_at = datetime.fromisoformat(raw_observed_at.replace("Z", "+00:00"))
+            except ValueError:
+                self._flow_freshness[security_code] = FeatureFreshnessContract(
+                    observed_at=raw_observed_at,
+                    freshness_status="invalid",
+                    must_not_use_for_decision=True,
+                    blocked_reason="flow_price_observation_invalid",
+                )
+                return 0.5
 
+            reference_time = timezone.now()
+
+            if timezone.is_naive(observed_at):
+                freshness_status = "naive"
+            elif observed_at > reference_time:
+                freshness_status = "future"
+            elif reference_time - observed_at > timedelta(
+                seconds=self._polling_config.max_price_age_seconds,
+            ):
+                freshness_status = "stale"
+            else:
+                freshness_status = "fresh"
+
+            if freshness_status == "fresh":
+                volume = safe_float(row.get("volume"), default=None)
+                if volume is not None and volume > 0:
+                    self._flow_freshness[security_code] = FeatureFreshnessContract(
+                        observed_at=observed_at.isoformat(),
+                        freshness_status="fresh",
+                        must_not_use_for_decision=False,
+                        blocked_reason="",
+                    )
+                    # 使用成交量作为资金流向的代理指标
+                    # 成交量越大，表示资金越活跃
+                    import math
+
+                    mid_point = 100_000_000  # 1亿
+                    score = 1 / (1 + math.exp(-(volume - mid_point) / mid_point))
+                    return max(0.0, min(1.0, score))
+
+                self._flow_freshness[security_code] = FeatureFreshnessContract(
+                    observed_at=observed_at.isoformat(),
+                    freshness_status="insufficient",
+                    must_not_use_for_decision=True,
+                    blocked_reason="flow_volume_missing",
+                )
+                return 0.5
+
+            self._flow_freshness[security_code] = FeatureFreshnessContract(
+                observed_at=observed_at.isoformat(),
+                freshness_status=freshness_status,
+                must_not_use_for_decision=True,
+                blocked_reason=f"flow_price_{freshness_status}",
+            )
+            logger.info(
+                "Ignore unusable flow observation for %s: observed_at=%s",
+                security_code,
+                observed_at,
+            )
             return 0.5
 
         except Exception as e:

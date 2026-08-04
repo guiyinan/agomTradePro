@@ -3953,3 +3953,12 @@ Git SHA / 镜像 / migration：
 - 已运行测试：`pytest tests/component/test_feature_providers.py`：35 passed；`pytest tests/unit/equity/test_published_stock_context.py`：4 passed；`pytest tests/unit/test_unified_recommendation_use_cases.py tests/unit/decision_rhythm/test_flow_feature_freshness.py`：23 passed。`check_current_data_contracts.py`：39 surfaces；architecture boundary/audit：0；mypy：0；Ruff：0。
 - 明确未做：未改变技术评分的中性占位算法，未修改旧维护/历史研究接口，未部署、未修改本地/VPS provider 状态。
 - 未验证风险：完整 Decision Rhythm 推荐链、生产 Publication 覆盖和 PostgreSQL 性能仍需后续批次证据；全量组件测试应在合并门禁中再次运行。
+
+## 33. 2026-08-05：Decision Rhythm 资金流特征 quote Publication 收口
+
+- 目标：阻断 `FlowFeatureProvider` 直接读取 Redis latest quote 的 current-data 旁路。
+- 变更：资金流特征改用 `get_published_quote_payloads`，按 quote Publication/member gate 读取 `snapshot_at` 与 `volume`；保留 stale、future、naive、观察时间缺失、成交量缺失和 Publication 阻断证据，任何不可用状态返回中性分。
+- 治理：`decision_rhythm.feature_freshness` 增加 quote Public Port/flow gate marker 和回归登记。
+- 已运行测试：`pytest tests/unit/decision_rhythm/test_flow_feature_freshness.py`：5 passed；current-data 39 surfaces；architecture boundary/audit 0；mypy 0；Ruff 0。
+- 明确未做：未改变资金流评分的 sigmoid 占位算法，未修改 Redis maintenance/cache 写入，未部署、未修改本地/VPS provider 状态。
+- 未验证风险：生产 quote Publication 覆盖、Realtime 与 Decision Rhythm 的跨源观测一致性、PostgreSQL 性能仍待生产阶段证据。

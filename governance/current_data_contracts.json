@@ -731,12 +731,14 @@
           "resolve_current_regime()",
           "def get_feature_freshness_contracts(",
           "get_published_stock_context_map",
+          "get_published_quote_payloads",
           "publication_gates",
           "include_financial=False",
           "include_valuation=False",
           "equity.price.bar",
           "equity.financial.fact",
           "equity.valuation.fact",
+          "flow",
           "technical",
           "fundamental"
         ],
@@ -785,6 +787,11 @@
           "case": "fundamental_reads_member_bound_financial_context",
           "test_file": "tests/component/test_feature_providers.py",
           "test_function": "test_get_fundamental_score_success"
+        },
+        {
+          "case": "flow_obeys_quote_publication_gate",
+          "test_file": "tests/unit/decision_rhythm/test_flow_feature_freshness.py",
+          "test_function": "test_flow_score_obeys_quote_publication_gate"
         }
       ]
     },
