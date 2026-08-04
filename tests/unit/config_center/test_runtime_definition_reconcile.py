@@ -44,10 +44,7 @@ def test_runtime_definition_reconcile_is_idempotent() -> None:
     second = reconcile_runtime_definitions(repository)
 
     assert first == second == DEFAULT_RUNTIME_DEFINITIONS
-    assert list(repository.items) == [
-        "data_center.provider.failover_tolerance",
-        "data_center.provider.enable_failover",
-    ]
+    assert list(repository.items) == [definition.key for definition in DEFAULT_RUNTIME_DEFINITIONS]
 
 
 class _ProfileRepository:

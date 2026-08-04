@@ -2,14 +2,23 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
+from apps.config_center.application.runtime_public import get_active_qlib_runtime_config
 from apps.config_center.infrastructure.models import SystemSettingsModel
 from apps.data_center.application.public import get_macro_runtime_metadata
 
 
 class DjangoConfigCenterSummaryRepository:
     """Owns runtime config summaries for the core bridge."""
+
+    @staticmethod
+    def _runtime_environment() -> str:
+        """Map the Django settings module to the profile environment name."""
+
+        settings_module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
+        return "production" if settings_module.endswith(".production") else "development"
 
     @staticmethod
     def _build_runtime_macro_metadata_map() -> dict[str, dict[str, Any]]:
@@ -53,6 +62,9 @@ class DjangoConfigCenterSummaryRepository:
         }
 
     def get_runtime_qlib_config(self) -> dict[str, Any]:
+        typed_runtime = get_active_qlib_runtime_config(self._runtime_environment())
+        if typed_runtime is not None:
+            return typed_runtime
         return SystemSettingsModel.get_runtime_qlib_config()
 
     def get_runtime_alpha_fixed_provider(self) -> str:

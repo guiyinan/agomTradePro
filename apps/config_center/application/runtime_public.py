@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from apps.config_center.application.runtime_definition_reconcile import (
     reconcile_runtime_definitions as _reconcile_runtime_definitions,
 )
@@ -19,6 +21,19 @@ from apps.config_center.domain.runtime_config import (
     RuntimeConfigValue,
     StorageBudgetPolicy,
     StorageCapacityObservation,
+)
+
+_QLIB_RUNTIME_FIELDS: tuple[tuple[str, str, type[object]], ...] = (
+    ("enabled", "alpha.qlib.enabled", bool),
+    ("provider_uri", "alpha.qlib.provider_uri", str),
+    ("region", "alpha.qlib.region", str),
+    ("model_path", "alpha.qlib.model_path", str),
+    ("default_universe", "alpha.qlib.default_universe", str),
+    ("default_feature_set_id", "alpha.qlib.default_feature_set_id", str),
+    ("default_label_id", "alpha.qlib.default_label_id", str),
+    ("train_queue_name", "alpha.qlib.train_queue_name", str),
+    ("infer_queue_name", "alpha.qlib.infer_queue_name", str),
+    ("allow_auto_activate", "alpha.qlib.allow_auto_activate", bool),
 )
 
 
@@ -63,6 +78,37 @@ def get_active_runtime_value(*, environment: str, definition_key: str) -> object
     if snapshot.profile_id != profile.profile_id or snapshot.profile_version != profile.version:
         return None
     return snapshot.resolved_values.get(normalized_key)
+
+
+def get_active_qlib_runtime_config(environment: str) -> dict[str, object] | None:
+    """Resolve a complete Qlib runtime mapping from the active snapshot.
+
+    The typed snapshot is an opt-in cutover path.  A partial, stale or malformed
+    snapshot returns ``None`` so the owner can keep its explicitly documented
+    SystemSettings compatibility path.  No values are invented here.
+    """
+
+    normalized_environment = str(environment or "").strip()
+    if not normalized_environment:
+        return None
+    resolved: dict[str, object] = {}
+    for field_name, definition_key, expected_type in _QLIB_RUNTIME_FIELDS:
+        value = get_active_runtime_value(
+            environment=normalized_environment,
+            definition_key=definition_key,
+        )
+        if isinstance(value, bool) and expected_type is bool:
+            resolved[field_name] = value
+        elif isinstance(value, str) and expected_type is str and value.strip():
+            resolved[field_name] = value
+        else:
+            return None
+
+    provider_uri = str(resolved["provider_uri"])
+    resolved["is_configured"] = bool(
+        bool(resolved["enabled"]) and Path(provider_uri).expanduser().exists()
+    )
+    return resolved
 
 
 def reconcile_runtime_definitions() -> tuple[RuntimeConfigDefinition, ...]:
@@ -188,6 +234,7 @@ __all__ = [
     "evaluate_storage_pressure",
     "get_active_runtime_profile",
     "get_active_runtime_value",
+    "get_active_qlib_runtime_config",
     "get_active_storage_budget",
     "get_latest_runtime_snapshot",
     "get_latest_storage_capacity_observation",

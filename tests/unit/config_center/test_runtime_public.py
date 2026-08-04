@@ -101,3 +101,65 @@ def test_active_runtime_value_rejects_blank_lookup_keys(monkeypatch) -> None:
         is None
     )
     assert called is False
+
+
+def test_active_qlib_runtime_config_requires_complete_typed_snapshot(monkeypatch, tmp_path) -> None:
+    provider_path = tmp_path / "cn_data"
+    provider_path.mkdir()
+    values = {
+        "alpha.qlib.enabled": True,
+        "alpha.qlib.provider_uri": str(provider_path),
+        "alpha.qlib.region": "CN",
+        "alpha.qlib.model_path": str(tmp_path / "models"),
+        "alpha.qlib.default_universe": "csi300",
+        "alpha.qlib.default_feature_set_id": "v1",
+        "alpha.qlib.default_label_id": "return_5d",
+        "alpha.qlib.train_queue_name": "qlib_train",
+        "alpha.qlib.infer_queue_name": "qlib_infer",
+        "alpha.qlib.allow_auto_activate": False,
+    }
+    monkeypatch.setattr(
+        runtime_public,
+        "get_active_runtime_value",
+        lambda *, environment, definition_key: (
+            values[definition_key] if environment == "development" else None
+        ),
+    )
+
+    result = runtime_public.get_active_qlib_runtime_config("development")
+
+    assert result is not None
+    assert result["provider_uri"] == str(provider_path)
+    assert result["is_configured"] is True
+
+
+@pytest.mark.parametrize(
+    "missing_key",
+    ["alpha.qlib.provider_uri", "alpha.qlib.allow_auto_activate"],
+)
+def test_active_qlib_runtime_config_fails_closed_for_partial_or_wrong_snapshot(
+    monkeypatch,
+    missing_key: str,
+) -> None:
+    values: dict[str, object] = {
+        "alpha.qlib.enabled": True,
+        "alpha.qlib.provider_uri": "/missing/provider",
+        "alpha.qlib.region": "CN",
+        "alpha.qlib.model_path": "/missing/models",
+        "alpha.qlib.default_universe": "csi300",
+        "alpha.qlib.default_feature_set_id": "v1",
+        "alpha.qlib.default_label_id": "return_5d",
+        "alpha.qlib.train_queue_name": "qlib_train",
+        "alpha.qlib.infer_queue_name": "qlib_infer",
+        "alpha.qlib.allow_auto_activate": False,
+    }
+    values.pop(missing_key)
+    if missing_key == "alpha.qlib.allow_auto_activate":
+        values[missing_key] = "false"
+    monkeypatch.setattr(
+        runtime_public,
+        "get_active_runtime_value",
+        lambda *, environment, definition_key: values.get(definition_key),
+    )
+
+    assert runtime_public.get_active_qlib_runtime_config("development") is None
