@@ -1524,6 +1524,12 @@
 - 本地 PostgreSQL 端到端证据仍缺：空库迁移完成、Publication/member、A-share backfill durable control plane、Retention/Archive round-trip、查询/P95/锁/WAL 结果均未取得可复核输出；CI workflow wiring 也不等于 GitHub Actions 实跑。
 - 生产 PostgreSQL、备份恢复、容量/水位故障注入、连续观察窗口、旧链退役和 VPS release 继续保持阻断；后续必须在稳定、授权的 PostgreSQL runner 中重跑并保存完整日志/版本/连接信息。
 
+## 实施记录（2026-08-04，Equity HTTP 旁路退役）
+
+- 确认 `StockInfoRepositoryMixin.get_stock_info` 已完全使用 Data Center Asset/Fact repositories，删除未被调用的 Eastmoney metadata HTTP 方法、请求导入、URL/字段常量和 secid helper；新增静态测试阻断该旁路回流。
+- 架构 inventory 刷新后 `external_http_imports_for_review` 从 7 降为 6；`provider_imports_outside_data_center` 仍为 0。其余 6 个 HTTP 入口仍需逐调用点审计，不能因本次删除一条死代码就宣称外部数据接入已全量中台化。
+- 证据：`pytest tests/unit/test_equity_http_bypass.py -q`：1 passed；ruff/isort、mypy regression 0；既有 `tests/unit/test_equity_structure.py` 的历史 module-size budget 仍独立失败（`analysis_actions.py` 726 > 550），未通过放宽预算掩盖。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
