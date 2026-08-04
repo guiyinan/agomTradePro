@@ -12,11 +12,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 AGGREGATOR_MODULE = "apps.data_center.application.use_cases"
 OWNER_MODULES = (
     "apps.data_center.application.provider_catalog_use_cases",
+    "apps.data_center.application.price_query_use_cases",
     "apps.data_center.application.query_use_cases",
     "apps.data_center.application.reliability_use_cases",
     "apps.data_center.application.fact_query_use_cases",
     "apps.data_center.application.macro_governance_use_cases",
     "apps.data_center.application.sync_use_cases",
+    "apps.data_center.application.sync_news_capital_use_cases",
 )
 
 
@@ -51,11 +53,13 @@ def test_data_center_use_case_modules_stay_bounded_and_one_way() -> None:
     budgets = {
         AGGREGATOR_MODULE: 180,
         "apps.data_center.application.provider_catalog_use_cases": 450,
+        "apps.data_center.application.price_query_use_cases": 180,
         "apps.data_center.application.query_use_cases": 600,
         "apps.data_center.application.reliability_use_cases": 650,
         "apps.data_center.application.fact_query_use_cases": 180,
         "apps.data_center.application.macro_governance_use_cases": 220,
         "apps.data_center.application.sync_use_cases": 800,
+        "apps.data_center.application.sync_news_capital_use_cases": 180,
     }
     for module_name, budget in budgets.items():
         relative_path = Path(*module_name.split(".")).with_suffix(".py")

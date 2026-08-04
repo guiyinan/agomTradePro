@@ -10,6 +10,7 @@ from types import SimpleNamespace
 import pytest
 from django.core.management.base import CommandError
 
+from apps.data_center.domain.entities import FinancialFact
 from apps.equity.management.commands import (
     init_equity_config,
     init_scoring_weights,
@@ -154,22 +155,7 @@ def test_scoring_weight_command_covers_cancel_skip_create_and_error(monkeypatch)
 def test_financial_sync_command_handles_empty_success_and_provider_error(monkeypatch) -> None:
     """Financial sync rejects an empty universe and isolates per-stock provider failures."""
 
-    class _Stocks(list):
-        def exists(self) -> bool:
-            return bool(self)
-
-        def filter(self, **kwargs: object) -> _Stocks:
-            return self
-
-        def order_by(self, *args: object) -> _Stocks:
-            return self
-
-    empty = _Stocks()
-    monkeypatch.setattr(
-        sync_equity_financial,
-        "StockInfoModel",
-        SimpleNamespace(objects=empty),
-    )
+    monkeypatch.setattr(sync_equity_financial, "list_active_stock_codes", lambda: [])
     with pytest.raises(CommandError, match="没有找到"):
         sync_equity_financial.Command(stdout=StringIO()).handle(
             stock_codes=None,
@@ -177,24 +163,22 @@ def test_financial_sync_command_handles_empty_success_and_provider_error(monkeyp
             source="akshare",
         )
 
-    stocks = _Stocks(
-        [
-            SimpleNamespace(stock_code="000001.SZ"),
-            SimpleNamespace(stock_code="600000.SH"),
-        ]
-    )
     monkeypatch.setattr(
         sync_equity_financial,
-        "StockInfoModel",
-        SimpleNamespace(objects=stocks),
+        "list_active_stock_codes",
+        lambda: ["000001.SZ", "600000.SH"],
     )
-    saved: list[dict[str, object]] = []
+    saved: list[FinancialFact] = []
+
+    class _FinancialRepository:
+        def bulk_upsert(self, facts: list[FinancialFact]) -> int:
+            saved.extend(facts)
+            return len(facts)
+
     monkeypatch.setattr(
         sync_equity_financial,
-        "FinancialDataModel",
-        SimpleNamespace(
-            objects=SimpleNamespace(update_or_create=lambda **kwargs: saved.append(kwargs))
-        ),
+        "get_financial_fact_repository",
+        lambda: _FinancialRepository(),
     )
     record = SimpleNamespace(
         stock_code="000001.SZ",
@@ -216,7 +200,7 @@ def test_financial_sync_command_handles_empty_success_and_provider_error(monkeyp
         def fetch(self, stock_code: str, periods: int):
             if stock_code.startswith("600"):
                 raise RuntimeError("provider offline")
-            return SimpleNamespace(records=[record])
+            return SimpleNamespace(source_provider="akshare", records=[record])
 
     monkeypatch.setattr(sync_equity_financial, "AKShareFinancialGateway", _Gateway)
     output = StringIO()
@@ -226,8 +210,20 @@ def test_financial_sync_command_handles_empty_success_and_provider_error(monkeyp
         periods=4,
         source="akshare",
     )
-    assert len(saved) == 1
-    assert "1 records, 1 errors" in output.getvalue()
+    assert len(saved) == 10
+    assert {fact.metric_code for fact in saved} == {
+        "revenue",
+        "net_profit",
+        "revenue_growth",
+        "net_profit_growth",
+        "total_assets",
+        "total_liabilities",
+        "equity",
+        "roe",
+        "roa",
+        "debt_ratio",
+    }
+    assert "10 records, 1 errors" in output.getvalue()
     assert "provider offline" not in errors.getvalue()
     assert "RuntimeError" in errors.getvalue()
 

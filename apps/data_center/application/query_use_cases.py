@@ -11,8 +11,6 @@ from apps.data_center.application.dtos import (
     MacroDataPoint,
     MacroSeriesRequest,
     MacroSeriesResponse,
-    PriceBarResponse,
-    PriceHistoryRequest,
     QuoteResponse,
     ResolveAssetRequest,
 )
@@ -21,7 +19,6 @@ from apps.data_center.domain.protocols import (
     IndicatorCatalogRepositoryProtocol,
     IndicatorUnitRuleRepositoryProtocol,
     MacroFactRepositoryProtocol,
-    PriceBarRepositoryProtocol,
     ProviderRegistryProtocol,
     PublisherCatalogRepositoryProtocol,
     QuoteSnapshotRepositoryProtocol,
@@ -35,6 +32,7 @@ from apps.data_center.domain.rules import (
 )
 
 from .asset_resolution import resolve_unique_exact_asset_name
+from .price_query_use_cases import QueryPriceHistoryUseCase
 from .quote_provenance import normalize_quote_fetch_provenance
 
 if TYPE_CHECKING:
@@ -522,44 +520,6 @@ def _provenance_label_for_class(provenance_class: str) -> str:
         "authoritative_third_party": "权威转引",
         "derived": "系统衍生",
     }.get(provenance_class, "")
-
-
-class QueryPriceHistoryUseCase:
-    """Fetch OHLCV price bars for a security."""
-
-    def __init__(self, repo: PriceBarRepositoryProtocol) -> None:
-        self._repo = repo
-
-    def execute(self, request: PriceHistoryRequest) -> list[PriceBarResponse]:
-        if request.fact_pks is None:
-            bars = self._repo.get_bars(
-                asset_code=request.asset_code,
-                start=request.start,
-                end=request.end,
-                limit=request.limit,
-            )
-        else:
-            bars = self._repo.get_bars(
-                asset_code=request.asset_code,
-                start=request.start,
-                end=request.end,
-                limit=request.limit,
-                fact_pks=request.fact_pks,
-            )
-        return [
-            PriceBarResponse(
-                asset_code=b.asset_code,
-                bar_date=b.bar_date,
-                open=b.open,
-                high=b.high,
-                low=b.low,
-                close=b.close,
-                volume=b.volume,
-                amount=b.amount,
-                source=b.source,
-            )
-            for b in bars
-        ]
 
 
 class QueryLatestQuoteUseCase:

@@ -1551,6 +1551,28 @@
 - 本批只修复 owner 边界和入口级 fail-closed 语义，不代表 D0-D9 全量消费者已经切换到 Publication-only，也不代表剩余 6 个外部 HTTP 入口已经完成逐调用点审计。
 - PostgreSQL 生产画像/P95/锁/WAL、备份恢复、Retention/Archive 实跑、CI Linux 实际 nodeid、连续观察窗口、旧链退役和 VPS release 仍未完成；按用户约束继续不部署。
 
+## 实施记录（2026-08-04，CI 回归契约收口）
+
+本批次响应新 SHA 的 GitHub Actions 结果，只修复可归因、可本地验证的回归；不把全域 module-cycle 债务改成 allowlist，不部署、不连接 VPS。
+
+已落地：
+
+- MCP `equity.read.pool_catalog` fallback 改为直接调用 SDK `get_stock_pool_payload`，保留 `mode/publication_key`，使 read-evidence guard 能识别真实 SDK 调用；同步补充 SDK publication 参数契约测试。
+- 财务源 gateway 测试更新为当前可靠性语义：NaN、Infinity、非法和缺失值保持 `None`，稀疏 FinancialFact 不再断言为零；同步命令测试改为 canonical `list_active_stock_codes` 与 `FinancialFactRepository.bulk_upsert`，移除已退役的 `StockInfoModel`/`FinancialDataModel` patch。
+- Data Center Application 查询/同步 owner 进一步拆分：`price_query_use_cases.py` 与 `sync_news_capital_use_cases.py`，并把新 owner 登记到结构预算测试；TUI Config Center 测试显式 stub typed runtime profile/StorageBudget，并断言新增 P0 治理行。
+
+本批本地证据：
+
+- `python scripts/check_mcp_read_evidence.py`：199 个 read-like manifest、187 个 SDK contract 通过；MCP/SDK 定向 32 passed。
+- 财务 gateway/同步命令：20 passed；Data Center use-case structure 与 TUI operator：9 passed；Data Center sync/news failure matrix：18 passed。
+- 生产变更文件 ruff/black/isort/mypy regression 通过（mypy 0 regression）。
+
+CI 观察结论：
+
+- Security Scan 已通过；上一轮 Consistency 的 MCP read-evidence 失败已在本批本地复现并修复。
+- Architecture Layer Guard 仍因更早批次形成的真实跨 App 依赖债务失败：`alpha ↔ data_center`、`config_center ↔ data_center`、`data_center ↔ equity/fund`，以及 `data_center` 反向调用业务 query service。该问题不能靠放宽 `governance/module_cycle_allowlist.json` 掩盖，需另开依赖收口批次。
+- CI Fast Feedback 还需在新 SHA 上重跑；在 module-cycle、PostgreSQL/CI 实际 nodeid、生产数据画像、备份恢复和旧链退役未通过前，VPS 仍不可部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

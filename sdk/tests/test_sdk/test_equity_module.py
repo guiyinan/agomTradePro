@@ -67,6 +67,34 @@ class TestEquityModuleReadContracts:
             limit=5,
         )
 
+    def test_get_stock_pool_payload_preserves_publication_parameters(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        with patch.object(
+            client,
+            "get",
+            return_value={
+                "success": True,
+                "stocks": [{"code": "000001.SZ"}],
+                "status": "published",
+                "publication_key": "current",
+            },
+        ) as mock_get:
+            result = client.equity.get_stock_pool_payload(
+                sector="银行",
+                min_score=60,
+                limit=20,
+                mode="published",
+                publication_key="current",
+            )
+
+        assert result["status"] == "published"
+        assert result["publication_key"] == "current"
+        mock_get.assert_called_once_with(
+            "/api/equity/pool/",
+            params={"mode": "published", "publication_key": "current"},
+        )
+
     def test_equity_pool_propagates_publication_gate_parameters(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")
 

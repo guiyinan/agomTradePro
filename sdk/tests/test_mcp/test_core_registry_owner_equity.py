@@ -26,7 +26,7 @@ def test_equity_read_fallbacks_use_canonical_sdk_methods(
     calls: list[tuple[str, object]] = []
 
     class _Equity:
-        def get_stock_pool(
+        def get_stock_pool_payload(
             self,
             *,
             sector,
@@ -35,7 +35,7 @@ def test_equity_read_fallbacks_use_canonical_sdk_methods(
             mode=None,
             publication_key=None,
         ):
-            calls.append(("get_stock_pool", (sector, min_score, limit, mode, publication_key)))
+            calls.append(("get_stock_pool_payload", (sector, min_score, limit, mode, publication_key)))
             return {
                 "success": True,
                 "regime": "Recovery",
@@ -135,7 +135,7 @@ def test_equity_read_fallbacks_use_canonical_sdk_methods(
     assert freshness["freshness_status"] == "fresh"
     assert quality["primary_source"] == "akshare"
     assert calls == [
-        ("get_stock_pool", ("银行", 60, 20, "published", None)),
+        ("get_stock_pool_payload", ("银行", 60, 20, "published", None)),
         ("get_valuation", ("000001.SZ", 365, "published", None)),
         ("list_valuation_repairs", ("all_active", "repairing", 20)),
         ("get_valuation_data_freshness", None),

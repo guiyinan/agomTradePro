@@ -7,16 +7,14 @@ import hashlib
 import json
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from apps.data_center.application.dtos import (
-    SyncCapitalFlowRequest,
     SyncFinancialRequest,
     SyncFundNavRequest,
     SyncMacroBatchRequest,
     SyncMacroBatchResult,
     SyncMacroRequest,
-    SyncNewsRequest,
     SyncPriceRequest,
     SyncQuoteRequest,
     SyncResult,
@@ -26,13 +24,11 @@ from apps.data_center.application.dtos import (
 from apps.data_center.domain.entities import MacroFact, ProviderConfig, RawAudit
 from apps.data_center.domain.enums import DataCapability
 from apps.data_center.domain.protocols import (
-    CapitalFlowRepositoryProtocol,
     FinancialFactRepositoryProtocol,
     FundNavRepositoryProtocol,
     IndicatorCatalogRepositoryProtocol,
     IndicatorUnitRuleRepositoryProtocol,
     MacroFactRepositoryProtocol,
-    NewsRepositoryProtocol,
     PriceBarRepositoryProtocol,
     ProviderConfigRepositoryProtocol,
     ProviderRegistryProtocol,
@@ -47,15 +43,16 @@ from .macro_fact_governance import MacroFactGovernanceNormalizer
 from .macro_publication import PublishMacroBatchUseCase
 from .provider_health_recorder import persist_provider_health_metric
 from .publication_sync import (
-    PublishCapitalFlowBatchUseCase,
     PublishFinancialBatchUseCase,
     PublishFundNavBatchUseCase,
-    PublishNewsBatchUseCase,
     PublishPriceBarBatchUseCase,
     PublishQuoteSnapshotBatchUseCase,
     PublishSectorMembershipBatchUseCase,
     PublishValuationBatchUseCase,
 )
+
+if TYPE_CHECKING:
+    from .sync_news_capital_use_cases import SyncCapitalFlowUseCase, SyncNewsUseCase
 
 FactT = TypeVar("FactT")
 
@@ -784,118 +781,14 @@ class SyncSectorMembershipUseCase(_BaseSyncUseCase):
             raise
 
 
-class SyncNewsUseCase(_BaseSyncUseCase):
-    def __init__(
-        self,
-        provider_repo: ProviderConfigRepositoryProtocol,
-        provider_registry: ProviderRegistryProtocol,
-        fact_repo: NewsRepositoryProtocol,
-        raw_audit_repo: RawAuditRepositoryProtocol,
-        publication_publisher: PublishNewsBatchUseCase | None = None,
-    ) -> None:
-        super().__init__(provider_repo, provider_registry, raw_audit_repo)
-        self._facts = fact_repo
-        self._publication_publisher = publication_publisher
+def __getattr__(name: str) -> object:
+    """Resolve moved news/capital sync classes without a sibling import cycle."""
 
-    def execute(self, request: SyncNewsRequest) -> SyncResult:
-        config, provider = self._get_provider(request.provider_id)
-        started = datetime.now(UTC)
-        params = {"asset_code": request.asset_code, "limit": request.limit}
-        try:
-            facts = provider.fetch_news(request.asset_code, limit=request.limit)
-            facts = self._normalize_fact_sources(
-                facts,
-                source_type=config.source_type,
-                provider_name=provider.provider_name(),
-            )
-            stored_count = self._facts.bulk_insert(facts)
-            if self._publication_publisher is not None and facts:
-                self._publication_publisher.execute(
-                    facts,
-                    provider_name=provider.provider_name(),
-                )
-            audit_status, result_status = _sync_status(stored_count)
-            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._record_outcome(
-                config,
-                provider_name=provider.provider_name(),
-                capability="news",
-                request_params=params,
-                status=audit_status,
-                row_count=stored_count,
-                latency_ms=latency_ms,
-            )
-            return SyncResult("news", provider.provider_name(), stored_count, result_status)
-        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._record_outcome(
-                config,
-                provider_name=provider.provider_name(),
-                capability="news",
-                request_params=params,
-                status="error",
-                row_count=0,
-                latency_ms=latency_ms,
-                error_message=str(exc),
-            )
-            raise
+    if name in {"SyncCapitalFlowUseCase", "SyncNewsUseCase"}:
+        from . import sync_news_capital_use_cases
 
-
-class SyncCapitalFlowUseCase(_BaseSyncUseCase):
-    def __init__(
-        self,
-        provider_repo: ProviderConfigRepositoryProtocol,
-        provider_registry: ProviderRegistryProtocol,
-        fact_repo: CapitalFlowRepositoryProtocol,
-        raw_audit_repo: RawAuditRepositoryProtocol,
-        publication_publisher: PublishCapitalFlowBatchUseCase | None = None,
-    ) -> None:
-        super().__init__(provider_repo, provider_registry, raw_audit_repo)
-        self._facts = fact_repo
-        self._publication_publisher = publication_publisher
-
-    def execute(self, request: SyncCapitalFlowRequest) -> SyncResult:
-        config, provider = self._get_provider(request.provider_id)
-        started = datetime.now(UTC)
-        params = {"asset_code": request.asset_code, "period": request.period}
-        try:
-            facts = provider.fetch_capital_flows(request.asset_code, period=request.period)
-            facts = self._normalize_fact_sources(
-                facts,
-                source_type=config.source_type,
-                provider_name=provider.provider_name(),
-            )
-            stored_count = self._facts.bulk_upsert(facts)
-            if self._publication_publisher is not None and facts:
-                self._publication_publisher.execute(
-                    facts,
-                    provider_name=provider.provider_name(),
-                )
-            audit_status, result_status = _sync_status(stored_count)
-            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._record_outcome(
-                config,
-                provider_name=provider.provider_name(),
-                capability="capital_flow",
-                request_params=params,
-                status=audit_status,
-                row_count=stored_count,
-                latency_ms=latency_ms,
-            )
-            return SyncResult("capital_flow", provider.provider_name(), stored_count, result_status)
-        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._record_outcome(
-                config,
-                provider_name=provider.provider_name(),
-                capability="capital_flow",
-                request_params=params,
-                status="error",
-                row_count=0,
-                latency_ms=latency_ms,
-                error_message=str(exc),
-            )
-            raise
+        return getattr(sync_news_capital_use_cases, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [

@@ -270,10 +270,7 @@ def _fallback_equity_read_pool_catalog(
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    pool_reader = getattr(client.equity, "get_stock_pool_payload", None)
-    if not callable(pool_reader):
-        pool_reader = client.equity.get_stock_pool
-    return pool_reader(
+    return client.equity.get_stock_pool_payload(
         sector=sector,
         min_score=min_score,
         limit=limit,

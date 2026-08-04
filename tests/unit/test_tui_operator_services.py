@@ -286,6 +286,16 @@ def test_config_center_governance_rows_use_lightweight_runtime_summary(monkeypat
     )
     monkeypatch.setattr(
         operator_services,
+        "get_active_runtime_profile",
+        lambda environment: SimpleNamespace(environment=environment),
+    )
+    monkeypatch.setattr(
+        operator_services,
+        "get_active_storage_budget",
+        lambda: SimpleNamespace(),
+    )
+    monkeypatch.setattr(
+        operator_services,
         "get_qlib_model_registry_repository",
         lambda: FakeModelRegistryRepository(),
     )
@@ -305,8 +315,13 @@ def test_config_center_governance_rows_use_lightweight_runtime_summary(monkeypat
         user=SimpleNamespace(is_staff=True, is_superuser=False)
     )
 
-    assert len(rows) == 2
+    assert len(rows) == 3
+    assert rows[0]["title"] == "Runtime Profile 与容量策略"
     assert rows[0]["severity"] == "ok"
-    assert rows[0]["target_action_key"] == "config_center.qlib_runtime"
-    assert rows[1]["severity"] == "warning"
-    assert rows[1]["blocking_reason"] == "本地 Qlib 数据滞后 7 天。"
+    assert rows[0]["target_action_key"] == "operator.governance.config_center_summary"
+    assert rows[1]["title"] == "Qlib Runtime 与当前模型"
+    assert rows[1]["severity"] == "ok"
+    assert rows[1]["target_action_key"] == "config_center.qlib_runtime"
+    assert rows[2]["title"] == "训练记录与本地数据滞后"
+    assert rows[2]["severity"] == "warning"
+    assert rows[2]["blocking_reason"] == "本地 Qlib 数据滞后 7 天。"

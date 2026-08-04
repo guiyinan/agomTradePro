@@ -27,15 +27,15 @@ class _FactRepository:
 
 @pytest.mark.parametrize("raw_value", ["NaN", "Infinity", "bad-value", None, ""])
 def test_safe_decimal_rejects_invalid_or_non_finite_values(raw_value: object) -> None:
-    """Invalid financial values should normalize to a finite zero."""
+    """Invalid financial values should remain missing rather than become zero."""
 
-    assert TushareFinancialGateway._safe_decimal(raw_value) == Decimal("0")
+    assert TushareFinancialGateway._safe_decimal(raw_value) is None
 
 
-def test_fetch_defaults_missing_optional_metrics_after_single_lookup(
+def test_fetch_preserves_missing_optional_metrics_after_single_lookup(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Sparse fact groups should produce a complete, typed financial record."""
+    """Sparse fact groups should preserve missing values in the typed record."""
 
     period_end = date(2025, 12, 31)
     facts = [
@@ -62,7 +62,11 @@ def test_fetch_defaults_missing_optional_metrics_after_single_lookup(
     record = batch.records[0]
     assert record.report_date == date(2026, 3, 20)
     assert record.revenue == Decimal("125.5")
-    assert record.net_profit == Decimal("0.0")
+    assert record.net_profit is None
     assert record.revenue_growth is None
-    assert record.roe == 0.0
-    assert record.debt_ratio == 0.0
+    assert record.total_assets is None
+    assert record.total_liabilities is None
+    assert record.equity is None
+    assert record.roe is None
+    assert record.roa is None
+    assert record.debt_ratio is None
