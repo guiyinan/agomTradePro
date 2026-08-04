@@ -35,7 +35,9 @@ def test_equity_read_fallbacks_use_canonical_sdk_methods(
             mode=None,
             publication_key=None,
         ):
-            calls.append(("get_stock_pool_payload", (sector, min_score, limit, mode, publication_key)))
+            calls.append(
+                ("get_stock_pool_payload", (sector, min_score, limit, mode, publication_key))
+            )
             return {
                 "success": True,
                 "regime": "Recovery",
