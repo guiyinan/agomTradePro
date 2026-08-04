@@ -1654,12 +1654,19 @@ CI 观察结论：
 - 因此 VPS PostgreSQL 不存在 `data_center_sync_run`、`data_center_sync_batch`、`data_center_sync_checkpoint`；生产旧镜像上回填命令的 checkpoint 不能作为本地 durable control-plane 证据。
 - 本轮已终止由 SSH 读超时遗留的 offset 380/400/420/440 回填进程，并复核 web 容器内无 `backfill_active_a_share_core_data` 进程；未执行删除、prune 或破坏性迁移。
 - 生产切换前必须先部署包含 0050–0057 的镜像并完成 PostgreSQL 迁移/回滚演练，再用修复后的 partial-stop command 继续回填；在此之前不再在旧镜像上启动长批任务。
+- `scripts/deploy_vps_verify.py` 新增 canonical schema gate，要求 `data_center_canonical_publication/publication_member/sync_run/sync_batch/sync_checkpoint/raw_landing/schema_fingerprint/reconciliation_evidence/publication_rollback` 全部存在；本地 verifier 21 tests passed，VPS 只读探针以 exit=1 列出全部 9 个缺失表。提交前不允许把旧镜像判为可切换。
 
 ## 实施记录（2026-08-04，宏观 shadow audit 自然键修复）
 
 - 修复 `audit_macro_fact_consistency`：canonical/legacy revision 与跨源序列现在按 `source + period_type + reporting_period` 分组；同一日期的日频与月频事实不再被错误比较。跨源冲突示例同时输出 `period_type`，避免把不同频率当成同一序列。
 - 新增回归用例覆盖同 source、同日期、不同 `period_type` 的事实；本地该组件 15 tests passed，ruff 与 mypy regression 通过。提交：`e2dda7e6`。
 - 该修复尚未部署 VPS；生产现有 529 条 canonical/legacy conflict 仍需在新代码部署后重采并区分剩余真实差异，不能直接把旧计数视为修复完成。
+
+## 实施记录（2026-08-04，AKShare-only on-demand 回归）
+
+- 新增 `test_ensure_valuations_hydrates_from_akshare_when_tushare_is_inactive`，验证没有 active Tushare provider 时 on-demand 估值同步会跳过 Tushare、继续调用 AKShare，并保留 `tushare: provider not active` 作为可审计错误，不把降级结果包装成无来源成功。
+- `pytest tests/unit/test_data_center_on_demand.py -q --no-migrations --timeout=60`：7 passed。
+- 该证据只证明本地 AKShare-only 降级语义；不改变当前 provider 配置，也不替代 VPS canonical migration、全量覆盖或生产切换门禁。
 
 ## 1. 结论先行
 
