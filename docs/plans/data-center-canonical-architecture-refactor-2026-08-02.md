@@ -1656,6 +1656,12 @@ CI 观察结论：
 - 生产切换前必须先部署包含 0050–0057 的镜像并完成 PostgreSQL 迁移/回滚演练，再用修复后的 partial-stop command 继续回填；在此之前不再在旧镜像上启动长批任务。
 - `scripts/deploy_vps_verify.py` 新增 canonical schema gate，要求 0050–0057 引入的 Publication/Coverage、Sync/Quarantine、Raw/Schema、Retention/Archive、Dataset Contract/Binding/Policy、Reconciliation、Rollback 表全部存在，并要求 `django_migrations` 已记录 `0057_publicationrollbackmodel`；本地 verifier 21 tests passed，VPS 只读探针以 exit=1 列出缺失项。提交前不允许把旧镜像判为可切换。
 
+## 实施记录（2026-08-04，本地 canonical schema 尾部迁移）
+
+- 核对本地默认数据库为 SQLite；`data_center` 原先只应用到 0055，代码所需的 0056 `RetentionRunModel` 与 0057 `PublicationRollbackModel` 尚未落库。
+- 只在本地执行 `python manage.py migrate data_center --noinput`，0056/0057 均成功；随后 `showmigrations` 显示 0050–0057 全部 `[X]`，canonical schema 19 张控制面/目录表 `missing=[]`。
+- `python manage.py check` 与 `python manage.py makemigrations --check --dry-run` 均通过。该证据不代表 VPS 已迁移，也不授权生产写入。
+
 ## 实施记录（2026-08-04，宏观 shadow audit 自然键修复）
 
 - 修复 `audit_macro_fact_consistency`：canonical/legacy revision 与跨源序列现在按 `source + period_type + reporting_period` 分组；同一日期的日频与月频事实不再被错误比较。跨源冲突示例同时输出 `period_type`，避免把不同频率当成同一序列。
