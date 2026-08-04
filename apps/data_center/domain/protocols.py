@@ -331,6 +331,8 @@ class MacroFactRepositoryProtocol(Protocol):
         start: date | None = None,
         end: date | None = None,
         limit: int = 500,
+        *,
+        use_pit: bool = False,
         fact_pks: Sequence[str] | None = None,
     ) -> list[MacroFact]: ...
 

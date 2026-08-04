@@ -178,11 +178,7 @@ class Command(BaseCommand):
     def _optional_positive_id(raw_value: object, option_name: str) -> int | None:
         if raw_value is None:
             return None
-        if (
-            isinstance(raw_value, bool)
-            or not isinstance(raw_value, int)
-            or raw_value <= 0
-        ):
+        if isinstance(raw_value, bool) or not isinstance(raw_value, int) or raw_value <= 0:
             raise CommandError(f"{option_name} must be a positive integer")
         return raw_value
 
@@ -203,9 +199,7 @@ class Command(BaseCommand):
                 raise CommandError(f"Active user not found: {user_id}")
             return user
         return (
-            User._default_manager.filter(is_superuser=True, is_active=True)
-            .order_by("id")
-            .first()
+            User._default_manager.filter(is_superuser=True, is_active=True).order_by("id").first()
         )
 
     @staticmethod
@@ -261,9 +255,7 @@ class Command(BaseCommand):
                 status = "completed"
                 task_id = ""
             else:
-                from kombu.exceptions import (  # type: ignore[import-untyped]
-                    OperationalError as KombuOperationalError,
-                )
+                from kombu.exceptions import OperationalError as KombuOperationalError  # type: ignore[import-untyped]
 
                 try:
                     task = queue_alpha_score_prediction(
