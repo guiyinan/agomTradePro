@@ -1654,7 +1654,7 @@ CI 观察结论：
 - 因此 VPS PostgreSQL 不存在 `data_center_sync_run`、`data_center_sync_batch`、`data_center_sync_checkpoint`；生产旧镜像上回填命令的 checkpoint 不能作为本地 durable control-plane 证据。
 - 本轮已终止由 SSH 读超时遗留的 offset 380/400/420/440 回填进程，并复核 web 容器内无 `backfill_active_a_share_core_data` 进程；未执行删除、prune 或破坏性迁移。
 - 生产切换前必须先部署包含 0050–0057 的镜像并完成 PostgreSQL 迁移/回滚演练，再用修复后的 partial-stop command 继续回填；在此之前不再在旧镜像上启动长批任务。
-- `scripts/deploy_vps_verify.py` 新增 canonical schema gate，要求 0050–0057 引入的 Publication/Coverage、Sync/Quarantine、Raw/Schema、Retention/Archive、Dataset Contract/Binding/Policy、Reconciliation、Rollback 表全部存在；本地 verifier 21 tests passed，VPS 只读探针以 exit=1 列出缺失表。提交前不允许把旧镜像判为可切换。
+- `scripts/deploy_vps_verify.py` 新增 canonical schema gate，要求 0050–0057 引入的 Publication/Coverage、Sync/Quarantine、Raw/Schema、Retention/Archive、Dataset Contract/Binding/Policy、Reconciliation、Rollback 表全部存在，并要求 `django_migrations` 已记录 `0057_publicationrollbackmodel`；本地 verifier 21 tests passed，VPS 只读探针以 exit=1 列出缺失项。提交前不允许把旧镜像判为可切换。
 
 ## 实施记录（2026-08-04，宏观 shadow audit 自然键修复）
 
