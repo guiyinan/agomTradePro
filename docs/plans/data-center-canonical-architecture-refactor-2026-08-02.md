@@ -1648,6 +1648,13 @@ CI 观察结论：
 - 修复管理命令：`outcome=partial` 与 `failed/blocked` 一样立即停止，保留当前 batch 的 `checkpoint.offset` 供重试；新增回归测试，相关 task/command 9 tests passed，ruff/mypy regression 通过。提交：`bd5a74ca`。
 - 在生产旧命令下从 offset 340 手动重试该 batch 已成功（20/20，`failed=0`），当前可安全从 offset 360 继续；本地修复尚未部署 VPS。
 
+## 实施记录（2026-08-04，VPS 版本漂移阻断）
+
+- VPS `showmigrations data_center --plan` 当前只到 `0049_quotesnapshot_fetched_at`；本地 canonical 控制面要求的 `0050`–`0057`（Publication/Coverage、Raw/Schema、Retention/Archive、Dataset Contract、Reconciliation、Rollback）尚未部署或迁移。
+- 因此 VPS PostgreSQL 不存在 `data_center_sync_run`、`data_center_sync_batch`、`data_center_sync_checkpoint`；生产旧镜像上回填命令的 checkpoint 不能作为本地 durable control-plane 证据。
+- 本轮已终止由 SSH 读超时遗留的 offset 380/400/420/440 回填进程，并复核 web 容器内无 `backfill_active_a_share_core_data` 进程；未执行删除、prune 或破坏性迁移。
+- 生产切换前必须先部署包含 0050–0057 的镜像并完成 PostgreSQL 迁移/回滚演练，再用修复后的 partial-stop command 继续回填；在此之前不再在旧镜像上启动长批任务。
+
 ## 实施记录（2026-08-04，宏观 shadow audit 自然键修复）
 
 - 修复 `audit_macro_fact_consistency`：canonical/legacy revision 与跨源序列现在按 `source + period_type + reporting_period` 分组；同一日期的日频与月频事实不再被错误比较。跨源冲突示例同时输出 `period_type`，避免把不同频率当成同一序列。
