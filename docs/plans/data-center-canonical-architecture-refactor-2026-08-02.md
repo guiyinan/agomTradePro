@@ -1637,8 +1637,8 @@ CI 观察结论：
 
 ## 实施记录（2026-08-04，AKShare 核心回填进度与估值口径拆分）
 
-- 继续从 durable checkpoint 执行 `source=akshare` 回填，当前已处理 offset `0→300 / 5533`，累计 15 个 batch 均 `outcome=success`、`failed=0`；当前估值快照新增覆盖 300 个资产，未出现零产出成功。
-- 直接 PostgreSQL 计数显示 `data_center_valuation_fact` 有 5,536 个资产记录；`val_date >= 2026-08-03` 的当前估值覆盖为 300 个资产，来源包括 `akshare` 和其腾讯 fallback。`000404.SZ` on-demand 已补到 2026-08-04 并保持 fresh。
+- 继续从 durable checkpoint 执行 `source=akshare` 回填，已验证 offset `0→400 / 5533`（offset 340 的 partial 已单独重试成功）；当前 PostgreSQL 中 `val_date=2026-08-04` 的估值快照覆盖为 440 个资产，未出现零产出成功。
+- 直接 PostgreSQL 计数显示 `data_center_valuation_fact` 有 5,536 个资产记录；`val_date >= 2026-08-03` 的当前估值覆盖为 440 个资产，来源包括 `akshare` 和其腾讯 fallback。`000404.SZ` on-demand 已补到 2026-08-04 并保持 fresh。
 - active coverage 审计（lookback 365）为 price `fresh=5504/sparse=26/stale=3`、valuation `fresh=416/sparse=5117`、financial `fresh=5533`、quote `sparse=5533`。这说明“当前估值快照覆盖”和“365 天估值历史覆盖”是两个不同门槛；AKShare/Tencent 能补当前值，但不能据此宣称全市场日频估值历史已经完整。
 - 估值历史口径仍 fail-closed：不能把单日当前快照重复包装成 365 天历史，也不能用旧值覆盖观测日期。后续若要关闭历史估值缺口，需要可授权的 Tushare 官方 IP 或其他具备历史估值契约的 Provider，并完成跨源对账。
 
