@@ -225,17 +225,18 @@ class Command(BaseCommand):
 
         audit.indicator_count += 1
         audit.fact_count += len(facts)
-        by_source_period: dict[tuple[str, date], list[MacroFactModel]] = defaultdict(list)
-        by_source: dict[str, dict[date, float]] = defaultdict(dict)
+        by_source_period: dict[tuple[str, str, date], list[MacroFactModel]] = defaultdict(list)
+        by_source: dict[tuple[str, str], dict[date, float]] = defaultdict(dict)
         for fact in facts:
-            Command._json_object(fact.extra, field_name="macro fact extra")
+            extra = Command._json_object(fact.extra, field_name="macro fact extra")
             candidate = cast(MacroFactPreferenceCandidate, fact)
             source_key = macro_fact_source_key(candidate)
             if not source_key:
                 raise ValueError("macro fact source must be non-empty")
-            by_source_period[(source_key, fact.reporting_period)].append(fact)
+            period_type = Command._period_type(extra)
+            by_source_period[(source_key, period_type, fact.reporting_period)].append(fact)
 
-        for (source_key, reporting_period), revisions in by_source_period.items():
+        for (source_key, period_type, reporting_period), revisions in by_source_period.items():
             preferred = max(
                 revisions,
                 key=lambda item: macro_fact_preference_key(
@@ -243,7 +244,7 @@ class Command(BaseCommand):
                 ),
             )
             preferred_value = Command._finite_fact_value(preferred.value)
-            by_source[source_key][reporting_period] = preferred_value
+            by_source[(source_key, period_type)][reporting_period] = preferred_value
             values = {Command._finite_fact_value(item.value) for item in revisions}
             canonical_markers = {
                 bool(
@@ -264,13 +265,16 @@ class Command(BaseCommand):
                     {
                         "indicator_code": indicator_code,
                         "source": source_key,
+                        "period_type": period_type,
                         "reporting_period": reporting_period.isoformat(),
                         "values": sorted(values),
                     },
                     max_examples=max_examples,
                 )
 
-        if preferred_source and preferred_source not in by_source:
+        if preferred_source and not any(
+            source_key == preferred_source for source_key, _ in by_source
+        ):
             audit.configured_source_missing_count += 1
             Command._append_example(
                 audit.configured_source_missing,
@@ -281,32 +285,48 @@ class Command(BaseCommand):
                 max_examples=max_examples,
             )
 
-        sources = sorted(by_source)
-        for index, primary_source in enumerate(sources):
-            for backup_source in sources[index + 1 :]:
-                is_consistent, difference = macro_series_are_consistent(
-                    by_source[primary_source],
-                    by_source[backup_source],
-                    tolerance=tolerance,
-                )
-                if is_consistent:
-                    continue
-                if difference is None:
-                    raise ValueError("inconsistent macro series must include a difference")
-                audit.cross_source_conflict_count += 1
-                if not preferred_source:
-                    audit.ungoverned_cross_source_conflict_count += 1
-                Command._append_example(
-                    audit.cross_source_conflicts,
-                    {
-                        "indicator_code": indicator_code,
-                        "primary_source": primary_source,
-                        "backup_source": backup_source,
-                        "max_difference_ratio": difference,
-                        "governed_source": preferred_source,
-                    },
-                    max_examples=max_examples,
-                )
+        period_types = sorted({period_type for _, period_type in by_source})
+        for period_type in period_types:
+            sources = sorted(
+                source_key
+                for source_key, source_period_type in by_source
+                if source_period_type == period_type
+            )
+            for index, primary_source in enumerate(sources):
+                for backup_source in sources[index + 1 :]:
+                    is_consistent, difference = macro_series_are_consistent(
+                        by_source[(primary_source, period_type)],
+                        by_source[(backup_source, period_type)],
+                        tolerance=tolerance,
+                    )
+                    if is_consistent:
+                        continue
+                    if difference is None:
+                        raise ValueError("inconsistent macro series must include a difference")
+                    audit.cross_source_conflict_count += 1
+                    if not preferred_source:
+                        audit.ungoverned_cross_source_conflict_count += 1
+                    Command._append_example(
+                        audit.cross_source_conflicts,
+                        {
+                            "indicator_code": indicator_code,
+                            "primary_source": primary_source,
+                            "backup_source": backup_source,
+                            "period_type": period_type,
+                            "max_difference_ratio": difference,
+                            "governed_source": preferred_source,
+                        },
+                        max_examples=max_examples,
+                    )
+
+    @staticmethod
+    def _period_type(extra: dict[str, object]) -> str:
+        """Return the stable observation-frequency key for one fact."""
+
+        value = extra.get("period_type")
+        if isinstance(value, str) and value.strip():
+            return value.strip().upper()
+        return "UNSPECIFIED"
 
     @staticmethod
     def _json_object(value: object, *, field_name: str) -> dict[str, object]:

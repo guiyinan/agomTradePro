@@ -129,6 +129,42 @@ def test_consistency_audit_keeps_complete_counts_with_bounded_examples() -> None
 
 
 @pytest.mark.django_db
+def test_consistency_audit_separates_daily_and_monthly_revisions() -> None:
+    """Daily and monthly facts on one date are different natural-key series."""
+
+    IndicatorCatalogModel.objects.create(code="CN_AUDIT_PERIOD", name_cn="频率审计")
+    MacroFactModel.objects.create(
+        indicator_code="CN_AUDIT_PERIOD",
+        reporting_period=date(2026, 7, 1),
+        value="0.284900",
+        unit="%",
+        source="akshare",
+        revision_number=0,
+        extra={"source_type": "akshare", "period_type": "M"},
+    )
+    MacroFactModel.objects.create(
+        indicator_code="CN_AUDIT_PERIOD",
+        reporting_period=date(2026, 7, 1),
+        value="1.419500",
+        unit="%",
+        source="akshare",
+        revision_number=1,
+        extra={
+            "source_type": "akshare",
+            "period_type": "D",
+            "provider_name": "AKShare Public",
+        },
+    )
+
+    stdout = StringIO()
+    call_command("audit_macro_fact_consistency", strict=True, stdout=stdout)
+
+    payload = json.loads(stdout.getvalue())
+    assert payload["summary"]["canonical_legacy_conflict_count"] == 0
+    assert payload["summary"]["cross_source_conflict_count"] == 0
+
+
+@pytest.mark.django_db
 def test_consistency_audit_fails_on_non_object_catalog_metadata() -> None:
     """Corrupt JSON metadata cannot be interpreted as an ungoverned clean state."""
 
