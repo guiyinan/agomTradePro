@@ -177,6 +177,16 @@ def _download_verified(
         sftp.get_channel().settimeout(60)
         transferred = 0
         with sftp.open(remote_path, "rb") as remote_handle, partial.open("wb") as local_handle:
+            # Paramiko's default one-request-at-a-time reads are very slow on
+            # high-latency VPS links. Prefetch keeps the transfer pipelined;
+            # older Paramiko versions fall back to the bounded read loop.
+            try:
+                remote_handle.prefetch(
+                    file_size=expected_size,
+                    max_concurrent_requests=64,
+                )
+            except (AttributeError, OSError):
+                pass
             while block := remote_handle.read(1024 * 1024):
                 local_handle.write(block)
                 transferred += len(block)
