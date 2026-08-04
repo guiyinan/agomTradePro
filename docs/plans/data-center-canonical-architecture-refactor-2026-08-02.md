@@ -1607,6 +1607,23 @@ CI 观察结论：
 - `ready` 的核心探针只证明当前决策样本可用，不等于 D0-D9 全量生产数据就绪；Alpha workspace 仍报告滞后 warning。
 - 下一阶段必须先完成 D0-D9 覆盖回填与 legacy/canonical 对账，保存至少行情 3 个交易日+周末、宏观 2 个调度周期的观察证据，再执行停旧写、切读和 M9 清理。
 
+## 实施记录（2026-08-04，Tushare 不可用时的 AKShare 回填验证）
+
+本批次不修改旧链、不伪造估值；在已验证 PostgreSQL 备份之后，使用同一套可恢复的核心 A 股回填入口显式指定 `source=akshare`，验证暂时不依赖 Tushare 时系统仍能运行。
+
+已取得证据：
+
+- 本地和 VPS 的 Tushare Relay 探针均返回 HTTP 403 `invalid_api_key`；VPS 数据库中的 Tushare provider 已是 `unified_relay`、目标地址正确，故本批次不再重试无效授权。
+- `docker exec agomtradepro-web-1 python manage.py backfill_active_a_share_core_data --batch-size 20 --max-batches 5 --source akshare --history-days 756 --financial-periods 8` 通过；处理 offset `0→100`（首个 20 条为前一轮的幂等重跑），5 个 batch 均为 `outcome=success`，每批 quote/valuation/price/financial 均 `failed=0`、`succeeded=20`、估值 `stored=20`。
+- 各批写入计数合计：估值至少 100 条、行情快照 100 条、历史价格约 50,000 条、财务事实约 7,995 条；系统返回 `checkpoint.next_offset=100`，可从该 offset 继续。
+- 样本 `000001.SZ` 的最新估值 `val_date=2026-08-04`，保留有效 PE/PB/市值，来源链路为 AKShare 的 Tencent fallback；没有用请求时间覆盖观测日期。
+- 回填控制面未报告 `partial/failed/blocked`，未发现零产出成功；AKShare 适配器日志显示东方财富失败时继续降级腾讯并成功返回历史数据。
+
+仍未完成：
+
+- 这只是受控回填进度，不代表 5,533 个资产已经覆盖完成；此前覆盖审计仍显示 valuation `fresh=415/sparse=5118`、quote `sparse=5533`，需要从 offset 100 继续并重新采集覆盖证据。
+- Tushare provider 尚未从生产配置删除；本批次只绕过 Tushare，不执行全量切读、停旧写、观察窗口或旧表清理。Publication-only、shadow reconciliation、PostgreSQL 性能/恢复和 M9/M10 门禁仍保持未通过。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
