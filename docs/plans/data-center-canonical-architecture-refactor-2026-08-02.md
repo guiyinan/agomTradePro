@@ -3896,3 +3896,11 @@ Git SHA / 镜像 / migration：
 ~~~
 
 禁止只写“测试通过”或“已完成”。完成结论必须能够回溯到机器清单、测试报告、数据画像、生产任务 run_id 和发布版本。
+
+## 27. 2026-08-04：Tushare 暂停运行冒烟证据
+
+- 目标：验证在不构建 Tushare provider 的前提下，Data Center runtime registry 仍可启动并为当前支持的数据能力提供 AKShare provider。
+- 方法：在干净 detached worktree（`43185f4b`）中注入仅包含 `source_type=akshare` 的 active provider 配置，调用 `ProviderRegistry.from_repository`，不发起外部数据请求。
+- 结果：`AKSHARE_ONLY_REGISTRY_OK`；`macro`、`historical_price`、`realtime_quote`、`fund_nav`、`financial`、`valuation`、`sector_membership`、`news`、`capital_flow` 均只注册 AKShare，未出现 Tushare provider。
+- 结论：代码路径支持暂时不用 Tushare；实际环境仍需在 TUI 的 Data Center Provider 页面将 Tushare 置为停用，并确认 AKShare 已启用后再执行同步/查询。当前未修改本地或 VPS 的 provider 状态，也未部署。
+- 未验证风险：本次仅验证 provider 构建和能力路由，未替代真实 AKShare 网络可用性、生产 PostgreSQL 数据覆盖、影子对账或生产观察窗口；这些仍属于 Batch E 未完成项。
