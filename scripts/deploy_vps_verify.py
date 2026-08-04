@@ -408,7 +408,7 @@ def build_canonical_schema_check_command(target_dir: str) -> str:
         "data_center_sync_run",
         "data_center_sync_batch",
         "data_center_sync_checkpoint",
-        "data_center_raw_landing",
+        "data_center_raw_payload",
         "data_center_schema_fingerprint",
         "data_center_reconciliation_evidence",
         "data_center_publication_rollback",

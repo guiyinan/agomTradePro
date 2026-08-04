@@ -162,6 +162,7 @@ def test_build_canonical_schema_check_command_rejects_old_data_center_schema():
     assert "exec -T web python -c" in command
     assert "data_center_sync_run" in command
     assert "data_center_sync_checkpoint" in command
+    assert "data_center_raw_payload" in command
     assert "data_center_publication_rollback" in command
     assert "canonical_control_plane_missing" in command
 
