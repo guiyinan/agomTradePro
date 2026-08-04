@@ -231,4 +231,9 @@ class PublicationRollbackModel(models.Model):
         )
 
 
-__all__ = ["PublicationRollbackModel"]
+__all__ = [
+    "CanonicalPublicationModel",
+    "CoverageSnapshotModel",
+    "PublicationMemberModel",
+    "PublicationRollbackModel",
+]
