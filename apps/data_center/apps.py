@@ -13,9 +13,13 @@ class DataCenterConfig(AppConfig):
         from apps.data_center.application.config_summary_service import (
             configure_data_center_config_summary_repository,
         )
+        from apps.data_center.application.read_facade import build_data_center_read_facade
         from apps.data_center.infrastructure.config_summary_repository import (
             DjangoDataCenterConfigSummaryRepository,
         )
+        from core.integration.data_center_readiness import configure_data_center_read_port
+
+        configure_data_center_read_port(build_data_center_read_facade())
 
         configure_data_center_config_summary_repository(DjangoDataCenterConfigSummaryRepository())
         from apps.data_center.application.pit_provider import configure_pit_providers

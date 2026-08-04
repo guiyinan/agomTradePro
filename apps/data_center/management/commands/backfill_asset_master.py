@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from apps.data_center.infrastructure.asset_master_backfill import (
     AssetMasterBackfillService,
 )
+from core.integration.asset_master_sources import build_legacy_asset_master_source
 
 
 class Command(BaseCommand):
@@ -29,7 +30,7 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         """Backfill the requested codes from local and optional remote sources."""
 
-        service = AssetMasterBackfillService()
+        service = AssetMasterBackfillService(source_provider=build_legacy_asset_master_source())
         raw_codes = options.get("codes")
         if not isinstance(raw_codes, list) or not all(isinstance(code, str) for code in raw_codes):
             raise CommandError("codes must be supplied as text values")

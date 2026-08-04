@@ -10,10 +10,6 @@ from datetime import date
 
 from django.db import transaction
 
-from apps.alpha.application.query_services import (
-    collect_alpha_cache_codes,
-    normalize_alpha_cached_code,
-)
 from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.domain.rules import normalize_asset_code
@@ -26,6 +22,8 @@ from apps.data_center.infrastructure.market_gateway_entities import HistoricalPr
 from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
 from apps.data_center.infrastructure.models import PriceBarModel
 from apps.data_center.infrastructure.repositories import PriceBarRepository
+from core.integration.alpha_cache import collect_alpha_cache_codes, normalize_alpha_cached_code
+from core.integration.asset_master_sources import build_legacy_asset_master_source
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +76,9 @@ class AlphaPriceCoverageSyncService:
         gateways: Iterable[MarketGatewayProtocol] | None = None,
         price_repo: PriceBarRepository | None = None,
     ) -> None:
-        self._backfill_service = backfill_service or AssetMasterBackfillService()
+        self._backfill_service = backfill_service or AssetMasterBackfillService(
+            source_provider=build_legacy_asset_master_source()
+        )
         self._gateways = list(gateways or self._build_default_gateways())
         self._price_repo = price_repo or PriceBarRepository()
 

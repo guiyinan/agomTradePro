@@ -7,7 +7,7 @@ from typing import Any
 
 from apps.config_center.application.runtime_public import get_active_qlib_runtime_config
 from apps.config_center.infrastructure.models import SystemSettingsModel
-from apps.data_center.application.public import get_macro_runtime_metadata
+from core.integration.data_center_readiness import get_macro_runtime_metadata
 
 
 class DjangoConfigCenterSummaryRepository:

@@ -7,6 +7,7 @@ class ConfigCenterConfig(AppConfig):
     verbose_name = "配置中心"
 
     def ready(self) -> None:
+        from apps.config_center.application import runtime_public
         from apps.config_center.application.config_summary_service import (
             configure_config_center_summary_repository,
             get_config_center_summary_service,
@@ -37,6 +38,9 @@ class ConfigCenterConfig(AppConfig):
             RuntimeConfigValueRepository,
             StorageBudgetPolicyRepository,
         )
+        from core.integration.config_center_runtime import (
+            configure_config_center_runtime_port,
+        )
         from core.integration.runtime_settings import configure_runtime_settings_provider
 
         configure_config_center_repositories(
@@ -47,6 +51,7 @@ class ConfigCenterConfig(AppConfig):
         )
         configure_config_center_summary_repository(DjangoConfigCenterSummaryRepository())
         configure_runtime_settings_provider(get_config_center_summary_service())
+        configure_config_center_runtime_port(runtime_public)
         configure_runtime_config_services(
             definitions=RuntimeConfigDefinitionRepository(),
             profiles=RuntimeConfigProfileRepository(),

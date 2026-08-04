@@ -1573,6 +1573,23 @@ CI 观察结论：
 - Architecture Layer Guard 仍因更早批次形成的真实跨 App 依赖债务失败：`alpha ↔ data_center`、`config_center ↔ data_center`、`data_center ↔ equity/fund`，以及 `data_center` 反向调用业务 query service。该问题不能靠放宽 `governance/module_cycle_allowlist.json` 掩盖，需另开依赖收口批次。
 - CI Fast Feedback 还需在新 SHA 上重跑；在 module-cycle、PostgreSQL/CI 实际 nodeid、生产数据画像、备份恢复和旧链退役未通过前，VPS 仍不可部署。
 
+## 实施记录（2026-08-04，Module-cycle 依赖债务清零）
+
+本批次按真实 import 证据拆除全部四个双向边，不修改 allowlist 来掩盖循环：
+
+- Alpha price coverage command 归属迁至 `apps/alpha/management/commands`；同步服务仍由 Data Center infrastructure 持有，但 Alpha cache 读取改走既有 `core.integration.alpha_cache` app-neutral bridge，避免 Data Center 直接依赖 Alpha。
+- Asset-master backfill 的 legacy business source 读取改成显式 `AssetMasterSourceProvider`，由 `core.integration.asset_master_sources` 在 composition boundary 组装；Data Center service 默认不再 import `asset_analysis/equity/fund/rotation`。
+- Config Center ↔ Data Center 通过 `core.integration.config_center_runtime`、`core.integration.data_center_readiness` Protocol/registry 和 Data Center read facade 解耦；runtime settings、storage pressure、macro failover、decision readiness 均不再直接跨 App import。
+- `governance/module_cycle_allowlist.json` 更新为实际清零后的精确 v18 基线，未加入任何 allowed pair/cycle。
+
+机器证据：
+
+- `python scripts/check_module_cycles.py --allowlist-file governance/module_cycle_allowlist.json --fail-on-cycles --format text`：`edge_count=200`、`bidirectional_pairs=0`、`cycle_components=0`、预算/stale/allowlist 全 0。
+- `python scripts/verify_architecture.py --include-audit --format text`：boundary 0、audit 0；module-cycle guard 测试 1 passed。
+- Alpha coverage/asset backfill/management boundary：12 passed；cross-app read ports、macro failover、decision readiness：20 passed；Config/Data 相关补充回归与消费者回归已通过。
+
+这次修复解决的是静态依赖债务，不等于 PostgreSQL 生产画像、备份恢复、VPS 观察窗口或旧链删除已经完成；后续仍受生产硬门禁约束。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

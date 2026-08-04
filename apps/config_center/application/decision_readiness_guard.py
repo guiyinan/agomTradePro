@@ -7,6 +7,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from apps.config_center.domain.entities import DecisionRuntimeState, DecisionRuntimeStatus
+from core.integration.data_center_readiness import (
+    get_active_stock_fact_coverage_payload,
+    get_decision_data_readiness_payload,
+    get_decision_provider_capability_health_payload,
+)
 from shared.domain.task_outcomes import TaskBusinessOutcome
 
 ReadinessPayload = dict[str, Any]
@@ -45,13 +50,6 @@ def _default_dependencies() -> DecisionReadinessGuardDependencies:
     from apps.config_center.application.use_cases import (
         GetDecisionRuntimeStateUseCase,
         UpdateDecisionRuntimeStateUseCase,
-    )
-    from apps.data_center.application.interface_services import (
-        get_decision_data_readiness_payload,
-        get_decision_provider_capability_health_payload,
-    )
-    from apps.data_center.application.query_services import (
-        get_active_stock_fact_coverage_payload,
     )
     from shared.infrastructure.operational_alert_registry import (
         record_operational_alert,

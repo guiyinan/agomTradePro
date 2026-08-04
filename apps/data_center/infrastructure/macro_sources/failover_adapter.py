@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from datetime import date
 
 from apps.data_center.domain.rules import macro_series_are_consistent
+from core.integration import config_center_runtime
 
 from .base import (
     DataSourceUnavailableError,
@@ -38,11 +39,7 @@ def _resolve_failover_tolerance(
     """
 
     try:
-        from apps.config_center.application.runtime_public import (
-            get_active_runtime_value,
-        )
-
-        raw_value = get_active_runtime_value(
+        raw_value = config_center_runtime.get_active_runtime_value(
             environment=environment,
             definition_key=RUNTIME_FAILOVER_TOLERANCE_KEY,
         )
@@ -87,11 +84,7 @@ def _resolve_failover_enabled(
     """Prefer Config Center's typed failover switch with an explicit owner fallback."""
 
     try:
-        from apps.config_center.application.runtime_public import (
-            get_active_runtime_value,
-        )
-
-        raw_value = get_active_runtime_value(
+        raw_value = config_center_runtime.get_active_runtime_value(
             environment=environment,
             definition_key=RUNTIME_FAILOVER_ENABLED_KEY,
         )

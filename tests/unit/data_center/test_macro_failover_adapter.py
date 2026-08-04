@@ -72,7 +72,7 @@ def test_failover_rejects_invalid_tolerance(tolerance) -> None:
 
 def test_runtime_failover_tolerance_is_preferred(monkeypatch) -> None:
     monkeypatch.setattr(
-        "apps.config_center.application.runtime_public.get_active_runtime_value",
+        "core.integration.config_center_runtime.get_active_runtime_value",
         lambda *, environment, definition_key: (
             0.025
             if environment == "production"
@@ -88,7 +88,7 @@ def test_runtime_failover_tolerance_keeps_owner_compatibility_on_missing_profile
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        "apps.config_center.application.runtime_public.get_active_runtime_value",
+        "core.integration.config_center_runtime.get_active_runtime_value",
         lambda **_: None,
     )
 
@@ -97,7 +97,7 @@ def test_runtime_failover_tolerance_keeps_owner_compatibility_on_missing_profile
 
 def test_runtime_failover_switch_is_preferred(monkeypatch) -> None:
     monkeypatch.setattr(
-        "apps.config_center.application.runtime_public.get_active_runtime_value",
+        "core.integration.config_center_runtime.get_active_runtime_value",
         lambda *, environment, definition_key: (
             True
             if environment == "production"
@@ -113,7 +113,7 @@ def test_runtime_failover_switch_keeps_owner_compatibility_on_invalid_value(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        "apps.config_center.application.runtime_public.get_active_runtime_value",
+        "core.integration.config_center_runtime.get_active_runtime_value",
         lambda **_: "true",
     )
 

@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 55,
-    "current_surface_references": 3046,
+    "current_surface_references": 3047,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 6,
     "legacy_fact_references": 143,
@@ -5322,47 +5322,47 @@
       "text": "\"\"\"Return the latest market thermometer snapshot as a JSON-safe payload.\"\"\""
     },
     {
-      "line": 50,
+      "line": 48,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "\"\"\"Return the latest weekday before ``target_date``.\"\"\""
     },
     {
-      "line": 59,
+      "line": 57,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "\"\"\"Return the latest completed A-share quote session for non-live periods.\"\"\""
     },
     {
-      "line": 80,
+      "line": 78,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "\"\"\"Return whether a daily observation is safe for a latest-price fallback.\"\"\""
     },
     {
-      "line": 94,
+      "line": 92,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "current = observed_at + timedelta(days=1)"
     },
     {
-      "line": 96,
+      "line": 94,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "while current <= target_date:"
     },
     {
-      "line": 97,
+      "line": 95,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "if current.weekday() < 5:"
     },
     {
-      "line": 99,
+      "line": 97,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "current += timedelta(days=1)"
     },
     {
-      "line": 285,
+      "line": 283,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "latest = data_points[0]"
     },
     {
-      "line": 286,
+      "line": 284,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "if latest.is_stale:"
     },
@@ -5542,12 +5542,12 @@
       "text": "\"\"\"Summary of an A-share universe synchronization run.\"\"\""
     },
     {
-      "line": 46,
+      "line": 44,
       "path": "apps/data_center/infrastructure/alpha_price_coverage_sync.py",
       "text": "\"\"\"Summary of one Alpha price coverage sync run.\"\"\""
     },
     {
-      "line": 67,
+      "line": 24,
       "path": "apps/data_center/infrastructure/asset_master_backfill.py",
       "text": "\"\"\"Summary of one backfill run.\"\"\""
     },
@@ -6387,17 +6387,17 @@
       "text": "if (latest := self.get_latest_indicator(code)) is not None"
     },
     {
-      "line": 392,
+      "line": 385,
       "path": "apps/data_center/infrastructure/macro_sources/failover_adapter.py",
       "text": "current = seen.get(key)"
     },
     {
-      "line": 393,
+      "line": 386,
       "path": "apps/data_center/infrastructure/macro_sources/failover_adapter.py",
       "text": "if current is None or (point.published_at or date.min) > ("
     },
     {
-      "line": 394,
+      "line": 387,
       "path": "apps/data_center/infrastructure/macro_sources/failover_adapter.py",
       "text": "current.published_at or date.min"
     },
@@ -14967,6 +14967,11 @@
       "text": "return Regime.objects.latest('observed_at')"
     },
     {
+      "line": 9,
+      "path": "core/integration/data_center_readiness.py",
+      "text": "\"\"\"Owner facade consumed by Config Center readiness and summary screens.\"\"\""
+    },
+    {
       "line": 20,
       "path": "core/integration/policy_hedging_registry.py",
       "text": "\"\"\"Register the Realtime price repository factory.\"\"\""
@@ -15007,12 +15012,12 @@
       "text": "\"\"\"Compose the realtime query with the sector-owned repository.\"\"\""
     },
     {
-      "line": 53,
+      "line": 51,
       "path": "core/integration/runtime_settings.py",
       "text": "\"\"\"Resolve the current runtime settings source."
     },
     {
-      "line": 55,
+      "line": 53,
       "path": "core/integration/runtime_settings.py",
       "text": "Prefer the config-center owned summary service so tests can monkeypatch the public"
     },

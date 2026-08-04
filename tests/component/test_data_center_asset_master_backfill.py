@@ -7,6 +7,7 @@ from apps.data_center.infrastructure.asset_master_backfill import AssetMasterBac
 from apps.data_center.infrastructure.models import AssetAliasModel, AssetMasterModel
 from apps.fund.infrastructure.models import FundHoldingModel
 from apps.rotation.infrastructure.models import AssetClassModel
+from core.integration.asset_master_sources import build_legacy_asset_master_source
 
 
 @pytest.mark.django_db
@@ -18,7 +19,8 @@ def test_asset_master_backfill_service_uses_legacy_holding_and_creates_alias():
         stock_name="紫金矿业",
     )
 
-    report = AssetMasterBackfillService().backfill_codes(["601899.SH"])
+    service = AssetMasterBackfillService(source_provider=build_legacy_asset_master_source())
+    report = service.backfill_codes(["601899.SH"])
 
     assert report.unresolved_codes == []
     assert AssetMasterModel.objects.filter(code="601899.SH", name="紫金矿业").exists()
@@ -36,7 +38,8 @@ def test_asset_master_backfill_service_supports_remote_name_recovery(mocker):
         return_value="中信特钢",
     )
 
-    report = AssetMasterBackfillService().backfill_codes(["000708.SZ"], include_remote=True)
+    service = AssetMasterBackfillService(source_provider=build_legacy_asset_master_source())
+    report = service.backfill_codes(["000708.SZ"], include_remote=True)
 
     assert report.unresolved_codes == []
     assert AssetMasterModel.objects.filter(code="000708.SZ", name="中信特钢").exists()
@@ -58,7 +61,8 @@ def test_asset_master_backfill_service_prefers_akshare_name_table(mocker):
         return_value="",
     )
 
-    report = AssetMasterBackfillService().backfill_codes(["600026.SH"], include_remote=True)
+    service = AssetMasterBackfillService(source_provider=build_legacy_asset_master_source())
+    report = service.backfill_codes(["600026.SH"], include_remote=True)
 
     assert report.unresolved_codes == []
     assert AssetMasterModel.objects.filter(code="600026.SH", name="中远海能").exists()
@@ -75,7 +79,8 @@ def test_asset_master_backfill_service_keeps_shanghai_etf_suffix():
         is_active=True,
     )
 
-    report = AssetMasterBackfillService().backfill_codes(["510300"])
+    service = AssetMasterBackfillService(source_provider=build_legacy_asset_master_source())
+    report = service.backfill_codes(["510300"])
 
     assert report.unresolved_codes == []
     assert AssetMasterModel.objects.filter(code="510300.SH", name="沪深300ETF").exists()

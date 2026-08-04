@@ -16,50 +16,7 @@ from apps.data_center.domain.entities import AssetAlias, AssetMaster
 from apps.data_center.domain.enums import AssetType, MarketExchange
 from apps.data_center.domain.rules import normalize_asset_code
 from apps.data_center.infrastructure.repositories import AssetRepository
-
-
-def collect_asset_master_candidate_codes() -> list[str]:
-    """Collect migration candidates through business Application query ports."""
-
-    from apps.asset_analysis.application.query_services import (
-        list_asset_master_pool_candidate_codes,
-    )
-    from apps.equity.application.query_services import list_asset_master_stock_candidate_codes
-    from apps.fund.application.query_services import list_asset_master_fund_candidate_codes
-    from apps.rotation.application.query_services import (
-        list_asset_master_rotation_candidate_codes,
-    )
-
-    codes: list[str] = []
-    codes.extend(list_asset_master_stock_candidate_codes())
-    codes.extend(list_asset_master_fund_candidate_codes())
-    codes.extend(list_asset_master_rotation_candidate_codes())
-    codes.extend(list_asset_master_pool_candidate_codes())
-    return list(codes)
-
-
-def load_asset_master_local_rows(
-    *,
-    lookup_codes: list[str],
-    base_codes: list[str],
-) -> dict[str, list[dict[str, object]]]:
-    """Load migration rows through Application query ports, not ORM bridges."""
-
-    from apps.asset_analysis.application.query_services import list_asset_master_pool_rows
-    from apps.equity.application.query_services import list_asset_master_stock_rows
-    from apps.fund.application.query_services import (
-        list_asset_master_fund_rows,
-        list_asset_master_holding_rows,
-    )
-    from apps.rotation.application.query_services import list_asset_master_rotation_rows
-
-    return {
-        "stock_rows": list_asset_master_stock_rows(lookup_codes),
-        "fund_rows": list_asset_master_fund_rows(base_codes),
-        "holding_rows": list_asset_master_holding_rows(lookup_codes),
-        "rotation_rows": list_asset_master_rotation_rows(base_codes),
-        "pool_rows": list_asset_master_pool_rows(lookup_codes),
-    }
+from core.integration.asset_master_sources import AssetMasterSourceProvider
 
 
 @dataclass(frozen=True)
@@ -96,8 +53,13 @@ class AssetMasterBackfillService:
     _EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get"
     _EASTMONEY_METADATA_FIELDS = "f43,f57,f58"
 
-    def __init__(self, asset_repo: AssetRepository | None = None) -> None:
+    def __init__(
+        self,
+        asset_repo: AssetRepository | None = None,
+        source_provider: AssetMasterSourceProvider | None = None,
+    ) -> None:
         self._asset_repo = asset_repo or AssetRepository()
+        self._source_provider = source_provider
 
     def backfill_codes(
         self,
@@ -139,18 +101,32 @@ class AssetMasterBackfillService:
 
     def backfill_all(self, include_remote: bool = False) -> AssetMasterBackfillReport:
         """Backfill all discoverable legacy asset codes."""
-        return self.backfill_codes(self._collect_all_candidate_codes(), include_remote=include_remote)
+        return self.backfill_codes(
+            self._collect_all_candidate_codes(), include_remote=include_remote
+        )
 
     def _collect_all_candidate_codes(self) -> list[str]:
-        return self._normalize_requested_codes(collect_asset_master_candidate_codes())
+        if self._source_provider is None:
+            return []
+        return self._normalize_requested_codes(self._source_provider.collect_candidate_codes())
 
     def _iter_local_records(self, requested_codes: list[str]) -> list[_AssetRecord]:
         code_aliases = self._build_code_aliases(requested_codes)
         lookup_codes = sorted({alias for aliases in code_aliases.values() for alias in aliases})
         base_codes = sorted({code.split(".", 1)[0] for code in lookup_codes})
-        source_rows = load_asset_master_local_rows(
-            lookup_codes=lookup_codes,
-            base_codes=base_codes,
+        source_rows = (
+            self._source_provider.load_local_rows(
+                lookup_codes=lookup_codes,
+                base_codes=base_codes,
+            )
+            if self._source_provider is not None
+            else {
+                "stock_rows": [],
+                "fund_rows": [],
+                "holding_rows": [],
+                "rotation_rows": [],
+                "pool_rows": [],
+            }
         )
 
         records: list[_AssetRecord] = []
@@ -186,7 +162,11 @@ class AssetMasterBackfillService:
                 continue
             canonical_code = self._canonicalize_legacy_code(base_code)
             fund_type = str(row.get("fund_type") or "")
-            asset_type = AssetType.ETF if "ETF" in fund_type.upper() or "ETF" in name.upper() else AssetType.FUND
+            asset_type = (
+                AssetType.ETF
+                if "ETF" in fund_type.upper() or "ETF" in name.upper()
+                else AssetType.FUND
+            )
             records.append(
                 _AssetRecord(
                     asset=AssetMaster(
@@ -234,7 +214,9 @@ class AssetMasterBackfillService:
                         code=canonical_code,
                         name=name,
                         short_name=name,
-                        asset_type=self._infer_asset_type_from_rotation(str(row.get("category") or "")),
+                        asset_type=self._infer_asset_type_from_rotation(
+                            str(row.get("category") or "")
+                        ),
                         exchange=self._infer_exchange(canonical_code),
                         currency=str(row.get("currency") or "CNY"),
                         extra={"legacy_rotation_category": str(row.get("category") or "")},
@@ -258,7 +240,9 @@ class AssetMasterBackfillService:
                         code=canonical_code,
                         name=name,
                         short_name=name,
-                        asset_type=self._infer_asset_type_from_pool(str(row.get("asset_category") or "")),
+                        asset_type=self._infer_asset_type_from_pool(
+                            str(row.get("asset_category") or "")
+                        ),
                         exchange=self._infer_exchange(canonical_code),
                         extra={"legacy_asset_category": str(row.get("asset_category") or "")},
                     ),
@@ -304,7 +288,12 @@ class AssetMasterBackfillService:
         except Exception:
             return ""
 
-        if frame is None or frame.empty or "code" not in frame.columns or "name" not in frame.columns:
+        if (
+            frame is None
+            or frame.empty
+            or "code" not in frame.columns
+            or "name" not in frame.columns
+        ):
             return ""
 
         matches = frame.loc[frame["code"].astype(str).str.zfill(6) == base_code, "name"]

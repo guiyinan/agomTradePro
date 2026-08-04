@@ -45,6 +45,31 @@ def test_guardrail_architecture_boundaries_have_no_violations():
 
 
 @pytest.mark.guardrail
+def test_config_data_runtime_boundary_uses_app_neutral_ports():
+    """Prevent the Config/Data Center bidirectional import from regrowing."""
+
+    config_consumers = (
+        REPO_ROOT / "apps/config_center/application/decision_readiness_guard.py",
+        REPO_ROOT / "apps/config_center/infrastructure/config_summary_repository.py",
+    )
+    data_consumers = (
+        REPO_ROOT / "apps/data_center/application/runtime_settings.py",
+        REPO_ROOT / "apps/data_center/application/tasks.py",
+        REPO_ROOT / "apps/data_center/infrastructure/macro_sources/failover_adapter.py",
+    )
+
+    for path in config_consumers:
+        source = path.read_text(encoding="utf-8")
+        assert "apps.data_center" not in source
+        assert "core.integration.data_center_readiness" in source
+
+    for path in data_consumers:
+        source = path.read_text(encoding="utf-8")
+        assert "apps.config_center" not in source
+        assert "core.integration" in source
+
+
+@pytest.mark.guardrail
 def test_guardrail_architecture_audit_report_can_be_generated(tmp_path):
     report_path = tmp_path / "architecture-audit.json"
     result = subprocess.run(

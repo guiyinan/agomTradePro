@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol, cast
+from typing import Any, Protocol
 
 
 class RuntimeSettingsProvider(Protocol):
@@ -36,11 +36,9 @@ _provider: RuntimeSettingsProvider | None = None
 def get_config_center_summary_service() -> RuntimeSettingsProvider:
     """Return the config-center owned runtime settings service."""
 
-    from apps.config_center.application.config_summary_service import (
-        get_config_center_summary_service as load_config_center_summary_service,
-    )
-
-    return cast(RuntimeSettingsProvider, load_config_center_summary_service())
+    if _provider is None:
+        raise RuntimeError("Config Center runtime settings provider is not configured")
+    return _provider
 
 
 def get_account_config_summary_service() -> RuntimeSettingsProvider:

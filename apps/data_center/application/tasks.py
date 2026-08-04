@@ -16,7 +16,6 @@ from celery import shared_task
 from django.core.cache import cache
 from django.utils import timezone
 
-from apps.config_center.application.runtime_public import evaluate_storage_pressure
 from apps.data_center.composition import (
     get_archive_manifest_repository,
     get_raw_landing_repository,
@@ -34,6 +33,7 @@ from apps.data_center.domain.control_plane import (
     SyncRun,
     SyncRunStatus,
 )
+from core.integration.config_center_runtime import evaluate_storage_pressure
 from shared.domain.task_outcomes import TaskBusinessOutcome
 from shared.infrastructure.operational_alert_registry import record_operational_alert
 

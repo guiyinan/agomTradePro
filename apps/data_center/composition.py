@@ -409,8 +409,11 @@ def backfill_asset_master_codes(
     """Backfill canonical asset identities behind the Data Center composition root."""
 
     from apps.data_center.infrastructure.asset_master_backfill import AssetMasterBackfillService
+    from core.integration.asset_master_sources import build_legacy_asset_master_source
 
-    return AssetMasterBackfillService().backfill_codes(
+    return AssetMasterBackfillService(
+        source_provider=build_legacy_asset_master_source()
+    ).backfill_codes(
         asset_codes,
         include_remote=include_remote,
     )
