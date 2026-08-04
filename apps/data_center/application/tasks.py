@@ -56,7 +56,7 @@ from .interface_services import (
 from .market_thermometer_dates import resolve_market_thermometer_as_of_date
 from .query_services import list_active_stock_codes_for_backfill
 from .query_use_cases import latest_completed_cn_market_session
-from .retention import RetentionCleanupUseCase
+from .retention import RetentionCleanupUseCase, VerifyArchiveManifestUseCase
 
 logger = logging.getLogger(__name__)
 
@@ -690,6 +690,127 @@ def backfill_active_a_share_core_data_batch_task(
     }
 
 
+def _retention_failure(
+    *,
+    operation: str,
+    requested: int,
+    error: str,
+) -> dict[str, object]:
+    """Build a stable failed retention-task contract without mutating data."""
+
+    return {
+        "success": False,
+        "outcome": TaskBusinessOutcome.FAILED.value,
+        "operation": operation,
+        "requested": requested,
+        "candidates": 0,
+        "planned": 0,
+        "deleted": 0,
+        "held": 0,
+        "blocked": 0,
+        "bytes_planned": 0,
+        "bytes_deleted": 0,
+        "error": error,
+    }
+
+
+def _run_retention_pass(
+    *,
+    dataset_key: object,
+    limit: object,
+    dry_run: object,
+    operation: str,
+    confirm: object = True,
+) -> dict[str, object]:
+    """Run one bounded retention pass with task-boundary fail-closed guards."""
+
+    if not isinstance(dataset_key, str) or not dataset_key.strip():
+        return _retention_failure(operation=operation, requested=0, error="dataset_key is required")
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 10_000:
+        return _retention_failure(
+            operation=operation,
+            requested=0,
+            error="limit must be between 1 and 10000",
+        )
+    if not isinstance(dry_run, bool):
+        return _retention_failure(
+            operation=operation,
+            requested=limit,
+            error="dry_run must be a boolean",
+        )
+    if not isinstance(confirm, bool):
+        return _retention_failure(
+            operation=operation,
+            requested=limit,
+            error="confirm must be a boolean",
+        )
+    if operation == "enforce" and not dry_run and not confirm:
+        return {
+            "success": False,
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "operation": operation,
+            "requested": limit,
+            "candidates": 0,
+            "planned": 0,
+            "deleted": 0,
+            "held": 0,
+            "blocked": 0,
+            "bytes_planned": 0,
+            "bytes_deleted": 0,
+            "error": "explicit_confirmation_required",
+        }
+
+    try:
+        disk = shutil.disk_usage(Path.cwd())
+        pressure = evaluate_storage_pressure(
+            used_bytes=int(disk.used),
+            actual_capacity_bytes=int(disk.total),
+        )
+    except Exception:
+        logger.exception("Storage pressure evaluation failed before %s retention", operation)
+        return _retention_failure(
+            operation=operation,
+            requested=limit,
+            error="storage_pressure_evaluation_failed",
+        )
+    if pressure.get("state") == "blocked":
+        return {
+            "success": False,
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "operation": operation,
+            "requested": limit,
+            "candidates": 0,
+            "planned": 0,
+            "deleted": 0,
+            "held": 0,
+            "blocked": 0,
+            "bytes_planned": 0,
+            "bytes_deleted": 0,
+            "storage": pressure,
+            "error": str(pressure.get("reason") or "storage_budget_policy_missing_or_inactive"),
+        }
+
+    try:
+        result = RetentionCleanupUseCase(
+            get_retention_policy_repository(),
+            get_storage_hold_repository(),
+            get_archive_manifest_repository(),
+            get_raw_landing_repository(),
+            get_retention_run_repository(),
+        ).execute(dataset_key=dataset_key.strip(), limit=limit, dry_run=dry_run)
+    except Exception:
+        logger.exception("Retention %s failed for dataset=%s", operation, dataset_key.strip())
+        return _retention_failure(
+            operation=operation,
+            requested=limit,
+            error="retention_execution_failed",
+        )
+    payload = result.to_dict()
+    payload["operation"] = operation
+    payload["storage"] = pressure
+    return payload
+
+
 @shared_task(  # type: ignore[misc]
     name="apps.data_center.application.tasks.cleanup_expired_raw_payloads_task",
     time_limit=900,
@@ -701,61 +822,205 @@ def cleanup_expired_raw_payloads_task(
     limit: int = 100,
     dry_run: bool = True,
 ) -> dict[str, object]:
-    """Run a policy/hold/archive-gated bounded raw retention pass.
+    """Run the legacy raw cleanup entry point behind the canonical gates."""
 
-    ``dry_run`` defaults to true so scheduling the task cannot accidentally
-    delete data before an operator has verified the archive and rollback path.
-    """
-
-    if not isinstance(dataset_key, str) or not dataset_key.strip():
-        return {
-            "success": False,
-            "outcome": TaskBusinessOutcome.FAILED.value,
-            "requested": 0,
-            "candidates": 0,
-            "deleted": 0,
-            "error": "dataset_key is required",
-        }
-    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 10_000:
-        return {
-            "success": False,
-            "outcome": TaskBusinessOutcome.FAILED.value,
-            "requested": 0,
-            "candidates": 0,
-            "deleted": 0,
-            "error": "limit must be between 1 and 10000",
-        }
-    if not isinstance(dry_run, bool):
-        return {
-            "success": False,
-            "outcome": TaskBusinessOutcome.FAILED.value,
-            "requested": limit,
-            "candidates": 0,
-            "deleted": 0,
-            "error": "dry_run must be a boolean",
-        }
-    disk = shutil.disk_usage(Path.cwd())
-    pressure = evaluate_storage_pressure(
-        used_bytes=int(disk.used),
-        actual_capacity_bytes=int(disk.total),
+    return _run_retention_pass(
+        dataset_key=dataset_key,
+        limit=limit,
+        dry_run=dry_run,
+        operation="cleanup",
     )
-    if pressure.get("state") == "blocked":
+
+
+@shared_task(  # type: ignore[misc]
+    name="apps.data_center.application.tasks.plan_retention_task",
+    time_limit=900,
+    soft_time_limit=840,
+)
+def plan_retention_task(*, dataset_key: str, limit: int = 100) -> dict[str, object]:
+    """Persist a bounded retention dry-run plan without deleting anything."""
+
+    return _run_retention_pass(
+        dataset_key=dataset_key,
+        limit=limit,
+        dry_run=True,
+        operation="plan",
+    )
+
+
+@shared_task(  # type: ignore[misc]
+    name="apps.data_center.application.tasks.enforce_retention_task",
+    time_limit=900,
+    soft_time_limit=840,
+)
+def enforce_retention_task(
+    *,
+    dataset_key: str,
+    limit: int = 100,
+    dry_run: bool = True,
+    confirm: bool = False,
+) -> dict[str, object]:
+    """Execute a retention plan only after explicit non-dry-run confirmation."""
+
+    return _run_retention_pass(
+        dataset_key=dataset_key,
+        limit=limit,
+        dry_run=dry_run,
+        operation="enforce",
+        confirm=confirm,
+    )
+
+
+def _archive_task_failure(*, archive_id: object, error: str) -> dict[str, object]:
+    """Build a stable failed archive verification payload."""
+
+    return {
+        "success": False,
+        "outcome": TaskBusinessOutcome.FAILED.value,
+        "archive_id": archive_id.strip() if isinstance(archive_id, str) else "",
+        "requested": 1,
+        "succeeded": 0,
+        "failed": 1,
+        "blocked": 0,
+        "object_count": 0,
+        "size_bytes": 0,
+        "reason": error,
+    }
+
+
+@shared_task(  # type: ignore[misc]
+    name="apps.data_center.application.tasks.verify_archive_manifest_task",
+    time_limit=900,
+    soft_time_limit=840,
+)
+def verify_archive_manifest_task(
+    *,
+    archive_id: str,
+    observed_checksum: str,
+    observed_object_count: int,
+    observed_size_bytes: int,
+) -> dict[str, object]:
+    """Verify external archive evidence before retention may delete raw data."""
+
+    if not isinstance(archive_id, str) or not archive_id.strip():
+        return _archive_task_failure(archive_id=archive_id, error="archive_id is required")
+    if not isinstance(observed_checksum, str) or not observed_checksum.strip():
+        return _archive_task_failure(
+            archive_id=archive_id,
+            error="observed_checksum is required",
+        )
+    if (
+        isinstance(observed_object_count, bool)
+        or not isinstance(observed_object_count, int)
+        or observed_object_count < 0
+    ):
+        return _archive_task_failure(
+            archive_id=archive_id,
+            error="observed_object_count must be a non-negative integer",
+        )
+    if (
+        isinstance(observed_size_bytes, bool)
+        or not isinstance(observed_size_bytes, int)
+        or observed_size_bytes < 0
+    ):
+        return _archive_task_failure(
+            archive_id=archive_id,
+            error="observed_size_bytes must be a non-negative integer",
+        )
+    try:
+        result = VerifyArchiveManifestUseCase(get_archive_manifest_repository()).execute(
+            archive_id=archive_id.strip(),
+            observed_checksum=observed_checksum.strip(),
+            observed_object_count=observed_object_count,
+            observed_size_bytes=observed_size_bytes,
+        )
+    except ValueError as exc:
+        return _archive_task_failure(archive_id=archive_id, error=str(exc))
+    except Exception:
+        logger.exception("Archive manifest verification failed for archive=%s", archive_id.strip())
+        return _archive_task_failure(
+            archive_id=archive_id,
+            error="archive_manifest_verification_failed",
+        )
+    return result.to_dict()
+
+
+@shared_task(  # type: ignore[misc]
+    name="apps.data_center.application.tasks.verify_storage_budget_task",
+    time_limit=300,
+    soft_time_limit=240,
+)
+def verify_storage_budget_task(*, storage_path: str = "") -> dict[str, object]:
+    """Check current filesystem pressure before another mutating batch."""
+
+    if not isinstance(storage_path, str):
         return {
             "success": False,
-            "outcome": TaskBusinessOutcome.BLOCKED.value,
-            "requested": limit,
-            "candidates": 0,
-            "deleted": 0,
-            "storage": pressure,
-            "error": "storage_budget_policy_missing_or_inactive",
+            "outcome": TaskBusinessOutcome.FAILED.value,
+            "requested": 1,
+            "succeeded": 0,
+            "failed": 1,
+            "blocked": 0,
+            "error": "storage_path must be a string",
         }
-    result = RetentionCleanupUseCase(
-        get_retention_policy_repository(),
-        get_storage_hold_repository(),
-        get_archive_manifest_repository(),
-        get_raw_landing_repository(),
-        get_retention_run_repository(),
-    ).execute(dataset_key=dataset_key.strip(), limit=limit, dry_run=dry_run)
-    payload = result.to_dict()
-    payload["storage"] = pressure
-    return payload
+    path = Path(storage_path.strip() or Path.cwd())
+    try:
+        disk = shutil.disk_usage(path)
+        pressure = evaluate_storage_pressure(
+            used_bytes=int(disk.used),
+            actual_capacity_bytes=int(disk.total),
+        )
+    except Exception:
+        logger.exception("Storage budget verification failed for path=%s", path)
+        return {
+            "success": False,
+            "outcome": TaskBusinessOutcome.FAILED.value,
+            "requested": 1,
+            "succeeded": 0,
+            "failed": 1,
+            "blocked": 0,
+            "storage_path": str(path),
+            "error": "storage_budget_verification_failed",
+        }
+    state = str(pressure.get("state") or "")
+    if state == "blocked":
+        outcome = TaskBusinessOutcome.BLOCKED
+        succeeded = 0
+        blocked = 1
+        failed = 0
+        error = str(pressure.get("reason") or "storage_budget_policy_missing_or_inactive")
+    elif state in {"critical", "emergency"}:
+        outcome = TaskBusinessOutcome.BLOCKED
+        succeeded = 0
+        blocked = 1
+        failed = 0
+        error = f"storage_pressure_{state}"
+    elif state == "warning":
+        outcome = TaskBusinessOutcome.PARTIAL
+        succeeded = 1
+        blocked = 0
+        failed = 0
+        error = "storage_pressure_warning"
+    elif state == "healthy":
+        outcome = TaskBusinessOutcome.SUCCESS
+        succeeded = 1
+        blocked = 0
+        failed = 0
+        error = ""
+    else:
+        outcome = TaskBusinessOutcome.FAILED
+        succeeded = 0
+        blocked = 0
+        failed = 1
+        error = "storage_pressure_state_invalid"
+    return {
+        "success": outcome in {TaskBusinessOutcome.SUCCESS, TaskBusinessOutcome.NOOP},
+        "outcome": outcome.value,
+        "requested": 1,
+        "succeeded": succeeded,
+        "failed": failed,
+        "blocked": blocked,
+        "storage_path": str(path),
+        "storage": pressure,
+        "error": error,
+    }

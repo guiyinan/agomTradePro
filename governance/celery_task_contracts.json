@@ -77,6 +77,98 @@
         "blocked": {
           "test_file": "tests/unit/data_center/test_retention_tasks.py",
           "test_function": "test_retention_task_blocks_without_active_policy"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_retention_task_reports_storage_evaluation_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.data_center.application.tasks.plan_retention_task",
+      "source_file": "apps/data_center/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_plan_retention_task_rejects_invalid_limit"
+        },
+        "all_success": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_plan_retention_task_is_always_dry_run"
+        },
+        "blocked": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_plan_retention_task_blocks_without_storage_policy"
+        }
+      }
+    },
+    {
+      "task_path": "apps.data_center.application.tasks.enforce_retention_task",
+      "source_file": "apps/data_center/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_enforce_retention_task_rejects_non_boolean_confirmation"
+        },
+        "all_success": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_enforce_retention_task_deletes_only_with_confirmation"
+        },
+        "blocked": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_enforce_retention_task_requires_explicit_confirmation"
+        }
+      }
+    },
+    {
+      "task_path": "apps.data_center.application.tasks.verify_archive_manifest_task",
+      "source_file": "apps/data_center/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_archive_verification_rejects_invalid_evidence_before_repository"
+        },
+        "all_success": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_archive_verification_marks_matching_manifest_verified"
+        },
+        "blocked": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_archive_verification_blocks_checksum_mismatch"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_archive_verification_reports_repository_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.data_center.application.tasks.verify_storage_budget_task",
+      "source_file": "apps/data_center/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_storage_budget_task_reports_healthy"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_storage_budget_task_reports_warning_as_partial"
+        },
+        "blocked": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_storage_budget_task_blocks_critical_pressure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_storage_budget_task_reports_observer_failure"
+        },
+        "invalid_input": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_storage_budget_task_rejects_non_string_path"
         }
       }
     },

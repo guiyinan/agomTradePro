@@ -155,6 +155,12 @@ class ArchiveManifestRepository:
         )
         return model.to_domain()
 
+    def get(self, archive_id: str) -> ArchiveManifest | None:
+        """Return one archive manifest for explicit external verification."""
+
+        model = ArchiveManifestModel._default_manager.filter(archive_id=_uuid(archive_id)).first()
+        return model.to_domain() if model is not None else None
+
     def mark_verified(
         self, archive_id: str, *, verified_at: datetime | None = None
     ) -> ArchiveManifest:
