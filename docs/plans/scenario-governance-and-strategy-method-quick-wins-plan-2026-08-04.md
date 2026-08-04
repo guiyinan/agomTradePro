@@ -75,6 +75,27 @@ Audit 记录版本、输入、结果与后续兑现
 - `ai_capability` 只保存能力治理投影，真实执行必须落到 Risk Center Application UseCase 或 canonical API。
 - `terminal` 只发布 TUI metadata，不承载情景业务规则。
 
+### 2.4 现有代码审计与测试护栏覆盖缺陷
+
+本次问题不是现有 CI 识别违规后错误放行，而是“可变业务配置硬编码”从未被定义成机器可执行的违规类型：
+
+- 架构护栏只检查依赖方向、跨层导入、ORM 访问和外部运行时依赖；纯 Python 的静态字典在当前分层规则下合法。
+- Runtime Config 覆盖检查主要识别环境变量和已登记的 System Settings 引用，不会发现日期、权重、收益率、阈值、情景目录等普通业务字面量。
+- Architecture Delta Guard 只对新增行执行已有规则；历史代码即使进入增量范围，也会因缺少业务配置规则而继续通过。
+- 现有单元测试断言情景数量正好为 3 个并保持固定 ID 顺序，实际是在验证和固化静态目录，而不是验证可配置性、版本化和时效性。
+- “拒绝硬编码”目前主要是人工开发规范，没有对应的 canonical 清单、静态扫描器、CI 工作流和负向测试，导致“架构全绿”被误读成“业务配置治理合格”。
+
+本缺陷按治理能力缺口整改，不以继续追加几个情景或增加一条代码注释代替。必须新增：
+
+1. `governance/business_configuration_contracts.json`：登记可变业务配置的 canonical owner、读取端口、持久化方式、版本策略、初始化方式、禁止 fallback、扫描范围和迁移状态。
+2. `scripts/check_business_configuration_hardcodes.py`：基于 AST 和上述清单扫描生产代码中的静态业务目录、日期窗口、资产权重、概率、预期收益/波动、Policy 乘数和决策阈值；不得仅靠关键字 grep。
+3. `tests/governance/test_business_configuration_hardcode_guard.py`：用正向/负向 fixture 证明门禁能拦截本次两类硬编码，同时不误伤枚举、Schema、单位换算常数等真实 Domain 不变量。
+4. CI 全仓门禁：full scan 为权威结果，delta 只用于精确定位本次新增行；不得用历史债务基线永久豁免。临时例外必须登记 owner、理由、到期日和替代计划，且不得作为生产运行时 fallback。
+5. 测试契约整改：删除“固定三个情景”和“固定目录顺序”的产品假设，改为通过 fake repository/seed revision 验证动态新增、修订、停用、激活、排序和空目录 fail closed。
+6. 护栏说明整改：在架构治理文档中明确区分 Architecture Compliance、Runtime Configuration Coverage 与 Business Configuration Governance，禁止再用前两者的全绿结论替代第三者验收。
+
+业务配置门禁不采用“禁止一切数字和常量”的粗暴规则。不可变 Domain 不变量可以保留，但必须能说明其数学、协议或 Schema 属性；会随市场、策略判断、运营决策或研究结论变化的目录和参数一律进入版本化配置真源。
+
 ## 3. 目标与成功标准
 
 ### 3.1 业务目标
@@ -94,6 +115,8 @@ Audit 记录版本、输入、结果与后续兑现
 5. MCP 写能力满足 preview-first、RBAC、确认、幂等、乐观锁、审计和稳定错误 envelope。
 6. stale、missing、unpublished 或时间穿越数据不得生成可用于决策的成功结果。
 7. 迁移期兼容入口连续一个稳定版本无旧写入后方可删除。
+8. 业务配置治理清单、AST 全仓扫描器、CI 门禁和负向 fixture 全部落地，能够稳定拦截本次情景目录与 Allocation Policy 两类硬编码回归。
+9. 测试不再依赖固定情景数量、固定 ID 顺序或静态矩阵；新增、停用和切换版本无需修改生产代码或测试目录。
 
 ## 4. 范围与非目标
 
@@ -206,9 +229,13 @@ Application 只能依赖 Protocol：
 3. 输出兼容映射：旧 scenario ID → 新 `scenario_key`。
 4. 审计 `ALLOCATION_MATRIX`、预期收益/波动、Sharpe 和 Policy 乘数，冻结新的策略业务常量。
 5. 确认压力测试 canonical owner 为 Risk Center，Allocation Policy canonical owner 为 Strategy，Account 仅保留转发 Facade。
-6. 为本计划建立独立分支/commit 组，不与 Data Center 唯一真源重构、部署修复或 TUI 大迁移混在同一批次。
+6. 建立 `business_configuration_contracts.json`，覆盖情景、Allocation Policy、建议阈值和默认本金，并区分可变业务配置与不可变 Domain 不变量。
+7. 实现 AST 全仓扫描器、门禁自测 fixture 和 CI workflow；full scan 为权威，delta 输出作为 PR 定位信息。
+8. 盘点并改写所有固定数量、固定 ID、固定顺序和固定矩阵测试，先建立可配置行为测试，再迁移生产读取。
+9. 更新架构治理文档，明确现有 Architecture/Runtime Config 护栏的能力边界和 Business Configuration Guard 的验收责任。
+10. 为本计划建立独立分支/commit 组，不与 Data Center 唯一真源重构、部署修复或 TUI 大迁移混在同一批次。
 
-验收：扫描脚本能够识别新增的情景业务常量和 Application 级静态目录。
+验收：全仓扫描能够命中现有 `HistoricalScenarioService.SCENARIOS`、`ALLOCATION_MATRIX`、Policy 乘数及其等价 fixture；对枚举、Schema 和单位换算不变量不误报；CI 在重新加入任一负向 fixture 时稳定失败；固定三情景/固定顺序测试已从产品契约中移除。M0 未满足前不得进入 M1 生产读取迁移。
 
 ### M1：扩展式建表与初始数据迁移
 
@@ -489,7 +516,7 @@ AI 只根据结构化事实生成解释。简报必须保存事实引用、情�
 
 | 阶段 | 主交付 | 前置依赖 | 退出标准 |
 |---|---|---|---|
-| M0 | 冻结、清单、ADR、情景与 Allocation Policy 硬编码扫描 | 无 | owner、旧入口和常量清单冻结 |
+| M0 | 冻结、业务配置治理契约、全仓 AST/CI 门禁、测试去固化 | 无 | owner、旧入口和常量清单冻结；两类硬编码可被机器稳定拦截 |
 | M1 | Scenario Domain/ORM/Repository、Allocation Policy 与旧数据迁移 | M0 | 三个旧情景和配置矩阵数据库化，运行时无常量 fallback |
 | M2 | Portfolio snapshot、运行证据、兼容切读 | M1、Data Center historical port | 可复算且旧 API 行为兼容 |
 | M3 | API/SDK/TUI/MCP 草稿—预览—激活—回滚 | M1-M2 | 权限、确认、幂等、审计全通过 |
@@ -521,7 +548,36 @@ AI 只根据结构化事实生成解释。简报必须保存事实引用、情�
 
 ## 12. 测试与治理门禁
 
-### 12.1 Domain/Application
+### 12.1 业务配置硬编码治理门禁
+
+新增工件：
+
+- `governance/business_configuration_contracts.json`；
+- `scripts/check_business_configuration_hardcodes.py`；
+- `tests/governance/test_business_configuration_hardcode_guard.py`；
+- 对应 GitHub Actions workflow 或既有 fast-feedback/RC gate 接入项；
+- 架构与治理护栏说明文档中的职责边界矩阵。
+
+扫描至少覆盖 `apps/*/domain/`、`apps/*/application/` 和相关 composition/config 文件中的以下形态：
+
+- 模块级或类级业务目录、配置矩阵和资产名单；
+- 直接构造的历史起止日期、情景概率和冲击幅度；
+- 资产配置比例、预期收益、预期波动、Sharpe 和 Policy 调整系数；
+- 影响生产决策的回撤、波动、亏损、仓位和推荐阈值；
+- Repository 缺失时回退到静态业务默认值的代码路径。
+
+扫描结果按 `mutable_business_configuration`、`domain_invariant`、`schema_or_protocol_constant`、`test_fixture` 分类。Domain 不变量豁免必须在治理清单中说明依据；禁止文件级 ignore、宽泛路径排除或只提高债务基线。CI 每次运行 full scan，增量结果只作为开发者定位信息。
+
+门禁自身必须包含 mutation-style 负向测试：把三个固定情景、4×4 Allocation Matrix、Policy 乘数或静态 fallback 重新放入 fixture 时检查应失败；改为 Repository/版本引用后应通过。
+
+计划中的目标命令为：
+
+```bash
+python scripts/check_business_configuration_hardcodes.py --mode full
+pytest tests/governance/test_business_configuration_hardcode_guard.py -q
+```
+
+### 12.2 Domain/Application
 
 - 四种情景类型的有效与无效边界；
 - 版本不可变、概率和为 1、content hash 稳定；
@@ -529,9 +585,12 @@ AI 只根据结构化事实生成解释。简报必须保存事实引用、情�
 - 数据缺失、stale、unpublished、未来时间穿越时 fail closed；
 - Portfolio Snapshot 与情景版本不匹配拒绝；
 - 旧 ID 兼容映射和旧 API 输出一致性；
-- fake repository 替代固定情景目录测试。
+- fake repository 替代固定情景目录测试；
+- 动态新增、修订、停用、激活和排序由 repository 数据驱动；
+- 空目录 fail closed，且不存在静态 fallback；
+- 禁止断言生产目录固定为三个情景或固定 ID 顺序。
 
-### 12.2 数据库与迁移
+### 12.3 数据库与迁移
 
 - SQLite 与 PostgreSQL migration graph；
 - data migration 幂等；
@@ -539,7 +598,7 @@ AI 只根据结构化事实生成解释。简报必须保存事实引用、情�
 - 唯一约束、并发激活和乐观锁；
 - 回滚不修改历史 revision。
 
-### 12.3 API/SDK/MCP
+### 12.4 API/SDK/MCP
 
 - Serializer 未知字段拒绝和数值范围校验；
 - RBAC 成功/拒绝；
@@ -557,6 +616,8 @@ AI 只根据结构化事实生成解释。简报必须保存事实引用、情�
 必须运行相关门禁：
 
 ```bash
+python scripts/check_business_configuration_hardcodes.py --mode full
+pytest tests/governance/test_business_configuration_hardcode_guard.py -q
 python scripts/check_mcp_manifest_schema.py
 python scripts/check_mcp_no_raw_tools.py
 python scripts/check_mcp_write_confirmation.py
@@ -570,7 +631,7 @@ python scripts/verify_architecture.py --include-audit --format text
 
 若增加或修改 current/latest 决策面，同步更新 `governance/current_data_contracts.json`。若增加滚动情景定时任务，同步更新 `governance/celery_task_contracts.json` 并覆盖非法输入、成功、部分失败、全部失败、零产出和业务阻断。
 
-### 12.4 TUI 与高风险最小回归包
+### 12.5 TUI 与高风险最小回归包
 
 至少覆盖：
 
@@ -629,6 +690,9 @@ pytest tests/unit/test_internal_ssl_redirect.py -q
 | 历史回放使用未来数据 | PIT/as-of 数据端口、manifest 和时间穿越测试 |
 | 配置并发覆盖 | 不可变 revision、expected version/hash、事务激活 |
 | 新旧引擎结果漂移 | shadow 对账、差异分类、版本化解释 |
+| 架构全绿再次被误读为业务配置合规 | 独立 Business Configuration Guard、职责边界文档和 DoD 证据 |
+| 硬编码扫描误伤真实 Domain 不变量 | 分类清单、精确 AST 规则、正反 fixture；禁止宽泛 ignore |
+| 只做增量扫描导致历史硬编码继续存活 | CI full scan 为权威，delta 仅用于定位；临时例外必须有 owner 和到期日 |
 | 把规则分数伪装成概率 | 明确 score/probability 语义，展示组件和来源 |
 | 为快速上线复制 MCP/API 逻辑 | Application UseCase 单一执行源，SDK/MCP 仅 transport |
 | Quick Wins 扩散成大重构 | M5A/M5B/M5C 分阶段，长期能力进入备忘 |
@@ -645,7 +709,9 @@ pytest tests/unit/test_internal_ssl_redirect.py -q
 6. 所有决策型结果发布数据时间、来源、版本、freshness 和阻断状态。
 7. shadow、PostgreSQL、备份恢复和回滚证据齐全。
 8. 文档、TUI metadata、SDK/MCP 清单和治理投影同步更新。
-9. 交接说明明确列出已完成项、未完成项、已验证测试和未验证风险。
+9. `business_configuration_contracts.json` 已覆盖本计划全部可变配置；全仓扫描、CI 接入和正反 fixture 均通过，且不存在无期限例外或生产静态 fallback。
+10. 原固定目录测试已改为 repository/版本驱动测试，并覆盖新增、修订、停用、激活、排序及空目录阻断。
+11. 交接说明明确列出已完成项、未完成项、已验证测试和未验证风险。
 
 ## 16. 关联文档
 
