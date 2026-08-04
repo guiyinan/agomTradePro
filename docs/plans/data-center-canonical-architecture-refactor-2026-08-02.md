@@ -1441,6 +1441,30 @@
 - 当前仍没有实际 RetentionPolicy 初始化/真实 beat 执行、归档对象恢复和容量故障注入证据；默认 dry-run/无 active policy 的 fail-closed 是安全行为，不等于生产 retention 已运行。
 - D0-D6 查询预算仍没有真实 PostgreSQL `CaptureQueriesContext`/重复采样 P95 基线，不能用本地 SQLite 或合成数字填充；全域 shadow reconciliation、PostgreSQL 生产规模、备份恢复、CI Linux、生产观察、显式 Publication rollback、旧链退役和 VPS release 仍未完成。
 
+## 实施记录（2026-08-04，D1 影子对账与 D0-D6 查询观测工具收口）
+
+本批次建立可复现的本地证据工具，但不把 fixture 或 SQLite 结果冒充生产基线；继续不部署、不 push、不接触生产数据。
+
+已落地：
+
+- `export_reconciliation_snapshot` 接收调用方注入的 legacy/canonical 快照，复用既有分类器输出 `same/expected_difference/data_missing/semantic_conflict/code_defect`，并对规范化 JSON 计算稳定 SHA-256。空键、归一化键冲突、NaN/Infinity 和非 JSON 值全部 fail closed；Application 层不导入 legacy/canonical ORM，也不自行发现或读取旧表。
+- `record_data_center_reconciliation` 维护命令改用同一导出器，持久化两个快照 hash，并打印确定性的逐自然键分类证据，异常快照以 `CommandError` 阻断。
+- 增加 D1 有界 fixture（同值、预期差异、缺失、代码缺陷）和机器可读证据测试；fixture 仅用于维护/验收，不代表生产对账已经执行。
+- 新增 `scripts/measure_data_center_query_ports.py`，通过真实 Django `CaptureQueriesContext` 对 D0-D6 Public Port 重复采样，记录每次 query count/耗时/有限行数，查询数取样本最大值，P95 使用 inclusive 线性插值。缺少 Port 返回 `unmeasured`，调用异常返回 `error`，均不伪造零查询成功；默认不加载或写入 governance budget，仅在调用方显式传入 `QueryBudget` 时评估。报告不输出 raw SQL 或返回 payload。
+- PostgreSQL critical CI job 已接入 current-data manifest、回填控制面、coverage/retention/对账相关测试；GitHub Actions 实际运行结果仍待授权环境取证。
+
+机器证据（本地）：
+
+- `pytest tests/unit/data_center/test_reconciliation_and_query_budget.py tests/unit/data_center/test_reconciliation_evidence.py tests/unit/data_center/test_query_port_measurement.py -q --reuse-db --no-migrations --disable-warnings --maxfail=1`：18 passed。
+- 相关生产/工具文件 `ruff`、`black --check`、`isort --check-only` 通过；`python scripts/check_mypy_regression.py apps/data_center/application/reconciliation.py apps/data_center/management/commands/record_data_center_reconciliation.py`：0 regressions。
+- 查询测量测试已用本地 SQLite 的真实 `CaptureQueriesContext` 验证 D0；没有将本地 SQLite 的 query/P95 数字写入 D0-D6 governance budget。
+
+仍未完成及风险：
+
+- D0-D6 仍缺真实 PostgreSQL/生产规模的重复采样、P95、锁等待、WAL、内存和容量基线；新增工具只是测量 harness，不等于预算已批准或性能已达标。
+- 当前 shadow 对账只证明注入快照的确定性导出和命令输出，尚未接入 legacy/canonical 生产读取、全市场覆盖、连续交易日/周末窗口或差异 owner/期限闭环。
+- PostgreSQL CI、备份恢复/rollback、Retention/Archive 实际调度与故障注入、全域 Publication rollback、旧链退役、生产观察和 VPS release 仍未验证；继续保持不部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
