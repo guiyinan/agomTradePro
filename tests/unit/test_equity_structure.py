@@ -23,7 +23,10 @@ INTERFACE_FACADE = "apps.equity.interface.views"
 INTERFACE_OWNERS = (
     "apps.equity.interface.page_views",
     "apps.equity.interface.analysis_actions",
+    "apps.equity.interface.chart_actions",
+    "apps.equity.interface.comprehensive_valuation_actions",
     "apps.equity.interface.pool_actions",
+    "apps.equity.interface.pool_refresh_actions",
     "apps.equity.interface.valuation_actions",
     "apps.equity.interface.multidim_screen_views",
     "apps.equity.interface.valuation_config_views",
@@ -140,7 +143,13 @@ def test_equity_view_exports_resolve_to_owner_modules() -> None:
     for mixin_owner, mixin_name in (
         ("apps.equity.interface.sdk_contract_actions", "EquitySDKContractActionsMixin"),
         ("apps.equity.interface.analysis_actions", "EquityAnalysisActionsMixin"),
+        ("apps.equity.interface.chart_actions", "EquityChartActionsMixin"),
+        (
+            "apps.equity.interface.comprehensive_valuation_actions",
+            "EquityComprehensiveValuationActionsMixin",
+        ),
         ("apps.equity.interface.pool_actions", "EquityPoolActionsMixin"),
+        ("apps.equity.interface.pool_refresh_actions", "EquityPoolRefreshActionsMixin"),
         ("apps.equity.interface.valuation_actions", "EquityValuationActionsMixin"),
     ):
         mixin_module = import_module(mixin_owner)
@@ -173,7 +182,10 @@ def test_equity_split_modules_stay_bounded_and_one_way() -> None:
         INTERFACE_FACADE: 150,
         "apps.equity.interface.page_views": 150,
         "apps.equity.interface.analysis_actions": 550,
+        "apps.equity.interface.chart_actions": 150,
+        "apps.equity.interface.comprehensive_valuation_actions": 250,
         "apps.equity.interface.pool_actions": 250,
+        "apps.equity.interface.pool_refresh_actions": 150,
         "apps.equity.interface.valuation_actions": 500,
         "apps.equity.interface.multidim_screen_views": 150,
         "apps.equity.interface.valuation_config_views": 250,

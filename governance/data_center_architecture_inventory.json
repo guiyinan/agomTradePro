@@ -7652,53 +7652,53 @@
       "text": "Current/decision-facing callers must be able to resolve display metadata"
     },
     {
-      "line": 62,
+      "line": 71,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"筛选个股\","
     },
     {
-      "line": 182,
+      "line": 191,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"估值分析（个股详情）\","
     },
     {
-      "line": 345,
-      "path": "apps/equity/interface/analysis_actions.py",
-      "text": "summary=\"技术图表数据\","
-    },
-    {
-      "line": 371,
-      "path": "apps/equity/interface/analysis_actions.py",
-      "text": "summary=\"分时图数据\","
-    },
-    {
-      "line": 391,
+      "line": 354,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"DCF 绝对估值\","
     },
     {
-      "line": 514,
+      "line": 477,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"Regime 相关性分析\","
     },
     {
-      "line": 617,
-      "path": "apps/equity/interface/analysis_actions.py",
+      "line": 37,
+      "path": "apps/equity/interface/chart_actions.py",
+      "text": "summary=\"技术图表数据\","
+    },
+    {
+      "line": 63,
+      "path": "apps/equity/interface/chart_actions.py",
+      "text": "summary=\"分时图数据\","
+    },
+    {
+      "line": 48,
+      "path": "apps/equity/interface/comprehensive_valuation_actions.py",
       "text": "summary=\"综合估值分析\","
     },
     {
-      "line": 61,
+      "line": 58,
       "path": "apps/equity/interface/pool_actions.py",
       "text": "\"\"\"Current-pool query and Regime-driven pool refresh actions.\"\"\""
     },
     {
-      "line": 364,
-      "path": "apps/equity/interface/pool_actions.py",
-      "text": "\"\"\"Resolve a canonical current Regime for display without inventing a fallback.\"\"\""
+      "line": 56,
+      "path": "apps/equity/interface/pool_refresh_actions.py",
+      "text": "\"\"\"Resolve a canonical current Regime for pool display.\"\"\""
     },
     {
-      "line": 371,
-      "path": "apps/equity/interface/pool_actions.py",
+      "line": 63,
+      "path": "apps/equity/interface/pool_refresh_actions.py",
       "text": "logger.warning(\"Current Regime unavailable while loading stock pool\", exc_info=True)"
     },
     {

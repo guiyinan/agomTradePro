@@ -13,19 +13,16 @@ from typing import TYPE_CHECKING
 
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.data_center.application.public import get_decision_publication_gate
 from apps.equity.application.query_services import get_published_stock_context_map
-from apps.equity.application.use_cases import (
-    ScreenStocksRequest,
-    ScreenStocksUseCase,
-)
-from apps.regime.domain.services_v2 import RegimeType
+from apps.equity.application.use_cases import ScreenStocksUseCase
 from shared.numeric import safe_float
 
+from .pool_refresh_actions import EquityPoolRefreshActionsMixin
 from .serializers import PoolActionRequestSerializer
 from .valuation_actions import typed_action
 
@@ -57,12 +54,20 @@ def _build_sector_distribution(
     ]
 
 
-class EquityPoolActionsMixin:
+class EquityPoolActionsMixin(EquityPoolRefreshActionsMixin):
     """Current-pool query and Regime-driven pool refresh actions."""
 
     stock_repo: DjangoStockRepository
     regime_repo: RegimeRepositoryAdapter
     pool_adapter: StockPoolRepositoryAdapter
+
+    def _build_screen_use_case(self) -> ScreenStocksUseCase:
+        """Keep the legacy pool module use-case patch surface working."""
+
+        return ScreenStocksUseCase(
+            stock_repository=self.stock_repo,
+            regime_repository=self.regime_repo,
+        )
 
     @typed_action(
         detail=False,
@@ -82,10 +87,8 @@ class EquityPoolActionsMixin:
         publication_key = str(serializer.validated_data["publication_key"])
 
         try:
-            # 获取当前股票池
             stock_codes = self.pool_adapter.get_current_pool()
 
-            # 获取股票池元数据
             pool_info = self.pool_adapter.get_latest_pool_info()
 
             pool_regime = str((pool_info or {}).get("regime") or "").strip()
@@ -272,106 +275,6 @@ class EquityPoolActionsMixin:
                 {"success": False, "message": "获取股票池失败", "stocks": []},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-    @typed_action(
-        detail=False,
-        methods=["post"],
-        url_path="pool/refresh",
-        permission_classes=[IsAdminUser],
-    )
-    def refresh_pool(self, request: Request) -> Response:
-        """
-        POST /api/equity/pool/refresh/
-
-        刷新股票池
-
-        基于当前 Regime 重新筛选股票池。
-        """
-        from apps.regime.application.current_regime import resolve_current_regime
-
-        serializer = PoolActionRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        try:
-            # 获取当前 Regime
-            latest_regime = resolve_current_regime()
-            if not latest_regime or bool(getattr(latest_regime, "is_fallback", False)):
-                return Response(
-                    {
-                        "success": False,
-                        "message": "当前 Regime 不可用或处于降级状态，请先完成正式判定",
-                    },
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                )
-            regime = str(latest_regime.dominant_regime or "").strip()
-            if regime not in {item.value for item in RegimeType}:
-                return Response(
-                    {"success": False, "message": "当前 Regime 不是有效四象限结果"},
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                )
-
-            # 构造筛选请求
-            screen_request = ScreenStocksRequest(
-                regime=regime,
-            )
-
-            # 执行筛选
-            screen_use_case = ScreenStocksUseCase(
-                stock_repository=self.stock_repo, regime_repository=self.regime_repo
-            )
-            screen_response = screen_use_case.execute(screen_request)
-
-            if not screen_response.success:
-                return Response(
-                    {"success": False, "message": "股票池筛选失败"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-            if not screen_response.stock_codes:
-                return Response(
-                    {
-                        "success": False,
-                        "message": "筛选结果为空，已保留现有股票池",
-                    },
-                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                )
-
-            # 保存新的股票池
-            self.pool_adapter.save_pool(
-                stock_codes=screen_response.stock_codes,
-                regime=regime,
-                as_of_date=timezone.localdate(),
-            )
-
-            return Response(
-                {
-                    "success": True,
-                    "message": "股票池已刷新",
-                    "regime": regime,
-                    "count": len(screen_response.stock_codes),
-                    "update_time": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
-                }
-            )
-
-        except Exception:
-            logger.exception("Failed to refresh equity stock pool")
-            return Response(
-                {"success": False, "message": "刷新股票池失败"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-    @staticmethod
-    def _resolve_current_regime_name() -> str | None:
-        """Resolve a canonical current Regime for display without inventing a fallback."""
-
-        from apps.regime.application.current_regime import resolve_current_regime
-
-        try:
-            result = resolve_current_regime()
-        except Exception:
-            logger.warning("Current Regime unavailable while loading stock pool", exc_info=True)
-            return None
-        regime = str(getattr(result, "dominant_regime", "") or "").strip()
-        return regime if regime in {item.value for item in RegimeType} else None
 
 
 __all__ = ["EquityPoolActionsMixin"]

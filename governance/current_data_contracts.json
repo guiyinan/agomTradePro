@@ -1063,6 +1063,8 @@
           "requires_confirmation=False"
         ],
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py": [
+          "def _payload_block_reason(",
+          "_UNUSABLE_CURRENT_DATA_STATUSES",
           "def _internal_handler_equity_read_research_snapshot(",
           "decision_readiness_blocked"
         ]
@@ -1087,6 +1089,16 @@
           "case": "mcp_global_readiness_blocked",
           "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
           "test_function": "test_research_snapshot_obeys_global_decision_readiness"
+        },
+        {
+          "case": "mcp_stale_section_without_boolean_gate_blocked",
+          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
+          "test_function": "test_research_snapshot_blocks_stale_section_without_boolean_gate"
+        },
+        {
+          "case": "mcp_nested_stale_reliability_without_boolean_gate_blocked",
+          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
+          "test_function": "test_research_snapshot_blocks_nested_stale_reliability_without_boolean_gate"
         }
       ]
     },
@@ -1234,6 +1246,7 @@
         "apps/data_center/application/public.py",
         "apps/equity/interface/sdk_contract_actions.py",
         "apps/equity/interface/analysis_actions.py",
+        "apps/equity/interface/comprehensive_valuation_actions.py",
         "apps/equity/interface/pool_actions.py",
         "sdk/agomtradepro/modules/equity.py",
         "sdk/agomtradepro_mcp/tools/equity_tools.py",
@@ -1264,8 +1277,14 @@
           "mode = str(data[\"mode\"])",
           "equity.financial.fact",
           "CalculateDCFUseCase",
-          "ComprehensiveValuationUseCase",
           "ScreenStocksUseCase",
+          "publication_gates",
+          "must_not_use_for_decision"
+        ],
+        "apps/equity/interface/comprehensive_valuation_actions.py": [
+          "get_decision_publication_gate(",
+          "ComprehensiveValuationUseCase",
+          "mode = str(data[\"mode\"])",
           "publication_gates",
           "must_not_use_for_decision"
         ],

@@ -23,16 +23,13 @@ from apps.equity.application.use_cases import (
     AnalyzeValuationUseCase,
     CalculateDCFRequest,
     CalculateDCFUseCase,
-    ComprehensiveValuationRequest,
     ComprehensiveValuationUseCase,
-    GetIntradayChartRequest,
-    GetIntradayChartUseCase,
-    GetTechnicalChartRequest,
-    GetTechnicalChartUseCase,
     ScreenStocksRequest,
     ScreenStocksUseCase,
 )
 
+from .chart_actions import EquityChartActionsMixin
+from .comprehensive_valuation_actions import EquityComprehensiveValuationActionsMixin
 from .serializers import (
     AnalyzeRegimeCorrelationRequestSerializer,
     AnalyzeRegimeCorrelationResponseSerializer,
@@ -40,22 +37,34 @@ from .serializers import (
     AnalyzeValuationResponseSerializer,
     CalculateDCFRequestSerializer,
     CalculateDCFResponseSerializer,
-    ComprehensiveValuationRequestSerializer,
-    ComprehensiveValuationResponseSerializer,
-    IntradayChartRequestSerializer,
-    IntradayChartResponseSerializer,
     ScreenStocksRequestSerializer,
     ScreenStocksResponseSerializer,
-    TechnicalChartRequestSerializer,
-    TechnicalChartResponseSerializer,
 )
 from .valuation_actions import typed_action, typed_schema
 
 
-class EquityAnalysisActionsMixin:
+class EquityAnalysisActionsMixin(
+    EquityChartActionsMixin,
+    EquityComprehensiveValuationActionsMixin,
+):
     """Screening, valuation analysis, chart, DCF, and regime-correlation actions."""
 
     stock_repo: Any
+
+    def _get_comprehensive_publication_gate(
+        self,
+        dataset_key: str,
+        publication_key: str,
+    ) -> dict[str, object] | None:
+        """Keep the legacy analysis module gate patch surface working."""
+
+        return get_decision_publication_gate(dataset_key, publication_key)
+
+    def _build_comprehensive_valuation_use_case(self) -> ComprehensiveValuationUseCase:
+        """Keep the legacy analysis module use-case patch surface working."""
+
+        return ComprehensiveValuationUseCase(stock_repository=self.stock_repo)
+
     regime_repo: Any
 
     @typed_schema(
@@ -342,52 +351,6 @@ class EquityAnalysisActionsMixin:
         return Response(payload, status=status.HTTP_200_OK)
 
     @typed_schema(
-        summary="技术图表数据",
-        description="返回个股 K 线、均线、MACD 与最近金叉死叉信号",
-        request=TechnicalChartRequestSerializer,
-        responses={200: TechnicalChartResponseSerializer},
-    )
-    @typed_action(detail=False, methods=["get"], url_path="technical/(?P<stock_code>[^/]+)")
-    def technical_chart(self, request: Request, stock_code: str) -> Response:
-        """GET /api/equity/technical/{stock_code}/"""
-        query = request.query_params.copy()
-        query["stock_code"] = stock_code
-        serializer = TechnicalChartRequestSerializer(data=query)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        use_case = GetTechnicalChartUseCase(stock_repository=self.stock_repo)
-        response = use_case.execute(
-            GetTechnicalChartRequest(
-                stock_code=data["stock_code"],
-                timeframe=data["timeframe"],
-                lookback_days=data["lookback_days"],
-            )
-        )
-        response_serializer = TechnicalChartResponseSerializer(response)
-        return Response(response_serializer.data, status=status.HTTP_200_OK)
-
-    @typed_schema(
-        summary="分时图数据",
-        description="返回个股最新交易日的 1 分钟分时价格、均价与成交量",
-        request=IntradayChartRequestSerializer,
-        responses={200: IntradayChartResponseSerializer},
-    )
-    @typed_action(detail=False, methods=["get"], url_path="intraday/(?P<stock_code>[^/]+)")
-    def intraday_chart(self, request: Request, stock_code: str) -> Response:
-        """GET /api/equity/intraday/{stock_code}/"""
-        query = request.query_params.copy()
-        query["stock_code"] = stock_code
-        serializer = IntradayChartRequestSerializer(data=query)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        use_case = GetIntradayChartUseCase(stock_repository=self.stock_repo)
-        response = use_case.execute(GetIntradayChartRequest(stock_code=data["stock_code"]))
-        response_serializer = IntradayChartResponseSerializer(response)
-        return Response(response_serializer.data, status=status.HTTP_200_OK)
-
-    @typed_schema(
         summary="DCF 绝对估值",
         description="计算股票的内在价值",
         request=CalculateDCFRequestSerializer,
@@ -612,164 +575,6 @@ class EquityAnalysisActionsMixin:
 
         # 5. 返回响应
         return Response(response_data, status=status.HTTP_200_OK)
-
-    @typed_schema(
-        summary="综合估值分析",
-        description="整合多种估值方法，提供综合的低估/高估判断",
-        request=ComprehensiveValuationRequestSerializer,
-        responses={200: ComprehensiveValuationResponseSerializer},
-    )
-    @typed_action(detail=False, methods=["post"], url_path="comprehensive-valuation")
-    def comprehensive_valuation(self, request: Request) -> Response:
-        """
-        POST /api/equity/comprehensive-valuation/
-
-        综合估值分析
-
-        整合多种估值方法：
-        1. PE/PB 百分位分析（权重 30%）
-        2. 相对行业估值（权重 20%）
-        3. PEG 估值（权重 20%）
-        4. 质量评分（权重 15%）
-        5. DCF 绝对估值（权重 15%）
-
-        Request Body:
-        {
-            "stock_code": "600030.SH",
-            "lookback_days": 252,  // 可选，默认 252
-            "industry_avg_pe": 20.0,  // 可选，默认 20.0
-            "industry_avg_pb": 2.0,  // 可选，默认 2.0
-            "risk_free_rate": 0.03  // 可选，默认 0.03
-        }
-
-        Response:
-        {
-            "success": true,
-            "stock_code": "600030.SH",
-            "stock_name": "中信证券",
-            "overall_score": 76.5,
-            "overall_signal": "buy",
-            "recommendation": "推荐买入。股票估值偏低，具有投资价值。",
-            "confidence": 0.82,
-            "scores": [
-                {
-                    "method": "PE/PB 百分位",
-                    "score": 80,
-                    "signal": "undervalued",
-                    "details": {"pe_percentile": 0.25, "pb_percentile": 0.30}
-                },
-                {
-                    "method": "相对行业",
-                    "score": 70,
-                    "signal": "undervalued",
-                    "details": {"pe_ratio": 0.75, "pb_ratio": 0.80}
-                },
-                {
-                    "method": "PEG",
-                    "score": 85,
-                    "signal": "undervalued",
-                    "details": {"peg": 0.67}
-                },
-                {
-                    "method": "质量评分",
-                    "score": 65,
-                    "signal": "fair",
-                    "details": {"roe": 16.5, "revenue_growth": 18.0}
-                }
-            ]
-        }
-        """
-        # 1. 验证请求
-        serializer = ComprehensiveValuationRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        mode = str(data["mode"])
-        publication_key = str(data["publication_key"])
-        publication_gates: dict[str, dict[str, object] | None] = {}
-        if mode == "published":
-            for dataset_key in (
-                "equity.financial.fact",
-                "equity.valuation.fact",
-                "equity.price.bar",
-            ):
-                publication_gates[dataset_key] = get_decision_publication_gate(
-                    dataset_key,
-                    publication_key,
-                )
-            blocked_publication = next(
-                (
-                    gate
-                    for gate in publication_gates.values()
-                    if gate is None or bool(gate.get("must_not_use_for_decision"))
-                ),
-                None,
-            )
-            if blocked_publication is not None:
-                return Response(
-                    {
-                        "success": False,
-                        "status": "blocked",
-                        "stock_code": str(data["stock_code"]),
-                        "stock_name": "",
-                        "overall_score": 0.0,
-                        "overall_signal": "hold",
-                        "recommendation": "",
-                        "confidence": 0.0,
-                        "scores": [],
-                        "error": (
-                            blocked_publication.get("blocked_reason")
-                            if blocked_publication
-                            else "canonical_publication_missing"
-                        ),
-                        "mode": mode,
-                        "publication_key": publication_key,
-                        "publication_gates": publication_gates,
-                        "must_not_use_for_decision": True,
-                    },
-                    status=status.HTTP_200_OK,
-                )
-            return Response(
-                {
-                    "success": False,
-                    "status": "blocked",
-                    "stock_code": str(data["stock_code"]),
-                    "stock_name": "",
-                    "overall_score": 0.0,
-                    "overall_signal": "hold",
-                    "recommendation": "",
-                    "confidence": 0.0,
-                    "scores": [],
-                    "error": "canonical_publication_member_snapshot_missing",
-                    "mode": mode,
-                    "publication_key": publication_key,
-                    "publication_gates": publication_gates,
-                    "must_not_use_for_decision": True,
-                },
-                status=status.HTTP_200_OK,
-            )
-
-        # 2. 构造请求对象
-        use_case_request = ComprehensiveValuationRequest(
-            stock_code=data["stock_code"],
-            lookback_days=data.get("lookback_days", 252),
-            industry_avg_pe=data.get("industry_avg_pe", 20.0),
-            industry_avg_pb=data.get("industry_avg_pb", 2.0),
-            risk_free_rate=data.get("risk_free_rate", 0.03),
-        )
-
-        # 3. 执行用例
-        use_case = ComprehensiveValuationUseCase(stock_repository=self.stock_repo)
-        use_case_response = use_case.execute(use_case_request)
-
-        # 4. 返回响应
-        response_serializer = ComprehensiveValuationResponseSerializer(use_case_response)
-        payload = dict(response_serializer.data)
-        payload["mode"] = mode
-        payload["publication_key"] = publication_key
-        if mode == "published":
-            payload["publication_gates"] = publication_gates
-            payload["must_not_use_for_decision"] = False
-        return Response(payload, status=status.HTTP_200_OK)
 
 
 __all__ = ["EquityAnalysisActionsMixin"]

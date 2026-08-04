@@ -7,6 +7,19 @@ from typing import Any
 
 from agomtradepro_mcp.registry.runtime_handlers.common import _call_registered_tool
 
+_UNUSABLE_CURRENT_DATA_STATUSES = frozenset(
+    {
+        "blocked",
+        "error",
+        "failed",
+        "missing",
+        "stale",
+        "unavailable",
+        "unverified",
+        "unknown",
+    }
+)
+
 
 def _payload_has_evidence(payload: object) -> bool:
     """Return whether a section contains at least one persisted evidence row."""
@@ -35,6 +48,52 @@ def _payload_has_evidence(payload: object) -> bool:
     )
 
 
+def _payload_block_reason(payload: object) -> str | None:
+    """Return a stable block reason when a read payload is not decision-grade.
+
+    Publication-gated APIs normally publish ``must_not_use_for_decision`` at the
+    top level.  The MCP boundary also checks nested reliability/publication
+    metadata so a malformed or older response cannot turn stale rows into a
+    fresh section merely because the boolean gate was omitted.
+    """
+
+    if not isinstance(payload, dict):
+        return None
+    candidates: list[dict[str, Any]] = [payload]
+    for key in ("contract", "publication", "reliability"):
+        nested = payload.get(key)
+        if isinstance(nested, dict):
+            candidates.append(nested)
+
+    for candidate in candidates:
+        if bool(candidate.get("must_not_use_for_decision")):
+            return str(
+                candidate.get("blocked_reason")
+                or candidate.get("block_reason_code")
+                or candidate.get("block_reason")
+                or "decision_reliability_blocked"
+            )
+
+    for candidate in candidates:
+        freshness_status = str(candidate.get("freshness_status") or "").strip().lower()
+        if freshness_status in _UNUSABLE_CURRENT_DATA_STATUSES:
+            return str(
+                candidate.get("blocked_reason")
+                or candidate.get("block_reason_code")
+                or candidate.get("block_reason")
+                or f"section_freshness_{freshness_status}"
+            )
+        status = str(candidate.get("status") or "").strip().lower()
+        if status in _UNUSABLE_CURRENT_DATA_STATUSES:
+            return str(
+                candidate.get("blocked_reason")
+                or candidate.get("block_reason_code")
+                or candidate.get("block_reason")
+                or f"section_status_{status}"
+            )
+    return None
+
+
 def _read_research_section(loader: Callable[[], object], *, required: bool) -> dict[str, Any]:
     """Execute one bounded read and normalize missing/failure semantics."""
 
@@ -48,19 +107,15 @@ def _read_research_section(loader: Callable[[], object], *, required: bool) -> d
             "must_not_use_for_decision": required,
             "block_reason_code": "upstream_read_failed",
         }
-    gate_blocked = isinstance(payload, dict) and bool(payload.get("must_not_use_for_decision"))
+    block_reason = _payload_block_reason(payload)
+    gate_blocked = block_reason is not None
     has_evidence = not gate_blocked and _payload_has_evidence(payload)
-    blocked_reason = payload.get("blocked_reason") if isinstance(payload, dict) else None
     return {
         "status": "blocked" if gate_blocked else ("fresh" if has_evidence else "missing"),
         "required": required,
         "data": payload,
         "must_not_use_for_decision": gate_blocked or (required and not has_evidence),
-        "block_reason_code": (
-            str(blocked_reason)
-            if blocked_reason
-            else ("" if has_evidence else "section_evidence_missing")
-        ),
+        "block_reason_code": block_reason or ("" if has_evidence else "section_evidence_missing"),
     }
 
 

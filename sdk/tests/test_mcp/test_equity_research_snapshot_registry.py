@@ -127,6 +127,60 @@ def test_research_snapshot_does_not_treat_blocked_publication_metadata_as_eviden
     assert result["sections"]["financials"]["block_reason_code"] == ("canonical_publication_stale")
 
 
+def test_research_snapshot_blocks_stale_section_without_boolean_gate(monkeypatch) -> None:
+    """A stale section cannot become fresh when its boolean gate is omitted."""
+
+    class StaleFinancialDataCenter(_FakeDataCenter):
+        def get_financials(self, code, limit, *, mode=None):
+            assert mode == "published"
+            return {
+                "rows": [{"asset_code": code, "period_end": "2025-12-31"}],
+                "freshness_status": "stale",
+            }
+
+    class StaleFinancialClient(_FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.data_center = StaleFinancialDataCenter()
+
+    monkeypatch.setattr("agomtradepro.AgomTradeProClient", StaleFinancialClient)
+
+    result = _internal_handler_equity_read_research_snapshot("通富微电")
+
+    assert result["status"] == "blocked"
+    assert result["must_not_use_for_decision"] is True
+    assert result["sections"]["financials"]["status"] == "blocked"
+    assert result["sections"]["financials"]["block_reason_code"] == ("section_freshness_stale")
+
+
+def test_research_snapshot_blocks_nested_stale_reliability_without_boolean_gate(
+    monkeypatch,
+) -> None:
+    """Nested reliability metadata must also fail closed at the MCP boundary."""
+
+    class StaleReliabilityDataCenter(_FakeDataCenter):
+        def get_financials(self, code, limit, *, mode=None):
+            assert mode == "published"
+            return {
+                "rows": [{"asset_code": code, "period_end": "2025-12-31"}],
+                "reliability": {"status": "stale"},
+            }
+
+    class StaleReliabilityClient(_FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.data_center = StaleReliabilityDataCenter()
+
+    monkeypatch.setattr("agomtradepro.AgomTradeProClient", StaleReliabilityClient)
+
+    result = _internal_handler_equity_read_research_snapshot("通富微电")
+
+    assert result["status"] == "blocked"
+    assert result["must_not_use_for_decision"] is True
+    assert result["sections"]["financials"]["status"] == "blocked"
+    assert result["sections"]["financials"]["block_reason_code"] == ("section_status_stale")
+
+
 def test_research_snapshot_does_not_treat_empty_rows_as_evidence(monkeypatch) -> None:
     """Publication metadata cannot turn an empty required section into evidence."""
 

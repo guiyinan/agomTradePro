@@ -1530,6 +1530,27 @@
 - 架构 inventory 刷新后 `external_http_imports_for_review` 从 7 降为 6；`provider_imports_outside_data_center` 仍为 0。其余 6 个 HTTP 入口仍需逐调用点审计，不能因本次删除一条死代码就宣称外部数据接入已全量中台化。
 - 证据：`pytest tests/unit/test_equity_http_bypass.py -q`：1 passed；ruff/isort、mypy regression 0；既有 `tests/unit/test_equity_structure.py` 的历史 module-size budget 仍独立失败（`analysis_actions.py` 726 > 550），未通过放宽预算掩盖。
 
+## 实施记录（2026-08-04，Equity Interface 边界与 MCP freshness 收口）
+
+本批次只做本地接口边界和可靠性护栏，不部署、不 push、不连接 VPS、不删除旧表。
+
+已落地：
+
+- 将 `EquityAnalysisActionsMixin` 的技术/分时图和综合估值动作分别拆到 `chart_actions.py`、`comprehensive_valuation_actions.py`；将股票池刷新动作拆到 `pool_refresh_actions.py`，主 owner 文件保持在结构预算内。拆分保留 `analysis_actions`、`pool_actions` 的既有 use-case/gate monkeypatch 兼容面，避免只为体量治理破坏 API 测试。
+- `governance/current_data_contracts.json` 与架构 inventory 同步记录新的 owner 文件/marker；当前静态清单为 `provider_imports_outside_data_center=0`、`cross_app_orm_imports=55`、`legacy_fact_references=143`、`current_surface_references=3046`、`data_write_task_decorators=55`、`runtime_parameter_references=49`、`external_http_imports_for_review=6`。
+- MCP equity research snapshot 在顶层或嵌套 `contract/publication/reliability` 元数据出现 `stale/blocked/missing/failed/unverified` 等不可用状态时统一 fail closed；不再因缺少 `must_not_use_for_decision` 布尔字段而把旧分区标成 fresh。完全没有可靠性元数据的响应仍由 Data Center Publication/query gate 负责，MCP 不自行猜测行日期。
+
+机器证据：
+
+- `pytest tests/unit/test_equity_structure.py -q`：4 passed；模块非空行数为 `analysis_actions=527`、`chart_actions=69`、`comprehensive_valuation_actions=117`、`pool_actions=245`、`pool_refresh_actions=124`。
+- `pytest tests/api/test_equity_api_edges.py -q -k "published_valuation_calculators_block_stale_publication_before_use_case or published_reads_block_without_member_snapshot or refresh_pool_preserves_existing_pool"`：7 passed。
+- `pytest sdk/tests/test_mcp/test_equity_research_snapshot_registry.py -q`：8 passed；`python scripts/check_current_data_contracts.py`：36 surfaces；ruff/black/isort 通过。
+
+未完成及风险：
+
+- 本批只修复 owner 边界和入口级 fail-closed 语义，不代表 D0-D9 全量消费者已经切换到 Publication-only，也不代表剩余 6 个外部 HTTP 入口已经完成逐调用点审计。
+- PostgreSQL 生产画像/P95/锁/WAL、备份恢复、Retention/Archive 实跑、CI Linux 实际 nodeid、连续观察窗口、旧链退役和 VPS release 仍未完成；按用户约束继续不部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
