@@ -214,7 +214,7 @@ class QueryMacroSeriesUseCase:
             start=request.start,
             end=request.end,
             limit=max(request.limit * 4, request.limit),
-            **({"fact_pks": request.fact_pks} if request.fact_pks is not None else {}),
+            fact_pks=request.fact_pks,
         )
         if request.source:
             facts = [f for f in facts if f.source == request.source]
