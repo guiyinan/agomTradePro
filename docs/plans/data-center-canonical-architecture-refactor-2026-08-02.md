@@ -1487,6 +1487,29 @@
 - SystemSettings 字段契约只阻止继续无登记增列，不改变旧 getter/fallback 行为，也未完成 48 字段逐组迁移、消费者切换、字段删除和全量 RuntimeConfigDefinition 覆盖。
 - 全域 Publication rollback 的连续窗口观察、legacy/canonical 生产对账、PostgreSQL 生产规模、CI Linux 实跑、旧链退役和 VPS release 仍未完成；继续保持不部署。
 
+## 实施记录（2026-08-04，Qlib Runtime Config 与 Retention/Storage 任务收口）
+
+本批次继续只做本地控制面和任务契约，不初始化生产配置、不执行真实删除、不部署、不 push。
+
+已落地：
+
+- Config Center `DEFAULT_RUNTIME_DEFINITIONS` 新增 10 个 typed `alpha.qlib.*` 定义，覆盖 enabled、provider URI、region、model path、universe、feature/label、训练/推理队列和自动激活开关；`runtime_config_contracts.json` 登记 owner、fallback、consumer、bootstrap 和测试证据。
+- 新增 `get_active_qlib_runtime_config`：只有 active profile 与同版本 immutable snapshot 完整、类型正确时才返回配置；缺字段、错误类型或无环境时返回 `None`，由 owner 明确走兼容路径，不在 Config Center 里补默认值。Config Center summary 优先 typed snapshot，缺失时保留带来源的 SystemSettings compatibility。
+- Retention 增加 `plan_retention_task`（固定 dry-run）、`enforce_retention_task`（非 dry-run 必须显式 `confirm=True`）、`verify_archive_manifest_task`（checksum/object_count/size 显式比对后才 mark verified）和 `verify_storage_budget_task`（healthy/partial/blocked/failed 标准 outcome）；旧 cleanup 入口统一经过 storage/policy/archive/hold/row-deadline gates，异常 fail closed。
+- `VerifyArchiveManifestUseCase` 与 `ArchiveManifestRepository.get` 形成可注入的外部归档证据边界；Celery contract manifest 从 14 扩展到 18 个 governed tasks，并登记新增任务的边界/成功/部分/阻断/失败测试。
+
+机器证据（本地）：
+
+- Config Center targeted unit：29 passed；component Config Center：20 passed；`python scripts/check_runtime_config_coverage.py`：49 refs；相关 ruff/black/isort、Django check、makemigrations check 通过。
+- `pytest tests/unit/data_center/test_retention_tasks.py tests/unit/data_center/test_retention_control_plane.py tests/unit/data_center/test_raw_landing.py -q --reuse-db --no-migrations --disable-warnings --maxfail=1`：29 passed；Retention 相关生产文件 mypy regression 0、ruff/black/isort 通过。
+- `python scripts/check_celery_task_contracts.py`：18 tasks / 4 governed files；未将本地 task 结果写成生产调度或容量证据。
+
+仍未完成及风险：
+
+- Qlib 仍保留 SystemSettings compatibility fallback，尚未完成所有消费者的 typed snapshot 强制切读、旧 getter/fallback 删除和生产 profile 初始化；本地路径存在性只用于诊断，不代表 Qlib 数据新鲜或生产可用。
+- Retention/Archive/Storage 任务尚未接入正式 beat 调度、真实 PostgreSQL/外部归档对象、容量水位故障注入和恢复演练；`enforce` 仍需运维审批/授权，不会自动删除生产数据。
+- 全域 D0-D9 legacy/canonical 对账、PostgreSQL 生产 P95/WAL/锁/容量、备份恢复、CI Linux 实跑、旧链退役和 VPS release 仍未完成；继续保持不部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
