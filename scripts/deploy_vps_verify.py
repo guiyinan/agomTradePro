@@ -404,13 +404,23 @@ def build_canonical_schema_check_command(target_dir: str) -> str:
 
     required_tables = (
         "data_center_canonical_publication",
+        "data_center_coverage_snapshot",
         "data_center_publication_member",
+        "data_center_quarantine_record",
         "data_center_sync_run",
         "data_center_sync_batch",
         "data_center_sync_checkpoint",
         "data_center_raw_payload",
         "data_center_schema_fingerprint",
+        "data_center_archive_manifest",
+        "data_center_retention_policy",
+        "data_center_storage_hold",
+        "data_center_data_owner_registration",
+        "data_center_dataset_contract",
+        "data_center_dataset_provider_binding",
+        "data_center_dataset_publication_policy",
         "data_center_reconciliation_evidence",
+        "data_center_retention_run",
         "data_center_publication_rollback",
     )
     table_literal = repr(required_tables)
