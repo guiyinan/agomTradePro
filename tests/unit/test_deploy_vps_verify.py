@@ -156,6 +156,16 @@ def test_build_migration_check_command_rejects_unapplied_migrations():
     assert "exec -T web python manage.py migrate --check --noinput" in command
 
 
+def test_build_canonical_schema_check_command_rejects_old_data_center_schema():
+    command = deploy_vps_verify.build_canonical_schema_check_command("/opt/agomtradepro")
+
+    assert "exec -T web python -c" in command
+    assert "data_center_sync_run" in command
+    assert "data_center_sync_checkpoint" in command
+    assert "data_center_publication_rollback" in command
+    assert "canonical_control_plane_missing" in command
+
+
 def test_build_tui_metadata_check_command_compares_registry_with_release():
     command = deploy_vps_verify.build_tui_metadata_check_command("/opt/agomtradepro")
 

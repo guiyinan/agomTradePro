@@ -394,6 +394,45 @@ def build_migration_check_command(target_dir: str) -> str:
     )
 
 
+def build_canonical_schema_check_command(target_dir: str) -> str:
+    """Build a command that rejects releases missing canonical control-plane tables.
+
+    ``migrate --check`` can be green when an old image is self-consistent but
+    does not contain the newest migration files.  The table contract closes
+    that false-green deployment path for the Data Center cutover.
+    """
+
+    required_tables = (
+        "data_center_canonical_publication",
+        "data_center_publication_member",
+        "data_center_sync_run",
+        "data_center_sync_batch",
+        "data_center_sync_checkpoint",
+        "data_center_raw_landing",
+        "data_center_schema_fingerprint",
+        "data_center_reconciliation_evidence",
+        "data_center_publication_rollback",
+    )
+    table_literal = repr(required_tables)
+    python_code = (
+        "from django.db import connection; "
+        f"required=set({table_literal}); "
+        "actual=set(connection.introspection.table_names()); "
+        "missing=sorted(required-actual); "
+        "print('canonical_control_plane_missing=' + ','.join(missing)); "
+        "import sys; sys.exit(1 if missing else 0)"
+    )
+    return build_compose_command(
+        target_dir,
+        "exec",
+        "-T",
+        "web",
+        "python",
+        "-c",
+        python_code,
+    )
+
+
 def build_tui_metadata_check_command(target_dir: str) -> str:
     """Require the active TUI registry to match the deployed release artifact."""
 
@@ -648,6 +687,11 @@ def main() -> int:
                 "Migrations",
                 build_migration_check_command(args.target_dir),
                 max(args.timeout, 30),
+            ),
+            (
+                "Canonical Data Center schema",
+                build_canonical_schema_check_command(args.target_dir),
+                max(args.timeout, 60),
             ),
             (
                 "TUI metadata registry",
