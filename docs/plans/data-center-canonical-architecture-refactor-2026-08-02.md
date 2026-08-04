@@ -3971,3 +3971,12 @@ Git SHA / 镜像 / migration：
 - 已运行测试：`pytest tests/unit/agent_runtime/test_t5_context_snapshot_repository_contracts.py tests/unit/test_agent_runtime_context_snapshot_safety.py`：17 passed；`pytest tests/component/test_context_snapshot_repository.py`：2 passed；current-data 40 surfaces；architecture boundary/audit 0；mypy 0；Ruff 0。
 - 明确未做：未改变 Agent Task/Proposal/Portfolio 等 operational ORM 汇总，未部署、未修改本地/VPS provider 状态。
 - 未验证风险：Regime resolver 在生产调度下的耗时、政策 Application query 的生产数据覆盖和 PostgreSQL 性能仍待生产阶段证据。
+
+## 35. 2026-08-05：Terminal Regime response freshness 字段补齐
+
+- 目标：Terminal market-regime 响应的 `current_data_contract` 不仅给出阻断布尔值，还明确发布 freshness 状态。
+- 变更：根据 `CurrentRegimeResult.observed_at/is_stale` 输出 `freshness_status`（`fresh/stale/unavailable`），保留 source observation、阻断原因和 `must_not_use_for_decision`。
+- 治理：更新 `regime.current` 的 Terminal marker。
+- 已运行测试：`pytest tests/unit/terminal/test_chat_router.py`：3 passed；current-data 40 surfaces；mypy 0；Ruff 0。
+- 明确未做：未改变 Regime 计算、Policy 查询或 Terminal 文案路由，未部署、未修改本地/VPS provider 状态。
+- 未验证风险：生产 Terminal/MCP 网络链路和客户端对新增 freshness 字段的兼容性仍待 E2E 证据。

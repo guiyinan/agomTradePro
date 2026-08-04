@@ -270,6 +270,11 @@ class TerminalChatRouterService:
         policy = policy_repo.get_current_policy_level()
 
         regime_blocked = bool(getattr(regime, "must_not_use_for_decision", False))
+        regime_freshness_status = (
+            "stale"
+            if bool(getattr(regime, "is_stale", False))
+            else ("fresh" if regime.observed_at is not None else "unavailable")
+        )
         reply_lines = [
             "## Current Market Regime",
             f"- **Regime**: `{regime.dominant_regime}`",
@@ -299,6 +304,7 @@ class TerminalChatRouterService:
                 "current_data_contract": {
                     "observed_at": regime.observed_at,
                     "is_stale": bool(getattr(regime, "is_stale", False)),
+                    "freshness_status": regime_freshness_status,
                     "must_not_use_for_decision": regime_blocked,
                     "blocked_reason": str(getattr(regime, "blocked_reason", "") or ""),
                 },

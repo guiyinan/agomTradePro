@@ -105,4 +105,6 @@ def test_regime_response_discloses_stale_decision_block() -> None:
         )
 
     assert "Decision Safety**: `BLOCKED`" in response["reply"]
-    assert response["metadata"]["current_data_contract"]["must_not_use_for_decision"] is True
+    contract = response["metadata"]["current_data_contract"]
+    assert contract["must_not_use_for_decision"] is True
+    assert contract["freshness_status"] == "stale"

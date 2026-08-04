@@ -402,7 +402,8 @@
           "contract.get(\"must_not_use_for_decision\", False)"
         ],
         "apps/terminal/application/chat_router.py": [
-          "\"current_data_contract\""
+          "\"current_data_contract\"",
+          "\"freshness_status\": regime_freshness_status"
         ]
       },
       "required_tests": [
