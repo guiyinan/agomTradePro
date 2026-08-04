@@ -1626,6 +1626,15 @@ CI 观察结论：
 - 这只是受控回填进度，不代表 5,533 个资产已经覆盖完成；此前覆盖审计仍显示 valuation `fresh=415/sparse=5118`、quote `sparse=5533`，需要从 offset 100 继续并重新采集覆盖证据。
 - Tushare provider 尚未从生产配置删除；本批次只绕过 Tushare，不执行全量切读、停旧写、观察窗口或旧表清理。Publication-only、shadow reconciliation、PostgreSQL 性能/恢复和 M9/M10 门禁仍保持未通过。
 
+## 实施记录（2026-08-04，VPS M0 容量画像）
+
+本批次只读采集生产容量证据，不运行清理或 Docker prune。
+
+- VPS 根文件系统 `145G total / 48G used / 97G available (34%)`；Docker images `11.86GB`（7 images，约 `9.08GB` 可回收），build cache `5.708GB`，Redis `5.65MB` / `256MB maxmemory`。
+- PostgreSQL 数据库当前约 `1,377MB`；最大关系为 `data_center_price_bar 824MB`、`data_center_financial_fact 173MB`、`task_monitor_taskexecutionmodel 129MB`、`policy_log 72MB`、`data_center_valuation_fact 55MB`。
+- Web 容器 `/app/backups/database` 仍有 `58` 个备份文件、约 `2,943,396,798` bytes；这违反“VPS 最多一个 in-flight/不超过 24 小时”的目标，但由于尚未逐份完成外部校验，当前只登记风险，不删除任何文件。
+- 该画像补足 M0 的磁盘、PostgreSQL、Docker、Redis 和备份基线；仍缺 WAL/TOAST/索引锁预算、按 Dataset 增长预测、外部隔离恢复和 retention 故障注入。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
