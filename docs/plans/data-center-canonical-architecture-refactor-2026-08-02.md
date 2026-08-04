@@ -1642,6 +1642,12 @@ CI 观察结论：
 - active coverage 审计（lookback 365）为 price `fresh=5504/sparse=26/stale=3`、valuation `fresh=416/sparse=5117`、financial `fresh=5533`、quote `sparse=5533`。这说明“当前估值快照覆盖”和“365 天估值历史覆盖”是两个不同门槛；AKShare/Tencent 能补当前值，但不能据此宣称全市场日频估值历史已经完整。
 - 估值历史口径仍 fail-closed：不能把单日当前快照重复包装成 365 天历史，也不能用旧值覆盖观测日期。后续若要关闭历史估值缺口，需要可授权的 Tushare 官方 IP 或其他具备历史估值契约的 Provider，并完成跨源对账。
 
+## 实施记录（2026-08-04，partial checkpoint 不跳过失败资产）
+
+- offset `300→400` 回填中出现一次真实 `outcome=partial`：`000903.SZ` 财务同步失败，其他 19 个资产成功。旧管理命令会继续把 offset 推到 400，存在跳过失败资产的风险。
+- 修复管理命令：`outcome=partial` 与 `failed/blocked` 一样立即停止，保留当前 batch 的 `checkpoint.offset` 供重试；新增回归测试，相关 task/command 9 tests passed，ruff/mypy regression 通过。提交：`bd5a74ca`。
+- 在生产旧命令下从 offset 340 手动重试该 batch 已成功（20/20，`failed=0`），当前可安全从 offset 360 继续；本地修复尚未部署 VPS。
+
 ## 实施记录（2026-08-04，宏观 shadow audit 自然键修复）
 
 - 修复 `audit_macro_fact_consistency`：canonical/legacy revision 与跨源序列现在按 `source + period_type + reporting_period` 分组；同一日期的日频与月频事实不再被错误比较。跨源冲突示例同时输出 `period_type`，避免把不同频率当成同一序列。
