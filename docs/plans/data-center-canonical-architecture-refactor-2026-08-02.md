@@ -1510,6 +1510,20 @@
 - Retention/Archive/Storage 任务尚未接入正式 beat 调度、真实 PostgreSQL/外部归档对象、容量水位故障注入和恢复演练；`enforce` 仍需运维审批/授权，不会自动删除生产数据。
 - 全域 D0-D9 legacy/canonical 对账、PostgreSQL 生产 P95/WAL/锁/容量、备份恢复、CI Linux 实跑、旧链退役和 VPS release 仍未完成；继续保持不部署。
 
+## 实施记录（2026-08-04，架构清单刷新与临时 PostgreSQL 探针）
+
+本批次只刷新机器清单并尝试独立临时 PostgreSQL 证据，不接触现有服务容器、VPS 或生产数据。
+
+机器证据：
+
+- `python scripts/data_center_architecture_inventory.py --write` 后清单校验通过：`provider_imports_outside_data_center=0`、`cross_app_orm_imports=55`、`legacy_fact_references=143`、`current_surface_references=3046`、`data_write_task_decorators=55`、`runtime_parameter_references=49`、`external_http_imports_for_review=7`。这些是静态源代码计数，不是生产数据画像。
+- Docker CLI 曾返回 `postgres:16`，独立临时容器 `agomtradepro-codex-pg-20260804` 在 `127.0.0.1:55432` 监听并通过 TCP 探针；随后 Docker API/迁移进程出现无输出阻塞，未取得可信的 migration/backfill/Retention PostgreSQL 结果，临时容器已移除。不得把这次 TCP 可达性当作 PostgreSQL 集成通过证据。
+
+结论与风险：
+
+- 本地 PostgreSQL 端到端证据仍缺：空库迁移完成、Publication/member、A-share backfill durable control plane、Retention/Archive round-trip、查询/P95/锁/WAL 结果均未取得可复核输出；CI workflow wiring 也不等于 GitHub Actions 实跑。
+- 生产 PostgreSQL、备份恢复、容量/水位故障注入、连续观察窗口、旧链退役和 VPS release 继续保持阻断；后续必须在稳定、授权的 PostgreSQL runner 中重跑并保存完整日志/版本/连接信息。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
