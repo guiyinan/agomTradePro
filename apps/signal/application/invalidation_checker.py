@@ -16,6 +16,7 @@ from typing import Any, Protocol, cast
 
 from django.utils import timezone
 
+from apps.data_center.application.public import get_published_macro_fact_series
 from apps.signal.application.repository_provider import (
     get_signal_repository,
     get_user_repository,
@@ -107,34 +108,40 @@ class _MacroObservation:
 class _DataCenterMacroRepository:
     """Minimal macro read facade for signal invalidation checks."""
 
-    def __init__(self) -> None:
-        from apps.data_center.composition import get_macro_fact_repository
-
-        self._repository = get_macro_fact_repository()
+    @staticmethod
+    def _read_published_rows(code: str, *, limit: int) -> list[_MacroObservation]:
+        payload = get_published_macro_fact_series(code, limit=limit)
+        if bool(payload.get("must_not_use_for_decision")):
+            return []
+        rows = payload.get("rows")
+        if not isinstance(rows, list):
+            return []
+        observations: list[_MacroObservation] = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            try:
+                observed_at = date.fromisoformat(str(row.get("reporting_period") or ""))
+                value = float(row["value"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            observations.append(
+                _MacroObservation(
+                    code=code,
+                    value=value,
+                    observed_at=observed_at,
+                    unit=str(row.get("unit") or ""),
+                )
+            )
+        observations.sort(key=lambda item: item.observed_at)
+        return observations[-limit:]
 
     def get_latest_by_code(self, code: str) -> MacroObservationProtocol | None:
-        fact = self._repository.get_latest(code)
-        if fact is None:
-            return None
-        return _MacroObservation(
-            code=fact.indicator_code,
-            value=float(fact.value),
-            observed_at=fact.reporting_period,
-            unit=fact.unit or "",
-        )
+        observations = self._read_published_rows(code, limit=1)
+        return observations[-1] if observations else None
 
     def get_history_by_code(self, code: str, periods: int = 12) -> list[MacroObservationProtocol]:
-        facts = self._repository.get_series(code, limit=periods)
-        facts = list(reversed(facts))
-        return [
-            _MacroObservation(
-                code=fact.indicator_code,
-                value=float(fact.value),
-                observed_at=fact.reporting_period,
-                unit=fact.unit or "",
-            )
-            for fact in facts
-        ]
+        return list(reversed(self._read_published_rows(code, limit=periods)))
 
 
 class InvalidationCheckService:

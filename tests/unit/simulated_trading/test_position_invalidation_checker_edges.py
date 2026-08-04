@@ -169,13 +169,24 @@ def test_data_center_gateway_and_exported_helpers(monkeypatch) -> None:
             reporting_period=date(2026, 7, 24),
         ),
     ]
-    import apps.data_center.composition as composition
-
-    fact_repo = SimpleNamespace(
-        get_latest=lambda code: facts[-1] if code == "CN_PMI" else None,
-        get_series=lambda code, limit: facts,
+    monkeypatch.setattr(
+        checker_module,
+        "get_published_macro_fact_series",
+        lambda code, limit: {
+            "rows": [
+                {
+                    "indicator_code": code,
+                    "reporting_period": item.reporting_period.isoformat(),
+                    "value": item.value,
+                    "unit": item.unit,
+                }
+                for item in facts
+            ]
+            if code == "CN_PMI"
+            else [],
+            "must_not_use_for_decision": False,
+        },
     )
-    monkeypatch.setattr(composition, "get_macro_fact_repository", lambda: fact_repo)
     gateway = _DataCenterMacroGateway()
     assert gateway.get_latest_by_code("missing") is None
     assert gateway.get_latest_by_code("CN_PMI").value == 48.0

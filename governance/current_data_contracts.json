@@ -1117,7 +1117,9 @@
     "apps/regime/infrastructure/macro_data_provider.py",
     "apps/prompt/infrastructure/adapters/macro_adapter.py",
     "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-    "apps/strategy/infrastructure/providers.py"
+    "apps/strategy/infrastructure/providers.py",
+    "apps/simulated_trading/application/position_invalidation_checker.py",
+    "apps/signal/application/invalidation_checker.py"
       ],
       "required_markers": {
         "apps/data_center/application/public.py": [
@@ -1180,6 +1182,16 @@
       "get_macro_indicator_value(",
       "list_latest_published_macro_values(",
       "Error getting published macro indicator"
+    ],
+    "apps/simulated_trading/application/position_invalidation_checker.py": [
+      "get_published_macro_fact_series(",
+      "must_not_use_for_decision",
+      "_read_published_rows"
+    ],
+    "apps/signal/application/invalidation_checker.py": [
+      "get_published_macro_fact_series(",
+      "must_not_use_for_decision",
+      "_read_published_rows"
     ]
       },
       "required_tests": [
@@ -1272,6 +1284,16 @@
           "case": "strategy_macro_provider_fails_closed",
           "test_file": "tests/unit/strategy/test_external_providers.py",
           "test_function": "test_macro_data_provider_fails_closed_when_publication_port_is_unavailable"
+        },
+        {
+          "case": "simulated_position_invalidation_uses_publication",
+          "test_file": "tests/component/test_position_invalidation_data_center.py",
+          "test_function": "test_position_invalidation_gateway_reads_macro_facts_from_data_center"
+        },
+        {
+          "case": "signal_invalidation_uses_publication",
+          "test_file": "tests/unit/test_signal_invalidation_checker.py",
+          "test_function": "test_signal_macro_repository_uses_publication_members"
         }
       ]
     },

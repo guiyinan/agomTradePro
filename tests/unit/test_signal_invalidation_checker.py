@@ -1,6 +1,10 @@
+from datetime import date
 from unittest.mock import Mock
 
-from apps.signal.application.invalidation_checker import InvalidationCheckService
+from apps.signal.application.invalidation_checker import (
+    InvalidationCheckService,
+    _DataCenterMacroRepository,
+)
 from apps.signal.domain.entities import InvestmentSignal, SignalStatus
 from apps.signal.domain.invalidation import InvalidationCheckResult
 
@@ -15,6 +19,38 @@ class LegacySignalModelStub:
 
     def save(self) -> None:  # pragma: no cover - should never be called
         raise AssertionError("legacy model save should not be called from application layer")
+
+
+def test_signal_macro_repository_uses_publication_members(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "apps.signal.application.invalidation_checker.get_published_macro_fact_series",
+        lambda code, limit: {
+            "rows": [
+                {
+                    "indicator_code": code,
+                    "reporting_period": "2026-06-30",
+                    "value": 49.0,
+                    "unit": "index",
+                },
+                {
+                    "indicator_code": code,
+                    "reporting_period": "2026-07-24",
+                    "value": 48.0,
+                    "unit": "index",
+                },
+            ],
+            "must_not_use_for_decision": False,
+        },
+    )
+
+    repository = _DataCenterMacroRepository()
+
+    latest = repository.get_latest_by_code("CN_PMI")
+    history = repository.get_history_by_code("CN_PMI")
+
+    assert latest is not None
+    assert latest.value == 48.0
+    assert history[0].observed_at == date(2026, 7, 24)
 
 
 def test_legacy_signal_model_path_uses_repository_instead_of_model_save():

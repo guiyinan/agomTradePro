@@ -3926,3 +3926,12 @@ Git SHA / 镜像 / migration：
 - 已运行测试：`pytest tests/unit/strategy/test_provider_edges.py tests/unit/strategy/test_external_providers.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：10 passed；current-data 37 surfaces；architecture boundary/audit 0；mypy 0；Ruff/Black OK。
 - 明确未做：未修改 Strategy 其他业务配置、未修改本地/VPS provider 状态、未部署。
 - 未验证风险：生产策略脚本实际调用、生产 Publication 覆盖和 PostgreSQL 性能仍待生产阶段证据。
+
+## 30. 2026-08-05：证伪检查器宏观读取收口
+
+- 目标：避免持仓/信号证伪任务把未发布宏观事实当作当前观测。
+- 变更：`simulated_trading.application.position_invalidation_checker` 与 `signal.application.invalidation_checker` 改用 `get_published_macro_fact_series`，统一按 Publication member、freshness gate 读取；阻断或异常时返回空观测，保留 fail-closed 行为。
+- 治理：将两个检查器及其 gate 测试加入 `data_center.publication_only_d2_d3`。
+- 已运行测试：相关组件/单元测试 8 passed；current-data 37 surfaces；architecture boundary/audit 0；mypy 0；Ruff OK。
+- 明确未做：未改动信号/持仓业务规则本身，未部署、未修改本地/VPS provider 状态。
+- 未验证风险：生产 Celery 证伪任务的 Publication 覆盖与实际调度观测仍未完成。
