@@ -1465,6 +1465,28 @@
 - 当前 shadow 对账只证明注入快照的确定性导出和命令输出，尚未接入 legacy/canonical 生产读取、全市场覆盖、连续交易日/周末窗口或差异 owner/期限闭环。
 - PostgreSQL CI、备份恢复/rollback、Retention/Archive 实际调度与故障注入、全域 Publication rollback、旧链退役、生产观察和 VPS release 仍未验证；继续保持不部署。
 
+## 实施记录（2026-08-04，Publication rollback 与 SystemSettings 字段治理收口）
+
+本批次补齐两个本地控制面缺口：显式 Publication 恢复和遗留 SystemSettings 字段登记；不迁生产数据、不部署、不 push。
+
+已落地：
+
+- 新增 `RollbackCanonicalPublicationUseCase` 与 `CanonicalPublicationRepositoryPort.rollback`。恢复必须显式提供目标 `publication_id`、理由、操作者和 aware `observed_at`；目标必须是有完整成员/覆盖/时间证据的已 supersede 快照，且当前 scope 只能有一个已发布版本。切换在一个事务内完成，并写入 `PublicationRollbackModel` 审计记录。
+- `CanonicalPublication.reinstated_at` 与历史查询边界保持分离：rollback 前的 `as_of` 仍返回原当前快照，只有 rollback 观察时间之后才返回恢复快照；当前读取只接受显式恢复后的已发布状态，不通过非空旧值自动回拨。Publication/成员/coverage 模型已拆出独立模块，避免控制面模型注册表继续突破大文件门禁；旧 `infrastructure.models` 导入路径保留兼容 re-export。
+- `governance/runtime_config_contracts.json` 新增 `system_settings_field_contract`：静态 AST 扫描覆盖 `SystemSettingsModel` 全 48 个字段、7 组 owner/lifecycle/replacement 决策，其中 46 个兼容字段显式登记迁移替代物，2 个 metadata 字段标为 metadata。`scripts/check_system_settings_field_contract.py` 对缺失、未知、重复和兼容组缺 replacement 全部 fail closed，并已接入 fast-feedback CI。
+
+机器证据（本地）：
+
+- `pytest tests/unit/data_center/test_control_plane.py -q --reuse-db --no-migrations --disable-warnings --maxfail=1`：11 passed，覆盖恢复后的 current/historical 边界、审计字段、非 published/缺成员/时间不一致阻断和乱序发布护栏。
+- `pytest tests/unit/config_center/test_system_settings_field_contract.py -q --disable-warnings --maxfail=1`：4 passed；`python scripts/check_system_settings_field_contract.py`：48 fields / 7 groups / compatibility=46；CI workflow YAML 解析通过。
+- `python manage.py check`、`python manage.py makemigrations --check --dry-run`：无问题/No changes detected；相关生产文件 mypy regression 0，ruff/isort 通过；governance consistency、large-file guard：0 violations。
+
+仍未完成及风险：
+
+- rollback 目前是 Application/composition 控制面能力，尚未接入生产运维 API、审批/权限界面、真实 PostgreSQL 事务演练、备份恢复和 rollback runbook；本地 11 条测试不等于生产可操作性证据。
+- SystemSettings 字段契约只阻止继续无登记增列，不改变旧 getter/fallback 行为，也未完成 48 字段逐组迁移、消费者切换、字段删除和全量 RuntimeConfigDefinition 覆盖。
+- 全域 Publication rollback 的连续窗口观察、legacy/canonical 生产对账、PostgreSQL 生产规模、CI Linux 实跑、旧链退役和 VPS release 仍未完成；继续保持不部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
