@@ -1,7 +1,7 @@
 {
   "counts": {
-    "cross_app_orm_imports": 55,
-    "current_surface_references": 3051,
+    "cross_app_orm_imports": 53,
+    "current_surface_references": 3142,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 6,
     "legacy_fact_references": 143,
@@ -65,88 +65,73 @@
       "path": "apps/account/management/commands/bootstrap_mcp_cold_start.py"
     },
     {
-      "import": "apps.regime.infrastructure.models",
-      "line": 51,
-      "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
-    },
-    {
-      "import": "apps.policy.infrastructure.models",
-      "line": 72,
-      "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
-    },
-    {
       "import": "apps.account.infrastructure.models",
-      "line": 91,
+      "line": 104,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
     },
     {
       "import": "apps.signal.infrastructure.models",
-      "line": 114,
+      "line": 127,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
     },
     {
       "import": "apps.decision_rhythm.infrastructure.models",
-      "line": 152,
+      "line": 165,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
     },
     {
       "import": "apps.beta_gate.infrastructure.models",
-      "line": 169,
-      "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
-    },
-    {
-      "import": "apps.regime.infrastructure.models",
-      "line": 213,
+      "line": 182,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
     },
     {
       "import": "apps.ai_provider.infrastructure.models",
-      "line": 263,
+      "line": 273,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
     },
     {
       "import": "apps.audit.infrastructure.models",
-      "line": 279,
+      "line": 289,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
     },
     {
       "import": "apps.realtime.infrastructure.models",
-      "line": 296,
+      "line": 306,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
     },
     {
       "import": "apps.sentiment.infrastructure.models",
-      "line": 315,
+      "line": 325,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
     },
     {
       "import": "apps.decision_rhythm.infrastructure.models",
-      "line": 329,
+      "line": 339,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
     },
     {
       "import": "apps.signal.infrastructure.models",
-      "line": 350,
+      "line": 360,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
     },
     {
       "import": "apps.account.infrastructure.models",
-      "line": 369,
+      "line": 379,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
     },
     {
       "import": "apps.simulated_trading.infrastructure.models",
-      "line": 388,
+      "line": 398,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
     },
     {
       "import": "apps.regime.infrastructure.models",
-      "line": 404,
+      "line": 414,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
     },
     {
       "import": "apps.signal.infrastructure.models",
-      "line": 418,
+      "line": 428,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
     },
     {
@@ -233,6 +218,11 @@
       "import": "apps.pulse.infrastructure.models",
       "line": 504,
       "path": "apps/regime/infrastructure/repositories.py"
+    },
+    {
+      "import": "apps.agent_runtime.infrastructure.models",
+      "line": 15,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py"
     },
     {
       "import": "apps.ai_provider.infrastructure.models",
@@ -510,6 +500,106 @@
       "line": 28,
       "path": "apps/account/application/query_services.py",
       "text": "\"\"\"Return account summary metrics for operational diagnostics.\"\"\""
+    },
+    {
+      "line": 53,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "\"\"\"Portfolio-owned provider for exact and latest immutable snapshots.\"\"\""
+    },
+    {
+      "line": 61,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "\"\"\"Return the latest published snapshot visible at ``as_of_time``.\"\"\""
+    },
+    {
+      "line": 148,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "def _project(summary: ScenarioSummaryDTO) -> StressTestScenario:"
+    },
+    {
+      "line": 149,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "\"\"\"Project one typed Risk Center summary without a static fallback.\"\"\""
+    },
+    {
+      "line": 151,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "parameters = summary.revision.parameters"
+    },
+    {
+      "line": 155,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "scenario_id=summary.definition.scenario_key,"
+    },
+    {
+      "line": 156,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "name=summary.definition.name,"
+    },
+    {
+      "line": 157,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "description=summary.definition.description or parameters.event_description,"
+    },
+    {
+      "line": 160,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "revision_id=summary.revision.revision_id,"
+    },
+    {
+      "line": 161,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "version=summary.revision.version,"
+    },
+    {
+      "line": 162,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "content_hash=summary.revision.content_hash,"
+    },
+    {
+      "line": 166,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "\"\"\"Resolve a current historical revision by id, key, or legacy alias.\"\"\""
+    },
+    {
+      "line": 171,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "for summary in self._list.execute(scenario_type=ScenarioType.HISTORICAL_WINDOW):"
+    },
+    {
+      "line": 172,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "if summary.revision.revision_id == revision.revision_id:"
+    },
+    {
+      "line": 173,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "return self._project(summary)"
+    },
+    {
+      "line": 177,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "\"\"\"Return repository-ordered current historical scenarios.\"\"\""
+    },
+    {
+      "line": 180,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "self._project(summary)"
+    },
+    {
+      "line": 181,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "for summary in self._list.execute(scenario_type=ScenarioType.HISTORICAL_WINDOW)"
+    },
+    {
+      "line": 299,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "\"\"\"Run a current governed historical scenario, including legacy aliases.\"\"\""
+    },
+    {
+      "line": 313,
+      "path": "apps/account/application/stress_testing_use_cases.py",
+      "text": "\"\"\"Run every repository-current historical revision in catalog order.\"\"\""
     },
     {
       "line": 692,
@@ -1374,185 +1464,210 @@
     {
       "line": 53,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "latest = RegimeLog._default_manager.order_by(\"-observed_at\").first()"
+      "text": "current = resolve_current_regime()"
     },
     {
       "line": 54,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "if latest is None:"
+      "text": "status = \"blocked\" if current.must_not_use_for_decision else \"ok\""
+    },
+    {
+      "line": 57,
+      "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
+      "text": "\"dominant_regime\": current.dominant_regime,"
     },
     {
       "line": 58,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "\"dominant_regime\": latest.dominant_regime,"
+      "text": "\"growth_momentum_z\": current.growth_momentum_z,"
     },
     {
       "line": 59,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "\"growth_momentum_z\": latest.growth_momentum_z,"
+      "text": "\"inflation_momentum_z\": current.inflation_momentum_z,"
     },
     {
       "line": 60,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "\"inflation_momentum_z\": latest.inflation_momentum_z,"
+      "text": "\"distribution\": current.distribution,"
     },
     {
       "line": 61,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "\"distribution\": latest.distribution,"
+      "text": "\"observed_at\": _to_iso(current.observed_at),"
     },
     {
       "line": 62,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "\"observed_at\": str(latest.observed_at),"
+      "text": "\"data_source\": current.data_source,"
+    },
+    {
+      "line": 63,
+      "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
+      "text": "\"freshness_status\": \"stale\" if current.is_stale else \"fresh\","
+    },
+    {
+      "line": 64,
+      "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
+      "text": "\"must_not_use_for_decision\": current.must_not_use_for_decision,"
     },
     {
       "line": 65,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "_log_source_failure(\"Failed to fetch regime summary\", exc)"
+      "text": "\"blocked_reason\": current.blocked_reason,"
+    },
+    {
+      "line": 66,
+      "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
+      "text": "\"warnings\": list(current.warnings),"
     },
     {
       "line": 69,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
+      "text": "_log_source_failure(\"Failed to fetch regime summary\", exc)"
+    },
+    {
+      "line": 73,
+      "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "\"\"\"Fetch current policy gear status.\"\"\""
     },
     {
-      "line": 74,
+      "line": 82,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "latest = PolicyLog._default_manager.order_by(\"-event_date\").first()"
+      "text": "latest = get_recent_policy_event_summary(limit=1).get(\"latest\")"
     },
     {
-      "line": 75,
+      "line": 83,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "if latest is None:"
+      "text": "if not isinstance(latest, dict):"
     },
     {
-      "line": 79,
+      "line": 88,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "\"current_gear\": latest.level,"
+      "text": "\"event_date\": str(latest.get(\"event_date\") or status_payload.get(\"as_of_date\")),"
     },
     {
-      "line": 80,
+      "line": 89,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "\"event_date\": str(latest.event_date),"
+      "text": "\"description\": str(latest.get(\"title\") or \"\"),"
     },
     {
-      "line": 81,
+      "line": 91,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "\"description\": latest.description,"
+      "text": "\"observed_at\": str(latest.get(\"event_date\") or \"\"),"
     },
     {
-      "line": 84,
+      "line": 97,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "_log_source_failure(\"Failed to fetch policy summary\", exc)"
     },
     {
-      "line": 107,
+      "line": 120,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "_log_source_failure(\"Failed to fetch portfolio summary\", exc)"
     },
     {
-      "line": 111,
+      "line": 124,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "\"\"\"Fetch active investment signals summary.\"\"\""
     },
     {
-      "line": 149,
+      "line": 162,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "\"\"\"Fetch open decision requests summary.\"\"\""
     },
     {
-      "line": 256,
+      "line": 266,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "_log_source_failure(\"Failed to fetch event bus summary\", exc)"
     },
     {
-      "line": 272,
+      "line": 282,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "_log_source_failure(\"Failed to fetch AI provider summary\", exc)"
     },
     {
-      "line": 276,
+      "line": 286,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "\"\"\"Fetch latest audit activity timestamp.\"\"\""
     },
     {
-      "line": 289,
+      "line": 299,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "_log_source_failure(\"Failed to fetch audit freshness summary\", exc)"
     },
     {
-      "line": 293,
+      "line": 303,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "\"\"\"Fetch realtime price alert counts.\"\"\""
     },
     {
-      "line": 296,
+      "line": 306,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 308,
+      "line": 318,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "_log_source_failure(\"Failed to fetch price alert summary\", exc)"
     },
     {
-      "line": 309,
+      "line": 319,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "return _unavailable(\"realtime\")"
     },
     {
-      "line": 312,
+      "line": 322,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "\"\"\"Fetch latest sentiment update timestamp.\"\"\""
     },
     {
-      "line": 317,
+      "line": 327,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "latest = SentimentIndexModel._default_manager.order_by(\"-created_at\").first()"
     },
     {
-      "line": 318,
+      "line": 328,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "if latest is None:"
     },
     {
-      "line": 320,
+      "line": 330,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "return {\"status\": \"ok\", \"sentiment\": latest.created_at.isoformat()}"
     },
     {
-      "line": 322,
+      "line": 332,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "_log_source_failure(\"Failed to fetch sentiment freshness summary\", exc)"
     },
     {
-      "line": 343,
+      "line": 353,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "_log_source_failure(\"Failed to fetch decision quota summary\", exc)"
     },
     {
-      "line": 359,
+      "line": 369,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "_log_source_failure(\"Failed to fetch pending signal summary\", exc)"
     },
     {
-      "line": 381,
+      "line": 391,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "_log_source_failure(\"Failed to fetch portfolio position summary\", exc)"
     },
     {
-      "line": 397,
+      "line": 407,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "_log_source_failure(\"Failed to fetch simulated account summary\", exc)"
     },
     {
-      "line": 411,
+      "line": 421,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "_log_source_failure(\"Failed to fetch regime history summary\", exc)"
     },
     {
-      "line": 429,
+      "line": 439,
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "_log_source_failure(\"Failed to fetch signal invalidation summary\", exc)"
     },
@@ -4802,57 +4917,57 @@
       "text": "fetched_at=latest.snapshot_at,"
     },
     {
-      "line": 67,
+      "line": 72,
       "path": "apps/data_center/application/price_service.py",
       "text": "if self.freshness not in {\"historical\", \"realtime\", \"close_fallback\"}:"
     },
     {
-      "line": 73,
+      "line": 78,
       "path": "apps/data_center/application/price_service.py",
       "text": "if self.freshness == \"realtime\" and self.observed_at is None:"
     },
     {
-      "line": 177,
+      "line": 182,
       "path": "apps/data_center/application/price_service.py",
       "text": "\"\"\"Return the latest decision-safe price with source observation metadata.\"\"\""
     },
     {
-      "line": 263,
+      "line": 268,
       "path": "apps/data_center/application/price_service.py",
       "text": "freshness=\"realtime\","
     },
     {
-      "line": 347,
+      "line": 382,
       "path": "apps/data_center/application/price_service.py",
       "text": "logger.debug(\"Realtime quote lookup failed for %s: %s\", normalized_code, exc)"
     },
     {
-      "line": 353,
+      "line": 388,
       "path": "apps/data_center/application/price_service.py",
       "text": "\"Realtime quote rejected by freshness contract: asset_code=%s \""
     },
     {
-      "line": 382,
+      "line": 423,
       "path": "apps/data_center/application/price_service.py",
-      "text": "latest = self._dc_price_repo.get_latest(normalized_code)"
+      "text": "latest = self._price_bar_from_payload(rows[-1], normalized_code)"
     },
     {
-      "line": 383,
+      "line": 424,
       "path": "apps/data_center/application/price_service.py",
       "text": "if latest is None:"
     },
     {
-      "line": 387,
+      "line": 428,
       "path": "apps/data_center/application/price_service.py",
       "text": "observed_at=latest.bar_date,"
     },
     {
-      "line": 393,
+      "line": 434,
       "path": "apps/data_center/application/price_service.py",
       "text": "latest.bar_date.isoformat(),"
     },
     {
-      "line": 396,
+      "line": 437,
       "path": "apps/data_center/application/price_service.py",
       "text": "return latest"
     },
@@ -4877,57 +4992,62 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 431,
+      "line": 432,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 437,
+      "line": 438,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read fresh, member-bound macro values for current-facing consumers.\"\"\""
     },
     {
-      "line": 485,
+      "line": 486,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 505,
+      "line": 506,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 512,
+      "line": 513,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 537,
+      "line": 538,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 539,
+      "line": 540,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 547,
+      "line": 548,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
       "line": 552,
       "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
+      "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
     },
     {
-      "line": 567,
+      "line": 565,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 583,
+      "line": 570,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
+    },
+    {
+      "line": 585,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
@@ -4937,47 +5057,52 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 618,
+      "line": 619,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 634,
+      "line": 636,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 671,
+      "line": 652,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 689,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 674,
+      "line": 692,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 678,
+      "line": 696,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 680,
+      "line": 698,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 683,
+      "line": 701,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 684,
+      "line": 702,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 786,
+      "line": 804,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -5207,137 +5332,137 @@
       "text": "\"summary\": article.summary,"
     },
     {
-      "line": 42,
+      "line": 43,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return data-center summary counts for operational diagnostics.\"\"\""
     },
     {
-      "line": 122,
+      "line": 123,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest canonical quote payloads, preserving source observation time.\"\"\""
     },
     {
-      "line": 149,
+      "line": 150,
       "path": "apps/data_center/application/query_services.py",
-      "text": "\"\"\"Return the latest canonical macro indicator value for one code.\"\"\""
+      "text": "\"\"\"Return a current macro value only when its Publication gate passes.\"\"\""
     },
     {
-      "line": 151,
-      "path": "apps/data_center/application/query_services.py",
-      "text": "latest = get_macro_fact_repository().get_latest(indicator_code)"
-    },
-    {
-      "line": 152,
-      "path": "apps/data_center/application/query_services.py",
-      "text": "return float(latest.value) if latest is not None else None"
-    },
-    {
-      "line": 204,
+      "line": 220,
       "path": "apps/data_center/application/query_services.py",
       "text": "This explicit current-data port prevents a non-empty, unpublished, or"
     },
     {
-      "line": 239,
+      "line": 255,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 244,
+      "line": 260,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read fund NAV facts only from the selected current publication members.\"\"\""
     },
     {
-      "line": 372,
+      "line": 388,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a freshness-validated gate for one current publication.\"\"\""
     },
     {
-      "line": 472,
+      "line": 488,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Parse a publication knowledge boundary for current-row upper bounds.\"\"\""
     },
     {
-      "line": 496,
+      "line": 512,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Limit a current-data query to the publication's knowledge boundary.\"\"\""
     },
     {
-      "line": 508,
+      "line": 524,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 534,
+      "line": 550,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 571,
+      "line": 586,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 573,
+      "line": 590,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "\"\"\"Read quote snapshots only from the selected current publication members.\"\"\""
+    },
+    {
+      "line": 626,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 628,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read financial facts only after the current financial publication gate.\"\"\""
     },
     {
-      "line": 600,
+      "line": 655,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 602,
+      "line": 657,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read valuation facts only after the current valuation publication gate.\"\"\""
     },
     {
-      "line": 629,
+      "line": 684,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 656,
+      "line": 711,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 701,
+      "line": 756,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 795,
+      "line": 850,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 853,
+      "line": 908,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read current market breadth only after every component is published."
     },
     {
-      "line": 943,
+      "line": 998,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 956,
+      "line": 1011,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return only fresh, member-bound macro values for current consumers."
     },
     {
-      "line": 958,
+      "line": 1013,
       "path": "apps/data_center/application/query_services.py",
       "text": "The cache-warmup helper above intentionally reads the latest canonical fact"
     },
     {
-      "line": 959,
+      "line": 1014,
       "path": "apps/data_center/application/query_services.py",
       "text": "for deployment warming and maintenance.  Current/ops consumers must not"
     },
     {
-      "line": 1001,
+      "line": 1056,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return the latest market thermometer snapshot as a JSON-safe payload.\"\"\""
     },
@@ -6462,7 +6587,7 @@
       "text": "summary=article.summary,"
     },
     {
-      "line": 234,
+      "line": 237,
       "path": "apps/data_center/infrastructure/market_data_repositories.py",
       "text": "becomes the realtime observation boundary."
     },
@@ -7032,42 +7157,32 @@
       "text": "\"\"\"Return latest workspace recommendation state for one account.\"\"\""
     },
     {
-      "line": 20,
+      "line": 22,
       "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
       "text": "from apps.realtime.domain.entities import PricePollingConfig"
     },
     {
-      "line": 36,
-      "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
-      "text": "from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository"
-    },
-    {
-      "line": 331,
+      "line": 345,
       "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
       "text": "\"\"\"Return the latest sentiment quality contract for one security.\"\"\""
     },
     {
-      "line": 396,
+      "line": 409,
       "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
       "text": "\"\"\"Return the latest flow quality contract for one security.\"\"\""
     },
     {
-      "line": 404,
-      "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
-      "text": "from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository"
-    },
-    {
-      "line": 784,
+      "line": 807,
       "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
       "text": "\"\"\"Check the gate with caller-supplied context or current feature values.\"\"\""
     },
     {
-      "line": 942,
+      "line": 965,
       "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
       "text": "\"\"\"Fetch latest Alpha ranking scores through the owning application service.\"\"\""
     },
     {
-      "line": 977,
+      "line": 1000,
       "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
       "text": "logger.warning(f\"Failed to get latest alpha ranking candidates: {e}\")"
     },
@@ -7657,12 +7772,17 @@
       "text": "\"dividend_yield\": latest.dividend_yield,"
     },
     {
-      "line": 24,
+      "line": 26,
       "path": "apps/equity/infrastructure/intraday_repository.py",
       "text": "from apps.realtime.domain.entities import PricePollingConfig"
     },
     {
-      "line": 350,
+      "line": 142,
+      "path": "apps/equity/infrastructure/intraday_repository.py",
+      "text": "publication_key=\"current\","
+    },
+    {
+      "line": 384,
       "path": "apps/equity/infrastructure/intraday_repository.py",
       "text": "from apps.realtime.infrastructure.repositories import ("
     },
@@ -7900,6 +8020,26 @@
       "line": 510,
       "path": "apps/factor/interface/views.py",
       "text": "\"\"\"Return the latest persisted holdings for a factor config.\"\"\""
+    },
+    {
+      "line": 206,
+      "path": "apps/fund/application/interface_services.py",
+      "text": "\"\"\"Return the current fund NAV series with publication evidence."
+    },
+    {
+      "line": 208,
+      "path": "apps/fund/application/interface_services.py",
+      "text": "The default fund NAV screen is a current-data consumer. Historical ranges"
+    },
+    {
+      "line": 210,
+      "path": "apps/fund/application/interface_services.py",
+      "text": "closed when the current fund publication is missing or stale."
+    },
+    {
+      "line": 217,
+      "path": "apps/fund/application/interface_services.py",
+      "text": "publication_key=\"current\","
     },
     {
       "line": 174,
@@ -8197,62 +8337,77 @@
       "text": "\"period_type\": latest[\"period_type\"],"
     },
     {
-      "line": 148,
+      "line": 153,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"\"\"Return current Regime context for the macro overview page.\"\"\""
     },
     {
-      "line": 156,
+      "line": 161,
       "path": "apps/macro/application/interface_services.py",
       "text": "logger.exception(\"Failed to load Regime summary for macro page snapshot\")"
     },
     {
-      "line": 188,
+      "line": 193,
       "path": "apps/macro/application/interface_services.py",
       "text": "logger.exception(\"Failed to load Pulse summary for macro page snapshot\")"
     },
     {
-      "line": 438,
+      "line": 431,
+      "path": "apps/macro/application/interface_services.py",
+      "text": "\"\"\"Return selected publication members for one current macro series."
+    },
+    {
+      "line": 435,
+      "path": "apps/macro/application/interface_services.py",
+      "text": "legacy latest-fact query."
+    },
+    {
+      "line": 465,
+      "path": "apps/macro/application/interface_services.py",
+      "text": "current/latest values must come from freshness-validated Publication"
+    },
+    {
+      "line": 512,
       "path": "apps/macro/application/interface_services.py",
       "text": "latest = read_repository.get_latest_indicator(code)"
     },
     {
-      "line": 439,
+      "line": 513,
       "path": "apps/macro/application/interface_services.py",
       "text": "if latest is not None:"
     },
     {
-      "line": 440,
+      "line": 514,
       "path": "apps/macro/application/interface_services.py",
       "text": "latest_by_code[code] = latest"
     },
     {
-      "line": 558,
+      "line": 684,
       "path": "apps/macro/application/interface_services.py",
       "text": "summary = read_repository.get_storage_summary()"
     },
     {
-      "line": 613,
+      "line": 739,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"total_records\": summary[\"total_records\"],"
     },
     {
-      "line": 614,
+      "line": 740,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"latest_date\": summary[\"latest_date\"],"
     },
     {
-      "line": 616,
+      "line": 742,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"min_date\": summary[\"min_date\"],"
     },
     {
-      "line": 617,
+      "line": 743,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"max_date\": summary[\"max_date\"],"
     },
     {
-      "line": 666,
+      "line": 792,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"summary\": summary_use_case.execute(),"
     },
@@ -8317,12 +8472,12 @@
       "text": "TUI overview below is a read-only projection of the current application"
     },
     {
-      "line": 132,
+      "line": 133,
       "path": "apps/macro/interface/tui_views.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 227,
+      "line": 232,
       "path": "apps/macro/interface/tui_views.py",
       "text": "\"summary\": {"
     },
@@ -11437,6 +11592,31 @@
       "text": "\"summary\": {"
     },
     {
+      "line": 110,
+      "path": "apps/risk_center/application/scenario_dtos.py",
+      "text": "\"\"\"Read projection for one definition and its latest eligible revision.\"\"\""
+    },
+    {
+      "line": 36,
+      "path": "apps/risk_center/application/scenario_ports.py",
+      "text": "\"\"\"Return the latest eligible revision per requested definition scope.\"\"\""
+    },
+    {
+      "line": 104,
+      "path": "apps/risk_center/application/scenario_ports.py",
+      "text": "\"\"\"Data Center-owned published historical/current data provider.\"\"\""
+    },
+    {
+      "line": 38,
+      "path": "apps/risk_center/application/scenario_public.py",
+      "text": "\"\"\"List repository-driven current scenarios with no code fallback.\"\"\""
+    },
+    {
+      "line": 63,
+      "path": "apps/risk_center/application/scenario_use_cases.py",
+      "text": "\"\"\"Return current revisions without any static catalog fallback.\"\"\""
+    },
+    {
       "line": 176,
       "path": "apps/risk_center/application/trade_guard.py",
       "text": "\"\"\"Evaluate current holdings against the resolved risk-center policy.\"\"\""
@@ -11470,6 +11650,271 @@
       "line": 419,
       "path": "apps/risk_center/application/trade_guard.py",
       "text": "violations.append(f\"{label} breached: current={value:.4f}, limit={numeric_limit:.4f}\")"
+    },
+    {
+      "line": 649,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "current = context.state.current_activation"
+    },
+    {
+      "line": 650,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "if target is None or current is None:"
+    },
+    {
+      "line": 651,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "raise self._target_not_found(\"rollback target or current activation\")"
+    },
+    {
+      "line": 654,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "latest = ("
+    },
+    {
+      "line": 659,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "next_version = (latest.version if latest is not None else 0) + 1"
+    },
+    {
+      "line": 818,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "latest = None"
+    },
+    {
+      "line": 823,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "latest = revisions.filter(definition=definition).order_by(\"-version\").first()"
+    },
+    {
+      "line": 833,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "version=(latest.version if latest is not None else 0) + 1,"
+    },
+    {
+      "line": 834,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "based_on_version=(latest.version if latest is not None else None),"
+    },
+    {
+      "line": 847,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "base_version=(latest.version if latest is not None else None),"
+    },
+    {
+      "line": 848,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "base_hash=(latest.content_hash if latest is not None else None),"
+    },
+    {
+      "line": 851,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "latest_revision=latest,"
+    },
+    {
+      "line": 883,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "current = self._current_activation(request, lock=lock)"
+    },
+    {
+      "line": 886,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "base_version=(current.scenario_set_revision.version if current else None),"
+    },
+    {
+      "line": 887,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "base_hash=(current.scenario_set_revision.content_hash if current else None),"
+    },
+    {
+      "line": 890,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "current_activation=current,"
+    },
+    {
+      "line": 922,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "current = self._current_activation(request, lock=lock)"
+    },
+    {
+      "line": 923,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "if current is None:"
+    },
+    {
+      "line": 929,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "if current.scenario_set_revision.scenario_set_id != scenario_set.pk:"
+    },
+    {
+      "line": 937,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "base_version=current.scenario_set_revision.version,"
+    },
+    {
+      "line": 938,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "base_hash=current.scenario_set_revision.content_hash,"
+    },
+    {
+      "line": 941,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "current_activation=current,"
+    },
+    {
+      "line": 961,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "latest = revisions.filter(definition=definition).order_by(\"-version\").first()"
+    },
+    {
+      "line": 962,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "if latest is None:"
+    },
+    {
+      "line": 968,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "\"previous_content_hash\": latest.content_hash,"
+    },
+    {
+      "line": 973,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "base_version=latest.version,"
+    },
+    {
+      "line": 974,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "base_hash=latest.content_hash,"
+    },
+    {
+      "line": 977,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "latest_revision=latest,"
+    },
+    {
+      "line": 1002,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "current = context.state.current_activation"
+    },
+    {
+      "line": 1004,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 1005,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "current.is_active = False"
+    },
+    {
+      "line": 1006,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "current.deactivated_at = now"
+    },
+    {
+      "line": 1007,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "current.save(update_fields=[\"is_active\", \"deactivated_at\"])"
+    },
+    {
+      "line": 1013,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "previous_activation=current,"
+    },
+    {
+      "line": 1394,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "\"active or latest scenario version changed\","
+    },
+    {
+      "line": 177,
+      "path": "apps/risk_center/infrastructure/scenario_repositories.py",
+      "text": "current: list[ScenarioRevision] = []"
+    },
+    {
+      "line": 183,
+      "path": "apps/risk_center/infrastructure/scenario_repositories.py",
+      "text": "current.append(_revision_to_domain(model))"
+    },
+    {
+      "line": 184,
+      "path": "apps/risk_center/infrastructure/scenario_repositories.py",
+      "text": "return tuple(current)"
+    },
+    {
+      "line": 335,
+      "path": "apps/risk_center/infrastructure/scenario_repositories.py",
+      "text": "latest = ("
+    },
+    {
+      "line": 340,
+      "path": "apps/risk_center/infrastructure/scenario_repositories.py",
+      "text": "latest_version = latest.version if latest is not None else None"
+    },
+    {
+      "line": 459,
+      "path": "apps/risk_center/infrastructure/scenario_repositories.py",
+      "text": "current = ("
+    },
+    {
+      "line": 468,
+      "path": "apps/risk_center/infrastructure/scenario_repositories.py",
+      "text": "current_id = str(current.activation_id) if current is not None else None"
+    },
+    {
+      "line": 475,
+      "path": "apps/risk_center/infrastructure/scenario_repositories.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 476,
+      "path": "apps/risk_center/infrastructure/scenario_repositories.py",
+      "text": "current.is_active = False"
+    },
+    {
+      "line": 477,
+      "path": "apps/risk_center/infrastructure/scenario_repositories.py",
+      "text": "current.deactivated_at = activated_at"
+    },
+    {
+      "line": 478,
+      "path": "apps/risk_center/infrastructure/scenario_repositories.py",
+      "text": "current.save(update_fields=[\"is_active\", \"deactivated_at\"])"
+    },
+    {
+      "line": 484,
+      "path": "apps/risk_center/infrastructure/scenario_repositories.py",
+      "text": "previous_activation=current,"
+    },
+    {
+      "line": 209,
+      "path": "apps/risk_center/interface/scenario_api_views.py",
+      "text": "summary = next("
+    },
+    {
+      "line": 218,
+      "path": "apps/risk_center/interface/scenario_api_views.py",
+      "text": "if summary is None:"
+    },
+    {
+      "line": 223,
+      "path": "apps/risk_center/interface/scenario_api_views.py",
+      "text": "payload = present_summary(summary)"
+    },
+    {
+      "line": 42,
+      "path": "apps/risk_center/interface/scenario_presenters.py",
+      "text": "def present_summary(summary: ScenarioSummaryDTO) -> dict[str, Any]:"
+    },
+    {
+      "line": 45,
+      "path": "apps/risk_center/interface/scenario_presenters.py",
+      "text": "definition = summary.definition"
+    },
+    {
+      "line": 54,
+      "path": "apps/risk_center/interface/scenario_presenters.py",
+      "text": "\"revision\": present_revision(summary.revision),"
     },
     {
       "line": 89,
@@ -12467,27 +12912,27 @@
       "text": "snapshot = ShareSnapshotModel.objects.filter(share_link=active_share_link).latest("
     },
     {
-      "line": 283,
+      "line": 290,
       "path": "apps/signal/application/invalidation_checker.py",
       "text": "latest = self.macro_repo.get_latest_by_code(code)"
     },
     {
-      "line": 284,
+      "line": 291,
       "path": "apps/signal/application/invalidation_checker.py",
       "text": "if latest:"
     },
     {
-      "line": 288,
+      "line": 295,
       "path": "apps/signal/application/invalidation_checker.py",
       "text": "current_value=latest.value,"
     },
     {
-      "line": 290,
+      "line": 297,
       "path": "apps/signal/application/invalidation_checker.py",
       "text": "unit=latest.unit or \"\","
     },
     {
-      "line": 291,
+      "line": 298,
       "path": "apps/signal/application/invalidation_checker.py",
       "text": "last_updated=latest.observed_at.isoformat() if latest.observed_at else None,"
     },
@@ -12852,37 +13297,37 @@
       "text": "summary dict with keys: account_id, initial_capital_written,"
     },
     {
-      "line": 70,
+      "line": 80,
       "path": "apps/simulated_trading/application/position_invalidation_checker.py",
       "text": "\"\"\"Return the latest observation for one indicator.\"\"\""
     },
     {
-      "line": 122,
+      "line": 132,
       "path": "apps/simulated_trading/application/position_invalidation_checker.py",
       "text": "\"\"\"Summary of one position invalidated by a batch check.\"\"\""
     },
     {
-      "line": 278,
+      "line": 288,
       "path": "apps/simulated_trading/application/position_invalidation_checker.py",
       "text": "latest = self.macro_repo.get_latest_by_code(code)"
     },
     {
-      "line": 279,
+      "line": 289,
       "path": "apps/simulated_trading/application/position_invalidation_checker.py",
       "text": "if latest:"
     },
     {
-      "line": 283,
+      "line": 293,
       "path": "apps/simulated_trading/application/position_invalidation_checker.py",
       "text": "current_value=latest.value,"
     },
     {
-      "line": 285,
+      "line": 295,
       "path": "apps/simulated_trading/application/position_invalidation_checker.py",
       "text": "unit=latest.unit or \"\","
     },
     {
-      "line": 286,
+      "line": 296,
       "path": "apps/simulated_trading/application/position_invalidation_checker.py",
       "text": "last_updated=latest.observed_at.isoformat() if latest.observed_at else None,"
     },
@@ -13182,29 +13627,29 @@
       "text": "based on current portfolio, regime, and risk profile."
     },
     {
-      "line": 51,
+      "line": 53,
       "path": "apps/strategy/application/allocation_service.py",
       "text": "summary: str"
     },
     {
-      "line": 125,
+      "line": 127,
       "path": "apps/strategy/application/allocation_service.py",
       "text": "summary = cls._generate_summary("
     },
     {
-      "line": 139,
+      "line": 141,
       "path": "apps/strategy/application/allocation_service.py",
       "text": "summary=summary,"
     },
     {
-      "line": 188,
+      "line": 190,
       "path": "apps/strategy/application/allocation_service.py",
       "text": "current: dict[str, float],"
     },
     {
-      "line": 200,
+      "line": 201,
       "path": "apps/strategy/application/allocation_service.py",
-      "text": "k: round(target_dict[k] - current.get(k, 0.0), 3)"
+      "text": "diff = {k: round(target_dict[k] - current.get(k, 0.0), 3) for k in target_dict.keys()}"
     },
     {
       "line": 288,
@@ -13222,12 +13667,12 @@
       "text": "'current': daily_trade_count,"
     },
     {
-      "line": 33,
+      "line": 37,
       "path": "apps/strategy/infrastructure/providers.py",
       "text": "\"\"\"Position summary fields consumed by the strategy provider.\"\"\""
     },
     {
-      "line": 171,
+      "line": 178,
       "path": "apps/strategy/infrastructure/providers.py",
       "text": "logger.error(f\"Error getting current regime: {e}\")"
     },
@@ -13457,52 +13902,52 @@
       "text": "\"Choose market_regime only when the user is asking about macro regime, market regime, policy regime, or current market environment. \""
     },
     {
-      "line": 383,
+      "line": 389,
       "path": "apps/terminal/application/chat_router.py",
       "text": "\"summary\": f\"Classified input as {decision.intent} with confidence {decision.confidence:.2f}.\","
     },
     {
-      "line": 388,
+      "line": 394,
       "path": "apps/terminal/application/chat_router.py",
       "text": "\"summary\": f\"Suggested command {suggested_command} instead of executing directly.\","
     },
     {
-      "line": 413,
+      "line": 419,
       "path": "apps/terminal/application/chat_router.py",
       "text": "\"summary\": f\"Recognized a system status query with confidence {decision.confidence:.2f}.\","
     },
     {
-      "line": 418,
+      "line": 424,
       "path": "apps/terminal/application/chat_router.py",
       "text": "\"summary\": \"Collected current database, cache, worker, and critical data readiness.\","
     },
     {
-      "line": 423,
+      "line": 429,
       "path": "apps/terminal/application/chat_router.py",
       "text": "\"summary\": \"Summarized the current operational state for terminal display.\","
     },
     {
-      "line": 450,
+      "line": 456,
       "path": "apps/terminal/application/chat_router.py",
       "text": "\"summary\": f\"Recognized a market regime query with confidence {decision.confidence:.2f}.\","
     },
     {
-      "line": 455,
+      "line": 461,
       "path": "apps/terminal/application/chat_router.py",
       "text": "\"summary\": \"Loaded the current regime snapshot and current policy level.\","
     },
     {
-      "line": 460,
+      "line": 466,
       "path": "apps/terminal/application/chat_router.py",
       "text": "\"summary\": \"Prepared a user-facing summary of regime and policy context.\","
     },
     {
-      "line": 488,
+      "line": 494,
       "path": "apps/terminal/application/chat_router.py",
       "text": "\"summary\": f\"Classified the input as general chat with confidence {decision.confidence:.2f}.\","
     },
     {
-      "line": 493,
+      "line": 499,
       "path": "apps/terminal/application/chat_router.py",
       "text": "\"summary\": \"Sent the request to the selected AI provider and returned the generated answer.\","
     },
@@ -14257,22 +14702,22 @@
       "text": "key=\"dashboard.overview-summary\","
     },
     {
-      "line": 614,
+      "line": 621,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_data_center.py",
       "text": "key=\"data-center.universe-summary\","
     },
     {
-      "line": 616,
+      "line": 623,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_data_center.py",
       "text": "endpoint=\"/api/data-center/production-coverage/summary/\","
     },
     {
-      "line": 691,
+      "line": 698,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_data_center.py",
       "text": "key=\"data-center.market-thermometer-current\","
     },
     {
-      "line": 693,
+      "line": 700,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_data_center.py",
       "text": "endpoint=\"/api/data-center/market-thermometer/current/\","
     },
@@ -15332,22 +15777,22 @@
       "text": "\"apps.realtime\",  # 新增：实时价格监控模块"
     },
     {
-      "line": 598,
+      "line": 602,
       "path": "core/settings/base.py",
       "text": "\"daily-signal-summary\": {"
     },
     {
-      "line": 673,
+      "line": 677,
       "path": "core/settings/base.py",
       "text": "\"simulated-daily-summary\": {"
     },
     {
-      "line": 720,
+      "line": 724,
       "path": "core/settings/base.py",
       "text": "\"realtime-update-prices-after-close\": {"
     },
     {
-      "line": 899,
+      "line": 903,
       "path": "core/settings/base.py",
       "text": "\"sentiment-refresh-current-index\": {"
     },

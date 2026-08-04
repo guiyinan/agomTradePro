@@ -1807,8 +1807,9 @@
           "freshness_status = serializers.CharField"
         ],
         "apps/equity/infrastructure/intraday_repository.py": [
+          "get_published_quote_series(",
           "_has_usable_intraday_snapshot_points",
-          "Skip stale or sparse quote snapshots"
+          "Skip stale or sparse published quote snapshots"
         ]
       },
       "required_tests": [
@@ -1821,6 +1822,11 @@
           "case": "intraday_source_failures_remain_explicit",
           "test_file": "tests/api/test_equity_api_edges.py",
           "test_function": "test_equity_intraday_chart_degrades_cleanly_when_sources_fail"
+        },
+        {
+          "case": "intraday_prefers_publication_members",
+          "test_file": "tests/unit/test_equity_repository_intraday.py",
+          "test_function": "test_get_intraday_points_prefers_local_quote_snapshots_before_remote"
         }
       ]
     },

@@ -580,6 +580,45 @@ def query_published_price_bar_series(
     }
 
 
+def query_published_quote_series(
+    asset_code: str,
+    *,
+    publication_key: str = "current",
+    snapshot_date: date | None = None,
+    limit: int = 500,
+) -> dict[str, object]:
+    """Read quote snapshots only from the selected current publication members."""
+
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
+        raise ValueError("limit must be a positive integer")
+    gate = _publication_gate("equity.quote.snapshot", publication_key)
+    if gate is None or bool(gate.get("must_not_use_for_decision")):
+        return _blocked_publication_result(gate)
+    member_pks = _publication_member_fact_pks(
+        gate,
+        expected_fact_table="data_center_quote_snapshot",
+    )
+    if member_pks == []:
+        return _blocked_publication_members_result(gate)
+    publication_as_of = _publication_as_of_date(gate)
+    if snapshot_date is not None and publication_as_of is not None:
+        if snapshot_date > publication_as_of:
+            result = _blocked_publication_result(gate)
+            result["blocked_reason"] = "publication_as_of_before_requested_range"
+            return result
+    repository = get_quote_snapshot_repository()
+    rows = repository.get_series(
+        asset_code,
+        snapshot_date=snapshot_date,
+        limit=limit,
+        fact_pks=member_pks,
+    )
+    publication_as_of_datetime = _publication_as_of_datetime(gate)
+    if publication_as_of_datetime is not None:
+        rows = [row for row in rows if row.snapshot_at <= publication_as_of_datetime]
+    return {"rows": [quote.to_dict() for quote in rows], **gate}
+
+
 def query_published_financial_facts(
     asset_code: str,
     *,

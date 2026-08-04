@@ -381,6 +381,7 @@ class QuoteSnapshotRepositoryProtocol(Protocol):
         asset_code: str,
         snapshot_date: date | None = None,
         limit: int = 500,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[QuoteSnapshot]: ...
     def bulk_upsert(self, quotes: list[QuoteSnapshot]) -> int: ...
     def list_publication_candidates(

@@ -669,7 +669,10 @@ def test_published_core_queries_are_bound_to_publication_member_fact_pks(monkeyp
         query_services,
         "get_quote_snapshot_repository",
         lambda: SimpleNamespace(
-            get_latest=lambda *args, **kwargs: captured.update(quote_pks=kwargs["fact_pks"]) or None
+            get_latest=lambda *args, **kwargs: captured.update(quote_pks=kwargs["fact_pks"])
+            or None,
+            get_series=lambda *args, **kwargs: captured.update(quote_series_pks=kwargs["fact_pks"])
+            or [],
         ),
     )
     monkeypatch.setattr(
@@ -691,12 +694,14 @@ def test_published_core_queries_are_bound_to_publication_member_fact_pks(monkeyp
 
     query_services.query_published_price_bar_series("600000.SH")
     query_services.query_published_quote_payloads(["600000.SH"])
+    query_services.query_published_quote_series("600000.SH")
     query_services.query_published_financial_facts("600000.SH")
     query_services.query_published_valuation_facts("600000.SH")
 
     assert captured == {
         "price_pks": [member_pks["equity.price.bar"]],
         "quote_pks": [member_pks["equity.quote.snapshot"]],
+        "quote_series_pks": [member_pks["equity.quote.snapshot"]],
         "financial_pks": [member_pks["equity.financial.fact"]],
         "valuation_pks": [member_pks["equity.valuation.fact"]],
     }

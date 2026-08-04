@@ -60,20 +60,29 @@ def test_get_intraday_points_prefers_local_quote_snapshots_before_remote(monkeyp
     session_start = (
         timezone.now().astimezone(market_tz).replace(hour=9, minute=30, second=0, microsecond=0)
     )
-    repository._dc_quote_repo = SimpleNamespace(
-        get_series=lambda stock_code, limit: [
-            SimpleNamespace(snapshot_at=session_start, current_price=Decimal("10.00"), volume=1000),
-            SimpleNamespace(
-                snapshot_at=session_start + timedelta(minutes=1),
-                current_price=Decimal("10.02"),
-                volume=1500,
-            ),
-            SimpleNamespace(
-                snapshot_at=session_start + timedelta(minutes=2),
-                current_price=Decimal("10.03"),
-                volume=1800,
-            ),
-        ]
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.intraday_repository.get_published_quote_series",
+        lambda _stock_code, publication_key="current", limit=600: {
+            "rows": [
+                {
+                    "snapshot_at": session_start.isoformat(),
+                    "current_price": "10.00",
+                    "volume": 1000,
+                },
+                {
+                    "snapshot_at": (session_start + timedelta(minutes=1)).isoformat(),
+                    "current_price": "10.02",
+                    "volume": 1500,
+                },
+                {
+                    "snapshot_at": (session_start + timedelta(minutes=2)).isoformat(),
+                    "current_price": "10.03",
+                    "volume": 1800,
+                },
+            ],
+            "must_not_use_for_decision": False,
+            "publication_id": "pub-quote",
+        },
     )
     monkeypatch.setattr(
         repository,
@@ -94,25 +103,30 @@ def test_get_intraday_points_prefers_local_quote_snapshots_before_remote(monkeyp
 
     assert len(points) == 3
     assert points[-1].price == Decimal("10.03")
-    assert repository.get_last_intraday_source() == "data_center_quote_snapshot"
+    assert repository.get_last_intraday_source() == "data_center_published_quote_snapshot"
 
 
 def test_get_intraday_points_skips_stale_sparse_quote_snapshots(monkeypatch):
     repository = DjangoStockRepository()
     stale_time = timezone.now() - timedelta(days=14)
-    repository._dc_quote_repo = SimpleNamespace(
-        get_series=lambda stock_code, limit: [
-            SimpleNamespace(
-                snapshot_at=stale_time,
-                current_price=Decimal("10.00"),
-                volume=1000,
-            ),
-            SimpleNamespace(
-                snapshot_at=stale_time + timedelta(minutes=1),
-                current_price=Decimal("10.01"),
-                volume=1000,
-            ),
-        ]
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.intraday_repository.get_published_quote_series",
+        lambda _stock_code, publication_key="current", limit=600: {
+            "rows": [
+                {
+                    "snapshot_at": stale_time.isoformat(),
+                    "current_price": "10.00",
+                    "volume": 1000,
+                },
+                {
+                    "snapshot_at": (stale_time + timedelta(minutes=1)).isoformat(),
+                    "current_price": "10.01",
+                    "volume": 1000,
+                },
+            ],
+            "must_not_use_for_decision": False,
+            "publication_id": "pub-quote",
+        },
     )
     primary_points = [_point(9, 30, "10.01", "10.00"), _point(9, 31, "10.02", "10.01")]
 

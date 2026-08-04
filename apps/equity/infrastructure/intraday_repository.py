@@ -9,6 +9,7 @@ validation rules. Shared helpers and dependency wiring live in
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from importlib import import_module
@@ -18,6 +19,7 @@ from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 
+from apps.data_center.application.public import get_published_quote_series
 from apps.data_center.composition import get_akshare_module
 from apps.data_center.domain.protocols import QuoteSnapshotRepositoryProtocol
 from apps.equity.domain.entities import IntradayPricePoint
@@ -49,57 +51,30 @@ class StockIntradayRepositoryMixin:
     def get_intraday_points(self, stock_code: str) -> list[IntradayPricePoint]:
         """获取单资产最新交易日的 1 分钟分时数据。"""
         try:
-            quotes = self._dc_quote_repo.get_series(stock_code, limit=600)
-        except RuntimeError as exc:
-            logger.debug(
-                "Skip local quote snapshot lookup for %s because DB access is unavailable: %s",
+            published_points = self._get_published_intraday_points(stock_code)
+        except Exception as exc:
+            logger.warning(
+                "Failed to load published quote snapshots for %s: %s",
                 stock_code,
                 exc,
             )
-            quotes = []
-        except Exception as exc:
-            logger.warning("Failed to load local quote snapshots for %s: %s", stock_code, exc)
-            quotes = []
+            published_points = []
 
-        if quotes:
+        if published_points:
             market_tz = ZoneInfo("Asia/Shanghai")
-            latest_session = max(quote.snapshot_at.astimezone(market_tz).date() for quote in quotes)
-            session_quotes = sorted(
-                [
-                    quote
-                    for quote in quotes
-                    if quote.snapshot_at.astimezone(market_tz).date() == latest_session
-                ],
-                key=lambda item: item.snapshot_at,
-            )
-
-            points: list[IntradayPricePoint] = []
-            for quote in session_quotes:
-                price = self._safe_decimal(quote.current_price)
-                if price is None or price <= 0:
-                    continue
-
-                volume = self._safe_int(quote.volume)
-                points.append(
-                    IntradayPricePoint(
-                        stock_code=stock_code,
-                        timestamp=quote.snapshot_at.astimezone(market_tz),
-                        price=price,
-                        avg_price=price,
-                        volume=volume,
-                    )
-                )
-
-            if self._has_usable_intraday_snapshot_points(points, market_tz):
-                self._last_intraday_source = "data_center_quote_snapshot"
-                return points
+            if self._has_usable_intraday_snapshot_points(published_points, market_tz):
+                self._last_intraday_source = "data_center_published_quote_snapshot"
+                return published_points
             logger.info(
-                "Skip stale or sparse quote snapshots for %s: session=%s points=%s",
+                "Skip stale or sparse published quote snapshots for %s: points=%s",
                 stock_code,
-                latest_session,
-                len(points),
+                len(published_points),
             )
 
+        # Remote AKShare sources remain an explicitly labelled diagnostic
+        # failover when the current quote publication is missing or sparse.
+        # They never replace the canonical published snapshot in a decision
+        # path, and their source/observation time is preserved in the points.
         symbol = self._to_akshare_symbol(stock_code)
         self._last_intraday_source = None
 
@@ -158,6 +133,65 @@ class StockIntradayRepositoryMixin:
             primary_error.message,
         )
         return validated_fallback
+
+    def _get_published_intraday_points(self, stock_code: str) -> list[IntradayPricePoint]:
+        """Convert member-bound published quote snapshots into intraday points."""
+
+        payload = get_published_quote_series(
+            stock_code,
+            publication_key="current",
+            limit=600,
+        )
+        if not isinstance(payload, Mapping) or bool(payload.get("must_not_use_for_decision")):
+            return []
+        rows = payload.get("rows")
+        if not isinstance(rows, (list, tuple)):
+            return []
+
+        market_tz = ZoneInfo("Asia/Shanghai")
+        parsed: list[IntradayPricePoint] = []
+        for row in rows:
+            if not isinstance(row, Mapping):
+                continue
+            payload_code = str(row.get("asset_code") or "").strip().upper()
+            requested_base = stock_code.strip().upper().split(".", 1)[0]
+            if payload_code and payload_code.split(".", 1)[0] != requested_base:
+                continue
+            raw_observed_at = row.get("snapshot_at")
+            if not isinstance(raw_observed_at, str) or not raw_observed_at.strip():
+                continue
+            try:
+                observed_at = datetime.fromisoformat(raw_observed_at.strip().replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+                continue
+            price = self._safe_decimal(row.get("current_price"))
+            if price is None or price <= 0:
+                continue
+            parsed.append(
+                IntradayPricePoint(
+                    stock_code=stock_code,
+                    timestamp=observed_at.astimezone(market_tz),
+                    price=price,
+                    avg_price=price,
+                    volume=self._safe_int(row.get("volume")),
+                )
+            )
+
+        if not parsed:
+            return []
+        latest_session = max(point.timestamp.astimezone(market_tz).date() for point in parsed)
+        session_points = [
+            point
+            for point in parsed
+            if point.timestamp.astimezone(market_tz).date() == latest_session
+        ]
+        session_points.sort(key=lambda point: point.timestamp)
+        return self._validate_intraday_points(
+            session_points,
+            "data_center_published_quote_snapshot",
+        )
 
     def _has_usable_intraday_snapshot_points(
         self,

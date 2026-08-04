@@ -36,6 +36,7 @@ from apps.data_center.application.query_services import (
     query_published_market_news,
     query_published_price_bar_series,
     query_published_quote_payloads,
+    query_published_quote_series,
     query_published_sector_memberships,
     query_published_valuation_facts,
     query_valuation_facts,
@@ -541,6 +542,23 @@ def get_published_quote_payloads(
     return query_published_quote_payloads(asset_codes, publication_key=publication_key)
 
 
+def get_published_quote_series(
+    asset_code: str,
+    *,
+    publication_key: str = "current",
+    snapshot_date: date | None = None,
+    limit: int = 500,
+) -> dict[str, object]:
+    """Read current intraday quote snapshots behind the Publication gate."""
+
+    return query_published_quote_series(
+        asset_code,
+        publication_key=publication_key,
+        snapshot_date=snapshot_date,
+        limit=limit,
+    )
+
+
 def get_published_price_bar_series(
     asset_code: str,
     *,
@@ -913,6 +931,7 @@ __all__ = [
     "get_published_fund_nav_series",
     "get_published_price_bar_series",
     "get_published_quote_payloads",
+    "get_published_quote_series",
     "get_published_sector_memberships",
     "get_published_valuation_facts",
     "record_reconciliation_evidence",

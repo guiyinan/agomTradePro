@@ -3990,3 +3990,13 @@ Git SHA / 镜像 / migration：
 - 已运行测试：`pytest tests/unit/test_unified_price_service.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：27 passed；目标文件 Black/Ruff 通过（全局门禁需在外部 Risk/Strategy 未提交改动恢复可解析后复跑）。
 - 明确未做：未修改 historical/PIT 查询、未改变 Tushare/AKShare provider 配置，未部署、未 push、未连接 VPS。
 - 未验证风险：生产 Publication/member 覆盖、AKShare 全量 current 产出、PostgreSQL 性能和 Realtime 其他维护缓存链路仍待生产阶段证据。
+
+## 37. 2026-08-05：Equity 分时 quote snapshot member-bound 收口
+
+- 目标：消除 Equity 分时图直接读取 QuoteSnapshot 全表序列的旁路，使已持久化的分时点优先来自同一 `equity.quote.snapshot` Publication/member 快照。
+- 变更：QuoteSnapshot repository/protocol 增加可选 `fact_pks` 过滤；新增 `query_published_quote_series` / `get_published_quote_series` Public Port，复用 Publication freshness、`as_of` 上界和成员主键过滤；Intraday repository 优先转换 member-bound rows，保留源 `snapshot_at`，Publication 缺失或点位稀疏时才进入明确标注的 AKShare 诊断 failover。
+- 治理：`equity.intraday_chart` 增加 quote-series Public Port marker 与 repository 回归 nodeid；published quote member-bound 查询加入 D4/D5 查询端口回归。
+- 已运行测试：`pytest tests/unit/data_center/test_published_query_ports.py tests/unit/test_equity_repository_intraday.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：30 passed；`python scripts/check_current_data_contracts.py`：39 surfaces；相关 4 个生产文件 mypy regression 0；Ruff/Black 通过。
+- 架构清单刷新：`python scripts/data_center_architecture_inventory.py --write`：`provider_imports_outside_data_center=0`、`cross_app_orm_imports=53`、`legacy_fact_references=143`、`current_surface_references=3142`、`data_write_task_decorators=55`、`runtime_parameter_references=49`、`external_http_imports_for_review=6`。
+- 明确未做：未把 AKShare 远端分时诊断 failover 伪装为 canonical Publication，未修改历史回放语义，未部署、未 push、未修改本地/VPS provider 状态。
+- 未验证风险：生产 quote Publication 是否包含完整分时点集合、分时图 PostgreSQL 查询预算、生产观察窗口及旧 Realtime cache 清理仍待生产阶段证据。

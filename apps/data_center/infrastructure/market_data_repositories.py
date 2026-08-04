@@ -190,9 +190,12 @@ class QuoteSnapshotRepository:
         asset_code: str,
         snapshot_date: date | None = None,
         limit: int = 500,
+        fact_pks: Sequence[str] | None = None,
     ) -> list[QuoteSnapshot]:
         for candidate in _resolve_asset_code_candidates(asset_code):
             qs = QuoteSnapshotModel.objects.filter(asset_code=candidate)
+            if fact_pks is not None:
+                qs = qs.filter(pk__in=list(fact_pks))
             if snapshot_date is not None:
                 qs = qs.filter(snapshot_at__date=snapshot_date)
             rows = list(qs.order_by("-snapshot_at")[:limit])
