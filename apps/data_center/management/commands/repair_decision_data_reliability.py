@@ -255,7 +255,7 @@ class Command(BaseCommand):
                 status = "completed"
                 task_id = ""
             else:
-                from kombu.exceptions import OperationalError as KombuOperationalError  # type: ignore[import-untyped]
+                import kombu.exceptions as kombu_exceptions  # type: ignore[import-untyped]
 
                 try:
                     task = queue_alpha_score_prediction(
@@ -263,7 +263,12 @@ class Command(BaseCommand):
                         trade_date=target_date,
                         scope_payload=task_kwargs["scope_payload"],
                     )
-                except (KombuOperationalError, ConnectionError, OSError, TimeoutError) as exc:
+                except (
+                    kombu_exceptions.OperationalError,
+                    ConnectionError,
+                    OSError,
+                    TimeoutError,
+                ) as exc:
                     return {
                         "status": "queue_failed",
                         "scope_hash": resolved.scope.scope_hash,
