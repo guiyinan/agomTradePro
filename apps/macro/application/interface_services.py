@@ -14,6 +14,11 @@ from apps.data_center.application.interface_services import (
     make_calculate_market_thermometer_use_case,
     make_query_macro_series_use_case,
 )
+from apps.data_center.application.public import (
+    get_current_publication_freshness_gate,
+    get_publication_member_fact_pks,
+    list_latest_published_macro_values,
+)
 from apps.data_center.composition import get_indicator_catalog_repository
 from apps.macro.application.data_management import (
     GetDataManagementSummaryUseCase,
@@ -218,7 +223,9 @@ def _build_pulse_card_context() -> dict[str, Any]:
     }
 
 
-def _build_regime_segments(regime_rows: list[dict[str, Any]], *, end_label: str) -> list[dict[str, str]]:
+def _build_regime_segments(
+    regime_rows: list[dict[str, Any]], *, end_label: str
+) -> list[dict[str, str]]:
     """Build Regime mark-area segments for the overview timeline."""
 
     if not regime_rows:
@@ -266,7 +273,9 @@ def _build_macro_risk_timeline(*, days: int = 180) -> dict[str, Any]:
             {
                 "date": str(item.get("observed_at") or ""),
                 "score": float(item.get("composite_score", 0.0) or 0.0),
-                "normalized_score": _score_to_percent(float(item.get("composite_score", 0.0) or 0.0)),
+                "normalized_score": _score_to_percent(
+                    float(item.get("composite_score", 0.0) or 0.0)
+                ),
                 "transition_warning": bool(item.get("transition_warning", False)),
             }
             for item in list_pulse_history_payloads(months=max(1, round(days / 30)))
@@ -416,13 +425,46 @@ def _format_macro_data_point_for_display(
     }
 
 
+def _published_macro_member_selection(
+    indicator_code: str,
+) -> tuple[list[str], dict[str, object] | None]:
+    """Return selected publication members for one current macro series.
+
+    TUI reads are decision-facing even when the screen is a data overview. A
+    missing member reader is treated as blocked rather than falling back to a
+    legacy latest-fact query.
+    """
+
+    gate = get_current_publication_freshness_gate("macro.fact", indicator_code)
+    if gate is None or bool(gate.get("must_not_use_for_decision")):
+        return [], gate
+    publication_id = gate.get("publication_id")
+    if not isinstance(publication_id, str) or not publication_id:
+        return [], gate
+    member_pks = get_publication_member_fact_pks(
+        publication_id,
+        dataset_key="macro.fact",
+        expected_fact_table="data_center_macro_fact",
+    )
+    if member_pks is None:
+        return [], gate
+    return [str(pk) for pk in member_pks if str(pk).strip()], gate
+
+
 def get_macro_data_page_snapshot(
     *,
     selected_indicator: str = "",
     user_id: int | None = None,
     can_sync_macro_data: bool = False,
+    published_only: bool = False,
 ) -> dict[str, Any]:
-    """Return view-model data for the macro data management page."""
+    """Return view-model data for the macro page.
+
+    ``published_only`` is used by the user-facing TUI. The classic staff
+    management page keeps its historical/raw view for maintenance, while TUI
+    current/latest values must come from freshness-validated Publication
+    members.
+    """
 
     read_repository = get_macro_read_repository()
     catalog_repository = get_indicator_catalog_repository()
@@ -430,14 +472,48 @@ def get_macro_data_page_snapshot(
     governance_payload = load_macro_governance_payload()
     sync_supported_codes = set(governance_payload.get("supported_sync_codes") or [])
     active_catalogs = sorted(catalog_repository.list_active(), key=lambda item: item.code)
-    synced_codes = set(read_repository.list_distinct_codes())
+    if published_only:
+        try:
+            published_rows = list_latest_published_macro_values(
+                limit=max(len(active_catalogs), 1),
+            )
+        except Exception:
+            logger.exception("Failed to load published macro values for TUI")
+            published_rows = []
+        latest_by_code: dict[str, dict[str, Any]] = {}
+        for row in published_rows:
+            code = str(row.get("indicator_code") or "").strip()
+            if not code:
+                continue
+            raw_period = row.get("reporting_period")
+            try:
+                reporting_period = (
+                    raw_period
+                    if isinstance(raw_period, date)
+                    else date.fromisoformat(str(raw_period))
+                )
+            except (TypeError, ValueError):
+                continue
+            latest_by_code[code] = {
+                **row,
+                "display_value": row.get("value"),
+                "display_unit": row.get("unit") or "",
+                "reporting_period": reporting_period,
+                "freshness_status": row.get("freshness_status") or "fresh",
+                "decision_grade": "decision_safe",
+                "must_not_use_for_decision": bool(row.get("must_not_use_for_decision", False)),
+                "blocked_reason": str(row.get("blocked_reason") or ""),
+            }
+        synced_codes = set(latest_by_code)
+    else:
+        synced_codes = set(read_repository.list_distinct_codes())
+        latest_by_code = {}
+        for code in sorted(synced_codes):
+            latest = read_repository.get_latest_indicator(code)
+            if latest is not None:
+                latest_by_code[code] = latest
     refresh_provider_id = _resolve_manual_refresh_provider_id()
     refresh_end_date = date.today()
-    latest_by_code: dict[str, dict[str, Any]] = {}
-    for code in sorted(synced_codes):
-        latest = read_repository.get_latest_indicator(code)
-        if latest is not None:
-            latest_by_code[code] = latest
 
     indicator_map = {
         catalog.code: {
@@ -497,6 +573,26 @@ def get_macro_data_page_snapshot(
             ),
             "has_data": catalog.code in synced_codes,
             "sync_supported": catalog.code in sync_supported_codes,
+            "freshness_status": (
+                str(latest_by_code[catalog.code].get("freshness_status") or "")
+                if catalog.code in latest_by_code
+                else ("missing" if published_only else "")
+            ),
+            "decision_grade": (
+                str(latest_by_code[catalog.code].get("decision_grade") or "")
+                if catalog.code in latest_by_code
+                else ("blocked" if published_only else "")
+            ),
+            "must_not_use_for_decision": (
+                bool(latest_by_code[catalog.code].get("must_not_use_for_decision", False))
+                if catalog.code in latest_by_code
+                else published_only
+            ),
+            "blocked_reason": (
+                str(latest_by_code[catalog.code].get("blocked_reason") or "")
+                if catalog.code in latest_by_code
+                else ("canonical_publication_missing" if published_only else "")
+            ),
             "latest_period": (
                 _format_reporting_period_label(
                     latest_by_code[catalog.code]["reporting_period"],
@@ -515,13 +611,33 @@ def get_macro_data_page_snapshot(
 
     history_rows: list[dict[str, Any]] = []
     serialized_history: list[dict[str, Any]] = []
-    if resolved_selected_indicator and indicator_map.get(resolved_selected_indicator, {}).get(
-        "has_data"
-    ):
+    publication_gate: dict[str, object] | None = None
+    publication_member_pks: list[str] = []
+    if published_only and resolved_selected_indicator:
+        publication_member_pks, publication_gate = _published_macro_member_selection(
+            resolved_selected_indicator
+        )
+        selected_payload = indicator_map.get(resolved_selected_indicator)
+        if selected_payload is not None and not publication_member_pks:
+            selected_payload["freshness_status"] = str(
+                (publication_gate or {}).get("freshness_status") or "missing"
+            )
+            selected_payload["decision_grade"] = "blocked"
+            selected_payload["must_not_use_for_decision"] = True
+            selected_payload["blocked_reason"] = str(
+                (publication_gate or {}).get("blocked_reason") or "canonical_publication_missing"
+            )
+
+    selected_has_data = bool(
+        resolved_selected_indicator
+        and indicator_map.get(resolved_selected_indicator, {}).get("has_data")
+    )
+    if selected_has_data and (not published_only or publication_member_pks):
         series_response = make_query_macro_series_use_case().execute(
             MacroSeriesRequest(
                 indicator_code=resolved_selected_indicator,
                 limit=500,
+                fact_pks=publication_member_pks if published_only else None,
             )
         )
         history_rows = sorted(
@@ -552,6 +668,16 @@ def get_macro_data_page_snapshot(
         indicator_map[resolved_selected_indicator][
             "latest_quality"
         ] = series_response.latest_quality
+        if published_only and publication_gate is not None:
+            indicator_map[resolved_selected_indicator]["publication_id"] = publication_gate.get(
+                "publication_id"
+            )
+            indicator_map[resolved_selected_indicator]["must_not_use_for_decision"] = bool(
+                publication_gate.get("must_not_use_for_decision", False)
+            )
+            indicator_map[resolved_selected_indicator]["blocked_reason"] = str(
+                publication_gate.get("blocked_reason") or series_response.blocked_reason
+            )
     else:
         serialized_history = [_format_indicator_row_for_display(row) for row in history_rows]
 

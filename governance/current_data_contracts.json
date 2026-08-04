@@ -2192,6 +2192,54 @@
           "test_function": "test_sector_repository_candidate_preserves_effective_date_observation"
         }
       ]
+    },
+    {
+      "id": "macro.tui_publication",
+      "surface": "GET /api/macro/tui/overview/ current macro catalog and series",
+      "source_files": [
+        "apps/macro/application/interface_services.py",
+        "apps/macro/interface/tui_views.py",
+        "apps/macro/composition.py",
+        "apps/data_center/application/public.py"
+      ],
+      "required_markers": {
+        "apps/macro/application/interface_services.py": [
+          "published_only: bool = False",
+          "list_latest_published_macro_values(",
+          "_published_macro_member_selection(",
+          "fact_pks=publication_member_pks if published_only else None"
+        ],
+        "apps/macro/interface/tui_views.py": [
+          "published_only=True",
+          "selected_must_not_use_for_decision"
+        ],
+        "apps/macro/composition.py": [
+          "class _PublishedMacroSeriesQuery:",
+          "get_current_publication_freshness_gate(",
+          "fact_pks=list(member_pks)"
+        ],
+        "apps/data_center/application/public.py": [
+          "def list_latest_published_macro_values(",
+          "def get_published_macro_fact_series("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "tui_macro_series_uses_publication_members",
+          "test_file": "tests/unit/macro/test_interface_services.py",
+          "test_function": "test_get_macro_data_page_snapshot_tui_uses_publication_members"
+        },
+        {
+          "case": "tui_macro_projection_requests_publication_only",
+          "test_file": "tests/api/test_macro_regime_tui_api.py",
+          "test_function": "test_macro_tui_overview_projects_selected_series_and_risk_timeline"
+        },
+        {
+          "case": "tui_macro_trend_blocks_missing_publication",
+          "test_file": "tests/unit/macro/test_composition.py",
+          "test_function": "test_published_macro_series_query_blocks_without_publication"
+        }
+      ]
     }
   ]
 }

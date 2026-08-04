@@ -109,6 +109,7 @@ def test_macro_tui_overview_projects_selected_series_and_risk_timeline(
     }
     assert mocked.call_args.kwargs["selected_indicator"] == "CN_PMI"
     assert mocked.call_args.kwargs["can_sync_macro_data"] is False
+    assert mocked.call_args.kwargs["published_only"] is True
 
 
 @pytest.mark.django_db

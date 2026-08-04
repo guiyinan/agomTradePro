@@ -3904,3 +3904,16 @@ Git SHA / 镜像 / migration：
 - 结果：`AKSHARE_ONLY_REGISTRY_OK`；`macro`、`historical_price`、`realtime_quote`、`fund_nav`、`financial`、`valuation`、`sector_membership`、`news`、`capital_flow` 均只注册 AKShare，未出现 Tushare provider。
 - 结论：代码路径支持暂时不用 Tushare；实际环境仍需在 TUI 的 Data Center Provider 页面将 Tushare 置为停用，并确认 AKShare 已启用后再执行同步/查询。当前未修改本地或 VPS 的 provider 状态，也未部署。
 - 未验证风险：本次仅验证 provider 构建和能力路由，未替代真实 AKShare 网络可用性、生产 PostgreSQL 数据覆盖、影子对账或生产观察窗口；这些仍属于 Batch E 未完成项。
+
+## 28. 2026-08-05：Macro TUI Publication-only 收口
+
+- 目标：消除宏观 TUI overview/trend-filter 对未发布 `latest`/series 的旁路读取。
+- 变更：`get_macro_data_page_snapshot(published_only=True)` 通过 Data Center Public Port 获取最新值并绑定当前 Publication member fact PK；宏观趋势过滤器在 composition root 中使用 `_PublishedMacroSeriesQuery`，无 Publication、过期 Publication 或成员缺失时 fail closed，并把阻断原因返回给 TUI。
+- 治理：`governance/current_data_contracts.json` 新增 `macro.tui_publication` surface，登记 overview、trend-filter 的 Publication/freshness marker 与测试。
+- 已运行测试：
+  - `pytest tests/unit/macro/test_interface_services.py tests/api/test_macro_regime_tui_api.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：20 passed。
+  - `pytest tests/unit/macro/test_composition.py tests/api/test_macro_regime_tui_api.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：16 passed。
+  - `python scripts/check_current_data_contracts.py`：37 surface(s) OK。
+  - `python scripts/verify_architecture.py --include-audit --format text`：boundary 0 / audit 0；`check_mypy_regression.py`：0；Ruff OK。
+- 明确未做：Classic staff macro management page 继续保留 raw/historical 维护语义；本批未修改本地/VPS provider 状态、未部署、未执行生产 PostgreSQL 或观察窗口。
+- 未验证风险：生产 Publication 覆盖、宏观同步任务实际创建完整成员快照、生产 TUI 网络链路和 PostgreSQL 性能仍未有证据。

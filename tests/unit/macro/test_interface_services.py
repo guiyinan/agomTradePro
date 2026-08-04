@@ -345,6 +345,85 @@ def test_get_macro_data_page_snapshot_preserves_sync_permission_flag(monkeypatch
     assert snapshot["can_sync_macro_data"] is True
 
 
+def test_get_macro_data_page_snapshot_tui_uses_publication_members(monkeypatch):
+    """The TUI must not display a raw latest fact outside its publication."""
+
+    _patch_macro_overview_helpers(monkeypatch)
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.get_macro_read_repository",
+        lambda: _FakeMacroReadRepository(),
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.get_indicator_catalog_repository",
+        lambda: _FakeCatalogRepository(),
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.IndicatorService.get_indicator_metadata_map",
+        classmethod(lambda cls: {}),
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.load_macro_governance_payload",
+        lambda: {"supported_sync_codes": ["CN_M2"]},
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.get_active_provider_id_by_source",
+        lambda source_type: 7 if source_type == "akshare" else None,
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.list_latest_published_macro_values",
+        lambda limit: [
+            {
+                "indicator_code": "CN_M2",
+                "reporting_period": "2026-04-01",
+                "value": 325.4,
+                "unit": "元",
+                "source": "akshare",
+                "freshness_status": "fresh",
+                "must_not_use_for_decision": False,
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.get_current_publication_freshness_gate",
+        lambda dataset_key, publication_key: {
+            "publication_id": "macro-pub-1",
+            "freshness_status": "fresh",
+            "must_not_use_for_decision": False,
+            "blocked_reason": "",
+        },
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.get_publication_member_fact_pks",
+        lambda publication_id, *, dataset_key, expected_fact_table: ["42"],
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.load_market_thermometer_payload",
+        lambda user_id=None, use_personal_thresholds=True: {},
+    )
+
+    captured_requests = []
+
+    class _CapturingQueryUseCase(_FakeM2QueryUseCase):
+        def execute(self, request):
+            captured_requests.append(request)
+            return super().execute(request)
+
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.make_query_macro_series_use_case",
+        lambda: _CapturingQueryUseCase(),
+    )
+
+    snapshot = get_macro_data_page_snapshot(
+        selected_indicator="CN_M2",
+        published_only=True,
+    )
+
+    assert snapshot["indicator_map"]["CN_M2"]["latest_value"] == 325.4
+    assert snapshot["indicator_map"]["CN_M2"]["must_not_use_for_decision"] is False
+    assert snapshot["indicator_map"]["CN_M2"]["publication_id"] == "macro-pub-1"
+    assert captured_requests[0].fact_pks == ["42"]
+
+
 def test_get_macro_indicator_data_requests_chronological_series(monkeypatch):
     class _CapturingReadRepository:
         def __init__(self) -> None:

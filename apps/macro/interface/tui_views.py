@@ -91,6 +91,7 @@ class MacroTuiOverviewView(APIView):
             selected_indicator=indicator_code,
             user_id=user_id,
             can_sync_macro_data=False,
+            published_only=True,
         )
         indicator_map = dict(snapshot.get("indicator_map") or {})
         selected_code = str(snapshot.get("selected_indicator") or "")
@@ -136,6 +137,10 @@ class MacroTuiOverviewView(APIView):
                     "selected_latest_period": str(selected.get("latest_period") or ""),
                     "selected_freshness_status": str(selected.get("freshness_status") or ""),
                     "selected_decision_grade": str(selected.get("decision_grade") or ""),
+                    "selected_must_not_use_for_decision": bool(
+                        selected.get("must_not_use_for_decision", True)
+                    ),
+                    "selected_blocked_reason": str(selected.get("blocked_reason") or ""),
                     "total_indicators": int(stats.get("total_indicators") or 0),
                     "synced_indicators": int(stats.get("synced_indicators") or 0),
                     "total_records": int(stats.get("total_records") or 0),
