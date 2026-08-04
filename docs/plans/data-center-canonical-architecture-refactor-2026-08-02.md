@@ -1668,6 +1668,12 @@ CI 观察结论：
 - `remote_build_deploy_vps.py` 与 legacy `deploy-on-vps.sh` 均在迁移后、`check --deploy` 前执行该命令；旧镜像、手工建表但未登记 migration 的数据库都会 fail closed。
 - 回归证据：canonical contract/deploy verifier/remote deploy 共 37 tests passed；ruff、mypy regression 通过；本地命令输出 `ok=true, missing_tables=[], missing_migrations=[]`。
 
+## 实施记录（2026-08-04，Celery manifest 实际 nodeid 执行）
+
+- 新增 `scripts/run_celery_task_contract_tests.py`，从 `governance/celery_task_contracts.json` 解析每个任务的 required case，解析嵌套 pytest class 并执行去重后的真实 nodeid；manifest 违规时先拒绝运行。
+- `.github/workflows/nightly-tests.yml` 在 PostgreSQL 准备后执行该 runner；静态 `check_celery_task_contracts.py` 不再是唯一证据。
+- 本地实际执行 54 个登记 nodeid，结果 `56 passed in 2.91s`（参数化用例展开）；runner 单测、ruff 和 manifest guard 均通过。
+
 ## 实施记录（2026-08-04，宏观 shadow audit 自然键修复）
 
 - 修复 `audit_macro_fact_consistency`：canonical/legacy revision 与跨源序列现在按 `source + period_type + reporting_period` 分组；同一日期的日频与月频事实不再被错误比较。跨源冲突示例同时输出 `period_type`，避免把不同频率当成同一序列。
@@ -3665,7 +3671,7 @@ VPS 本地备份不是持久备份，只是传输暂存。
 
 ### 22.6 测试与治理
 
-- [ ] current-data 与 Celery manifest 中的 pytest nodeid 在 CI 实际执行。
+- [x] current-data 与 Celery manifest 中的 pytest nodeid 在 CI 实际执行（nightly PostgreSQL job）。
 - [ ] 核心链路在 PostgreSQL 通过。
 - [ ] Provider schema drift、故障注入、性能和全市场回填通过。
 - [ ] runtime_config_contracts 覆盖所有受管运行参数，非默认 profile 和无 active profile 测试通过。
