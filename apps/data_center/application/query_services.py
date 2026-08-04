@@ -1090,6 +1090,7 @@ def fetch_price_bar_payloads(
             "volume": float(bar.volume) if bar.volume is not None else None,
             "amount": float(bar.amount) if bar.amount is not None else None,
             "source": bar.source,
+            "fetched_at": bar.fetched_at.isoformat(),
         }
         for bar in reversed(bars)
     ]

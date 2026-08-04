@@ -3980,3 +3980,13 @@ Git SHA / 镜像 / migration：
 - 已运行测试：`pytest tests/unit/terminal/test_chat_router.py`：3 passed；current-data 40 surfaces；mypy 0；Ruff 0。
 - 明确未做：未改变 Regime 计算、Policy 查询或 Terminal 文案路由，未部署、未修改本地/VPS provider 状态。
 - 未验证风险：生产 Terminal/MCP 网络链路和客户端对新增 freshness 字段的兼容性仍待 E2E 证据。
+
+## 36. 2026-08-05：统一价格服务 current Publication 收口
+
+- 目标：阻断 Account、Simulated Trading、Valuation 共用的 `UnifiedPriceService` 对最新报价、最新收盘价和当前基金净值的 raw repository 旁路，避免停用 Tushare 后把未发布旧事实包装成可执行价格。
+- 变更：current quote 改用 `get_published_quote_payloads` 并通过 `QueryLatestQuoteUseCase.build_response` 保留源 `snapshot_at/fetched_at`；close fallback 改用 `get_published_price_bar_series` 并绑定同一 Publication member；current fund NAV 改用 `get_published_fund_nav_series`，显式日期仍保留 historical repository 语义，注入的外部基金 adapter 不得绕过 current Publication gate。
+- 变更：price-bar Public Port payload 增加 canonical `fetched_at`，便于 current 结果审计源抓取时间，不用请求时间覆盖事实时间。
+- 治理：更新 `data_center.unified_price` 与 `data_center.close_and_nav_fallbacks` markers/tests，增加“Publication 阻断时不查 raw repository”和“adapter 不得绕过 Publication”的回归。
+- 已运行测试：`pytest tests/unit/test_unified_price_service.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：27 passed；目标文件 Black/Ruff 通过（全局门禁需在外部 Risk/Strategy 未提交改动恢复可解析后复跑）。
+- 明确未做：未修改 historical/PIT 查询、未改变 Tushare/AKShare provider 配置，未部署、未 push、未连接 VPS。
+- 未验证风险：生产 Publication/member 覆盖、AKShare 全量 current 产出、PostgreSQL 性能和 Realtime 其他维护缓存链路仍待生产阶段证据。

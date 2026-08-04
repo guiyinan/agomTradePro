@@ -5,6 +5,7 @@ from unittest.mock import Mock
 import pandas as pd
 import pytest
 
+import apps.data_center.application.price_service as price_service_module
 from apps.data_center.application.price_service import (
     PriceLookupResult,
     UnifiedPriceService,
@@ -26,6 +27,85 @@ def _test_session_date() -> date:
     while session_date.weekday() >= 5:
         session_date -= timedelta(days=1)
     return session_date
+
+
+def _published(rows: list[dict[str, object]]) -> dict[str, object]:
+    """Build a decision-safe published port response for unit tests."""
+
+    return {
+        "rows": rows,
+        "must_not_use_for_decision": False,
+        "publication_id": "test-publication",
+    }
+
+
+def _quote_row(
+    *,
+    asset_code: str,
+    current_price: object,
+    snapshot_at: datetime,
+    source: str = "eastmoney",
+) -> dict[str, object]:
+    """Build a canonical quote payload without bypassing the public port."""
+
+    return {
+        "asset_code": asset_code,
+        "current_price": current_price,
+        "snapshot_at": snapshot_at.isoformat(),
+        "fetched_at": snapshot_at.isoformat(),
+        "open": None,
+        "high": None,
+        "low": None,
+        "prev_close": None,
+        "volume": None,
+        "source": source,
+    }
+
+
+def _bar_row(
+    *,
+    asset_code: str,
+    bar_date: date,
+    close: float = 4.95,
+    source: str = "eastmoney",
+) -> dict[str, object]:
+    """Build a canonical daily bar payload for the published price port."""
+
+    fetched_at = datetime.combine(bar_date, time(8, 0), tzinfo=UTC)
+    return {
+        "asset_code": asset_code,
+        "timestamp": bar_date.isoformat(),
+        "period": "1d",
+        "open": close - 0.05,
+        "high": close + 0.05,
+        "low": close - 0.15,
+        "close": close,
+        "volume": None,
+        "amount": None,
+        "source": source,
+        "fetched_at": fetched_at.isoformat(),
+    }
+
+
+def _nav_row(
+    *,
+    fund_code: str,
+    nav_date: date,
+    nav: float = 1.2345,
+    source: str = "akshare_fund",
+) -> dict[str, object]:
+    """Build a canonical fund NAV payload for the published NAV port."""
+
+    return {
+        "fund_code": fund_code,
+        "nav_date": nav_date.isoformat(),
+        "nav": nav,
+        "acc_nav": None,
+        "daily_return": None,
+        "source": source,
+        "fetched_at": datetime.combine(nav_date, time(8, 0), tzinfo=UTC).isoformat(),
+        "extra": {},
+    }
 
 
 def test_normalize_asset_code_handles_bare_exchange_codes():
@@ -59,21 +139,15 @@ def test_get_price_uses_historical_capability():
     assert result.freshness == "historical"
 
 
-def test_get_latest_price_prefers_realtime_quote():
+def test_get_latest_price_prefers_realtime_quote(monkeypatch):
     service = UnifiedPriceService()
-    service._dc_quote_repo = Mock()
     observed_at = datetime.now(UTC)
-    service._dc_quote_repo.get_latest.return_value = SimpleNamespace(
-        asset_code="159915.SZ",
-        current_price=2.18,
-        source="eastmoney",
-        snapshot_at=observed_at,
-        fetched_at=observed_at,
-        open=None,
-        high=None,
-        low=None,
-        prev_close=None,
-        volume=None,
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: _published(
+            [_quote_row(asset_code="159915.SZ", current_price=2.18, snapshot_at=observed_at)]
+        ),
     )
     result = service.get_price_result("159915")
 
@@ -84,28 +158,70 @@ def test_get_latest_price_prefers_realtime_quote():
     assert result.observed_at == observed_at
 
 
-def test_get_latest_price_rejects_stale_quote_and_uses_close_fallback():
-    """A stored quote outside the freshness window cannot be labelled realtime."""
+def test_latest_price_requires_published_members(monkeypatch):
+    """Current prices never fall back to raw repositories when publication is blocked."""
 
-    service = UnifiedPriceService(now_provider=_after_close_now)
+    service = UnifiedPriceService()
     service._dc_quote_repo = Mock()
     service._dc_quote_repo.get_latest.return_value = SimpleNamespace(
         asset_code="510300.SH",
         current_price=5.18,
-        source="stale_quote",
-        snapshot_at=datetime.now(UTC) - timedelta(days=30),
-        open=None,
-        high=None,
-        low=None,
-        prev_close=None,
-        volume=None,
+        source="unpublished_quote",
+        snapshot_at=datetime.now(UTC),
     )
     service._dc_price_repo = Mock()
     service._dc_price_repo.get_latest.return_value = SimpleNamespace(
         asset_code="510300.SH",
         bar_date=_test_session_date(),
+        open=4.9,
+        high=5.0,
+        low=4.8,
         close=4.95,
-        source="daily_close",
+        source="unpublished_close",
+    )
+    blocked = {
+        "rows": [],
+        "must_not_use_for_decision": True,
+        "blocked_reason": "canonical_publication_missing",
+    }
+    monkeypatch.setattr(
+        price_service_module, "get_published_quote_payloads", lambda _codes: blocked
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: blocked,
+    )
+
+    assert service.get_price_result("510300") is None
+    service._dc_quote_repo.get_latest.assert_not_called()
+    service._dc_price_repo.get_latest.assert_not_called()
+
+
+def test_get_latest_price_rejects_stale_quote_and_uses_close_fallback(monkeypatch):
+    """A stored quote outside the freshness window cannot be labelled realtime."""
+
+    service = UnifiedPriceService(now_provider=_after_close_now)
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: _published(
+            [
+                _quote_row(
+                    asset_code="510300.SH",
+                    current_price=5.18,
+                    source="stale_quote",
+                    snapshot_at=datetime.now(UTC) - timedelta(days=30),
+                )
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published(
+            [_bar_row(asset_code="510300.SH", bar_date=_test_session_date(), source="daily_close")]
+        ),
     )
 
     result = service.get_price_result("510300")
@@ -117,36 +233,45 @@ def test_get_latest_price_rejects_stale_quote_and_uses_close_fallback():
     assert result.observed_at is None
 
 
-def test_get_latest_price_rejects_stale_close_fallback():
+def test_get_latest_price_rejects_stale_close_fallback(monkeypatch):
     """An old daily bar is historical evidence, not a usable latest price."""
 
     service = UnifiedPriceService()
-    service._dc_quote_repo = Mock()
-    service._dc_quote_repo.get_latest.return_value = None
-    service._dc_price_repo = Mock()
-    service._dc_price_repo.get_latest.return_value = SimpleNamespace(
-        asset_code="510300.SH",
-        bar_date=_test_session_date() - timedelta(days=30),
-        close=4.95,
-        source="stale_daily_close",
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: _published([]),
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published(
+            [
+                _bar_row(
+                    asset_code="510300.SH",
+                    bar_date=_test_session_date() - timedelta(days=30),
+                    source="stale_daily_close",
+                )
+            ]
+        ),
     )
 
     assert service.get_price_result("510300") is None
 
 
-def test_get_latest_price_falls_back_to_recent_close():
+def test_get_latest_price_falls_back_to_recent_close(monkeypatch):
     service = UnifiedPriceService(now_provider=_after_close_now)
-    service._dc_quote_repo = Mock()
-    service._dc_quote_repo.get_latest.return_value = None
-    service._dc_price_repo = Mock()
-    service._dc_price_repo.get_latest.return_value = SimpleNamespace(
-        asset_code="510300.SH",
-        bar_date=_test_session_date(),
-        open=4.9,
-        high=5.0,
-        low=4.8,
-        close=4.95,
-        source="eastmoney",
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: _published([]),
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published(
+            [_bar_row(asset_code="510300.SH", bar_date=_test_session_date())]
+        ),
     )
     result = service.get_price_result("510300")
 
@@ -156,12 +281,16 @@ def test_get_latest_price_falls_back_to_recent_close():
     assert result.is_fallback is True
 
 
-def test_exchange_traded_etf_does_not_fallback_to_fund_nav():
+def test_exchange_traded_etf_does_not_fallback_to_fund_nav(monkeypatch):
     service = UnifiedPriceService()
-    service._dc_quote_repo = Mock()
-    service._dc_quote_repo.get_latest.return_value = None
-    service._dc_price_repo = Mock()
-    service._dc_price_repo.get_latest.return_value = None
+    monkeypatch.setattr(
+        price_service_module, "get_published_quote_payloads", lambda _codes: _published([])
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published([]),
+    )
     service._get_fund_nav_price = Mock(return_value=None)
 
     result = service.get_price_result("510300")
@@ -185,22 +314,27 @@ def test_require_price_raises_when_all_sources_missing():
         assert exc.details["trade_date"] == "2026-03-20"
 
 
-def test_get_latest_price_prefers_data_center_quote():
+def test_get_latest_price_prefers_data_center_quote(monkeypatch):
     service = UnifiedPriceService()
-    service._dc_quote_repo = Mock()
     observed_at = datetime.now(UTC)
-    service._dc_quote_repo.get_latest.return_value = SimpleNamespace(
+    row = _quote_row(
         asset_code="159915.SZ",
         current_price=2.18,
-        volume=1000,
-        amount=2180.0,
-        high=2.2,
-        low=2.15,
-        open=2.16,
-        prev_close=2.1,
         source="dc_eastmoney",
         snapshot_at=observed_at,
-        fetched_at=observed_at,
+    )
+    row.update(
+        {
+            "volume": 1000,
+            "amount": 2180.0,
+            "high": 2.2,
+            "low": 2.15,
+            "open": 2.16,
+            "prev_close": 2.1,
+        }
+    )
+    monkeypatch.setattr(
+        price_service_module, "get_published_quote_payloads", lambda _codes: _published([row])
     )
 
     result = service.get_price_result("159915")
@@ -211,54 +345,73 @@ def test_get_latest_price_prefers_data_center_quote():
     assert result.observed_at == observed_at
 
 
-def test_fund_price_can_read_from_data_center_nav():
+def test_fund_price_can_read_from_data_center_nav(monkeypatch):
     service = UnifiedPriceService(now_provider=_after_close_now)
-    service._dc_fund_nav_repo = Mock()
-    service._dc_fund_nav_repo.get_latest.return_value = SimpleNamespace(
-        fund_code="110011",
-        nav=1.2345,
-        nav_date=_test_session_date(),
-        source="dc_tushare",
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: _published([]),
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published([]),
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_fund_nav_series",
+        lambda _code, limit=1: _published(
+            [_nav_row(fund_code="110011", nav_date=_test_session_date(), source="dc_akshare")]
+        ),
     )
 
     result = service.get_price_result("110011", asset_type="fund")
 
     assert result is not None
     assert result.price == 1.2345
-    assert result.source == "dc_tushare"
+    assert result.source == "dc_akshare"
     assert result.freshness == "close_fallback"
 
 
-def test_latest_fund_nav_rejects_stale_observation():
+def test_latest_fund_nav_rejects_stale_observation(monkeypatch):
     service = UnifiedPriceService(now_provider=_after_close_now)
-    service._dc_quote_repo = Mock()
-    service._dc_quote_repo.get_latest.return_value = None
-    service._dc_price_repo = Mock()
-    service._dc_price_repo.get_latest.return_value = None
-    service._dc_fund_nav_repo = Mock()
-    service._dc_fund_nav_repo.get_latest.return_value = SimpleNamespace(
-        fund_code="110011",
-        nav=1.2345,
-        nav_date=_test_session_date() - timedelta(days=30),
-        source="stale_nav",
+    monkeypatch.setattr(
+        price_service_module, "get_published_quote_payloads", lambda _codes: _published([])
     )
-    service._fund_adapter = SimpleNamespace(fetch_fund_nav_em=lambda _code: None)
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published([]),
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_fund_nav_series",
+        lambda _code, limit=1: _published(
+            [
+                _nav_row(
+                    fund_code="110011",
+                    nav_date=_test_session_date() - timedelta(days=30),
+                    source="stale_nav",
+                )
+            ]
+        ),
+    )
 
     assert service.get_price_result("110011", asset_type="fund") is None
 
 
-def test_stale_stored_fund_nav_continues_to_fresh_adapter():
+def test_stale_fund_nav_adapter_cannot_bypass_publication(monkeypatch):
     service = UnifiedPriceService(now_provider=_after_close_now)
-    service._dc_quote_repo = Mock()
-    service._dc_quote_repo.get_latest.return_value = None
-    service._dc_price_repo = Mock()
-    service._dc_price_repo.get_latest.return_value = None
-    service._dc_fund_nav_repo = Mock()
-    service._dc_fund_nav_repo.get_latest.return_value = SimpleNamespace(
-        fund_code="110011",
-        nav=1.1,
-        nav_date=_test_session_date() - timedelta(days=30),
-        source="stale_nav",
+    monkeypatch.setattr(
+        price_service_module, "get_published_quote_payloads", lambda _codes: _published([])
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published([]),
+    )
+    monkeypatch.setattr(
+        price_service_module, "get_published_fund_nav_series", lambda _code, limit=1: _published([])
     )
     service._fund_adapter = SimpleNamespace(
         fetch_fund_nav_em=lambda _code: pd.DataFrame(
@@ -268,15 +421,16 @@ def test_stale_stored_fund_nav_continues_to_fresh_adapter():
 
     result = service.get_price_result("110011", asset_type="fund")
 
-    assert result is not None
-    assert result.price == 1.2345
-    assert result.source == "akshare_fund"
+    assert result is None
 
 
-def test_realtime_quote_failure_returns_none_and_logs_debug(caplog):
+def test_realtime_quote_failure_returns_none_and_logs_debug(monkeypatch, caplog):
     service = UnifiedPriceService()
-    service._dc_quote_repo = Mock()
-    service._dc_quote_repo.get_latest.side_effect = RuntimeError("quote backend offline")
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        Mock(side_effect=RuntimeError("quote backend offline")),
+    )
 
     with caplog.at_level("DEBUG"):
         result = service._get_realtime_quote("159915.SZ")
@@ -286,25 +440,28 @@ def test_realtime_quote_failure_returns_none_and_logs_debug(caplog):
 
 
 @pytest.mark.parametrize("invalid_price", [0.0, -1.0, float("nan"), float("inf"), True])
-def test_invalid_realtime_price_falls_back_to_valid_close(invalid_price):
+def test_invalid_realtime_price_falls_back_to_valid_close(invalid_price, monkeypatch):
     service = UnifiedPriceService(now_provider=_after_close_now)
-    service._dc_quote_repo = Mock()
-    service._dc_quote_repo.get_latest.return_value = SimpleNamespace(
-        current_price=invalid_price,
-        source="realtime",
-        asset_code="510300.SH",
-        snapshot_at=datetime.now(UTC),
-        open=None,
-        high=None,
-        low=None,
-        prev_close=None,
-        volume=None,
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: _published(
+            [
+                _quote_row(
+                    asset_code="510300.SH",
+                    current_price=invalid_price,
+                    snapshot_at=datetime.now(UTC),
+                    source="realtime",
+                )
+            ]
+        ),
     )
-    service._dc_price_repo = Mock()
-    service._dc_price_repo.get_latest.return_value = SimpleNamespace(
-        close=4.95,
-        bar_date=_test_session_date(),
-        source="daily_close",
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published(
+            [_bar_row(asset_code="510300.SH", bar_date=_test_session_date(), source="daily_close")]
+        ),
     )
 
     result = service.get_price_result("510300")
@@ -315,22 +472,27 @@ def test_invalid_realtime_price_falls_back_to_valid_close(invalid_price):
     assert result.freshness == "close_fallback"
 
 
-def test_unattributed_price_is_not_exposed_to_business_modules():
+def test_unattributed_price_is_not_exposed_to_business_modules(monkeypatch):
     service = UnifiedPriceService()
-    service._dc_quote_repo = Mock()
-    service._dc_quote_repo.get_latest.return_value = SimpleNamespace(
-        current_price=2.18,
-        source=" ",
-        asset_code="159915.SZ",
-        snapshot_at=datetime.now(UTC),
-        open=None,
-        high=None,
-        low=None,
-        prev_close=None,
-        volume=None,
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: _published(
+            [
+                _quote_row(
+                    asset_code="159915.SZ",
+                    current_price=2.18,
+                    source=" ",
+                    snapshot_at=datetime.now(UTC),
+                )
+            ]
+        ),
     )
-    service._dc_price_repo = Mock()
-    service._dc_price_repo.get_latest.return_value = None
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published([]),
+    )
 
     assert service.get_latest_price("159915") is None
     with pytest.raises(DataFetchError, match="无法获取"):

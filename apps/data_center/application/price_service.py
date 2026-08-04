@@ -11,7 +11,12 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any, TypedDict, cast
 
-from apps.data_center.application.dtos import LatestQuoteRequest, QuoteResponse
+from apps.data_center.application.dtos import QuoteResponse
+from apps.data_center.application.public import (
+    get_published_fund_nav_series,
+    get_published_price_bar_series,
+    get_published_quote_payloads,
+)
 from apps.data_center.application.query_use_cases import (
     QueryLatestQuoteUseCase,
     latest_daily_market_observation_is_current,
@@ -337,11 +342,41 @@ class UnifiedPriceService:
 
     def _get_realtime_quote(self, normalized_code: str) -> QuoteResponse | None:
         try:
-            quote = QueryLatestQuoteUseCase(self._dc_quote_repo).execute(
-                LatestQuoteRequest(
-                    asset_code=normalized_code,
-                    max_age_hours=self._latest_quote_max_age_hours,
-                )
+            published = get_published_quote_payloads([normalized_code])
+            if self._publication_blocked(published):
+                return None
+            rows = published.get("rows")
+            if not isinstance(rows, list):
+                return None
+            row = next(
+                (
+                    item
+                    for item in rows
+                    if isinstance(item, dict)
+                    and str(item.get("asset_code", "")).strip().upper() == normalized_code
+                ),
+                None,
+            )
+            if row is None:
+                return None
+            snapshot_at = self._parse_datetime(row.get("snapshot_at"))
+            current_price = self._parse_float(row.get("current_price"))
+            source = row.get("source")
+            if snapshot_at is None or current_price is None or not isinstance(source, str):
+                return None
+            quote = QueryLatestQuoteUseCase.build_response(
+                asset_code=normalized_code,
+                snapshot_at=snapshot_at,
+                fetched_at=self._parse_datetime(row.get("fetched_at")),
+                current_price=current_price,
+                open=self._parse_optional_float(row.get("open")),
+                high=self._parse_optional_float(row.get("high")),
+                low=self._parse_optional_float(row.get("low")),
+                prev_close=self._parse_optional_float(row.get("prev_close")),
+                volume=self._parse_optional_float(row.get("volume")),
+                source=source,
+                max_age_hours=self._latest_quote_max_age_hours,
+                now=self._now_provider(),
             )
         except Exception as exc:
             logger.debug("Realtime quote lookup failed for %s: %s", normalized_code, exc)
@@ -379,7 +414,13 @@ class UnifiedPriceService:
 
     def _get_recent_close(self, normalized_code: str) -> PriceBar | None:
         try:
-            latest = self._dc_price_repo.get_latest(normalized_code)
+            published = get_published_price_bar_series(normalized_code, limit=1)
+            if self._publication_blocked(published):
+                return None
+            rows = published.get("rows")
+            if not isinstance(rows, list) or not rows:
+                return None
+            latest = self._price_bar_from_payload(rows[-1], normalized_code)
             if latest is None:
                 return None
             if not latest_daily_market_observation_is_current(
@@ -421,24 +462,31 @@ class UnifiedPriceService:
                     if result is not None:
                         return result
             else:
-                latest_fact = self._dc_fund_nav_repo.get_latest(bare_code)
-                if latest_fact is not None:
-                    result = self._fund_fact_price(latest_fact)
-                    if result is not None:
-                        if latest_daily_market_observation_is_current(
-                            asset_code=normalized_code,
-                            observed_at=result["as_of"],
-                            now=self._now_provider(),
-                        ):
-                            return result
-                        logger.info(
-                            "Stored fund NAV rejected by freshness contract: "
-                            "asset_code=%s as_of=%s",
-                            normalized_code,
-                            result["as_of"].isoformat(),
-                        )
+                published = get_published_fund_nav_series(bare_code, limit=1)
+                if self._publication_blocked(published):
+                    return None
+                rows = published.get("rows")
+                if not isinstance(rows, list) or not rows:
+                    return None
+                result = self._fund_nav_payload_price(rows[-1], bare_code)
+                if result is not None:
+                    if latest_daily_market_observation_is_current(
+                        asset_code=normalized_code,
+                        observed_at=result["as_of"],
+                        now=self._now_provider(),
+                    ):
+                        return result
+                    logger.info(
+                        "Published fund NAV rejected by freshness contract: "
+                        "asset_code=%s as_of=%s",
+                        normalized_code,
+                        result["as_of"].isoformat(),
+                    )
+                return None
         except Exception as exc:
             logger.debug("Fund NAV repository lookup failed for %s: %s", bare_code, exc)
+            if trade_date is None:
+                return None
 
         adapter = self.fund_adapter
         if adapter is None:
@@ -504,6 +552,141 @@ class UnifiedPriceService:
             "as_of": nav_date,
             "source": "akshare_fund",
         }
+
+    @staticmethod
+    def _publication_blocked(payload: object) -> bool:
+        """Return whether a published port response is not decision-safe."""
+
+        if not isinstance(payload, dict):
+            return True
+        return bool(payload.get("must_not_use_for_decision"))
+
+    @staticmethod
+    def _parse_float(value: object) -> float | None:
+        """Parse a finite numeric payload without treating booleans as numbers."""
+
+        if isinstance(value, bool) or value is None:
+            return None
+        try:
+            parsed = float(cast(Any, value))
+        except (TypeError, ValueError):
+            return None
+        return parsed if math.isfinite(parsed) else None
+
+    @classmethod
+    def _parse_optional_float(cls, value: object) -> float | None:
+        """Parse an optional finite numeric field, preserving absent values."""
+
+        if value is None or value == "":
+            return None
+        return cls._parse_float(value)
+
+    @staticmethod
+    def _parse_datetime(value: object) -> datetime | None:
+        """Parse an ISO datetime while preserving the source observation instant."""
+
+        if isinstance(value, datetime):
+            parsed = value
+        elif isinstance(value, str) and value.strip():
+            try:
+                parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+            except ValueError:
+                return None
+        else:
+            return None
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        return parsed.astimezone(UTC)
+
+    @classmethod
+    def _price_bar_from_payload(
+        cls,
+        payload: object,
+        normalized_code: str,
+    ) -> PriceBar | None:
+        """Build a price bar from a member-bound published payload."""
+
+        if not isinstance(payload, dict):
+            return None
+        payload_code = str(payload.get("asset_code", normalized_code)).strip().upper()
+        if payload_code != normalized_code:
+            return None
+        raw_date = payload.get("bar_date", payload.get("timestamp"))
+        if isinstance(raw_date, datetime):
+            bar_date = raw_date.date()
+        elif isinstance(raw_date, date):
+            bar_date = raw_date
+        elif isinstance(raw_date, str) and raw_date.strip():
+            try:
+                bar_date = date.fromisoformat(raw_date.strip()[:10])
+            except ValueError:
+                return None
+        else:
+            return None
+        close = cls._parse_float(payload.get("close"))
+        open_price = cls._parse_float(payload.get("open"))
+        high = cls._parse_float(payload.get("high"))
+        low = cls._parse_float(payload.get("low"))
+        source = payload.get("source")
+        if (
+            close is None
+            or open_price is None
+            or high is None
+            or low is None
+            or not isinstance(source, str)
+            or not source.strip()
+        ):
+            return None
+        fetched_at = cls._parse_datetime(payload.get("fetched_at"))
+        try:
+            kwargs: dict[str, Any] = {
+                "asset_code": normalized_code,
+                "bar_date": bar_date,
+                "open": open_price,
+                "high": high,
+                "low": low,
+                "close": close,
+                "freq": str(payload.get("period") or payload.get("freq") or "1d"),
+                "volume": cls._parse_optional_float(payload.get("volume")),
+                "amount": cls._parse_optional_float(payload.get("amount")),
+                "source": source.strip(),
+            }
+            if fetched_at is not None:
+                kwargs["fetched_at"] = fetched_at
+            return PriceBar(**kwargs)
+        except (TypeError, ValueError):
+            return None
+
+    @classmethod
+    def _fund_nav_payload_price(
+        cls,
+        payload: object,
+        bare_code: str,
+    ) -> FundPriceResult | None:
+        """Build a fund NAV price from a member-bound published payload."""
+
+        if not isinstance(payload, dict):
+            return None
+        payload_code = str(payload.get("fund_code", bare_code)).strip().upper()
+        if payload_code.split(".")[0] != bare_code.upper():
+            return None
+        raw_date = payload.get("nav_date")
+        if isinstance(raw_date, datetime):
+            nav_date = raw_date.date()
+        elif isinstance(raw_date, date):
+            nav_date = raw_date
+        elif isinstance(raw_date, str) and raw_date.strip():
+            try:
+                nav_date = date.fromisoformat(raw_date.strip()[:10])
+            except ValueError:
+                return None
+        else:
+            return None
+        nav = cls._parse_float(payload.get("nav"))
+        source = payload.get("source")
+        if nav is None or nav <= 0 or not isinstance(source, str) or not source.strip():
+            return None
+        return {"price": nav, "as_of": nav_date, "source": source.strip()}
 
     @staticmethod
     def _fund_fact_price(fact: FundNavFact) -> FundPriceResult | None:

@@ -149,7 +149,8 @@
       ],
       "required_markers": {
         "apps/data_center/application/price_service.py": [
-          "QueryLatestQuoteUseCase(self._dc_quote_repo).execute(",
+          "get_published_quote_payloads([normalized_code])",
+          "QueryLatestQuoteUseCase.build_response(",
           "observed_at=quote.snapshot_at"
         ],
         "apps/account/application/market_price_contracts.py": [
@@ -310,8 +311,10 @@
       "required_markers": {
         "apps/data_center/application/price_service.py": [
           "def require_latest_price_result(",
+          "get_published_price_bar_series(normalized_code, limit=1)",
+          "get_published_fund_nav_series(bare_code, limit=1)",
           "latest_daily_market_observation_is_current(",
-          "Stored fund NAV rejected by freshness contract"
+          "Published fund NAV rejected by freshness contract"
         ],
         "apps/data_center/application/query_use_cases.py": [
           "def latest_daily_market_observation_is_current("
@@ -329,9 +332,9 @@
           "test_function": "test_latest_fund_nav_rejects_stale_observation"
         },
         {
-          "case": "stale_nav_continues_failover",
+          "case": "stale_nav_adapter_cannot_bypass_publication",
           "test_file": "tests/unit/test_unified_price_service.py",
-          "test_function": "test_stale_stored_fund_nav_continues_to_fresh_adapter"
+          "test_function": "test_stale_fund_nav_adapter_cannot_bypass_publication"
         }
       ]
     },
