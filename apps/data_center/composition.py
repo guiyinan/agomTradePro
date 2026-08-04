@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, cast
 
+from apps.data_center.application.control_plane import RollbackCanonicalPublicationUseCase
 from apps.data_center.application.pit_use_cases import (
     BuildPITManifestUseCase,
     QueryPITManifestUseCase,
@@ -122,6 +123,7 @@ __all__ = [
     "get_asset_repository",
     "get_archive_manifest_repository",
     "get_canonical_publication_repository",
+    "get_rollback_canonical_publication_use_case",
     "get_capital_flow_repository",
     "get_data_center_diagnostic_repository",
     "get_data_owner_registry_repository",
@@ -371,6 +373,12 @@ def get_canonical_publication_repository() -> CanonicalPublicationRepository:
     """Return the canonical publication repository."""
 
     return CanonicalPublicationRepository()
+
+
+def get_rollback_canonical_publication_use_case() -> RollbackCanonicalPublicationUseCase:
+    """Return the explicit canonical publication rollback use case."""
+
+    return RollbackCanonicalPublicationUseCase(get_canonical_publication_repository())
 
 
 def get_akshare_module() -> Any:

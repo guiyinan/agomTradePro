@@ -358,6 +358,7 @@ class CanonicalPublication:
     as_of: datetime | None = None
     published_at: datetime | None = None
     superseded_at: datetime | None = None
+    reinstated_at: datetime | None = None
     must_not_use_for_decision: bool = False
     blocked_reason: str = ""
     created_by: str = "system"
@@ -381,6 +382,8 @@ class CanonicalPublication:
             _require_aware(self.published_at, "CanonicalPublication.published_at")
         if self.superseded_at is not None:
             _require_aware(self.superseded_at, "CanonicalPublication.superseded_at")
+        if self.reinstated_at is not None:
+            _require_aware(self.reinstated_at, "CanonicalPublication.reinstated_at")
         if self.state is PublicationState.PUBLISHED:
             if not self.selected_source:
                 raise ValueError("Published publication requires selected_source")
@@ -430,10 +433,28 @@ class PublicationMember:
             raise ValueError("PublicationMember.revision_number must be positive")
 
 
+@dataclass(frozen=True)
+class PublicationRollback:
+    """Explicit operator evidence for restoring a prior publication."""
+
+    target_publication_id: str
+    reason: str
+    operator: str
+    observed_at: datetime
+    previous_publication_id: str = ""
+
+    def __post_init__(self) -> None:
+        for name in ("target_publication_id", "reason", "operator"):
+            if not getattr(self, name).strip():
+                raise ValueError(f"PublicationRollback.{name} cannot be empty")
+        _require_aware(self.observed_at, "PublicationRollback.observed_at")
+
+
 __all__ = [
     "CanonicalPublication",
     "CoverageSnapshot",
     "PublicationMember",
+    "PublicationRollback",
     "PublicationFactReference",
     "PublicationState",
     "QuarantineRecord",

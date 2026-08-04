@@ -10,6 +10,7 @@ from apps.data_center.domain.contracts import PublicationPolicy
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     PublicationMember,
+    PublicationRollback,
     PublicationState,
     QuarantineRecord,
     SyncBatch,
@@ -73,6 +74,8 @@ class CanonicalPublicationRepositoryPort(Protocol):
         publication_key: str,
         as_of: datetime,
     ) -> CanonicalPublication | None: ...
+
+    def rollback(self, rollback: PublicationRollback) -> CanonicalPublication: ...
 
 
 class StartSyncRunUseCase:
@@ -177,9 +180,35 @@ class PublishCanonicalDatasetUseCase:
         return self._repository.publish_with_members(publication, tuple(members))
 
 
+class RollbackCanonicalPublicationUseCase:
+    """Restore a prior publication only with explicit operator evidence."""
+
+    def __init__(self, repository: CanonicalPublicationRepositoryPort) -> None:
+        self._repository = repository
+
+    def execute(
+        self,
+        *,
+        target_publication_id: str,
+        reason: str,
+        operator: str,
+        observed_at: datetime,
+    ) -> CanonicalPublication:
+        """Restore one previously published snapshot through the repository port."""
+
+        rollback = PublicationRollback(
+            target_publication_id=target_publication_id,
+            reason=reason,
+            operator=operator,
+            observed_at=observed_at,
+        )
+        return self._repository.rollback(rollback)
+
+
 __all__ = [
     "CanonicalPublicationRepositoryPort",
     "PublishCanonicalDatasetUseCase",
+    "RollbackCanonicalPublicationUseCase",
     "QuarantineRepositoryPort",
     "RecordQuarantineUseCase",
     "StartSyncRunUseCase",

@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from django.db import transaction
+from django.db.models import Q
 
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     PublicationMember,
+    PublicationRollback,
     PublicationState,
     QuarantineRecord,
     SyncBatch,
@@ -19,13 +21,16 @@ from apps.data_center.domain.control_plane import (
 )
 
 from .models import (
-    CanonicalPublicationModel,
-    CoverageSnapshotModel,
-    PublicationMemberModel,
     QuarantineRecordModel,
     SyncBatchModel,
     SyncCheckpointModel,
     SyncRunModel,
+)
+from .publication_models import (
+    CanonicalPublicationModel,
+    CoverageSnapshotModel,
+    PublicationMemberModel,
+    PublicationRollbackModel,
 )
 
 
@@ -244,6 +249,7 @@ class CanonicalPublicationRepository:
                 "as_of": publication.as_of,
                 "published_at": publication.published_at,
                 "superseded_at": publication.superseded_at,
+                "reinstated_at": publication.reinstated_at,
                 "must_not_use_for_decision": publication.must_not_use_for_decision,
                 "blocked_reason": publication.blocked_reason,
                 "created_by": publication.created_by,
@@ -439,6 +445,102 @@ class CanonicalPublicationRepository:
         ):
             raise ValueError("Publication published_at must be later than current publication")
 
+    @transaction.atomic
+    def rollback(self, rollback: PublicationRollback) -> CanonicalPublication:
+        """Restore a prior publication with explicit, durable operator evidence."""
+
+        target_id = _uuid(rollback.target_publication_id)
+        target = (
+            CanonicalPublicationModel._default_manager.select_for_update()
+            .filter(publication_id=target_id)
+            .first()
+        )
+        if target is None:
+            raise ValueError("Rollback target publication does not exist")
+        if target.state != PublicationState.SUPERSEDED.value:
+            raise ValueError("Rollback target must be a superseded published publication")
+        if target.must_not_use_for_decision:
+            raise ValueError("Rollback target is blocked for decisions")
+        if not target.selected_source or not target.publication_hash:
+            raise ValueError("Rollback target is missing publication evidence")
+        if target.published_at is None or target.as_of is None:
+            raise ValueError("Rollback target is missing publication time evidence")
+        if target.as_of > target.published_at:
+            raise ValueError("Rollback target has inconsistent publication time evidence")
+        if target.superseded_at is None or target.superseded_at < target.published_at:
+            raise ValueError("Rollback target has inconsistent supersede time evidence")
+        self._ensure_persisted_member_evidence(target)
+
+        scope = CanonicalPublicationModel._default_manager.filter(
+            dataset_key=target.dataset_key,
+            publication_key=target.publication_key,
+        )
+        current_rows = list(
+            scope.select_for_update()
+            .filter(state=PublicationState.PUBLISHED.value)
+            .exclude(publication_id=target_id)
+            .order_by("-published_at")
+        )
+        if len(current_rows) != 1:
+            raise ValueError("Rollback requires exactly one current published publication")
+        current = current_rows[0]
+        if current.published_at is None or current.as_of is None:
+            raise ValueError("Current publication is missing publication time evidence")
+        if current.as_of > current.published_at:
+            raise ValueError("Current publication has inconsistent publication time evidence")
+        if rollback.observed_at <= current.published_at:
+            raise ValueError("Rollback observed_at must be later than current published_at")
+        if rollback.observed_at < target.published_at:
+            raise ValueError("Rollback observed_at cannot precede target published_at")
+
+        CanonicalPublicationModel._default_manager.filter(
+            publication_id=current.publication_id,
+        ).update(
+            state=PublicationState.SUPERSEDED.value,
+            superseded_at=rollback.observed_at,
+        )
+        CanonicalPublicationModel._default_manager.filter(
+            publication_id=target_id,
+        ).update(
+            state=PublicationState.PUBLISHED.value,
+            reinstated_at=rollback.observed_at,
+        )
+        PublicationRollbackModel._default_manager.create(
+            rollback_id=uuid4(),
+            target_publication_id=target.publication_id,
+            previous_publication_id=current.publication_id,
+            dataset_key=target.dataset_key,
+            publication_key=target.publication_key,
+            reason=rollback.reason,
+            operator=rollback.operator,
+            observed_at=rollback.observed_at,
+        )
+        restored = CanonicalPublicationModel._default_manager.get(publication_id=target_id)
+        return restored.to_domain()
+
+    @staticmethod
+    def _ensure_persisted_member_evidence(publication: CanonicalPublicationModel) -> None:
+        """Require a complete selected member set before restoring a snapshot."""
+
+        publication_id = publication.publication_id
+        member_count = publication.member_count
+        if member_count <= 0:
+            raise ValueError("Rollback target is missing publication member evidence")
+        members = list(
+            PublicationMemberModel._default_manager.filter(
+                publication_id=publication_id,
+            ).values("fact_table", "fact_pk", "observed_at")
+        )
+        if len(members) != member_count or any(row["observed_at"] is None for row in members):
+            raise ValueError("Rollback target is missing publication member evidence")
+        if len({(row["fact_table"], row["fact_pk"]) for row in members}) != member_count:
+            raise ValueError("Rollback target has duplicate publication member evidence")
+        coverage = CoverageSnapshotModel._default_manager.filter(
+            publication_id=publication_id,
+        ).first()
+        if coverage is None or coverage.selected_count != member_count:
+            raise ValueError("Rollback target is missing coverage evidence")
+
     def get_current(self, dataset_key: str, publication_key: str) -> CanonicalPublication | None:
         """Return only the active published publication for a scope."""
 
@@ -449,6 +551,7 @@ class CanonicalPublicationRepository:
                 state=PublicationState.PUBLISHED.value,
                 must_not_use_for_decision=False,
             )
+            .filter(Q(superseded_at__isnull=True) | Q(reinstated_at__isnull=False))
             .order_by("-published_at")
             .first()
         )
@@ -466,29 +569,33 @@ class CanonicalPublicationRepository:
             CanonicalPublicationModel._default_manager.filter(
                 dataset_key=dataset_key,
                 publication_key=publication_key,
-                state__in=[PublicationState.PUBLISHED.value, PublicationState.SUPERSEDED.value],
                 published_at__lte=as_of,
             )
             .filter(
-                # A superseded version is valid until its supersede time; a
-                # current version remains valid after publication.
-                superseded_at__isnull=True,
+                # A superseded version is valid until its supersede time.  A
+                # rollback-restored version becomes valid again only at the
+                # explicit rollback observation boundary.
+                Q(
+                    state=PublicationState.SUPERSEDED.value,
+                    superseded_at__gt=as_of,
+                )
+                | Q(
+                    state=PublicationState.PUBLISHED.value,
+                    superseded_at__isnull=True,
+                )
+                | Q(
+                    state=PublicationState.PUBLISHED.value,
+                    reinstated_at__lte=as_of,
+                )
+                | Q(
+                    state=PublicationState.PUBLISHED.value,
+                    superseded_at__gt=as_of,
+                    reinstated_at__gt=as_of,
+                )
             )
             .order_by("-published_at")
             .first()
         )
-        if model is None:
-            model = (
-                CanonicalPublicationModel._default_manager.filter(
-                    dataset_key=dataset_key,
-                    publication_key=publication_key,
-                    state=PublicationState.SUPERSEDED.value,
-                    published_at__lte=as_of,
-                    superseded_at__gt=as_of,
-                )
-                .order_by("-published_at")
-                .first()
-            )
         return model.to_domain() if model is not None else None
 
     def add_member(self, member: PublicationMember) -> PublicationMember:

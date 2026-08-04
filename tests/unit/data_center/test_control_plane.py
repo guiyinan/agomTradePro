@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 
-from apps.data_center.application.control_plane import PublishCanonicalDatasetUseCase
+from apps.data_center.application.control_plane import (
+    PublishCanonicalDatasetUseCase,
+    RollbackCanonicalPublicationUseCase,
+)
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     CoverageSnapshot,
     PublicationMember,
+    PublicationRollback,
     PublicationState,
     QuarantineRecord,
     QuarantineResolution,
@@ -32,6 +37,7 @@ from apps.data_center.infrastructure.control_plane_repositories import (
 from apps.data_center.infrastructure.models import (
     CanonicalPublicationModel,
     PublicationMemberModel,
+    PublicationRollbackModel,
 )
 
 NOW = datetime(2026, 8, 2, 5, 0, tzinfo=UTC)
@@ -410,6 +416,155 @@ def test_publish_with_members_rolls_back_candidate_and_members_on_failure(monkey
     assert not PublicationMemberModel._default_manager.filter(
         publication_id=publication.publication_id
     ).exists()
+
+
+@pytest.mark.django_db
+def test_explicit_publication_rollback_preserves_history_until_observed_boundary() -> None:
+    """Rollback must be explicit and must not rewrite historical as-of reads."""
+
+    repository = CanonicalPublicationRepository()
+    first_time = NOW.replace(hour=1)
+    second_time = NOW.replace(hour=2)
+    first, first_members = _publication_with_members(
+        publication_id=str(uuid4()),
+        member_count=1,
+        as_of=first_time,
+    )
+    second, second_members = _publication_with_members(
+        publication_id=str(uuid4()),
+        member_count=1,
+        as_of=second_time,
+    )
+    repository.publish_with_members(first, first_members)
+    repository.publish_with_members(second, second_members)
+
+    current = repository.get_current(first.dataset_key, first.publication_key)
+    assert current is not None
+    assert current.publication_id == second.publication_id
+    before_rollback = repository.get_as_of(
+        first.dataset_key,
+        first.publication_key,
+        second_time.replace(minute=30),
+    )
+    assert before_rollback is not None
+    assert before_rollback.publication_id == second.publication_id
+
+    rollback_at = NOW
+    restored = RollbackCanonicalPublicationUseCase(repository).execute(
+        target_publication_id=first.publication_id,
+        reason="restore verified prior snapshot",
+        operator="operator-1",
+        observed_at=rollback_at,
+    )
+    assert restored.publication_id == first.publication_id
+    assert restored.reinstated_at == rollback_at
+    current_after = repository.get_current(first.dataset_key, first.publication_key)
+    assert current_after is not None
+    assert current_after.publication_id == first.publication_id
+
+    historical = repository.get_as_of(
+        first.dataset_key,
+        first.publication_key,
+        second_time.replace(minute=30),
+    )
+    assert historical is not None
+    assert historical.publication_id == second.publication_id
+    after_rollback = repository.get_as_of(
+        first.dataset_key,
+        first.publication_key,
+        rollback_at.replace(minute=1),
+    )
+    assert after_rollback is not None
+    assert after_rollback.publication_id == first.publication_id
+
+    evidence = PublicationRollbackModel._default_manager.get(
+        target_publication_id=first.publication_id,
+    )
+    assert evidence.reason == "restore verified prior snapshot"
+    assert evidence.operator == "operator-1"
+    assert evidence.observed_at == rollback_at
+    assert str(evidence.previous_publication_id) == second.publication_id
+
+
+@pytest.mark.django_db
+def test_publication_rollback_rejects_non_published_missing_evidence_and_bad_time() -> None:
+    """Rollback refuses invalid targets, incomplete members and inconsistent time."""
+
+    repository = CanonicalPublicationRepository()
+    first_time = NOW.replace(hour=1)
+    second_time = NOW.replace(hour=2)
+    first, first_members = _publication_with_members(
+        publication_id=str(uuid4()),
+        member_count=1,
+        as_of=first_time,
+    )
+    second, second_members = _publication_with_members(
+        publication_id=str(uuid4()),
+        member_count=1,
+        as_of=second_time,
+    )
+    repository.publish_with_members(first, first_members)
+    repository.publish_with_members(second, second_members)
+
+    candidate_id = str(uuid4())
+    candidate, _ = _publication_with_members(
+        publication_id=candidate_id,
+        member_count=1,
+        as_of=first_time,
+    )
+    repository.save(replace(candidate, state=PublicationState.CANDIDATE))
+    with pytest.raises(ValueError, match="superseded published"):
+        repository.rollback(
+            PublicationRollback(
+                target_publication_id=candidate_id,
+                reason="invalid target",
+                operator="operator-1",
+                observed_at=NOW,
+            )
+        )
+
+    incomplete_id = str(uuid4())
+    incomplete = CanonicalPublication(
+        publication_id=incomplete_id,
+        dataset_key=first.dataset_key,
+        publication_key=first.publication_key,
+        policy_version=first.policy_version,
+        state=PublicationState.SUPERSEDED,
+        selected_source="fixture",
+        publication_hash=f"sha256:{incomplete_id}",
+        coverage=CoverageSnapshot(
+            coverage_id=str(uuid4()),
+            publication_id=incomplete_id,
+            requested_count=1,
+            eligible_count=1,
+            selected_count=1,
+            generated_at=first_time,
+        ),
+        member_count=1,
+        as_of=first_time,
+        published_at=first_time,
+        superseded_at=second_time,
+    )
+    repository.save(incomplete)
+    with pytest.raises(ValueError, match="member evidence"):
+        repository.rollback(
+            PublicationRollback(
+                target_publication_id=incomplete_id,
+                reason="missing member evidence",
+                operator="operator-1",
+                observed_at=NOW,
+            )
+        )
+
+    with pytest.raises(ValueError, match="later than current"):
+        repository.rollback(
+            PublicationRollback(
+                target_publication_id=first.publication_id,
+                reason="time mismatch",
+                operator="operator-1",
+                observed_at=second_time,
+            )
+        )
 
 
 @pytest.mark.django_db
