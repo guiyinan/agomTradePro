@@ -42,6 +42,9 @@ jobs:
       - name: Verify test-tier inventory
         run: python scripts/test_tier_inventory.py --check
 
+      - name: Verify SystemSettings field contract
+        run: python scripts/check_system_settings_field_contract.py
+
       - name: Run fast suite without creating a test database
         run: python scripts/run_fast_tests.py
 

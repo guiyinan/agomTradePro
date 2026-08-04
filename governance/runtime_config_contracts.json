@@ -7,6 +7,112 @@
     "module_defaults": "must_be_registered",
     "celery_kwargs": "must_be_registered"
   },
+  "system_settings_field_contract": {
+    "model": "apps/config_center/infrastructure/models.py::SystemSettingsModel",
+    "owner": "config_center",
+    "purpose": "Make every persisted singleton field explicit while migration and retirement are still in progress.",
+    "new_field_policy": "A new SystemSettingsModel field must be added to one group below with an owner, lifecycle and replacement/retirement decision before merge.",
+    "field_groups": [
+      {
+        "name": "account_access_and_content",
+        "owner": "account",
+        "lifecycle": "compatibility",
+        "replacement": "account.application.registration_policy_and_user_content",
+        "fields": [
+          "require_user_approval",
+          "auto_approve_first_admin",
+          "default_mcp_enabled",
+          "allow_token_plaintext_view",
+          "user_agreement_content",
+          "risk_warning_content",
+          "notes"
+        ]
+      },
+      {
+        "name": "market_mapping_and_visuals",
+        "owner": "config_center",
+        "lifecycle": "compatibility",
+        "replacement": "config_center.runtime_profile.market_and_asset_mapping",
+        "fields": [
+          "market_color_convention",
+          "benchmark_code_map",
+          "asset_proxy_code_map"
+        ]
+      },
+      {
+        "name": "decision_runtime_state",
+        "owner": "reliability",
+        "lifecycle": "state_compatibility",
+        "replacement": "config_center.decision_runtime_state",
+        "fields": [
+          "decision_runtime_status",
+          "decision_runtime_reason",
+          "decision_runtime_changed_at",
+          "decision_runtime_changed_by",
+          "decision_runtime_release_ref",
+          "decision_runtime_expected_resume_at"
+        ]
+      },
+      {
+        "name": "backup_delivery",
+        "owner": "operations",
+        "lifecycle": "active_compatibility",
+        "replacement": "operations.backup_policy_and_delivery",
+        "fields": [
+          "backup_email",
+          "backup_app_base_url",
+          "backup_mail_from_email",
+          "backup_smtp_host",
+          "backup_smtp_port",
+          "backup_smtp_username",
+          "backup_smtp_password_encrypted",
+          "backup_smtp_use_tls",
+          "backup_smtp_use_ssl",
+          "backup_enabled",
+          "backup_interval_days",
+          "backup_link_ttl_days",
+          "backup_password_encrypted",
+          "backup_password_hint",
+          "backup_last_sent_at",
+          "backup_download_token_digest",
+          "backup_download_token_expires_at",
+          "backup_download_consumed_at"
+        ]
+      },
+      {
+        "name": "qlib_runtime",
+        "owner": "alpha",
+        "lifecycle": "active_compatibility",
+        "replacement": "config_center.runtime_profile.qlib",
+        "fields": [
+          "qlib_enabled",
+          "qlib_provider_uri",
+          "qlib_region",
+          "qlib_model_path",
+          "qlib_default_universe",
+          "qlib_default_feature_set_id",
+          "qlib_default_label_id",
+          "qlib_train_queue_name",
+          "qlib_infer_queue_name",
+          "qlib_allow_auto_activate"
+        ]
+      },
+      {
+        "name": "alpha_runtime",
+        "owner": "alpha",
+        "lifecycle": "active_compatibility",
+        "replacement": "config_center.runtime_profile.alpha",
+        "fields": ["alpha_fixed_provider", "alpha_pool_mode"]
+      },
+      {
+        "name": "model_metadata",
+        "owner": "config_center",
+        "lifecycle": "metadata",
+        "replacement": null,
+        "fields": ["created_at", "updated_at"]
+      }
+    ]
+  },
   "profiles": [
     {
       "profile_key": "development",
