@@ -1812,11 +1812,18 @@ a {
 }
 
 .tui-entry-card,
-.tui-entry-actions button {
+.tui-entry-actions button,
+.tui-entry-action {
     border: 1px solid var(--tui-border);
     background: var(--tui-bg-deep);
     color: var(--tui-text);
     font: 700 12px/1.35 var(--tui-mono);
+}
+
+.tui-entry-action {
+    min-height: 34px;
+    padding: 0 10px;
+    border-radius: 0;
 }
 
 .tui-entry-card {
@@ -1850,7 +1857,9 @@ a {
 .tui-entry-card:hover,
 .tui-entry-card:focus,
 .tui-entry-actions button:hover,
-.tui-entry-actions button:focus {
+.tui-entry-actions button:focus,
+.tui-entry-action:hover,
+.tui-entry-action:focus {
     outline: 1px solid var(--tui-text);
     outline-offset: -1px;
     background: var(--tui-text);

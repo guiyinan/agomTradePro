@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "491b0b20fe930760f5d5afcda492c36c9a236e04",
-  "build_id": "agomtui-runtime-0.2.0+3fdfafe866f2",
+  "upstream_commit": "901078e35fb7caf9f8019300ed195569edcf5b03",
+  "build_id": "agomtui-runtime-0.2.0+9af04a29a242",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -28,6 +28,6 @@
     "frontend/tui-workbench/src/50-shell.js": "01e25c11eda8cc84fd1206fae7546972692dcafc5693da3e4039719386658ff3",
     "static/js/agomtui-runtime-core.js": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
     "static/js/tui-workbench.js": "cc66c85d609b1128e976be43a98177d02a3ef359c35ed49bcaba106aa4e96634",
-    "static/css/tui-workbench.css": "bb896bc54094867190d63a1692fb86f85cba3f3c6782553a33176a79a71f268b"
+    "static/css/tui-workbench.css": "581792cdf9eceac1302273ff63639dc39796bc181be3c3f282e89aac36ed8726"
   }
 }
