@@ -13,6 +13,58 @@ from apps.data_center.domain.entities import (
 )
 
 
+def test_latest_published_macro_values_are_catalog_bounded_and_fail_closed(monkeypatch) -> None:
+    """Current macro summaries must discard unpublished or empty indicators."""
+
+    monkeypatch.setattr(
+        query_services,
+        "get_indicator_catalog_repository",
+        lambda: SimpleNamespace(
+            list_active=lambda: [
+                SimpleNamespace(code="CN_CPI"),
+                SimpleNamespace(code="CN_PMI"),
+            ]
+        ),
+    )
+
+    def _published(code: str, *, limit: int) -> dict[str, object]:
+        assert limit == 1
+        if code == "CN_CPI":
+            return {
+                "rows": [
+                    {
+                        "indicator_code": code,
+                        "value": 1.2,
+                        "reporting_period": "2026-07-31",
+                    }
+                ],
+                "publication_id": "pub-cpi",
+                "freshness_status": "fresh",
+                "must_not_use_for_decision": False,
+            }
+        return {
+            "rows": [],
+            "publication_id": "pub-pmi",
+            "freshness_status": "stale",
+            "must_not_use_for_decision": True,
+        }
+
+    monkeypatch.setattr(query_services, "query_published_macro_fact_series", _published)
+
+    result = query_services.list_latest_published_macro_indicator_payloads(limit=10)
+
+    assert result == [
+        {
+            "indicator_code": "CN_CPI",
+            "value": 1.2,
+            "reporting_period": "2026-07-31",
+            "publication_id": "pub-cpi",
+            "freshness_status": "fresh",
+            "must_not_use_for_decision": False,
+        }
+    ]
+
+
 def _publication() -> SimpleNamespace:
     """Return the minimum publication metadata used by the query gate."""
 

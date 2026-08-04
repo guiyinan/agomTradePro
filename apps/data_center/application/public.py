@@ -22,6 +22,7 @@ from apps.data_center.application.query_services import (
     list_active_asset_codes,
     list_active_provider_summaries,
     list_latest_macro_indicator_payloads,
+    list_latest_published_macro_indicator_payloads,
     list_price_covered_asset_codes,
     list_valuation_covered_asset_codes,
     query_financial_facts,
@@ -430,6 +431,12 @@ def list_latest_macro_values(limit: int = 50) -> list[dict[str, Any]]:
     """Read latest canonical macro values for a bounded consumer snapshot."""
 
     return list_latest_macro_indicator_payloads(limit=limit)
+
+
+def list_latest_published_macro_values(limit: int = 50) -> list[dict[str, Any]]:
+    """Read fresh, member-bound macro values for current-facing consumers."""
+
+    return list_latest_published_macro_indicator_payloads(limit=limit)
 
 
 def get_macro_fact_series(
@@ -916,6 +923,7 @@ __all__ = [
     "list_active_stock_codes",
     "list_active_data_sources",
     "list_latest_macro_values",
+    "list_latest_published_macro_values",
     "list_macro_facts_by_original_unit",
     "list_price_covered_codes",
     "list_valuation_covered_codes",

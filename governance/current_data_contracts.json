@@ -1112,10 +1112,11 @@
         "sdk/agomtradepro/modules/data_center.py",
         "sdk/agomtradepro_mcp/tools/data_center_tools.py",
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/data_center.py",
-        "apps/alpha/infrastructure/adapters/simple_adapter.py",
-        "apps/pulse/infrastructure/data_provider.py",
-        "apps/regime/infrastructure/macro_data_provider.py",
-        "apps/prompt/infrastructure/adapters/macro_adapter.py"
+    "apps/alpha/infrastructure/adapters/simple_adapter.py",
+    "apps/pulse/infrastructure/data_provider.py",
+    "apps/regime/infrastructure/macro_data_provider.py",
+    "apps/prompt/infrastructure/adapters/macro_adapter.py",
+    "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
       ],
       "required_markers": {
         "apps/data_center/application/public.py": [
@@ -1123,9 +1124,10 @@
           "def get_published_price_bar_series(",
           "def get_published_macro_fact_series("
         ],
-        "apps/data_center/application/query_services.py": [
-          "def query_published_macro_fact_series(",
-          "def query_published_fund_nav_series(",
+    "apps/data_center/application/query_services.py": [
+      "def query_published_macro_fact_series(",
+      "def list_latest_published_macro_indicator_payloads(",
+      "def query_published_fund_nav_series(",
           "_publication_gate(\"macro.fact\"",
           "_publication_member_fact_pks(",
           "data_center_macro_fact",
@@ -1162,13 +1164,16 @@
           "get_published_macro_fact_series(code, limit=1)",
           "get_published_series(indicator_code, limit=limit)"
         ],
-        "apps/prompt/infrastructure/adapters/macro_adapter.py": [
+    "apps/prompt/infrastructure/adapters/macro_adapter.py": [
           "published_only",
           "get_published_series",
           "if as_of_date is None",
           "sorted(indicators, key=lambda item: item.reporting_period)",
-          "key=lambda item: item.reporting_period"
-        ]
+      "key=lambda item: item.reporting_period"
+    ],
+    "apps/agent_runtime/infrastructure/context_snapshot_repository.py": [
+      "list_latest_published_macro_values(limit=500)"
+    ]
       },
       "required_tests": [
         {
@@ -1216,11 +1221,21 @@
           "test_file": "sdk/tests/test_sdk/test_data_center_module.py",
           "test_function": "test_data_center_module_endpoints"
         },
-        {
-          "case": "macro_rows_are_member_bound",
-          "test_file": "tests/unit/data_center/test_published_query_ports.py",
-          "test_function": "test_published_macro_facts_use_only_publication_members"
-        },
+    {
+      "case": "macro_rows_are_member_bound",
+      "test_file": "tests/unit/data_center/test_published_query_ports.py",
+      "test_function": "test_published_macro_facts_use_only_publication_members"
+    },
+    {
+      "case": "macro_summary_uses_published_values",
+      "test_file": "tests/unit/data_center/test_published_query_ports.py",
+      "test_function": "test_latest_published_macro_values_are_catalog_bounded_and_fail_closed"
+    },
+    {
+      "case": "agent_macro_freshness_uses_publication_gate",
+      "test_file": "tests/unit/agent_runtime/test_t5_context_snapshot_repository_contracts.py",
+      "test_function": "test_context_snapshot_extended_summaries_cover_all_supported_sources"
+    },
         {
           "case": "fund_nav_rows_are_member_bound",
           "test_file": "tests/unit/data_center/test_published_query_ports.py",

@@ -157,10 +157,7 @@ def test_context_snapshot_extended_summaries_cover_all_supported_sources() -> No
     regime_manager.order_by.return_value.first.return_value = SimpleNamespace(
         observed_at=observed_at
     )
-    macro_manager = MagicMock()
-    macro_manager.order_by.return_value.first.return_value = SimpleNamespace(
-        published_at=observed_at
-    )
+    published_macro_values = [{"reporting_period": "2026-07-25"}]
     with patch.dict(
         sys.modules,
         {
@@ -168,13 +165,13 @@ def test_context_snapshot_extended_summaries_cover_all_supported_sources() -> No
                 "RegimeLog",
                 regime_manager,
             ),
-            "apps.macro.infrastructure.models": _model_module(
-                "MacroIndicator",
-                macro_manager,
-            ),
         },
     ):
-        freshness = repository.fetch_data_freshness_summary()
+        with patch(
+            "apps.data_center.application.public.list_latest_published_macro_values",
+            return_value=published_macro_values,
+        ):
+            freshness = repository.fetch_data_freshness_summary()
         assert freshness["sources"]["regime"].startswith("2026-07-25")
         assert freshness["sources"]["macro"].startswith("2026-07-25")
 

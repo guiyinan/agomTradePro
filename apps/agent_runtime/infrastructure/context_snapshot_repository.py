@@ -221,9 +221,9 @@ class DjangoContextSnapshotRepository:
             failed_sources.append("regime")
 
         try:
-            from apps.data_center.application.public import list_latest_macro_values
+            from apps.data_center.application.public import list_latest_published_macro_values
 
-            macro_values = list_latest_macro_values(limit=500)
+            macro_values = list_latest_published_macro_values(limit=500)
             observed_periods = [
                 str(row.get("reporting_period"))
                 for row in macro_values

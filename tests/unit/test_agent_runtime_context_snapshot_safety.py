@@ -1,8 +1,7 @@
 """Safety regressions for Agent Runtime context snapshot persistence reads."""
 
 import logging
-from datetime import UTC, date, datetime
-from types import SimpleNamespace
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -83,7 +82,7 @@ def test_active_signal_rows_are_projected_without_mutating_orm_values(monkeypatc
 
 
 def test_freshness_reports_degraded_when_one_source_fails(monkeypatch, caplog) -> None:
-    from apps.macro.infrastructure.models import MacroIndicator
+    from apps.data_center.application import public as data_center_public
     from apps.regime.infrastructure.models import RegimeLog
 
     def fail_regime(*_args: object, **_kwargs: object) -> None:
@@ -91,11 +90,9 @@ def test_freshness_reports_degraded_when_one_source_fails(monkeypatch, caplog) -
 
     monkeypatch.setattr(RegimeLog._default_manager, "order_by", fail_regime)
     monkeypatch.setattr(
-        MacroIndicator._default_manager,
-        "order_by",
-        lambda *_fields: SimpleNamespace(
-            first=lambda: SimpleNamespace(published_at=date(2026, 7, 28))
-        ),
+        data_center_public,
+        "list_latest_published_macro_values",
+        lambda **_kwargs: [{"reporting_period": "2026-07-28"}],
     )
 
     summary = DjangoContextSnapshotRepository().fetch_data_freshness_summary()

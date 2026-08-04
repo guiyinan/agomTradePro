@@ -1724,6 +1724,26 @@ CI 观察结论：
 
 - 生产已有宏观 Publication 需要在新代码部署后重采/核对；本地单元测试不能证明 VPS 的旧 Publication key 已迁移。
 
+## 实施记录（2026-08-04，Agent Runtime 宏观 freshness 旁路收口）
+
+本批次修复 Agent Runtime 运维/上下文摘要仍从“最新 canonical fact”读取宏观时间、绕过 Publication freshness gate 的旁路；不部署、不 push。
+
+已落地：
+
+- 新增 `list_latest_published_macro_indicator_payloads` / `list_latest_published_macro_values` Public Port：先以 active Indicator Catalog 有界发现指标，再逐项复用宏观 Publication/member/freshness gate；未发布、过期、空成员或空 rows 不进入当前摘要。
+- `DjangoContextSnapshotRepository.fetch_data_freshness_summary` 改用 published macro port；无可用发布证据时报告 `macro=unavailable`/degraded，而不是把旧事实日期包装成健康。
+- current-data contract 登记 Agent Runtime source/marker 与精确回归，防止后续重新调用 legacy cache-warmup port。
+
+机器证据（本地）：
+
+- Data Center published/query、Agent Runtime context safety：36 passed；组件 context snapshot：2 passed。
+- `python scripts/check_current_data_contracts.py`：36 surfaces；current-data runner 收集 198 个登记 nodeid、237 个测试项。
+- 变更文件 ruff、mypy regression、architecture/audit 通过；未改变 historical/PIT 宏观端口。
+
+仍未完成及风险：
+
+- Agent Runtime 其它 regime/policy/portfolio 运维摘要属于业务状态，不是外部事实 Publication；生产 PostgreSQL publication/member 数据、观察窗口、全入口快照和 VPS release 仍未验证。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

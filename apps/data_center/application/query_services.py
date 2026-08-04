@@ -952,6 +952,51 @@ def list_latest_macro_indicator_payloads(limit: int = 50) -> list[dict[str, Any]
     ]
 
 
+def list_latest_published_macro_indicator_payloads(limit: int = 50) -> list[dict[str, Any]]:
+    """Return only fresh, member-bound macro values for current consumers.
+
+    The cache-warmup helper above intentionally reads the latest canonical fact
+    for deployment warming and maintenance.  Current/ops consumers must not
+    use that compatibility query because a non-empty fact can be unpublished or
+    stale.  Indicator catalog rows provide the bounded discovery list; each
+    value then passes the same publication/member/freshness gate as REST/SDK/MCP.
+    """
+
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
+        raise ValueError("limit must be a positive integer")
+
+    catalogs = sorted(
+        get_indicator_catalog_repository().list_active(),
+        key=lambda item: item.code,
+    )[:limit]
+    payloads: list[dict[str, Any]] = []
+    for catalog in catalogs:
+        published = query_published_macro_fact_series(catalog.code, limit=1)
+        if bool(published.get("must_not_use_for_decision")):
+            continue
+        rows = published.get("rows")
+        if not isinstance(rows, list) or not rows:
+            continue
+        row = rows[-1]
+        if not isinstance(row, dict):
+            continue
+        payload = dict(row)
+        for key in (
+            "publication_id",
+            "publication_key",
+            "published_at",
+            "as_of",
+            "observed_at",
+            "freshness_status",
+            "must_not_use_for_decision",
+            "blocked_reason",
+        ):
+            if key in published:
+                payload[key] = published[key]
+        payloads.append(payload)
+    return payloads
+
+
 def get_latest_market_thermometer_snapshot_payload() -> dict[str, Any] | None:
     """Return the latest market thermometer snapshot as a JSON-safe payload."""
 
