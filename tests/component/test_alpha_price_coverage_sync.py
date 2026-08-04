@@ -291,8 +291,7 @@ def test_alpha_price_sync_rolls_back_old_bar_deletion_when_write_fails(mocker):
 
 def test_sync_alpha_price_coverage_command_rejects_reversed_dates(mocker):
     service = mocker.patch(
-        "apps.alpha.management.commands.sync_alpha_price_coverage."
-        "AlphaPriceCoverageSyncService"
+        "apps.alpha.management.commands.sync_alpha_price_coverage." "AlphaPriceCoverageSyncService"
     )
 
     with pytest.raises(CommandError, match="alpha_price_date_range_invalid"):
@@ -315,8 +314,7 @@ def test_sync_alpha_price_coverage_command_emits_json_report(mocker):
         }
     )
     service_cls = mocker.patch(
-        "apps.alpha.management.commands.sync_alpha_price_coverage."
-        "AlphaPriceCoverageSyncService"
+        "apps.alpha.management.commands.sync_alpha_price_coverage." "AlphaPriceCoverageSyncService"
     )
     service_cls.return_value.sync_from_alpha_cache.return_value = report
     stdout = StringIO()

@@ -166,14 +166,10 @@ def test_guardrail_module_cycles_have_no_regressions():
     assert report["edge_count"] == report["max_app_import_edges"]
     assert report["edge_budget_exceeded"] is False
     assert report["edge_budget_stale"] is False
-    assert (
-        report["observed_max_outbound_modules"] == report["max_outbound_modules_per_app"]
-    )
+    assert report["observed_max_outbound_modules"] == report["max_outbound_modules_per_app"]
     assert report["outbound_budget_stale"] is False
     assert report["outbound_budget_exceeded"] == []
-    assert (
-        report["observed_max_inbound_modules"] == report["max_inbound_modules_per_app"]
-    )
+    assert report["observed_max_inbound_modules"] == report["max_inbound_modules_per_app"]
     assert report["inbound_budget_stale"] is False
     assert report["inbound_budget_exceeded"] == []
     assert len(report["max_outbound_modules_by_app"]) == report["module_count"]
