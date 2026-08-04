@@ -1662,6 +1662,12 @@ CI 观察结论：
 - 只在本地执行 `python manage.py migrate data_center --noinput`，0056/0057 均成功；随后 `showmigrations` 显示 0050–0057 全部 `[X]`，canonical schema 19 张控制面/目录表 `missing=[]`。
 - `python manage.py check` 与 `python manage.py makemigrations --check --dry-run` 均通过。该证据不代表 VPS 已迁移，也不授权生产写入。
 
+## 实施记录（2026-08-04，部署入口统一 canonical schema gate）
+
+- 将 0050–0057 的 19 张控制面/目录表和 `0057_publicationrollbackmodel` marker 收敛到 `apps/data_center/infrastructure/canonical_schema_contract.py`；新增 `manage.py verify_canonical_schema --json` 作为部署期唯一 schema 检查入口。
+- `remote_build_deploy_vps.py` 与 legacy `deploy-on-vps.sh` 均在迁移后、`check --deploy` 前执行该命令；旧镜像、手工建表但未登记 migration 的数据库都会 fail closed。
+- 回归证据：canonical contract/deploy verifier/remote deploy 共 37 tests passed；ruff、mypy regression 通过；本地命令输出 `ok=true, missing_tables=[], missing_migrations=[]`。
+
 ## 实施记录（2026-08-04，宏观 shadow audit 自然键修复）
 
 - 修复 `audit_macro_fact_consistency`：canonical/legacy revision 与跨源序列现在按 `source + period_type + reporting_period` 分组；同一日期的日频与月频事实不再被错误比较。跨源冲突示例同时输出 `period_type`，避免把不同频率当成同一序列。
