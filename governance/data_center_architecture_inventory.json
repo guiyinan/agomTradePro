@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 55,
-    "current_surface_references": 3047,
+    "current_surface_references": 3051,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 6,
     "legacy_fact_references": 143,
@@ -4877,102 +4877,107 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 430,
+      "line": 431,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 478,
+      "line": 437,
       "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
+      "text": "\"\"\"Read fresh, member-bound macro values for current-facing consumers.\"\"\""
     },
     {
-      "line": 498,
+      "line": 485,
       "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
+      "text": "publication_key: str = \"current\","
     },
     {
       "line": 505,
       "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
+      "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 530,
+      "line": 512,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 532,
+      "line": 537,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 539,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 540,
+      "line": 547,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 545,
+      "line": 552,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 560,
+      "line": 567,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 576,
+      "line": 583,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 594,
+      "line": 601,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 611,
+      "line": 618,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 627,
+      "line": 634,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 664,
-      "path": "apps/data_center/application/public.py",
-      "text": "current = existing[0] if existing else None"
-    },
-    {
-      "line": 667,
-      "path": "apps/data_center/application/public.py",
-      "text": "id=current.id if current is not None else None,"
     },
     {
       "line": 671,
       "path": "apps/data_center/application/public.py",
+      "text": "current = existing[0] if existing else None"
+    },
+    {
+      "line": 674,
+      "path": "apps/data_center/application/public.py",
+      "text": "id=current.id if current is not None else None,"
+    },
+    {
+      "line": 678,
+      "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 673,
+      "line": 680,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 676,
+      "line": 683,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 677,
+      "line": 684,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 779,
+      "line": 786,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -5318,6 +5323,21 @@
     },
     {
       "line": 956,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "\"\"\"Return only fresh, member-bound macro values for current consumers."
+    },
+    {
+      "line": 958,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "The cache-warmup helper above intentionally reads the latest canonical fact"
+    },
+    {
+      "line": 959,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "for deployment warming and maintenance.  Current/ops consumers must not"
+    },
+    {
+      "line": 1001,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return the latest market thermometer snapshot as a JSON-safe payload.\"\"\""
     },
@@ -13162,27 +13182,27 @@
       "text": "based on current portfolio, regime, and risk profile."
     },
     {
-      "line": 48,
+      "line": 51,
       "path": "apps/strategy/application/allocation_service.py",
       "text": "summary: str"
     },
     {
-      "line": 112,
+      "line": 125,
       "path": "apps/strategy/application/allocation_service.py",
       "text": "summary = cls._generate_summary("
     },
     {
-      "line": 126,
+      "line": 139,
       "path": "apps/strategy/application/allocation_service.py",
       "text": "summary=summary,"
     },
     {
-      "line": 169,
+      "line": 188,
       "path": "apps/strategy/application/allocation_service.py",
       "text": "current: dict[str, float],"
     },
     {
-      "line": 181,
+      "line": 200,
       "path": "apps/strategy/application/allocation_service.py",
       "text": "k: round(target_dict[k] - current.get(k, 0.0), 3)"
     },
@@ -14579,7 +14599,7 @@
     {
       "line": 19,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_risk_center.py",
-      "text": "\"summary\": \"按账户读取最终生效风控策略，并执行经过确认的风控配置变更。\","
+      "text": "\"summary\": \"查看当前情景、数据健康和组合影响，并通过预览与人工确认治理情景版本。\","
     },
     {
       "line": 499,
