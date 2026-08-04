@@ -2278,6 +2278,42 @@
           "test_function": "test_published_macro_series_query_blocks_without_publication"
         }
       ]
+    },
+    {
+      "id": "fund.current_nav",
+      "surface": "GET /api/fund/nav/{fund_code}/ default current NAV",
+      "source_files": [
+        "apps/fund/application/interface_services.py",
+        "apps/fund/interface/views.py",
+        "apps/data_center/application/public.py"
+      ],
+      "required_markers": {
+        "apps/fund/application/interface_services.py": [
+          "def get_published_fund_nav_payload(",
+          "get_published_fund_nav_series(",
+          "publication_key=\"current\""
+        ],
+        "apps/fund/interface/views.py": [
+          "get_published_fund_nav_payload(fund_code)",
+          "current_contract",
+          "must_not_use_for_decision"
+        ],
+        "apps/data_center/application/public.py": [
+          "def get_published_fund_nav_series("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "fund_default_nav_is_publication_gated",
+          "test_file": "tests/api/test_fund_api_edges.py",
+          "test_function": "test_fund_nav_default_reads_published_current_series"
+        },
+        {
+          "case": "fund_missing_publication_blocks",
+          "test_file": "tests/api/test_fund_api_edges.py",
+          "test_function": "test_fund_nav_default_blocks_missing_publication"
+        }
+      ]
     }
   ]
 }

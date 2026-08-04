@@ -318,6 +318,57 @@ def test_fund_nav_history_success_contract(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_fund_nav_default_reads_published_current_series(authenticated_client):
+    with patch(
+        "apps.fund.interface.views.interface_services.get_published_fund_nav_payload",
+        return_value={
+            "rows": [
+                {
+                    "fund_code": "000001",
+                    "nav_date": "2026-07-09",
+                    "unit_nav": 1.2345,
+                    "accum_nav": 2.3456,
+                    "daily_return": 0.42,
+                }
+            ],
+            "publication_id": "fund-pub-1",
+            "published_at": "2026-07-10T00:00:00+00:00",
+            "as_of": "2026-07-09T00:00:00+00:00",
+            "observed_at": "2026-07-09T00:00:00+00:00",
+            "freshness_status": "fresh",
+            "must_not_use_for_decision": False,
+            "blocked_reason": "",
+        },
+    ) as mock_nav:
+        response = authenticated_client.get("/api/fund/nav/000001/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["contract"]["publication_id"] == "fund-pub-1"
+    assert payload["contract"]["must_not_use_for_decision"] is False
+    assert payload["nav_data"][0]["unit_nav"] == "1.2345"
+    mock_nav.assert_called_once_with("000001")
+
+
+@pytest.mark.django_db
+def test_fund_nav_default_blocks_missing_publication(authenticated_client):
+    with patch(
+        "apps.fund.interface.views.interface_services.get_published_fund_nav_payload",
+        return_value={
+            "rows": [],
+            "publication_id": None,
+            "freshness_status": "missing",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_missing",
+        },
+    ):
+        response = authenticated_client.get("/api/fund/nav/000001/")
+
+    assert response.status_code == 409
+    assert response.json()["contract"]["blocked_reason"] == "canonical_publication_missing"
+
+
+@pytest.mark.django_db
 def test_fund_holdings_success_contract(authenticated_client):
     holdings = [
         FundHolding(

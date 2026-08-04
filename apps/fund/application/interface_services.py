@@ -9,6 +9,7 @@ from decimal import Decimal
 from typing import Any, TypedDict
 
 from apps.asset_analysis.domain.value_objects import ScoreContext
+from apps.data_center.application.public import get_published_fund_nav_series
 from apps.fund.application.repository_provider import (
     get_fund_asset_repository,
     get_fund_repository,
@@ -195,6 +196,41 @@ def get_fund_nav(
         start_date,
         end_date,
     )
+
+
+def get_published_fund_nav_payload(
+    fund_code: str,
+    *,
+    limit: int = 500,
+) -> dict[str, Any]:
+    """Return the current fund NAV series with publication evidence.
+
+    The default fund NAV screen is a current-data consumer. Historical ranges
+    continue to use :func:`get_fund_nav` explicitly, while this port fails
+    closed when the current fund publication is missing or stale.
+    """
+
+    payload = get_published_fund_nav_series(
+        _normalize_fund_code(fund_code),
+        publication_key="current",
+        limit=limit,
+    )
+    rows = payload.get("rows")
+    normalized_rows: list[dict[str, Any]] = []
+    if isinstance(rows, list):
+        for row in rows:
+            if not isinstance(row, Mapping):
+                continue
+            normalized_rows.append(
+                {
+                    "fund_code": str(row.get("fund_code") or _normalize_fund_code(fund_code)),
+                    "nav_date": row.get("nav_date"),
+                    "unit_nav": row.get("nav"),
+                    "accum_nav": row.get("acc_nav"),
+                    "daily_return": row.get("daily_return"),
+                }
+            )
+    return {**payload, "rows": normalized_rows}
 
 
 def get_fund_holdings(fund_code: str, report_date: date | None) -> list[FundHolding]:

@@ -277,9 +277,38 @@ class FundNavView(APIView):
         start_date = query.validated_data.get("start_date")
         end_date = query.validated_data.get("end_date")
 
-        nav_list = interface_services.get_fund_nav(fund_code, start_date, end_date)
+        current_contract: dict[str, object] | None = None
+        if start_date is None and end_date is None:
+            published_payload = interface_services.get_published_fund_nav_payload(fund_code)
+            nav_list = list(published_payload.get("rows") or [])
+            current_contract = {
+                "publication_id": published_payload.get("publication_id"),
+                "published_at": published_payload.get("published_at"),
+                "as_of": published_payload.get("as_of"),
+                "observed_at": published_payload.get("observed_at"),
+                "freshness_status": published_payload.get("freshness_status", "missing"),
+                "must_not_use_for_decision": bool(
+                    published_payload.get("must_not_use_for_decision", True)
+                ),
+                "blocked_reason": str(
+                    published_payload.get("blocked_reason") or "canonical_publication_missing"
+                ),
+                "mode": "published",
+            }
+        else:
+            nav_list = interface_services.get_fund_nav(fund_code, start_date, end_date)
 
         if not nav_list:
+            if current_contract is not None and current_contract["must_not_use_for_decision"]:
+                return Response(
+                    {
+                        "success": False,
+                        "error": "当前基金净值发布不可用",
+                        "fund_code": fund_code,
+                        "contract": current_contract,
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
             return Response(
                 {"success": False, "error": f"基金 {fund_code} 暂无净值数据"},
                 status=status.HTTP_404_NOT_FOUND,
@@ -289,13 +318,16 @@ class FundNavView(APIView):
 
         serializer = FundNetValueSerializer(instance=cast(Any, nav_list), many=True)
 
+        response_payload: dict[str, object] = {
+            "success": True,
+            "fund_code": fund_code,
+            "count": len(nav_list),
+            "nav_data": serializer.data,
+        }
+        if current_contract is not None:
+            response_payload["contract"] = current_contract
         return Response(
-            {
-                "success": True,
-                "fund_code": fund_code,
-                "count": len(nav_list),
-                "nav_data": serializer.data,
-            },
+            response_payload,
             status=status.HTTP_200_OK,
         )
 

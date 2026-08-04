@@ -3935,3 +3935,12 @@ Git SHA / 镜像 / migration：
 - 已运行测试：相关组件/单元测试 8 passed；current-data 37 surfaces；architecture boundary/audit 0；mypy 0；Ruff OK。
 - 明确未做：未改动信号/持仓业务规则本身，未部署、未修改本地/VPS provider 状态。
 - 未验证风险：生产 Celery 证伪任务的 Publication 覆盖与实际调度观测仍未完成。
+
+## 31. 2026-08-05：基金默认当前净值 Publication gate
+
+- 目标：基金净值 API 的默认“当前”读取不再直接消费 raw Data Center latest。
+- 变更：无日期参数时由 `get_published_fund_nav_payload` 调用 `get_published_fund_nav_series`；返回 Publication/freshness contract，缺失或过期时以 409 阻断。显式日期区间继续保留历史研究读取语义。
+- 治理：新增 `fund.current_nav` current-data surface 与 API gate 测试登记。
+- 已运行测试：`pytest tests/api/test_fund_api_edges.py tests/component/test_fund_repository_data_center.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：37 passed；current-data 38 surfaces；architecture boundary/audit 0；mypy 0；Ruff/Black OK。
+- 明确未做：未修改基金历史区间的 raw/maintenance 语义，未部署、未修改本地/VPS provider 状态。
+- 未验证风险：生产基金 Publication 覆盖、生产 PostgreSQL 性能和历史/当前模式的 E2E 证据仍待补齐。
