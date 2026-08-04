@@ -41,10 +41,11 @@ class Command(BaseCommand):
             )
             self.stdout.write(json.dumps(result, ensure_ascii=False, sort_keys=True))
             outcome = str(result.get("outcome") or "failed")
-            if outcome in {"failed", "blocked"}:
+            if outcome in {"failed", "partial", "blocked"}:
                 checkpoint = result.get("checkpoint") or {}
                 raise CommandError(
-                    "Core-data backfill stopped; resume from offset "
+                    "Core-data backfill stopped with outcome="
+                    f"{outcome}; resume from offset "
                     f"{checkpoint.get('offset', offset)} after resolving failures."
                 )
             checkpoint = result.get("checkpoint") or {}
