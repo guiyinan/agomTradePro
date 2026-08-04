@@ -132,6 +132,36 @@ def test_ensure_price_bars_hydrates_missing_data_from_tushare():
     assert sync_price.calls[0].provider_id == 1
 
 
+def test_ensure_valuations_hydrates_from_akshare_when_tushare_is_inactive():
+    valuation_repo = FakeValuationRepo()
+
+    def add_valuation(request):
+        valuation_repo.facts.append(
+            ValuationFact(
+                asset_code=request.asset_code,
+                val_date=request.end,
+                pe_ttm=12.0,
+                pb=1.4,
+                source="akshare",
+                fetched_at=datetime(2026, 5, 8, tzinfo=UTC),
+            )
+        )
+
+    sync_valuation = FakeSyncUseCase(stored_count=1, callback=add_valuation)
+    result = _service(
+        valuation_repo=valuation_repo,
+        sync_valuation=sync_valuation,
+        provider_ids={"akshare": 2},
+    ).ensure_valuations("600031.SH", date(2026, 5, 1), date(2026, 5, 8))
+
+    assert result.quality.status == "fresh"
+    assert result.quality.source == "akshare"
+    assert result.quality.hydrated is True
+    assert result.quality.errors == ("tushare: provider not active",)
+    assert len(sync_valuation.calls) == 1
+    assert sync_valuation.calls[0].provider_id == 2
+
+
 def test_ensure_valuations_marks_provider_failed_when_fallbacks_fail():
     sync_valuation = FakeSyncUseCase(
         exc=RuntimeError("postgresql://user:secret@provider.invalid/data")
