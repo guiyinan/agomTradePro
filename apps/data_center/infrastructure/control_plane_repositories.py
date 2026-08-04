@@ -531,8 +531,16 @@ class CanonicalPublicationRepository:
                 publication_id=publication_id,
             ).values("fact_table", "fact_pk", "observed_at")
         )
-        if len(members) != member_count or any(row["observed_at"] is None for row in members):
+        if len(members) != member_count:
             raise ValueError("Rollback target is missing publication member evidence")
+        if publication.as_of is None:
+            raise ValueError("Rollback target has inconsistent member time evidence")
+        for row in members:
+            observed_at = row["observed_at"]
+            if observed_at is None:
+                raise ValueError("Rollback target is missing publication member evidence")
+            if observed_at > publication.as_of:
+                raise ValueError("Rollback target has inconsistent member time evidence")
         if len({(row["fact_table"], row["fact_pk"]) for row in members}) != member_count:
             raise ValueError("Rollback target has duplicate publication member evidence")
         coverage = CoverageSnapshotModel._default_manager.filter(
