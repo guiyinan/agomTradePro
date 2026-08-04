@@ -2339,6 +2339,44 @@
           "test_function": "test_fund_nav_default_blocks_publication_query_errors"
         }
       ]
+    },
+    {
+      "id": "agent_runtime.current_context",
+      "surface": "Agent Runtime context snapshot current regime/policy summaries",
+      "source_files": [
+        "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
+      ],
+      "required_markers": {
+        "apps/agent_runtime/infrastructure/context_snapshot_repository.py": [
+          "resolve_current_regime",
+          "get_policy_status_payload",
+          "get_recent_policy_event_summary",
+          "must_not_use_for_decision",
+          "freshness_status"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "regime_summary_uses_current_resolver",
+          "test_file": "tests/unit/agent_runtime/test_t5_context_snapshot_repository_contracts.py",
+          "test_function": "test_context_snapshot_primary_summaries_cover_data_and_empty_states"
+        },
+        {
+          "case": "policy_summary_uses_application_queries",
+          "test_file": "tests/unit/agent_runtime/test_t5_context_snapshot_repository_contracts.py",
+          "test_function": "test_context_snapshot_primary_summaries_cover_data_and_empty_states"
+        },
+        {
+          "case": "freshness_summary_preserves_regime_observation",
+          "test_file": "tests/unit/agent_runtime/test_t5_context_snapshot_repository_contracts.py",
+          "test_function": "test_context_snapshot_extended_summaries_cover_all_supported_sources"
+        },
+        {
+          "case": "resolver_failure_is_redacted",
+          "test_file": "tests/unit/test_agent_runtime_context_snapshot_safety.py",
+          "test_function": "test_repository_failure_is_redacted_from_payload_and_log"
+        }
+      ]
     }
   ]
 }

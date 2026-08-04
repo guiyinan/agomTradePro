@@ -3962,3 +3962,12 @@ Git SHA / 镜像 / migration：
 - 已运行测试：`pytest tests/unit/decision_rhythm/test_flow_feature_freshness.py`：5 passed；current-data 39 surfaces；architecture boundary/audit 0；mypy 0；Ruff 0。
 - 明确未做：未改变资金流评分的 sigmoid 占位算法，未修改 Redis maintenance/cache 写入，未部署、未修改本地/VPS provider 状态。
 - 未验证风险：生产 quote Publication 覆盖、Realtime 与 Decision Rhythm 的跨源观测一致性、PostgreSQL 性能仍待生产阶段证据。
+
+## 34. 2026-08-05：Agent Runtime current context 旁路收口
+
+- 目标：避免 Agent Runtime context snapshot 自行读取最新 `RegimeLog`/`PolicyLog`，绕过所属 Application 的 current/freshness 语义。
+- 变更：regime summary 与 freshness summary 改用 `resolve_current_regime()`，透传 `observed_at`、`freshness_status`、`must_not_use_for_decision` 和 `blocked_reason`；policy summary 改用 `get_policy_status_payload()` 与 `get_recent_policy_event_summary()`，保留有效事件日期和状态信息。
+- 治理：新增 `agent_runtime.current_context` current-data surface，登记 resolver/query marker 与回归测试。
+- 已运行测试：`pytest tests/unit/agent_runtime/test_t5_context_snapshot_repository_contracts.py tests/unit/test_agent_runtime_context_snapshot_safety.py`：17 passed；`pytest tests/component/test_context_snapshot_repository.py`：2 passed；current-data 40 surfaces；architecture boundary/audit 0；mypy 0；Ruff 0。
+- 明确未做：未改变 Agent Task/Proposal/Portfolio 等 operational ORM 汇总，未部署、未修改本地/VPS provider 状态。
+- 未验证风险：Regime resolver 在生产调度下的耗时、政策 Application query 的生产数据覆盖和 PostgreSQL 性能仍待生产阶段证据。

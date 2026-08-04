@@ -48,18 +48,22 @@ class DjangoContextSnapshotRepository:
         """Fetch current regime state."""
 
         try:
-            from apps.regime.infrastructure.models import RegimeLog
+            from apps.regime.application.current_regime import resolve_current_regime
 
-            latest = RegimeLog._default_manager.order_by("-observed_at").first()
-            if latest is None:
-                return {"status": "no_data", "message": "No regime records found"}
+            current = resolve_current_regime()
+            status = "blocked" if current.must_not_use_for_decision else "ok"
             return {
-                "status": "ok",
-                "dominant_regime": latest.dominant_regime,
-                "growth_momentum_z": latest.growth_momentum_z,
-                "inflation_momentum_z": latest.inflation_momentum_z,
-                "distribution": latest.distribution,
-                "observed_at": str(latest.observed_at),
+                "status": status,
+                "dominant_regime": current.dominant_regime,
+                "growth_momentum_z": current.growth_momentum_z,
+                "inflation_momentum_z": current.inflation_momentum_z,
+                "distribution": current.distribution,
+                "observed_at": _to_iso(current.observed_at),
+                "data_source": current.data_source,
+                "freshness_status": "stale" if current.is_stale else "fresh",
+                "must_not_use_for_decision": current.must_not_use_for_decision,
+                "blocked_reason": current.blocked_reason,
+                "warnings": list(current.warnings),
             }
         except Exception as exc:
             _log_source_failure("Failed to fetch regime summary", exc)
@@ -69,16 +73,25 @@ class DjangoContextSnapshotRepository:
         """Fetch current policy gear status."""
 
         try:
-            from apps.policy.infrastructure.models import PolicyLog
+            from apps.policy.application.query_services import (
+                get_policy_status_payload,
+                get_recent_policy_event_summary,
+            )
 
-            latest = PolicyLog._default_manager.order_by("-event_date").first()
-            if latest is None:
+            status_payload = get_policy_status_payload()
+            latest = get_recent_policy_event_summary(limit=1).get("latest")
+            if not isinstance(latest, dict):
                 return {"status": "no_data", "message": "No policy events found"}
             return {
                 "status": "ok",
-                "current_gear": latest.level,
-                "event_date": str(latest.event_date),
-                "description": latest.description,
+                "current_gear": status_payload.get("current_level"),
+                "event_date": str(latest.get("event_date") or status_payload.get("as_of_date")),
+                "description": str(latest.get("title") or ""),
+                "is_intervention_active": bool(status_payload.get("is_intervention_active")),
+                "observed_at": str(latest.get("event_date") or ""),
+                "freshness_status": "effective",
+                "must_not_use_for_decision": False,
+                "blocked_reason": "",
             }
         except Exception as exc:
             _log_source_failure("Failed to fetch policy summary", exc)
@@ -209,14 +222,11 @@ class DjangoContextSnapshotRepository:
 
         sources: dict[str, str] = {}
         failed_sources: list[str] = []
-        try:
-            from apps.regime.infrastructure.models import RegimeLog
-
-            latest_regime = RegimeLog._default_manager.order_by("-observed_at").first()
-            if latest_regime:
-                sources["regime"] = latest_regime.observed_at.isoformat()
-        except Exception as exc:
-            _log_source_failure("Failed to fetch regime freshness", exc)
+        regime_summary = self.fetch_regime_summary()
+        observed_regime = regime_summary.get("observed_at")
+        if isinstance(observed_regime, str) and observed_regime:
+            sources["regime"] = observed_regime
+        if regime_summary.get("status") in {"unavailable", "blocked"} or not observed_regime:
             sources["regime"] = "unavailable"
             failed_sources.append("regime")
 

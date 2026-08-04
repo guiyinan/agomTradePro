@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -19,39 +19,90 @@ def _model_module(model_name: str, manager: MagicMock) -> SimpleNamespace:
     return SimpleNamespace(**{model_name: SimpleNamespace(_default_manager=manager)})
 
 
+def _regime_result(
+    *,
+    observed_at: date | None,
+    dominant_regime: str = "recovery",
+    is_stale: bool = False,
+    must_not_use_for_decision: bool = False,
+    blocked_reason: str = "",
+) -> SimpleNamespace:
+    """Build the current-regime resolver result used by repository tests."""
+
+    return SimpleNamespace(
+        dominant_regime=dominant_regime,
+        confidence=0.8,
+        growth_momentum_z=0.5,
+        inflation_momentum_z=-0.2,
+        distribution={"recovery": 0.8},
+        observed_at=observed_at,
+        data_source="akshare",
+        is_stale=is_stale,
+        must_not_use_for_decision=must_not_use_for_decision,
+        blocked_reason=blocked_reason,
+        warnings=[],
+    )
+
+
 def test_context_snapshot_primary_summaries_cover_data_and_empty_states() -> None:
     """Core regime, policy, portfolio, signal, decision, risk, and task reads work."""
     repository = DjangoContextSnapshotRepository()
     observed_at = datetime(2026, 7, 25, tzinfo=UTC)
 
-    manager = MagicMock()
-    manager.order_by.return_value.first.return_value = SimpleNamespace(
-        dominant_regime="recovery",
-        growth_momentum_z=0.5,
-        inflation_momentum_z=-0.2,
-        distribution={"recovery": 0.8},
-        observed_at=observed_at,
-    )
-    with patch.dict(
-        sys.modules,
-        {"apps.regime.infrastructure.models": _model_module("RegimeLog", manager)},
+    with patch(
+        "apps.regime.application.current_regime.resolve_current_regime",
+        return_value=_regime_result(observed_at=observed_at.date()),
     ):
         assert repository.fetch_regime_summary()["dominant_regime"] == "recovery"
-        manager.order_by.return_value.first.return_value = None
-        assert repository.fetch_regime_summary()["status"] == "no_data"
+        assert repository.fetch_regime_summary()["status"] == "ok"
 
-    manager = MagicMock()
-    manager.order_by.return_value.first.return_value = SimpleNamespace(
-        level="P1",
-        event_date=observed_at.date(),
-        description="observe",
-    )
-    with patch.dict(
-        sys.modules,
-        {"apps.policy.infrastructure.models": _model_module("PolicyLog", manager)},
+    with patch(
+        "apps.regime.application.current_regime.resolve_current_regime",
+        return_value=_regime_result(
+            observed_at=None,
+            dominant_regime="Unknown",
+            is_stale=True,
+            must_not_use_for_decision=True,
+            blocked_reason="regime_data_unavailable",
+        ),
+    ):
+        assert repository.fetch_regime_summary()["status"] == "blocked"
+
+    with (
+        patch(
+            "apps.policy.application.query_services.get_policy_status_payload",
+            return_value={
+                "current_level": "P1",
+                "is_intervention_active": False,
+                "as_of_date": "2026-07-25",
+            },
+        ),
+        patch(
+            "apps.policy.application.query_services.get_recent_policy_event_summary",
+            return_value={
+                "latest": {
+                    "event_date": observed_at.date(),
+                    "level": "P1",
+                    "title": "observe",
+                }
+            },
+        ),
     ):
         assert repository.fetch_policy_summary()["current_gear"] == "P1"
-        manager.order_by.return_value.first.return_value = None
+    with (
+        patch(
+            "apps.policy.application.query_services.get_recent_policy_event_summary",
+            return_value={"latest": None},
+        ),
+        patch(
+            "apps.policy.application.query_services.get_policy_status_payload",
+            return_value={
+                "current_level": "P0",
+                "is_intervention_active": False,
+                "as_of_date": "2026-07-25",
+            },
+        ),
+    ):
         assert repository.fetch_policy_summary()["status"] == "no_data"
 
     portfolio_manager = MagicMock()
@@ -153,19 +204,10 @@ def test_context_snapshot_extended_summaries_cover_all_supported_sources() -> No
     repository = DjangoContextSnapshotRepository()
     observed_at = datetime(2026, 7, 25, tzinfo=UTC)
 
-    regime_manager = MagicMock()
-    regime_manager.order_by.return_value.first.return_value = SimpleNamespace(
-        observed_at=observed_at
-    )
     published_macro_values = [{"reporting_period": "2026-07-25"}]
-    with patch.dict(
-        sys.modules,
-        {
-            "apps.regime.infrastructure.models": _model_module(
-                "RegimeLog",
-                regime_manager,
-            ),
-        },
+    with patch(
+        "apps.regime.application.current_regime.resolve_current_regime",
+        return_value=_regime_result(observed_at=observed_at.date()),
     ):
         with patch(
             "apps.data_center.application.public.list_latest_published_macro_values",
@@ -311,7 +353,10 @@ def test_context_snapshot_lists_and_degradation_contracts() -> None:
         "error": "source_fetch_failed",
     }
     assert _invalid_input("source", "identifier_invalid")["status"] == "invalid_input"
-    with patch.dict(sys.modules, {"apps.regime.infrastructure.models": SimpleNamespace()}):
+    with patch(
+        "apps.regime.application.current_regime.resolve_current_regime",
+        side_effect=RuntimeError("resolver unavailable"),
+    ):
         degraded = repository.fetch_regime_summary()
     assert degraded["status"] == "unavailable"
     assert degraded["source"] == "regime"

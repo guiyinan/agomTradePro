@@ -2,7 +2,7 @@
 
 import logging
 from datetime import UTC, datetime
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -17,14 +17,14 @@ from apps.agent_runtime.infrastructure.context_snapshot_repository import (
 
 
 def test_repository_failure_is_redacted_from_payload_and_log(monkeypatch, caplog) -> None:
-    from apps.regime.infrastructure.models import RegimeLog
-
     def fail_query(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("postgresql://user:secret-password@host/db")
 
-    monkeypatch.setattr(RegimeLog._default_manager, "order_by", fail_query)
-
-    summary = DjangoContextSnapshotRepository().fetch_regime_summary()
+    with patch(
+        "apps.regime.application.current_regime.resolve_current_regime",
+        side_effect=fail_query,
+    ):
+        summary = DjangoContextSnapshotRepository().fetch_regime_summary()
 
     assert summary == {
         "status": "unavailable",
@@ -83,19 +83,21 @@ def test_active_signal_rows_are_projected_without_mutating_orm_values(monkeypatc
 
 def test_freshness_reports_degraded_when_one_source_fails(monkeypatch, caplog) -> None:
     from apps.data_center.application import public as data_center_public
-    from apps.regime.infrastructure.models import RegimeLog
 
     def fail_regime(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("database password=secret-password")
 
-    monkeypatch.setattr(RegimeLog._default_manager, "order_by", fail_regime)
     monkeypatch.setattr(
         data_center_public,
         "list_latest_published_macro_values",
         lambda **_kwargs: [{"reporting_period": "2026-07-28"}],
     )
 
-    summary = DjangoContextSnapshotRepository().fetch_data_freshness_summary()
+    with patch(
+        "apps.regime.application.current_regime.resolve_current_regime",
+        side_effect=fail_regime,
+    ):
+        summary = DjangoContextSnapshotRepository().fetch_data_freshness_summary()
 
     assert summary == {
         "status": "degraded",
