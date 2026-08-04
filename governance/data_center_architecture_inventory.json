@@ -3,7 +3,7 @@
     "cross_app_orm_imports": 55,
     "current_surface_references": 3046,
     "data_write_task_decorators": 55,
-    "external_http_imports_for_review": 7,
+    "external_http_imports_for_review": 6,
     "legacy_fact_references": 143,
     "provider_imports_outside_data_center": 0,
     "runtime_parameter_references": 49
@@ -7647,7 +7647,7 @@
       "text": "from apps.realtime.infrastructure.repositories import ("
     },
     {
-      "line": 108,
+      "line": 103,
       "path": "apps/equity/infrastructure/stock_info_repository.py",
       "text": "Current/decision-facing callers must be able to resolve display metadata"
     },
@@ -15799,11 +15799,6 @@
       "import": "requests",
       "line": 5,
       "path": "apps/dashboard/infrastructure/ai_insight_client.py"
-    },
-    {
-      "import": "requests",
-      "line": 13,
-      "path": "apps/equity/infrastructure/stock_info_repository.py"
     },
     {
       "import": "requests",
