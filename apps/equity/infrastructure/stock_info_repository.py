@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import requests
 from django.utils import timezone
 
 from apps.data_center.application.public import (
@@ -32,8 +31,6 @@ logger = logging.getLogger(__name__)
 class StockInfoRepositoryMixin:
     """Stock master info, display-name resolution, and universe listing."""
 
-    _EASTMONEY_QUOTE_URL: str
-    _EASTMONEY_METADATA_FIELDS: str
     _dc_asset_repo: AssetRepositoryProtocol
     _dc_financial_repo: FinancialFactRepositoryProtocol
     _dc_price_bar_repo: PriceBarRepositoryProtocol
@@ -49,8 +46,6 @@ class StockInfoRepositoryMixin:
         def _infer_exchange_from_stock_code(self, stock_code: str) -> str: ...
 
         def _infer_market_from_stock_code(self, stock_code: str) -> str: ...
-
-        def _to_eastmoney_secid(self, stock_code: str) -> str: ...
 
     def get_stock_info(self, stock_code: str) -> StockInfo | None:
         """
@@ -299,52 +294,5 @@ class StockInfoRepositoryMixin:
             market=self._infer_market_from_stock_code(candidate_code),
             list_date=None,
         )
-
-    def _get_stock_info_from_eastmoney(self, stock_code: str) -> StockInfo | None:
-        params = {
-            "secid": self._to_eastmoney_secid(stock_code),
-            "fields": self._EASTMONEY_METADATA_FIELDS,
-            "invt": "2",
-            "fltt": "1",
-        }
-        try:
-            with requests.Session() as session:
-                session.trust_env = False
-                session.headers.update(
-                    {
-                        "User-Agent": (
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                            "AppleWebKit/537.36 (KHTML, like Gecko) "
-                            "Chrome/133.0.0.0 Safari/537.36"
-                        ),
-                        "Accept": "application/json,text/plain,*/*",
-                        "Referer": "https://quote.eastmoney.com/",
-                    }
-                )
-                response = session.get(
-                    self._EASTMONEY_QUOTE_URL,
-                    params=params,
-                    timeout=15,
-                )
-                response.raise_for_status()
-                payload = response.json()
-        except Exception as exc:
-            logger.warning("Failed to fetch remote stock info for %s: %s", stock_code, exc)
-            return None
-
-        data = payload.get("data") or {}
-        raw_price = data.get("f43")
-        if raw_price in (None, "", "-"):
-            return None
-
-        remote_name = str(data.get("f58") or "").strip() or stock_code
-        return StockInfo(
-            stock_code=stock_code,
-            name=remote_name,
-            sector="",
-            market=self._infer_market_from_stock_code(stock_code),
-            list_date=None,
-        )
-
 
 __all__ = ["StockInfoRepositoryMixin"]

@@ -40,8 +40,6 @@ class DjangoStockRepository(
 ):
     """Django ORM 个股数据仓储"""
 
-    _EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get"
-    _EASTMONEY_METADATA_FIELDS = "f43,f57,f58"
     _INTRADAY_SNAPSHOT_MAX_STALE_DAYS = 5
     _INTRADAY_SNAPSHOT_MIN_POINTS = 3
 
@@ -135,14 +133,6 @@ class DjangoStockRepository(
 
     def _infer_exchange_from_stock_code(self, stock_code: str) -> str:
         return self._infer_exchange_from_market(self._infer_market_from_stock_code(stock_code))
-
-    def _to_eastmoney_secid(self, stock_code: str) -> str:
-        code = stock_code.strip().upper()
-        symbol = code.split(".")[0]
-        market = self._infer_market_from_stock_code(code)
-        if market == "SH":
-            return f"1.{symbol}"
-        return f"0.{symbol}"
 
     def _to_akshare_symbol(self, stock_code: str) -> str:
         return stock_code.split(".")[0] if "." in stock_code else stock_code
