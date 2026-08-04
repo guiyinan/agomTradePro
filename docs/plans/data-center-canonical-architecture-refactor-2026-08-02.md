@@ -1590,6 +1590,23 @@ CI 观察结论：
 
 这次修复解决的是静态依赖债务，不等于 PostgreSQL 生产画像、备份恢复、VPS 观察窗口或旧链删除已经完成；后续仍受生产硬门禁约束。
 
+## 实施记录（2026-08-04，生产切换前置审计与备份证据）
+
+本批次按“先备份、再审计、后切换”的生产硬门禁执行；未停旧写、未切读、未删除旧表或旧适配器。
+
+已取得证据：
+
+- `scripts/backup-vps-postgres.ps1 -DownloadLatest` 成功下载并校验远端最新 PostgreSQL custom-format 归档：`118099931` bytes，SHA-256 为 `6233245c8c6b246200f32fb5296bf9de3724bbb9baa9b603e94c03ebfb8d5d42`；远端 `pg_restore --list` 通过。备份客户端增加 SFTP prefetch，保留尺寸和 SHA-256 双重校验。
+- VPS 容器状态、PostgreSQL/Redis/Celery 健康；`python manage.py check --deploy` 通过。
+- 远端 `audit_macro_fact_consistency --strict`：`indicator_count=63`、`fact_count=29147`、`canonical_legacy_conflict_count=529`、`cross_source_conflict_count=1`；未治理冲突和配置源缺失均为 0，但 canonical/legacy 差异尚未清零。
+- 远端 active A-share coverage（5,533 assets）显示：price `fresh=5504/sparse=26/stale=3`；valuation `fresh=415/sparse=5118`；financial `fresh=5533`；quote `sparse=5533`。这不是全量消费者切换所需的 fresh/complete 证据。
+
+切换结论：
+
+- 当前不能停旧写、强制全量 Publication-only 切读或删除旧链：估值/报价覆盖不足，且 shadow reconciliation、PostgreSQL P95/锁/WAL、连续观察窗口和 rollback drill 仍未完成。
+- `ready` 的核心探针只证明当前决策样本可用，不等于 D0-D9 全量生产数据就绪；Alpha workspace 仍报告滞后 warning。
+- 下一阶段必须先完成 D0-D9 覆盖回填与 legacy/canonical 对账，保存至少行情 3 个交易日+周末、宏观 2 个调度周期的观察证据，再执行停旧写、切读和 M9 清理。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

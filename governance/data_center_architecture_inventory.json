@@ -5357,12 +5357,12 @@
       "text": "current += timedelta(days=1)"
     },
     {
-      "line": 283,
+      "line": 292,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "latest = data_points[0]"
     },
     {
-      "line": 284,
+      "line": 293,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "if latest.is_stale:"
     },
@@ -6732,7 +6732,7 @@
       "text": "self.stdout.write(self.style.SUCCESS(summary))"
     },
     {
-      "line": 319,
+      "line": 316,
       "path": "apps/data_center/management/commands/repair_decision_data_reliability.py",
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
