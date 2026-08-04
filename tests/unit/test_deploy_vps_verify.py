@@ -166,6 +166,8 @@ def test_build_canonical_schema_check_command_rejects_old_data_center_schema():
     assert "data_center_dataset_contract" in command
     assert "data_center_retention_run" in command
     assert "data_center_publication_rollback" in command
+    assert "0057_publicationrollbackmodel" in command
+    assert "canonical_migration_missing" in command
     assert "canonical_control_plane_missing" in command
 
 

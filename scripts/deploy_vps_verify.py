@@ -424,13 +424,20 @@ def build_canonical_schema_check_command(target_dir: str) -> str:
         "data_center_publication_rollback",
     )
     table_literal = repr(required_tables)
+    required_migrations = ("0057_publicationrollbackmodel",)
+    migration_literal = repr(required_migrations)
     python_code = (
         "from django.db import connection; "
+        "from django.db.migrations.recorder import MigrationRecorder; "
         f"required=set({table_literal}); "
+        f"required_migrations=set({migration_literal}); "
         "actual=set(connection.introspection.table_names()); "
         "missing=sorted(required-actual); "
+        "applied={row.name for row in MigrationRecorder.Migration.objects.filter(app='data_center')}; "
+        "missing_migrations=sorted(required_migrations-applied); "
         "print('canonical_control_plane_missing=' + ','.join(missing)); "
-        "import sys; sys.exit(1 if missing else 0)"
+        "print('canonical_migration_missing=' + ','.join(missing_migrations)); "
+        "import sys; sys.exit(1 if missing or missing_migrations else 0)"
     )
     return build_compose_command(
         target_dir,
