@@ -1706,6 +1706,24 @@ CI 观察结论：
 - 这是路由/治理声明和本地 Catalog round-trip，不代表 AKShare 对全市场历史财务/估值的覆盖已达生产门槛；当前真实覆盖缺口、publication writer/backfill、PostgreSQL 生产证据、观察窗口和 VPS release 仍保持未完成。
 - 本地运行库的 Tushare provider 仍为 active；如需临时无 Tushare 运行，应通过受控配置停用 Tushare 并显式验证 AKShare 产出，不能直接编辑治理 JSON 代替运行时切换。
 
+## 实施记录（2026-08-04，macro Publication key 与查询端口对齐）
+
+本批次修复一个会让宏观同步“已写入但当前查询找不到”的发布键错配；不部署、不 push、不触碰生产数据。
+
+已落地：
+
+- `SyncMacroUseCase` 发布 `macro.fact` 时显式使用 `indicator_code` 作为 `publication_key`；宏观 published Query Port 默认也按 `indicator_code` 查找，写入与读取现在使用同一 Publication scope。
+- 回归测试捕获同步调用的 `publication_key`，防止后续恢复通用 `current` 默认值而再次造成空/阻断的当前宏观读。
+
+机器证据（本地）：
+
+- `pytest tests/unit/data_center/test_macro_publication_sync.py -q --no-migrations --reuse-db`：5 passed。
+- 变更文件 ruff、mypy regression 通过；该修复不改变 historical/PIT 查询语义。
+
+仍未完成及风险：
+
+- 生产已有宏观 Publication 需要在新代码部署后重采/核对；本地单元测试不能证明 VPS 的旧 Publication key 已迁移。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

@@ -264,6 +264,7 @@ class SyncMacroUseCase(_BaseSyncUseCase):
                 self._publication_publisher.execute(
                     normalized,
                     provider_name=provider.provider_name(),
+                    publication_key=request.indicator_code,
                 )
             audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000

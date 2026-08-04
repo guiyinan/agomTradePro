@@ -222,10 +222,10 @@ def test_sync_macro_use_case_invokes_publication_after_fact_write() -> None:
 
     class _Publisher:
         def __init__(self) -> None:
-            self.calls: list[tuple[list[MacroFact], str]] = []
+            self.calls: list[tuple[list[MacroFact], str, str]] = []
 
-        def execute(self, facts, *, provider_name: str):
-            self.calls.append((list(facts), provider_name))
+        def execute(self, facts, *, provider_name: str, publication_key: str):
+            self.calls.append((list(facts), provider_name, publication_key))
             return None
 
     publisher = _Publisher()
@@ -249,3 +249,4 @@ def test_sync_macro_use_case_invokes_publication_after_fact_write() -> None:
     assert result.status == "success"
     assert len(publisher.calls) == 1
     assert publisher.calls[0][1] == "provider-main"
+    assert publisher.calls[0][2] == "CN_CPI"
