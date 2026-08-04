@@ -1763,6 +1763,23 @@ CI 观察结论：
 
 - 需要在工作区其它未提交改动恢复可解析后重跑本端到端 pytest/current-data runner；生产 Publication 数据、观察窗口和 VPS release 仍未验证。
 
+## 实施记录（2026-08-04，TUI Provider 启用状态切换）
+
+本批次补齐无 Tushare 运行所需的用户面切换入口；不修改当前运行库状态、不部署、不 push。
+
+已落地：
+
+- TUI Data Center 的 `provider-update` 动作新增布尔 `is_active` 字段；管理员可以停用 Tushare，让已登记的 AKShare/QMT 等来源继续参与 failover，若无可用来源则由既有 gate 阻断。
+- 操作说明明确停用语义，不展示密钥或实现细节；既有 Provider API 已支持该字段，TUI 不再只能改密钥/优先级而无法安全停用来源。
+
+机器证据（本地）：
+
+- `pytest tests/unit/terminal/test_tui_data_center_tushare_config.py -q`：3 passed；TUI metadata 变更 ruff 通过。
+
+仍未完成及风险：
+
+- 当前本地数据库的 Tushare Provider 仍保持 active；本批次只补齐可审计的切换入口，没有替用户改变本地或 VPS 配置。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

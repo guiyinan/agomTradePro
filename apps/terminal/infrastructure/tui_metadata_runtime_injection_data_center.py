@@ -375,7 +375,7 @@ RUNTIME_DATA_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
         method="PATCH",
         intent="update_data_center_provider_connection",
         view_type="detail",
-        description="更新指定服务商连接；密钥或其他留空项会保持现有设置。",
+        description="更新指定服务商连接或启用状态；密钥和其他留空项会保持现有设置。停用后继续使用其他已启用来源，无可用来源时系统会阻断相关同步。",
         task_group="02 服务商与健康",
         sequence=32,
         fields=[
@@ -388,6 +388,13 @@ RUNTIME_DATA_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
                 required=True,
                 minimum=1,
                 presentation_semantic="primary_selector",
+            ),
+            _field(
+                "is_active",
+                "启用此服务商",
+                input_type="checkbox",
+                value_type="boolean",
+                placeholder="关闭后本服务商不会参与新的数据请求",
             ),
             _field(
                 "tushare_request_mode",

@@ -35,6 +35,8 @@ def test_tui_exposes_typed_tushare_create_and_provider_update_actions() -> None:
     update_fields = _fields_by_key(update_action)
     assert "extra_config" not in update_fields
     assert update_fields["provider_id"]["binding"] == "path"
+    assert update_fields["is_active"]["value_type"] == "boolean"
+    assert update_fields["is_active"]["required"] is False
     assert update_fields["api_key"]["required"] is False
     assert update_fields["clear_service_address"]["value_type"] == "boolean"
     assert update_action["method"] == "PATCH"
