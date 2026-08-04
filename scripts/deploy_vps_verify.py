@@ -17,6 +17,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from apps.data_center.infrastructure.canonical_schema_contract import (  # noqa: E402
+    CANONICAL_SCHEMA_MIGRATIONS,
+    CANONICAL_SCHEMA_TABLES,
+)
+
 HTTP_CODE_MARKER = "__AGOM_HTTP_CODE__="
 DJANGO_DEPLOY_CHECK_TIMEOUT_SECONDS = 180
 
@@ -402,30 +411,8 @@ def build_canonical_schema_check_command(target_dir: str) -> str:
     that false-green deployment path for the Data Center cutover.
     """
 
-    required_tables = (
-        "data_center_canonical_publication",
-        "data_center_coverage_snapshot",
-        "data_center_publication_member",
-        "data_center_quarantine_record",
-        "data_center_sync_run",
-        "data_center_sync_batch",
-        "data_center_sync_checkpoint",
-        "data_center_raw_payload",
-        "data_center_schema_fingerprint",
-        "data_center_archive_manifest",
-        "data_center_retention_policy",
-        "data_center_storage_hold",
-        "data_center_data_owner_registration",
-        "data_center_dataset_contract",
-        "data_center_dataset_provider_binding",
-        "data_center_dataset_publication_policy",
-        "data_center_reconciliation_evidence",
-        "data_center_retention_run",
-        "data_center_publication_rollback",
-    )
-    table_literal = repr(required_tables)
-    required_migrations = ("0057_publicationrollbackmodel",)
-    migration_literal = repr(required_migrations)
+    table_literal = repr(CANONICAL_SCHEMA_TABLES)
+    migration_literal = repr(CANONICAL_SCHEMA_MIGRATIONS)
     python_code = (
         "from django.db import connection; "
         "from django.db.migrations.recorder import MigrationRecorder; "

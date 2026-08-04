@@ -101,6 +101,10 @@ def test_remote_deploy_blocks_release_on_macro_governance_drift():
     assert "python manage.py init_macro_indicator_governance --check" in script
     assert "python manage.py normalize_macro_fact_units --check" in script
     assert "macro data-governance drift check failed" in script
+    assert "python manage.py verify_canonical_schema --json" in script
+    assert script.index("verify_canonical_schema --json") < script.index(
+        "python manage.py check --deploy"
+    )
 
 
 def test_remote_deploy_publishes_canonical_https_origin_and_validates_tls():
@@ -136,6 +140,17 @@ def test_remote_deploy_publishes_and_verifies_tui_release_metadata():
     assert "--approve" in release_helper
     assert "--check" in release_helper
     assert "reviewed TUI metadata is missing" in release_helper
+
+
+def test_legacy_deploy_verifies_canonical_schema_after_migrations():
+    script = (
+        Path(__file__).resolve().parents[2] / "scripts" / "deploy-on-vps.sh"
+    ).read_text(encoding="utf-8")
+
+    assert "python manage.py verify_canonical_schema --json" in script
+    assert script.index("verify_canonical_schema --json") > script.index(
+        "python manage.py migrate --noinput"
+    )
 
 
 def test_remote_deploy_synchronizes_mcp_catalog_before_release_publish():

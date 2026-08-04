@@ -1494,6 +1494,11 @@ if ! bash scripts/migrate-vps-sqlite-to-postgres.sh "$TARGET_DIR"; then
   exit 1
 fi
 
+if ! compose run --rm --no-deps web python manage.py verify_canonical_schema --json; then
+  echo "[ERROR] canonical Data Center schema or migration marker is incomplete" >&2
+  exit 1
+fi
+
 if ! compose run --rm --no-deps web python manage.py check --deploy; then
   echo "[ERROR] Django production deployment checks failed" >&2
   exit 1
