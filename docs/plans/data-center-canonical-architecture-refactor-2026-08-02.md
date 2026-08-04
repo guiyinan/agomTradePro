@@ -1686,6 +1686,26 @@ CI 观察结论：
 - `pytest tests/unit/test_data_center_on_demand.py -q --no-migrations --timeout=60`：7 passed。
 - 该证据只证明本地 AKShare-only 降级语义；不改变当前 provider 配置，也不替代 VPS canonical migration、全量覆盖或生产切换门禁。
 
+## 实施记录（2026-08-04，AKShare failover binding 补齐）
+
+本批次只补齐运行时 Dataset Catalog 的无 Tushare failover 声明，不切换本地或生产 Provider，不部署、不 push。
+
+已落地：
+
+- `equity.price.bar`、`equity.financial.fact`、`equity.valuation.fact` 在 `governance/provider_bindings.json` 增加 AKShare 二级 binding；各 binding 复用对应 Dataset Contract 的 freshness/validator，不降低 Publication/available-at 门禁。
+- Catalog runtime bootstrap/verification 现在稳定报告 `bindings=15`；回归断言三个关键 D4/D5/行情数据集均存在 AKShare fallback，避免“适配器支持但治理路由未登记”的配置漂移。
+
+机器证据（本地）：
+
+- `pytest tests/unit/data_center/test_catalog_runtime.py tests/unit/test_data_center_catalog_contracts.py -q --no-migrations --reuse-db`：5 passed。
+- `python scripts/check_data_center_catalog_contracts.py`：`validated=10 datasets`。
+- `python manage.py initialize_data_center_catalog` 与 `python scripts/check_data_center_runtime_catalog.py`：`contracts=10, bindings=15, owners=10`。
+
+仍未完成及风险：
+
+- 这是路由/治理声明和本地 Catalog round-trip，不代表 AKShare 对全市场历史财务/估值的覆盖已达生产门槛；当前真实覆盖缺口、publication writer/backfill、PostgreSQL 生产证据、观察窗口和 VPS release 仍保持未完成。
+- 本地运行库的 Tushare provider 仍为 active；如需临时无 Tushare 运行，应通过受控配置停用 Tushare 并显式验证 AKShare 产出，不能直接编辑治理 JSON 代替运行时切换。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

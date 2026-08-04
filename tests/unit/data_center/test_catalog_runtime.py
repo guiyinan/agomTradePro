@@ -84,7 +84,17 @@ def test_catalog_bootstrap_is_idempotent_and_public_ports_are_typed() -> None:
     assert "contracts=10" in first.getvalue()
     assert first.getvalue() == second.getvalue()
     assert len(list_active_dataset_contracts()) == 10
-    assert len(list_active_provider_bindings()) == 12
+    assert len(list_active_provider_bindings()) == 15
+    fallback_bindings = {
+        item.dataset.value: item.provider
+        for item in list_active_provider_bindings()
+        if item.provider == "akshare"
+    }
+    assert {
+        "equity.price.bar",
+        "equity.financial.fact",
+        "equity.valuation.fact",
+    } <= set(fallback_bindings)
     assert get_active_dataset_contract("equity.quote.snapshot") is not None
     assert get_active_publication_policy("equity.quote.snapshot") is not None
     assert len(list_active_data_owner_registrations()) == 10
