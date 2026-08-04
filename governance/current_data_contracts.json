@@ -1181,7 +1181,8 @@
         ],
         "apps/alpha/infrastructure/adapters/simple_adapter.py": [
           "get_published_quote_payloads(active_codes)",
-          "get_published_quote_payloads(normalized_codes)"
+          "get_published_quote_payloads(normalized_codes)",
+          "must_not_use_for_decision"
         ],
         "apps/pulse/infrastructure/data_provider.py": [
           "get_published_price_bar_series(",
@@ -1223,6 +1224,11 @@
           "case": "alpha_quote_gate",
           "test_file": "tests/unit/alpha/test_t3b_provider_contracts.py",
           "test_function": "test_simple_quote_fallback_rejects_missing_and_nonpositive_prices"
+        },
+        {
+          "case": "alpha_blocked_publication_rejects_rows",
+          "test_file": "tests/unit/alpha/test_t3b_provider_contracts.py",
+          "test_function": "test_simple_quote_fallback_rejects_rows_when_publication_is_blocked"
         },
         {
           "case": "pulse_direct_input_blocked",

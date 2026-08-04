@@ -216,6 +216,44 @@ def test_simple_quote_fallback_rejects_missing_and_nonpositive_prices(
     assert staleness is None
 
 
+def test_simple_quote_fallback_rejects_rows_when_publication_is_blocked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A blocked publication cannot be bypassed by non-empty legacy rows."""
+    monkeypatch.setattr(
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_published_quote_payloads",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "asset_code": "000001.SZ",
+                    "snapshot_at": datetime.now(UTC),
+                    "current_price": 10.5,
+                    "prev_close": 10.0,
+                    "open": 10.1,
+                    "high": 10.8,
+                    "low": 9.9,
+                    "volume": 1000,
+                }
+            ],
+            "must_not_use_for_decision": True,
+            "blocked_reason": "publication_stale",
+        },
+    )
+
+    scores, metadata, staleness = SimpleAlphaProvider()._compute_quote_momentum_scores(
+        stock_list=["000001.SZ"],
+        universe_id="portfolio",
+        intended_trade_date=TARGET_DATE,
+    )
+
+    assert scores == []
+    assert metadata["quote_count"] == 0
+    assert metadata["price_momentum_count"] == 0
+    assert metadata["quote_error"] == "publication_stale"
+    assert metadata["must_not_use_for_decision"] is True
+    assert staleness is None
+
+
 def test_simple_factor_exposure_uses_bounded_defaults(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

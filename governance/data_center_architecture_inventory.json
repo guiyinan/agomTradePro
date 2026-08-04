@@ -1,6 +1,6 @@
 {
   "counts": {
-    "cross_app_orm_imports": 53,
+    "cross_app_orm_imports": 52,
     "current_surface_references": 3142,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 6,
@@ -158,11 +158,6 @@
       "import": "apps.fund.infrastructure.models",
       "line": 610,
       "path": "apps/alpha/infrastructure/adapters/etf_adapter.py"
-    },
-    {
-      "import": "apps.data_center.infrastructure.models",
-      "line": 8,
-      "path": "apps/alpha/tests/test_simple_adapter.py"
     },
     {
       "import": "apps.regime.infrastructure.models",

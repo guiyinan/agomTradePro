@@ -11,8 +11,9 @@ Simple Alpha Provider
 
 import logging
 import math
+from collections.abc import Mapping
 from datetime import date, datetime, timedelta
-from typing import Any, TypedDict, cast
+from typing import Any, TypedDict
 
 from django.conf import settings
 from django.utils import timezone
@@ -31,6 +32,23 @@ from ...domain.interfaces import AlphaProviderStatus
 from .base import BaseAlphaProvider, provider_safe
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_source_observation(value: object) -> datetime | None:
+    """Parse an aware source observation without inventing a timestamp."""
+
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str) and value.strip():
+        try:
+            parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed
 
 
 class _FundamentalQuality(TypedDict):
@@ -143,13 +161,21 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             quote_cutoff = timezone.now() - timedelta(hours=4)
             active_codes = list_active_stock_codes()[:100]
             quote_payload = get_published_quote_payloads(active_codes)
-            quote_rows = cast(list[dict[str, object]], quote_payload.get("rows", []))
+            quote_rows: list[Mapping[str, object]] = []
+            if isinstance(quote_payload, Mapping) and not bool(
+                quote_payload.get("must_not_use_for_decision")
+            ):
+                raw_quote_rows = quote_payload.get("rows", [])
+                if isinstance(raw_quote_rows, (list, tuple)):
+                    quote_rows = [row for row in raw_quote_rows if isinstance(row, Mapping)]
             has_fresh_quotes = bool(
                 [
                     row
                     for row in quote_rows
-                    if str(row.get("snapshot_at") or "")
-                    and datetime.fromisoformat(str(row["snapshot_at"])) >= quote_cutoff
+                    if isinstance(row, Mapping)
+                    and (observation := _parse_source_observation(row.get("snapshot_at")))
+                    is not None
+                    and observation >= quote_cutoff
                 ]
             )
 
@@ -529,12 +555,42 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         quote_cutoff = timezone.now() - timedelta(hours=4)
         normalized_codes = [str(code or "").strip().upper() for code in stock_list if code]
         quote_payload = get_published_quote_payloads(normalized_codes)
-        quote_rows = cast(list[dict[str, object]], quote_payload.get("rows", []))
+        if not isinstance(quote_payload, Mapping) or bool(
+            quote_payload.get("must_not_use_for_decision")
+        ):
+            return (
+                [],
+                {
+                    "quote_count": 0,
+                    "price_momentum_count": 0,
+                    "quote_error": str(
+                        quote_payload.get("blocked_reason")
+                        if isinstance(quote_payload, Mapping)
+                        else "published_quote_payload_invalid"
+                    )
+                    or "当前行情 Publication 不可用于决策。",
+                    "must_not_use_for_decision": True,
+                },
+                None,
+            )
+        raw_quote_rows = quote_payload.get("rows", [])
+        if not isinstance(raw_quote_rows, (list, tuple)):
+            return (
+                [],
+                {
+                    "quote_count": 0,
+                    "price_momentum_count": 0,
+                    "quote_error": "published_quote_rows_invalid",
+                    "must_not_use_for_decision": True,
+                },
+                None,
+            )
+        quote_rows = [row for row in raw_quote_rows if isinstance(row, Mapping)]
         latest_by_code = {
             str(snapshot.get("asset_code") or "").upper(): snapshot
             for snapshot in quote_rows
-            if str(snapshot.get("snapshot_at") or "")
-            and datetime.fromisoformat(str(snapshot["snapshot_at"])) >= quote_cutoff
+            if (observation := _parse_source_observation(snapshot.get("snapshot_at"))) is not None
+            and observation >= quote_cutoff
         }
 
         raw_rows: list[_QuoteMomentumRow] = []
@@ -562,6 +618,10 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             if current_price <= 0 or prev_close <= 0:
                 continue
 
+            snapshot_at = _parse_source_observation(quote.get("snapshot_at"))
+            if snapshot_at is None:
+                continue
+
             intraday_return = (current_price - prev_close) / prev_close
             open_gap = (
                 (current_price - open_price) / open_price
@@ -574,14 +634,13 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             raw_rows.append(
                 {
                     "code": code,
-                    "snapshot_at": datetime.fromisoformat(str(quote["snapshot_at"])),
+                    "snapshot_at": snapshot_at,
                     "intraday_return": intraday_return,
                     "range_position": range_position,
                     "liquidity": math.log1p(max(volume, 0.0)) if volume is not None else 0.0,
                     "open_gap": open_gap,
                 }
             )
-            snapshot_at = datetime.fromisoformat(str(quote["snapshot_at"]))
             if latest_snapshot_at is None or snapshot_at > latest_snapshot_at:
                 latest_snapshot_at = snapshot_at
 

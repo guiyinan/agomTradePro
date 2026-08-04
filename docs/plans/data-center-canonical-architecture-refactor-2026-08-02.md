@@ -4000,3 +4000,13 @@ Git SHA / 镜像 / migration：
 - 架构清单刷新：`python scripts/data_center_architecture_inventory.py --write`：`provider_imports_outside_data_center=0`、`cross_app_orm_imports=53`、`legacy_fact_references=143`、`current_surface_references=3142`、`data_write_task_decorators=55`、`runtime_parameter_references=49`、`external_http_imports_for_review=6`。
 - 明确未做：未把 AKShare 远端分时诊断 failover 伪装为 canonical Publication，未修改历史回放语义，未部署、未 push、未修改本地/VPS provider 状态。
 - 未验证风险：生产 quote Publication 是否包含完整分时点集合、分时图 PostgreSQL 查询预算、生产观察窗口及旧 Realtime cache 清理仍待生产阶段证据。
+
+## 38. 2026-08-05：Alpha quote momentum Publication 阻断收口
+
+- 目标：确保 Alpha 简单因子在行情 Publication 缺失、过期或显式阻断时，不会因为 payload 仍携带旧 rows 而继续生成可执行的 quote momentum 分数。
+- 变更：`SimpleAlphaProvider` 对 quote payload 的 `must_not_use_for_decision`、rows 类型和源 `snapshot_at` 做 fail-closed 校验；只接受带时区的源观测时间，不再由请求时间补造行情时间。健康检查同样忽略被阻断的 rows。
+- 测试：新增 `test_simple_quote_fallback_rejects_rows_when_publication_is_blocked`；Alpha 集成测试改用 Publication Public Port fixture，避免把裸 `QuoteSnapshotModel` 当作 current 数据入口。
+- 治理：`data_center.publication_only_d2_d3` 增加 Alpha 阻断 marker 与测试登记。
+- 已运行测试：`pytest tests/unit/alpha/test_t3b_provider_contracts.py apps/alpha/tests/test_simple_adapter.py tests/unit/alpha/test_alpha_infrastructure_edges.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：19 passed；`python scripts/check_current_data_contracts.py`：39 surfaces；其余架构、mypy、inventory 门禁随本批提交前复跑。
+- 明确未做：未改变 Alpha 的打分权重、基本面历史查询和 Qlib fallback，未修改 Tushare/AKShare provider 状态，未部署、未 push。
+- 未验证风险：生产行情 Publication 的覆盖率、Alpha 端到端任务调度和 PostgreSQL 性能仍待生产阶段证据；Realtime 诊断 failover 仍按 §47 的明确边界保留。
