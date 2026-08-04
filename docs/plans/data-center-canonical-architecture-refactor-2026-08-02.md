@@ -1642,6 +1642,12 @@ CI 观察结论：
 - active coverage 审计（lookback 365）为 price `fresh=5504/sparse=26/stale=3`、valuation `fresh=416/sparse=5117`、financial `fresh=5533`、quote `sparse=5533`。这说明“当前估值快照覆盖”和“365 天估值历史覆盖”是两个不同门槛；AKShare/Tencent 能补当前值，但不能据此宣称全市场日频估值历史已经完整。
 - 估值历史口径仍 fail-closed：不能把单日当前快照重复包装成 365 天历史，也不能用旧值覆盖观测日期。后续若要关闭历史估值缺口，需要可授权的 Tushare 官方 IP 或其他具备历史估值契约的 Provider，并完成跨源对账。
 
+## 实施记录（2026-08-04，宏观 shadow audit 自然键修复）
+
+- 修复 `audit_macro_fact_consistency`：canonical/legacy revision 与跨源序列现在按 `source + period_type + reporting_period` 分组；同一日期的日频与月频事实不再被错误比较。跨源冲突示例同时输出 `period_type`，避免把不同频率当成同一序列。
+- 新增回归用例覆盖同 source、同日期、不同 `period_type` 的事实；本地该组件 15 tests passed，ruff 与 mypy regression 通过。提交：`e2dda7e6`。
+- 该修复尚未部署 VPS；生产现有 529 条 canonical/legacy conflict 仍需在新代码部署后重采并区分剩余真实差异，不能直接把旧计数视为修复完成。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
