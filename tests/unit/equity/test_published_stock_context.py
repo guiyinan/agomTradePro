@@ -173,3 +173,49 @@ def test_published_stock_context_blocks_missing_member_rows(monkeypatch) -> None
     assert row["must_not_use_for_decision"] is True
     assert row["blocked_reason"] == "canonical_publication_members_missing"
     assert row["missing_datasets"] == ["financial", "valuation", "price"]
+
+
+def test_published_stock_context_can_select_only_price_publication(monkeypatch) -> None:
+    """Feature consumers can request only the canonical dataset they need."""
+
+    monkeypatch.setattr(
+        query_services,
+        "get_equity_stock_repository",
+        lambda: _StockRepository(),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_published_price_bar_series",
+        lambda *args, **kwargs: {
+            "rows": [{"timestamp": "2026-08-04", "close": 12.34}],
+            **_fresh_gate(),
+        },
+    )
+
+    def _unexpected_financial_call(*args, **kwargs):
+        raise AssertionError("financial publication should not be queried")
+
+    def _unexpected_valuation_call(*args, **kwargs):
+        raise AssertionError("valuation publication should not be queried")
+
+    monkeypatch.setattr(
+        query_services,
+        "get_published_financial_facts",
+        _unexpected_financial_call,
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_published_valuation_facts",
+        _unexpected_valuation_call,
+    )
+
+    context = query_services.get_published_stock_context_map(
+        ["000001.SZ"],
+        include_financial=False,
+        include_valuation=False,
+    )
+
+    row = context["000001.SZ"]
+    assert set(row["publication_gates"]) == {"price"}
+    assert row["trade_date"] == date(2026, 8, 4)
+    assert row["must_not_use_for_decision"] is False

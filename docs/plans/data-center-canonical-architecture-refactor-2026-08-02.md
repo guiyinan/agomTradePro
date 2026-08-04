@@ -3944,3 +3944,12 @@ Git SHA / 镜像 / migration：
 - 已运行测试：`pytest tests/api/test_fund_api_edges.py tests/component/test_fund_repository_data_center.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：37 passed；current-data 38 surfaces；architecture boundary/audit 0；mypy 0；Ruff/Black OK。后续补充 Public Port 查询异常的 fail-closed 单测。
 - 明确未做：未修改基金历史区间的 raw/maintenance 语义，未部署、未修改本地/VPS provider 状态。
 - 未验证风险：生产基金 Publication 覆盖、生产 PostgreSQL 性能和历史/当前模式的 E2E 证据仍待补齐。
+
+## 32. 2026-08-05：Decision Rhythm 股票特征成员绑定
+
+- 目标：消除技术面/基本面特征对 `DjangoStockRepository.get_all_stocks_with_fundamentals()` 的旧仓储旁路，确保推荐特征只使用对应证券的 canonical Publication member。
+- 变更：`TechnicalFeatureProvider` 通过 `get_published_stock_context_map(..., include_financial=False, include_valuation=False)` 读取价格成员及 gate；`FundamentalFeatureProvider` 通过同一 Public Port 读取财务/估值成员和 `roe`，异常、缺失或过期均保留阻断证据并返回中性值。查询端口新增按需选择 financial/valuation 的参数，避免技术特征无关读取其他数据域。
+- 治理：更新 `decision_rhythm.feature_freshness` marker/test 登记，覆盖 member-bound price、financial/valuation context。
+- 已运行测试：`pytest tests/component/test_feature_providers.py`：35 passed；`pytest tests/unit/equity/test_published_stock_context.py`：4 passed；`pytest tests/unit/test_unified_recommendation_use_cases.py tests/unit/decision_rhythm/test_flow_feature_freshness.py`：23 passed。`check_current_data_contracts.py`：39 surfaces；architecture boundary/audit：0；mypy：0；Ruff：0。
+- 明确未做：未改变技术评分的中性占位算法，未修改旧维护/历史研究接口，未部署、未修改本地/VPS provider 状态。
+- 未验证风险：完整 Decision Rhythm 推荐链、生产 Publication 覆盖和 PostgreSQL 性能仍需后续批次证据；全量组件测试应在合并门禁中再次运行。

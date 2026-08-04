@@ -254,16 +254,20 @@ class TestTechnicalFeatureProvider:
     def test_get_technical_score_success(self):
         """测试成功获取技术面分数"""
         with patch(
-            "apps.equity.infrastructure.repositories.DjangoStockRepository"
-        ) as mock_repo_class:
-            mock_repo = MagicMock()
-            # 模拟返回股票列表
-            mock_stock_info = MagicMock()
-            mock_stock_info.stock_code = "000001.SZ"
-            mock_repo.get_all_stocks_with_fundamentals.return_value = [
-                (mock_stock_info, MagicMock(), MagicMock())
-            ]
-            mock_repo_class.return_value = mock_repo
+            "apps.decision_rhythm.infrastructure.feature_providers.get_published_stock_context_map"
+        ) as mock_context:
+            mock_context.return_value = {
+                "000001.SZ": {
+                    "publication_gates": {
+                        "price": {
+                            "observed_at": "2026-08-04T08:00:00+00:00",
+                            "freshness_status": "fresh",
+                            "must_not_use_for_decision": False,
+                            "blocked_reason": "",
+                        }
+                    }
+                }
+            }
 
             provider = TechnicalFeatureProvider()
             result = provider.get_technical_score("000001.SZ")
@@ -274,11 +278,9 @@ class TestTechnicalFeatureProvider:
     def test_get_technical_score_default(self):
         """测试获取技术面分数失败时返回默认值"""
         with patch(
-            "apps.equity.infrastructure.repositories.DjangoStockRepository"
-        ) as mock_repo_class:
-            mock_repo = MagicMock()
-            mock_repo.get_all_stocks_with_fundamentals.return_value = []
-            mock_repo_class.return_value = mock_repo
+            "apps.decision_rhythm.infrastructure.feature_providers.get_published_stock_context_map",
+            return_value={},
+        ):
 
             provider = TechnicalFeatureProvider()
             result = provider.get_technical_score("000001.SZ")
@@ -290,10 +292,9 @@ class TestTechnicalFeatureProvider:
 
         with (
             patch(
-                "apps.decision_rhythm.infrastructure.feature_providers.get_decision_publication_gate",
-                return_value=None,
+                "apps.decision_rhythm.infrastructure.feature_providers.get_published_stock_context_map",
+                return_value={},
             ),
-            patch("apps.equity.infrastructure.repositories.DjangoStockRepository"),
         ):
             provider = TechnicalFeatureProvider()
             assert provider.get_technical_score("000001.SZ") == 0.5
@@ -310,18 +311,27 @@ class TestFundamentalFeatureProvider:
     def test_get_fundamental_score_success(self):
         """测试成功获取基本面分数"""
         with patch(
-            "apps.equity.infrastructure.repositories.DjangoStockRepository"
-        ) as mock_repo_class:
-            mock_repo = MagicMock()
-            # 模拟返回股票列表
-            mock_stock_info = MagicMock()
-            mock_stock_info.stock_code = "000001.SZ"
-            mock_financial = MagicMock()
-            mock_financial.roe = 10.0  # ROE 10% 对应 0.5 分
-            mock_repo.get_all_stocks_with_fundamentals.return_value = [
-                (mock_stock_info, mock_financial, MagicMock())
-            ]
-            mock_repo_class.return_value = mock_repo
+            "apps.decision_rhythm.infrastructure.feature_providers.get_published_stock_context_map"
+        ) as mock_context:
+            mock_context.return_value = {
+                "000001.SZ": {
+                    "roe": 10.0,
+                    "publication_gates": {
+                        "financial": {
+                            "observed_at": "2026-07-31T08:00:00+00:00",
+                            "freshness_status": "fresh",
+                            "must_not_use_for_decision": False,
+                            "blocked_reason": "",
+                        },
+                        "valuation": {
+                            "observed_at": "2026-08-04T08:00:00+00:00",
+                            "freshness_status": "fresh",
+                            "must_not_use_for_decision": False,
+                            "blocked_reason": "",
+                        },
+                    },
+                }
+            }
 
             provider = FundamentalFeatureProvider()
             result = provider.get_fundamental_score("000001.SZ")
@@ -332,11 +342,9 @@ class TestFundamentalFeatureProvider:
     def test_get_fundamental_score_default(self):
         """测试获取基本面分数失败时返回默认值"""
         with patch(
-            "apps.equity.infrastructure.repositories.DjangoStockRepository"
-        ) as mock_repo_class:
-            mock_repo = MagicMock()
-            mock_repo.get_all_stocks_with_fundamentals.return_value = []
-            mock_repo_class.return_value = mock_repo
+            "apps.decision_rhythm.infrastructure.feature_providers.get_published_stock_context_map",
+            return_value={},
+        ):
 
             provider = FundamentalFeatureProvider()
             result = provider.get_fundamental_score("000001.SZ")
@@ -354,10 +362,21 @@ class TestFundamentalFeatureProvider:
         }
         with (
             patch(
-                "apps.decision_rhythm.infrastructure.feature_providers.get_decision_publication_gate",
-                return_value=stale_gate,
+                "apps.decision_rhythm.infrastructure.feature_providers.get_published_stock_context_map",
+                return_value={
+                    "000001.SZ": {
+                        "publication_gates": {
+                            "financial": stale_gate,
+                            "valuation": {
+                                "must_not_use_for_decision": False,
+                                "freshness_status": "fresh",
+                                "observed_at": "2026-08-04T08:00:00+00:00",
+                                "blocked_reason": "",
+                            },
+                        }
+                    }
+                },
             ),
-            patch("apps.equity.infrastructure.repositories.DjangoStockRepository"),
         ):
             provider = FundamentalFeatureProvider()
             assert provider.get_fundamental_score("000001.SZ") == 0.5

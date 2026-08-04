@@ -10,13 +10,14 @@ Bottom-up（舆情/资金/技术/基本面/Alpha）特征获取。
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any, Protocol
 
 from django.utils import timezone
 
 from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
-from apps.data_center.application.public import get_decision_publication_gate
+from apps.equity.application.query_services import get_published_stock_context_map
 from apps.realtime.domain.entities import PricePollingConfig
 from shared.numeric import safe_float
 
@@ -31,7 +32,6 @@ from .valuation_provider import AssetValuationProvider
 if TYPE_CHECKING:
     from apps.alpha.domain.entities import AlphaResult
     from apps.beta_gate.application.use_cases import EvaluateBetaGateUseCase
-    from apps.equity.infrastructure.repositories import DjangoStockRepository
     from apps.policy.infrastructure.repositories import DjangoPolicyRepository
     from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository
 
@@ -40,34 +40,32 @@ logger = logging.getLogger(__name__)
 _resolve_recent_closed_trade_date: CallableTradeDateResolver = resolve_recent_closed_trade_date
 
 
-def _publication_freshness_contract(
-    dataset_keys: tuple[str, ...],
-) -> FeatureFreshnessContract:
-    """Convert one or more Data Center publication gates to feature evidence."""
+def _freshness_contract_from_gates(gates: list[object]) -> FeatureFreshnessContract:
+    """Convert publication gate payloads to decision-rhythm feature evidence."""
 
-    gates = [get_decision_publication_gate(dataset_key) for dataset_key in dataset_keys]
-    has_blocked_gate = any(
-        gate is None or bool(gate.get("must_not_use_for_decision")) for gate in gates
+    has_blocked_gate = not gates or any(
+        not isinstance(gate, Mapping) or bool(gate.get("must_not_use_for_decision"))
+        for gate in gates
     )
     blocked_gate = next(
         (
             gate
             for gate in gates
-            if isinstance(gate, dict) and bool(gate.get("must_not_use_for_decision"))
+            if isinstance(gate, Mapping) and bool(gate.get("must_not_use_for_decision"))
         ),
         None,
     )
     observed_values = [
         str(gate.get("observed_at"))
         for gate in gates
-        if isinstance(gate, dict) and gate.get("observed_at")
+        if isinstance(gate, Mapping) and gate.get("observed_at")
     ]
     observed_at = min(observed_values) if observed_values else None
     if not has_blocked_gate:
         statuses = {
             str(gate.get("freshness_status") or "unverified")
             for gate in gates
-            if isinstance(gate, dict)
+            if isinstance(gate, Mapping)
         }
         freshness_status = "fresh" if statuses == {"fresh"} else "unverified"
         return FeatureFreshnessContract(
@@ -82,15 +80,31 @@ def _publication_freshness_contract(
         observed_at=observed_at,
         freshness_status=(
             str(blocked_gate.get("freshness_status") or "missing")
-            if isinstance(blocked_gate, dict)
+            if isinstance(blocked_gate, Mapping)
             else "missing"
         ),
         must_not_use_for_decision=True,
         blocked_reason=(
             str(blocked_gate.get("blocked_reason") or "canonical_publication_missing")
-            if isinstance(blocked_gate, dict)
+            if isinstance(blocked_gate, Mapping)
             else "canonical_publication_missing"
         ),
+    )
+
+
+def _context_freshness_contract(
+    context: object,
+    gate_names: tuple[str, ...],
+) -> FeatureFreshnessContract:
+    """Read member-bound gates for equity.price.bar, equity.financial.fact, and equity.valuation.fact."""
+
+    if not isinstance(context, Mapping):
+        return _freshness_contract_from_gates([])
+    publication_gates = context.get("publication_gates")
+    if not isinstance(publication_gates, Mapping):
+        return _freshness_contract_from_gates([])
+    return _freshness_contract_from_gates(
+        [publication_gates.get(gate_name) for gate_name in gate_names]
     )
 
 
@@ -499,7 +513,6 @@ class TechnicalFeatureProvider:
     """
 
     def __init__(self) -> None:
-        self._technical_repository: DjangoStockRepository | None = None
         self._technical_freshness: dict[str, FeatureFreshnessContract] = {}
 
     def get_feature_freshness_contracts(
@@ -510,14 +523,6 @@ class TechnicalFeatureProvider:
 
         contract = self._technical_freshness.get(security_code)
         return {"technical": contract} if contract is not None else {}
-
-    def _get_technical_repository(self) -> DjangoStockRepository:
-        """延迟加载 repository"""
-        if self._technical_repository is None:
-            from apps.equity.infrastructure.repositories import DjangoStockRepository
-
-            self._technical_repository = DjangoStockRepository()
-        return self._technical_repository
 
     def get_technical_score(self, security_code: str) -> float:
         """
@@ -530,7 +535,14 @@ class TechnicalFeatureProvider:
             技术面分数 (0-1)
         """
         try:
-            contract = _publication_freshness_contract(("equity.price.bar",))
+            normalized_code = str(security_code).strip().upper()
+            context = get_published_stock_context_map(
+                [normalized_code],
+                include_price=True,
+                include_financial=False,
+                include_valuation=False,
+            ).get(normalized_code)
+            contract = _context_freshness_contract(context, ("price",))
             self._technical_freshness[security_code] = contract
             if contract["must_not_use_for_decision"]:
                 logger.warning(
@@ -539,18 +551,8 @@ class TechnicalFeatureProvider:
                     contract["blocked_reason"],
                 )
                 return 0.5
-            # 尝试从 equity 模块获取技术评分
-            # 目前返回默认值，后续可以集成技术分析模块
-            repo = self._get_technical_repository()
-            stocks = repo.get_all_stocks_with_fundamentals()
-
-            # 查找对应股票
-            for stock_info, _, _ in stocks:
-                if stock_info.stock_code == security_code:
-                    # 使用简单的技术评分逻辑
-                    # 后续可以集成更复杂的技术分析
-                    return 0.5
-
+            # 当前技术评分仍是中性占位，但其可用性必须绑定到该证券的
+            # canonical price publication member，而不能从旧仓储旁路读取。
             return 0.5
 
         except Exception as e:
@@ -572,7 +574,6 @@ class FundamentalFeatureProvider:
     """
 
     def __init__(self) -> None:
-        self._fundamental_repository: DjangoStockRepository | None = None
         self._fundamental_freshness: dict[str, FeatureFreshnessContract] = {}
 
     def get_feature_freshness_contracts(
@@ -583,14 +584,6 @@ class FundamentalFeatureProvider:
 
         contract = self._fundamental_freshness.get(security_code)
         return {"fundamental": contract} if contract is not None else {}
-
-    def _get_fundamental_repository(self) -> DjangoStockRepository:
-        """延迟加载 repository"""
-        if self._fundamental_repository is None:
-            from apps.equity.infrastructure.repositories import DjangoStockRepository
-
-            self._fundamental_repository = DjangoStockRepository()
-        return self._fundamental_repository
 
     def get_fundamental_score(self, security_code: str) -> float:
         """
@@ -603,9 +596,12 @@ class FundamentalFeatureProvider:
             基本面分数 (0-1)
         """
         try:
-            contract = _publication_freshness_contract(
-                ("equity.financial.fact", "equity.valuation.fact")
-            )
+            normalized_code = str(security_code).strip().upper()
+            context = get_published_stock_context_map(
+                [normalized_code],
+                include_price=False,
+            ).get(normalized_code)
+            contract = _context_freshness_contract(context, ("financial", "valuation"))
             self._fundamental_freshness[security_code] = contract
             if contract["must_not_use_for_decision"]:
                 logger.warning(
@@ -614,20 +610,11 @@ class FundamentalFeatureProvider:
                     contract["blocked_reason"],
                 )
                 return 0.5
-            # 尝试从 equity 模块获取基本面评分
-            repo = self._get_fundamental_repository()
-            stocks = repo.get_all_stocks_with_fundamentals()
-
-            # 查找对应股票
-            for stock_info, financial_data, _ in stocks:
-                if stock_info.stock_code == security_code:
-                    # 使用简单的基本面评分逻辑
-                    # 基于 ROE 和净利润增长率
-                    if hasattr(financial_data, "roe") and financial_data.roe:
-                        roe = float(financial_data.roe)
-                        # ROE 10% 对应 0.5 分
-                        score = min(1.0, max(0.0, roe / 20.0))
-                        return score
+            # 使用 member-bound、publication-gated 的财务事实计算基本面分。
+            if isinstance(context, Mapping):
+                roe = safe_float(context.get("roe"), default=None)
+                if roe is not None:
+                    return min(1.0, max(0.0, roe / 20.0))
 
             return 0.5
 

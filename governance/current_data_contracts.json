@@ -730,7 +730,10 @@
           "resolve_current_sentiment()",
           "resolve_current_regime()",
           "def get_feature_freshness_contracts(",
-          "get_decision_publication_gate",
+          "get_published_stock_context_map",
+          "publication_gates",
+          "include_financial=False",
+          "include_valuation=False",
           "equity.price.bar",
           "equity.financial.fact",
           "equity.valuation.fact",
@@ -772,6 +775,16 @@
           "case": "technical_freshness_collected_after_feature_read",
           "test_file": "tests/unit/test_unified_recommendation_use_cases.py",
           "test_function": "test_generate_collects_technical_freshness_after_feature_read"
+        },
+        {
+          "case": "technical_reads_member_bound_price_context",
+          "test_file": "tests/component/test_feature_providers.py",
+          "test_function": "test_get_technical_score_success"
+        },
+        {
+          "case": "fundamental_reads_member_bound_financial_context",
+          "test_file": "tests/component/test_feature_providers.py",
+          "test_function": "test_get_fundamental_score_success"
         }
       ]
     },

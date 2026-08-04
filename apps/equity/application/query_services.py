@@ -191,6 +191,8 @@ def get_published_stock_context_map(
     *,
     publication_key: str = "current",
     include_price: bool = True,
+    include_financial: bool = True,
+    include_valuation: bool = True,
 ) -> dict[str, dict[str, Any]]:
     """Return stock context using only publication-gated canonical facts.
 
@@ -218,20 +220,29 @@ def get_published_stock_context_map(
                 publication_key=publication_key,
                 limit=1,
             )
-        financial_payload = get_published_financial_facts(
-            asset_code,
-            publication_key=publication_key,
-            limit=100,
+        financial_payload: object = (
+            get_published_financial_facts(
+                asset_code,
+                publication_key=publication_key,
+                limit=100,
+            )
+            if include_financial
+            else {}
         )
-        valuation_payload = get_published_valuation_facts(
-            asset_code,
-            publication_key=publication_key,
-            limit=1,
+        valuation_payload: object = (
+            get_published_valuation_facts(
+                asset_code,
+                publication_key=publication_key,
+                limit=1,
+            )
+            if include_valuation
+            else {}
         )
-        gates: dict[str, dict[str, object]] = {
-            "financial": _payload_gate(financial_payload),
-            "valuation": _payload_gate(valuation_payload),
-        }
+        gates: dict[str, dict[str, object]] = {}
+        if include_financial:
+            gates["financial"] = _payload_gate(financial_payload)
+        if include_valuation:
+            gates["valuation"] = _payload_gate(valuation_payload)
         if include_price:
             gates["price"] = _payload_gate(price_payload)
         blocked_gates = [gate for gate in gates.values() if gate.get("must_not_use_for_decision")]
@@ -254,7 +265,8 @@ def get_published_stock_context_map(
         missing_datasets = [
             dataset_name
             for dataset_name, payload in (
-                [("financial", financial_payload), ("valuation", valuation_payload)]
+                ([("financial", financial_payload)] if include_financial else [])
+                + ([("valuation", valuation_payload)] if include_valuation else [])
                 + ([("price", price_payload)] if include_price else [])
             )
             if not _payload_rows(payload)
