@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "policy_version": "2026-08-05.v1",
+  "classifications": {
+    "mutable_business_configuration": {
+      "description": "A catalog, parameter, threshold, assumption, or fallback that changes with markets, research, strategy judgment, or operations.",
+      "enforcement": "Must use an owned, versioned persistence source and a typed read port. Production Python literals are rejected."
+    },
+    "domain_invariant": {
+      "description": "A mathematical or semantic invariant whose value is part of the domain definition rather than an operating decision.",
+      "enforcement": "Allowed only when the invariant rationale is reviewable and the AST does not match a mutable configuration rule."
+    },
+    "schema_or_protocol_constant": {
+      "description": "A stable enum member, field name, protocol discriminator, or validation-schema boundary.",
+      "enforcement": "Allowed as structure; it must not contain a production catalog, recommendation threshold, allocation assumption, or runtime fallback."
+    },
+    "test_fixture": {
+      "description": "Synthetic data used only to exercise guard behavior.",
+      "enforcement": "Excluded from the production full scan, but negative fixtures are parsed directly by guard self-tests."
+    }
+  },
+  "scan": {
+    "authoritative_mode": "full",
+    "roots": [
+      "apps",
+      "config",
+      "core"
+    ],
+    "include_patterns": [
+      "apps/*/application/*.py",
+      "apps/*/application/**/*.py",
+      "apps/*/domain/*.py",
+      "apps/*/domain/**/*.py",
+      "apps/*/composition*.py",
+      "apps/*/infrastructure/*config*.py",
+      "apps/*/infrastructure/*provider*.py",
+      "config/*.py",
+      "config/**/*.py",
+      "core/*.py",
+      "core/**/*.py"
+    ],
+    "excluded_segments": [
+      "__pycache__",
+      "migrations",
+      "tests"
+    ],
+    "delta_policy": "informational_only"
+  },
+  "contracts": [
+    {
+      "id": "risk_center.stress_scenarios",
+      "classification": "mutable_business_configuration",
+      "canonical_owner": "risk_center",
+      "read_port": "ScenarioQueryRepositoryProtocol",
+      "persistence": "Versioned Risk Center scenario definitions, revisions, sets, activations, and run evidence",
+      "version_policy": "Published revisions are immutable; changes create a replacement version with content hash and activation audit",
+      "initialization": "Django data migration with source_type=legacy_code_migration; migration rows are not a runtime fallback",
+      "runtime_fallback_policy": "forbidden",
+      "migration_status": "m2_repository_cutover_complete",
+      "covered_rules": [
+        "historical_scenario_catalog",
+        "static_business_configuration_fallback"
+      ],
+      "legacy_sources": [
+        {
+          "path": "apps/account/application/stress_testing_use_cases.py",
+          "symbol": "HistoricalScenarioService.SCENARIOS",
+          "compatibility_mapping": {
+            "2015_crash": "historical.cn_equity.2015_crash",
+            "2018_trade_war": "historical.cn_equity.2018_trade_war",
+            "2020_covid": "historical.global_equity.2020_covid"
+          }
+        }
+      ]
+    },
+    {
+      "id": "strategy.allocation_policy",
+      "classification": "mutable_business_configuration",
+      "canonical_owner": "strategy",
+      "read_port": "AllocationPolicyRepositoryProtocol",
+      "persistence": "Versioned Strategy allocation policy and policy-level adjustment records",
+      "version_policy": "Weights, expected metrics, research evidence, and Policy adjustments are immutable per approved version",
+      "initialization": "Django data migration from the legacy 4x4 matrix; unverified expected metrics retain legacy_unverified provenance",
+      "runtime_fallback_policy": "forbidden",
+      "migration_status": "m1_repository_cutover_complete",
+      "covered_rules": [
+        "allocation_policy_matrix",
+        "policy_adjustment_multiplier",
+        "static_business_configuration_fallback"
+      ],
+      "legacy_sources": [
+        {
+          "path": "apps/strategy/domain/allocation_matrix.py",
+          "symbol": "ALLOCATION_MATRIX"
+        },
+        {
+          "path": "apps/strategy/domain/allocation_matrix.py",
+          "symbol": "POLICY_EQUITY_ADJUSTMENT"
+        }
+      ]
+    },
+    {
+      "id": "risk_center.stress_recommendation_policy",
+      "classification": "mutable_business_configuration",
+      "canonical_owner": "risk_center",
+      "read_port": "StressRecommendationPolicyQueryProtocol",
+      "persistence": "Versioned Risk Center recommendation-policy thresholds",
+      "version_policy": "Threshold changes require a replacement version, change reason, actor, and effective time",
+      "initialization": "Legacy thresholds migrate as an explicitly sourced initial policy revision",
+      "runtime_fallback_policy": "forbidden",
+      "migration_status": "m2_versioned_policy_port_required",
+      "covered_rules": [
+        "decision_recommendation_threshold"
+      ],
+      "legacy_sources": [
+        {
+          "path": "apps/account/application/stress_testing_use_cases.py",
+          "symbol": "StressTestingUseCase._generate_recommendations.thresholds"
+        }
+      ]
+    },
+    {
+      "id": "portfolio.stress_test_principal",
+      "classification": "mutable_business_configuration",
+      "canonical_owner": "portfolio",
+      "read_port": "PortfolioSnapshotProviderProtocol",
+      "persistence": "Immutable Portfolio Snapshot net asset value referenced by scenario-run evidence",
+      "version_policy": "Every run references one snapshot and as-of time; no arbitrary code default is permitted",
+      "initialization": "Caller supplies a real Portfolio Snapshot; missing snapshot fails closed",
+      "runtime_fallback_policy": "forbidden",
+      "migration_status": "m2_immutable_snapshot_port_required",
+      "covered_rules": [
+        "default_portfolio_principal"
+      ],
+      "legacy_sources": [
+        {
+          "path": "apps/account/application/stress_testing_use_cases.py",
+          "symbol": "StressTestingUseCase.run_historical_scenario_test.initial_value"
+        }
+      ]
+    }
+  ],
+  "allowed_invariants": [
+    {
+      "id": "stable_enum_members",
+      "classification": "schema_or_protocol_constant",
+      "matcher": "Enum class members whose literal values define stable protocol or domain identity",
+      "owner": "declaring_domain",
+      "rationale": "Enum identity is structural and does not choose live scenario contents, weights, probabilities, or thresholds."
+    },
+    {
+      "id": "typed_schema_boundaries",
+      "classification": "schema_or_protocol_constant",
+      "matcher": "TypedDict fields, dataclass field declarations, JSON Schema names, and finite validation bounds",
+      "owner": "declaring_contract",
+      "rationale": "Schema shape and safety bounds constrain input; they are not approved production assumptions or catalogs."
+    },
+    {
+      "id": "canonical_unit_conversion",
+      "classification": "domain_invariant",
+      "matcher": "Exact dimensional unit conversion multipliers such as 10,000 yuan per wan-yuan",
+      "owner": "data_center",
+      "rationale": "A dimensional identity is mathematically fixed and must not be confused with Policy or allocation multipliers."
+    },
+    {
+      "id": "probability_and_weight_normalization",
+      "classification": "domain_invariant",
+      "matcher": "Probability or allocation totals equal one within a declared numerical tolerance",
+      "owner": "declaring_domain",
+      "rationale": "Normalization is a mathematical invariant; the individual configured probabilities and weights remain mutable."
+    }
+  ],
+  "temporary_exceptions": []
+}

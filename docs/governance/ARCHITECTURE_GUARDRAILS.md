@@ -1,6 +1,6 @@
 # Architecture Guardrails
 
-> Last updated: 2026-06-30
+> Last updated: 2026-08-05
 > Dynamic governance machine source of truth: `governance/governance_baseline.json`
 
 This document defines how repository-wide architecture and governance checks are enforced.
@@ -51,6 +51,23 @@ The project uses complementary guardrails:
    - Runs in `.github/workflows/ci-fast-feedback.yml`.
    - Selects changed Python files for incremental `ruff` / `black` / `isort` / `mypy`.
    - Also selects changed domain modules for the incremental Domain coverage gate.
+
+6. `scripts/check_business_configuration_hardcodes.py --mode full`
+   - Runs in `.github/workflows/consistency-check.yml`; its mutation-style self-tests run in `.github/workflows/ci-fast-feedback.yml`.
+   - Reads `governance/business_configuration_contracts.json` and scans the configured production Python roots with the AST.
+   - Rejects static historical-scenario catalogs, 4x4 allocation policies, Policy multipliers, recommendation thresholds, arbitrary stress-test principals, and repository-to-static-configuration fallbacks.
+   - Treats the full-repository result as authoritative. A changed-line or delta view may help locate a regression, but it cannot authorize the gate.
+   - Allows a migration exception only when owner, reason, replacement plan, expiry date, exact path, symbol, rule, and AST fingerprint all match. Expired, edited, or stale exceptions fail closed.
+
+## Guard Responsibility Boundaries
+
+| Responsibility | Machine source and entrypoint | What it proves | What it does not prove |
+|---|---|---|---|
+| Architecture compliance | `governance/architecture_rules.json`; `check_architecture_delta.py` and `verify_architecture.py` | Dependency direction, layer imports, ORM/transaction ownership, and other structural rules | That a structurally valid Python literal is suitable as live business configuration |
+| Runtime configuration coverage | `governance/runtime_config_contracts.json`; `check_runtime_config_coverage.py` | Environment and registered System Settings reads have an explicit runtime classification | That dates, weights, probabilities, estimates, or decision thresholds are versioned business policy |
+| Business configuration governance | `governance/business_configuration_contracts.json`; `check_business_configuration_hardcodes.py --mode full` | Mutable catalogs and decision parameters have a canonical owner and are not reintroduced as production literals or static fallbacks | General dependency correctness or environment-variable coverage |
+
+Enum identities, protocol/schema discriminators, dimensional unit conversions, and mathematical normalization rules remain valid constants when their invariant rationale is declared. Values that change with markets, research conclusions, strategy judgment, or operations are mutable business configuration and must use the owned, versioned read port named in the manifest.
 
 ## Baselines
 

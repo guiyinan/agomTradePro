@@ -45,6 +45,13 @@ jobs:
       - name: Verify SystemSettings field contract
         run: python scripts/check_system_settings_field_contract.py
 
+      - name: Run Business Configuration Guard self-tests
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+        run: |
+          python -m pytest tests/governance/test_business_configuration_hardcode_guard.py \
+            -q -o addopts='' --confcutdir=tests/governance
+
       - name: Run fast suite without creating a test database
         run: python scripts/run_fast_tests.py
 
