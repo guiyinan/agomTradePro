@@ -6,12 +6,19 @@ from typing import Any
 
 from django.contrib.auth.models import User
 
+from apps.config_center.application.public import (
+    get_runtime_alpha_fixed_provider,
+    get_runtime_alpha_pool_mode,
+    get_runtime_benchmark_code,
+    get_runtime_market_visual_tokens,
+    get_runtime_qlib_config,
+    get_system_settings_summary,
+)
 from apps.data_center.application.public import get_macro_runtime_metadata
 
 from .models import (
     AccountProfileModel,
     PortfolioModel,
-    SystemSettingsModel,
     TradingCostConfigModel,
     UserAccessTokenModel,
 )
@@ -54,25 +61,12 @@ class DjangoAccountConfigSummaryRepository:
     def get_system_settings_summary(self) -> dict[str, Any]:
         """Return singleton system settings summary."""
 
-        settings_obj = SystemSettingsModel.get_settings_for_read()
-        return {
-            "status": "configured",
-            "summary": {
-                "default_mcp_enabled": settings_obj.default_mcp_enabled,
-                "allow_token_plaintext_view": settings_obj.allow_token_plaintext_view,
-                "market_color_convention": settings_obj.market_color_convention,
-                "market_color_label": settings_obj.get_market_visual_tokens()["label"],
-                "benchmark_map_size": len(settings_obj.benchmark_code_map or {}),
-                "data_center_indicator_catalog_size": len(
-                    self._build_runtime_macro_metadata_map()
-                ),
-                "updated_at": (
-                    settings_obj.updated_at.isoformat()
-                    if getattr(settings_obj, "updated_at", None)
-                    else None
-                ),
-            },
-        }
+        summary = get_system_settings_summary()
+        summary_payload = dict(summary.get("summary") or {})
+        summary_payload["data_center_indicator_catalog_size"] = len(
+            self._build_runtime_macro_metadata_map()
+        )
+        return {**summary, "summary": summary_payload}
 
     def get_trading_cost_summary(self, user: Any) -> dict[str, Any]:
         """Return portfolio trading-cost summary for one user."""
@@ -117,7 +111,7 @@ class DjangoAccountConfigSummaryRepository:
     def get_market_visual_tokens(self) -> dict[str, str]:
         """Return runtime market visual tokens."""
 
-        return SystemSettingsModel.get_runtime_market_visual_tokens()
+        return get_runtime_market_visual_tokens()
 
     def get_admin_console_counts(self) -> dict[str, int]:
         """Return admin console account counters."""
@@ -154,20 +148,19 @@ class DjangoAccountConfigSummaryRepository:
     def get_runtime_qlib_config(self) -> dict[str, Any]:
         """Return runtime qlib config."""
 
-        return SystemSettingsModel.get_runtime_qlib_config()
+        return get_runtime_qlib_config()
 
     def get_runtime_alpha_fixed_provider(self) -> str:
         """Return runtime fixed alpha provider."""
 
-        return SystemSettingsModel.get_runtime_alpha_fixed_provider()
+        return get_runtime_alpha_fixed_provider()
 
     def get_runtime_alpha_pool_mode(self, default_mode: str = "") -> str:
         """Return runtime alpha pool mode."""
 
-        mode = SystemSettingsModel.get_runtime_alpha_pool_mode()
-        return mode or default_mode
+        return get_runtime_alpha_pool_mode(default_mode)
 
     def get_runtime_benchmark_code(self, key: str, default: str = "") -> str:
         """Return a runtime benchmark code by key."""
 
-        return SystemSettingsModel.get_runtime_benchmark_code(key, default)
+        return get_runtime_benchmark_code(key, default)

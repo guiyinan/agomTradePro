@@ -4141,3 +4141,12 @@ Git SHA / 镜像 / migration：
 - 治理：外部 HTTP inventory 从 6 降为 5；`apps/policy/infrastructure/adapters/feedparser_adapter.py` 不再持有网络客户端或 feedparser runtime，业务 App 只依赖 Public Port。
 - 已运行验证：RSS gateway + Policy adapter 回归 `18 passed`；`verify_architecture.py --include-audit`：boundary/audit 0；`check_data_center_legacy_fact_access.py`、`check_current_data_contracts.py` 通过；变更生产文件 mypy regression 0、Ruff/Black 通过。
 - 明确未做：未删除 PolicyLog/RSS 配置维护投影，未改变 Policy AI 分类/审核流程，未部署、未 push；market.news 全量生产回填、Publication 覆盖和旧链 M9 清理仍未完成。
+
+## 54. 2026-08-05：Config Center 摘要 Public Port 收口
+
+- 目标：消除 Account 配置摘要仓储对 Config Center `SystemSettingsModel` 的直接 ORM 依赖，推进全局运行参数由 Config Center owner 统一提供。
+- 变更：新增 `apps/config_center/application/public.py`，暴露系统设置、市场视觉 token、Qlib、Alpha provider/pool、benchmark 和 asset-proxy 的只读 Application Public Port；Config Center summary service/repository 补齐市场视觉 token 端口。
+- `DjangoAccountConfigSummaryRepository` 改为调用 Config Center Public Port，保留账户摘要返回结构并继续追加 Data Center indicator catalog 计数；Account 不再直接 import Config Center ORM model。
+- 已运行验证：Config Center public/跨 App bridge/运行时回归 `7 passed`；Account system-settings/runtime/model structure 回归 `13 passed`；变更文件 Ruff、Black、isort、mypy regression 通过；architecture boundary/audit 0、module-cycle 0、legacy-fact 0、current-data 43 surfaces 通过。
+- 明确未做：未迁移 Account 账户注册、备份和管理写入流程中的 SystemSettings 维护 ORM；未删除兼容 re-export、未部署、未 push。
+- 未验证风险：Config Center 全局 owner registry、SystemSettings 过期字段清理、生产 profile/rollback 与 PostgreSQL 证据仍未完成；全仓 governance consistency 受其他 agent 未提交的 `fixed_income` 大文件缺少 baseline 阻断，不能把该门禁结果记为通过。

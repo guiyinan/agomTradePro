@@ -9,6 +9,9 @@ class ConfigCenterSummaryRepository(Protocol):
     def get_system_settings_summary(self) -> dict[str, Any]:
         """Return singleton system-settings summary."""
 
+    def get_runtime_market_visual_tokens(self) -> dict[str, str]:
+        """Return runtime market visual tokens."""
+
     def get_runtime_macro_index_metadata_map(self) -> dict[str, dict[str, Any]]:
         """Return runtime macro indicator metadata map."""
 
@@ -40,6 +43,11 @@ class ConfigCenterSummaryService:
 
     def get_system_settings_summary(self) -> dict[str, Any]:
         return self.repository.get_system_settings_summary()
+
+    def get_runtime_market_visual_tokens(self) -> dict[str, str]:
+        """Return runtime market visual tokens."""
+
+        return self.repository.get_runtime_market_visual_tokens()
 
     def get_runtime_macro_index_metadata_map(self) -> dict[str, dict[str, Any]]:
         return self.repository.get_runtime_macro_index_metadata_map()
@@ -80,4 +88,3 @@ def get_config_center_summary_service() -> ConfigCenterSummaryService:
     if _config_center_summary_repository is None:
         raise RuntimeError("Config center summary repository is not configured")
     return ConfigCenterSummaryService(_config_center_summary_repository)
-

@@ -46,6 +46,11 @@ class DjangoConfigCenterSummaryRepository:
             },
         }
 
+    def get_runtime_market_visual_tokens(self) -> dict[str, str]:
+        """Return the configured market visual token mapping."""
+
+        return SystemSettingsModel.get_runtime_market_visual_tokens()
+
     def get_runtime_macro_index_metadata_map(self) -> dict[str, dict[str, Any]]:
         return self._build_runtime_macro_metadata_map()
 
