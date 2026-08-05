@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3257,
+    "current_surface_references": 3280,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 143,
@@ -4392,22 +4392,102 @@
       "text": "logger.warning(\"Failed to get valuation repair config summary: %s\", exc)"
     },
     {
-      "line": 221,
+      "line": 222,
       "path": "apps/dashboard/application/queries.py",
       "text": "\"\"\"Attach dashboard-specific freshness hints when the page falls back from realtime qlib.\"\"\""
     },
     {
-      "line": 638,
+      "line": 639,
       "path": "apps/dashboard/application/queries.py",
       "text": "summary = get_alpha_trigger_global_alert_service().get_workspace_summary()"
     },
     {
-      "line": 644,
+      "line": 645,
       "path": "apps/dashboard/application/queries.py",
       "text": "return int(summary.get(key_by_status.get(status, \"\"), 0))"
     },
     {
-      "line": 1178,
+      "line": 1145,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "current = resolve_current_regime()"
+    },
+    {
+      "line": 1147,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "current.dominant_regime"
+    },
+    {
+      "line": 1148,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "and current.dominant_regime != \"Unknown\""
+    },
+    {
+      "line": 1149,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "and not current.must_not_use_for_decision"
+    },
+    {
+      "line": 1152,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "current_regime=current.dominant_regime,"
+    },
+    {
+      "line": 1153,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "regime_date=current.observed_at,"
+    },
+    {
+      "line": 1154,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "regime_confidence=float(current.confidence or 0.0),"
+    },
+    {
+      "line": 1155,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "growth_momentum_z=float(current.growth_momentum_z or 0.0),"
+    },
+    {
+      "line": 1156,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "inflation_momentum_z=float(current.inflation_momentum_z or 0.0),"
+    },
+    {
+      "line": 1159,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "regime_distribution=dict(current.distribution or {}),"
+    },
+    {
+      "line": 1161,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "regime_warnings=list(current.warnings),"
+    },
+    {
+      "line": 1164,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "warnings = list(current.warnings)"
+    },
+    {
+      "line": 1169,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "regime_date=current.observed_at,"
+    },
+    {
+      "line": 1170,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "regime_confidence=float(current.confidence or 0.0),"
+    },
+    {
+      "line": 1171,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "growth_momentum_z=float(current.growth_momentum_z or 0.0),"
+    },
+    {
+      "line": 1172,
+      "path": "apps/dashboard/application/queries.py",
+      "text": "inflation_momentum_z=float(current.inflation_momentum_z or 0.0),"
+    },
+    {
+      "line": 1181,
       "path": "apps/dashboard/application/queries.py",
       "text": "logger.warning(\"Failed to get regime summary: error_type=%s\", type(exc).__name__)"
     },
@@ -4472,42 +4552,72 @@
       "text": "\"current\": None,"
     },
     {
-      "line": 69,
+      "line": 67,
       "path": "apps/dashboard/application/use_cases.py",
       "text": "\"\"\"Health summary for the macro inputs used by the dashboard.\"\"\""
     },
     {
-      "line": 311,
+      "line": 74,
       "path": "apps/dashboard/application/use_cases.py",
-      "text": "current = resolve_current_regime(as_of_date=date.today())"
+      "text": "\"\"\"Dashboard projection of the canonical current-Regime result.\"\"\""
     },
     {
-      "line": 312,
+      "line": 477,
       "path": "apps/dashboard/application/use_cases.py",
-      "text": "if current.dominant_regime != \"Unknown\":"
+      "text": "current = resolve_current_regime(as_of_date=as_of_date)"
     },
     {
-      "line": 313,
+      "line": 478,
       "path": "apps/dashboard/application/use_cases.py",
-      "text": "current_regime = current.dominant_regime"
+      "text": "warnings = list(current.warnings)"
     },
     {
-      "line": 315,
+      "line": 483,
       "path": "apps/dashboard/application/use_cases.py",
-      "text": "regime_confidence = current.confidence"
+      "text": "is_usable = current.dominant_regime != \"Unknown\" and not current.must_not_use_for_decision"
     },
     {
-      "line": 321,
+      "line": 484,
       "path": "apps/dashboard/application/use_cases.py",
-      "text": "raw_distribution=getattr(current, \"distribution\", None),"
+      "text": "current_regime = current.dominant_regime if is_usable else \"Unknown\""
     },
     {
-      "line": 496,
+      "line": 488,
+      "path": "apps/dashboard/application/use_cases.py",
+      "text": "raw_distribution=current.distribution,"
+    },
+    {
+      "line": 497,
+      "path": "apps/dashboard/application/use_cases.py",
+      "text": "if current.blocked_reason == \"regime_data_unavailable\":"
+    },
+    {
+      "line": 506,
+      "path": "apps/dashboard/application/use_cases.py",
+      "text": "\"regime_date\": current.observed_at,"
+    },
+    {
+      "line": 507,
+      "path": "apps/dashboard/application/use_cases.py",
+      "text": "\"regime_confidence\": float(current.confidence or 0.0),"
+    },
+    {
+      "line": 508,
+      "path": "apps/dashboard/application/use_cases.py",
+      "text": "\"growth_momentum_z\": float(current.growth_momentum_z or 0.0),"
+    },
+    {
+      "line": 509,
+      "path": "apps/dashboard/application/use_cases.py",
+      "text": "\"inflation_momentum_z\": float(current.inflation_momentum_z or 0.0),"
+    },
+    {
+      "line": 516,
       "path": "apps/dashboard/application/use_cases.py",
       "text": "\"\"\"Prefer the current simulated-account system for dashboard totals.\"\"\""
     },
     {
-      "line": 1144,
+      "line": 1164,
       "path": "apps/dashboard/application/use_cases.py",
       "text": "\"summary\": advice.summary,"
     },
@@ -4615,6 +4725,11 @@
       "line": 2421,
       "path": "apps/dashboard/tests/test_alpha_views.py",
       "text": "assert context[\"summary\"] == {"
+    },
+    {
+      "line": 97,
+      "path": "apps/dashboard/tests/test_query_safety.py",
+      "text": "\"\"\"Current resolver errors expose only a stable availability warning.\"\"\""
     },
     {
       "line": 27,

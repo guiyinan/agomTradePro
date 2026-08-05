@@ -4351,3 +4351,11 @@ Git SHA / 镜像 / migration：
 - 治理与测试：`regime.current` 登记 Sector consumer/markers/test；Sector fallback 回归 `7 passed`，新增 stale/blocked 不读取旧快照断言；变更文件 mypy regression 0，architecture boundary/audit 0，module-cycle 0。
 - inventory：在不含工作区未提交 Equity 文件的 clean HEAD worktree 重生成架构 inventory，`current_surface_references=3257`，其余结构计数保持 `51/55/4/143/0/49`。
 - 明确未做：未改变 Sector 派生指标、历史显式 Regime 参数、Publication writer/provider、生产数据、VPS 或部署；生产 Regime Publication 覆盖、观察窗口和 M9 旧链清理仍未完成。
+
+## 82. 2026-08-06：Dashboard Regime 摘要与首页统一 current resolver
+
+- 目标：清除 Dashboard 摘要查询和首页聚合在当前 Regime 不可用时回读旧 `get_latest_snapshot()` 的旁路，防止历史快照伪装成当前决策数据。
+- 变更：`RegimeSummaryQuery` 与 `GetDashboardDataUseCase` 统一消费 `resolve_current_regime()`；成功路径保留 resolver 的 `observed_at`、动量和分布，stale/blocked 路径返回 `Unknown`、原始观测日、阻断 warning 和空决策分布，不再使用旧快照补值。`DashboardData.regime_date` 改为可空，避免无观测日期时用请求日洗白来源时间；保留 `regime_repo` 构造参数仅作兼容，不再调用其 snapshot API。
+- 治理与测试：`regime.current` 登记 Dashboard queries/use case 的 resolver markers 和精确测试；Dashboard 定向回归 `18 passed`，页面级回归 `3 passed`；current-data manifest 实际执行 `264 nodeid / 303 passed`；current-data contracts `45 surfaces`、architecture boundary/audit 0、module-cycle 0、变更文件 mypy regression 0、Ruff/Black 通过。
+- inventory：在不含工作区未提交 Equity 文件的 clean HEAD worktree 重生成架构 inventory，`current_surface_references=3280`，其余结构计数保持 `51/55/4/143/0/49`。
+- 明确未做：未修改 Dashboard 历史/PIT 研究语义、Regime 算法、Publication writer/provider、生产数据、VPS 或部署；生产 Publication 覆盖、PostgreSQL 查询预算/备份恢复、连续交易日观察窗口和 M9 旧链清理仍未完成。
