@@ -10,7 +10,6 @@ from uuid import UUID
 
 from apps.research.domain.scenario_probability_contracts import (
     ResearchEvidenceStatus,
-    ScenarioInvalidationEvidence,
     ScenarioProbabilityResearchPolicy,
     ScenarioResearchScope,
 )
@@ -391,6 +390,7 @@ class ConditionalProbabilityEvidence:
     pit_manifest_id: str
     pit_manifest_version: str
     pit_manifest_hash: str
+    period_index: int
 
     def __post_init__(self) -> None:
         """Validate an explicitly sourced conditional estimate."""
@@ -401,6 +401,8 @@ class ConditionalProbabilityEvidence:
         require_token(self.pit_manifest_id, "conditional pit_manifest_id")
         require_token(self.pit_manifest_version, "conditional pit_manifest_version")
         require_sha256(self.pit_manifest_hash, "conditional pit_manifest_hash")
+        if isinstance(self.period_index, bool) or self.period_index < 1:
+            raise ValueError("conditional period_index must be positive")
         _require_probability(self.probability, "conditional probability")
         _require_positive_count(self.observation_count, "conditional observation_count")
 
@@ -434,12 +436,53 @@ class TransitionProbabilityEvidence:
         require_sha256(self.pit_manifest_hash, "transition pit_manifest_hash")
 
 
+def conditional_probability_evidence_identity(
+    evidence: ConditionalProbabilityEvidence,
+) -> str:
+    """Seal one exact period/source/sample/PIT conditional estimate identity."""
+
+    return hash_components(
+        "conditional-probability-evidence.v1",
+        str(evidence.period_index),
+        evidence.condition_key,
+        str(evidence.target_scenario_revision_id),
+        str(evidence.probability),
+        str(evidence.observation_count),
+        evidence.source_version,
+        evidence.sample_definition_version,
+        evidence.pit_manifest_id,
+        evidence.pit_manifest_version,
+        evidence.pit_manifest_hash,
+    )
+
+
+def transition_probability_evidence_identity(
+    evidence: TransitionProbabilityEvidence,
+) -> str:
+    """Seal one exact period/source/sample/PIT transition estimate identity."""
+
+    return hash_components(
+        "transition-probability-evidence.v1",
+        str(evidence.horizon_periods),
+        str(evidence.from_scenario_revision_id),
+        str(evidence.to_scenario_revision_id),
+        str(evidence.probability),
+        str(evidence.observation_count),
+        evidence.source_version,
+        evidence.sample_definition_version,
+        evidence.pit_manifest_id,
+        evidence.pit_manifest_version,
+        evidence.pit_manifest_hash,
+    )
+
+
 @dataclass(frozen=True)
 class ScenarioPathStudyEvidence:
     """Versioned path/shock/probability evidence restricted to research use."""
 
     study_version: str
     scope_hash: str
+    scenario_set_revision_id: UUID | None
     scenario_revision_ids: tuple[UUID, ...]
     pit_manifest: PointInTimeManifestReference
     shocks: tuple[MultiPeriodShockEvidence, ...]
@@ -482,6 +525,7 @@ class ScenarioPathStudyEvidence:
         digest = _path_study_hash(
             study_version=study_version,
             scope_hash=scope.content_hash,
+            scenario_set_revision_id=scope.scenario_set_revision_id,
             scenario_revision_ids=scope.scenario_revision_ids,
             pit_manifest=pit_manifest,
             shocks=shocks,
@@ -495,6 +539,7 @@ class ScenarioPathStudyEvidence:
         return cls(
             study_version=study_version,
             scope_hash=scope.content_hash,
+            scenario_set_revision_id=scope.scenario_set_revision_id,
             scenario_revision_ids=scope.scenario_revision_ids,
             pit_manifest=pit_manifest,
             shocks=shocks,
@@ -587,6 +632,7 @@ class ScenarioPathStudyEvidence:
         expected = _path_study_hash(
             study_version=self.study_version,
             scope_hash=self.scope_hash,
+            scenario_set_revision_id=self.scenario_set_revision_id,
             scenario_revision_ids=self.scenario_revision_ids,
             pit_manifest=self.pit_manifest,
             shocks=self.shocks,
@@ -705,56 +751,6 @@ class ScenarioPathAssessment:
         require_sha256(self.content_hash, "path assessment content_hash")
         if self.content_hash != expected:
             raise ValueError("scenario path assessment content_hash mismatch")
-
-
-@dataclass(frozen=True)
-class ReviewReminderIntent:
-    """Internal intent for human review; it performs no delivery or task mutation."""
-
-    intent_version: str
-    intent_id: str
-    policy_version: str
-    scenario_revision_id: UUID
-    scenario_set_revision_id: UUID | None
-    invalidation_evidence_hash: str
-    created_at: datetime
-    review_due_at: datetime
-    reason_code: str
-    dispatch_requested: bool
-    content_hash: str
-
-    def __post_init__(self) -> None:
-        """Reject forged or side-effecting review reminder intents."""
-
-        require_token(self.intent_version, "intent_version")
-        require_token(self.policy_version, "policy_version")
-        require_sha256(self.intent_id, "intent_id")
-        require_sha256(
-            self.invalidation_evidence_hash,
-            "invalidation_evidence_hash",
-        )
-        _require_aware(self.created_at, "intent created_at")
-        _require_aware(self.review_due_at, "intent review_due_at")
-        if self.review_due_at < self.created_at:
-            raise ValueError("review_due_at cannot precede created_at")
-        require_token(self.reason_code, "reason_code")
-        if self.dispatch_requested:
-            raise ValueError("review reminder intent cannot request direct dispatch")
-        require_sha256(self.content_hash, "intent content_hash")
-        expected = hash_components(
-            self.intent_version,
-            self.intent_id,
-            self.policy_version,
-            str(self.scenario_revision_id),
-            str(self.scenario_set_revision_id or ""),
-            self.invalidation_evidence_hash,
-            self.created_at.isoformat(),
-            self.review_due_at.isoformat(),
-            self.reason_code,
-            "False",
-        )
-        if self.content_hash != expected:
-            raise ValueError("review reminder intent content_hash mismatch")
 
 
 def assess_historical_analogy(
@@ -880,6 +876,7 @@ def assess_scenario_path_evidence(
     else:
         if (
             evidence.scope_hash != scope.content_hash
+            or evidence.scenario_set_revision_id != scope.scenario_set_revision_id
             or evidence.scenario_revision_ids != scope.scenario_revision_ids
         ):
             raise ValueError("scenario path evidence scope mismatch")
@@ -948,51 +945,6 @@ def assess_scenario_path_evidence(
     )
 
 
-def build_review_reminder_intent(
-    *,
-    invalidation: ScenarioInvalidationEvidence,
-    policy: ScenarioProbabilityResearchPolicy,
-    created_at: datetime,
-) -> ReviewReminderIntent:
-    """Create a deterministic internal reminder intent without dispatching it."""
-
-    _require_aware(created_at, "created_at")
-    if invalidation.invalidated_at > created_at:
-        raise ValueError("invalidation cannot be future-dated")
-    intent_version = "scenario-review-reminder-intent.v1"
-    review_due_at = created_at + policy.invalidation_review_delay
-    identity_hash = hash_components(
-        intent_version,
-        invalidation.content_hash,
-        policy.policy_version,
-    )
-    content_hash = hash_components(
-        intent_version,
-        identity_hash,
-        policy.policy_version,
-        str(invalidation.scenario_revision_id),
-        str(invalidation.scenario_set_revision_id or ""),
-        invalidation.content_hash,
-        created_at.isoformat(),
-        review_due_at.isoformat(),
-        "scenario_invalidation.requires_human_review",
-        "False",
-    )
-    return ReviewReminderIntent(
-        intent_version=intent_version,
-        intent_id=identity_hash,
-        policy_version=policy.policy_version,
-        scenario_revision_id=invalidation.scenario_revision_id,
-        scenario_set_revision_id=invalidation.scenario_set_revision_id,
-        invalidation_evidence_hash=invalidation.content_hash,
-        created_at=created_at,
-        review_due_at=review_due_at,
-        reason_code="scenario_invalidation.requires_human_review",
-        dispatch_requested=False,
-        content_hash=content_hash,
-    )
-
-
 def _validate_path_distributions(
     *,
     scenario_revision_ids: tuple[UUID, ...],
@@ -1034,11 +986,17 @@ def _validate_path_distributions(
             pit_manifest.manifest_hash,
         ):
             raise ValueError("path distribution PIT provenance does not match study manifest")
-    conditional_groups: dict[str, list[ConditionalProbabilityEvidence]] = {}
+    conditional_groups: dict[tuple[int, str], list[ConditionalProbabilityEvidence]] = {}
     for conditional in conditional_probabilities:
         if conditional.target_scenario_revision_id not in members:
             raise ValueError("conditional probability target is outside scenario scope")
-        conditional_groups.setdefault(conditional.condition_key, []).append(conditional)
+        if conditional.period_index > required_horizon_periods:
+            raise ValueError("conditional probability period exceeds path horizon")
+        conditional_groups.setdefault(
+            (conditional.period_index, conditional.condition_key), []
+        ).append(conditional)
+    if {key[0] for key in conditional_groups} != set(range(1, required_horizon_periods + 1)):
+        raise ValueError("conditional distributions do not cover every path period")
     for condition_key, conditionals in conditional_groups.items():
         targets = {conditional.target_scenario_revision_id for conditional in conditionals}
         if targets != members or len(targets) != len(conditionals):
@@ -1059,7 +1017,9 @@ def _validate_path_distributions(
         key = (transition.from_scenario_revision_id, transition.horizon_periods)
         transition_groups.setdefault(key, []).append(transition)
     expected_transition_groups = {
-        (initial_state, required_horizon_periods) for initial_state in initial_states
+        (initial_state, period_index)
+        for initial_state in initial_states
+        for period_index in range(1, required_horizon_periods + 1)
     }
     if set(transition_groups) != expected_transition_groups:
         raise ValueError(
@@ -1150,6 +1110,7 @@ def _path_study_hash(
     *,
     study_version: str,
     scope_hash: str,
+    scenario_set_revision_id: UUID | None,
     scenario_revision_ids: tuple[UUID, ...],
     pit_manifest: PointInTimeManifestReference,
     shocks: tuple[MultiPeriodShockEvidence, ...],
@@ -1167,7 +1128,8 @@ def _path_study_hash(
         for item in shocks
     )
     conditional_parts = tuple(
-        f"{item.condition_key}|{item.target_scenario_revision_id}|{item.probability}|"
+        f"{item.period_index}|{item.condition_key}|{item.target_scenario_revision_id}|"
+        f"{item.probability}|"
         f"{item.observation_count}|{item.source_version}|{item.sample_definition_version}|"
         f"{item.pit_manifest_id}|{item.pit_manifest_version}|{item.pit_manifest_hash}"
         for item in conditional_probabilities
@@ -1182,6 +1144,7 @@ def _path_study_hash(
     return hash_components(
         study_version,
         scope_hash,
+        str(scenario_set_revision_id or ""),
         *(str(revision_id) for revision_id in scenario_revision_ids),
         pit_manifest.reference_hash,
         *shock_parts,

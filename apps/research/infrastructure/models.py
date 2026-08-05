@@ -20,7 +20,9 @@ class ResearchExperiment(models.Model):
 
 class MultipleTestFamily(models.Model):
     family_id = models.CharField(max_length=64, primary_key=True)
-    experiment = models.ForeignKey(ResearchExperiment, on_delete=models.CASCADE, related_name="families")
+    experiment = models.ForeignKey(
+        ResearchExperiment, on_delete=models.CASCADE, related_name="families"
+    )
     planned_trial_count = models.PositiveIntegerField()
     fdr_threshold = models.FloatField(default=0.05)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -49,7 +51,9 @@ class ExperimentTrial(models.Model):
     )
 
     trial_id = models.CharField(max_length=64, primary_key=True)
-    experiment = models.ForeignKey(ResearchExperiment, on_delete=models.CASCADE, related_name="trials")
+    experiment = models.ForeignKey(
+        ResearchExperiment, on_delete=models.CASCADE, related_name="trials"
+    )
     family = models.ForeignKey(MultipleTestFamily, on_delete=models.PROTECT, related_name="trials")
     status = models.CharField(max_length=32, default="draft", db_index=True)
     pit_manifest_id = models.CharField(max_length=64, db_index=True)
@@ -77,14 +81,22 @@ class ExperimentTrial(models.Model):
         if self.pk:
             original = type(self)._default_manager.filter(pk=self.pk).first()
             if original and original.status != "draft":
-                changed = [name for name in self.IMMUTABLE_FIELDS if getattr(original, name) != getattr(self, name)]
+                changed = [
+                    name
+                    for name in self.IMMUTABLE_FIELDS
+                    if getattr(original, name) != getattr(self, name)
+                ]
                 if changed:
-                    raise ValidationError(f"Started trial evidence is immutable: {', '.join(changed)}")
+                    raise ValidationError(
+                        f"Started trial evidence is immutable: {', '.join(changed)}"
+                    )
         return super().save(*args, **kwargs)
 
 
 class DatasetSplitSpec(models.Model):
-    trial = models.OneToOneField(ExperimentTrial, primary_key=True, on_delete=models.CASCADE, related_name="split_spec")
+    trial = models.OneToOneField(
+        ExperimentTrial, primary_key=True, on_delete=models.CASCADE, related_name="split_spec"
+    )
     training_window = models.JSONField(default=dict)
     validation_window = models.JSONField(default=dict)
     out_of_sample_window = models.JSONField(default=dict)
@@ -117,7 +129,11 @@ class MetricObservation(models.Model):
 
     class Meta:
         db_table = "research_metric_observation"
-        constraints = [models.UniqueConstraint(fields=["trial", "metric_name"], name="research_trial_metric_uniq")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["trial", "metric_name"], name="research_trial_metric_uniq"
+            )
+        ]
 
     def save(self, *args, **kwargs):  # type: ignore[no-untyped-def]
         if self.pk:
@@ -133,8 +149,7 @@ class MetricObservation(models.Model):
                 "metadata",
             )
             if original and any(
-                getattr(original, field) != getattr(self, field)
-                for field in immutable_fields
+                getattr(original, field) != getattr(self, field) for field in immutable_fields
             ):
                 raise ValidationError("MetricObservation evidence is immutable.")
         return super().save(*args, **kwargs)
@@ -142,7 +157,9 @@ class MetricObservation(models.Model):
 
 class PromotionDecision(models.Model):
     decision_id = models.CharField(max_length=64, primary_key=True)
-    trial = models.OneToOneField(ExperimentTrial, on_delete=models.PROTECT, related_name="promotion_decision")
+    trial = models.OneToOneField(
+        ExperimentTrial, on_delete=models.PROTECT, related_name="promotion_decision"
+    )
     decision = models.CharField(max_length=16)
     evidence = models.JSONField(default=dict)
     decided_at = models.DateTimeField(auto_now_add=True)
@@ -154,3 +171,9 @@ class PromotionDecision(models.Model):
         if self.pk and type(self)._default_manager.filter(pk=self.pk).exists():
             raise ValidationError("PromotionDecision is immutable.")
         return super().save(*args, **kwargs)
+
+
+from apps.research.infrastructure.scenario_review_reminder_models import (  # noqa: E402,F401
+    ScenarioReviewReminderEventModel,
+    ScenarioReviewReminderModel,
+)

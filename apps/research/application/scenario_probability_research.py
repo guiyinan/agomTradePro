@@ -18,17 +18,19 @@ from apps.research.domain.scenario_probability_contracts import (
 from apps.research.domain.scenario_research_evidence import (
     HistoricalAnalogyAssessment,
     HistoricalAnalogyStudyEvidence,
-    ReviewReminderIntent,
     ScenarioPathAssessment,
     ScenarioPathStudyEvidence,
     assess_historical_analogy,
     assess_scenario_path_evidence,
-    build_review_reminder_intent,
 )
 from apps.research.domain.scenario_research_hashing import (
     hash_components,
     require_sha256,
     require_token,
+)
+from apps.research.domain.scenario_review_intent import (
+    ReviewReminderIntent,
+    build_review_reminder_intent,
 )
 
 
@@ -210,7 +212,7 @@ class BuildScenarioProbabilityResearchPacketUseCase:
         review_intents = _review_intents(
             observations=observations,
             policy=policy,
-            created_at=evaluated_at,
+            evaluated_at=evaluated_at,
         )
         packet_version = "scenario-probability-research-packet.v1"
         content_hash = hash_components(
@@ -248,18 +250,18 @@ def _review_intents(
     *,
     observations: tuple[ForecastLedgerOutcomeObservation, ...],
     policy: ScenarioProbabilityResearchPolicy,
-    created_at: datetime,
+    evaluated_at: datetime,
 ) -> tuple[ReviewReminderIntent, ...]:
     unique = {
-        observation.invalidation.content_hash: observation.invalidation
+        observation.content_hash: observation
         for observation in observations
         if observation.invalidation is not None
     }
     return tuple(
         build_review_reminder_intent(
-            invalidation=invalidation,
+            observation=observation,
             policy=policy,
-            created_at=created_at,
+            evaluated_at=evaluated_at,
         )
-        for _, invalidation in sorted(unique.items())
+        for _, observation in sorted(unique.items())
     )

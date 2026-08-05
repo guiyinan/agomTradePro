@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -10,7 +10,6 @@ import pytest
 
 from apps.research.domain.scenario_probability_contracts import (
     ResearchEvidenceStatus,
-    ScenarioInvalidationEvidence,
     ScenarioProbabilityResearchPolicy,
     ScenarioResearchScope,
 )
@@ -26,8 +25,9 @@ from apps.research.domain.scenario_research_evidence import (
     TransitionProbabilityEvidence,
     assess_historical_analogy,
     assess_scenario_path_evidence,
-    build_review_reminder_intent,
 )
+from apps.research.domain.scenario_review_intent import build_review_reminder_intent
+from tests.unit.research.scenario_review_reminder_factories import make_observation
 
 NOW = datetime(2026, 8, 5, 12, tzinfo=UTC)
 SET_REVISION = UUID("00000000-0000-0000-0000-000000000100")
@@ -199,6 +199,7 @@ def _path_study(
                 pit_manifest_id="pit-path",
                 pit_manifest_version="pit-manifest.v1",
                 pit_manifest_hash="d" * 64,
+                period_index=1,
             ),
             ConditionalProbabilityEvidence(
                 condition_key="growth_down",
@@ -210,9 +211,82 @@ def _path_study(
                 pit_manifest_id="pit-path",
                 pit_manifest_version="pit-manifest.v1",
                 pit_manifest_hash="d" * 64,
+                period_index=1,
+            ),
+            ConditionalProbabilityEvidence(
+                condition_key="growth_down",
+                target_scenario_revision_id=REVISION_A,
+                probability=Decimal("0.60"),
+                observation_count=observation_count,
+                source_version="path-study.v1",
+                sample_definition_version="path-sample.v1",
+                pit_manifest_id="pit-path",
+                pit_manifest_version="pit-manifest.v1",
+                pit_manifest_hash="d" * 64,
+                period_index=2,
+            ),
+            ConditionalProbabilityEvidence(
+                condition_key="growth_down",
+                target_scenario_revision_id=REVISION_B,
+                probability=Decimal("0.40"),
+                observation_count=observation_count,
+                source_version="path-study.v1",
+                sample_definition_version="path-sample.v1",
+                pit_manifest_id="pit-path",
+                pit_manifest_version="pit-manifest.v1",
+                pit_manifest_hash="d" * 64,
+                period_index=2,
             ),
         ),
         transition_probabilities=(
+            TransitionProbabilityEvidence(
+                REVISION_A,
+                REVISION_A,
+                1,
+                Decimal("0.70"),
+                observation_count,
+                "path-study.v1",
+                "path-sample.v1",
+                "pit-path",
+                "pit-manifest.v1",
+                "d" * 64,
+            ),
+            TransitionProbabilityEvidence(
+                REVISION_A,
+                REVISION_B,
+                1,
+                Decimal("0.30"),
+                observation_count,
+                "path-study.v1",
+                "path-sample.v1",
+                "pit-path",
+                "pit-manifest.v1",
+                "d" * 64,
+            ),
+            TransitionProbabilityEvidence(
+                REVISION_B,
+                REVISION_A,
+                1,
+                Decimal("0.40"),
+                observation_count,
+                "path-study.v1",
+                "path-sample.v1",
+                "pit-path",
+                "pit-manifest.v1",
+                "d" * 64,
+            ),
+            TransitionProbabilityEvidence(
+                REVISION_B,
+                REVISION_B,
+                1,
+                Decimal("0.60"),
+                observation_count,
+                "path-study.v1",
+                "path-sample.v1",
+                "pit-path",
+                "pit-manifest.v1",
+                "d" * 64,
+            ),
             TransitionProbabilityEvidence(
                 REVISION_A,
                 REVISION_A,
@@ -428,29 +502,24 @@ def test_path_probability_support_and_distribution_are_fail_closed() -> None:
                 digest_character="1",
             ),
             shocks=_path_study().shocks,
-            conditional_probabilities=(
+            conditional_probabilities=tuple(
                 ConditionalProbabilityEvidence(
-                    "growth_down",
-                    REVISION_A,
-                    Decimal("0.50"),
-                    20,
-                    "path-study.v1",
-                    "path-sample.v1",
+                    item.condition_key,
+                    item.target_scenario_revision_id,
+                    (
+                        Decimal("0.50")
+                        if item.target_scenario_revision_id == REVISION_A
+                        else Decimal("0.40")
+                    ),
+                    item.observation_count,
+                    item.source_version,
+                    item.sample_definition_version,
                     "pit-invalid-path",
-                    "pit-manifest.v1",
+                    item.pit_manifest_version,
                     "1" * 64,
-                ),
-                ConditionalProbabilityEvidence(
-                    "growth_down",
-                    REVISION_B,
-                    Decimal("0.40"),
-                    20,
-                    "path-study.v1",
-                    "path-sample.v1",
-                    "pit-invalid-path",
-                    "pit-manifest.v1",
-                    "1" * 64,
-                ),
+                    item.period_index,
+                )
+                for item in _path_study().conditional_probabilities
             ),
             transition_probabilities=tuple(
                 TransitionProbabilityEvidence(
@@ -515,6 +584,7 @@ def test_path_rejects_out_of_scope_shock_and_mixed_distribution_provenance() -> 
             "pit-path",
             "pit-manifest.v1",
             "d" * 64,
+            1,
         ),
     )
     with pytest.raises(ValueError, match="share exact sample and PIT provenance"):
@@ -533,27 +603,24 @@ def test_path_rejects_out_of_scope_shock_and_mixed_distribution_provenance() -> 
 
 
 def test_invalidation_creates_deterministic_review_intent_without_dispatch() -> None:
-    invalidation = ScenarioInvalidationEvidence.create(
-        evidence_version="scenario-invalidation.v1",
-        scenario_revision_id=REVISION_A,
-        scenario_set_revision_id=SET_REVISION,
-        invalidated_at=NOW - timedelta(hours=1),
-        invalidation_rule_version="scenario-rule.v3",
-        pit_manifest_id="pit-invalidation-v1",
-        evidence_refs=("evidence://scenario-invalidated",),
-    )
+    observation = make_observation()
+    assert observation.invalidation is not None
     first = build_review_reminder_intent(
-        invalidation=invalidation,
+        observation=observation,
         policy=_policy(),
-        created_at=NOW,
+        evaluated_at=NOW,
     )
     second = build_review_reminder_intent(
-        invalidation=invalidation,
+        observation=observation,
         policy=_policy(),
-        created_at=NOW,
+        evaluated_at=(NOW + timedelta(hours=3)).astimezone(timezone(timedelta(hours=8))),
     )
 
     assert first.intent_id == second.intent_id
+    assert first.content_hash == second.content_hash
+    assert first.forecast_entry_id == observation.entry_id
+    assert first.forecast_observation_hash == observation.content_hash
     assert first.dispatch_requested is False
-    assert first.review_due_at == NOW + timedelta(days=2)
+    assert first.created_at == observation.invalidation.invalidated_at
+    assert first.review_due_at == (observation.invalidation.invalidated_at + timedelta(days=2))
     assert len(first.content_hash) == 64
