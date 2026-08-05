@@ -4225,3 +4225,11 @@ Git SHA / 镜像 / migration：
 - 变更：`qlib_train_model` 在标记训练 run 前校验 typed runtime 的 `enabled`/阻断字段；快照缺失、失效或显式 blocked 时抛出稳定错误并把训练 run 标为失败，不写 Registry、不保存 artifact。
 - 测试：成功/失败训练 fixture 显式注入可用 typed runtime；新增缺失快照阻断回归；Qlib training/runtime/task 定向回归 50 passed，最新变更 mypy/Ruff/Black/isort 通过。
 - 明确未做：未改动 Qlib 模型算法、缓存前推、历史数据路径或 SystemSettings 迁移字段；推理任务及生产 profile 初始化仍需后续阶段证据。
+
+## 66. 2026-08-05：Qlib 推理任务增加 typed runtime fail-closed
+
+- 目标：阻断 Qlib 推理在读取本地日历、激活模型或刷新数据前绕过 Config Center typed snapshot，避免缺失运行时配置时继续探测默认/旧 provider URI 并以前推缓存伪装当前结果。
+- 变更：`qlib_predict_scores` 在任何模型与本地数据访问前调用 Config Center runtime 读取和统一可用性校验；缺失、失效或显式 blocked 的 snapshot 稳定阻断任务，不进入 legacy calendar/model/cache 路径。可用运行时仅记录 `status/source` 元数据，不记录 URI 或凭据。
+- 测试与治理：预测成功/刷新/缓存 fallback fixture 显式注入可用 typed runtime；新增“阻断发生在旧 runtime probe 之前”的回归；`runtime_config_contracts.json` 登记 inference gate consumer/test。Alpha/Qlib 定向回归 `30 passed`，Qlib integration 回归 `29 passed`；变更文件 mypy 0、Ruff/isort 通过，current-data 44 surfaces、runtime config coverage 49、governance consistency 0 violations。
+- 明确未做：未改变 Qlib 模型算法、历史研究模式、缓存前推策略或 SystemSettings 迁移字段，未初始化 production/non-default profile，未部署。
+- 未验证风险：Qlib inference 的 PostgreSQL 生产缓存覆盖、实际 typed profile 初始化、连续交易日/节假日 freshness 观察窗口和旧链 M9 清理仍待生产阶段证据。

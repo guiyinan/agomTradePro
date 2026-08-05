@@ -323,6 +323,19 @@ def qlib_predict_scores(
         )
         pool_scope = AlphaPoolScope.from_dict(scope_payload) if scope_payload else None
 
+        # Qlib inference is a decision-facing current-data path.  Do not let
+        # the first calendar probe or the infrastructure runtime silently use
+        # a legacy/default provider URI when Config Center has no usable typed
+        # snapshot.
+        runtime_qlib = _get_runtime_qlib_config()
+        _require_usable_qlib_runtime(runtime_qlib)
+        runtime_metadata = {
+            "qlib_runtime_status": str(runtime_qlib.get("status") or "active"),
+            "qlib_runtime_source": str(
+                runtime_qlib.get("source") or "config_center_runtime_profile"
+            ),
+        }
+
         # 1. 获取激活的模型
         active_model = get_qlib_model_registry_repository().get_active_model()
 
@@ -349,6 +362,7 @@ def qlib_predict_scores(
                 extra_metadata={
                     "qlib_data_latest_date": None,
                     "qlib_runtime_error": str(exc),
+                    **runtime_metadata,
                 },
             )
             if fallback_result is not None:
@@ -392,6 +406,7 @@ def qlib_predict_scores(
                     "qlib_data_latest_date": (
                         latest_qlib_data_date.isoformat() if latest_qlib_data_date else None
                     ),
+                    **runtime_metadata,
                 },
             )
             if fallback_result is not None:
@@ -406,6 +421,7 @@ def qlib_predict_scores(
         execution_trade_date = trade_date
         execution_metadata: dict[str, object] = {
             "requested_trade_date": trade_date.isoformat(),
+            **runtime_metadata,
             **refresh_metadata,
         }
         if latest_qlib_data_date is not None:

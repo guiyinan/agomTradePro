@@ -191,6 +191,7 @@
       "consumers": [
         "core/integration/runtime_settings.py::get_runtime_qlib_config",
         "apps/alpha/infrastructure/qlib_runtime_init.py::_get_qlib_runtime_config",
+        "apps/alpha/application/tasks.py::_require_usable_qlib_runtime",
         "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py::_load_qlib_trading_calendar"
       ],
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
@@ -198,7 +199,8 @@
         "tests": [
           "tests/unit/config_center/test_runtime_public.py::test_active_qlib_runtime_config_requires_complete_typed_snapshot",
           "tests/component/config_center/test_runtime_qlib_control_plane.py::test_runtime_qlib_summary_prefers_typed_snapshot",
-          "tests/component/config_center/test_runtime_qlib_control_plane.py::test_runtime_qlib_summary_blocks_when_snapshot_missing"
+          "tests/component/config_center/test_runtime_qlib_control_plane.py::test_runtime_qlib_summary_blocks_when_snapshot_missing",
+          "tests/unit/alpha/test_t3b_task_failure_contracts.py::test_prediction_task_blocks_before_legacy_runtime_probe"
         ]
     },
     {

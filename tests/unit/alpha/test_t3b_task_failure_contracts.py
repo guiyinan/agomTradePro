@@ -162,6 +162,11 @@ def test_prediction_task_uses_auditable_cache_fallbacks(
     active_model = SimpleNamespace(artifact_hash="model-hash")
     monkeypatch.setattr(
         tasks,
+        "_get_runtime_qlib_config",
+        lambda: {"enabled": True, "source": "test"},
+    )
+    monkeypatch.setattr(
+        tasks,
         "get_qlib_model_registry_repository",
         lambda: SimpleNamespace(get_active_model=lambda: active_model),
     )
@@ -220,6 +225,48 @@ def test_prediction_task_uses_auditable_cache_fallbacks(
 
     assert result["status"] == expected_status
     assert failure_reasons
+
+
+def test_prediction_task_blocks_before_legacy_runtime_probe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing typed snapshot must stop inference before model/data access."""
+    calls: list[str] = []
+    monkeypatch.setattr(
+        tasks,
+        "_get_runtime_qlib_config",
+        lambda: {
+            "enabled": False,
+            "status": "blocked",
+            "source": "config_center_runtime_profile",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "runtime_config_snapshot_unavailable",
+        },
+    )
+    monkeypatch.setattr(
+        tasks,
+        "get_qlib_model_registry_repository",
+        lambda: calls.append("model") or SimpleNamespace(get_active_model=lambda: None),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "_get_qlib_data_latest_date",
+        lambda: calls.append("calendar") or TRADE_DATE,
+    )
+    monkeypatch.setattr(
+        tasks.qlib_predict_scores,
+        "retry",
+        lambda **kwargs: RuntimeError(str(kwargs["exc"])),
+    )
+
+    with pytest.raises(RuntimeError, match="runtime_config_snapshot_unavailable"):
+        tasks.qlib_predict_scores.run(
+            universe_id="csi300",
+            intended_trade_date=TRADE_DATE.isoformat(),
+            top_n=10,
+        )
+
+    assert calls == []
 
 
 def test_daily_inference_and_cache_refresh_keep_failure_results_explicit(

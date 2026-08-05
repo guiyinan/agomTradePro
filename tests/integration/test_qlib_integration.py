@@ -288,6 +288,27 @@ class TestQlibAlphaProvider:
 class TestQlibCeleryTasks:
     """Qlib Celery 任务测试"""
 
+    @pytest.fixture(autouse=True)
+    def _typed_runtime_fixture(self, monkeypatch):
+        """Use an explicit typed runtime profile for decision-facing task tests."""
+        monkeypatch.setattr(
+            "apps.alpha.application.tasks._get_runtime_qlib_config",
+            lambda: {
+                "enabled": True,
+                "status": "active",
+                "source": "config_center_runtime_profile",
+                "provider_uri": "~/.qlib/qlib_data/cn_data",
+                "region": "CN",
+                "model_path": "/models/qlib",
+                "default_universe": "csi300",
+                "default_feature_set_id": "alpha360",
+                "default_label_id": "return_5d",
+                "train_queue_name": "qlib_train",
+                "infer_queue_name": "qlib_infer",
+                "allow_auto_activate": False,
+            },
+        )
+
     @staticmethod
     def _sample_scores(top_n: int) -> list[dict]:
         scores = []
@@ -881,6 +902,7 @@ class TestQlibEndToEnd:
         mock_d,
         _mock_outdated_reason,
         tmp_path,
+        monkeypatch,
     ):
         """测试完整的预测流程（使用模拟依赖与测试库软开关）"""
         from apps.account.infrastructure.models import SystemSettingsModel
@@ -899,8 +921,18 @@ class TestQlibEndToEnd:
             ]
         )
 
-        qlib_config = SystemSettingsModel.get_runtime_qlib_config()
-        assert qlib_config["enabled"] is True
+        qlib_config = {
+            "enabled": True,
+            "status": "active",
+            "source": "config_center_runtime_profile",
+            "provider_uri": str((tmp_path / "qlib_data").resolve()),
+            "region": "CN",
+            "model_path": str((tmp_path / "models").resolve()),
+        }
+        monkeypatch.setattr(
+            "apps.alpha.infrastructure.qlib_prediction_runtime._get_runtime_qlib_config",
+            lambda: qlib_config,
+        )
 
         model_file = tmp_path / "models" / "mock.pkl"
         model_file.parent.mkdir(parents=True, exist_ok=True)
@@ -962,6 +994,27 @@ class TestQlibEndToEnd:
 class TestQlibManagementCommands:
     """Qlib 管理命令测试"""
 
+    @pytest.fixture(autouse=True)
+    def _typed_runtime_fixture(self, monkeypatch, tmp_path):
+        """Provide complete runtime values; legacy SystemSettings is not a runtime source."""
+        monkeypatch.setattr(
+            "core.integration.runtime_settings.get_runtime_qlib_config",
+            lambda: {
+                "enabled": True,
+                "status": "active",
+                "source": "config_center_runtime_profile",
+                "provider_uri": str(tmp_path / "qlib_data"),
+                "region": "CN",
+                "model_path": str(tmp_path / "models"),
+                "default_universe": "csi300",
+                "default_feature_set_id": "alpha360",
+                "default_label_id": "return_5d",
+                "train_queue_name": "qlib_train",
+                "infer_queue_name": "qlib_infer",
+                "allow_auto_activate": False,
+            },
+        )
+
     def test_init_qlib_data_check_only(self):
         """测试 init_qlib_data 命令（仅检查）"""
         from io import StringIO
@@ -1007,9 +1060,9 @@ class TestQlibManagementCommands:
             if "Qlib 版本" in output or "Qlib 未安装" in output:
                 pass  # 成功或预期失败
 
-        except ImportError:
-            # Qlib 未安装 - 预期情况
-            pass
+        except Exception as exc:
+            # Optional Qlib/data directory may be unavailable in local CI.
+            assert "Qlib" in str(exc) or "qlib" in str(exc).lower()
 
 
 @pytest.mark.django_db
