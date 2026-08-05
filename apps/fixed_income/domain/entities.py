@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -51,6 +52,9 @@ class CanonicalPublicationReference:
     """Freshness-bounded reference to one canonical Data Center publication."""
 
     role: InputRole
+    currency: str
+    curve_kind: CurveKind | None
+    semantic_version: str
     owner: str
     dataset_key: str
     publication_key: str
@@ -64,6 +68,8 @@ class CanonicalPublicationReference:
     def __post_init__(self) -> None:
         for name in (
             "owner",
+            "currency",
+            "semantic_version",
             "dataset_key",
             "publication_key",
             "publication_id",
@@ -73,6 +79,16 @@ class CanonicalPublicationReference:
             _require_text(str(getattr(self, name)), f"CanonicalPublicationReference.{name}")
         if self.owner != "data_center":
             raise ValueError("canonical fixed-income inputs must be owned by data_center")
+        curve_roles = {
+            InputRole.GOVERNMENT_CURVE: CurveKind.GOVERNMENT,
+            InputRole.POLICY_BANK_CURVE: CurveKind.POLICY_BANK,
+            InputRole.CREDIT_VALUATION: CurveKind.CREDIT,
+            InputRole.FUNDING_CURVE: CurveKind.FUNDING,
+            InputRole.POLICY_RATE: CurveKind.POLICY_RATE,
+        }
+        expected_curve_kind = curve_roles.get(self.role)
+        if self.curve_kind is not expected_curve_kind:
+            raise ValueError("canonical publication curve_kind does not match role")
         _require_sha256(self.content_hash, "CanonicalPublicationReference.content_hash")
         _require_aware(self.observed_at, "CanonicalPublicationReference.observed_at")
         _require_aware(self.published_at, "CanonicalPublicationReference.published_at")
@@ -272,6 +288,10 @@ class YieldCurve:
             raise ValueError("YieldCurve requires at least two nodes")
         if self.reference.role is not _CURVE_INPUT_ROLE[self.kind]:
             raise ValueError("YieldCurve reference role does not match curve kind")
+        if self.reference.curve_kind is not self.kind:
+            raise ValueError("YieldCurve reference semantic curve kind does not match")
+        if self.reference.currency != self.currency:
+            raise ValueError("YieldCurve reference currency does not match curve currency")
         tenors = tuple(node.tenor_years for node in self.nodes)
         if tenors != tuple(sorted(tenors)) or len(set(tenors)) != len(tenors):
             raise ValueError("YieldCurve nodes must have unique ascending tenors")
@@ -558,6 +578,45 @@ class FixedIncomeResearchPreview:
 
 
 @dataclass(frozen=True)
+class PublicationInputSeal:
+    """Minimal immutable identity/hash evidence for one canonical publication."""
+
+    dataset_key: str
+    publication_key: str
+    publication_id: str
+    policy_version: str
+    semantic_version: str
+    content_hash: str
+
+    def __post_init__(self) -> None:
+        for name in (
+            "dataset_key",
+            "publication_key",
+            "publication_id",
+            "policy_version",
+            "semantic_version",
+        ):
+            _require_text(str(getattr(self, name)), f"PublicationInputSeal.{name}")
+        _require_sha256(self.content_hash, "PublicationInputSeal.content_hash")
+
+    @classmethod
+    def from_reference(
+        cls,
+        reference: CanonicalPublicationReference,
+    ) -> PublicationInputSeal:
+        """Project the real Data Center publication identity into persistence."""
+
+        return cls(
+            dataset_key=reference.dataset_key,
+            publication_key=reference.publication_key,
+            publication_id=reference.publication_id,
+            policy_version=reference.policy_version,
+            semantic_version=reference.semantic_version,
+            content_hash=reference.content_hash,
+        )
+
+
+@dataclass(frozen=True)
 class ImmutableResearchResult:
     """Canonical immutable payload passed from Application to persistence."""
 
@@ -570,10 +629,11 @@ class ImmutableResearchResult:
     output_hash: str
     status: ResearchPreviewStatus
     payload_json: str
-    publication_ids: tuple[str, ...]
+    publication_seals: tuple[PublicationInputSeal, ...]
     blocked_reasons: tuple[str, ...]
     research_only: bool
     must_not_execute: bool
+    must_not_use_for_decision: bool
 
     def __post_init__(self) -> None:
         for name in (
@@ -588,18 +648,172 @@ class ImmutableResearchResult:
         _require_aware(self.valuation_at, "ImmutableResearchResult.valuation_at")
         _require_sha256(self.input_hash, "ImmutableResearchResult.input_hash")
         _require_sha256(self.output_hash, "ImmutableResearchResult.output_hash")
-        if not self.research_only or not self.must_not_execute:
+        if (
+            not self.research_only
+            or not self.must_not_execute
+            or not self.must_not_use_for_decision
+        ):
             raise ValueError("persisted fixed-income results must be non-executable research")
         payload = json.loads(self.payload_json)
         if not isinstance(payload, dict):
             raise ValueError("payload_json must encode an object")
-        if not self.publication_ids:
-            raise ValueError("persisted result requires publication_ids")
-        if any(not publication_id.strip() for publication_id in self.publication_ids):
-            raise ValueError("publication_ids cannot contain empty values")
-        if len(set(self.publication_ids)) != len(self.publication_ids):
-            raise ValueError("publication_ids cannot contain duplicates")
+        if not self.publication_seals:
+            raise ValueError("persisted result requires publication_seals")
+        if len(self.publication_ids) != len(set(self.publication_ids)):
+            raise ValueError("publication seals cannot contain duplicate publication ids")
+        if self.input_hash.lower() != self.calculated_input_hash:
+            raise ValueError("fixed-income research result input_hash mismatch")
+        if self.output_hash.lower() != self.calculated_output_hash:
+            raise ValueError("fixed-income research result output_hash mismatch")
         if self.status is ResearchPreviewStatus.BLOCKED and not self.blocked_reasons:
             raise ValueError("blocked persisted result requires blocked_reasons")
         if self.status is ResearchPreviewStatus.AVAILABLE and self.blocked_reasons:
             raise ValueError("available persisted result cannot contain blocked_reasons")
+
+    @property
+    def publication_ids(self) -> tuple[str, ...]:
+        """Return stable publication identities sealed into the input hash."""
+
+        return tuple(seal.publication_id for seal in self.publication_seals)
+
+    @property
+    def calculated_input_hash(self) -> str:
+        """Recompute the canonical input digest from real publication evidence."""
+
+        return fixed_income_research_input_hash(
+            bond_id=self.bond_id,
+            valuation_at=self.valuation_at,
+            settlement_date=self.settlement_date,
+            method_version=self.method_version,
+            publication_seals=self.publication_seals,
+        )
+
+    @property
+    def calculated_output_hash(self) -> str:
+        """Recompute the canonical result digest from its complete output payload."""
+
+        return fixed_income_research_output_hash(
+            result_id=self.result_id,
+            input_hash=self.input_hash,
+            status=self.status,
+            payload_json=self.payload_json,
+            blocked_reasons=self.blocked_reasons,
+            research_only=self.research_only,
+            must_not_execute=self.must_not_execute,
+            must_not_use_for_decision=self.must_not_use_for_decision,
+        )
+
+    @classmethod
+    def build(
+        cls,
+        *,
+        result_id: str,
+        bond_id: str,
+        valuation_at: datetime,
+        settlement_date: date,
+        method_version: str,
+        status: ResearchPreviewStatus,
+        payload_json: str,
+        publication_seals: tuple[PublicationInputSeal, ...],
+        blocked_reasons: tuple[str, ...],
+    ) -> ImmutableResearchResult:
+        """Build a triple-blocked immutable result with canonical hashes."""
+
+        input_hash = fixed_income_research_input_hash(
+            bond_id=bond_id,
+            valuation_at=valuation_at,
+            settlement_date=settlement_date,
+            method_version=method_version,
+            publication_seals=publication_seals,
+        )
+        output_hash = fixed_income_research_output_hash(
+            result_id=result_id,
+            input_hash=input_hash,
+            status=status,
+            payload_json=payload_json,
+            blocked_reasons=blocked_reasons,
+            research_only=True,
+            must_not_execute=True,
+            must_not_use_for_decision=True,
+        )
+        return cls(
+            result_id=result_id,
+            bond_id=bond_id,
+            valuation_at=valuation_at,
+            settlement_date=settlement_date,
+            method_version=method_version,
+            input_hash=input_hash,
+            output_hash=output_hash,
+            status=status,
+            payload_json=payload_json,
+            publication_seals=publication_seals,
+            blocked_reasons=blocked_reasons,
+            research_only=True,
+            must_not_execute=True,
+            must_not_use_for_decision=True,
+        )
+
+
+def fixed_income_research_input_hash(
+    *,
+    bond_id: str,
+    valuation_at: datetime,
+    settlement_date: date,
+    method_version: str,
+    publication_seals: tuple[PublicationInputSeal, ...],
+) -> str:
+    """Hash method/as-of scope and exact canonical publication ids and hashes."""
+
+    publication_payload = [
+        {
+            "dataset_key": seal.dataset_key,
+            "publication_key": seal.publication_key,
+            "publication_id": seal.publication_id,
+            "policy_version": seal.policy_version,
+            "semantic_version": seal.semantic_version,
+            "content_hash": seal.content_hash.lower(),
+        }
+        for seal in sorted(
+            publication_seals,
+            key=lambda item: (item.dataset_key, item.publication_id),
+        )
+    ]
+    payload = {
+        "bond_id": bond_id,
+        "valuation_at": valuation_at.isoformat(),
+        "settlement_date": settlement_date.isoformat(),
+        "method_version": method_version,
+        "publications": publication_payload,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def fixed_income_research_output_hash(
+    *,
+    result_id: str,
+    input_hash: str,
+    status: ResearchPreviewStatus,
+    payload_json: str,
+    blocked_reasons: tuple[str, ...],
+    research_only: bool,
+    must_not_execute: bool,
+    must_not_use_for_decision: bool,
+) -> str:
+    """Hash the canonical result payload and all non-decision safety flags."""
+
+    parsed_payload = json.loads(payload_json)
+    if not isinstance(parsed_payload, dict):
+        raise ValueError("payload_json must encode an object")
+    payload = {
+        "result_id": result_id,
+        "input_hash": input_hash.lower(),
+        "status": status.value,
+        "payload": parsed_payload,
+        "blocked_reasons": list(blocked_reasons),
+        "research_only": research_only,
+        "must_not_execute": must_not_execute,
+        "must_not_use_for_decision": must_not_use_for_decision,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()

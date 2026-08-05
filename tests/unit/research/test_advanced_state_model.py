@@ -16,6 +16,8 @@ from apps.research.domain.advanced_state_model import (
 )
 from apps.research.domain.state_model_baseline import (
     BaselineShortfallDecision,
+    BaselineShortfallReport,
+    baseline_shortfall_report_hash,
 )
 from tests.unit.research.advanced_state_model_factories import (
     NOW,
@@ -27,6 +29,41 @@ from tests.unit.research.advanced_state_model_factories import (
 )
 
 _DEFAULT = object()
+
+
+def _reseal_shortfall(
+    *,
+    decision: BaselineShortfallDecision = BaselineShortfallDecision.PROVEN,
+    can_propose: bool = True,
+    evaluation_id: str = "baseline-evaluation-v1",
+) -> BaselineShortfallReport:
+    report = proven_shortfall_report()
+    content_hash = baseline_shortfall_report_hash(
+        specification_version=report.specification_version,
+        evaluation_id=evaluation_id,
+        baseline_key=report.baseline_key,
+        baseline_version=report.baseline_version,
+        pit_manifest_id=report.pit_manifest_id,
+        window_start=report.window_start,
+        window_end=report.window_end,
+        observation_count=report.observation_count,
+        metrics=report.metrics,
+        evidence_refs=report.evidence_refs,
+        evidence_evaluated_at=report.evidence_evaluated_at,
+        evidence_valid_until=report.evidence_valid_until,
+        evidence_state=report.evidence_state,
+        decision=decision,
+        can_propose_advanced_model_research=can_propose,
+        metric_results=report.metric_results,
+        blockers=report.blockers,
+    )
+    return replace(
+        report,
+        evaluation_id=evaluation_id,
+        decision=decision,
+        can_propose_advanced_model_research=can_propose,
+        content_hash=content_hash,
+    )
 
 
 def _evaluate(
@@ -60,22 +97,65 @@ def test_complete_external_hmm_evidence_is_accepted_only_for_research() -> None:
 
 def test_baseline_shortfall_must_be_proven_and_bound_to_comparison() -> None:
     missing = _evaluate(shortfall=None)
-    not_proven_report = replace(
-        proven_shortfall_report(),
+    not_proven_report = _reseal_shortfall(
         decision=BaselineShortfallDecision.NOT_PROVEN,
-        can_propose_advanced_model_research=False,
+        can_propose=False,
     )
     not_proven = _evaluate(shortfall=not_proven_report)
     mismatched = _evaluate(
-        shortfall=replace(
-            proven_shortfall_report(),
-            evaluation_id="different-baseline-evaluation",
-        )
+        shortfall=_reseal_shortfall(evaluation_id="different-baseline-evaluation")
     )
 
     assert AdvancedStateModelBlockerCode.BASELINE_SHORTFALL_MISSING in missing.blockers
     assert AdvancedStateModelBlockerCode.BASELINE_SHORTFALL_NOT_PROVEN in not_proven.blockers
     assert AdvancedStateModelBlockerCode.BASELINE_BINDING_MISMATCH in mismatched.blockers
+
+
+def test_candidate_cannot_substitute_its_own_baseline_report_hash() -> None:
+    candidate = complete_candidate()
+    comparison = replace(candidate.baseline_comparison, shortfall_report_hash="f" * 64)
+    mutated = replace(candidate, baseline_comparison=comparison, evidence_hash="0" * 64)
+    mutated = replace(mutated, evidence_hash=mutated.calculated_evidence_hash)
+
+    assessment = _evaluate(candidate=mutated)
+
+    assert AdvancedStateModelBlockerCode.BASELINE_BINDING_MISMATCH in assessment.blockers
+
+
+def test_comparison_reads_baseline_metrics_from_the_sealed_report() -> None:
+    report = proven_shortfall_report()
+    metrics = (
+        replace(report.metrics[0], value=Decimal("0.80")),
+        *report.metrics[1:],
+    )
+    report_hash = baseline_shortfall_report_hash(
+        specification_version=report.specification_version,
+        evaluation_id=report.evaluation_id,
+        baseline_key=report.baseline_key,
+        baseline_version=report.baseline_version,
+        pit_manifest_id=report.pit_manifest_id,
+        window_start=report.window_start,
+        window_end=report.window_end,
+        observation_count=report.observation_count,
+        metrics=metrics,
+        evidence_refs=report.evidence_refs,
+        evidence_evaluated_at=report.evidence_evaluated_at,
+        evidence_valid_until=report.evidence_valid_until,
+        evidence_state=report.evidence_state,
+        decision=report.decision,
+        can_propose_advanced_model_research=report.can_propose_advanced_model_research,
+        metric_results=report.metric_results,
+        blockers=report.blockers,
+    )
+    report = replace(report, metrics=metrics, content_hash=report_hash)
+    candidate = complete_candidate()
+    comparison = replace(candidate.baseline_comparison, shortfall_report_hash=report_hash)
+    candidate = replace(candidate, baseline_comparison=comparison, evidence_hash="0" * 64)
+    candidate = replace(candidate, evidence_hash=candidate.calculated_evidence_hash)
+
+    assessment = _evaluate(candidate=candidate, shortfall=report)
+
+    assert AdvancedStateModelBlockerCode.BASELINE_COMPARISON_NOT_IMPROVED in (assessment.blockers)
 
 
 def test_future_stale_and_incomplete_pit_evidence_fail_closed() -> None:

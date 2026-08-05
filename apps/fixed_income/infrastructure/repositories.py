@@ -36,15 +36,30 @@ class FixedIncomeResearchResultRepository:
                     status=result.status.value,
                     payload=payload,
                     publication_ids=list(result.publication_ids),
+                    publication_evidence=[
+                        {
+                            "dataset_key": seal.dataset_key,
+                            "publication_key": seal.publication_key,
+                            "publication_id": seal.publication_id,
+                            "policy_version": seal.policy_version,
+                            "semantic_version": seal.semantic_version,
+                            "content_hash": seal.content_hash,
+                        }
+                        for seal in result.publication_seals
+                    ],
                     blocked_reasons=list(result.blocked_reasons),
                     research_only=result.research_only,
                     must_not_execute=result.must_not_execute,
+                    must_not_use_for_decision=result.must_not_use_for_decision,
                 )
                 model.full_clean()
                 model.save(force_insert=True)
         except (IntegrityError, ValidationError) as exc:
             raise ValueError("invalid fixed-income research result") from exc
-        return model.to_domain()
+        stored = model.to_domain()
+        if stored != result:
+            raise ValueError("fixed-income research result round-trip mismatch")
+        return stored
 
     def get(self, result_id: str) -> ImmutableResearchResult | None:
         """Return one immutable result by stable identity."""

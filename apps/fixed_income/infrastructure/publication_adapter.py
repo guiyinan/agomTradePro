@@ -7,7 +7,11 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from apps.data_center.domain.control_plane import CanonicalPublication, PublicationState
-from apps.fixed_income.domain.entities import CanonicalPublicationReference, InputRole
+from apps.fixed_income.domain.entities import (
+    CanonicalPublicationReference,
+    CurveKind,
+    InputRole,
+)
 
 
 class DatasetFreshnessPolicyReaderProtocol(Protocol):
@@ -30,10 +34,34 @@ class CanonicalPublicationReaderProtocol(Protocol):
 
 
 @dataclass(frozen=True)
+class CanonicalDatasetSemantic:
+    """Immutable Data Center projection of governed fixed-income semantics."""
+
+    dataset_key: str
+    semantic_version: str
+    role: InputRole
+    currency: str
+    curve_kind: CurveKind | None
+
+    def __post_init__(self) -> None:
+        if (
+            not self.dataset_key.strip()
+            or not self.semantic_version.strip()
+            or not self.currency.strip()
+        ):
+            raise ValueError("canonical dataset semantic metadata cannot be blank")
+
+
+class CanonicalDatasetSemanticReaderProtocol(Protocol):
+    """Read canonical role/currency/curve-kind metadata from Data Center Application."""
+
+    def get_semantic(self, dataset_key: str) -> CanonicalDatasetSemantic | None: ...
+
+
+@dataclass(frozen=True)
 class PublishedDatasetRequest:
     """Explicit Data Center scope and semantic role requested by R5."""
 
-    role: InputRole
     dataset_key: str
     publication_key: str
 
@@ -61,9 +89,11 @@ class DataCenterPublishedInputAdapter:
         self,
         publication_repository: CanonicalPublicationReaderProtocol,
         freshness_policy_reader: DatasetFreshnessPolicyReaderProtocol,
+        semantic_reader: CanonicalDatasetSemanticReaderProtocol,
     ) -> None:
         self._publication_repository = publication_repository
         self._freshness_policy_reader = freshness_policy_reader
+        self._semantic_reader = semantic_reader
 
     def resolve(
         self,
@@ -75,6 +105,11 @@ class DataCenterPublishedInputAdapter:
 
         if as_of.tzinfo is None or as_of.utcoffset() is None:
             raise ValueError("as_of must be timezone-aware")
+        semantic = self._semantic_reader.get_semantic(request.dataset_key)
+        if semantic is None:
+            return PublishedInputResolution(None, "canonical_dataset_semantic_missing")
+        if semantic.dataset_key != request.dataset_key:
+            return PublishedInputResolution(None, "canonical_dataset_semantic_mismatch")
         publication = self._publication_repository.get_as_of(
             request.dataset_key,
             request.publication_key,
@@ -82,6 +117,8 @@ class DataCenterPublishedInputAdapter:
         )
         if publication is None:
             return PublishedInputResolution(None, "canonical_publication_missing")
+        if publication.dataset_key != semantic.dataset_key:
+            return PublishedInputResolution(None, "canonical_publication_dataset_mismatch")
         if publication.state not in {PublicationState.PUBLISHED, PublicationState.SUPERSEDED}:
             return PublishedInputResolution(None, "canonical_publication_not_visible")
         if publication.must_not_use_for_decision:
@@ -109,7 +146,10 @@ class DataCenterPublishedInputAdapter:
             return PublishedInputResolution(None, "canonical_publication_stale")
         try:
             reference = CanonicalPublicationReference(
-                role=request.role,
+                role=semantic.role,
+                currency=semantic.currency,
+                curve_kind=semantic.curve_kind,
+                semantic_version=semantic.semantic_version,
                 owner="data_center",
                 dataset_key=publication.dataset_key,
                 publication_key=publication.publication_key,

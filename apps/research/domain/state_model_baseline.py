@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -197,10 +199,149 @@ class BaselineShortfallReport:
 
     specification_version: str
     evaluation_id: str
+    baseline_key: str
+    baseline_version: str
+    pit_manifest_id: str
+    window_start: datetime
+    window_end: datetime
+    observation_count: int
+    metrics: tuple[BaselineMetricObservation, ...]
+    evidence_refs: tuple[str, ...]
+    evidence_evaluated_at: datetime
+    evidence_valid_until: datetime | None
+    evidence_state: BaselineEvidenceState
     decision: BaselineShortfallDecision
     can_propose_advanced_model_research: bool
     metric_results: tuple[tuple[str, bool], ...]
     blockers: tuple[BaselineShortfallBlocker, ...]
+    content_hash: str
+
+    def __post_init__(self) -> None:
+        """Reject reports whose baseline evidence identity or payload was altered."""
+
+        for field_name, value in (
+            ("specification_version", self.specification_version),
+            ("evaluation_id", self.evaluation_id),
+            ("baseline_key", self.baseline_key),
+            ("baseline_version", self.baseline_version),
+            ("pit_manifest_id", self.pit_manifest_id),
+        ):
+            _require_token(value, field_name, maximum=120)
+        for field_name, timestamp in (
+            ("window_start", self.window_start),
+            ("window_end", self.window_end),
+            ("evidence_evaluated_at", self.evidence_evaluated_at),
+        ):
+            _require_aware(timestamp, field_name)
+        if self.evidence_valid_until is not None:
+            _require_aware(self.evidence_valid_until, "evidence_valid_until")
+        if self.window_end <= self.window_start:
+            raise ValueError("baseline report window_end must follow window_start")
+        if isinstance(self.observation_count, bool) or self.observation_count < 0:
+            raise ValueError("baseline report observation_count cannot be negative")
+        metric_keys = tuple(item.metric_key for item in self.metrics)
+        if not metric_keys or len(metric_keys) != len(set(metric_keys)):
+            raise ValueError("baseline report metrics must be non-empty and uniquely keyed")
+        if any(not reference.strip() for reference in self.evidence_refs):
+            raise ValueError("baseline report evidence references cannot be blank")
+        if not isinstance(self.evidence_state, BaselineEvidenceState):
+            raise ValueError("baseline report evidence_state is invalid")
+        _require_sha256(self.content_hash, "content_hash")
+        if self.content_hash.lower() != self.calculated_content_hash:
+            raise ValueError("baseline shortfall report content_hash mismatch")
+
+    @property
+    def calculated_content_hash(self) -> str:
+        """Return the canonical digest sealing baseline identity and raw evidence."""
+
+        return baseline_shortfall_report_hash(
+            specification_version=self.specification_version,
+            evaluation_id=self.evaluation_id,
+            baseline_key=self.baseline_key,
+            baseline_version=self.baseline_version,
+            pit_manifest_id=self.pit_manifest_id,
+            window_start=self.window_start,
+            window_end=self.window_end,
+            observation_count=self.observation_count,
+            metrics=self.metrics,
+            evidence_refs=self.evidence_refs,
+            evidence_evaluated_at=self.evidence_evaluated_at,
+            evidence_valid_until=self.evidence_valid_until,
+            evidence_state=self.evidence_state,
+            decision=self.decision,
+            can_propose_advanced_model_research=self.can_propose_advanced_model_research,
+            metric_results=self.metric_results,
+            blockers=self.blockers,
+        )
+
+    def metric_value(self, metric_key: str) -> Decimal | None:
+        """Return one sealed raw baseline metric without candidate-supplied values."""
+
+        return next(
+            (metric.value for metric in self.metrics if metric.metric_key == metric_key),
+            None,
+        )
+
+
+def baseline_shortfall_report_hash(
+    *,
+    specification_version: str,
+    evaluation_id: str,
+    baseline_key: str,
+    baseline_version: str,
+    pit_manifest_id: str,
+    window_start: datetime,
+    window_end: datetime,
+    observation_count: int,
+    metrics: tuple[BaselineMetricObservation, ...],
+    evidence_refs: tuple[str, ...],
+    evidence_evaluated_at: datetime,
+    evidence_valid_until: datetime | None,
+    evidence_state: BaselineEvidenceState,
+    decision: BaselineShortfallDecision,
+    can_propose_advanced_model_research: bool,
+    metric_results: tuple[tuple[str, bool], ...],
+    blockers: tuple[BaselineShortfallBlocker, ...],
+) -> str:
+    """Build a deterministic digest over the complete shortfall report payload."""
+
+    payload = {
+        "specification_version": specification_version,
+        "evaluation_id": evaluation_id,
+        "baseline_key": baseline_key,
+        "baseline_version": baseline_version,
+        "pit_manifest_id": pit_manifest_id,
+        "window_start": window_start.isoformat(),
+        "window_end": window_end.isoformat(),
+        "observation_count": observation_count,
+        "metrics": [
+            {
+                "metric_key": metric.metric_key,
+                "unit": metric.unit,
+                "value": str(metric.value),
+            }
+            for metric in metrics
+        ],
+        "evidence_refs": list(evidence_refs),
+        "evidence_evaluated_at": evidence_evaluated_at.isoformat(),
+        "evidence_valid_until": (
+            evidence_valid_until.isoformat() if evidence_valid_until is not None else None
+        ),
+        "evidence_state": evidence_state.value,
+        "decision": decision.value,
+        "can_propose_advanced_model_research": can_propose_advanced_model_research,
+        "metric_results": [list(result) for result in metric_results],
+        "blockers": [
+            {
+                "reason_code": blocker.reason_code,
+                "detail": blocker.detail,
+                "metric_key": blocker.metric_key,
+            }
+            for blocker in blockers
+        ],
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def evaluate_baseline_shortfall(
@@ -287,13 +428,47 @@ def evaluate_baseline_shortfall(
         decision = BaselineShortfallDecision.PROVEN
     else:
         decision = BaselineShortfallDecision.NOT_PROVEN
+    can_propose = decision is BaselineShortfallDecision.PROVEN
+    frozen_metric_results = tuple(metric_results)
+    frozen_blockers = tuple(blockers)
+    content_hash = baseline_shortfall_report_hash(
+        specification_version=specification.specification_version,
+        evaluation_id=evidence.evaluation_id,
+        baseline_key=specification.baseline_key,
+        baseline_version=specification.baseline_version,
+        pit_manifest_id=specification.pit_manifest_id,
+        window_start=specification.window_start,
+        window_end=specification.window_end,
+        observation_count=evidence.observation_count,
+        metrics=evidence.metrics,
+        evidence_refs=evidence.evidence_refs,
+        evidence_evaluated_at=evidence.evaluated_at,
+        evidence_valid_until=evidence.valid_until,
+        evidence_state=evidence.state,
+        decision=decision,
+        can_propose_advanced_model_research=can_propose,
+        metric_results=frozen_metric_results,
+        blockers=frozen_blockers,
+    )
     return BaselineShortfallReport(
         specification_version=specification.specification_version,
         evaluation_id=evidence.evaluation_id,
+        baseline_key=specification.baseline_key,
+        baseline_version=specification.baseline_version,
+        pit_manifest_id=specification.pit_manifest_id,
+        window_start=specification.window_start,
+        window_end=specification.window_end,
+        observation_count=evidence.observation_count,
+        metrics=evidence.metrics,
+        evidence_refs=evidence.evidence_refs,
+        evidence_evaluated_at=evidence.evaluated_at,
+        evidence_valid_until=evidence.valid_until,
+        evidence_state=evidence.state,
         decision=decision,
-        can_propose_advanced_model_research=(decision is BaselineShortfallDecision.PROVEN),
-        metric_results=tuple(metric_results),
-        blockers=tuple(blockers),
+        can_propose_advanced_model_research=can_propose,
+        metric_results=frozen_metric_results,
+        blockers=frozen_blockers,
+        content_hash=content_hash,
     )
 
 
@@ -316,3 +491,8 @@ def _require_aware(value: datetime, field_name: str) -> None:
 def _require_finite(value: Decimal, field_name: str) -> None:
     if not isinstance(value, Decimal) or not value.is_finite():
         raise ValueError(f"{field_name} must be a finite Decimal")
+
+
+def _require_sha256(value: str, field_name: str) -> None:
+    if len(value) != 64 or any(character not in "0123456789abcdefABCDEF" for character in value):
+        raise ValueError(f"{field_name} must be a sha256 digest")

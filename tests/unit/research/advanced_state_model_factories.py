@@ -31,8 +31,11 @@ from apps.research.domain.advanced_state_model import (
     StateTransitionRow,
 )
 from apps.research.domain.state_model_baseline import (
+    BaselineEvidenceState,
+    BaselineMetricObservation,
     BaselineShortfallDecision,
     BaselineShortfallReport,
+    baseline_shortfall_report_hash,
 )
 
 NOW = datetime(2026, 8, 5, 12, tzinfo=UTC)
@@ -41,16 +44,60 @@ NOW = datetime(2026, 8, 5, 12, tzinfo=UTC)
 def proven_shortfall_report() -> BaselineShortfallReport:
     """Return the exact PROVEN report bound by the candidate comparison."""
 
+    metrics = (
+        BaselineMetricObservation("transition_accuracy", "ratio", Decimal("0.55")),
+        BaselineMetricObservation("log_loss", "score", Decimal("0.70")),
+        BaselineMetricObservation("calibration_error", "score", Decimal("0.15")),
+        BaselineMetricObservation("transition_false_negative_rate", "ratio", Decimal("0.25")),
+        BaselineMetricObservation("decision_loss_utility", "score", Decimal("0.60")),
+    )
+    metric_results = (
+        ("transition_false_negative_rate", True),
+        ("decision_loss_utility", True),
+    )
+    window_start = NOW - timedelta(days=365)
+    window_end = NOW - timedelta(days=7)
+    evidence_evaluated_at = NOW - timedelta(hours=4)
+    evidence_valid_until = NOW + timedelta(days=7)
+    evidence_refs = ("research://baseline-evaluation-v1",)
+    content_hash = baseline_shortfall_report_hash(
+        specification_version="regime-simple-shortfall.v1",
+        evaluation_id="baseline-evaluation-v1",
+        baseline_key="regime.simple.pmi-cpi",
+        baseline_version="regime-v2",
+        pit_manifest_id="pit-r6-state-model-v1",
+        window_start=window_start,
+        window_end=window_end,
+        observation_count=240,
+        metrics=metrics,
+        evidence_refs=evidence_refs,
+        evidence_evaluated_at=evidence_evaluated_at,
+        evidence_valid_until=evidence_valid_until,
+        evidence_state=BaselineEvidenceState.VERIFIED,
+        decision=BaselineShortfallDecision.PROVEN,
+        can_propose_advanced_model_research=True,
+        metric_results=metric_results,
+        blockers=(),
+    )
     return BaselineShortfallReport(
         specification_version="regime-simple-shortfall.v1",
         evaluation_id="baseline-evaluation-v1",
+        baseline_key="regime.simple.pmi-cpi",
+        baseline_version="regime-v2",
+        pit_manifest_id="pit-r6-state-model-v1",
+        window_start=window_start,
+        window_end=window_end,
+        observation_count=240,
+        metrics=metrics,
+        evidence_refs=evidence_refs,
+        evidence_evaluated_at=evidence_evaluated_at,
+        evidence_valid_until=evidence_valid_until,
+        evidence_state=BaselineEvidenceState.VERIFIED,
         decision=BaselineShortfallDecision.PROVEN,
         can_propose_advanced_model_research=True,
-        metric_results=(
-            ("transition_false_negative_rate", True),
-            ("decision_loss_utility", True),
-        ),
+        metric_results=metric_results,
         blockers=(),
+        content_hash=content_hash,
     )
 
 
@@ -147,9 +194,7 @@ def complete_candidate() -> AdvancedStateModelCandidateEvidence:
             baseline_version="regime-v2",
             shortfall_specification_version="regime-simple-shortfall.v1",
             shortfall_evaluation_id="baseline-evaluation-v1",
-            baseline_transition_accuracy=Decimal("0.55"),
-            baseline_log_loss=Decimal("0.70"),
-            baseline_calibration_error=Decimal("0.15"),
+            shortfall_report_hash=proven_shortfall_report().content_hash,
             compared_at=NOW - timedelta(hours=3),
             evidence_ref="research://baseline-comparison-v1",
             evidence_hash="1" * 64,

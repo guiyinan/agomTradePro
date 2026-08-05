@@ -7,8 +7,9 @@ from apps.data_center.domain.control_plane import (
     CoverageSnapshot,
     PublicationState,
 )
-from apps.fixed_income.domain.entities import InputRole
+from apps.fixed_income.domain.entities import CurveKind, InputRole
 from apps.fixed_income.infrastructure.publication_adapter import (
+    CanonicalDatasetSemantic,
     DataCenterPublishedInputAdapter,
     PublishedDatasetRequest,
 )
@@ -44,6 +45,21 @@ class _FreshnessReader:
     def get_freshness_seconds(self, dataset_key: str) -> int | None:
         del dataset_key
         return self.seconds
+
+
+class _SemanticReader:
+    def __init__(self, semantic: CanonicalDatasetSemantic | None = None) -> None:
+        self.semantic = semantic or CanonicalDatasetSemantic(
+            dataset_key="r5_government_curve",
+            semantic_version="fixed-income-semantics.v1",
+            role=InputRole.GOVERNMENT_CURVE,
+            currency="CNY",
+            curve_kind=CurveKind.GOVERNMENT,
+        )
+
+    def get_semantic(self, dataset_key: str) -> CanonicalDatasetSemantic | None:
+        del dataset_key
+        return self.semantic
 
 
 def _publication() -> CanonicalPublication:
@@ -82,11 +98,14 @@ def _publication() -> CanonicalPublication:
 def test_adapter_resolves_fresh_pit_visible_publication() -> None:
     observed_at = datetime(2024, 1, 1, 7, tzinfo=UTC)
     repository = _PublicationRepository(_publication(), observed_at)
-    adapter = DataCenterPublishedInputAdapter(repository, _FreshnessReader(86400))
+    adapter = DataCenterPublishedInputAdapter(
+        repository,
+        _FreshnessReader(86400),
+        _SemanticReader(),
+    )
 
     resolution = adapter.resolve(
         PublishedDatasetRequest(
-            role=InputRole.GOVERNMENT_CURVE,
             dataset_key="r5_government_curve",
             publication_key="research",
         ),
@@ -97,6 +116,9 @@ def test_adapter_resolves_fresh_pit_visible_publication() -> None:
     assert resolution.reference is not None
     assert resolution.reference.publication_id == "curve-publication-v1"
     assert resolution.reference.observed_at == observed_at
+    assert resolution.reference.role is InputRole.GOVERNMENT_CURVE
+    assert resolution.reference.curve_kind is CurveKind.GOVERNMENT
+    assert resolution.reference.currency == "CNY"
 
 
 def test_adapter_fails_closed_for_stale_publication() -> None:
@@ -104,11 +126,14 @@ def test_adapter_fails_closed_for_stale_publication() -> None:
         _publication(),
         datetime(2024, 1, 1, 7, tzinfo=UTC),
     )
-    adapter = DataCenterPublishedInputAdapter(repository, _FreshnessReader(3600))
+    adapter = DataCenterPublishedInputAdapter(
+        repository,
+        _FreshnessReader(3600),
+        _SemanticReader(),
+    )
 
     resolution = adapter.resolve(
         PublishedDatasetRequest(
-            role=InputRole.GOVERNMENT_CURVE,
             dataset_key="r5_government_curve",
             publication_key="research",
         ),

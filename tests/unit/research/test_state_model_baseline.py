@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -104,6 +105,31 @@ def test_complete_pit_evidence_can_prove_simple_baseline_shortfall() -> None:
     assert report.decision is BaselineShortfallDecision.PROVEN
     assert report.can_propose_advanced_model_research is True
     assert report.blockers == ()
+    assert report.baseline_key == "regime.simple.pmi-cpi"
+    assert report.baseline_version == "regime-v2"
+    assert report.pit_manifest_id == "pit-regime-evaluation-v1"
+    assert report.window_start == _specification().window_start
+    assert report.metrics == _evidence().metrics
+    assert report.content_hash == report.calculated_content_hash
+
+
+def test_shortfall_report_hash_seals_raw_metrics_and_evidence_identity() -> None:
+    report = evaluate_baseline_shortfall(
+        specification=_specification(),
+        evidence=_evidence(),
+        evaluated_at=NOW,
+    )
+
+    with pytest.raises(ValueError, match="content_hash mismatch"):
+        replace(
+            report,
+            metrics=(
+                replace(report.metrics[0], value=Decimal("0.99")),
+                *report.metrics[1:],
+            ),
+        )
+    with pytest.raises(ValueError, match="content_hash mismatch"):
+        replace(report, pit_manifest_id="pit-rewritten")
 
 
 def test_metrics_below_shortfall_boundaries_do_not_justify_advanced_model() -> None:

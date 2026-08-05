@@ -391,9 +391,7 @@ class SimpleBaselineComparisonEvidence:
     baseline_version: str
     shortfall_specification_version: str
     shortfall_evaluation_id: str
-    baseline_transition_accuracy: Decimal
-    baseline_log_loss: Decimal
-    baseline_calibration_error: Decimal
+    shortfall_report_hash: str
     compared_at: datetime
     evidence_ref: str
     evidence_hash: str
@@ -406,16 +404,10 @@ class SimpleBaselineComparisonEvidence:
             "shortfall_evaluation_id",
         ):
             _require_token(str(getattr(self, name)), f"SimpleBaselineComparison.{name}")
-        for name in (
-            "baseline_transition_accuracy",
-            "baseline_log_loss",
-            "baseline_calibration_error",
-        ):
-            _require_finite(getattr(self, name), f"SimpleBaselineComparison.{name}")
-        if not Decimal("0") <= self.baseline_transition_accuracy <= Decimal("1"):
-            raise ValueError("baseline transition accuracy must be between zero and one")
-        if self.baseline_log_loss < 0 or self.baseline_calibration_error < 0:
-            raise ValueError("baseline loss and calibration cannot be negative")
+        _require_sha256(
+            self.shortfall_report_hash,
+            "SimpleBaselineComparison.shortfall_report_hash",
+        )
         _require_aware(self.compared_at, "SimpleBaselineComparison.compared_at")
         _require_text(self.evidence_ref, "SimpleBaselineComparison.evidence_ref")
         _require_sha256(self.evidence_hash, "SimpleBaselineComparison.evidence_hash")
@@ -841,8 +833,13 @@ def evaluate_advanced_state_model_evidence(
         ):
             blockers.append(AdvancedStateModelBlockerCode.BASELINE_SHORTFALL_NOT_PROVEN)
         if (
-            comparison.shortfall_specification_version != baseline_shortfall.specification_version
+            comparison.baseline_key != baseline_shortfall.baseline_key
+            or comparison.baseline_version != baseline_shortfall.baseline_version
+            or comparison.shortfall_specification_version
+            != baseline_shortfall.specification_version
             or comparison.shortfall_evaluation_id != baseline_shortfall.evaluation_id
+            or comparison.shortfall_report_hash.lower() != baseline_shortfall.content_hash.lower()
+            or baseline_shortfall.content_hash.lower() != baseline_shortfall.calculated_content_hash
         ):
             blockers.append(AdvancedStateModelBlockerCode.BASELINE_BINDING_MISMATCH)
 
@@ -944,10 +941,29 @@ def evaluate_advanced_state_model_evidence(
         blockers.append(AdvancedStateModelBlockerCode.OOS_LOG_LOSS_ABOVE_MAXIMUM)
     if metrics.calibration_error > thresholds.maximum_calibration_error:
         blockers.append(AdvancedStateModelBlockerCode.OOS_CALIBRATION_ABOVE_MAXIMUM)
+    baseline_transition_accuracy = (
+        baseline_shortfall.metric_value("transition_accuracy")
+        if baseline_shortfall is not None
+        else None
+    )
+    baseline_log_loss = (
+        baseline_shortfall.metric_value("log_loss") if baseline_shortfall is not None else None
+    )
+    baseline_calibration_error = (
+        baseline_shortfall.metric_value("calibration_error")
+        if baseline_shortfall is not None
+        else None
+    )
     if (
-        metrics.transition_accuracy <= comparison.baseline_transition_accuracy
-        or metrics.log_loss >= comparison.baseline_log_loss
-        or metrics.calibration_error >= comparison.baseline_calibration_error
+        baseline_transition_accuracy is None
+        or baseline_log_loss is None
+        or baseline_calibration_error is None
+    ):
+        blockers.append(AdvancedStateModelBlockerCode.BASELINE_BINDING_MISMATCH)
+    elif (
+        metrics.transition_accuracy <= baseline_transition_accuracy
+        or metrics.log_loss >= baseline_log_loss
+        or metrics.calibration_error >= baseline_calibration_error
     ):
         blockers.append(AdvancedStateModelBlockerCode.BASELINE_COMPARISON_NOT_IMPROVED)
 

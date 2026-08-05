@@ -131,10 +131,8 @@ def test_oos_baseline_policy_and_artifact_structural_validation() -> None:
             replace(metrics, **mutation)
 
     comparison = candidate.baseline_comparison
-    with pytest.raises(ValueError, match="between zero and one"):
-        replace(comparison, baseline_transition_accuracy=Decimal("1.1"))
-    with pytest.raises(ValueError, match="cannot be negative"):
-        replace(comparison, baseline_log_loss=Decimal("-1"))
+    with pytest.raises(ValueError, match="sha256"):
+        replace(comparison, shortfall_report_hash="bad")
 
     policy = candidate.policy_reaction
     assert policy is not None

@@ -1,5 +1,6 @@
 """Golden-sample and edge coverage for the R5 fixed-income domain."""
 
+import hashlib
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
@@ -36,14 +37,24 @@ AS_OF = datetime(2024, 1, 1, 9, tzinfo=UTC)
 
 
 def _reference(role: InputRole) -> CanonicalPublicationReference:
+    curve_kind = {
+        InputRole.GOVERNMENT_CURVE: CurveKind.GOVERNMENT,
+        InputRole.POLICY_BANK_CURVE: CurveKind.POLICY_BANK,
+        InputRole.CREDIT_VALUATION: CurveKind.CREDIT,
+        InputRole.FUNDING_CURVE: CurveKind.FUNDING,
+        InputRole.POLICY_RATE: CurveKind.POLICY_RATE,
+    }.get(role)
     return CanonicalPublicationReference(
         role=role,
+        currency="CNY",
+        curve_kind=curve_kind,
+        semantic_version="fixed-income-semantics.v1",
         owner="data_center",
         dataset_key=f"r5_{role.value}",
         publication_key="research",
         publication_id=f"publication-{role.value}",
         policy_version="policy-v1",
-        content_hash="a" * 64,
+        content_hash=hashlib.sha256(role.value.encode("utf-8")).hexdigest(),
         observed_at=datetime(2023, 12, 31, 9, tzinfo=UTC),
         published_at=datetime(2023, 12, 31, 12, tzinfo=UTC),
         valid_until=datetime(2024, 1, 3, 9, tzinfo=UTC),
@@ -231,6 +242,9 @@ def test_publication_reference_rejects_naive_or_future_evidence() -> None:
     with pytest.raises(ValueError, match="timezone-aware"):
         CanonicalPublicationReference(
             role=InputRole.BOND_MASTER,
+            currency="CNY",
+            curve_kind=None,
+            semantic_version="fixed-income-semantics.v1",
             owner="data_center",
             dataset_key="bond_master",
             publication_key="research",

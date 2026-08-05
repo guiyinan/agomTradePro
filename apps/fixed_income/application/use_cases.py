@@ -70,39 +70,86 @@ class RunFixedIncomeResearchPreview:
 
         inputs = request.inputs
         blocked: list[str] = []
-        references: list[CanonicalPublicationReference] = []
+        reference_checks: list[tuple[CanonicalPublicationReference, InputRole, str]] = []
 
         if inputs.bond is None:
             blocked.append("bond_master_missing")
         else:
-            references.append(inputs.bond.master_reference)
+            reference_checks.append(
+                (inputs.bond.master_reference, InputRole.BOND_MASTER, "bond_master")
+            )
         if inputs.schedule is None:
             blocked.append("cash_flow_schedule_missing")
         else:
-            references.extend(
-                (inputs.schedule.schedule_reference, inputs.schedule.calendar_reference)
+            reference_checks.extend(
+                (
+                    (
+                        inputs.schedule.schedule_reference,
+                        InputRole.CASH_FLOW_SCHEDULE,
+                        "cash_flow_schedule",
+                    ),
+                    (
+                        inputs.schedule.calendar_reference,
+                        InputRole.TRADING_CALENDAR,
+                        "trading_calendar",
+                    ),
+                )
             )
         if inputs.government_curve is None:
             blocked.append("government_curve_missing")
         else:
-            references.append(inputs.government_curve.reference)
+            reference_checks.append(
+                (
+                    inputs.government_curve.reference,
+                    InputRole.GOVERNMENT_CURVE,
+                    "government_curve",
+                )
+            )
         if inputs.policy_bank_curve is None:
             blocked.append("policy_bank_curve_missing")
         else:
-            references.append(inputs.policy_bank_curve.reference)
+            reference_checks.append(
+                (
+                    inputs.policy_bank_curve.reference,
+                    InputRole.POLICY_BANK_CURVE,
+                    "policy_bank_curve",
+                )
+            )
         if inputs.credit_curve is None:
             blocked.append("credit_valuation_missing")
         else:
-            references.append(inputs.credit_curve.reference)
+            reference_checks.append(
+                (
+                    inputs.credit_curve.reference,
+                    InputRole.CREDIT_VALUATION,
+                    "credit_valuation",
+                )
+            )
         if inputs.carry_inputs is None:
             blocked.append("carry_cost_inputs_missing")
         else:
-            references.extend(
+            reference_checks.extend(
                 (
-                    inputs.carry_inputs.financing_reference,
-                    inputs.carry_inputs.transaction_cost_reference,
-                    inputs.carry_inputs.liquidity_reference,
-                    inputs.carry_inputs.calendar_reference,
+                    (
+                        inputs.carry_inputs.financing_reference,
+                        InputRole.FINANCING_COST,
+                        "financing_cost",
+                    ),
+                    (
+                        inputs.carry_inputs.transaction_cost_reference,
+                        InputRole.TRANSACTION_COST,
+                        "transaction_cost",
+                    ),
+                    (
+                        inputs.carry_inputs.liquidity_reference,
+                        InputRole.LIQUIDITY_COST,
+                        "liquidity_cost",
+                    ),
+                    (
+                        inputs.carry_inputs.calendar_reference,
+                        InputRole.TRADING_CALENDAR,
+                        "trading_calendar",
+                    ),
                 )
             )
         if inputs.market_dirty_price is None:
@@ -114,28 +161,40 @@ class RunFixedIncomeResearchPreview:
         elif inputs.roll_down_horizon_years <= 0:
             blocked.append("roll_down_horizon_invalid")
 
-        expected_roles = {
-            InputRole.BOND_MASTER: "bond_master",
-            InputRole.CASH_FLOW_SCHEDULE: "cash_flow_schedule",
-            InputRole.TRADING_CALENDAR: "trading_calendar",
-            InputRole.GOVERNMENT_CURVE: "government_curve",
-            InputRole.POLICY_BANK_CURVE: "policy_bank_curve",
-            InputRole.CREDIT_VALUATION: "credit_valuation",
-            InputRole.FINANCING_COST: "financing_cost",
-            InputRole.TRANSACTION_COST: "transaction_cost",
-            InputRole.LIQUIDITY_COST: "liquidity_cost",
-        }
-        for reference in references:
-            prefix = expected_roles.get(reference.role, reference.role.value)
+        for reference, expected_role, prefix in reference_checks:
             reason = _reference_reason(
                 reference,
-                expected_role=reference.role,
+                expected_role=expected_role,
                 prefix=prefix,
                 valuation_at=request.valuation_at,
             )
             if reason is not None:
                 blocked.append(reason)
 
+        curve_inputs = tuple(
+            curve
+            for curve in (
+                inputs.government_curve,
+                inputs.policy_bank_curve,
+                inputs.credit_curve,
+            )
+            if curve is not None
+        )
+        if len(curve_inputs) == 3:
+            curve_references = tuple(curve.reference for curve in curve_inputs)
+            if len({reference.dataset_key for reference in curve_references}) != 3:
+                blocked.append("curve_dataset_identity_reused")
+            if len({reference.publication_id for reference in curve_references}) != 3:
+                blocked.append("curve_publication_identity_reused")
+            if len({reference.content_hash.lower() for reference in curve_references}) != 3:
+                blocked.append("curve_content_hash_identity_reused")
+            currencies = {curve.currency for curve in curve_inputs}
+            if len(currencies) != 1:
+                blocked.append("curve_currency_mismatch")
+            if inputs.bond is not None and currencies != {inputs.bond.currency}:
+                blocked.append("bond_curve_currency_mismatch")
+
+        references = [reference for reference, _, _ in reference_checks]
         publication_ids = tuple(sorted({reference.publication_id for reference in references}))
         bond_id = inputs.bond.bond_id if inputs.bond is not None else None
         if blocked:
