@@ -8042,42 +8042,42 @@
       "text": "\"Current Regime is not decision-safe; provide regime explicitly.\""
     },
     {
-      "line": 325,
+      "line": 328,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "\"\"\"Return the latest decision-ready NAV from the active Publication."
     },
     {
-      "line": 328,
+      "line": 331,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "unqualified ``latest`` method is a current-data consumer, so a raw"
     },
     {
-      "line": 340,
+      "line": 343,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "publication_key=\"current\","
     },
     {
-      "line": 609,
+      "line": 619,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "\"\"\"Anchor research windows to the latest locally available fund dataset.\"\"\""
     },
     {
-      "line": 612,
+      "line": 622,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "latest=Max(\"end_date\")"
     },
     {
-      "line": 613,
+      "line": 623,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": ")[\"latest\"]"
     },
     {
-      "line": 949,
+      "line": 959,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "for previous, current in zip(nav_series, nav_series[1:], strict=False):"
     },
     {
-      "line": 951,
+      "line": 961,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "curr_nav = float(current.unit_nav)"
     },

@@ -2341,7 +2341,8 @@
         ],
         "apps/fund/infrastructure/repositories.py": [
           "get_published_fund_nav_series(",
-          "must_not_use_for_decision"
+          "must_not_use_for_decision",
+          "Fund master seed unavailable"
         ]
       },
       "required_tests": [
@@ -2379,6 +2380,11 @@
           "case": "fund_nav_sync_blocks_without_provider",
           "test_file": "tests/unit/data_center/test_public_fund_nav_sync_routing.py",
           "test_function": "test_fund_nav_sync_blocks_without_active_capability"
+        },
+        {
+          "case": "fund_master_seed_provider_unavailable_fails_closed",
+          "test_file": "tests/component/test_fund_repository_data_center.py",
+          "test_function": "test_ensure_fund_universe_seeded_fails_closed_when_provider_is_unavailable"
         }
       ]
     },

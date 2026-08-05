@@ -4030,3 +4030,13 @@ Git SHA / 镜像 / migration：
 - 已运行测试：`pytest tests/unit/data_center/test_public_fund_nav_sync_routing.py tests/component/test_fund_repository_data_center.py tests/api/test_fund_api_edges.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：42 passed；`check_mypy_regression.py`：2 files / 0 regression；`verify_architecture.py --include-audit`：boundary 0 / audit 0；current-data contracts：40 surfaces。
 - 明确未做：基金 master list 的旧 Tushare 兼容同步、历史研究读取和 production provider 状态未在本批删除；未部署、未 push。
 - 未验证风险：生产 AKShare fund NAV capability 的真实覆盖、provider registry active 配置和 Publication 产出仍需生产数据证据。
+
+## 41. 2026-08-05：基金 master seed 在无 Tushare 时 fail closed
+
+- 目标：避免基金本地 master 为空且 Tushare 未配置/不可用时，启动或研究准备流程因未捕获的 provider 异常直接失败。
+- 变更：`ensure_fund_universe_seeded()` 捕获 provider seed 异常，记录不泄露凭据的错误类型并返回零产出；上层随后以空 universe/可行动错误处理，不伪造基金主数据。
+- 测试：新增 provider unavailable → `0` 产出且不抛异常的组件回归；既有成功 seed/已有 master 分支保持覆盖。
+- 治理：`fund.current_nav` contract 登记 master seed fail-closed marker/test。
+- 已运行测试：`pytest tests/component/test_fund_repository_data_center.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：10 passed；Fund repository mypy regression 0；Ruff/Black 通过。
+- 明确未做：基金 master 的最终 Data Center AssetMaster 迁移与旧 Tushare 显式同步入口退役仍待 D0/D6 后续批次；未部署、未 push。
+- 未验证风险：生产空 master 的 readiness 阻断文案、AKShare master 覆盖和完整基金 universe 回填仍需数据画像/生产证据。

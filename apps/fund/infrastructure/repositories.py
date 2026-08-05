@@ -7,6 +7,7 @@
 - 提供数据访问方法
 """
 
+import logging
 import math
 from collections.abc import Mapping
 from datetime import date, datetime, timedelta
@@ -41,6 +42,8 @@ from .models import (
     FundSectorAllocationModel,
     FundTypePreferenceConfigModel,
 )
+
+logger = logging.getLogger(__name__)
 
 # ==================== 通用资产分析框架集成 ====================
 # 实现 AssetRepositoryProtocol 接口以支持通用资产分析
@@ -598,7 +601,14 @@ class DjangoFundRepository:
 
         if FundInfoModel._default_manager.filter(is_active=True).exists():
             return 0
-        return self.sync_fund_info_from_tushare()
+        try:
+            return self.sync_fund_info_from_tushare()
+        except Exception as exc:
+            logger.warning(
+                "Fund master seed unavailable; keeping the local universe empty: error_type=%s",
+                type(exc).__name__,
+            )
+            return 0
 
     def resolve_research_window(
         self,

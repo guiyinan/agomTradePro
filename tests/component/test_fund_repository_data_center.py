@@ -190,6 +190,15 @@ def test_ensure_fund_universe_seeded_syncs_when_local_master_is_empty():
 
 
 @pytest.mark.django_db
+def test_ensure_fund_universe_seeded_fails_closed_when_provider_is_unavailable():
+    repo = _make_repo()
+    repo.sync_fund_info_from_tushare = Mock(side_effect=ValueError("Tushare token missing"))
+
+    assert repo.ensure_fund_universe_seeded() == 0
+    repo.sync_fund_info_from_tushare.assert_called_once()
+
+
+@pytest.mark.django_db
 def test_ensure_fund_universe_seeded_skips_when_local_master_exists():
     repo = _make_repo()
     repo.sync_fund_info_from_tushare = Mock(return_value=42)
