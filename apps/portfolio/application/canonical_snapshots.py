@@ -8,11 +8,11 @@ from typing import Protocol
 
 from apps.portfolio.domain.canonical_snapshots import (
     BrokerExecutionEvidence,
+    CanonicalCashProjection,
     CanonicalPortfolioSnapshot,
-    CanonicalPosition,
+    CanonicalPositionsProjection,
     ConstraintExecutionDeviation,
     PortfolioExecutionFeedback,
-    SnapshotSourceEvidence,
     build_canonical_portfolio_snapshot,
     build_execution_feedback,
 )
@@ -96,24 +96,14 @@ class CreateCanonicalPortfolioSnapshotUseCase:
     def execute(
         self,
         *,
-        account_ref: str,
-        base_currency: str,
-        cash_balance: Decimal,
-        cash_version: str,
-        positions_version: str,
-        positions: tuple[CanonicalPosition, ...],
-        source_evidence: tuple[SnapshotSourceEvidence, ...],
+        cash_projection: CanonicalCashProjection,
+        positions_projection: CanonicalPositionsProjection,
     ) -> CanonicalPortfolioSnapshot:
-        """Derive source as-of and content identity, then append idempotently."""
+        """Accept only digest-verified owner projections, then append idempotently."""
 
         snapshot = build_canonical_portfolio_snapshot(
-            account_ref=account_ref,
-            base_currency=base_currency,
-            cash_balance=cash_balance,
-            cash_version=cash_version,
-            positions_version=positions_version,
-            positions=positions,
-            source_evidence=source_evidence,
+            cash_projection=cash_projection,
+            positions_projection=positions_projection,
         )
         return self._repository.append(snapshot)
 

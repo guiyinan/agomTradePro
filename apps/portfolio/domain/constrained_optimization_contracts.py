@@ -9,7 +9,10 @@ from decimal import Decimal
 from enum import Enum
 
 from apps.portfolio.domain.canonical_snapshots import CanonicalPortfolioSnapshot
-from apps.portfolio.domain.macro_factor_risk import MacroRiskCandidateReport
+from apps.portfolio.domain.macro_factor_risk import (
+    FactorCovarianceVersion,
+    MacroExposureVersion,
+)
 from apps.portfolio.domain.optimizer_inputs import (
     OptimizationInputKind,
     PromotionReference,
@@ -295,6 +298,74 @@ class OptimizationValidationPolicy:
 
 
 @dataclass(frozen=True)
+class MacroRiskBudget:
+    """Versioned hard limits for candidate-level macro risk contributions."""
+
+    budget_version: str
+    maximum_factor_variance: Decimal
+    target_contribution_shares: tuple[tuple[str, Decimal], ...]
+    maximum_target_deviation: Decimal
+    content_hash: str
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        budget_version: str,
+        maximum_factor_variance: Decimal,
+        target_contribution_shares: tuple[tuple[str, Decimal], ...],
+        maximum_target_deviation: Decimal,
+    ) -> MacroRiskBudget:
+        """Build a canonical budget and bind every limit into its digest."""
+
+        ordered_targets = tuple(sorted(target_contribution_shares))
+        return cls(
+            budget_version=budget_version,
+            maximum_factor_variance=maximum_factor_variance,
+            target_contribution_shares=ordered_targets,
+            maximum_target_deviation=maximum_target_deviation,
+            content_hash=_hash_components(
+                "macro-risk-budget.v1",
+                budget_version,
+                str(maximum_factor_variance),
+                *(f"{code}|{share}" for code, share in ordered_targets),
+                str(maximum_target_deviation),
+            ),
+        )
+
+    def __post_init__(self) -> None:
+        """Reject incomplete, non-finite, non-normalized, or forged budgets."""
+
+        _require_token(self.budget_version, "macro risk budget version")
+        _require_finite(self.maximum_factor_variance, "maximum_factor_variance")
+        _require_finite(self.maximum_target_deviation, "maximum_target_deviation")
+        if self.maximum_factor_variance <= 0:
+            raise ValueError("maximum_factor_variance must be positive")
+        if not Decimal("0") <= self.maximum_target_deviation <= Decimal("1"):
+            raise ValueError("maximum_target_deviation must be within [0, 1]")
+        codes = tuple(code for code, _ in self.target_contribution_shares)
+        if not codes or len(codes) != len(set(codes)) or codes != tuple(sorted(codes)):
+            raise ValueError("macro risk budget targets must be non-empty, unique, and ordered")
+        for code, share in self.target_contribution_shares:
+            _require_token(code, "macro factor code")
+            _require_finite(share, "macro target contribution share")
+            if not Decimal("0") <= share <= Decimal("1"):
+                raise ValueError("macro target contribution share must be within [0, 1]")
+        if sum((share for _, share in self.target_contribution_shares), Decimal("0")) != 1:
+            raise ValueError("macro target contribution shares must sum to one")
+        expected = _hash_components(
+            "macro-risk-budget.v1",
+            self.budget_version,
+            str(self.maximum_factor_variance),
+            *(f"{code}|{share}" for code, share in self.target_contribution_shares),
+            str(self.maximum_target_deviation),
+        )
+        _require_sha256(self.content_hash, "macro risk budget content_hash")
+        if self.content_hash != expected:
+            raise ValueError("macro risk budget content_hash mismatch")
+
+
+@dataclass(frozen=True)
 class OptimizationProblem:
     """Fully bound, immutable research optimization problem."""
 
@@ -316,7 +387,9 @@ class OptimizationProblem:
     validation_policy: OptimizationValidationPolicy
     evidence_bindings: tuple[OptimizationEvidenceBinding, ...]
     promotions: tuple[PromotionReference, ...]
-    macro_risk_report: MacroRiskCandidateReport
+    macro_exposure_version: MacroExposureVersion
+    macro_factor_covariance: FactorCovarianceVersion
+    macro_risk_budget: MacroRiskBudget
     created_at: datetime
     valid_until: datetime
     content_hash: str
@@ -364,18 +437,29 @@ class OptimizationProblem:
         _validate_current_weights(self)
         _validate_evidence_bindings(self)
         _validate_promotions(self.promotions)
+        macro_assets = tuple(
+            sorted(item.asset_code for item in self.macro_exposure_version.exposures)
+        )
+        if macro_assets != asset_codes:
+            raise ValueError("macro exposure asset universe mismatch")
+        if self.macro_exposure_version.factor_codes != self.macro_factor_covariance.factor_codes:
+            raise ValueError("macro exposure and covariance factor universe mismatch")
         if (
-            not self.macro_risk_report.eligible_for_research_comparison
-            or self.macro_risk_report.blockers
-            or self.macro_risk_report.usage_scope != "research_only"
-            or not self.macro_risk_report.must_not_use_for_decision
-            or not self.macro_risk_report.must_not_execute
+            self.macro_exposure_version.pit_manifest_id
+            != self.macro_factor_covariance.pit_manifest_id
         ):
-            raise ValueError("optimization problem requires verified research-only macro risk")
-        if self.macro_risk_report.evaluated_at > self.created_at:
-            raise ValueError("macro risk evidence cannot postdate optimization problem")
+            raise ValueError("macro exposure and covariance PIT manifest mismatch")
+        if (
+            self.macro_exposure_version.observed_at > self.created_at
+            or self.macro_factor_covariance.observed_at > self.created_at
+        ):
+            raise ValueError("macro evidence cannot postdate optimization problem")
+        if tuple(code for code, _ in self.macro_risk_budget.target_contribution_shares) != tuple(
+            sorted(self.macro_exposure_version.factor_codes)
+        ):
+            raise ValueError("macro risk budget does not cover the exact factor universe")
         macro_binding = _binding_by_kind(self)[OptimizationInputKind.MACRO_EXPOSURE]
-        if macro_binding.content_hash != self.macro_risk_report.evidence_hash:
+        if macro_binding.content_hash != macro_optimization_input_hash(self):
             raise ValueError("macro risk evidence hash mismatch")
         if self.content_hash != optimization_problem_hash(self):
             raise ValueError("optimization problem content_hash mismatch")
@@ -490,7 +574,9 @@ def build_optimization_problem(
     validation_policy: OptimizationValidationPolicy,
     evidence_bindings: tuple[OptimizationEvidenceBinding, ...],
     promotions: tuple[PromotionReference, ...],
-    macro_risk_report: MacroRiskCandidateReport,
+    macro_exposure_version: MacroExposureVersion,
+    macro_factor_covariance: FactorCovarianceVersion,
+    macro_risk_budget: MacroRiskBudget,
     created_at: datetime,
     valid_until: datetime,
 ) -> OptimizationProblem:
@@ -540,7 +626,9 @@ def build_optimization_problem(
         validation_policy=validation_policy,
         evidence_bindings=evidence_bindings,
         promotions=promotions,
-        macro_risk_report=macro_risk_report,
+        macro_exposure_version=macro_exposure_version,
+        macro_factor_covariance=macro_factor_covariance,
+        macro_risk_budget=macro_risk_budget,
         created_at=created_at,
         valid_until=valid_until,
     )
@@ -563,7 +651,9 @@ def build_optimization_problem(
         validation_policy=validation_policy,
         evidence_bindings=evidence_bindings,
         promotions=promotions,
-        macro_risk_report=macro_risk_report,
+        macro_exposure_version=macro_exposure_version,
+        macro_factor_covariance=macro_factor_covariance,
+        macro_risk_budget=macro_risk_budget,
         created_at=created_at,
         valid_until=valid_until,
         content_hash=digest,
@@ -639,9 +729,76 @@ def optimization_problem_hash(problem: OptimizationProblem) -> str:
         validation_policy=problem.validation_policy,
         evidence_bindings=problem.evidence_bindings,
         promotions=problem.promotions,
-        macro_risk_report=problem.macro_risk_report,
+        macro_exposure_version=problem.macro_exposure_version,
+        macro_factor_covariance=problem.macro_factor_covariance,
+        macro_risk_budget=problem.macro_risk_budget,
         created_at=problem.created_at,
         valid_until=problem.valid_until,
+    )
+
+
+def macro_optimization_input_hash(problem: OptimizationProblem) -> str:
+    """Bind full R4 exposure/covariance, canonical snapshot, and macro budget."""
+
+    return macro_optimization_input_hash_values(
+        canonical_snapshot=problem.canonical_snapshot,
+        macro_exposure_version=problem.macro_exposure_version,
+        macro_factor_covariance=problem.macro_factor_covariance,
+        macro_risk_budget=problem.macro_risk_budget,
+    )
+
+
+def macro_optimization_input_hash_values(
+    *,
+    canonical_snapshot: CanonicalPortfolioSnapshot,
+    macro_exposure_version: MacroExposureVersion,
+    macro_factor_covariance: FactorCovarianceVersion,
+    macro_risk_budget: MacroRiskBudget,
+) -> str:
+    """Return the exact R4-to-R8 numerical input digest."""
+
+    exposure_parts = tuple(
+        "|".join(
+            (
+                exposure.asset_code,
+                str(exposure.residual_variance),
+                str(exposure.r_squared),
+                str(exposure.stability_score),
+                *(
+                    f"{beta.factor_code},{beta.beta},{beta.confidence_low},{beta.confidence_high}"
+                    for beta in exposure.betas
+                ),
+            )
+        )
+        for exposure in sorted(
+            macro_exposure_version.exposures,
+            key=lambda item: item.asset_code,
+        )
+    )
+    covariance_parts = tuple(
+        "|".join(str(value) for value in row) for row in macro_factor_covariance.values
+    )
+    return _hash_components(
+        "optimization-macro-input.v1",
+        canonical_snapshot.snapshot_id,
+        canonical_snapshot.content_hash,
+        macro_exposure_version.version_id,
+        macro_exposure_version.promoted_factor_version,
+        macro_exposure_version.promotion_decision_id,
+        macro_exposure_version.pit_manifest_id,
+        macro_exposure_version.code_version,
+        macro_exposure_version.parameter_version,
+        macro_exposure_version.observed_at.isoformat(),
+        macro_exposure_version.valid_until.isoformat(),
+        *exposure_parts,
+        macro_factor_covariance.version_id,
+        *macro_factor_covariance.factor_codes,
+        *covariance_parts,
+        macro_factor_covariance.pit_manifest_id,
+        macro_factor_covariance.estimator_version,
+        macro_factor_covariance.observed_at.isoformat(),
+        macro_factor_covariance.valid_until.isoformat(),
+        macro_risk_budget.content_hash,
     )
 
 
@@ -665,7 +822,9 @@ def _optimization_problem_hash_values(
     validation_policy: OptimizationValidationPolicy,
     evidence_bindings: tuple[OptimizationEvidenceBinding, ...],
     promotions: tuple[PromotionReference, ...],
-    macro_risk_report: MacroRiskCandidateReport,
+    macro_exposure_version: MacroExposureVersion,
+    macro_factor_covariance: FactorCovarianceVersion,
+    macro_risk_budget: MacroRiskBudget,
     created_at: datetime,
     valid_until: datetime,
 ) -> str:
@@ -743,7 +902,12 @@ def _optimization_problem_hash_values(
         str(validation_policy.risk_parity_tolerance),
         *evidence_parts,
         *promotion_parts,
-        macro_risk_report.evidence_hash,
+        macro_optimization_input_hash_values(
+            canonical_snapshot=canonical_snapshot,
+            macro_exposure_version=macro_exposure_version,
+            macro_factor_covariance=macro_factor_covariance,
+            macro_risk_budget=macro_risk_budget,
+        ),
         created_at.isoformat(),
         valid_until.isoformat(),
     )

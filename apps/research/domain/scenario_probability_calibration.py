@@ -312,6 +312,32 @@ def _collect_multiclass_groups(
                 )
             )
             continue
+        group_identity = {
+            (
+                row.published_at,
+                row.horizon_end,
+                row.pit_manifest_id,
+                row.pit_manifest_version,
+                row.pit_manifest_hash,
+                _source_version(row, source),
+                (
+                    row.binding.model_promotion_decision_id
+                    if source is ScenarioProbabilitySource.MODEL_INFERRED
+                    else None
+                ),
+            )
+            for row in rows
+        }
+        if len(group_identity) != 1:
+            blocked = True
+            blockers.append(
+                CalibrationBlocker(
+                    "scenario_calibration.multiclass.group_identity_mixed",
+                    "forecast group must share publication, horizon, PIT manifest, source version, and promotion",
+                    entry_id=group_id,
+                )
+            )
+            continue
         probabilities = tuple(row.probability_for(source) for row in rows)
         if any(probability is None for probability in probabilities):
             raise ValueError("multiclass group is missing the selected probability source")
@@ -459,6 +485,17 @@ def _validate_observation_scope(
     if len(entry_ids) != len(set(entry_ids)):
         raise ValueError("forecast ledger observations contain duplicate entry_id values")
     members = set(scope.scenario_revision_ids)
+    if scope.forecast_horizon != policy.forecast_horizon:
+        raise ValueError("scenario research scope forecast horizon does not match policy")
+    if scope.censoring_rule_version != policy.censoring_rule_version:
+        raise ValueError("scenario research scope censoring rule does not match policy")
+    if scope.path_horizon_periods != policy.path_horizon_periods:
+        raise ValueError("scenario research scope path horizon does not match policy")
+    if (
+        policy.require_all_path_initial_states
+        and set(scope.path_initial_state_revision_ids) != members
+    ):
+        raise ValueError("scenario research scope must cover every path initial state")
     for row in observations:
         if row.binding.scenario_revision_id not in members:
             raise ValueError("forecast ledger observation scenario revision is out of scope")
@@ -466,12 +503,22 @@ def _validate_observation_scope(
             raise ValueError("forecast ledger observation scenario-set revision mismatch")
         if not policy.sample_window_start <= row.published_at < policy.sample_window_end:
             raise ValueError("forecast ledger observation is outside the policy sample window")
+        if row.horizon_end - row.published_at != scope.forecast_horizon:
+            raise ValueError("forecast ledger observation horizon does not match exact scope")
+        if row.censoring_rule_version != scope.censoring_rule_version:
+            raise ValueError("forecast ledger observation censoring rule mismatch")
         if row.published_at > evaluated_at:
             raise ValueError("forecast ledger observation cannot be future-dated")
         if row.outcome_recorded_at is not None and row.outcome_recorded_at > evaluated_at:
             raise ValueError("forecast ledger outcome cannot be future-dated")
         if row.invalidation is not None and row.invalidation.invalidated_at > evaluated_at:
             raise ValueError("scenario invalidation cannot be future-dated")
+        if (
+            row.scenario_realized is None
+            and row.invalidation is None
+            and evaluated_at >= row.horizon_end + policy.censoring_lag
+        ):
+            raise ValueError("forecast ledger observation exceeded the exact censoring lag")
 
 
 def _outcome_expired(

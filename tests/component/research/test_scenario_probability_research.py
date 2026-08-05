@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
@@ -33,6 +34,10 @@ def _scope() -> ScenarioResearchScope:
         scope_version="scenario-scope.v1",
         scenario_set_revision_id=SET_REVISION,
         scenario_revision_ids=(REVISION_A, REVISION_B),
+        forecast_horizon=timedelta(days=10),
+        censoring_rule_version="scenario-censoring.v1",
+        path_horizon_periods=2,
+        path_initial_state_revision_ids=(REVISION_A, REVISION_B),
     )
 
 
@@ -43,6 +48,9 @@ def _policy() -> ScenarioProbabilityResearchPolicy:
         valid_until=NOW + timedelta(days=30),
         sample_window_start=NOW - timedelta(days=30),
         sample_window_end=NOW,
+        forecast_horizon=timedelta(days=10),
+        censoring_lag=timedelta(days=7),
+        censoring_rule_version="scenario-censoring.v1",
         minimum_forecasts_per_revision=2,
         minimum_resolved_outcomes_per_revision=2,
         minimum_outcome_coverage=Decimal("0.80"),
@@ -54,6 +62,8 @@ def _policy() -> ScenarioProbabilityResearchPolicy:
         probability_sum_tolerance=Decimal("0.000001"),
         minimum_historical_analogies=2,
         minimum_path_probability_observations=10,
+        path_horizon_periods=2,
+        require_all_path_initial_states=True,
         maximum_research_evidence_age=timedelta(days=90),
         invalidation_review_delay=timedelta(days=1),
         approved_by="research-owner",
@@ -90,6 +100,8 @@ def _open_observations() -> tuple[ForecastLedgerOutcomeObservation, ...]:
             binding=binding,
             pit_manifest_id="pit-open-group",
             pit_manifest_version="pit-manifest.v1",
+            pit_manifest_hash=hashlib.sha256(b"pit-open-group").hexdigest(),
+            censoring_rule_version="scenario-censoring.v1",
             published_at=published_at,
             horizon_end=published_at + timedelta(days=10),
             scenario_realized=None,

@@ -39,6 +39,12 @@ class OptimizationBlockerCode(str, Enum):
     COST_BUDGET_BREACHED = "cost_budget_breached"
     SCENARIO_LOSS_BREACHED = "scenario_loss_breached"
     DRAWDOWN_BUDGET_BREACHED = "drawdown_budget_breached"
+    MACRO_EVIDENCE_EXPIRED = "macro_evidence_expired"
+    MACRO_COVARIANCE_NOT_SYMMETRIC = "macro_covariance_not_symmetric"
+    MACRO_COVARIANCE_NOT_PSD = "macro_covariance_not_psd"
+    MACRO_FACTOR_VARIANCE_NON_POSITIVE = "macro_factor_variance_non_positive"
+    MACRO_RISK_BUDGET_BREACHED = "macro_risk_budget_breached"
+    MACRO_TARGET_DEVIATION_BREACHED = "macro_target_deviation_breached"
 
 
 @dataclass(frozen=True)
@@ -74,6 +80,9 @@ class CandidateMetrics:
     turnover: Decimal
     drawdown_estimate: Decimal
     scenario_losses: tuple[tuple[str, Decimal], ...]
+    macro_factor_variance: Decimal
+    macro_contribution_shares: tuple[tuple[str, Decimal], ...]
+    macro_max_target_deviation: Decimal
     objective_value: Decimal
 
 
@@ -130,6 +139,36 @@ def assess_optimization_problem(
             _block(
                 OptimizationBlockerCode.COVARIANCE_EXPIRED,
                 "asset covariance evidence has expired",
+            )
+        )
+    if (
+        problem.macro_exposure_version.valid_until <= evaluated_at
+        or problem.macro_factor_covariance.valid_until <= evaluated_at
+    ):
+        blockers.append(
+            _block(
+                OptimizationBlockerCode.MACRO_EVIDENCE_EXPIRED,
+                "R4 macro exposure or factor covariance evidence has expired",
+            )
+        )
+    if not _is_symmetric(
+        problem.macro_factor_covariance.values,
+        policy.covariance_symmetry_tolerance,
+    ):
+        blockers.append(
+            _block(
+                OptimizationBlockerCode.MACRO_COVARIANCE_NOT_SYMMETRIC,
+                "R4 factor covariance is not symmetric within policy tolerance",
+            )
+        )
+    elif not _is_positive_semidefinite(
+        problem.macro_factor_covariance.values,
+        policy.covariance_psd_tolerance,
+    ):
+        blockers.append(
+            _block(
+                OptimizationBlockerCode.MACRO_COVARIANCE_NOT_PSD,
+                "R4 factor covariance is not positive semidefinite",
             )
         )
     if not _is_symmetric(
@@ -305,6 +344,27 @@ def evaluate_solver_output(
                 "candidate drawdown estimate exceeds the versioned budget",
             )
         )
+    if metrics.macro_factor_variance <= problem.validation_policy.covariance_psd_tolerance:
+        blockers.append(
+            _block(
+                OptimizationBlockerCode.MACRO_FACTOR_VARIANCE_NON_POSITIVE,
+                "candidate macro factor variance is not positive",
+            )
+        )
+    if metrics.macro_factor_variance > problem.macro_risk_budget.maximum_factor_variance:
+        blockers.append(
+            _block(
+                OptimizationBlockerCode.MACRO_RISK_BUDGET_BREACHED,
+                "candidate macro factor variance exceeds the versioned hard budget",
+            )
+        )
+    if metrics.macro_max_target_deviation > problem.macro_risk_budget.maximum_target_deviation:
+        blockers.append(
+            _block(
+                OptimizationBlockerCode.MACRO_TARGET_DEVIATION_BREACHED,
+                "candidate macro contribution deviation exceeds the versioned hard target",
+            )
+        )
     return _candidate_report(problem=problem, output=output, blockers=blockers, metrics=metrics)
 
 
@@ -368,6 +428,45 @@ def calculate_candidate_metrics(
         )
         for scenario in problem.scenario_losses
     )
+    exposures = {item.asset_code: item for item in problem.macro_exposure_version.exposures}
+    factor_codes = problem.macro_exposure_version.factor_codes
+    portfolio_exposure = tuple(
+        sum(
+            (
+                weight * exposures[asset.asset_code].betas[index].beta
+                for weight, asset in zip(weights, problem.assets, strict=True)
+            ),
+            start=Decimal("0"),
+        )
+        for index in range(len(factor_codes))
+    )
+    macro_marginal = _matrix_vector(
+        problem.macro_factor_covariance.values,
+        portfolio_exposure,
+    )
+    macro_raw_contributions = tuple(
+        exposure * marginal
+        for exposure, marginal in zip(portfolio_exposure, macro_marginal, strict=True)
+    )
+    macro_factor_variance = sum(macro_raw_contributions, start=Decimal("0"))
+    macro_contribution_shares = (
+        tuple(
+            (code, contribution / macro_factor_variance)
+            for code, contribution in zip(
+                factor_codes,
+                macro_raw_contributions,
+                strict=True,
+            )
+        )
+        if macro_factor_variance > 0
+        else ()
+    )
+    target_shares = dict(problem.macro_risk_budget.target_contribution_shares)
+    macro_max_target_deviation = (
+        max(abs(share - target_shares[code]) for code, share in macro_contribution_shares)
+        if macro_contribution_shares
+        else Decimal("1")
+    )
     objective = problem.objective
     objective_value = (
         objective.variance_penalty * variance
@@ -381,6 +480,9 @@ def calculate_candidate_metrics(
         turnover=turnover,
         drawdown_estimate=drawdown,
         scenario_losses=scenario_losses,
+        macro_factor_variance=macro_factor_variance,
+        macro_contribution_shares=macro_contribution_shares,
+        macro_max_target_deviation=macro_max_target_deviation,
         objective_value=objective_value,
     )
 
@@ -422,6 +524,13 @@ def _candidate_report(
         *(str(weight) for weight in weights),
         str(cash_weight),
         str(metrics.objective_value if metrics is not None else ""),
+        str(metrics.macro_factor_variance if metrics is not None else ""),
+        str(metrics.macro_max_target_deviation if metrics is not None else ""),
+        *(
+            (f"{code}:{share}" for code, share in metrics.macro_contribution_shares)
+            if metrics is not None
+            else ()
+        ),
         *(
             f"{item.code.value}:{item.asset_code or ''}:{item.scenario_revision_id or ''}"
             for item in blockers

@@ -20,6 +20,7 @@ from apps.research.domain.scenario_research_evidence import (
     HistoricalAnalogyStudyEvidence,
     MultiPeriodShockEvidence,
     PointInTimeFeatureValue,
+    PointInTimeManifestFeature,
     PointInTimeManifestReference,
     ScenarioPathStudyEvidence,
     TransitionProbabilityEvidence,
@@ -39,6 +40,10 @@ def _scope() -> ScenarioResearchScope:
         scope_version="scenario-scope.v1",
         scenario_set_revision_id=SET_REVISION,
         scenario_revision_ids=(REVISION_A, REVISION_B),
+        forecast_horizon=timedelta(days=1),
+        censoring_rule_version="scenario-censoring.v1",
+        path_horizon_periods=2,
+        path_initial_state_revision_ids=(REVISION_A, REVISION_B),
     )
 
 
@@ -49,6 +54,9 @@ def _policy() -> ScenarioProbabilityResearchPolicy:
         valid_until=NOW + timedelta(days=30),
         sample_window_start=NOW - timedelta(days=365),
         sample_window_end=NOW,
+        forecast_horizon=timedelta(days=1),
+        censoring_lag=timedelta(days=7),
+        censoring_rule_version="scenario-censoring.v1",
         minimum_forecasts_per_revision=2,
         minimum_resolved_outcomes_per_revision=2,
         minimum_outcome_coverage=Decimal("0.80"),
@@ -60,6 +68,8 @@ def _policy() -> ScenarioProbabilityResearchPolicy:
         probability_sum_tolerance=Decimal("0.000001"),
         minimum_historical_analogies=2,
         minimum_path_probability_observations=10,
+        path_horizon_periods=2,
+        require_all_path_initial_states=True,
         maximum_research_evidence_age=timedelta(days=90),
         invalidation_review_delay=timedelta(days=2),
         approved_by="research-owner",
@@ -71,26 +81,41 @@ def _manifest(
     manifest_id: str,
     as_of: datetime,
     digest_character: str,
+    features: tuple[PointInTimeManifestFeature, ...] = (),
 ) -> PointInTimeManifestReference:
     return PointInTimeManifestReference.create(
         manifest_id=manifest_id,
         manifest_version="pit-manifest.v1",
         as_of=as_of,
         manifest_hash=digest_character * 64,
+        features=features,
     )
 
 
 def _candidate(candidate_id: str, *, year: int) -> HistoricalAnalogyCandidateEvidence:
     as_of = datetime(year, 1, 31, tzinfo=UTC)
+    available_at = datetime(year, 1, 20, tzinfo=UTC)
+    vintage_at = datetime(year, 1, 21, tzinfo=UTC)
     return HistoricalAnalogyCandidateEvidence.create(
         candidate_id=candidate_id,
         candidate_version="historical-candidate.v1",
         window_start=datetime(year, 1, 1, tzinfo=UTC),
         window_end=datetime(year, 1, 30, tzinfo=UTC),
+        decision_cutoff=as_of,
+        allowed_release_lag=timedelta(days=1),
         pit_manifest=_manifest(
             manifest_id=f"pit-{candidate_id}",
             as_of=as_of,
             digest_character="a" if year == 2020 else "b",
+            features=(
+                PointInTimeManifestFeature(
+                    feature_key="growth_zscore",
+                    source_version="macro-vintage.v1",
+                    available_at=available_at,
+                    vintage_at=vintage_at,
+                    content_hash=("1" if year == 2020 else "2") * 64,
+                ),
+            ),
         ),
         feature_definition_version="analogy-features.v1",
         features=(
@@ -99,7 +124,8 @@ def _candidate(candidate_id: str, *, year: int) -> HistoricalAnalogyCandidateEvi
                 value=Decimal("-1.2"),
                 unit="zscore",
                 source_version="macro-vintage.v1",
-                available_at=datetime(year, 1, 20, tzinfo=UTC),
+                available_at=available_at,
+                vintage_at=vintage_at,
             ),
         ),
         similarity_score=Decimal("0.82"),
@@ -164,36 +190,76 @@ def _path_study(
         ),
         conditional_probabilities=(
             ConditionalProbabilityEvidence(
-                "growth_down",
-                REVISION_A,
-                Decimal("0.60"),
-                observation_count,
-                "conditional-study.v1",
+                condition_key="growth_down",
+                target_scenario_revision_id=REVISION_A,
+                probability=Decimal("0.60"),
+                observation_count=observation_count,
+                source_version="path-study.v1",
+                sample_definition_version="path-sample.v1",
+                pit_manifest_id="pit-path",
+                pit_manifest_version="pit-manifest.v1",
+                pit_manifest_hash="d" * 64,
             ),
             ConditionalProbabilityEvidence(
-                "growth_down",
-                REVISION_B,
-                Decimal("0.40"),
-                observation_count,
-                "conditional-study.v1",
+                condition_key="growth_down",
+                target_scenario_revision_id=REVISION_B,
+                probability=Decimal("0.40"),
+                observation_count=observation_count,
+                source_version="path-study.v1",
+                sample_definition_version="path-sample.v1",
+                pit_manifest_id="pit-path",
+                pit_manifest_version="pit-manifest.v1",
+                pit_manifest_hash="d" * 64,
             ),
         ),
         transition_probabilities=(
             TransitionProbabilityEvidence(
                 REVISION_A,
                 REVISION_A,
-                1,
+                2,
                 Decimal("0.70"),
                 observation_count,
-                "transition-study.v1",
+                "path-study.v1",
+                "path-sample.v1",
+                "pit-path",
+                "pit-manifest.v1",
+                "d" * 64,
             ),
             TransitionProbabilityEvidence(
                 REVISION_A,
                 REVISION_B,
-                1,
+                2,
                 Decimal("0.30"),
                 observation_count,
-                "transition-study.v1",
+                "path-study.v1",
+                "path-sample.v1",
+                "pit-path",
+                "pit-manifest.v1",
+                "d" * 64,
+            ),
+            TransitionProbabilityEvidence(
+                REVISION_B,
+                REVISION_A,
+                2,
+                Decimal("0.40"),
+                observation_count,
+                "path-study.v1",
+                "path-sample.v1",
+                "pit-path",
+                "pit-manifest.v1",
+                "d" * 64,
+            ),
+            TransitionProbabilityEvidence(
+                REVISION_B,
+                REVISION_B,
+                2,
+                Decimal("0.60"),
+                observation_count,
+                "path-study.v1",
+                "path-sample.v1",
+                "pit-path",
+                "pit-manifest.v1",
+                "d" * 64,
             ),
         ),
         generated_at=NOW - timedelta(hours=2),
@@ -218,18 +284,20 @@ def test_historical_analogy_requires_each_candidates_own_pit_manifest() -> None:
     assert len(assessment.content_hash) == 64
 
 
-def test_historical_analogy_rejects_lookahead_or_current_value_backfill() -> None:
+def test_historical_analogy_rejects_late_manifest_backfill() -> None:
     manifest = _manifest(
         manifest_id="pit-history",
         as_of=datetime(2020, 1, 31, tzinfo=UTC),
         digest_character="e",
     )
-    with pytest.raises(ValueError, match="look-ahead or current-value backfill"):
+    with pytest.raises(ValueError, match="exact decision cutoff"):
         HistoricalAnalogyCandidateEvidence.create(
             candidate_id="lookahead",
             candidate_version="historical-candidate.v1",
             window_start=datetime(2020, 1, 1, tzinfo=UTC),
             window_end=datetime(2020, 1, 30, tzinfo=UTC),
+            decision_cutoff=datetime(2020, 1, 30, tzinfo=UTC),
+            allowed_release_lag=timedelta(0),
             pit_manifest=manifest,
             feature_definition_version="analogy-features.v1",
             features=(
@@ -238,11 +306,53 @@ def test_historical_analogy_rejects_lookahead_or_current_value_backfill() -> Non
                     value=Decimal("-1"),
                     unit="zscore",
                     source_version="current-revision",
-                    available_at=datetime(2020, 2, 1, tzinfo=UTC),
+                    available_at=datetime(2020, 1, 30, tzinfo=UTC),
+                    vintage_at=datetime(2020, 1, 30, tzinfo=UTC),
                 ),
             ),
             similarity_score=Decimal("0.8"),
             evidence_refs=("pit://lookahead",),
+        )
+
+
+def test_historical_analogy_rejects_manifest_vintage_mismatch() -> None:
+    cutoff = datetime(2020, 1, 31, tzinfo=UTC)
+    manifest = _manifest(
+        manifest_id="pit-history-exact",
+        as_of=cutoff,
+        digest_character="e",
+        features=(
+            PointInTimeManifestFeature(
+                "growth_zscore",
+                "macro-vintage.v1",
+                datetime(2020, 1, 20, tzinfo=UTC),
+                datetime(2020, 1, 21, tzinfo=UTC),
+                "e" * 64,
+            ),
+        ),
+    )
+    with pytest.raises(ValueError, match="does not match its PIT manifest entry"):
+        HistoricalAnalogyCandidateEvidence.create(
+            candidate_id="vintage-mismatch",
+            candidate_version="historical-candidate.v1",
+            window_start=datetime(2020, 1, 1, tzinfo=UTC),
+            window_end=datetime(2020, 1, 30, tzinfo=UTC),
+            decision_cutoff=cutoff,
+            allowed_release_lag=timedelta(days=1),
+            pit_manifest=manifest,
+            feature_definition_version="analogy-features.v1",
+            features=(
+                PointInTimeFeatureValue(
+                    "growth_zscore",
+                    Decimal("-1"),
+                    "zscore",
+                    "macro-vintage.v1",
+                    datetime(2020, 1, 20, tzinfo=UTC),
+                    datetime(2020, 1, 22, tzinfo=UTC),
+                ),
+            ),
+            similarity_score=Decimal("0.8"),
+            evidence_refs=("pit://vintage-mismatch",),
         )
 
 
@@ -324,20 +434,100 @@ def test_path_probability_support_and_distribution_are_fail_closed() -> None:
                     REVISION_A,
                     Decimal("0.50"),
                     20,
-                    "conditional-study.v1",
+                    "path-study.v1",
+                    "path-sample.v1",
+                    "pit-invalid-path",
+                    "pit-manifest.v1",
+                    "1" * 64,
                 ),
                 ConditionalProbabilityEvidence(
                     "growth_down",
                     REVISION_B,
                     Decimal("0.40"),
                     20,
-                    "conditional-study.v1",
+                    "path-study.v1",
+                    "path-sample.v1",
+                    "pit-invalid-path",
+                    "pit-manifest.v1",
+                    "1" * 64,
                 ),
             ),
-            transition_probabilities=_path_study().transition_probabilities,
+            transition_probabilities=tuple(
+                TransitionProbabilityEvidence(
+                    item.from_scenario_revision_id,
+                    item.to_scenario_revision_id,
+                    item.horizon_periods,
+                    item.probability,
+                    item.observation_count,
+                    item.source_version,
+                    item.sample_definition_version,
+                    "pit-invalid-path",
+                    item.pit_manifest_version,
+                    "1" * 64,
+                )
+                for item in _path_study().transition_probabilities
+            ),
             generated_at=NOW - timedelta(hours=1),
             valid_until=NOW + timedelta(days=1),
             evidence_refs=("research://invalid-path",),
+            probability_sum_tolerance=Decimal("0.000001"),
+        )
+
+
+def test_path_rejects_out_of_scope_shock_and_mixed_distribution_provenance() -> None:
+    valid = _path_study()
+    outsider = UUID("00000000-0000-0000-0000-000000000999")
+    with pytest.raises(ValueError, match="outside scenario scope"):
+        ScenarioPathStudyEvidence.create(
+            study_version="scenario-path-study.v1",
+            scope=_scope(),
+            pit_manifest=valid.pit_manifest,
+            shocks=(
+                MultiPeriodShockEvidence(
+                    1,
+                    outsider,
+                    NOW - timedelta(days=10),
+                    NOW - timedelta(days=9),
+                    "growth",
+                    Decimal("-0.5"),
+                    "zscore",
+                    "shock-spec.v1",
+                ),
+                valid.shocks[1],
+            ),
+            conditional_probabilities=valid.conditional_probabilities,
+            transition_probabilities=valid.transition_probabilities,
+            generated_at=NOW - timedelta(hours=2),
+            valid_until=NOW + timedelta(days=1),
+            evidence_refs=("research://out-of-scope",),
+            probability_sum_tolerance=Decimal("0.000001"),
+        )
+
+    mixed = (
+        valid.conditional_probabilities[0],
+        ConditionalProbabilityEvidence(
+            "growth_down",
+            REVISION_B,
+            Decimal("0.40"),
+            21,
+            "path-study.v1",
+            "path-sample.v1",
+            "pit-path",
+            "pit-manifest.v1",
+            "d" * 64,
+        ),
+    )
+    with pytest.raises(ValueError, match="share exact sample and PIT provenance"):
+        ScenarioPathStudyEvidence.create(
+            study_version="scenario-path-study.v1",
+            scope=_scope(),
+            pit_manifest=valid.pit_manifest,
+            shocks=valid.shocks,
+            conditional_probabilities=mixed,
+            transition_probabilities=valid.transition_probabilities,
+            generated_at=NOW - timedelta(hours=2),
+            valid_until=NOW + timedelta(days=1),
+            evidence_refs=("research://mixed-provenance",),
             probability_sum_tolerance=Decimal("0.000001"),
         )
 

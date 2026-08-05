@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -20,36 +21,13 @@ from apps.portfolio.domain.canonical_snapshots import (
     SnapshotEvidenceKind,
     SnapshotSourceEvidence,
     build_broker_execution_evidence,
+    build_canonical_cash_projection,
     build_canonical_portfolio_snapshot,
+    build_canonical_positions_projection,
     build_execution_feedback,
 )
 
 NOW = datetime(2026, 8, 5, 9, tzinfo=UTC)
-
-
-def _source_evidence(
-    *,
-    cash_at: datetime = NOW,
-    positions_at: datetime = NOW + timedelta(minutes=1),
-) -> tuple[SnapshotSourceEvidence, ...]:
-    return (
-        SnapshotSourceEvidence(
-            kind=SnapshotEvidenceKind.CASH,
-            owner="account",
-            evidence_ref="account-ledger:cash:42:v7",
-            version="cash.v7",
-            observed_at=cash_at,
-            content_hash="a" * 64,
-        ),
-        SnapshotSourceEvidence(
-            kind=SnapshotEvidenceKind.POSITIONS,
-            owner="account",
-            evidence_ref="account-ledger:positions:42:v11",
-            version="positions.v11",
-            observed_at=positions_at,
-            content_hash="b" * 64,
-        ),
-    )
 
 
 def _position(asset_code: str = "000001.SZ") -> CanonicalPosition:
@@ -67,13 +45,21 @@ def _position(asset_code: str = "000001.SZ") -> CanonicalPosition:
 
 def _snapshot() -> CanonicalPortfolioSnapshot:
     return build_canonical_portfolio_snapshot(
-        account_ref="account:42",
-        base_currency="CNY",
-        cash_balance=Decimal("5000"),
-        cash_version="cash.v7",
-        positions_version="positions.v11",
-        positions=(_position(),),
-        source_evidence=_source_evidence(),
+        cash_projection=build_canonical_cash_projection(
+            account_ref="account:42",
+            base_currency="CNY",
+            cash_balance=Decimal("5000"),
+            evidence_ref="account-ledger:cash:42:v7",
+            version="cash.v7",
+            observed_at=NOW,
+        ),
+        positions_projection=build_canonical_positions_projection(
+            account_ref="account:42",
+            evidence_ref="portfolio-ledger:positions:42:v11",
+            version="positions.v11",
+            observed_at=NOW + timedelta(minutes=1),
+            positions=(_position(),),
+        ),
     )
 
 
@@ -112,22 +98,38 @@ def _broker_evidence() -> BrokerExecutionEvidence:
 
 def test_snapshot_derives_as_of_and_stable_identity_from_source_observations() -> None:
     first = build_canonical_portfolio_snapshot(
-        account_ref="account:42",
-        base_currency="CNY",
-        cash_balance=Decimal("5000.00"),
-        cash_version="cash.v7",
-        positions_version="positions.v11",
-        positions=(_position("600000.SH"), _position("000001.SZ")),
-        source_evidence=tuple(reversed(_source_evidence())),
+        cash_projection=build_canonical_cash_projection(
+            account_ref="account:42",
+            base_currency="CNY",
+            cash_balance=Decimal("5000.00"),
+            evidence_ref="account-ledger:cash:42:v7",
+            version="cash.v7",
+            observed_at=NOW,
+        ),
+        positions_projection=build_canonical_positions_projection(
+            account_ref="account:42",
+            evidence_ref="portfolio-ledger:positions:42:v11",
+            version="positions.v11",
+            observed_at=NOW + timedelta(minutes=1),
+            positions=(_position("600000.SH"), _position("000001.SZ")),
+        ),
     )
     second = build_canonical_portfolio_snapshot(
-        account_ref="account:42",
-        base_currency="CNY",
-        cash_balance=Decimal("5000"),
-        cash_version="cash.v7",
-        positions_version="positions.v11",
-        positions=(_position("000001.SZ"), _position("600000.SH")),
-        source_evidence=_source_evidence(),
+        cash_projection=build_canonical_cash_projection(
+            account_ref="account:42",
+            base_currency="CNY",
+            cash_balance=Decimal("5000"),
+            evidence_ref="account-ledger:cash:42:v7",
+            version="cash.v7",
+            observed_at=NOW,
+        ),
+        positions_projection=build_canonical_positions_projection(
+            account_ref="account:42",
+            evidence_ref="portfolio-ledger:positions:42:v11",
+            version="positions.v11",
+            observed_at=NOW + timedelta(minutes=1),
+            positions=(_position("000001.SZ"), _position("600000.SH")),
+        ),
     )
 
     assert first.as_of == NOW + timedelta(minutes=1)
@@ -137,16 +139,14 @@ def test_snapshot_derives_as_of_and_stable_identity_from_source_observations() -
 
 
 def test_snapshot_rejects_missing_dimension_and_timestamp_washing() -> None:
-    cash_only = (_source_evidence()[0],)
-    with pytest.raises(ValueError, match="cash and positions evidence"):
-        build_canonical_portfolio_snapshot(
-            account_ref="account:42",
-            base_currency="CNY",
-            cash_balance=Decimal("5000"),
-            cash_version="cash.v7",
-            positions_version="positions.v11",
-            positions=(),
-            source_evidence=cash_only,
+    with pytest.raises(ValueError, match="positions evidence owner is not governed"):
+        SnapshotSourceEvidence(
+            SnapshotEvidenceKind.POSITIONS,
+            "account",
+            "positions:1",
+            "positions.v1",
+            NOW,
+            "b" * 64,
         )
 
     valid = _snapshot()
@@ -163,6 +163,19 @@ def test_snapshot_rejects_missing_dimension_and_timestamp_washing() -> None:
             source_evidence=valid.source_evidence,
             content_hash=valid.content_hash,
         )
+
+
+def test_snapshot_rejects_payload_tampering_with_reused_digest() -> None:
+    cash = build_canonical_cash_projection(
+        account_ref="account:42",
+        base_currency="CNY",
+        cash_balance=Decimal("5000"),
+        evidence_ref="account-ledger:cash:42:v7",
+        version="cash.v7",
+        observed_at=NOW,
+    )
+    with pytest.raises(ValueError, match="cash projection content hash mismatch"):
+        replace(cash, cash_balance=Decimal("9000"))
 
 
 def test_execution_feedback_calculates_plan_vs_fill_metrics() -> None:

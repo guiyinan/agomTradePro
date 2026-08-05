@@ -15,10 +15,10 @@ from apps.portfolio.domain.canonical_snapshots import (
     BrokerFillEvidence,
     BrokerOrderEventEvidence,
     CanonicalPosition,
-    SnapshotEvidenceKind,
-    SnapshotSourceEvidence,
     build_broker_execution_evidence,
+    build_canonical_cash_projection,
     build_canonical_portfolio_snapshot,
+    build_canonical_positions_projection,
     build_execution_feedback,
 )
 from apps.portfolio.infrastructure.canonical_snapshot_models import (
@@ -41,39 +41,30 @@ NOW = datetime(2026, 8, 5, 9, tzinfo=UTC)
 
 def _snapshot():  # type: ignore[no-untyped-def]
     return build_canonical_portfolio_snapshot(
-        account_ref="account:42",
-        base_currency="CNY",
-        cash_balance=Decimal("5000"),
-        cash_version="cash.v7",
-        positions_version="positions.v11",
-        positions=(
-            CanonicalPosition(
-                asset_code="000001.SZ",
-                quantity=Decimal("100"),
-                available_quantity=Decimal("80"),
-                market_value_base=Decimal("1023"),
-                position_source_ref="position:000001.SZ:v11",
-                position_observed_at=NOW,
-                valuation_source_ref="valuation:000001.SZ:20260805T0900Z",
-                valuation_observed_at=NOW + timedelta(seconds=30),
-            ),
+        cash_projection=build_canonical_cash_projection(
+            account_ref="account:42",
+            base_currency="CNY",
+            cash_balance=Decimal("5000"),
+            evidence_ref="account-ledger:cash:42:v7",
+            version="cash.v7",
+            observed_at=NOW,
         ),
-        source_evidence=(
-            SnapshotSourceEvidence(
-                SnapshotEvidenceKind.CASH,
-                "account",
-                "account-ledger:cash:42:v7",
-                "cash.v7",
-                NOW,
-                "a" * 64,
-            ),
-            SnapshotSourceEvidence(
-                SnapshotEvidenceKind.POSITIONS,
-                "account",
-                "account-ledger:positions:42:v11",
-                "positions.v11",
-                NOW + timedelta(minutes=1),
-                "b" * 64,
+        positions_projection=build_canonical_positions_projection(
+            account_ref="account:42",
+            evidence_ref="portfolio-ledger:positions:42:v11",
+            version="positions.v11",
+            observed_at=NOW + timedelta(minutes=1),
+            positions=(
+                CanonicalPosition(
+                    asset_code="000001.SZ",
+                    quantity=Decimal("100"),
+                    available_quantity=Decimal("80"),
+                    market_value_base=Decimal("1023"),
+                    position_source_ref="position:000001.SZ:v11",
+                    position_observed_at=NOW,
+                    valuation_source_ref="valuation:000001.SZ:20260805T0900Z",
+                    valuation_observed_at=NOW + timedelta(seconds=30),
+                ),
             ),
         ),
     )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -31,6 +32,10 @@ def _scope() -> ScenarioResearchScope:
         scope_version="scenario-scope.v1",
         scenario_set_revision_id=SET_REVISION,
         scenario_revision_ids=(REVISION_B, REVISION_A),
+        forecast_horizon=timedelta(days=1),
+        censoring_rule_version="scenario-censoring.v1",
+        path_horizon_periods=2,
+        path_initial_state_revision_ids=(REVISION_A, REVISION_B),
     )
 
 
@@ -51,6 +56,9 @@ def _policy(
         valid_until=valid_until or NOW + timedelta(days=30),
         sample_window_start=datetime(2026, 8, 1, tzinfo=UTC),
         sample_window_end=datetime(2026, 8, 4, tzinfo=UTC),
+        forecast_horizon=timedelta(days=1),
+        censoring_lag=timedelta(days=7),
+        censoring_rule_version="scenario-censoring.v1",
         minimum_forecasts_per_revision=minimum_forecasts,
         minimum_resolved_outcomes_per_revision=minimum_resolved,
         minimum_outcome_coverage=minimum_coverage,
@@ -62,6 +70,8 @@ def _policy(
         probability_sum_tolerance=Decimal("0.000001"),
         minimum_historical_analogies=2,
         minimum_path_probability_observations=10,
+        path_horizon_periods=2,
+        require_all_path_initial_states=True,
         maximum_research_evidence_age=timedelta(days=90),
         invalidation_review_delay=timedelta(days=1),
         approved_by="research-owner",
@@ -78,6 +88,7 @@ def _observation(
     published_at: datetime,
     model_probability: str | None = None,
     outcome_valid_until: datetime | None = None,
+    horizon: timedelta = timedelta(days=1),
 ) -> ForecastLedgerOutcomeObservation:
     binding = ScenarioForecastBinding.from_values(
         scenario_revision_id=revision_id,
@@ -92,7 +103,7 @@ def _observation(
             "promotion-model-v1" if model_probability is not None else None
         ),
     )
-    horizon_end = published_at + timedelta(days=1)
+    horizon_end = published_at + horizon
     recorded_at = horizon_end + timedelta(hours=1) if scenario_realized is not None else None
     return ForecastLedgerOutcomeObservation.create(
         observation_version="ledger-observation.v1",
@@ -101,6 +112,8 @@ def _observation(
         binding=binding,
         pit_manifest_id=f"pit-{group_id}",
         pit_manifest_version="pit-manifest.v1",
+        pit_manifest_hash=hashlib.sha256(f"pit-{group_id}".encode()).hexdigest(),
+        censoring_rule_version="scenario-censoring.v1",
         published_at=published_at,
         horizon_end=horizon_end,
         scenario_realized=scenario_realized,
@@ -224,6 +237,8 @@ def test_no_real_outcomes_returns_insufficient_evidence_without_metrics_or_model
                 binding=row.binding,
                 pit_manifest_id=row.pit_manifest_id,
                 pit_manifest_version=row.pit_manifest_version,
+                pit_manifest_hash=row.pit_manifest_hash,
+                censoring_rule_version=row.censoring_rule_version,
                 published_at=row.published_at,
                 horizon_end=row.horizon_end,
                 scenario_realized=None,
@@ -309,6 +324,10 @@ def test_scope_mismatch_and_hash_tampering_are_rejected() -> None:
         scope_version="scenario-scope.v1",
         scenario_set_revision_id=UUID("00000000-0000-0000-0000-000000000999"),
         scenario_revision_ids=(REVISION_A, REVISION_B),
+        forecast_horizon=timedelta(days=1),
+        censoring_rule_version="scenario-censoring.v1",
+        path_horizon_periods=2,
+        path_initial_state_revision_ids=(REVISION_A, REVISION_B),
     )
     with pytest.raises(ValueError, match="scenario-set revision mismatch"):
         evaluate_scenario_probability_calibration(
@@ -319,3 +338,43 @@ def test_scope_mismatch_and_hash_tampering_are_rejected() -> None:
         )
     with pytest.raises(ValueError, match="content_hash mismatch"):
         replace(row, content_hash="0" * 64)
+
+
+def test_exact_horizon_and_multiclass_group_identity_are_enforced() -> None:
+    wrong_horizon = _observation(
+        entry_id="wrong-horizon-a",
+        group_id="wrong-horizon",
+        revision_id=REVISION_A,
+        subjective_probability="0.50",
+        scenario_realized=True,
+        published_at=datetime(2026, 8, 1, tzinfo=UTC),
+        horizon=timedelta(days=2),
+    )
+    with pytest.raises(ValueError, match="horizon does not match exact scope"):
+        evaluate_scenario_probability_calibration(
+            scope=_scope(),
+            policy=_policy(),
+            observations=(wrong_horizon,),
+            evaluated_at=NOW,
+        )
+
+    rows = list(_complete_observations())
+    rows[1] = _observation(
+        entry_id="g1-b",
+        group_id="g1",
+        revision_id=REVISION_B,
+        subjective_probability="0.30",
+        scenario_realized=False,
+        published_at=datetime(2026, 8, 1, 1, tzinfo=UTC),
+    )
+    report = evaluate_scenario_probability_calibration(
+        scope=_scope(),
+        policy=_policy(),
+        observations=tuple(rows),
+        evaluated_at=NOW,
+    )
+    assert report.subjective.status is ResearchEvidenceStatus.BLOCKED
+    assert any(
+        blocker.reason_code == "scenario_calibration.multiclass.group_identity_mixed"
+        for blocker in report.subjective.blockers
+    )

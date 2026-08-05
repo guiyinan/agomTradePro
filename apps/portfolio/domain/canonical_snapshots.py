@@ -17,6 +17,12 @@ class SnapshotEvidenceKind(str, Enum):
     POSITIONS = "positions"
 
 
+GOVERNED_SNAPSHOT_EVIDENCE_OWNERS = {
+    SnapshotEvidenceKind.CASH: "account",
+    SnapshotEvidenceKind.POSITIONS: "portfolio",
+}
+
+
 @dataclass(frozen=True)
 class SnapshotSourceEvidence:
     """Versioned source observation used to construct a snapshot dimension."""
@@ -39,6 +45,8 @@ class SnapshotSourceEvidence:
         )
         _require_aware(self.observed_at, "observed_at")
         _require_sha256(self.content_hash, "content_hash")
+        if self.owner != GOVERNED_SNAPSHOT_EVIDENCE_OWNERS[self.kind]:
+            raise ValueError(f"{self.kind.value} evidence owner is not governed")
 
 
 @dataclass(frozen=True)
@@ -75,6 +83,79 @@ class CanonicalPosition:
             raise ValueError("available quantity cannot exceed total quantity")
         if self.market_value_base < 0:
             raise ValueError("canonical position market value cannot be negative")
+
+
+@dataclass(frozen=True)
+class CanonicalCashProjection:
+    """Immutable Account-owned cash payload with a canonical digest."""
+
+    account_ref: str
+    base_currency: str
+    cash_balance: Decimal
+    evidence_ref: str
+    version: str
+    observed_at: datetime
+    content_hash: str
+
+    def __post_init__(self) -> None:
+        """Recompute the exact cash payload digest and reject arbitrary hashes."""
+
+        _require_values(
+            account_ref=self.account_ref,
+            base_currency=self.base_currency,
+            evidence_ref=self.evidence_ref,
+            version=self.version,
+        )
+        _require_aware(self.observed_at, "cash observed_at")
+        _require_finite_decimals(cash_balance=self.cash_balance)
+        if self.cash_balance < 0:
+            raise ValueError("canonical cash cannot be negative")
+        _require_sha256(self.content_hash, "cash content_hash")
+        if self.content_hash != canonical_cash_projection_hash(
+            account_ref=self.account_ref,
+            base_currency=self.base_currency,
+            cash_balance=self.cash_balance,
+            evidence_ref=self.evidence_ref,
+            version=self.version,
+            observed_at=self.observed_at,
+        ):
+            raise ValueError("canonical cash projection content hash mismatch")
+
+
+@dataclass(frozen=True)
+class CanonicalPositionsProjection:
+    """Immutable Portfolio-owned positions payload with a canonical digest."""
+
+    account_ref: str
+    evidence_ref: str
+    version: str
+    observed_at: datetime
+    positions: tuple[CanonicalPosition, ...]
+    content_hash: str
+
+    def __post_init__(self) -> None:
+        """Recompute exact position rows, version, and source observation time."""
+
+        _require_values(
+            account_ref=self.account_ref,
+            evidence_ref=self.evidence_ref,
+            version=self.version,
+        )
+        _require_aware(self.observed_at, "positions observed_at")
+        codes = tuple(item.asset_code for item in self.positions)
+        if len(codes) != len(set(codes)) or codes != tuple(sorted(codes)):
+            raise ValueError("canonical positions projection must be unique and ordered")
+        if any(item.position_observed_at > self.observed_at for item in self.positions):
+            raise ValueError("position observation is newer than positions projection")
+        _require_sha256(self.content_hash, "positions content_hash")
+        if self.content_hash != canonical_positions_projection_hash(
+            account_ref=self.account_ref,
+            evidence_ref=self.evidence_ref,
+            version=self.version,
+            observed_at=self.observed_at,
+            positions=self.positions,
+        ):
+            raise ValueError("canonical positions projection content hash mismatch")
 
 
 @dataclass(frozen=True)
@@ -120,6 +201,27 @@ class CanonicalPortfolioSnapshot:
             raise ValueError("cash version does not match its source evidence")
         if by_kind[SnapshotEvidenceKind.POSITIONS].version != self.positions_version:
             raise ValueError("positions version does not match its source evidence")
+        cash_evidence = by_kind[SnapshotEvidenceKind.CASH]
+        positions_evidence = by_kind[SnapshotEvidenceKind.POSITIONS]
+        expected_cash_hash = canonical_cash_projection_hash(
+            account_ref=self.account_ref,
+            base_currency=self.base_currency,
+            cash_balance=self.cash_balance,
+            evidence_ref=cash_evidence.evidence_ref,
+            version=cash_evidence.version,
+            observed_at=cash_evidence.observed_at,
+        )
+        expected_positions_hash = canonical_positions_projection_hash(
+            account_ref=self.account_ref,
+            evidence_ref=positions_evidence.evidence_ref,
+            version=positions_evidence.version,
+            observed_at=positions_evidence.observed_at,
+            positions=self.positions,
+        )
+        if cash_evidence.content_hash != expected_cash_hash:
+            raise ValueError("cash evidence does not bind the canonical cash payload")
+        if positions_evidence.content_hash != expected_positions_hash:
+            raise ValueError("positions evidence does not bind the canonical positions payload")
         latest_source_time = max(item.observed_at for item in self.source_evidence)
         if self.as_of != latest_source_time:
             raise ValueError("snapshot as_of must preserve the latest source observation time")
@@ -407,41 +509,110 @@ class PortfolioExecutionFeedback:
             raise ValueError("execution feedback feedback_id mismatch")
 
 
-def build_canonical_portfolio_snapshot(
+def build_canonical_cash_projection(
     *,
     account_ref: str,
     base_currency: str,
     cash_balance: Decimal,
-    cash_version: str,
-    positions_version: str,
-    positions: tuple[CanonicalPosition, ...],
-    source_evidence: tuple[SnapshotSourceEvidence, ...],
-) -> CanonicalPortfolioSnapshot:
-    """Build an immutable snapshot whose as-of is derived from source observations."""
+    evidence_ref: str,
+    version: str,
+    observed_at: datetime,
+) -> CanonicalCashProjection:
+    """Build a verified Account-owned cash projection."""
 
-    if not source_evidence:
-        raise ValueError("canonical snapshot source evidence is required")
-    as_of = max(item.observed_at for item in source_evidence)
-    ordered_positions = tuple(sorted(positions, key=lambda item: item.asset_code))
-    ordered_evidence = tuple(sorted(source_evidence, key=lambda item: item.kind.value))
-    content_hash = canonical_snapshot_content_hash(
+    return CanonicalCashProjection(
         account_ref=account_ref,
-        as_of=as_of,
         base_currency=base_currency,
         cash_balance=cash_balance,
-        cash_version=cash_version,
-        positions_version=positions_version,
+        evidence_ref=evidence_ref,
+        version=version,
+        observed_at=observed_at,
+        content_hash=canonical_cash_projection_hash(
+            account_ref=account_ref,
+            base_currency=base_currency,
+            cash_balance=cash_balance,
+            evidence_ref=evidence_ref,
+            version=version,
+            observed_at=observed_at,
+        ),
+    )
+
+
+def build_canonical_positions_projection(
+    *,
+    account_ref: str,
+    evidence_ref: str,
+    version: str,
+    observed_at: datetime,
+    positions: tuple[CanonicalPosition, ...],
+) -> CanonicalPositionsProjection:
+    """Build a verified Portfolio-owned positions projection."""
+
+    ordered_positions = tuple(sorted(positions, key=lambda item: item.asset_code))
+    return CanonicalPositionsProjection(
+        account_ref=account_ref,
+        evidence_ref=evidence_ref,
+        version=version,
+        observed_at=observed_at,
+        positions=ordered_positions,
+        content_hash=canonical_positions_projection_hash(
+            account_ref=account_ref,
+            evidence_ref=evidence_ref,
+            version=version,
+            observed_at=observed_at,
+            positions=ordered_positions,
+        ),
+    )
+
+
+def build_canonical_portfolio_snapshot(
+    *,
+    cash_projection: CanonicalCashProjection,
+    positions_projection: CanonicalPositionsProjection,
+) -> CanonicalPortfolioSnapshot:
+    """Build only from verified immutable owner projections, never arbitrary hashes."""
+
+    if cash_projection.account_ref != positions_projection.account_ref:
+        raise ValueError("cash and positions projections must bind the same account")
+    source_evidence = (
+        SnapshotSourceEvidence(
+            kind=SnapshotEvidenceKind.CASH,
+            owner=GOVERNED_SNAPSHOT_EVIDENCE_OWNERS[SnapshotEvidenceKind.CASH],
+            evidence_ref=cash_projection.evidence_ref,
+            version=cash_projection.version,
+            observed_at=cash_projection.observed_at,
+            content_hash=cash_projection.content_hash,
+        ),
+        SnapshotSourceEvidence(
+            kind=SnapshotEvidenceKind.POSITIONS,
+            owner=GOVERNED_SNAPSHOT_EVIDENCE_OWNERS[SnapshotEvidenceKind.POSITIONS],
+            evidence_ref=positions_projection.evidence_ref,
+            version=positions_projection.version,
+            observed_at=positions_projection.observed_at,
+            content_hash=positions_projection.content_hash,
+        ),
+    )
+    as_of = max(item.observed_at for item in source_evidence)
+    ordered_positions = positions_projection.positions
+    ordered_evidence = tuple(sorted(source_evidence, key=lambda item: item.kind.value))
+    content_hash = canonical_snapshot_content_hash(
+        account_ref=cash_projection.account_ref,
+        as_of=as_of,
+        base_currency=cash_projection.base_currency,
+        cash_balance=cash_projection.cash_balance,
+        cash_version=cash_projection.version,
+        positions_version=positions_projection.version,
         positions=ordered_positions,
         source_evidence=ordered_evidence,
     )
     return CanonicalPortfolioSnapshot(
         snapshot_id=f"portfolio_snapshot:{content_hash[:24]}",
-        account_ref=account_ref,
+        account_ref=cash_projection.account_ref,
         as_of=as_of,
-        base_currency=base_currency,
-        cash_balance=cash_balance,
-        cash_version=cash_version,
-        positions_version=positions_version,
+        base_currency=cash_projection.base_currency,
+        cash_balance=cash_projection.cash_balance,
+        cash_version=cash_projection.version,
+        positions_version=positions_projection.version,
         positions=ordered_positions,
         source_evidence=ordered_evidence,
         content_hash=content_hash,
@@ -675,6 +846,67 @@ def canonical_snapshot_content_hash(
     return _sha256(payload)
 
 
+def canonical_cash_projection_hash(
+    *,
+    account_ref: str,
+    base_currency: str,
+    cash_balance: Decimal,
+    evidence_ref: str,
+    version: str,
+    observed_at: datetime,
+) -> str:
+    """Hash the exact Account-owned cash payload and source clock."""
+
+    _require_finite_decimals(cash_balance=cash_balance)
+    return _sha256(
+        {
+            "kind": SnapshotEvidenceKind.CASH.value,
+            "owner": GOVERNED_SNAPSHOT_EVIDENCE_OWNERS[SnapshotEvidenceKind.CASH],
+            "account_ref": account_ref,
+            "base_currency": base_currency,
+            "cash_balance": _decimal_string(cash_balance),
+            "evidence_ref": evidence_ref,
+            "version": version,
+            "observed_at": _datetime_string(observed_at),
+        }
+    )
+
+
+def canonical_positions_projection_hash(
+    *,
+    account_ref: str,
+    evidence_ref: str,
+    version: str,
+    observed_at: datetime,
+    positions: tuple[CanonicalPosition, ...],
+) -> str:
+    """Hash exact Portfolio-owned position rows and their original clocks."""
+
+    return _sha256(
+        {
+            "kind": SnapshotEvidenceKind.POSITIONS.value,
+            "owner": GOVERNED_SNAPSHOT_EVIDENCE_OWNERS[SnapshotEvidenceKind.POSITIONS],
+            "account_ref": account_ref,
+            "evidence_ref": evidence_ref,
+            "version": version,
+            "observed_at": _datetime_string(observed_at),
+            "positions": [
+                {
+                    "asset_code": item.asset_code,
+                    "quantity": _decimal_string(item.quantity),
+                    "available_quantity": _decimal_string(item.available_quantity),
+                    "market_value_base": _decimal_string(item.market_value_base),
+                    "position_source_ref": item.position_source_ref,
+                    "position_observed_at": _datetime_string(item.position_observed_at),
+                    "valuation_source_ref": item.valuation_source_ref,
+                    "valuation_observed_at": _datetime_string(item.valuation_observed_at),
+                }
+                for item in sorted(positions, key=lambda value: value.asset_code)
+            ],
+        }
+    )
+
+
 def _calculate_execution_feedback_metrics(
     *,
     side: str,
@@ -841,14 +1073,20 @@ __all__ = [
     "BrokerFillEvidence",
     "BrokerOrderEventEvidence",
     "CanonicalPortfolioSnapshot",
+    "CanonicalCashProjection",
     "CanonicalPosition",
+    "CanonicalPositionsProjection",
     "ConstraintExecutionDeviation",
     "PortfolioExecutionFeedback",
     "SnapshotEvidenceKind",
     "SnapshotSourceEvidence",
+    "build_canonical_cash_projection",
     "build_canonical_portfolio_snapshot",
+    "build_canonical_positions_projection",
     "build_broker_execution_evidence",
     "build_execution_feedback",
     "broker_execution_evidence_hash",
     "canonical_snapshot_content_hash",
+    "canonical_cash_projection_hash",
+    "canonical_positions_projection_hash",
 ]

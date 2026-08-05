@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -23,6 +23,26 @@ from apps.research.domain.scenario_research_hashing import (
 
 
 @dataclass(frozen=True)
+class PointInTimeManifestFeature:
+    """Exact feature vintage bound into a historical PIT manifest."""
+
+    feature_key: str
+    source_version: str
+    available_at: datetime
+    vintage_at: datetime
+    content_hash: str
+
+    def __post_init__(self) -> None:
+        """Reject unversioned, future-ambiguous, or unhashed feature entries."""
+
+        require_token(self.feature_key, "feature_key")
+        require_token(self.source_version, "source_version")
+        _require_aware(self.available_at, "feature available_at")
+        _require_aware(self.vintage_at, "feature vintage_at")
+        require_sha256(self.content_hash, "feature content_hash")
+
+
+@dataclass(frozen=True)
 class PointInTimeManifestReference:
     """Versioned PIT manifest reference with an explicit historical as-of."""
 
@@ -30,6 +50,7 @@ class PointInTimeManifestReference:
     manifest_version: str
     as_of: datetime
     manifest_hash: str
+    features: tuple[PointInTimeManifestFeature, ...]
     reference_hash: str
 
     @classmethod
@@ -40,6 +61,7 @@ class PointInTimeManifestReference:
         manifest_version: str,
         as_of: datetime,
         manifest_hash: str,
+        features: tuple[PointInTimeManifestFeature, ...] = (),
     ) -> PointInTimeManifestReference:
         """Freeze a canonical reference without resolving current data."""
 
@@ -53,7 +75,9 @@ class PointInTimeManifestReference:
                 manifest_version,
                 as_of.isoformat(),
                 manifest_hash,
+                *(_manifest_feature_part(item) for item in features),
             ),
+            features=features,
         )
 
     def __post_init__(self) -> None:
@@ -63,12 +87,20 @@ class PointInTimeManifestReference:
         require_token(self.manifest_version, "manifest_version")
         _require_aware(self.as_of, "manifest as_of")
         require_sha256(self.manifest_hash, "manifest_hash")
+        feature_keys = tuple(item.feature_key for item in self.features)
+        if len(feature_keys) != len(set(feature_keys)):
+            raise ValueError("PIT manifest contains duplicate feature entries")
+        if any(
+            item.available_at > self.as_of or item.vintage_at > self.as_of for item in self.features
+        ):
+            raise ValueError("PIT manifest feature entry exceeds manifest as_of")
         require_sha256(self.reference_hash, "manifest reference_hash")
         expected = hash_components(
             self.manifest_id,
             self.manifest_version,
             self.as_of.isoformat(),
             self.manifest_hash,
+            *(_manifest_feature_part(item) for item in self.features),
         )
         if self.reference_hash != expected:
             raise ValueError("PIT manifest reference_hash mismatch")
@@ -83,6 +115,7 @@ class PointInTimeFeatureValue:
     unit: str
     source_version: str
     available_at: datetime
+    vintage_at: datetime
 
     def __post_init__(self) -> None:
         """Validate one finite, versioned, time-aware historical feature."""
@@ -93,6 +126,7 @@ class PointInTimeFeatureValue:
         if not isinstance(self.value, Decimal) or not self.value.is_finite():
             raise ValueError("historical feature value must be a finite Decimal")
         _require_aware(self.available_at, "feature available_at")
+        _require_aware(self.vintage_at, "feature vintage_at")
 
 
 @dataclass(frozen=True)
@@ -103,6 +137,8 @@ class HistoricalAnalogyCandidateEvidence:
     candidate_version: str
     window_start: datetime
     window_end: datetime
+    decision_cutoff: datetime
+    allowed_release_lag: timedelta
     pit_manifest: PointInTimeManifestReference
     feature_definition_version: str
     features: tuple[PointInTimeFeatureValue, ...]
@@ -118,6 +154,8 @@ class HistoricalAnalogyCandidateEvidence:
         candidate_version: str,
         window_start: datetime,
         window_end: datetime,
+        decision_cutoff: datetime,
+        allowed_release_lag: timedelta,
         pit_manifest: PointInTimeManifestReference,
         feature_definition_version: str,
         features: tuple[PointInTimeFeatureValue, ...],
@@ -131,6 +169,8 @@ class HistoricalAnalogyCandidateEvidence:
             candidate_version=candidate_version,
             window_start=window_start,
             window_end=window_end,
+            decision_cutoff=decision_cutoff,
+            allowed_release_lag=allowed_release_lag,
             pit_manifest=pit_manifest,
             feature_definition_version=feature_definition_version,
             features=features,
@@ -142,6 +182,8 @@ class HistoricalAnalogyCandidateEvidence:
             candidate_version=candidate_version,
             window_start=window_start,
             window_end=window_end,
+            decision_cutoff=decision_cutoff,
+            allowed_release_lag=allowed_release_lag,
             pit_manifest=pit_manifest,
             feature_definition_version=feature_definition_version,
             features=features,
@@ -161,17 +203,40 @@ class HistoricalAnalogyCandidateEvidence:
             require_token(value, field_name)
         _require_aware(self.window_start, "candidate window_start")
         _require_aware(self.window_end, "candidate window_end")
+        _require_aware(self.decision_cutoff, "candidate decision_cutoff")
         if self.window_end <= self.window_start:
             raise ValueError("historical analogy window_end must follow window_start")
-        if self.pit_manifest.as_of < self.window_end:
-            raise ValueError("historical analogy manifest as_of cannot precede its window")
+        if self.decision_cutoff < self.window_end:
+            raise ValueError("historical analogy decision cutoff cannot precede its window")
+        if self.allowed_release_lag < timedelta(0):
+            raise ValueError("historical analogy allowed release lag cannot be negative")
+        if self.decision_cutoff - self.window_end > self.allowed_release_lag:
+            raise ValueError("historical analogy decision cutoff exceeds allowed release lag")
+        if self.pit_manifest.as_of != self.decision_cutoff:
+            raise ValueError("historical analogy manifest must match the exact decision cutoff")
         if not self.features:
             raise ValueError("historical analogy candidate requires PIT features")
         feature_keys = [feature.feature_key for feature in self.features]
         if len(feature_keys) != len(set(feature_keys)):
             raise ValueError("historical analogy candidate contains duplicate features")
-        if any(feature.available_at > self.pit_manifest.as_of for feature in self.features):
+        if any(
+            feature.available_at > self.decision_cutoff or feature.vintage_at > self.decision_cutoff
+            for feature in self.features
+        ):
             raise ValueError("historical analogy feature uses look-ahead or current-value backfill")
+        manifest_by_key = {item.feature_key: item for item in self.pit_manifest.features}
+        if set(manifest_by_key) != set(feature_keys):
+            raise ValueError(
+                "historical analogy manifest does not exactly cover candidate features"
+            )
+        for feature in self.features:
+            manifest_feature = manifest_by_key[feature.feature_key]
+            if (
+                manifest_feature.source_version != feature.source_version
+                or manifest_feature.available_at != feature.available_at
+                or manifest_feature.vintage_at != feature.vintage_at
+            ):
+                raise ValueError("historical analogy feature does not match its PIT manifest entry")
         _require_probability(self.similarity_score, "similarity_score")
         _require_evidence_refs(self.evidence_refs)
         expected = _analogy_candidate_hash(
@@ -179,6 +244,8 @@ class HistoricalAnalogyCandidateEvidence:
             candidate_version=self.candidate_version,
             window_start=self.window_start,
             window_end=self.window_end,
+            decision_cutoff=self.decision_cutoff,
+            allowed_release_lag=self.allowed_release_lag,
             pit_manifest=self.pit_manifest,
             feature_definition_version=self.feature_definition_version,
             features=self.features,
@@ -320,12 +387,20 @@ class ConditionalProbabilityEvidence:
     probability: Decimal
     observation_count: int
     source_version: str
+    sample_definition_version: str
+    pit_manifest_id: str
+    pit_manifest_version: str
+    pit_manifest_hash: str
 
     def __post_init__(self) -> None:
         """Validate an explicitly sourced conditional estimate."""
 
         require_token(self.condition_key, "condition_key")
         require_token(self.source_version, "conditional source_version")
+        require_token(self.sample_definition_version, "conditional sample_definition_version")
+        require_token(self.pit_manifest_id, "conditional pit_manifest_id")
+        require_token(self.pit_manifest_version, "conditional pit_manifest_version")
+        require_sha256(self.pit_manifest_hash, "conditional pit_manifest_hash")
         _require_probability(self.probability, "conditional probability")
         _require_positive_count(self.observation_count, "conditional observation_count")
 
@@ -340,6 +415,10 @@ class TransitionProbabilityEvidence:
     probability: Decimal
     observation_count: int
     source_version: str
+    sample_definition_version: str
+    pit_manifest_id: str
+    pit_manifest_version: str
+    pit_manifest_hash: str
 
     def __post_init__(self) -> None:
         """Validate an explicitly sourced transition estimate."""
@@ -349,6 +428,10 @@ class TransitionProbabilityEvidence:
         _require_probability(self.probability, "transition probability")
         _require_positive_count(self.observation_count, "transition observation_count")
         require_token(self.source_version, "transition source_version")
+        require_token(self.sample_definition_version, "transition sample_definition_version")
+        require_token(self.pit_manifest_id, "transition pit_manifest_id")
+        require_token(self.pit_manifest_version, "transition pit_manifest_version")
+        require_sha256(self.pit_manifest_hash, "transition pit_manifest_hash")
 
 
 @dataclass(frozen=True)
@@ -389,6 +472,9 @@ class ScenarioPathStudyEvidence:
 
         _validate_path_distributions(
             scenario_revision_ids=scope.scenario_revision_ids,
+            initial_state_revision_ids=scope.path_initial_state_revision_ids,
+            required_horizon_periods=scope.path_horizon_periods,
+            pit_manifest=pit_manifest,
             conditional_probabilities=conditional_probabilities,
             transition_probabilities=transition_probabilities,
             tolerance=probability_sum_tolerance,
@@ -444,15 +530,54 @@ class ScenarioPathStudyEvidence:
             raise ValueError("path evidence valid_until must follow generated_at")
         if not self.shocks:
             raise ValueError("path study requires at least one period shock")
-        indices = tuple(shock.period_index for shock in self.shocks)
-        if indices != tuple(range(1, len(indices) + 1)):
-            raise ValueError("path shocks must have contiguous period indices")
-        for previous, current in zip(self.shocks, self.shocks[1:], strict=False):
-            if current.period_start < previous.period_end:
+        if any(
+            shock.scenario_revision_id not in self.scenario_revision_ids for shock in self.shocks
+        ):
+            raise ValueError("path shock scenario revision is outside scenario scope")
+        ordered_periods = tuple(
+            sorted(
+                {
+                    (shock.period_index, shock.period_start, shock.period_end)
+                    for shock in self.shocks
+                }
+            )
+        )
+        indices = tuple(period[0] for period in ordered_periods)
+        if indices != tuple(range(1, max(indices) + 1)):
+            raise ValueError("path shocks must cover contiguous period indices")
+        if max(indices) != max(
+            (transition.horizon_periods for transition in self.transition_probabilities),
+            default=max(indices),
+        ):
+            raise ValueError("path shock horizon does not match transition horizon")
+        for previous_period, current_period in zip(
+            ordered_periods, ordered_periods[1:], strict=False
+        ):
+            if current_period[1] < previous_period[2]:
                 raise ValueError("path shock periods cannot overlap")
+        for period_index in indices:
+            boundaries = {
+                (shock.period_start, shock.period_end)
+                for shock in self.shocks
+                if shock.period_index == period_index
+            }
+            if len(boundaries) != 1:
+                raise ValueError("path shocks in one period must share exact boundaries")
+        for previous_shock, current_shock in zip(self.shocks, self.shocks[1:], strict=False):
+            if current_shock.period_start < previous_shock.period_end:
+                if current_shock.period_index != previous_shock.period_index:
+                    raise ValueError("path shock periods cannot overlap")
         _require_evidence_refs(self.evidence_refs)
         _validate_path_distributions(
             scenario_revision_ids=self.scenario_revision_ids,
+            initial_state_revision_ids=tuple(
+                sorted(
+                    {item.from_scenario_revision_id for item in self.transition_probabilities},
+                    key=str,
+                )
+            ),
+            required_horizon_periods=max(indices),
+            pit_manifest=self.pit_manifest,
             conditional_probabilities=self.conditional_probabilities,
             transition_probabilities=self.transition_probabilities,
             tolerance=self.probability_sum_tolerance,
@@ -726,6 +851,12 @@ def assess_scenario_path_evidence(
     """Assess path evidence while preserving its research-only boundary."""
 
     _require_aware(evaluated_at, "evaluated_at")
+    if scope.path_horizon_periods != policy.path_horizon_periods:
+        raise ValueError("scenario path scope horizon does not match policy")
+    if policy.require_all_path_initial_states and set(scope.path_initial_state_revision_ids) != set(
+        scope.scenario_revision_ids
+    ):
+        raise ValueError("scenario path scope must cover every required initial state")
     blockers: list[ResearchEvidenceBlocker] = []
     status = ResearchEvidenceStatus.AVAILABLE
     evidence_hash: str | None = None
@@ -757,6 +888,9 @@ def assess_scenario_path_evidence(
         evidence_hash = evidence.content_hash
         _validate_path_distributions(
             scenario_revision_ids=scope.scenario_revision_ids,
+            initial_state_revision_ids=scope.path_initial_state_revision_ids,
+            required_horizon_periods=policy.path_horizon_periods,
+            pit_manifest=evidence.pit_manifest,
             conditional_probabilities=evidence.conditional_probabilities,
             transition_probabilities=evidence.transition_probabilities,
             tolerance=policy.probability_sum_tolerance,
@@ -862,12 +996,44 @@ def build_review_reminder_intent(
 def _validate_path_distributions(
     *,
     scenario_revision_ids: tuple[UUID, ...],
+    initial_state_revision_ids: tuple[UUID, ...],
+    required_horizon_periods: int,
+    pit_manifest: PointInTimeManifestReference,
     conditional_probabilities: tuple[ConditionalProbabilityEvidence, ...],
     transition_probabilities: tuple[TransitionProbabilityEvidence, ...],
     tolerance: Decimal,
 ) -> None:
     _require_probability(tolerance, "probability_sum_tolerance")
     members = set(scenario_revision_ids)
+    initial_states = set(initial_state_revision_ids)
+    if not initial_states or not initial_states.issubset(members):
+        raise ValueError("path initial states must be a non-empty subset of scenario scope")
+    if isinstance(required_horizon_periods, bool) or required_horizon_periods < 1:
+        raise ValueError("path required horizon must be positive")
+    all_estimates: tuple[ConditionalProbabilityEvidence | TransitionProbabilityEvidence, ...] = (
+        conditional_probabilities + transition_probabilities
+    )
+    if all_estimates:
+        provenance = {
+            (
+                item.source_version,
+                item.sample_definition_version,
+                item.observation_count,
+                item.pit_manifest_id,
+                item.pit_manifest_version,
+                item.pit_manifest_hash,
+            )
+            for item in all_estimates
+        }
+        if len(provenance) != 1:
+            raise ValueError("path distributions must share exact sample and PIT provenance")
+        sole = next(iter(provenance))
+        if sole[3:] != (
+            pit_manifest.manifest_id,
+            pit_manifest.manifest_version,
+            pit_manifest.manifest_hash,
+        ):
+            raise ValueError("path distribution PIT provenance does not match study manifest")
     conditional_groups: dict[str, list[ConditionalProbabilityEvidence]] = {}
     for conditional in conditional_probabilities:
         if conditional.target_scenario_revision_id not in members:
@@ -892,6 +1058,13 @@ def _validate_path_distributions(
             raise ValueError("transition probability is outside scenario scope")
         key = (transition.from_scenario_revision_id, transition.horizon_periods)
         transition_groups.setdefault(key, []).append(transition)
+    expected_transition_groups = {
+        (initial_state, required_horizon_periods) for initial_state in initial_states
+    }
+    if set(transition_groups) != expected_transition_groups:
+        raise ValueError(
+            "transition distributions do not cover the required horizon and initial states"
+        )
     for key, transitions in transition_groups.items():
         targets = {transition.to_scenario_revision_id for transition in transitions}
         if targets != members or len(targets) != len(transitions):
@@ -920,6 +1093,8 @@ def _analogy_candidate_hash(
     candidate_version: str,
     window_start: datetime,
     window_end: datetime,
+    decision_cutoff: datetime,
+    allowed_release_lag: timedelta,
     pit_manifest: PointInTimeManifestReference,
     feature_definition_version: str,
     features: tuple[PointInTimeFeatureValue, ...],
@@ -927,7 +1102,8 @@ def _analogy_candidate_hash(
     evidence_refs: tuple[str, ...],
 ) -> str:
     feature_parts = tuple(
-        f"{item.feature_key}|{item.value}|{item.unit}|{item.source_version}|{item.available_at.isoformat()}"
+        f"{item.feature_key}|{item.value}|{item.unit}|{item.source_version}|"
+        f"{item.available_at.isoformat()}|{item.vintage_at.isoformat()}"
         for item in features
     )
     return hash_components(
@@ -935,6 +1111,8 @@ def _analogy_candidate_hash(
         candidate_version,
         window_start.isoformat(),
         window_end.isoformat(),
+        decision_cutoff.isoformat(),
+        str(allowed_release_lag.total_seconds()),
         pit_manifest.reference_hash,
         feature_definition_version,
         *feature_parts,
@@ -990,13 +1168,15 @@ def _path_study_hash(
     )
     conditional_parts = tuple(
         f"{item.condition_key}|{item.target_scenario_revision_id}|{item.probability}|"
-        f"{item.observation_count}|{item.source_version}"
+        f"{item.observation_count}|{item.source_version}|{item.sample_definition_version}|"
+        f"{item.pit_manifest_id}|{item.pit_manifest_version}|{item.pit_manifest_hash}"
         for item in conditional_probabilities
     )
     transition_parts = tuple(
         f"{item.from_scenario_revision_id}|{item.to_scenario_revision_id}|"
         f"{item.horizon_periods}|{item.probability}|{item.observation_count}|"
-        f"{item.source_version}"
+        f"{item.source_version}|{item.sample_definition_version}|{item.pit_manifest_id}|"
+        f"{item.pit_manifest_version}|{item.pit_manifest_hash}"
         for item in transition_probabilities
     )
     return hash_components(
@@ -1021,6 +1201,13 @@ def _require_evidence_refs(evidence_refs: tuple[str, ...]) -> None:
         raise ValueError("research evidence requires at least one reference")
     for evidence_ref in evidence_refs:
         require_text(evidence_ref, "evidence_ref")
+
+
+def _manifest_feature_part(item: PointInTimeManifestFeature) -> str:
+    return (
+        f"{item.feature_key}|{item.source_version}|{item.available_at.isoformat()}|"
+        f"{item.vintage_at.isoformat()}|{item.content_hash}"
+    )
 
 
 def _require_positive_count(value: int, field_name: str) -> None:

@@ -35,6 +35,10 @@ class ScenarioResearchScope:
     scope_version: str
     scenario_set_revision_id: UUID | None
     scenario_revision_ids: tuple[UUID, ...]
+    forecast_horizon: timedelta
+    censoring_rule_version: str
+    path_horizon_periods: int
+    path_initial_state_revision_ids: tuple[UUID, ...]
     content_hash: str
 
     @classmethod
@@ -44,16 +48,34 @@ class ScenarioResearchScope:
         scope_version: str,
         scenario_set_revision_id: UUID | None,
         scenario_revision_ids: tuple[UUID, ...],
+        forecast_horizon: timedelta,
+        censoring_rule_version: str,
+        path_horizon_periods: int,
+        path_initial_state_revision_ids: tuple[UUID, ...],
     ) -> ScenarioResearchScope:
         """Create a canonical scope with stable member ordering and hash."""
 
         ordered = tuple(sorted(scenario_revision_ids, key=str))
+        ordered_initial_states = tuple(sorted(path_initial_state_revision_ids, key=str))
         digest = hash_components(
             scope_version,
             str(scenario_set_revision_id or ""),
             *(str(revision_id) for revision_id in ordered),
+            str(forecast_horizon.total_seconds()),
+            censoring_rule_version,
+            str(path_horizon_periods),
+            *(str(revision_id) for revision_id in ordered_initial_states),
         )
-        return cls(scope_version, scenario_set_revision_id, ordered, digest)
+        return cls(
+            scope_version,
+            scenario_set_revision_id,
+            ordered,
+            forecast_horizon,
+            censoring_rule_version,
+            path_horizon_periods,
+            ordered_initial_states,
+            digest,
+        )
 
     def __post_init__(self) -> None:
         """Reject ambiguous membership, ordering, or a forged scope hash."""
@@ -69,10 +91,29 @@ class ScenarioResearchScope:
             raise ValueError("standalone scenario scope must contain exactly one revision")
         if self.scenario_set_revision_id is not None and len(self.scenario_revision_ids) < 2:
             raise ValueError("scenario-set scope requires at least two revisions")
+        if self.forecast_horizon <= timedelta(0):
+            raise ValueError("forecast_horizon must be positive")
+        require_token(self.censoring_rule_version, "censoring_rule_version")
+        if isinstance(self.path_horizon_periods, bool) or self.path_horizon_periods < 1:
+            raise ValueError("path_horizon_periods must be positive")
+        if (
+            not self.path_initial_state_revision_ids
+            or len(set(self.path_initial_state_revision_ids))
+            != len(self.path_initial_state_revision_ids)
+            or self.path_initial_state_revision_ids
+            != tuple(sorted(self.path_initial_state_revision_ids, key=str))
+        ):
+            raise ValueError("path initial states must be non-empty, unique, and canonicalized")
+        if not set(self.path_initial_state_revision_ids).issubset(self.scenario_revision_ids):
+            raise ValueError("path initial states must belong to the scenario scope")
         expected = hash_components(
             self.scope_version,
             str(self.scenario_set_revision_id or ""),
             *(str(revision_id) for revision_id in self.scenario_revision_ids),
+            str(self.forecast_horizon.total_seconds()),
+            self.censoring_rule_version,
+            str(self.path_horizon_periods),
+            *(str(revision_id) for revision_id in self.path_initial_state_revision_ids),
         )
         require_sha256(self.content_hash, "scope content_hash")
         if self.content_hash != expected:
@@ -88,6 +129,9 @@ class ScenarioProbabilityResearchPolicy:
     valid_until: datetime
     sample_window_start: datetime
     sample_window_end: datetime
+    forecast_horizon: timedelta
+    censoring_lag: timedelta
+    censoring_rule_version: str
     minimum_forecasts_per_revision: int
     minimum_resolved_outcomes_per_revision: int
     minimum_outcome_coverage: Decimal
@@ -99,6 +143,8 @@ class ScenarioProbabilityResearchPolicy:
     probability_sum_tolerance: Decimal
     minimum_historical_analogies: int
     minimum_path_probability_observations: int
+    path_horizon_periods: int
+    require_all_path_initial_states: bool
     maximum_research_evidence_age: timedelta
     invalidation_review_delay: timedelta
     approved_by: str
@@ -113,6 +159,9 @@ class ScenarioProbabilityResearchPolicy:
         valid_until: datetime,
         sample_window_start: datetime,
         sample_window_end: datetime,
+        forecast_horizon: timedelta,
+        censoring_lag: timedelta,
+        censoring_rule_version: str,
         minimum_forecasts_per_revision: int,
         minimum_resolved_outcomes_per_revision: int,
         minimum_outcome_coverage: Decimal,
@@ -124,6 +173,8 @@ class ScenarioProbabilityResearchPolicy:
         probability_sum_tolerance: Decimal,
         minimum_historical_analogies: int,
         minimum_path_probability_observations: int,
+        path_horizon_periods: int,
+        require_all_path_initial_states: bool,
         maximum_research_evidence_age: timedelta,
         invalidation_review_delay: timedelta,
         approved_by: str,
@@ -136,6 +187,9 @@ class ScenarioProbabilityResearchPolicy:
             valid_until=valid_until,
             sample_window_start=sample_window_start,
             sample_window_end=sample_window_end,
+            forecast_horizon=forecast_horizon,
+            censoring_lag=censoring_lag,
+            censoring_rule_version=censoring_rule_version,
             minimum_forecasts_per_revision=minimum_forecasts_per_revision,
             minimum_resolved_outcomes_per_revision=minimum_resolved_outcomes_per_revision,
             minimum_outcome_coverage=minimum_outcome_coverage,
@@ -147,6 +201,8 @@ class ScenarioProbabilityResearchPolicy:
             probability_sum_tolerance=probability_sum_tolerance,
             minimum_historical_analogies=minimum_historical_analogies,
             minimum_path_probability_observations=minimum_path_probability_observations,
+            path_horizon_periods=path_horizon_periods,
+            require_all_path_initial_states=require_all_path_initial_states,
             maximum_research_evidence_age=maximum_research_evidence_age,
             invalidation_review_delay=invalidation_review_delay,
             approved_by=approved_by,
@@ -157,6 +213,9 @@ class ScenarioProbabilityResearchPolicy:
             valid_until=valid_until,
             sample_window_start=sample_window_start,
             sample_window_end=sample_window_end,
+            forecast_horizon=forecast_horizon,
+            censoring_lag=censoring_lag,
+            censoring_rule_version=censoring_rule_version,
             minimum_forecasts_per_revision=minimum_forecasts_per_revision,
             minimum_resolved_outcomes_per_revision=minimum_resolved_outcomes_per_revision,
             minimum_outcome_coverage=minimum_outcome_coverage,
@@ -168,6 +227,8 @@ class ScenarioProbabilityResearchPolicy:
             probability_sum_tolerance=probability_sum_tolerance,
             minimum_historical_analogies=minimum_historical_analogies,
             minimum_path_probability_observations=minimum_path_probability_observations,
+            path_horizon_periods=path_horizon_periods,
+            require_all_path_initial_states=require_all_path_initial_states,
             maximum_research_evidence_age=maximum_research_evidence_age,
             invalidation_review_delay=invalidation_review_delay,
             approved_by=approved_by,
@@ -190,6 +251,11 @@ class ScenarioProbabilityResearchPolicy:
             raise ValueError("policy valid_until must follow activated_at")
         if self.sample_window_end <= self.sample_window_start:
             raise ValueError("sample_window_end must follow sample_window_start")
+        if self.forecast_horizon <= timedelta(0):
+            raise ValueError("forecast_horizon must be positive")
+        if self.censoring_lag < timedelta(0):
+            raise ValueError("censoring_lag cannot be negative")
+        require_token(self.censoring_rule_version, "censoring_rule_version")
         for field_name, count in (
             ("minimum_forecasts_per_revision", self.minimum_forecasts_per_revision),
             (
@@ -207,6 +273,7 @@ class ScenarioProbabilityResearchPolicy:
                 "minimum_path_probability_observations",
                 self.minimum_path_probability_observations,
             ),
+            ("path_horizon_periods", self.path_horizon_periods),
         ):
             if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
                 raise ValueError(f"{field_name} must be a positive integer")
@@ -232,6 +299,9 @@ class ScenarioProbabilityResearchPolicy:
                 valid_until=self.valid_until,
                 sample_window_start=self.sample_window_start,
                 sample_window_end=self.sample_window_end,
+                forecast_horizon=self.forecast_horizon,
+                censoring_lag=self.censoring_lag,
+                censoring_rule_version=self.censoring_rule_version,
                 minimum_forecasts_per_revision=self.minimum_forecasts_per_revision,
                 minimum_resolved_outcomes_per_revision=(
                     self.minimum_resolved_outcomes_per_revision
@@ -245,6 +315,8 @@ class ScenarioProbabilityResearchPolicy:
                 probability_sum_tolerance=self.probability_sum_tolerance,
                 minimum_historical_analogies=self.minimum_historical_analogies,
                 minimum_path_probability_observations=(self.minimum_path_probability_observations),
+                path_horizon_periods=self.path_horizon_periods,
+                require_all_path_initial_states=self.require_all_path_initial_states,
                 maximum_research_evidence_age=self.maximum_research_evidence_age,
                 invalidation_review_delay=self.invalidation_review_delay,
                 approved_by=self.approved_by,
@@ -262,6 +334,9 @@ class ScenarioProbabilityResearchPolicy:
         valid_until: datetime,
         sample_window_start: datetime,
         sample_window_end: datetime,
+        forecast_horizon: timedelta,
+        censoring_lag: timedelta,
+        censoring_rule_version: str,
         minimum_forecasts_per_revision: int,
         minimum_resolved_outcomes_per_revision: int,
         minimum_outcome_coverage: Decimal,
@@ -273,6 +348,8 @@ class ScenarioProbabilityResearchPolicy:
         probability_sum_tolerance: Decimal,
         minimum_historical_analogies: int,
         minimum_path_probability_observations: int,
+        path_horizon_periods: int,
+        require_all_path_initial_states: bool,
         maximum_research_evidence_age: timedelta,
         invalidation_review_delay: timedelta,
         approved_by: str,
@@ -283,6 +360,9 @@ class ScenarioProbabilityResearchPolicy:
             valid_until.isoformat(),
             sample_window_start.isoformat(),
             sample_window_end.isoformat(),
+            str(forecast_horizon.total_seconds()),
+            str(censoring_lag.total_seconds()),
+            censoring_rule_version,
             str(minimum_forecasts_per_revision),
             str(minimum_resolved_outcomes_per_revision),
             str(minimum_outcome_coverage),
@@ -294,6 +374,8 @@ class ScenarioProbabilityResearchPolicy:
             str(probability_sum_tolerance),
             str(minimum_historical_analogies),
             str(minimum_path_probability_observations),
+            str(path_horizon_periods),
+            str(require_all_path_initial_states),
             str(maximum_research_evidence_age.total_seconds()),
             str(invalidation_review_delay.total_seconds()),
             approved_by,
@@ -391,6 +473,8 @@ class ForecastLedgerOutcomeObservation:
     binding: ScenarioForecastBinding
     pit_manifest_id: str
     pit_manifest_version: str
+    pit_manifest_hash: str
+    censoring_rule_version: str
     published_at: datetime
     horizon_end: datetime
     scenario_realized: bool | None
@@ -409,6 +493,8 @@ class ForecastLedgerOutcomeObservation:
         binding: ScenarioForecastBinding,
         pit_manifest_id: str,
         pit_manifest_version: str,
+        pit_manifest_hash: str,
+        censoring_rule_version: str,
         published_at: datetime,
         horizon_end: datetime,
         scenario_realized: bool | None,
@@ -425,6 +511,8 @@ class ForecastLedgerOutcomeObservation:
             binding=binding,
             pit_manifest_id=pit_manifest_id,
             pit_manifest_version=pit_manifest_version,
+            pit_manifest_hash=pit_manifest_hash,
+            censoring_rule_version=censoring_rule_version,
             published_at=published_at,
             horizon_end=horizon_end,
             scenario_realized=scenario_realized,
@@ -439,6 +527,8 @@ class ForecastLedgerOutcomeObservation:
             binding=binding,
             pit_manifest_id=pit_manifest_id,
             pit_manifest_version=pit_manifest_version,
+            pit_manifest_hash=pit_manifest_hash,
+            censoring_rule_version=censoring_rule_version,
             published_at=published_at,
             horizon_end=horizon_end,
             scenario_realized=scenario_realized,
@@ -457,8 +547,10 @@ class ForecastLedgerOutcomeObservation:
             ("forecast_group_id", self.forecast_group_id),
             ("pit_manifest_id", self.pit_manifest_id),
             ("pit_manifest_version", self.pit_manifest_version),
+            ("censoring_rule_version", self.censoring_rule_version),
         ):
             require_token(value, field_name)
+        require_sha256(self.pit_manifest_hash, "pit_manifest_hash")
         _require_aware(self.published_at, "published_at")
         _require_aware(self.horizon_end, "horizon_end")
         if self.horizon_end <= self.published_at:
@@ -504,6 +596,8 @@ class ForecastLedgerOutcomeObservation:
             binding=self.binding,
             pit_manifest_id=self.pit_manifest_id,
             pit_manifest_version=self.pit_manifest_version,
+            pit_manifest_hash=self.pit_manifest_hash,
+            censoring_rule_version=self.censoring_rule_version,
             published_at=self.published_at,
             horizon_end=self.horizon_end,
             scenario_realized=self.scenario_realized,
@@ -750,6 +844,8 @@ def _ledger_observation_hash(
     binding: ScenarioForecastBinding,
     pit_manifest_id: str,
     pit_manifest_version: str,
+    pit_manifest_hash: str,
+    censoring_rule_version: str,
     published_at: datetime,
     horizon_end: datetime,
     scenario_realized: bool | None,
@@ -770,6 +866,8 @@ def _ledger_observation_hash(
         str(binding.model_promotion_decision_id or ""),
         pit_manifest_id,
         pit_manifest_version,
+        pit_manifest_hash,
+        censoring_rule_version,
         published_at.isoformat(),
         horizon_end.isoformat(),
         str(scenario_realized),

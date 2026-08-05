@@ -11,9 +11,9 @@ import pytest
 
 from apps.portfolio.domain.canonical_snapshots import (
     CanonicalPosition,
-    SnapshotEvidenceKind,
-    SnapshotSourceEvidence,
+    build_canonical_cash_projection,
     build_canonical_portfolio_snapshot,
+    build_canonical_positions_projection,
 )
 from apps.portfolio.domain.constrained_optimization import (
     OptimizationBlockerCode,
@@ -24,6 +24,7 @@ from apps.portfolio.domain.constrained_optimization_contracts import (
     AssetCovarianceMatrix,
     AssetOptimizationInput,
     CandidateKind,
+    MacroRiskBudget,
     ManualRestriction,
     OptimizationEvidenceBinding,
     OptimizationObjective,
@@ -33,8 +34,14 @@ from apps.portfolio.domain.constrained_optimization_contracts import (
     build_asset_universe_hash,
     build_optimization_problem,
     build_solver_output,
+    macro_optimization_input_hash_values,
 )
-from apps.portfolio.domain.macro_factor_risk import MacroRiskCandidateReport
+from apps.portfolio.domain.macro_factor_risk import (
+    AssetMacroExposure,
+    FactorCovarianceVersion,
+    MacroExposureVersion,
+    MacroFactorBeta,
+)
 from apps.portfolio.domain.optimizer_inputs import (
     OptimizationInputKind,
     PromotionReference,
@@ -45,55 +52,45 @@ from apps.portfolio.infrastructure.deterministic_optimizer import (
 
 NOW = datetime(2026, 8, 5, 12, tzinfo=UTC)
 EXECUTION_HASH = hashlib.sha256(b"execution-feedback-v1").hexdigest()
-MACRO_HASH = hashlib.sha256(b"macro-risk-v1").hexdigest()
 
 
 def _snapshot():
     observed_at = NOW - timedelta(days=2)
     return build_canonical_portfolio_snapshot(
-        account_ref="account-r8",
-        base_currency="CNY",
-        cash_balance=Decimal("20"),
-        cash_version="cash-v1",
-        positions_version="positions-v1",
-        positions=(
-            CanonicalPosition(
-                asset_code="asset-a",
-                quantity=Decimal("40"),
-                available_quantity=Decimal("40"),
-                market_value_base=Decimal("40"),
-                position_source_ref="position-a-v1",
-                position_observed_at=observed_at,
-                valuation_source_ref="valuation-a-v1",
-                valuation_observed_at=observed_at,
-            ),
-            CanonicalPosition(
-                asset_code="asset-b",
-                quantity=Decimal("40"),
-                available_quantity=Decimal("40"),
-                market_value_base=Decimal("40"),
-                position_source_ref="position-b-v1",
-                position_observed_at=observed_at,
-                valuation_source_ref="valuation-b-v1",
-                valuation_observed_at=observed_at,
-            ),
+        cash_projection=build_canonical_cash_projection(
+            account_ref="account-r8",
+            base_currency="CNY",
+            cash_balance=Decimal("20"),
+            evidence_ref="cash-evidence-v1",
+            version="cash-v1",
+            observed_at=observed_at,
         ),
-        source_evidence=(
-            SnapshotSourceEvidence(
-                SnapshotEvidenceKind.CASH,
-                "portfolio",
-                "cash-evidence-v1",
-                "cash-v1",
-                observed_at,
-                "a" * 64,
-            ),
-            SnapshotSourceEvidence(
-                SnapshotEvidenceKind.POSITIONS,
-                "portfolio",
-                "position-evidence-v1",
-                "positions-v1",
-                observed_at,
-                "b" * 64,
+        positions_projection=build_canonical_positions_projection(
+            account_ref="account-r8",
+            evidence_ref="position-evidence-v1",
+            version="positions-v1",
+            observed_at=observed_at,
+            positions=(
+                CanonicalPosition(
+                    asset_code="asset-a",
+                    quantity=Decimal("40"),
+                    available_quantity=Decimal("40"),
+                    market_value_base=Decimal("40"),
+                    position_source_ref="position-a-v1",
+                    position_observed_at=observed_at,
+                    valuation_source_ref="valuation-a-v1",
+                    valuation_observed_at=observed_at,
+                ),
+                CanonicalPosition(
+                    asset_code="asset-b",
+                    quantity=Decimal("40"),
+                    available_quantity=Decimal("40"),
+                    market_value_base=Decimal("40"),
+                    position_source_ref="position-b-v1",
+                    position_observed_at=observed_at,
+                    valuation_source_ref="valuation-b-v1",
+                    valuation_observed_at=observed_at,
+                ),
             ),
         ),
     )
@@ -128,20 +125,55 @@ def _promotions() -> tuple[PromotionReference, ...]:
     )
 
 
-def _macro_report() -> MacroRiskCandidateReport:
-    return MacroRiskCandidateReport(
-        candidate_id="macro-risk-current-v1",
-        eligible_for_research_comparison=True,
-        factor_variance=Decimal("0.02"),
-        residual_variance=Decimal("0.01"),
-        total_variance=Decimal("0.03"),
-        turnover=Decimal("0"),
-        contributions=(),
-        blockers=(),
-        evaluated_at=NOW - timedelta(hours=1),
-        policy_version="macro-risk-policy-v1",
-        evidence_hash=MACRO_HASH,
+def _macro_inputs() -> tuple[MacroExposureVersion, FactorCovarianceVersion, MacroRiskBudget]:
+    exposure = MacroExposureVersion(
+        version_id="macro-exposure-v1",
+        promoted_factor_version="r3-promoted-v1",
+        promotion_decision_id="promotion:r4:v1",
+        pit_manifest_id="pit-macro-v1",
+        code_version="macro-exposure-code-v1",
+        parameter_version="macro-exposure-params-v1",
+        observed_at=NOW - timedelta(days=1),
+        valid_until=NOW + timedelta(days=10),
+        exposures=tuple(
+            AssetMacroExposure(
+                asset_code=asset_code,
+                betas=(
+                    MacroFactorBeta("growth", growth, growth, growth),
+                    MacroFactorBeta("inflation", inflation, inflation, inflation),
+                ),
+                residual_variance=Decimal("0.01"),
+                r_squared=Decimal("0.8"),
+                stability_score=Decimal("0.9"),
+            )
+            for asset_code, growth, inflation in (
+                ("asset-a", Decimal("0.8"), Decimal("0.2")),
+                ("asset-b", Decimal("0.2"), Decimal("0.8")),
+            )
+        ),
     )
+    factor_covariance = FactorCovarianceVersion(
+        version_id="macro-factor-covariance-v1",
+        factor_codes=("growth", "inflation"),
+        values=(
+            (Decimal("0.04"), Decimal("0")),
+            (Decimal("0"), Decimal("0.09")),
+        ),
+        pit_manifest_id="pit-macro-v1",
+        estimator_version="macro-covariance-estimator-v1",
+        observed_at=NOW - timedelta(days=1),
+        valid_until=NOW + timedelta(days=10),
+    )
+    budget = MacroRiskBudget.create(
+        budget_version="macro-risk-budget-v1",
+        maximum_factor_variance=Decimal("1"),
+        target_contribution_shares=(
+            ("growth", Decimal("0.5")),
+            ("inflation", Decimal("0.5")),
+        ),
+        maximum_target_deviation=Decimal("0.5"),
+    )
+    return exposure, factor_covariance, budget
 
 
 def _asset_inputs(
@@ -176,6 +208,7 @@ def _problem(
     *,
     covariance_values: tuple[tuple[Decimal, ...], ...] | None = None,
     asset_inputs: tuple[AssetOptimizationInput, ...] | None = None,
+    macro_budget: MacroRiskBudget | None = None,
 ):
     snapshot = _snapshot()
     codes = ("asset-a", "asset-b")
@@ -192,6 +225,14 @@ def _problem(
         valid_until=NOW + timedelta(days=10),
         universe_hash=universe_hash,
     )
+    macro_exposure, macro_factor_covariance, default_macro_budget = _macro_inputs()
+    bound_macro_budget = macro_budget or default_macro_budget
+    macro_hash = macro_optimization_input_hash_values(
+        canonical_snapshot=snapshot,
+        macro_exposure_version=macro_exposure,
+        macro_factor_covariance=macro_factor_covariance,
+        macro_risk_budget=bound_macro_budget,
+    )
     evidence_bindings = tuple(
         OptimizationEvidenceBinding(
             kind=kind,
@@ -201,7 +242,7 @@ def _problem(
                 covariance.content_hash
                 if kind is OptimizationInputKind.ASSET_COVARIANCE
                 else (
-                    MACRO_HASH
+                    macro_hash
                     if kind is OptimizationInputKind.MACRO_EXPOSURE
                     else (
                         EXECUTION_HASH
@@ -246,7 +287,9 @@ def _problem(
         validation_policy=_policy(),
         evidence_bindings=evidence_bindings,
         promotions=_promotions(),
-        macro_risk_report=_macro_report(),
+        macro_exposure_version=macro_exposure,
+        macro_factor_covariance=macro_factor_covariance,
+        macro_risk_budget=bound_macro_budget,
         created_at=NOW,
         valid_until=NOW + timedelta(days=10),
     )
@@ -332,6 +375,27 @@ def test_problem_hash_universe_and_execution_feedback_bindings_are_immutable() -
     )
     with pytest.raises(ValueError, match="execution feedback evidence binding hash mismatch"):
         replace(problem, evidence_bindings=bindings)
+    exposure = problem.macro_exposure_version
+    changed_asset = replace(
+        exposure.exposures[0],
+        betas=(
+            replace(
+                exposure.exposures[0].betas[0],
+                beta=Decimal("0.7"),
+                confidence_low=Decimal("0.7"),
+                confidence_high=Decimal("0.7"),
+            ),
+            exposure.exposures[0].betas[1],
+        ),
+    )
+    with pytest.raises(ValueError, match="macro risk evidence hash mismatch"):
+        replace(
+            problem,
+            macro_exposure_version=replace(
+                exposure,
+                exposures=(changed_asset, *exposure.exposures[1:]),
+            ),
+        )
 
 
 def test_solver_output_cannot_claim_global_optimality() -> None:
@@ -346,3 +410,56 @@ def test_solver_output_cannot_claim_global_optimality() -> None:
     )
     with pytest.raises(ValueError, match="global optimality"):
         replace(output, declares_global_optimum=True)
+
+
+def test_each_weight_vector_recomputes_macro_risk_and_hashes_exact_metrics() -> None:
+    problem = _problem()
+    first = evaluate_solver_output(
+        problem,
+        build_solver_output(
+            candidate_kind=CandidateKind.DETERMINISTIC_SEARCH,
+            weights=(Decimal("0.6"), Decimal("0.2")),
+            cash_weight=Decimal("0.2"),
+            status=SolverConvergenceStatus.LOCAL_STATIONARY,
+            iterations=1,
+            residual=Decimal("0.001"),
+            detail="macro candidate one",
+        ),
+    )
+    second = evaluate_solver_output(
+        problem,
+        build_solver_output(
+            candidate_kind=CandidateKind.DETERMINISTIC_SEARCH,
+            weights=(Decimal("0.2"), Decimal("0.6")),
+            cash_weight=Decimal("0.2"),
+            status=SolverConvergenceStatus.LOCAL_STATIONARY,
+            iterations=1,
+            residual=Decimal("0.001"),
+            detail="macro candidate two",
+        ),
+    )
+    assert first.metrics is not None and second.metrics is not None
+    assert first.metrics.macro_contribution_shares != second.metrics.macro_contribution_shares
+    assert first.evidence_hash != second.evidence_hash
+
+    strict_budget = MacroRiskBudget.create(
+        budget_version="macro-risk-budget-strict-v1",
+        maximum_factor_variance=Decimal("1"),
+        target_contribution_shares=(("growth", Decimal("0.5")), ("inflation", Decimal("0.5"))),
+        maximum_target_deviation=Decimal("0.01"),
+    )
+    blocked = evaluate_solver_output(
+        _problem(macro_budget=strict_budget),
+        build_solver_output(
+            candidate_kind=CandidateKind.DETERMINISTIC_SEARCH,
+            weights=(Decimal("0.6"), Decimal("0.2")),
+            cash_weight=Decimal("0.2"),
+            status=SolverConvergenceStatus.LOCAL_STATIONARY,
+            iterations=1,
+            residual=Decimal("0.001"),
+            detail="macro budget breach",
+        ),
+    )
+    assert OptimizationBlockerCode.MACRO_TARGET_DEVIATION_BREACHED in {
+        item.code for item in blocked.blockers
+    }
