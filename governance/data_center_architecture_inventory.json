@@ -21,7 +21,7 @@
     },
     {
       "import": "apps.config_center.infrastructure.models",
-      "line": 57,
+      "line": 58,
       "path": "apps/account/infrastructure/repositories.py"
     },
     {
@@ -857,12 +857,12 @@
       "text": "trade_date.isoformat() if trade_date is not None else \"latest\","
     },
     {
-      "line": 805,
+      "line": 807,
       "path": "apps/account/infrastructure/repositories.py",
       "text": "current = self._get_active_model()"
     },
     {
-      "line": 811,
+      "line": 813,
       "path": "apps/account/infrastructure/repositories.py",
       "text": "payload[\"version\"] = (current.version + 1) if current is not None else 1"
     },
@@ -4317,12 +4317,12 @@
       "text": "\"\"\"Return the latest immutable resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 53,
+      "line": 61,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Read the latest resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 227,
+      "line": 265,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Return the latest capacity observation without a fallback.\"\"\""
     },
@@ -4337,7 +4337,7 @@
       "text": "\"\"\"ORM-backed config-center summary repository.\"\"\""
     },
     {
-      "line": 32,
+      "line": 83,
       "path": "apps/config_center/infrastructure/config_summary_repository.py",
       "text": "\"summary\": {"
     },
