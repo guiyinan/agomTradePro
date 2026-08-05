@@ -16,4 +16,13 @@ from apps.data_center.infrastructure.models import *  # noqa: F401,F403
 from apps.data_center.infrastructure.reconciliation_models import (
     ReconciliationEvidenceModel as ReconciliationEvidenceModel,
 )
+from apps.data_center.infrastructure.research_data_foundation_models import (
+    AssetGroupRevisionModel as AssetGroupRevisionModel,
+)
+from apps.data_center.infrastructure.research_data_foundation_models import (
+    InvestorFlowDefinitionModel as InvestorFlowDefinitionModel,
+)
+from apps.data_center.infrastructure.research_data_foundation_models import (
+    OperatingMetricDefinitionModel as OperatingMetricDefinitionModel,
+)
 from apps.data_center.infrastructure.retention_models import RetentionRunModel as RetentionRunModel

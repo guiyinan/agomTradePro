@@ -10,6 +10,9 @@ from apps.data_center.application.pit_use_cases import (
     BuildPITManifestUseCase,
     QueryPITManifestUseCase,
 )
+from apps.data_center.application.research_data_foundation import (
+    ResearchDataFoundationFacade,
+)
 from apps.data_center.domain.entities import (
     DataProviderSettings,
     ProviderConfig,
@@ -63,6 +66,9 @@ from apps.data_center.infrastructure.repositories import (
     SectorMembershipRepository,
     ValuationFactRepository,
 )
+from apps.data_center.infrastructure.research_data_foundation_repository import (
+    ResearchDataFoundationRepository,
+)
 from apps.data_center.infrastructure.retention_repositories import (
     ArchiveManifestRepository,
     RetentionPolicyRepository,
@@ -104,6 +110,7 @@ __all__ = [
     "RawAuditRepository",
     "ReconciliationEvidenceRepository",
     "RawLandingRepository",
+    "ResearchDataFoundationRepository",
     "RetentionPolicyRepository",
     "RetentionRunRepository",
     "SectorMembershipRepository",
@@ -166,6 +173,7 @@ __all__ = [
     "make_build_pit_manifest_use_case",
     "make_manifest_bound_pit_data_view",
     "make_query_pit_manifest_use_case",
+    "make_research_data_foundation_facade",
     "refresh_provider_registry",
     "run_data_center_connection_test",
 ]
@@ -518,6 +526,12 @@ def make_query_pit_manifest_use_case() -> QueryPITManifestUseCase:
     """Compose the canonical PIT manifest reader."""
 
     return QueryPITManifestUseCase(PITManifestRepository())
+
+
+def make_research_data_foundation_facade() -> ResearchDataFoundationFacade:
+    """Compose the governed R1/R2 data-foundation application facade."""
+
+    return ResearchDataFoundationFacade(ResearchDataFoundationRepository())
 
 
 def make_manifest_bound_pit_data_view(manifest_id: str):  # type: ignore[no-untyped-def]

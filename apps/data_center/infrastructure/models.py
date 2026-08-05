@@ -50,6 +50,15 @@ from .publication_models import CanonicalPublicationModel as CanonicalPublicatio
 from .publication_models import CoverageSnapshotModel as CoverageSnapshotModel
 from .publication_models import PublicationMemberModel as PublicationMemberModel
 from .publication_models import PublicationRollbackModel as PublicationRollbackModel
+from .research_data_foundation_models import (  # noqa: F401
+    AssetGroupRevisionModel as AssetGroupRevisionModel,
+)
+from .research_data_foundation_models import (
+    InvestorFlowDefinitionModel as InvestorFlowDefinitionModel,
+)
+from .research_data_foundation_models import (
+    OperatingMetricDefinitionModel as OperatingMetricDefinitionModel,
+)
 
 
 def _optional_json_float(value: object, field_name: str) -> float | None:
@@ -1861,5 +1870,4 @@ class QuarantineRecordModel(models.Model):
             resolved_at=self.resolved_at,
             resolved_by=self.resolved_by,
         )
-
 
