@@ -2632,12 +2632,13 @@
         ],
         "apps/macro/composition.py": [
           "class _PublishedMacroSeriesQuery:",
-          "get_current_publication_freshness_gate(",
-          "fact_pks=list(member_pks)"
+          "get_published_macro_series_response(",
+          "publication_key=request.indicator_code"
         ],
         "apps/data_center/application/public.py": [
           "def list_latest_published_macro_values(",
-          "def get_published_macro_fact_series("
+          "def get_published_macro_fact_series(",
+          "def get_published_macro_series_response("
         ]
       },
       "required_tests": [
@@ -2645,6 +2646,21 @@
           "case": "tui_macro_series_uses_publication_members",
           "test_file": "tests/unit/macro/test_interface_services.py",
           "test_function": "test_get_macro_data_page_snapshot_tui_uses_publication_members"
+        },
+        {
+          "case": "tui_macro_trend_uses_public_port",
+          "test_file": "tests/unit/macro/test_composition.py",
+          "test_function": "test_published_macro_series_query_uses_public_port"
+        },
+        {
+          "case": "macro_public_port_binds_members",
+          "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
+          "test_function": "test_published_macro_series_public_port_binds_publication_members"
+        },
+        {
+          "case": "macro_public_port_blocks_missing_publication",
+          "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
+          "test_function": "test_published_macro_series_public_port_blocks_without_publication"
         },
         {
           "case": "tui_macro_projection_requests_publication_only",

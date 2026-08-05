@@ -12,6 +12,7 @@ from dataclasses import replace
 from datetime import date, datetime
 from typing import Any, Protocol
 
+from apps.data_center.application.dtos import MacroSeriesResponse
 from apps.data_center.application.query_services import (
     fetch_price_bar_payloads,
     get_current_publication_gate,
@@ -546,6 +547,72 @@ def get_published_macro_fact_series(
         start=start,
         end=end,
         limit=limit,
+    )
+
+
+def get_published_macro_series_response(
+    indicator_code: str,
+    *,
+    publication_key: str | None = None,
+    start: date | None = None,
+    end: date | None = None,
+    limit: int = 500,
+    source: str | None = None,
+) -> MacroSeriesResponse:
+    """Return a publication-bound macro series response for app consumers."""
+
+    from apps.data_center.application.dtos import MacroSeriesRequest, MacroSeriesResponse
+    from apps.data_center.application.interface_services import make_query_macro_series_use_case
+
+    normalized_code = str(indicator_code or "").strip()
+    gate_key = publication_key or normalized_code
+    gate = get_current_publication_freshness_gate("macro.fact", gate_key)
+    blocked_reason = str((gate or {}).get("blocked_reason") or "canonical_publication_missing")
+    publication_id = (gate or {}).get("publication_id")
+    if (
+        not normalized_code
+        or gate is None
+        or bool(gate.get("must_not_use_for_decision"))
+        or not isinstance(publication_id, str)
+        or not publication_id
+    ):
+        return MacroSeriesResponse(
+            indicator_code=normalized_code,
+            name_cn=normalized_code,
+            period_type="",
+            data_source="data_center_publication",
+            freshness_status=str((gate or {}).get("freshness_status") or "missing"),
+            decision_grade="blocked",
+            must_not_use_for_decision=True,
+            blocked_reason=blocked_reason,
+        )
+
+    member_pks = get_publication_member_fact_pks(
+        publication_id,
+        dataset_key="macro.fact",
+        expected_fact_table="data_center_macro_fact",
+    )
+    if not member_pks:
+        return MacroSeriesResponse(
+            indicator_code=normalized_code,
+            name_cn=normalized_code,
+            period_type="",
+            data_source="data_center_publication",
+            freshness_status="missing",
+            decision_grade="blocked",
+            must_not_use_for_decision=True,
+            blocked_reason="canonical_publication_members_missing",
+        )
+
+    return make_query_macro_series_use_case().execute(
+        MacroSeriesRequest(
+            indicator_code=normalized_code,
+            start=start,
+            end=end,
+            limit=limit,
+            source=source,
+            fact_pks=list(member_pks),
+        )
     )
 
 
@@ -1185,6 +1252,7 @@ __all__ = [
     "get_publication_as_of",
     "get_publication_member_fact_pks",
     "get_published_macro_fact_series",
+    "get_published_macro_series_response",
     "get_published_market_news",
     "get_published_capital_flow_series",
     "get_published_financial_facts",

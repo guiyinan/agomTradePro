@@ -4293,3 +4293,10 @@ Git SHA / 镜像 / migration：
 - 修复：保留 Public Port 目标不变，改为受类型校验的动态 Application Port 解析，并在 current-data contract marker 中锁定目标模块；不恢复任何 `interface_services/query_services` 读取。
 - 证据：`check_module_cycles.py` 回到 0 cycle/0 bidirectional；最新 HEAD 全仓 mypy `0 errors in 0 files`、`manage.py check` 0 issues；current-data manifest `253 nodeid / 292 passed`。
 - 明确未做：未改变 readiness 业务阈值、数据计算、历史/维护端口、生产配置或部署；生产 PostgreSQL/观察窗口和 M9 旧链退出仍未完成。
+
+## 75. 2026-08-05：Macro TUI 趋势查询切换 Public Port
+
+- 目标：消除宏观 TUI 趋势过滤器对 Data Center 内部 `make_query_macro_series_use_case` 的跨 App 直接依赖，确保趋势输入和宏观 overview 使用同一 Publication/member 语义。
+- 变更：新增 `get_published_macro_series_response` Public Port；由 Data Center 内部完成 freshness gate、Publication member fact_pk 绑定和 fail-closed 响应，`apps/macro/composition.py` 仅调用该端口。
+- 治理与测试：更新 `macro.tui_publication` source/markers；Public Port 的 member 绑定与缺失 Publication 阻断、Macro composition 委托及 TUI 回归共 `28 passed`；current-data `45 surfaces`、module-cycle 0、变更文件 mypy regression 0。
+- 明确未做：未改变趋势算法、宏观历史/维护页面、Publication writer/provider 配置或生产部署；生产 Publication 覆盖、PostgreSQL 查询预算和 M9 旧链退出仍待完成。

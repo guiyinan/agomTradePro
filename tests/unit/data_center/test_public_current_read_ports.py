@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from apps.data_center.application.dtos import MacroSeriesRequest, MacroSeriesResponse
 from apps.data_center.application.public import (
     get_market_breadth_snapshot,
     get_market_thermometer_payload,
     get_published_latest_quote_payload,
+    get_published_macro_series_response,
 )
 
 
@@ -104,3 +106,72 @@ def test_published_latest_quote_public_port_returns_member_row_with_gate_metadat
     assert payload["freshness_status"] == "fresh"
     assert payload["must_not_use_for_decision"] is False
     assert payload["is_stale"] is False
+
+
+def test_published_macro_series_public_port_binds_publication_members(monkeypatch) -> None:
+    """Macro trend consumers must query only the selected publication members."""
+
+    captured: list[MacroSeriesRequest] = []
+
+    class _UseCase:
+        def execute(self, request: MacroSeriesRequest) -> MacroSeriesResponse:
+            captured.append(request)
+            return MacroSeriesResponse(
+                indicator_code=request.indicator_code,
+                name_cn="M2",
+                period_type="M",
+                data_source="data_center_fact",
+                freshness_status="fresh",
+                decision_grade="decision_safe",
+                must_not_use_for_decision=False,
+            )
+
+    monkeypatch.setattr(
+        "apps.data_center.application.public.get_current_publication_freshness_gate",
+        lambda _dataset_key, _publication_key: {
+            "publication_id": "pub-m2",
+            "freshness_status": "fresh",
+            "must_not_use_for_decision": False,
+        },
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.public.get_publication_member_fact_pks",
+        lambda _publication_id, *, dataset_key, expected_fact_table: ["42"],
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.interface_services.make_query_macro_series_use_case",
+        lambda: _UseCase(),
+    )
+
+    result = get_published_macro_series_response("CN_M2", limit=12)
+
+    assert result.decision_grade == "decision_safe"
+    assert captured[0].fact_pks == ["42"]
+    assert captured[0].limit == 12
+
+
+def test_published_macro_series_public_port_blocks_without_publication(monkeypatch) -> None:
+    """Missing macro publication must not invoke the raw series use case."""
+
+    called = False
+
+    def _unexpected_use_case() -> object:
+        nonlocal called
+        called = True
+        raise AssertionError("raw macro series use case must not run")
+
+    monkeypatch.setattr(
+        "apps.data_center.application.public.get_current_publication_freshness_gate",
+        lambda _dataset_key, _publication_key: None,
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.interface_services.make_query_macro_series_use_case",
+        _unexpected_use_case,
+    )
+
+    result = get_published_macro_series_response("CN_M2")
+
+    assert result.data == []
+    assert result.must_not_use_for_decision is True
+    assert result.blocked_reason == "canonical_publication_missing"
+    assert called is False
