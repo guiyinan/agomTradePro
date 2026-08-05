@@ -4270,3 +4270,11 @@ Git SHA / 镜像 / migration：
 
 - 测试与治理：Dashboard Data Center publication/asset-port 定向回归 `5 passed`；变更的 Gateway/Repository 文件 mypy 0、Black/Ruff/isort 通过；current-data contracts `45 surfaces`。
 - 备注：同一批未纳入本次改动的两个旧 Dashboard allocation guardrail 测试仍因既有 `AllocationPolicyUnavailableError` 失败；该问题与 AssetMaster Public Port 无调用关系，未将其伪装为本批通过，也未修改策略运行时配置。
+
+## 72. 2026-08-05：Core readiness Data Center Public Port 收口
+
+- 目标：避免 Core readiness/health checks 直接导入 Data Center interface/query services，确保决策数据 readiness、coverage 和 provider capability health 走稳定 Application Public Port。
+- 变更：新增 `get_decision_provider_capability_health_payload` Public Port；`core.health_checks` 的三类决策检查统一切换到 Public Port，保留原 status/block_reason 投影。
+- 治理与测试：`data_center.provider_capability_health` 增加 Core consumer marker/test；新增 readiness Public Port 回归。
+- 明确未做：未改变健康检查阈值、provider health 记录器、发布器或生产配置，未部署。
+- 未验证风险：生产 readiness API 的真实 provider health 覆盖、PostgreSQL 查询预算和运行时观察窗口仍待生产阶段证据。

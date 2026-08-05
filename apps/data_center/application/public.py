@@ -980,6 +980,16 @@ def get_decision_data_readiness_payload(
     )
 
 
+def get_decision_provider_capability_health_payload() -> dict[str, Any]:
+    """Return provider capability health through the public application port."""
+
+    from apps.data_center.application.interface_services import (
+        get_decision_provider_capability_health_payload as _get_capability_health,
+    )
+
+    return _get_capability_health()
+
+
 def resolve_asset_payload(asset_code: str) -> dict[str, Any] | None:
     """Resolve one canonical AssetMaster record into a plain public payload."""
 
@@ -1166,6 +1176,7 @@ __all__ = [
     "get_market_thermometer_payload",
     "get_active_stock_fact_coverage_payload",
     "get_decision_data_readiness_payload",
+    "get_decision_provider_capability_health_payload",
     "resolve_asset_payload",
     "get_capital_flow_repository_port",
     "get_provider_config_repository_port",

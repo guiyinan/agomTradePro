@@ -90,6 +90,23 @@ class TestHealthCheckEndpoints:
         assert "checks" in data
         assert data["checks"]["database"]["status"] == "ok"
 
+    def test_decision_provider_health_check_uses_public_port(self, monkeypatch):
+        """Core readiness must not import Data Center internal provider services."""
+
+        expected = {
+            "status": "blocked",
+            "must_not_use_for_decision": True,
+            "blocked_capabilities": ["valuation"],
+        }
+        monkeypatch.setattr(
+            "apps.data_center.application.public.get_decision_provider_capability_health_payload",
+            lambda: expected,
+        )
+
+        from core.health_checks import check_decision_provider_capabilities
+
+        assert check_decision_provider_capabilities() == expected
+
     def test_readiness_probe_content_type(self, db):
         """Test health endpoints return JSON content type"""
         client = Client()

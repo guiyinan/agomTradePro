@@ -1224,7 +1224,8 @@
         "apps/data_center/application/sync_use_cases.py",
         "apps/data_center/application/provider_health_recorder.py",
         "apps/data_center/infrastructure/provider_registry.py",
-        "apps/data_center/interface/provider_api_views.py"
+        "apps/data_center/interface/provider_api_views.py",
+        "core/health_checks.py"
       ],
       "required_markers": {
         "apps/data_center/application/provider_health.py": [
@@ -1246,6 +1247,10 @@
         ],
         "apps/data_center/interface/provider_api_views.py": [
           "build_capability_health_payload(snapshot, extra_config)"
+        ],
+        "core/health_checks.py": [
+          "from apps.data_center.application.public import",
+          "get_decision_provider_capability_health_payload()"
         ]
       },
       "required_tests": [
@@ -1268,6 +1273,11 @@
           "case": "empty_result_continues_failover",
           "test_file": "tests/unit/data_center/test_source_registry.py",
           "test_function": "test_empty_list_result_treated_as_failure"
+        },
+        {
+          "case": "core_readiness_uses_public_port",
+          "test_file": "tests/component/test_health_checks.py",
+          "test_function": "test_decision_provider_health_check_uses_public_port"
         }
       ]
     },

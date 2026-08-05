@@ -198,7 +198,7 @@ def check_decision_data_readiness() -> dict[str, Any]:
     """Check decision-grade quote and market thermometer readiness."""
 
     try:
-        from apps.data_center.application.interface_services import (
+        from apps.data_center.application.public import (
             get_decision_data_readiness_payload,
         )
 
@@ -244,7 +244,7 @@ def check_core_data_coverage() -> dict[str, Any]:
     """Return strict active-A-share price, valuation, and financial coverage."""
 
     try:
-        from apps.data_center.application.query_services import (
+        from apps.data_center.application.public import (
             get_active_stock_fact_coverage_payload,
         )
 
@@ -270,7 +270,7 @@ def check_decision_provider_capabilities() -> dict[str, Any]:
     """Return strict capability-level provider health for decision data."""
 
     try:
-        from apps.data_center.application.interface_services import (
+        from apps.data_center.application.public import (
             get_decision_provider_capability_health_payload,
         )
 
