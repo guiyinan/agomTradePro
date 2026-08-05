@@ -99,15 +99,14 @@ def test_custom_screening_helpers_apply_defaults_and_normalize_sectors() -> None
     assert use_cases._custom_float({}, "value", 1.5) == 1.5
     assert use_cases._custom_float({"value": "2.5"}, "value", 0.0) == 2.5
     assert use_cases._custom_decimal({}, "value", Decimal("2")) == Decimal("2")
-    assert use_cases._custom_decimal(
-        {"value": "3.5"}, "value", Decimal("0")
-    ) == Decimal("3.5")
+    assert use_cases._custom_decimal({"value": "3.5"}, "value", Decimal("0")) == Decimal("3.5")
     assert use_cases._custom_count({}, "value", 3) == 3
     assert use_cases._custom_count({"value": "4"}, "value", 1) == 4
     assert use_cases._custom_sectors({}) is None
-    assert use_cases._custom_sectors(
-        {"sector_preference": [" 银行 ", "", "科技"]}
-    ) == ["银行", "科技"]
+    assert use_cases._custom_sectors({"sector_preference": [" 银行 ", "", "科技"]}) == [
+        "银行",
+        "科技",
+    ]
     with pytest.raises(ValueError, match="array of strings"):
         use_cases._custom_sectors({"sector_preference": ["银行", 1]})
 
@@ -127,9 +126,7 @@ def test_screen_stocks_serializes_ranked_matches_and_custom_rule(
     screener.screen.return_value = ["600000.SH", "missing"]
     monkeypatch.setattr(use_cases, "StockScreener", lambda **_kwargs: screener)
     stock_repo = SimpleNamespace(
-        get_all_stocks_with_fundamentals=lambda: [
-            (_stock(), _financial(), _valuation())
-        ]
+        get_all_stocks_with_fundamentals=lambda: [(_stock(), _financial(), _valuation())]
     )
 
     response = ScreenStocksUseCase(stock_repo, object()).execute(
@@ -199,13 +196,14 @@ def test_technical_and_intraday_charts_serialize_success_and_failures() -> None:
         detect_crossovers=lambda bars: [signal],
     )
     response = technical.execute(
-        GetTechnicalChartRequest(
-            stock_code="600000.SH", timeframe="week", lookback_days=30
-        )
+        GetTechnicalChartRequest(stock_code="600000.SH", timeframe="week", lookback_days=30)
     )
     assert response.success is True
     assert response.candles[0]["ma20"] is None
     assert response.latest_signal == response.signals[0]
+    repository.get_technical_bars.assert_called_once()
+    assert repository.get_technical_bars.call_args.kwargs["published_only"] is True
+    assert repository.get_technical_bars.call_args.kwargs["publication_key"] == "current"
     assert technical._resolve_technical_lookback_days("month", 30) == 2000
     assert technical._resolve_technical_lookback_days("day", 30) == 30
 

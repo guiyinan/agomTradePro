@@ -59,6 +59,8 @@ class EquityStockReadRepositoryProtocol(Protocol):
         end_date: date,
         *,
         hydrate: bool = False,
+        published_only: bool = False,
+        publication_key: str = "current",
     ) -> list[TechnicalBar]: ...
 
     def get_intraday_points(self, stock_code: str) -> list[IntradayPricePoint]: ...
@@ -415,6 +417,8 @@ class GetTechnicalChartRequest:
     stock_code: str
     timeframe: str = "day"
     lookback_days: int = 365
+    mode: str = "published"
+    publication_key: str = "current"
 
 
 @dataclass
@@ -433,6 +437,8 @@ class GetTechnicalChartResponse:
     freshness_status: str = "unverified"
     must_not_use_for_decision: bool = True
     blocked_reason: str | None = None
+    mode: str = "published"
+    publication_key: str = "current"
 
 
 @dataclass
@@ -483,9 +489,13 @@ class GetTechnicalChartUseCase:
                 request.stock_code,
                 start_date=start_date,
                 end_date=end_date,
-                hydrate=True,
+                hydrate=request.mode != "published",
+                published_only=request.mode == "published",
+                publication_key=request.publication_key,
             )
             if not bars:
+                if request.mode == "published":
+                    raise ValueError(f"未找到股票 {request.stock_code} 的已发布日线技术数据")
                 raise ValueError(f"未找到股票 {request.stock_code} 的日线技术数据")
 
             aggregated_bars = self.chart_service.aggregate_bars(bars, request.timeframe)
@@ -539,6 +549,8 @@ class GetTechnicalChartUseCase:
                 freshness_status=freshness_status,
                 must_not_use_for_decision=must_not_use_for_decision,
                 blocked_reason=blocked_reason,
+                mode=request.mode,
+                publication_key=request.publication_key,
             )
         except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as exc:
             logger.warning("GetTechnicalChartUseCase.execute failed: %s", exc)
@@ -553,7 +565,13 @@ class GetTechnicalChartUseCase:
                 error=str(exc),
                 freshness_status="unverified",
                 must_not_use_for_decision=True,
-                blocked_reason="technical_observation_unavailable",
+                blocked_reason=(
+                    "technical_publication_unavailable"
+                    if request.mode == "published"
+                    else "technical_observation_unavailable"
+                ),
+                mode=request.mode,
+                publication_key=request.publication_key,
             )
 
     @staticmethod

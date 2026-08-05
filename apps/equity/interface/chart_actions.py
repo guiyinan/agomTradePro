@@ -54,6 +54,8 @@ class EquityChartActionsMixin:
                 stock_code=data["stock_code"],
                 timeframe=data["timeframe"],
                 lookback_days=data["lookback_days"],
+                mode=data["mode"],
+                publication_key=data["publication_key"],
             )
         )
         response_serializer = TechnicalChartResponseSerializer(response)

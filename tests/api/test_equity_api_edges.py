@@ -671,7 +671,7 @@ def test_equity_technical_chart_returns_candles_and_latest_signal(authenticated_
     )
 
     response = authenticated_client.get(
-        "/api/equity/technical/000001.SZ/?timeframe=day&lookback_days=30"
+        "/api/equity/technical/000001.SZ/?timeframe=day&lookback_days=30&mode=historical"
     )
 
     assert response.status_code == 200
@@ -733,7 +733,7 @@ def test_equity_technical_chart_preserves_stale_observation_diagnostics(authenti
         return_value=technical_bars,
     ):
         response = authenticated_client.get(
-            "/api/equity/technical/000001.SZ/?timeframe=day&lookback_days=30"
+            "/api/equity/technical/000001.SZ/?timeframe=day&lookback_days=30&mode=historical"
         )
 
     assert response.status_code == 200
@@ -1381,7 +1381,7 @@ def test_equity_technical_chart_uses_tushare_gateway_bar_fallback(authenticated_
         return_value=remote_bars,
     ):
         response = authenticated_client.get(
-            "/api/equity/technical/300308.SZ/?timeframe=day&lookback_days=30"
+            "/api/equity/technical/300308.SZ/?timeframe=day&lookback_days=30&mode=historical"
         )
 
     assert response.status_code == 200

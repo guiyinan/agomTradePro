@@ -1963,19 +1963,34 @@
       "surface": "GET /api/equity/technical/{stock_code}/",
       "source_files": [
         "apps/equity/application/use_cases.py",
-        "apps/equity/interface/serializers.py"
+        "apps/equity/interface/serializers.py",
+        "apps/equity/interface/chart_actions.py",
+        "apps/equity/infrastructure/market_data_repository.py"
       ],
       "required_markers": {
         "apps/equity/application/use_cases.py": [
           "class GetTechnicalChartResponse",
           "technical_observation_stale",
           "freshness_status",
-          "must_not_use_for_decision"
+          "must_not_use_for_decision",
+          "published_only=request.mode == \"published\"",
+          "publication_key=request.publication_key"
         ],
         "apps/equity/interface/serializers.py": [
           "class TechnicalChartResponseSerializer",
           "observed_at = serializers.CharField",
-          "freshness_status = serializers.CharField"
+          "freshness_status = serializers.CharField",
+          "class TechnicalChartRequestSerializer",
+          "publication_key = serializers.CharField"
+        ],
+        "apps/equity/interface/chart_actions.py": [
+          "mode=data[\"mode\"]",
+          "publication_key=data[\"publication_key\"]"
+        ],
+        "apps/equity/infrastructure/market_data_repository.py": [
+          "get_published_price_bar_series(",
+          "def _get_published_technical_bars(",
+          "if bool(payload.get(\"must_not_use_for_decision\"))"
         ]
       },
       "required_tests": [
@@ -1988,6 +2003,21 @@
           "case": "technical_chart_stale_observation_diagnostic",
           "test_file": "tests/api/test_equity_api_edges.py",
           "test_function": "test_equity_technical_chart_preserves_stale_observation_diagnostics"
+        },
+        {
+          "case": "technical_chart_published_gate_forwarding",
+          "test_file": "tests/unit/equity/test_t5_equity_use_case_edge_contracts.py",
+          "test_function": "test_technical_and_intraday_charts_serialize_success_and_failures"
+        },
+        {
+          "case": "technical_chart_blocked_publication_fails_closed",
+          "test_file": "tests/component/test_equity_repository_data_center.py",
+          "test_function": "test_technical_bars_current_read_requires_publication"
+        },
+        {
+          "case": "technical_chart_preserves_published_ohlcv",
+          "test_file": "tests/component/test_equity_repository_data_center.py",
+          "test_function": "test_technical_bars_current_read_preserves_published_ohlcv"
         }
       ]
     },

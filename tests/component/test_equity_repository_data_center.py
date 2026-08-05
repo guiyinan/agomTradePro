@@ -450,6 +450,76 @@ def test_daily_prices_current_read_preserves_published_observations(monkeypatch)
 
 
 @pytest.mark.django_db
+def test_technical_bars_current_read_requires_publication(monkeypatch):
+    repo = DjangoStockRepository()
+    repo._dc_price_bar_repo.get_bars = lambda *args, **kwargs: (_ for _ in ()).throw(
+        AssertionError("raw technical bars must not be read")
+    )
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.market_data_repository.get_published_price_bar_series",
+        lambda *args, **kwargs: {
+            "rows": [],
+            "must_not_use_for_decision": True,
+            "blocked_reason": "publication_stale",
+        },
+    )
+
+    assert (
+        repo.get_technical_bars(
+            "600519.SH",
+            date(2026, 7, 1),
+            date(2026, 7, 31),
+            published_only=True,
+        )
+        == []
+    )
+
+
+@pytest.mark.django_db
+def test_technical_bars_current_read_preserves_published_ohlcv(monkeypatch):
+    fetched_at = datetime(2026, 7, 31, tzinfo=UTC).isoformat()
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.market_data_repository.get_published_price_bar_series",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "timestamp": "2026-07-30",
+                    "open": 1690.0,
+                    "high": 1710.0,
+                    "low": 1680.0,
+                    "close": 1700.0,
+                    "volume": 1000,
+                    "amount": 1_700_000,
+                    "fetched_at": fetched_at,
+                },
+                {
+                    "timestamp": "2026-07-31",
+                    "open": 1700.0,
+                    "high": 1720.0,
+                    "low": 1695.0,
+                    "close": 1710.0,
+                    "volume": 1200,
+                    "amount": 2_052_000,
+                    "fetched_at": fetched_at,
+                },
+            ],
+            "must_not_use_for_decision": False,
+        },
+    )
+
+    rows = DjangoStockRepository().get_technical_bars(
+        "600519.SH",
+        date(2026, 7, 1),
+        date(2026, 7, 31),
+        published_only=True,
+    )
+
+    assert [row.trade_date for row in rows] == [date(2026, 7, 30), date(2026, 7, 31)]
+    assert [row.close for row in rows] == [Decimal("1700.0"), Decimal("1710.0")]
+    assert rows[-1].volume == 1200
+
+
+@pytest.mark.django_db
 def test_save_methods_mirror_equity_data_to_data_center():
     repo = DjangoStockRepository()
     repo.save_financial_data(

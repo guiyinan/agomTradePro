@@ -318,6 +318,13 @@ class TechnicalChartRequestSerializer(StrictFieldsSerializer):
         max_value=2000,
         help_text="回看天数",
     )
+    mode = serializers.ChoiceField(
+        choices=("historical", "published"),
+        required=False,
+        default="published",
+        help_text="数据模式；published 只读取已发布事实",
+    )
+    publication_key = serializers.CharField(required=False, default="current", max_length=160)
 
 
 class TechnicalChartResponseSerializer(serializers.Serializer[GetTechnicalChartResponse]):
@@ -335,6 +342,8 @@ class TechnicalChartResponseSerializer(serializers.Serializer[GetTechnicalChartR
     freshness_status = serializers.CharField(required=False)
     must_not_use_for_decision = serializers.BooleanField(required=False)
     blocked_reason = serializers.CharField(allow_null=True, required=False)
+    mode = serializers.CharField(required=False)
+    publication_key = serializers.CharField(required=False)
 
 
 class IntradayChartRequestSerializer(StrictFieldsSerializer):

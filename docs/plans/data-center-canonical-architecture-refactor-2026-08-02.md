@@ -4088,3 +4088,11 @@ Git SHA / 镜像 / migration：
 - 已运行测试：`tests/unit/equity/test_use_cases.py`：10 passed；`tests/unit/equity/test_t5_equity_use_case_edge_contracts.py`：13 passed；`tests/component/test_equity_repository_data_center.py`：13 passed；`tests/api/test_equity_api_edges.py`：53 passed；变更生产文件 mypy 0、Ruff/Black 通过。
 - 明确未做：未改动 historical explicit range、Technical chart mode、provider 写入和生产配置，未部署、未 push。
 - 未验证风险：生产 Publication 是否包含足够长的估值历史成员、DCF/综合估值真实数据覆盖、PostgreSQL 查询预算与旧表零读写仍待后续批次。
+
+## 47. 2026-08-05：Equity 技术图表绑定 price-bar Publication
+
+- 目标：消除 `/api/equity/technical/{stock_code}/` 默认 `hydrate=True` 触发 Data Center/raw/远端行情旁路的问题；current 技术图表必须和其他 Equity current surface 一样 fail closed。
+- 变更：技术图表请求新增 `mode` 与 `publication_key`，默认 `published`；published 模式只调用 `get_published_price_bar_series`，严格校验 OHLCV、带时区 `fetched_at` 和事实日期，重算指标后返回；Publication 阻断、结构无效或无成员时不回退 raw/远端数据。显式 `mode=historical` 才保留 hydration 与历史研究语义。
+- 治理：扩展 `equity.technical_chart` current-data contract，登记接口传递、repository Publication marker 与 blocked/preserved 回归。
+- 已运行验证：技术图表/Equity Data Center/API 定向回归 `82 passed`；补充组件+用例回归 `29 passed`；current-data `43 surfaces`、legacy fact guard、architecture boundary/audit `0`、变更 4 个生产文件 mypy regression `0`、Ruff 通过。Black 对 3 个变更文件执行格式化后复核通过。
+- 明确未做：未修改 intraday、技术指标算法、历史模式、provider 写入和生产配置，未部署、未 push。

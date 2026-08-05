@@ -168,8 +168,18 @@ class StockMarketDataRepositoryMixin:
         end_date: date,
         *,
         hydrate: bool = False,
+        published_only: bool = False,
+        publication_key: str = "current",
     ) -> list[TechnicalBar]:
         """获取K线与技术指标序列。"""
+        if published_only:
+            return self._get_published_technical_bars(
+                stock_code,
+                start_date=start_date,
+                end_date=end_date,
+                publication_key=publication_key,
+            )
+
         dc_bars = (
             self._dc_on_demand.ensure_price_bars(stock_code, start_date, end_date).records
             if hydrate
@@ -218,6 +228,87 @@ class StockMarketDataRepositoryMixin:
             ]
         )
         return remote_technical_bars or best_available_bars
+
+    def _get_published_technical_bars(
+        self,
+        stock_code: str,
+        *,
+        start_date: date,
+        end_date: date,
+        publication_key: str,
+    ) -> list[TechnicalBar]:
+        """Build technical bars exclusively from the selected price publication."""
+
+        payload = get_published_price_bar_series(
+            stock_code,
+            publication_key=publication_key,
+            start=start_date,
+            end=end_date,
+            limit=max((end_date - start_date).days + 10, 120),
+        )
+        if bool(payload.get("must_not_use_for_decision")):
+            return []
+        rows = payload.get("rows", [])
+        if not isinstance(rows, (list, tuple)):
+            return []
+
+        bars: list[TechnicalBar] = []
+        for row in rows:
+            if not isinstance(row, Mapping):
+                continue
+            raw_date = row.get("timestamp", row.get("bar_date"))
+            if not isinstance(raw_date, str) or not raw_date.strip():
+                continue
+            try:
+                trade_date = date.fromisoformat(raw_date.strip()[:10])
+            except ValueError:
+                continue
+            raw_fetched_at = row.get("fetched_at")
+            if not isinstance(raw_fetched_at, str) or not raw_fetched_at.strip():
+                continue
+            try:
+                fetched_at = datetime.fromisoformat(raw_fetched_at.strip().replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if fetched_at.tzinfo is None or fetched_at.utcoffset() is None:
+                continue
+            open_value = safe_float(row.get("open"), default=None)
+            high_value = safe_float(row.get("high"), default=None)
+            low_value = safe_float(row.get("low"), default=None)
+            close_value = safe_float(row.get("close"), default=None)
+            if (
+                open_value is None
+                or high_value is None
+                or low_value is None
+                or close_value is None
+                or min(open_value, high_value, low_value, close_value) <= 0
+            ):
+                continue
+            volume_value = safe_float(row.get("volume"), default=0.0) or 0.0
+            amount_value = safe_float(row.get("amount"), default=0.0) or 0.0
+            bars.append(
+                TechnicalBar(
+                    stock_code=stock_code,
+                    trade_date=trade_date,
+                    open=Decimal(str(open_value)),
+                    high=Decimal(str(high_value)),
+                    low=Decimal(str(low_value)),
+                    close=Decimal(str(close_value)),
+                    volume=max(int(volume_value), 0),
+                    amount=Decimal(str(max(amount_value, 0.0))),
+                    ma5=None,
+                    ma20=None,
+                    ma60=None,
+                    macd=None,
+                    macd_signal=None,
+                    macd_hist=None,
+                    rsi=None,
+                )
+            )
+        if not bars:
+            return []
+        bars.sort(key=lambda item: item.trade_date)
+        return self._recalculate_technical_bars(bars)
 
     def _has_sufficient_price_coverage(
         self,
