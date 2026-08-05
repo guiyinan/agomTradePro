@@ -216,6 +216,15 @@ def test_ai_filter_fails_closed_when_stock_publication_is_blocked(monkeypatch):
         lambda: {"score": 55.0, "band": "warm", "must_not_use_for_decision": False},
     )
 
+
+def test_alpha_market_context_compatibility_alias_uses_current_data_center_port(monkeypatch):
+    from apps.alpha.application import ai_filter
+
+    payload = {"score": 55.0, "band": "warm", "must_not_use_for_decision": False}
+    monkeypatch.setattr(ai_filter, "get_current_market_thermometer_payload", lambda: payload)
+
+    assert ai_filter.get_latest_market_thermometer_snapshot_payload() == payload
+
     result = AlphaAISecondPassFilterService().apply(
         _alpha_result([_score("000001.SZ", 1), _score("000002.SZ", 2)]),
         top_n=2,

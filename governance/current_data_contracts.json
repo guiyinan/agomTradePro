@@ -230,12 +230,22 @@
       "id": "data_center.market_thermometer",
       "surface": "GET /api/data-center/market-thermometer/current/",
       "source_files": [
-        "apps/data_center/application/market_thermometer_calculate.py"
+        "apps/data_center/application/market_thermometer_calculate.py",
+        "apps/data_center/application/public.py",
+        "apps/alpha/application/ai_filter.py"
       ],
       "required_markers": {
         "apps/data_center/application/market_thermometer_calculate.py": [
           "must_not_use_for_decision = len(valid_components) < config.min_valid_components",
           "if persist and (persist_blocked or not snapshot.must_not_use_for_decision)"
+        ],
+        "apps/data_center/application/public.py": [
+          "def get_current_market_thermometer_payload(",
+          "load_market_thermometer_payload(use_personal_thresholds=False)"
+        ],
+        "apps/alpha/application/ai_filter.py": [
+          "def get_latest_market_thermometer_snapshot_payload(",
+          "return get_current_market_thermometer_payload()"
         ]
       },
       "required_tests": [
@@ -243,6 +253,11 @@
           "case": "stale_snapshot_recalculated",
           "test_file": "tests/unit/data_center/test_market_thermometer.py",
           "test_function": "test_build_current_payload_recalculates_when_latest_snapshot_is_stale"
+        },
+        {
+          "case": "alpha_market_context_uses_current_port",
+          "test_file": "apps/alpha/tests/test_ai_filter.py",
+          "test_function": "test_alpha_market_context_compatibility_alias_uses_current_data_center_port"
         }
       ]
     },

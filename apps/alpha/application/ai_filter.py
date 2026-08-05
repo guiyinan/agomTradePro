@@ -13,8 +13,8 @@ from typing import Any, TypeAlias
 
 from apps.ai_provider.application.chat_completion import generate_chat_completion
 from apps.alpha.domain.entities import AlphaResult, StockScore
-from apps.data_center.application.query_services import (
-    get_latest_market_thermometer_snapshot_payload,
+from apps.data_center.application.public import (
+    get_current_market_thermometer_payload,
 )
 from apps.equity.application.query_services import get_published_stock_context_map
 
@@ -32,6 +32,12 @@ _SENSITIVE_KEY_PATTERN = re.compile(
 
 JSONPrimitive: TypeAlias = str | int | float | bool | None
 JSONValue: TypeAlias = JSONPrimitive | list["JSONValue"] | dict[str, "JSONValue"]
+
+
+def get_latest_market_thermometer_snapshot_payload() -> dict[str, Any]:
+    """Compatibility alias backed by the freshness-aware Data Center port."""
+
+    return get_current_market_thermometer_payload()
 
 
 def get_ai_filter_candidate_limit(top_n: int) -> int:

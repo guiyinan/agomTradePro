@@ -454,6 +454,14 @@ def probe_rss_news_feed(
     )
 
 
+def get_current_market_thermometer_payload() -> dict[str, Any]:
+    """Return the freshness-aware market thermometer payload for consumers."""
+
+    from apps.data_center.application.interface_services import load_market_thermometer_payload
+
+    return load_market_thermometer_payload(use_personal_thresholds=False)
+
+
 def get_capital_flow_repository_port() -> CapitalFlowRepositoryProtocol:
     """Return the canonical capital-flow query port."""
 
@@ -1037,6 +1045,7 @@ __all__ = [
     "get_news_repository_port",
     "fetch_rss_news_feed",
     "probe_rss_news_feed",
+    "get_current_market_thermometer_payload",
     "get_capital_flow_repository_port",
     "get_provider_config_repository_port",
     "get_provider_registry_port",

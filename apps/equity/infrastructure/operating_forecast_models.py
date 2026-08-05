@@ -8,6 +8,12 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.base import ModelBase
 
+from apps.equity.domain.operating_forecast import (
+    OperatingForecastLegacyHashRecipe,
+    OperatingForecastLegacyHashStatus,
+    OperatingForecastSourceLineageStatus,
+    OperatingForecastStage,
+)
 from shared.infrastructure.django_append_only import AppendOnlyManager
 
 
@@ -18,6 +24,8 @@ class EquityForecastAppendOnlyModel(models.Model):
 
     class Meta:
         abstract = True
+        base_manager_name = "objects"
+        default_manager_name = "objects"
 
     def save(
         self,
@@ -61,6 +69,31 @@ class OperatingForecastVersionModel(EquityForecastAppendOnlyModel):
     horizon_quarters = models.PositiveSmallIntegerField()
     methodology_ref = models.CharField(max_length=255)
     created_by_ref = models.CharField(max_length=128)
+    evidence_schema_version = models.PositiveSmallIntegerField(default=1, editable=False)
+    source_lineage_status = models.CharField(
+        max_length=24,
+        choices=[(status.value, status.value) for status in OperatingForecastSourceLineageStatus],
+        default=OperatingForecastSourceLineageStatus.LEGACY_UNBOUND.value,
+        editable=False,
+    )
+    legacy_hash_recipe = models.CharField(
+        max_length=24,
+        choices=[(item.value, item.value) for item in OperatingForecastLegacyHashRecipe],
+        default=OperatingForecastLegacyHashRecipe.UNVERIFIED.value,
+        editable=False,
+    )
+    legacy_hash_status = models.CharField(
+        max_length=16,
+        choices=[(item.value, item.value) for item in OperatingForecastLegacyHashStatus],
+        default=OperatingForecastLegacyHashStatus.UNVERIFIED.value,
+        editable=False,
+    )
+    template_code = models.CharField(max_length=80, blank=True, default="")
+    template_version = models.PositiveIntegerField(null=True, blank=True)
+    template_content_hash = models.CharField(max_length=64, blank=True, default="")
+    template_run_key = models.CharField(max_length=128, blank=True, default="")
+    template_run_version = models.PositiveIntegerField(null=True, blank=True)
+    template_run_content_hash = models.CharField(max_length=64, blank=True, default="")
     valuation_consumable = models.BooleanField(default=False)
     promotion_decision_id = models.CharField(max_length=64, blank=True, default="")
     content_hash = models.CharField(max_length=64, unique=True)
@@ -68,16 +101,79 @@ class OperatingForecastVersionModel(EquityForecastAppendOnlyModel):
 
     class Meta:
         db_table = "equity_operating_forecast_version"
+        base_manager_name = "objects"
+        default_manager_name = "objects"
         constraints = [
             models.UniqueConstraint(
                 fields=["forecast_key", "forecast_version"],
                 name="equity_operating_forecast_key_version_uniq",
+            ),
+            models.UniqueConstraint(
+                fields=["template_run_key", "template_run_version"],
+                condition=models.Q(evidence_schema_version=2),
+                name="equity_forecast_template_run_uniq",
             ),
             models.CheckConstraint(
                 condition=(
                     models.Q(valuation_consumable=False) | ~models.Q(promotion_decision_id="")
                 ),
                 name="equity_forecast_valuation_promotion_required",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        evidence_schema_version=1,
+                        source_lineage_status__in=(
+                            OperatingForecastSourceLineageStatus.LEGACY_UNBOUND.value,
+                            OperatingForecastSourceLineageStatus.LEGACY_UNVERIFIED.value,
+                        ),
+                        template_code="",
+                        template_content_hash="",
+                        template_run_content_hash="",
+                        template_run_key="",
+                        template_run_version__isnull=True,
+                        template_version__isnull=True,
+                    )
+                    & (
+                        models.Q(
+                            legacy_hash_recipe__in=(
+                                OperatingForecastLegacyHashRecipe.V1_0010_UNTYPED.value,
+                                OperatingForecastLegacyHashRecipe.V1_0011_TYPED.value,
+                            ),
+                            legacy_hash_status=(OperatingForecastLegacyHashStatus.VERIFIED.value),
+                        )
+                        | models.Q(
+                            legacy_hash_recipe=(OperatingForecastLegacyHashRecipe.UNVERIFIED.value),
+                            legacy_hash_status=(OperatingForecastLegacyHashStatus.UNVERIFIED.value),
+                            source_lineage_status=(
+                                OperatingForecastSourceLineageStatus.LEGACY_UNVERIFIED.value
+                            ),
+                        )
+                    )
+                    | (
+                        models.Q(
+                            evidence_schema_version=2,
+                            source_lineage_status=(
+                                OperatingForecastSourceLineageStatus.TEMPLATE_BOUND.value
+                            ),
+                            template_version__isnull=False,
+                            template_run_version__isnull=False,
+                            legacy_hash_recipe=(
+                                OperatingForecastLegacyHashRecipe.NOT_APPLICABLE.value
+                            ),
+                            legacy_hash_status=(
+                                OperatingForecastLegacyHashStatus.NOT_APPLICABLE.value
+                            ),
+                            valuation_consumable=False,
+                            promotion_decision_id="",
+                        )
+                        & ~models.Q(template_code="")
+                        & ~models.Q(template_content_hash="")
+                        & ~models.Q(template_run_key="")
+                        & ~models.Q(template_run_content_hash="")
+                    )
+                ),
+                name="equity_forecast_template_binding_ck",
             ),
         ]
         indexes = [
@@ -119,6 +215,8 @@ class OperatingForecastFactReferenceModel(EquityForecastAppendOnlyModel):
 
     class Meta:
         db_table = "equity_operating_forecast_fact_ref"
+        base_manager_name = "objects"
+        default_manager_name = "objects"
         constraints = [
             models.UniqueConstraint(
                 fields=["forecast", "pit_fact_version_id"],
@@ -157,10 +255,18 @@ class OperatingForecastAssumptionModel(EquityForecastAppendOnlyModel):
     observed_fact_version_id = models.PositiveBigIntegerField(null=True, blank=True)
     human_assumption_ref = models.CharField(max_length=255, blank=True, default="")
     model_version = models.CharField(max_length=255, blank=True, default="")
-    observed_metric_role = models.CharField(max_length=40, blank=True, default="")
+    # Preserved byte-for-byte for evidence-schema-v1 hash verification only.
+    legacy_observed_metric_role = models.CharField(max_length=40, blank=True, default="")
+    observed_metric_code = models.CharField(max_length=64, blank=True, default="")
+    observed_fact_content_hash = models.CharField(max_length=64, blank=True, default="")
+    observed_subject_type = models.CharField(max_length=40, blank=True, default="")
+    observed_subject_code = models.CharField(max_length=80, blank=True, default="")
+    fact_binding_complete = models.BooleanField(default=False, editable=False)
 
     class Meta:
         db_table = "equity_operating_forecast_assumption"
+        base_manager_name = "objects"
+        default_manager_name = "objects"
         constraints = [
             models.UniqueConstraint(
                 fields=["forecast", "scenario", "assumption_key"],
@@ -189,6 +295,35 @@ class OperatingForecastAssumptionModel(EquityForecastAppendOnlyModel):
                 ),
                 name="equity_forecast_assumption_lineage_ck",
             ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(fact_binding_complete=True, input_kind="observed_fact")
+                        & ~models.Q(observed_metric_code="")
+                        & ~models.Q(observed_fact_content_hash="")
+                        & ~models.Q(observed_subject_type="")
+                        & ~models.Q(observed_subject_code="")
+                    )
+                    | (
+                        models.Q(
+                            fact_binding_complete=True,
+                            observed_fact_content_hash="",
+                            observed_metric_code="",
+                            observed_subject_code="",
+                            observed_subject_type="",
+                        )
+                        & ~models.Q(input_kind="observed_fact")
+                    )
+                    | models.Q(
+                        fact_binding_complete=False,
+                        observed_fact_content_hash="",
+                        observed_metric_code="",
+                        observed_subject_code="",
+                        observed_subject_type="",
+                    )
+                ),
+                name="equity_forecast_assumption_fact_binding_ck",
+            ),
         ]
         indexes = [
             models.Index(
@@ -211,11 +346,14 @@ class OperatingForecastProjectionModel(EquityForecastAppendOnlyModel):
     scenario = models.CharField(max_length=8, choices=SCENARIO_CHOICES)
     revenue = models.DecimalField(max_digits=50, decimal_places=12)
     net_profit = models.DecimalField(max_digits=50, decimal_places=12)
+    cash_flow = models.DecimalField(max_digits=50, decimal_places=12, null=True, blank=True)
     profit_margin_percent = models.DecimalField(max_digits=50, decimal_places=12)
     currency_unit = models.CharField(max_length=40)
 
     class Meta:
         db_table = "equity_operating_forecast_projection"
+        base_manager_name = "objects"
+        default_manager_name = "objects"
         constraints = [
             models.UniqueConstraint(
                 fields=["forecast", "scenario"],
@@ -225,6 +363,40 @@ class OperatingForecastProjectionModel(EquityForecastAppendOnlyModel):
                 condition=models.Q(revenue__gt=0),
                 name="equity_forecast_projection_revenue_gt_zero",
             ),
+        ]
+
+
+class OperatingForecastStageValueModel(EquityForecastAppendOnlyModel):
+    """One immutable node/value for each required financial stage."""
+
+    projection = models.ForeignKey(
+        OperatingForecastProjectionModel,
+        on_delete=models.CASCADE,
+        related_name="stage_values",
+    )
+    stage = models.CharField(
+        max_length=24,
+        choices=[(stage.value, stage.value) for stage in OperatingForecastStage],
+    )
+    node_key = models.CharField(max_length=80)
+    value = models.DecimalField(max_digits=50, decimal_places=12)
+    unit = models.CharField(max_length=40)
+
+    class Meta:
+        db_table = "equity_operating_forecast_stage_value"
+        base_manager_name = "objects"
+        default_manager_name = "objects"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["projection", "stage"],
+                name="equity_forecast_projection_stage_uniq",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["projection", "stage"],
+                name="equity_fc_stage_projection_idx",
+            )
         ]
 
 
@@ -242,14 +414,34 @@ class OperatingForecastSensitivityModel(EquityForecastAppendOnlyModel):
     output_value = models.DecimalField(max_digits=50, decimal_places=12)
     output_unit = models.CharField(max_length=40)
     method_version = models.CharField(max_length=128)
+    source_artifact_ref = models.CharField(max_length=255, blank=True, default="")
+    source_artifact_hash = models.CharField(max_length=64, blank=True, default="")
+    source_binding_complete = models.BooleanField(default=False, editable=False)
 
     class Meta:
         db_table = "equity_operating_forecast_sensitivity"
+        base_manager_name = "objects"
+        default_manager_name = "objects"
         constraints = [
             models.UniqueConstraint(
                 fields=["projection", "sensitivity_key"],
                 name="equity_forecast_sensitivity_key_uniq",
-            )
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(source_binding_complete=True)
+                        & ~models.Q(source_artifact_ref="")
+                        & ~models.Q(source_artifact_hash="")
+                    )
+                    | models.Q(
+                        source_binding_complete=False,
+                        source_artifact_ref="",
+                        source_artifact_hash="",
+                    )
+                ),
+                name="equity_forecast_sensitivity_source_ck",
+            ),
         ]
         indexes = [
             models.Index(
@@ -304,6 +496,8 @@ class OperatingForecastEvaluationModel(EquityForecastAppendOnlyModel):
 
     class Meta:
         db_table = "equity_operating_forecast_evaluation"
+        base_manager_name = "objects"
+        default_manager_name = "objects"
         constraints = [
             models.UniqueConstraint(
                 fields=["forecast", "actual_period_end", "scenario"],
@@ -331,6 +525,7 @@ __all__ = [
     "OperatingForecastEvaluationModel",
     "OperatingForecastFactReferenceModel",
     "OperatingForecastProjectionModel",
+    "OperatingForecastStageValueModel",
     "OperatingForecastSensitivityModel",
     "OperatingForecastVersionModel",
 ]

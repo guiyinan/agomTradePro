@@ -20,8 +20,11 @@ from apps.equity.domain.operating_forecast import (
     OperatingForecastAssumption,
     OperatingForecastEvaluation,
     OperatingForecastProjection,
+    OperatingForecastSourceKind,
+    OperatingForecastSourceLineageStatus,
+    OperatingForecastStage,
+    OperatingForecastStageValue,
     OperatingForecastVersion,
-    OperatingMetricRole,
     ValuationSensitivityPoint,
     build_quarterly_evaluations,
 )
@@ -33,9 +36,9 @@ TARGET = date(2026, 6, 30)
 def _fact(
     version_id: int = 11,
     *,
-    metric_code: str = "revenue",
+    metric_code: str = "store_count",
     value: str = "100",
-    unit: str = "CNY_million",
+    unit: str = "count",
 ) -> OperatingFactEvidence:
     return OperatingFactEvidence(
         version_id=version_id,
@@ -59,6 +62,7 @@ def _assumptions(
     include_model: bool = False,
 ) -> tuple[OperatingForecastAssumption, ...]:
     items: list[OperatingForecastAssumption] = []
+    fact = _fact(fact_id)
     for scenario, growth in (
         (ForecastScenario.BASE, "5"),
         (ForecastScenario.BULL, "8"),
@@ -67,13 +71,16 @@ def _assumptions(
         items.append(
             OperatingForecastAssumption(
                 scenario=scenario,
-                assumption_key="revenue_anchor",
-                value=Decimal("100"),
-                unit="CNY_million",
+                assumption_key="store_count",
+                value=fact.value,
+                unit=fact.unit,
                 input_kind=ForecastInputKind.OBSERVED_FACT,
                 rationale="Latest public PIT store count available at forecast freeze.",
                 observed_fact_version_id=fact_id,
-                observed_metric_role=OperatingMetricRole.REVENUE,
+                observed_metric_code=fact.metric_code,
+                observed_fact_content_hash=fact.content_hash,
+                observed_subject_type=fact.subject_type,
+                observed_subject_code=fact.subject_code,
             )
         )
         items.append(
@@ -103,17 +110,56 @@ def _assumptions(
 
 def _projections() -> tuple[OperatingForecastProjection, ...]:
     result: list[OperatingForecastProjection] = []
-    for scenario, revenue, profit, output in (
-        (ForecastScenario.BASE, "120", "12", "1200"),
-        (ForecastScenario.BULL, "130", "16", "1500"),
-        (ForecastScenario.BEAR, "95", "4", "700"),
+    for scenario, revenue, profit, cash_flow, output in (
+        (ForecastScenario.BASE, "120", "12", "10", "1200"),
+        (ForecastScenario.BULL, "130", "16", "14", "1500"),
+        (ForecastScenario.BEAR, "95", "4", "2", "700"),
     ):
         result.append(
             OperatingForecastProjection(
                 scenario=scenario,
                 revenue=Decimal(revenue),
                 net_profit=Decimal(profit),
+                cash_flow=Decimal(cash_flow),
                 currency_unit="CNY_million",
+                stage_values=(
+                    OperatingForecastStageValue(
+                        stage=OperatingForecastStage.REVENUE,
+                        node_key="revenue_node",
+                        value=Decimal(revenue),
+                        unit="CNY_million",
+                    ),
+                    OperatingForecastStageValue(
+                        stage=OperatingForecastStage.COST,
+                        node_key="cost_node",
+                        value=Decimal("60"),
+                        unit="CNY_million",
+                    ),
+                    OperatingForecastStageValue(
+                        stage=OperatingForecastStage.GROSS_PROFIT,
+                        node_key="gross_profit_node",
+                        value=Decimal(revenue) - Decimal("60"),
+                        unit="CNY_million",
+                    ),
+                    OperatingForecastStageValue(
+                        stage=OperatingForecastStage.EXPENSE,
+                        node_key="expense_node",
+                        value=Decimal("20"),
+                        unit="CNY_million",
+                    ),
+                    OperatingForecastStageValue(
+                        stage=OperatingForecastStage.NET_PROFIT,
+                        node_key="net_profit_node",
+                        value=Decimal(profit),
+                        unit="CNY_million",
+                    ),
+                    OperatingForecastStageValue(
+                        stage=OperatingForecastStage.CASH_FLOW,
+                        node_key="cash_flow_node",
+                        value=Decimal(cash_flow),
+                        unit="CNY_million",
+                    ),
+                ),
                 sensitivities=(
                     ValuationSensitivityPoint(
                         sensitivity_key="pe_multiple",
@@ -122,6 +168,8 @@ def _projections() -> tuple[OperatingForecastProjection, ...]:
                         output_value=Decimal(output),
                         output_unit="CNY_million",
                         method_version="sensitivity-sheet-v1",
+                        source_artifact_ref="valuation://worksheet/r1/v1",
+                        source_artifact_hash="c" * 64,
                     ),
                 ),
             )
@@ -146,6 +194,15 @@ def _forecast(
         horizon_quarters=1,
         methodology_ref="research-note-2026q2-v1",
         created_by_ref="analyst-7",
+        source_kind=OperatingForecastSourceKind.INDUSTRY_TEMPLATE,
+        evidence_schema_version=2,
+        source_lineage_status=OperatingForecastSourceLineageStatus.TEMPLATE_BOUND,
+        template_code="consumer-service-v1",
+        template_version=1,
+        template_content_hash="a" * 64,
+        template_run_key="consumer-service-000001-2026q2",
+        template_run_version=1,
+        template_run_content_hash="b" * 64,
         facts=(_fact(),),
         assumptions=_assumptions(include_model=include_model),
         projections=_projections(),
@@ -217,8 +274,8 @@ def test_quarterly_evaluation_calculates_signed_mae_mape_and_margin_error() -> N
         actual_period_end=TARGET,
         recorded_at=datetime(2026, 8, 15, tzinfo=UTC),
         actual_facts=(
-            _fact(21, metric_code="revenue", value="100"),
-            _fact(22, metric_code="net_profit", value="8"),
+            _fact(21, metric_code="revenue", value="100", unit="CNY_million"),
+            _fact(22, metric_code="net_profit", value="8", unit="CNY_million"),
         ),
         actual_revenue=Decimal("100"),
         actual_net_profit=Decimal("8"),
@@ -239,8 +296,8 @@ def test_quarterly_evaluation_calculates_signed_mae_mape_and_margin_error() -> N
             actual_period_end=TARGET,
             recorded_at=datetime(2026, 8, 15, tzinfo=UTC),
             actual_facts=(
-                _fact(21, metric_code="revenue", value="999"),
-                _fact(22, metric_code="net_profit", value="8"),
+                _fact(21, metric_code="revenue", value="999", unit="CNY_million"),
+                _fact(22, metric_code="net_profit", value="8", unit="CNY_million"),
             ),
             actual_revenue=Decimal("100"),
             actual_net_profit=Decimal("8"),
@@ -268,6 +325,17 @@ class _PromotionChecker:
 
     def is_approved(self, decision_id: str) -> bool:
         return self.approved and decision_id == "promotion-approved-v1"
+
+
+class _RunEvidenceProvider:
+    def get_run_evidence(
+        self,
+        *,
+        run_key: str,
+        run_version: int,
+    ) -> None:
+        del run_key, run_version
+        return None
 
 
 class _ForecastRepository:
@@ -304,6 +372,12 @@ def _create_command(*, valuation_consumable: bool) -> CreateOperatingForecastCom
         horizon_quarters=1,
         methodology_ref="research-note-2026q2-v1",
         created_by_ref="analyst-7",
+        template_code="consumer-service-v1",
+        template_version=1,
+        template_content_hash="a" * 64,
+        template_run_key="consumer-service-000001-2026q2",
+        template_run_version=1,
+        template_run_content_hash="b" * 64,
         fact_version_ids=(11,),
         assumptions=_assumptions(include_model=True),
         projections=_projections(),
@@ -312,24 +386,27 @@ def _create_command(*, valuation_consumable: bool) -> CreateOperatingForecastCom
     )
 
 
-def test_model_forecast_cannot_be_valuation_consumable_without_approved_promotion() -> None:
+def test_schema_v2_promotion_stays_closed_even_for_legacy_approved_decision() -> None:
     repository = _ForecastRepository()
     use_case = CreateOperatingForecastVersionUseCase(
         repository,
         _FactProvider((_fact(),)),
         _PromotionChecker(approved=False),
+        _RunEvidenceProvider(),
     )
-    with pytest.raises(OperatingForecastPromotionError, match="approved"):
+    with pytest.raises(OperatingForecastPromotionError, match="exact artifact binding"):
         use_case.execute(_create_command(valuation_consumable=True))
     assert repository.forecast is None
 
-    approved = CreateOperatingForecastVersionUseCase(
+    legacy_approved = CreateOperatingForecastVersionUseCase(
         repository,
         _FactProvider((_fact(),)),
         _PromotionChecker(approved=True),
-    ).execute(_create_command(valuation_consumable=True))
-    assert approved.contains_model_inference is True
-    assert approved.usage_scope == "valuation_approved"
+        _RunEvidenceProvider(),
+    )
+    with pytest.raises(OperatingForecastPromotionError, match="exact artifact binding"):
+        legacy_approved.execute(_create_command(valuation_consumable=True))
+    assert repository.forecast is None
 
 
 def test_record_actual_use_case_appends_all_three_scenarios() -> None:
@@ -338,8 +415,8 @@ def test_record_actual_use_case_appends_all_three_scenarios() -> None:
         repository,
         _FactProvider(
             (
-                _fact(21, metric_code="revenue", value="100"),
-                _fact(22, metric_code="net_profit", value="8"),
+                _fact(21, metric_code="revenue", value="100", unit="CNY_million"),
+                _fact(22, metric_code="net_profit", value="8", unit="CNY_million"),
             )
         ),
     )

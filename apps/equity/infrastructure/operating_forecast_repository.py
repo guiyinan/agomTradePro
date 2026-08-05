@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+import hashlib
+import json
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, cast
 
-from django.db import transaction
-from django.db.models import Prefetch
+from django.db import IntegrityError, transaction
+from django.db.models import Prefetch, Q
 
 from apps.data_center.application.research_data_foundation import (
     get_research_data_foundation_facade,
@@ -20,12 +22,21 @@ from apps.equity.application.operating_forecast import (
 from apps.equity.domain.operating_forecast import (
     ForecastInputKind,
     ForecastScenario,
+    LegacyOperatingForecastAssumption,
+    LegacyOperatingForecastProjection,
+    LegacyOperatingForecastVersion,
+    LegacyValuationSensitivityPoint,
     OperatingFactEvidence,
     OperatingForecastAssumption,
     OperatingForecastEvaluation,
+    OperatingForecastLegacyHashRecipe,
+    OperatingForecastLegacyHashStatus,
     OperatingForecastProjection,
+    OperatingForecastSourceKind,
+    OperatingForecastSourceLineageStatus,
+    OperatingForecastStage,
+    OperatingForecastStageValue,
     OperatingForecastVersion,
-    OperatingMetricRole,
     ValuationSensitivityPoint,
 )
 from core.integration.research_integrity_registry import (
@@ -38,6 +49,7 @@ from .operating_forecast_models import (
     OperatingForecastFactReferenceModel,
     OperatingForecastProjectionModel,
     OperatingForecastSensitivityModel,
+    OperatingForecastStageValueModel,
     OperatingForecastVersionModel,
 )
 
@@ -65,6 +77,13 @@ def _payload_decimal(payload: dict[str, Any], key: str) -> Decimal:
     if not result.is_finite():
         raise OperatingForecastEvidenceError(f"operating fact payload.{key} is invalid")
     return result
+
+
+def _decimal_text(value: Decimal) -> str:
+    """Return the historical canonical decimal representation."""
+
+    normalized = value.normalize()
+    return "0" if normalized == 0 else format(normalized, "f")
 
 
 class DjangoOperatingFactEvidenceProvider:
@@ -156,32 +175,80 @@ class DjangoOperatingForecastRepository:
             )
             .first()
         )
-        for candidate in (existing, identity):
+        run_identity = (
+            OperatingForecastVersionModel._default_manager.select_for_update()
+            .filter(
+                template_run_key=forecast.template_run_key,
+                template_run_version=forecast.template_run_version,
+                evidence_schema_version=2,
+            )
+            .first()
+        )
+        for candidate in (existing, identity, run_identity):
             if candidate is not None:
                 if candidate.content_hash != forecast.content_hash:
                     raise OperatingForecastConflictError(
                         "forecast identity already has conflicting immutable content"
                     )
                 stored = self.get_version(candidate.forecast_id)
-                if stored is None:
+                if not isinstance(stored, OperatingForecastVersion):
                     raise RuntimeError("stored forecast could not be reconstructed")
                 return stored
 
-        model = OperatingForecastVersionModel._default_manager.create(
-            forecast_id=forecast.forecast_id,
-            forecast_key=forecast.forecast_key,
-            forecast_version=forecast.forecast_version,
-            subject_code=forecast.subject_code,
-            industry_code=forecast.industry_code,
-            as_of_time=forecast.as_of_time,
-            target_period_end=forecast.target_period_end,
-            horizon_quarters=forecast.horizon_quarters,
-            methodology_ref=forecast.methodology_ref,
-            created_by_ref=forecast.created_by_ref,
-            valuation_consumable=forecast.valuation_consumable,
-            promotion_decision_id=forecast.promotion_decision_id,
-            content_hash=forecast.content_hash,
-        )
+        try:
+            with transaction.atomic():
+                model = OperatingForecastVersionModel._default_manager.create(
+                    forecast_id=forecast.forecast_id,
+                    forecast_key=forecast.forecast_key,
+                    forecast_version=forecast.forecast_version,
+                    subject_code=forecast.subject_code,
+                    industry_code=forecast.industry_code,
+                    as_of_time=forecast.as_of_time,
+                    target_period_end=forecast.target_period_end,
+                    horizon_quarters=forecast.horizon_quarters,
+                    methodology_ref=forecast.methodology_ref,
+                    created_by_ref=forecast.created_by_ref,
+                    evidence_schema_version=2,
+                    source_lineage_status=(
+                        OperatingForecastSourceLineageStatus.TEMPLATE_BOUND.value
+                    ),
+                    legacy_hash_recipe=(OperatingForecastLegacyHashRecipe.NOT_APPLICABLE.value),
+                    legacy_hash_status=(OperatingForecastLegacyHashStatus.NOT_APPLICABLE.value),
+                    template_code=forecast.template_code,
+                    template_version=forecast.template_version,
+                    template_content_hash=forecast.template_content_hash,
+                    template_run_key=forecast.template_run_key,
+                    template_run_version=forecast.template_run_version,
+                    template_run_content_hash=forecast.template_run_content_hash,
+                    valuation_consumable=forecast.valuation_consumable,
+                    promotion_decision_id=forecast.promotion_decision_id,
+                    content_hash=forecast.content_hash,
+                )
+        except IntegrityError as exc:
+            candidates = list(
+                OperatingForecastVersionModel._default_manager.select_for_update().filter(
+                    Q(forecast_id=forecast.forecast_id)
+                    | Q(
+                        forecast_key=forecast.forecast_key,
+                        forecast_version=forecast.forecast_version,
+                    )
+                    | Q(
+                        evidence_schema_version=2,
+                        template_run_key=forecast.template_run_key,
+                        template_run_version=forecast.template_run_version,
+                    )
+                )
+            )
+            if not candidates or any(
+                candidate.content_hash != forecast.content_hash for candidate in candidates
+            ):
+                raise OperatingForecastConflictError(
+                    "forecast identity already has conflicting immutable content"
+                ) from exc
+            stored = self.get_version(candidates[0].forecast_id)
+            if not isinstance(stored, OperatingForecastVersion):
+                raise RuntimeError("concurrent forecast could not be reconstructed") from exc
+            return stored
         OperatingForecastFactReferenceModel._default_manager.bulk_create(
             [
                 OperatingForecastFactReferenceModel(
@@ -215,11 +282,12 @@ class DjangoOperatingForecastRepository:
                     observed_fact_version_id=assumption.observed_fact_version_id,
                     human_assumption_ref=assumption.human_assumption_ref,
                     model_version=assumption.model_version,
-                    observed_metric_role=(
-                        assumption.observed_metric_role.value
-                        if assumption.observed_metric_role is not None
-                        else ""
-                    ),
+                    legacy_observed_metric_role="",
+                    observed_metric_code=assumption.observed_metric_code,
+                    observed_fact_content_hash=assumption.observed_fact_content_hash,
+                    observed_subject_type=assumption.observed_subject_type,
+                    observed_subject_code=assumption.observed_subject_code,
+                    fact_binding_complete=True,
                 )
                 for assumption in forecast.assumptions
             ]
@@ -230,8 +298,21 @@ class DjangoOperatingForecastRepository:
                 scenario=projection.scenario.value,
                 revenue=projection.revenue,
                 net_profit=projection.net_profit,
+                cash_flow=projection.cash_flow,
                 profit_margin_percent=projection.profit_margin_percent,
                 currency_unit=projection.currency_unit,
+            )
+            OperatingForecastStageValueModel._default_manager.bulk_create(
+                [
+                    OperatingForecastStageValueModel(
+                        projection=projection_model,
+                        stage=stage.stage.value,
+                        node_key=stage.node_key,
+                        value=stage.value,
+                        unit=stage.unit,
+                    )
+                    for stage in projection.stage_values
+                ]
             )
             OperatingForecastSensitivityModel._default_manager.bulk_create(
                 [
@@ -243,23 +324,31 @@ class DjangoOperatingForecastRepository:
                         output_value=point.output_value,
                         output_unit=point.output_unit,
                         method_version=point.method_version,
+                        source_artifact_ref=point.source_artifact_ref,
+                        source_artifact_hash=point.source_artifact_hash,
+                        source_binding_complete=True,
                     )
                     for point in projection.sensitivities
                 ]
             )
         stored = self.get_version(model.forecast_id)
-        if stored is None:
+        if not isinstance(stored, OperatingForecastVersion):
             raise RuntimeError("new forecast could not be reconstructed")
         return stored
 
-    def get_version(self, forecast_id: str) -> OperatingForecastVersion | None:
+    def get_version(
+        self,
+        forecast_id: str,
+    ) -> OperatingForecastVersion | LegacyOperatingForecastVersion | None:
         """Load one full version with facts, assumptions, projections and sensitivities."""
 
         sensitivity_queryset = OperatingForecastSensitivityModel._default_manager.order_by(
             "sensitivity_key"
         )
+        stage_queryset = OperatingForecastStageValueModel._default_manager.order_by("stage")
         projection_queryset = OperatingForecastProjectionModel._default_manager.prefetch_related(
-            Prefetch("sensitivities", queryset=sensitivity_queryset)
+            Prefetch("sensitivities", queryset=sensitivity_queryset),
+            Prefetch("stage_values", queryset=stage_queryset),
         ).order_by("scenario")
         model = (
             OperatingForecastVersionModel._default_manager.prefetch_related(
@@ -282,6 +371,17 @@ class DjangoOperatingForecastRepository:
         )
         if model is None:
             return None
+        if model.evidence_schema_version == 1 and model.source_lineage_status in {
+            OperatingForecastSourceLineageStatus.LEGACY_UNBOUND.value,
+            OperatingForecastSourceLineageStatus.LEGACY_UNVERIFIED.value,
+        }:
+            return self._to_legacy_domain(model)
+        if (
+            model.evidence_schema_version != 2
+            or model.source_lineage_status
+            != OperatingForecastSourceLineageStatus.TEMPLATE_BOUND.value
+        ):
+            raise OperatingForecastEvidenceError("forecast evidence schema or lineage is invalid")
         forecast = self._to_domain(model)
         if forecast.content_hash != model.content_hash:
             raise OperatingForecastConflictError("stored forecast content hash is invalid")
@@ -410,20 +510,33 @@ class DjangoOperatingForecastRepository:
                 observed_fact_version_id=row.observed_fact_version_id,
                 human_assumption_ref=row.human_assumption_ref,
                 model_version=row.model_version,
-                observed_metric_role=(
-                    OperatingMetricRole(row.observed_metric_role)
-                    if row.observed_metric_role
-                    else None
-                ),
+                observed_metric_code=row.observed_metric_code,
+                observed_fact_content_hash=row.observed_fact_content_hash,
+                observed_subject_type=row.observed_subject_type,
+                observed_subject_code=row.observed_subject_code,
             )
             for row in model.assumptions.all()
         )
+        if any(row.cash_flow is None for row in model.projections.all()):
+            raise OperatingForecastEvidenceError(
+                "forecast projection lacks a sealed cash-flow value"
+            )
         projections = tuple(
             OperatingForecastProjection(
                 scenario=ForecastScenario(row.scenario),
                 revenue=row.revenue,
                 net_profit=row.net_profit,
+                cash_flow=cast(Decimal, row.cash_flow),
                 currency_unit=row.currency_unit,
+                stage_values=tuple(
+                    OperatingForecastStageValue(
+                        stage=OperatingForecastStage(stage.stage),
+                        node_key=stage.node_key,
+                        value=stage.value,
+                        unit=stage.unit,
+                    )
+                    for stage in row.stage_values.all()
+                ),
                 sensitivities=tuple(
                     ValuationSensitivityPoint(
                         sensitivity_key=point.sensitivity_key,
@@ -432,6 +545,8 @@ class DjangoOperatingForecastRepository:
                         output_value=point.output_value,
                         output_unit=point.output_unit,
                         method_version=point.method_version,
+                        source_artifact_ref=point.source_artifact_ref,
+                        source_artifact_hash=point.source_artifact_hash,
                     )
                     for point in row.sensitivities.all()
                 ),
@@ -449,12 +564,207 @@ class DjangoOperatingForecastRepository:
             horizon_quarters=model.horizon_quarters,
             methodology_ref=model.methodology_ref,
             created_by_ref=model.created_by_ref,
+            source_kind=OperatingForecastSourceKind.INDUSTRY_TEMPLATE,
+            evidence_schema_version=model.evidence_schema_version,
+            source_lineage_status=OperatingForecastSourceLineageStatus(model.source_lineage_status),
+            template_code=model.template_code,
+            template_version=model.template_version or 0,
+            template_content_hash=model.template_content_hash,
+            template_run_key=model.template_run_key,
+            template_run_version=model.template_run_version or 0,
+            template_run_content_hash=model.template_run_content_hash,
             facts=facts,
             assumptions=assumptions,
             projections=projections,
             valuation_consumable=model.valuation_consumable,
             promotion_decision_id=model.promotion_decision_id,
         )
+
+    @staticmethod
+    def _to_legacy_domain(
+        model: OperatingForecastVersionModel,
+    ) -> LegacyOperatingForecastVersion:
+        """Verify and expose a v1 row without inventing template/run lineage."""
+
+        recipe = OperatingForecastLegacyHashRecipe(model.legacy_hash_recipe)
+        hash_status = OperatingForecastLegacyHashStatus(model.legacy_hash_status)
+        if hash_status is OperatingForecastLegacyHashStatus.VERIFIED:
+            expected_hash = DjangoOperatingForecastRepository._legacy_content_hash(
+                model,
+                recipe=recipe,
+            )
+            if expected_hash != model.content_hash:
+                raise OperatingForecastConflictError(
+                    "stored legacy forecast content hash is invalid"
+                )
+        facts = tuple(
+            OperatingFactEvidence(
+                version_id=row.pit_fact_version_id,
+                dataset=row.dataset,
+                business_key=row.business_key,
+                metric_code=row.metric_code,
+                subject_type=row.subject_type,
+                subject_code=row.subject_code,
+                effective_at=row.effective_at,
+                available_at=row.available_at,
+                source_record_id=row.source_record_id,
+                content_hash=row.pit_content_hash,
+                value=row.value,
+                unit=row.unit,
+            )
+            for row in model.fact_references.all()
+        )
+        assumptions = tuple(
+            LegacyOperatingForecastAssumption(
+                scenario=ForecastScenario(row.scenario),
+                assumption_key=row.assumption_key,
+                value=row.value,
+                unit=row.unit,
+                input_kind=ForecastInputKind(row.input_kind),
+                rationale=row.rationale,
+                observed_fact_version_id=row.observed_fact_version_id,
+                human_assumption_ref=row.human_assumption_ref,
+                model_version=row.model_version,
+                observed_metric_role=row.legacy_observed_metric_role or None,
+            )
+            for row in model.assumptions.all()
+        )
+        projections = tuple(
+            LegacyOperatingForecastProjection(
+                scenario=ForecastScenario(row.scenario),
+                revenue=row.revenue,
+                net_profit=row.net_profit,
+                currency_unit=row.currency_unit,
+                sensitivities=tuple(
+                    LegacyValuationSensitivityPoint(
+                        sensitivity_key=point.sensitivity_key,
+                        input_value=point.input_value,
+                        input_unit=point.input_unit,
+                        output_value=point.output_value,
+                        output_unit=point.output_unit,
+                        method_version=point.method_version,
+                    )
+                    for point in row.sensitivities.all()
+                ),
+            )
+            for row in model.projections.all()
+        )
+        return LegacyOperatingForecastVersion(
+            forecast_id=model.forecast_id,
+            forecast_key=model.forecast_key,
+            forecast_version=model.forecast_version,
+            subject_code=model.subject_code,
+            industry_code=model.industry_code,
+            as_of_time=model.as_of_time,
+            target_period_end=model.target_period_end,
+            horizon_quarters=model.horizon_quarters,
+            methodology_ref=model.methodology_ref,
+            created_by_ref=model.created_by_ref,
+            facts=facts,
+            assumptions=assumptions,
+            projections=projections,
+            original_content_hash=model.content_hash,
+            historical_valuation_consumable=model.valuation_consumable,
+            promotion_decision_id=model.promotion_decision_id,
+            legacy_hash_recipe=recipe,
+            legacy_hash_status=hash_status,
+            source_lineage_status=OperatingForecastSourceLineageStatus(model.source_lineage_status),
+        )
+
+    @staticmethod
+    def _legacy_content_hash(
+        model: OperatingForecastVersionModel,
+        *,
+        recipe: OperatingForecastLegacyHashRecipe,
+    ) -> str:
+        """Recompute the exact pre-bridge v1 hash while preserving stored bytes."""
+
+        if recipe not in {
+            OperatingForecastLegacyHashRecipe.V1_0010_UNTYPED,
+            OperatingForecastLegacyHashRecipe.V1_0011_TYPED,
+        }:
+            raise OperatingForecastEvidenceError("legacy forecast hash recipe is unverified")
+        include_metric_role = recipe is OperatingForecastLegacyHashRecipe.V1_0011_TYPED
+
+        payload = {
+            "forecast_id": model.forecast_id,
+            "forecast_key": model.forecast_key,
+            "forecast_version": model.forecast_version,
+            "subject_code": model.subject_code,
+            "industry_code": model.industry_code,
+            "as_of_time": model.as_of_time.astimezone(UTC).isoformat(),
+            "target_period_end": model.target_period_end.isoformat(),
+            "horizon_quarters": model.horizon_quarters,
+            "methodology_ref": model.methodology_ref,
+            "created_by_ref": model.created_by_ref,
+            "valuation_consumable": model.valuation_consumable,
+            "promotion_decision_id": model.promotion_decision_id,
+            "facts": [
+                {
+                    "version_id": row.pit_fact_version_id,
+                    "dataset": row.dataset,
+                    "business_key": row.business_key,
+                    "metric_code": row.metric_code,
+                    "subject_type": row.subject_type,
+                    "subject_code": row.subject_code,
+                    "effective_at": row.effective_at.astimezone(UTC).isoformat(),
+                    "available_at": row.available_at.astimezone(UTC).isoformat(),
+                    "source_record_id": row.source_record_id,
+                    "content_hash": row.pit_content_hash,
+                    "value": _decimal_text(row.value),
+                    "unit": row.unit,
+                }
+                for row in model.fact_references.all()
+            ],
+            "assumptions": [
+                {
+                    "scenario": row.scenario,
+                    "assumption_key": row.assumption_key,
+                    "value": _decimal_text(row.value),
+                    "unit": row.unit,
+                    "input_kind": row.input_kind,
+                    "rationale": row.rationale,
+                    "lineage_ref": (
+                        f"data_center_pit_fact:{row.observed_fact_version_id}"
+                        if row.input_kind == ForecastInputKind.OBSERVED_FACT.value
+                        else (
+                            row.human_assumption_ref
+                            if row.input_kind == ForecastInputKind.HUMAN_ASSUMPTION.value
+                            else row.model_version
+                        )
+                    ),
+                    **(
+                        {"observed_metric_role": (row.legacy_observed_metric_role or None)}
+                        if include_metric_role
+                        else {}
+                    ),
+                }
+                for row in model.assumptions.all()
+            ],
+            "projections": [
+                {
+                    "scenario": row.scenario,
+                    "revenue": _decimal_text(row.revenue),
+                    "net_profit": _decimal_text(row.net_profit),
+                    "profit_margin_percent": _decimal_text(row.profit_margin_percent),
+                    "currency_unit": row.currency_unit,
+                    "sensitivities": [
+                        {
+                            "sensitivity_key": point.sensitivity_key,
+                            "input_value": _decimal_text(point.input_value),
+                            "input_unit": point.input_unit,
+                            "output_value": _decimal_text(point.output_value),
+                            "output_unit": point.output_unit,
+                            "method_version": point.method_version,
+                        }
+                        for point in row.sensitivities.all()
+                    ],
+                }
+                for row in model.projections.all()
+            ],
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
 
 
 __all__ = [

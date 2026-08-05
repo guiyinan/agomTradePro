@@ -644,5 +644,6 @@ from .operating_forecast_models import (  # noqa: E402,F401
     OperatingForecastFactReferenceModel,
     OperatingForecastProjectionModel,
     OperatingForecastSensitivityModel,
+    OperatingForecastStageValueModel,
     OperatingForecastVersionModel,
 )

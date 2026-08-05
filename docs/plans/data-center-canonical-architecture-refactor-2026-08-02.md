@@ -4171,3 +4171,9 @@ Git SHA / 镜像 / migration：
 - 变更：`StockInfoRepositoryMixin.get_stock_info` 现在只返回 canonical AssetMaster 命中结果；删除按四类事实 `get_latest` 链式推断最小 `StockInfo` 的兼容路径。缺少 AssetMaster 时稳定返回 `None`，上层保持“未找到股票/blocked”语义。
 - 治理与测试：`equity.published_stock_context` 增加 AssetMaster-only markers 和“存在未发布 price fact 仍不推断主数据”的 nodeid。
 - 已运行验证：新增 Equity stock-context 回归、current-data manifest runner 与既有 Equity/Data Center 定向回归应在本批提交后复跑；未修改历史显式查询、canonical 写入或 provider 配置。
+
+## 58. 2026-08-05：Alpha 市场温度计切换 current Application Port
+
+- 目标：阻断 Alpha AI 二次筛选直接读取 `MarketThermometerSnapshotRepository.get_latest()` 的旁路，避免 stale/blocked 市场风险快照未经统一计算语义进入筛选 prompt。
+- 变更：Data Center Public Port 新增 `get_current_market_thermometer_payload()`，复用 `load_market_thermometer_payload(use_personal_thresholds=False)` 的 freshness/blocked/fallback 逻辑；Alpha 保留 `get_latest_market_thermometer_snapshot_payload` 兼容别名，但实现只委托该 current port。
+- 治理与测试：`data_center.market_thermometer` 合约新增 Public Port/Alpha marker 和兼容别名委托回归；Alpha 原有 monkeypatch 面不变。

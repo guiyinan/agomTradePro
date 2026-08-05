@@ -39,6 +39,8 @@ class ImmutableIndustryTemplateModel(models.Model):
 
     class Meta:
         abstract = True
+        base_manager_name = "objects"
+        default_manager_name = "objects"
 
     def save(
         self,
@@ -87,6 +89,8 @@ class IndustryOperatingTemplateVersionModel(ImmutableIndustryTemplateModel):
 
     class Meta:
         db_table = "sector_industry_operating_template"
+        base_manager_name = "objects"
+        default_manager_name = "objects"
         ordering = ["template_code", "template_version"]
         constraints = [
             models.UniqueConstraint(
@@ -145,6 +149,8 @@ class IndustryTemplateRunEvidenceModel(ImmutableIndustryTemplateModel):
 
     class Meta:
         db_table = "sector_industry_template_run_evidence"
+        base_manager_name = "objects"
+        default_manager_name = "objects"
         ordering = ["run_key", "run_version"]
         constraints = [
             models.UniqueConstraint(

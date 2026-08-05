@@ -32,11 +32,54 @@ class ForecastInputKind(str, Enum):
 
 
 class OperatingMetricRole(str, Enum):
-    """Typed operating metrics that may bind forecast and actual PIT values."""
+    """Canonical output metrics used by quarterly actual reconciliation."""
 
     REVENUE = "revenue"
     NET_PROFIT = "net_profit"
     PROFIT_MARGIN_PERCENT = "profit_margin_percent"
+
+
+class OperatingForecastStage(str, Enum):
+    """Required financial stages preserved from one industry-template run."""
+
+    REVENUE = "revenue"
+    COST = "cost"
+    GROSS_PROFIT = "gross_profit"
+    EXPENSE = "expense"
+    NET_PROFIT = "net_profit"
+    CASH_FLOW = "cash_flow"
+
+
+class OperatingForecastSourceKind(str, Enum):
+    """Auditable origin of an Equity operating-forecast record."""
+
+    LEGACY_MANUAL = "legacy_manual"
+    INDUSTRY_TEMPLATE = "industry_template"
+
+
+class OperatingForecastSourceLineageStatus(str, Enum):
+    """Migration-safe evidence lineage state for operating-forecast rows."""
+
+    LEGACY_UNBOUND = "legacy_unbound"
+    LEGACY_UNVERIFIED = "legacy_unverified"
+    TEMPLATE_BOUND = "template_bound"
+
+
+class OperatingForecastLegacyHashRecipe(str, Enum):
+    """Exact historical canonical payload used by a schema-v1 row."""
+
+    V1_0010_UNTYPED = "v1_0010_untyped"
+    V1_0011_TYPED = "v1_0011_typed"
+    UNVERIFIED = "unverified"
+    NOT_APPLICABLE = "not_applicable"
+
+
+class OperatingForecastLegacyHashStatus(str, Enum):
+    """Whether a preserved schema-v1 digest matched its historical recipe."""
+
+    VERIFIED = "verified"
+    UNVERIFIED = "unverified"
+    NOT_APPLICABLE = "not_applicable"
 
 
 def _require_text(value: str, field_name: str, *, maximum: int) -> None:
@@ -128,7 +171,10 @@ class OperatingForecastAssumption:
     observed_fact_version_id: int | None = None
     human_assumption_ref: str = ""
     model_version: str = ""
-    observed_metric_role: OperatingMetricRole | None = None
+    observed_metric_code: str = ""
+    observed_fact_content_hash: str = ""
+    observed_subject_type: str = ""
+    observed_subject_code: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.scenario, ForecastScenario):
@@ -142,10 +188,6 @@ class OperatingForecastAssumption:
         _require_text(self.unit, "OperatingForecastAssumption.unit", maximum=40)
         if not isinstance(self.input_kind, ForecastInputKind):
             raise ValueError("OperatingForecastAssumption.input_kind is invalid")
-        if self.observed_metric_role is not None and not isinstance(
-            self.observed_metric_role, OperatingMetricRole
-        ):
-            raise ValueError("OperatingForecastAssumption.observed_metric_role is invalid")
         _require_text(self.rationale, "OperatingForecastAssumption.rationale", maximum=500)
         self._validate_lineage()
 
@@ -164,10 +206,35 @@ class OperatingForecastAssumption:
         if not populated[self.input_kind] or sum(populated.values()) != 1:
             raise ValueError("forecast input lineage must match exactly one input_kind")
         if self.input_kind is ForecastInputKind.OBSERVED_FACT:
-            if self.observed_metric_role is None:
-                raise ValueError("observed forecast input requires a typed metric role")
-        elif self.observed_metric_role is not None:
-            raise ValueError("only observed forecast input may carry a metric role")
+            _require_token(
+                self.observed_metric_code,
+                "OperatingForecastAssumption.observed_metric_code",
+                maximum=64,
+            )
+            if len(self.observed_fact_content_hash) != 64 or any(
+                character not in "0123456789abcdefABCDEF"
+                for character in self.observed_fact_content_hash
+            ):
+                raise ValueError("observed_fact_content_hash must be a sha256 digest")
+            _require_token(
+                self.observed_subject_type,
+                "OperatingForecastAssumption.observed_subject_type",
+                maximum=40,
+            )
+            _require_token(
+                self.observed_subject_code,
+                "OperatingForecastAssumption.observed_subject_code",
+                maximum=80,
+            )
+        elif any(
+            (
+                self.observed_metric_code,
+                self.observed_fact_content_hash,
+                self.observed_subject_type,
+                self.observed_subject_code,
+            )
+        ):
+            raise ValueError("only observed forecast input may carry PIT fact identity")
 
     @property
     def lineage_ref(self) -> str:
@@ -190,6 +257,8 @@ class ValuationSensitivityPoint:
     output_value: Decimal
     output_unit: str
     method_version: str
+    source_artifact_ref: str
+    source_artifact_hash: str
 
     def __post_init__(self) -> None:
         _require_token(
@@ -206,6 +275,36 @@ class ValuationSensitivityPoint:
             "ValuationSensitivityPoint.method_version",
             maximum=128,
         )
+        _require_text(
+            self.source_artifact_ref,
+            "ValuationSensitivityPoint.source_artifact_ref",
+            maximum=255,
+        )
+        if len(self.source_artifact_hash) != 64 or any(
+            character not in "0123456789abcdefABCDEF" for character in self.source_artifact_hash
+        ):
+            raise ValueError("source_artifact_hash must be a sha256 digest")
+
+
+@dataclass(frozen=True)
+class OperatingForecastStageValue:
+    """One immutable six-stage output copied from a governed Sector run."""
+
+    stage: OperatingForecastStage
+    node_key: str
+    value: Decimal
+    unit: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.stage, OperatingForecastStage):
+            raise ValueError("OperatingForecastStageValue.stage is invalid")
+        _require_token(
+            self.node_key,
+            "OperatingForecastStageValue.node_key",
+            maximum=80,
+        )
+        _require_finite(self.value, "OperatingForecastStageValue.value")
+        _require_text(self.unit, "OperatingForecastStageValue.unit", maximum=40)
 
 
 @dataclass(frozen=True)
@@ -215,7 +314,9 @@ class OperatingForecastProjection:
     scenario: ForecastScenario
     revenue: Decimal
     net_profit: Decimal
+    cash_flow: Decimal
     currency_unit: str
+    stage_values: tuple[OperatingForecastStageValue, ...]
     sensitivities: tuple[ValuationSensitivityPoint, ...]
 
     def __post_init__(self) -> None:
@@ -225,6 +326,7 @@ class OperatingForecastProjection:
         if self.revenue <= 0:
             raise ValueError("OperatingForecastProjection.revenue must be positive")
         _require_finite(self.net_profit, "OperatingForecastProjection.net_profit")
+        _require_finite(self.cash_flow, "OperatingForecastProjection.cash_flow")
         _require_text(
             self.currency_unit,
             "OperatingForecastProjection.currency_unit",
@@ -235,6 +337,20 @@ class OperatingForecastProjection:
         keys = [point.sensitivity_key for point in self.sensitivities]
         if len(keys) != len(set(keys)):
             raise ValueError("valuation sensitivity keys must be unique per scenario")
+        stages = [point.stage for point in self.stage_values]
+        if set(stages) != set(OperatingForecastStage) or len(stages) != len(OperatingForecastStage):
+            raise ValueError("projection must preserve every financial stage exactly once")
+        by_stage = {point.stage: point for point in self.stage_values}
+        for stage, expected_value in (
+            (OperatingForecastStage.REVENUE, self.revenue),
+            (OperatingForecastStage.NET_PROFIT, self.net_profit),
+            (OperatingForecastStage.CASH_FLOW, self.cash_flow),
+        ):
+            stage_value = by_stage[stage]
+            if stage_value.value != expected_value or stage_value.unit != self.currency_unit:
+                raise ValueError(
+                    "projection headline values must match sealed financial stage values"
+                )
 
     @property
     def profit_margin_percent(self) -> Decimal:
@@ -257,6 +373,15 @@ class OperatingForecastVersion:
     horizon_quarters: int
     methodology_ref: str
     created_by_ref: str
+    source_kind: OperatingForecastSourceKind
+    evidence_schema_version: int
+    source_lineage_status: OperatingForecastSourceLineageStatus
+    template_code: str
+    template_version: int
+    template_content_hash: str
+    template_run_key: str
+    template_run_version: int
+    template_run_content_hash: str
     facts: tuple[OperatingFactEvidence, ...]
     assumptions: tuple[OperatingForecastAssumption, ...]
     projections: tuple[OperatingForecastProjection, ...]
@@ -285,10 +410,43 @@ class OperatingForecastVersion:
             "OperatingForecastVersion.created_by_ref",
             maximum=128,
         )
+        if self.source_kind is not OperatingForecastSourceKind.INDUSTRY_TEMPLATE:
+            raise ValueError("new operating forecasts require an industry-template source")
+        if self.evidence_schema_version != 2:
+            raise ValueError("industry-template forecasts require evidence schema v2")
+        if self.source_lineage_status is not OperatingForecastSourceLineageStatus.TEMPLATE_BOUND:
+            raise ValueError("industry-template forecasts require template-bound lineage")
+        _require_token(
+            self.template_code,
+            "OperatingForecastVersion.template_code",
+            maximum=80,
+        )
+        _require_token(
+            self.template_run_key,
+            "OperatingForecastVersion.template_run_key",
+            maximum=128,
+        )
+        for version_value, field_name in (
+            (self.template_version, "template_version"),
+            (self.template_run_version, "template_run_version"),
+        ):
+            if isinstance(version_value, bool) or version_value <= 0:
+                raise ValueError(f"OperatingForecastVersion.{field_name} must be positive")
+        for hash_value, field_name in (
+            (self.template_content_hash, "template_content_hash"),
+            (self.template_run_content_hash, "template_run_content_hash"),
+        ):
+            if len(hash_value) != 64 or any(
+                character not in "0123456789abcdefABCDEF" for character in hash_value
+            ):
+                raise ValueError(f"OperatingForecastVersion.{field_name} must be a sha256 digest")
         if not isinstance(self.valuation_consumable, bool):
             raise ValueError("valuation_consumable must be a boolean")
-        if self.valuation_consumable and not self.promotion_decision_id.strip():
-            raise ValueError("valuation consumption requires a promotion decision")
+        if self.valuation_consumable or self.promotion_decision_id.strip():
+            raise ValueError(
+                "template-bound schema-v2 forecasts remain research-only until exact "
+                "promotion-artifact binding is implemented"
+            )
         self._validate_facts_and_scenarios()
 
     def _validate_facts_and_scenarios(self) -> None:
@@ -336,8 +494,10 @@ class OperatingForecastVersion:
                     continue
                 fact = facts_by_id[assumption.observed_fact_version_id or 0]
                 if (
-                    assumption.observed_metric_role is None
-                    or fact.metric_code != assumption.observed_metric_role.value
+                    fact.metric_code != assumption.observed_metric_code
+                    or fact.content_hash.lower() != assumption.observed_fact_content_hash.lower()
+                    or fact.subject_type != assumption.observed_subject_type
+                    or fact.subject_code != assumption.observed_subject_code
                     or fact.value != assumption.value
                     or fact.unit != assumption.unit
                 ):
@@ -375,6 +535,15 @@ class OperatingForecastVersion:
             "horizon_quarters": self.horizon_quarters,
             "methodology_ref": self.methodology_ref,
             "created_by_ref": self.created_by_ref,
+            "source_kind": self.source_kind.value,
+            "evidence_schema_version": self.evidence_schema_version,
+            "source_lineage_status": self.source_lineage_status.value,
+            "template_code": self.template_code,
+            "template_version": self.template_version,
+            "template_content_hash": self.template_content_hash.lower(),
+            "template_run_key": self.template_run_key,
+            "template_run_version": self.template_run_version,
+            "template_run_content_hash": self.template_run_content_hash.lower(),
             "valuation_consumable": self.valuation_consumable,
             "promotion_decision_id": self.promotion_decision_id,
             "facts": [
@@ -403,11 +572,10 @@ class OperatingForecastVersion:
                     "input_kind": item.input_kind.value,
                     "rationale": item.rationale,
                     "lineage_ref": item.lineage_ref,
-                    "observed_metric_role": (
-                        item.observed_metric_role.value
-                        if item.observed_metric_role is not None
-                        else None
-                    ),
+                    "observed_metric_code": item.observed_metric_code,
+                    "observed_fact_content_hash": item.observed_fact_content_hash.lower(),
+                    "observed_subject_type": item.observed_subject_type,
+                    "observed_subject_code": item.observed_subject_code,
                 }
                 for item in sorted(
                     self.assumptions,
@@ -419,8 +587,21 @@ class OperatingForecastVersion:
                     "scenario": item.scenario.value,
                     "revenue": _decimal_text(item.revenue),
                     "net_profit": _decimal_text(item.net_profit),
+                    "cash_flow": _decimal_text(item.cash_flow),
                     "profit_margin_percent": _decimal_text(item.profit_margin_percent),
                     "currency_unit": item.currency_unit,
+                    "stage_values": [
+                        {
+                            "stage": stage.stage.value,
+                            "node_key": stage.node_key,
+                            "value": _decimal_text(stage.value),
+                            "unit": stage.unit,
+                        }
+                        for stage in sorted(
+                            item.stage_values,
+                            key=lambda stage: stage.stage.value,
+                        )
+                    ],
                     "sensitivities": [
                         {
                             "sensitivity_key": point.sensitivity_key,
@@ -429,6 +610,8 @@ class OperatingForecastVersion:
                             "output_value": _decimal_text(point.output_value),
                             "output_unit": point.output_unit,
                             "method_version": point.method_version,
+                            "source_artifact_ref": point.source_artifact_ref,
+                            "source_artifact_hash": point.source_artifact_hash.lower(),
                         }
                         for point in sorted(
                             item.sensitivities,
@@ -441,6 +624,149 @@ class OperatingForecastVersion:
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()
+
+
+@dataclass(frozen=True)
+class LegacyOperatingForecastAssumption:
+    """Read-only pre-bridge assumption retaining its original limited identity."""
+
+    scenario: ForecastScenario
+    assumption_key: str
+    value: Decimal
+    unit: str
+    input_kind: ForecastInputKind
+    rationale: str
+    observed_fact_version_id: int | None = None
+    human_assumption_ref: str = ""
+    model_version: str = ""
+    observed_metric_role: str | None = None
+
+    @property
+    def lineage_ref(self) -> str:
+        """Return the historical lineage reference used by the v1 hash schema."""
+
+        if self.input_kind is ForecastInputKind.OBSERVED_FACT:
+            return f"data_center_pit_fact:{self.observed_fact_version_id}"
+        if self.input_kind is ForecastInputKind.HUMAN_ASSUMPTION:
+            return self.human_assumption_ref
+        return self.model_version
+
+
+@dataclass(frozen=True)
+class LegacyValuationSensitivityPoint:
+    """Read-only pre-bridge sensitivity without fabricated owner identity."""
+
+    sensitivity_key: str
+    input_value: Decimal
+    input_unit: str
+    output_value: Decimal
+    output_unit: str
+    method_version: str
+
+
+@dataclass(frozen=True)
+class LegacyOperatingForecastProjection:
+    """Read-only projection preserved for rows created before template binding."""
+
+    scenario: ForecastScenario
+    revenue: Decimal
+    net_profit: Decimal
+    currency_unit: str
+    sensitivities: tuple[LegacyValuationSensitivityPoint, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.scenario, ForecastScenario):
+            raise ValueError("LegacyOperatingForecastProjection.scenario is invalid")
+        _require_finite(self.revenue, "LegacyOperatingForecastProjection.revenue")
+        if self.revenue <= 0:
+            raise ValueError("LegacyOperatingForecastProjection.revenue must be positive")
+        _require_finite(self.net_profit, "LegacyOperatingForecastProjection.net_profit")
+        _require_text(
+            self.currency_unit,
+            "LegacyOperatingForecastProjection.currency_unit",
+            maximum=40,
+        )
+
+    @property
+    def profit_margin_percent(self) -> Decimal:
+        """Return the historical projection's net-profit margin in percent."""
+
+        return self.net_profit / self.revenue * Decimal("100")
+
+
+@dataclass(frozen=True)
+class LegacyOperatingForecastVersion:
+    """Explicit research-only compatibility DTO for unbound pre-bridge rows."""
+
+    forecast_id: str
+    forecast_key: str
+    forecast_version: int
+    subject_code: str
+    industry_code: str
+    as_of_time: datetime
+    target_period_end: date
+    horizon_quarters: int
+    methodology_ref: str
+    created_by_ref: str
+    facts: tuple[OperatingFactEvidence, ...]
+    assumptions: tuple[LegacyOperatingForecastAssumption, ...]
+    projections: tuple[LegacyOperatingForecastProjection, ...]
+    original_content_hash: str
+    historical_valuation_consumable: bool
+    promotion_decision_id: str
+    legacy_hash_recipe: OperatingForecastLegacyHashRecipe
+    legacy_hash_status: OperatingForecastLegacyHashStatus
+    source_kind: OperatingForecastSourceKind = OperatingForecastSourceKind.LEGACY_MANUAL
+    evidence_schema_version: int = 1
+    source_lineage_status: OperatingForecastSourceLineageStatus = (
+        OperatingForecastSourceLineageStatus.LEGACY_UNBOUND
+    )
+    valuation_consumable: bool = False
+
+    def __post_init__(self) -> None:
+        if self.source_kind is not OperatingForecastSourceKind.LEGACY_MANUAL:
+            raise ValueError("legacy forecast source_kind is invalid")
+        if self.evidence_schema_version != 1:
+            raise ValueError("legacy forecast evidence schema must remain v1")
+        if self.source_lineage_status not in {
+            OperatingForecastSourceLineageStatus.LEGACY_UNBOUND,
+            OperatingForecastSourceLineageStatus.LEGACY_UNVERIFIED,
+        }:
+            raise ValueError("legacy forecast lineage status is invalid")
+        if self.valuation_consumable:
+            raise ValueError("legacy unbound forecasts must remain research-only")
+        if self.legacy_hash_status is OperatingForecastLegacyHashStatus.VERIFIED:
+            if self.legacy_hash_recipe not in {
+                OperatingForecastLegacyHashRecipe.V1_0010_UNTYPED,
+                OperatingForecastLegacyHashRecipe.V1_0011_TYPED,
+            }:
+                raise ValueError("verified legacy hash requires an exact historical recipe")
+        elif (
+            self.legacy_hash_status is not OperatingForecastLegacyHashStatus.UNVERIFIED
+            or self.legacy_hash_recipe is not OperatingForecastLegacyHashRecipe.UNVERIFIED
+            or self.source_lineage_status
+            is not OperatingForecastSourceLineageStatus.LEGACY_UNVERIFIED
+        ):
+            raise ValueError("unverified legacy hash state is inconsistent")
+        if len(self.original_content_hash) != 64 or any(
+            character not in "0123456789abcdefABCDEF" for character in self.original_content_hash
+        ):
+            raise ValueError("legacy forecast content hash must be a sha256 digest")
+        scenarios = [projection.scenario for projection in self.projections]
+        if set(scenarios) != set(ForecastScenario) or len(scenarios) != len(ForecastScenario):
+            raise ValueError("legacy forecast must contain exactly base, bull and bear")
+
+    @property
+    def content_hash(self) -> str:
+        """Return the verified pre-bridge content hash without changing its semantics."""
+
+        return self.original_content_hash
+
+    @property
+    def usage_scope(self) -> str:
+        """Keep legacy unbound rows outside approved valuation reads."""
+
+        return "legacy_research_only"
 
 
 def _absolute_percentage_error(
@@ -607,7 +933,7 @@ class OperatingForecastEvaluation:
 
 
 def build_quarterly_evaluations(
-    forecast: OperatingForecastVersion,
+    forecast: OperatingForecastVersion | LegacyOperatingForecastVersion,
     *,
     actual_period_end: date,
     recorded_at: datetime,
@@ -620,6 +946,26 @@ def build_quarterly_evaluations(
 
     if actual_period_end != forecast.target_period_end:
         raise ValueError("actual_period_end must match the forecast target period")
+    if isinstance(forecast, OperatingForecastVersion):
+        return tuple(
+            OperatingForecastEvaluation(
+                forecast_id=forecast.forecast_id,
+                subject_code=forecast.subject_code,
+                scenario=projection.scenario,
+                actual_period_end=actual_period_end,
+                recorded_at=recorded_at,
+                actual_facts=actual_facts,
+                forecast_revenue=projection.revenue,
+                forecast_net_profit=projection.net_profit,
+                actual_revenue=actual_revenue,
+                actual_net_profit=actual_net_profit,
+                currency_unit=currency_unit,
+            )
+            for projection in sorted(
+                forecast.projections,
+                key=lambda item: item.scenario.value,
+            )
+        )
     return tuple(
         OperatingForecastEvaluation(
             forecast_id=forecast.forecast_id,
@@ -634,18 +980,31 @@ def build_quarterly_evaluations(
             actual_net_profit=actual_net_profit,
             currency_unit=currency_unit,
         )
-        for projection in sorted(forecast.projections, key=lambda item: item.scenario.value)
+        for projection in sorted(
+            forecast.projections,
+            key=lambda item: item.scenario.value,
+        )
     )
 
 
 __all__ = [
     "ForecastInputKind",
     "ForecastScenario",
+    "LegacyOperatingForecastProjection",
+    "LegacyOperatingForecastAssumption",
+    "LegacyOperatingForecastVersion",
+    "LegacyValuationSensitivityPoint",
     "OperatingMetricRole",
     "OperatingFactEvidence",
     "OperatingForecastAssumption",
     "OperatingForecastEvaluation",
     "OperatingForecastProjection",
+    "OperatingForecastLegacyHashRecipe",
+    "OperatingForecastLegacyHashStatus",
+    "OperatingForecastSourceKind",
+    "OperatingForecastSourceLineageStatus",
+    "OperatingForecastStage",
+    "OperatingForecastStageValue",
     "OperatingForecastVersion",
     "ValuationSensitivityPoint",
     "build_quarterly_evaluations",

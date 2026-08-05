@@ -1,6 +1,9 @@
-"""Component coverage for the R1 operating-forecast persistence boundary."""
+"""Component coverage for the R1 Sector-to-Equity forecast boundary."""
 
-from datetime import UTC, date, datetime
+from __future__ import annotations
+
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -10,17 +13,24 @@ from apps.data_center.domain.research_data_foundation import (
     OPERATING_OBSERVATION_DATASET,
 )
 from apps.data_center.infrastructure.pit_models import PITFactVersionModel
+from apps.equity.application.industry_template_forecast_bridge import (
+    CreateForecastFromIndustryTemplate,
+    CreateForecastFromIndustryTemplateCommand,
+    ScenarioValuationSensitivities,
+)
 from apps.equity.application.operating_forecast import (
-    CreateOperatingForecastCommand,
+    CreateOperatingForecastVersionUseCase,
+    OperatingForecastConflictError,
     OperatingForecastEvidenceError,
+    OperatingForecastTemplateEvidenceError,
     RecordQuarterlyActualCommand,
+    RecordQuarterlyOperatingActualUseCase,
 )
 from apps.equity.domain.operating_forecast import (
-    ForecastInputKind,
     ForecastScenario,
-    OperatingForecastAssumption,
-    OperatingForecastProjection,
-    OperatingMetricRole,
+    OperatingFactEvidence,
+    OperatingForecastStage,
+    OperatingForecastVersion,
     ValuationSensitivityPoint,
 )
 from apps.equity.infrastructure.operating_forecast_models import (
@@ -29,24 +39,149 @@ from apps.equity.infrastructure.operating_forecast_models import (
     OperatingForecastFactReferenceModel,
     OperatingForecastProjectionModel,
     OperatingForecastSensitivityModel,
+    OperatingForecastStageValueModel,
     OperatingForecastVersionModel,
 )
 from apps.equity.infrastructure.operating_forecast_repository import (
     DjangoOperatingFactEvidenceProvider,
+    DjangoOperatingForecastRepository,
 )
-from apps.equity.operating_forecast_composition import (
-    build_create_operating_forecast_use_case,
-    build_record_quarterly_actual_use_case,
+from apps.sector.application.industry_operating_template import (
+    RunIndustryOperatingTemplate,
 )
-from apps.research.infrastructure.models import (
-    ExperimentTrial,
-    MultipleTestFamily,
-    PromotionDecision,
-    ResearchExperiment,
+from apps.sector.domain.industry_operating_template import (
+    IndustryTemplateRunResult,
+    TemplateRunStatus,
+)
+from apps.sector.infrastructure.industry_operating_template_models import (
+    IndustryTemplateRunEvidenceModel,
+)
+from apps.sector.infrastructure.industry_operating_template_repository import (
+    DjangoIndustryTemplateRepository,
+)
+from tests.unit.sector.test_industry_operating_template import _FactProvider as SectorFactProvider
+from tests.unit.sector.test_industry_operating_template import (
+    _request,
+    _template,
 )
 
-AS_OF = datetime(2026, 4, 30, 8, tzinfo=UTC)
-TARGET = date(2026, 6, 30)
+
+class _PromotionChecker:
+    def is_approved(self, decision_id: str) -> bool:
+        del decision_id
+        return True
+
+
+class _ExactFactProvider:
+    def __init__(self, facts: tuple[OperatingFactEvidence, ...]) -> None:
+        self._facts = {fact.version_id: fact for fact in facts}
+
+    def get_operating_facts(
+        self,
+        version_ids: tuple[int, ...],
+        *,
+        as_of_time: datetime,
+    ) -> tuple[OperatingFactEvidence, ...]:
+        del as_of_time
+        return tuple(self._facts[version_id] for version_id in version_ids)
+
+
+def _equity_facts(result: IndustryTemplateRunResult) -> tuple[OperatingFactEvidence, ...]:
+    return tuple(
+        OperatingFactEvidence(
+            version_id=fact.version_id,
+            dataset=fact.dataset,
+            business_key=fact.business_key,
+            metric_code=fact.metric_code,
+            subject_type="company",
+            subject_code=result.subject_code,
+            effective_at=fact.effective_at,
+            available_at=fact.available_at,
+            source_record_id=fact.source_record_id,
+            content_hash=fact.content_hash,
+            value=fact.value,
+            unit=fact.unit,
+        )
+        for fact in result.facts
+    )
+
+
+def _sensitivities(
+    *,
+    output_delta: Decimal = Decimal("0"),
+) -> tuple[ScenarioValuationSensitivities, ...]:
+    outputs = {
+        ForecastScenario.BASE: Decimal("1200"),
+        ForecastScenario.BULL: Decimal("1500"),
+        ForecastScenario.BEAR: Decimal("700"),
+    }
+    return tuple(
+        ScenarioValuationSensitivities(
+            scenario=scenario,
+            points=(
+                ValuationSensitivityPoint(
+                    sensitivity_key="pe_multiple",
+                    input_value=Decimal("10"),
+                    input_unit="multiple",
+                    output_value=output + output_delta,
+                    output_unit="CNY",
+                    method_version="valuation-sensitivity-v1",
+                    source_artifact_ref=(f"valuation://worksheet/TEST_RUN/{scenario.value}/v1"),
+                    source_artifact_hash=(
+                        {
+                            ForecastScenario.BASE: "a",
+                            ForecastScenario.BULL: "b",
+                            ForecastScenario.BEAR: "c",
+                        }[scenario]
+                        * 64
+                    ),
+                ),
+            ),
+        )
+        for scenario, output in outputs.items()
+    )
+
+
+def _persist_sector_run(
+    *,
+    as_of_time: datetime,
+) -> tuple[
+    DjangoIndustryTemplateRepository,
+    IndustryTemplateRunResult,
+    tuple[OperatingFactEvidence, ...],
+]:
+    sector_repository = DjangoIndustryTemplateRepository()
+    template = sector_repository.append_template(_template())
+    request = replace(_request(), as_of_time=as_of_time)
+    result = RunIndustryOperatingTemplate(
+        repository=sector_repository,
+        fact_provider=SectorFactProvider(template),
+    ).execute(request)
+    assert result.status is TemplateRunStatus.AVAILABLE
+    return sector_repository, result, _equity_facts(result)
+
+
+def _build_bridge(
+    *,
+    sector_repository: DjangoIndustryTemplateRepository,
+    facts: tuple[OperatingFactEvidence, ...],
+) -> tuple[CreateForecastFromIndustryTemplate, DjangoOperatingForecastRepository]:
+    equity_repository = DjangoOperatingForecastRepository()
+    fact_provider = _ExactFactProvider(facts)
+    writer = CreateOperatingForecastVersionUseCase(
+        repository=equity_repository,
+        fact_provider=fact_provider,
+        promotion_checker=_PromotionChecker(),
+        template_run_evidence_provider=sector_repository,
+    )
+    return (
+        CreateForecastFromIndustryTemplate(
+            writer=writer,
+            fact_provider=fact_provider,
+            run_evidence_provider=sector_repository,
+        ),
+        equity_repository,
+    )
 
 
 def _append_operating_fact(
@@ -57,22 +192,19 @@ def _append_operating_fact(
     revision_number: int = 0,
     value_kind: str = "observed_fact",
     pit_quality: str = "verified",
-    metric_code: str = "revenue",
     value: str = "100",
-    unit: str = "CNY_million",
-    subject_code: str = "000001.SZ",
 ) -> PITFactVersionModel:
     payload = {
-        "metric_code": metric_code,
+        "metric_code": "store_count",
         "definition_version": 1,
         "subject_type": "company",
-        "subject_code": subject_code,
+        "subject_code": "000001.SZ",
         "effective_at": effective_at.isoformat(),
         "effective_to": None,
         "available_at": available_at.isoformat(),
         "revision_number": revision_number,
         "value": value,
-        "unit": unit,
+        "unit": "count",
         "frequency": "quarterly",
         "source": "licensed-report",
         "value_kind": value_kind,
@@ -96,135 +228,32 @@ def _append_operating_fact(
     )
 
 
-def _create_approved_promotion() -> PromotionDecision:
-    experiment = ResearchExperiment._default_manager.create(
-        experiment_id="r1-operating-forecast",
-        question="Can governed operating inputs improve the quarterly baseline?",
-        hypothesis="The frozen trial beats its registered baseline out of sample.",
-        status="completed",
-    )
-    family = MultipleTestFamily._default_manager.create(
-        family_id="r1-operating-family",
-        experiment=experiment,
-        planned_trial_count=1,
-    )
-    trial = ExperimentTrial._default_manager.create(
-        trial_id="r1-operating-trial-v1",
-        experiment=experiment,
-        family=family,
-        status="eligible_for_promotion",
-        pit_manifest_id="pit-manifest-r1-v1",
-        backtest_id=None,
-        backtest_trust_status="trusted",
-        code_commit="a" * 40,
-        dependency_lock_hash="b" * 64,
-        engine_version="r1-evaluator-v1",
-        parameters={"forecast_contract": "operating-forecast-v1"},
-        parameter_hash="c" * 64,
-        random_seed=7,
-        benchmark_spec={"type": "seasonal_naive"},
-        cost_spec={"type": "not_applicable"},
-        slippage_spec={"type": "not_applicable"},
-        universe_spec={"subject_code": "000001.SZ"},
-    )
-    return PromotionDecision._default_manager.create(
-        decision_id="promotion-approved-v1",
-        trial=trial,
-        decision="approved",
-        evidence={"forecast_contract": "operating-forecast-v1"},
-    )
-
-
-def _assumptions(fact_id: int) -> tuple[OperatingForecastAssumption, ...]:
-    result: list[OperatingForecastAssumption] = []
-    for scenario, growth in (
-        (ForecastScenario.BASE, "5"),
-        (ForecastScenario.BULL, "8"),
-        (ForecastScenario.BEAR, "-2"),
-    ):
-        result.extend(
-            (
-                OperatingForecastAssumption(
-                    scenario=scenario,
-                    assumption_key="revenue_anchor",
-                    value=Decimal("100"),
-                    unit="CNY_million",
-                    input_kind=ForecastInputKind.OBSERVED_FACT,
-                    rationale="Frozen public PIT operating observation.",
-                    observed_fact_version_id=fact_id,
-                    observed_metric_role=OperatingMetricRole.REVENUE,
-                ),
-                OperatingForecastAssumption(
-                    scenario=scenario,
-                    assumption_key="growth_input",
-                    value=Decimal(growth),
-                    unit="percent",
-                    input_kind=(
-                        ForecastInputKind.MODEL_INFERENCE
-                        if scenario is ForecastScenario.BASE
-                        else ForecastInputKind.HUMAN_ASSUMPTION
-                    ),
-                    rationale="Externally supplied scenario input.",
-                    human_assumption_ref=(
-                        "assumption-set-v1" if scenario is not ForecastScenario.BASE else ""
-                    ),
-                    model_version=(
-                        "r1-operating-trial-v1" if scenario is ForecastScenario.BASE else ""
-                    ),
-                ),
-            )
-        )
-    return tuple(result)
-
-
-def _projections() -> tuple[OperatingForecastProjection, ...]:
-    return tuple(
-        OperatingForecastProjection(
-            scenario=scenario,
-            revenue=Decimal(revenue),
-            net_profit=Decimal(profit),
-            currency_unit="CNY_million",
-            sensitivities=(
-                ValuationSensitivityPoint(
-                    sensitivity_key="pe_multiple",
-                    input_value=Decimal("10"),
-                    input_unit="multiple",
-                    output_value=Decimal(output),
-                    output_unit="CNY_million",
-                    method_version="sensitivity-sheet-v1",
-                ),
-            ),
-        )
-        for scenario, revenue, profit, output in (
-            (ForecastScenario.BASE, "120", "12", "1200"),
-            (ForecastScenario.BULL, "130", "16", "1500"),
-            (ForecastScenario.BEAR, "95", "4", "700"),
-        )
-    )
-
-
-def _command(fact_id: int) -> CreateOperatingForecastCommand:
-    return CreateOperatingForecastCommand(
-        forecast_id="forecast-000001-2026q2-v1",
-        forecast_key="000001.SZ-2026Q2",
-        forecast_version=1,
-        subject_code="000001.SZ",
-        industry_code="consumer-service",
-        as_of_time=AS_OF,
-        target_period_end=TARGET,
-        horizon_quarters=1,
-        methodology_ref="research-note-2026q2-v1",
-        created_by_ref="analyst-7",
-        fact_version_ids=(fact_id,),
-        assumptions=_assumptions(fact_id),
-        projections=_projections(),
-        valuation_consumable=True,
-        promotion_decision_id="promotion-approved-v1",
+def _actual_fact(
+    *,
+    version_id: int,
+    metric_code: str,
+    value: str,
+    content_hash_character: str,
+) -> OperatingFactEvidence:
+    return OperatingFactEvidence(
+        version_id=version_id,
+        dataset="research.operating_observation.v1",
+        business_key=f"{metric_code}|TEST.ASSET|2025Q2",
+        metric_code=metric_code,
+        subject_type="company",
+        subject_code="TEST.ASSET",
+        effective_at=datetime(2025, 6, 30, tzinfo=UTC),
+        available_at=datetime(2025, 8, 15, tzinfo=UTC),
+        source_record_id=f"quarterly-report-{version_id}",
+        content_hash=content_hash_character * 64,
+        value=Decimal(value),
+        unit="CNY",
     )
 
 
 @pytest.mark.django_db
 def test_operating_fact_provider_rejects_inference_and_superseded_versions() -> None:
+    as_of = datetime(2026, 4, 30, 8, tzinfo=UTC)
     inferred = _append_operating_fact(
         business_key="inferred-kpi",
         effective_at=datetime(2026, 3, 31, tzinfo=UTC),
@@ -234,7 +263,7 @@ def test_operating_fact_provider_rejects_inference_and_superseded_versions() -> 
     )
     provider = DjangoOperatingFactEvidenceProvider()
     with pytest.raises(OperatingForecastEvidenceError, match="verified PIT quality"):
-        provider.get_operating_facts((inferred.pk,), as_of_time=AS_OF)
+        provider.get_operating_facts((inferred.pk,), as_of_time=as_of)
 
     old = _append_operating_fact(
         business_key="revised-kpi",
@@ -249,86 +278,270 @@ def test_operating_fact_provider_rejects_inference_and_superseded_versions() -> 
         value="101",
     )
     with pytest.raises(OperatingForecastEvidenceError, match="latest public"):
-        provider.get_operating_facts((old.pk,), as_of_time=AS_OF)
-    assert provider.get_operating_facts((latest.pk,), as_of_time=AS_OF)[0].value == Decimal("101")
+        provider.get_operating_facts((old.pk,), as_of_time=as_of)
+    assert provider.get_operating_facts((latest.pk,), as_of_time=as_of)[0].value == Decimal("101")
 
 
 @pytest.mark.django_db
-def test_forecast_repository_round_trip_promotion_and_quarterly_errors() -> None:
-    source = _append_operating_fact(
-        business_key="store-count-v1",
-        effective_at=datetime(2026, 3, 31, tzinfo=UTC),
-        available_at=datetime(2026, 4, 20, tzinfo=UTC),
+def test_persisted_sector_run_bridges_with_utc_canonical_round_trip_and_idempotency() -> None:
+    plus_eight = timezone(timedelta(hours=8))
+    sector_repository, result, facts = _persist_sector_run(
+        as_of_time=datetime(2025, 3, 31, 8, tzinfo=plus_eight)
     )
-    _create_approved_promotion()
-    create_use_case = build_create_operating_forecast_use_case()
-    stored = create_use_case.execute(_command(source.pk))
-    assert stored.usage_scope == "valuation_approved"
-    assert stored.contains_model_inference is True
-    assert OperatingForecastVersionModel._default_manager.count() == 1
-    assert OperatingForecastFactReferenceModel._default_manager.count() == 1
-    assert OperatingForecastAssumptionModel._default_manager.count() == 6
-    assert OperatingForecastProjectionModel._default_manager.count() == 3
-    assert OperatingForecastSensitivityModel._default_manager.count() == 3
+    bridge, equity_repository = _build_bridge(
+        sector_repository=sector_repository,
+        facts=facts,
+    )
+    command = CreateForecastFromIndustryTemplateCommand(
+        run_key=result.run_key,
+        run_version=result.run_version,
+        sensitivities=_sensitivities(),
+    )
 
-    replay = create_use_case.execute(_command(source.pk))
+    stored = bridge.execute(command)
+    replay = bridge.execute(command)
+
+    assert isinstance(stored, OperatingForecastVersion)
     assert replay.content_hash == stored.content_hash
+    assert stored.as_of_time.astimezone(UTC) == datetime(2025, 3, 31, tzinfo=UTC)
+    assert stored.valuation_consumable is False
+    assert stored.promotion_decision_id == ""
+    assert {projection.cash_flow for projection in stored.projections}
+    assert all(
+        {stage.stage for stage in projection.stage_values} == set(OperatingForecastStage)
+        for projection in stored.projections
+    )
     assert OperatingForecastVersionModel._default_manager.count() == 1
+    assert OperatingForecastFactReferenceModel._default_manager.count() == 3
+    assert OperatingForecastAssumptionModel._default_manager.count() == 15
+    assert OperatingForecastProjectionModel._default_manager.count() == 3
+    assert OperatingForecastStageValueModel._default_manager.count() == 18
+    assert OperatingForecastSensitivityModel._default_manager.count() == 3
+    assert IndustryTemplateRunEvidenceModel._default_manager.count() == 1
 
+    loaded = equity_repository.get_version(stored.forecast_id)
+    assert isinstance(loaded, OperatingForecastVersion)
+    assert loaded.content_hash == stored.content_hash
+    assert loaded.template_run_content_hash == result.content_hash
+
+    with pytest.raises(OperatingForecastConflictError, match="conflicting immutable"):
+        bridge.execute(
+            replace(
+                command,
+                sensitivities=_sensitivities(output_delta=Decimal("1")),
+            )
+        )
+
+
+@pytest.mark.django_db
+def test_bridge_blocks_missing_and_blocked_persisted_runs() -> None:
+    repository = DjangoIndustryTemplateRepository()
+    empty_bridge, _ = _build_bridge(sector_repository=repository, facts=())
+    command = CreateForecastFromIndustryTemplateCommand(
+        run_key="MISSING_RUN",
+        run_version=1,
+        sensitivities=_sensitivities(),
+    )
+    with pytest.raises(OperatingForecastTemplateEvidenceError, match="missing"):
+        empty_bridge.execute(command)
+
+    template = repository.append_template(_template())
+
+    class _MissingSectorFactProvider:
+        def get_fact(
+            self,
+            driver: object,
+            *,
+            subject_code: str,
+            as_of_time: datetime,
+        ) -> None:
+            del driver, subject_code, as_of_time
+            return None
+
+    blocked = RunIndustryOperatingTemplate(
+        repository=repository,
+        fact_provider=_MissingSectorFactProvider(),
+    ).execute(replace(_request(), run_key="BLOCKED_RUN"))
+    assert blocked.status is TemplateRunStatus.BLOCKED
+    blocked_bridge, _ = _build_bridge(sector_repository=repository, facts=())
+    with pytest.raises(OperatingForecastTemplateEvidenceError, match="only an available"):
+        blocked_bridge.execute(replace(command, run_key="BLOCKED_RUN"))
+    assert template.template_code == "TEST_TEMPLATE"
+
+
+@pytest.mark.django_db
+def test_child_write_failure_rolls_back_all_equity_rows_but_preserves_sector_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sector_repository, result, facts = _persist_sector_run(
+        as_of_time=datetime(2025, 3, 31, tzinfo=UTC)
+    )
+    bridge, _ = _build_bridge(sector_repository=sector_repository, facts=facts)
+
+    def fail_bulk_create(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise RuntimeError("injected sensitivity child failure")
+
+    monkeypatch.setattr(
+        OperatingForecastSensitivityModel._default_manager,
+        "bulk_create",
+        fail_bulk_create,
+    )
+    with pytest.raises(RuntimeError, match="injected sensitivity"):
+        bridge.execute(
+            CreateForecastFromIndustryTemplateCommand(
+                run_key=result.run_key,
+                run_version=result.run_version,
+                sensitivities=_sensitivities(),
+            )
+        )
+
+    for model in (
+        OperatingForecastVersionModel,
+        OperatingForecastFactReferenceModel,
+        OperatingForecastAssumptionModel,
+        OperatingForecastProjectionModel,
+        OperatingForecastStageValueModel,
+        OperatingForecastSensitivityModel,
+    ):
+        assert model._default_manager.count() == 0
+    assert IndustryTemplateRunEvidenceModel._default_manager.count() == 1
+
+
+@pytest.mark.django_db
+def test_base_manager_cannot_bypass_equity_or_sector_append_only_guards() -> None:
+    sector_repository, result, facts = _persist_sector_run(
+        as_of_time=datetime(2025, 3, 31, tzinfo=UTC)
+    )
+    bridge, _ = _build_bridge(sector_repository=sector_repository, facts=facts)
+    stored = bridge.execute(
+        CreateForecastFromIndustryTemplateCommand(
+            run_key=result.run_key,
+            run_version=result.run_version,
+            sensitivities=_sensitivities(),
+        )
+    )
     header = OperatingForecastVersionModel._default_manager.get(pk=stored.forecast_id)
-    header.subject_code = "MUTATED"
-    with pytest.raises(ValidationError, match="immutable"):
-        header.save()
-    with pytest.raises(ValidationError, match="cannot be updated"):
-        OperatingForecastVersionModel.objects.filter(pk=header.pk).update(subject_code="MUTATED")
-    with pytest.raises(ValidationError, match="bulk updated"):
-        OperatingForecastVersionModel.objects.filter(pk=header.pk).bulk_update(
-            [header], ["subject_code"]
-        )
-    with pytest.raises(ValidationError, match="cannot be deleted"):
-        OperatingForecastVersionModel.objects.filter(pk=header.pk).delete()
-    with pytest.raises(ValidationError, match="cannot be updated"):
-        PITFactVersionModel.objects.filter(pk=source.pk).update(pit_quality="unknown")
-    with pytest.raises(ValidationError, match="cannot be deleted"):
-        PITFactVersionModel.objects.filter(pk=source.pk).delete()
+    stage = OperatingForecastStageValueModel._default_manager.first()
+    sector_evidence = IndustryTemplateRunEvidenceModel._default_manager.get()
+    assert stage is not None
 
-    actual_revenue = _append_operating_fact(
-        business_key="quarter-actual-revenue-v1",
-        effective_at=datetime(2026, 6, 30, tzinfo=UTC),
-        available_at=datetime(2026, 8, 15, tzinfo=UTC),
-        metric_code="revenue",
-        value="100",
-        unit="CNY_million",
+    for model, instance, field, value in (
+        (OperatingForecastVersionModel, header, "subject_code", "MUTATED"),
+        (OperatingForecastStageValueModel, stage, "node_key", "MUTATED"),
+        (IndustryTemplateRunEvidenceModel, sector_evidence, "status", "blocked"),
+    ):
+        with pytest.raises(ValidationError, match="cannot be updated"):
+            model._base_manager.filter(pk=instance.pk).update(**{field: value})
+        setattr(instance, field, value)
+        with pytest.raises(ValidationError, match="bulk updated"):
+            model._base_manager.bulk_update([instance], [field])
+        with pytest.raises(ValidationError, match="cannot be deleted"):
+            model._base_manager.filter(pk=instance.pk).delete()
+
+
+@pytest.mark.django_db
+def test_forecast_get_version_has_constant_prefetch_query_count(
+    django_assert_num_queries: object,
+) -> None:
+    sector_repository, result, facts = _persist_sector_run(
+        as_of_time=datetime(2025, 3, 31, tzinfo=UTC)
     )
-    actual_profit = _append_operating_fact(
-        business_key="quarter-actual-profit-v1",
-        effective_at=datetime(2026, 6, 30, tzinfo=UTC),
-        available_at=datetime(2026, 8, 15, tzinfo=UTC),
-        metric_code="net_profit",
-        value="8",
-        unit="CNY_million",
-    )
-    evaluations = build_record_quarterly_actual_use_case().execute(
-        RecordQuarterlyActualCommand(
-            forecast_id=stored.forecast_id,
-            actual_period_end=TARGET,
-            recorded_at=datetime(2026, 8, 20, tzinfo=UTC),
-            actual_fact_version_ids=(actual_revenue.pk, actual_profit.pk),
-            actual_revenue=Decimal("100"),
-            actual_net_profit=Decimal("8"),
-            currency_unit="CNY_million",
+    bridge, repository = _build_bridge(sector_repository=sector_repository, facts=facts)
+    stored = bridge.execute(
+        CreateForecastFromIndustryTemplateCommand(
+            run_key=result.run_key,
+            run_version=result.run_version,
+            sensitivities=_sensitivities(),
         )
     )
+
+    with django_assert_num_queries(6):  # type: ignore[operator]
+        loaded = repository.get_version(stored.forecast_id)
+    assert isinstance(loaded, OperatingForecastVersion)
+
+
+@pytest.mark.django_db
+def test_quarterly_evaluations_round_trip_idempotency_conflict_and_append_only() -> None:
+    sector_repository, result, facts = _persist_sector_run(
+        as_of_time=datetime(2025, 3, 31, tzinfo=UTC)
+    )
+    bridge, repository = _build_bridge(sector_repository=sector_repository, facts=facts)
+    stored = bridge.execute(
+        CreateForecastFromIndustryTemplateCommand(
+            run_key=result.run_key,
+            run_version=result.run_version,
+            sensitivities=_sensitivities(),
+        )
+    )
+    actual_facts = (
+        _actual_fact(
+            version_id=901,
+            metric_code="revenue",
+            value="900",
+            content_hash_character="d",
+        ),
+        _actual_fact(
+            version_id=902,
+            metric_code="net_profit",
+            value="200",
+            content_hash_character="e",
+        ),
+    )
+    recorded_at = datetime(2025, 8, 20, tzinfo=UTC)
+    command = RecordQuarterlyActualCommand(
+        forecast_id=stored.forecast_id,
+        actual_period_end=stored.target_period_end,
+        recorded_at=recorded_at,
+        actual_fact_version_ids=(901, 902),
+        actual_revenue=Decimal("900"),
+        actual_net_profit=Decimal("200"),
+        currency_unit="CNY",
+    )
+    use_case = RecordQuarterlyOperatingActualUseCase(
+        repository,
+        _ExactFactProvider(actual_facts),
+    )
+
+    evaluations = use_case.execute(command)
+    replay = use_case.execute(command)
+
     assert len(evaluations) == 3
+    assert replay == evaluations
     assert OperatingForecastEvaluationModel._default_manager.count() == 3
     base = OperatingForecastEvaluationModel._default_manager.get(scenario="base")
-    assert base.revenue_error == Decimal("20")
-    assert base.net_profit_absolute_percentage_error == Decimal("50")
-    assert base.profit_margin_error == Decimal("2")
-    assert {item["version_id"] for item in base.actual_fact_evidence} == {
-        actual_revenue.pk,
-        actual_profit.pk,
-    }
+    assert base.revenue_error == Decimal("100")
+    assert base.net_profit_error == Decimal("100")
+    assert {item["version_id"] for item in base.actual_fact_evidence} == {901, 902}
+
+    conflicting_facts = (
+        actual_facts[0],
+        _actual_fact(
+            version_id=902,
+            metric_code="net_profit",
+            value="201",
+            content_hash_character="f",
+        ),
+    )
+    conflicting_use_case = RecordQuarterlyOperatingActualUseCase(
+        repository,
+        _ExactFactProvider(conflicting_facts),
+    )
+    with pytest.raises(OperatingForecastConflictError, match="conflicting immutable"):
+        conflicting_use_case.execute(replace(command, actual_net_profit=Decimal("201")))
+    assert OperatingForecastEvaluationModel._default_manager.count() == 3
+
     base.revenue_error = Decimal("999")
     with pytest.raises(ValidationError, match="immutable"):
         base.save()
+    with pytest.raises(ValidationError, match="cannot be updated"):
+        OperatingForecastEvaluationModel._base_manager.filter(pk=base.pk).update(
+            revenue_error=Decimal("999")
+        )
+    with pytest.raises(ValidationError, match="bulk updated"):
+        OperatingForecastEvaluationModel._base_manager.bulk_update(
+            [base],
+            ["revenue_error"],
+        )
+    with pytest.raises(ValidationError, match="cannot be deleted"):
+        OperatingForecastEvaluationModel._base_manager.filter(pk=base.pk).delete()
