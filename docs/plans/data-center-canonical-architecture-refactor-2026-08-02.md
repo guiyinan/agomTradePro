@@ -4286,3 +4286,10 @@ Git SHA / 镜像 / migration：
 - 治理与测试：扩展 `data_center.public_current_read_ports` marker/source/test；新增 Public Port 委托和动态模块目标回归，readiness 定向安全测试 `15 passed`，current-data 静态合同 `45 surfaces`。
 - 明确未做：未改变 readiness 阈值、证据窗口、覆盖率计算、历史/维护查询、Publication writer/provider 配置或生产部署。
 - 未验证风险：生产 readiness monitor 的真实 Publication 覆盖、PostgreSQL 查询预算、连续交易日观察窗口与旧链 M9 清理仍待生产阶段证据。
+
+## 74. 2026-08-05：Readiness Public Port 循环依赖回归修复
+
+- 发现：将 `status_services` 静态导入 Data Center Public Port 会形成 `data_center → task_monitor → operational_readiness → data_center` 循环；该失败由最新 HEAD clean worktree 的 module-cycle gate 捕获。
+- 修复：保留 Public Port 目标不变，改为受类型校验的动态 Application Port 解析，并在 current-data contract marker 中锁定目标模块；不恢复任何 `interface_services/query_services` 读取。
+- 证据：`check_module_cycles.py` 回到 0 cycle/0 bidirectional；最新 HEAD 全仓 mypy `0 errors in 0 files`、`manage.py check` 0 issues；current-data manifest `253 nodeid / 292 passed`。
+- 明确未做：未改变 readiness 业务阈值、数据计算、历史/维护端口、生产配置或部署；生产 PostgreSQL/观察窗口和 M9 旧链退出仍未完成。
