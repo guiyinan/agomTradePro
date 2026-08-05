@@ -1,6 +1,6 @@
 # R1/R2 策略研究能力启动门整改计划（2026-08-05）
 
-> 状态：**R1 行业模板/预测账本与 R2 市场结构研究纵切已实现；真实数据和晋级证据仍缺失，R1/R2 能力保持 Blocked**
+> 状态：**R1 持久证据桥接与 R2 expected-period coverage 已实现；真实数据、baseline 和晋级证据仍缺失，R1/R2 能力保持 Blocked**
 > 依据：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
 > 复核基线：`dev/refactor-scenario-governance-quick-wins`
 > 本轮主任务：判断 R1 行业经营驱动与盈利预测、R2 市场结构与投资者资金流是否具备启动条件。
@@ -30,9 +30,10 @@ R1、R2 当前均不得进入业务模型实现阶段。
 - Equity 新增 immutable `OperatingForecastVersion`，保存 forecast key/version、as-of、季度 horizon、行业/公司、methodology 和稳定 content hash。
 - 每个版本必须同时包含 `base / bull / bear`，每个情景都必须有 Data Center `research.operating_observation.v1` 的 latest-public、verified、`observed_fact` PIT 锚点；旧修订、未来不可知版本、人工假设或模型推断不能冒充事实。
 - 假设逐项保存值、单位、理由和唯一 lineage；`observed_fact / human_assumption / model_inference` 在 Domain 与数据库约束中互斥，未内置行业公式、默认增长率或 LLM 预测。
-- 每个情景保存收入、净利润、可复算利润率，以及外部提供的估值敏感性输入、输出、单位和方法版本。
+- Sector append-only run 通过 `run_key/run_version` 进入 Equity，调用方不能提交自称可信的 run result；template/run identity、通用 driver PIT identity、cash flow 和三情景六阶段输出全部进入 v2 seal。
+- 每个情景保存收入、净利润、现金流、可复算利润率，以及 Equity-owned typed 估值敏感性输入、输出、单位、方法版本和 source artifact hash。
 - 季度 actual 到达后，账本一次性追加三情景对比，保存 revenue/profit/margin 的 signed error、absolute error 与适用的 absolute percentage error，并引用当时可知的 operating PIT actual evidence。
-- `valuation_consumable=true` 必须引用 approved Research `PromotionDecision`；Equity 通过 Data Center Application facade 和 Research runtime checker 取证，不跨 App 读取 ORM。
+- v2 当前强制 research-only，旧的 decision-id-only checker 不能将预测标为 `valuation_consumable`。后续必须实现 PromotionDecision 对 forecast artifact hash、template run hash、owner、purpose 和 sensitivity evidence 的精确绑定，才可开放 Valuation 消费。
 - 能力仍为 `blocked`：当前实现证明可安全积累数据，不证明任何行业 forecast 已有效、已晋级或可用于投资决策。
 
 ## 2. 目标与非目标
@@ -79,7 +80,7 @@ Readiness Application 只能通过 Protocol 收集 owner evidence。它不得 im
 | 财务事实 Publication/PIT | `data_center` | `unverified` | `FinancialFact.available_at`、financial Publication publisher/query 和 PIT manifest 基座已存在；没有本轮生产 publication/coverage/manifest 证据 | `industry_earnings_forecast.financial_publication_pit.unverified` |
 | 估值事实 Publication/PIT | `data_center` | `unverified` | `ValuationFact.available_at` 与 published valuation query 已存在；没有本轮生产 publication/coverage/manifest 证据 | `industry_earnings_forecast.valuation_publication_pit.unverified` |
 | horizon、误差指标与 baseline | `equity` | `missing` | 已实现版本化 horizon、三情景 quarterly actual-vs-forecast ledger、signed/absolute/percentage error；仍没有 owner-approved naive/consensus baseline、样本规范或误差门槛 | `industry_earnings_forecast.forecast_evaluation_spec.missing` |
-| R1 绑定的 Research PromotionDecision | `research` | `unverified` | 账本已 fail closed 绑定 approved PromotionDecision 后才允许 `valuation_consumable`；仍没有真实 R1 trial、通过标准、approved decision 或 Valuation 读取证据 | `industry_earnings_forecast.research_promotion_gate.unverified` |
+| R1 绑定的 Research PromotionDecision | `research` | `unverified` | v2 账本强制 research-only，已拒绝旧 decision-id-only 放行；尚未实现 forecast/run/sensitivity artifact exact binding，也没有真实 R1 trial、通过标准、approved decision 或 Valuation 读取证据 | `industry_earnings_forecast.research_promotion_gate.unverified` |
 
 ### 4.1 R1 可启动的最小 pilot
 
@@ -113,7 +114,7 @@ Readiness Application 只能通过 Protocol 收集 owner evidence。它不得 im
 4. 输出保持 `structure_description_only`，不自动变成交易信号。
 5. Audit/Research 使用两个市场周期做样本外解释力验证；覆盖或口径不足时必须 blocked。
 
-上述 pilot 的 schema、PIT 读取和描述性聚合机制已实现，但不得对外发布“增量/存量/减量博弈”结论：批准 taxonomy、两个市场周期 PIT coverage manifest 和真实 series evidence 仍未满足。
+上述 pilot 的 schema、PIT 读取和描述性聚合机制已实现。版本化 expected-period calendar 现在是 coverage 的唯一期间来源，Application 对 request series × period 全量枚举；整期所有 series 都无可靠 observation 时显式 blocked，不再因没有记录而隐身。Calendar 无 seed、append-only，并封存 identity/frequency/as-of/active/expiry 与完整 hash。仍不得对外发布“增量/存量/减量博弈”结论：批准 taxonomy、真实 calendar、两个市场周期 PIT coverage manifest 和真实 series evidence 尚未满足。
 
 ## 6. Typed readiness contract
 
