@@ -24,7 +24,7 @@
 | R5 | 单券定价、久期/凸性、carry/roll-down、曲线/信用利差 | 历史分位、等级迁移、流动性溢价、曲线组合及容量门禁；组合结果持久化/晋级闭环 | 两条曲线、信用估值、Bond Master/CashFlow/Calendar Publication、外部对账 |
 | R6 | 简单基准不足 report、高级 artifact evidence gate | duration/决策损失/复杂度/稳定性比较；政策反应系数和诊断；监控/退役/Promotion 闭环 | 真实 shortfall、PIT 输入、预注册 family、OOS 证据 |
 | R7 | 概率分栏、Brier/分箱、PIT 类比、typed 逐期路径证据、append-only reminder ledger/internal outbox、due/ack/escalate/expiry | calibration/path 结果持久化、retirement/Promotion lifecycle 与审计分页 | 完整预测—复核—兑现历史、获批 sample policy、PIT 路径样本 |
-| R8 | canonical snapshot、execution feedback、统一输入、PSD/可行性、research solver | 13 类数值 payload 与 owner hash 精确绑定；现有配置基准；可投资 universe；四市场 typed constraints；真实 path drawdown；持久化/Promotion/lifecycle | broker reconciliation、R3/R4/R5 晋级、真实成本/容量/市场约束校准 |
+| R8 | canonical snapshot、execution feedback、13 类 typed 输入、current baseline、可投资 universe、四市场约束、path drawdown、四候选比较、append-only result/Promotion/retirement/rollback lifecycle | 本轮无数据软件清单经 Luna Max 复核已无 P0/P1；进入 transition plan/生产消费前仍须基于真实证据另建阶段 | broker reconciliation、R3/R4/R5 晋级、真实 Portfolio snapshot、成本/容量/市场约束校准 |
 
 ## 3. 本批完成项
 
@@ -82,13 +82,24 @@
 - Dated output 精确区分 current horizon 0 与 forward horizon > 0，保存 as-of/target period/produced/valid-until/value/unit；到期时刻立即 stale，latest 不等于 current。
 - Run artifact、outputs 与 lifecycle event 使用三张 append-only 表；retirement 通过 owner-attested hash chain 派生，不修改 0001 source result。`macro_factor.0002` 为 schema-only、零 seed，完整保留 legacy payload/hash/status/timestamp。
 
+### 3.7 R8 governed optimization input、结果与生命周期
+
+- 13 类数值 payload 分别绑定 canonical owner、payload hash、PIT/knowledge time、有效期和 source artifact；R3/R4/R5 Promotion 必须由 exact provider 在运行时重读，调用方不能提交自称已批准的对象。
+- Portfolio current baseline 使用版本化 conservation tolerance；可投资 universe 的 `can_buy / can_sell / retain_if_held` 被合成硬边界，held-only/no-buy 资产不能增仓。
+- A 股、基金、债券和商品规则均为带 `available_at` 的 typed constraint。weight-only 求解无法证明手数、T+1、结算、应计利息或保证金约束时，候选稳定返回 `constraint_not_yet_enforced`，不会产出可执行权重。
+- Path drawdown 只接受 knowledge cutoff 之前的完整逐期资产/现金路径；current、等权、资产风险平价和 local-search 四候选必须完整、守恒、可重算，selected candidate 必须是真实合格 argmin。
+- 完整 problem/result/lifecycle 证据图统一使用 canonical Decimal 与 UTC 时间；scale 或等价时区表示不改变 hash。
+- `portfolio.0006` 只创建 append-only input/result/lifecycle 台账，不 seed、不回填。Promotion 事件必须从 Research provider 精确回读，retirement/rollback 必须从 Portfolio owner authorization provider 精确回读；Repository 只持久化，不承担授权。
+- 本纵切未注册 API/TUI/Celery/订单或 transition plan 写入口，所有输出固定 `research_only / must_not_use_for_decision / must_not_execute`。
+
 ## 4. 后续实施顺序
 
-1. R8 typed input binding、current baseline、universe 与四市场约束。
-2. R1 baseline/Promotion artifact exact binding。
-3. R4 rolling backtest、R5 relative-value 扩展、R6 lifecycle。
-4. R3 regime 分段、trial/Promotion exact binding 与监控读取投影。
-5. R7 calibration/path 结果持久化与 retirement/Promotion lifecycle，R8 lifecycle。
+1. R1 baseline/Promotion artifact exact binding。
+2. R4 rolling backtest、R5 relative-value 扩展、R6 lifecycle。
+3. R3 regime 分段、trial/Promotion exact binding 与监控读取投影。
+4. R7 calibration/path 结果持久化与 retirement/Promotion lifecycle。
+
+R8 本轮无数据软件清单已关闭；只有取得真实 R3/R4/R5 Promotion、Portfolio snapshot、broker reconciliation 和约束校准后，才另建 transition plan/生产消费阶段，不在 fixture 上提前接线。
 
 每项按独立 commit 组推进；真实证据未齐时保持 blocked，不使用 fixture、模型文件或迁移存在作为 ready 证明。
 
@@ -108,5 +119,7 @@ python scripts/verify_architecture.py
 R7 reminder 续批经 Luna Max 实现与只读复核关闭全部 P0/P1；主代理独立复跑 unit `18 passed`、component `11 passed`、migration `2 passed`。8 个变更生产文件增量 mypy 为 0 regression；Ruff、Black、isort、Research migration drift、Django system check、架构扫描（2155 files / 0 violations）、44 个 current-data surface、业务配置、governance consistency 和 Celery task contract 均通过。
 
 R3 runner 续批经 Luna Max 实现与多轮泄漏/持久化复核关闭全部 P0/P1；主代理独立复跑 unit `32 passed`、component `11 passed`，实现 agent migration `1 passed`。16 个生产文件增量 mypy 为 0 regression；Ruff、Black、isort、Macro Factor migration drift、Django system check、架构扫描（2168 files / 0 violations）、45 个 current-data surface、业务配置和 governance consistency 均通过。
+
+R8 governed optimization 续批经 Luna Max 实现、两轮独立只读复核和定点整改后无 P0/P1；主代理独立复跑 unit `21 passed`、component `11 passed`、migration `2 passed`。19 个生产文件增量 mypy 为 0 regression；Ruff、Black、isort、Portfolio migration drift、Django system check、架构扫描（2182 files / 0 violations）、45 个 current-data surface、业务配置、governance consistency 和 Celery contracts 均通过。测试只证明 software contract，不替代真实 Promotion、snapshot、broker reconciliation 或约束校准。
 
 完成路线图仍需为上表每项取得代码、迁移/台账、研究证据、运行时行为和 Promotion/回滚的直接证明；“测试全绿”只证明已覆盖合同，不替代真实数据和样本外结果。

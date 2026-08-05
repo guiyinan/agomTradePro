@@ -14,6 +14,7 @@
 > 2026-08-05 R1/R2 无数据续批：R1 已完成 Sector→Equity 持久证据桥接、通用 driver PIT 绑定、cash-flow/六阶段/template-run seal 及 legacy dual-read；R2 已完成版本化 expected-period calendar、series×period 完整 coverage 和整期全缺 fail-closed。R1 v2 仍强制 research-only，R1 baseline/Promotion exact binding 与 R2 真实 taxonomy/calendar/两个市场周期证据仍未完成，因此能力门禁保持 `blocked`。
 > 2026-08-05 R7 reminder 续批：已完成 Research-owned append-only reminder ledger/internal outbox，修复 invalidation reminder 确定性时间锚，精确绑定 forecast/revision/policy 与逐期 conditional/transition evidence，并实现 due/ack/escalate/expiry。该流程只允许内部人工 pull/ACK，禁止外部发送、自动审批和执行；真实 outcome 历史、获批 sample policy、结果持久化与晋级仍未完成，R7 保持 `blocked`。
 > 2026-08-05 R3 runner 续批：已完成 exact-PIT historical-mean/FMP、nested temporal-CV runner、可回读 canonical artifact bytes、dated current/forward ledger 与 append-only retirement lifecycle。每 fold 独立 selection，outer OOS 不参与选择，late revision/available-at/split/purge/embargo 均 fail closed。真实宏观 vintage、代理价格、benchmark/cost、regime/OOS trial 与 Research exact Promotion binding 尚未形成，R3 仍保持 `blocked`。
+> 2026-08-06 R8 治理续批：已完成 13 类 typed 数值输入、当前配置基准、可投资 universe、A 股/基金/债券/商品约束、逐期 path drawdown、四候选可复算比较，以及 append-only result/Promotion/retirement/rollback lifecycle。输入组装和生命周期均从 canonical provider 精确回读，完整证据图使用 Decimal/UTC canonical hash；无法在 weight 层证明数量约束时稳定阻断。真实 R3/R4/R5 Promotion、Portfolio snapshot、broker reconciliation、成本/容量和市场规则校准仍未形成，因此该能力仅为 research-only 软件切片，R8 保持 `blocked`。
 
 本轮执行索引：
 

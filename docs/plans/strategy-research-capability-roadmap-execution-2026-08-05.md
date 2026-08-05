@@ -24,6 +24,7 @@
 13. 继续完成 R1 Sector→Equity 持久证据桥接、cash-flow/六阶段/template-run seal、通用 driver PIT 绑定与 legacy dual-read；完成 R2 版本化 expected-period calendar、series×period 完整 coverage 和整期全缺门禁。两项均保持 research-only/blocked，不使用 seed 或代理数据解除门禁。
 14. 完成 R7 Research-owned append-only reminder ledger/internal outbox，精确绑定 forecast/revision/policy 与逐期 path evidence，并实现 deterministic due/ack/escalate/expiry；只允许内部人工 pull/ACK，明确禁止外发、自动审批与执行。
 15. 完成 R3 exact-PIT historical-mean/FMP、nested temporal-CV runner、canonical artifact bytes、dated current/forward output ledger 和 append-only retirement lifecycle。所有产物继续三重 decision-blocked，不接 current、组合或执行链。
+16. 完成 R8 13 类 typed 数值输入、current baseline、可投资 universe、四市场约束、path drawdown、四候选可复算比较及 append-only result/Promotion/retirement/rollback lifecycle；canonical provider 重读、Decimal/UTC hash 和无法证明的数量约束均 fail closed，未接 transition plan 或执行链。
 
 ## 2. 启动状态矩阵
 
@@ -36,7 +37,7 @@
 | R5 固收相对价值与久期 | `blocked` | 已有 research-only 定价/久期/曲线/信用内核；仍需真实 Publication、Bond Master、现金流/交易日历和外部对账 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
 | R6 高级状态模型 | `blocked` | 已有简单基准不足取证器和外部高级状态证据验证；仍需真实不足证据、PIT 输入、稳定标签/OOS/政策目标和晋级 | [R6](r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md) |
 | R7 情景概率校准 | `blocked` | 已有 source-separated Brier/分箱、PIT 类比、typed 逐期路径证据和 internal-only reminder lifecycle；仍需完整 outcome 历史、获批样本政策、结果持久化与研究晋级 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
-| R8 多资产优化 | `blocked` | 已有 canonical snapshot、执行反馈、统一输入、约束验证和非全局确定性研究求解；仍需真实 broker reconciliation 及 R3/R4/R5 晋级版本 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
+| R8 多资产优化 | `blocked` | 已有 canonical snapshot/反馈台账、13 类 typed 输入、current/universe/四市场/path 约束、四候选比较及 append-only lifecycle；仍需真实 Portfolio snapshot、broker reconciliation、约束校准及 R3/R4/R5 晋级版本 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
 
 ## 3. 可执行启动门
 
@@ -118,6 +119,8 @@ python scripts/verify_architecture.py
 2026-08-05 R7 reminder 续批验证：主代理独立复跑 unit/component/migration 为 `18 / 11 / 2 passed`，8 个生产文件增量 mypy 0 regression；Research 无 migration drift，Django system check、44 个 current-data surface、架构边界（2155 files / 0 violations）、业务配置、governance consistency 与 Celery contracts 均通过。结果仍是 research-only 内部提醒软件证据，不替代真实 forecast/outcome history 或 sample policy。
 
 2026-08-05 R3 runner 续批验证：主代理独立复跑 unit/component 为 `32 / 11 passed`，实现 agent 迁移测试 `1 passed`；16 个生产文件增量 mypy 0 regression，Macro Factor 无 migration drift，Django system check、45 个 current-data surface、架构边界（2168 files / 0 violations）、业务配置与 governance consistency 均通过。软件可复算不替代真实 vintage/price/cost/benchmark、OOS trial 或 exact Promotion attestation。
+
+2026-08-06 R8 governed optimization 续批验证：主代理独立复跑 unit/component/migration 为 `21 / 11 / 2 passed`；19 个生产文件增量 mypy 0 regression，Portfolio 无 migration drift，Ruff/Black/isort、Django system check、45 个 current-data surface、架构边界（2182 files / 0 violations）、业务配置、governance consistency 与 Celery contracts 均通过。Luna Max 最终只读复核无 P0/P1；软件证据不替代真实 R3/R4/R5 Promotion、Portfolio snapshot、broker reconciliation 或约束校准。
 
 完整路线图审计后的 R4/R5 增量批次另行复验 fixed-income 全部 unit/component 与 R4 macro-risk，共 `49 passed`；增量 mypy/ruff/black、Django check、架构边界（2148 files / 0 violations）、业务配置硬编码和 43 个 current-data surface 均通过。
 
