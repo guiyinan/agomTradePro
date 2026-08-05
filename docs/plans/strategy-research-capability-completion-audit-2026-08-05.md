@@ -19,7 +19,7 @@
 |---|---|---|---|
 | R1 | Sector typed AST/DAG、三情景、PIT fact、Equity 误差台账、Sector→Equity 持久证据桥接、cash-flow/六阶段/template-run seal、通用 driver 绑定 | baseline spec；Promotion artifact 精确绑定 | QW-7 反馈、连续行业 KPI、财务/估值 Publication、真实 trial |
 | R2 | actor/series 双时间、proxy/measure semantics、PIT membership、描述性证据、版本化 expected-period calendar、series×period 完整 coverage、整期全缺门禁 | 运行时 taxonomy/calendar Publication 接线与研究晋级闭环 | 获批 taxonomy、授权、两个市场周期、Production Publication、Audit 解释力 |
-| R3 | 独立 App、PIT scope、外部结果 envelope、研究隔离 | 可复算 baseline/FMP/nested temporal-CV runner；dated current/forward ledger；artifact hash；append-only retirement lifecycle | 宏观 vintage、代理资产/连续期货、真实 cost/benchmark、OOS trial、Promotion |
+| R3 | 独立 App、exact PIT fact/manifest、historical-mean/FMP、nested temporal-CV runner、canonical artifact bytes、dated current/forward ledger、append-only retirement lifecycle | regime 分段、trial/Promotion exact artifact binding、监控与生产读取投影 | 宏观 vintage、代理资产/连续期货、真实 cost/benchmark、OOS trial、Promotion |
 | R4 | beta/CI/R²/残差、PSD、风险贡献、成本/流动性门禁 | 独立 R3 Promotion/PIT attestation；滚动/regime exposure；三基准同窗回测；完整持久证据 | R3 晋级版本、真实 exposure/covariance/constraint snapshot 和历史样本 |
 | R5 | 单券定价、久期/凸性、carry/roll-down、曲线/信用利差 | 历史分位、等级迁移、流动性溢价、曲线组合及容量门禁；组合结果持久化/晋级闭环 | 两条曲线、信用估值、Bond Master/CashFlow/Calendar Publication、外部对账 |
 | R6 | 简单基准不足 report、高级 artifact evidence gate | duration/决策损失/复杂度/稳定性比较；政策反应系数和诊断；监控/退役/Promotion 闭环 | 真实 shortfall、PIT 输入、预注册 family、OOS 证据 |
@@ -73,12 +73,21 @@
 - Application 只提供 internal pull queue、deterministic reconcile 与 owner-authorized human ACK；Domain/DB 固定 `must_not_execute / must_not_use_for_decision / no auto approval / no external dispatch`，未新增 Celery、邮件、短信、webhook 或执行链。
 - `research.0002` 只新建空 ledger/outbox 表，不 seed、不回填旧 reminder，并保持 0001 既有研究记录不变；default/base/related manager mutation、并发 winner replay、同 key 异 evidence、事务回滚和 raw tamper 均有组件证据。
 
+### 3.6 R3 可复算 runner、dated outputs 与 retirement lifecycle
+
+- PIT design rows 逐项封存 target/proxy fact version、content hash、effective/available time，并核对 typed manifest selected versions；晚修订、未来不可知值和跨 manifest 替换均拒绝。
+- Nested temporal-CV plan 精确绑定 governed split windows、purge/embargo、label availability 和 inner/outer row identity；outer OOS 全局唯一且不进入 selection。每个 outer fold 独立选择 alpha/资产，只有显式 final fold 绑定最终 result。
+- Historical-mean 与 fixed-universe FMP 基准按 fold 重算；historical mean 与外部 final fit 使用同一 train+validation 窗口，避免人为弱化基准。
+- External envelope 封存 per-fold inner scores、selected alpha、coefficients/weights、final-fit lineage、OOS prediction 和 canonical artifact bytes；bytes/media/length/producer 可从 DB 回读并重新解析、SHA 校验。
+- Dated output 精确区分 current horizon 0 与 forward horizon > 0，保存 as-of/target period/produced/valid-until/value/unit；到期时刻立即 stale，latest 不等于 current。
+- Run artifact、outputs 与 lifecycle event 使用三张 append-only 表；retirement 通过 owner-attested hash chain 派生，不修改 0001 source result。`macro_factor.0002` 为 schema-only、零 seed，完整保留 legacy payload/hash/status/timestamp。
+
 ## 4. 后续实施顺序
 
-1. R3 可复算 runner、dated outputs 和 retirement lifecycle。
-2. R8 typed input binding、current baseline、universe 与四市场约束。
-3. R1 baseline/Promotion artifact exact binding。
-4. R4 rolling backtest、R5 relative-value 扩展、R6 lifecycle。
+1. R8 typed input binding、current baseline、universe 与四市场约束。
+2. R1 baseline/Promotion artifact exact binding。
+3. R4 rolling backtest、R5 relative-value 扩展、R6 lifecycle。
+4. R3 regime 分段、trial/Promotion exact binding 与监控读取投影。
 5. R7 calibration/path 结果持久化与 retirement/Promotion lifecycle，R8 lifecycle。
 
 每项按独立 commit 组推进；真实证据未齐时保持 blocked，不使用 fixture、模型文件或迁移存在作为 ready 证明。
@@ -97,5 +106,7 @@ python scripts/verify_architecture.py
 本批此前验证 fixed-income 与 R4 macro-risk 共 `49 passed`。本次 R1/R2 续批由实现与只读复核 Luna Max 交叉验收：R1 unit `15 passed`、component `10 passed`、migration `3 passed`；R2 unit `18 passed`、component `6 passed`、migration `2 passed`。主代理另行联合复跑 unit `27 passed`、component `13 passed`。14 个变更生产文件增量 mypy 为 0 regression；Ruff、Black、isort、Django system check、三 App migration drift、架构扫描（2150 files / 0 violations）、业务配置硬编码门禁和 43 个 current-data surface 均通过。
 
 R7 reminder 续批经 Luna Max 实现与只读复核关闭全部 P0/P1；主代理独立复跑 unit `18 passed`、component `11 passed`、migration `2 passed`。8 个变更生产文件增量 mypy 为 0 regression；Ruff、Black、isort、Research migration drift、Django system check、架构扫描（2155 files / 0 violations）、44 个 current-data surface、业务配置、governance consistency 和 Celery task contract 均通过。
+
+R3 runner 续批经 Luna Max 实现与多轮泄漏/持久化复核关闭全部 P0/P1；主代理独立复跑 unit `32 passed`、component `11 passed`，实现 agent migration `1 passed`。16 个生产文件增量 mypy 为 0 regression；Ruff、Black、isort、Macro Factor migration drift、Django system check、架构扫描（2168 files / 0 violations）、45 个 current-data surface、业务配置和 governance consistency 均通过。
 
 完成路线图仍需为上表每项取得代码、迁移/台账、研究证据、运行时行为和 Promotion/回滚的直接证明；“测试全绿”只证明已覆盖合同，不替代真实数据和样本外结果。

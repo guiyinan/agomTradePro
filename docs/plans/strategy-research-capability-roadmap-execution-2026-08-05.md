@@ -23,6 +23,7 @@
 12. 本批先完成 R5 组合级 DV01/CS01/凸性/流动性风险预算及利率/信用压力测试，并修复 R4 exact-expiry 与完整 report seal。完整剩余队列见[完成度审计](strategy-research-capability-completion-audit-2026-08-05.md)。
 13. 继续完成 R1 Sector→Equity 持久证据桥接、cash-flow/六阶段/template-run seal、通用 driver PIT 绑定与 legacy dual-read；完成 R2 版本化 expected-period calendar、series×period 完整 coverage 和整期全缺门禁。两项均保持 research-only/blocked，不使用 seed 或代理数据解除门禁。
 14. 完成 R7 Research-owned append-only reminder ledger/internal outbox，精确绑定 forecast/revision/policy 与逐期 path evidence，并实现 deterministic due/ack/escalate/expiry；只允许内部人工 pull/ACK，明确禁止外发、自动审批与执行。
+15. 完成 R3 exact-PIT historical-mean/FMP、nested temporal-CV runner、canonical artifact bytes、dated current/forward output ledger 和 append-only retirement lifecycle。所有产物继续三重 decision-blocked，不接 current、组合或执行链。
 
 ## 2. 启动状态矩阵
 
@@ -30,7 +31,7 @@
 |---|---|---|---|
 | R1 行业经营驱动与盈利预测 | `blocked` | 已有版本化行业模板、Sector→Equity 持久 bridge、三情景六阶段/cash-flow seal 和误差台账；仍需 QW-7 反馈、连续 PIT 事实、正式 baseline 及 Promotion artifact exact binding | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
 | R2 市场结构与投资者资金流 | `blocked` | 已有 taxonomy/measure/proxy/PIT membership、版本化 expected-period calendar、完整 coverage 和整期全缺阻断；仍需批准定义、真实 calendar、两个周期真实 PIT 覆盖和 Publication 证据 | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
-| R3 高频宏观因子与 nowcast | `blocked` | 已有外部研究证据验证与不可变结果 App；仍需宏观 vintage/代理资产 PIT、发布日历、真实 benchmark/cost 和 approved trial | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
+| R3 高频宏观因子与 nowcast | `blocked` | 已有 exact PIT runner、逐 fold baseline/FMP/nested-CV、canonical artifact bytes、dated outputs 和 retirement lifecycle；仍需宏观 vintage/代理资产 PIT、真实 benchmark/cost、regime/OOS trial 和 exact Promotion | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
 | R4 宏观敞口与风险平价 | `blocked` | 已有暴露/协方差/风险贡献候选验证；仍需 R3 晋级版本、真实资产暴露和 canonical constraint snapshot | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
 | R5 固收相对价值与久期 | `blocked` | 已有 research-only 定价/久期/曲线/信用内核；仍需真实 Publication、Bond Master、现金流/交易日历和外部对账 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
 | R6 高级状态模型 | `blocked` | 已有简单基准不足取证器和外部高级状态证据验证；仍需真实不足证据、PIT 输入、稳定标签/OOS/政策目标和晋级 | [R6](r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md) |
@@ -115,6 +116,8 @@ python scripts/verify_architecture.py
 2026-08-05 R1/R2 无数据续批验证：R1 unit/component/migration 为 `15 / 10 / 3 passed`，R2 为 `18 / 6 / 2 passed`；主代理联合复跑 unit `27 passed`、component `13 passed`。增量 mypy 14 个生产文件 0 regression，三 App 无 migration drift，Django system check、43 个 current-data surface、架构边界（2150 files / 0 violations）及业务配置硬编码门禁均通过。测试只证明软件合同，不替代 Production Publication、真实 calendar、两个市场周期或 PromotionDecision。
 
 2026-08-05 R7 reminder 续批验证：主代理独立复跑 unit/component/migration 为 `18 / 11 / 2 passed`，8 个生产文件增量 mypy 0 regression；Research 无 migration drift，Django system check、44 个 current-data surface、架构边界（2155 files / 0 violations）、业务配置、governance consistency 与 Celery contracts 均通过。结果仍是 research-only 内部提醒软件证据，不替代真实 forecast/outcome history 或 sample policy。
+
+2026-08-05 R3 runner 续批验证：主代理独立复跑 unit/component 为 `32 / 11 passed`，实现 agent 迁移测试 `1 passed`；16 个生产文件增量 mypy 0 regression，Macro Factor 无 migration drift，Django system check、45 个 current-data surface、架构边界（2168 files / 0 violations）、业务配置与 governance consistency 均通过。软件可复算不替代真实 vintage/price/cost/benchmark、OOS trial 或 exact Promotion attestation。
 
 完整路线图审计后的 R4/R5 增量批次另行复验 fixed-income 全部 unit/component 与 R4 macro-risk，共 `49 passed`；增量 mypy/ruff/black、Django check、架构边界（2148 files / 0 violations）、业务配置硬编码和 43 个 current-data surface 均通过。
 

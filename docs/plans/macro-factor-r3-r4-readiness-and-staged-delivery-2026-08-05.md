@@ -146,15 +146,18 @@ verified 证据必须来自合同指定 owner、包含非空引用、timezone-aw
 
 - [x] 注册完整 `macro_factor` App、不可变外部研究结果和 append-only repository；
 - [x] 固定 current/forward output role、目标、候选/入选资产、split/embargo、BIC/显著性/经济含义、成本和退役合同；
-- 先实现历史均值/简单回归/固定 universe 等基准；
+- [x] 实现逐 outer fold 的 historical-mean 与预注册 fixed-universe FMP 基准，使用与外部 final fit 一致的 train+validation 窗口；
 - 注册 Experiment 和完整 trial family；不得先挑最佳结果再补登记。
 
 ### M3：R3 模型研究与样本外晋级
 
-- 嵌套或严格 CV 选择 Lasso 超参数；
-- 保存入选资产、权重、adjusted R²/BIC/IC/稳定性/换手/成本；
-- walk-forward、embargo、regime 分段和样本外验证；
+- [x] 实现 nested temporal-CV plan 与 typed external runner envelope；每个 outer fold 独立保存 inner scores/alpha/coefficients/weights，显式 final fold 才绑定最终模型；
+- [x] 保存可回读 canonical artifact bytes、dated current/forward outputs、PIT fact/manifest、benchmark/FMP/cost/split/code/dependency/parameter identity；
+- [x] 实现 walk-forward、purge/embargo、available-at/revision 防泄漏门禁和 append-only retirement hash chain；
+- regime 分段、真实样本外比较与 exact Promotion attestation 仍待真实证据；
 - PromotionDecision 未 approved 时只能 exploratory，不能发布 current。
+
+2026-08-05 R3 runner 续批：上述无数据可开发的软件合同已实现。Input row 逐项绑定 Data Center fact version/content hash/effective/available time，并精确核对 manifest selected versions；TemporalSplitSpec 与每个 inner/outer window 和 row identity 一致。Artifact 原始 bytes/media/length/producer、逐 fold selection、baseline/FMP、dated outputs 和 retirement owner attestation 均可回读复算，`macro_factor.0002_reproducible_run_ledger` 只建立空 append-only schema，不 seed、不回填 0001。所有结果仍固定 `research_only / must_not_use_for_decision / must_not_execute`；真实 vintage、代理价格、benchmark/cost、OOS trial 和 Research exact Promotion binding 尚未形成，因此 R3 保持 `blocked`。
 
 ### M4：R4 Portfolio canonical inputs
 
