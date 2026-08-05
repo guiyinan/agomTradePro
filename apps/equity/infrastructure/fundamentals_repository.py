@@ -16,6 +16,9 @@ from typing import TYPE_CHECKING, Any
 
 from django.utils import timezone
 
+from apps.data_center.application.public import (
+    get_published_valuation_facts,
+)
 from apps.data_center.domain.entities import AssetMaster, FinancialFact, ValuationFact
 from apps.data_center.domain.enums import AssetType, FinancialPeriodType, MarketExchange
 from apps.data_center.domain.protocols import (
@@ -32,6 +35,39 @@ from apps.equity.domain.entities import (
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_fact_date(value: object) -> date | None:
+    """Parse a canonical fact date without substituting the request date."""
+
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return date.fromisoformat(value.strip()[:10])
+    except ValueError:
+        return None
+
+
+def _parse_fact_datetime(value: object) -> datetime | None:
+    """Parse an aware canonical observation/fetch timestamp."""
+
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str) and value.strip():
+        try:
+            parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed
+
 
 if TYPE_CHECKING:
     from apps.data_center.application.on_demand import OnDemandDataCenterService
@@ -88,7 +124,10 @@ class StockFundamentalsRepositoryMixin:
                 continue
 
             # 获取最新估值数据
-            valuation = self._get_latest_valuation(stock_code)
+            valuation = self._get_latest_valuation(
+                stock_code,
+                published_only=as_of_date is None,
+            )
             if not valuation:
                 # 没有估值数据，跳过
                 continue
@@ -189,11 +228,9 @@ class StockFundamentalsRepositoryMixin:
         }
 
     def _get_stock_context_valuation_fact_row(self, stock_code: str) -> dict[str, Any]:
-        latest_fact = self._dc_valuation_repo.get_latest(stock_code)
-        if latest_fact is None:
+        latest = self._get_latest_valuation(stock_code, published_only=True)
+        if latest is None:
             return {}
-
-        latest = self._dc_fact_to_valuation(latest_fact)
         return {
             "trade_date": latest.trade_date,
             "pe": latest.pe,
@@ -374,9 +411,74 @@ class StockFundamentalsRepositoryMixin:
         dc_items = self._get_financials_from_data_center(stock_code, limit=1)
         return dc_items[0] if dc_items else None
 
-    def _get_latest_valuation(self, stock_code: str) -> ValuationMetrics | None:
+    def _get_latest_valuation(
+        self,
+        stock_code: str,
+        *,
+        published_only: bool = False,
+    ) -> ValuationMetrics | None:
+        if published_only:
+            payload = get_published_valuation_facts(
+                stock_code,
+                publication_key="current",
+                limit=20,
+            )
+            if bool(payload.get("must_not_use_for_decision")):
+                return None
+            rows = payload.get("rows", [])
+            if not isinstance(rows, (list, tuple)):
+                return None
+            facts = [
+                fact
+                for row in rows
+                if isinstance(row, Mapping)
+                for fact in [self._valuation_fact_from_public_row(row)]
+                if fact is not None
+            ]
+            if not facts:
+                return None
+            return self._dc_fact_to_valuation(max(facts, key=lambda fact: fact.val_date))
         dc_item = self._dc_valuation_repo.get_latest(stock_code)
         return self._dc_fact_to_valuation(dc_item) if dc_item is not None else None
+
+    @staticmethod
+    def _valuation_fact_from_public_row(row: Mapping[str, object]) -> ValuationFact | None:
+        """Convert one publication-bound valuation row without fabricating time."""
+
+        val_date = _parse_fact_date(row.get("val_date"))
+        fetched_at = _parse_fact_datetime(row.get("fetched_at"))
+        if val_date is None or fetched_at is None:
+            return None
+        available_raw = row.get("available_at")
+        available_at = (
+            _parse_fact_datetime(available_raw) if available_raw not in (None, "") else None
+        )
+        if available_raw not in (None, "") and available_at is None:
+            return None
+        raw_extra = row.get("extra")
+        extra: dict[str, Any] = raw_extra if isinstance(raw_extra, dict) else {}
+
+        def _number(field: str) -> float | None:
+            return safe_float(row.get(field), default=None)
+
+        try:
+            return ValuationFact(
+                asset_code=str(row.get("asset_code") or "").strip().upper(),
+                val_date=val_date,
+                pe_ttm=_number("pe_ttm"),
+                pe_static=_number("pe_static"),
+                pb=_number("pb"),
+                ps_ttm=_number("ps_ttm"),
+                market_cap=_number("market_cap"),
+                float_market_cap=_number("float_market_cap"),
+                dv_ratio=_number("dv_ratio"),
+                source=str(row.get("source") or ""),
+                available_at=available_at,
+                fetched_at=fetched_at,
+                extra=extra,
+            )
+        except ValueError:
+            return None
 
     def _get_financials_from_data_center(
         self,
@@ -462,13 +564,9 @@ class StockFundamentalsRepositoryMixin:
         ]
 
     def _dc_fact_to_valuation(self, fact: ValuationFact) -> ValuationMetrics:
-        total_mv = (
-            Decimal(str(fact.market_cap)) if fact.market_cap is not None else None
-        )
+        total_mv = Decimal(str(fact.market_cap)) if fact.market_cap is not None else None
         circ_mv = (
-            Decimal(str(fact.float_market_cap))
-            if fact.float_market_cap is not None
-            else total_mv
+            Decimal(str(fact.float_market_cap)) if fact.float_market_cap is not None else total_mv
         )
         quality_is_complete = all(
             value is not None
@@ -524,13 +622,33 @@ class StockFundamentalsRepositoryMixin:
             )
 
         raw_facts = [
-            build_fact("revenue", float(financial.revenue) if financial.revenue is not None else None, "元"),
-            build_fact("net_profit", float(financial.net_profit) if financial.net_profit is not None else None, "元"),
+            build_fact(
+                "revenue", float(financial.revenue) if financial.revenue is not None else None, "元"
+            ),
+            build_fact(
+                "net_profit",
+                float(financial.net_profit) if financial.net_profit is not None else None,
+                "元",
+            ),
             build_fact("revenue_growth", financial.revenue_growth, "%"),
             build_fact("net_profit_growth", financial.net_profit_growth, "%"),
-            build_fact("total_assets", float(financial.total_assets) if financial.total_assets is not None else None, "元"),
-            build_fact("total_liabilities", float(financial.total_liabilities) if financial.total_liabilities is not None else None, "元"),
-            build_fact("equity", float(financial.equity) if financial.equity is not None else None, "元"),
+            build_fact(
+                "total_assets",
+                float(financial.total_assets) if financial.total_assets is not None else None,
+                "元",
+            ),
+            build_fact(
+                "total_liabilities",
+                (
+                    float(financial.total_liabilities)
+                    if financial.total_liabilities is not None
+                    else None
+                ),
+                "元",
+            ),
+            build_fact(
+                "equity", float(financial.equity) if financial.equity is not None else None, "元"
+            ),
             build_fact("roe", financial.roe, "%"),
             build_fact("roa", financial.roa, "%"),
             build_fact("debt_ratio", financial.debt_ratio, "%"),

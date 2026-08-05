@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -111,6 +111,70 @@ def test_get_valuation_history_can_read_from_data_center_only():
     assert len(rows) == 1
     assert rows[0].pe == 25.5
     assert rows[0].source_provider == "akshare-main"
+
+
+@pytest.mark.django_db
+def test_latest_valuation_current_read_requires_publication(monkeypatch):
+    """Current valuation reads reject non-empty rows from a blocked publication."""
+    repo = DjangoStockRepository()
+    repo._dc_valuation_repo.get_latest = lambda _code: (_ for _ in ()).throw(
+        AssertionError("raw latest valuation must not be read")
+    )
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.fundamentals_repository.get_published_valuation_facts",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "asset_code": "600519.SH",
+                    "val_date": "2026-07-31",
+                    "pe_ttm": 25.5,
+                    "pb": 8.2,
+                    "ps_ttm": 10.1,
+                    "market_cap": 2_000_000_000_000,
+                    "float_market_cap": 1_800_000_000_000,
+                    "dv_ratio": 1.2,
+                    "source": "akshare-main",
+                    "fetched_at": datetime(2026, 7, 31, tzinfo=UTC).isoformat(),
+                }
+            ],
+            "must_not_use_for_decision": True,
+            "blocked_reason": "publication_stale",
+        },
+    )
+
+    assert repo._get_latest_valuation("600519.SH", published_only=True) is None
+
+
+@pytest.mark.django_db
+def test_latest_valuation_current_read_preserves_published_fact(monkeypatch):
+    repo = DjangoStockRepository()
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.fundamentals_repository.get_published_valuation_facts",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "asset_code": "600519.SH",
+                    "val_date": "2026-07-31",
+                    "pe_ttm": 25.5,
+                    "pb": 8.2,
+                    "ps_ttm": 10.1,
+                    "market_cap": 2_000_000_000_000,
+                    "float_market_cap": 1_800_000_000_000,
+                    "dv_ratio": 1.2,
+                    "source": "akshare-main",
+                    "fetched_at": datetime(2026, 7, 31, tzinfo=UTC).isoformat(),
+                }
+            ],
+            "must_not_use_for_decision": False,
+        },
+    )
+
+    valuation = repo._get_latest_valuation("600519.SH", published_only=True)
+
+    assert valuation is not None
+    assert valuation.trade_date == date(2026, 7, 31)
+    assert valuation.pe == 25.5
+    assert valuation.source_provider == "akshare-main"
 
 
 @pytest.mark.django_db

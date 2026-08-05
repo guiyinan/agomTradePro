@@ -374,6 +374,37 @@
       ]
     },
     {
+      "id": "equity.current_valuation",
+      "surface": "Equity repository current valuation context and fundamentals listing",
+      "source_files": [
+        "apps/equity/infrastructure/fundamentals_repository.py",
+        "apps/data_center/application/public.py"
+      ],
+      "required_markers": {
+        "apps/equity/infrastructure/fundamentals_repository.py": [
+          "get_published_valuation_facts(",
+          "published_only=as_of_date is None",
+          "published_only=True",
+          "must_not_use_for_decision"
+        ],
+        "apps/data_center/application/public.py": [
+          "def get_published_valuation_facts("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "blocked_publication_rejects_current_valuation",
+          "test_file": "tests/component/test_equity_repository_data_center.py",
+          "test_function": "test_latest_valuation_current_read_requires_publication"
+        },
+        {
+          "case": "published_valuation_observation_preserved",
+          "test_file": "tests/component/test_equity_repository_data_center.py",
+          "test_function": "test_latest_valuation_current_read_preserves_published_fact"
+        }
+      ]
+    },
+    {
       "id": "regime.current",
       "surface": "GET /api/regime/current/ -> SDK/MCP/Terminal",
       "source_files": [

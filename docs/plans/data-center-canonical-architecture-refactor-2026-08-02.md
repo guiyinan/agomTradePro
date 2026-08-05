@@ -4040,3 +4040,13 @@ Git SHA / 镜像 / migration：
 - 已运行测试：`pytest tests/component/test_fund_repository_data_center.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：10 passed；Fund repository mypy regression 0；Ruff/Black 通过。
 - 明确未做：基金 master 的最终 Data Center AssetMaster 迁移与旧 Tushare 显式同步入口退役仍待 D0/D6 后续批次；未部署、未 push。
 - 未验证风险：生产空 master 的 readiness 阻断文案、AKShare master 覆盖和完整基金 universe 回填仍需数据画像/生产证据。
+
+## 42. 2026-08-05：Equity current 估值读取切换 Publication
+
+- 目标：消除 Equity fundamentals repository 在默认当前列表和股票上下文估值读取中的 raw valuation latest 旁路，避免 Publication 失效时继续消费旧估值事实。
+- 变更：无 `as_of_date` 的 fundamentals 列表与股票上下文改用 `get_published_valuation_facts(publication_key="current")`；校验 Publication 阻断、成员事实日期、带时区的源抓取时间和数值字段，缺失/异常时 fail closed。显式历史日期查询继续保留 Data Center historical repository 语义。
+- 测试：新增 Publication 阻断拒绝与 published valuation observation 保留组件回归。
+- 治理：新增 `equity.current_valuation` current-data contract，登记 Equity repository/Public Port marker 与两条回归测试。
+- 已运行测试：`pytest tests/component/test_equity_repository_data_center.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：5 passed；目标文件 Black/Ruff 通过；`check_mypy_regression.py`：0 regression；`check_current_data_contracts.py`：41 surfaces。
+- 明确未做：未修改 Equity historical/PIT 读取、估值算法或 provider 写入，未部署、未 push。
+- 未验证风险：生产 valuation Publication 成员覆盖、完整 Equity current 调用方盘点、PostgreSQL 查询预算和旧估值表零读写仍待后续批次证据。
