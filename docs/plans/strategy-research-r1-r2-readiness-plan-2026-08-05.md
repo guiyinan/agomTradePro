@@ -1,6 +1,6 @@
 # R1/R2 策略研究能力启动门整改计划（2026-08-05）
 
-> 状态：**数据基础与 R1 可审计预测账本纵切已实现；R1/R2 能力仍 Blocked，不允许启动模型训练或正式估值消费**
+> 状态：**R1 行业模板/预测账本与 R2 市场结构研究纵切已实现；真实数据和晋级证据仍缺失，R1/R2 能力保持 Blocked**
 > 依据：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
 > 复核基线：`dev/refactor-scenario-governance-quick-wins`
 > 本轮主任务：判断 R1 行业经营驱动与盈利预测、R2 市场结构与投资者资金流是否具备启动条件。
@@ -91,17 +91,17 @@ Readiness Application 只能通过 Protocol 收集 owner evidence。它不得 im
 4. 按季度冻结预测并对 actual 记录 MAE/MAPE 或计划指定指标，不用后续修订数据回填历史。
 5. 结果先保持 exploratory；只有 PIT trial 通过 Research PromotionDecision 后，Valuation 才能消费批准版本。
 
-上述 pilot 的可审计账本基础已先行实现，以便从现在开始积累真实证据；行业公式、自动预测、生产数据运行和 Valuation 消费仍不得启动，因为第一个和第二个启动条件均无证据，且尚无 R1 approved PromotionDecision。
+上述 pilot 的可审计账本与 Sector-owned 行业模板基础已先行实现。模板使用有限 typed AST、显式单位规则和六阶段 DAG，无业务 seed；运行时缺三情景 driver、verified PIT fact、单位一致性或有效模板即整体 blocked。真实行业公式、生产数据运行和 Valuation 消费仍不得启动，因为 QW-7、连续经营事实和 R1 approved PromotionDecision 均无证据。
 
 ## 5. R2 启动条件审计
 
 | Requirement | Owner | 当前状态 | 仓库证据 | 稳定阻断原因 |
 |---|---|---|---|---|
-| 主体分类、定义、单位、频率、来源和修订规则 | `data_center` | `unverified` | `CapitalFlowFact` 只有按资产/日期的 main、retail 和订单大小净额字段；未覆盖产业资本、外资、居民、融资盘、险资、公募/ETF、回购、增减持和解禁的统一 taxonomy | `market_structure_investor_flow.flow_taxonomy_and_units.unverified` |
+| 主体分类、定义、单位、频率、来源和修订规则 | `data_center` | `unverified` | 已实现版本化 actor taxonomy、series definition 与 append-only repository；尚无获批生产定义和真实主体覆盖 | `market_structure_investor_flow.flow_taxonomy_and_units.unverified` |
 | 两个市场周期的 PIT 覆盖 | `data_center` | `missing` | Publication/PIT 基座存在，但没有按主体、周期、频率发布的 coverage manifest 或两轮周期验收证据 | `market_structure_investor_flow.two_cycle_pit_coverage.missing` |
-| 自定义资产组 PIT membership | `data_center` | `unverified` | 通用 `SectorMembershipFact` 有 effective/expiry date 和 Publication；QW-6 的 `AssetGroupRevision` 仍是纯 Domain 值对象，未见数据库化 custom group revision/membership | `market_structure_investor_flow.pit_asset_group_membership.unverified` |
-| 代理指标显式标注 | `data_center` | `unverified` | 市场温度计对 ETF 份额流、开户等局部指标已有 `proxy`/`fallback_proxy` provenance；未形成覆盖全部主体类别的 canonical proxy contract | `market_structure_investor_flow.proxy_labelling.unverified` |
-| 资金量、持仓变化、交易净流入严格区分 | `data_center` | `missing` | 当前流量实体没有统一 `measure_kind` 或等价 typed semantic，不能证明不同来源可安全横向聚合 | `market_structure_investor_flow.measure_semantics.missing` |
+| 自定义资产组 PIT membership | `data_center` | `unverified` | 已实现事件时间/知识时间分离的 exact membership snapshot 与 evidence hash；尚无目标资产组的 Production Publication | `market_structure_investor_flow.pit_asset_group_membership.unverified` |
+| 代理指标显式标注 | `data_center` | `unverified` | series/observation 强制 proxy target 与 methodology；尚无覆盖目标主体的获批代理定义 | `market_structure_investor_flow.proxy_labelling.unverified` |
+| 资金量、持仓变化、交易净流入严格区分 | `data_center` | `unverified` | typed `flow/holding/stock/transaction` 与底层 measure kind 不可互换，聚合会拒绝口径混合；尚无真实 series evidence | `market_structure_investor_flow.measure_semantics.unverified` |
 
 ### 5.1 R2 可启动的最小 pilot
 
@@ -113,7 +113,7 @@ Readiness Application 只能通过 Protocol 收集 owner evidence。它不得 im
 4. 输出保持 `structure_description_only`，不自动变成交易信号。
 5. Audit/Research 使用两个市场周期做样本外解释力验证；覆盖或口径不足时必须 blocked。
 
-当前不得实施以上 pilot，因为主体 taxonomy、两轮周期证据和 measure semantics 都未满足。
+上述 pilot 的 schema、PIT 读取和描述性聚合机制已实现，但不得对外发布“增量/存量/减量博弈”结论：批准 taxonomy、两个市场周期 PIT coverage manifest 和真实 series evidence 仍未满足。
 
 ## 6. Typed readiness contract
 
@@ -196,6 +196,10 @@ pytest tests/unit/research/test_capability_readiness.py -q
 pytest tests/unit/equity/test_operating_forecast.py -q
 pytest tests/component/equity/test_operating_forecast_repository.py -q
 pytest tests/migrations/test_equity_operating_forecast_ledger_migration.py -q
+pytest tests/unit/sector/test_industry_operating_template.py tests/component/sector/test_industry_operating_template_repository.py -q
+pytest tests/migrations/test_sector_industry_template_migration.py -q
+pytest tests/unit/data_center/test_market_structure.py tests/component/data_center/test_market_structure.py -q
+pytest tests/migrations/test_market_structure_migration.py -q
 python scripts/check_mypy_regression.py \
   apps/research/domain/capability_readiness.py \
   apps/research/application/capability_readiness.py \
@@ -216,6 +220,8 @@ python scripts/verify_architecture.py --include-audit --format text
 ```
 
 若后续新增 current/latest readiness API 或 TUI 面，必须同步 `governance/current_data_contracts.json`，并覆盖 missing、stale、owner mismatch、future evidence 和 observation preservation。当前阶段不新增该决策面。
+
+2026-08-05 交叉复核整改已把 R1 observed assumption 与 quarterly actual 逐字段绑定到 company/metric/value/unit 的 PIT fact；R2 actor/series 查询同时约束 effective、available、expiry 和 request as-of，并逐 series/period 封存 expected/observed/missing membership coverage。外部 source evidence 必须与 sealed payload 精确一致，Equity、Sector、Data Center PIT/R2 的 QuerySet/Manager 更新、批量更新和删除路径均 fail closed。以上机制仍不替代真实 Publication、两个市场周期 coverage 或 approved PromotionDecision。
 
 ## 9. 回滚
 

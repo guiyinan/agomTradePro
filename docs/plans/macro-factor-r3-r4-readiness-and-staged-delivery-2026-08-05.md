@@ -1,10 +1,10 @@
 # R3/R4 宏观因子与宏观风险平价启动门禁及分阶段实施计划
 
-> 状态：**Blocked / readiness-only**
+> 状态：**R3 research-only App 与 R4 候选风险验证已实现；真实 PIT、晋级版本和 canonical 组合输入仍 Blocked**
 > 建立日期：2026-08-05
 > 适用分支：`dev/refactor-scenario-governance-quick-wins`
 > 来源：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md) R3、R4
-> 本阶段目标：固定启动证据与阻断理由；不实现 Lasso、Nowcast、宏观敞口回归或宏观因子风险平价。
+> 本阶段边界：只验证外部预计算 R3 证据和 R4 候选，不在仓库内拟合 Lasso/Nowcast，不发布 current，不把候选验证称为已晋级宏观风险平价。
 
 ## 1. 启动决策
 
@@ -70,11 +70,11 @@ R4 不得直接复用 Rotation 的资产波动率倒数结果，也不得将散�
 
 ### 3.1 当前阶段
 
-`research` 仅拥有“是否允许启动研究能力”的门禁和 PromotionDecision。它不拥有市场事实、宏观因子定义或组合优化结果。
+`research` 仅拥有“是否允许启动研究能力”的门禁和 PromotionDecision。它不拥有市场事实、宏观因子定义或组合优化结果。`macro_factor` 现已拥有 research-only 外部证据验证，但没有权力自行签发 PromotionDecision。
 
-### 3.2 R3 启动后新增 `macro_factor` App
+### 3.2 已新增的 `macro_factor` research-only App
 
-R3 数据门禁通过后，新增完整四层 `apps/macro_factor/`，建议归属：
+已新增完整四层 `apps/macro_factor/`，当前归属与边界如下：
 
 - Domain：`MacroTargetDefinition`、`ProxyUniverseVersion`、`FactorModelSpecification`、`MimickingPortfolioVersion`、`NowcastObservation`、失效和退役规则；
 - Application：训练计划、walk-forward 编排、复算、监控、退役；只依赖 Data Center PIT Protocol 和 Research UseCase；
@@ -144,9 +144,9 @@ verified 证据必须来自合同指定 owner、包含非空引用、timezone-aw
 
 ### M2：R3 研究合同与最简单基准
 
-- 注册完整 `macro_factor` App 和模型版本实体；
+- [x] 注册完整 `macro_factor` App、不可变外部研究结果和 append-only repository；
+- [x] 固定 current/forward output role、目标、候选/入选资产、split/embargo、BIC/显著性/经济含义、成本和退役合同；
 - 先实现历史均值/简单回归/固定 universe 等基准；
-- 固定目标定义、候选 universe、频率对齐、缺失值规则、成本和退役条件；
 - 注册 Experiment 和完整 trial family；不得先挑最佳结果再补登记。
 
 ### M3：R3 模型研究与样本外晋级
@@ -158,6 +158,7 @@ verified 证据必须来自合同指定 owner、包含非空引用、timezone-aw
 
 ### M4：R4 Portfolio canonical inputs
 
+- [x] 实现 exposure/covariance/constraint 候选合同、PSD 检查、风险贡献恒等式和版本化成本预算；
 - 不可变资产收益协方差快照及 PSD/条件数/缺失值证据；
 - 资产×宏观因子 exposure version 与置信区间；
 - 成本、上下限、换手、流动性和人工限制统一版本；
@@ -170,6 +171,10 @@ verified 证据必须来自合同指定 owner、包含非空引用、timezone-aw
 - 比较等权、资产风险平价、宏观因子风险平价；
 - 报告滚动 beta、R²、残差、稳定性、成本和真实可交易性；
 - 仅 approved 版本可进入组合预览，真实执行另立计划。
+
+现有 R4 代码只评估 caller/provider 提供的候选并保持 `research_only / must_not_execute`；没有真实 exposure/covariance row，也没有 R3 approved version，因此 M4/M5 退出条件均未满足。
+
+2026-08-05 交叉复核后，R8 优化输入必须完整绑定 R4 exposure、covariance、snapshot 和宏观风险预算；求解后的宏观风险贡献由 solver weights 重新计算并进入输出 seal，不接受调用方沿用旧权重预填的贡献。该收紧只防止证据错配，不代表 R4 已有真实 canonical inputs。
 
 ## 6. 明确非目标
 

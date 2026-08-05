@@ -1,8 +1,8 @@
 # R6 简单基准不足证据与高级状态模型分阶段计划（2026-08-05）
 
-> 状态：S0 证据评估合约已实现；高级状态模型仍 `blocked`
+> 状态：S0 基准不足评估与 S2 外部高级状态证据验证均已实现；真实 S1 证据和 PromotionDecision 仍 `blocked`
 > 来源：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md) R6
-> 边界：本阶段不实现 Markov/HMM、政策反应函数或状态概率，不替换现有 Regime/Pulse。
+> 边界：不在仓库内训练 Markov/HMM/贝叶斯/政策反应模型；只验证外部 artifact、状态概率/转移/OOS/政策目标证据，且永不替换现有 Regime/Pulse。
 
 ## 1. 当前决策
 
@@ -54,6 +54,10 @@ S1 通过后另建计划与分支：
 - 模型状态只能标记 exploratory，经过 Research PromotionDecision 后才能成为候选输入；
 - 未证明增量价值时保留简单规则，不以模型复杂度作为晋级理由。
 
+2026-08-05 开发先行状态：已实现 `advanced_state_model` Domain/Application 证据门禁。它要求 S0 report 为 `PROVEN`、PIT manifest 完整且未过期、input version/hash 一致、经济标签稳定无 drift、概率/转移行归一、持续期样本充足、OOS 指标超过注入阈值并同时优于简单基准、policy target 与 PIT 输入匹配、外部 artifact 有独立 hash attestation。任一条件失败返回稳定 blocker；通过也仅是 `research_only`，并强制 `must_not_replace_regime=true`。本地 fixture 不构成 S1 真实证据或模型晋级。
+
+交叉复核整改后，S0 report 额外封存 baseline key/version、PIT manifest、窗口、原始指标、证据引用/时间/状态及 canonical SHA-256；高级候选不得自报基准指标，只能绑定 report hash 并读取该报告的真实指标。因而“比较器可用”仍不能替代 S1 的真实不足证据。
+
 ## 5. 非目标
 
 - 不从当前 Regime 分数反推“模型概率”；
@@ -66,8 +70,9 @@ S1 通过后另建计划与分支：
 
 ```powershell
 pytest tests/unit/research/test_state_model_baseline.py -q
+pytest tests/unit/research/test_advanced_state_model.py tests/unit/research/test_advanced_state_model_edges.py tests/component/research/test_advanced_state_model.py -q
 python scripts/check_mypy_regression.py apps/research/domain/state_model_baseline.py apps/research/application/state_model_baseline.py
 python scripts/verify_architecture.py
 ```
 
-S0 仅新增纯 Domain/Application 合约和测试，无 ORM、迁移或运行时接线。回滚不会修改现有 Regime、Policy、Pulse 或决策结果。
+S0/S2 仅新增纯 Domain/Application 合约和测试，无 ORM、迁移、训练任务或运行时接线。回滚不会修改现有 Regime、Policy、Pulse 或决策结果。

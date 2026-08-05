@@ -1,6 +1,6 @@
 # 策略研究 R5—R8 启动门禁与分阶段实施计划（2026-08-05）
 
-> 状态：M0 启动条件审计完成；R7-C0 与 R8 输入合约纵切已实现，R5、R6、R7、R8 的能力门禁仍保持 `blocked`
+> 状态：R5—R8 无数据先行研究纵切均已实现；真实 Publication、样本历史、外部对账和晋级版本仍缺失，能力门禁保持 `blocked`
 > 来源：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
 > 实施边界：本阶段只交付启动门禁、证据清单和后续最小纵切，不训练模型、不生成概率、不构造债券事实、不运行优化器、不触发真实交易
 > 数据边界：以下数据库证据来自 2026-08-05 对本地 `db.sqlite3` 的只读审计，不代表生产环境状态；生产启动仍须重新取证
@@ -174,6 +174,8 @@ Owner：`regime` + `research`。
 
 没有明确改善目标时 R6 保持备忘状态。只有 R6-S0 通过，才允许开 Markov/HMM 或政策反应函数实验；实验结果必须走 Research Experiment/PromotionDecision，不能直接替换 current Regime。
 
+2026-08-05 开发先行状态：S0 基准不足 evaluator 与外部高级状态 artifact evidence validator 均已实现。后者不训练模型，要求 `PROVEN` shortfall、完整 PIT、稳定经济标签、有效概率/转移/持续期、优于简单基准的 OOS 指标、policy target 和独立 artifact attestation；即使全部通过也固定 `must_not_replace_regime=true`。
+
 ### R7-C0：情景 Forecast Ledger 扩展
 
 Owner：`risk_center` + `signal` + `audit`，独立 plan/迁移。
@@ -188,7 +190,9 @@ Owner：`risk_center` + `signal` + `audit`，独立 plan/迁移。
 
 在完整预测—复核—兑现记录达到经批准的样本策略之前，不进入 Brier calibration curve、历史类比或路径概率训练。
 
-2026-08-05 实施状态：上述证据积累纵切已完成代码实现和 `signal.0010_scenario_forecast_binding` 迁移。Outcome 使用独立 `scenario_realized` 计算 subjective/model row-level Brier，绝不复用 directional `hit`；Application 可按精确 revision/set 与 probability source 查询不可变观测。当前没有回填历史 outcome、没有训练模型，也没有 calibration 输出，因此 R7 总能力仍保持 `blocked`，等待真实 outcome 与获批样本策略。
+2026-08-05 实施状态：上述证据积累纵切已完成代码实现和 `signal.0010_scenario_forecast_binding` 迁移。Outcome 使用独立 `scenario_realized` 计算 subjective/model row-level Brier，绝不复用 directional `hit`；Application 可按精确 revision/set 与 probability source 查询不可变观测。当前没有回填历史 outcome、没有训练模型，也没有基于真实样本的 calibration evidence，因此 R7 总能力仍保持 `blocked`，等待真实 outcome 与获批样本策略。
+
+同日进一步实现 research-only 校准与类比合同：在获批 policy 的样本量、coverage、类别支持、窗口和 expiry 全部通过时，分别计算 subjective/model binary Brier、multiclass Brier 和分箱命中率；历史类比强制 PIT manifest/as-of，路径/条件/转移概率只作为证据，invalidation 只生成 `dispatch_requested=false` 的 review intent。空 outcome 仍返回 `insufficient_evidence`，不会训练或补出模型概率。
 
 ### R8-O0：Portfolio canonical snapshot 与执行反馈
 
@@ -208,7 +212,7 @@ Owner：`portfolio` + `broker_execution`，在 R3/R4/R5 晋级前可独立建设
 
 只有 R3、R4、R5 均有 approved PromotionDecision，且 R8-O0 通过后才允许启动：
 
-2026-08-05 已先完成 O1 的输入边界合约：`OptimizerInputContract`、owner-attested evidence、promotion reference 和 research-preview readiness。它不包含优化算法，且成功报告仍固定 `must_not_execute=true`；因此不会绕过 R8-O0、上游晋级或真实执行反馈门禁。
+2026-08-05 已完成 O1 输入边界及受约束研究求解纵切：`OptimizerInputContract`、owner-attested evidence、promotion reference、canonical numerical problem、约束验证、等权/资产风险平价基准和 deterministic local search。Application 必须先通过现有 readiness gate，并逐项比对 snapshot、universe、所有 input hash、execution feedback 与 R3/R4/R5 promotion；非 PSD、不可行、过期或比较不完整均 blocked。求解器只报告 local stationary/iteration limit，明确禁止 global optimum 声明，全部输出固定 `must_not_execute=true`。
 
 - 第一版离线 research-only；
 - 明确等权和现有配置基准；
@@ -216,6 +220,10 @@ Owner：`portfolio` + `broker_execution`，在 R3/R4/R5 晋级前可独立建设
 - 不可行、非正定/病态矩阵、stale 或缺失输入时 fail closed；
 - 输出目标组合草案及约束影子信息，不直接生成可执行订单；
 - 经 Research PromotionDecision 和人工审批后，才可进入 Portfolio transition plan。
+
+现有 implementation 只允许离线 comparison，不注册订单、transition plan 写入、API/TUI 或任务；fixture 中的“完整输入”不构成真实 R8-O0 或 R3/R4/R5 晋级证据。
+
+2026-08-05 交叉复核整改补强了三条边界：R5 的曲线角色、币种和 curve kind 由 canonical semantic provider 给出，三类 publication/dataset/hash 身份必须独立且一致，持久结果封存输入/输出 hash 并在数据库层禁止用于决策；R7 的类比 cutoff/release lag、校准 horizon/censoring、路径 shock/state/sample/PIT provenance 必须精确一致；R8 canonical snapshot 必须由受治理的 cash/position owner 原始 payload 生成 digest，优化结果重算并封存 solver weight 下的宏观风险贡献。上述机制均保持 research-only。
 
 ## 5. 测试与门禁
 

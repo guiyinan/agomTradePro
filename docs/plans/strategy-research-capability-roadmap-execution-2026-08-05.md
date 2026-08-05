@@ -1,6 +1,6 @@
 # 策略研究能力路线图 R1—R8 执行状态（2026-08-05）
 
-> 状态：M0 合约、运行时取证及 R1/R2/R5/R6/R7/R8 可先开发纵切已完成；真实数据、晋级和高级模型阶段仍待实施，R1—R8 均 `blocked`
+> 状态：R1—R8 的无数据先行研究基础均已实现；真实数据、生产 Publication、样本历史和 PromotionDecision 尚未形成，R1—R8 能力门禁仍均为 `blocked`
 > 来源：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
 > 适用分支：`dev/refactor-scenario-governance-quick-wins`
 > 决策边界：本文件完成的是“能否启动”的可执行治理，不把缺少数据和研究证据的长期能力声明为完成。
@@ -17,19 +17,21 @@
 6. 建立运行时 owner evidence registry；它只发布显式、限时、可定位到代码与契约测试的机制证据，其他 requirement 稳定物化为 `missing / unverified`。
 7. 在不伪造数据的前提下，完成 R1/R2 治理定义与 PIT 写入、R7 scenario forecast binding，以及 R8 research-only optimizer input contract；这些纵切用于开始积累证据，不解除能力总门禁。
 8. 继续交付 R1 三情景经营预测与误差台账、R5 固收研究内核、R6 简单基准不足取证器，以及 R8 canonical portfolio snapshot/执行反馈台账；所有缺数据入口均 fail closed。
+9. 完成 R1 Sector 行业模板安全 AST/DAG、R2 市场结构研究证据、R3 独立 `macro_factor` App、R4 宏观风险候选验证、R6 外部高级状态证据验证、R7 校准/历史类比/路径研究，以及 R8 受约束确定性研究优化；这些实现均不生成生产数据、不训练缺证据模型，也不解除 readiness。
+10. 完成三组 Luna Max 交叉复核并关闭全部 13 项 P1：所有研究结果均绑定 canonical input identity、PIT/as-of/coverage 或 owner evidence，追加式记录拒绝更新和删除；复核无 P0。
 
 ## 2. 启动状态矩阵
 
 | 能力 | 决策 | 解除阻断所需的核心证据 | 独立阶段计划 |
 |---|---|---|---|
-| R1 行业经营驱动与盈利预测 | `blocked` | 已有三情景预测/误差台账；仍需 QW-7 反馈、连续 PIT 事实、正式评估规范和 R1 晋级绑定 | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
-| R2 市场结构与投资者资金流 | `blocked` | 主体分类和单位语义、两个周期 PIT 覆盖、历史资产组 membership、代理标识 | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
-| R3 高频宏观因子与 nowcast | `blocked` | 宏观 vintage/代理资产 PIT、发布日历、连续期货规则、专属 benchmark 和成本模型 | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
-| R4 宏观敞口与风险平价 | `blocked` | R3 晋级版本、资产暴露、协方差、权重/换手/流动性约束和对照基准 | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
+| R1 行业经营驱动与盈利预测 | `blocked` | 已有版本化行业模板、三情景预测和误差台账；仍需 QW-7 反馈、连续 PIT 事实、正式评估规范和 R1 晋级绑定 | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
+| R2 市场结构与投资者资金流 | `blocked` | 已有 taxonomy/measure/proxy/PIT membership 研究合同；仍需批准定义、两个周期真实 PIT 覆盖和 Publication 证据 | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
+| R3 高频宏观因子与 nowcast | `blocked` | 已有外部研究证据验证与不可变结果 App；仍需宏观 vintage/代理资产 PIT、发布日历、真实 benchmark/cost 和 approved trial | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
+| R4 宏观敞口与风险平价 | `blocked` | 已有暴露/协方差/风险贡献候选验证；仍需 R3 晋级版本、真实资产暴露和 canonical constraint snapshot | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
 | R5 固收相对价值与久期 | `blocked` | 已有 research-only 定价/久期/曲线/信用内核；仍需真实 Publication、Bond Master、现金流/交易日历和外部对账 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
-| R6 高级状态模型 | `blocked` | 已有版本化简单基准不足取证器；仍需真实不足证据、PIT 输入、稳定标签协议、样本外转移基准和政策目标契约 | [R6](r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md) |
-| R7 情景概率校准 | `blocked` | 情景版本与预测账本绑定、完整 outcome 历史、校准样本政策和类比 PIT manifest | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
-| R8 多资产优化 | `blocked` | 已有 canonical snapshot、执行反馈台账和统一输入契约；仍需真实 broker reconciliation、R3/R4/R5 晋级版本和优化研究 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
+| R6 高级状态模型 | `blocked` | 已有简单基准不足取证器和外部高级状态证据验证；仍需真实不足证据、PIT 输入、稳定标签/OOS/政策目标和晋级 | [R6](r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md) |
+| R7 情景概率校准 | `blocked` | 已有 source-separated Brier/分箱、PIT 类比、路径/转移与 review intent；仍需完整 outcome 历史和获批样本政策 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
+| R8 多资产优化 | `blocked` | 已有 canonical snapshot、执行反馈、统一输入、约束验证和非全局确定性研究求解；仍需真实 broker reconciliation 及 R3/R4/R5 晋级版本 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
 
 ## 3. 可执行启动门
 
@@ -81,7 +83,7 @@ Application 只依赖 owner evidence provider Protocol，不读取其他 App ORM
 
 这些数字只证明本地开发环境无法解除相关启动门，不代表生产环境状态。未来复核必须由 canonical owner 重新提供目标环境证据，且非空记录仍需验证 coverage、freshness、PIT、版本绑定和样本跨度。
 
-当前尚未接线的 owner 为 `equity`、`macro_factor`、`policy`、`audit`、`broker_execution`；其中 `macro_factor` 尚无独立 App。`fixed_income` 已建立独立四层研究 App，但只签署 research-only 机制。所有数据覆盖、Production Publication、晋级版本和样本历史 requirement 仍保持 `unverified`，运行时不查询空表，也不以模型或迁移存在推断 `verified`。
+当前尚未接线运行时 readiness evidence 的 owner 为 `equity`、`macro_factor`、`policy`、`audit`、`broker_execution`。`macro_factor` 与 `fixed_income` 均已建立独立四层 research-only App，但代码和迁移的存在不等于真实数据、benchmark 或 PromotionDecision 已验证。所有数据覆盖、Production Publication、晋级版本和样本历史 requirement 仍保持 `unverified`，运行时不查询空表，也不以模型或迁移存在推断 `verified`。
 
 ## 5. 后续触发与执行顺序
 
@@ -101,5 +103,9 @@ pytest tests/unit/research/test_capability_readiness_registry.py tests/component
 python scripts/check_mypy_regression.py apps/research/domain/capability_readiness.py apps/research/application/capability_readiness.py apps/research/application/capability_readiness_registry.py apps/research/infrastructure/capability_readiness_attestations.py apps/research/composition.py
 python scripts/verify_architecture.py
 ```
+
+本批次还应运行 R1/R2/R3/R4/R5/R6/R7/R8 新增的 unit/component/migration 测试，以及 `makemigrations data_center equity fixed_income macro_factor portfolio sector --check --dry-run`。任何真实数据依赖缺失应表现为 blocked/insufficient evidence，而不是用测试 fixture 推断生产 ready。
+
+2026-08-05 初轮联合验证结果：R1—R8 相关 unit/component/migration 共 `158 passed`。Luna Max 交叉复核整改后，从路线图首个提交至当前 HEAD 自动收集 57 个实际测试模块，最终联合回归为 `432 passed`；上述六个 App 均 `No changes detected`，Django system check、43 个 current-data surface、架构边界（2146 files / 0 violations）、业务配置硬编码和 test-tier inventory 全部通过。
 
 回滚点按 R1、R5、R6、R8 四个独立提交组切分。新增迁移只建立 append-only 研究台账与 canonical snapshot/反馈存储；没有任务注册、API/MCP/TUI 发布，也不把研究结果接入现有决策或执行路径。
