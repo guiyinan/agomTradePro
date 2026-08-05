@@ -10,12 +10,12 @@ from apps.data_center.application.dtos import MacroDataPoint, MacroSeriesRequest
 from apps.data_center.application.interface_services import (
     get_active_provider_id_by_source,
     load_macro_governance_payload,
-    load_market_thermometer_payload,
     make_calculate_market_thermometer_use_case,
     make_query_macro_series_use_case,
 )
 from apps.data_center.application.public import (
     get_current_publication_freshness_gate,
+    get_market_thermometer_payload,
     get_publication_member_fact_pks,
     list_latest_published_macro_values,
 )
@@ -29,6 +29,8 @@ from apps.macro.application.repository_provider import (
     get_macro_read_repository,
     get_macro_repository,
 )
+
+load_market_thermometer_payload = get_market_thermometer_payload
 
 TABLE_SORT_FIELDS = {
     "code": "code",

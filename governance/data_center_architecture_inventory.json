@@ -592,12 +592,12 @@
       "text": "\"\"\"Run every repository-current historical revision in catalog order.\"\"\""
     },
     {
-      "line": 692,
+      "line": 694,
       "path": "apps/account/application/use_cases.py",
       "text": "logger.exception(\"Failed to resolve current regime for macro sizing context\")"
     },
     {
-      "line": 712,
+      "line": 714,
       "path": "apps/account/application/use_cases.py",
       "text": "logger.exception(\"Failed to load latest pulse for macro sizing context\")"
     },
@@ -4997,29 +4997,24 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 476,
+      "line": 501,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 482,
+      "line": 507,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read fresh, member-bound macro values for current-facing consumers.\"\"\""
     },
     {
-      "line": 530,
+      "line": 555,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 623,
+      "line": 648,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
-    },
-    {
-      "line": 630,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
     },
     {
       "line": 655,
@@ -5027,87 +5022,92 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 657,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
-    },
-    {
-      "line": 665,
+      "line": 680,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 669,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
     },
     {
       "line": 682,
       "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
+    },
+    {
+      "line": 690,
+      "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 687,
+      "line": 694,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
+    },
+    {
+      "line": 707,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 712,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 702,
+      "line": 727,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 718,
+      "line": 743,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 736,
+      "line": 761,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 753,
+      "line": 778,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 769,
+      "line": 794,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 806,
+      "line": 831,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 809,
+      "line": 834,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 813,
+      "line": 838,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 815,
+      "line": 840,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 818,
+      "line": 843,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 819,
+      "line": 844,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 921,
+      "line": 946,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -6612,7 +6612,7 @@
       "text": "\"\"\"Current valuation fields observed with a market quote timestamp.\"\"\""
     },
     {
-      "line": 361,
+      "line": 482,
       "path": "apps/data_center/infrastructure/market_structure_repository.py",
       "text": "\"\"\"Resolve historical members without substituting the current component set.\"\"\""
     },
@@ -7932,12 +7932,12 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 71,
+      "line": 90,
       "path": "apps/equity/infrastructure/operating_forecast_repository.py",
       "text": "\"\"\"Resolve exact, latest public operating fact versions at an as-of time.\"\"\""
     },
     {
-      "line": 96,
+      "line": 115,
       "path": "apps/equity/infrastructure/operating_forecast_repository.py",
       "text": "\"requested operating facts are not the latest public PIT versions at as_of_time\""
     },
@@ -8512,77 +8512,77 @@
       "text": "\"period_type\": latest[\"period_type\"],"
     },
     {
-      "line": 153,
+      "line": 157,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"\"\"Return current Regime context for the macro overview page.\"\"\""
     },
     {
-      "line": 161,
+      "line": 165,
       "path": "apps/macro/application/interface_services.py",
       "text": "logger.exception(\"Failed to load Regime summary for macro page snapshot\")"
     },
     {
-      "line": 193,
+      "line": 197,
       "path": "apps/macro/application/interface_services.py",
       "text": "logger.exception(\"Failed to load Pulse summary for macro page snapshot\")"
     },
     {
-      "line": 431,
+      "line": 435,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"\"\"Return selected publication members for one current macro series."
     },
     {
-      "line": 435,
+      "line": 439,
       "path": "apps/macro/application/interface_services.py",
       "text": "legacy latest-fact query."
     },
     {
-      "line": 465,
+      "line": 469,
       "path": "apps/macro/application/interface_services.py",
       "text": "current/latest values must come from freshness-validated Publication"
     },
     {
-      "line": 512,
+      "line": 516,
       "path": "apps/macro/application/interface_services.py",
       "text": "latest = read_repository.get_latest_indicator(code)"
     },
     {
-      "line": 513,
+      "line": 517,
       "path": "apps/macro/application/interface_services.py",
       "text": "if latest is not None:"
     },
     {
-      "line": 514,
+      "line": 518,
       "path": "apps/macro/application/interface_services.py",
       "text": "latest_by_code[code] = latest"
     },
     {
-      "line": 684,
+      "line": 688,
       "path": "apps/macro/application/interface_services.py",
       "text": "summary = read_repository.get_storage_summary()"
     },
     {
-      "line": 739,
+      "line": 743,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"total_records\": summary[\"total_records\"],"
     },
     {
-      "line": 740,
+      "line": 744,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"latest_date\": summary[\"latest_date\"],"
     },
     {
-      "line": 742,
+      "line": 746,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"min_date\": summary[\"min_date\"],"
     },
     {
-      "line": 743,
+      "line": 747,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"max_date\": summary[\"max_date\"],"
     },
     {
-      "line": 792,
+      "line": 796,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"summary\": summary_use_case.execute(),"
     },
@@ -11832,12 +11832,12 @@
       "text": "publish current state, authorize decisions, or replace the canonical Regime."
     },
     {
-      "line": 66,
+      "line": 67,
       "path": "apps/research/domain/scenario_research_evidence.py",
       "text": "\"\"\"Freeze a canonical reference without resolving current data.\"\"\""
     },
     {
-      "line": 226,
+      "line": 227,
       "path": "apps/research/domain/scenario_research_evidence.py",
       "text": "raise ValueError(\"historical analogy feature uses look-ahead or current-value backfill\")"
     },
@@ -14432,32 +14432,32 @@
       "text": "if int(summary.get(\"portfolio_count\") or 0) == 0:"
     },
     {
-      "line": 907,
+      "line": 909,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "def _monitor_severity(summary: dict[str, Any]) -> str:"
     },
     {
-      "line": 908,
+      "line": 910,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "daily_state = dict(summary.get(\"daily_state\") or {})"
     },
     {
-      "line": 967,
+      "line": 969,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "latest = None"
     },
     {
-      "line": 972,
+      "line": 974,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "if latest is None or created_at > latest:"
     },
     {
-      "line": 973,
+      "line": 975,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "latest = created_at"
     },
     {
-      "line": 974,
+      "line": 976,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "return _iso(latest or timezone.now())"
     },

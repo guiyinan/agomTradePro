@@ -4177,3 +4177,10 @@ Git SHA / 镜像 / migration：
 - 目标：阻断 Alpha AI 二次筛选直接读取 `MarketThermometerSnapshotRepository.get_latest()` 的旁路，避免 stale/blocked 市场风险快照未经统一计算语义进入筛选 prompt。
 - 变更：Data Center Public Port 新增 `get_current_market_thermometer_payload()`，复用 `load_market_thermometer_payload(use_personal_thresholds=False)` 的 freshness/blocked/fallback 逻辑；Alpha 保留 `get_latest_market_thermometer_snapshot_payload` 兼容别名，但实现只委托该 current port。
 - 治理与测试：`data_center.market_thermometer` 合约新增 Public Port/Alpha marker 和兼容别名委托回归；Alpha 原有 monkeypatch 面不变。
+
+## 59. 2026-08-05：当前摘要统一经 Data Center Public Port
+
+- 目标：避免账户 sizing、宏观页和 realtime breadth 直接依赖 Data Center 内部 interface/query service，确保当前读入口统一经过可审计的 Application Public Port。
+- 变更：新增带 `user_id`/`use_personal_thresholds` 显式参数的 `get_market_thermometer_payload` Public Port；账户、宏观页保留原本的用户阈值语义但改走该端口，Alpha 的非个人 current 端口复用同一实现。Realtime breadth 改用 `get_market_breadth_snapshot` Public Port。TUI 运维摘要仍保留其既有内部 interface 依赖，待下一批单独收口。
+- 治理与测试：`data_center.market_thermometer` 与 `realtime.market_summary` 合约登记 Public Port、消费者 import marker 和精确回归 nodeid；定向回归 51 passed，current-data 43 surfaces、mypy regression 0、architecture boundary/audit 0。
+- 明确未做：未改变市场温度计计算/阈值规则、历史查询、Publication writer/provider 配置、生产数据或部署；其余 maintenance/on-demand interface service 仍保留在 owner 内部边界。

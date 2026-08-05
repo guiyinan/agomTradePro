@@ -454,12 +454,29 @@ def probe_rss_news_feed(
     )
 
 
-def get_current_market_thermometer_payload() -> dict[str, Any]:
-    """Return the freshness-aware market thermometer payload for consumers."""
+def get_market_thermometer_payload(
+    *,
+    user_id: int | None = None,
+    use_personal_thresholds: bool = True,
+) -> dict[str, Any]:
+    """Return a freshness-aware market thermometer payload through the public port.
+
+    The optional user scope only controls presentation thresholds; the underlying
+    observation and reliability gate remain owned by Data Center.
+    """
 
     from apps.data_center.application.interface_services import load_market_thermometer_payload
 
-    return load_market_thermometer_payload(use_personal_thresholds=False)
+    return load_market_thermometer_payload(
+        user_id=user_id,
+        use_personal_thresholds=use_personal_thresholds,
+    )
+
+
+def get_current_market_thermometer_payload() -> dict[str, Any]:
+    """Return the freshness-aware, non-personal market thermometer payload."""
+
+    return get_market_thermometer_payload(use_personal_thresholds=False)
 
 
 def get_capital_flow_repository_port() -> CapitalFlowRepositoryProtocol:
@@ -1046,6 +1063,7 @@ __all__ = [
     "fetch_rss_news_feed",
     "probe_rss_news_feed",
     "get_current_market_thermometer_payload",
+    "get_market_thermometer_payload",
     "get_capital_flow_repository_port",
     "get_provider_config_repository_port",
     "get_provider_registry_port",
