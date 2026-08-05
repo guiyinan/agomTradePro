@@ -1,3 +1,20 @@
+"""Portfolio domain public contracts."""
+
+from .canonical_snapshots import (
+    BrokerExecutionEvidence,
+    BrokerFillEvidence,
+    BrokerOrderEventEvidence,
+    CanonicalPortfolioSnapshot,
+    CanonicalPosition,
+    ConstraintExecutionDeviation,
+    PortfolioExecutionFeedback,
+    SnapshotEvidenceKind,
+    SnapshotSourceEvidence,
+    broker_execution_evidence_hash,
+    build_broker_execution_evidence,
+    build_canonical_portfolio_snapshot,
+    build_execution_feedback,
+)
 from .entities import (
     ConstraintDecision,
     OrderDraft,
@@ -9,12 +26,24 @@ from .entities import (
 from .services import build_transition_plan
 
 __all__ = [
+    "BrokerExecutionEvidence",
+    "BrokerFillEvidence",
+    "BrokerOrderEventEvidence",
+    "CanonicalPortfolioSnapshot",
+    "CanonicalPosition",
     "ConstraintDecision",
+    "ConstraintExecutionDeviation",
     "OrderDraft",
+    "PortfolioExecutionFeedback",
     "PortfolioSnapshot",
+    "SnapshotEvidenceKind",
+    "SnapshotSourceEvidence",
     "TargetPortfolio",
     "TargetPosition",
     "TransitionPlan",
+    "broker_execution_evidence_hash",
+    "build_broker_execution_evidence",
+    "build_canonical_portfolio_snapshot",
+    "build_execution_feedback",
     "build_transition_plan",
 ]
-
