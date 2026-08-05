@@ -4241,3 +4241,11 @@ Git SHA / 镜像 / migration：
 - 测试与治理：新增基础日历探测 blocked 回归；补充 `runtime_config_contracts.json` 的 infrastructure gate marker/test。Alpha runtime/management 定向回归 `35 passed`，Qlib integration `29 passed`；变更文件 mypy 0、Black/Ruff/isort 通过，runtime config coverage 49、current-data 44 surfaces；clean `cfef37ec` worktree 的 current-data manifest 实际执行 `245 nodeid / 284 passed`。
 - 明确未做：未改变 Qlib 历史维护命令的显式参数语义、模型算法或 provider 写入，未初始化 production profile，未部署。
 - 未验证风险：生产 Qlib provider URI 的 typed profile 初始化、数据目录覆盖、PostgreSQL 缓存性能和 M9 旧链清理仍待生产阶段证据。
+
+## 68. 2026-08-05：TUI 运维摘要切换 Data Center Public Port
+
+- 目标：完成前述 TUI 运维摘要的本地入口收口，避免用户可见治理队列直接依赖 Data Center 内部 `interface_services/query_services`，绕过稳定的 Application Public Port 边界。
+- 变更：`apps/terminal/application/tui_operator_services.py` 的 coverage/readiness/market-thermometer 读取统一改用 `apps.data_center.application.public`；保留用户可见摘要字段和 freshness/blocking 语义不变。
+- 治理与测试：`data_center.public_current_read_ports` 增加 TUI consumer marker 与精确回归节点；更新 TUI operator 测试以验证 Public Port 注入。
+- 明确未做：未改变 TUI 文案、页面动作、Data Center 计算/写入、历史查询或生产配置，未部署。
+- 未验证风险：生产 TUI 端到端渲染、Public Port 真实 publication 覆盖和 PostgreSQL 查询预算仍待生产阶段证据。

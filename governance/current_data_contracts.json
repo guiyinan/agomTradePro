@@ -290,7 +290,8 @@
       "surface": "Cross-app current decision-readiness and coverage Public Ports",
       "source_files": [
         "apps/data_center/application/public.py",
-        "apps/decision_rhythm/application/advisor_providers.py"
+        "apps/decision_rhythm/application/advisor_providers.py",
+        "apps/terminal/application/tui_operator_services.py"
       ],
       "required_markers": {
         "apps/data_center/application/public.py": [
@@ -303,6 +304,10 @@
           "from apps.data_center.application.public import",
           "get_decision_data_readiness_payload",
           "resolve_asset_payload(asset_code)"
+        ],
+        "apps/terminal/application/tui_operator_services.py": [
+          "from apps.data_center.application.public import",
+          "get_market_thermometer_payload(user_id=None, use_personal_thresholds=False)"
         ]
       },
       "required_tests": [
@@ -325,6 +330,11 @@
           "case": "asset_exposure_public_port",
           "test_file": "tests/unit/decision_rhythm/test_advisor_providers.py",
           "test_function": "test_asset_exposure_provider_deduplicates_and_preserves_missing_assets"
+        },
+        {
+          "case": "tui_governance_uses_public_ports",
+          "test_file": "tests/unit/test_tui_operator_services.py",
+          "test_function": "test_data_center_governance_rows_map_freshness_and_coverage"
         }
       ]
     },

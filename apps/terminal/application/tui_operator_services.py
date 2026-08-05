@@ -29,11 +29,11 @@ from apps.config_center.application.runtime_public import (
     get_active_runtime_profile,
     get_active_storage_budget,
 )
-from apps.data_center.application.interface_services import (
+from apps.data_center.application.public import (
+    get_active_stock_fact_coverage_payload,
     get_decision_data_readiness_payload,
-    load_market_thermometer_payload,
+    get_market_thermometer_payload,
 )
-from apps.data_center.application.query_services import get_active_stock_fact_coverage_payload
 from apps.decision_rhythm.application.today_queue import TodayDecisionQueueQueryService
 from apps.operational_readiness.application.monitor_service import (
     get_personal_readiness_monitor_summary,
@@ -535,7 +535,7 @@ def _runtime_governance_rows() -> list[dict[str, Any]]:
 def _data_center_governance_rows() -> list[dict[str, Any]]:
     coverage = get_active_stock_fact_coverage_payload()
     readiness = get_decision_data_readiness_payload()
-    thermometer = load_market_thermometer_payload(user_id=None, use_personal_thresholds=False)
+    thermometer = get_market_thermometer_payload(user_id=None, use_personal_thresholds=False)
     blocked_reasons = list(readiness.get("blocked_reasons") or [])
     thermometer_status = str(thermometer.get("status") or "unknown").lower()
     thermometer_blocked = bool(thermometer.get("must_not_use_for_decision"))
@@ -774,38 +774,40 @@ def _config_center_governance_rows(*, user: Any) -> list[dict[str, Any]]:
     rows.extend(
         [
             _governance_row(
-            severity=(
-                "blocked"
-                if enabled and active_model is None
-                else ("notice" if not enabled else "ok")
-            ),
-            domain="config-center",
-            title="Qlib Runtime 与当前模型",
-            status="enabled" if enabled else "disabled",
-            blocking_reason=(
-                "Qlib Runtime 已启用但没有活动模型。"
-                if enabled and active_model is None
-                else ("当前未启用 Qlib Runtime。" if not enabled else "")
-            ),
-            next_action="查看 Qlib 运行配置",
-            target_screen="api-library.config-center",
-            target_action_key="config_center.qlib_runtime",
-            observed_at=timezone.now(),
+                severity=(
+                    "blocked"
+                    if enabled and active_model is None
+                    else ("notice" if not enabled else "ok")
+                ),
+                domain="config-center",
+                title="Qlib Runtime 与当前模型",
+                status="enabled" if enabled else "disabled",
+                blocking_reason=(
+                    "Qlib Runtime 已启用但没有活动模型。"
+                    if enabled and active_model is None
+                    else ("当前未启用 Qlib Runtime。" if not enabled else "")
+                ),
+                next_action="查看 Qlib 运行配置",
+                target_screen="api-library.config-center",
+                target_action_key="config_center.qlib_runtime",
+                observed_at=timezone.now(),
             ),
             _governance_row(
-            severity="warning" if lag_warning else ("notice" if not has_training_runs else "ok"),
-            domain="config-center",
-            title="训练记录与本地数据滞后",
-            status="lag" if lag_warning else "ok",
-            blocking_reason=(
-                f"本地 Qlib 数据滞后 {lag_days} 天。"
-                if lag_warning
-                else ("当前没有训练运行记录。" if not has_training_runs else "")
-            ),
-            next_action="查看训练运行记录",
-            target_screen="api-library.config-center",
-            target_action_key="config_center.training_runs",
-            observed_at=timezone.now(),
+                severity=(
+                    "warning" if lag_warning else ("notice" if not has_training_runs else "ok")
+                ),
+                domain="config-center",
+                title="训练记录与本地数据滞后",
+                status="lag" if lag_warning else "ok",
+                blocking_reason=(
+                    f"本地 Qlib 数据滞后 {lag_days} 天。"
+                    if lag_warning
+                    else ("当前没有训练运行记录。" if not has_training_runs else "")
+                ),
+                next_action="查看训练运行记录",
+                target_screen="api-library.config-center",
+                target_action_key="config_center.training_runs",
+                observed_at=timezone.now(),
             ),
         ]
     )

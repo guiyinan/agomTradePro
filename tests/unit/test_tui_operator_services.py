@@ -196,7 +196,7 @@ def test_data_center_governance_rows_map_freshness_and_coverage(monkeypatch):
     )
     monkeypatch.setattr(
         operator_services,
-        "load_market_thermometer_payload",
+        "get_market_thermometer_payload",
         lambda **kwargs: {
             "status": "warning",
             "must_not_use_for_decision": True,
