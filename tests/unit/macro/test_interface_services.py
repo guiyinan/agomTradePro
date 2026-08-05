@@ -200,13 +200,11 @@ def test_get_supported_macro_indicators_prefers_indicator_metadata(monkeypatch):
         },
     )
     monkeypatch.setattr(
-        "apps.macro.application.interface_services.IndicatorService.get_indicator_metadata_map",
-        classmethod(
-            lambda cls: {
-                "CN_GDP": {"name": "GDP（国内生产总值累计值）"},
-                "CN_M2": {"name": "M2（广义货币供应量余额）"},
-            }
-        ),
+        "apps.macro.application.interface_services.get_macro_runtime_metadata",
+        lambda: {
+            "CN_GDP": {"name": "GDP（国内生产总值累计值）"},
+            "CN_M2": {"name": "M2（广义货币供应量余额）"},
+        },
     )
 
     indicators = get_supported_macro_indicators()
@@ -228,21 +226,19 @@ def test_get_macro_data_page_snapshot_lists_catalog_indicators_without_facts(mon
         lambda: _FakeCatalogRepository(),
     )
     monkeypatch.setattr(
-        "apps.macro.application.interface_services.IndicatorService.get_indicator_metadata_map",
-        classmethod(
-            lambda cls: {
-                "CN_GDP": {
-                    "name": "GDP（国内生产总值累计值）",
-                    "unit": "亿元",
-                    "description": "GDP总量",
-                },
-                "CN_M2": {
-                    "name": "M2（广义货币供应量余额）",
-                    "unit": "万亿元",
-                    "description": "广义货币",
-                },
-            }
-        ),
+        "apps.macro.application.interface_services.get_macro_runtime_metadata",
+        lambda: {
+            "CN_GDP": {
+                "name": "GDP（国内生产总值累计值）",
+                "unit": "亿元",
+                "description": "GDP总量",
+            },
+            "CN_M2": {
+                "name": "M2（广义货币供应量余额）",
+                "unit": "万亿元",
+                "description": "广义货币",
+            },
+        },
     )
     monkeypatch.setattr(
         "apps.macro.application.interface_services.get_active_provider_id_by_source",
@@ -322,8 +318,8 @@ def test_get_macro_data_page_snapshot_preserves_sync_permission_flag(monkeypatch
         lambda: _FakeCatalogRepository(),
     )
     monkeypatch.setattr(
-        "apps.macro.application.interface_services.IndicatorService.get_indicator_metadata_map",
-        classmethod(lambda cls: {}),
+        "apps.macro.application.interface_services.get_macro_runtime_metadata",
+        lambda: {},
     )
     monkeypatch.setattr(
         "apps.macro.application.interface_services.get_active_provider_id_by_source",
@@ -360,8 +356,8 @@ def test_get_macro_data_page_snapshot_tui_uses_publication_members(monkeypatch):
         lambda: _FakeCatalogRepository(),
     )
     monkeypatch.setattr(
-        "apps.macro.application.interface_services.IndicatorService.get_indicator_metadata_map",
-        classmethod(lambda cls: {}),
+        "apps.macro.application.interface_services.get_macro_runtime_metadata",
+        lambda: {},
     )
     monkeypatch.setattr(
         "apps.macro.application.interface_services.load_macro_governance_payload",
@@ -614,30 +610,28 @@ def test_get_macro_data_page_snapshot_prefers_gdp_yoy_over_cumulative_level(monk
         lambda: _FakeGdpCatalogRepository(),
     )
     monkeypatch.setattr(
-        "apps.macro.application.interface_services.IndicatorService.get_indicator_metadata_map",
-        classmethod(
-            lambda cls: {
-                "CN_GDP": {
-                    "name": "GDP（国内生产总值累计值）",
-                    "unit": "亿元",
-                    "description": "累计值口径",
-                    "series_semantics": "cumulative_level",
-                    "paired_indicator_code": "CN_GDP_YOY",
-                    "chart_policy": "yearly_reset_bar",
-                    "chart_reset_frequency": "year",
-                    "chart_segment_basis": "period_delta",
-                    "display_priority": 20,
-                },
-                "CN_GDP_YOY": {
-                    "name": "GDP同比增速",
-                    "unit": "%",
-                    "description": "同比口径",
-                    "series_semantics": "yoy_rate",
-                    "paired_indicator_code": "CN_GDP",
-                    "display_priority": 120,
-                },
-            }
-        ),
+        "apps.macro.application.interface_services.get_macro_runtime_metadata",
+        lambda: {
+            "CN_GDP": {
+                "name": "GDP（国内生产总值累计值）",
+                "unit": "亿元",
+                "description": "累计值口径",
+                "series_semantics": "cumulative_level",
+                "paired_indicator_code": "CN_GDP_YOY",
+                "chart_policy": "yearly_reset_bar",
+                "chart_reset_frequency": "year",
+                "chart_segment_basis": "period_delta",
+                "display_priority": 20,
+            },
+            "CN_GDP_YOY": {
+                "name": "GDP同比增速",
+                "unit": "%",
+                "description": "同比口径",
+                "series_semantics": "yoy_rate",
+                "paired_indicator_code": "CN_GDP",
+                "display_priority": 120,
+            },
+        },
     )
     monkeypatch.setattr(
         "apps.macro.application.interface_services.get_active_provider_id_by_source",

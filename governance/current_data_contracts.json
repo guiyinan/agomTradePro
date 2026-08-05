@@ -2676,6 +2676,7 @@
       ],
       "required_markers": {
         "apps/macro/application/interface_services.py": [
+          "get_macro_runtime_metadata()",
           "published_only: bool = False",
           "list_latest_published_macro_values(",
           "_published_macro_member_selection(",

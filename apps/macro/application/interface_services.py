@@ -15,6 +15,7 @@ from apps.data_center.application.interface_services import (
 )
 from apps.data_center.application.public import (
     get_current_publication_freshness_gate,
+    get_macro_runtime_metadata,
     get_market_thermometer_payload,
     get_publication_member_fact_pks,
     get_published_macro_series_response,
@@ -25,7 +26,6 @@ from apps.macro.application.data_management import (
     GetDataManagementSummaryUseCase,
     ScheduleDataFetchUseCase,
 )
-from apps.macro.application.indicator_service import IndicatorService
 from apps.macro.application.repository_provider import (
     get_macro_read_repository,
     get_macro_repository,
@@ -335,7 +335,7 @@ def get_supported_macro_indicators(*, source: str = "akshare") -> list[dict[str,
     """Return the supported macro indicator definitions for the requested source."""
 
     governance = load_macro_governance_payload()
-    metadata_map = IndicatorService.get_indicator_metadata_map()
+    metadata_map = get_macro_runtime_metadata()
     normalized_source = source.strip().lower()
     indicators: list[dict[str, Any]] = []
     for row in governance.get("indicator_rows") or []:
@@ -471,7 +471,7 @@ def get_macro_data_page_snapshot(
 
     read_repository = get_macro_read_repository()
     catalog_repository = get_indicator_catalog_repository()
-    metadata_map = IndicatorService.get_indicator_metadata_map()
+    metadata_map = get_macro_runtime_metadata()
     governance_payload = load_macro_governance_payload()
     sync_supported_codes = set(governance_payload.get("supported_sync_codes") or [])
     active_catalogs = sorted(catalog_repository.list_active(), key=lambda item: item.code)
