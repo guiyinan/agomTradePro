@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3214,
+    "current_surface_references": 3218,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 143,
@@ -11357,52 +11357,52 @@
       "text": "- latest persisted regime snapshot"
     },
     {
-      "line": 215,
+      "line": 216,
       "path": "apps/regime/application/current_regime.py",
       "text": "latest = get_regime_repository().get_latest_snapshot()"
     },
     {
-      "line": 216,
+      "line": 217,
       "path": "apps/regime/application/current_regime.py",
       "text": "if latest:"
     },
     {
-      "line": 219,
+      "line": 220,
       "path": "apps/regime/application/current_regime.py",
       "text": "is_stale = _regime_is_stale(latest.observed_at, as_of_date=target_date)"
     },
     {
-      "line": 223,
+      "line": 224,
       "path": "apps/regime/application/current_regime.py",
       "text": "dominant_regime=\"Unknown\" if is_stale else latest.dominant_regime,"
     },
     {
-      "line": 224,
+      "line": 225,
       "path": "apps/regime/application/current_regime.py",
       "text": "confidence=float(latest.confidence or 0.0),"
     },
     {
-      "line": 225,
+      "line": 226,
       "path": "apps/regime/application/current_regime.py",
       "text": "observed_at=latest.observed_at,"
     },
     {
-      "line": 228,
+      "line": 229,
       "path": "apps/regime/application/current_regime.py",
       "text": "distribution=dict(latest.distribution or {}),"
     },
     {
-      "line": 230,
+      "line": 231,
       "path": "apps/regime/application/current_regime.py",
       "text": "growth_momentum_z=float(latest.growth_momentum_z),"
     },
     {
-      "line": 231,
+      "line": 232,
       "path": "apps/regime/application/current_regime.py",
       "text": "inflation_momentum_z=float(latest.inflation_momentum_z),"
     },
     {
-      "line": 232,
+      "line": 233,
       "path": "apps/regime/application/current_regime.py",
       "text": "diagnostic_regime=latest.dominant_regime,"
     },
@@ -11547,7 +11547,7 @@
       "text": "\"\"\"Rehydrate a UI-friendly action recommendation from the latest persisted log.\"\"\""
     },
     {
-      "line": 356,
+      "line": 357,
       "path": "apps/regime/application/orchestration.py",
       "text": "\"falling back to current resolver\""
     },
@@ -11630,6 +11630,26 @@
       "line": 60,
       "path": "apps/regime/application/repository_provider.py",
       "text": "\"\"\"Return the latest observation date.\"\"\""
+    },
+    {
+      "line": 77,
+      "path": "apps/regime/application/repository_provider.py",
+      "text": "\"\"\"Return growth values, optionally restricted to current publication members.\"\"\""
+    },
+    {
+      "line": 87,
+      "path": "apps/regime/application/repository_provider.py",
+      "text": "\"\"\"Return growth observations, optionally restricted to current publication members.\"\"\""
+    },
+    {
+      "line": 97,
+      "path": "apps/regime/application/repository_provider.py",
+      "text": "\"\"\"Return inflation values, optionally restricted to current publication members.\"\"\""
+    },
+    {
+      "line": 107,
+      "path": "apps/regime/application/repository_provider.py",
+      "text": "\"\"\"Return inflation observations, optionally restricted to current publication members.\"\"\""
     },
     {
       "line": 72,
@@ -11822,12 +11842,12 @@
       "text": "with ``use_pit=True``.  This method is intentionally separate so current"
     },
     {
-      "line": 577,
+      "line": 606,
       "path": "apps/regime/infrastructure/macro_data_provider.py",
       "text": "logger.error(f\"Error getting latest observation date for {indicator_code}: {e}\")"
     },
     {
-      "line": 694,
+      "line": 723,
       "path": "apps/regime/infrastructure/macro_data_provider.py",
       "text": "\"\"\"Return a publication-gated current series from Data Center.\"\"\""
     },
@@ -16569,12 +16589,12 @@
       "text": "@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]"
     },
     {
-      "line": 381,
+      "line": 382,
       "path": "apps/regime/application/orchestration.py",
       "text": "@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]"
     },
     {
-      "line": 564,
+      "line": 565,
       "path": "apps/regime/application/orchestration.py",
       "text": "@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]"
     },
@@ -17108,12 +17128,12 @@
         "symbol": "MacroIndicator"
       },
       {
-        "line": 84,
+        "line": 86,
         "path": "apps/regime/application/repository_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 102,
+        "line": 106,
         "path": "apps/regime/application/repository_provider.py",
         "symbol": "MacroIndicator"
       },
@@ -17183,77 +17203,77 @@
         "symbol": "MacroIndicator"
       },
       {
-        "line": 282,
+        "line": 285,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 324,
+        "line": 337,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 353,
+        "line": 382,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 356,
+        "line": 385,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 438,
+        "line": 467,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 447,
+        "line": 476,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 459,
+        "line": 488,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 470,
+        "line": 499,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 666,
+        "line": 695,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 693,
+        "line": 722,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 706,
+        "line": 735,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 713,
+        "line": 742,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 750,
+        "line": 779,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 776,
+        "line": 808,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 804,
+        "line": 840,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },

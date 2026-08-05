@@ -4314,5 +4314,6 @@ Git SHA / 镜像 / migration：
 - 变更：`CalculateRegimeV2Request` 新增显式 `published_only` 选择；Regime Data Center adapter 在该模式下只调用 `get_published_series`，按映射后的 canonical indicator code 绑定 Publication member/freshness，CPI fallback 也继续走 Publication；历史回算默认保持 raw/PIT 语义。
 - 消费者：`resolve_current_regime`、同步后当前计算和 Regime Navigator 均显式传 `published_only=True`；未声明 current 的计算 API 仍保留显式 historical/PIT 入口，避免把研究日期误解释为当前出版快照。
 - 治理与测试：扩展 `data_center.publication_only_d2_d3` markers；Publication-only adapter 的 raw-read 禁止、缺失 Publication fail-closed、V2 全量 selector 传播和 current resolver selector 回归已登记。
+- inventory：在不含外部未提交 portfolio 改动的 clean HEAD worktree 重新生成 `governance/data_center_architecture_inventory.json`，`current_surface_references=3218`，其余结构计数保持不变。
 - 已运行验证：Regime/adapter 相关回归 `26 passed`；`tests/unit/regime` `60 passed`；current-data manifest 实际执行 `259 nodeid / 298 passed`；architecture boundary/audit 0、module-cycle 0、legacy fact guard 通过；`manage.py check` 0 issues；变更生产文件 mypy regression 0，Ruff/Black 通过。
 - 明确未做：未修改 Regime 历史研究/PIT API、Publication writer/provider、生产数据、VPS 或部署；生产 Publication 覆盖、PostgreSQL 性能/备份恢复、连续交易日观察窗口和 M9 旧链清理仍未完成。
