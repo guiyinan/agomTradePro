@@ -378,6 +378,32 @@ class ResearchDataFoundationRepository:
             filters,
         )
 
+    def get_operating_fact_versions(
+        self,
+        version_ids: tuple[int, ...],
+        *,
+        as_of_time: datetime,
+        knowledge_scope: KnowledgeScope,
+    ) -> list[PITFactVersion]:
+        """Return exact versions only when they are the latest knowable facts."""
+
+        business_keys = list(
+            PITFactVersionModel._default_manager.filter(
+                pk__in=version_ids,
+                dataset=OPERATING_OBSERVATION_DATASET,
+            ).values_list("business_key", flat=True)
+        )
+        if len(business_keys) != len(version_ids):
+            return []
+        selected = DjangoPITDataView().query(
+            OPERATING_OBSERVATION_DATASET,
+            as_of_time,
+            knowledge_scope,
+            {"business_key__in": business_keys},
+        )
+        by_id = {fact.version_id: fact for fact in selected}
+        return [by_id[version_id] for version_id in version_ids if version_id in by_id]
+
     @transaction.atomic
     def _append_pit_version(
         self,

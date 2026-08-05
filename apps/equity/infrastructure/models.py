@@ -634,3 +634,15 @@ class StockScreeningRuleConfigModel(models.Model):
 
     def __str__(self) -> str:
         return f"{self.regime} - {self.rule_name}"
+
+
+# Separate append-only R1 ledger models are imported here so Django discovers
+# them through the app's canonical ``models`` module.
+from .operating_forecast_models import (  # noqa: E402,F401
+    OperatingForecastAssumptionModel,
+    OperatingForecastEvaluationModel,
+    OperatingForecastFactReferenceModel,
+    OperatingForecastProjectionModel,
+    OperatingForecastSensitivityModel,
+    OperatingForecastVersionModel,
+)

@@ -69,6 +69,15 @@ class ResearchDataFoundationGateway(Protocol):
     ) -> list[PITFactVersion]:
         """Query exact PIT versions under an explicit clock."""
 
+    def get_operating_fact_versions(
+        self,
+        version_ids: tuple[int, ...],
+        *,
+        as_of_time: datetime,
+        knowledge_scope: KnowledgeScope,
+    ) -> list[PITFactVersion]:
+        """Return requested operating versions only when latest and knowable."""
+
 
 class ResearchDataFoundationFacade:
     """Single application entry point for R1/R2 definition and PIT workflows."""
@@ -151,6 +160,26 @@ class ResearchDataFoundationFacade:
             filters=filters,
         )
 
+    def get_operating_fact_versions(
+        self,
+        version_ids: tuple[int, ...],
+        *,
+        as_of_time: datetime,
+        knowledge_scope: KnowledgeScope = KnowledgeScope.PUBLIC,
+    ) -> list[PITFactVersion]:
+        """Resolve exact latest operating versions under an explicit PIT clock."""
+
+        self._validate_query_time(as_of_time)
+        if not version_ids or len(set(version_ids)) != len(version_ids):
+            raise ValueError("version_ids must be non-empty and unique")
+        if any(isinstance(version_id, bool) or version_id <= 0 for version_id in version_ids):
+            raise ValueError("version_ids must be positive integers")
+        return self._gateway.get_operating_fact_versions(
+            version_ids,
+            as_of_time=as_of_time,
+            knowledge_scope=knowledge_scope,
+        )
+
     def list_investor_flow_observations(
         self,
         *,
@@ -205,4 +234,29 @@ class ResearchDataFoundationFacade:
             raise ValueError("as_of_time must be timezone-aware")
 
 
-__all__ = ["ResearchDataFoundationFacade", "ResearchDataFoundationGateway"]
+_configured_facade: ResearchDataFoundationFacade | None = None
+
+
+def configure_research_data_foundation_facade(
+    facade: ResearchDataFoundationFacade,
+) -> None:
+    """Register the Data Center-owned runtime facade at composition time."""
+
+    global _configured_facade
+    _configured_facade = facade
+
+
+def get_research_data_foundation_facade() -> ResearchDataFoundationFacade:
+    """Return the configured Application facade without exposing Infrastructure."""
+
+    if _configured_facade is None:
+        raise RuntimeError("research data foundation facade is not configured")
+    return _configured_facade
+
+
+__all__ = [
+    "ResearchDataFoundationFacade",
+    "ResearchDataFoundationGateway",
+    "configure_research_data_foundation_facade",
+    "get_research_data_foundation_facade",
+]
