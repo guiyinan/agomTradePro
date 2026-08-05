@@ -551,7 +551,7 @@ def sync_fund_nav_from_active_provider(
                 "provider_name": provider.provider_name(),
                 "stored_count": 0,
                 "status": "failed",
-                "error_message": f"{type(exc).__name__}: {exc}",
+                "error_message": f"provider_sync_failed:{type(exc).__name__}",
             }
             continue
 
