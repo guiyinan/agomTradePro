@@ -4257,3 +4257,16 @@ Git SHA / 镜像 / migration：
 - 治理与测试：新增 `broker_execution.live_order_quote` current-data contract；Public Port blocked/member-row 和 Broker 默认 provider 回归共 `16 passed`，变更文件 mypy 0、Black/Ruff/isort 通过；current-data contracts `45 surfaces`。
 - 明确未做：未改变显式注入的测试/维护报价 provider、订单状态机、QMT 写入或执行路由，未部署。
 - 未验证风险：生产 Quote Publication 覆盖、真实下单 PostgreSQL 查询预算、QMT/VPS 生产链路与旧报价读取零访问仍待生产阶段证据。
+
+## 70. 2026-08-05：Dashboard 资产身份切换 AssetMaster Public Port
+
+- 目标：消除 Dashboard 资产上下文对 Data Center 内部 ResolveAsset use case 的直接依赖，使 current stock context 的证券身份只来自 canonical AssetMaster Public Port，不再让跨 App Interface 具体实现成为隐式边界。
+- 变更：`DashboardApplicationGateway.resolve_asset()` 改用 `resolve_asset_payload`；Dashboard repository 同时兼容 Public Port mapping 与旧 DTO 形状，保持名称、行业和市场投影不变。
+- 治理与测试：扩展 `equity.published_stock_context` 的 Dashboard Public Port marker，新增 AssetMaster Public Port 回归。
+- 明确未做：未改变 AssetMaster 写入、legacy holding name 维护流程、Equity 历史查询或生产配置，未部署。
+- 未验证风险：生产 AssetMaster 覆盖、Dashboard PostgreSQL 查询预算、旧身份投影零读写和 M9 清理仍待生产阶段证据。
+
+## 71. 2026-08-05：Dashboard AssetMaster Public Port 回归收口
+
+- 测试与治理：Dashboard Data Center publication/asset-port 定向回归 `5 passed`；变更的 Gateway/Repository 文件 mypy 0、Black/Ruff/isort 通过；current-data contracts `45 surfaces`。
+- 备注：同一批未纳入本次改动的两个旧 Dashboard allocation guardrail 测试仍因既有 `AllocationPolicyUnavailableError` 失败；该问题与 AssetMaster Public Port 无调用关系，未将其伪装为本批通过，也未修改策略运行时配置。

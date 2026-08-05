@@ -48,6 +48,14 @@ def _optional_isoformat(value: object) -> str | None:
     return str(formatter()) if callable(formatter) else None
 
 
+def _asset_context_value(asset: object, key: str) -> object | None:
+    """Read an asset field from either a Public Port mapping or a legacy DTO."""
+
+    if isinstance(asset, Mapping):
+        return asset.get(key)
+    return getattr(asset, key, None)
+
+
 class AutoAdvisorReportRepository:
     """Persist weekly auto-advisor reports, diary snapshots, and notifications."""
 
@@ -315,10 +323,15 @@ class DashboardAlphaContextRepository:
                 asset = self._integration_gateway.resolve_asset(alias)
                 if asset is None:
                     continue
+                short_name = str(_asset_context_value(asset, "short_name") or "")
+                name = str(_asset_context_value(asset, "name") or "")
+                sector = str(_asset_context_value(asset, "sector") or "")
+                industry = str(_asset_context_value(asset, "industry") or "")
+                exchange = str(_asset_context_value(asset, "exchange") or "")
                 context[normalized_code] = {
-                    "name": asset.short_name or asset.name,
-                    "sector": asset.sector or asset.industry or "",
-                    "market": asset.exchange,
+                    "name": short_name or name,
+                    "sector": sector or industry,
+                    "market": exchange,
                 }
                 break
         return context

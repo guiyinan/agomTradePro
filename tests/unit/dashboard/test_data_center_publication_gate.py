@@ -64,3 +64,22 @@ def test_dashboard_quote_blocks_stale_publication(monkeypatch) -> None:
     )
 
     assert DashboardApplicationGateway().query_latest_quote("600000.SH") is None
+
+
+def test_dashboard_asset_resolution_uses_public_asset_port(monkeypatch) -> None:
+    """Dashboard asset context must resolve identity through the canonical Public Port."""
+
+    expected = {
+        "code": "000001.SZ",
+        "name": "平安银行",
+        "short_name": "平安",
+        "sector": "银行",
+        "industry": "银行",
+        "exchange": "SZSE",
+    }
+    monkeypatch.setattr(
+        "apps.data_center.application.public.resolve_asset_payload",
+        lambda code: expected if code == "000001.SZ" else None,
+    )
+
+    assert DashboardApplicationGateway().resolve_asset("000001.SZ") == expected

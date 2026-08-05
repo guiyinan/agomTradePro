@@ -50,10 +50,9 @@ class DashboardApplicationGateway:
         }
 
     def resolve_asset(self, code: str) -> Any | None:
-        from apps.data_center.application.dtos import ResolveAssetRequest
-        from apps.data_center.application.interface_services import make_resolve_asset_use_case
+        from apps.data_center.application.public import resolve_asset_payload
 
-        return make_resolve_asset_use_case().execute(ResolveAssetRequest(code=code))
+        return resolve_asset_payload(code)
 
     def query_latest_quote(self, asset_code: str) -> Any | None:
         from apps.data_center.application.public import get_published_quote_payloads
