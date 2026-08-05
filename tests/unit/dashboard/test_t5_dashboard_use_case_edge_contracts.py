@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from apps.dashboard.application import use_cases as use_case_module
+from apps.dashboard.application.integration_gateways import DashboardApplicationGateway
 from apps.dashboard.application.use_cases import (
     GetDashboardDataUseCase,
     _display_risk_tolerance,
@@ -75,6 +76,57 @@ def test_risk_and_regime_normalization_helpers() -> None:
         "Stagflation": 0.0,
     }
     assert all(value == 0 for value in _normalize_regime_distribution("Unknown").values())
+
+
+def test_dashboard_current_macro_gateway_forces_publication_members(monkeypatch) -> None:
+    """Dashboard non-PIT macro reads must never fall back to raw latest facts."""
+
+    captured: list[dict[str, object]] = []
+
+    def _growth(**kwargs: object) -> list[object]:
+        captured.append({"kind": "growth", **kwargs})
+        return []
+
+    def _inflation(**kwargs: object) -> list[object]:
+        captured.append({"kind": "inflation", **kwargs})
+        return []
+
+    monkeypatch.setattr("apps.regime.application.query_services.get_growth_series", _growth)
+    monkeypatch.setattr("apps.regime.application.query_services.get_inflation_series", _inflation)
+
+    gateway = DashboardApplicationGateway()
+    end_date = date(2026, 8, 6)
+    gateway.get_growth_series(
+        indicator_code="PMI",
+        end_date=end_date,
+        use_pit=False,
+        full=True,
+    )
+    gateway.get_inflation_series(
+        indicator_code="CPI",
+        end_date=end_date,
+        use_pit=False,
+        full=True,
+    )
+
+    assert captured == [
+        {
+            "kind": "growth",
+            "indicator_code": "PMI",
+            "end_date": end_date,
+            "use_pit": False,
+            "full": True,
+            "published_only": True,
+        },
+        {
+            "kind": "inflation",
+            "indicator_code": "CPI",
+            "end_date": end_date,
+            "use_pit": False,
+            "full": True,
+            "published_only": True,
+        },
+    ]
 
 
 def test_macro_health_reports_missing_stale_and_healthy_series() -> None:

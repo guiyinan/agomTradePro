@@ -67,9 +67,7 @@ def get_regime_distribution_payload(
     )
     distribution: dict[str, int] = {}
     for snapshot in snapshots:
-        distribution[snapshot.dominant_regime] = (
-            distribution.get(snapshot.dominant_regime, 0) + 1
-        )
+        distribution[snapshot.dominant_regime] = distribution.get(snapshot.dominant_regime, 0) + 1
     return {"count": len(snapshots), "distribution": distribution}
 
 
@@ -82,9 +80,7 @@ def calculate_regime_diagnostic_payload(as_of_date: date) -> dict[str, Any]:
     ).execute(request=CalculateRegimeRequest(as_of_date=as_of_date))
     return {
         "success": result.success,
-        "dominant_regime": result.snapshot.dominant_regime
-        if result.snapshot is not None
-        else None,
+        "dominant_regime": result.snapshot.dominant_regime if result.snapshot is not None else None,
         "error": result.error,
     }
 
@@ -95,8 +91,9 @@ def get_growth_series(
     end_date: date,
     use_pit: bool = False,
     full: bool = False,
+    published_only: bool = False,
 ) -> list[Any]:
-    """Return growth indicator series through the regime macro adapter boundary."""
+    """Return growth series with an explicit current/publication selector."""
 
     repo = build_macro_repository_adapter()
     series = (
@@ -104,12 +101,14 @@ def get_growth_series(
             indicator_code=indicator_code,
             end_date=end_date,
             use_pit=use_pit,
+            published_only=published_only,
         )
         if full
         else repo.get_growth_series(
             indicator_code=indicator_code,
             end_date=end_date,
             use_pit=use_pit,
+            published_only=published_only,
         )
     )
     return list(series or [])
@@ -121,8 +120,9 @@ def get_inflation_series(
     end_date: date,
     use_pit: bool = False,
     full: bool = False,
+    published_only: bool = False,
 ) -> list[Any]:
-    """Return inflation indicator series through the regime macro adapter boundary."""
+    """Return inflation series with an explicit current/publication selector."""
 
     repo = build_macro_repository_adapter()
     series = (
@@ -130,12 +130,14 @@ def get_inflation_series(
             indicator_code=indicator_code,
             end_date=end_date,
             use_pit=use_pit,
+            published_only=published_only,
         )
         if full
         else repo.get_inflation_series(
             indicator_code=indicator_code,
             end_date=end_date,
             use_pit=use_pit,
+            published_only=published_only,
         )
     )
     return list(series or [])

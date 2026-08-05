@@ -1402,9 +1402,10 @@
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/data_center.py",
     "apps/alpha/infrastructure/adapters/simple_adapter.py",
     "apps/pulse/infrastructure/data_provider.py",
-    "apps/regime/infrastructure/macro_data_provider.py",
-    "apps/regime/application/use_cases.py",
-    "apps/regime/application/current_regime.py",
+      "apps/regime/infrastructure/macro_data_provider.py",
+      "apps/regime/application/use_cases.py",
+      "apps/regime/application/query_services.py",
+      "apps/regime/application/current_regime.py",
     "apps/regime/application/orchestration.py",
     "apps/regime/application/navigator_use_cases.py",
     "apps/prompt/infrastructure/adapters/macro_adapter.py",
@@ -1434,11 +1435,12 @@
           "data_center_fund_nav_fact",
           "canonical_publication_stale"
         ],
-        "apps/dashboard/application/integration_gateways.py": [
-          "get_published_macro_fact_series(indicator_code, limit=1)",
-          "get_published_quote_payloads([asset_code])",
-          "must_not_use_for_decision"
-        ],
+      "apps/dashboard/application/integration_gateways.py": [
+        "get_published_macro_fact_series(indicator_code, limit=1)",
+        "get_published_quote_payloads([asset_code])",
+        "published_only=not use_pit",
+        "must_not_use_for_decision"
+      ],
         "sdk/agomtradepro/modules/data_center.py": [
           "mode: str | None = \"published\"",
           "params[\"mode\"] = mode"
@@ -1465,10 +1467,14 @@
           "get_published_macro_fact_series(code, limit=1)",
           "get_published_series(indicator_code, limit=limit)"
         ],
-        "apps/regime/application/use_cases.py": [
-          "published_only: bool = False",
-          "published_only=request.published_only"
-        ],
+      "apps/regime/application/use_cases.py": [
+        "published_only: bool = False",
+        "published_only=request.published_only"
+      ],
+      "apps/regime/application/query_services.py": [
+        "published_only: bool = False",
+        "published_only=published_only"
+      ],
         "apps/regime/application/current_regime.py": [
           "published_only=True"
         ],
@@ -1639,11 +1645,16 @@
           "test_file": "tests/unit/regime/test_current_regime_freshness.py",
           "test_function": "test_current_regime_preserves_macro_observation_and_blocks_stale_result"
         },
-        {
-          "case": "current_indicator_summary_preserves_publication_evidence",
-          "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
-          "test_function": "test_published_macro_indicator_summaries_preserve_gate_and_source_observation"
-        }
+      {
+        "case": "current_indicator_summary_preserves_publication_evidence",
+        "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
+        "test_function": "test_published_macro_indicator_summaries_preserve_gate_and_source_observation"
+      },
+      {
+        "case": "dashboard_current_macro_gateway_forces_publication",
+        "test_file": "tests/unit/dashboard/test_t5_dashboard_use_case_edge_contracts.py",
+        "test_function": "test_dashboard_current_macro_gateway_forces_publication_members"
+      }
       ]
     },
     {

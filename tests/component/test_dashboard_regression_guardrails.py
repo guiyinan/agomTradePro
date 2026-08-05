@@ -1,6 +1,7 @@
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -16,7 +17,13 @@ from apps.account.infrastructure.repositories import (
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.dashboard.application.queries import RegimeSummaryQuery
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
-from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
+from apps.data_center.infrastructure.catalog_models import DatasetContractModel
+from apps.data_center.infrastructure.models import (
+    CanonicalPublicationModel,
+    IndicatorCatalogModel,
+    MacroFactModel,
+    PublicationMemberModel,
+)
 from apps.decision_rhythm.infrastructure.models import (
     DecisionRequestModel,
     DecisionResponseModel,
@@ -503,6 +510,7 @@ def test_portfolio_snapshot_handles_zero_monthly_baseline_without_500():
 
 @pytest.mark.django_db
 def test_dashboard_macro_values_read_from_data_center():
+    today = date.today()
     IndicatorCatalogModel.objects.update_or_create(
         code="CN_PMI",
         defaults={
@@ -521,22 +529,76 @@ def test_dashboard_macro_values_read_from_data_center():
             "category": "inflation",
         },
     )
-    MacroFactModel.objects.create(
+    pmi_fact = MacroFactModel.objects.create(
         indicator_code="CN_PMI",
-        reporting_period=date(2025, 2, 1),
+        reporting_period=today,
         value=50.6,
         unit="指数",
         source="akshare",
-        published_at=date(2025, 2, 3),
+        published_at=today,
     )
-    MacroFactModel.objects.create(
+    cpi_fact = MacroFactModel.objects.create(
         indicator_code="CN_CPI_NATIONAL_YOY",
-        reporting_period=date(2025, 2, 1),
+        reporting_period=today,
         value=1.4,
         unit="%",
         source="akshare",
-        published_at=date(2025, 2, 10),
+        published_at=today,
     )
+    observed_at = datetime.combine(today, datetime.min.time(), tzinfo=UTC)
+    DatasetContractModel.objects.update_or_create(
+        dataset_key="macro.fact",
+        contract_version="dashboard-test",
+        schema_version="1.0",
+        defaults={
+            "owner": "dashboard-test",
+            "frequency": "monthly",
+            "decision_critical": True,
+            "fields": [
+                {
+                    "name": "observed_at",
+                    "value_type": "datetime",
+                    "nullable": False,
+                    "zero_allowed": False,
+                }
+            ],
+            "freshness_seconds": 90 * 24 * 60 * 60,
+            "active": True,
+        },
+    )
+    for fact in (pmi_fact, cpi_fact):
+        publication_id = uuid4()
+        CanonicalPublicationModel.objects.create(
+            publication_id=publication_id,
+            dataset_key="macro.fact",
+            publication_key=fact.indicator_code,
+            policy_version="dashboard-test:1.0",
+            state="published",
+            selected_source="akshare",
+            publication_hash=f"dashboard-{uuid4().hex}",
+            member_count=1,
+            coverage_requested_count=1,
+            coverage_eligible_count=1,
+            coverage_selected_count=1,
+            coverage_missing_count=0,
+            coverage_conflict_count=0,
+            as_of=observed_at,
+            published_at=observed_at + timedelta(minutes=1),
+            must_not_use_for_decision=False,
+        )
+        PublicationMemberModel.objects.create(
+            publication_id=publication_id,
+            dataset_key="macro.fact",
+            natural_key=f"{fact.indicator_code}:{fact.pk}",
+            source="akshare",
+            source_record_id=str(fact.pk),
+            fact_table="data_center_macro_fact",
+            fact_pk=str(fact.pk),
+            observed_at=observed_at,
+            raw_payload_hash=f"dashboard-{fact.pk}",
+            quality_status="accepted",
+            revision_number=1,
+        )
 
     use_case = GetDashboardDataUseCase(
         account_repo=AccountRepository(),
@@ -547,6 +609,5 @@ def test_dashboard_macro_values_read_from_data_center():
     )
 
     pmi_value, cpi_value = use_case._get_latest_macro_values()
-
     assert pmi_value == pytest.approx(50.6)
     assert cpi_value == pytest.approx(1.4)

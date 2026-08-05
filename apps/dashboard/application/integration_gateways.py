@@ -249,6 +249,7 @@ class DashboardApplicationGateway:
                 end_date=end_date,
                 use_pit=use_pit,
                 full=full,
+                published_only=not use_pit,
             )
         )
 
@@ -268,6 +269,7 @@ class DashboardApplicationGateway:
                 end_date=end_date,
                 use_pit=use_pit,
                 full=full,
+                published_only=not use_pit,
             )
         )
 
