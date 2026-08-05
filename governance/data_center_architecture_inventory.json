@@ -206,7 +206,7 @@
     },
     {
       "import": "apps.data_center.infrastructure.models",
-      "line": 9,
+      "line": 8,
       "path": "apps/equity/tests/test_stock_context_repository.py"
     },
     {
@@ -7942,7 +7942,7 @@
       "text": "\"requested operating facts are not the latest public PIT versions at as_of_time\""
     },
     {
-      "line": 103,
+      "line": 93,
       "path": "apps/equity/infrastructure/stock_info_repository.py",
       "text": "Current/decision-facing callers must be able to resolve display metadata"
     },
@@ -16791,12 +16791,12 @@
         "symbol": "FinancialDataModel"
       },
       {
-        "line": 17,
+        "line": 16,
         "path": "apps/equity/tests/test_stock_context_repository.py",
         "symbol": "FinancialDataModel"
       },
       {
-        "line": 244,
+        "line": 262,
         "path": "apps/equity/tests/test_stock_context_repository.py",
         "symbol": "FinancialDataModel"
       }
@@ -17277,12 +17277,12 @@
         "symbol": "ValuationModel"
       },
       {
-        "line": 19,
+        "line": 18,
         "path": "apps/equity/tests/test_stock_context_repository.py",
         "symbol": "ValuationModel"
       },
       {
-        "line": 259,
+        "line": 277,
         "path": "apps/equity/tests/test_stock_context_repository.py",
         "symbol": "ValuationModel"
       }
