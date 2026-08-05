@@ -8,6 +8,7 @@ from apps.data_center.application.public import (
     get_market_thermometer_payload,
     get_published_latest_quote_payload,
     get_published_macro_series_response,
+    list_published_macro_indicator_summaries,
 )
 
 
@@ -175,3 +176,49 @@ def test_published_macro_series_public_port_blocks_without_publication(monkeypat
     assert result.must_not_use_for_decision is True
     assert result.blocked_reason == "canonical_publication_missing"
     assert called is False
+
+
+def test_published_macro_indicator_summaries_preserve_gate_and_source_observation(
+    monkeypatch,
+) -> None:
+    """Current indicator discovery must expose only published source observations."""
+
+    monkeypatch.setattr(
+        "apps.data_center.application.public.get_macro_runtime_metadata",
+        lambda: {"CN_PMI": {"name": "采购经理指数", "category": "growth", "unit": "指数"}},
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.public.list_latest_published_macro_values",
+        lambda *, limit: [
+            {
+                "indicator_code": "CN_PMI",
+                "value": "50.4",
+                "unit": "指数",
+                "reporting_period": "2026-07-31",
+                "source": "akshare",
+                "publication_id": "pub-pmi",
+                "freshness_status": "fresh",
+                "must_not_use_for_decision": False,
+                "blocked_reason": "",
+            }
+        ],
+    )
+
+    summaries = list_published_macro_indicator_summaries(limit=10)
+
+    assert summaries == [
+        {
+            "code": "CN_PMI",
+            "name": "采购经理指数",
+            "category": "growth",
+            "latest_value": 50.4,
+            "unit": "指数",
+            "latest_date": "2026-07-31",
+            "observed_at": "2026-07-31",
+            "source": "akshare",
+            "publication_id": "pub-pmi",
+            "freshness_status": "fresh",
+            "must_not_use_for_decision": False,
+            "blocked_reason": "",
+        }
+    ]

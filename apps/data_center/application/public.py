@@ -8,6 +8,7 @@ can use the typed contracts in :mod:`apps.data_center.domain.contracts`.
 
 from __future__ import annotations
 
+import math
 from dataclasses import replace
 from datetime import date, datetime
 from typing import Any, Protocol
@@ -508,6 +509,52 @@ def list_latest_published_macro_values(limit: int = 50) -> list[dict[str, Any]]:
     """Read fresh, member-bound macro values for current-facing consumers."""
 
     return list_latest_published_macro_indicator_payloads(limit=limit)
+
+
+def list_published_macro_indicator_summaries(limit: int = 50) -> list[dict[str, Any]]:
+    """Return frontend indicator summaries backed only by published macro facts.
+
+    The legacy macro indicator service is still available for historical and
+    maintenance screens.  Current-facing pages use this port so a non-empty
+    raw latest fact cannot be presented as a usable indicator value.
+    """
+
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
+        raise ValueError("limit must be a positive integer")
+
+    metadata = get_macro_runtime_metadata()
+    summaries: list[dict[str, Any]] = []
+    for row in list_latest_published_macro_values(limit=limit):
+        code = str(row.get("indicator_code") or "").strip()
+        if not code:
+            continue
+        raw_value = row.get("value")
+        if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float, str)):
+            continue
+        try:
+            value = float(raw_value)
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(value):
+            continue
+        catalog = metadata.get(code, {})
+        summaries.append(
+            {
+                "code": code,
+                "name": str(catalog.get("name") or code),
+                "category": str(catalog.get("category") or "其他"),
+                "latest_value": value,
+                "unit": str(catalog.get("unit") or row.get("unit") or ""),
+                "latest_date": str(row.get("reporting_period") or ""),
+                "observed_at": str(row.get("reporting_period") or ""),
+                "source": str(row.get("source") or ""),
+                "publication_id": row.get("publication_id"),
+                "freshness_status": row.get("freshness_status") or "fresh",
+                "must_not_use_for_decision": bool(row.get("must_not_use_for_decision")),
+                "blocked_reason": str(row.get("blocked_reason") or ""),
+            }
+        )
+    return summaries
 
 
 def get_macro_fact_series(
@@ -1273,6 +1320,7 @@ __all__ = [
     "list_active_data_sources",
     "list_latest_macro_values",
     "list_latest_published_macro_values",
+    "list_published_macro_indicator_summaries",
     "list_macro_facts_by_original_unit",
     "list_price_covered_codes",
     "list_valuation_covered_codes",

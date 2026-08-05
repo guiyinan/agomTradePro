@@ -9,7 +9,9 @@ from math import isfinite
 from typing import Any, cast
 
 from apps.asset_analysis.application.asset_name_service import resolve_asset_names
-from apps.macro.application.indicator_service import get_available_indicators_for_frontend
+from apps.data_center.application.public import (
+    list_published_macro_indicator_summaries as get_available_indicators_for_frontend,
+)
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.regime.domain.asset_eligibility import get_eligibility_matrix
 from apps.regime.domain.services_v2 import RegimeType

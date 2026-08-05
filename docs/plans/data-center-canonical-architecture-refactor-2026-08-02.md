@@ -4317,3 +4317,10 @@ Git SHA / 镜像 / migration：
 - inventory：在不含外部未提交 portfolio 改动的 clean HEAD worktree 重新生成 `governance/data_center_architecture_inventory.json`，`current_surface_references=3218`，其余结构计数保持不变。
 - 已运行验证：Regime/adapter 相关回归 `26 passed`；`tests/unit/regime` `60 passed`；current-data manifest 实际执行 `259 nodeid / 298 passed`；architecture boundary/audit 0、module-cycle 0、legacy fact guard 通过；`manage.py check` 0 issues；变更生产文件 mypy regression 0，Ruff/Black 通过。
 - 明确未做：未修改 Regime 历史研究/PIT API、Publication writer/provider、生产数据、VPS 或部署；生产 Publication 覆盖、PostgreSQL 性能/备份恢复、连续交易日观察窗口和 M9 旧链清理仍未完成。
+
+## 78. 2026-08-06：Signal/Alpha Trigger 指标摘要切换 Publication Port
+
+- 目标：消除 Signal 管理页和 Alpha Trigger 页面通过 `apps.macro.application.indicator_service` 读取 raw latest 指标的 current-data 旁路。
+- 变更：Data Center 新增 `list_published_macro_indicator_summaries` Public Port；按 canonical catalog 和每指标 Publication/member/freshness 结果生成前端摘要，保留 `observed_at`、`source`、`publication_id`、`freshness_status` 和阻断字段。Signal query/interface 与 Alpha Trigger 页面改用该端口；宏观历史/维护 IndicatorService 保留原语义。
+- 治理与测试：扩展 `data_center.publication_only_d2_d3` consumer/marker/test 登记；Public Port、Signal、Alpha Trigger 定向回归 `24 passed`，变更文件 mypy/Ruff/Black 通过，current-data 静态合同和 legacy-fact guard 通过。
+- 明确未做：未改变历史指标统计、宏观维护写入、Publication writer/provider、生产数据、VPS 或部署；生产 publication 覆盖、PostgreSQL 查询预算、观察窗口和 M9 旧链清理仍未完成。

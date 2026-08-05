@@ -1411,13 +1411,17 @@
     "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
     "apps/strategy/infrastructure/providers.py",
     "apps/simulated_trading/application/position_invalidation_checker.py",
-    "apps/signal/application/invalidation_checker.py"
+    "apps/signal/application/invalidation_checker.py",
+    "apps/signal/application/query_services.py",
+    "apps/signal/interface/views.py",
+    "apps/alpha_trigger/application/page_query_service.py"
       ],
       "required_markers": {
         "apps/data_center/application/public.py": [
           "def get_published_quote_payloads(",
           "def get_published_price_bar_series(",
-          "def get_published_macro_fact_series("
+          "def get_published_macro_fact_series(",
+          "def list_published_macro_indicator_summaries("
         ],
     "apps/data_center/application/query_services.py": [
       "def get_latest_macro_indicator_value(",
@@ -1498,6 +1502,15 @@
       "get_published_macro_fact_series(",
       "must_not_use_for_decision",
       "_read_published_rows"
+    ],
+    "apps/signal/application/query_services.py": [
+      "list_published_macro_indicator_summaries as get_available_indicators_for_frontend"
+    ],
+    "apps/signal/interface/views.py": [
+      "list_published_macro_indicator_summaries as get_available_indicators_for_frontend"
+    ],
+    "apps/alpha_trigger/application/page_query_service.py": [
+      "list_published_macro_indicator_summaries(limit=50)"
     ]
       },
       "required_tests": [
@@ -1625,6 +1638,11 @@
           "case": "current_regime_requests_published_inputs",
           "test_file": "tests/unit/regime/test_current_regime_freshness.py",
           "test_function": "test_current_regime_preserves_macro_observation_and_blocks_stale_result"
+        },
+        {
+          "case": "current_indicator_summary_preserves_publication_evidence",
+          "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
+          "test_function": "test_published_macro_indicator_summaries_preserve_gate_and_source_observation"
         }
       ]
     },

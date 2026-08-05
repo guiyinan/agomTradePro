@@ -18,6 +18,9 @@ from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthentica
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from apps.data_center.application.public import (
+    list_published_macro_indicator_summaries as get_available_indicators_for_frontend,
+)
 from apps.regime.domain.asset_eligibility import Eligibility, get_eligibility_matrix
 from apps.signal.application.invalidation_checker import InvalidationCheckService
 from apps.signal.application.query_services import (
@@ -339,8 +342,6 @@ def ai_parse_logic_view(request: HttpRequest) -> HttpResponse:
 @login_required
 def get_indicators_view(request: HttpRequest) -> HttpResponse:
     """获取可用指标列表"""
-    from apps.macro.application.indicator_service import get_available_indicators_for_frontend
-
     try:
         indicators = get_available_indicators_for_frontend()
 

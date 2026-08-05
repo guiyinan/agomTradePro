@@ -233,11 +233,8 @@ def test_invalidation_eligibility_ai_and_indicator_endpoints(monkeypatch) -> Non
         is False
     )
 
-    import apps.macro.application.indicator_service as indicator_service
-
     monkeypatch.setattr(
-        indicator_service,
-        "get_available_indicators_for_frontend",
+        "apps.signal.interface.views.get_available_indicators_for_frontend",
         lambda: [{"code": "PMI", "category": "growth"}, {"code": "CPI"}],
     )
     indicators = _json(views.get_indicators_view(factory.get("/")))

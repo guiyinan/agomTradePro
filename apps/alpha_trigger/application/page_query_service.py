@@ -211,11 +211,9 @@ class AlphaTriggerPageQueryService:
 
     def _list_available_indicators(self) -> list[dict[str, Any]]:
         try:
-            from apps.macro.application.indicator_service import (
-                get_available_indicators_for_frontend,
-            )
+            from apps.data_center.application.public import list_published_macro_indicator_summaries
 
-            indicators = get_available_indicators_for_frontend(include_stats=False)[:50]
+            indicators = list_published_macro_indicator_summaries(limit=50)
             return indicators
         except Exception:
             return []
