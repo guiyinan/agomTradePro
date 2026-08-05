@@ -1,0 +1,211 @@
+# R1/R2 策略研究能力启动门整改计划（2026-08-05）
+
+> 状态：**Blocked / 仅允许 readiness 收口，不允许启动模型纵切**
+> 依据：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
+> 复核基线：`dev/refactor-scenario-governance-quick-wins`
+> 本轮主任务：判断 R1 行业经营驱动与盈利预测、R2 市场结构与投资者资金流是否具备启动条件。
+> 主结果：输出可审计的启动决定；证据不足时稳定 fail closed，不用页面、代理数据或默认值替代前置条件。
+
+## 1. 执行结论
+
+R1、R2 当前均不得进入业务模型实现阶段。
+
+- R1 的 QW-7 只有有限算子的 Domain/Application 计算和单元测试，没有真实使用反馈、数据库化行业 KPI 模板、连续经营事实或预测误差基线。
+- R2 已有成交/订单大小口径的资金流、市场温度计若干代理指标和通用行业成分有效期机制，但没有完整投资者主体分类、统一单位/频率/修订规则、两个市场周期的 PIT 覆盖证明，也没有数据库化自定义资产组版本。
+- Data Center 已具备 Publication 和 PIT 技术基座；技术路径存在不等于生产数据已经通过门禁。没有 production publication、coverage、manifest 和 as-of 证据时，相关条件保持 `unverified`。
+- Research 已具备通用 `PromotionDecision`；R1 尚无预测 trial、benchmark、误差指标或进入 Valuation 的绑定规则，因此不能把通用门禁的存在解释为 R1 已 ready。
+
+本轮可立即交付的最小阶段仅为：统一 typed readiness contract、owner 证据端口、fail-closed 测试和本计划。不得新增 Classic 页面，不发布盈利预测或“增量/存量/减量博弈”结论。
+
+## 2. 目标与非目标
+
+### 2.1 目标
+
+1. 把备忘中的 R1/R2 启动条件变成稳定、可测试的 requirement 与 owner 证据契约。
+2. 明确区分 `verified / missing / unverified / stale`，缺项不得被中性值或请求时间补齐。
+3. 每份 verified evidence 必须携带 canonical owner、可追溯引用、timezone-aware `observed_at` 和明确的 `valid_until`；未来时间证据被拒绝，评估时已过期自动转为 `stale`。
+4. 只有所有 requirement verified 时，readiness 才可返回 `ready`；`ready` 只允许新建独立 pilot plan，不代表模型可直接晋级生产。
+5. 保存当前代码审计的稳定 blocked reason，便于数据、产品反馈或研究纪律补齐后复核。
+
+### 2.2 非目标
+
+- 不创建 R1 盈利预测模型、行业公式、默认 base/bull/bear 假设或估值结果。
+- 不创建 R2 投资者资金流综合分数、主观主体映射或交易信号。
+- 不用当前行业/概念成分回填历史资产组。
+- 不把 `CapitalFlowFact.main_net/retail_net` 解释为产业资本、外资、险资、公募等真实主体流量。
+- 不把 ETF 份额变化、开户数或融资余额代理包装成真实主体净流入。
+- 不绕过 Data Center Publication/PIT，不从 Equity/Sector/Research Application 直接读取其他 App ORM。
+- 不新增 Classic Django 页面、raw MCP tool、Celery 任务、生产部署或 VPS 操作。
+
+## 3. 架构边界
+
+| 能力 | Canonical owner | 本阶段职责 |
+|---|---|---|
+| 启动门与研究晋级 | `research` | 保存通用 readiness schema，收集 owner-attested evidence，输出启动决定 |
+| QW-7 真实使用反馈 | `risk_center`（当前 QW surface owner） | 提供真实任务、使用频次、失败案例和结果反馈，不由代码存在替代；产品 owner 变更时需更新 contract |
+| 公司经营模型/预测评估规范 | `equity` | 定义一个行业 pilot 的 horizon、baseline、误差指标、假设分层和预测结果 |
+| 行业 KPI 模板与比较语义 | `sector` | 定义行业业务口径，不保存 Data Center 第二份事实 |
+| 经营事实、资金流事实、主体分类、单位、PIT membership | `data_center` | 保存事实、来源、Publication、revision、available-at 和覆盖证据 |
+| 正式估值消费 | `valuation` | 只消费已批准预测，不生成经营假设 |
+| 结构比较 | `sector` / `asset_analysis` | 只消费已发布事实和 PIT membership，输出描述性比较 |
+| 资金流解释力验证 | `audit` / `research` | 检验样本外解释力，不反向改写 canonical fact |
+
+Readiness Application 只能通过 Protocol 收集 owner evidence。它不得 import Data Center、Equity、Sector 或 Valuation Infrastructure。
+
+## 4. R1 启动条件审计
+
+| Requirement | Owner | 当前状态 | 仓库证据 | 稳定阻断原因 |
+|---|---|---|---|---|
+| QW-7 真实使用反馈 | `risk_center` | `missing` | `AssetGroupRevision`、`SensitivityTemplate`、`RunSensitivityWorksheet` 仅见于 `apps/risk_center/domain/quick_wins.py`、`apps/risk_center/application/quick_wins.py` 与单元测试；Quick Wins 计划明确真实端到端接线仍未完成 | `industry_earnings_forecast.quick_win_usage_feedback.missing` |
+| 至少一个行业的连续、可审计经营事实 | `data_center` | `missing` | 未发现公司门店、同店销售、客单价、销量/吨价、培训人数/学费等 canonical operating-fact entity、catalog、Publication 或 repository | `industry_earnings_forecast.auditable_operating_fact_series.missing` |
+| 财务事实 Publication/PIT | `data_center` | `unverified` | `FinancialFact.available_at`、financial Publication publisher/query 和 PIT manifest 基座已存在；没有本轮生产 publication/coverage/manifest 证据 | `industry_earnings_forecast.financial_publication_pit.unverified` |
+| 估值事实 Publication/PIT | `data_center` | `unverified` | `ValuationFact.available_at` 与 published valuation query 已存在；没有本轮生产 publication/coverage/manifest 证据 | `industry_earnings_forecast.valuation_publication_pit.unverified` |
+| horizon、误差指标与 baseline | `equity` | `missing` | 未发现 R1 专属 forecast horizon、季度 actual-vs-forecast ledger、naive/consensus baseline 或误差门槛 | `industry_earnings_forecast.forecast_evaluation_spec.missing` |
+| R1 绑定的 Research PromotionDecision | `research` | `unverified` | 通用 Experiment/Trial/PIT/PromotionDecision 已存在，但没有 R1 trial schema、通过标准或 Valuation 消费绑定 | `industry_earnings_forecast.research_promotion_gate.unverified` |
+
+### 4.1 R1 可启动的最小 pilot
+
+所有启动门 verified 后，另建独立计划和分支，只选择一个行业：
+
+1. 先建经营 KPI 字典、单位、频率、来源、available-at 和 revision 契约。
+2. 用一个简单 baseline（历史同期或经批准外部一致预期）作为基准。
+3. 只输出 base/bull/bear 假设、收入/利润/利润率与估值敏感性；事实、人工假设和模型推断分层保存。
+4. 按季度冻结预测并对 actual 记录 MAE/MAPE 或计划指定指标，不用后续修订数据回填历史。
+5. 结果先保持 exploratory；只有 PIT trial 通过 Research PromotionDecision 后，Valuation 才能消费批准版本。
+
+当前不得实施以上 pilot，因为第一个和第二个启动条件均无证据。
+
+## 5. R2 启动条件审计
+
+| Requirement | Owner | 当前状态 | 仓库证据 | 稳定阻断原因 |
+|---|---|---|---|---|
+| 主体分类、定义、单位、频率、来源和修订规则 | `data_center` | `unverified` | `CapitalFlowFact` 只有按资产/日期的 main、retail 和订单大小净额字段；未覆盖产业资本、外资、居民、融资盘、险资、公募/ETF、回购、增减持和解禁的统一 taxonomy | `market_structure_investor_flow.flow_taxonomy_and_units.unverified` |
+| 两个市场周期的 PIT 覆盖 | `data_center` | `missing` | Publication/PIT 基座存在，但没有按主体、周期、频率发布的 coverage manifest 或两轮周期验收证据 | `market_structure_investor_flow.two_cycle_pit_coverage.missing` |
+| 自定义资产组 PIT membership | `data_center` | `unverified` | 通用 `SectorMembershipFact` 有 effective/expiry date 和 Publication；QW-6 的 `AssetGroupRevision` 仍是纯 Domain 值对象，未见数据库化 custom group revision/membership | `market_structure_investor_flow.pit_asset_group_membership.unverified` |
+| 代理指标显式标注 | `data_center` | `unverified` | 市场温度计对 ETF 份额流、开户等局部指标已有 `proxy`/`fallback_proxy` provenance；未形成覆盖全部主体类别的 canonical proxy contract | `market_structure_investor_flow.proxy_labelling.unverified` |
+| 资金量、持仓变化、交易净流入严格区分 | `data_center` | `missing` | 当前流量实体没有统一 `measure_kind` 或等价 typed semantic，不能证明不同来源可安全横向聚合 | `market_structure_investor_flow.measure_semantics.missing` |
+
+### 5.1 R2 可启动的最小 pilot
+
+所有启动门 verified 后，另建独立计划和分支，从两类口径最清晰、授权明确的主体开始：
+
+1. 先定义 actor、measure kind、unit、frequency、gross/net、source、revision、available-at 和 proxy 标签。
+2. 资产组成员使用 effective-from/effective-to 的 PIT membership，不以当前成员回填历史。
+3. 第一阶段只输出总量变化、加速度、历史分位、覆盖率和跨主体差异。
+4. 输出保持 `structure_description_only`，不自动变成交易信号。
+5. Audit/Research 使用两个市场周期做样本外解释力验证；覆盖或口径不足时必须 blocked。
+
+当前不得实施以上 pilot，因为主体 taxonomy、两轮周期证据和 measure semantics 都未满足。
+
+## 6. Typed readiness contract
+
+统一 contract 应至少支持：
+
+```text
+ResearchCapability
+  ├─ industry_earnings_forecast
+  └─ market_structure_investor_flow
+
+ReadinessEvidence
+  requirement
+  owner
+  state = verified | missing | unverified | stale
+  observed_at (timezone-aware, <= evaluated_at)
+  valid_until (verified 必需；<= evaluated_at 时自动 stale)
+  evidence_ref (verified 必需)
+  blocking_reason (非 verified 必需)
+
+CapabilityReadinessReport
+  contract_version
+  evaluated_at
+  decision = ready | blocked
+  evidence[]
+  blockers[] {requirement, owner, reason_code, detail}
+```
+
+R1 requirements：
+
+- `quick_win_usage_feedback` — owner: `risk_center`（当前 QW surface owner）
+- `auditable_operating_fact_series` — owner: `data_center`
+- `financial_publication_pit` — owner: `data_center`
+- `valuation_publication_pit` — owner: `data_center`
+- `forecast_evaluation_spec` — owner: `equity`
+- `research_promotion_gate` — owner: `research`
+
+R2 requirements：
+
+- `flow_taxonomy_and_units` — owner: `data_center`
+- `two_cycle_pit_coverage` — owner: `data_center`
+- `pit_asset_group_membership` — owner: `data_center`
+- `proxy_labelling` — owner: `data_center`
+- `measure_semantics` — owner: `data_center`
+
+契约不得内置“当前已通过”的生产默认值。缺失 owner provider、证据引用或观测时间时自动 materialize `missing` blocker。
+
+## 7. 验收标准
+
+### 7.1 Readiness contract
+
+- R1/R2 requirement set 有精确测试，新增或删除 requirement 必须显式评审。
+- 空 evidence、缺少一项、`unverified` 或 `stale` 均返回 `blocked`。
+- 全部 requirement verified 时才返回 `ready`，且 next step 仅为创建 bounded pilot plan。
+- verified evidence 缺少 canonical owner、`evidence_ref`、timezone-aware `observed_at` 或 `valid_until` 时拒绝。
+- future evidence、错误 owner、重复 requirement、跨 capability evidence 均拒绝。
+- Application 通过 injected Protocol 收集证据，不直接碰其他 App ORM。
+
+### 7.2 R1 pilot 前置验收
+
+- 有一份真实 QW-7 使用反馈摘要，包含用户主任务、有效/无效案例和明确决策缺口。
+- 至少一个行业的 KPI 字典、数据授权、单位、频率、available-at、revision 和覆盖报告通过 Data Center Publication/PIT。
+- 财务与估值 production publication、member coverage 和 PIT manifest 可引用并可复算。
+- horizon、baseline、误差指标、样本切分、失效条件和季度 actual 对账规则获得 owner 批准。
+- R1 trial 到 PromotionDecision 再到 Valuation approved forecast 的权限和回滚路径已测试。
+
+### 7.3 R2 pilot 前置验收
+
+- 每一入选主体流的 actor、measure kind、单位、频率、source、revision 和 proxy 定义完成。
+- 两个市场周期的 PIT coverage manifest 可引用，覆盖缺口不由代理或当前数据补齐。
+- custom asset group membership 按版本和有效期保存并通过 Publication。
+- 资金量、持仓变化与交易净流入在 schema 和输出中不可混淆。
+- 无可靠数据时，所有结论保持 blocked；描述性结果不能自动晋级交易信号。
+
+## 8. 测试与门禁
+
+最小回归：
+
+```bash
+pytest tests/unit/research/test_capability_readiness.py -q
+python scripts/check_mypy_regression.py \
+  apps/research/domain/capability_readiness.py \
+  apps/research/application/capability_readiness.py
+ruff check apps/research/domain/capability_readiness.py \
+  apps/research/application/capability_readiness.py
+black --check apps/research/domain/capability_readiness.py \
+  apps/research/application/capability_readiness.py
+isort --check-only apps/research/domain/capability_readiness.py \
+  apps/research/application/capability_readiness.py
+python scripts/verify_architecture.py --include-audit --format text
+```
+
+若后续新增 current/latest readiness API 或 TUI 面，必须同步 `governance/current_data_contracts.json`，并覆盖 missing、stale、owner mismatch、future evidence 和 observation preservation。当前阶段不新增该决策面。
+
+## 9. 回滚
+
+- Contract 回滚：移除 R1/R2 requirement 注册和对应测试，不修改任何事实、Publication、PIT manifest 或研究历史。
+- Pilot 回滚：停止读取新 pilot version，保留不可变输入、预测和实际偏差记录；不得删除历史或切回 Python 静态假设。
+- R1 读取回滚：Valuation 继续只消费现有已批准输入，未晋级预测保持 exploratory。
+- R2 读取回滚：Pulse/Strategy 继续消费既有已发布聚合，不读取未验证主体流或 custom group 结果。
+- 数据回滚：只回滚到已验证 Publication/version；禁止 destructive reset 或用最新事实覆盖历史 as-of。
+
+## 10. 复核触发
+
+出现任一以下证据后重新执行 readiness，而不是直接开始编码：
+
+1. QW-7 完成真实用户任务并积累可引用反馈；
+2. 一个行业经营 KPI 已进入 Data Center Publication/PIT；
+3. R1 预测评估规范和 baseline 获得 owner 批准；
+4. R2 主体 taxonomy 与 measure semantics 获得批准；
+5. 两个市场周期的 R2 PIT coverage manifest 可复算；
+6. custom asset group PIT membership 完成并通过 Publication。
+
+每次复核必须保存 evidence ref 和 observed-at；“代码里有模型/字段”不能作为生产 readiness 证据。

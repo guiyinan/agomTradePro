@@ -5,6 +5,16 @@
 > 适用版本：0.8.0 之后
 > 来源边界：本备忘依据用户对四份策略会材料的摘要和当前仓库能力盘点编写，未读取原始 PDF。
 > 关联实施计划：[情景治理与策略研究 Quick Wins 整改计划](../plans/scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md)
+> 2026-08-05 启动门复核：R1—R8 均为 `blocked`；已交付统一 fail-closed readiness 合约和分阶段计划，但未启动任何模型、数据回填或用户任务。
+
+本轮执行索引：
+
+- [R1/R2 启动门整改计划](../plans/strategy-research-r1-r2-readiness-plan-2026-08-05.md)
+- [R3/R4 启动门禁及分阶段实施计划](../plans/macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md)
+- [R5—R8 启动门禁与分阶段实施计划](../plans/strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md)
+- [R1—R8 执行状态与复核入口](../plans/strategy-research-capability-roadmap-execution-2026-08-05.md)
+
+`blocked` 表示备忘定义的前置证据尚未齐备，不表示通过创建空模型、默认参数或演示页面即可解除。每项能力只有在 canonical owner 提供带时间、可追溯引用且完整的 verified evidence 后，才允许另建独立实施计划和分支。
 
 ## 1. 备忘目的
 
