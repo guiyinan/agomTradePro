@@ -4324,4 +4324,5 @@ Git SHA / 镜像 / migration：
 - 变更：Data Center 新增 `list_published_macro_indicator_summaries` Public Port；按 canonical catalog 和每指标 Publication/member/freshness 结果生成前端摘要，保留 `observed_at`、`source`、`publication_id`、`freshness_status` 和阻断字段。Signal query/interface 与 Alpha Trigger 页面改用该端口；宏观历史/维护 IndicatorService 保留原语义。
 - 治理与测试：扩展 `data_center.publication_only_d2_d3` consumer/marker/test 登记；Public Port、Signal、Alpha Trigger 定向回归 `24 passed`，变更文件 mypy/Ruff/Black 通过，current-data 静态合同和 legacy-fact guard 通过。
 - inventory：在 clean HEAD worktree 重生成架构 inventory，`current_surface_references=3220`，其余结构计数保持不变。
+- 依赖治理：新增的 Alpha Trigger → Data Center Public Port 合法边改已登记到 `module_cycle_allowlist.json` v21；更新精确 inbound/outbound/edge budgets 后 cycle audit 为 0 cycle、0 bidirectional、0 budget/stale violations。
 - 明确未做：未改变历史指标统计、宏观维护写入、Publication writer/provider、生产数据、VPS 或部署；生产 publication 覆盖、PostgreSQL 查询预算、观察窗口和 M9 旧链清理仍未完成。
