@@ -4070,3 +4070,11 @@ Git SHA / 镜像 / migration：
 - 已运行测试：目标组件回归将覆盖 9 tests；目标文件 Black/Ruff/mypy 及 current-data/architecture 门禁在本批提交前复跑。
 - 明确未做：未修改 Equity historical/PIT 日线查询、技术指标算法或 provider 写入，未部署、未 push。
 - 未验证风险：生产 price-bar Publication 成员覆盖、资产筛选大批量查询预算、旧价格表零读写和生产 PostgreSQL 性能仍待后续批次证据。
+
+## 45. 2026-08-05：停用 Tushare 的本地可运行性烟测
+
+- 目标：确认 Tushare 暂时不可用时，Django 启动检查和已收口的基金 canonical 读路径不会因 provider 初始化或旧 latest fallback 直接崩溃。
+- 证据：在清空 `TUSHARE_TOKEN` 与 `TUSHARE_HTTP_URL` 的进程环境下运行 `python manage.py check`，结果为 `System check identified no issues (0 silenced)`；基金 Data Center repository 组件回归 `10 passed`。
+- 语义：无 Tushare 不代表所有数据任务成功；缺少 active provider、Publication 或成员时按稳定 `blocked`/空结果 fail closed，历史本地事实仍可用于显式历史查询。
+- 明确未做：未修改 provider 配置、未删除 Tushare 适配器、未部署/未 push；远端 VPS 和生产数据画像尚未验证。
+- 未验证风险：生产 AKShare/其他 provider 的实际覆盖、基金 master 空库初始化、Publication 回填和全系统无 Tushare 端到端运行仍需后续证据。
