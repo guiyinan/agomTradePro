@@ -144,11 +144,19 @@ def get_current_regime_payload() -> dict[str, Any]:
     latest = resolve_current_regime(as_of_date=date.today())
     if latest is None:
         raise LookupError("No regime data available")
+    must_not_use_for_decision = bool(latest.must_not_use_for_decision) or (
+        latest.dominant_regime in (None, "Unknown")
+    )
     return {
+        "status": "blocked" if must_not_use_for_decision else "ok",
         "dominant_regime": latest.dominant_regime,
         "confidence": latest.confidence,
         "observed_at": latest.observed_at,
-        "distribution": {},
+        "distribution": dict(latest.distribution or {}) if not must_not_use_for_decision else {},
+        "must_not_use_for_decision": must_not_use_for_decision,
+        "blocked_reason": (
+            latest.blocked_reason or "regime_data_unavailable" if must_not_use_for_decision else ""
+        ),
     }
 
 

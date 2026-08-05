@@ -109,7 +109,10 @@ def test_auto_advisor_current_regime_uses_keyword_as_of_date(monkeypatch):
         return SimpleNamespace(
             dominant_regime="Recovery",
             confidence=0.8,
+            observed_at=date(2026, 8, 5),
             distribution={"Recovery": 1.0},
+            must_not_use_for_decision=False,
+            blocked_reason="",
         )
 
     monkeypatch.setattr(
@@ -124,9 +127,36 @@ def test_auto_advisor_current_regime_uses_keyword_as_of_date(monkeypatch):
         "current": "Recovery",
         "confidence": 0.8,
         "distribution": {"Recovery": 1.0},
+        "observed_at": date(2026, 8, 5),
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
     }
     assert set(captured) == {"as_of_date"}
     assert isinstance(captured["as_of_date"], date)
+
+
+def test_auto_advisor_current_regime_payload_preserves_blocked_result(monkeypatch):
+    stale_observed_at = date(2026, 6, 1)
+    monkeypatch.setattr(
+        "apps.regime.application.current_regime.resolve_current_regime",
+        lambda **_: SimpleNamespace(
+            dominant_regime="Unknown",
+            confidence=0.7,
+            observed_at=stale_observed_at,
+            distribution={"Recovery": 1.0},
+            must_not_use_for_decision=True,
+            blocked_reason="regime_macro_observation_stale",
+        ),
+    )
+
+    payload = query_services._current_regime_payload()
+
+    assert payload["status"] == "blocked"
+    assert payload["current"] == "Unknown"
+    assert payload["observed_at"] == stale_observed_at
+    assert payload["distribution"] == {}
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["blocked_reason"] == "regime_macro_observation_stale"
 
 
 def test_dashboard_homepage_embeds_auto_advisor_console_panel():

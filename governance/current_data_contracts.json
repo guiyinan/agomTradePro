@@ -602,6 +602,8 @@
         "apps/regime/application/orchestration.py",
         "apps/dashboard/application/queries.py",
         "apps/dashboard/application/use_cases.py",
+        "apps/dashboard/application/query_services.py",
+        "apps/signal/application/query_services.py",
         "apps/prompt/infrastructure/adapters/regime_adapter.py",
         "sdk/agomtradepro/modules/regime.py",
         "apps/terminal/application/chat_router.py"
@@ -627,6 +629,16 @@
           "def _resolve_regime_state(",
           "resolve_current_regime(as_of_date=as_of_date)",
           "current.must_not_use_for_decision"
+        ],
+        "apps/dashboard/application/query_services.py": [
+          "status = \"blocked\" if must_not_use_for_decision else \"ok\"",
+          "\"observed_at\": getattr(current, \"observed_at\", None)",
+          "\"must_not_use_for_decision\": must_not_use_for_decision"
+        ],
+        "apps/signal/application/query_services.py": [
+          "\"status\": \"blocked\" if must_not_use_for_decision else \"ok\"",
+          "\"observed_at\": latest.observed_at",
+          "\"must_not_use_for_decision\": must_not_use_for_decision"
         ],
         "apps/regime/application/interface_services.py": [
           "\"must_not_use_for_decision\": latest.must_not_use_for_decision"
@@ -687,6 +699,16 @@
           "case": "dashboard_use_case_stale_regime_blocked",
           "test_file": "tests/unit/dashboard/test_t5_dashboard_use_case_edge_contracts.py",
           "test_function": "test_dashboard_regime_state_blocks_stale_current_result"
+        },
+        {
+          "case": "dashboard_auto_advisor_regime_blocked",
+          "test_file": "tests/component/test_auto_advisor_dashboard_console.py",
+          "test_function": "test_auto_advisor_current_regime_payload_preserves_blocked_result"
+        },
+        {
+          "case": "signal_current_regime_blocked",
+          "test_file": "tests/unit/signal/test_query_services.py",
+          "test_function": "test_current_regime_payload_preserves_blocked_evidence"
         }
       ]
     },

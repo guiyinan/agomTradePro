@@ -997,17 +997,35 @@ def _current_regime_payload() -> dict[str, Any]:
         from apps.regime.application.current_regime import resolve_current_regime
 
         current = resolve_current_regime(as_of_date=date.today())
+        dominant_regime = getattr(current, "dominant_regime", None)
+        must_not_use_for_decision = bool(
+            getattr(current, "must_not_use_for_decision", False)
+        ) or dominant_regime in (None, "Unknown")
+        status = "blocked" if must_not_use_for_decision else "ok"
         return {
-            "status": "ok",
-            "current": getattr(current, "dominant_regime", None),
+            "status": status,
+            "current": dominant_regime,
             "confidence": getattr(current, "confidence", None),
-            "distribution": getattr(current, "distribution", None),
+            "distribution": (
+                dict(getattr(current, "distribution", None) or {})
+                if not must_not_use_for_decision
+                else {}
+            ),
+            "observed_at": getattr(current, "observed_at", None),
+            "must_not_use_for_decision": must_not_use_for_decision,
+            "blocked_reason": (
+                getattr(current, "blocked_reason", "") or "regime_data_unavailable"
+                if must_not_use_for_decision
+                else ""
+            ),
         }
-    except Exception as exc:
+    except Exception:
         return {
-            "status": "unavailable",
+            "status": "blocked",
             "current": None,
             "confidence": None,
             "distribution": {},
-            "reason": str(exc),
+            "observed_at": None,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "regime_data_unavailable",
         }
