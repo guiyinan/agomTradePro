@@ -2357,6 +2357,54 @@
       ]
     },
     {
+      "id": "risk_center.active_scenario_set",
+      "surface": "GET /api/risk-center/stress-scenario-sets/active/ + SDK get_active_scenario_set",
+      "source_files": [
+        "apps/risk_center/application/scenario_use_cases.py",
+        "apps/risk_center/infrastructure/scenario_repositories.py",
+        "apps/risk_center/interface/scenario_api_views.py",
+        "apps/risk_center/infrastructure/scenario_market_data_provider.py"
+      ],
+      "required_markers": {
+        "apps/risk_center/application/scenario_use_cases.py": [
+          "no active scenario set for environment="
+        ],
+        "apps/risk_center/infrastructure/scenario_repositories.py": [
+          "filter(environment=environment, purpose=purpose, is_active=True)"
+        ],
+        "apps/risk_center/interface/scenario_api_views.py": [
+          "must_not_use_for_decision",
+          "blocked_reason"
+        ],
+        "apps/risk_center/infrastructure/scenario_market_data_provider.py": [
+          "price_publication_from_future",
+          "price_observation_from_future"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "single_active_scope_and_optimistic_lock",
+          "test_file": "tests/unit/risk_center/test_scenario_models.py",
+          "test_function": "test_activation_is_single_scope_and_optimistically_locked"
+        },
+        {
+          "case": "future_observation_blocks_run",
+          "test_file": "tests/unit/risk_center/test_scenario_use_cases.py",
+          "test_function": "test_future_market_observation_blocks_without_persisting_evidence"
+        },
+        {
+          "case": "published_observation_preserved",
+          "test_file": "tests/unit/risk_center/test_scenario_market_data_provider.py",
+          "test_function": "test_provider_preserves_bar_observation_and_publication_evidence"
+        },
+        {
+          "case": "stale_or_unpublished_blocked",
+          "test_file": "tests/unit/risk_center/test_scenario_market_data_provider.py",
+          "test_function": "test_provider_fails_closed_on_stale_or_unpublished_data"
+        }
+      ]
+    },
+    {
       "id": "agent_runtime.current_context",
       "surface": "Agent Runtime context snapshot current regime/policy summaries",
       "source_files": [

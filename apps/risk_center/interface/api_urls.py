@@ -17,6 +17,19 @@ from apps.risk_center.interface.api_views import (
     RiskTemplateDetailView,
     RiskTemplateListCreateView,
 )
+from apps.risk_center.interface.scenario_api_views import (
+    ActivateScenarioSetView,
+    ActiveScenarioSetView,
+    PreviewScenarioGovernanceView,
+    ProposeScenarioRevisionView,
+    RetireScenarioView,
+    ReviewScenarioProposalView,
+    RollbackScenarioSetView,
+    ScenarioResearchUnavailableView,
+    StressScenarioDetailView,
+    StressScenarioListView,
+    ValidateScenarioRevisionView,
+)
 
 app_name = "api_risk_center"
 
@@ -50,4 +63,70 @@ urlpatterns = [
         name="post-investment-check",
     ),
     path("daily-report/", RiskCenterDailyReportView.as_view(), name="daily-report"),
+    path("stress-scenarios/", StressScenarioListView.as_view(), name="stress-scenarios"),
+    path(
+        "stress-scenarios/validate-revision/",
+        ValidateScenarioRevisionView.as_view(),
+        name="stress-scenario-validate-revision",
+    ),
+    path(
+        "stress-scenarios/preview-revision/",
+        PreviewScenarioGovernanceView.as_view(),
+        name="stress-scenario-preview-revision",
+    ),
+    path(
+        "stress-scenarios/propose-revision/",
+        ProposeScenarioRevisionView.as_view(),
+        name="stress-scenario-propose-revision",
+    ),
+    path(
+        "stress-scenarios/<str:scenario_key>/retire/",
+        RetireScenarioView.as_view(),
+        name="stress-scenario-retire",
+    ),
+    path(
+        "stress-scenarios/<str:scenario_key>/",
+        StressScenarioDetailView.as_view(),
+        name="stress-scenario-detail",
+    ),
+    path(
+        "stress-scenario-sets/active/",
+        ActiveScenarioSetView.as_view(),
+        name="active-stress-scenario-set",
+    ),
+    path(
+        "stress-scenario-sets/activate/",
+        ActivateScenarioSetView.as_view(),
+        name="stress-scenario-set-activate",
+    ),
+    path(
+        "stress-scenario-sets/rollback/",
+        RollbackScenarioSetView.as_view(),
+        name="stress-scenario-set-rollback",
+    ),
+    path(
+        "stress-scenario-proposals/<int:proposal_id>/<str:decision>/",
+        ReviewScenarioProposalView.as_view(),
+        name="stress-scenario-proposal-review",
+    ),
+    path(
+        "stress-scenario-sets/impact-preview/",
+        ScenarioResearchUnavailableView.as_view(),
+        name="stress-scenario-impact-preview",
+    ),
+    path(
+        "research/market-state/",
+        ScenarioResearchUnavailableView.as_view(),
+        name="market-state-evidence",
+    ),
+    path(
+        "research/decision-scorecard/",
+        ScenarioResearchUnavailableView.as_view(),
+        name="decision-scorecard",
+    ),
+    path(
+        "research/strategy-brief/",
+        ScenarioResearchUnavailableView.as_view(),
+        name="strategy-brief",
+    ),
 ]
