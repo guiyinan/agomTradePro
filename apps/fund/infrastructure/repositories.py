@@ -15,15 +15,14 @@ from typing import Any
 
 from django.db.models import Max
 
-from apps.data_center.application.dtos import SyncFundNavRequest
 from apps.data_center.application.public import (
     build_provider_registry_port,
     get_fund_nav_repository_port,
     get_provider_config_repository_port,
     get_published_fund_nav_series,
     get_raw_audit_repository_port,
+    sync_fund_nav_from_active_provider,
 )
-from apps.data_center.application.use_cases import SyncFundNavUseCase
 from apps.data_center.domain.entities import FundNavFact
 
 from ..domain.entities import (
@@ -816,7 +815,12 @@ class DjangoFundRepository:
         return count
 
     def sync_fund_nav_from_tushare(self, fund_code: str, start_date: str, end_date: str) -> int:
-        """从 Tushare 同步基金净值
+        """Synchronize fund NAV through the Data Center provider route.
+
+        The method name is retained for the short-term application protocol
+        compatibility.  It no longer constructs or calls a Tushare adapter;
+        active providers are selected by the Data Center ``fund_nav``
+        capability and priority.
 
         Args:
             fund_code: 基金代码
@@ -828,49 +832,13 @@ class DjangoFundRepository:
         """
         start = datetime.strptime(start_date, "%Y%m%d").date()
         end = datetime.strptime(end_date, "%Y%m%d").date()
-        active_configs = self._provider_repo.get_active_by_type("tushare")
-        if active_configs and active_configs[0].id is not None:
-            try:
-                use_case = SyncFundNavUseCase(
-                    provider_repo=self._provider_repo,
-                    provider_registry=self._provider_registry,
-                    fact_repo=self._dc_fund_nav_repo,
-                    raw_audit_repo=self._raw_audit_repo,
-                )
-                result = use_case.execute(
-                    SyncFundNavRequest(
-                        provider_id=active_configs[0].id,
-                        fund_code=fund_code,
-                        start=start,
-                        end=end,
-                    )
-                )
-                if result.stored_count > 0:
-                    return result.stored_count
-            except Exception:
-                pass
-
-        # Tushare 需要带 .OF 后缀
-        ts_code = f"{fund_code}.OF"
-
-        df = self.tushare_adapter.fetch_fund_daily(ts_code, start_date, end_date)
-
-        if df is None or df.empty:
-            return 0
-
-        count = 0
-        for _, row in df.iterrows():
-            nav = FundNetValue(
-                fund_code=fund_code,
-                nav_date=row["trade_date"].date(),
-                unit_nav=Decimal(str(row["unit_nav"])),
-                accum_nav=Decimal(str(row["accum_nav"])),
-            )
-
-            self.save_fund_nav(nav)
-            count += 1
-
-        return count
+        result = sync_fund_nav_from_active_provider(
+            fund_code,
+            start=start,
+            end=end,
+        )
+        stored_count = result.get("stored_count")
+        return int(stored_count) if isinstance(stored_count, int) else 0
 
     # ==================== 私有方法 ====================
 

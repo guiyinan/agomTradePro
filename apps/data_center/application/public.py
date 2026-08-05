@@ -499,6 +499,79 @@ def get_published_fund_nav_series(
     )
 
 
+def sync_fund_nav_from_active_provider(
+    fund_code: str,
+    *,
+    start: date,
+    end: date,
+) -> dict[str, object]:
+    """Synchronize fund NAV through the active Data Center provider route.
+
+    This is the compatibility port for legacy fund callers.  Provider
+    selection is capability-based and priority-ordered, so callers do not
+    reach a Tushare adapter directly when another active ``fund_nav`` source
+    (for example AKShare) is available.
+    """
+
+    from apps.data_center.application.dtos import SyncFundNavRequest
+    from apps.data_center.application.interface_services import make_sync_fund_nav_use_case
+    from apps.data_center.domain.enums import DataCapability
+
+    provider_repo = get_provider_config_repository()
+    registry = get_provider_registry()
+    active_configs = sorted(
+        provider_repo.list_active(),
+        key=lambda config: (config.priority, config.id or 0),
+    )
+    use_case: Any | None = None
+    last_result: dict[str, object] | None = None
+    attempted_provider = False
+
+    for config in active_configs:
+        if config.id is None:
+            continue
+        provider = registry.get_by_id(config.id)
+        if provider is None or not provider.supports(DataCapability.FUND_NAV):
+            continue
+        attempted_provider = True
+        if use_case is None:
+            use_case = make_sync_fund_nav_use_case()
+        try:
+            result = use_case.execute(
+                SyncFundNavRequest(
+                    provider_id=config.id,
+                    fund_code=fund_code,
+                    start=start,
+                    end=end,
+                )
+            )
+        except Exception as exc:
+            last_result = {
+                "domain": "fund_nav",
+                "provider_name": provider.provider_name(),
+                "stored_count": 0,
+                "status": "failed",
+                "error_message": f"{type(exc).__name__}: {exc}",
+            }
+            continue
+
+        last_result = result.to_dict()
+        if result.stored_count > 0:
+            return last_result
+
+    if last_result is not None:
+        if not str(last_result.get("error_message") or "").strip():
+            last_result["error_message"] = "active fund NAV providers returned no canonical facts"
+        return last_result
+    return {
+        "domain": "fund_nav",
+        "provider_name": "",
+        "stored_count": 0,
+        "status": "blocked" if not attempted_provider else "noop",
+        "error_message": "no active provider supports fund_nav",
+    }
+
+
 def get_current_publication_freshness_gate(
     dataset_key: str,
     publication_key: str,
@@ -929,6 +1002,7 @@ __all__ = [
     "get_published_capital_flow_series",
     "get_published_financial_facts",
     "get_published_fund_nav_series",
+    "sync_fund_nav_from_active_provider",
     "get_published_price_bar_series",
     "get_published_quote_payloads",
     "get_published_quote_series",

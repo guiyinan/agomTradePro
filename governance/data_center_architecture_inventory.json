@@ -5002,102 +5002,102 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 506,
+      "line": 579,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 513,
+      "line": 586,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 538,
+      "line": 611,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 540,
+      "line": 613,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 548,
+      "line": 621,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 552,
+      "line": 625,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
     },
     {
-      "line": 565,
+      "line": 638,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 570,
+      "line": 643,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 585,
+      "line": 658,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 601,
+      "line": 674,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 619,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 636,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 652,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 689,
-      "path": "apps/data_center/application/public.py",
-      "text": "current = existing[0] if existing else None"
     },
     {
       "line": 692,
       "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 709,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 725,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 762,
+      "path": "apps/data_center/application/public.py",
+      "text": "current = existing[0] if existing else None"
+    },
+    {
+      "line": 765,
+      "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 696,
+      "line": 769,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 698,
+      "line": 771,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 701,
+      "line": 774,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 702,
+      "line": 775,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 804,
+      "line": 877,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -8042,42 +8042,42 @@
       "text": "\"Current Regime is not decision-safe; provide regime explicitly.\""
     },
     {
-      "line": 326,
+      "line": 325,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "\"\"\"Return the latest decision-ready NAV from the active Publication."
     },
     {
-      "line": 329,
+      "line": 328,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "unqualified ``latest`` method is a current-data consumer, so a raw"
     },
     {
-      "line": 341,
+      "line": 340,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "publication_key=\"current\","
     },
     {
-      "line": 610,
+      "line": 609,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "\"\"\"Anchor research windows to the latest locally available fund dataset.\"\"\""
     },
     {
-      "line": 613,
+      "line": 612,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "latest=Max(\"end_date\")"
     },
     {
-      "line": 614,
+      "line": 613,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": ")[\"latest\"]"
     },
     {
-      "line": 981,
+      "line": 949,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "for previous, current in zip(nav_series, nav_series[1:], strict=False):"
     },
     {
-      "line": 983,
+      "line": 951,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "curr_nav = float(current.unit_nav)"
     },

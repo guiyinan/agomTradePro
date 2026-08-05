@@ -76,6 +76,30 @@ def test_get_latest_nav_blocks_rows_when_publication_is_unusable(monkeypatch):
     repo._dc_fund_nav_repo.get_latest.assert_not_called()
 
 
+def test_sync_fund_nav_routes_through_data_center_provider_port(monkeypatch):
+    """Legacy method name must not call a raw Tushare adapter fallback."""
+    repo = _make_repo()
+    calls: dict[str, object] = {}
+
+    def _sync(fund_code: str, *, start: date, end: date) -> dict[str, object]:
+        calls.update(fund_code=fund_code, start=start, end=end)
+        return {"stored_count": 3, "status": "success"}
+
+    monkeypatch.setattr(
+        "apps.fund.infrastructure.repositories.sync_fund_nav_from_active_provider",
+        _sync,
+    )
+
+    stored_count = repo.sync_fund_nav_from_tushare("110011", "20260101", "20260731")
+
+    assert stored_count == 3
+    assert calls == {
+        "fund_code": "110011",
+        "start": date(2026, 1, 1),
+        "end": date(2026, 7, 31),
+    }
+
+
 @pytest.mark.django_db
 def test_save_fund_nav_writes_only_to_data_center():
     repo = _make_repo()

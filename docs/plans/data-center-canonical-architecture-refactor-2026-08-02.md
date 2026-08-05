@@ -4020,3 +4020,13 @@ Git SHA / 镜像 / migration：
 - 已运行测试：`pytest tests/component/test_fund_repository_data_center.py tests/api/test_fund_api_edges.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：39 passed；`python scripts/check_current_data_contracts.py`：40 surfaces。
 - 明确未做：未改变基金历史 NAV、业绩回测、同步写入和 provider failover，未修改 Tushare/AKShare provider 状态，未部署、未 push。
 - 未验证风险：生产基金 Publication 成员覆盖、基金 current 调用方完整盘点和 PostgreSQL 性能仍待生产阶段证据。
+
+## 40. 2026-08-05：Fund NAV 远程同步退出裸 Tushare fallback
+
+- 目标：让基金历史 NAV 远程补数也遵守 Data Center provider registry 与 capability failover，停用 Tushare 后不再由 `DjangoFundRepository` 直接构造/调用 Tushare 基金适配器。
+- 变更：新增 `sync_fund_nav_from_active_provider` Public Port，按 active provider priority 和 `DataCapability.FUND_NAV` 路由，零产出/异常时继续尝试后续 provider；基金仓储保留 `sync_fund_nav_from_tushare` 兼容方法名，但只委托该 Public Port，不再调用裸 Tushare fallback。
+- 测试：新增 active capability failover、无 provider blocked、旧方法名委托 Data Center port 三条回归。
+- 治理：将 provider-route marker 与测试加入 `fund.current_nav` contract，确保后续不得恢复直接 Tushare fallback。
+- 已运行测试：`pytest tests/unit/data_center/test_public_fund_nav_sync_routing.py tests/component/test_fund_repository_data_center.py tests/api/test_fund_api_edges.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：42 passed；`check_mypy_regression.py`：2 files / 0 regression；`verify_architecture.py --include-audit`：boundary 0 / audit 0；current-data contracts：40 surfaces。
+- 明确未做：基金 master list 的旧 Tushare 兼容同步、历史研究读取和 production provider 状态未在本批删除；未部署、未 push。
+- 未验证风险：生产 AKShare fund NAV capability 的真实覆盖、provider registry active 配置和 Publication 产出仍需生产数据证据。
