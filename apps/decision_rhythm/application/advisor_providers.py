@@ -153,7 +153,7 @@ class DecisionDataHealthProvider:
     def get_health(self, *, asset_codes: list[str]) -> dict[str, Any]:
         """Return decision-grade data readiness for the requested assets."""
 
-        from apps.data_center.application.interface_services import (
+        from apps.data_center.application.public import (
             get_decision_data_readiness_payload,
         )
 

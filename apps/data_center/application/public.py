@@ -898,6 +898,33 @@ def get_market_breadth_snapshot() -> dict[str, Any]:
     return query_published_a_share_behavior_payload()
 
 
+def get_active_stock_fact_coverage_payload() -> dict[str, Any]:
+    """Return the diagnostic coverage payload through the public port."""
+
+    from apps.data_center.application.query_services import (
+        get_active_stock_fact_coverage_payload as _get_coverage,
+    )
+
+    return _get_coverage()
+
+
+def get_decision_data_readiness_payload(
+    *,
+    asset_codes: list[str] | None = None,
+    quote_max_age_hours: float | None = None,
+) -> dict[str, Any]:
+    """Return the fail-closed decision-data readiness payload."""
+
+    from apps.data_center.application.interface_services import (
+        get_decision_data_readiness_payload as _get_readiness,
+    )
+
+    return _get_readiness(
+        asset_codes=asset_codes,
+        quote_max_age_hours=quote_max_age_hours,
+    )
+
+
 def list_active_stock_codes() -> list[str]:
     """Read the canonical active A-share universe."""
 
@@ -1064,6 +1091,8 @@ __all__ = [
     "probe_rss_news_feed",
     "get_current_market_thermometer_payload",
     "get_market_thermometer_payload",
+    "get_active_stock_fact_coverage_payload",
+    "get_decision_data_readiness_payload",
     "get_capital_flow_repository_port",
     "get_provider_config_repository_port",
     "get_provider_registry_port",

@@ -4190,3 +4190,10 @@ Git SHA / 镜像 / migration：
 - 证据：clean HEAD 的治理门禁发现 `apps/data_center/domain/market_structure.py` 1327 行、`apps/sector/domain/industry_operating_template.py` 1372 行超过 1200 行上限，且此前没有精确 owner/remediation 登记。
 - 收口：`governance_baseline.json` 升级至 `2026-08-05.v208`，为两个文件登记 P1 拆分目标、owner、review-by 和对应计划路径；不抬高全局行数上限，也不把登记解释为拆分完成。
 - 边界：该治理提交只解决 CI 可审计债务，不改变市场结构/行业模板业务语义，不删除代码、不部署生产；拆分仍需各 owner 按独立研究能力批次实施。
+
+## 61. 2026-08-05：决策 readiness/coverage Public Port 收口
+
+- 目标：避免 Decision Rhythm 的健康检查直接导入 Data Center 内部 interface service，统一 current 决策 readiness 与 active-stock coverage 经过可审计 Public Port。
+- 变更：Data Center Public Port 新增 `get_decision_data_readiness_payload` 与 `get_active_stock_fact_coverage_payload`；`DecisionDataHealthProvider` 改为使用 readiness Public Port。原有参数、阻断字段和 diagnostic coverage 语义不变。
+- 治理与测试：新增 `data_center.public_current_read_ports` current-data contract，登记 Public Port/消费者 marker 与 3 条回归；定向回归和 clean worktree current-data runner 将覆盖该端口。
+- 明确未做：未改动 Decision Rhythm 风险规则、资产 exposure resolver、历史/维护查询、Publication writer/provider 配置或生产部署；TUI 运维摘要的内部 readiness/coverage import 仍待其 owner 工作区干净后单独收口。

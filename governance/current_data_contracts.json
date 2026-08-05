@@ -286,6 +286,42 @@
       ]
     },
     {
+      "id": "data_center.public_current_read_ports",
+      "surface": "Cross-app current decision-readiness and coverage Public Ports",
+      "source_files": [
+        "apps/data_center/application/public.py",
+        "apps/decision_rhythm/application/advisor_providers.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/public.py": [
+          "def get_active_stock_fact_coverage_payload(",
+          "def get_decision_data_readiness_payload(",
+          "get_decision_data_readiness_payload as _get_readiness"
+        ],
+        "apps/decision_rhythm/application/advisor_providers.py": [
+          "from apps.data_center.application.public import",
+          "get_decision_data_readiness_payload"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "readiness_public_port",
+          "test_file": "tests/unit/data_center/test_public_decision_readiness_ports.py",
+          "test_function": "test_decision_readiness_public_port_forwards_query_contract"
+        },
+        {
+          "case": "coverage_public_port",
+          "test_file": "tests/unit/data_center/test_public_decision_readiness_ports.py",
+          "test_function": "test_stock_fact_coverage_public_port_delegates_to_diagnostic_query"
+        },
+        {
+          "case": "decision_rhythm_public_port",
+          "test_file": "tests/unit/data_center/test_public_decision_readiness_ports.py",
+          "test_function": "test_decision_rhythm_health_provider_uses_public_readiness_port"
+        }
+      ]
+    },
+    {
       "id": "realtime.price_polling_side_effects",
       "surface": "PricePollingService persistence, alerts, positions, and cached movers",
       "source_files": [

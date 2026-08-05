@@ -5107,7 +5107,7 @@
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 946,
+      "line": 973,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -8512,77 +8512,77 @@
       "text": "\"period_type\": latest[\"period_type\"],"
     },
     {
-      "line": 157,
+      "line": 155,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"\"\"Return current Regime context for the macro overview page.\"\"\""
     },
     {
-      "line": 165,
+      "line": 163,
       "path": "apps/macro/application/interface_services.py",
       "text": "logger.exception(\"Failed to load Regime summary for macro page snapshot\")"
     },
     {
-      "line": 197,
+      "line": 195,
       "path": "apps/macro/application/interface_services.py",
       "text": "logger.exception(\"Failed to load Pulse summary for macro page snapshot\")"
     },
     {
-      "line": 435,
+      "line": 433,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"\"\"Return selected publication members for one current macro series."
     },
     {
-      "line": 439,
+      "line": 437,
       "path": "apps/macro/application/interface_services.py",
       "text": "legacy latest-fact query."
     },
     {
-      "line": 469,
+      "line": 467,
       "path": "apps/macro/application/interface_services.py",
       "text": "current/latest values must come from freshness-validated Publication"
     },
     {
-      "line": 516,
+      "line": 514,
       "path": "apps/macro/application/interface_services.py",
       "text": "latest = read_repository.get_latest_indicator(code)"
     },
     {
-      "line": 517,
+      "line": 515,
       "path": "apps/macro/application/interface_services.py",
       "text": "if latest is not None:"
     },
     {
-      "line": 518,
+      "line": 516,
       "path": "apps/macro/application/interface_services.py",
       "text": "latest_by_code[code] = latest"
     },
     {
-      "line": 688,
+      "line": 686,
       "path": "apps/macro/application/interface_services.py",
       "text": "summary = read_repository.get_storage_summary()"
     },
     {
-      "line": 743,
+      "line": 741,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"total_records\": summary[\"total_records\"],"
     },
     {
-      "line": 744,
+      "line": 742,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"latest_date\": summary[\"latest_date\"],"
     },
     {
-      "line": 746,
+      "line": 744,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"min_date\": summary[\"min_date\"],"
     },
     {
-      "line": 747,
+      "line": 745,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"max_date\": summary[\"max_date\"],"
     },
     {
-      "line": 796,
+      "line": 794,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"summary\": summary_use_case.execute(),"
     },
@@ -14432,32 +14432,32 @@
       "text": "if int(summary.get(\"portfolio_count\") or 0) == 0:"
     },
     {
-      "line": 909,
+      "line": 907,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "def _monitor_severity(summary: dict[str, Any]) -> str:"
     },
     {
-      "line": 910,
+      "line": 908,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "daily_state = dict(summary.get(\"daily_state\") or {})"
     },
     {
-      "line": 969,
+      "line": 967,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "latest = None"
     },
     {
-      "line": 974,
+      "line": 972,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "if latest is None or created_at > latest:"
     },
     {
-      "line": 975,
+      "line": 973,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "latest = created_at"
     },
     {
-      "line": 976,
+      "line": 974,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "return _iso(latest or timezone.now())"
     },
