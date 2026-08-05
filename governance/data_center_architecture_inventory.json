@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3205,
+    "current_surface_references": 3214,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 143,
@@ -2502,37 +2502,37 @@
       "text": "\"\"\"Return True when the cache row is only the delivery channel for the latest Qlib output.\"\"\""
     },
     {
-      "line": 1124,
+      "line": 1140,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data("
     },
     {
-      "line": 1130,
+      "line": 1146,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"status\": \"success\" if summary.get(\"status\") == \"success\" else summary.get(\"status\"),"
     },
     {
-      "line": 1132,
+      "line": 1148,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": summary,"
     },
     {
-      "line": 1200,
+      "line": 1216,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data_for_codes("
     },
     {
-      "line": 1207,
+      "line": 1223,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"status\": \"success\" if summary.get(\"status\") == \"success\" else summary.get(\"status\"),"
     },
     {
-      "line": 1211,
+      "line": 1227,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1212,
+      "line": 1228,
       "path": "apps/alpha/application/tasks.py",
       "text": "**summary,"
     },
@@ -4122,32 +4122,32 @@
       "text": "\"summary\": summary,"
     },
     {
-      "line": 253,
+      "line": 249,
       "path": "apps/broker_execution/application/use_cases.py",
       "text": "risk_snapshot[\"violations\"].append(\"latest market quote is unavailable\")"
     },
     {
-      "line": 255,
+      "line": 251,
       "path": "apps/broker_execution/application/use_cases.py",
       "text": "risk_snapshot[\"violations\"].append(\"latest market quote is stale\")"
     },
     {
-      "line": 263,
+      "line": 259,
       "path": "apps/broker_execution/application/use_cases.py",
       "text": "\"latest market price must be positive and finite\""
     },
     {
-      "line": 393,
+      "line": 389,
       "path": "apps/broker_execution/application/use_cases.py",
       "text": "\"\"\"Generate the current server-side advisor sheet and create governed drafts.\"\"\""
     },
     {
-      "line": 436,
+      "line": 432,
       "path": "apps/broker_execution/application/use_cases.py",
       "text": "\"The current advisor sheet has no executable orders\""
     },
     {
-      "line": 545,
+      "line": 541,
       "path": "apps/broker_execution/application/use_cases.py",
       "text": "\"summary\": {"
     },
@@ -4512,7 +4512,7 @@
       "text": "\"summary\": advice.summary,"
     },
     {
-      "line": 588,
+      "line": 601,
       "path": "apps/dashboard/infrastructure/repositories.py",
       "text": "\"\"\"Return the latest macro indicator value for one code.\"\"\""
     },
@@ -5037,77 +5037,82 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 694,
+      "line": 745,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 749,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
     },
     {
-      "line": 707,
+      "line": 762,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 712,
+      "line": 767,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 727,
+      "line": 782,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 743,
+      "line": 798,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 761,
+      "line": 816,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 778,
+      "line": 833,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 794,
+      "line": 849,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 831,
+      "line": 886,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 834,
+      "line": 889,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 838,
+      "line": 893,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 840,
+      "line": 895,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 843,
+      "line": 898,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 844,
+      "line": 899,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 991,
+      "line": 1056,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -8657,34 +8662,74 @@
       "text": "\"summary\": {"
     },
     {
+      "line": 26,
+      "path": "apps/macro_factor/domain/dated_outputs.py",
+      "text": "\"\"\"Typed current/forward output returned in the canonical external artifact.\"\"\""
+    },
+    {
+      "line": 55,
+      "path": "apps/macro_factor/domain/dated_outputs.py",
+      "text": "raise ValueError(\"current-state output requires horizon_periods=0\")"
+    },
+    {
+      "line": 57,
+      "path": "apps/macro_factor/domain/dated_outputs.py",
+      "text": "raise ValueError(\"current-state target cannot follow knowledge_as_of\")"
+    },
+    {
+      "line": 144,
+      "path": "apps/macro_factor/domain/dated_outputs.py",
+      "text": "raise ValueError(\"current-state output requires horizon_periods=0\")"
+    },
+    {
+      "line": 146,
+      "path": "apps/macro_factor/domain/dated_outputs.py",
+      "text": "raise ValueError(\"current-state target cannot follow knowledge_as_of\")"
+    },
+    {
       "line": 162,
       "path": "apps/macro_factor/domain/entities.py",
       "text": "raise ValueError(\"current-state targets require horizon_periods=0\")"
     },
     {
-      "line": 307,
-      "path": "apps/macro_factor/domain/reproducible_runner.py",
+      "line": 90,
+      "path": "apps/macro_factor/domain/runner_inputs.py",
+      "text": "raise ValueError(\"row available_at must equal latest proxy fact availability\")"
+    },
+    {
+      "line": 122,
+      "path": "apps/macro_factor/domain/temporal_plan.py",
       "text": "raise ValueError(\"current-state availability requires horizon_periods=0\")"
     },
     {
-      "line": 312,
-      "path": "apps/macro_factor/domain/reproducible_runner.py",
+      "line": 127,
+      "path": "apps/macro_factor/domain/temporal_plan.py",
       "text": "raise ValueError(\"current-state normalized horizon must be zero\")"
     },
     {
-      "line": 940,
-      "path": "apps/macro_factor/domain/reproducible_runner.py",
-      "text": "\"\"\"Typed current/forward output returned in the canonical external artifact.\"\"\""
+      "line": 332,
+      "path": "apps/macro_factor/infrastructure/run_ledger_models.py",
+      "text": "\"\"\"One immutable current-state or forward-expectation research output.\"\"\""
     },
     {
-      "line": 969,
-      "path": "apps/macro_factor/domain/reproducible_runner.py",
-      "text": "raise ValueError(\"current-state output requires horizon_periods=0\")"
+      "line": 343,
+      "path": "apps/macro_factor/infrastructure/run_ledger_repository.py",
+      "text": "latest = ("
     },
     {
-      "line": 971,
-      "path": "apps/macro_factor/domain/reproducible_runner.py",
-      "text": "raise ValueError(\"current-state target cannot follow knowledge_as_of\")"
+      "line": 348,
+      "path": "apps/macro_factor/infrastructure/run_ledger_repository.py",
+      "text": "if latest is None or event.sequence != latest.sequence + 1:"
+    },
+    {
+      "line": 349,
+      "path": "apps/macro_factor/infrastructure/run_ledger_repository.py",
+      "text": "raise ValueError(\"lifecycle event does not extend the current chain\")"
+    },
+    {
+      "line": 350,
+      "path": "apps/macro_factor/infrastructure/run_ledger_repository.py",
+      "text": "if event.previous_event_hash != latest.content_hash:"
     },
     {
       "line": 1,
@@ -8737,32 +8782,32 @@
       "text": "\"\"\"Return whether cached strict-runtime data has the governed summary shape.\"\"\""
     },
     {
-      "line": 85,
+      "line": 87,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "\"\"\"Return a compact decision-data summary from one readiness evidence payload.\"\"\""
     },
     {
-      "line": 97,
+      "line": 99,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "\"\"\"Return a compact operator-facing decision-data summary.\"\"\""
     },
     {
-      "line": 105,
+      "line": 107,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "summary = {"
     },
     {
-      "line": 131,
+      "line": 133,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "summary[\"skipped_latest_market_thermometer\"] = {"
     },
     {
-      "line": 139,
+      "line": 141,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "return summary"
     },
     {
-      "line": 147,
+      "line": 149,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "\"\"\"Return current decision-data readiness for operator-facing status output.\"\"\""
     },
@@ -14462,32 +14507,32 @@
       "text": "if int(summary.get(\"portfolio_count\") or 0) == 0:"
     },
     {
-      "line": 907,
+      "line": 909,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "def _monitor_severity(summary: dict[str, Any]) -> str:"
     },
     {
-      "line": 908,
+      "line": 910,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "daily_state = dict(summary.get(\"daily_state\") or {})"
     },
     {
-      "line": 967,
+      "line": 969,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "latest = None"
     },
     {
-      "line": 972,
+      "line": 974,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "if latest is None or created_at > latest:"
     },
     {
-      "line": 973,
+      "line": 975,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "latest = created_at"
     },
     {
-      "line": 974,
+      "line": 976,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "return _iso(latest or timezone.now())"
     },
