@@ -4111,4 +4111,10 @@ Git SHA / 镜像 / migration：
 - 变更：Equity serializers 与估值 use-case request 默认统一为 `mode=published`；历史研究必须显式 `mode=historical`。补齐 API 旧历史 fixture 的显式 historical 参数，保留兼容语义但不再隐式触发。
 - 治理：`data_center.publication_only_d4_d5` 登记 serializer/use-case 默认 published marker。
 - 已运行验证：Equity API/use-case 定向回归 `77 passed`；current-data `43 surfaces`、legacy fact guard、architecture boundary/audit `0`、变更 2 个生产文件 mypy regression `0`、Ruff/Black 通过。
+
+## 50. 2026-08-05：current-data manifest 实际 nodeid 执行证据
+
+- 目标：把 current-data manifest 从“静态 marker 通过”推进到实际 pytest nodeid 执行，避免登记但未运行的假绿。
+- 证据：`python scripts/run_current_data_contract_tests.py --pytest-arg=-q --pytest-arg=--reuse-db --pytest-arg=--disable-warnings --pytest-arg=--timeout=180` 收集并执行 237 个登记 nodeid，实际 `276 passed`，正常迁移模式完成；`--no-migrations` 曾出现 1 个依赖迁移 seed 的风险场景失败，已用正常迁移模式复核通过。
+- 结论：current-data manifest 的本地可执行证据已补齐；这不替代 Linux CI、PostgreSQL 生产画像、Publication 覆盖和观察窗口证据。
 - 明确未做：未删除 historical API、未改变 Publication writer/provider、未部署或修改 VPS。
