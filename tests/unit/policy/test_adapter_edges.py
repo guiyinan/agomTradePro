@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from apps.data_center.infrastructure import rss_gateway
 from apps.policy.domain.entities import (
     AuditStatus,
     PolicyLevel,
@@ -348,7 +349,7 @@ def test_feedparser_adapter_fetches_parses_skips_and_retries(monkeypatch) -> Non
         content=b"<rss/>",
         raise_for_status=lambda: None,
     )
-    monkeypatch.setattr(feedparser_adapter.requests, "get", lambda *args, **kwargs: response)
+    monkeypatch.setattr(rss_gateway.requests, "get", lambda *args, **kwargs: response)
     published = time.gmtime(1_721_779_200)
     valid = _FeedEntry(
         {
@@ -362,12 +363,14 @@ def test_feedparser_adapter_fetches_parses_skips_and_retries(monkeypatch) -> Non
     )
     missing_title = _FeedEntry({"link": "https://policy.test/bad"}, published)
     monkeypatch.setattr(
-        feedparser_adapter.feedparser,
-        "parse",
-        lambda content: SimpleNamespace(
-            bozo=True,
-            bozo_exception=ValueError("minor warning"),
-            entries=[valid, missing_title],
+        rss_gateway,
+        "import_module",
+        lambda name: SimpleNamespace(
+            parse=lambda content: SimpleNamespace(
+                bozo=True,
+                bozo_exception=ValueError("minor warning"),
+                entries=[valid, missing_title],
+            )
         ),
     )
     items = adapter.fetch(config)
@@ -379,12 +382,23 @@ def test_feedparser_adapter_fetches_parses_skips_and_retries(monkeypatch) -> Non
 
     def _timeout(*args: object, **kwargs: object) -> object:
         attempts.append(1)
-        raise feedparser_adapter.requests.Timeout("slow")
+        raise rss_gateway.requests.Timeout("slow")
 
-    monkeypatch.setattr(feedparser_adapter.requests, "get", _timeout)
-    monkeypatch.setattr(time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(rss_gateway.requests, "get", _timeout)
+    monkeypatch.setattr(rss_gateway, "sleep", lambda seconds: None)
     with pytest.raises(RSSFetchError, match="2 retries"):
-        adapter._fetch_with_retries(config.url, None, 1, 2)
+        adapter.fetch(
+            RSSSourceConfig(
+                name=config.name,
+                url=config.url,
+                category=config.category,
+                is_active=True,
+                fetch_interval_hours=1,
+                extract_content=False,
+                timeout_seconds=1,
+                retry_times=2,
+            )
+        )
     assert len(attempts) == 2
 
     no_date = _FeedEntry(

@@ -1,9 +1,9 @@
 {
   "counts": {
-    "cross_app_orm_imports": 52,
-    "current_surface_references": 3172,
+    "cross_app_orm_imports": 51,
+    "current_surface_references": 3195,
     "data_write_task_decorators": 55,
-    "external_http_imports_for_review": 6,
+    "external_http_imports_for_review": 5,
     "legacy_fact_references": 143,
     "provider_imports_outside_data_center": 0,
     "runtime_parameter_references": 49
@@ -213,11 +213,6 @@
       "import": "apps.pulse.infrastructure.models",
       "line": 504,
       "path": "apps/regime/infrastructure/repositories.py"
-    },
-    {
-      "import": "apps.agent_runtime.infrastructure.models",
-      "line": 15,
-      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py"
     },
     {
       "import": "apps.ai_provider.infrastructure.models",
@@ -4987,117 +4982,117 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 432,
+      "line": 456,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 438,
+      "line": 462,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read fresh, member-bound macro values for current-facing consumers.\"\"\""
     },
     {
-      "line": 486,
+      "line": 510,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 579,
+      "line": 603,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 586,
+      "line": 610,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 611,
+      "line": 635,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 613,
+      "line": 637,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 621,
+      "line": 645,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 625,
+      "line": 649,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
     },
     {
-      "line": 638,
+      "line": 662,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 643,
+      "line": 667,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 658,
+      "line": 682,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 674,
+      "line": 698,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 692,
+      "line": 716,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 709,
+      "line": 733,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 725,
+      "line": 749,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 762,
+      "line": 786,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 765,
+      "line": 789,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 769,
+      "line": 793,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 771,
+      "line": 795,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 774,
+      "line": 798,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 775,
+      "line": 799,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 877,
+      "line": 901,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -5732,67 +5727,67 @@
       "text": "summary=\"Tushare Token missing\","
     },
     {
-      "line": 73,
+      "line": 83,
       "path": "apps/data_center/infrastructure/connection_tester.py",
       "text": "summary=f\"Tushare OK — SHIBOR probe returned {len(data)} rows\","
     },
     {
-      "line": 90,
+      "line": 100,
       "path": "apps/data_center/infrastructure/connection_tester.py",
       "text": "summary=f\"AKShare OK — PMI probe returned {len(data)} rows\","
     },
     {
-      "line": 112,
+      "line": 122,
       "path": "apps/data_center/infrastructure/connection_tester.py",
       "text": "summary=\"QMT local terminal OK\","
     },
     {
-      "line": 122,
+      "line": 132,
       "path": "apps/data_center/infrastructure/connection_tester.py",
       "text": "failure — it just means no current price)."
     },
     {
-      "line": 132,
+      "line": 142,
       "path": "apps/data_center/infrastructure/connection_tester.py",
       "text": "_log(logs, f\"[INFO] Fetching realtime quote for {probe_codes[0]}.\")"
     },
     {
-      "line": 143,
+      "line": 153,
       "path": "apps/data_center/infrastructure/connection_tester.py",
       "text": "summary=\"EastMoney gateway reachable; quote empty (market may be closed)\","
     },
     {
-      "line": 151,
+      "line": 161,
       "path": "apps/data_center/infrastructure/connection_tester.py",
       "text": "summary=f\"EastMoney OK — {probe_codes[0]} price={price}\","
     },
     {
-      "line": 164,
+      "line": 174,
       "path": "apps/data_center/infrastructure/connection_tester.py",
       "text": "summary=\"Missing API key — cannot test connection\","
     },
     {
-      "line": 172,
+      "line": 182,
       "path": "apps/data_center/infrastructure/connection_tester.py",
       "text": "summary=\"Credentials validated, but live probe not yet implemented\","
     },
     {
-      "line": 212,
+      "line": 222,
       "path": "apps/data_center/infrastructure/connection_tester.py",
       "text": "summary=f\"Connection test timed out (>{timeout}s)\","
     },
     {
-      "line": 223,
+      "line": 233,
       "path": "apps/data_center/infrastructure/connection_tester.py",
       "text": "summary=f\"Connection test failed ({error_type})\","
     },
     {
-      "line": 261,
+      "line": 271,
       "path": "apps/data_center/infrastructure/connection_tester.py",
       "text": "summary=f\"Unsupported source type: {config.source_type}\","
     },
     {
-      "line": 275,
+      "line": 285,
       "path": "apps/data_center/infrastructure/connection_tester.py",
       "text": "summary=f\"Connection test failed ({error_type})\","
     },
@@ -6367,102 +6362,102 @@
       "text": "\"\"\"Fetch current PE/PB and market-cap fields in one Tencent quote request.\"\"\""
     },
     {
-      "line": 183,
+      "line": 205,
       "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
       "text": "latest = df.loc[trade_dates.idxmax()]"
     },
     {
-      "line": 184,
+      "line": 206,
       "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
       "text": "raw_trade_date = str(latest.get(\"trade_date\") or \"\").strip()"
-    },
-    {
-      "line": 193,
-      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
-      "text": "price = _safe_decimal(latest.get(\"close\"))"
-    },
-    {
-      "line": 198,
-      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
-      "text": "pre_close = _safe_decimal(latest.get(\"pre_close\"))"
-    },
-    {
-      "line": 211,
-      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
-      "text": "volume=_safe_int(latest.get(\"vol\")),"
-    },
-    {
-      "line": 212,
-      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
-      "text": "amount=_safe_decimal(latest.get(\"amount\")),"
-    },
-    {
-      "line": 213,
-      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
-      "text": "turnover_rate=safe_float(latest.get(\"turnover_rate\")),"
-    },
-    {
-      "line": 214,
-      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
-      "text": "high=_safe_decimal(latest.get(\"high\")),"
     },
     {
       "line": 215,
       "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
-      "text": "low=_safe_decimal(latest.get(\"low\")),"
-    },
-    {
-      "line": 216,
-      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
-      "text": "open=_safe_decimal(latest.get(\"open\")),"
-    },
-    {
-      "line": 256,
-      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
-      "text": "latest = df.loc[df[\"trade_date\"].astype(str).idxmax()]"
-    },
-    {
-      "line": 257,
-      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
-      "text": "raw_trade_date = str(latest.get(\"trade_date\") or \"\").strip()"
-    },
-    {
-      "line": 263,
-      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
       "text": "price = _safe_decimal(latest.get(\"close\"))"
     },
     {
-      "line": 266,
+      "line": 220,
       "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
       "text": "pre_close = _safe_decimal(latest.get(\"pre_close\"))"
     },
     {
-      "line": 279,
+      "line": 233,
       "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
       "text": "volume=_safe_int(latest.get(\"vol\")),"
     },
     {
-      "line": 280,
+      "line": 234,
       "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
       "text": "amount=_safe_decimal(latest.get(\"amount\")),"
     },
     {
-      "line": 281,
+      "line": 235,
       "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
       "text": "turnover_rate=safe_float(latest.get(\"turnover_rate\")),"
     },
     {
-      "line": 282,
+      "line": 236,
       "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
       "text": "high=_safe_decimal(latest.get(\"high\")),"
     },
     {
-      "line": 283,
+      "line": 237,
       "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
       "text": "low=_safe_decimal(latest.get(\"low\")),"
     },
     {
-      "line": 284,
+      "line": 238,
+      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
+      "text": "open=_safe_decimal(latest.get(\"open\")),"
+    },
+    {
+      "line": 278,
+      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
+      "text": "latest = df.loc[df[\"trade_date\"].astype(str).idxmax()]"
+    },
+    {
+      "line": 279,
+      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
+      "text": "raw_trade_date = str(latest.get(\"trade_date\") or \"\").strip()"
+    },
+    {
+      "line": 285,
+      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
+      "text": "price = _safe_decimal(latest.get(\"close\"))"
+    },
+    {
+      "line": 288,
+      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
+      "text": "pre_close = _safe_decimal(latest.get(\"pre_close\"))"
+    },
+    {
+      "line": 301,
+      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
+      "text": "volume=_safe_int(latest.get(\"vol\")),"
+    },
+    {
+      "line": 302,
+      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
+      "text": "amount=_safe_decimal(latest.get(\"amount\")),"
+    },
+    {
+      "line": 303,
+      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
+      "text": "turnover_rate=safe_float(latest.get(\"turnover_rate\")),"
+    },
+    {
+      "line": 304,
+      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
+      "text": "high=_safe_decimal(latest.get(\"high\")),"
+    },
+    {
+      "line": 305,
+      "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
+      "text": "low=_safe_decimal(latest.get(\"low\")),"
+    },
+    {
+      "line": 306,
       "path": "apps/data_center/infrastructure/gateways/tushare_gateway.py",
       "text": "open=_safe_decimal(latest.get(\"open\")),"
     },
@@ -6602,6 +6597,11 @@
       "text": "\"\"\"Current valuation fields observed with a market quote timestamp.\"\"\""
     },
     {
+      "line": 361,
+      "path": "apps/data_center/infrastructure/market_structure_repository.py",
+      "text": "\"\"\"Resolve historical members without substituting the current component set.\"\"\""
+    },
+    {
       "line": 1079,
       "path": "apps/data_center/infrastructure/models.py",
       "text": "summary = models.TextField(blank=True)"
@@ -6625,6 +6625,16 @@
       "line": 388,
       "path": "apps/data_center/infrastructure/research_data_foundation_repository.py",
       "text": "\"\"\"Return exact versions only when they are the latest knowable facts.\"\"\""
+    },
+    {
+      "line": 157,
+      "path": "apps/data_center/infrastructure/rss_gateway.py",
+      "text": "description = str(entry.get(\"description\", \"\") or entry.get(\"summary\", \"\") or \"\")"
+    },
+    {
+      "line": 165,
+      "path": "apps/data_center/infrastructure/rss_gateway.py",
+      "text": "summary=description,"
     },
     {
       "line": 172,
@@ -7362,197 +7372,212 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 76,
+      "line": 63,
       "path": "apps/equity/application/use_cases.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 85,
+      "line": 78,
       "path": "apps/equity/application/use_cases.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 96,
+      "line": 87,
       "path": "apps/equity/application/use_cases.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 107,
+      "line": 98,
       "path": "apps/equity/application/use_cases.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 646,
+      "line": 109,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 421,
       "path": "apps/equity/application/use_cases.py",
       "text": "publication_key: str = \"current\""
     },
     {
-      "line": 739,
+      "line": 441,
       "path": "apps/equity/application/use_cases.py",
-      "text": "latest = None"
+      "text": "publication_key: str = \"current\""
     },
     {
-      "line": 747,
+      "line": 664,
       "path": "apps/equity/application/use_cases.py",
-      "text": "latest = valuation_history[-1]"
-    },
-    {
-      "line": 754,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "if latest.pe is None or latest.pb is None:"
+      "text": "publication_key: str = \"current\""
     },
     {
       "line": 757,
       "path": "apps/equity/application/use_cases.py",
-      "text": "\"pe\": latest.pe,"
-    },
-    {
-      "line": 758,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"pb\": latest.pb,"
-    },
-    {
-      "line": 759,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"ps\": latest.ps,"
-    },
-    {
-      "line": 762,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"total_mv\": float(latest.total_mv) if latest.total_mv is not None else None,"
-    },
-    {
-      "line": 763,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"circ_mv\": float(latest.circ_mv) if latest.circ_mv is not None else None,"
-    },
-    {
-      "line": 764,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"dividend_yield\": latest.dividend_yield,"
-    },
-    {
-      "line": 766,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"trade_date\": latest.trade_date.isoformat(),"
-    },
-    {
-      "line": 767,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"updated_at\": latest.fetched_at.isoformat() if latest.fetched_at else None,"
-    },
-    {
-      "line": 769,
-      "path": "apps/equity/application/use_cases.py",
       "text": "latest = None"
     },
     {
-      "line": 771,
+      "line": 765,
       "path": "apps/equity/application/use_cases.py",
-      "text": "pe_percentile = analyzer.calculate_pe_percentile(latest.pe, pe_history)"
+      "text": "latest = valuation_history[-1]"
     },
     {
       "line": 772,
       "path": "apps/equity/application/use_cases.py",
-      "text": "pb_percentile = analyzer.calculate_pb_percentile(latest.pb, pb_history)"
+      "text": "if latest.pe is None or latest.pb is None:"
     },
     {
-      "line": 779,
+      "line": 775,
       "path": "apps/equity/application/use_cases.py",
-      "text": "\"pe\": latest.pe if latest.pe > 0 else None,"
+      "text": "\"pe\": latest.pe,"
+    },
+    {
+      "line": 776,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"pb\": latest.pb,"
+    },
+    {
+      "line": 777,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"ps\": latest.ps,"
     },
     {
       "line": 780,
       "path": "apps/equity/application/use_cases.py",
-      "text": "\"pb\": latest.pb if latest.pb > 0 else None,"
+      "text": "\"total_mv\": float(latest.total_mv) if latest.total_mv is not None else None,"
     },
     {
       "line": 781,
       "path": "apps/equity/application/use_cases.py",
-      "text": "\"ps\": latest.ps if latest.ps is not None and latest.ps > 0 else None,"
+      "text": "\"circ_mv\": float(latest.circ_mv) if latest.circ_mv is not None else None,"
+    },
+    {
+      "line": 782,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"dividend_yield\": latest.dividend_yield,"
     },
     {
       "line": 784,
       "path": "apps/equity/application/use_cases.py",
-      "text": "\"total_mv\": float(latest.total_mv) if latest.total_mv is not None else None,"
+      "text": "\"trade_date\": latest.trade_date.isoformat(),"
     },
     {
       "line": 785,
       "path": "apps/equity/application/use_cases.py",
-      "text": "\"circ_mv\": float(latest.circ_mv) if latest.circ_mv is not None else None,"
+      "text": "\"updated_at\": latest.fetched_at.isoformat() if latest.fetched_at else None,"
     },
     {
       "line": 787,
       "path": "apps/equity/application/use_cases.py",
+      "text": "latest = None"
+    },
+    {
+      "line": 789,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "pe_percentile = analyzer.calculate_pe_percentile(latest.pe, pe_history)"
+    },
+    {
+      "line": 790,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "pb_percentile = analyzer.calculate_pb_percentile(latest.pb, pb_history)"
+    },
+    {
+      "line": 797,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"pe\": latest.pe if latest.pe > 0 else None,"
+    },
+    {
+      "line": 798,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"pb\": latest.pb if latest.pb > 0 else None,"
+    },
+    {
+      "line": 799,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"ps\": latest.ps if latest.ps is not None and latest.ps > 0 else None,"
+    },
+    {
+      "line": 802,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"total_mv\": float(latest.total_mv) if latest.total_mv is not None else None,"
+    },
+    {
+      "line": 803,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"circ_mv\": float(latest.circ_mv) if latest.circ_mv is not None else None,"
+    },
+    {
+      "line": 805,
+      "path": "apps/equity/application/use_cases.py",
       "text": "latest.dividend_yield"
     },
     {
-      "line": 788,
+      "line": 806,
       "path": "apps/equity/application/use_cases.py",
       "text": "if latest.dividend_yield is not None and latest.dividend_yield > 0"
     },
     {
-      "line": 792,
+      "line": 810,
       "path": "apps/equity/application/use_cases.py",
       "text": "\"trade_date\": latest.trade_date.isoformat(),"
     },
     {
-      "line": 793,
+      "line": 811,
       "path": "apps/equity/application/use_cases.py",
       "text": "\"updated_at\": latest.fetched_at.isoformat() if latest.fetched_at else None,"
     },
     {
-      "line": 844,
+      "line": 862,
       "path": "apps/equity/application/use_cases.py",
       "text": "current_pe=latest.pe if latest is not None else None,"
     },
     {
-      "line": 846,
+      "line": 864,
       "path": "apps/equity/application/use_cases.py",
       "text": "current_pb=latest.pb if latest is not None else None,"
     },
     {
-      "line": 889,
+      "line": 907,
       "path": "apps/equity/application/use_cases.py",
       "text": "publication_key: str = \"current\""
     },
     {
-      "line": 1257,
+      "line": 1275,
       "path": "apps/equity/application/use_cases.py",
       "text": "current = start_date"
     },
     {
-      "line": 1260,
+      "line": 1278,
       "path": "apps/equity/application/use_cases.py",
       "text": "while current <= end_date:"
     },
     {
-      "line": 1262,
+      "line": 1280,
       "path": "apps/equity/application/use_cases.py",
       "text": "if current in regime_history:"
     },
     {
-      "line": 1263,
+      "line": 1281,
       "path": "apps/equity/application/use_cases.py",
       "text": "result[current] = regime_history[current]"
     },
     {
-      "line": 1264,
+      "line": 1282,
       "path": "apps/equity/application/use_cases.py",
       "text": "last_regime = regime_history[current]"
     },
     {
-      "line": 1266,
+      "line": 1284,
       "path": "apps/equity/application/use_cases.py",
       "text": "result[current] = last_regime"
     },
     {
-      "line": 1268,
+      "line": 1286,
       "path": "apps/equity/application/use_cases.py",
       "text": "current += timedelta(days=1)"
     },
     {
-      "line": 1288,
+      "line": 1306,
       "path": "apps/equity/application/use_cases.py",
       "text": "publication_key: str = \"current\""
     },
@@ -7882,17 +7907,22 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 262,
+      "line": 172,
       "path": "apps/equity/infrastructure/market_data_repository.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 70,
+      "line": 353,
+      "path": "apps/equity/infrastructure/market_data_repository.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 71,
       "path": "apps/equity/infrastructure/operating_forecast_repository.py",
       "text": "\"\"\"Resolve exact, latest public operating fact versions at an as-of time.\"\"\""
     },
     {
-      "line": 95,
+      "line": 96,
       "path": "apps/equity/infrastructure/operating_forecast_repository.py",
       "text": "\"requested operating facts are not the latest public PIT versions at as_of_time\""
     },
@@ -7927,7 +7957,7 @@
       "text": "summary=\"技术图表数据\","
     },
     {
-      "line": 63,
+      "line": 65,
       "path": "apps/equity/interface/chart_actions.py",
       "text": "summary=\"分时图数据\","
     },
@@ -7972,12 +8002,17 @@
       "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
     },
     {
-      "line": 407,
+      "line": 327,
       "path": "apps/equity/interface/serializers.py",
       "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
     },
     {
-      "line": 507,
+      "line": 416,
+      "path": "apps/equity/interface/serializers.py",
+      "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
+    },
+    {
+      "line": 516,
       "path": "apps/equity/interface/serializers.py",
       "text": "publication_key = serializers.CharField(required=False, default=\"current\", max_length=160)"
     },
@@ -8605,6 +8640,11 @@
       "line": 232,
       "path": "apps/macro/interface/tui_views.py",
       "text": "\"summary\": {"
+    },
+    {
+      "line": 1,
+      "path": "apps/macro_factor/interface/presenters.py",
+      "text": "\"\"\"Internal R3 presenter; no current, decision or activation route is registered.\"\"\""
     },
     {
       "line": 45,
@@ -9407,9 +9447,14 @@
       "text": "content_html = doc.summary()"
     },
     {
-      "line": 156,
+      "line": 56,
       "path": "apps/policy/infrastructure/adapters/feedparser_adapter.py",
-      "text": "entry.get(\"description\", \"\") or entry.get(\"summary\", \"\") or \"\""
+      "text": "description=fact.summary or None,"
+    },
+    {
+      "line": 80,
+      "path": "apps/policy/infrastructure/adapters/feedparser_adapter.py",
+      "text": "description = str(entry.get(\"description\", \"\") or entry.get(\"summary\", \"\") or \"\")"
     },
     {
       "line": 12,
@@ -9787,14 +9832,34 @@
       "text": "current=current,"
     },
     {
-      "line": 125,
+      "line": 227,
       "path": "apps/portfolio/domain/canonical_snapshots.py",
       "text": "raise ValueError(\"snapshot as_of must preserve the latest source observation time\")"
+    },
+    {
+      "line": 73,
+      "path": "apps/portfolio/domain/constrained_optimization_contracts.py",
+      "text": "\"\"\"Versioned asset assumptions excluding canonical current weight.\"\"\""
+    },
+    {
+      "line": 111,
+      "path": "apps/portfolio/domain/constrained_optimization_contracts.py",
+      "text": "\"\"\"Asset assumptions bound to current weight from a canonical snapshot.\"\"\""
+    },
+    {
+      "line": 583,
+      "path": "apps/portfolio/domain/constrained_optimization_contracts.py",
+      "text": "\"\"\"Build a problem whose current weights come only from the canonical snapshot.\"\"\""
     },
     {
       "line": 77,
       "path": "apps/portfolio/domain/entities.py",
       "text": "\"\"\"Non-executable order generated from target/current differences.\"\"\""
+    },
+    {
+      "line": 199,
+      "path": "apps/portfolio/domain/macro_factor_risk.py",
+      "text": "\"\"\"Current or candidate portfolio weight and liquidity capacity.\"\"\""
     },
     {
       "line": 27,
@@ -9875,6 +9940,16 @@
       "line": 219,
       "path": "apps/portfolio/domain/services.py",
       "text": "cash_before=current.cash,"
+    },
+    {
+      "line": 155,
+      "path": "apps/portfolio/infrastructure/deterministic_optimizer.py",
+      "text": "current = tuple(asset.current_weight for asset in problem.assets)"
+    },
+    {
+      "line": 156,
+      "path": "apps/portfolio/infrastructure/deterministic_optimizer.py",
+      "text": "weights = _project_to_effective_bounds(problem, current)"
     },
     {
       "line": 90,
@@ -11717,12 +11792,37 @@
       "text": "\"summary\": {"
     },
     {
+      "line": 57,
+      "path": "apps/research/application/advanced_state_model.py",
+      "text": "\"\"\"Return current artifact attestation or ``None``.\"\"\""
+    },
+    {
+      "line": 70,
+      "path": "apps/research/application/scenario_probability_research.py",
+      "text": "\"\"\"Return frozen evidence and never rebuild history from current values.\"\"\""
+    },
+    {
       "line": 37,
       "path": "apps/research/application/state_model_baseline.py",
       "text": "\"\"\"Return evidence without recomputing it from revised current data.\"\"\""
     },
     {
-      "line": 212,
+      "line": 5,
+      "path": "apps/research/domain/advanced_state_model.py",
+      "text": "publish current state, authorize decisions, or replace the canonical Regime."
+    },
+    {
+      "line": 66,
+      "path": "apps/research/domain/scenario_research_evidence.py",
+      "text": "\"\"\"Freeze a canonical reference without resolving current data.\"\"\""
+    },
+    {
+      "line": 226,
+      "path": "apps/research/domain/scenario_research_evidence.py",
+      "text": "raise ValueError(\"historical analogy feature uses look-ahead or current-value backfill\")"
+    },
+    {
+      "line": 353,
       "path": "apps/research/domain/state_model_baseline.py",
       "text": "\"\"\"Prove shortfall only from complete, current, specification-bound evidence.\"\"\""
     },
@@ -11797,177 +11897,177 @@
       "text": "violations.append(f\"{label} breached: current={value:.4f}, limit={numeric_limit:.4f}\")"
     },
     {
-      "line": 649,
+      "line": 668,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "current = context.state.current_activation"
     },
     {
-      "line": 650,
+      "line": 669,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "if target is None or current is None:"
     },
     {
-      "line": 651,
+      "line": 670,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "raise self._target_not_found(\"rollback target or current activation\")"
     },
     {
-      "line": 654,
+      "line": 673,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "latest = ("
     },
     {
-      "line": 659,
+      "line": 678,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "next_version = (latest.version if latest is not None else 0) + 1"
     },
     {
-      "line": 818,
+      "line": 837,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "latest = None"
     },
     {
-      "line": 823,
+      "line": 842,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "latest = revisions.filter(definition=definition).order_by(\"-version\").first()"
     },
     {
-      "line": 833,
+      "line": 852,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "version=(latest.version if latest is not None else 0) + 1,"
     },
     {
-      "line": 834,
+      "line": 853,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "based_on_version=(latest.version if latest is not None else None),"
     },
     {
-      "line": 847,
+      "line": 866,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "base_version=(latest.version if latest is not None else None),"
     },
     {
-      "line": 848,
+      "line": 867,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "base_hash=(latest.content_hash if latest is not None else None),"
     },
     {
-      "line": 851,
+      "line": 870,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "latest_revision=latest,"
     },
     {
-      "line": 883,
+      "line": 902,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "current = self._current_activation(request, lock=lock)"
     },
     {
-      "line": 886,
+      "line": 905,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "base_version=(current.scenario_set_revision.version if current else None),"
     },
     {
-      "line": 887,
+      "line": 906,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "base_hash=(current.scenario_set_revision.content_hash if current else None),"
     },
     {
-      "line": 890,
+      "line": 909,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "current_activation=current,"
-    },
-    {
-      "line": 922,
-      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
-      "text": "current = self._current_activation(request, lock=lock)"
-    },
-    {
-      "line": 923,
-      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
-      "text": "if current is None:"
-    },
-    {
-      "line": 929,
-      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
-      "text": "if current.scenario_set_revision.scenario_set_id != scenario_set.pk:"
-    },
-    {
-      "line": 937,
-      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
-      "text": "base_version=current.scenario_set_revision.version,"
-    },
-    {
-      "line": 938,
-      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
-      "text": "base_hash=current.scenario_set_revision.content_hash,"
     },
     {
       "line": 941,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "current = self._current_activation(request, lock=lock)"
+    },
+    {
+      "line": 942,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "if current is None:"
+    },
+    {
+      "line": 948,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "if current.scenario_set_revision.scenario_set_id != scenario_set.pk:"
+    },
+    {
+      "line": 956,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "base_version=current.scenario_set_revision.version,"
+    },
+    {
+      "line": 957,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
+      "text": "base_hash=current.scenario_set_revision.content_hash,"
+    },
+    {
+      "line": 960,
+      "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "current_activation=current,"
     },
     {
-      "line": 961,
+      "line": 980,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "latest = revisions.filter(definition=definition).order_by(\"-version\").first()"
     },
     {
-      "line": 962,
+      "line": 981,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "if latest is None:"
     },
     {
-      "line": 968,
+      "line": 987,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "\"previous_content_hash\": latest.content_hash,"
     },
     {
-      "line": 973,
+      "line": 992,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "base_version=latest.version,"
     },
     {
-      "line": 974,
+      "line": 993,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "base_hash=latest.content_hash,"
     },
     {
-      "line": 977,
+      "line": 996,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "latest_revision=latest,"
     },
     {
-      "line": 1002,
+      "line": 1021,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "current = context.state.current_activation"
     },
     {
-      "line": 1004,
+      "line": 1023,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "if current is not None:"
     },
     {
-      "line": 1005,
+      "line": 1024,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "current.is_active = False"
     },
     {
-      "line": 1006,
+      "line": 1025,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "current.deactivated_at = now"
     },
     {
-      "line": 1007,
+      "line": 1026,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "current.save(update_fields=[\"is_active\", \"deactivated_at\"])"
     },
     {
-      "line": 1013,
+      "line": 1032,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "previous_activation=current,"
     },
     {
-      "line": 1394,
+      "line": 1413,
       "path": "apps/risk_center/infrastructure/scenario_governance_repository.py",
       "text": "\"active or latest scenario version changed\","
     },
@@ -12322,9 +12422,19 @@
       "text": "\"\"\"Get the latest signal for each configuration\"\"\""
     },
     {
+      "line": 72,
+      "path": "apps/sector/application/industry_operating_template.py",
+      "text": "\"\"\"Return the latest eligible fact known at ``as_of_time``.\"\"\""
+    },
+    {
       "line": 21,
       "path": "apps/sector/application/query_services.py",
       "text": "\"\"\"Return one sector's latest computed score from the rotation use case.\"\"\""
+    },
+    {
+      "line": 395,
+      "path": "apps/sector/infrastructure/industry_operating_template_repository.py",
+      "text": "\"\"\"Return one latest effective fact known by the explicit public clock.\"\"\""
     },
     {
       "line": 278,
@@ -15922,22 +16032,22 @@
       "text": "\"apps.realtime\",  # 新增：实时价格监控模块"
     },
     {
-      "line": 603,
+      "line": 604,
       "path": "core/settings/base.py",
       "text": "\"daily-signal-summary\": {"
     },
     {
-      "line": 678,
+      "line": 679,
       "path": "core/settings/base.py",
       "text": "\"simulated-daily-summary\": {"
     },
     {
-      "line": 725,
+      "line": 726,
       "path": "core/settings/base.py",
       "text": "\"realtime-update-prices-after-close\": {"
     },
     {
-      "line": 904,
+      "line": 905,
       "path": "core/settings/base.py",
       "text": "\"sentiment-refresh-current-index\": {"
     },
@@ -16414,11 +16524,6 @@
       "import": "requests",
       "line": 5,
       "path": "apps/dashboard/infrastructure/ai_insight_client.py"
-    },
-    {
-      "import": "requests",
-      "line": 18,
-      "path": "apps/policy/infrastructure/adapters/feedparser_adapter.py"
     },
     {
       "import": "requests",

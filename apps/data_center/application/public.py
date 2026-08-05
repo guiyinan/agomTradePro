@@ -68,13 +68,16 @@ from apps.data_center.composition import (
     get_sector_membership_repository,
     get_valuation_fact_repository,
 )
+from apps.data_center.composition import (
+    fetch_rss_feed as _fetch_rss_feed,
+)
 from apps.data_center.domain.contracts import (
     DataOwnerRegistration,
     DatasetContract,
     ProviderBinding,
     PublicationPolicy,
 )
-from apps.data_center.domain.entities import MacroFact
+from apps.data_center.domain.entities import MacroFact, NewsFact
 from apps.data_center.domain.macro_semantics import (
     is_direct_consumer_input_allowed as _is_direct_consumer_input_allowed,
 )
@@ -408,6 +411,27 @@ def get_news_repository_port() -> NewsRepositoryProtocol:
     """Return the canonical news-fact query port."""
 
     return get_news_repository()
+
+
+def fetch_rss_news_feed(
+    *,
+    url: str,
+    source_name: str,
+    timeout_seconds: int = 30,
+    retry_times: int = 3,
+    proxy_config: dict[str, str] | None = None,
+    user_agent: str = "AgomTradePro-RSS-Bot/1.0",
+) -> list[NewsFact]:
+    """Fetch one external RSS feed through the Data Center transport port."""
+
+    return _fetch_rss_feed(
+        url=url,
+        source_name=source_name,
+        timeout_seconds=timeout_seconds,
+        retry_times=retry_times,
+        proxy_config=proxy_config,
+        user_agent=user_agent,
+    )
 
 
 def get_capital_flow_repository_port() -> CapitalFlowRepositoryProtocol:
@@ -991,6 +1015,7 @@ __all__ = [
     "get_quote_snapshot_repository_port",
     "get_sector_membership_repository_port",
     "get_news_repository_port",
+    "fetch_rss_news_feed",
     "get_capital_flow_repository_port",
     "get_provider_config_repository_port",
     "get_provider_registry_port",

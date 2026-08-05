@@ -75,6 +75,7 @@ from apps.data_center.infrastructure.retention_repositories import (
     RetentionRunRepository,
     StorageHoldRepository,
 )
+from apps.data_center.infrastructure.rss_gateway import RSSGatewayError, fetch_rss_feed
 
 __all__ = [
     "AssetRepository",
@@ -110,6 +111,7 @@ __all__ = [
     "RawAuditRepository",
     "ReconciliationEvidenceRepository",
     "RawLandingRepository",
+    "RSSGatewayError",
     "ResearchDataFoundationRepository",
     "RetentionPolicyRepository",
     "RetentionRunRepository",
@@ -124,6 +126,7 @@ __all__ = [
     "build_tushare_client",
     "backfill_asset_master_codes",
     "fetch_akshare_eastmoney_historical_prices",
+    "fetch_rss_feed",
     "fetch_tushare_historical_prices",
     "get_akshare_module",
     "get_akshare_eastmoney_gateway",

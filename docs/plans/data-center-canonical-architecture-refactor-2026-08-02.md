@@ -4129,7 +4129,15 @@ Git SHA / 镜像 / migration：
 
 - 目标：消除新增场景治理适配器引入的 `account → risk_center → agent_runtime → account` 模块循环，并让新增业务模块、依赖边界和大文件治理在机器基线中可审计。
 - 修复：Risk Center 的 Agent Proposal 网关改用 Django App Registry 按稳定模型标签解析冻结模型，不再静态依赖 Agent Runtime；场景治理仍通过 `AgentProposalGatewayProtocol` 保持可替换注入，事务与审计行为不变。
-- 治理：`governance/module_cycle_allowlist.json` 更新为 `2026-08-05.v19`，登记 44 个模块、203 条无环依赖、fixed_income/macro_factor/research/risk_center 的精确出入边界；不再保留 cycle component、bidirectional pair 或超预算边界。
+- 治理：`governance/module_cycle_allowlist.json` 更新为 `2026-08-05.v20`，登记 44 个模块、204 条无环依赖、fixed_income/macro_factor/research/risk_center/Policy news 的精确出入边界；不再保留 cycle component、bidirectional pair 或超预算边界。
 - 基线：`governance/governance_baseline.json` 更新为 `2026-08-05.v206`，登记新增模块 shape、现有大文件 owner/remediation/review-by；不把大文件豁免当作完成声明，仍要求在 M6/M9/TUI 收口前拆分。
 - 已运行验证：`python scripts/check_module_cycles.py --allowlist-file governance/module_cycle_allowlist.json --format text`：0 cycle、0 bidirectional、0 budget violation；`python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text`：0 violations；Risk repository Ruff/Black 通过。
 - 明确未做：未删除旧事实表、未改变 provider 配置、未部署、未 push；大文件拆分、生产 PostgreSQL/备份恢复、Publication 覆盖和 M9/M10 仍未完成。
+
+## 53. 2026-08-05：Policy RSS 外部接入下沉 Data Center
+
+- 目标：完成 D8 的一个明确边界缺口，消除 `apps/policy` 直接 import `requests` 并自行解析 RSS 的外部事实旁路。
+- 变更：新增 Data Center Infrastructure `rss_gateway`，统一负责 URL 校验、代理、超时/重试、feedparser 解析和抓取时间；缺少源发布时间的条目直接丢弃，不用请求时间洗白。Data Center Application Public Port 返回带 `published_at/fetched_at/source/external_id` 的 `NewsFact`，Policy 仅负责转换为分类/审核输入。
+- 治理：外部 HTTP inventory 从 6 降为 5；`apps/policy/infrastructure/adapters/feedparser_adapter.py` 不再持有网络客户端或 feedparser runtime，业务 App 只依赖 Public Port。
+- 已运行验证：RSS gateway + Policy adapter 回归 `18 passed`；`verify_architecture.py --include-audit`：boundary/audit 0；`check_data_center_legacy_fact_access.py`、`check_current_data_contracts.py` 通过；变更生产文件 mypy regression 0、Ruff/Black 通过。
+- 明确未做：未删除 PolicyLog/RSS 配置维护投影，未改变 Policy AI 分类/审核流程，未部署、未 push；market.news 全量生产回填、Publication 覆盖和旧链 M9 清理仍未完成。
