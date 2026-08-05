@@ -206,22 +206,18 @@ class DataCenterAssetExposureProvider:
     def get_asset_exposures(self, *, asset_codes: list[str]) -> dict[str, dict[str, Any]]:
         """Resolve sector and industry without importing data_center infrastructure."""
 
-        from apps.data_center.application.dtos import ResolveAssetRequest
-        from apps.data_center.application.interface_services import (
-            make_resolve_asset_use_case,
-        )
+        from apps.data_center.application.public import resolve_asset_payload
 
-        use_case = make_resolve_asset_use_case()
         exposures: dict[str, dict[str, Any]] = {}
         for asset_code in _unique_asset_codes(asset_codes):
-            response = use_case.execute(ResolveAssetRequest(code=asset_code))
+            response = resolve_asset_payload(asset_code)
             if response is None:
                 exposures[asset_code] = {}
                 continue
             exposures[asset_code] = {
-                "sector": response.sector,
-                "industry": response.industry,
-                "asset_type": response.asset_type,
+                "sector": response.get("sector"),
+                "industry": response.get("industry"),
+                "asset_type": response.get("asset_type"),
             }
         return exposures
 

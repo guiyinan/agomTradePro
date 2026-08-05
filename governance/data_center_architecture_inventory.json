@@ -5107,7 +5107,7 @@
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 973,
+      "line": 991,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -6952,7 +6952,7 @@
       "text": "reason = f\"Latest available {latest_key} directional return is negative.\""
     },
     {
-      "line": 239,
+      "line": 235,
       "path": "apps/decision_rhythm/application/advisor_providers.py",
       "text": "\"\"\"Return recommendation-to-execution links for the current account.\"\"\""
     },

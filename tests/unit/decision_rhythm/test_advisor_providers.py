@@ -249,17 +249,16 @@ def test_asset_exposure_provider_deduplicates_and_preserves_missing_assets(
 ) -> None:
     """Asset resolution is deterministic and missing masters remain explicit."""
     responses = {
-        "000001.SZ": SimpleNamespace(
-            sector="金融",
-            industry="银行",
-            asset_type="equity",
-        ),
+        "000001.SZ": {
+            "sector": "金融",
+            "industry": "银行",
+            "asset_type": "equity",
+        },
         "MISSING": None,
     }
-    use_case = SimpleNamespace(execute=lambda request: responses[request.code])
     monkeypatch.setattr(
-        "apps.data_center.application.interface_services.make_resolve_asset_use_case",
-        lambda: use_case,
+        "apps.data_center.application.public.resolve_asset_payload",
+        lambda code: responses[code],
     )
 
     result = DataCenterAssetExposureProvider().get_asset_exposures(

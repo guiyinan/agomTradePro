@@ -4197,3 +4197,10 @@ Git SHA / 镜像 / migration：
 - 变更：Data Center Public Port 新增 `get_decision_data_readiness_payload` 与 `get_active_stock_fact_coverage_payload`；`DecisionDataHealthProvider` 改为使用 readiness Public Port。原有参数、阻断字段和 diagnostic coverage 语义不变。
 - 治理与测试：新增 `data_center.public_current_read_ports` current-data contract，登记 Public Port/消费者 marker 与 3 条回归；定向回归和 clean worktree current-data runner 将覆盖该端口。
 - 明确未做：未改动 Decision Rhythm 风险规则、资产 exposure resolver、历史/维护查询、Publication writer/provider 配置或生产部署；TUI 运维摘要的内部 readiness/coverage import 仍待其 owner 工作区干净后单独收口。
+
+## 62. 2026-08-05：Decision Rhythm 资产 exposure 切换 canonical resolver Port
+
+- 目标：消除 Decision Rhythm 资产暴露摘要对 Data Center DTO 和内部 resolver use case 的直接依赖，确保行业/资产类型上下文来自 canonical AssetMaster Public Port。
+- 变更：新增 `resolve_asset_payload` Public Port，负责规范化代码、调用 Data Center resolver 并返回 plain payload；`DataCenterAssetExposureProvider` 只消费该端口，缺失资产继续显式保留空 exposure，不推断身份。
+- 治理与测试：扩展 `data_center.public_current_read_ports` contract 与资产 exposure 回归；Decision Rhythm provider 定向测试与 current-data manifest 会验证 Public Port 委托。
+- 明确未做：未修改 AssetMaster 写入/backfill、历史研究 resolver、行业分类算法或生产数据；TUI 内部 coverage/readiness 兼容 import 仍待独立 owner 批次。

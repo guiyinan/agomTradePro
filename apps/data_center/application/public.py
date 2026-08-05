@@ -925,6 +925,24 @@ def get_decision_data_readiness_payload(
     )
 
 
+def resolve_asset_payload(asset_code: str) -> dict[str, Any] | None:
+    """Resolve one canonical AssetMaster record into a plain public payload."""
+
+    normalized_code = str(asset_code or "").strip().upper()
+    if not normalized_code:
+        return None
+
+    from apps.data_center.application.dtos import ResolveAssetRequest
+    from apps.data_center.application.interface_services import make_resolve_asset_use_case
+
+    response = make_resolve_asset_use_case().execute(
+        ResolveAssetRequest(code=normalized_code),
+    )
+    if response is None:
+        return None
+    return response.to_dict()
+
+
 def list_active_stock_codes() -> list[str]:
     """Read the canonical active A-share universe."""
 
@@ -1093,6 +1111,7 @@ __all__ = [
     "get_market_thermometer_payload",
     "get_active_stock_fact_coverage_payload",
     "get_decision_data_readiness_payload",
+    "resolve_asset_payload",
     "get_capital_flow_repository_port",
     "get_provider_config_repository_port",
     "get_provider_registry_port",

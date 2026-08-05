@@ -296,11 +296,13 @@
         "apps/data_center/application/public.py": [
           "def get_active_stock_fact_coverage_payload(",
           "def get_decision_data_readiness_payload(",
-          "get_decision_data_readiness_payload as _get_readiness"
+          "get_decision_data_readiness_payload as _get_readiness",
+          "def resolve_asset_payload("
         ],
         "apps/decision_rhythm/application/advisor_providers.py": [
           "from apps.data_center.application.public import",
-          "get_decision_data_readiness_payload"
+          "get_decision_data_readiness_payload",
+          "resolve_asset_payload(asset_code)"
         ]
       },
       "required_tests": [
@@ -318,6 +320,11 @@
           "case": "decision_rhythm_public_port",
           "test_file": "tests/unit/data_center/test_public_decision_readiness_ports.py",
           "test_function": "test_decision_rhythm_health_provider_uses_public_readiness_port"
+        },
+        {
+          "case": "asset_exposure_public_port",
+          "test_file": "tests/unit/decision_rhythm/test_advisor_providers.py",
+          "test_function": "test_asset_exposure_provider_deduplicates_and_preserves_missing_assets"
         }
       ]
     },
