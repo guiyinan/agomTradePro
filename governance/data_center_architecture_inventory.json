@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3195,
+    "current_surface_references": 3198,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 5,
     "legacy_fact_references": 143,
@@ -762,47 +762,57 @@
       "text": "current = current.parent"
     },
     {
-      "line": 21,
+      "line": 28,
       "path": "apps/account/infrastructure/config_summary_repository.py",
       "text": "\"\"\"ORM-backed account config-summary repository.\"\"\""
     },
     {
-      "line": 28,
+      "line": 35,
       "path": "apps/account/infrastructure/config_summary_repository.py",
       "text": "\"\"\"Return account profile and access-token summary for one user.\"\"\""
     },
     {
-      "line": 34,
+      "line": 41,
       "path": "apps/account/infrastructure/config_summary_repository.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 46,
+      "line": 53,
       "path": "apps/account/infrastructure/config_summary_repository.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 55,
+      "line": 62,
       "path": "apps/account/infrastructure/config_summary_repository.py",
       "text": "\"\"\"Return singleton system settings summary.\"\"\""
     },
     {
-      "line": 60,
+      "line": 64,
       "path": "apps/account/infrastructure/config_summary_repository.py",
-      "text": "\"summary\": {"
+      "text": "summary = get_system_settings_summary()"
     },
     {
-      "line": 78,
+      "line": 65,
+      "path": "apps/account/infrastructure/config_summary_repository.py",
+      "text": "summary_payload = dict(summary.get(\"summary\") or {})"
+    },
+    {
+      "line": 69,
+      "path": "apps/account/infrastructure/config_summary_repository.py",
+      "text": "return {**summary, \"summary\": summary_payload}"
+    },
+    {
+      "line": 72,
       "path": "apps/account/infrastructure/config_summary_repository.py",
       "text": "\"\"\"Return portfolio trading-cost summary for one user.\"\"\""
     },
     {
-      "line": 86,
+      "line": 80,
       "path": "apps/account/infrastructure/config_summary_repository.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 107,
+      "line": 101,
       "path": "apps/account/infrastructure/config_summary_repository.py",
       "text": "\"summary\": {"
     },
@@ -4292,9 +4302,14 @@
       "text": "\"\"\"Return singleton system-settings summary.\"\"\""
     },
     {
-      "line": 81,
+      "line": 89,
       "path": "apps/config_center/application/config_summary_service.py",
       "text": "raise RuntimeError(\"Config center summary repository is not configured\")"
+    },
+    {
+      "line": 15,
+      "path": "apps/config_center/application/public.py",
+      "text": "\"\"\"Return the Config Center-owned system settings summary.\"\"\""
     },
     {
       "line": 94,
