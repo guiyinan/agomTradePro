@@ -4359,3 +4359,10 @@ Git SHA / 镜像 / migration：
 - 治理与测试：`regime.current` 登记 Dashboard queries/use case 的 resolver markers 和精确测试；Dashboard 定向回归 `18 passed`，页面级回归 `3 passed`；current-data manifest 实际执行 `264 nodeid / 303 passed`；current-data contracts `45 surfaces`、architecture boundary/audit 0、module-cycle 0、变更文件 mypy regression 0、Ruff/Black 通过。
 - inventory：在不含工作区未提交 Equity 文件的 clean HEAD worktree 重生成架构 inventory，`current_surface_references=3280`，其余结构计数保持 `51/55/4/143/0/49`。
 - 明确未做：未修改 Dashboard 历史/PIT 研究语义、Regime 算法、Publication writer/provider、生产数据、VPS 或部署；生产 Publication 覆盖、PostgreSQL 查询预算/备份恢复、连续交易日观察窗口和 M9 旧链清理仍未完成。
+
+## 83. 2026-08-06：自动投顾与 Signal Regime payload 发布阻断证据
+
+- 目标：阻断 Dashboard 自动投顾摘要和 Signal 页面把 `Unknown`/stale Regime 序列化为 `status=ok` 或无 freshness 证据的普通 payload。
+- 变更：两个 current payload 统一发布 `status`、`observed_at`、`must_not_use_for_decision` 和稳定 `blocked_reason`；blocked 时清空决策分布，异常只返回 `regime_data_unavailable`，不再把底层异常文本写入用户响应。
+- 治理与测试：`regime.current` 增加 Dashboard query service、Signal query service markers 和精确回归；自动投顾组件 `13 passed`，Signal query `2 passed`，current-data manifest 实际执行 `266 nodeid / 305 passed`，current-data contracts `45 surfaces`，变更文件 mypy/Ruff/Black 通过。
+- 明确未做：未改变 Signal 历史校验、推荐矩阵、Dashboard advisor 业务规则、Regime 算法、Publication writer/provider、生产数据、VPS 或部署；生产 Publication 覆盖、PostgreSQL 查询预算/备份恢复、观察窗口和 M9 旧链清理仍未完成。
