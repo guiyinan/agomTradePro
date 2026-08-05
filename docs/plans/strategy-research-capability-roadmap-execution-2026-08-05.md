@@ -1,6 +1,6 @@
 # 策略研究能力路线图 R1—R8 执行状态（2026-08-05）
 
-> 状态：R1—R8 的无数据先行研究基础均已实现；真实数据、生产 Publication、样本历史和 PromotionDecision 尚未形成，R1—R8 能力门禁仍均为 `blocked`
+> 状态：R1—R8 第一批无数据先行研究纵切已实现；完整审计确认仍有无数据可开发 P1，且真实数据、生产 Publication、样本历史和 PromotionDecision 尚未形成，能力门禁均保持 `blocked`
 > 来源：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
 > 适用分支：`dev/refactor-scenario-governance-quick-wins`
 > 决策边界：本文件完成的是“能否启动”的可执行治理，不把缺少数据和研究证据的长期能力声明为完成。
@@ -19,6 +19,8 @@
 8. 继续交付 R1 三情景经营预测与误差台账、R5 固收研究内核、R6 简单基准不足取证器，以及 R8 canonical portfolio snapshot/执行反馈台账；所有缺数据入口均 fail closed。
 9. 完成 R1 Sector 行业模板安全 AST/DAG、R2 市场结构研究证据、R3 独立 `macro_factor` App、R4 宏观风险候选验证、R6 外部高级状态证据验证、R7 校准/历史类比/路径研究，以及 R8 受约束确定性研究优化；这些实现均不生成生产数据、不训练缺证据模型，也不解除 readiness。
 10. 完成三组 Luna Max 交叉复核并关闭全部 13 项 P1：所有研究结果均绑定 canonical input identity、PIT/as-of/coverage 或 owner evidence，追加式记录拒绝更新和删除；复核无 P0。
+11. 对完整路线图重新执行三组 Luna Max 完成度审计，确认上一条只代表限定清单关闭；新审计无 P0，但发现 R1 bridge、R2 expected periods、R3 runner/output、R5 组合风险、R7 reminder outbox、R8 typed input/market constraints 等仍可无数据开发的 P1。
+12. 本批先完成 R5 组合级 DV01/CS01/凸性/流动性风险预算及利率/信用压力测试，并修复 R4 exact-expiry 与完整 report seal。完整剩余队列见[完成度审计](strategy-research-capability-completion-audit-2026-08-05.md)。
 
 ## 2. 启动状态矩阵
 
@@ -107,5 +109,7 @@ python scripts/verify_architecture.py
 本批次还应运行 R1/R2/R3/R4/R5/R6/R7/R8 新增的 unit/component/migration 测试，以及 `makemigrations data_center equity fixed_income macro_factor portfolio sector --check --dry-run`。任何真实数据依赖缺失应表现为 blocked/insufficient evidence，而不是用测试 fixture 推断生产 ready。
 
 2026-08-05 初轮联合验证结果：R1—R8 相关 unit/component/migration 共 `158 passed`。Luna Max 交叉复核整改后，从路线图首个提交至当前 HEAD 自动收集 57 个实际测试模块，最终联合回归为 `432 passed`；上述六个 App 均 `No changes detected`，Django system check、43 个 current-data surface、架构边界（2146 files / 0 violations）、业务配置硬编码和 test-tier inventory 全部通过。
+
+完整路线图审计后的 R4/R5 增量批次另行复验 fixed-income 全部 unit/component 与 R4 macro-risk，共 `49 passed`；增量 mypy/ruff/black、Django check、架构边界（2148 files / 0 violations）、业务配置硬编码和 43 个 current-data surface 均通过。
 
 回滚点按 R1、R5、R6、R8 四个独立提交组切分。新增迁移只建立 append-only 研究台账与 canonical snapshot/反馈存储；没有任务注册、API/MCP/TUI 发布，也不把研究结果接入现有决策或执行路径。

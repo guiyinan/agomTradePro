@@ -161,6 +161,8 @@ Owner：`data_center`，独立 plan/分支。
 
 2026-08-05 开发先行状态：在不解除 R5-F0 数据门禁的前提下，已完成 `fixed_income` App 的最小完整四层研究纵切。Domain 接受显式 Bond Master、settlement-specific CashFlow、交易日历、国债曲线、政策性金融债曲线、信用估值、融资/交易/流动性成本 Publication 引用，所有摘要为 64 位 SHA-256、所有 Decimal 必须 finite，Publication 到期边界按 stale 处理；实现 clean/dirty price、YTM、Macaulay/modified duration、convexity、carry、roll-down、期限/跨曲线利差纯计算。Application 缺任一版本输入、过期证据或金样本对账失败即返回 blocked，成功预览也固定 `research_only=true`、`must_not_execute=true`、`must_not_use_for_decision=true`。Infrastructure 仅提供 Data Center Publication/freshness adapter 与不可变 research result repository/migration；Interface 只有内部 presenter，未注册 URL/TUI。该代码允许先做可复算开发与积累证据，但不把本地金样本写成正式事实，不满足“两条可靠曲线 + 信用估值已发布”等 R5-F0 退出条件，因此 R5 capability 和 `r5_promoted_fixed_income_version` 仍保持 `blocked`。
 
+2026-08-05 完成度审计后补充了组合级 R5 纵切：`fixed_income.domain.portfolio_risk` 与 Application use case 绑定 Portfolio-owned snapshot、可复算 budget policy、PIT manifest 和四类 canonical owner evidence，计算 DV01、CS01、convexity、可变现比例和流动性成本，支持显式 parallel/key-rate/steepener/flattening/credit widening stress，并封存逐持仓与总压力 P&L 恒等式。缺输入、错 owner/hash/as-of/currency、PIT 不完整、future/stale 或任一预算 breach 均稳定 blocked；输出仍固定 research-only。尚未实现历史分位、等级迁移、流动性溢价、曲线组合和结果晋级/持久化，也没有真实 Publication，因此 R5 总门禁不变。
+
 ### R6-S0：简单基准缺口取证
 
 Owner：`regime` + `research`。

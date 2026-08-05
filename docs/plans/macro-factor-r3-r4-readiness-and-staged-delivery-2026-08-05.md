@@ -176,6 +176,8 @@ verified 证据必须来自合同指定 owner、包含非空引用、timezone-aw
 
 2026-08-05 交叉复核后，R8 优化输入必须完整绑定 R4 exposure、covariance、snapshot 和宏观风险预算；求解后的宏观风险贡献由 solver weights 重新计算并进入输出 seal，不接受调用方沿用旧权重预填的贡献。该收紧只防止证据错配，不代表 R4 已有真实 canonical inputs。
 
+2026-08-05 完成度审计整改进一步将 R4 exposure/covariance 的 `valid_until` 边界收紧为到期时刻立即 stale，并让 candidate report hash 覆盖 input hash、资格状态、factor/residual/total variance、完整 contribution vector 及 blocker detail。仍待实施独立 R3 Promotion/PIT attestation、滚动/regime exposure 和同窗三基准历史比较。
+
 ## 6. 明确非目标
 
 - 本阶段不添加 sklearn/statsmodels/cvxpy 依赖；

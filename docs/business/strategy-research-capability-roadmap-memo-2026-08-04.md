@@ -10,6 +10,7 @@
 > 2026-08-05 无数据先行批次：已实现 R1 三情景经营预测与误差台账、R5 research-only 固收研究内核、R6 简单基准不足取证器，以及 R8 canonical portfolio snapshot/执行反馈台账；真实 Publication、外部对账、样本历史和晋级版本仍缺失，因此 R1—R8 总门禁不变。
 > 2026-08-05 研究基础收口批次：进一步实现 R1 行业模板安全计算、R2 市场结构证据、R3 独立宏观因子研究 App、R4 宏观风险候选验证、R6 外部高级状态证据门禁、R7 校准/类比/路径研究和 R8 受约束确定性研究优化。所有结果保持 research-only；fixture、模型文件或迁移存在均不作为生产 ready 证据。
 > 2026-08-05 Luna Max 交叉复核整改：三组独立只读复核未发现 P0，并提出的 13 项 P1 已全部关闭；整改覆盖 PIT 事实身份、双时间查询、coverage、固收输入封存、简单基准绑定、情景样本/路径身份、Portfolio snapshot owner 证据及优化风险贡献重算。该整改提升证据不可篡改性，不改变 R1—R8 的 `blocked` 结论。
+> 2026-08-05 完整路线图审计：上述 13 项仅代表上一轮限定清单关闭，不代表 R1—R8 完成。新一轮按目标/最低验收逐项审计未发现 P0，但确认仍有多项无数据可开发 P1；本批新增 R5 组合风险预算/压力测试并加固 R4 report seal，完整队列见[完成度审计](../plans/strategy-research-capability-completion-audit-2026-08-05.md)。
 
 本轮执行索引：
 
@@ -18,6 +19,7 @@
 - [R5—R8 启动门禁与分阶段实施计划](../plans/strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md)
 - [R6 简单基准不足与状态模型分阶段计划](../plans/r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md)
 - [R1—R8 执行状态与复核入口](../plans/strategy-research-capability-roadmap-execution-2026-08-05.md)
+- [R1—R8 完成度审计与剩余开发队列](../plans/strategy-research-capability-completion-audit-2026-08-05.md)
 
 `blocked` 表示备忘定义的前置证据尚未齐备，不表示通过创建空模型、默认参数或演示页面即可解除。每项能力只有在 canonical owner 提供带时间、可追溯引用且完整的 verified evidence 后，才允许另建独立实施计划和分支。
 
