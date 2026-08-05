@@ -183,6 +183,7 @@ def _get_qlib_data_latest_date() -> date | None:
     from qlib.data import D
 
     qlib_config = _get_runtime_qlib_config()
+    _require_usable_qlib_runtime(qlib_config)
     provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
     region = _normalize_qlib_region(qlib_config.get("region", "CN"))
 
@@ -224,6 +225,18 @@ def _get_runtime_qlib_config() -> dict[str, Any]:
     """Return runtime qlib config through config-center owned application service."""
 
     return _read_runtime_qlib_config()
+
+
+def _require_usable_qlib_runtime(runtime_config: dict[str, Any]) -> None:
+    """Fail closed before touching a Qlib provider without typed runtime evidence."""
+
+    if runtime_config.get("enabled") is True and not runtime_config.get(
+        "must_not_use_for_decision",
+        False,
+    ):
+        return
+    reason = str(runtime_config.get("blocked_reason") or "runtime_config_unavailable")
+    raise RuntimeError(f"Qlib runtime blocked: {reason}")
 
 
 def _parse_universe_list(raw_universes: str | list[str] | tuple[str, ...] | None) -> list[str]:

@@ -235,7 +235,7 @@ def test_runtime_helpers_normalize_resolve_and_explain_failures(monkeypatch, tmp
     monkeypatch.setattr(
         runtime,
         "_get_runtime_qlib_config",
-        lambda: {"provider_uri": ".", "region": "CN"},
+        lambda: {"enabled": True, "provider_uri": ".", "region": "CN"},
     )
     assert actual_latest_date() == date(2026, 7, 24)
     assert runtime._resolve_qlib_handler_class("alpha158") is _Handler
@@ -251,6 +251,24 @@ def test_runtime_helpers_normalize_resolve_and_explain_failures(monkeypatch, tmp
             SimpleNamespace(instruments=lambda market: {"market": market}),
             "csi300",
         )
+
+
+def test_qlib_latest_date_blocks_without_typed_runtime_snapshot(monkeypatch) -> None:
+    """Calendar probes must not fall back to the legacy/default provider URI."""
+    _install_fake_qlib(monkeypatch)
+    monkeypatch.setattr(
+        runtime,
+        "_get_runtime_qlib_config",
+        lambda: {
+            "enabled": False,
+            "status": "blocked",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "runtime_config_snapshot_unavailable",
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="runtime_config_snapshot_unavailable"):
+        runtime._get_qlib_data_latest_date()
 
 
 @pytest.mark.parametrize("top_n", [True, 0, 5001])

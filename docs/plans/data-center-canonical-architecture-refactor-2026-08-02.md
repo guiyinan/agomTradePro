@@ -4233,3 +4233,11 @@ Git SHA / 镜像 / migration：
 - 测试与治理：预测成功/刷新/缓存 fallback fixture 显式注入可用 typed runtime；新增“阻断发生在旧 runtime probe 之前”的回归；`runtime_config_contracts.json` 登记 inference gate consumer/test。Alpha/Qlib 定向回归 `30 passed`，Qlib integration 回归 `29 passed`；变更文件 mypy 0、Ruff/isort 通过，current-data 44 surfaces、runtime config coverage 49、governance consistency 0 violations。
 - 明确未做：未改变 Qlib 模型算法、历史研究模式、缓存前推策略或 SystemSettings 迁移字段，未初始化 production/non-default profile，未部署。
 - 未验证风险：Qlib inference 的 PostgreSQL 生产缓存覆盖、实际 typed profile 初始化、连续交易日/节假日 freshness 观察窗口和旧链 M9 清理仍待生产阶段证据。
+
+## 67. 2026-08-05：Qlib 基础日历探测退出默认 provider URI
+
+- 目标：防止 Qlib 日历探测、初始化检查或直接基础 runtime 调用绕过推理任务门，在 Config Center typed snapshot 缺失时继续访问 `~/.qlib/qlib_data/cn_data` 等默认路径。
+- 变更：`apps/alpha/infrastructure/qlib_runtime_init.py::_get_qlib_data_latest_date` 在初始化 Qlib 前复用稳定的 typed runtime 可用性校验；blocked/缺失快照直接抛出 `runtime_config_snapshot_unavailable`，不执行 provider 初始化。
+- 测试与治理：新增基础日历探测 blocked 回归；补充 `runtime_config_contracts.json` 的 infrastructure gate marker/test。Alpha runtime/management 定向回归 `35 passed`，Qlib integration `29 passed`；变更文件 mypy 0、Black/Ruff/isort 通过，runtime config coverage 49、current-data 44 surfaces；clean `cfef37ec` worktree 的 current-data manifest 实际执行 `245 nodeid / 284 passed`。
+- 明确未做：未改变 Qlib 历史维护命令的显式参数语义、模型算法或 provider 写入，未初始化 production profile，未部署。
+- 未验证风险：生产 Qlib provider URI 的 typed profile 初始化、数据目录覆盖、PostgreSQL 缓存性能和 M9 旧链清理仍待生产阶段证据。
