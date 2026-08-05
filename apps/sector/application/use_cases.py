@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any, Protocol, cast
 
-from apps.regime.application.query_services import get_latest_regime_diagnostic_payload
+from apps.regime.application.current_regime import resolve_current_regime
 from apps.regime.domain.services_v2 import RegimeType
 
 from ..domain.entities import SectorIndex, SectorInfo, SectorRelativeStrength, SectorScore
@@ -169,20 +169,24 @@ class AnalyzeSectorRotationUseCase:
             if request.regime:
                 regime = request.regime
             else:
-                latest_regime = get_latest_regime_diagnostic_payload()
-                if latest_regime is None:
+                current = resolve_current_regime()
+                if (
+                    current.must_not_use_for_decision
+                    or not current.dominant_regime
+                    or current.dominant_regime == "Unknown"
+                ):
                     return SectorRotationResult(
                         success=False,
                         regime="",
                         analysis_date=date.today(),
                         top_sectors=[],
-                        error="未找到已持久化的 Regime 快照",
-                        status="unavailable",
-                        data_source="persisted",
-                        warning_message="regime_snapshot_unavailable",
-                        warning_detail="请先通过显式 Regime 计算流程生成快照，或在请求中指定 regime。",
+                        error="当前 Regime 数据不可用",
+                        status="blocked",
+                        data_source="published",
+                        warning_message=current.blocked_reason or "regime_data_unavailable",
+                        warning_detail="当前 Regime 缺少可用的 Publication 观测，请稍后重试或显式指定历史 Regime。",
                     )
-                regime = str(latest_regime["dominant_regime"])
+                regime = current.dominant_regime
 
             # 2. 加载板块权重配置
             regime_weights = self.sector_repo.get_sector_weights_by_regime(regime)

@@ -597,6 +597,7 @@
       "surface": "GET /api/regime/current/ -> SDK/MCP/Terminal",
       "source_files": [
         "apps/regime/application/current_regime.py",
+        "apps/sector/application/use_cases.py",
         "apps/regime/application/interface_services.py",
         "apps/regime/application/orchestration.py",
         "apps/prompt/infrastructure/adapters/regime_adapter.py",
@@ -608,6 +609,12 @@
           "REGIME_MAX_MACRO_AGE_DAYS",
           "blocked_reason=\"regime_macro_observation_stale\" if is_stale else \"\"",
           "blocked_reason=\"regime_data_unavailable\""
+        ],
+        "apps/sector/application/use_cases.py": [
+          "from apps.regime.application.current_regime import resolve_current_regime",
+          "current = resolve_current_regime()",
+          "current.must_not_use_for_decision",
+          "status=\"blocked\""
         ],
         "apps/regime/application/interface_services.py": [
           "\"must_not_use_for_decision\": latest.must_not_use_for_decision"
@@ -653,6 +660,11 @@
           "case": "orchestration_missing_observation_blocked",
           "test_file": "tests/unit/regime/test_orchestration_edges.py",
           "test_function": "test_calculation_skip_fallback_and_notification_skip"
+        },
+        {
+          "case": "sector_current_regime_publication_gate",
+          "test_file": "tests/unit/sector/test_sector_use_case_regime_fallback.py",
+          "test_function": "test_analyze_sector_rotation_blocks_unusable_current_regime"
         }
       ]
     },

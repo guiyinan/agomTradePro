@@ -1,4 +1,5 @@
 from datetime import date
+from types import SimpleNamespace
 
 from apps.sector.application.use_cases import (
     AnalyzeSectorRotationRequest,
@@ -19,12 +20,14 @@ class _EmptySectorRepo:
 
 def test_analyze_sector_rotation_resolves_latest_regime_when_missing(mocker) -> None:
     mocker.patch(
-        "apps.sector.application.use_cases.get_latest_regime_diagnostic_payload",
-        return_value={
-            "dominant_regime": "Recovery",
-            "observed_at": date(2026, 7, 12),
-            "confidence": 0.8,
-        },
+        "apps.sector.application.use_cases.resolve_current_regime",
+        return_value=SimpleNamespace(
+            dominant_regime="Recovery",
+            observed_at=date(2026, 7, 12),
+            confidence=0.8,
+            must_not_use_for_decision=False,
+            blocked_reason="",
+        ),
     )
     result = AnalyzeSectorRotationUseCase(_EmptySectorRepo()).execute(
         AnalyzeSectorRotationRequest(regime=None, level="SW1")
@@ -33,6 +36,29 @@ def test_analyze_sector_rotation_resolves_latest_regime_when_missing(mocker) -> 
     assert result.success is False
     assert result.regime == "Recovery"
     assert result.warning_message == "sector_data_unavailable"
+
+
+def test_analyze_sector_rotation_blocks_unusable_current_regime(mocker) -> None:
+    """A stale or missing current Regime must not fall back to an old snapshot."""
+
+    mocker.patch(
+        "apps.sector.application.use_cases.resolve_current_regime",
+        return_value=SimpleNamespace(
+            dominant_regime="Unknown",
+            must_not_use_for_decision=True,
+            blocked_reason="regime_macro_observation_stale",
+        ),
+    )
+    repository = mocker.Mock()
+
+    result = AnalyzeSectorRotationUseCase(repository).execute(
+        AnalyzeSectorRotationRequest(regime=None, level="SW1")
+    )
+
+    assert result.success is False
+    assert result.status == "blocked"
+    assert result.warning_message == "regime_macro_observation_stale"
+    repository.get_sector_weights_by_regime.assert_not_called()
 
 
 class _SingleSectorRepo:

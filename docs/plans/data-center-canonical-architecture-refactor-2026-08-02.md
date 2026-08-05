@@ -4343,3 +4343,10 @@ Git SHA / 镜像 / migration：
 - 测试与治理：`data_center.publication_only_d2_d3` 登记 Dashboard gateway 和 Regime query markers；新增 current gateway selector 回归，Dashboard macro integration fixture 改为真实 Publication/member；selector/宏观回归 `14 passed`（含 1 个 component），mypy regression 0、Ruff/Black 通过，AllocationPolicyUnavailableError 的 2 个既有无关失败未修改。
 - inventory：在不含工作区未提交 Equity 文件的 clean HEAD worktree 重生成架构 inventory，`current_surface_references=3251`，其余结构计数保持 `51/55/4/143/0/49`。
 - 明确未做：未改变 Regime 算法、历史研究查询、Publication writer/provider、生产数据、VPS 或部署；生产 Publication 覆盖、PostgreSQL 查询预算、观察窗口和 M9 旧链清理仍未完成。
+
+## 81. 2026-08-06：Sector current Regime 退出诊断快照旁路
+
+- 目标：阻断 Sector rotation 在未显式指定 Regime 时直接使用 `get_latest_regime_diagnostic_payload()` 的旧持久化快照，避免 stale/blocked Regime 继续驱动当前板块权重。
+- 变更：`AnalyzeSectorRotationUseCase` 改用统一 `resolve_current_regime()`；current Regime 为 `Unknown`、stale 或 `must_not_use_for_decision` 时稳定返回 `status=blocked`，只有可用 Publication 结果才进入板块分析。显式请求的历史/研究 Regime 仍保持原入口。
+- 治理与测试：`regime.current` 登记 Sector consumer/markers/test；Sector fallback 回归 `7 passed`，新增 stale/blocked 不读取旧快照断言；变更文件 mypy regression 0，architecture boundary/audit 0，module-cycle 0。
+- 明确未做：未改变 Sector 派生指标、历史显式 Regime 参数、Publication writer/provider、生产数据、VPS 或部署；生产 Regime Publication 覆盖、观察窗口和 M9 旧链清理仍未完成。
