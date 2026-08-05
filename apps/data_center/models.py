@@ -12,6 +12,15 @@ from apps.data_center.infrastructure.catalog_models import (
 from apps.data_center.infrastructure.catalog_models import (
     DatasetPublicationPolicyModel as DatasetPublicationPolicyModel,
 )
+from apps.data_center.infrastructure.market_structure_models import (
+    InvestorActorDefinitionModel as InvestorActorDefinitionModel,
+)
+from apps.data_center.infrastructure.market_structure_models import (
+    MarketStructureResearchEvidenceModel as MarketStructureResearchEvidenceModel,
+)
+from apps.data_center.infrastructure.market_structure_models import (
+    MarketStructureSeriesDefinitionModel as MarketStructureSeriesDefinitionModel,
+)
 from apps.data_center.infrastructure.models import *  # noqa: F401,F403
 from apps.data_center.infrastructure.reconciliation_models import (
     ReconciliationEvidenceModel as ReconciliationEvidenceModel,

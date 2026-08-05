@@ -144,6 +144,7 @@ def test_operating_definition_rejects_naive_governance_clock() -> None:
 
 def test_investor_flow_measure_kinds_keep_balance_holdings_and_trades_distinct() -> None:
     assert {item.value for item in InvestorFlowMeasureKind} == {
+        "fund_flow",
         "capital_balance",
         "holding_change",
         "transaction_net_flow",

@@ -28,6 +28,7 @@ class ObservationValueKind(str, Enum):
 class InvestorFlowMeasureKind(str, Enum):
     """Non-interchangeable measurement semantics for investor-flow data."""
 
+    FUND_FLOW = "fund_flow"
     CAPITAL_BALANCE = "capital_balance"
     HOLDING_CHANGE = "holding_change"
     TRANSACTION_NET_FLOW = "transaction_net_flow"
