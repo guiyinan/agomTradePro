@@ -332,7 +332,10 @@ class EquityAnalysisActionsMixin(
 
         # 2. 构造请求对象
         use_case_request = AnalyzeValuationRequest(
-            stock_code=data["stock_code"], lookback_days=data.get("lookback_days", 252)
+            stock_code=data["stock_code"],
+            lookback_days=data.get("lookback_days", 252),
+            mode=mode,
+            publication_key=publication_key,
         )
 
         # 3. 执行用例
@@ -457,6 +460,8 @@ class EquityAnalysisActionsMixin(
             discount_rate=data.get("discount_rate", 0.1),
             terminal_growth=data.get("terminal_growth", 0.03),
             projection_years=data.get("projection_years", 5),
+            mode=mode,
+            publication_key=publication_key,
         )
 
         # 3. 执行用例

@@ -9,11 +9,12 @@ indicator recalculation. Shared helpers and dependency wiring live in
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Protocol, cast
 
+from apps.data_center.application.public import get_published_price_bar_series
 from apps.data_center.composition import (
     fetch_akshare_eastmoney_historical_prices,
     fetch_tushare_historical_prices,
@@ -24,6 +25,7 @@ from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.domain.protocols import PriceBarRepositoryProtocol
 from apps.equity.domain.entities import TechnicalBar
 from core.exceptions import DataFetchError
+from shared.numeric import safe_float
 
 from .adapters import TushareStockAdapter
 
@@ -67,6 +69,8 @@ class StockMarketDataRepositoryMixin:
         end_date: date,
         *,
         hydrate: bool = False,
+        published_only: bool = False,
+        publication_key: str = "current",
     ) -> list[tuple[date, Decimal]]:
         """
         获取股票的日线收盘价数据
@@ -79,6 +83,14 @@ class StockMarketDataRepositoryMixin:
         Returns:
             [(日期, 收盘价), ...]，按日期升序排列
         """
+        if published_only:
+            return self._get_published_daily_prices(
+                stock_code,
+                start_date=start_date,
+                end_date=end_date,
+                publication_key=publication_key,
+            )
+
         dc_bars = (
             self._dc_on_demand.ensure_price_bars(stock_code, start_date, end_date).records
             if hydrate
@@ -100,6 +112,54 @@ class StockMarketDataRepositoryMixin:
                 return dc_prices
 
         return self._get_remote_daily_prices(stock_code, start_date, end_date)
+
+    @staticmethod
+    def _get_published_daily_prices(
+        stock_code: str,
+        *,
+        start_date: date,
+        end_date: date,
+        publication_key: str,
+    ) -> list[tuple[date, Decimal]]:
+        """Read daily prices only from a publication-bound price-bar series."""
+
+        payload = get_published_price_bar_series(
+            stock_code,
+            publication_key=publication_key,
+            start=start_date,
+            end=end_date,
+            limit=max((end_date - start_date).days + 10, 120),
+        )
+        if bool(payload.get("must_not_use_for_decision")):
+            return []
+        rows = payload.get("rows", [])
+        if not isinstance(rows, (list, tuple)):
+            return []
+        prices_by_date: dict[date, Decimal] = {}
+        for row in rows:
+            if not isinstance(row, Mapping):
+                continue
+            raw_date = row.get("timestamp", row.get("bar_date"))
+            if not isinstance(raw_date, str) or not raw_date.strip():
+                continue
+            try:
+                bar_date = date.fromisoformat(raw_date.strip()[:10])
+            except ValueError:
+                continue
+            raw_fetched_at = row.get("fetched_at")
+            if not isinstance(raw_fetched_at, str) or not raw_fetched_at.strip():
+                continue
+            try:
+                fetched_at = datetime.fromisoformat(raw_fetched_at.strip().replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if fetched_at.tzinfo is None or fetched_at.utcoffset() is None:
+                continue
+            close = safe_float(row.get("close"), default=None)
+            if close is None or close <= 0:
+                continue
+            prices_by_date[bar_date] = Decimal(str(close))
+        return sorted(prices_by_date.items(), key=lambda item: item[0])
 
     def get_technical_bars(
         self,
@@ -198,6 +258,8 @@ class StockMarketDataRepositoryMixin:
         end_date: date,
         *,
         hydrate: bool = False,
+        published_only: bool = False,
+        publication_key: str = "current",
     ) -> dict[date, float]:
         """
         计算股票的日收益率
@@ -210,7 +272,14 @@ class StockMarketDataRepositoryMixin:
         Returns:
             {日期: 收益率}，收益率以小数表示（如 0.01 表示 1%）
         """
-        prices = self.get_daily_prices(stock_code, start_date, end_date, hydrate=hydrate)
+        prices = self.get_daily_prices(
+            stock_code,
+            start_date,
+            end_date,
+            hydrate=hydrate,
+            published_only=published_only,
+            publication_key=publication_key,
+        )
 
         returns: dict[date, float] = {}
         for i in range(1, len(prices)):

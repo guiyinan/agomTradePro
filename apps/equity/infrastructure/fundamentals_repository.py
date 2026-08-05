@@ -306,6 +306,8 @@ class StockFundamentalsRepositoryMixin:
         end_date: date,
         *,
         hydrate: bool = False,
+        published_only: bool = False,
+        publication_key: str = "current",
     ) -> list[ValuationMetrics]:
         """
         获取股票的估值历史数据
@@ -318,6 +320,13 @@ class StockFundamentalsRepositoryMixin:
         Returns:
             ValuationMetrics 列表，按日期升序排列
         """
+        if published_only:
+            return self._get_published_valuations_from_data_center(
+                stock_code,
+                start_date=start_date,
+                end_date=end_date,
+                publication_key=publication_key,
+            )
         if hydrate:
             self._dc_on_demand.ensure_valuations(stock_code, start_date, end_date)
         dc_valuations = self._get_valuations_from_data_center(stock_code, start_date, end_date)
@@ -450,13 +459,14 @@ class StockFundamentalsRepositoryMixin:
         stock_code: str,
         *,
         published_only: bool = False,
+        publication_key: str = "current",
     ) -> PriceBar | None:
         if not published_only:
             return self._dc_price_bar_repo.get_latest(stock_code)
 
         payload = get_published_price_bar_series(
             stock_code,
-            publication_key="current",
+            publication_key=publication_key,
             limit=1,
         )
         if bool(payload.get("must_not_use_for_decision")):
@@ -521,11 +531,12 @@ class StockFundamentalsRepositoryMixin:
         stock_code: str,
         *,
         published_only: bool = False,
+        publication_key: str = "current",
     ) -> FinancialData | None:
         if published_only:
             payload = get_published_financial_facts(
                 stock_code,
-                publication_key="current",
+                publication_key=publication_key,
                 limit=120,
             )
             if bool(payload.get("must_not_use_for_decision")):
@@ -599,11 +610,12 @@ class StockFundamentalsRepositoryMixin:
         stock_code: str,
         *,
         published_only: bool = False,
+        publication_key: str = "current",
     ) -> ValuationMetrics | None:
         if published_only:
             payload = get_published_valuation_facts(
                 stock_code,
-                publication_key="current",
+                publication_key=publication_key,
                 limit=20,
             )
             if bool(payload.get("must_not_use_for_decision")):
@@ -755,6 +767,41 @@ class StockFundamentalsRepositoryMixin:
             if valuation.is_valid
         ]
 
+    def _get_published_valuations_from_data_center(
+        self,
+        stock_code: str,
+        *,
+        start_date: date,
+        end_date: date,
+        publication_key: str,
+    ) -> list[ValuationMetrics]:
+        """Read valuation history only from the selected publication members."""
+
+        payload = get_published_valuation_facts(
+            stock_code,
+            as_of=end_date,
+            limit=5000,
+            publication_key=publication_key,
+        )
+        if bool(payload.get("must_not_use_for_decision")):
+            return []
+        rows = payload.get("rows", [])
+        if not isinstance(rows, (list, tuple)):
+            return []
+        facts = [
+            fact
+            for row in rows
+            if isinstance(row, Mapping)
+            for fact in [self._valuation_fact_from_public_row(row)]
+            if fact is not None and start_date <= fact.val_date <= end_date
+        ]
+        return [
+            valuation
+            for fact in sorted(facts, key=lambda item: item.val_date)
+            for valuation in [self._dc_fact_to_valuation(fact)]
+            if valuation.is_valid
+        ]
+
     def _dc_fact_to_valuation(self, fact: ValuationFact) -> ValuationMetrics:
         total_mv = Decimal(str(fact.market_cap)) if fact.market_cap is not None else None
         circ_mv = (
@@ -866,6 +913,8 @@ class StockFundamentalsRepositoryMixin:
         stock_code: str,
         *,
         hydrate: bool = False,
+        published_only: bool = True,
+        publication_key: str = "current",
     ) -> FinancialData | None:
         """
         获取股票最新的财务数据
@@ -876,10 +925,16 @@ class StockFundamentalsRepositoryMixin:
         Returns:
             FinancialData 或 None
         """
+        if published_only:
+            return self._get_latest_financial(
+                stock_code,
+                published_only=True,
+                publication_key=publication_key,
+            )
         if hydrate:
             items = self.get_financial_data(stock_code, limit=1, hydrate=True)
             return items[0] if items else None
-        return self._get_latest_financial(stock_code, published_only=True)
+        return self._get_latest_financial(stock_code, published_only=False)
 
     def get_latest_valuation_date(self) -> date | None:
         """获取最新估值日期。"""

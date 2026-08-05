@@ -316,6 +316,140 @@ def test_latest_price_bar_current_read_preserves_published_observation(monkeypat
 
 
 @pytest.mark.django_db
+def test_valuation_history_current_read_requires_publication(monkeypatch):
+    repo = DjangoStockRepository()
+    repo._dc_valuation_repo.get_series = lambda *args, **kwargs: (_ for _ in ()).throw(
+        AssertionError("raw valuation history must not be read")
+    )
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.fundamentals_repository.get_published_valuation_facts",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "asset_code": "600519.SH",
+                    "val_date": "2026-07-31",
+                    "pe_ttm": 25.5,
+                    "pb": 8.2,
+                    "ps_ttm": 10.1,
+                    "market_cap": 2_000_000_000_000,
+                    "float_market_cap": 1_800_000_000_000,
+                    "dv_ratio": 1.2,
+                    "source": "akshare-main",
+                    "fetched_at": datetime(2026, 7, 31, tzinfo=UTC).isoformat(),
+                }
+            ],
+            "must_not_use_for_decision": True,
+            "blocked_reason": "publication_stale",
+        },
+    )
+
+    assert (
+        repo.get_valuation_history(
+            "600519.SH",
+            date(2026, 7, 1),
+            date(2026, 7, 31),
+            published_only=True,
+        )
+        == []
+    )
+
+
+@pytest.mark.django_db
+def test_valuation_history_current_read_preserves_published_observations(monkeypatch):
+    fetched_at = datetime(2026, 7, 31, tzinfo=UTC).isoformat()
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.fundamentals_repository.get_published_valuation_facts",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "asset_code": "600519.SH",
+                    "val_date": val_date,
+                    "pe_ttm": pe,
+                    "pb": 8.2,
+                    "ps_ttm": 10.1,
+                    "market_cap": 2_000_000_000_000,
+                    "float_market_cap": 1_800_000_000_000,
+                    "dv_ratio": 1.2,
+                    "source": "akshare-main",
+                    "fetched_at": fetched_at,
+                }
+                for val_date, pe in (("2026-07-30", 24.5), ("2026-07-31", 25.5))
+            ],
+            "must_not_use_for_decision": False,
+        },
+    )
+
+    rows = DjangoStockRepository().get_valuation_history(
+        "600519.SH",
+        date(2026, 7, 1),
+        date(2026, 7, 31),
+        published_only=True,
+    )
+
+    assert [row.trade_date for row in rows] == [date(2026, 7, 30), date(2026, 7, 31)]
+    assert [row.pe for row in rows] == [24.5, 25.5]
+
+
+@pytest.mark.django_db
+def test_daily_prices_current_read_requires_publication(monkeypatch):
+    repo = DjangoStockRepository()
+    repo._dc_price_bar_repo.get_bars = lambda *args, **kwargs: (_ for _ in ()).throw(
+        AssertionError("raw daily prices must not be read")
+    )
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.market_data_repository.get_published_price_bar_series",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "timestamp": "2026-07-31",
+                    "close": 1710.0,
+                    "fetched_at": datetime(2026, 7, 31, tzinfo=UTC).isoformat(),
+                }
+            ],
+            "must_not_use_for_decision": True,
+            "blocked_reason": "publication_stale",
+        },
+    )
+
+    assert (
+        repo.get_daily_prices(
+            "600519.SH",
+            date(2026, 7, 1),
+            date(2026, 7, 31),
+            published_only=True,
+        )
+        == []
+    )
+
+
+@pytest.mark.django_db
+def test_daily_prices_current_read_preserves_published_observations(monkeypatch):
+    fetched_at = datetime(2026, 7, 31, tzinfo=UTC).isoformat()
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.market_data_repository.get_published_price_bar_series",
+        lambda *args, **kwargs: {
+            "rows": [
+                {"timestamp": "2026-07-30", "close": 1700.0, "fetched_at": fetched_at},
+                {"timestamp": "2026-07-31", "close": 1710.0, "fetched_at": fetched_at},
+            ],
+            "must_not_use_for_decision": False,
+        },
+    )
+
+    rows = DjangoStockRepository().get_daily_prices(
+        "600519.SH",
+        date(2026, 7, 1),
+        date(2026, 7, 31),
+        published_only=True,
+    )
+
+    assert rows == [
+        (date(2026, 7, 30), Decimal("1700.0")),
+        (date(2026, 7, 31), Decimal("1710.0")),
+    ]
+
+
+@pytest.mark.django_db
 def test_save_methods_mirror_equity_data_to_data_center():
     repo = DjangoStockRepository()
     repo.save_financial_data(

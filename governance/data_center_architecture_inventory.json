@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 52,
-    "current_surface_references": 3152,
+    "current_surface_references": 3172,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 6,
     "legacy_fact_references": 143,
@@ -5517,6 +5517,16 @@
       "text": "never imports either legacy or canonical storage.  Production current"
     },
     {
+      "line": 79,
+      "path": "apps/data_center/application/research_data_foundation.py",
+      "text": "\"\"\"Return requested operating versions only when latest and knowable.\"\"\""
+    },
+    {
+      "line": 170,
+      "path": "apps/data_center/application/research_data_foundation.py",
+      "text": "\"\"\"Resolve exact latest operating versions under an explicit PIT clock.\"\"\""
+    },
+    {
       "line": 138,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
@@ -6612,6 +6622,11 @@
       "text": "\"\"\"Return one latest knowable version per business key.\"\"\""
     },
     {
+      "line": 388,
+      "path": "apps/data_center/infrastructure/research_data_foundation_repository.py",
+      "text": "\"\"\"Return exact versions only when they are the latest knowable facts.\"\"\""
+    },
+    {
       "line": 172,
       "path": "apps/data_center/infrastructure/sse_investor_accounts.py",
       "text": "\"\"\"Return SSE MDATE query months, allowing current-year publication lag.\"\"\""
@@ -7347,164 +7362,199 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 723,
+      "line": 76,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 85,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 96,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 107,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 646,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "publication_key: str = \"current\""
+    },
+    {
+      "line": 739,
       "path": "apps/equity/application/use_cases.py",
       "text": "latest = None"
-    },
-    {
-      "line": 731,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "latest = valuation_history[-1]"
-    },
-    {
-      "line": 738,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "if latest.pe is None or latest.pb is None:"
-    },
-    {
-      "line": 741,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"pe\": latest.pe,"
-    },
-    {
-      "line": 742,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"pb\": latest.pb,"
-    },
-    {
-      "line": 743,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"ps\": latest.ps,"
-    },
-    {
-      "line": 746,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"total_mv\": float(latest.total_mv) if latest.total_mv is not None else None,"
     },
     {
       "line": 747,
       "path": "apps/equity/application/use_cases.py",
-      "text": "\"circ_mv\": float(latest.circ_mv) if latest.circ_mv is not None else None,"
+      "text": "latest = valuation_history[-1]"
     },
     {
-      "line": 748,
+      "line": 754,
       "path": "apps/equity/application/use_cases.py",
-      "text": "\"dividend_yield\": latest.dividend_yield,"
+      "text": "if latest.pe is None or latest.pb is None:"
     },
     {
-      "line": 750,
+      "line": 757,
       "path": "apps/equity/application/use_cases.py",
-      "text": "\"trade_date\": latest.trade_date.isoformat(),"
+      "text": "\"pe\": latest.pe,"
     },
     {
-      "line": 751,
+      "line": 758,
       "path": "apps/equity/application/use_cases.py",
-      "text": "\"updated_at\": latest.fetched_at.isoformat() if latest.fetched_at else None,"
+      "text": "\"pb\": latest.pb,"
     },
     {
-      "line": 753,
+      "line": 759,
       "path": "apps/equity/application/use_cases.py",
-      "text": "latest = None"
+      "text": "\"ps\": latest.ps,"
     },
     {
-      "line": 755,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "pe_percentile = analyzer.calculate_pe_percentile(latest.pe, pe_history)"
-    },
-    {
-      "line": 756,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "pb_percentile = analyzer.calculate_pb_percentile(latest.pb, pb_history)"
-    },
-    {
-      "line": 763,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"pe\": latest.pe if latest.pe > 0 else None,"
-    },
-    {
-      "line": 764,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"pb\": latest.pb if latest.pb > 0 else None,"
-    },
-    {
-      "line": 765,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "\"ps\": latest.ps if latest.ps is not None and latest.ps > 0 else None,"
-    },
-    {
-      "line": 768,
+      "line": 762,
       "path": "apps/equity/application/use_cases.py",
       "text": "\"total_mv\": float(latest.total_mv) if latest.total_mv is not None else None,"
     },
     {
-      "line": 769,
+      "line": 763,
       "path": "apps/equity/application/use_cases.py",
       "text": "\"circ_mv\": float(latest.circ_mv) if latest.circ_mv is not None else None,"
     },
     {
-      "line": 771,
+      "line": 764,
       "path": "apps/equity/application/use_cases.py",
-      "text": "latest.dividend_yield"
+      "text": "\"dividend_yield\": latest.dividend_yield,"
     },
     {
-      "line": 772,
-      "path": "apps/equity/application/use_cases.py",
-      "text": "if latest.dividend_yield is not None and latest.dividend_yield > 0"
-    },
-    {
-      "line": 776,
+      "line": 766,
       "path": "apps/equity/application/use_cases.py",
       "text": "\"trade_date\": latest.trade_date.isoformat(),"
     },
     {
-      "line": 777,
+      "line": 767,
       "path": "apps/equity/application/use_cases.py",
       "text": "\"updated_at\": latest.fetched_at.isoformat() if latest.fetched_at else None,"
     },
     {
-      "line": 828,
+      "line": 769,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "latest = None"
+    },
+    {
+      "line": 771,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "pe_percentile = analyzer.calculate_pe_percentile(latest.pe, pe_history)"
+    },
+    {
+      "line": 772,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "pb_percentile = analyzer.calculate_pb_percentile(latest.pb, pb_history)"
+    },
+    {
+      "line": 779,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"pe\": latest.pe if latest.pe > 0 else None,"
+    },
+    {
+      "line": 780,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"pb\": latest.pb if latest.pb > 0 else None,"
+    },
+    {
+      "line": 781,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"ps\": latest.ps if latest.ps is not None and latest.ps > 0 else None,"
+    },
+    {
+      "line": 784,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"total_mv\": float(latest.total_mv) if latest.total_mv is not None else None,"
+    },
+    {
+      "line": 785,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"circ_mv\": float(latest.circ_mv) if latest.circ_mv is not None else None,"
+    },
+    {
+      "line": 787,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "latest.dividend_yield"
+    },
+    {
+      "line": 788,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "if latest.dividend_yield is not None and latest.dividend_yield > 0"
+    },
+    {
+      "line": 792,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"trade_date\": latest.trade_date.isoformat(),"
+    },
+    {
+      "line": 793,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "\"updated_at\": latest.fetched_at.isoformat() if latest.fetched_at else None,"
+    },
+    {
+      "line": 844,
       "path": "apps/equity/application/use_cases.py",
       "text": "current_pe=latest.pe if latest is not None else None,"
     },
     {
-      "line": 830,
+      "line": 846,
       "path": "apps/equity/application/use_cases.py",
       "text": "current_pb=latest.pb if latest is not None else None,"
     },
     {
-      "line": 1233,
+      "line": 889,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "publication_key: str = \"current\""
+    },
+    {
+      "line": 1257,
       "path": "apps/equity/application/use_cases.py",
       "text": "current = start_date"
     },
     {
-      "line": 1236,
+      "line": 1260,
       "path": "apps/equity/application/use_cases.py",
       "text": "while current <= end_date:"
     },
     {
-      "line": 1238,
+      "line": 1262,
       "path": "apps/equity/application/use_cases.py",
       "text": "if current in regime_history:"
     },
     {
-      "line": 1239,
+      "line": 1263,
       "path": "apps/equity/application/use_cases.py",
       "text": "result[current] = regime_history[current]"
     },
     {
-      "line": 1240,
+      "line": 1264,
       "path": "apps/equity/application/use_cases.py",
       "text": "last_regime = regime_history[current]"
     },
     {
-      "line": 1242,
+      "line": 1266,
       "path": "apps/equity/application/use_cases.py",
       "text": "result[current] = last_regime"
     },
     {
-      "line": 1244,
+      "line": 1268,
       "path": "apps/equity/application/use_cases.py",
       "text": "current += timedelta(days=1)"
+    },
+    {
+      "line": 1288,
+      "path": "apps/equity/application/use_cases.py",
+      "text": "publication_key: str = \"current\""
     },
     {
       "line": 164,
@@ -7787,19 +7837,29 @@
       "text": "\"dividend_yield\": latest.dividend_yield,"
     },
     {
-      "line": 459,
+      "line": 310,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "publication_key=\"current\","
+      "text": "publication_key: str = \"current\","
     },
     {
-      "line": 528,
+      "line": 462,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "publication_key=\"current\","
+      "text": "publication_key: str = \"current\","
     },
     {
-      "line": 606,
+      "line": 534,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "publication_key=\"current\","
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 613,
+      "path": "apps/equity/infrastructure/fundamentals_repository.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 917,
+      "path": "apps/equity/infrastructure/fundamentals_repository.py",
+      "text": "publication_key: str = \"current\","
     },
     {
       "line": 26,
@@ -7817,6 +7877,26 @@
       "text": "from apps.realtime.infrastructure.repositories import ("
     },
     {
+      "line": 73,
+      "path": "apps/equity/infrastructure/market_data_repository.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 262,
+      "path": "apps/equity/infrastructure/market_data_repository.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 70,
+      "path": "apps/equity/infrastructure/operating_forecast_repository.py",
+      "text": "\"\"\"Resolve exact, latest public operating fact versions at an as-of time.\"\"\""
+    },
+    {
+      "line": 95,
+      "path": "apps/equity/infrastructure/operating_forecast_repository.py",
+      "text": "\"requested operating facts are not the latest public PIT versions at as_of_time\""
+    },
+    {
       "line": 103,
       "path": "apps/equity/infrastructure/stock_info_repository.py",
       "text": "Current/decision-facing callers must be able to resolve display metadata"
@@ -7832,12 +7912,12 @@
       "text": "summary=\"估值分析（个股详情）\","
     },
     {
-      "line": 354,
+      "line": 357,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"DCF 绝对估值\","
     },
     {
-      "line": 477,
+      "line": 482,
       "path": "apps/equity/interface/analysis_actions.py",
       "text": "summary=\"Regime 相关性分析\","
     },
@@ -9692,6 +9772,11 @@
       "text": "summary=\"触发RSS抓取\","
     },
     {
+      "line": 84,
+      "path": "apps/portfolio/application/canonical_snapshots.py",
+      "text": "\"\"\"Return the latest eligible source observation at a fixed cutoff.\"\"\""
+    },
+    {
       "line": 42,
       "path": "apps/portfolio/application/use_cases.py",
       "text": "current: PortfolioSnapshot,"
@@ -9700,6 +9785,11 @@
       "line": 51,
       "path": "apps/portfolio/application/use_cases.py",
       "text": "current=current,"
+    },
+    {
+      "line": 125,
+      "path": "apps/portfolio/domain/canonical_snapshots.py",
+      "text": "raise ValueError(\"snapshot as_of must preserve the latest source observation time\")"
     },
     {
       "line": 77,
@@ -11625,6 +11715,16 @@
       "line": 159,
       "path": "apps/regime/interface/tui_views.py",
       "text": "\"summary\": {"
+    },
+    {
+      "line": 37,
+      "path": "apps/research/application/state_model_baseline.py",
+      "text": "\"\"\"Return evidence without recomputing it from revised current data.\"\"\""
+    },
+    {
+      "line": 212,
+      "path": "apps/research/domain/state_model_baseline.py",
+      "text": "\"\"\"Prove shortfall only from complete, current, specification-bound evidence.\"\"\""
     },
     {
       "line": 1,
@@ -15822,22 +15922,22 @@
       "text": "\"apps.realtime\",  # 新增：实时价格监控模块"
     },
     {
-      "line": 602,
+      "line": 603,
       "path": "core/settings/base.py",
       "text": "\"daily-signal-summary\": {"
     },
     {
-      "line": 677,
+      "line": 678,
       "path": "core/settings/base.py",
       "text": "\"simulated-daily-summary\": {"
     },
     {
-      "line": 724,
+      "line": 725,
       "path": "core/settings/base.py",
       "text": "\"realtime-update-prices-after-close\": {"
     },
     {
-      "line": 903,
+      "line": 904,
       "path": "core/settings/base.py",
       "text": "\"sentiment-refresh-current-index\": {"
     },

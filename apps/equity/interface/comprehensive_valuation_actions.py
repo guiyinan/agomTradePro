@@ -127,6 +127,8 @@ class EquityComprehensiveValuationActionsMixin:
             industry_avg_pe=data.get("industry_avg_pe", 20.0),
             industry_avg_pb=data.get("industry_avg_pb", 2.0),
             risk_free_rate=data.get("risk_free_rate", 0.03),
+            mode=mode,
+            publication_key=publication_key,
         )
         use_case = self._build_comprehensive_valuation_use_case()
         use_case_response = use_case.execute(use_case_request)

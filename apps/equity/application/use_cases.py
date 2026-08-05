@@ -72,6 +72,8 @@ class EquityStockReadRepositoryProtocol(Protocol):
         end_date: date,
         *,
         hydrate: bool = False,
+        published_only: bool = False,
+        publication_key: str = "current",
     ) -> list[ValuationMetrics]: ...
 
     def get_latest_financial_data(
@@ -79,6 +81,8 @@ class EquityStockReadRepositoryProtocol(Protocol):
         stock_code: str,
         *,
         hydrate: bool = False,
+        published_only: bool = True,
+        publication_key: str = "current",
     ) -> FinancialData | None: ...
 
     def get_daily_prices(
@@ -88,6 +92,8 @@ class EquityStockReadRepositoryProtocol(Protocol):
         end_date: date,
         *,
         hydrate: bool = False,
+        published_only: bool = False,
+        publication_key: str = "current",
     ) -> list[tuple[date, Decimal]]: ...
 
     def calculate_daily_returns(
@@ -97,6 +103,8 @@ class EquityStockReadRepositoryProtocol(Protocol):
         end_date: date,
         *,
         hydrate: bool = False,
+        published_only: bool = False,
+        publication_key: str = "current",
     ) -> dict[date, float]: ...
 
 
@@ -634,6 +642,8 @@ class AnalyzeValuationRequest:
 
     stock_code: str
     lookback_days: int = 252  # 回看天数（默认 1 年）
+    mode: str = "historical"
+    publication_key: str = "current"
 
 
 @dataclass
@@ -703,12 +713,16 @@ class AnalyzeValuationUseCase:
                 start_date,
                 end_date,
                 hydrate=False,
+                published_only=request.mode == "published",
+                publication_key=request.publication_key,
             )
 
             # 5. 获取财务数据
             financial = self.stock_repo.get_latest_financial_data(
                 request.stock_code,
                 hydrate=False,
+                published_only=request.mode == "published",
+                publication_key=request.publication_key,
             )
 
             # 6. 获取日线数据（用于获取当前价格、换手率等）
@@ -717,6 +731,8 @@ class AnalyzeValuationUseCase:
                 start_date=end_date - timedelta(days=7),
                 end_date=end_date,
                 hydrate=False,
+                published_only=request.mode == "published",
+                publication_key=request.publication_key,
             )
             latest_daily = daily_prices[-1] if daily_prices else None
 
@@ -869,6 +885,8 @@ class CalculateDCFRequest:
     discount_rate: float = 0.1  # 折现率（默认 10%）
     terminal_growth: float = 0.03  # 永续增长率（默认 3%）
     projection_years: int = 5  # 预测年数（默认 5 年）
+    mode: str = "historical"
+    publication_key: str = "current"
 
 
 @dataclass
@@ -920,7 +938,9 @@ class CalculateDCFUseCase:
             # 2. 获取最新财务数据
             financial = self.stock_repo.get_latest_financial_data(
                 request.stock_code,
-                hydrate=True,
+                hydrate=request.mode != "published",
+                published_only=request.mode == "published",
+                publication_key=request.publication_key,
             )
             if not financial:
                 raise ValueError(f"未找到股票 {request.stock_code} 的财务数据")
@@ -946,7 +966,9 @@ class CalculateDCFUseCase:
                 request.stock_code,
                 date.today() - timedelta(days=7),
                 date.today(),
-                hydrate=True,
+                hydrate=request.mode != "published",
+                published_only=request.mode == "published",
+                publication_key=request.publication_key,
             )
             if not valuation:
                 raise ValueError(f"未找到股票 {request.stock_code} 的估值数据")
@@ -958,7 +980,9 @@ class CalculateDCFUseCase:
                 request.stock_code,
                 start_date=date.today() - timedelta(days=30),
                 end_date=date.today(),
-                hydrate=True,
+                hydrate=request.mode != "published",
+                published_only=request.mode == "published",
+                publication_key=request.publication_key,
             )
             if not daily_prices:
                 raise ValueError(f"未找到股票 {request.stock_code} 的当前价格")
@@ -1260,6 +1284,8 @@ class ComprehensiveValuationRequest:
     industry_avg_pe: float = 20.0  # 行业平均 PE
     industry_avg_pb: float = 2.0  # 行业平均 PB
     risk_free_rate: float = 0.03  # 无风险利率
+    mode: str = "historical"
+    publication_key: str = "current"
 
 
 @dataclass
@@ -1334,7 +1360,9 @@ class ComprehensiveValuationUseCase:
             # 2. 获取最新财务数据
             financial = self.stock_repo.get_latest_financial_data(
                 request.stock_code,
-                hydrate=True,
+                hydrate=request.mode != "published",
+                published_only=request.mode == "published",
+                publication_key=request.publication_key,
             )
             if not financial:
                 raise ValueError(f"未找到股票 {request.stock_code} 的财务数据")
@@ -1347,7 +1375,9 @@ class ComprehensiveValuationUseCase:
                 request.stock_code,
                 start_date,
                 end_date,
-                hydrate=True,
+                hydrate=request.mode != "published",
+                published_only=request.mode == "published",
+                publication_key=request.publication_key,
             )
 
             if not valuation_history:

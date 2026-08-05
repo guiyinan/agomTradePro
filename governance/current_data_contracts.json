@@ -383,6 +383,7 @@
       "required_markers": {
         "apps/equity/infrastructure/fundamentals_repository.py": [
           "get_published_valuation_facts(",
+          "def _get_published_valuations_from_data_center(",
           "published_only=as_of_date is None",
           "published_only=True",
           "must_not_use_for_decision"
@@ -442,6 +443,7 @@
       "source_files": [
         "apps/equity/infrastructure/fundamentals_repository.py",
         "apps/equity/infrastructure/asset_repository.py",
+        "apps/equity/infrastructure/market_data_repository.py",
         "apps/data_center/application/public.py"
       ],
       "required_markers": {
@@ -454,6 +456,11 @@
         "apps/equity/infrastructure/asset_repository.py": [
           "_get_latest_price_bar(",
           "published_only=True"
+        ],
+        "apps/equity/infrastructure/market_data_repository.py": [
+          "get_published_price_bar_series(",
+          "published_only: bool = False",
+          "must_not_use_for_decision"
         ],
         "apps/data_center/application/public.py": [
           "def get_published_price_bar_series("
@@ -1466,6 +1473,8 @@
           "equity.financial.fact",
           "CalculateDCFUseCase",
           "ScreenStocksUseCase",
+          "mode=mode",
+          "publication_key=publication_key",
           "publication_gates",
           "must_not_use_for_decision"
         ],
@@ -1473,6 +1482,8 @@
           "get_decision_publication_gate(",
           "ComprehensiveValuationUseCase",
           "mode = str(data[\"mode\"])",
+          "mode=mode",
+          "publication_key=publication_key",
           "publication_gates",
           "must_not_use_for_decision"
         ],
@@ -1605,6 +1616,11 @@
           "case": "equity_valuation_calculators_block_before_use_case",
           "test_file": "tests/api/test_equity_api_edges.py",
           "test_function": "test_equity_published_valuation_calculators_block_stale_publication_before_use_case"
+        },
+        {
+          "case": "published_equity_analysis_forwards_publication_gate",
+          "test_file": "tests/unit/equity/test_use_cases.py",
+          "test_function": "test_published_equity_analysis_forwards_publication_gate_to_repository"
         },
         {
           "case": "equity_published_member_snapshot_missing_blocks",

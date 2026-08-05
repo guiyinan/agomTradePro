@@ -216,7 +216,10 @@ class EquityPoolActionsMixin(EquityPoolRefreshActionsMixin):
                     )
                     latest_valuation = valuations[-1] if valuations else None
 
-                    financial = self.stock_repo.get_latest_financial_data(stock_code)
+                    financial = self.stock_repo.get_latest_financial_data(
+                        stock_code,
+                        published_only=False,
+                    )
                     roe = safe_float(financial.roe) if financial else None
                     revenue_growth = safe_float(financial.revenue_growth) if financial else None
                     profit_growth = safe_float(financial.net_profit_growth) if financial else None

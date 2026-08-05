@@ -4078,3 +4078,13 @@ Git SHA / 镜像 / migration：
 - 语义：无 Tushare 不代表所有数据任务成功；缺少 active provider、Publication 或成员时按稳定 `blocked`/空结果 fail closed，历史本地事实仍可用于显式历史查询。
 - 明确未做：未修改 provider 配置、未删除 Tushare 适配器、未部署/未 push；远端 VPS 和生产数据画像尚未验证。
 - 未验证风险：生产 AKShare/其他 provider 的实际覆盖、基金 master 空库初始化、Publication 回填和全系统无 Tushare 端到端运行仍需后续证据。
+
+## 46. 2026-08-05：Equity 估值分析用例绑定 mode/publication
+
+- 目标：修复 REST Equity 估值、DCF、综合估值在接口层检查 `mode=published` 后，内部 use case 仍以 `hydrate=True` 读取历史/raw facts 的旁路。
+- 变更：`AnalyzeValuationRequest`、`CalculateDCFRequest`、`ComprehensiveValuationRequest` 携带 `mode/publication_key`；接口将请求语义传入 use case。published 模式下，财务、估值历史和日线价格分别通过 Publication-bound repository 读取，阻断或成员缺失时不触发远端 hydration；historical 模式保留显式历史/维护语义。Publication valuation history 解析保留事实日期与带时区抓取时间，不使用请求时间补造。
+- 测试：新增 published gate 参数转发单测；新增估值历史和日线 current 读取的 blocked/preserved component 回归。
+- 治理：扩展 `data_center.publication_only_d4_d5` 与 `equity.current_price_context` marker/test，锁定接口 gate 与 use case 实际读路径一致。
+- 已运行测试：`tests/unit/equity/test_use_cases.py`：10 passed；`tests/unit/equity/test_t5_equity_use_case_edge_contracts.py`：13 passed；`tests/component/test_equity_repository_data_center.py`：13 passed；`tests/api/test_equity_api_edges.py`：53 passed；变更生产文件 mypy 0、Ruff/Black 通过。
+- 明确未做：未改动 historical explicit range、Technical chart mode、provider 写入和生产配置，未部署、未 push。
+- 未验证风险：生产 Publication 是否包含足够长的估值历史成员、DCF/综合估值真实数据覆盖、PostgreSQL 查询预算与旧表零读写仍待后续批次。

@@ -153,6 +153,7 @@ class _FakeStockRepository:
         self.daily_prices_cached = daily_prices_cached
         self.daily_prices_hydrated = daily_prices_hydrated
         self.calls: list[tuple[str, bool]] = []
+        self.published_calls: list[tuple[str, bool, str]] = []
 
     def get_stock_info(self, stock_code: str) -> StockInfo:
         return StockInfo(
@@ -163,16 +164,40 @@ class _FakeStockRepository:
             list_date=date(2020, 1, 2),
         )
 
-    def get_valuation_history(self, *args, hydrate: bool = False, **kwargs):
+    def get_valuation_history(
+        self,
+        *args,
+        hydrate: bool = False,
+        published_only: bool = False,
+        publication_key: str = "current",
+        **kwargs,
+    ):
         self.calls.append(("valuation", hydrate))
+        self.published_calls.append(("valuation", published_only, publication_key))
         return self.valuation_history_hydrated if hydrate else self.valuation_history_cached
 
-    def get_latest_financial_data(self, *args, hydrate: bool = False, **kwargs):
+    def get_latest_financial_data(
+        self,
+        *args,
+        hydrate: bool = False,
+        published_only: bool = True,
+        publication_key: str = "current",
+        **kwargs,
+    ):
         self.calls.append(("financial", hydrate))
+        self.published_calls.append(("financial", published_only, publication_key))
         return self.financial_hydrated if hydrate else self.financial_cached
 
-    def get_daily_prices(self, *args, hydrate: bool = False, **kwargs):
+    def get_daily_prices(
+        self,
+        *args,
+        hydrate: bool = False,
+        published_only: bool = False,
+        publication_key: str = "current",
+        **kwargs,
+    ):
         self.calls.append(("daily_prices", hydrate))
+        self.published_calls.append(("daily_prices", published_only, publication_key))
         return self.daily_prices_hydrated if hydrate else self.daily_prices_cached
 
 
@@ -235,6 +260,34 @@ def test_analyze_valuation_prefers_cached_payloads_before_hydration() -> None:
         ("valuation", False),
         ("financial", False),
         ("daily_prices", False),
+    ]
+
+
+def test_published_equity_analysis_forwards_publication_gate_to_repository() -> None:
+    valuation = _build_valuation_metrics("002493.SZ", date(2026, 5, 12))
+    financial = _build_financial_data("002493.SZ", date(2025, 12, 31))
+    repo = _FakeStockRepository(
+        valuation_history_cached=[valuation],
+        valuation_history_hydrated=[valuation],
+        financial_cached=financial,
+        financial_hydrated=financial,
+        daily_prices_cached=[(date(2026, 5, 12), Decimal("19.88"))],
+        daily_prices_hydrated=[(date(2026, 5, 13), Decimal("20.01"))],
+    )
+
+    response = AnalyzeValuationUseCase(stock_repository=repo).execute(
+        AnalyzeValuationRequest(
+            stock_code="002493.SZ",
+            mode="published",
+            publication_key="release-2026-08-05",
+        )
+    )
+
+    assert response.success is True
+    assert repo.published_calls == [
+        ("valuation", True, "release-2026-08-05"),
+        ("financial", True, "release-2026-08-05"),
+        ("daily_prices", True, "release-2026-08-05"),
     ]
 
 
