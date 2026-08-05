@@ -45,7 +45,7 @@ def test_runtime_qlib_summary_prefers_typed_snapshot(monkeypatch) -> None:
 
 
 @pytest.mark.django_db
-def test_runtime_qlib_summary_keeps_legacy_compatibility_when_snapshot_missing(monkeypatch) -> None:
+def test_runtime_qlib_summary_blocks_when_snapshot_missing(monkeypatch) -> None:
     monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "core.settings.development")
     monkeypatch.setattr(
         "apps.config_center.infrastructure.config_summary_repository.get_active_qlib_runtime_config",
@@ -53,11 +53,14 @@ def test_runtime_qlib_summary_keeps_legacy_compatibility_when_snapshot_missing(m
     )
     monkeypatch.setattr(
         "apps.config_center.infrastructure.config_summary_repository.SystemSettingsModel.get_runtime_qlib_config",
-        lambda: {"enabled": False, "is_configured": False, "source": "system_settings"},
+        lambda: (_ for _ in ()).throw(AssertionError("legacy SystemSettings path used")),
     )
 
     assert DjangoConfigCenterSummaryRepository().get_runtime_qlib_config() == {
         "enabled": False,
         "is_configured": False,
-        "source": "system_settings",
+        "status": "blocked",
+        "source": "config_center_runtime_profile",
+        "must_not_use_for_decision": True,
+        "blocked_reason": "runtime_config_snapshot_unavailable",
     }

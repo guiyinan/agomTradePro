@@ -11817,7 +11817,7 @@
       "text": "\"\"\"Return current artifact attestation or ``None``.\"\"\""
     },
     {
-      "line": 70,
+      "line": 72,
       "path": "apps/research/application/scenario_probability_research.py",
       "text": "\"\"\"Return frozen evidence and never rebuild history from current values.\"\"\""
     },
@@ -11832,12 +11832,12 @@
       "text": "publish current state, authorize decisions, or replace the canonical Regime."
     },
     {
-      "line": 67,
+      "line": 65,
       "path": "apps/research/domain/scenario_research_evidence.py",
       "text": "\"\"\"Freeze a canonical reference without resolving current data.\"\"\""
     },
     {
-      "line": 227,
+      "line": 225,
       "path": "apps/research/domain/scenario_research_evidence.py",
       "text": "raise ValueError(\"historical analogy feature uses look-ahead or current-value backfill\")"
     },

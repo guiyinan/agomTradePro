@@ -26,7 +26,7 @@ class DjangoConfigCenterSummaryRepository:
 
     def get_system_settings_summary(self) -> dict[str, Any]:
         settings_obj = SystemSettingsModel.get_settings_for_read()
-        runtime_qlib = settings_obj.get_runtime_qlib_config_payload()
+        runtime_qlib = self.get_runtime_qlib_config()
         return {
             "status": "configured",
             "summary": {
@@ -67,10 +67,25 @@ class DjangoConfigCenterSummaryRepository:
         }
 
     def get_runtime_qlib_config(self) -> dict[str, Any]:
+        """Return typed Qlib runtime config, blocking when its snapshot is absent.
+
+        SystemSettingsModel still exposes a migration-only compatibility method,
+        but runtime consumers must never silently fall back to it.  A missing or
+        stale Config Center snapshot therefore becomes an explicit disabled and
+        decision-unsafe payload.
+        """
+
         typed_runtime = get_active_qlib_runtime_config(self._runtime_environment())
         if typed_runtime is not None:
             return typed_runtime
-        return SystemSettingsModel.get_runtime_qlib_config()
+        return {
+            "enabled": False,
+            "is_configured": False,
+            "status": "blocked",
+            "source": "config_center_runtime_profile",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "runtime_config_snapshot_unavailable",
+        }
 
     def get_runtime_alpha_fixed_provider(self) -> str:
         return SystemSettingsModel.get_runtime_alpha_fixed_provider()

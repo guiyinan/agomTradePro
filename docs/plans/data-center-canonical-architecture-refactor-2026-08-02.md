@@ -4204,3 +4204,10 @@ Git SHA / 镜像 / migration：
 - 变更：新增 `resolve_asset_payload` Public Port，负责规范化代码、调用 Data Center resolver 并返回 plain payload；`DataCenterAssetExposureProvider` 只消费该端口，缺失资产继续显式保留空 exposure，不推断身份。
 - 治理与测试：扩展 `data_center.public_current_read_ports` contract 与资产 exposure 回归；Decision Rhythm provider 定向测试与 current-data manifest 会验证 Public Port 委托。
 - 明确未做：未修改 AssetMaster 写入/backfill、历史研究 resolver、行业分类算法或生产数据；TUI 内部 coverage/readiness 兼容 import 仍待独立 owner 批次。
+
+## 63. 2026-08-05：Qlib Runtime 退出 SystemSettings 运行时 fallback
+
+- 目标：完成 Qlib 配置迁移中的一个明确退出条件，运行时缺少完整 Config Center typed snapshot 时必须阻断，不再静默读取 `SystemSettingsModel` 的 Qlib 字段。
+- 变更：`DjangoConfigCenterSummaryRepository.get_runtime_qlib_config()` 与系统摘要均只接受 active、版本匹配的 typed snapshot；缺失/失效返回 `status=blocked`、`must_not_use_for_decision=true` 和稳定 `runtime_config_snapshot_unavailable`。旧 `SystemSettingsModel` getter 仅保留迁移维护用途，未被运行时桥调用。
+- 治理与测试：`runtime_config_contracts.json` 的 Qlib fallback 改为 `blocked`，新增缺失快照回归；后续仍需在受控环境初始化 production/非默认 profile 并验证所有 Qlib 调度链。
+- 明确未做：未删除旧模型字段/迁移、未改变 Qlib 算法或训练参数，未初始化本地/生产 profile，未部署。
