@@ -201,12 +201,40 @@ def test_constraints_and_expired_evidence_fail_closed() -> None:
     assert MacroRiskBlockerCode.LIQUIDITY_BREACHED in codes
 
 
+def test_evidence_expires_at_exact_valid_until_boundary() -> None:
+    report = evaluate_macro_risk_candidate(
+        _candidate(),
+        policy=_policy(),
+        evaluated_at=_exposure().valid_until,
+    )
+
+    assert MacroRiskBlockerCode.EVIDENCE_EXPIRED in {blocker.code for blocker in report.blockers}
+
+
 def test_tampered_input_hash_is_rejected() -> None:
     with pytest.raises(ValueError, match="input_hash"):
         evaluate_macro_risk_candidate(
             replace(_candidate(), input_hash="0" * 64),
             policy=_policy(),
             evaluated_at=NOW,
+        )
+
+
+def test_report_hash_rejects_tampered_contribution_or_eligibility() -> None:
+    report = evaluate_macro_risk_candidate(_candidate(), policy=_policy(), evaluated_at=NOW)
+
+    with pytest.raises(ValueError, match="evidence_hash"):
+        replace(report, eligible_for_research_comparison=False)
+    with pytest.raises(ValueError, match="evidence_hash"):
+        replace(
+            report,
+            contributions=(
+                replace(
+                    report.contributions[0],
+                    contribution_share=Decimal("0.6"),
+                ),
+                report.contributions[1],
+            ),
         )
 
 

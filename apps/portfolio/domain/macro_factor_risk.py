@@ -323,6 +323,7 @@ class MacroRiskCandidateReport:
     """Auditable R4 evaluation; it never authorizes execution."""
 
     candidate_id: str
+    input_hash: str
     eligible_for_research_comparison: bool
     factor_variance: Decimal
     residual_variance: Decimal
@@ -336,6 +337,43 @@ class MacroRiskCandidateReport:
     usage_scope: str = "research_only"
     must_not_use_for_decision: bool = True
     must_not_execute: bool = True
+
+    def __post_init__(self) -> None:
+        """Reject a report whose sealed output was altered after evaluation."""
+
+        _require_text(self.candidate_id, "candidate_id")
+        _require_sha256(self.input_hash, "input_hash")
+        _require_text(self.policy_version, "policy_version")
+        _require_aware(self.evaluated_at, "evaluated_at")
+        for name, value in (
+            ("factor_variance", self.factor_variance),
+            ("residual_variance", self.residual_variance),
+            ("total_variance", self.total_variance),
+            ("turnover", self.turnover),
+        ):
+            _require_finite(value, name)
+        if self.usage_scope != "research_only":
+            raise ValueError("macro-risk reports must remain research_only")
+        if not self.must_not_use_for_decision or not self.must_not_execute:
+            raise ValueError("macro-risk reports cannot authorize decisions or execution")
+        expected_hash = build_macro_risk_report_hash(
+            candidate_id=self.candidate_id,
+            input_hash=self.input_hash,
+            eligible_for_research_comparison=self.eligible_for_research_comparison,
+            factor_variance=self.factor_variance,
+            residual_variance=self.residual_variance,
+            total_variance=self.total_variance,
+            turnover=self.turnover,
+            contributions=self.contributions,
+            blockers=self.blockers,
+            evaluated_at=self.evaluated_at,
+            policy_version=self.policy_version,
+            usage_scope=self.usage_scope,
+            must_not_use_for_decision=self.must_not_use_for_decision,
+            must_not_execute=self.must_not_execute,
+        )
+        if self.evidence_hash.lower() != expected_hash:
+            raise ValueError("evidence_hash does not match canonical macro-risk report")
 
 
 def build_macro_risk_input_hash(
@@ -415,6 +453,58 @@ def build_macro_risk_input_hash(
     ).hexdigest()
 
 
+def build_macro_risk_report_hash(
+    *,
+    candidate_id: str,
+    input_hash: str,
+    eligible_for_research_comparison: bool,
+    factor_variance: Decimal,
+    residual_variance: Decimal,
+    total_variance: Decimal,
+    turnover: Decimal,
+    contributions: tuple[MacroFactorRiskContribution, ...],
+    blockers: tuple[MacroRiskBlocker, ...],
+    evaluated_at: datetime,
+    policy_version: str,
+    usage_scope: str,
+    must_not_use_for_decision: bool,
+    must_not_execute: bool,
+) -> str:
+    """Seal every decision-relevant field of one R4 candidate report."""
+
+    payload = {
+        "candidate_id": candidate_id,
+        "input_hash": input_hash.lower(),
+        "eligible_for_research_comparison": eligible_for_research_comparison,
+        "factor_variance": _decimal_text(factor_variance),
+        "residual_variance": _decimal_text(residual_variance),
+        "total_variance": _decimal_text(total_variance),
+        "turnover": _decimal_text(turnover),
+        "contributions": [
+            {
+                "factor_code": item.factor_code,
+                "portfolio_exposure": _decimal_text(item.portfolio_exposure),
+                "marginal_variance": _decimal_text(item.marginal_variance),
+                "variance_contribution": _decimal_text(item.variance_contribution),
+                "contribution_share": _decimal_text(item.contribution_share),
+            }
+            for item in contributions
+        ],
+        "blockers": [
+            {"code": item.code.value, "detail": item.detail}
+            for item in sorted(blockers, key=lambda value: (value.code.value, value.detail))
+        ],
+        "evaluated_at": evaluated_at.astimezone(UTC).isoformat(),
+        "policy_version": policy_version,
+        "usage_scope": usage_scope,
+        "must_not_use_for_decision": must_not_use_for_decision,
+        "must_not_execute": must_not_execute,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
 def evaluate_macro_risk_candidate(
     candidate: MacroRiskCandidateInput,
     *,
@@ -442,7 +532,7 @@ def evaluate_macro_risk_candidate(
 
     exposure = candidate.exposure_version
     covariance = candidate.covariance_version
-    if evaluated_at > exposure.valid_until or evaluated_at > covariance.valid_until:
+    if evaluated_at >= exposure.valid_until or evaluated_at >= covariance.valid_until:
         blockers.append(_block(MacroRiskBlockerCode.EVIDENCE_EXPIRED, "input evidence expired"))
     if (
         evaluated_at < exposure.observed_at
@@ -594,28 +684,33 @@ def evaluate_macro_risk_candidate(
             _block(MacroRiskBlockerCode.CONTRIBUTION_IDENTITY_FAILED, "risk identity failed")
         )
 
-    evidence_payload = {
-        "candidate_id": candidate.candidate_id,
-        "input_hash": candidate.input_hash,
-        "policy_version": policy.version,
-        "evaluated_at": evaluated_at.astimezone(UTC).isoformat(),
-        "blockers": sorted(blocker.code.value for blocker in blockers),
-        "factor_variance": _decimal_text(factor_variance),
-        "residual_variance": _decimal_text(residual_variance),
-        "turnover": _decimal_text(turnover),
-    }
-    evidence_hash = hashlib.sha256(
-        json.dumps(evidence_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
-    return MacroRiskCandidateReport(
+    blocker_tuple = tuple(blockers)
+    evidence_hash = build_macro_risk_report_hash(
         candidate_id=candidate.candidate_id,
-        eligible_for_research_comparison=not blockers,
+        input_hash=candidate.input_hash,
+        eligible_for_research_comparison=not blocker_tuple,
         factor_variance=factor_variance,
         residual_variance=residual_variance,
         total_variance=total_variance,
         turnover=turnover,
         contributions=contributions,
-        blockers=tuple(blockers),
+        blockers=blocker_tuple,
+        evaluated_at=evaluated_at,
+        policy_version=policy.version,
+        usage_scope="research_only",
+        must_not_use_for_decision=True,
+        must_not_execute=True,
+    )
+    return MacroRiskCandidateReport(
+        candidate_id=candidate.candidate_id,
+        input_hash=candidate.input_hash,
+        eligible_for_research_comparison=not blocker_tuple,
+        factor_variance=factor_variance,
+        residual_variance=residual_variance,
+        total_variance=total_variance,
+        turnover=turnover,
+        contributions=contributions,
+        blockers=blocker_tuple,
         evaluated_at=evaluated_at,
         policy_version=policy.version,
         evidence_hash=evidence_hash,
@@ -686,5 +781,6 @@ __all__ = [
     "MacroRiskCandidateReport",
     "MacroRiskValidationPolicy",
     "build_macro_risk_input_hash",
+    "build_macro_risk_report_hash",
     "evaluate_macro_risk_candidate",
 ]
