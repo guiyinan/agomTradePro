@@ -93,3 +93,23 @@ def test_account_repository_modules_stay_bounded_and_one_way() -> None:
             assert not _imports_module(
                 source, aggregator
             ), f"{relative_path} must not import the compatibility aggregator"
+
+
+def test_system_settings_repository_reads_asset_proxy_from_config_center(monkeypatch) -> None:
+    """Asset proxy reads must use the Config Center public port, not the legacy singleton."""
+
+    monkeypatch.setattr(
+        "apps.account.infrastructure.repositories.get_runtime_asset_proxy_map",
+        lambda: {"equity": "510300.SH"},
+    )
+    monkeypatch.setattr(
+        "apps.account.infrastructure.repositories.SystemSettingsModel.get_runtime_asset_proxy_code",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("legacy SystemSettings asset-proxy getter used")
+        ),
+    )
+
+    repository = repositories.SystemSettingsRepository()
+
+    assert repository.get_runtime_asset_proxy_code("equity", "fallback") == "510300.SH"
+    assert repository.get_runtime_asset_proxy_code("unknown", "fallback") == "fallback"

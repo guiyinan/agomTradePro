@@ -122,7 +122,7 @@ def test_active_qlib_runtime_config_requires_complete_typed_snapshot(monkeypatch
         runtime_public,
         "get_active_runtime_value",
         lambda *, environment, definition_key: (
-            values[definition_key] if environment == "development" else None
+            values.get(definition_key) if environment == "development" else None
         ),
     )
 
@@ -131,6 +131,36 @@ def test_active_qlib_runtime_config_requires_complete_typed_snapshot(monkeypatch
     assert result is not None
     assert result["provider_uri"] == str(provider_path)
     assert result["is_configured"] is True
+
+
+def test_active_domain_runtime_config_requires_complete_typed_snapshot(monkeypatch) -> None:
+    values: dict[str, object] = {
+        "alpha.runtime.fixed_provider": "",
+        "alpha.runtime.pool_mode": "strict_valuation",
+        "config_center.market.color_convention": "cn_a_share",
+        "config_center.market.benchmark_code_map": {"equity_default_index": "000300.SH"},
+        "config_center.market.asset_proxy_code_map": {"A_SHARE_GROWTH": "000300.SH"},
+    }
+    monkeypatch.setattr(
+        runtime_public,
+        "get_active_runtime_value",
+        lambda *, environment, definition_key: (
+            values.get(definition_key) if environment == "development" else None
+        ),
+    )
+
+    result = runtime_public.get_active_domain_runtime_config("development")
+
+    assert result == {
+        "alpha_fixed_provider": "",
+        "alpha_pool_mode": "strict_valuation",
+        "market_color_convention": "cn_a_share",
+        "benchmark_code_map": {"equity_default_index": "000300.SH"},
+        "asset_proxy_code_map": {"A_SHARE_GROWTH": "000300.SH"},
+    }
+
+    values.pop("config_center.market.asset_proxy_code_map")
+    assert runtime_public.get_active_domain_runtime_config("development") is None
 
 
 @pytest.mark.parametrize(

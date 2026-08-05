@@ -339,6 +339,98 @@
       "tests": ["tests/unit/config_center/test_runtime_public.py::test_active_qlib_runtime_config_requires_complete_typed_snapshot"]
     },
     {
+      "config_key": "alpha.runtime.fixed_provider",
+      "namespace": "alpha",
+      "owner": "alpha",
+      "type": "enum",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "SystemSettingsModel compatibility",
+      "migration_status": "consumer_cutover_in_progress",
+      "consumers": [
+        "apps/alpha/application/services.py::_get_runtime_alpha_fixed_provider"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_public.py::test_active_domain_runtime_config_requires_complete_typed_snapshot",
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot"
+      ]
+    },
+    {
+      "config_key": "alpha.runtime.pool_mode",
+      "namespace": "alpha",
+      "owner": "alpha",
+      "type": "enum",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "SystemSettingsModel compatibility",
+      "migration_status": "consumer_cutover_in_progress",
+      "consumers": [
+        "apps/alpha/infrastructure/repositories.py::AlphaPoolDataRepository.resolve_pool_mode"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_public.py::test_active_domain_runtime_config_requires_complete_typed_snapshot",
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot"
+      ]
+    },
+    {
+      "config_key": "config_center.market.color_convention",
+      "namespace": "config_center",
+      "owner": "config_center",
+      "type": "enum",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "SystemSettingsModel compatibility",
+      "migration_status": "consumer_cutover_in_progress",
+      "consumers": [
+        "apps/account/infrastructure/config_summary_repository.py::get_runtime_market_visual_tokens"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot"
+      ]
+    },
+    {
+      "config_key": "config_center.market.benchmark_code_map",
+      "namespace": "config_center",
+      "owner": "config_center",
+      "type": "typed_json",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "SystemSettingsModel compatibility",
+      "migration_status": "consumer_cutover_in_progress",
+      "consumers": [
+        "apps/equity/application/use_cases.py::get_runtime_benchmark_code",
+        "apps/factor/infrastructure/adapters/__init__.py::get_runtime_benchmark_code"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_public.py::test_active_domain_runtime_config_requires_complete_typed_snapshot",
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot"
+      ]
+    },
+    {
+      "config_key": "config_center.market.asset_proxy_code_map",
+      "namespace": "config_center",
+      "owner": "config_center",
+      "type": "typed_json",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "SystemSettingsModel compatibility",
+      "migration_status": "consumer_cutover_in_progress",
+      "consumers": [
+        "apps/backtest/infrastructure/adapters/base.py::get_runtime_asset_proxy_map",
+        "apps/account/infrastructure/repositories.py::SystemSettingsRepository.get_runtime_asset_proxy_code"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_public.py::test_active_domain_runtime_config_requires_complete_typed_snapshot",
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
+        "tests/unit/account/test_account_repository_structure.py::test_system_settings_repository_reads_asset_proxy_from_config_center"
+      ]
+    },
+    {
       "config_key": "data_center.storage.active_policy",
       "namespace": "storage",
       "owner": "operations",

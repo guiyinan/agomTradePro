@@ -54,6 +54,7 @@ from apps.account.infrastructure.portfolio_repository import (
     PortfolioRepository as PortfolioRepository,
 )
 from apps.account.infrastructure.position_repository import PositionRepository as PositionRepository
+from apps.config_center.application.public import get_runtime_asset_proxy_map
 from apps.config_center.infrastructure.models import SystemSettingsModel
 
 logger = logging.getLogger(__name__)
@@ -728,7 +729,8 @@ class SystemSettingsRepository:
     def get_runtime_asset_proxy_code(self, asset_class: str, default: str = "") -> str:
         """获取运行时资产代理代码。"""
 
-        return str(SystemSettingsModel.get_runtime_asset_proxy_code(asset_class, default))
+        value = get_runtime_asset_proxy_map().get(asset_class)
+        return str(value) if isinstance(value, str) and value else default
 
 
 class MacroSizingConfigRepository:

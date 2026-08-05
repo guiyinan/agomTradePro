@@ -4367,3 +4367,11 @@ Git SHA / 镜像 / migration：
 - 治理与测试：`regime.current` 增加 Dashboard query service、Signal query service markers 和精确回归；自动投顾组件 `13 passed`，Signal query `2 passed`，current-data manifest 实际执行 `266 nodeid / 305 passed`，current-data contracts `45 surfaces`，变更文件 mypy/Ruff/Black 通过。
 - inventory 与门禁：clean HEAD inventory 的 `current_surface_references=3288`，其余结构计数 `51/55/4/143/0/49`；clean HEAD governance consistency `0 violations`，architecture boundary/audit、module-cycle、legacy-fact、Celery task contracts（18 tasks）和 runtime-config coverage（49 references）均通过。根工作区 governance 仍会被其他 agent 未提交的 `apps/equity/domain/forecast_baseline_inputs.py` 1674 行触发，未纳入本轮。
 - 明确未做：未改变 Signal 历史校验、推荐矩阵、Dashboard advisor 业务规则、Regime 算法、Publication writer/provider、生产数据、VPS 或部署；生产 Publication 覆盖、PostgreSQL 查询预算/备份恢复、观察窗口和 M9 旧链清理仍未完成。
+
+## 84. 2026-08-06：Alpha/市场运行参数 typed projection 与账户代理读取收口
+
+- 目标：为 Alpha provider/pool、市场颜色约定、benchmark map 和 asset-proxy map 建立可校验的 RuntimeConfigDefinition，并让 Config Center 摘要与账户回测代理读取在完整 typed snapshot 存在时优先使用同一快照，避免继续把旧 `SystemSettingsModel` getter 当作当前真源。
+- 变更：新增 5 个 typed definitions 与 all-or-nothing `get_active_domain_runtime_config()`；Config Center summary/repository 统一读取完整 typed projection，快照缺失或不完整时才走已登记的 SystemSettings compatibility；Account `SystemSettingsRepository.get_runtime_asset_proxy_code()` 改走 Config Center Application Public Port，旧 asset-proxy getter 不再被该运行时消费者调用。
+- 治理：`governance/runtime_config_contracts.json` 登记 5 个 key、owner、consumer、fallback 和精确测试；账户代理读取回归明确断言旧 singleton getter 未被调用。
+- 测试：Config Center 定向回归 `16 passed`，Config Center component `3 passed`，Account repository/backtest 回归 `5 passed`；变更文件 Black/Ruff/mypy regression 通过；runtime config coverage `49`、current-data contracts `45 surfaces`、architecture boundary `0`、module-cycle `0`、legacy-fact guard、Celery task contracts（18 tasks）和 governance consistency `0 violations`。
+- 明确未做：仍保留 SystemSettings compatibility fallback；`ConfigCenterSettingsRepository.update_runtime_config()` 等旧管理写入流程尚未改成 typed profile activation，未执行全量字段迁移、生产 profile 初始化、PostgreSQL/备份恢复、观察窗口、M9 旧字段删除或 M10 生产切读；不部署、不 push。
