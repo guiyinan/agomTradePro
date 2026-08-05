@@ -363,7 +363,7 @@ python manage.py init_macro_indicator_governance --strict
 list_config_capabilities()
 get_config_center_snapshot()
 list_data_center_providers()
-create_data_center_provider(name, source_type, priority, is_active, api_key, http_url, api_endpoint, api_secret, extra_config, description)
+create_data_center_provider(name, source_type, priority, is_active, api_key, http_url, api_endpoint, api_secret, extra_config, tushare_request_mode, description)
 update_data_center_provider(provider_id, ...)
 test_data_center_provider_connection(provider_id)
 get_data_center_provider_status()

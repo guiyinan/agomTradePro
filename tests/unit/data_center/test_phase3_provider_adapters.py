@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
@@ -46,6 +47,35 @@ def test_build_unified_provider_adapter_returns_expected_types():
         build_unified_provider_adapter(_config("akshare")), AkshareUnifiedProviderAdapter
     )
     assert isinstance(build_unified_provider_adapter(_config("fred")), FredUnifiedProviderAdapter)
+
+
+def test_tushare_unified_provider_uses_its_own_transport_configuration(monkeypatch):
+    captured: dict[str, object] = {}
+    expected_client = SimpleNamespace()
+
+    def create_client(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return expected_client
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
+        create_client,
+    )
+    config = replace(
+        _config("tushare", "tushare-relay"),
+        api_key="relay-token",
+        http_url="https://relay.example.test/tushare/pro",
+        extra_config={"tushare_request_mode": "unified_relay"},
+    )
+
+    client = TushareUnifiedProviderAdapter(config)._create_pro_client()
+
+    assert client is expected_client
+    assert captured == {
+        "token": "relay-token",
+        "http_url": "https://relay.example.test/tushare/pro",
+        "request_mode": "unified_relay",
+    }
 
 
 def test_fred_unified_provider_adapter_parses_observations(monkeypatch):
@@ -234,7 +264,7 @@ def test_tushare_unified_provider_adapter_fetches_etf_net_flow_from_size_delta(m
 
     monkeypatch.setattr(
         "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
-        lambda token=None, http_url=None: _FakePro(),
+        lambda **_kwargs: _FakePro(),
     )
 
     adapter = TushareUnifiedProviderAdapter(_config("tushare", "Tushare Proxy"))
@@ -278,7 +308,7 @@ def test_tushare_etf_size_flow_fails_closed_when_one_exchange_is_missing(monkeyp
 
     monkeypatch.setattr(
         "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
-        lambda token=None, http_url=None: _FakePro(),
+        lambda **_kwargs: _FakePro(),
     )
 
     adapter = TushareUnifiedProviderAdapter(_config("tushare", "Tushare Proxy"))
@@ -1027,7 +1057,7 @@ def test_tushare_unified_provider_adapter_fetches_market_turnover(monkeypatch):
 
     monkeypatch.setattr(
         "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
-        lambda token=None, http_url=None: _FakePro(),
+        lambda **_kwargs: _FakePro(),
     )
 
     adapter = TushareUnifiedProviderAdapter(_config("tushare", "Tushare Pro"))
@@ -1066,7 +1096,7 @@ def test_tushare_unified_provider_adapter_rejects_tencent_index_proxy_for_turnov
 
     monkeypatch.setattr(
         "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
-        lambda token=None, http_url=None: (_ for _ in ()).throw(TimeoutError("tushare timeout")),
+        lambda **_kwargs: (_ for _ in ()).throw(TimeoutError("tushare timeout")),
     )
     monkeypatch.setattr(
         TushareUnifiedProviderAdapter,
@@ -1122,7 +1152,7 @@ def test_tushare_unified_provider_adapter_rejects_eastmoney_index_proxy_for_turn
 
     monkeypatch.setattr(
         "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
-        lambda token=None, http_url=None: (_ for _ in ()).throw(TimeoutError("tushare timeout")),
+        lambda **_kwargs: (_ for _ in ()).throw(TimeoutError("tushare timeout")),
     )
     monkeypatch.setattr(
         "apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway._eastmoney_direct_network",
@@ -1165,7 +1195,7 @@ def test_tushare_unified_provider_adapter_fast_fails_turnover_when_quotes_blocke
 
     monkeypatch.setattr(
         "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
-        lambda token=None, http_url=None: (_ for _ in ()).throw(TimeoutError("tushare timeout")),
+        lambda **_kwargs: (_ for _ in ()).throw(TimeoutError("tushare timeout")),
     )
     monkeypatch.setattr(
         "apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway._eastmoney_direct_network",
@@ -1200,7 +1230,7 @@ def test_tushare_unified_provider_adapter_fetches_margin_balance(monkeypatch):
 
     monkeypatch.setattr(
         "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
-        lambda token=None, http_url=None: _FakePro(),
+        lambda **_kwargs: _FakePro(),
     )
 
     adapter = TushareUnifiedProviderAdapter(_config("tushare", "Tushare Pro"))

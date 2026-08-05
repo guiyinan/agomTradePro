@@ -140,9 +140,21 @@ class _FakeClient:
         ),
         (
             "create_data_center_provider",
-            {"name": "tushare-main", "source_type": "tushare", "api_key": "token"},
+            {
+                "name": "tushare-main",
+                "source_type": "tushare",
+                "api_key": "token",
+                "tushare_request_mode": "sdk_path",
+            },
         ),
-        ("update_data_center_provider", {"provider_id": 1, "priority": 2}),
+        (
+            "update_data_center_provider",
+            {
+                "provider_id": 1,
+                "priority": 2,
+                "tushare_request_mode": "unified_relay",
+            },
+        ),
         ("test_data_center_provider_connection", {"provider_id": 1}),
         ("get_data_center_provider_status", {}),
         ("data_center_get_quotes", {"asset_code": "000001.SZ"}),

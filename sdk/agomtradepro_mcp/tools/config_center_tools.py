@@ -216,24 +216,26 @@ def register_config_center_tools(server: FastMCP) -> None:
         api_endpoint: str = "",
         api_secret: str = "",
         extra_config: dict[str, Any] | None = None,
+        tushare_request_mode: str | None = None,
         description: str = "",
     ) -> dict[str, Any]:
-        """创建数据中台 Provider 配置。"""
+        """创建数据中台 Provider；Tushare 可重复创建为多线路连接池。"""
         client = AgomTradeProClient()
-        return client.data_center.create_provider(
-            {
-                "name": name,
-                "source_type": source_type,
-                "priority": priority,
-                "is_active": is_active,
-                "api_key": api_key,
-                "http_url": http_url,
-                "api_endpoint": api_endpoint,
-                "api_secret": api_secret,
-                "extra_config": extra_config or {},
-                "description": description,
-            }
-        )
+        payload: dict[str, Any] = {
+            "name": name,
+            "source_type": source_type,
+            "priority": priority,
+            "is_active": is_active,
+            "api_key": api_key,
+            "http_url": http_url,
+            "api_endpoint": api_endpoint,
+            "api_secret": api_secret,
+            "extra_config": extra_config or {},
+            "description": description,
+        }
+        if tushare_request_mode is not None:
+            payload["tushare_request_mode"] = tushare_request_mode
+        return client.data_center.create_provider(payload)
 
     @server.tool()
     def update_data_center_provider(
@@ -247,6 +249,8 @@ def register_config_center_tools(server: FastMCP) -> None:
         api_endpoint: str | None = None,
         api_secret: str | None = None,
         extra_config: dict[str, Any] | None = None,
+        tushare_request_mode: str | None = None,
+        clear_service_address: bool | None = None,
         description: str | None = None,
     ) -> dict[str, Any]:
         """更新数据中台 Provider 配置。"""
@@ -263,6 +267,8 @@ def register_config_center_tools(server: FastMCP) -> None:
                 "api_endpoint": api_endpoint,
                 "api_secret": api_secret,
                 "extra_config": extra_config,
+                "tushare_request_mode": tushare_request_mode,
+                "clear_service_address": clear_service_address,
                 "description": description,
             }.items()
             if value is not None

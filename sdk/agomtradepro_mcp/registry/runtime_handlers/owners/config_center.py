@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 from agomtradepro_mcp.registry.runtime_handlers.common import _call_registered_tool
 
@@ -134,25 +134,27 @@ def _fallback_create_data_center_provider(
     api_endpoint: str = "",
     api_secret: str = "",
     extra_config: dict[str, Any] | None = None,
+    tushare_request_mode: str | None = None,
     description: str = "",
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    return client.data_center.create_provider(
-        {
-            "name": name,
-            "source_type": source_type,
-            "priority": priority,
-            "is_active": is_active,
-            "api_key": api_key,
-            "http_url": http_url,
-            "api_endpoint": api_endpoint,
-            "api_secret": api_secret,
-            "extra_config": extra_config or {},
-            "description": description,
-        }
-    )
+    payload: dict[str, Any] = {
+        "name": name,
+        "source_type": source_type,
+        "priority": priority,
+        "is_active": is_active,
+        "api_key": api_key,
+        "http_url": http_url,
+        "api_endpoint": api_endpoint,
+        "api_secret": api_secret,
+        "extra_config": extra_config or {},
+        "description": description,
+    }
+    if tushare_request_mode is not None:
+        payload["tushare_request_mode"] = tushare_request_mode
+    return client.data_center.create_provider(payload)
 
 
 def _fallback_update_data_center_provider(
@@ -166,6 +168,8 @@ def _fallback_update_data_center_provider(
     api_endpoint: str | None = None,
     api_secret: str | None = None,
     extra_config: dict[str, Any] | None = None,
+    tushare_request_mode: str | None = None,
+    clear_service_address: bool | None = None,
     description: str | None = None,
     idempotency_key: str | None = None,
 ) -> dict[str, Any]:
@@ -184,6 +188,8 @@ def _fallback_update_data_center_provider(
             "api_endpoint": api_endpoint,
             "api_secret": api_secret,
             "extra_config": extra_config,
+            "tushare_request_mode": tushare_request_mode,
+            "clear_service_address": clear_service_address,
             "description": description,
         }.items()
         if value is not None
@@ -258,7 +264,10 @@ def _internal_handler_config_center_update_runtime_setting(
             "message": ("Preview generated. Confirm to update the selected Qlib runtime setting."),
         }
 
-    return _call_registered_tool("update_qlib_runtime_config", updates)
+    return cast(
+        dict[str, Any],
+        _call_registered_tool("update_qlib_runtime_config", updates),
+    )
 
 
 def _internal_handler_config_center_update_data_center_provider(
@@ -272,6 +281,8 @@ def _internal_handler_config_center_update_data_center_provider(
     api_endpoint: str | None = None,
     api_secret: str | None = None,
     extra_config: dict[str, Any] | None = None,
+    tushare_request_mode: str | None = None,
+    clear_service_address: bool | None = None,
     description: str | None = None,
     preview_only: bool = False,
     idempotency_key: str | None = None,
@@ -291,6 +302,8 @@ def _internal_handler_config_center_update_data_center_provider(
             "api_endpoint": api_endpoint,
             "api_secret": api_secret,
             "extra_config": extra_config,
+            "tushare_request_mode": tushare_request_mode,
+            "clear_service_address": clear_service_address,
             "description": description,
         }.items()
         if value is not None
@@ -322,12 +335,15 @@ def _internal_handler_config_center_update_data_center_provider(
             "message": ("Preview generated. Confirm to update the selected data-center provider."),
         }
 
-    return _call_registered_tool(
-        "update_data_center_provider",
-        {
-            "provider_id": provider_id,
-            **updates,
-        },
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "update_data_center_provider",
+            {
+                "provider_id": provider_id,
+                **updates,
+            },
+        ),
     )
 
 
@@ -341,11 +357,12 @@ def _internal_handler_config_center_create_data_center_provider(
     api_endpoint: str = "",
     api_secret: str = "",
     extra_config: dict[str, Any] | None = None,
+    tushare_request_mode: str | None = None,
     description: str = "",
     preview_only: bool = False,
     idempotency_key: str | None = None,
 ) -> dict[str, Any]:
-    create_arguments = {
+    create_arguments: dict[str, Any] = {
         "name": name,
         "source_type": source_type,
         "priority": priority,
@@ -357,6 +374,8 @@ def _internal_handler_config_center_create_data_center_provider(
         "extra_config": extra_config or {},
         "description": description,
     }
+    if tushare_request_mode is not None:
+        create_arguments["tushare_request_mode"] = tushare_request_mode
 
     if preview_only:
         extra_config_value = create_arguments["extra_config"] or {}
@@ -374,15 +393,19 @@ def _internal_handler_config_center_create_data_center_provider(
                 "api_endpoint": create_arguments["api_endpoint"],
                 "description_present": bool(create_arguments["description"]),
                 "extra_config_keys": sorted(extra_config_value.keys()),
+                "tushare_request_mode": create_arguments.get("tushare_request_mode"),
                 "has_api_key": bool(create_arguments["api_key"]),
                 "has_api_secret": bool(create_arguments["api_secret"]),
             },
             "message": ("Preview generated. Confirm to create the selected data-center provider."),
         }
 
-    return _call_registered_tool(
-        "create_data_center_provider",
-        create_arguments,
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "create_data_center_provider",
+            create_arguments,
+        ),
     )
 
 

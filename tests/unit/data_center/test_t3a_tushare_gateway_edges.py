@@ -108,7 +108,7 @@ def test_history_routes_etf_index_and_stock_and_skips_invalid_rows(
 
     monkeypatch.setattr(
         "apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client",
-        lambda: _Pro(),
+        lambda **_kwargs: _Pro(),
     )
     gateway = tushare_gateway.TushareGateway()
     assert len(gateway.get_historical_prices("510300.SH", "20240101", "20240131")) == 1
@@ -133,14 +133,14 @@ def test_history_empty_and_exception_use_tencent_fallback(
     )
     monkeypatch.setattr(
         "apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client",
-        lambda: empty_pro,
+        lambda **_kwargs: empty_pro,
     )
     gateway = tushare_gateway.TushareGateway()
     assert gateway.get_historical_prices("510300.SH", "20240101", "20240131") == []
 
     monkeypatch.setattr(
         "apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client",
-        lambda: (_ for _ in ()).throw(RuntimeError("offline")),
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("offline")),
     )
     assert gateway.get_historical_prices("000001.SZ", "20240101", "20240131") == []
     assert len(fallback) == 2
@@ -153,7 +153,7 @@ def test_history_authorization_failure_does_not_fallback(
 
     monkeypatch.setattr(
         "apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client",
-        lambda: (_ for _ in ()).throw(TushareRelayAuthorizationError("HTTP 403")),
+        lambda **_kwargs: (_ for _ in ()).throw(TushareRelayAuthorizationError("HTTP 403")),
     )
     monkeypatch.setattr(
         tushare_gateway.TushareGateway,
@@ -171,6 +171,34 @@ def test_history_authorization_failure_does_not_fallback(
             "20240101",
             "20240131",
         )
+
+
+def test_gateway_uses_its_configured_tushare_route(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def create_client(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return SimpleNamespace(daily=lambda **_params: pd.DataFrame())
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client",
+        create_client,
+    )
+    gateway = tushare_gateway.TushareGateway(
+        token="relay-token",
+        http_url="https://relay.example.test/tushare/pro",
+        request_mode="unified_relay",
+        source_name="tushare-relay",
+    )
+
+    gateway.get_historical_prices("000001.SZ", "20240101", "20240131")
+
+    assert gateway.provider_name() == "tushare-relay"
+    assert captured == {
+        "token": "relay-token",
+        "http_url": "https://relay.example.test/tushare/pro",
+        "request_mode": "unified_relay",
+    }
 
 
 def test_native_fallback_isolates_tencent_failure(

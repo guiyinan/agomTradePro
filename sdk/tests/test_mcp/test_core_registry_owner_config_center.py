@@ -161,6 +161,7 @@ def test_config_center_update_data_center_provider_capability_runs_internal_prev
             "priority": 2,
             "is_active": False,
             "http_url": "https://proxy-2.example.com",
+            "tushare_request_mode": "sdk_path",
             "idempotency_key": "idem-config-provider-update",
         },
     )
@@ -172,7 +173,7 @@ def test_config_center_update_data_center_provider_capability_runs_internal_prev
         "region",
         "timeout",
     ]
-    assert preview_response["preview_result"]["update_summary"]["field_count"] == 4
+    assert preview_response["preview_result"]["update_summary"]["field_count"] == 5
     assert captured_calls == []
 
     resume_response = server_module.CORE_DISPATCHER.resume_confirmation(
@@ -187,6 +188,7 @@ def test_config_center_update_data_center_provider_capability_runs_internal_prev
     assert captured_calls[0]["priority"] == 2
     assert captured_calls[0]["is_active"] is False
     assert captured_calls[0]["http_url"] == "https://proxy-2.example.com"
+    assert captured_calls[0]["tushare_request_mode"] == "sdk_path"
     assert "preview_only" not in captured_calls[0]
     assert "idempotency_key" not in captured_calls[0]
     assert audit_events[0]["affected_objects"]["provider_id"] == 7
@@ -231,6 +233,7 @@ def test_config_center_create_data_center_provider_capability_runs_internal_prev
             "api_endpoint": "/pro",
             "api_key": "ts-key",
             "api_secret": "ts-secret",
+            "tushare_request_mode": "sdk_path",
             "extra_config": {"timeout": 10, "region": "cn"},
             "description": "main provider",
             "idempotency_key": "idem-dc-provider-create",
@@ -243,6 +246,9 @@ def test_config_center_create_data_center_provider_capability_runs_internal_prev
     assert preview_response["preview_result"]["create_summary"]["source_type"] == "tushare"
     assert preview_response["preview_result"]["create_summary"]["has_api_key"] is True
     assert preview_response["preview_result"]["create_summary"]["has_api_secret"] is True
+    assert preview_response["preview_result"]["create_summary"]["tushare_request_mode"] == (
+        "sdk_path"
+    )
     assert preview_response["preview_result"]["create_summary"]["extra_config_keys"] == [
         "region",
         "timeout",
@@ -259,8 +265,33 @@ def test_config_center_create_data_center_provider_capability_runs_internal_prev
     assert resume_response["result"]["name"] == "tushare-main"
     assert captured_calls[0]["name"] == "tushare-main"
     assert captured_calls[0]["source_type"] == "tushare"
+    assert captured_calls[0]["tushare_request_mode"] == "sdk_path"
     assert captured_calls[0]["extra_config"] == {"timeout": 10, "region": "cn"}
     assert "preview_only" not in captured_calls[0]
     assert "idempotency_key" not in captured_calls[0]
     assert audit_events[0]["affected_objects"]["name"] == "tushare-main"
     assert audit_events[1]["event_type"] == "confirmation_completed"
+
+
+def test_data_center_provider_write_manifests_expose_tushare_pool_fields():
+    from agomtradepro_mcp.registry.modules.owners.config_center_write_capabilities import (
+        MANIFESTS,
+    )
+
+    by_key = {manifest.capability_key: manifest for manifest in MANIFESTS}
+    create_properties = by_key["config_center.create.data_center_provider"].input_schema[
+        "properties"
+    ]
+    update_properties = by_key["config_center.update.data_center_provider"].input_schema[
+        "properties"
+    ]
+
+    assert create_properties["tushare_request_mode"]["enum"] == [
+        "sdk_path",
+        "unified_relay",
+    ]
+    assert update_properties["tushare_request_mode"]["enum"] == [
+        "sdk_path",
+        "unified_relay",
+    ]
+    assert update_properties["clear_service_address"]["type"] == "boolean"

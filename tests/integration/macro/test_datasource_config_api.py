@@ -174,6 +174,46 @@ def test_tushare_transport_mode_is_explicit_safe_and_preserves_provider_config(a
 
 
 @pytest.mark.django_db
+def test_multiple_active_tushare_routes_can_be_configured_in_parallel(admin_client):
+    routes = [
+        {
+            "name": "Tushare Primary SDK",
+            "source_type": "tushare",
+            "priority": 10,
+            "api_key": "primary-token",
+            "http_url": "https://sdk-relay.example.test",
+            "tushare_request_mode": "sdk_path",
+        },
+        {
+            "name": "Tushare Unified Relay",
+            "source_type": "tushare",
+            "priority": 20,
+            "api_key": "relay-token",
+            "http_url": "https://relay.example.test/tushare/pro",
+            "tushare_request_mode": "unified_relay",
+        },
+    ]
+
+    responses = [
+        admin_client.post(
+            "/api/data-center/providers/",
+            data=json.dumps(route),
+            content_type="application/json",
+        )
+        for route in routes
+    ]
+
+    assert [response.status_code for response in responses] == [201, 201]
+    stored = ProviderConfigModel.objects.filter(name__in=[route["name"] for route in routes])
+    assert stored.count() == 2
+    assert set(stored.values_list("source_type", flat=True)) == {"tushare"}
+    assert list(stored.order_by("priority").values_list("name", flat=True)) == [
+        "Tushare Primary SDK",
+        "Tushare Unified Relay",
+    ]
+
+
+@pytest.mark.django_db
 def test_unified_tushare_transport_requires_a_service_address(admin_client):
     response = admin_client.post(
         "/api/data-center/providers/",

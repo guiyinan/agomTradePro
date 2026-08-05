@@ -25,10 +25,18 @@ def test_tui_exposes_typed_tushare_create_and_provider_update_actions() -> None:
 
     create_fields = _fields_by_key(create_action)
     assert "extra_config" not in create_fields
+    assert create_action["method"] == "POST"
+    assert create_fields["name"]["required"] is True
+    assert create_fields["priority"]["value_type"] == "integer"
     assert create_fields["api_key"]["input_type"] == "password"
     assert create_fields["api_key"]["presentation_semantic"] == "api_token"
     assert create_fields["http_url"]["presentation_semantic"] == "endpoint_url"
     assert create_fields["tushare_request_mode"]["default"] == "unified_relay"
+    assert {
+        option["value"]
+        for option in create_fields["tushare_request_mode"]["options"]
+        if isinstance(option, dict)
+    } == {"sdk_path", "unified_relay"}
     assert create_action["confirmation_required"] is True
     assert create_action["audit_required"] is True
 

@@ -60,7 +60,17 @@ def _probe_tushare(config: ProviderConfig, logs: list[str]) -> ConnectionTestRes
     if http_url:
         _log(logs, f"[INFO] Custom HTTP URL: {http_url}")
 
-    adapter = TushareAdapter(token=token, http_url=http_url)
+    raw_request_mode = (config.extra_config or {}).get("tushare_request_mode")
+    request_mode = (
+        raw_request_mode.strip()
+        if isinstance(raw_request_mode, str) and raw_request_mode.strip()
+        else None
+    )
+    adapter = TushareAdapter(
+        token=token,
+        http_url=http_url,
+        request_mode=request_mode,
+    )
     end = date.today()
     start = end - timedelta(days=7)
     _log(logs, f"[INFO] SHIBOR probe window: {start} → {end}")

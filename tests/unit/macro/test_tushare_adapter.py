@@ -6,6 +6,33 @@ import pytest
 
 from apps.data_center.infrastructure.macro_sources.base import DataSourceUnavailableError
 from apps.data_center.infrastructure.macro_sources.tushare_adapter import TushareAdapter
+from shared.config.tushare import TUSHARE_REQUEST_MODE_UNIFIED_RELAY
+
+
+def test_client_initialization_preserves_route_specific_request_mode(monkeypatch):
+    captured: dict[str, object] = {}
+    pro = SimpleNamespace()
+
+    def create_client(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return pro
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.macro_sources.tushare_adapter.create_tushare_pro_client",
+        create_client,
+    )
+    adapter = TushareAdapter(
+        token="relay-token",
+        http_url="https://relay.example.test/tushare/pro",
+        request_mode=TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
+    )
+
+    assert adapter.pro is pro
+    assert captured == {
+        "token": "relay-token",
+        "http_url": "https://relay.example.test/tushare/pro",
+        "request_mode": TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
+    }
 
 
 def test_fetch_shibor_accepts_lowercase_tenor_column():

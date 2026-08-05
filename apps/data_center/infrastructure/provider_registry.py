@@ -32,6 +32,37 @@ _CIRCUIT_OPEN_DURATION_SEC = 300
 _PROVIDER_BUILD_EXCEPTIONS = (LookupError, RuntimeError, TypeError, ValueError)
 
 
+def _parse_persisted_last_success(value: object) -> datetime | None:
+    """Parse one timezone-aware persisted provider success timestamp."""
+
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str) and value.strip():
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+    if parsed.utcoffset() is None:
+        return None
+    return parsed.astimezone(UTC)
+
+
+def _provider_source_type(provider: ProviderProtocol) -> str:
+    """Return the provider family used for same-source sticky routing."""
+
+    source_method = getattr(provider, "provider_source", None)
+    if callable(source_method):
+        try:
+            source_type = str(source_method()).strip().lower()
+        except (AttributeError, RuntimeError, TypeError, ValueError):
+            source_type = ""
+        if source_type:
+            return source_type
+    return f"provider:{provider.provider_name()}"
+
+
 def _is_empty_list(value: object) -> bool:
     """Return whether a provider result is a valid but empty collection."""
 
@@ -46,12 +77,16 @@ class _ProviderState:
         provider: ProviderProtocol,
         priority: int,
         capability: DataCapability,
+        *,
+        source_type: str,
+        last_success_at: datetime | None = None,
     ) -> None:
         self.provider = provider
         self.priority = priority
         self.capability = capability
+        self.source_type = source_type
         self.consecutive_failures = 0
-        self.last_success_at: datetime | None = None
+        self.last_success_at = last_success_at
         self.circuit_open_until: float | None = None
         self.total_calls = 0
         self.total_failures = 0
@@ -154,6 +189,10 @@ class ProviderRegistry:
                 provider,
                 priority=config.priority,
                 provider_id=config.id,
+                source_type=config.source_type,
+                last_success_at=_parse_persisted_last_success(
+                    (config.extra_config or {}).get("provider_last_success_at")
+                ),
             )
             built_count += 1
 
@@ -176,6 +215,8 @@ class ProviderRegistry:
         priority: int = 100,
         *,
         provider_id: int | None = None,
+        source_type: str | None = None,
+        last_success_at: datetime | None = None,
     ) -> None:
         """Register one provider for every capability it supports."""
         if provider_id is not None:
@@ -186,7 +227,13 @@ class ProviderRegistry:
         for capability in DataCapability:
             if not provider.supports(capability):
                 continue
-            state = _ProviderState(provider, priority, capability)
+            state = _ProviderState(
+                provider,
+                priority,
+                capability,
+                source_type=(source_type or _provider_source_type(provider)).strip().lower(),
+                last_success_at=last_success_at,
+            )
             bucket = self._registry.setdefault(capability, [])
             bucket.append(state)
             bucket.sort(key=lambda item: item.priority)
@@ -206,17 +253,39 @@ class ProviderRegistry:
         return self._providers_by_name.get(provider_name)
 
     def get_provider(self, capability: DataCapability) -> ProviderProtocol | None:
-        """Return the highest-priority available provider for a capability."""
-        for state in self._registry.get(capability, []):
-            if state.is_available:
-                return state.provider
+        """Return the sticky-success or highest-priority provider for a capability."""
+        for state in self._available_states_in_dispatch_order(capability):
+            return state.provider
         return None
 
     def get_providers(self, capability: DataCapability) -> list[ProviderProtocol]:
-        """Return available providers in priority order."""
-        return [
-            state.provider for state in self._registry.get(capability, []) if state.is_available
-        ]
+        """Return available providers in sticky-success dispatch order."""
+        return [state.provider for state in self._available_states_in_dispatch_order(capability)]
+
+    def _available_states_in_dispatch_order(
+        self,
+        capability: DataCapability,
+    ) -> list[_ProviderState]:
+        """Keep source priority slots while preferring each source's last good route."""
+
+        states = [state for state in self._registry.get(capability, []) if state.is_available]
+        indexes_by_source: dict[str, list[int]] = {}
+        for index, state in enumerate(states):
+            indexes_by_source.setdefault(state.source_type, []).append(index)
+        for indexes in indexes_by_source.values():
+            if len(indexes) < 2:
+                continue
+            source_states = [states[index] for index in indexes]
+            source_states.sort(
+                key=lambda state: (
+                    state.last_success_at is None,
+                    -(state.last_success_at.timestamp()) if state.last_success_at else 0.0,
+                    state.priority,
+                )
+            )
+            for index, state in zip(indexes, source_states, strict=True):
+                states[index] = state
+        return states
 
     def call_with_failover(
         self,
@@ -233,9 +302,7 @@ class ProviderRegistry:
         and reliability contract are publishable; legacy list results remain
         supported during migration.
         """
-        for state in self._registry.get(capability, []):
-            if not state.is_available:
-                continue
+        for state in self._available_states_in_dispatch_order(capability):
             provider = state.provider
             started = time.monotonic()
             try:
@@ -289,8 +356,7 @@ class ProviderRegistry:
                 if not accepted:
                     state.record_failure()
                     logger.info(
-                        "Provider '%s' result failed the '%s' acceptance validator; "
-                        "trying next",
+                        "Provider '%s' result failed the '%s' acceptance validator; " "trying next",
                         provider.provider_name(),
                         capability.value,
                     )

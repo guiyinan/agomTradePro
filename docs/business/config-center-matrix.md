@@ -86,6 +86,11 @@
 - `get_risk_center_daily_report`
 - `list_risk_center_daily_reports`
 
+Tushare 连接池可通过 TUI 连续创建不同唯一名称的 Provider，也可通过受治理 MCP 能力
+`config_center.create.data_center_provider` 显式传入 `tushare_request_mode`、`priority`、
+`is_active`、`api_key` 和 `http_url`；写入前必须完成预览确认。线路更新使用
+`config_center.update.data_center_provider`，支持调整模式、优先级、启停和清除服务地址。
+
 ## Notes
 
 - 配置中心继续负责“发现、摘要、跳转”，但数据源相关入口已经彻底收口到 `data_center`。

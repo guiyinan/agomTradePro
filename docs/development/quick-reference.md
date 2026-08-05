@@ -654,14 +654,27 @@ GET /api/alpha/scores/?top_n=10&ai_filter=1
 ### 数据源中台提示
 
 - Tushare 第三方代理地址统一配置在 `ProviderConfigModel.http_url`
+- 可以创建多条 `source_type=tushare` 的激活配置，并用唯一 `name` 区分官方 SDK、SDK
+  路径中转和统一中继；`priority` 数字越小，首次尝试顺序越靠前
 - 默认 `sdk_path` 模式会自动下发到 `pro._DataApi__http_url`
 - 单 URL 中继使用 `extra_config={"tushare_request_mode":"unified_relay"}`；运行时固定向
   `http_url` POST，并发送 `X-API-Key`，不会在 URL 后追加 API 名
+- 每条 Tushare 配置独立使用自己的 Token、URL 和请求模式，不会从另一条配置继承连接方式
+- 同类线路成功后，registry 会在对应数据能力内优先复用最近成功线路；该线路失败时继续按
+  已配置的同类槽位和 Provider 优先级自动尝试后续线路
+- 已持久化的 `provider_last_success_at` 会在 registry 重建后恢复“上次好用线路”偏好
+- TUI 的“新增 Tushare 连接”可以使用不同唯一名称连续创建多条线路；连接方式和优先级是
+  独立字段，不需要编辑 `extra_config`
+- MCP 优先使用受治理能力 `config_center.create.data_center_provider`，显式传
+  `tushare_request_mode=sdk_path|unified_relay`；该能力会先返回预览并要求确认，再写入连接池
+- MCP 更新线路使用 `config_center.update.data_center_provider`，可显式调整
+  `tushare_request_mode`、`priority`、`is_active` 或 `clear_service_address`
 - API Key 只放 `ProviderConfigModel.api_key`，不得复制到 `extra_config` 或 URL
 - 不需要在 `equity / backtest / data_center / fund / sector / factor / hedge` 分别配置
 - QMT 行情源统一配置在 `ProviderConfigModel.source_type=qmt`
 - `extra_config` 可承载 `client_path`、`data_dir`、`dividend_type` 等本地 XtQuant 参数
-- `data_center` registry 会按优先级注册可用 Provider；旧 market-data API 前缀已下线
+- `data_center` registry 会按优先级注册可用 Provider，并在不改变不同数据源优先级槽位的
+  前提下对同类 Provider 做最近成功线路粘滞；旧 market-data API 前缀已下线
 
 ### Factor API (因子管理)
 

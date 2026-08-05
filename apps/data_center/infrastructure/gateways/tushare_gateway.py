@@ -141,8 +141,30 @@ class TushareGateway(MarketGatewayProtocol):
     适合作为东方财富的备用/校验源。
     """
 
+    def __init__(
+        self,
+        *,
+        token: str | None = None,
+        http_url: str | None = None,
+        request_mode: str | None = None,
+        source_name: str = "tushare",
+    ) -> None:
+        self._token = token
+        self._http_url = http_url
+        self._request_mode = request_mode
+        self._source_name = source_name
+
+    def _create_client(self) -> object:
+        """Build the client for this configured Tushare route only."""
+
+        return create_tushare_pro_client(
+            token=self._token,
+            http_url=self._http_url,
+            request_mode=self._request_mode,
+        )
+
     def provider_name(self) -> str:
-        return "tushare"
+        return self._source_name
 
     def supports(self, capability: DataCapability) -> bool:
         return capability in _SUPPORTED
@@ -156,7 +178,7 @@ class TushareGateway(MarketGatewayProtocol):
                     cast(_CompatibilityAdapterProtocol, compatibility_adapter),
                     stock_codes,
                 )
-            pro = cast(_TushareProClientProtocol, create_tushare_pro_client())
+            pro = cast(_TushareProClientProtocol, self._create_client())
             results: list[QuoteSnapshot] = []
 
             from django.utils import timezone
@@ -324,7 +346,7 @@ class TushareGateway(MarketGatewayProtocol):
             logger.warning("Tushare historical price request rejected: invalid scope")
             return []
         try:
-            pro = cast(_TushareProClientProtocol, create_tushare_pro_client())
+            pro = cast(_TushareProClientProtocol, self._create_client())
 
             code = normalized_asset_code.split(".", 1)[0]
             ts_code = self._to_tushare_code(code)

@@ -83,7 +83,12 @@ class TushareAdapter(BaseMacroAdapter):
 
     source_name = "tushare"
 
-    def __init__(self, token: str | None = None, http_url: str | None = None) -> None:
+    def __init__(
+        self,
+        token: str | None = None,
+        http_url: str | None = None,
+        request_mode: str | None = None,
+    ) -> None:
         """
         Args:
             token: Tushare Pro Token（如果不提供，从环境变量读取）
@@ -93,6 +98,7 @@ class TushareAdapter(BaseMacroAdapter):
 
         self.token = token
         self.http_url = http_url
+        self.request_mode = request_mode
         self._pro: _TushareProProtocol | None = None
 
     @property
@@ -105,6 +111,7 @@ class TushareAdapter(BaseMacroAdapter):
                     create_tushare_pro_client(
                         token=self.token,
                         http_url=self.http_url,
+                        request_mode=self.request_mode,
                     ),
                 )
                 logger.info("Tushare API 初始化成功")

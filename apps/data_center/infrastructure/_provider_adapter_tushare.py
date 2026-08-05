@@ -193,6 +193,24 @@ def _financial_fact_builder(
 class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     """Standardized Tushare provider wrapper."""
 
+    def _configured_request_mode(self) -> str | None:
+        """Return this provider row's explicit Tushare transport mode."""
+
+        raw_mode = (self._config.extra_config or {}).get("tushare_request_mode")
+        return raw_mode.strip() if isinstance(raw_mode, str) and raw_mode.strip() else None
+
+    def _create_pro_client(self) -> _TushareProClient:
+        """Build a client without leaking another provider row's transport config."""
+
+        return cast(
+            _TushareProClient,
+            create_tushare_pro_client(
+                token=self._config.api_key,
+                http_url=self._config.http_url,
+                request_mode=self._configured_request_mode(),
+            ),
+        )
+
     def fetch_macro_series(
         self,
         indicator_code: str,
@@ -215,6 +233,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         adapter = TushareAdapter(
             token=self._config.api_key,
             http_url=self._config.http_url,
+            request_mode=self._configured_request_mode(),
         )
         fetch_code = "SHIBOR" if indicator_code == "CN_SHIBOR" else indicator_code
         points = _fetch_macro_points(adapter, fetch_code, start_date, end_date)
@@ -256,13 +275,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         if observed_at < start_date:
             return []
         try:
-            pro = cast(
-                _TushareProClient,
-                create_tushare_pro_client(
-                    token=self._config.api_key,
-                    http_url=self._config.http_url,
-                ),
-            )
+            pro = self._create_pro_client()
             trade_date = observed_at.strftime("%Y%m%d")
             if indicator_code in {"CN_A_ADVANCE_COUNT", "CN_A_DECLINE_COUNT"}:
                 frame = pro.daily(trade_date=trade_date)
@@ -327,13 +340,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
 
         rows_by_date: dict[date, float] = {}
         try:
-            pro = cast(
-                _TushareProClient,
-                create_tushare_pro_client(
-                    token=self._config.api_key,
-                    http_url=self._config.http_url,
-                ),
-            )
+            pro = self._create_pro_client()
             calendar = pro.trade_cal(
                 exchange="",
                 start_date=start_date.strftime("%Y%m%d"),
@@ -396,13 +403,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     ) -> list[MacroFact]:
         """Fetch A-share financing balance from Tushare margin rows."""
 
-        pro = cast(
-            _TushareProClient,
-            create_tushare_pro_client(
-                token=self._config.api_key,
-                http_url=self._config.http_url,
-            ),
-        )
+        pro = self._create_pro_client()
         df = pro.margin(
             start_date=start_date.strftime("%Y%m%d"),
             end_date=end_date.strftime("%Y%m%d"),
@@ -446,13 +447,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     ) -> list[MacroFact]:
         """Fetch ETF net flow proxy from Tushare ETF daily size deltas."""
 
-        pro = cast(
-            _TushareProClient,
-            create_tushare_pro_client(
-                token=self._config.api_key,
-                http_url=self._config.http_url,
-            ),
-        )
+        pro = self._create_pro_client()
         trade_dates = self._fetch_tushare_open_dates(pro, start_date, end_date)
         requested_dates = [item for item in trade_dates if item >= start_date]
         if not requested_dates:
@@ -560,7 +555,12 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     ) -> list[PriceBar]:
         from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
 
-        gateway = TushareGateway()
+        gateway = TushareGateway(
+            token=self._config.api_key,
+            http_url=self._config.http_url,
+            request_mode=self._configured_request_mode(),
+            source_name=self.provider_name(),
+        )
         canonical_asset_code = normalize_asset_code(asset_code, "tushare")
         bars = gateway.get_historical_prices(
             asset_code=canonical_asset_code,
@@ -586,7 +586,12 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     def fetch_quote_snapshots(self, asset_codes: list[str]) -> list[QuoteSnapshot]:
         from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
 
-        gateway = TushareGateway()
+        gateway = TushareGateway(
+            token=self._config.api_key,
+            http_url=self._config.http_url,
+            request_mode=self._configured_request_mode(),
+            source_name=self.provider_name(),
+        )
         quotes = gateway.get_quote_snapshots(asset_codes)
         results: list[QuoteSnapshot] = []
         for quote in quotes:
@@ -653,13 +658,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     )
                 )
             return facts
-        pro = cast(
-            _TushareProClient,
-            create_tushare_pro_client(
-                token=self._config.api_key,
-                http_url=self._config.http_url,
-            ),
-        )
+        pro = self._create_pro_client()
         df = pro.fund_nav(
             ts_code=fund_code,
             start_date=start_date.strftime("%Y%m%d"),
@@ -723,13 +722,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     if value is not None:
                         compatibility_facts.append(build_fact(metric_code, value, unit))
             return compatibility_facts
-        pro = cast(
-            _TushareProClient,
-            create_tushare_pro_client(
-                token=self._config.api_key,
-                http_url=self._config.http_url,
-            ),
-        )
+        pro = self._create_pro_client()
         frame = pro.fina_indicator(
             ts_code=normalize_asset_code(asset_code, "tushare"),
             limit=max(periods, 1),
@@ -800,13 +793,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 )
                 for record in batch.records
             ]
-        pro = cast(
-            _TushareProClient,
-            create_tushare_pro_client(
-                token=self._config.api_key,
-                http_url=self._config.http_url,
-            ),
-        )
+        pro = self._create_pro_client()
         frame = pro.daily_basic(
             ts_code=normalize_asset_code(asset_code, "tushare"),
             start_date=start_date.strftime("%Y%m%d"),

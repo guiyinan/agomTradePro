@@ -28,12 +28,22 @@ from shared.domain.reliability import ReliabilityContract, ReliabilityStatus
 
 
 class _StubProvider:
-    def __init__(self, name: str, capabilities: list[DataCapability]) -> None:
+    def __init__(
+        self,
+        name: str,
+        capabilities: list[DataCapability],
+        *,
+        source_type: str | None = None,
+    ) -> None:
         self._name = name
         self._caps = set(capabilities)
+        self._source_type = source_type or name
 
     def provider_name(self) -> str:
         return self._name
+
+    def provider_source(self) -> str:
+        return self._source_type
 
     def supports(self, cap: DataCapability) -> bool:
         return cap in self._caps
@@ -108,6 +118,140 @@ class TestProviderRegistryPriority:
 
 
 class TestProviderRegistryFailover:
+    def test_last_successful_same_source_route_is_reused_before_static_priority(self):
+        reg = ProviderRegistry()
+        primary = _StubProvider(
+            "tushare-primary",
+            [DataCapability.HISTORICAL_PRICE],
+            source_type="tushare",
+        )
+        backup = _StubProvider(
+            "tushare-backup",
+            [DataCapability.HISTORICAL_PRICE],
+            source_type="tushare",
+        )
+        reg.register(primary, priority=10)
+        reg.register(backup, priority=20)
+
+        first_call_order: list[str] = []
+
+        def first_fetch(provider):
+            first_call_order.append(provider.provider_name())
+            if provider.provider_name() == "tushare-primary":
+                raise ConnectionError("primary unavailable")
+            return ["data"]
+
+        assert reg.call_with_failover(DataCapability.HISTORICAL_PRICE, first_fetch) == ["data"]
+        assert first_call_order == ["tushare-primary", "tushare-backup"]
+
+        second_call_order: list[str] = []
+        assert reg.call_with_failover(
+            DataCapability.HISTORICAL_PRICE,
+            lambda provider: second_call_order.append(provider.provider_name()) or ["data"],
+        ) == ["data"]
+        assert second_call_order == ["tushare-backup"]
+
+    def test_persisted_last_success_seeds_same_source_route_preference(self):
+        configs = [
+            ProviderConfig(
+                id=1,
+                name="tushare-primary",
+                source_type="tushare",
+                is_active=True,
+                priority=10,
+                api_key="primary-token",
+                api_secret="",
+                http_url="",
+                api_endpoint="",
+                extra_config={},
+                description="",
+            ),
+            ProviderConfig(
+                id=2,
+                name="tushare-last-good",
+                source_type="tushare",
+                is_active=True,
+                priority=20,
+                api_key="backup-token",
+                api_secret="",
+                http_url="https://relay.example.test",
+                api_endpoint="",
+                extra_config={"provider_last_success_at": "2026-08-05T05:08:00+00:00"},
+                description="",
+            ),
+        ]
+        registry = ProviderRegistry.from_repository(
+            _ProviderConfigRepository(configs),
+            builder=lambda config: _StubProvider(
+                config.name,
+                [DataCapability.HISTORICAL_PRICE],
+                source_type=config.source_type,
+            ),
+        )
+
+        call_order: list[str] = []
+        assert registry.call_with_failover(
+            DataCapability.HISTORICAL_PRICE,
+            lambda provider: call_order.append(provider.provider_name()) or ["data"],
+        ) == ["data"]
+        assert call_order == ["tushare-last-good"]
+
+    def test_sticky_route_does_not_jump_a_different_source_priority_slot(self):
+        configs = [
+            ProviderConfig(
+                id=1,
+                name="akshare-primary",
+                source_type="akshare",
+                is_active=True,
+                priority=10,
+                api_key="",
+                api_secret="",
+                http_url="",
+                api_endpoint="",
+                extra_config={},
+                description="",
+            ),
+            ProviderConfig(
+                id=2,
+                name="tushare-primary",
+                source_type="tushare",
+                is_active=True,
+                priority=20,
+                api_key="primary-token",
+                api_secret="",
+                http_url="",
+                api_endpoint="",
+                extra_config={},
+                description="",
+            ),
+            ProviderConfig(
+                id=3,
+                name="tushare-last-good",
+                source_type="tushare",
+                is_active=True,
+                priority=30,
+                api_key="backup-token",
+                api_secret="",
+                http_url="https://relay.example.test",
+                api_endpoint="",
+                extra_config={"provider_last_success_at": "2026-08-05T05:08:00+00:00"},
+                description="",
+            ),
+        ]
+        registry = ProviderRegistry.from_repository(
+            _ProviderConfigRepository(configs),
+            builder=lambda config: _StubProvider(
+                config.name,
+                [DataCapability.HISTORICAL_PRICE],
+                source_type=config.source_type,
+            ),
+        )
+
+        assert [
+            provider.provider_name()
+            for provider in registry.get_providers(DataCapability.HISTORICAL_PRICE)
+        ] == ["akshare-primary", "tushare-last-good", "tushare-primary"]
+
     def test_failover_skips_failed_provider(self):
         reg = ProviderRegistry()
         p_bad = _StubProvider("bad", [DataCapability.MACRO])
