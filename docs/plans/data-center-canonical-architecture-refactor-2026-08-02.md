@@ -4341,4 +4341,5 @@ Git SHA / 镜像 / migration：
 - 目标：阻断 Dashboard 首页宏观健康与 PMI/CPI 摘要经 `DashboardApplicationGateway → Regime query service` 的 raw latest/非 PIT 旁路；current 页面只能使用 canonical Publication members。
 - 变更：Regime growth/inflation query helpers 增加 `published_only` 选择并完整传播到 adapter；Dashboard gateway 对 `use_pit=False` 的读取强制 `published_only=not use_pit`，显式 PIT 历史研究仍保持 raw/PIT 语义。
 - 测试与治理：`data_center.publication_only_d2_d3` 登记 Dashboard gateway 和 Regime query markers；新增 current gateway selector 回归，Dashboard macro integration fixture 改为真实 Publication/member；selector/宏观回归 `14 passed`（含 1 个 component），mypy regression 0、Ruff/Black 通过，AllocationPolicyUnavailableError 的 2 个既有无关失败未修改。
+- inventory：在不含工作区未提交 Equity 文件的 clean HEAD worktree 重生成架构 inventory，`current_surface_references=3251`，其余结构计数保持 `51/55/4/143/0/49`。
 - 明确未做：未改变 Regime 算法、历史研究查询、Publication writer/provider、生产数据、VPS 或部署；生产 Publication 覆盖、PostgreSQL 查询预算、观察窗口和 M9 旧链清理仍未完成。

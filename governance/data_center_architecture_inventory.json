@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3249,
+    "current_surface_references": 3251,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 143,
@@ -11775,6 +11775,16 @@
       "line": 53,
       "path": "apps/regime/application/query_services.py",
       "text": "\"confidence\": latest.confidence,"
+    },
+    {
+      "line": 96,
+      "path": "apps/regime/application/query_services.py",
+      "text": "\"\"\"Return growth series with an explicit current/publication selector.\"\"\""
+    },
+    {
+      "line": 125,
+      "path": "apps/regime/application/query_services.py",
+      "text": "\"\"\"Return inflation series with an explicit current/publication selector.\"\"\""
     },
     {
       "line": 46,
