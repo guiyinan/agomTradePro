@@ -139,7 +139,7 @@ class ScreenStocksRequestSerializer(StrictFieldsSerializer):
     mode = serializers.ChoiceField(
         choices=("historical", "published"),
         required=False,
-        default="historical",
+        default="published",
         help_text="数据模式；published 才允许用于当前决策",
     )
     publication_key = serializers.CharField(required=False, default="current", max_length=160)
@@ -182,7 +182,7 @@ class PoolActionRequestSerializer(StrictFieldsSerializer):
     mode = serializers.ChoiceField(
         choices=("historical", "published"),
         required=False,
-        default="historical",
+        default="published",
     )
     publication_key = serializers.CharField(required=False, default="current", max_length=160)
 
@@ -215,7 +215,7 @@ class FinancialHistoryQuerySerializer(serializers.Serializer[dict[str, Any]]):
     mode = serializers.ChoiceField(
         choices=("historical", "published"),
         required=False,
-        default="historical",
+        default="published",
     )
     publication_key = serializers.CharField(required=False, default="current", max_length=160)
 
@@ -234,7 +234,7 @@ class AnalyzeValuationRequestSerializer(StrictFieldsSerializer):
     mode = serializers.ChoiceField(
         choices=("historical", "published"),
         required=False,
-        default="historical",
+        default="published",
     )
     publication_key = serializers.CharField(required=False, default="current", max_length=160)
 
@@ -411,7 +411,7 @@ class CalculateDCFRequestSerializer(StrictFieldsSerializer):
     mode = serializers.ChoiceField(
         choices=("historical", "published"),
         required=False,
-        default="historical",
+        default="published",
     )
     publication_key = serializers.CharField(required=False, default="current", max_length=160)
 
@@ -511,7 +511,7 @@ class ComprehensiveValuationRequestSerializer(StrictFieldsSerializer):
     mode = serializers.ChoiceField(
         choices=("historical", "published"),
         required=False,
-        default="historical",
+        default="published",
     )
     publication_key = serializers.CharField(required=False, default="current", max_length=160)
 

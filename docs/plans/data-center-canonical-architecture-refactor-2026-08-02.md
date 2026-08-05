@@ -4104,3 +4104,11 @@ Git SHA / 镜像 / migration：
 - 治理：`data_center.publication_only_d4_d5` 增加 SDK 默认 published marker 与回归 nodeid。
 - 已运行验证：SDK Equity/MCP 定向回归 `50 passed`；current-data `43 surfaces`；SDK module mypy `0`、Ruff/Black 通过。新增显式 historical mode 回归，确认历史语义仍需主动选择。
 - 明确未做：未改变服务端 historical API、MCP tool schema、生产配置、部署或 VPS 数据。
+
+## 49. 2026-08-05：Equity REST/UseCase 默认 current 读取切换 published
+
+- 目标：完成 Equity current-facing REST 默认值的强制 Publication 语义，避免未携带 `mode` 的 pool、financials、valuation、DCF、comprehensive 请求落入 historical/raw 读取。
+- 变更：Equity serializers 与估值 use-case request 默认统一为 `mode=published`；历史研究必须显式 `mode=historical`。补齐 API 旧历史 fixture 的显式 historical 参数，保留兼容语义但不再隐式触发。
+- 治理：`data_center.publication_only_d4_d5` 登记 serializer/use-case 默认 published marker。
+- 已运行验证：Equity API/use-case 定向回归 `77 passed`；current-data `43 surfaces`、legacy fact guard、architecture boundary/audit `0`、变更 2 个生产文件 mypy regression `0`、Ruff/Black 通过。
+- 明确未做：未删除 historical API、未改变 Publication writer/provider、未部署或修改 VPS。

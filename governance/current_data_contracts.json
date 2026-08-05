@@ -1439,7 +1439,9 @@
       "source_files": [
         "apps/data_center/application/query_services.py",
         "apps/data_center/application/public.py",
+        "apps/equity/application/use_cases.py",
         "apps/equity/interface/sdk_contract_actions.py",
+        "apps/equity/interface/serializers.py",
         "apps/equity/interface/analysis_actions.py",
         "apps/equity/interface/comprehensive_valuation_actions.py",
         "apps/equity/interface/pool_actions.py",
@@ -1462,10 +1464,21 @@
           "def get_published_valuation_facts(",
           "def get_decision_publication_gate("
         ],
+        "apps/equity/application/use_cases.py": [
+          "mode: str = \"published\"",
+          "published_only=request.mode == \"published\"",
+          "publication_key=request.publication_key"
+        ],
         "apps/equity/interface/sdk_contract_actions.py": [
           "get_decision_publication_gate(",
           "mode = str(query.validated_data[\"mode\"])",
           "must_not_use_for_decision"
+        ],
+        "apps/equity/interface/serializers.py": [
+          "class AnalyzeValuationRequestSerializer",
+          "class CalculateDCFRequestSerializer",
+          "class ComprehensiveValuationRequestSerializer",
+          "default=\"published\""
         ],
           "apps/equity/interface/analysis_actions.py": [
           "get_decision_publication_gate(",

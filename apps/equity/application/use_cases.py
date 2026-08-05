@@ -660,7 +660,7 @@ class AnalyzeValuationRequest:
 
     stock_code: str
     lookback_days: int = 252  # 回看天数（默认 1 年）
-    mode: str = "historical"
+    mode: str = "published"
     publication_key: str = "current"
 
 
@@ -903,7 +903,7 @@ class CalculateDCFRequest:
     discount_rate: float = 0.1  # 折现率（默认 10%）
     terminal_growth: float = 0.03  # 永续增长率（默认 3%）
     projection_years: int = 5  # 预测年数（默认 5 年）
-    mode: str = "historical"
+    mode: str = "published"
     publication_key: str = "current"
 
 
@@ -1302,7 +1302,7 @@ class ComprehensiveValuationRequest:
     industry_avg_pe: float = 20.0  # 行业平均 PE
     industry_avg_pb: float = 2.0  # 行业平均 PB
     risk_free_rate: float = 0.03  # 无风险利率
-    mode: str = "historical"
+    mode: str = "published"
     publication_key: str = "current"
 
 

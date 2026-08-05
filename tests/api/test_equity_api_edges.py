@@ -348,7 +348,7 @@ def test_equity_financial_history_is_persisted_only_and_filters_period_type(
         "apps.data_center.application.on_demand.OnDemandDataCenterService.ensure_financials"
     ) as hydrate:
         response = authenticated_client.get(
-            "/api/equity/financials/000001.SZ/?report_type=annual&limit=5"
+            "/api/equity/financials/000001.SZ/?report_type=annual&limit=5&mode=historical"
         )
 
     assert response.status_code == 200
@@ -1251,7 +1251,9 @@ def test_equity_valuation_returns_basic_info_when_valuation_missing(authenticate
         "apps.equity.infrastructure.repositories.make_on_demand_data_center_service",
         return_value=on_demand,
     ):
-        response = authenticated_client.get("/api/equity/valuation/300308.SZ/?lookback_days=365")
+        response = authenticated_client.get(
+            "/api/equity/valuation/300308.SZ/?lookback_days=365&mode=historical"
+        )
 
     assert response.status_code == 200
     payload = response.json()
