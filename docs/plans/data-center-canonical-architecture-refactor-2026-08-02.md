@@ -4394,5 +4394,5 @@ Git SHA / 镜像 / migration：
 
 - 目标：消除 Provider 设置页更新 `enable_failover/failover_tolerance` 后仍只写 Data Center 旧 singleton、导致 typed failover consumer 看不到新值的双真源。
 - 变更：新增 Config Center runtime write composition bridge；Data Center Provider 设置保存将 failover 两个值作为 typed patch 激活版本化 Profile，仅保留 `default_source` 在 Data Center 自有设置中；读取优先 active typed 值、无 profile 时才显式兼容旧设置。旧 singleton 的 failover 字段不再被管理写入覆盖。
-- 测试与治理：新增 component 回归断言 typed 返回值与旧字段未被覆盖；Data Center interface/bridge/config-center 回归通过，runtime contract 补齐写入 consumer/test。
+- 测试与治理：新增 component 回归断言 typed 返回值与旧字段未被覆盖；Data Center interface/bridge/config-center 回归通过，current-data manifest 保持 `268 nodeid / 307 passed`、current contracts `46 surfaces`，runtime contract 补齐写入 consumer/test；clean HEAD inventory 保持 `current_surface_references=3291`，其余结构计数 `51/55/4/143/0/49`。
 - 明确未做：未迁移 Data Center `default_source` 及其他 Provider 配置字段、生产 profile 初始化、PostgreSQL/备份恢复/观察窗口、M9/M10 或部署；不 push、不部署。

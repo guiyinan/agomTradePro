@@ -4322,7 +4322,7 @@
       "text": "\"\"\"Read the latest resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 362,
+      "line": 389,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Return the latest capacity observation without a fallback.\"\"\""
     },
@@ -4827,62 +4827,62 @@
       "text": "\"\"\"Result of one current-valuation batch sync.\"\"\""
     },
     {
-      "line": 169,
+      "line": 173,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Refresh the latest pulse snapshot through the owning pulse use case.\"\"\""
     },
     {
-      "line": 175,
+      "line": 179,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Fetch latest realtime prices through the owning realtime use case.\"\"\""
     },
     {
-      "line": 507,
+      "line": 533,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Build the latest quote query use case.\"\"\""
     },
     {
-      "line": 513,
+      "line": 539,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Fetch real-time prices from the realtime app fallback service.\"\"\""
     },
     {
-      "line": 615,
+      "line": 641,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Return the latest market-thermometer payload for UI/API consumers.\"\"\""
     },
     {
-      "line": 732,
+      "line": 758,
       "path": "apps/data_center/application/interface_services.py",
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
     {
-      "line": 878,
+      "line": 904,
       "path": "apps/data_center/application/interface_services.py",
       "text": "latest = MarketThermometerSnapshotRepository().get_latest()"
     },
     {
-      "line": 879,
+      "line": 905,
       "path": "apps/data_center/application/interface_services.py",
       "text": "if latest is None:"
     },
     {
-      "line": 883,
+      "line": 909,
       "path": "apps/data_center/application/interface_services.py",
       "text": "latest_observed_at = latest.observed_at.isoformat()"
     },
     {
-      "line": 885,
+      "line": 911,
       "path": "apps/data_center/application/interface_services.py",
       "text": "latest_is_blocked = latest.must_not_use_for_decision"
     },
     {
-      "line": 889,
+      "line": 915,
       "path": "apps/data_center/application/interface_services.py",
       "text": "skipped_payload = latest.to_dict()"
     },
     {
-      "line": 1110,
+      "line": 1136,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Build the current valuation batch sync use case.\"\"\""
     },
@@ -6862,102 +6862,102 @@
       "text": "current[\"failover_tolerance\"],"
     },
     {
-      "line": 508,
+      "line": 509,
       "path": "apps/data_center/interface/api_views.py",
       "text": "current = load_production_coverage_universe_config_payload()"
     },
     {
-      "line": 511,
+      "line": 512,
       "path": "apps/data_center/interface/api_views.py",
       "text": "universe_id=data.get(\"universe_id\", current[\"universe_id\"]),"
     },
     {
-      "line": 512,
+      "line": 513,
       "path": "apps/data_center/interface/api_views.py",
       "text": "asset_type=data.get(\"asset_type\", current[\"asset_type\"]),"
     },
     {
-      "line": 513,
+      "line": 514,
       "path": "apps/data_center/interface/api_views.py",
       "text": "exchanges=data.get(\"exchanges\", current[\"exchanges\"]),"
     },
     {
-      "line": 514,
+      "line": 515,
       "path": "apps/data_center/interface/api_views.py",
       "text": "include_inactive=data.get(\"include_inactive\", current[\"include_inactive\"]),"
     },
     {
-      "line": 517,
+      "line": 518,
       "path": "apps/data_center/interface/api_views.py",
       "text": "current[\"min_active_asset_count\"],"
     },
     {
-      "line": 521,
+      "line": 522,
       "path": "apps/data_center/interface/api_views.py",
       "text": "current[\"min_star_market_count\"],"
     },
     {
-      "line": 523,
+      "line": 524,
       "path": "apps/data_center/interface/api_views.py",
       "text": "min_chinext_count=data.get(\"min_chinext_count\", current[\"min_chinext_count\"]),"
     },
     {
-      "line": 524,
+      "line": 525,
       "path": "apps/data_center/interface/api_views.py",
       "text": "min_bse_count=data.get(\"min_bse_count\", current[\"min_bse_count\"]),"
     },
     {
-      "line": 525,
+      "line": 526,
       "path": "apps/data_center/interface/api_views.py",
       "text": "description=data.get(\"description\", current[\"description\"]),"
     },
     {
-      "line": 533,
+      "line": 534,
       "path": "apps/data_center/interface/api_views.py",
       "text": "\"\"\"Return current production coverage diagnostics summary.\"\"\""
     },
     {
-      "line": 664,
+      "line": 665,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 736,
+      "line": 737,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 844,
+      "line": 845,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 897,
+      "line": 898,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 940,
+      "line": 941,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 1034,
+      "line": 1035,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 1065,
+      "line": 1066,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 1120,
+      "line": 1121,
       "path": "apps/data_center/interface/api_views.py",
       "text": "\"\"\"Return the latest market-thermometer payload.\"\"\""
     },
     {
-      "line": 1172,
+      "line": 1173,
       "path": "apps/data_center/interface/api_views.py",
       "text": "\"\"\"Return or update current user's threshold override.\"\"\""
     },
