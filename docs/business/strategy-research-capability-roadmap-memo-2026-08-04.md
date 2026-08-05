@@ -6,6 +6,7 @@
 > 来源边界：本备忘依据用户对四份策略会材料的摘要和当前仓库能力盘点编写，未读取原始 PDF。
 > 关联实施计划：[情景治理与策略研究 Quick Wins 整改计划](../plans/scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md)
 > 2026-08-05 启动门复核：R1—R8 均为 `blocked`；已交付统一 fail-closed readiness 合约和分阶段计划，但未启动任何模型、数据回填或用户任务。
+> 2026-08-05 开发续批：已实现 R1/R2 治理定义与 PIT 数据入口、R7 情景预测账本绑定、R8 research-only 输入合约及运行时 owner 取证；这些基础纵切不替代真实数据、样本外验证或 PromotionDecision，能力总门禁保持不变。
 
 本轮执行索引：
 

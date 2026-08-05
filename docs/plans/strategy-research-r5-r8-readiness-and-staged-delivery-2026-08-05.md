@@ -1,6 +1,6 @@
 # 策略研究 R5—R8 启动门禁与分阶段实施计划（2026-08-05）
 
-> 状态：M0 启动条件审计完成；R5、R6、R7、R8 均保持 `blocked`
+> 状态：M0 启动条件审计完成；R7-C0 与 R8 输入合约纵切已实现，R5、R6、R7、R8 的能力门禁仍保持 `blocked`
 > 来源：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
 > 实施边界：本阶段只交付启动门禁、证据清单和后续最小纵切，不训练模型、不生成概率、不构造债券事实、不运行优化器、不触发真实交易
 > 数据边界：以下数据库证据来自 2026-08-05 对本地 `db.sqlite3` 的只读审计，不代表生产环境状态；生产启动仍须重新取证
@@ -13,8 +13,8 @@ R5—R8 都具有部分基础代码，但没有一项同时满足备忘中的数
 |---|---|---|---|
 | R5 固定收益相对价值与久期 | 宏观指标目录中有部分国债、信用收益率和资金利率代码；Data Center 已有 Publication 门禁；QW-5 可显式阻断 | 无两条已发布可靠曲线、无券级主数据/现金流/交易日历、无信用估值 Publication、无久期/凸性对账 | `blocked` |
 | R6 高级状态模型 | Regime V2、PMI/CPI、Pulse 和简单转折规则可作为基准 | 未证明简单基准不足；无 PIT 训练证据、稳定标签协议、样本外转移准确率或政策反应函数基准 | `blocked` |
-| R7 情景概率校准 | 情景版本与运行证据 schema、Signal Forecast Ledger 和 Brier outcome 基础存在 | Forecast Ledger 未绑定情景 revision/set；无主观/模型概率分栏；无完整预测—复核—兑现样本 | `blocked` |
-| R8 多资产优化 | Portfolio 有目标组合、过渡计划和部分交易约束；Broker Execution 有成交/对账模型；Risk Center 有情景损失 | 无 Portfolio-owned canonical snapshot 持久真源；R3/R4/R5 未晋级；无真实执行反馈样本；无统一优化输入契约 | `blocked` |
+| R7 情景概率校准 | 情景版本、Signal Forecast Ledger、revision/set UUID 绑定、主观/模型概率分栏和显式 realization row score 已实现 | 无完整预测—复核—兑现样本，也没有经批准的 calibration sample policy | `blocked` |
+| R8 多资产优化 | Portfolio 有目标组合、过渡计划、部分交易约束和 research-only 优化输入合约；Broker Execution 有成交/对账模型；Risk Center 有情景损失 | 无 Portfolio-owned canonical snapshot 持久真源；R3/R4/R5 未晋级；无真实执行反馈样本；尚未实现或运行优化器 | `blocked` |
 
 `blocked` 是 fail-closed 业务状态，不等于代码缺陷，也不能通过页面、默认数据或 LLM 推断解除。
 
@@ -56,7 +56,7 @@ UNION ALL SELECT 'broker_fills', COUNT(*) FROM broker_execution_fill;
 - Data Center 指标目录有 `CN_BOND_10Y`、`CN_BOND_2Y`、`CN_CORP_YIELD_AAA`、`CN_CORP_YIELD_AA` 和 `CN_DR007` 等代码，但目录项或历史 raw/canonical fact 不自动等于 Published 曲线。
 - 本地 `asset_type=bond` 的资产是 ETF 兼容记录，不能冒充券级 Bond Master。
 - `ScenarioRunEvidence` 已绑定 scenario revision、可选 scenario set revision、portfolio snapshot、数据证据和结果 hash，但尚未记录预测概率及期后兑现结果。
-- `ForecastLedgerEntry` 允许 signal 为空并有 `source`，但没有类型化的 scenario revision/set 外键，也没有 subjective/model probability source 分栏。
+- `ForecastLedgerEntry` 已用稳定 UUID value reference 绑定 scenario revision/可选 set revision，并把 directional probability、subjective probability 与经 Research Promotion 批准的 model probability 分开；Risk Center checker 会验证 approved/active revision 及精确 set membership。
 - Portfolio Domain 的 `PortfolioSnapshot` 是计算值对象；Portfolio Infrastructure 目前持久化的是 transition plan、order intent 和 planning policy，不是 canonical snapshot 真源。
 - Portfolio 过渡计划已覆盖买入单位、费用、滑点、涨跌停、T+1 和成交量参与率等约束；这只证明约束算法存在，不证明参数经真实成交校准。
 
@@ -98,8 +98,8 @@ R5 不得用单点宏观收益率拼接伪曲线，不得用 ETF 久期标签代
 |---|---|---|---|
 | `governed_scenario_versions` | `verified` | 源码已定义不可变 scenario revision/set 和 run evidence；数据库应用状态需在目标环境另验 | — |
 | `append_only_forecast_ledger` | `verified` | Signal Forecast Ledger、evaluation、outcome 和 Brier 字段已存在 | — |
-| `scenario_version_ledger_binding` | `missing` | Ledger 没有类型化 scenario revision/set 绑定 | `r7_scenario_version_ledger_binding_missing` |
-| `subjective_model_probability_separation` | `missing` | 未分别持久化 subjective/model probability 与各自来源版本 | `r7_probability_source_separation_missing` |
+| `scenario_version_ledger_binding` | `verified` | R7-C0 已新增 scenario revision UUID、可选 set revision UUID、Risk Center membership checker、复合索引与 DB 完整性约束；目标环境仍须应用迁移 | — |
+| `subjective_model_probability_separation` | `verified` | subjective/model probability、各自 source version 与 model PromotionDecision 已独立持久化；未批准模型概率 fail closed | — |
 | `complete_scenario_outcome_history` | `missing` | 本地无可评分 forecast outcome；ScenarioRunEvidence 也不是兑现结果 | `r7_complete_outcome_history_missing` |
 | `calibration_sample_policy` | `missing` | 无最低样本量、分箱、horizon、删失和 class-balance 规则 | `r7_calibration_sample_policy_missing` |
 | `historical_analogy_pit_manifest` | `missing` | 无历史类比 universe、特征版本和 PIT manifest | `r7_historical_analogy_manifest_missing` |
@@ -117,7 +117,7 @@ R5 不得用单点宏观收益率拼接伪曲线，不得用 ETF 久期标签代
 | `r4_promoted_macro_risk_version` | `missing` | R4 依赖 R3，当前无可晋级的宏观风险暴露/协方差 | `r8_r4_not_promoted` |
 | `r5_promoted_fixed_income_version` | `missing` | R5 数据门未通过 | `r8_r5_not_promoted` |
 | `execution_feedback_reconciled` | `missing` | 本地无 broker snapshot/fill/reconciliation 样本可估计滑点、拒单和约束偏差 | `r8_execution_feedback_missing` |
-| `optimizer_input_contract` | `missing` | 未冻结预期收益、协方差、情景损失、现金需求和各市场约束的统一版本契约 | `r8_optimizer_input_contract_incomplete` |
+| `optimizer_input_contract` | `verified` | Portfolio Domain/Application 已实现 versioned requirement、canonical owner、有效期、universe hash 和 R3/R4/R5 promotion reference 校验；缺项、过期、冲突均 fail closed | — |
 | `optimizer_baseline_fail_closed_policy` | `missing` | 无等权/现有配置基准、不可行问题处理和矩阵异常策略 | `r8_optimizer_safety_policy_missing` |
 
 R8 不得先实现一个只接受收益/协方差的展示型优化器，再让 Portfolio 或 Broker Execution 修补不可交易结果。
@@ -186,6 +186,8 @@ Owner：`risk_center` + `signal` + `audit`，独立 plan/迁移。
 
 在完整预测—复核—兑现记录达到经批准的样本策略之前，不进入 Brier calibration curve、历史类比或路径概率训练。
 
+2026-08-05 实施状态：上述证据积累纵切已完成代码实现和 `signal.0010_scenario_forecast_binding` 迁移。Outcome 使用独立 `scenario_realized` 计算 subjective/model row-level Brier，绝不复用 directional `hit`；Application 可按精确 revision/set 与 probability source 查询不可变观测。当前没有回填历史 outcome、没有训练模型，也没有 calibration 输出，因此 R7 总能力仍保持 `blocked`，等待真实 outcome 与获批样本策略。
+
 ### R8-O0：Portfolio canonical snapshot 与执行反馈
 
 Owner：`portfolio` + `broker_execution`，在 R3/R4/R5 晋级前可独立建设数据真源，但不得建设优化器。
@@ -201,6 +203,8 @@ Owner：`portfolio` + `broker_execution`，在 R3/R4/R5 晋级前可独立建设
 ### R8-O1：多资产优化最小纵切
 
 只有 R3、R4、R5 均有 approved PromotionDecision，且 R8-O0 通过后才允许启动：
+
+2026-08-05 已先完成 O1 的输入边界合约：`OptimizerInputContract`、owner-attested evidence、promotion reference 和 research-preview readiness。它不包含优化算法，且成功报告仍固定 `must_not_execute=true`；因此不会绕过 R8-O0、上游晋级或真实执行反馈门禁。
 
 - 第一版离线 research-only；
 - 明确等权和现有配置基准；

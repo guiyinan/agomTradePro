@@ -1,6 +1,6 @@
 # 策略研究能力路线图 R1—R8 执行状态（2026-08-05）
 
-> 状态：M0 合约与人工审计已完成，运行时 owner 取证接线待实施；R1—R8 均 `blocked`
+> 状态：M0 合约、运行时取证及 R1/R2/R7/R8 数据积累纵切已完成；真实数据、晋级和模型阶段仍待实施，R1—R8 均 `blocked`
 > 来源：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
 > 适用分支：`dev/refactor-scenario-governance-quick-wins`
 > 决策边界：本文件完成的是“能否启动”的可执行治理，不把缺少数据和研究证据的长期能力声明为完成。
@@ -14,6 +14,8 @@
 3. 缺失、未验证或过期证据统一 fail closed，并生成稳定 blocker code。
 4. 为 R1/R2、R3/R4、R5—R8 分别建立独立阶段计划、边界、最小纵切、回归范围和回滚点。
 5. 明确没有启动 Lasso/Nowcast、风险平价、固收定价、HMM、概率校准或优化器，也没有新增 Classic Web/TUI 占位任务。
+6. 建立运行时 owner evidence registry；它只发布显式、限时、可定位到代码与契约测试的机制证据，其他 requirement 稳定物化为 `missing / unverified`。
+7. 在不伪造数据的前提下，完成 R1/R2 治理定义与 PIT 写入、R7 scenario forecast binding，以及 R8 research-only optimizer input contract；这些纵切用于开始积累证据，不解除能力总门禁。
 
 ## 2. 启动状态矩阵
 
@@ -34,7 +36,11 @@
 
 - Domain：`apps/research/domain/capability_readiness.py`
 - Application：`apps/research/application/capability_readiness.py`
-- Tests：`tests/unit/research/test_capability_readiness.py`
+- Owner registry：`apps/research/application/capability_readiness_registry.py`
+- Runtime attestation loader：`apps/research/infrastructure/capability_readiness_attestations.py`
+- Composition：`apps/research/composition.py`
+- Governed attestations：`governance/research_capability_mechanism_attestations.json`
+- Tests：`tests/unit/research/test_capability_readiness.py`、`tests/unit/research/test_capability_readiness_registry.py`、`tests/component/research/test_capability_readiness_runtime.py`
 
 Application 只依赖 owner evidence provider Protocol，不读取其他 App ORM。证据规则如下：
 
@@ -43,6 +49,21 @@ Application 只依赖 owner evidence provider Protocol，不读取其他 App ORM
 - 任何 requirement 缺项都会被物化为 `missing`，不得默认为 ready；
 - readiness `ready` 只允许创建独立 pilot plan，不等价于生产晋级；
 - 模型结果进入决策面仍须遵守对应 Publication/PIT、Research PromotionDecision、freshness 和人工确认契约。
+
+### 3.1 已接线的机制证据
+
+以下项目只是“平台机制存在且契约测试可定位”，不是对应数据、模型或生产运行已经 ready：
+
+| Owner | 已签署的机制 requirement | 证据边界 |
+|---|---|---|
+| `data_center` | `publication_gate_available` | Publication fail-closed 用例与测试；不代表任一目标数据集已发布 |
+| `research` | `experiment_registry`、`multiple_test_family`、`promotion_decision`、`split_and_embargo_policy` | 通用研究完整性机制；不代表 R1/R3/R4/R5 等已有 approved trial |
+| `risk_center` | `governed_scenario_versions`、`subjective_model_probability_separation`、`risk_center_scenario_input` | 版本、概率来源分栏和只读矩阵输入契约；不代表已有校准样本 |
+| `signal` | `append_only_forecast_ledger`、`scenario_version_ledger_binding` | append-only writer、scenario revision/set 绑定与不可变性测试；不代表已有完整 outcome 历史 |
+| `portfolio` | `portfolio_planning_constraints`、`optimizer_input_contract` | transition planning 约束和 research-only 输入门禁；不代表 canonical snapshot、上游晋级或优化算法已完成 |
+| `regime` | `simple_regime_baseline` | 简单四象限基准与测试；不代表高级状态模型具有增量价值 |
+
+每份 `verified` 机制证据必须从治理清单读取固定 `observed_at / valid_until / evidence_ref`。运行时不会把 `valid_until` 延后；到期后 Domain gate 自动转为 `stale`。清单未签署的同 owner 条件返回 `unverified`，没有适配器的 owner 返回 `missing`。
 
 ## 4. 当前证据边界
 
@@ -58,6 +79,8 @@ Application 只依赖 owner evidence provider Protocol，不读取其他 App ORM
 
 这些数字只证明本地开发环境无法解除相关启动门，不代表生产环境状态。未来复核必须由 canonical owner 重新提供目标环境证据，且非空记录仍需验证 coverage、freshness、PIT、版本绑定和样本跨度。
 
+当前尚未接线的 owner 为 `equity`、`macro_factor`、`fixed_income`、`policy`、`audit`、`broker_execution`；其中 `macro_factor` 与 `fixed_income` 尚无独立 App。已接线 owner 中，所有数据覆盖、Production Publication、晋级版本和样本历史 requirement 仍保持 `unverified`，运行时不查询空表，也不以模型或迁移存在推断 `verified`。
+
 ## 5. 后续触发与执行顺序
 
 1. Owner 补齐某项 requirement 后，只重跑对应 capability gate；不得批量把其他条件改成 verified。
@@ -72,8 +95,9 @@ Application 只依赖 owner evidence provider Protocol，不读取其他 App ORM
 
 ```powershell
 pytest tests/unit/research/test_capability_readiness.py -q
-python scripts/check_mypy_regression.py apps/research/domain/capability_readiness.py apps/research/application/capability_readiness.py
-python scripts/check_architecture_layers.py
+pytest tests/unit/research/test_capability_readiness_registry.py tests/component/research/test_capability_readiness_runtime.py -q
+python scripts/check_mypy_regression.py apps/research/domain/capability_readiness.py apps/research/application/capability_readiness.py apps/research/application/capability_readiness_registry.py apps/research/infrastructure/capability_readiness_attestations.py apps/research/composition.py
+python scripts/verify_architecture.py
 ```
 
-回滚点是 readiness contract、测试和上述四份文档；本阶段无迁移、无数据库写入、无任务注册、无 API/MCP/TUI 发布，也不影响现有研究和决策运行路径。
+回滚点是 readiness contract、owner registry、治理 attestation 清单、测试和上述四份文档；本阶段无迁移、无数据库写入、无任务注册、无 API/MCP/TUI 发布，也不影响现有研究和决策运行路径。

@@ -1,6 +1,6 @@
 # R1/R2 策略研究能力启动门整改计划（2026-08-05）
 
-> 状态：**Blocked / 仅允许 readiness 收口，不允许启动模型纵切**
+> 状态：**数据基础纵切已实现；R1/R2 能力仍 Blocked，不允许启动模型纵切**
 > 依据：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
 > 复核基线：`dev/refactor-scenario-governance-quick-wins`
 > 本轮主任务：判断 R1 行业经营驱动与盈利预测、R2 市场结构与投资者资金流是否具备启动条件。
@@ -10,12 +10,20 @@
 
 R1、R2 当前均不得进入业务模型实现阶段。
 
-- R1 的 QW-7 只有有限算子的 Domain/Application 计算和单元测试，没有真实使用反馈、数据库化行业 KPI 模板、连续经营事实或预测误差基线。
-- R2 已有成交/订单大小口径的资金流、市场温度计若干代理指标和通用行业成分有效期机制，但没有完整投资者主体分类、统一单位/频率/修订规则、两个市场周期的 PIT 覆盖证明，也没有数据库化自定义资产组版本。
+- R1 的 QW-7 仍没有真实使用反馈、连续经营事实或预测误差基线；Data Center 已新增无 seed 的经营指标版本定义和 PIT observation 合约，但没有把“结构存在”解释为真实数据已具备。
+- R2 已新增治理数据驱动的 actor/measure/source/proxy 定义、资产组 revision 与 PIT membership 合约；完整主体分类、两个市场周期覆盖和正式 Publication 仍未具备。
 - Data Center 已具备 Publication 和 PIT 技术基座；技术路径存在不等于生产数据已经通过门禁。没有 production publication、coverage、manifest 和 as-of 证据时，相关条件保持 `unverified`。
 - Research 已具备通用 `PromotionDecision`；R1 尚无预测 trial、benchmark、误差指标或进入 Valuation 的绑定规则，因此不能把通用门禁的存在解释为 R1 已 ready。
 
-本轮可立即交付的最小阶段仅为：统一 typed readiness contract、owner 证据端口、fail-closed 测试和本计划。不得新增 Classic 页面，不发布盈利预测或“增量/存量/减量博弈”结论。
+本轮已交付统一 typed readiness contract，以及 Data Center-owned 定义、append-only PIT writer/query facade 和无 seed 迁移。不得新增 Classic 页面，不发布盈利预测或“增量/存量/减量博弈”结论。
+
+### 1.1 2026-08-05 数据基础实施状态
+
+- R1：`OperatingMetricDefinition` 由治理数据定义 code/unit/frequency/source；`OperatingObservation` 强制区分 `observed_fact / human_assumption / model_inference`，且三类 lineage 互斥。
+- R2：`InvestorFlowDefinition` 强制 measure semantics、单位、频率、来源与 proxy methodology；`AssetGroupRevision` 和 `PITAssetGroupMembership` 保存版本及双时间证据。
+- Infrastructure 复用 `PITFactVersionModel` 与 `DjangoPITDataView`，不创建第二份事实真源；三张新表只保存治理定义，不包含业务分类 seed。
+- Application 查询必须显式 `as_of_time`、`KnowledgeScope` 和 observation kind，不允许事实与假设混查。
+- 这批代码让未来真实数据可以安全进入系统，但 R1/R2 readiness 仍因真实使用、coverage、Publication/PIT manifest 和研究验证证据不足而保持 `blocked`。
 
 ## 2. 目标与非目标
 

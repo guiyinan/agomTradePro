@@ -1,0 +1,96 @@
+{
+  "schema_version": "research-capability-mechanism-attestations.v1",
+  "attestations": [
+    {
+      "requirement": "publication_gate_available",
+      "owner": "data_center",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/data_center/application/control_plane.py#PublishCanonicalDatasetUseCase|test://tests/unit/data_center/test_control_plane.py"
+    },
+    {
+      "requirement": "simple_regime_baseline",
+      "owner": "regime",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/regime/domain/services_v2.py#determine_regime|test://tests/unit/domain/test_regime_services_v2.py"
+    },
+    {
+      "requirement": "experiment_registry",
+      "owner": "research",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/research/application/use_cases.py#RegisterExperiment|test://tests/component/research/test_promotion_gate.py"
+    },
+    {
+      "requirement": "multiple_test_family",
+      "owner": "research",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/research/infrastructure/repositories.py#ResearchRegistryRepository.evaluate_promotion|test://tests/component/research/test_promotion_gate.py"
+    },
+    {
+      "requirement": "promotion_decision",
+      "owner": "research",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/research/application/use_cases.py#EvaluatePromotion|test://tests/component/research/test_promotion_gate.py"
+    },
+    {
+      "requirement": "split_and_embargo_policy",
+      "owner": "research",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/research/domain/contracts.py#DatasetSplitPayload|test://tests/component/research/test_promotion_gate.py"
+    },
+    {
+      "requirement": "governed_scenario_versions",
+      "owner": "risk_center",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/risk_center/application/scenario_public.py|test://tests/unit/risk_center/test_scenario_write_governance.py"
+    },
+    {
+      "requirement": "subjective_model_probability_separation",
+      "owner": "risk_center",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/risk_center/domain/scenarios.py#ProbabilitySource|test://tests/unit/risk_center/test_scenarios_domain.py"
+    },
+    {
+      "requirement": "risk_center_scenario_input",
+      "owner": "risk_center",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/risk_center/application/quick_wins.py#PreviewScenarioMatrix|test://tests/unit/risk_center/test_quick_wins.py"
+    },
+    {
+      "requirement": "append_only_forecast_ledger",
+      "owner": "signal",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/signal/application/forecast_use_cases.py#RecordForecastLedgerEntryUseCase|test://tests/component/signal/test_forecast_ledger.py"
+    },
+    {
+      "requirement": "scenario_version_ledger_binding",
+      "owner": "signal",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/signal/domain/forecast_scenario_evidence.py#ScenarioForecastBinding|test://tests/component/signal/test_scenario_forecast_binding.py"
+    },
+    {
+      "requirement": "portfolio_planning_constraints",
+      "owner": "portfolio",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/portfolio/domain/services.py#build_transition_plan|test://tests/unit/portfolio/test_transition_plan_rules.py"
+    },
+    {
+      "requirement": "optimizer_input_contract",
+      "owner": "portfolio",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/portfolio/domain/optimizer_inputs.py#OptimizerInputContract|test://tests/unit/portfolio/test_optimizer_input_contract.py"
+    }
+  ]
+}
