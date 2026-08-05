@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
+from apps.portfolio.domain._optimization_canonical import (
+    decimal_text,
+    hash_components,
+    utc_text,
+)
 from apps.portfolio.domain.canonical_snapshots import CanonicalPortfolioSnapshot
+from apps.portfolio.domain.governed_input_set import GovernedOptimizationInputSet
 from apps.portfolio.domain.macro_factor_risk import (
     FactorCovarianceVersion,
     MacroExposureVersion,
@@ -17,6 +22,7 @@ from apps.portfolio.domain.optimizer_inputs import (
     OptimizationInputKind,
     PromotionReference,
 )
+from apps.portfolio.domain.path_drawdown import DrawdownRiskBudgetPayload
 
 REQUIRED_UPSTREAM_PROMOTIONS = frozenset({"r3", "r4", "r5"})
 REQUIRED_OPTIMIZATION_INPUTS = frozenset(OptimizationInputKind)
@@ -34,6 +40,7 @@ class ManualRestriction(str, Enum):
 class CandidateKind(str, Enum):
     """Deterministic candidates compared by the research report."""
 
+    CURRENT_CONFIGURATION = "current_configuration"
     EQUAL_WEIGHT = "equal_weight"
     ASSET_RISK_PARITY = "asset_risk_parity"
     DETERMINISTIC_SEARCH = "deterministic_search"
@@ -78,7 +85,7 @@ class AssetOptimizationInput:
     maximum_weight: Decimal
     maximum_trade_weight: Decimal
     transaction_cost_rate: Decimal
-    drawdown_loss: Decimal
+    drawdown_loss: Decimal | None
     manual_restriction: ManualRestriction = ManualRestriction.NONE
 
     def __post_init__(self) -> None:
@@ -91,16 +98,17 @@ class AssetOptimizationInput:
             ("maximum_weight", self.maximum_weight),
             ("maximum_trade_weight", self.maximum_trade_weight),
             ("transaction_cost_rate", self.transaction_cost_rate),
-            ("drawdown_loss", self.drawdown_loss),
         ):
             _require_finite(asset_value, field_name)
+        if self.drawdown_loss is not None:
+            _require_finite(self.drawdown_loss, "drawdown_loss")
         if not Decimal("0") <= self.minimum_weight <= self.maximum_weight <= Decimal("1"):
             raise ValueError("asset weight bounds must be ordered within [0, 1]")
         if self.maximum_trade_weight < 0 or self.maximum_trade_weight > 1:
             raise ValueError("maximum_trade_weight must be within [0, 1]")
         if self.transaction_cost_rate < 0:
             raise ValueError("transaction_cost_rate cannot be negative")
-        if self.drawdown_loss < 0:
+        if self.drawdown_loss is not None and self.drawdown_loss < 0:
             raise ValueError("drawdown_loss cannot be negative")
         if not isinstance(self.manual_restriction, ManualRestriction):
             raise ValueError("manual_restriction is invalid")
@@ -117,7 +125,7 @@ class AssetOptimizationConstraint:
     maximum_weight: Decimal
     maximum_trade_weight: Decimal
     transaction_cost_rate: Decimal
-    drawdown_loss: Decimal
+    drawdown_loss: Decimal | None
     manual_restriction: ManualRestriction
 
 
@@ -327,9 +335,9 @@ class MacroRiskBudget:
             content_hash=_hash_components(
                 "macro-risk-budget.v1",
                 budget_version,
-                str(maximum_factor_variance),
-                *(f"{code}|{share}" for code, share in ordered_targets),
-                str(maximum_target_deviation),
+                decimal_text(maximum_factor_variance),
+                *(f"{code}|{decimal_text(share)}" for code, share in ordered_targets),
+                decimal_text(maximum_target_deviation),
             ),
         )
 
@@ -356,9 +364,9 @@ class MacroRiskBudget:
         expected = _hash_components(
             "macro-risk-budget.v1",
             self.budget_version,
-            str(self.maximum_factor_variance),
-            *(f"{code}|{share}" for code, share in self.target_contribution_shares),
-            str(self.maximum_target_deviation),
+            decimal_text(self.maximum_factor_variance),
+            *(f"{code}|{decimal_text(share)}" for code, share in self.target_contribution_shares),
+            decimal_text(self.maximum_target_deviation),
         )
         _require_sha256(self.content_hash, "macro risk budget content_hash")
         if self.content_hash != expected:
@@ -393,6 +401,8 @@ class OptimizationProblem:
     created_at: datetime
     valid_until: datetime
     content_hash: str
+    drawdown_path: DrawdownRiskBudgetPayload | None = None
+    governed_input_set: GovernedOptimizationInputSet | None = None
 
     def __post_init__(self) -> None:
         """Validate identity, canonical snapshot binding, lineage, and problem hash."""
@@ -417,11 +427,9 @@ class OptimizationProblem:
             raise ValueError("optimization assets must be non-empty and unique")
         if asset_codes != tuple(sorted(asset_codes)):
             raise ValueError("optimization assets must use canonical ordering")
-        snapshot_codes = tuple(
-            sorted(position.asset_code for position in self.canonical_snapshot.positions)
-        )
-        if asset_codes != snapshot_codes:
-            raise ValueError("optimization universe must match canonical snapshot positions")
+        snapshot_codes = {position.asset_code for position in self.canonical_snapshot.positions}
+        if not snapshot_codes.issubset(set(asset_codes)):
+            raise ValueError("canonical holdings must be retained in the optimization universe")
         if self.universe_hash != build_asset_universe_hash(asset_codes):
             raise ValueError("optimization universe_hash mismatch")
         if self.covariance.asset_codes != asset_codes:
@@ -432,6 +440,29 @@ class OptimizationProblem:
             raise ValueError("scenario loss universe mismatch")
         if not self.scenario_losses:
             raise ValueError("optimization problem requires scenario loss evidence")
+        if self.drawdown_path is None:
+            if any(asset.drawdown_loss is None for asset in self.assets):
+                raise ValueError("legacy optimization requires per-asset drawdown proxies")
+        else:
+            path_codes = tuple(
+                item.asset_code for item in self.drawdown_path.observations[0].asset_returns
+            )
+            if path_codes != asset_codes:
+                raise ValueError("drawdown path universe mismatch")
+            if self.drawdown_path.maximum_drawdown != self.maximum_drawdown:
+                raise ValueError("drawdown path budget mismatch")
+            if any(asset.drawdown_loss is not None for asset in self.assets):
+                raise ValueError("path-governed optimization cannot use drawdown proxies")
+        if self.governed_input_set is not None:
+            governed_codes = tuple(
+                item.asset_code for item in self.governed_input_set.universe.members
+            )
+            if governed_codes != asset_codes:
+                raise ValueError("governed input set universe mismatch")
+            if self.governed_input_set.created_at > self.created_at:
+                raise ValueError("optimization problem cannot predate its governed inputs")
+            if self.valid_until > self.governed_input_set.valid_until:
+                raise ValueError("optimization problem cannot outlive its governed inputs")
         _validate_asset_constraints(self.assets)
         _validate_problem_limits(self)
         _validate_current_weights(self)
@@ -445,7 +476,8 @@ class OptimizationProblem:
         if self.macro_exposure_version.factor_codes != self.macro_factor_covariance.factor_codes:
             raise ValueError("macro exposure and covariance factor universe mismatch")
         if (
-            self.macro_exposure_version.pit_manifest_id
+            self.governed_input_set is None
+            and self.macro_exposure_version.pit_manifest_id
             != self.macro_factor_covariance.pit_manifest_id
         ):
             raise ValueError("macro exposure and covariance PIT manifest mismatch")
@@ -459,8 +491,20 @@ class OptimizationProblem:
         ):
             raise ValueError("macro risk budget does not cover the exact factor universe")
         macro_binding = _binding_by_kind(self)[OptimizationInputKind.MACRO_EXPOSURE]
-        if macro_binding.content_hash != macro_optimization_input_hash(self):
-            raise ValueError("macro risk evidence hash mismatch")
+        if self.governed_input_set is None:
+            if macro_binding.content_hash != macro_optimization_input_hash(self):
+                raise ValueError("macro risk evidence hash mismatch")
+        else:
+            governed_payloads = {item.kind: item for item in self.governed_input_set.payloads}
+            if (
+                macro_binding.content_hash
+                != governed_payloads[OptimizationInputKind.MACRO_EXPOSURE].content_hash
+            ):
+                raise ValueError("governed macro exposure binding hash mismatch")
+        if self.drawdown_path is not None:
+            drawdown_binding = _binding_by_kind(self)[OptimizationInputKind.DRAWDOWN_RISK_BUDGET]
+            if drawdown_binding.content_hash != self.drawdown_path.content_hash:
+                raise ValueError("drawdown path evidence binding hash mismatch")
         if self.content_hash != optimization_problem_hash(self):
             raise ValueError("optimization problem content_hash mismatch")
 
@@ -579,6 +623,8 @@ def build_optimization_problem(
     macro_risk_budget: MacroRiskBudget,
     created_at: datetime,
     valid_until: datetime,
+    drawdown_path: DrawdownRiskBudgetPayload | None = None,
+    governed_input_set: GovernedOptimizationInputSet | None = None,
 ) -> OptimizationProblem:
     """Build a problem whose current weights come only from the canonical snapshot."""
 
@@ -590,12 +636,16 @@ def build_optimization_problem(
         raise ValueError("canonical snapshot total value must be positive")
     positions = {position.asset_code: position for position in canonical_snapshot.positions}
     ordered_inputs = tuple(sorted(asset_inputs, key=lambda item: item.asset_code))
-    if set(positions) != {item.asset_code for item in ordered_inputs}:
-        raise ValueError("asset inputs must match canonical snapshot positions")
+    if not set(positions).issubset({item.asset_code for item in ordered_inputs}):
+        raise ValueError("asset inputs must retain every canonical snapshot position")
     assets = tuple(
         AssetOptimizationConstraint(
             asset_code=item.asset_code,
-            current_weight=positions[item.asset_code].market_value_base / total_value,
+            current_weight=(
+                positions[item.asset_code].market_value_base / total_value
+                if item.asset_code in positions
+                else Decimal("0")
+            ),
             expected_return=item.expected_return,
             minimum_weight=item.minimum_weight,
             maximum_weight=item.maximum_weight,
@@ -631,6 +681,8 @@ def build_optimization_problem(
         macro_risk_budget=macro_risk_budget,
         created_at=created_at,
         valid_until=valid_until,
+        drawdown_path=drawdown_path,
+        governed_input_set=governed_input_set,
     )
     return OptimizationProblem(
         problem_id=problem_id,
@@ -657,6 +709,8 @@ def build_optimization_problem(
         created_at=created_at,
         valid_until=valid_until,
         content_hash=digest,
+        drawdown_path=drawdown_path,
+        governed_input_set=governed_input_set,
     )
 
 
@@ -675,9 +729,9 @@ def asset_covariance_hash(
         "asset-covariance.v1",
         version,
         *asset_codes,
-        *("|".join(str(value) for value in row) for row in values),
-        observed_at.isoformat(),
-        valid_until.isoformat(),
+        *("|".join(decimal_text(value) for value in row) for row in values),
+        utc_text(observed_at),
+        utc_text(valid_until),
         universe_hash,
     )
 
@@ -697,11 +751,11 @@ def solver_output_hash(
     return _hash_components(
         "optimization-solver-output.v1",
         candidate_kind.value,
-        *(str(weight) for weight in (weights or ())),
-        str(cash_weight if cash_weight is not None else ""),
+        *(decimal_text(weight) for weight in (weights or ())),
+        decimal_text(cash_weight) if cash_weight is not None else "",
         status.value,
         str(iterations),
-        str(residual),
+        decimal_text(residual),
         detail,
         "not_global_optimum",
     )
@@ -734,6 +788,8 @@ def optimization_problem_hash(problem: OptimizationProblem) -> str:
         macro_risk_budget=problem.macro_risk_budget,
         created_at=problem.created_at,
         valid_until=problem.valid_until,
+        drawdown_path=problem.drawdown_path,
+        governed_input_set=problem.governed_input_set,
     )
 
 
@@ -761,11 +817,13 @@ def macro_optimization_input_hash_values(
         "|".join(
             (
                 exposure.asset_code,
-                str(exposure.residual_variance),
-                str(exposure.r_squared),
-                str(exposure.stability_score),
+                decimal_text(exposure.residual_variance),
+                decimal_text(exposure.r_squared),
+                decimal_text(exposure.stability_score),
                 *(
-                    f"{beta.factor_code},{beta.beta},{beta.confidence_low},{beta.confidence_high}"
+                    f"{beta.factor_code},{decimal_text(beta.beta)},"
+                    f"{decimal_text(beta.confidence_low)},"
+                    f"{decimal_text(beta.confidence_high)}"
                     for beta in exposure.betas
                 ),
             )
@@ -776,7 +834,7 @@ def macro_optimization_input_hash_values(
         )
     )
     covariance_parts = tuple(
-        "|".join(str(value) for value in row) for row in macro_factor_covariance.values
+        "|".join(decimal_text(value) for value in row) for row in macro_factor_covariance.values
     )
     return _hash_components(
         "optimization-macro-input.v1",
@@ -788,16 +846,16 @@ def macro_optimization_input_hash_values(
         macro_exposure_version.pit_manifest_id,
         macro_exposure_version.code_version,
         macro_exposure_version.parameter_version,
-        macro_exposure_version.observed_at.isoformat(),
-        macro_exposure_version.valid_until.isoformat(),
+        utc_text(macro_exposure_version.observed_at),
+        utc_text(macro_exposure_version.valid_until),
         *exposure_parts,
         macro_factor_covariance.version_id,
         *macro_factor_covariance.factor_codes,
         *covariance_parts,
         macro_factor_covariance.pit_manifest_id,
         macro_factor_covariance.estimator_version,
-        macro_factor_covariance.observed_at.isoformat(),
-        macro_factor_covariance.valid_until.isoformat(),
+        utc_text(macro_factor_covariance.observed_at),
+        utc_text(macro_factor_covariance.valid_until),
         macro_risk_budget.content_hash,
     )
 
@@ -827,19 +885,21 @@ def _optimization_problem_hash_values(
     macro_risk_budget: MacroRiskBudget,
     created_at: datetime,
     valid_until: datetime,
+    drawdown_path: DrawdownRiskBudgetPayload | None,
+    governed_input_set: GovernedOptimizationInputSet | None,
 ) -> str:
 
     asset_parts = tuple(
         "|".join(
             (
                 asset.asset_code,
-                str(asset.current_weight),
-                str(asset.expected_return),
-                str(asset.minimum_weight),
-                str(asset.maximum_weight),
-                str(asset.maximum_trade_weight),
-                str(asset.transaction_cost_rate),
-                str(asset.drawdown_loss),
+                decimal_text(asset.current_weight),
+                decimal_text(asset.expected_return),
+                decimal_text(asset.minimum_weight),
+                decimal_text(asset.maximum_weight),
+                decimal_text(asset.maximum_trade_weight),
+                decimal_text(asset.transaction_cost_rate),
+                (decimal_text(asset.drawdown_loss) if asset.drawdown_loss is not None else ""),
                 asset.manual_restriction.value,
             )
         )
@@ -851,8 +911,8 @@ def _optimization_problem_hash_values(
                 scenario.scenario_revision_id,
                 scenario.scenario_version,
                 *scenario.asset_codes,
-                *(str(loss) for loss in scenario.loss_rates),
-                str(scenario.maximum_portfolio_loss),
+                *(decimal_text(loss) for loss in scenario.loss_rates),
+                decimal_text(scenario.maximum_portfolio_loss),
                 scenario.evidence_hash,
             )
         )
@@ -865,7 +925,7 @@ def _optimization_problem_hash_values(
     )
     promotion_parts = tuple(
         f"{item.capability_key}|{item.version}|{item.decision_ref}|"
-        f"{item.approved_at.isoformat()}|{item.valid_until.isoformat()}"
+        f"{utc_text(item.approved_at)}|{utc_text(item.valid_until)}"
         for item in promotions
     )
     return _hash_components(
@@ -879,27 +939,27 @@ def _optimization_problem_hash_values(
         *asset_parts,
         covariance.content_hash,
         *scenario_parts,
-        str(minimum_cash_weight),
-        str(target_cash_weight),
-        str(maximum_turnover),
-        str(maximum_transaction_cost),
-        str(maximum_drawdown),
+        decimal_text(minimum_cash_weight),
+        decimal_text(target_cash_weight),
+        decimal_text(maximum_turnover),
+        decimal_text(maximum_transaction_cost),
+        decimal_text(maximum_drawdown),
         execution_feedback_hash,
         objective.objective_version,
-        str(objective.expected_return_weight),
-        str(objective.variance_penalty),
-        str(objective.transaction_cost_penalty),
+        decimal_text(objective.expected_return_weight),
+        decimal_text(objective.variance_penalty),
+        decimal_text(objective.transaction_cost_penalty),
         validation_policy.policy_version,
-        validation_policy.activated_at.isoformat(),
-        validation_policy.valid_until.isoformat(),
-        str(validation_policy.weight_tolerance),
-        str(validation_policy.covariance_symmetry_tolerance),
-        str(validation_policy.covariance_psd_tolerance),
+        utc_text(validation_policy.activated_at),
+        utc_text(validation_policy.valid_until),
+        decimal_text(validation_policy.weight_tolerance),
+        decimal_text(validation_policy.covariance_symmetry_tolerance),
+        decimal_text(validation_policy.covariance_psd_tolerance),
         str(validation_policy.solver_max_iterations),
-        str(validation_policy.solver_initial_step),
-        str(validation_policy.solver_minimum_step),
+        decimal_text(validation_policy.solver_initial_step),
+        decimal_text(validation_policy.solver_minimum_step),
         str(validation_policy.risk_parity_max_iterations),
-        str(validation_policy.risk_parity_tolerance),
+        decimal_text(validation_policy.risk_parity_tolerance),
         *evidence_parts,
         *promotion_parts,
         macro_optimization_input_hash_values(
@@ -908,8 +968,10 @@ def _optimization_problem_hash_values(
             macro_factor_covariance=macro_factor_covariance,
             macro_risk_budget=macro_risk_budget,
         ),
-        created_at.isoformat(),
-        valid_until.isoformat(),
+        utc_text(created_at),
+        utc_text(valid_until),
+        drawdown_path.content_hash if drawdown_path is not None else "legacy_drawdown_proxy",
+        governed_input_set.content_hash if governed_input_set is not None else "legacy_input_set",
     )
 
 
@@ -939,16 +1001,19 @@ def _validate_asset_constraints(
             ("maximum_weight", asset.maximum_weight),
             ("maximum_trade_weight", asset.maximum_trade_weight),
             ("transaction_cost_rate", asset.transaction_cost_rate),
-            ("drawdown_loss", asset.drawdown_loss),
         ):
             _require_finite(value, field_name)
+        if asset.drawdown_loss is not None:
+            _require_finite(asset.drawdown_loss, "drawdown_loss")
         if not Decimal("0") <= asset.current_weight <= Decimal("1"):
             raise ValueError("asset current_weight must be within [0, 1]")
         if not Decimal("0") <= asset.minimum_weight <= asset.maximum_weight <= Decimal("1"):
             raise ValueError("asset weight bounds must be ordered within [0, 1]")
         if not Decimal("0") <= asset.maximum_trade_weight <= Decimal("1"):
             raise ValueError("asset maximum_trade_weight must be within [0, 1]")
-        if asset.transaction_cost_rate < 0 or asset.drawdown_loss < 0:
+        if asset.transaction_cost_rate < 0 or (
+            asset.drawdown_loss is not None and asset.drawdown_loss < 0
+        ):
             raise ValueError("asset cost and drawdown inputs cannot be negative")
         if not isinstance(asset.manual_restriction, ManualRestriction):
             raise ValueError("asset manual_restriction is invalid")
@@ -963,7 +1028,11 @@ def _validate_current_weights(problem: OptimizationProblem) -> None:
         raise ValueError("canonical snapshot total value must be positive")
     positions = {position.asset_code: position for position in problem.canonical_snapshot.positions}
     for asset in problem.assets:
-        expected = positions[asset.asset_code].market_value_base / total_value
+        expected = (
+            positions[asset.asset_code].market_value_base / total_value
+            if asset.asset_code in positions
+            else Decimal("0")
+        )
         if asset.current_weight != expected:
             raise ValueError("asset current_weight does not match canonical snapshot")
 
@@ -975,6 +1044,16 @@ def _validate_evidence_bindings(problem: OptimizationProblem) -> None:
     if any(binding.universe_hash != problem.universe_hash for binding in problem.evidence_bindings):
         raise ValueError("optimization evidence universe_hash mismatch")
     by_kind = _binding_by_kind(problem)
+    if problem.governed_input_set is not None:
+        governed_hashes = {
+            item.kind: item.content_hash for item in problem.governed_input_set.payloads
+        }
+        if any(
+            by_kind[kind].content_hash != content_hash
+            for kind, content_hash in governed_hashes.items()
+        ):
+            raise ValueError("governed numerical payload binding hash mismatch")
+        return
     if by_kind[OptimizationInputKind.ASSET_COVARIANCE].content_hash != (
         problem.covariance.content_hash
     ):
@@ -998,12 +1077,7 @@ def _validate_promotions(promotions: tuple[PromotionReference, ...]) -> None:
 
 
 def _hash_components(*components: str) -> str:
-    digest = hashlib.sha256()
-    for component in components:
-        encoded = component.encode("utf-8")
-        digest.update(len(encoded).to_bytes(8, byteorder="big", signed=False))
-        digest.update(encoded)
-    return digest.hexdigest()
+    return hash_components(*components)
 
 
 def _require_token(value: str, field_name: str) -> None:

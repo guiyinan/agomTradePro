@@ -8,6 +8,10 @@ from apps.portfolio.infrastructure.canonical_snapshot_models import (
     CanonicalPortfolioSnapshotModel,
     PortfolioExecutionFeedbackModel,
 )
+from apps.portfolio.infrastructure.optimization_research_models import (
+    GovernedOptimizationResearchResultModel,
+    OptimizationResearchLifecycleEventModel,
+)
 from apps.portfolio.infrastructure.order_models import OrderIntentModel
 from apps.portfolio.infrastructure.policy_models import PortfolioPlanningPolicyModel
 from apps.portfolio.infrastructure.transition_models import PortfolioTransitionPlanModel
@@ -18,4 +22,6 @@ __all__ = [
     "PortfolioExecutionFeedbackModel",
     "PortfolioPlanningPolicyModel",
     "PortfolioTransitionPlanModel",
+    "GovernedOptimizationResearchResultModel",
+    "OptimizationResearchLifecycleEventModel",
 ]

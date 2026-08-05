@@ -7,7 +7,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
+from typing import cast
 
+from apps.portfolio.domain._optimization_canonical import decimal_text, utc_text
 from apps.portfolio.domain.constrained_optimization_contracts import (
     AssetOptimizationConstraint,
     CandidateKind,
@@ -16,6 +18,9 @@ from apps.portfolio.domain.constrained_optimization_contracts import (
     SolverConvergenceStatus,
     SolverOutput,
 )
+from apps.portfolio.domain.market_constraints import TradingConstraintsPayload
+from apps.portfolio.domain.optimizer_inputs import OptimizationInputKind
+from apps.portfolio.domain.path_drawdown import calculate_frozen_weight_path_drawdown
 
 
 class OptimizationBlockerCode(str, Enum):
@@ -35,6 +40,7 @@ class OptimizationBlockerCode(str, Enum):
     POSITION_BOUND_BREACHED = "position_bound_breached"
     LIQUIDITY_BREACHED = "liquidity_breached"
     MANUAL_RESTRICTION_BREACHED = "manual_restriction_breached"
+    MARKET_CONSTRAINT_NOT_ENFORCED = "market_constraint_not_enforced"
     TURNOVER_BREACHED = "turnover_breached"
     COST_BUDGET_BREACHED = "cost_budget_breached"
     SCENARIO_LOSS_BREACHED = "scenario_loss_breached"
@@ -214,7 +220,7 @@ def assess_optimization_problem(
     evidence_hash = _hash_components(
         "optimization-problem-assessment.v1",
         problem.content_hash,
-        evaluated_at.isoformat(),
+        utc_text(evaluated_at),
         *(f"{item.code.value}:{item.detail}" for item in blockers),
     )
     return OptimizationProblemAssessment(
@@ -304,6 +310,13 @@ def evaluate_solver_output(
                     asset_code=asset.asset_code,
                 )
             )
+    blockers.extend(
+        _market_execution_constraint_blockers(
+            problem=problem,
+            weights=weights,
+            tolerance=tolerance,
+        )
+    )
     metrics = calculate_candidate_metrics(
         problem,
         weights=weights,
@@ -411,12 +424,21 @@ def calculate_candidate_metrics(
         )
         + abs(cash_weight - current_cash)
     ) / Decimal("2")
-    drawdown = sum(
-        (
-            weight * asset.drawdown_loss
-            for weight, asset in zip(weights, problem.assets, strict=True)
-        ),
-        start=Decimal("0"),
+    drawdown = (
+        sum(
+            (
+                weight * cast(Decimal, asset.drawdown_loss)
+                for weight, asset in zip(weights, problem.assets, strict=True)
+            ),
+            start=Decimal("0"),
+        )
+        if problem.drawdown_path is None
+        else calculate_frozen_weight_path_drawdown(
+            payload=problem.drawdown_path,
+            weights=weights,
+            cash_weight=cash_weight,
+            weight_tolerance=problem.validation_policy.weight_tolerance,
+        ).maximum_drawdown
     )
     scenario_losses = tuple(
         (
@@ -508,6 +530,39 @@ def effective_weight_bounds(
     return lower, upper
 
 
+def _market_execution_constraint_blockers(
+    *,
+    problem: OptimizationProblem,
+    weights: tuple[Decimal, ...],
+    tolerance: Decimal,
+) -> tuple[OptimizationBlocker, ...]:
+    """Block traded drafts until typed market rules can be proven in quantities."""
+
+    if problem.governed_input_set is None:
+        return ()
+    payloads = {item.kind: item for item in problem.governed_input_set.payloads}
+    payload = payloads.get(OptimizationInputKind.TRADING_CONSTRAINTS)
+    if not isinstance(payload, TradingConstraintsPayload):
+        raise ValueError("governed problem lacks typed trading constraints")
+    rule_by_asset = {item.asset_code: item for item in payload.constraints}
+    blockers: list[OptimizationBlocker] = []
+    for asset, weight in zip(problem.assets, weights, strict=True):
+        if abs(weight - asset.current_weight) <= tolerance:
+            continue
+        rule = rule_by_asset[asset.asset_code]
+        blockers.append(
+            OptimizationBlocker(
+                code=OptimizationBlockerCode.MARKET_CONSTRAINT_NOT_ENFORCED,
+                detail=(
+                    f"{rule.market.value} rule {rule.rule_version} requires "
+                    "quantity-level pre-trade validation before this weight change"
+                ),
+                asset_code=asset.asset_code,
+            )
+        )
+    return tuple(blockers)
+
+
 def _candidate_report(
     *,
     problem: OptimizationProblem,
@@ -521,13 +576,13 @@ def _candidate_report(
         "optimization-candidate-evaluation.v1",
         problem.content_hash,
         output.content_hash,
-        *(str(weight) for weight in weights),
-        str(cash_weight),
-        str(metrics.objective_value if metrics is not None else ""),
-        str(metrics.macro_factor_variance if metrics is not None else ""),
-        str(metrics.macro_max_target_deviation if metrics is not None else ""),
+        *(decimal_text(weight) for weight in weights),
+        decimal_text(cash_weight),
+        decimal_text(metrics.objective_value) if metrics is not None else "",
+        decimal_text(metrics.macro_factor_variance) if metrics is not None else "",
+        decimal_text(metrics.macro_max_target_deviation) if metrics is not None else "",
         *(
-            (f"{code}:{share}" for code, share in metrics.macro_contribution_shares)
+            (f"{code}:{decimal_text(share)}" for code, share in metrics.macro_contribution_shares)
             if metrics is not None
             else ()
         ),

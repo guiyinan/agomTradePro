@@ -118,6 +118,10 @@ class _Engine:
         self.adapter = DeterministicConstrainedSearchAdapter()
         self.calls = 0
 
+    def current_configuration_baseline(self, problem: OptimizationProblem):
+        self.calls += 1
+        return self.adapter.current_configuration_baseline(problem)
+
     def equal_weight_baseline(self, problem: OptimizationProblem):
         self.calls += 1
         return self.adapter.equal_weight_baseline(problem)
@@ -173,13 +177,14 @@ def test_ready_inputs_compare_equal_weight_risk_parity_and_local_candidate() -> 
 
     assert report.status is OptimizationResearchStatus.COMPLETED
     assert report.equal_weight is not None
+    assert report.current_configuration is not None
     assert report.asset_risk_parity is not None
     assert report.candidate is not None
     assert report.research_only is True
     assert report.must_not_execute is True
     assert report.must_not_use_for_decision is True
     assert provider.calls == 1
-    assert engine.calls == 3
+    assert engine.calls == 4
 
 
 def test_missing_execution_feedback_or_r4_promotion_never_reaches_problem_or_solver() -> None:

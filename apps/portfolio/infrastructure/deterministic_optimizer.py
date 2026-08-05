@@ -21,6 +21,32 @@ from apps.portfolio.domain.constrained_optimization_contracts import (
 class DeterministicConstrainedSearchAdapter:
     """Build two baselines and a bounded local candidate without randomness."""
 
+    def current_configuration_baseline(self, problem: OptimizationProblem) -> SolverOutput:
+        """Return the observed canonical configuration without constraint projection."""
+
+        total_value = problem.canonical_snapshot.cash_balance + sum(
+            (position.market_value_base for position in problem.canonical_snapshot.positions),
+            start=Decimal("0"),
+        )
+        if total_value <= 0:
+            return _failed(
+                CandidateKind.CURRENT_CONFIGURATION,
+                SolverConvergenceStatus.NUMERICAL_FAILURE,
+                "canonical current configuration has no positive portfolio value",
+            )
+        return build_solver_output(
+            candidate_kind=CandidateKind.CURRENT_CONFIGURATION,
+            weights=tuple(asset.current_weight for asset in problem.assets),
+            cash_weight=problem.canonical_snapshot.cash_balance / total_value,
+            status=SolverConvergenceStatus.BASELINE,
+            iterations=0,
+            residual=Decimal("0"),
+            detail=(
+                "observed canonical current configuration; zero turnover and cost; "
+                "not projected into governed feasibility"
+            ),
+        )
+
     def equal_weight_baseline(self, problem: OptimizationProblem) -> SolverOutput:
         """Return a bound-projected equal-weight baseline or explicit infeasibility."""
 

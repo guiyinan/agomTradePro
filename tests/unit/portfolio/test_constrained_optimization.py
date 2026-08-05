@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -463,3 +463,185 @@ def test_each_weight_vector_recomputes_macro_risk_and_hashes_exact_metrics() -> 
     assert OptimizationBlockerCode.MACRO_TARGET_DEVIATION_BREACHED in {
         item.code for item in blocked.blockers
     }
+
+
+def test_assessment_and_candidate_hashes_canonicalize_timezones_and_decimal_scale() -> None:
+    problem = _problem()
+    equivalent_offset = NOW.astimezone(timezone(timedelta(hours=8)))
+    assert (
+        assess_optimization_problem(
+            problem,
+            evaluated_at=NOW,
+        ).evidence_hash
+        == assess_optimization_problem(
+            problem,
+            evaluated_at=equivalent_offset,
+        ).evidence_hash
+    )
+
+    canonical = build_solver_output(
+        candidate_kind=CandidateKind.DETERMINISTIC_SEARCH,
+        weights=(Decimal("0.4"), Decimal("0.4")),
+        cash_weight=Decimal("0.2"),
+        status=SolverConvergenceStatus.LOCAL_STATIONARY,
+        iterations=1,
+        residual=Decimal("0.001"),
+        detail="canonical numeric evidence",
+    )
+    scaled = build_solver_output(
+        candidate_kind=CandidateKind.DETERMINISTIC_SEARCH,
+        weights=(Decimal("0.40"), Decimal("0.40")),
+        cash_weight=Decimal("0.20"),
+        status=SolverConvergenceStatus.LOCAL_STATIONARY,
+        iterations=1,
+        residual=Decimal("0.0010"),
+        detail="canonical numeric evidence",
+    )
+    assert canonical.content_hash == scaled.content_hash
+    assert (
+        evaluate_solver_output(problem, canonical).evidence_hash
+        == evaluate_solver_output(
+            problem,
+            scaled,
+        ).evidence_hash
+    )
+
+
+def test_complete_problem_hash_graph_is_scale_and_timezone_independent() -> None:
+    problem = _problem()
+    offset = timezone(timedelta(hours=8))
+
+    def scaled(value: Decimal) -> Decimal:
+        parts = value.as_tuple()
+        return Decimal((parts.sign, (*parts.digits, 0), parts.exponent - 1))
+
+    scaled_budget = MacroRiskBudget.create(
+        budget_version=problem.macro_risk_budget.budget_version,
+        maximum_factor_variance=scaled(problem.macro_risk_budget.maximum_factor_variance),
+        target_contribution_shares=tuple(
+            (code, scaled(share))
+            for code, share in problem.macro_risk_budget.target_contribution_shares
+        ),
+        maximum_target_deviation=scaled(problem.macro_risk_budget.maximum_target_deviation),
+    )
+    assert scaled_budget.content_hash == problem.macro_risk_budget.content_hash
+
+    scaled_covariance = AssetCovarianceMatrix.create(
+        version=problem.covariance.version,
+        asset_codes=problem.covariance.asset_codes,
+        values=tuple(tuple(scaled(value) for value in row) for row in problem.covariance.values),
+        observed_at=problem.covariance.observed_at.astimezone(offset),
+        valid_until=problem.covariance.valid_until.astimezone(offset),
+        universe_hash=problem.covariance.universe_hash,
+    )
+    assert scaled_covariance.content_hash == problem.covariance.content_hash
+
+    scaled_exposure = replace(
+        problem.macro_exposure_version,
+        observed_at=problem.macro_exposure_version.observed_at.astimezone(offset),
+        valid_until=problem.macro_exposure_version.valid_until.astimezone(offset),
+        exposures=tuple(
+            replace(
+                exposure,
+                residual_variance=scaled(exposure.residual_variance),
+                r_squared=scaled(exposure.r_squared),
+                stability_score=scaled(exposure.stability_score),
+                betas=tuple(
+                    replace(
+                        beta,
+                        beta=scaled(beta.beta),
+                        confidence_low=scaled(beta.confidence_low),
+                        confidence_high=scaled(beta.confidence_high),
+                    )
+                    for beta in exposure.betas
+                ),
+            )
+            for exposure in problem.macro_exposure_version.exposures
+        ),
+    )
+    scaled_factor_covariance = replace(
+        problem.macro_factor_covariance,
+        values=tuple(
+            tuple(scaled(value) for value in row) for row in problem.macro_factor_covariance.values
+        ),
+        observed_at=problem.macro_factor_covariance.observed_at.astimezone(offset),
+        valid_until=problem.macro_factor_covariance.valid_until.astimezone(offset),
+    )
+    assert macro_optimization_input_hash_values(
+        canonical_snapshot=problem.canonical_snapshot,
+        macro_exposure_version=scaled_exposure,
+        macro_factor_covariance=scaled_factor_covariance,
+        macro_risk_budget=scaled_budget,
+    ) == macro_optimization_input_hash_values(
+        canonical_snapshot=problem.canonical_snapshot,
+        macro_exposure_version=problem.macro_exposure_version,
+        macro_factor_covariance=problem.macro_factor_covariance,
+        macro_risk_budget=problem.macro_risk_budget,
+    )
+
+    scaled_problem = replace(
+        problem,
+        assets=tuple(
+            replace(
+                asset,
+                current_weight=scaled(asset.current_weight),
+                expected_return=scaled(asset.expected_return),
+                minimum_weight=scaled(asset.minimum_weight),
+                maximum_weight=scaled(asset.maximum_weight),
+                maximum_trade_weight=scaled(asset.maximum_trade_weight),
+                transaction_cost_rate=scaled(asset.transaction_cost_rate),
+                drawdown_loss=(
+                    scaled(asset.drawdown_loss) if asset.drawdown_loss is not None else None
+                ),
+            )
+            for asset in problem.assets
+        ),
+        covariance=scaled_covariance,
+        scenario_losses=tuple(
+            replace(
+                scenario,
+                loss_rates=tuple(scaled(value) for value in scenario.loss_rates),
+                maximum_portfolio_loss=scaled(scenario.maximum_portfolio_loss),
+            )
+            for scenario in problem.scenario_losses
+        ),
+        minimum_cash_weight=scaled(problem.minimum_cash_weight),
+        target_cash_weight=scaled(problem.target_cash_weight),
+        maximum_turnover=scaled(problem.maximum_turnover),
+        maximum_transaction_cost=scaled(problem.maximum_transaction_cost),
+        maximum_drawdown=scaled(problem.maximum_drawdown),
+        objective=replace(
+            problem.objective,
+            expected_return_weight=scaled(problem.objective.expected_return_weight),
+            variance_penalty=scaled(problem.objective.variance_penalty),
+            transaction_cost_penalty=scaled(problem.objective.transaction_cost_penalty),
+        ),
+        validation_policy=replace(
+            problem.validation_policy,
+            activated_at=problem.validation_policy.activated_at.astimezone(offset),
+            valid_until=problem.validation_policy.valid_until.astimezone(offset),
+            weight_tolerance=scaled(problem.validation_policy.weight_tolerance),
+            covariance_symmetry_tolerance=scaled(
+                problem.validation_policy.covariance_symmetry_tolerance
+            ),
+            covariance_psd_tolerance=scaled(problem.validation_policy.covariance_psd_tolerance),
+            solver_initial_step=scaled(problem.validation_policy.solver_initial_step),
+            solver_minimum_step=scaled(problem.validation_policy.solver_minimum_step),
+            risk_parity_tolerance=scaled(problem.validation_policy.risk_parity_tolerance),
+        ),
+        promotions=tuple(
+            replace(
+                promotion,
+                approved_at=promotion.approved_at.astimezone(offset),
+                valid_until=promotion.valid_until.astimezone(offset),
+            )
+            for promotion in problem.promotions
+        ),
+        macro_exposure_version=scaled_exposure,
+        macro_factor_covariance=scaled_factor_covariance,
+        macro_risk_budget=scaled_budget,
+        created_at=problem.created_at.astimezone(offset),
+        valid_until=problem.valid_until.astimezone(offset),
+        content_hash=problem.content_hash,
+    )
+    assert scaled_problem.content_hash == problem.content_hash

@@ -52,6 +52,9 @@ class OptimizationProblemProvider(Protocol):
 class ConstrainedOptimizationEngineProtocol(Protocol):
     """Deterministic engine boundary with explicit benchmark construction."""
 
+    def current_configuration_baseline(self, problem: OptimizationProblem) -> SolverOutput:
+        """Return observed canonical weights without feasibility projection."""
+
     def equal_weight_baseline(self, problem: OptimizationProblem) -> SolverOutput:
         """Build the deterministic equal-weight baseline."""
 
@@ -71,6 +74,7 @@ class OptimizationResearchReport:
     status: OptimizationResearchStatus
     input_readiness: OptimizerInputReadiness
     problem_assessment: OptimizationProblemAssessment | None
+    current_configuration: CandidateEvaluation | None
     equal_weight: CandidateEvaluation | None
     asset_risk_parity: CandidateEvaluation | None
     candidate: CandidateEvaluation | None
@@ -90,7 +94,8 @@ class OptimizationResearchReport:
             raise ValueError("optimization report evaluated_at must be timezone-aware")
         if self.status is OptimizationResearchStatus.COMPLETED:
             if (
-                self.equal_weight is None
+                self.current_configuration is None
+                or self.equal_weight is None
                 or self.asset_risk_parity is None
                 or self.candidate is None
             ):
@@ -205,6 +210,10 @@ class RunConstrainedOptimizationResearchUseCase:
             problem,
             self._engine.equal_weight_baseline(problem),
         )
+        current_configuration = evaluate_solver_output(
+            problem,
+            self._engine.current_configuration_baseline(problem),
+        )
         asset_risk_parity = evaluate_solver_output(
             problem,
             self._engine.asset_risk_parity_baseline(problem),
@@ -213,7 +222,12 @@ class RunConstrainedOptimizationResearchUseCase:
             problem,
             self._engine.solve_candidate(problem),
         )
-        evaluations = (equal_weight, asset_risk_parity, candidate)
+        evaluations = (
+            current_configuration,
+            equal_weight,
+            asset_risk_parity,
+            candidate,
+        )
         comparison_complete = all(item.eligible_for_comparison for item in evaluations)
         lowest = (
             min(
@@ -242,6 +256,7 @@ class RunConstrainedOptimizationResearchUseCase:
             problem_id=problem_id,
             readiness=readiness,
             problem_assessment=assessment,
+            current_configuration=current_configuration,
             equal_weight=equal_weight,
             asset_risk_parity=asset_risk_parity,
             candidate=candidate,
@@ -328,6 +343,7 @@ def _build_report(
     candidate: CandidateEvaluation | None,
     blockers: tuple[OptimizationResearchBlocker, ...],
     evaluated_at: datetime,
+    current_configuration: CandidateEvaluation | None = None,
     comparison_complete: bool = False,
     lowest_objective_candidate: CandidateKind | None = None,
 ) -> OptimizationResearchReport:
@@ -342,6 +358,7 @@ def _build_report(
         readiness.bundle_id,
         status.value,
         problem_assessment.evidence_hash if problem_assessment is not None else "",
+        current_configuration.evidence_hash if current_configuration is not None else "",
         equal_weight.evidence_hash if equal_weight is not None else "",
         asset_risk_parity.evidence_hash if asset_risk_parity is not None else "",
         candidate.evidence_hash if candidate is not None else "",
@@ -356,6 +373,7 @@ def _build_report(
         status=status,
         input_readiness=readiness,
         problem_assessment=problem_assessment,
+        current_configuration=current_configuration,
         equal_weight=equal_weight,
         asset_risk_parity=asset_risk_parity,
         candidate=candidate,
