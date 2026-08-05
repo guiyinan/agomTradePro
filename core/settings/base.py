@@ -201,6 +201,7 @@ INSTALLED_APPS = [
     "apps.data_center",  # 统一数据接入与分发中心（新增）
     "apps.portfolio",  # canonical portfolio construction and transition planning
     "apps.research",  # experiment registry and promotion governance
+    "apps.fixed_income",  # research-only bond analytics and relative value
 ]
 
 MIDDLEWARE = [
