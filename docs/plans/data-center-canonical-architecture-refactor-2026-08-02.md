@@ -4124,3 +4124,12 @@ Git SHA / 镜像 / migration：
 - 修复：Risk scenario immutable model 的 Django `save(force_insert)` 类型契约、ScenarioSet effective datetime 类型收窄已修复并提交；Sector 新增模板模块的类型修复留在其 owner 的未提交工作区，不混入本批。
 - 未完成：治理 consistency 当前仍等待新增 `fixed_income`/`macro_factor` 模块的 baseline 与大文件预算登记；这些是其他 agent 的未提交改动，未在本批强行纳入。
 - 明确未做：未删除 historical API、未改变 Publication writer/provider、未部署或修改 VPS。
+
+## 52. 2026-08-05：模块循环债务与治理基线同步收口
+
+- 目标：消除新增场景治理适配器引入的 `account → risk_center → agent_runtime → account` 模块循环，并让新增业务模块、依赖边界和大文件治理在机器基线中可审计。
+- 修复：Risk Center 的 Agent Proposal 网关改用 Django App Registry 按稳定模型标签解析冻结模型，不再静态依赖 Agent Runtime；场景治理仍通过 `AgentProposalGatewayProtocol` 保持可替换注入，事务与审计行为不变。
+- 治理：`governance/module_cycle_allowlist.json` 更新为 `2026-08-05.v19`，登记 44 个模块、203 条无环依赖、fixed_income/macro_factor/research/risk_center 的精确出入边界；不再保留 cycle component、bidirectional pair 或超预算边界。
+- 基线：`governance/governance_baseline.json` 更新为 `2026-08-05.v206`，登记新增模块 shape、现有大文件 owner/remediation/review-by；不把大文件豁免当作完成声明，仍要求在 M6/M9/TUI 收口前拆分。
+- 已运行验证：`python scripts/check_module_cycles.py --allowlist-file governance/module_cycle_allowlist.json --format text`：0 cycle、0 bidirectional、0 budget violation；`python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text`：0 violations；Risk repository Ruff/Black 通过。
+- 明确未做：未删除旧事实表、未改变 provider 配置、未部署、未 push；大文件拆分、生产 PostgreSQL/备份恢复、Publication 覆盖和 M9/M10 仍未完成。

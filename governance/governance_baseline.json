@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-02.v205",
+  "version": "2026-08-05.v206",
   "mcp_tool_count": 377,
   "mcp_governance": {
     "default_top_level_tool_count": 9,
@@ -16,7 +16,7 @@
     "unsupported_legacy_contract_count": 0,
     "raw_tool_file_count": 36
   },
-  "business_module_count": 42,
+  "business_module_count": 44,
   "static_test_function_count": 9937,
   "module_shape_minimums": {
     "account": 9,
@@ -37,10 +37,12 @@
     "equity": 10,
     "events": 11,
     "factor": 10,
+    "fixed_income": 5,
     "filter": 9,
     "fund": 9,
     "hedge": 10,
     "macro": 9,
+    "macro_factor": 4,
     "operational_readiness": 0,
     "policy": 8,
     "portfolio": 6,
@@ -74,13 +76,43 @@
   "core_management_command_orm_access_count": 0,
   "python_file_non_empty_line_limit": 1200,
   "allowed_large_python_files": {
-    "apps/data_center/infrastructure/models.py": 1746
+    "apps/data_center/infrastructure/models.py": 1746,
+    "apps/equity/application/use_cases.py": 1226,
+    "apps/risk_center/infrastructure/scenario_governance_repository.py": 1483,
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_risk_center.py": 1304
   },
   "large_file_remediation": {
     "apps/data_center/infrastructure/models.py": {
       "owner": "data-platform",
       "kind": "split-model-registry",
       "rationale": "The canonical model registry remains above the repository size budget; split by fact/control-plane responsibility before the destructive M9 release.",
+      "plan_path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
+      "priority": "P1",
+      "target_non_empty_lines": 1200,
+      "review_by": "2026-09-30"
+    },
+    "apps/equity/application/use_cases.py": {
+      "owner": "equity",
+      "kind": "split-published-use-cases",
+      "rationale": "Published and historical valuation flows still share one application module; split the compatibility orchestration before the M6 consumer cutover is declared complete.",
+      "plan_path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
+      "priority": "P1",
+      "target_non_empty_lines": 1200,
+      "review_by": "2026-09-30"
+    },
+    "apps/risk_center/infrastructure/scenario_governance_repository.py": {
+      "owner": "risk-center",
+      "kind": "split-scenario-governance-repository",
+      "rationale": "Scenario preview, proposal lifecycle, audit, and idempotency persistence remain in one adapter; split responsibilities before the M9 old-chain retirement evidence is accepted.",
+      "plan_path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
+      "priority": "P1",
+      "target_non_empty_lines": 1200,
+      "review_by": "2026-09-30"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_risk_center.py": {
+      "owner": "terminal",
+      "kind": "split-tui-runtime-injection",
+      "rationale": "Risk-center TUI metadata injection still contains multiple screen registries and copyable-artifact renderers; split the runtime injector before the TUI migration exit is claimed.",
       "plan_path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
       "priority": "P1",
       "target_non_empty_lines": 1200,

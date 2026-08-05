@@ -5,14 +5,14 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from decimal import Decimal
-from typing import cast
+from typing import Any, cast
 from uuid import uuid4
 
+from django.apps import apps as django_apps
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.agent_runtime.infrastructure.models import AgentProposalModel
 from apps.risk_center.application.scenario_governance import (
     AgentProposalGatewayProtocol,
     AgentProposalSnapshot,
@@ -88,6 +88,22 @@ class _CommitProduct:
     audit: ScenarioGovernanceAuditRecord
 
 
+def _agent_proposal_model() -> Any:
+    """Resolve the frozen proposal model without a static app dependency.
+
+    Risk Center owns the scenario-governance transaction, while Agent Runtime
+    owns the proposal table.  Looking up the model through Django's registry
+    keeps the infrastructure adapter behind its injected gateway contract and
+    removes the static ``risk_center -> agent_runtime`` app edge that otherwise
+    creates a module cycle through Agent Runtime context snapshots.
+    """
+
+    model = django_apps.get_model("agent_runtime", "AgentProposalModel")
+    if model is None:
+        raise RuntimeError("agent_runtime.AgentProposalModel is not registered")
+    return model
+
+
 class DjangoAgentProposalGateway(AgentProposalGatewayProtocol):
     """Narrow adapter over the frozen AgentProposal ORM lifecycle."""
 
@@ -99,7 +115,7 @@ class DjangoAgentProposalGateway(AgentProposalGatewayProtocol):
     ) -> AgentProposalSnapshot:
         """Create a high-risk submitted proposal inside the caller's transaction."""
 
-        model = AgentProposalModel._default_manager.create(
+        model = _agent_proposal_model()._default_manager.create(
             request_id=f"sgp_{uuid4().hex}",
             schema_version="v1",
             task_id=None,
@@ -118,14 +134,17 @@ class DjangoAgentProposalGateway(AgentProposalGatewayProtocol):
         """Lock one proposal row inside the surrounding transaction."""
 
         model = (
-            AgentProposalModel._default_manager.select_for_update().filter(pk=proposal_id).first()
+            _agent_proposal_model()
+            ._default_manager.select_for_update()
+            .filter(pk=proposal_id)
+            .first()
         )
         return self._snapshot(model) if model is not None else None
 
     def approve(self, proposal_id: int, *, reason: str) -> AgentProposalSnapshot:
         """Transition a locked submitted proposal to approved."""
 
-        model = AgentProposalModel._default_manager.select_for_update().get(pk=proposal_id)
+        model = _agent_proposal_model()._default_manager.select_for_update().get(pk=proposal_id)
         if model.status != "submitted" or model.approval_status != "pending":
             raise ScenarioGovernanceError(
                 ScenarioGovernanceErrorCode.INVALID_STATE,
@@ -141,7 +160,7 @@ class DjangoAgentProposalGateway(AgentProposalGatewayProtocol):
     def reject(self, proposal_id: int, *, reason: str) -> AgentProposalSnapshot:
         """Transition a locked submitted proposal to rejected."""
 
-        model = AgentProposalModel._default_manager.select_for_update().get(pk=proposal_id)
+        model = _agent_proposal_model()._default_manager.select_for_update().get(pk=proposal_id)
         if model.status != "submitted" or model.approval_status != "pending":
             raise ScenarioGovernanceError(
                 ScenarioGovernanceErrorCode.INVALID_STATE,
@@ -157,7 +176,7 @@ class DjangoAgentProposalGateway(AgentProposalGatewayProtocol):
     def mark_executed(self, proposal_id: int) -> AgentProposalSnapshot:
         """Transition a locked approved proposal to executed."""
 
-        model = AgentProposalModel._default_manager.select_for_update().get(pk=proposal_id)
+        model = _agent_proposal_model()._default_manager.select_for_update().get(pk=proposal_id)
         if model.status != "approved" or model.approval_status != "approved":
             raise ScenarioGovernanceError(
                 ScenarioGovernanceErrorCode.PROPOSAL_NOT_APPROVED,
@@ -169,7 +188,7 @@ class DjangoAgentProposalGateway(AgentProposalGatewayProtocol):
         return self._snapshot(model)
 
     @staticmethod
-    def _snapshot(model: AgentProposalModel) -> AgentProposalSnapshot:
+    def _snapshot(model: Any) -> AgentProposalSnapshot:
         payload = model.proposal_payload if isinstance(model.proposal_payload, Mapping) else {}
         return AgentProposalSnapshot(
             proposal_id=int(model.pk),
