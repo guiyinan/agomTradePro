@@ -16067,7 +16067,7 @@
       "text": "\"realtime-update-prices-after-close\": {"
     },
     {
-      "line": 905,
+      "line": 958,
       "path": "core/settings/base.py",
       "text": "\"sentiment-refresh-current-index\": {"
     },

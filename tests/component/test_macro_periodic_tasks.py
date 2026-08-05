@@ -77,6 +77,35 @@ def test_database_scheduler_entries_use_persisted_expiration_field() -> None:
     assert schedule["alpha-cleanup-metrics"]["kwargs"]["days"] == 30
     assert schedule["task-monitor-cleanup"]["kwargs"]["days_to_keep"] == 30
 
+    retention_datasets = {
+        "asset.master",
+        "equity.price.bar",
+        "equity.quote.snapshot",
+        "fund.nav",
+        "macro.fact",
+        "equity.financial.fact",
+        "equity.valuation.fact",
+        "sector.membership",
+        "market.news",
+        "market.capital_flow",
+    }
+    retention_entries = {
+        name: entry
+        for name, entry in schedule.items()
+        if name.startswith("data-center-retention-preview-")
+    }
+    assert {entry["kwargs"]["dataset_key"] for entry in retention_entries.values()} == {
+        *retention_datasets
+    }
+    assert all(
+        entry["task"] == "apps.data_center.application.tasks.plan_retention_task"
+        and "dry_run" not in entry["kwargs"]
+        for entry in retention_entries.values()
+    )
+    assert schedule["data-center-storage-budget-check"]["task"] == (
+        "apps.data_center.application.tasks.verify_storage_budget_task"
+    )
+
 
 @pytest.mark.django_db
 def test_setup_macro_daily_sync_reconciles_periodic_tasks() -> None:

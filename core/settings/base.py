@@ -846,18 +846,71 @@ CELERY_BEAT_SCHEDULE = {
             "expire_seconds": 3600,  # 1 小时超时
         },
     },
-    # ========== Data Center retention preview ==========
-    "data-center-retention-preview-price-bars": {
-        "task": "apps.data_center.application.tasks.cleanup_expired_raw_payloads_task",
+    # ========== Data Center retention preview (dry-run only) ==========
+    "data-center-retention-preview-asset-master": {
+        "task": "apps.data_center.application.tasks.plan_retention_task",
         "schedule": crontab(hour=4, minute=20),
-        "kwargs": {
-            "dataset_key": "equity.price.bar",
-            "limit": 500,
-            "dry_run": True,
-        },
-        "options": {
-            "expire_seconds": 900,
-        },
+        "kwargs": {"dataset_key": "asset.master", "limit": 500},
+        "options": {"expire_seconds": 900},
+    },
+    "data-center-retention-preview-price-bars": {
+        "task": "apps.data_center.application.tasks.plan_retention_task",
+        "schedule": crontab(hour=4, minute=21),
+        "kwargs": {"dataset_key": "equity.price.bar", "limit": 500},
+        "options": {"expire_seconds": 900},
+    },
+    "data-center-retention-preview-quote-snapshot": {
+        "task": "apps.data_center.application.tasks.plan_retention_task",
+        "schedule": crontab(hour=4, minute=22),
+        "kwargs": {"dataset_key": "equity.quote.snapshot", "limit": 500},
+        "options": {"expire_seconds": 900},
+    },
+    "data-center-retention-preview-fund-nav": {
+        "task": "apps.data_center.application.tasks.plan_retention_task",
+        "schedule": crontab(hour=4, minute=23),
+        "kwargs": {"dataset_key": "fund.nav", "limit": 500},
+        "options": {"expire_seconds": 900},
+    },
+    "data-center-retention-preview-macro-fact": {
+        "task": "apps.data_center.application.tasks.plan_retention_task",
+        "schedule": crontab(hour=4, minute=24),
+        "kwargs": {"dataset_key": "macro.fact", "limit": 500},
+        "options": {"expire_seconds": 900},
+    },
+    "data-center-retention-preview-financial-fact": {
+        "task": "apps.data_center.application.tasks.plan_retention_task",
+        "schedule": crontab(hour=4, minute=25),
+        "kwargs": {"dataset_key": "equity.financial.fact", "limit": 500},
+        "options": {"expire_seconds": 900},
+    },
+    "data-center-retention-preview-valuation-fact": {
+        "task": "apps.data_center.application.tasks.plan_retention_task",
+        "schedule": crontab(hour=4, minute=26),
+        "kwargs": {"dataset_key": "equity.valuation.fact", "limit": 500},
+        "options": {"expire_seconds": 900},
+    },
+    "data-center-retention-preview-sector-membership": {
+        "task": "apps.data_center.application.tasks.plan_retention_task",
+        "schedule": crontab(hour=4, minute=27),
+        "kwargs": {"dataset_key": "sector.membership", "limit": 500},
+        "options": {"expire_seconds": 900},
+    },
+    "data-center-retention-preview-market-news": {
+        "task": "apps.data_center.application.tasks.plan_retention_task",
+        "schedule": crontab(hour=4, minute=28),
+        "kwargs": {"dataset_key": "market.news", "limit": 500},
+        "options": {"expire_seconds": 900},
+    },
+    "data-center-retention-preview-capital-flow": {
+        "task": "apps.data_center.application.tasks.plan_retention_task",
+        "schedule": crontab(hour=4, minute=29),
+        "kwargs": {"dataset_key": "market.capital_flow", "limit": 500},
+        "options": {"expire_seconds": 900},
+    },
+    "data-center-storage-budget-check": {
+        "task": "apps.data_center.application.tasks.verify_storage_budget_task",
+        "schedule": crontab(minute="*/15"),
+        "options": {"expire_seconds": 300},
     },
     # ============================================
     # ========== P1-2: 数据库备份 ==========

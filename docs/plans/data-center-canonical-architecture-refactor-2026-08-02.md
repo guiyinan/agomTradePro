@@ -4211,3 +4211,10 @@ Git SHA / 镜像 / migration：
 - 变更：`DjangoConfigCenterSummaryRepository.get_runtime_qlib_config()` 与系统摘要均只接受 active、版本匹配的 typed snapshot；缺失/失效返回 `status=blocked`、`must_not_use_for_decision=true` 和稳定 `runtime_config_snapshot_unavailable`。旧 `SystemSettingsModel` getter 仅保留迁移维护用途，未被运行时桥调用。
 - 治理与测试：`runtime_config_contracts.json` 的 Qlib fallback 改为 `blocked`，新增缺失快照回归；后续仍需在受控环境初始化 production/非默认 profile 并验证所有 Qlib 调度链。
 - 明确未做：未删除旧模型字段/迁移、未改变 Qlib 算法或训练参数，未初始化本地/生产 profile，未部署。
+
+## 64. 2026-08-05：Retention preview 与 Storage Budget 接入正式 Beat
+
+- 目标：把已具备 fail-closed 任务契约的 retention dry-run 和 storage pressure 检查接入统一 Celery Beat，避免只存在手工调用而没有运行调度。
+- 变更：`core/settings/base.py` 为 D0-D9 十个 dataset 登记每日 `plan_retention_task` dry-run，统一保留 `expire_seconds`；新增每 15 分钟 `verify_storage_budget_task`。没有把 `enforce_retention_task` 放进自动调度，删除仍需显式确认和运维授权。
+- 测试：Beat schedule 组件回归验证十个 dataset 全覆盖、均为 plan task 且无 destructive kwargs；Celery contracts 18 tasks、Django check 均通过。
+- 明确未做：未执行真实删除、归档、PostgreSQL/VPS 数据清理或容量故障注入；实际生产调度结果仍需部署后 run_id/StorageBudget 证据。
