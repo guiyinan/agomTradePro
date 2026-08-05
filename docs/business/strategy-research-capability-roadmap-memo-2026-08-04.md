@@ -12,6 +12,7 @@
 > 2026-08-05 Luna Max 交叉复核整改：三组独立只读复核未发现 P0，并提出的 13 项 P1 已全部关闭；整改覆盖 PIT 事实身份、双时间查询、coverage、固收输入封存、简单基准绑定、情景样本/路径身份、Portfolio snapshot owner 证据及优化风险贡献重算。该整改提升证据不可篡改性，不改变 R1—R8 的 `blocked` 结论。
 > 2026-08-05 完整路线图审计：上述 13 项仅代表上一轮限定清单关闭，不代表 R1—R8 完成。新一轮按目标/最低验收逐项审计未发现 P0，但确认仍有多项无数据可开发 P1；本批新增 R5 组合风险预算/压力测试并加固 R4 report seal，完整队列见[完成度审计](../plans/strategy-research-capability-completion-audit-2026-08-05.md)。
 > 2026-08-05 R1/R2 无数据续批：R1 已完成 Sector→Equity 持久证据桥接、通用 driver PIT 绑定、cash-flow/六阶段/template-run seal 及 legacy dual-read；R2 已完成版本化 expected-period calendar、series×period 完整 coverage 和整期全缺 fail-closed。R1 v2 仍强制 research-only，R1 baseline/Promotion exact binding 与 R2 真实 taxonomy/calendar/两个市场周期证据仍未完成，因此能力门禁保持 `blocked`。
+> 2026-08-05 R7 reminder 续批：已完成 Research-owned append-only reminder ledger/internal outbox，修复 invalidation reminder 确定性时间锚，精确绑定 forecast/revision/policy 与逐期 conditional/transition evidence，并实现 due/ack/escalate/expiry。该流程只允许内部人工 pull/ACK，禁止外部发送、自动审批和执行；真实 outcome 历史、获批 sample policy、结果持久化与晋级仍未完成，R7 保持 `blocked`。
 
 本轮执行索引：
 

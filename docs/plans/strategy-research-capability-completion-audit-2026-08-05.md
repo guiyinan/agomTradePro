@@ -23,7 +23,7 @@
 | R4 | beta/CI/R²/残差、PSD、风险贡献、成本/流动性门禁 | 独立 R3 Promotion/PIT attestation；滚动/regime exposure；三基准同窗回测；完整持久证据 | R3 晋级版本、真实 exposure/covariance/constraint snapshot 和历史样本 |
 | R5 | 单券定价、久期/凸性、carry/roll-down、曲线/信用利差 | 历史分位、等级迁移、流动性溢价、曲线组合及容量门禁；组合结果持久化/晋级闭环 | 两条曲线、信用估值、Bond Master/CashFlow/Calendar Publication、外部对账 |
 | R6 | 简单基准不足 report、高级 artifact evidence gate | duration/决策损失/复杂度/稳定性比较；政策反应系数和诊断；监控/退役/Promotion 闭环 | 真实 shortfall、PIT 输入、预注册 family、OOS 证据 |
-| R7 | 概率分栏、Brier/分箱、PIT 类比、路径证据、review intent | append-only reminder ledger/outbox；due/ack/escalate/expiry；逐期条件概率/转移绑定；结果持久化和 lifecycle | 完整预测—复核—兑现历史、获批 sample policy、PIT 路径样本 |
+| R7 | 概率分栏、Brier/分箱、PIT 类比、typed 逐期路径证据、append-only reminder ledger/internal outbox、due/ack/escalate/expiry | calibration/path 结果持久化、retirement/Promotion lifecycle 与审计分页 | 完整预测—复核—兑现历史、获批 sample policy、PIT 路径样本 |
 | R8 | canonical snapshot、execution feedback、统一输入、PSD/可行性、research solver | 13 类数值 payload 与 owner hash 精确绑定；现有配置基准；可投资 universe；四市场 typed constraints；真实 path drawdown；持久化/Promotion/lifecycle | broker reconciliation、R3/R4/R5 晋级、真实成本/容量/市场约束校准 |
 
 ## 3. 本批完成项
@@ -65,13 +65,21 @@
 - 日历 identity/frequency/as-of/active/expiry、coverage 缺格或重复、raw hash tamper、并发注册和 `_base_manager` 旁路均被拒绝。
 - `0061` 只建 schema，不回填日历、不创建业务 seed，并保持旧 evidence payload/hash 字节不变。
 
+### 3.5 R7 人工复核 reminder ledger/internal outbox
+
+- 修复 review intent 的确定性缺陷：schedule 固定锚定 invalidation time，identity 同时封存 forecast observation、scenario revision/set、policy version/content hash；重复研究评估不再产生同 ID 异 payload。
+- Research 新增 immutable reminder header 与 hash-chained lifecycle event，状态由 `scheduled / due / escalated / acknowledged / expired` 事件推导；exact due/escalation/expiry 边界和 terminal transition 均 fail closed。
+- Conditional/transition evidence 显式携带 period index，并从 typed `ScenarioPathStudyEvidence` 派生完整 horizon binding；调用方不能提交任意 claimed hash，也不能跨 path、scenario set 或 period 替换。
+- Application 只提供 internal pull queue、deterministic reconcile 与 owner-authorized human ACK；Domain/DB 固定 `must_not_execute / must_not_use_for_decision / no auto approval / no external dispatch`，未新增 Celery、邮件、短信、webhook 或执行链。
+- `research.0002` 只新建空 ledger/outbox 表，不 seed、不回填旧 reminder，并保持 0001 既有研究记录不变；default/base/related manager mutation、并发 winner replay、同 key 异 evidence、事务回滚和 raw tamper 均有组件证据。
+
 ## 4. 后续实施顺序
 
-1. R7 review reminder ledger/outbox，仅提醒人工复核。
-2. R3 可复算 runner、dated outputs 和 retirement lifecycle。
-3. R8 typed input binding、current baseline、universe 与四市场约束。
-4. R1 baseline/Promotion artifact exact binding。
-5. R4 rolling backtest、R5 relative-value 扩展、R6/R7/R8 lifecycle。
+1. R3 可复算 runner、dated outputs 和 retirement lifecycle。
+2. R8 typed input binding、current baseline、universe 与四市场约束。
+3. R1 baseline/Promotion artifact exact binding。
+4. R4 rolling backtest、R5 relative-value 扩展、R6 lifecycle。
+5. R7 calibration/path 结果持久化与 retirement/Promotion lifecycle，R8 lifecycle。
 
 每项按独立 commit 组推进；真实证据未齐时保持 blocked，不使用 fixture、模型文件或迁移存在作为 ready 证明。
 
@@ -87,5 +95,7 @@ python scripts/verify_architecture.py
 ```
 
 本批此前验证 fixed-income 与 R4 macro-risk 共 `49 passed`。本次 R1/R2 续批由实现与只读复核 Luna Max 交叉验收：R1 unit `15 passed`、component `10 passed`、migration `3 passed`；R2 unit `18 passed`、component `6 passed`、migration `2 passed`。主代理另行联合复跑 unit `27 passed`、component `13 passed`。14 个变更生产文件增量 mypy 为 0 regression；Ruff、Black、isort、Django system check、三 App migration drift、架构扫描（2150 files / 0 violations）、业务配置硬编码门禁和 43 个 current-data surface 均通过。
+
+R7 reminder 续批经 Luna Max 实现与只读复核关闭全部 P0/P1；主代理独立复跑 unit `18 passed`、component `11 passed`、migration `2 passed`。8 个变更生产文件增量 mypy 为 0 regression；Ruff、Black、isort、Research migration drift、Django system check、架构扫描（2155 files / 0 violations）、44 个 current-data surface、业务配置、governance consistency 和 Celery task contract 均通过。
 
 完成路线图仍需为上表每项取得代码、迁移/台账、研究证据、运行时行为和 Promotion/回滚的直接证明；“测试全绿”只证明已覆盖合同，不替代真实数据和样本外结果。

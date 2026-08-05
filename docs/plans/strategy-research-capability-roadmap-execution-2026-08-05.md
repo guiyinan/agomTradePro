@@ -22,6 +22,7 @@
 11. 对完整路线图重新执行三组 Luna Max 完成度审计，确认上一条只代表限定清单关闭；新审计无 P0，但发现 R1 bridge、R2 expected periods、R3 runner/output、R5 组合风险、R7 reminder outbox、R8 typed input/market constraints 等仍可无数据开发的 P1。
 12. 本批先完成 R5 组合级 DV01/CS01/凸性/流动性风险预算及利率/信用压力测试，并修复 R4 exact-expiry 与完整 report seal。完整剩余队列见[完成度审计](strategy-research-capability-completion-audit-2026-08-05.md)。
 13. 继续完成 R1 Sector→Equity 持久证据桥接、cash-flow/六阶段/template-run seal、通用 driver PIT 绑定与 legacy dual-read；完成 R2 版本化 expected-period calendar、series×period 完整 coverage 和整期全缺门禁。两项均保持 research-only/blocked，不使用 seed 或代理数据解除门禁。
+14. 完成 R7 Research-owned append-only reminder ledger/internal outbox，精确绑定 forecast/revision/policy 与逐期 path evidence，并实现 deterministic due/ack/escalate/expiry；只允许内部人工 pull/ACK，明确禁止外发、自动审批与执行。
 
 ## 2. 启动状态矩阵
 
@@ -33,7 +34,7 @@
 | R4 宏观敞口与风险平价 | `blocked` | 已有暴露/协方差/风险贡献候选验证；仍需 R3 晋级版本、真实资产暴露和 canonical constraint snapshot | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
 | R5 固收相对价值与久期 | `blocked` | 已有 research-only 定价/久期/曲线/信用内核；仍需真实 Publication、Bond Master、现金流/交易日历和外部对账 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
 | R6 高级状态模型 | `blocked` | 已有简单基准不足取证器和外部高级状态证据验证；仍需真实不足证据、PIT 输入、稳定标签/OOS/政策目标和晋级 | [R6](r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md) |
-| R7 情景概率校准 | `blocked` | 已有 source-separated Brier/分箱、PIT 类比、路径/转移与 review intent；仍需完整 outcome 历史和获批样本政策 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
+| R7 情景概率校准 | `blocked` | 已有 source-separated Brier/分箱、PIT 类比、typed 逐期路径证据和 internal-only reminder lifecycle；仍需完整 outcome 历史、获批样本政策、结果持久化与研究晋级 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
 | R8 多资产优化 | `blocked` | 已有 canonical snapshot、执行反馈、统一输入、约束验证和非全局确定性研究求解；仍需真实 broker reconciliation 及 R3/R4/R5 晋级版本 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
 
 ## 3. 可执行启动门
@@ -112,6 +113,8 @@ python scripts/verify_architecture.py
 2026-08-05 初轮联合验证结果：R1—R8 相关 unit/component/migration 共 `158 passed`。Luna Max 交叉复核整改后，从路线图首个提交至当前 HEAD 自动收集 57 个实际测试模块，最终联合回归为 `432 passed`；上述六个 App 均 `No changes detected`，Django system check、43 个 current-data surface、架构边界（2146 files / 0 violations）、业务配置硬编码和 test-tier inventory 全部通过。
 
 2026-08-05 R1/R2 无数据续批验证：R1 unit/component/migration 为 `15 / 10 / 3 passed`，R2 为 `18 / 6 / 2 passed`；主代理联合复跑 unit `27 passed`、component `13 passed`。增量 mypy 14 个生产文件 0 regression，三 App 无 migration drift，Django system check、43 个 current-data surface、架构边界（2150 files / 0 violations）及业务配置硬编码门禁均通过。测试只证明软件合同，不替代 Production Publication、真实 calendar、两个市场周期或 PromotionDecision。
+
+2026-08-05 R7 reminder 续批验证：主代理独立复跑 unit/component/migration 为 `18 / 11 / 2 passed`，8 个生产文件增量 mypy 0 regression；Research 无 migration drift，Django system check、44 个 current-data surface、架构边界（2155 files / 0 violations）、业务配置、governance consistency 与 Celery contracts 均通过。结果仍是 research-only 内部提醒软件证据，不替代真实 forecast/outcome history 或 sample policy。
 
 完整路线图审计后的 R4/R5 增量批次另行复验 fixed-income 全部 unit/component 与 R4 macro-risk，共 `49 passed`；增量 mypy/ruff/black、Django check、架构边界（2148 files / 0 violations）、业务配置硬编码和 43 个 current-data surface 均通过。
 

@@ -196,6 +196,8 @@ Owner：`risk_center` + `signal` + `audit`，独立 plan/迁移。
 
 同日进一步实现 research-only 校准与类比合同：在获批 policy 的样本量、coverage、类别支持、窗口和 expiry 全部通过时，分别计算 subjective/model binary Brier、multiclass Brier 和分箱命中率；历史类比强制 PIT manifest/as-of，路径/条件/转移概率只作为证据，invalidation 只生成 `dispatch_requested=false` 的 review intent。空 outcome 仍返回 `insufficient_evidence`，不会训练或补出模型概率。
 
+2026-08-05 reminder 续批进一步完成 Research-owned append-only 人工复核 ledger/internal outbox。Intent 固定锚定 invalidation time，并封存 forecast observation、revision/set 与 probability policy hash；typed path evidence 按 period 绑定 conditional/transition identity。Lifecycle 只允许 `scheduled / due / escalated / acknowledged / expired`，internal pull 和 human-authorized ACK 均禁止自动审批、执行或外部发送。`research.0002_scenario_review_reminder_ledger` 为 schema-only、零 seed，保留 0001 既有研究记录。该能力只解决“证伪后提醒人工复核”的软件闭环，不提供模型概率，不解除 R7 `blocked`。
+
 ### R8-O0：Portfolio canonical snapshot 与执行反馈
 
 Owner：`portfolio` + `broker_execution`，在 R3/R4/R5 晋级前可独立建设数据真源，但不得建设优化器。
