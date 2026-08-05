@@ -86,11 +86,25 @@
       "evidence_ref": "repo://apps/portfolio/domain/services.py#build_transition_plan|test://tests/unit/portfolio/test_transition_plan_rules.py"
     },
     {
+      "requirement": "portfolio_canonical_snapshot",
+      "owner": "portfolio",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/portfolio/domain/canonical_snapshots.py#CanonicalPortfolioSnapshot|test://tests/unit/portfolio/test_canonical_snapshot_contract.py"
+    },
+    {
       "requirement": "optimizer_input_contract",
       "owner": "portfolio",
       "observed_at": "2026-08-05T00:00:00+08:00",
       "valid_until": "2026-11-05T00:00:00+08:00",
       "evidence_ref": "repo://apps/portfolio/domain/optimizer_inputs.py#OptimizerInputContract|test://tests/unit/portfolio/test_optimizer_input_contract.py"
+    },
+    {
+      "requirement": "fixed_income_research_only_scope",
+      "owner": "fixed_income",
+      "observed_at": "2026-08-05T00:00:00+08:00",
+      "valid_until": "2026-11-05T00:00:00+08:00",
+      "evidence_ref": "repo://apps/fixed_income/domain/entities.py#FixedIncomeResearchPreview|test://tests/unit/fixed_income/test_research_preview.py"
     }
   ]
 }

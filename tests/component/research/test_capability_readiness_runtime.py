@@ -52,12 +52,22 @@ def test_r7_runtime_keeps_binding_outcomes_and_samples_blocked() -> None:
     assert states[ReadinessRequirement.CALIBRATION_SAMPLE_POLICY] is (ReadinessState.UNVERIFIED)
 
 
+def test_r5_runtime_attests_research_only_scope_without_inventing_data() -> None:
+    states = _states(ResearchCapability.FIXED_INCOME_RELATIVE_VALUE)
+
+    assert states[ReadinessRequirement.FIXED_INCOME_RESEARCH_ONLY_SCOPE] is (
+        ReadinessState.VERIFIED
+    )
+    assert states[ReadinessRequirement.TWO_RELIABLE_CURVES_PUBLISHED] is ReadinessState.UNVERIFIED
+    assert states[ReadinessRequirement.DURATION_CONVEXITY_RECONCILED] is ReadinessState.UNVERIFIED
+
+
 def test_r8_runtime_attests_input_mechanisms_without_inventing_versions() -> None:
     states = _states(ResearchCapability.MULTI_ASSET_OPTIMIZATION)
 
     assert states[ReadinessRequirement.PORTFOLIO_PLANNING_CONSTRAINTS] is (ReadinessState.VERIFIED)
     assert states[ReadinessRequirement.RISK_CENTER_SCENARIO_INPUT] is (ReadinessState.VERIFIED)
-    assert states[ReadinessRequirement.PORTFOLIO_CANONICAL_SNAPSHOT] is (ReadinessState.UNVERIFIED)
+    assert states[ReadinessRequirement.PORTFOLIO_CANONICAL_SNAPSHOT] is (ReadinessState.VERIFIED)
     assert states[ReadinessRequirement.R3_PROMOTED_FACTOR_VERSION] is (ReadinessState.UNVERIFIED)
     assert states[ReadinessRequirement.EXECUTION_FEEDBACK_RECONCILED] is (ReadinessState.MISSING)
     assert states[ReadinessRequirement.OPTIMIZER_INPUT_CONTRACT] is ReadinessState.VERIFIED

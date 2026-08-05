@@ -1,6 +1,6 @@
 # 策略研究能力路线图 R1—R8 执行状态（2026-08-05）
 
-> 状态：M0 合约、运行时取证及 R1/R2/R7/R8 数据积累纵切已完成；真实数据、晋级和模型阶段仍待实施，R1—R8 均 `blocked`
+> 状态：M0 合约、运行时取证及 R1/R2/R5/R6/R7/R8 可先开发纵切已完成；真实数据、晋级和高级模型阶段仍待实施，R1—R8 均 `blocked`
 > 来源：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
 > 适用分支：`dev/refactor-scenario-governance-quick-wins`
 > 决策边界：本文件完成的是“能否启动”的可执行治理，不把缺少数据和研究证据的长期能力声明为完成。
@@ -16,19 +16,20 @@
 5. 明确没有启动 Lasso/Nowcast、风险平价、固收定价、HMM、概率校准或优化器，也没有新增 Classic Web/TUI 占位任务。
 6. 建立运行时 owner evidence registry；它只发布显式、限时、可定位到代码与契约测试的机制证据，其他 requirement 稳定物化为 `missing / unverified`。
 7. 在不伪造数据的前提下，完成 R1/R2 治理定义与 PIT 写入、R7 scenario forecast binding，以及 R8 research-only optimizer input contract；这些纵切用于开始积累证据，不解除能力总门禁。
+8. 继续交付 R1 三情景经营预测与误差台账、R5 固收研究内核、R6 简单基准不足取证器，以及 R8 canonical portfolio snapshot/执行反馈台账；所有缺数据入口均 fail closed。
 
 ## 2. 启动状态矩阵
 
 | 能力 | 决策 | 解除阻断所需的核心证据 | 独立阶段计划 |
 |---|---|---|---|
-| R1 行业经营驱动与盈利预测 | `blocked` | QW-7 真实使用反馈、连续经营事实、财务/估值 PIT、预测评估规范和 R1 晋级绑定 | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
+| R1 行业经营驱动与盈利预测 | `blocked` | 已有三情景预测/误差台账；仍需 QW-7 反馈、连续 PIT 事实、正式评估规范和 R1 晋级绑定 | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
 | R2 市场结构与投资者资金流 | `blocked` | 主体分类和单位语义、两个周期 PIT 覆盖、历史资产组 membership、代理标识 | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
 | R3 高频宏观因子与 nowcast | `blocked` | 宏观 vintage/代理资产 PIT、发布日历、连续期货规则、专属 benchmark 和成本模型 | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
 | R4 宏观敞口与风险平价 | `blocked` | R3 晋级版本、资产暴露、协方差、权重/换手/流动性约束和对照基准 | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
-| R5 固收相对价值与久期 | `blocked` | 两条已发布曲线、信用估值、Bond Master、现金流/交易日历和久期凸性对账 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
-| R6 高级状态模型 | `blocked` | 简单基准不足证据、PIT 输入、稳定标签协议、样本外转移基准和政策目标契约 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
+| R5 固收相对价值与久期 | `blocked` | 已有 research-only 定价/久期/曲线/信用内核；仍需真实 Publication、Bond Master、现金流/交易日历和外部对账 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
+| R6 高级状态模型 | `blocked` | 已有版本化简单基准不足取证器；仍需真实不足证据、PIT 输入、稳定标签协议、样本外转移基准和政策目标契约 | [R6](r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md) |
 | R7 情景概率校准 | `blocked` | 情景版本与预测账本绑定、完整 outcome 历史、校准样本政策和类比 PIT manifest | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
-| R8 多资产优化 | `blocked` | canonical portfolio snapshot、R3/R4/R5 晋级版本、执行反馈和统一优化输入契约 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
+| R8 多资产优化 | `blocked` | 已有 canonical snapshot、执行反馈台账和统一输入契约；仍需真实 broker reconciliation、R3/R4/R5 晋级版本和优化研究 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
 
 ## 3. 可执行启动门
 
@@ -60,7 +61,8 @@ Application 只依赖 owner evidence provider Protocol，不读取其他 App ORM
 | `research` | `experiment_registry`、`multiple_test_family`、`promotion_decision`、`split_and_embargo_policy` | 通用研究完整性机制；不代表 R1/R3/R4/R5 等已有 approved trial |
 | `risk_center` | `governed_scenario_versions`、`subjective_model_probability_separation`、`risk_center_scenario_input` | 版本、概率来源分栏和只读矩阵输入契约；不代表已有校准样本 |
 | `signal` | `append_only_forecast_ledger`、`scenario_version_ledger_binding` | append-only writer、scenario revision/set 绑定与不可变性测试；不代表已有完整 outcome 历史 |
-| `portfolio` | `portfolio_planning_constraints`、`optimizer_input_contract` | transition planning 约束和 research-only 输入门禁；不代表 canonical snapshot、上游晋级或优化算法已完成 |
+| `portfolio` | `portfolio_planning_constraints`、`portfolio_canonical_snapshot`、`optimizer_input_contract` | transition planning、不可变 snapshot 和 research-only 输入门禁；不代表真实组合样本、上游晋级或优化算法已完成 |
+| `fixed_income` | `fixed_income_research_only_scope` | 固收结果强制研究专用且禁止决策/执行；不代表目标曲线、信用数据或久期凸性外部对账已完成 |
 | `regime` | `simple_regime_baseline` | 简单四象限基准与测试；不代表高级状态模型具有增量价值 |
 
 每份 `verified` 机制证据必须从治理清单读取固定 `observed_at / valid_until / evidence_ref`。运行时不会把 `valid_until` 延后；到期后 Domain gate 自动转为 `stale`。清单未签署的同 owner 条件返回 `unverified`，没有适配器的 owner 返回 `missing`。
@@ -79,7 +81,7 @@ Application 只依赖 owner evidence provider Protocol，不读取其他 App ORM
 
 这些数字只证明本地开发环境无法解除相关启动门，不代表生产环境状态。未来复核必须由 canonical owner 重新提供目标环境证据，且非空记录仍需验证 coverage、freshness、PIT、版本绑定和样本跨度。
 
-当前尚未接线的 owner 为 `equity`、`macro_factor`、`fixed_income`、`policy`、`audit`、`broker_execution`；其中 `macro_factor` 与 `fixed_income` 尚无独立 App。已接线 owner 中，所有数据覆盖、Production Publication、晋级版本和样本历史 requirement 仍保持 `unverified`，运行时不查询空表，也不以模型或迁移存在推断 `verified`。
+当前尚未接线的 owner 为 `equity`、`macro_factor`、`policy`、`audit`、`broker_execution`；其中 `macro_factor` 尚无独立 App。`fixed_income` 已建立独立四层研究 App，但只签署 research-only 机制。所有数据覆盖、Production Publication、晋级版本和样本历史 requirement 仍保持 `unverified`，运行时不查询空表，也不以模型或迁移存在推断 `verified`。
 
 ## 5. 后续触发与执行顺序
 
@@ -100,4 +102,4 @@ python scripts/check_mypy_regression.py apps/research/domain/capability_readines
 python scripts/verify_architecture.py
 ```
 
-回滚点是 readiness contract、owner registry、治理 attestation 清单、测试和上述四份文档；本阶段无迁移、无数据库写入、无任务注册、无 API/MCP/TUI 发布，也不影响现有研究和决策运行路径。
+回滚点按 R1、R5、R6、R8 四个独立提交组切分。新增迁移只建立 append-only 研究台账与 canonical snapshot/反馈存储；没有任务注册、API/MCP/TUI 发布，也不把研究结果接入现有决策或执行路径。

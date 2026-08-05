@@ -159,6 +159,8 @@ Owner：`data_center`，独立 plan/分支。
 - 不实现订单生成、自动调仓、carry/roll-down 优化或信用组合优化；
 - 新用户主任务只进入 TUI，不新增 Classic 页面。
 
+2026-08-05 开发先行状态：在不解除 R5-F0 数据门禁的前提下，已完成 `fixed_income` App 的最小完整四层研究纵切。Domain 接受显式 Bond Master、settlement-specific CashFlow、交易日历、国债曲线、政策性金融债曲线、信用估值、融资/交易/流动性成本 Publication 引用，所有摘要为 64 位 SHA-256、所有 Decimal 必须 finite，Publication 到期边界按 stale 处理；实现 clean/dirty price、YTM、Macaulay/modified duration、convexity、carry、roll-down、期限/跨曲线利差纯计算。Application 缺任一版本输入、过期证据或金样本对账失败即返回 blocked，成功预览也固定 `research_only=true`、`must_not_execute=true`、`must_not_use_for_decision=true`。Infrastructure 仅提供 Data Center Publication/freshness adapter 与不可变 research result repository/migration；Interface 只有内部 presenter，未注册 URL/TUI。该代码允许先做可复算开发与积累证据，但不把本地金样本写成正式事实，不满足“两条可靠曲线 + 信用估值已发布”等 R5-F0 退出条件，因此 R5 capability 和 `r5_promoted_fixed_income_version` 仍保持 `blocked`。
+
 ### R6-S0：简单基准缺口取证
 
 Owner：`regime` + `research`。
@@ -199,6 +201,8 @@ Owner：`portfolio` + `broker_execution`，在 R3/R4/R5 晋级前可独立建设
 - transition plan/order intent 与 broker order/fill/reconciliation 的稳定关联；
 - 计划值与真实成交的费用、滑点、成交率、拒单和约束原因对账；
 - 现金需求、持仓上下限、流动性和各市场交易规则的版本化契约。
+
+2026-08-05 R8-O0 实施状态：已新增 Portfolio-owned `portfolio_canonical_snapshot` 和 `portfolio_execution_feedback` 追加式真源及 `portfolio.0005_canonical_portfolio_snapshot_and_feedback` 迁移。Canonical snapshot 从 cash/positions owner evidence 的原始 observation time 推导 `as_of`，绑定各自 version、64 位内容摘要、逐持仓来源与估值时间；Account、Risk Center、Strategy 的后续消费者只能使用 Portfolio Application query protocol，不得读取该 ORM。Execution feedback 使用字符串稳定引用关联 snapshot、transition plan、order intent、broker client/order event/fill/reconciliation，不增加跨 App FK，并复算计划费用与真实费用差、成交率、买卖方向滑点、拒单和约束偏差。缺任一 broker event 或 reconciliation evidence、source digest 不一致、时间倒置或非有限数值均 fail closed。本纵切未生成或提交订单、未实现优化器，也没有把合成测试数据写入正式证据；在真实 snapshot/成交/对账样本形成前，`portfolio_canonical_snapshot` 与 `execution_feedback_reconciled` readiness 仍不得手工改为 `verified`。
 
 ### R8-O1：多资产优化最小纵切
 

@@ -7,12 +7,14 @@
 > 关联实施计划：[情景治理与策略研究 Quick Wins 整改计划](../plans/scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md)
 > 2026-08-05 启动门复核：R1—R8 均为 `blocked`；已交付统一 fail-closed readiness 合约和分阶段计划，但未启动任何模型、数据回填或用户任务。
 > 2026-08-05 开发续批：已实现 R1/R2 治理定义与 PIT 数据入口、R7 情景预测账本绑定、R8 research-only 输入合约及运行时 owner 取证；这些基础纵切不替代真实数据、样本外验证或 PromotionDecision，能力总门禁保持不变。
+> 2026-08-05 无数据先行批次：已实现 R1 三情景经营预测与误差台账、R5 research-only 固收研究内核、R6 简单基准不足取证器，以及 R8 canonical portfolio snapshot/执行反馈台账；真实 Publication、外部对账、样本历史和晋级版本仍缺失，因此 R1—R8 总门禁不变。
 
 本轮执行索引：
 
 - [R1/R2 启动门整改计划](../plans/strategy-research-r1-r2-readiness-plan-2026-08-05.md)
 - [R3/R4 启动门禁及分阶段实施计划](../plans/macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md)
 - [R5—R8 启动门禁与分阶段实施计划](../plans/strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md)
+- [R6 简单基准不足与状态模型分阶段计划](../plans/r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md)
 - [R1—R8 执行状态与复核入口](../plans/strategy-research-capability-roadmap-execution-2026-08-05.md)
 
 `blocked` 表示备忘定义的前置证据尚未齐备，不表示通过创建空模型、默认参数或演示页面即可解除。每项能力只有在 canonical owner 提供带时间、可追溯引用且完整的 verified evidence 后，才允许另建独立实施计划和分支。

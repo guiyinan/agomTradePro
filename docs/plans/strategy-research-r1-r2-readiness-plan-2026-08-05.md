@@ -1,6 +1,6 @@
 # R1/R2 策略研究能力启动门整改计划（2026-08-05）
 
-> 状态：**数据基础纵切已实现；R1/R2 能力仍 Blocked，不允许启动模型纵切**
+> 状态：**数据基础与 R1 可审计预测账本纵切已实现；R1/R2 能力仍 Blocked，不允许启动模型训练或正式估值消费**
 > 依据：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
 > 复核基线：`dev/refactor-scenario-governance-quick-wins`
 > 本轮主任务：判断 R1 行业经营驱动与盈利预测、R2 市场结构与投资者资金流是否具备启动条件。
@@ -15,7 +15,7 @@ R1、R2 当前均不得进入业务模型实现阶段。
 - Data Center 已具备 Publication 和 PIT 技术基座；技术路径存在不等于生产数据已经通过门禁。没有 production publication、coverage、manifest 和 as-of 证据时，相关条件保持 `unverified`。
 - Research 已具备通用 `PromotionDecision`；R1 尚无预测 trial、benchmark、误差指标或进入 Valuation 的绑定规则，因此不能把通用门禁的存在解释为 R1 已 ready。
 
-本轮已交付统一 typed readiness contract，以及 Data Center-owned 定义、append-only PIT writer/query facade 和无 seed 迁移。不得新增 Classic 页面，不发布盈利预测或“增量/存量/减量博弈”结论。
+本轮已交付统一 typed readiness contract，以及 Data Center-owned 定义、append-only PIT writer/query facade、无 seed 迁移和 Equity-owned 可审计预测/季度偏差账本。账本只提供安全积累与复算结构，不包含行业公式、自动预测或默认业务数据；不得新增 Classic 页面，不发布盈利预测或“增量/存量/减量博弈”结论。
 
 ### 1.1 2026-08-05 数据基础实施状态
 
@@ -24,6 +24,16 @@ R1、R2 当前均不得进入业务模型实现阶段。
 - Infrastructure 复用 `PITFactVersionModel` 与 `DjangoPITDataView`，不创建第二份事实真源；三张新表只保存治理定义，不包含业务分类 seed。
 - Application 查询必须显式 `as_of_time`、`KnowledgeScope` 和 observation kind，不允许事实与假设混查。
 - 这批代码让未来真实数据可以安全进入系统，但 R1/R2 readiness 仍因真实使用、coverage、Publication/PIT manifest 和研究验证证据不足而保持 `blocked`。
+
+### 1.2 2026-08-05 R1 预测账本实施状态
+
+- Equity 新增 immutable `OperatingForecastVersion`，保存 forecast key/version、as-of、季度 horizon、行业/公司、methodology 和稳定 content hash。
+- 每个版本必须同时包含 `base / bull / bear`，每个情景都必须有 Data Center `research.operating_observation.v1` 的 latest-public、verified、`observed_fact` PIT 锚点；旧修订、未来不可知版本、人工假设或模型推断不能冒充事实。
+- 假设逐项保存值、单位、理由和唯一 lineage；`observed_fact / human_assumption / model_inference` 在 Domain 与数据库约束中互斥，未内置行业公式、默认增长率或 LLM 预测。
+- 每个情景保存收入、净利润、可复算利润率，以及外部提供的估值敏感性输入、输出、单位和方法版本。
+- 季度 actual 到达后，账本一次性追加三情景对比，保存 revenue/profit/margin 的 signed error、absolute error 与适用的 absolute percentage error，并引用当时可知的 operating PIT actual evidence。
+- `valuation_consumable=true` 必须引用 approved Research `PromotionDecision`；Equity 通过 Data Center Application facade 和 Research runtime checker 取证，不跨 App 读取 ORM。
+- 能力仍为 `blocked`：当前实现证明可安全积累数据，不证明任何行业 forecast 已有效、已晋级或可用于投资决策。
 
 ## 2. 目标与非目标
 
@@ -68,8 +78,8 @@ Readiness Application 只能通过 Protocol 收集 owner evidence。它不得 im
 | 至少一个行业的连续、可审计经营事实 | `data_center` | `missing` | 未发现公司门店、同店销售、客单价、销量/吨价、培训人数/学费等 canonical operating-fact entity、catalog、Publication 或 repository | `industry_earnings_forecast.auditable_operating_fact_series.missing` |
 | 财务事实 Publication/PIT | `data_center` | `unverified` | `FinancialFact.available_at`、financial Publication publisher/query 和 PIT manifest 基座已存在；没有本轮生产 publication/coverage/manifest 证据 | `industry_earnings_forecast.financial_publication_pit.unverified` |
 | 估值事实 Publication/PIT | `data_center` | `unverified` | `ValuationFact.available_at` 与 published valuation query 已存在；没有本轮生产 publication/coverage/manifest 证据 | `industry_earnings_forecast.valuation_publication_pit.unverified` |
-| horizon、误差指标与 baseline | `equity` | `missing` | 未发现 R1 专属 forecast horizon、季度 actual-vs-forecast ledger、naive/consensus baseline 或误差门槛 | `industry_earnings_forecast.forecast_evaluation_spec.missing` |
-| R1 绑定的 Research PromotionDecision | `research` | `unverified` | 通用 Experiment/Trial/PIT/PromotionDecision 已存在，但没有 R1 trial schema、通过标准或 Valuation 消费绑定 | `industry_earnings_forecast.research_promotion_gate.unverified` |
+| horizon、误差指标与 baseline | `equity` | `missing` | 已实现版本化 horizon、三情景 quarterly actual-vs-forecast ledger、signed/absolute/percentage error；仍没有 owner-approved naive/consensus baseline、样本规范或误差门槛 | `industry_earnings_forecast.forecast_evaluation_spec.missing` |
+| R1 绑定的 Research PromotionDecision | `research` | `unverified` | 账本已 fail closed 绑定 approved PromotionDecision 后才允许 `valuation_consumable`；仍没有真实 R1 trial、通过标准、approved decision 或 Valuation 读取证据 | `industry_earnings_forecast.research_promotion_gate.unverified` |
 
 ### 4.1 R1 可启动的最小 pilot
 
@@ -81,7 +91,7 @@ Readiness Application 只能通过 Protocol 收集 owner evidence。它不得 im
 4. 按季度冻结预测并对 actual 记录 MAE/MAPE 或计划指定指标，不用后续修订数据回填历史。
 5. 结果先保持 exploratory；只有 PIT trial 通过 Research PromotionDecision 后，Valuation 才能消费批准版本。
 
-当前不得实施以上 pilot，因为第一个和第二个启动条件均无证据。
+上述 pilot 的可审计账本基础已先行实现，以便从现在开始积累真实证据；行业公式、自动预测、生产数据运行和 Valuation 消费仍不得启动，因为第一个和第二个启动条件均无证据，且尚无 R1 approved PromotionDecision。
 
 ## 5. R2 启动条件审计
 
@@ -183,9 +193,19 @@ R2 requirements：
 
 ```bash
 pytest tests/unit/research/test_capability_readiness.py -q
+pytest tests/unit/equity/test_operating_forecast.py -q
+pytest tests/component/equity/test_operating_forecast_repository.py -q
+pytest tests/migrations/test_equity_operating_forecast_ledger_migration.py -q
 python scripts/check_mypy_regression.py \
   apps/research/domain/capability_readiness.py \
-  apps/research/application/capability_readiness.py
+  apps/research/application/capability_readiness.py \
+  apps/equity/domain/operating_forecast.py \
+  apps/equity/application/operating_forecast.py \
+  apps/equity/infrastructure/operating_forecast_models.py \
+  apps/equity/infrastructure/operating_forecast_repository.py \
+  apps/equity/operating_forecast_composition.py \
+  apps/data_center/application/research_data_foundation.py \
+  apps/data_center/infrastructure/research_data_foundation_repository.py
 ruff check apps/research/domain/capability_readiness.py \
   apps/research/application/capability_readiness.py
 black --check apps/research/domain/capability_readiness.py \
