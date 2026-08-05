@@ -5,12 +5,50 @@ from types import SimpleNamespace
 import pytest
 from django.contrib.auth.models import User
 
+from apps.config_center.application.runtime_public import activate_runtime_profile_patch
 from apps.config_center.application.use_cases import (
     ConflictError,
     GetQlibRuntimeConfigUseCase,
     TriggerQlibTrainingUseCase,
 )
-from apps.config_center.infrastructure.models import QlibTrainingRunModel, SystemSettingsModel
+from apps.config_center.infrastructure.models import QlibTrainingRunModel
+
+
+def _activate_test_qlib_runtime(tmp_path) -> None:
+    """Seed one explicit typed runtime profile for Qlib use-case tests."""
+
+    provider_dir = tmp_path / "qlib" / "cn_data"
+    model_dir = tmp_path / "qlib" / "models"
+    provider_dir.mkdir(parents=True)
+    model_dir.mkdir(parents=True)
+    bootstrap_values = {
+        "data_center.provider.failover_tolerance": 0.01,
+        "data_center.provider.enable_failover": True,
+        "alpha.qlib.enabled": True,
+        "alpha.qlib.provider_uri": str(provider_dir),
+        "alpha.qlib.region": "CN",
+        "alpha.qlib.model_path": str(model_dir),
+        "alpha.qlib.default_universe": "csi300",
+        "alpha.qlib.default_feature_set_id": "v1",
+        "alpha.qlib.default_label_id": "return_5d",
+        "alpha.qlib.train_queue_name": "qlib_train",
+        "alpha.qlib.infer_queue_name": "qlib_infer",
+        "alpha.qlib.allow_auto_activate": False,
+        "alpha.runtime.fixed_provider": "",
+        "alpha.runtime.pool_mode": "strict_valuation",
+        "config_center.market.color_convention": "cn_a_share",
+        "config_center.market.benchmark_code_map": {},
+        "config_center.market.asset_proxy_code_map": {},
+    }
+    activate_runtime_profile_patch(
+        environment="development",
+        patch={
+            key: bootstrap_values[key] for key in bootstrap_values if key.startswith("alpha.qlib.")
+        },
+        bootstrap_values=bootstrap_values,
+        actor="pytest",
+        reason="typed qlib test fixture",
+    )
 
 
 @pytest.mark.django_db
@@ -20,23 +58,7 @@ def test_get_runtime_config_use_case_exposes_training_state(tmp_path):
         password="pass12345",
         is_staff=True,
     )
-    provider_dir = tmp_path / "qlib" / "cn_data"
-    model_dir = tmp_path / "qlib" / "models"
-    provider_dir.mkdir(parents=True)
-    model_dir.mkdir(parents=True)
-
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.qlib_enabled = True
-    settings_obj.qlib_provider_uri = str(provider_dir)
-    settings_obj.qlib_model_path = str(model_dir)
-    settings_obj.save(
-        update_fields=[
-            "qlib_enabled",
-            "qlib_provider_uri",
-            "qlib_model_path",
-            "updated_at",
-        ]
-    )
+    _activate_test_qlib_runtime(tmp_path)
 
     payload = GetQlibRuntimeConfigUseCase().execute(actor=actor)
 
@@ -54,23 +76,7 @@ def test_trigger_training_use_case_rejects_when_pending_run_exists(tmp_path):
         is_staff=True,
         is_superuser=True,
     )
-    provider_dir = tmp_path / "qlib" / "cn_data"
-    model_dir = tmp_path / "qlib" / "models"
-    provider_dir.mkdir(parents=True)
-    model_dir.mkdir(parents=True)
-
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.qlib_enabled = True
-    settings_obj.qlib_provider_uri = str(provider_dir)
-    settings_obj.qlib_model_path = str(model_dir)
-    settings_obj.save(
-        update_fields=[
-            "qlib_enabled",
-            "qlib_provider_uri",
-            "qlib_model_path",
-            "updated_at",
-        ]
-    )
+    _activate_test_qlib_runtime(tmp_path)
 
     QlibTrainingRunModel.objects.create(
         model_name="existing_model",
@@ -91,23 +97,7 @@ def test_trigger_training_use_case_rejects_when_pending_run_exists(tmp_path):
 
 @pytest.mark.django_db
 def test_trigger_training_use_case_creates_run_and_queues_task(monkeypatch, tmp_path):
-    provider_dir = tmp_path / "qlib" / "cn_data"
-    model_dir = tmp_path / "qlib" / "models"
-    provider_dir.mkdir(parents=True)
-    model_dir.mkdir(parents=True)
-
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.qlib_enabled = True
-    settings_obj.qlib_provider_uri = str(provider_dir)
-    settings_obj.qlib_model_path = str(model_dir)
-    settings_obj.save(
-        update_fields=[
-            "qlib_enabled",
-            "qlib_provider_uri",
-            "qlib_model_path",
-            "updated_at",
-        ]
-    )
+    _activate_test_qlib_runtime(tmp_path)
 
     monkeypatch.setattr(
         "apps.config_center.application.use_cases.current_app.send_task",
@@ -142,23 +132,7 @@ def test_trigger_training_use_case_rejects_non_superuser(tmp_path):
         is_staff=True,
         is_superuser=False,
     )
-    provider_dir = tmp_path / "qlib" / "cn_data"
-    model_dir = tmp_path / "qlib" / "models"
-    provider_dir.mkdir(parents=True)
-    model_dir.mkdir(parents=True)
-
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.qlib_enabled = True
-    settings_obj.qlib_provider_uri = str(provider_dir)
-    settings_obj.qlib_model_path = str(model_dir)
-    settings_obj.save(
-        update_fields=[
-            "qlib_enabled",
-            "qlib_provider_uri",
-            "qlib_model_path",
-            "updated_at",
-        ]
-    )
+    _activate_test_qlib_runtime(tmp_path)
 
     with pytest.raises(PermissionError, match="superuser"):
         TriggerQlibTrainingUseCase().execute(

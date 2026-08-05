@@ -1055,6 +1055,14 @@ def get_macro_runtime_metadata() -> dict[str, dict[str, Any]]:
     return get_runtime_macro_metadata_map()
 
 
+def get_provider_settings_payload() -> dict[str, Any]:
+    """Read persisted provider behaviour settings through the public port."""
+
+    from apps.data_center.application.interface_services import load_provider_settings_payload
+
+    return dict(load_provider_settings_payload())
+
+
 def list_macro_indicator_codes() -> list[str]:
     """Return active macro indicator codes from the canonical catalog."""
 
@@ -1272,6 +1280,7 @@ __all__ = [
     "is_direct_macro_input_allowed",
     "get_macro_indicator_catalog",
     "get_macro_runtime_metadata",
+    "get_provider_settings_payload",
     "get_macro_projection_repository_port",
     "list_macro_indicator_codes",
     "get_macro_indicator_value",

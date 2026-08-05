@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from datetime import date
 from pathlib import Path
@@ -12,6 +13,11 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from apps.config_center.application.runtime_public import (
+    activate_runtime_profile_patch,
+    get_active_domain_runtime_config,
+    get_active_qlib_runtime_config,
+)
 from apps.config_center.domain.entities import (
     AlphaUniverseConfig,
     DecisionRuntimeState,
@@ -23,6 +29,7 @@ from apps.config_center.infrastructure.models import (
     QlibTrainingRunModel,
     SystemSettingsModel,
 )
+from apps.data_center.application.public import get_provider_settings_payload
 
 
 def normalize_alpha_universe_code(raw_code: str) -> str:
@@ -62,19 +69,19 @@ def normalize_alpha_universe_codes(raw_codes: list[str] | tuple[str, ...] | set[
 class ConfigCenterSettingsRepository:
     """Global settings persistence owned by config center."""
 
-    RUNTIME_FIELD_MAP = {
-        "enabled": "qlib_enabled",
-        "provider_uri": "qlib_provider_uri",
-        "region": "qlib_region",
-        "model_root": "qlib_model_path",
-        "default_universe": "qlib_default_universe",
-        "default_feature_set_id": "qlib_default_feature_set_id",
-        "default_label_id": "qlib_default_label_id",
-        "train_queue_name": "qlib_train_queue_name",
-        "infer_queue_name": "qlib_infer_queue_name",
-        "allow_auto_activate": "qlib_allow_auto_activate",
-        "alpha_fixed_provider": "alpha_fixed_provider",
-        "alpha_pool_mode": "alpha_pool_mode",
+    RUNTIME_DEFINITION_MAP = {
+        "enabled": "alpha.qlib.enabled",
+        "provider_uri": "alpha.qlib.provider_uri",
+        "region": "alpha.qlib.region",
+        "model_root": "alpha.qlib.model_path",
+        "default_universe": "alpha.qlib.default_universe",
+        "default_feature_set_id": "alpha.qlib.default_feature_set_id",
+        "default_label_id": "alpha.qlib.default_label_id",
+        "train_queue_name": "alpha.qlib.train_queue_name",
+        "infer_queue_name": "alpha.qlib.infer_queue_name",
+        "allow_auto_activate": "alpha.qlib.allow_auto_activate",
+        "alpha_fixed_provider": "alpha.runtime.fixed_provider",
+        "alpha_pool_mode": "alpha.runtime.pool_mode",
     }
     SYSTEM_GOVERNANCE_FIELDS = (
         "require_user_approval",
@@ -92,6 +99,46 @@ class ConfigCenterSettingsRepository:
 
     def get_system_settings(self) -> SystemSettingsModel:
         return SystemSettingsModel.get_settings()
+
+    @staticmethod
+    def _runtime_environment() -> str:
+        """Resolve the Config Center profile environment from Django settings."""
+
+        module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
+        return "production" if module.endswith(".production") else "development"
+
+    @staticmethod
+    def _legacy_runtime_values(settings_obj: SystemSettingsModel) -> dict[str, object]:
+        """Build explicit one-time compatibility values for profile bootstrap."""
+
+        provider = get_provider_settings_payload()
+        return {
+            "data_center.provider.failover_tolerance": provider.get("failover_tolerance"),
+            "data_center.provider.enable_failover": provider.get("enable_failover"),
+            "alpha.qlib.enabled": bool(settings_obj.qlib_enabled),
+            "alpha.qlib.provider_uri": str(settings_obj.qlib_provider_uri or ""),
+            "alpha.qlib.region": str(settings_obj.qlib_region or "CN"),
+            "alpha.qlib.model_path": str(settings_obj.qlib_model_path or ""),
+            "alpha.qlib.default_universe": str(settings_obj.qlib_default_universe or "csi300"),
+            "alpha.qlib.default_feature_set_id": str(
+                settings_obj.qlib_default_feature_set_id or "v1"
+            ),
+            "alpha.qlib.default_label_id": str(settings_obj.qlib_default_label_id or "return_5d"),
+            "alpha.qlib.train_queue_name": str(settings_obj.qlib_train_queue_name or "qlib_train"),
+            "alpha.qlib.infer_queue_name": str(settings_obj.qlib_infer_queue_name or "qlib_infer"),
+            "alpha.qlib.allow_auto_activate": bool(settings_obj.qlib_allow_auto_activate),
+            "alpha.runtime.fixed_provider": str(settings_obj.alpha_fixed_provider or ""),
+            "alpha.runtime.pool_mode": str(
+                settings_obj.alpha_pool_mode or SystemSettingsModel.ALPHA_POOL_MODE_STRICT_VALUATION
+            ),
+            "config_center.market.color_convention": str(
+                settings_obj.market_color_convention or "cn_a_share"
+            ),
+            "config_center.market.benchmark_code_map": dict(settings_obj.benchmark_code_map or {}),
+            "config_center.market.asset_proxy_code_map": dict(
+                settings_obj.asset_proxy_code_map or {}
+            ),
+        }
 
     def get_system_settings_for_read(self) -> SystemSettingsModel:
         settings_obj = SystemSettingsModel._default_manager.filter(pk=1).first()
@@ -152,8 +199,10 @@ class ConfigCenterSettingsRepository:
         return self.get_decision_runtime_state()
 
     def build_runtime_config_payload(self) -> dict[str, Any]:
-        settings_obj = self.get_system_settings_for_read()
-        runtime = dict(settings_obj.get_runtime_qlib_config_payload())
+        environment = self._runtime_environment()
+        typed_runtime = get_active_qlib_runtime_config(environment)
+        typed_domain = get_active_domain_runtime_config(environment)
+        runtime = dict(typed_runtime or {})
         qlib_model_registry_model = django_apps.get_model("alpha", "QlibModelRegistryModel")
         active_model = qlib_model_registry_model._default_manager.filter(is_active=True).first()
         training_task_running = QlibTrainingRunModel._default_manager.filter(
@@ -165,13 +214,15 @@ class ConfigCenterSettingsRepository:
         latest_run = QlibTrainingRunModel._default_manager.order_by("-requested_at", "-id").first()
 
         validation_errors: list[str] = []
+        if typed_runtime is None:
+            validation_errors.append("runtime_config_snapshot_unavailable")
         provider_path = Path(str(runtime.get("provider_uri") or "")).expanduser()
         model_root = Path(str(runtime.get("model_path") or "")).expanduser()
-        if runtime.get("enabled") and not provider_path.exists():
+        if typed_runtime is not None and runtime.get("enabled") and not provider_path.exists():
             validation_errors.append("Qlib provider_uri 路径不存在")
-        if not str(runtime.get("model_path") or "").strip():
+        if typed_runtime is not None and not str(runtime.get("model_path") or "").strip():
             validation_errors.append("Qlib model_root 未配置")
-        elif model_root.exists() and not model_root.is_dir():
+        elif typed_runtime is not None and model_root.exists() and not model_root.is_dir():
             validation_errors.append("Qlib model_root 不是目录")
 
         active_model_updated_at = None
@@ -184,16 +235,24 @@ class ConfigCenterSettingsRepository:
             "configured": bool(runtime.get("is_configured")),
             "enabled": bool(runtime.get("enabled")),
             "provider_uri": runtime.get("provider_uri", ""),
-            "region": runtime.get("region", "CN"),
+            "region": runtime.get("region", ""),
             "model_root": runtime.get("model_path", ""),
-            "default_universe": runtime.get("default_universe", "csi300"),
-            "default_feature_set_id": runtime.get("default_feature_set_id", "v1"),
-            "default_label_id": runtime.get("default_label_id", "return_5d"),
-            "train_queue_name": runtime.get("train_queue_name", "qlib_train"),
-            "infer_queue_name": runtime.get("infer_queue_name", "qlib_infer"),
+            "default_universe": runtime.get("default_universe", ""),
+            "default_feature_set_id": runtime.get("default_feature_set_id", ""),
+            "default_label_id": runtime.get("default_label_id", ""),
+            "train_queue_name": runtime.get("train_queue_name", ""),
+            "infer_queue_name": runtime.get("infer_queue_name", ""),
             "allow_auto_activate": bool(runtime.get("allow_auto_activate")),
-            "alpha_fixed_provider": settings_obj.alpha_fixed_provider or "",
-            "alpha_pool_mode": settings_obj.alpha_pool_mode,
+            "alpha_fixed_provider": (
+                typed_domain.get("alpha_fixed_provider", "") if typed_domain else ""
+            ),
+            "alpha_pool_mode": (typed_domain.get("alpha_pool_mode", "") if typed_domain else ""),
+            "status": "active" if typed_runtime is not None else "blocked",
+            "source": "config_center_runtime_profile",
+            "must_not_use_for_decision": typed_runtime is None,
+            "blocked_reason": (
+                "" if typed_runtime is not None else "runtime_config_snapshot_unavailable"
+            ),
             "active_model": (
                 {
                     "model_name": active_model.model_name,
@@ -215,46 +274,97 @@ class ConfigCenterSettingsRepository:
             "validation_errors": validation_errors,
         }
 
-    def update_runtime_config(self, data: Mapping[str, Any]) -> dict[str, Any]:
-        settings_obj = self.get_system_settings()
-        update_fields: list[str] = []
-        for request_key, model_field in self.RUNTIME_FIELD_MAP.items():
+    def update_runtime_config(
+        self,
+        data: Mapping[str, Any],
+        *,
+        actor: str = "config-center",
+    ) -> dict[str, Any]:
+        settings_obj = self.get_system_settings_for_read()
+        patch: dict[str, object] = {}
+        for request_key, definition_key in self.RUNTIME_DEFINITION_MAP.items():
             if request_key not in data:
                 continue
-            setattr(settings_obj, model_field, data[request_key])
-            update_fields.append(model_field)
-        if update_fields:
-            settings_obj.full_clean()
-            update_fields.append("updated_at")
-            settings_obj.save(update_fields=update_fields)
+            patch[definition_key] = data[request_key]
+        if patch:
+            activate_runtime_profile_patch(
+                environment=self._runtime_environment(),
+                patch=patch,
+                bootstrap_values=self._legacy_runtime_values(settings_obj),
+                actor=str(actor or "config-center"),
+                reason="Qlib/Alpha runtime configuration updated",
+            )
         return self.build_runtime_config_payload()
 
     def build_system_governance_payload(self) -> dict[str, Any]:
         """Return the administrator-facing global settings contract."""
 
         settings_obj = self.get_system_settings_for_read()
-        return {
+        typed = get_active_domain_runtime_config(self._runtime_environment())
+        payload = {
             field_name: getattr(settings_obj, field_name)
             for field_name in self.SYSTEM_GOVERNANCE_FIELDS
-        } | {
-            "market_color_label": settings_obj.get_market_visual_tokens()["label"],
-            "updated_at": settings_obj.updated_at,
         }
+        if typed is not None:
+            payload.update(
+                {
+                    "market_color_convention": typed["market_color_convention"],
+                    "alpha_pool_mode": typed["alpha_pool_mode"],
+                    "benchmark_code_map": typed["benchmark_code_map"],
+                    "asset_proxy_code_map": typed["asset_proxy_code_map"],
+                }
+            )
+        convention = str(payload.get("market_color_convention") or "cn_a_share")
+        payload.update(
+            {
+                "market_color_label": (
+                    "美股绿涨红跌" if convention == "us_market" else "A股红涨绿跌"
+                ),
+                "updated_at": settings_obj.updated_at,
+            }
+        )
+        return payload
 
-    def update_system_governance(self, data: Mapping[str, Any]) -> dict[str, Any]:
+    def update_system_governance(
+        self,
+        data: Mapping[str, Any],
+        *,
+        actor: str = "config-center",
+    ) -> dict[str, Any]:
         """Persist the explicit global-settings allowlist and return refreshed state."""
 
-        settings_obj = self.get_system_settings()
+        settings_obj = self.get_system_settings_for_read()
         update_fields: list[str] = []
+        runtime_patch: dict[str, object] = {}
+        runtime_field_map = {
+            "market_color_convention": "config_center.market.color_convention",
+            "alpha_pool_mode": "alpha.runtime.pool_mode",
+            "benchmark_code_map": "config_center.market.benchmark_code_map",
+            "asset_proxy_code_map": "config_center.market.asset_proxy_code_map",
+        }
         for field_name in self.SYSTEM_GOVERNANCE_FIELDS:
             if field_name not in data:
+                continue
+            if field_name in runtime_field_map:
+                runtime_patch[runtime_field_map[field_name]] = data[field_name]
                 continue
             setattr(settings_obj, field_name, data[field_name])
             update_fields.append(field_name)
         if update_fields:
-            settings_obj.full_clean()
+            persisted_settings = self.get_system_settings()
+            for field_name in update_fields:
+                setattr(persisted_settings, field_name, data[field_name])
+            persisted_settings.full_clean()
             update_fields.append("updated_at")
-            settings_obj.save(update_fields=update_fields)
+            persisted_settings.save(update_fields=update_fields)
+        if runtime_patch:
+            activate_runtime_profile_patch(
+                environment=self._runtime_environment(),
+                patch=runtime_patch,
+                bootstrap_values=self._legacy_runtime_values(settings_obj),
+                actor=str(actor or "config-center"),
+                reason="Global runtime governance configuration updated",
+            )
         return self.build_system_governance_payload()
 
 

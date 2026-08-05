@@ -148,7 +148,8 @@ class SystemGovernanceSettingsView(APIView):
         serializer = SystemGovernanceSettingsSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         payload = UpdateSystemGovernanceSettingsUseCase().execute(
-            payload=dict(serializer.validated_data)
+            payload=dict(serializer.validated_data),
+            actor=request.user,
         )
         return Response(SystemGovernanceSettingsSerializer(payload).data)
 

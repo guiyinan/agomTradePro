@@ -72,6 +72,19 @@ class ValidationFailureError(ValueError):
     """Raised when request/runtime validation fails."""
 
 
+def _actor_label(actor: Any) -> str:
+    """Return a stable non-secret audit actor label."""
+
+    if actor is None:
+        return "config-center"
+    return str(
+        getattr(actor, "username", "")
+        or getattr(actor, "email", "")
+        or getattr(actor, "id", "")
+        or "config-center"
+    )
+
+
 class GetQlibRuntimeConfigUseCase:
     def execute(self, *, actor: Any) -> dict[str, Any]:
         ensure_can_view_qlib_center(actor)
@@ -81,7 +94,10 @@ class GetQlibRuntimeConfigUseCase:
 class UpdateQlibRuntimeConfigUseCase:
     def execute(self, *, actor: Any, payload: dict[str, Any]) -> dict[str, Any]:
         ensure_can_manage_qlib_runtime(actor)
-        return get_config_center_settings_repository().update_runtime_config(payload)
+        return get_config_center_settings_repository().update_runtime_config(
+            payload,
+            actor=_actor_label(actor),
+        )
 
 
 class GetSystemGovernanceSettingsUseCase:
@@ -94,8 +110,11 @@ class GetSystemGovernanceSettingsUseCase:
 class UpdateSystemGovernanceSettingsUseCase:
     """Persist the validated global-settings allowlist."""
 
-    def execute(self, *, payload: dict[str, Any]) -> dict[str, Any]:
-        return get_config_center_settings_repository().update_system_governance(payload)
+    def execute(self, *, payload: dict[str, Any], actor: Any = None) -> dict[str, Any]:
+        return get_config_center_settings_repository().update_system_governance(
+            payload,
+            actor=_actor_label(actor),
+        )
 
 
 class ListQlibTrainingProfilesUseCase:

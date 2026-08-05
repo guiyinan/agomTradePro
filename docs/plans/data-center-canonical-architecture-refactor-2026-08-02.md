@@ -4382,3 +4382,10 @@ Git SHA / 镜像 / migration：
 - 变更：`get_latest_regime_cache_payload()` 改为调用 `resolve_current_regime()`；stale/blocked/Unknown 结果不再写入 `regime:current`，fresh 结果保留源 `observed_at`、`freshness_status` 和阻断字段。`test_data_connections.test_regime_calculation()` 改用 `get_regime_current_payload()`，阻断时输出 warning，不再直接读 raw `get_latest_regime_diagnostic_payload()`。
 - 治理与测试：新增 `regime.current_cache_warmup` current-data contract，current surface 增至 `46`；Regime freshness/management command 回归 `17 + 14 passed`，变更文件 Black/Ruff/mypy regression 通过，架构与 legacy guard 保持通过。
 - 明确未做：未改变历史 Regime 查询、计算算法、Publication writer/provider、生产缓存、PostgreSQL、观察窗口、M9/M10 或部署；Config Center typed profile activation 与 SystemSettings 全量退役仍待继续。
+
+## 86. 2026-08-06：Config Center Qlib/市场配置写入切换 typed Profile
+
+- 目标：消除“读 typed snapshot、写回 `SystemSettingsModel`”的配置双真源，确保 Qlib/Alpha/市场运行参数的管理入口产生可审计的 Profile/Revision/Snapshot 前向版本。
+- 变更：新增 `activate_runtime_profile_patch()`，按 active profile 携带已有值、以显式 compatibility bootstrap 补齐缺键、由请求 patch 覆盖并原子激活新版本；`ConfigCenterSettingsRepository.update_runtime_config()` 与 `update_system_governance()` 改为调用该端口，不再写 Qlib/Alpha/benchmark/asset-proxy/market-color 旧字段。Qlib 运行配置摘要在无 typed snapshot 时返回 blocked，而不是展示旧 singleton 默认值；Data Center provider settings 增加只读 Application Public Port，兼容导入只发生在激活事务中。
+- 测试与治理：Config Center training/runtime 回归 `32 passed`，TUI/runtime 相关回归 `12 passed`；新增 typed update 回归断言旧 singleton 未写入；变更文件 Black/Ruff/mypy regression 通过，runtime contract 登记 mutation consumers/tests。
+- 明确未做：账户审批、备份 SMTP、决策运行状态等其他 SystemSettings 字段仍处于兼容迁移；尚未在生产 profile 上初始化/激活、执行 PostgreSQL/备份恢复/观察窗口、M9 删除旧字段或部署；不 push、不部署。

@@ -5,6 +5,8 @@ import pytest
 from apps.config_center.infrastructure.config_summary_repository import (
     DjangoConfigCenterSummaryRepository,
 )
+from apps.config_center.infrastructure.models import SystemSettingsModel
+from apps.config_center.infrastructure.repositories import ConfigCenterSettingsRepository
 
 
 @pytest.mark.django_db
@@ -127,3 +129,54 @@ def test_domain_runtime_summary_prefers_complete_typed_snapshot(monkeypatch) -> 
     assert summary["market_color_label"] == "美股绿涨红跌"
     assert summary["benchmark_map_size"] == 1
     assert summary["asset_proxy_map_size"] == 1
+
+
+@pytest.mark.django_db
+def test_qlib_runtime_update_activates_typed_profile_without_legacy_write(tmp_path) -> None:
+    """The Qlib admin mutation must publish a typed revision, not update the singleton."""
+
+    provider_dir = tmp_path / "qlib" / "cn_data"
+    model_dir = tmp_path / "qlib" / "models"
+    provider_dir.mkdir(parents=True)
+    model_dir.mkdir(parents=True)
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.qlib_enabled = False
+    settings_obj.save(update_fields=["qlib_enabled", "updated_at"])
+
+    payload = ConfigCenterSettingsRepository().update_runtime_config(
+        {
+            "enabled": True,
+            "provider_uri": str(provider_dir),
+            "model_root": str(model_dir),
+            "region": "CN",
+            "default_universe": "csi300",
+            "default_feature_set_id": "v1",
+            "default_label_id": "return_5d",
+            "train_queue_name": "qlib_train",
+            "infer_queue_name": "qlib_infer",
+            "allow_auto_activate": False,
+            "alpha_fixed_provider": "",
+            "alpha_pool_mode": "strict_valuation",
+        },
+        actor="pytest",
+    )
+
+    assert payload["configured"] is True
+    assert payload["status"] == "active"
+    assert payload["source"] == "config_center_runtime_profile"
+    assert SystemSettingsModel.get_settings_for_read().qlib_enabled is False
+
+    governance = ConfigCenterSettingsRepository().update_system_governance(
+        {
+            "market_color_convention": "us_market",
+            "alpha_pool_mode": "market",
+            "benchmark_code_map": {"equity_market_benchmark": "000300.SH"},
+            "asset_proxy_code_map": {"A_SHARE_GROWTH": "000300.SH"},
+        },
+        actor="pytest",
+    )
+
+    assert governance["market_color_convention"] == "us_market"
+    assert governance["alpha_pool_mode"] == "market"
+    assert governance["benchmark_code_map"] == {"equity_market_benchmark": "000300.SH"}
+    assert governance["asset_proxy_code_map"] == {"A_SHARE_GROWTH": "000300.SH"}

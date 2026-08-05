@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from pathlib import Path
+from uuid import uuid4
 
 from apps.config_center.application.runtime_definition_reconcile import (
     reconcile_runtime_definitions as _reconcile_runtime_definitions,
@@ -10,6 +13,7 @@ from apps.config_center.application.runtime_definition_reconcile import (
 from apps.config_center.application.runtime_repository_provider import (
     get_runtime_config_service,
     get_runtime_definition_repository,
+    get_runtime_value_repository,
     get_storage_budget_query_service,
     get_storage_capacity_observation_service,
 )
@@ -86,6 +90,99 @@ def get_active_runtime_value(*, environment: str, definition_key: str) -> object
     if snapshot.profile_id != profile.profile_id or snapshot.profile_version != profile.version:
         return None
     return snapshot.resolved_values.get(normalized_key)
+
+
+def activate_runtime_profile_patch(
+    *,
+    environment: str,
+    patch: Mapping[str, object],
+    bootstrap_values: Mapping[str, object] | None = None,
+    actor: str,
+    reason: str,
+    release_ref: str = "",
+) -> tuple[RuntimeConfigProfile, RuntimeConfigSnapshot]:
+    """Activate one forward runtime-profile revision from a typed patch.
+
+    Existing active values are carried forward by definition key. Optional
+    ``bootstrap_values`` fill only keys absent from the active profile, making
+    a legacy-to-typed import explicit and auditable rather than a runtime
+    fallback. The caller's patch always wins over carried values.
+    """
+
+    normalized_environment = str(environment or "").strip()
+    normalized_actor = str(actor or "").strip()
+    normalized_reason = str(reason or "").strip()
+    if not normalized_environment:
+        raise ValueError("Runtime profile environment is required")
+    if not normalized_actor:
+        raise ValueError("Runtime profile actor is required")
+    if not normalized_reason:
+        raise ValueError("Runtime profile change reason is required")
+
+    reconcile_runtime_definitions()
+    value_repository = get_runtime_value_repository()
+    active = get_active_runtime_profile(normalized_environment)
+    existing_values = (
+        value_repository.list_for_profile(active.profile_id) if active is not None else []
+    )
+    existing_by_key = {value.definition_key: value for value in existing_values}
+    compatibility = dict(bootstrap_values or {})
+    normalized_patch = {str(key).strip(): value for key, value in patch.items()}
+    if any(not key for key in normalized_patch):
+        raise ValueError("Runtime profile patch contains an empty definition key")
+
+    profile_id = str(uuid4())
+    next_values: list[RuntimeConfigValue] = []
+    for definition_key in sorted(set(existing_by_key) | set(compatibility) | set(normalized_patch)):
+        if definition_key in normalized_patch:
+            next_values.append(
+                RuntimeConfigValue(
+                    profile_id=profile_id,
+                    definition_key=definition_key,
+                    value_json=normalized_patch[definition_key],
+                    source="admin",
+                )
+            )
+            continue
+        existing = existing_by_key.get(definition_key)
+        if existing is not None:
+            next_values.append(
+                RuntimeConfigValue(
+                    profile_id=profile_id,
+                    definition_key=definition_key,
+                    value_json=existing.value_json,
+                    secret_ref=existing.secret_ref,
+                    source=existing.source,
+                    validation_status=existing.validation_status,
+                    validation_error=existing.validation_error,
+                )
+            )
+            continue
+        next_values.append(
+            RuntimeConfigValue(
+                profile_id=profile_id,
+                definition_key=definition_key,
+                value_json=compatibility[definition_key],
+                source="compatibility_migration",
+            )
+        )
+
+    next_profile = RuntimeConfigProfile(
+        profile_id=profile_id,
+        profile_key=active.profile_key if active is not None else normalized_environment,
+        environment=normalized_environment,
+        version=active.version + 1 if active is not None else 1,
+        based_on_profile=active.profile_id if active is not None else "",
+        created_by=normalized_actor,
+        created_at=datetime.now(UTC),
+    )
+    return activate_runtime_profile(
+        next_profile,
+        tuple(next_values),
+        actor=normalized_actor,
+        reason=normalized_reason,
+        release_ref=release_ref,
+    )
 
 
 def get_active_qlib_runtime_config(environment: str) -> dict[str, object] | None:
@@ -269,6 +366,7 @@ def get_latest_storage_capacity_observation(
 
 __all__ = [
     "activate_runtime_profile",
+    "activate_runtime_profile_patch",
     "evaluate_storage_pressure",
     "get_active_runtime_profile",
     "get_active_runtime_value",

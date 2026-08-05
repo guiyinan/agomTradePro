@@ -347,13 +347,15 @@
       "fallback": "SystemSettingsModel compatibility",
       "migration_status": "consumer_cutover_in_progress",
       "consumers": [
-        "apps/alpha/application/services.py::_get_runtime_alpha_fixed_provider"
+        "apps/alpha/application/services.py::_get_runtime_alpha_fixed_provider",
+        "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.update_runtime_config"
       ],
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "bootstrap_command": "python manage.py initialize_runtime_definitions",
       "tests": [
         "tests/unit/config_center/test_runtime_public.py::test_active_domain_runtime_config_requires_complete_typed_snapshot",
-        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot"
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_qlib_runtime_update_activates_typed_profile_without_legacy_write"
       ]
     },
     {
@@ -365,13 +367,15 @@
       "fallback": "SystemSettingsModel compatibility",
       "migration_status": "consumer_cutover_in_progress",
       "consumers": [
-        "apps/alpha/infrastructure/repositories.py::AlphaPoolDataRepository.resolve_pool_mode"
+        "apps/alpha/infrastructure/repositories.py::AlphaPoolDataRepository.resolve_pool_mode",
+        "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.update_runtime_config"
       ],
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "bootstrap_command": "python manage.py initialize_runtime_definitions",
       "tests": [
         "tests/unit/config_center/test_runtime_public.py::test_active_domain_runtime_config_requires_complete_typed_snapshot",
-        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot"
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_qlib_runtime_update_activates_typed_profile_without_legacy_write"
       ]
     },
     {
@@ -383,12 +387,14 @@
       "fallback": "SystemSettingsModel compatibility",
       "migration_status": "consumer_cutover_in_progress",
       "consumers": [
-        "apps/account/infrastructure/config_summary_repository.py::get_runtime_market_visual_tokens"
+        "apps/account/infrastructure/config_summary_repository.py::get_runtime_market_visual_tokens",
+        "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.update_system_governance"
       ],
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "bootstrap_command": "python manage.py initialize_runtime_definitions",
       "tests": [
-        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot"
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_qlib_runtime_update_activates_typed_profile_without_legacy_write"
       ]
     },
     {
@@ -407,7 +413,8 @@
       "bootstrap_command": "python manage.py initialize_runtime_definitions",
       "tests": [
         "tests/unit/config_center/test_runtime_public.py::test_active_domain_runtime_config_requires_complete_typed_snapshot",
-        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot"
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_qlib_runtime_update_activates_typed_profile_without_legacy_write"
       ]
     },
     {
