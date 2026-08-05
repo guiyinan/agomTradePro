@@ -4218,3 +4218,10 @@ Git SHA / 镜像 / migration：
 - 变更：`core/settings/base.py` 为 D0-D9 十个 dataset 登记每日 `plan_retention_task` dry-run，统一保留 `expire_seconds`；新增每 15 分钟 `verify_storage_budget_task`。没有把 `enforce_retention_task` 放进自动调度，删除仍需显式确认和运维授权。
 - 测试：Beat schedule 组件回归验证十个 dataset 全覆盖、均为 plan task 且无 destructive kwargs；Celery contracts 18 tasks、Django check 均通过。
 - 明确未做：未执行真实删除、归档、PostgreSQL/VPS 数据清理或容量故障注入；实际生产调度结果仍需部署后 run_id/StorageBudget 证据。
+
+## 65. 2026-08-05：Qlib 训练任务增加 typed runtime fail-closed
+
+- 目标：防止 Qlib 训练任务在 Config Center typed snapshot 缺失时继续使用 `/models/qlib` 等代码默认值启动训练，绕过运行时配置可靠性门。
+- 变更：`qlib_train_model` 在标记训练 run 前校验 typed runtime 的 `enabled`/阻断字段；快照缺失、失效或显式 blocked 时抛出稳定错误并把训练 run 标为失败，不写 Registry、不保存 artifact。
+- 测试：成功/失败训练 fixture 显式注入可用 typed runtime；新增缺失快照阻断回归；Qlib training/runtime/task 定向回归 50 passed，最新变更 mypy/Ruff/Black/isort 通过。
+- 明确未做：未改动 Qlib 模型算法、缓存前推、历史数据路径或 SystemSettings 迁移字段；推理任务及生产 profile 初始化仍需后续阶段证据。

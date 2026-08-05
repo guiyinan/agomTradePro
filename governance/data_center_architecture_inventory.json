@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3199,
+    "current_surface_references": 3205,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 143,
@@ -2502,37 +2502,37 @@
       "text": "\"\"\"Return True when the cache row is only the delivery channel for the latest Qlib output.\"\"\""
     },
     {
-      "line": 1110,
+      "line": 1124,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data("
     },
     {
-      "line": 1116,
+      "line": 1130,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"status\": \"success\" if summary.get(\"status\") == \"success\" else summary.get(\"status\"),"
     },
     {
-      "line": 1118,
+      "line": 1132,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": summary,"
     },
     {
-      "line": 1186,
+      "line": 1200,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data_for_codes("
     },
     {
-      "line": 1193,
+      "line": 1207,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"status\": \"success\" if summary.get(\"status\") == \"success\" else summary.get(\"status\"),"
     },
     {
-      "line": 1197,
+      "line": 1211,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1198,
+      "line": 1212,
       "path": "apps/alpha/application/tasks.py",
       "text": "**summary,"
     },
@@ -8655,6 +8655,36 @@
       "line": 232,
       "path": "apps/macro/interface/tui_views.py",
       "text": "\"summary\": {"
+    },
+    {
+      "line": 162,
+      "path": "apps/macro_factor/domain/entities.py",
+      "text": "raise ValueError(\"current-state targets require horizon_periods=0\")"
+    },
+    {
+      "line": 307,
+      "path": "apps/macro_factor/domain/reproducible_runner.py",
+      "text": "raise ValueError(\"current-state availability requires horizon_periods=0\")"
+    },
+    {
+      "line": 312,
+      "path": "apps/macro_factor/domain/reproducible_runner.py",
+      "text": "raise ValueError(\"current-state normalized horizon must be zero\")"
+    },
+    {
+      "line": 940,
+      "path": "apps/macro_factor/domain/reproducible_runner.py",
+      "text": "\"\"\"Typed current/forward output returned in the canonical external artifact.\"\"\""
+    },
+    {
+      "line": 969,
+      "path": "apps/macro_factor/domain/reproducible_runner.py",
+      "text": "raise ValueError(\"current-state output requires horizon_periods=0\")"
+    },
+    {
+      "line": 971,
+      "path": "apps/macro_factor/domain/reproducible_runner.py",
+      "text": "raise ValueError(\"current-state target cannot follow knowledge_as_of\")"
     },
     {
       "line": 1,

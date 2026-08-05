@@ -73,8 +73,18 @@ class TestQlibTrainingTasks:
     @patch("apps.alpha.application.tasks._train_qlib_model")
     @patch("apps.alpha.application.tasks._evaluate_model_metrics")
     @patch("apps.alpha.application.tasks._save_model_artifact")
-    def test_qlib_train_model_success(self, mock_save, mock_evaluate, mock_train):
+    def test_qlib_train_model_success(
+        self,
+        mock_save,
+        mock_evaluate,
+        mock_train,
+        monkeypatch,
+    ):
         """测试训练任务成功"""
+        monkeypatch.setattr(
+            "apps.alpha.application.tasks._get_runtime_qlib_config",
+            lambda: {"enabled": True},
+        )
         # 设置 mock
         mock_model = Mock()
         mock_train.return_value = mock_model
@@ -123,8 +133,12 @@ class TestQlibTrainingTasks:
         assert mock_save.call_args.kwargs["train_config"] == effective_config
 
     @patch("apps.alpha.application.tasks._train_qlib_model")
-    def test_qlib_train_model_failure(self, mock_train):
+    def test_qlib_train_model_failure(self, mock_train, monkeypatch):
         """测试训练任务失败"""
+        monkeypatch.setattr(
+            "apps.alpha.application.tasks._get_runtime_qlib_config",
+            lambda: {"enabled": True},
+        )
         mock_train.side_effect = Exception("Training failed")
         run = QlibTrainingRunModel.objects.create(
             model_name="test_model",
@@ -143,6 +157,36 @@ class TestQlibTrainingTasks:
         assert "Training failed" in str(exc_info.value)
         assert run.status == QlibTrainingRunModel.STATUS_FAILED
         assert "Training failed" in run.error_message
+
+    @pytest.mark.django_db
+    def test_qlib_train_model_blocks_without_typed_runtime_snapshot(self, monkeypatch):
+        """Training must not use hard-coded paths when Config Center is unavailable."""
+
+        monkeypatch.setattr(
+            "apps.alpha.application.tasks._get_runtime_qlib_config",
+            lambda: {
+                "enabled": False,
+                "status": "blocked",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "runtime_config_snapshot_unavailable",
+            },
+        )
+        run = QlibTrainingRunModel.objects.create(
+            model_name="blocked_model",
+            model_type="LGBModel",
+            resolved_train_config={},
+        )
+
+        with pytest.raises(RuntimeError, match="runtime_config_snapshot_unavailable"):
+            qlib_train_model(
+                model_name="blocked_model",
+                model_type="LGBModel",
+                train_config={"training_run_id": str(run.run_id)},
+            )
+
+        run.refresh_from_db()
+        assert run.status == QlibTrainingRunModel.STATUS_FAILED
+        assert "runtime_config_snapshot_unavailable" in run.error_message
 
     @patch("apps.alpha.infrastructure.cache_evaluation.evaluate_model_from_cache")
     def test_qlib_evaluate_model_updates_registry_metrics(self, mock_evaluate):

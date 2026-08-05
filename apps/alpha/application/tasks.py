@@ -116,6 +116,7 @@ __all__ = [
     "_get_runtime_qlib_config",
     "_install_qlib_pandas_compat",
     "_make_json_safe",
+    "_require_usable_qlib_runtime",
     "_normalize_calendar_date",
     "_normalize_qlib_instrument_code",
     "_normalize_qlib_instrument_list",
@@ -152,6 +153,18 @@ def _make_json_safe(value: Any) -> Any:
 
     serializer = cast(Callable[[Any], Any], _make_json_safe_runtime)
     return serializer(value)
+
+
+def _require_usable_qlib_runtime(runtime_config: dict[str, Any]) -> None:
+    """Fail closed before training when Config Center runtime evidence is unusable."""
+
+    if runtime_config.get("enabled") is True and not runtime_config.get(
+        "must_not_use_for_decision",
+        False,
+    ):
+        return
+    reason = str(runtime_config.get("blocked_reason") or "runtime_config_unavailable")
+    raise RuntimeError(f"Qlib runtime blocked: {reason}")
 
 
 class _PredictionProxy(Protocol):
@@ -545,6 +558,7 @@ def qlib_train_model(
         runtime_qlib = _get_runtime_qlib_config()
         training_run_repo = get_qlib_training_run_repository()
         training_run_id = str(train_config.get("training_run_id") or "").strip()
+        _require_usable_qlib_runtime(runtime_qlib)
         if training_run_id:
             training_run_repo.mark_running(
                 run_id=training_run_id,
