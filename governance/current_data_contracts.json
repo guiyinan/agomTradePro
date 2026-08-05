@@ -2624,7 +2624,8 @@
           "published_only: bool = False",
           "list_latest_published_macro_values(",
           "_published_macro_member_selection(",
-          "fact_pks=publication_member_pks if published_only else None"
+          "get_published_macro_series_response(",
+          "publication_key=resolved_selected_indicator"
         ],
         "apps/macro/interface/tui_views.py": [
           "published_only=True",

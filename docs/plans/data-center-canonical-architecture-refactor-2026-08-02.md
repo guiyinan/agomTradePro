@@ -4300,3 +4300,10 @@ Git SHA / 镜像 / migration：
 - 变更：新增 `get_published_macro_series_response` Public Port；由 Data Center 内部完成 freshness gate、Publication member fact_pk 绑定和 fail-closed 响应，`apps/macro/composition.py` 仅调用该端口。
 - 治理与测试：更新 `macro.tui_publication` source/markers；Public Port 的 member 绑定与缺失 Publication 阻断、Macro composition 委托及 TUI 回归共 `28 passed`；current-data `45 surfaces`、module-cycle 0、变更文件 mypy regression 0。
 - 明确未做：未改变趋势算法、宏观历史/维护页面、Publication writer/provider 配置或生产部署；生产 Publication 覆盖、PostgreSQL 查询预算和 M9 旧链退出仍待完成。
+
+## 76. 2026-08-05：Macro TUI overview selected series 统一 Public Port
+
+- 目标：补齐宏观 TUI overview selected-series 的最后一条内部 Data Center query-use-case 旁路；当前 overview 与 trend filter 必须共享同一 Publication-bound response port。
+- 变更：`get_macro_data_page_snapshot(published_only=True)` 的 selected history 改调用 `get_published_macro_series_response`；只有 Classic staff/historical maintenance 分支继续使用内部历史 query use case。
+- 治理与测试：`macro.tui_publication` 更新 interface marker；宏观 interface/composition/API 回归 `22 passed`，current-data `45 surfaces`、mypy regression 0。
+- 明确未做：未改变 Classic staff raw/historical 语义、趋势算法、Publication writer/provider 配置或生产部署；生产 query budget、Publication 覆盖和 M9 旧链退出仍待完成。

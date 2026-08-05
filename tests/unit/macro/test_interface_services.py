@@ -1,6 +1,10 @@
 from datetime import date
 
-from apps.data_center.application.dtos import MacroDataPoint, MacroSeriesResponse
+from apps.data_center.application.dtos import (
+    MacroDataPoint,
+    MacroSeriesRequest,
+    MacroSeriesResponse,
+)
 from apps.macro.application.interface_services import (
     get_macro_data_page_snapshot,
     get_macro_indicator_data,
@@ -162,9 +166,7 @@ def _patch_macro_overview_helpers(monkeypatch) -> None:
             "temperature": [{"date": "2026-05-20", "score": 72.4, "band": "hot"}],
             "pulse": [{"date": "2026-05-20", "score": 0.24, "normalized_score": 62}],
             "regime": [{"date": "2026-05-20", "regime": "Recovery", "confidence": 0.72}],
-            "regime_segments": [
-                {"start": "2026-05-20", "end": "2026-05-20", "regime": "Recovery"}
-            ],
+            "regime_segments": [{"start": "2026-05-20", "end": "2026-05-20", "regime": "Recovery"}],
             "period": {"start": "2025-11-21", "end": "2026-05-20"},
         },
     )
@@ -401,16 +403,17 @@ def test_get_macro_data_page_snapshot_tui_uses_publication_members(monkeypatch):
         lambda user_id=None, use_personal_thresholds=True: {},
     )
 
-    captured_requests = []
+    captured_public_calls: list[dict[str, object]] = []
 
-    class _CapturingQueryUseCase(_FakeM2QueryUseCase):
-        def execute(self, request):
-            captured_requests.append(request)
-            return super().execute(request)
+    def _published_series(indicator_code: str, **kwargs: object) -> MacroSeriesResponse:
+        captured_public_calls.append({"indicator_code": indicator_code, **kwargs})
+        return _FakeM2QueryUseCase().execute(
+            MacroSeriesRequest(indicator_code=indicator_code, limit=int(kwargs["limit"]))
+        )
 
     monkeypatch.setattr(
-        "apps.macro.application.interface_services.make_query_macro_series_use_case",
-        lambda: _CapturingQueryUseCase(),
+        "apps.macro.application.interface_services.get_published_macro_series_response",
+        _published_series,
     )
 
     snapshot = get_macro_data_page_snapshot(
@@ -421,7 +424,13 @@ def test_get_macro_data_page_snapshot_tui_uses_publication_members(monkeypatch):
     assert snapshot["indicator_map"]["CN_M2"]["latest_value"] == 325.4
     assert snapshot["indicator_map"]["CN_M2"]["must_not_use_for_decision"] is False
     assert snapshot["indicator_map"]["CN_M2"]["publication_id"] == "macro-pub-1"
-    assert captured_requests[0].fact_pks == ["42"]
+    assert captured_public_calls == [
+        {
+            "indicator_code": "CN_M2",
+            "publication_key": "CN_M2",
+            "limit": 500,
+        }
+    ]
 
 
 def test_get_macro_indicator_data_requests_chronological_series(monkeypatch):

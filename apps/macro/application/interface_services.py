@@ -17,6 +17,7 @@ from apps.data_center.application.public import (
     get_current_publication_freshness_gate,
     get_market_thermometer_payload,
     get_publication_member_fact_pks,
+    get_published_macro_series_response,
     list_latest_published_macro_values,
 )
 from apps.data_center.composition import get_indicator_catalog_repository
@@ -635,13 +636,19 @@ def get_macro_data_page_snapshot(
         and indicator_map.get(resolved_selected_indicator, {}).get("has_data")
     )
     if selected_has_data and (not published_only or publication_member_pks):
-        series_response = make_query_macro_series_use_case().execute(
-            MacroSeriesRequest(
-                indicator_code=resolved_selected_indicator,
+        if published_only:
+            series_response = get_published_macro_series_response(
+                resolved_selected_indicator,
+                publication_key=resolved_selected_indicator,
                 limit=500,
-                fact_pks=publication_member_pks if published_only else None,
             )
-        )
+        else:
+            series_response = make_query_macro_series_use_case().execute(
+                MacroSeriesRequest(
+                    indicator_code=resolved_selected_indicator,
+                    limit=500,
+                )
+            )
         history_rows = sorted(
             [
                 _format_macro_data_point_for_display(
