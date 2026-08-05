@@ -15,8 +15,8 @@ from apps.simulated_trading.application.repository_provider import (
     get_simulated_position_repository,
 )
 from apps.simulated_trading.domain.entities import Position, SimulatedAccount
+from apps.strategy.application.allocation_policy import get_allocation_target
 from apps.strategy.application.execution_gateway import get_strategy_execution_gateway
-from apps.strategy.domain.allocation_matrix import get_allocation_target
 from shared.numeric import safe_float
 
 

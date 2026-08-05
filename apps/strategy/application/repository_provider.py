@@ -7,10 +7,16 @@ from apps.strategy.application.interface_contracts import (
     StrategyInterfaceRepositoryProtocol,
     StrategyPortfolioProviderProtocol,
 )
+from apps.strategy.domain.allocation_policy_protocols import (
+    AllocationPolicyRepositoryProtocol,
+)
 from apps.strategy.domain.protocols import (
     AssetPoolProviderProtocol,
     PortfolioDataProviderProtocol,
     SignalProviderProtocol,
+)
+from apps.strategy.infrastructure.allocation_policy_repository import (
+    DjangoAllocationPolicyRepository,
 )
 from apps.strategy.infrastructure.providers import (
     DjangoAssetPoolProvider,
@@ -29,6 +35,12 @@ def get_strategy_interface_repository() -> StrategyInterfaceRepositoryProtocol:
     """Return the strategy interface repository."""
 
     return cast(StrategyInterfaceRepositoryProtocol, StrategyInterfaceRepository())
+
+
+def get_allocation_policy_repository() -> AllocationPolicyRepositoryProtocol:
+    """Return the Strategy-owned allocation-policy repository adapter."""
+
+    return cast(AllocationPolicyRepositoryProtocol, DjangoAllocationPolicyRepository())
 
 
 def get_strategy_gateway_repository() -> DjangoStrategyGatewayRepository:

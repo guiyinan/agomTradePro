@@ -4,10 +4,31 @@ AgomTradePro SDK - Strategy 策略模块
 提供策略管理相关的 API 操作。
 """
 
+import re
 from datetime import date
 from typing import Any
 
 from .base import BaseModule
+
+DEFAULT_ALLOCATION_POLICY_KEY = "strategic_asset_allocation"
+_ALLOCATION_POLICY_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
+
+
+def _validated_allocation_policy_key(policy_key: str) -> str:
+    """Validate the canonical policy identity before issuing an SDK request."""
+
+    if not isinstance(policy_key, str) or not _ALLOCATION_POLICY_KEY_PATTERN.fullmatch(policy_key):
+        raise ValueError("policy_key must be 3-64 lowercase letters, digits, or underscores")
+    return policy_key
+
+
+def _validated_object_list(response: Any, *, contract_name: str) -> list[dict[str, Any]]:
+    """Narrow a transport response into a list of JSON objects."""
+
+    results = response.get("results", response) if isinstance(response, dict) else response
+    if not isinstance(results, list) or any(not isinstance(item, dict) for item in results):
+        raise ValueError(f"{contract_name} response must contain a list of objects")
+    return [dict(item) for item in results]
 
 
 class StrategyModule(BaseModule):
@@ -102,6 +123,54 @@ class StrategyModule(BaseModule):
         """
         return self._get(f"strategies/{strategy_id}/")
 
+    def get_active_allocation_policy(
+        self,
+        policy_key: str = DEFAULT_ALLOCATION_POLICY_KEY,
+    ) -> dict[str, Any]:
+        """Return the complete active Strategy allocation policy."""
+
+        normalized_key = _validated_allocation_policy_key(policy_key)
+        response = self._get(
+            "allocation-policies/active/",
+            params={"policy_key": normalized_key},
+        )
+        if not isinstance(response, dict):
+            raise ValueError("active allocation policy response must be an object")
+        return dict(response)
+
+    def list_allocation_policy_versions(
+        self,
+        policy_key: str = DEFAULT_ALLOCATION_POLICY_KEY,
+    ) -> list[dict[str, Any]]:
+        """List immutable allocation-policy version summaries newest first."""
+
+        normalized_key = _validated_allocation_policy_key(policy_key)
+        response = self._get(
+            "allocation-policies/versions/",
+            params={"policy_key": normalized_key},
+        )
+        if not isinstance(response, dict):
+            raise ValueError("allocation policy version response must be an object")
+        return _validated_object_list(response, contract_name="allocation policy version")
+
+    def get_allocation_policy_version(
+        self,
+        version: int,
+        policy_key: str = DEFAULT_ALLOCATION_POLICY_KEY,
+    ) -> dict[str, Any]:
+        """Return one immutable allocation-policy version by number."""
+
+        if isinstance(version, bool) or not isinstance(version, int) or version <= 0:
+            raise ValueError("version must be a positive integer")
+        normalized_key = _validated_allocation_policy_key(policy_key)
+        response = self._get(
+            f"allocation-policies/versions/{version}/",
+            params={"policy_key": normalized_key},
+        )
+        if not isinstance(response, dict):
+            raise ValueError("allocation policy detail response must be an object")
+        return dict(response)
+
     def get_strategy_signals(
         self,
         strategy_id: int,
@@ -130,8 +199,7 @@ class StrategyModule(BaseModule):
             params["status"] = status
 
         response = self._get(f"strategies/{strategy_id}/signals/", params=params)
-        results = response.get("results", response)
-        return results
+        return _validated_object_list(response, contract_name="strategy signal")
 
     def execute_strategy(
         self,
@@ -413,8 +481,7 @@ class StrategyModule(BaseModule):
             ...     print(f"{pos['asset_code']}: {pos['quantity']}")
         """
         response = self._get(f"strategies/{strategy_id}/positions/")
-        results = response.get("results", response)
-        return results
+        return _validated_object_list(response, contract_name="strategy position")
 
     def get_strategy_trades(
         self,
@@ -439,8 +506,7 @@ class StrategyModule(BaseModule):
         """
         params: dict[str, Any] = {"limit": limit}
         response = self._get(f"strategies/{strategy_id}/trades/", params=params)
-        results = response.get("results", response)
-        return results
+        return _validated_object_list(response, contract_name="strategy trade")
 
     def list_position_rules(
         self,

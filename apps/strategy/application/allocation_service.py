@@ -10,9 +10,12 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
+from apps.strategy.application.allocation_policy import get_allocation_target
 from apps.strategy.domain.allocation_matrix import (
     AssetAllocation,
-    get_allocation_target,
+)
+from apps.strategy.domain.allocation_policy_protocols import (
+    AllocationPolicyRepositoryProtocol,
 )
 from apps.strategy.domain.protocols import AssetNameResolverProtocol, PositionLikeProtocol
 
@@ -20,6 +23,7 @@ from apps.strategy.domain.protocols import AssetNameResolverProtocol, PositionLi
 @dataclass
 class TradeAction:
     """交易操作建议"""
+
     asset_code: str
     asset_name: str
     action: str  # "buy" 或 "sell"
@@ -32,6 +36,7 @@ class TradeAction:
 @dataclass
 class AllocationAdvice:
     """资产配置建议"""
+
     # 当前配置
     current_allocation: dict[str, float]  # {"equity": 0.65, "fixed_income": 0.20, ...}
 
@@ -56,6 +61,10 @@ class AllocationAdvice:
     regime: str = ""
     risk_profile: str = ""
     policy_level: str = ""
+    allocation_policy_version: int | None = None
+    allocation_policy_content_hash: str | None = None
+    statistics_status: str = "not_provided"
+    must_not_use_statistics_as_model_estimate: bool = True
 
 
 class AllocationService:
@@ -75,6 +84,7 @@ class AllocationService:
         total_assets: float,
         current_positions: Sequence[PositionLikeProtocol],
         asset_name_resolver: AssetNameResolverProtocol | None = None,
+        allocation_policy_repository: AllocationPolicyRepositoryProtocol | None = None,
     ) -> AllocationAdvice:
         """
         计算资产配置建议
@@ -90,7 +100,12 @@ class AllocationService:
             AllocationAdvice: 配置建议
         """
         # 1. 获取目标配置
-        target = get_allocation_target(current_regime, risk_profile, policy_level)
+        target = get_allocation_target(
+            current_regime,
+            risk_profile,
+            policy_level,
+            repository=allocation_policy_repository,
+        )
 
         # 2. 计算当前配置
         current_allocation = cls._calculate_current_allocation(current_positions, total_assets)
@@ -130,6 +145,12 @@ class AllocationService:
             regime=current_regime,
             risk_profile=risk_profile,
             policy_level=policy_level or "P0",
+            allocation_policy_version=target.allocation_policy_version,
+            allocation_policy_content_hash=target.allocation_policy_content_hash,
+            statistics_status=target.statistics_status.value,
+            must_not_use_statistics_as_model_estimate=(
+                target.must_not_use_statistics_as_model_estimate
+            ),
         )
 
     @classmethod
@@ -177,10 +198,7 @@ class AllocationService:
             "cash": target.cash,
         }
 
-        diff = {
-            k: round(target_dict[k] - current.get(k, 0.0), 3)
-            for k in target_dict.keys()
-        }
+        diff = {k: round(target_dict[k] - current.get(k, 0.0), 3) for k in target_dict.keys()}
 
         return diff
 
@@ -244,15 +262,17 @@ class AllocationService:
                         sell_amount = min(abs(diff_amount), float(pos.market_value))
                         diff_amount += sell_amount  # 更新剩余需要减仓的金额
 
-                        actions.append(TradeAction(
-                            asset_code=pos.asset_code,
-                            asset_name=asset_name_map.get(pos.asset_code, pos.asset_code),
-                            action="sell",
-                            amount=sell_amount,
-                            reason=cls._get_sell_reason(asset_class, regime),
-                            asset_class=asset_class,
-                            priority=priority,
-                        ))
+                        actions.append(
+                            TradeAction(
+                                asset_code=pos.asset_code,
+                                asset_name=asset_name_map.get(pos.asset_code, pos.asset_code),
+                                action="sell",
+                                amount=sell_amount,
+                                reason=cls._get_sell_reason(asset_class, regime),
+                                asset_class=asset_class,
+                                priority=priority,
+                            )
+                        )
                         priority += 1
 
             elif diff > 0:  # 需要加仓
@@ -270,15 +290,17 @@ class AllocationService:
                     # 平均分配到推荐的资产
                     buy_amount = diff_amount / len(recommended_codes)
 
-                    actions.append(TradeAction(
-                        asset_code=code,
-                        asset_name=asset_name_map.get(code, code),
-                        action="buy",
-                        amount=buy_amount,
-                        reason=cls._get_buy_reason(asset_class, regime),
-                        asset_class=asset_class,
-                        priority=priority,
-                    ))
+                    actions.append(
+                        TradeAction(
+                            asset_code=code,
+                            asset_name=asset_name_map.get(code, code),
+                            action="buy",
+                            amount=buy_amount,
+                            reason=cls._get_buy_reason(asset_class, regime),
+                            asset_class=asset_class,
+                            priority=priority,
+                        )
+                    )
                     diff_amount -= buy_amount
 
         return actions
@@ -411,7 +433,9 @@ class AllocationService:
             summary_parts.append("。建议操作：")
 
             if sells:
-                sell_summary = ", ".join([f"卖出{a.asset_code} {a.amount:,.0f}元" for a in sells[:2]])
+                sell_summary = ", ".join(
+                    [f"卖出{a.asset_code} {a.amount:,.0f}元" for a in sells[:2]]
+                )
                 if len(sells) > 2:
                     sell_summary += f"等{len(sells)}项"
                 summary_parts.append(sell_summary)

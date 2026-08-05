@@ -8,6 +8,9 @@ from django.apps import apps as django_apps
 
 from apps.strategy.infrastructure.models import (  # noqa: F401
     AIStrategyConfigModel,
+    AllocationPolicyAdjustmentModel,
+    AllocationPolicyEntryModel,
+    AllocationPolicyVersionModel,
     PortfolioStrategyAssignmentModel,
     PositionManagementRuleModel,
     RuleConditionModel,

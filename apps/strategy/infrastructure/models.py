@@ -6,9 +6,11 @@ Infrastructure层:
 - 对应Domain层的实体
 - 包含索引优化和约束
 """
-from typing import Any
+
+from typing import Any, ClassVar
 
 from django.apps import apps as django_apps
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -25,12 +27,12 @@ class StrategyModel(models.Model):
         "策略类型",
         max_length=20,
         choices=[
-            ('rule_based', '规则驱动'),
-            ('script_based', '脚本驱动'),
-            ('hybrid', '混合模式'),
-            ('ai_driven', 'AI驱动')
+            ("rule_based", "规则驱动"),
+            ("script_based", "脚本驱动"),
+            ("hybrid", "混合模式"),
+            ("ai_driven", "AI驱动"),
         ],
-        db_index=True
+        db_index=True,
     )
 
     # 版本控制
@@ -41,39 +43,39 @@ class StrategyModel(models.Model):
     max_position_pct = models.FloatField(
         "单资产最大持仓比例(%)",
         default=20.0,
-        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)]
+        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
     )
     max_total_position_pct = models.FloatField(
         "总持仓比例上限(%)",
         default=95.0,
-        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)]
+        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
     )
     stop_loss_pct = models.FloatField(
         "止损比例(%)",
         null=True,
         blank=True,
-        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)]
+        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
     )
 
     # 元数据
     created_by = models.ForeignKey(
-        'account.AccountProfileModel',
+        "account.AccountProfileModel",
         on_delete=models.CASCADE,
         verbose_name="创建者",
-        db_index=True
+        db_index=True,
     )
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
-        db_table = 'strategy'
+        db_table = "strategy"
         verbose_name = "投资策略"
         verbose_name_plural = "投资策略"
-        unique_together = [['name', 'version', 'created_by']]
-        ordering = ['-created_at']
+        unique_together = [["name", "version", "created_by"]]
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['strategy_type', 'is_active']),
-            models.Index(fields=['created_by', '-created_at']),
+            models.Index(fields=["strategy_type", "is_active"]),
+            models.Index(fields=["created_by", "-created_at"]),
         ]
         constraints = [
             models.CheckConstraint(
@@ -84,10 +86,7 @@ class StrategyModel(models.Model):
                     & models.Q(max_total_position_pct__lte=100)
                     & (
                         models.Q(stop_loss_pct__isnull=True)
-                        | (
-                            models.Q(stop_loss_pct__gte=0)
-                            & models.Q(stop_loss_pct__lte=100)
-                        )
+                        | (models.Q(stop_loss_pct__gte=0) & models.Q(stop_loss_pct__lte=100))
                     )
                 ),
                 name="strategy_risk_pct_ranges",
@@ -104,7 +103,7 @@ class PositionManagementRuleModel(models.Model):
     strategy = models.OneToOneField(
         StrategyModel,
         on_delete=models.CASCADE,
-        related_name='position_management_rule',
+        related_name="position_management_rule",
         verbose_name="所属策略",
     )
     name = models.CharField("规则名称", max_length=200)
@@ -152,8 +151,7 @@ class PositionManagementRuleModel(models.Model):
     position_size_expr = models.TextField(
         "仓位计算表达式",
         help_text=(
-            "示例: (account_equity * risk_per_trade_pct) / "
-            "abs(buy_price - stop_loss_price)"
+            "示例: (account_equity * risk_per_trade_pct) / " "abs(buy_price - stop_loss_price)"
         ),
     )
 
@@ -163,13 +161,13 @@ class PositionManagementRuleModel(models.Model):
     updated_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
-        db_table = 'position_management_rule'
+        db_table = "position_management_rule"
         verbose_name = "仓位管理规则"
         verbose_name_plural = "仓位管理规则"
-        ordering = ['-updated_at']
+        ordering = ["-updated_at"]
         indexes = [
-            models.Index(fields=['strategy', 'is_active']),
-            models.Index(fields=['is_active', '-updated_at']),
+            models.Index(fields=["strategy", "is_active"]),
+            models.Index(fields=["is_active", "-updated_at"]),
         ]
         constraints = [
             models.CheckConstraint(
@@ -187,10 +185,7 @@ class RuleConditionModel(models.Model):
 
     # 关联策略
     strategy = models.ForeignKey(
-        StrategyModel,
-        on_delete=models.CASCADE,
-        related_name='rules',
-        verbose_name="所属策略"
+        StrategyModel, on_delete=models.CASCADE, related_name="rules", verbose_name="所属策略"
     )
 
     # 规则标识
@@ -199,30 +194,24 @@ class RuleConditionModel(models.Model):
         "规则类型",
         max_length=50,
         choices=[
-            ('macro', '宏观指标'),
-            ('regime', 'Regime判定'),
-            ('signal', '投资信号'),
-            ('technical', '技术指标'),
-            ('composite', '组合条件')
-        ]
+            ("macro", "宏观指标"),
+            ("regime", "Regime判定"),
+            ("signal", "投资信号"),
+            ("technical", "技术指标"),
+            ("composite", "组合条件"),
+        ],
     )
 
     # JSON 格式存储规则条件
     condition_json = models.JSONField(
-        verbose_name="条件表达式",
-        help_text="JSON格式: 支持AND/OR/NOT、比较运算、趋势判断"
+        verbose_name="条件表达式", help_text="JSON格式: 支持AND/OR/NOT、比较运算、趋势判断"
     )
 
     # 触发动作
     action = models.CharField(
         "动作",
         max_length=50,
-        choices=[
-            ('buy', '买入'),
-            ('sell', '卖出'),
-            ('hold', '持有'),
-            ('weight', '设置权重')
-        ]
+        choices=[("buy", "买入"), ("sell", "卖出"), ("hold", "持有"), ("weight", "设置权重")],
     )
 
     # 目标配置
@@ -230,13 +219,9 @@ class RuleConditionModel(models.Model):
         "目标权重",
         null=True,
         blank=True,
-        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)]
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
     )
-    target_assets = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="空列表表示所有可投资产"
-    )
+    target_assets = models.JSONField(default=list, blank=True, help_text="空列表表示所有可投资产")
 
     # 优先级和控制
     priority = models.IntegerField("优先级", default=0, db_index=True)
@@ -247,13 +232,13 @@ class RuleConditionModel(models.Model):
     updated_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
-        db_table = 'rule_condition'
+        db_table = "rule_condition"
         verbose_name = "规则条件"
         verbose_name_plural = "规则条件"
-        ordering = ['-priority', '-created_at']
+        ordering = ["-priority", "-created_at"]
         indexes = [
-            models.Index(fields=['strategy', '-priority']),
-            models.Index(fields=['rule_type', 'is_enabled']),
+            models.Index(fields=["strategy", "-priority"]),
+            models.Index(fields=["rule_type", "is_enabled"]),
         ]
         constraints = [
             models.CheckConstraint(
@@ -276,36 +261,24 @@ class ScriptConfigModel(models.Model):
     strategy = models.OneToOneField(
         StrategyModel,
         on_delete=models.CASCADE,
-        related_name='script_config',
-        verbose_name="所属策略"
+        related_name="script_config",
+        verbose_name="所属策略",
     )
 
     # 脚本语言
     script_language = models.CharField(
-        "脚本语言",
-        max_length=20,
-        choices=[('python', 'Python受限')],
-        default='python'
+        "脚本语言", max_length=20, choices=[("python", "Python受限")], default="python"
     )
 
     # 脚本代码
     script_code = models.TextField("脚本代码")
     script_hash = models.CharField(
-        "脚本哈希",
-        max_length=64,
-        db_index=True,
-        help_text="SHA256哈希，用于检测脚本变更"
+        "脚本哈希", max_length=64, db_index=True, help_text="SHA256哈希，用于检测脚本变更"
     )
 
     # 沙箱配置
-    sandbox_config = models.JSONField(
-        default=dict,
-        help_text="沙箱安全策略配置"
-    )
-    allowed_modules = models.JSONField(
-        default=list,
-        help_text="允许导入的模块白名单"
-    )
+    sandbox_config = models.JSONField(default=dict, help_text="沙箱安全策略配置")
+    allowed_modules = models.JSONField(default=list, help_text="允许导入的模块白名单")
 
     # 版本控制
     version = models.CharField("版本号", max_length=20, default="1.0")
@@ -316,7 +289,7 @@ class ScriptConfigModel(models.Model):
     updated_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
-        db_table = 'script_config'
+        db_table = "script_config"
         verbose_name = "脚本配置"
         verbose_name_plural = "脚本配置"
 
@@ -329,70 +302,61 @@ class AIStrategyConfigModel(models.Model):
 
     # 一对一关联策略
     strategy = models.OneToOneField(
-        StrategyModel,
-        on_delete=models.CASCADE,
-        related_name='ai_config',
-        verbose_name="所属策略"
+        StrategyModel, on_delete=models.CASCADE, related_name="ai_config", verbose_name="所属策略"
     )
 
     # Prompt 和 Chain 配置（引用现有系统）
     prompt_template = models.ForeignKey(
-        'prompt.PromptTemplateORM',
+        "prompt.PromptTemplateORM",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='ai_strategies',
-        verbose_name="Prompt模板"
+        related_name="ai_strategies",
+        verbose_name="Prompt模板",
     )
 
     chain_config = models.ForeignKey(
-        'prompt.ChainConfigORM',
+        "prompt.ChainConfigORM",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='ai_strategies',
-        verbose_name="链配置"
+        related_name="ai_strategies",
+        verbose_name="链配置",
     )
 
     # AI 服务商配置
     ai_provider = models.ForeignKey(
-        'ai_provider.AIProviderConfig',
+        "ai_provider.AIProviderConfig",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='ai_strategies',
-        verbose_name="AI服务商"
+        related_name="ai_strategies",
+        verbose_name="AI服务商",
     )
 
     # AI 参数
     temperature = models.FloatField(
-        "温度参数",
-        default=0.7,
-        validators=[MinValueValidator(0.0), MaxValueValidator(2.0)]
+        "温度参数", default=0.7, validators=[MinValueValidator(0.0), MaxValueValidator(2.0)]
     )
-    max_tokens = models.IntegerField(
-        "最大Token数",
-        default=2000,
-        validators=[MinValueValidator(1)]
-    )
+    max_tokens = models.IntegerField("最大Token数", default=2000, validators=[MinValueValidator(1)])
 
     # 审核模式（关键设计）
     approval_mode = models.CharField(
         "审核模式",
         max_length=20,
         choices=[
-            ('always', '必须人工审核'),
-            ('conditional', '条件审核（基于置信度）'),
-            ('auto', '自动执行+监控')
+            ("always", "必须人工审核"),
+            ("conditional", "条件审核（基于置信度）"),
+            ("auto", "自动执行+监控"),
         ],
-        default='conditional'
+        default="conditional",
     )
 
     confidence_threshold = models.FloatField(
         "自动执行置信度阈值",
         default=0.8,
         validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
-        help_text="置信度高于此值时自动执行"
+        help_text="置信度高于此值时自动执行",
     )
 
     # 元数据
@@ -400,7 +364,7 @@ class AIStrategyConfigModel(models.Model):
     updated_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
-        db_table = 'ai_strategy_config'
+        db_table = "ai_strategy_config"
         verbose_name = "AI策略配置"
         verbose_name_plural = "AI策略配置"
         constraints = [
@@ -426,26 +390,24 @@ class PortfolioStrategyAssignmentModel(models.Model):
 
     # 关联投资组合（引用现有系统）
     portfolio = models.ForeignKey(
-        'simulated_trading.SimulatedAccountModel',
+        "simulated_trading.SimulatedAccountModel",
         on_delete=models.CASCADE,
-        related_name='strategy_assignments',
-        verbose_name="投资组合"
+        related_name="strategy_assignments",
+        verbose_name="投资组合",
     )
 
     # 关联策略
     strategy = models.ForeignKey(
         StrategyModel,
         on_delete=models.CASCADE,
-        related_name='portfolio_assignments',
-        verbose_name="策略"
+        related_name="portfolio_assignments",
+        verbose_name="策略",
     )
 
     # 分配信息
     assigned_at = models.DateTimeField("分配时间", auto_now_add=True)
     assigned_by = models.ForeignKey(
-        'account.AccountProfileModel',
-        on_delete=models.CASCADE,
-        verbose_name="分配者"
+        "account.AccountProfileModel", on_delete=models.CASCADE, verbose_name="分配者"
     )
     is_active = models.BooleanField("是否激活", default=True, db_index=True)
 
@@ -454,13 +416,13 @@ class PortfolioStrategyAssignmentModel(models.Model):
         "覆盖单资产最大持仓比例(%)",
         null=True,
         blank=True,
-        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)]
+        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
     )
     override_stop_loss_pct = models.FloatField(
         "覆盖止损比例(%)",
         null=True,
         blank=True,
-        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)]
+        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
     )
 
     # 元数据
@@ -468,14 +430,14 @@ class PortfolioStrategyAssignmentModel(models.Model):
     updated_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
-        db_table = 'portfolio_strategy_assignment'
+        db_table = "portfolio_strategy_assignment"
         verbose_name = "投资组合策略关联"
         verbose_name_plural = "投资组合策略关联"
-        unique_together = [['portfolio', 'strategy']]
-        ordering = ['-created_at']
+        unique_together = [["portfolio", "strategy"]]
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['portfolio', 'is_active']),
-            models.Index(fields=['strategy', 'is_active']),
+            models.Index(fields=["portfolio", "is_active"]),
+            models.Index(fields=["strategy", "is_active"]),
         ]
         constraints = [
             models.CheckConstraint(
@@ -509,16 +471,13 @@ class StrategyExecutionLogModel(models.Model):
 
     # 关联
     strategy = models.ForeignKey(
-        StrategyModel,
-        on_delete=models.CASCADE,
-        related_name='execution_logs',
-        verbose_name="策略"
+        StrategyModel, on_delete=models.CASCADE, related_name="execution_logs", verbose_name="策略"
     )
     portfolio = models.ForeignKey(
-        'simulated_trading.SimulatedAccountModel',
+        "simulated_trading.SimulatedAccountModel",
         on_delete=models.CASCADE,
-        related_name='strategy_execution_logs',
-        verbose_name="投资组合"
+        related_name="strategy_execution_logs",
+        verbose_name="投资组合",
     )
 
     # 执行信息
@@ -527,10 +486,7 @@ class StrategyExecutionLogModel(models.Model):
 
     # 执行结果
     execution_result = models.JSONField(help_text="详细执行信息")
-    signals_generated = models.JSONField(
-        default=list,
-        help_text="信号列表"
-    )
+    signals_generated = models.JSONField(default=list, help_text="信号列表")
 
     # 错误处理
     error_message = models.TextField("错误信息", blank=True)
@@ -540,14 +496,14 @@ class StrategyExecutionLogModel(models.Model):
     is_success = models.BooleanField("是否成功", default=True, db_index=True)
 
     class Meta:
-        db_table = 'strategy_execution_log'
+        db_table = "strategy_execution_log"
         verbose_name = "策略执行日志"
         verbose_name_plural = "策略执行日志"
-        ordering = ['-execution_time']
+        ordering = ["-execution_time"]
         indexes = [
-            models.Index(fields=['strategy', '-execution_time']),
-            models.Index(fields=['portfolio', '-execution_time']),
-            models.Index(fields=['is_success', '-execution_time']),
+            models.Index(fields=["strategy", "-execution_time"]),
+            models.Index(fields=["portfolio", "-execution_time"]),
+            models.Index(fields=["is_success", "-execution_time"]),
         ]
         constraints = [
             models.CheckConstraint(
@@ -568,25 +524,19 @@ class StrategyParamVersionModel(models.Model):
     strategy = models.ForeignKey(
         StrategyModel,
         on_delete=models.CASCADE,
-        related_name='param_versions',
-        verbose_name="所属策略"
+        related_name="param_versions",
+        verbose_name="所属策略",
     )
 
     # 版本号（每个策略从1开始递增）
     version = models.PositiveIntegerField("版本号", db_index=True)
 
     # 参数配置（JSON格式存储）
-    params_json = models.JSONField(
-        verbose_name="参数配置",
-        help_text="策略参数的JSON序列化"
-    )
+    params_json = models.JSONField(verbose_name="参数配置", help_text="策略参数的JSON序列化")
 
     # 版本状态
     is_active = models.BooleanField(
-        "是否激活",
-        default=False,
-        db_index=True,
-        help_text="同一策略只能有一个激活版本"
+        "是否激活", default=False, db_index=True, help_text="同一策略只能有一个激活版本"
     )
     promotion_decision_id = models.CharField(
         "研究晋级决策 ID",
@@ -599,18 +549,16 @@ class StrategyParamVersionModel(models.Model):
 
     # 变更说明
     change_description = models.TextField(
-        "变更说明",
-        blank=True,
-        help_text="记录本次参数变更的原因和内容"
+        "变更说明", blank=True, help_text="记录本次参数变更的原因和内容"
     )
 
     # 变更者
     changed_by = models.ForeignKey(
-        'account.AccountProfileModel',
+        "account.AccountProfileModel",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        verbose_name="变更者"
+        verbose_name="变更者",
     )
 
     # 元数据
@@ -618,20 +566,300 @@ class StrategyParamVersionModel(models.Model):
     updated_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
-        db_table = 'strategy_param_version'
+        db_table = "strategy_param_version"
         verbose_name = "策略参数版本"
         verbose_name_plural = "策略参数版本"
-        unique_together = [['strategy', 'version']]
-        ordering = ['-version']
+        unique_together = [["strategy", "version"]]
+        ordering = ["-version"]
         indexes = [
-            models.Index(fields=['strategy', '-version']),
-            models.Index(fields=['strategy', 'is_active']),
-            models.Index(fields=['-created_at']),
+            models.Index(fields=["strategy", "-version"]),
+            models.Index(fields=["strategy", "is_active"]),
+            models.Index(fields=["-created_at"]),
         ]
 
     def __str__(self) -> str:
         status = "激活" if self.is_active else "未激活"
         return f"{self.strategy.name} 参数版本 v{self.version} ({status})"
+
+
+class AllocationPolicyVersionModel(models.Model):
+    """Immutable Strategy-owned asset-allocation policy revision."""
+
+    class Status(models.TextChoices):
+        """Persisted version lifecycle values."""
+
+        DRAFT = "draft", "草稿"
+        ACTIVE = "active", "已激活"
+        SUPERSEDED = "superseded", "已替代"
+
+    class SourceType(models.TextChoices):
+        """Persisted policy provenance values."""
+
+        LEGACY_CODE_MIGRATION = "legacy_code_migration", "旧代码迁移"
+        HUMAN = "human", "人工配置"
+        APPROVED_RESEARCH = "approved_research", "已批准研究"
+        ROLLBACK = "rollback", "回滚副本"
+
+    policy_key = models.CharField("配置标识", max_length=96, db_index=True)
+    version = models.PositiveIntegerField("版本号")
+    status = models.CharField(
+        "状态",
+        max_length=16,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        db_index=True,
+    )
+    content_hash = models.CharField("内容哈希", max_length=64, db_index=True)
+    source_type = models.CharField("来源类型", max_length=32, choices=SourceType.choices)
+    source_metadata = models.JSONField("来源元数据", default=dict, blank=True)
+    change_reason = models.TextField("变更原因")
+    based_on_version = models.PositiveIntegerField("基于版本", null=True, blank=True)
+    created_by = models.ForeignKey(
+        "account.AccountProfileModel",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_allocation_policy_versions",
+        verbose_name="创建者",
+    )
+    activated_by = models.ForeignKey(
+        "account.AccountProfileModel",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="activated_allocation_policy_versions",
+        verbose_name="激活者",
+    )
+    effective_at = models.DateTimeField("生效时间", null=True, blank=True)
+    activated_at = models.DateTimeField("激活时间", null=True, blank=True)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+
+    _IMMUTABLE_FIELDS: ClassVar[tuple[str, ...]] = (
+        "policy_key",
+        "version",
+        "content_hash",
+        "source_type",
+        "source_metadata",
+        "change_reason",
+        "based_on_version",
+        "created_by_id",
+    )
+
+    class Meta:
+        db_table = "strategy_allocation_policy_version"
+        verbose_name = "资产配置策略版本"
+        verbose_name_plural = "资产配置策略版本"
+        ordering = ["policy_key", "-version"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["policy_key", "version"],
+                name="strategy_alloc_policy_key_version_uniq",
+            ),
+            models.UniqueConstraint(
+                fields=["policy_key"],
+                condition=models.Q(status="active"),
+                name="strategy_alloc_policy_single_active",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(version__gt=0),
+                name="strategy_alloc_policy_version_gt_0",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["policy_key", "status"]),
+            models.Index(fields=["policy_key", "-version"]),
+        ]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Reject in-place edits to immutable version content."""
+
+        if self.pk is not None:
+            persisted = type(self)._default_manager.only(*self._IMMUTABLE_FIELDS).get(pk=self.pk)
+            changed_fields = [
+                field_name
+                for field_name in self._IMMUTABLE_FIELDS
+                if getattr(persisted, field_name) != getattr(self, field_name)
+            ]
+            if changed_fields:
+                raise ValidationError(
+                    f"allocation policy versions are immutable: {sorted(changed_fields)}"
+                )
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"{self.policy_key} v{self.version} ({self.status})"
+
+
+class AllocationPolicyEntryModel(models.Model):
+    """One regime/risk-profile cell in an allocation-policy version."""
+
+    class StatisticsStatus(models.TextChoices):
+        """Evidence status of optional statistical assumptions."""
+
+        LEGACY_UNVERIFIED = "legacy_unverified", "旧值未验证"
+        HUMAN_ASSUMPTION = "human_assumption", "人工假设"
+        APPROVED_RESEARCH = "approved_research", "已批准研究"
+        NOT_PROVIDED = "not_provided", "未提供"
+
+    policy_version = models.ForeignKey(
+        AllocationPolicyVersionModel,
+        on_delete=models.CASCADE,
+        related_name="entries",
+        verbose_name="策略版本",
+    )
+    regime = models.CharField("Regime", max_length=24)
+    risk_profile = models.CharField("风险偏好", max_length=24)
+    equity = models.DecimalField("权益权重", max_digits=9, decimal_places=6)
+    fixed_income = models.DecimalField("固收权重", max_digits=9, decimal_places=6)
+    commodity = models.DecimalField("商品权重", max_digits=9, decimal_places=6)
+    cash = models.DecimalField("现金权重", max_digits=9, decimal_places=6)
+    reasoning = models.TextField("配置理由")
+    expected_return = models.DecimalField(
+        "预期年化收益",
+        max_digits=12,
+        decimal_places=8,
+        null=True,
+        blank=True,
+    )
+    expected_volatility = models.DecimalField(
+        "预期波动率",
+        max_digits=12,
+        decimal_places=8,
+        null=True,
+        blank=True,
+    )
+    sharpe_ratio = models.DecimalField(
+        "夏普比率",
+        max_digits=12,
+        decimal_places=8,
+        null=True,
+        blank=True,
+    )
+    statistics_status = models.CharField(
+        "统计假设状态",
+        max_length=32,
+        choices=StatisticsStatus.choices,
+        default=StatisticsStatus.NOT_PROVIDED,
+    )
+    research_evidence_id = models.CharField(
+        "研究证据 ID",
+        max_length=128,
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "strategy_allocation_policy_entry"
+        verbose_name = "资产配置策略矩阵项"
+        verbose_name_plural = "资产配置策略矩阵项"
+        ordering = ["regime", "risk_profile"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["policy_version", "regime", "risk_profile"],
+                name="strategy_alloc_policy_entry_uniq",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(equity__gte=0)
+                    & models.Q(equity__lte=1)
+                    & models.Q(fixed_income__gte=0)
+                    & models.Q(fixed_income__lte=1)
+                    & models.Q(commodity__gte=0)
+                    & models.Q(commodity__lte=1)
+                    & models.Q(cash__gte=0)
+                    & models.Q(cash__lte=1)
+                ),
+                name="strategy_alloc_policy_weight_ranges",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(expected_volatility__isnull=True)
+                    | models.Q(expected_volatility__gte=0)
+                ),
+                name="strategy_alloc_policy_volatility_gte_0",
+            ),
+        ]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Allow creation only; policy content changes require a new version."""
+
+        if self.pk is not None:
+            raise ValidationError("allocation policy entries are immutable")
+        if self.policy_version_id is not None and self.policy_version.status != "draft":
+            raise ValidationError("entries can only be added to a draft allocation policy")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        """Reject row deletion because revisions are append-only."""
+
+        raise ValidationError("allocation policy entries are immutable")
+
+
+class AllocationPolicyAdjustmentModel(models.Model):
+    """Policy-level multipliers stored with an allocation-policy version."""
+
+    policy_version = models.ForeignKey(
+        AllocationPolicyVersionModel,
+        on_delete=models.CASCADE,
+        related_name="adjustments",
+        verbose_name="策略版本",
+    )
+    policy_level = models.CharField("Policy 档位", max_length=8)
+    equity_multiplier = models.DecimalField("权益乘数", max_digits=9, decimal_places=6)
+    expected_return_multiplier = models.DecimalField(
+        "预期收益乘数",
+        max_digits=9,
+        decimal_places=6,
+        default=1,
+    )
+    expected_volatility_multiplier = models.DecimalField(
+        "预期波动乘数",
+        max_digits=9,
+        decimal_places=6,
+        default=1,
+    )
+    sharpe_multiplier = models.DecimalField(
+        "Sharpe 乘数",
+        max_digits=9,
+        decimal_places=6,
+        default=1,
+    )
+
+    class Meta:
+        db_table = "strategy_allocation_policy_adjustment"
+        verbose_name = "资产配置 Policy 调整"
+        verbose_name_plural = "资产配置 Policy 调整"
+        ordering = ["policy_level"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["policy_version", "policy_level"],
+                name="strategy_alloc_policy_adjustment_uniq",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(equity_multiplier__gte=0)
+                    & models.Q(equity_multiplier__lte=1)
+                    & models.Q(expected_return_multiplier__gte=0)
+                    & models.Q(expected_volatility_multiplier__gte=0)
+                    & models.Q(sharpe_multiplier__gte=0)
+                ),
+                name="strategy_alloc_policy_multiplier_ranges",
+            ),
+        ]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Allow creation only; policy content changes require a new version."""
+
+        if self.pk is not None:
+            raise ValidationError("allocation policy adjustments are immutable")
+        if self.policy_version_id is not None and self.policy_version.status != "draft":
+            raise ValidationError("adjustments can only be added to a draft allocation policy")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        """Reject row deletion because revisions are append-only."""
+
+        raise ValidationError("allocation policy adjustments are immutable")
 
 
 def __getattr__(name: str) -> Any:
@@ -640,5 +868,3 @@ def __getattr__(name: str) -> Any:
     if name == "OrderIntentModel":
         return django_apps.get_model("portfolio", "OrderIntentModel")
     raise AttributeError(name)
-
-

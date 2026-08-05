@@ -6,6 +6,11 @@ from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 
+from apps.strategy.interface.allocation_policy_views import (
+    AllocationPolicyActiveView,
+    AllocationPolicyVersionDetailView,
+    AllocationPolicyVersionListView,
+)
 from apps.strategy.interface.tui_views import (
     StrategyTuiCreateView,
     StrategyTuiRuleCreateView,
@@ -57,6 +62,8 @@ class StrategyApiRootView(APIView):
                     "unbind_strategy": "/api/strategy/unbind-strategy/",
                     "test_script": "/api/strategy/test-script/",
                     "execution_evaluate": "/api/strategy/execution/evaluate/",
+                    "allocation_policy_active": ("/api/strategy/allocation-policies/active/"),
+                    "allocation_policy_versions": ("/api/strategy/allocation-policies/versions/"),
                 }
             }
         )
@@ -64,6 +71,21 @@ class StrategyApiRootView(APIView):
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path("", StrategyApiRootView.as_view(), name="api-root"),
+    path(
+        "allocation-policies/active/",
+        AllocationPolicyActiveView.as_view(),
+        name="allocation-policy-active",
+    ),
+    path(
+        "allocation-policies/versions/",
+        AllocationPolicyVersionListView.as_view(),
+        name="allocation-policy-version-list",
+    ),
+    path(
+        "allocation-policies/versions/<int:version>/",
+        AllocationPolicyVersionDetailView.as_view(),
+        name="allocation-policy-version-detail",
+    ),
     path(
         "tui/strategies/",
         StrategyTuiCreateView.as_view(),
