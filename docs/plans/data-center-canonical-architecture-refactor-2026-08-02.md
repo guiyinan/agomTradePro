@@ -4387,5 +4387,5 @@ Git SHA / 镜像 / migration：
 
 - 目标：消除“读 typed snapshot、写回 `SystemSettingsModel`”的配置双真源，确保 Qlib/Alpha/市场运行参数的管理入口产生可审计的 Profile/Revision/Snapshot 前向版本。
 - 变更：新增 `activate_runtime_profile_patch()`，按 active profile 携带已有值、以显式 compatibility bootstrap 补齐缺键、由请求 patch 覆盖并原子激活新版本；`ConfigCenterSettingsRepository.update_runtime_config()` 与 `update_system_governance()` 改为调用该端口，不再写 Qlib/Alpha/benchmark/asset-proxy/market-color 旧字段。Qlib 运行配置摘要在无 typed snapshot 时返回 blocked，而不是展示旧 singleton 默认值；Data Center provider settings 增加只读 Application Public Port，兼容导入只发生在激活事务中。
-- 测试与治理：Config Center training/runtime 回归 `32 passed`，TUI/runtime 相关回归 `12 passed`；新增 typed update 回归断言旧 singleton 未写入；变更文件 Black/Ruff/mypy regression 通过，runtime contract 登记 mutation consumers/tests。
+- 测试与治理：Config Center training/runtime 回归 `32 passed`，TUI/runtime 相关回归 `12 passed`；新增 typed update 回归断言旧 singleton 未写入；current-data manifest 实际执行 `268 nodeid / 307 passed`；变更文件 Black/Ruff/mypy regression 通过，runtime contract 登记 mutation consumers/tests。clean HEAD inventory 为 `current_surface_references=3291`，其余结构计数 `51/55/4/143/0/49`。
 - 明确未做：账户审批、备份 SMTP、决策运行状态等其他 SystemSettings 字段仍处于兼容迁移；尚未在生产 profile 上初始化/激活、执行 PostgreSQL/备份恢复/观察窗口、M9 删除旧字段或部署；不 push、不部署。

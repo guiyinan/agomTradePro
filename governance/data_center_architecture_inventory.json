@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3288,
+    "current_surface_references": 3291,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 143,
@@ -4317,12 +4317,12 @@
       "text": "\"\"\"Return the latest immutable resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 61,
+      "line": 65,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Read the latest resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 265,
+      "line": 362,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Return the latest capacity observation without a fallback.\"\"\""
     },
@@ -5257,7 +5257,7 @@
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 1170,
+      "line": 1178,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -11854,70 +11854,75 @@
     {
       "line": 32,
       "path": "apps/regime/application/query_services.py",
-      "text": "\"\"\"Return the latest regime snapshot in cache-warmup payload shape.\"\"\""
+      "text": "\"\"\"Return a fresh current-Regime payload for cache warmup."
     },
     {
       "line": 34,
       "path": "apps/regime/application/query_services.py",
-      "text": "latest = get_regime_repository().get_latest_snapshot()"
-    },
-    {
-      "line": 35,
-      "path": "apps/regime/application/query_services.py",
-      "text": "if latest is None:"
-    },
-    {
-      "line": 38,
-      "path": "apps/regime/application/query_services.py",
-      "text": "\"regime\": latest.dominant_regime,"
-    },
-    {
-      "line": 39,
-      "path": "apps/regime/application/query_services.py",
-      "text": "\"observed_at\": str(latest.observed_at),"
+      "text": "Cache warmup is a current-data consumer.  It must use the same resolver as"
     },
     {
       "line": 40,
       "path": "apps/regime/application/query_services.py",
-      "text": "\"confidence\": latest.confidence,"
+      "text": "latest = resolve_current_regime()"
+    },
+    {
+      "line": 41,
+      "path": "apps/regime/application/query_services.py",
+      "text": "if latest.must_not_use_for_decision or not latest.dominant_regime.strip():"
+    },
+    {
+      "line": 44,
+      "path": "apps/regime/application/query_services.py",
+      "text": "\"regime\": latest.dominant_regime,"
     },
     {
       "line": 45,
       "path": "apps/regime/application/query_services.py",
-      "text": "\"\"\"Return latest regime snapshot in data-connection diagnostic shape.\"\"\""
+      "text": "\"observed_at\": latest.observed_at.isoformat() if latest.observed_at else None,"
     },
     {
-      "line": 47,
-      "path": "apps/regime/application/query_services.py",
-      "text": "latest = get_regime_repository().get_latest_snapshot()"
-    },
-    {
-      "line": 48,
-      "path": "apps/regime/application/query_services.py",
-      "text": "if latest is None:"
-    },
-    {
-      "line": 51,
-      "path": "apps/regime/application/query_services.py",
-      "text": "\"observed_at\": latest.observed_at,"
-    },
-    {
-      "line": 52,
-      "path": "apps/regime/application/query_services.py",
-      "text": "\"dominant_regime\": latest.dominant_regime,"
-    },
-    {
-      "line": 53,
+      "line": 46,
       "path": "apps/regime/application/query_services.py",
       "text": "\"confidence\": latest.confidence,"
     },
     {
-      "line": 96,
+      "line": 54,
+      "path": "apps/regime/application/query_services.py",
+      "text": "\"\"\"Return latest regime snapshot in data-connection diagnostic shape.\"\"\""
+    },
+    {
+      "line": 56,
+      "path": "apps/regime/application/query_services.py",
+      "text": "latest = get_regime_repository().get_latest_snapshot()"
+    },
+    {
+      "line": 57,
+      "path": "apps/regime/application/query_services.py",
+      "text": "if latest is None:"
+    },
+    {
+      "line": 60,
+      "path": "apps/regime/application/query_services.py",
+      "text": "\"observed_at\": latest.observed_at,"
+    },
+    {
+      "line": 61,
+      "path": "apps/regime/application/query_services.py",
+      "text": "\"dominant_regime\": latest.dominant_regime,"
+    },
+    {
+      "line": 62,
+      "path": "apps/regime/application/query_services.py",
+      "text": "\"confidence\": latest.confidence,"
+    },
+    {
+      "line": 105,
       "path": "apps/regime/application/query_services.py",
       "text": "\"\"\"Return growth series with an explicit current/publication selector.\"\"\""
     },
     {
-      "line": 125,
+      "line": 134,
       "path": "apps/regime/application/query_services.py",
       "text": "\"\"\"Return inflation series with an explicit current/publication selector.\"\"\""
     },
@@ -16287,82 +16292,92 @@
       "text": "total_pnl = summary[\"open_position_unrealized_pnl\"]"
     },
     {
-      "line": 297,
-      "path": "core/management/commands/test_data_connections.py",
-      "text": "latest = get_latest_regime_diagnostic_payload()"
-    },
-    {
       "line": 298,
       "path": "core/management/commands/test_data_connections.py",
-      "text": "if latest:"
+      "text": "latest = current_payload.get(\"data\") if current_payload.get(\"success\") else None"
     },
     {
-      "line": 303,
+      "line": 299,
       "path": "core/management/commands/test_data_connections.py",
-      "text": "f\"日期: {latest['observed_at']}, \""
+      "text": "if isinstance(latest, dict) and not latest.get(\"must_not_use_for_decision\", True):"
     },
     {
       "line": 304,
       "path": "core/management/commands/test_data_connections.py",
-      "text": "f\"象限: {latest['dominant_regime']}, \""
+      "text": "f\"日期: {latest['observed_at']}, \""
     },
     {
       "line": 305,
       "path": "core/management/commands/test_data_connections.py",
+      "text": "f\"象限: {latest['dominant_regime']}, \""
+    },
+    {
+      "line": 306,
+      "path": "core/management/commands/test_data_connections.py",
       "text": "f\"置信度: {latest['confidence']:.2%}\","
     },
     {
-      "line": 378,
+      "line": 308,
+      "path": "core/management/commands/test_data_connections.py",
+      "text": "elif isinstance(latest, dict):"
+    },
+    {
+      "line": 313,
+      "path": "core/management/commands/test_data_connections.py",
+      "text": "f\"当前 Regime 被阻断: {latest.get('blocked_reason') or '可靠性证据不足'}\","
+    },
+    {
+      "line": 386,
       "path": "core/management/commands/test_data_connections.py",
       "text": "latest_event = event_summary[\"latest\"]"
     },
     {
-      "line": 420,
+      "line": 428,
       "path": "core/management/commands/test_data_connections.py",
       "text": "summary = get_signal_diagnostic_summary()"
     },
     {
-      "line": 421,
+      "line": 429,
       "path": "core/management/commands/test_data_connections.py",
       "text": "active_count = summary[\"active_count\"]"
     },
     {
-      "line": 422,
+      "line": 430,
       "path": "core/management/commands/test_data_connections.py",
       "text": "invalidated_count = summary[\"invalidated_count\"]"
     },
     {
-      "line": 423,
+      "line": 431,
       "path": "core/management/commands/test_data_connections.py",
       "text": "closed_count = summary[\"closed_count\"]"
     },
     {
-      "line": 429,
+      "line": 437,
       "path": "core/management/commands/test_data_connections.py",
       "text": "f\"共 {summary['total_count']} 条，\""
     },
     {
-      "line": 436,
+      "line": 444,
       "path": "core/management/commands/test_data_connections.py",
       "text": "recent_signals = summary[\"recent_signals\"]"
     },
     {
-      "line": 446,
+      "line": 454,
       "path": "core/management/commands/test_data_connections.py",
       "text": "regime_matched = summary[\"regime_matched_count\"]"
     },
     {
-      "line": 447,
+      "line": 455,
       "path": "core/management/commands/test_data_connections.py",
       "text": "if not summary[\"regime_match_available\"]:"
     },
     {
-      "line": 652,
+      "line": 660,
       "path": "core/management/commands/test_data_connections.py",
       "text": "summary: dict[str, Any] = {"
     },
     {
-      "line": 663,
+      "line": 671,
       "path": "core/management/commands/test_data_connections.py",
       "text": "json.dumps(summary, ensure_ascii=False, indent=2),"
     },
