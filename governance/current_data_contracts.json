@@ -414,6 +414,7 @@
       "required_markers": {
         "apps/equity/infrastructure/fundamentals_repository.py": [
           "get_published_financial_facts(",
+          "def get_latest_financial_data(",
           "published_only=as_of_date is None",
           "published_only=True",
           "must_not_use_for_decision"

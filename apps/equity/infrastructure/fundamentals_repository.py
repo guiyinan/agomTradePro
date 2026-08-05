@@ -879,7 +879,7 @@ class StockFundamentalsRepositoryMixin:
         if hydrate:
             items = self.get_financial_data(stock_code, limit=1, hydrate=True)
             return items[0] if items else None
-        return self._get_latest_financial(stock_code)
+        return self._get_latest_financial(stock_code, published_only=True)
 
     def get_latest_valuation_date(self) -> date | None:
         """获取最新估值日期。"""
