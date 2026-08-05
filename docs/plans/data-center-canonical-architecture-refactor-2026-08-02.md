@@ -4117,4 +4117,10 @@ Git SHA / 镜像 / migration：
 - 目标：把 current-data manifest 从“静态 marker 通过”推进到实际 pytest nodeid 执行，避免登记但未运行的假绿。
 - 证据：`python scripts/run_current_data_contract_tests.py --pytest-arg=-q --pytest-arg=--reuse-db --pytest-arg=--disable-warnings --pytest-arg=--timeout=180` 收集并执行 237 个登记 nodeid，实际 `276 passed`，正常迁移模式完成；`--no-migrations` 曾出现 1 个依赖迁移 seed 的风险场景失败，已用正常迁移模式复核通过。
 - 结论：current-data manifest 的本地可执行证据已补齐；这不替代 Linux CI、PostgreSQL 生产画像、Publication 覆盖和观察窗口证据。
+
+## 51. 2026-08-05：治理门禁与 Risk 类型债务收口
+
+- 证据：Celery task contracts（18 tasks/4 files）、runtime config coverage（49 references）、Data Center query budgets（3）、storage budget contract、runtime desired-state 均通过；全仓 `check_mypy_debt_ceiling.py` 修复后为 `0 errors in 0 files`。
+- 修复：Risk scenario immutable model 的 Django `save(force_insert)` 类型契约、ScenarioSet effective datetime 类型收窄已修复并提交；Sector 新增模板模块的类型修复留在其 owner 的未提交工作区，不混入本批。
+- 未完成：治理 consistency 当前仍等待新增 `fixed_income`/`macro_factor` 模块的 baseline 与大文件预算登记；这些是其他 agent 的未提交改动，未在本批强行纳入。
 - 明确未做：未删除 historical API、未改变 Publication writer/provider、未部署或修改 VPS。
