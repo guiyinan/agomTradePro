@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from datetime import date
 from decimal import Decimal
 
@@ -49,6 +48,25 @@ def test_stock_info_does_not_read_retired_equity_master_projection() -> None:
         sector="银行",
         market="SZ",
         list_date=date(1991, 4, 3),
+    )
+
+    assert DjangoStockRepository().get_stock_info("000001.SZ") is None
+
+
+@pytest.mark.django_db
+def test_stock_info_does_not_infer_asset_master_from_unpublished_market_facts() -> None:
+    """Market facts cannot substitute for missing canonical AssetMaster metadata."""
+
+    PriceBarModel.objects.create(
+        asset_code="000001.SZ",
+        bar_date=date(2026, 7, 24),
+        open=Decimal("10.00"),
+        high=Decimal("10.50"),
+        low=Decimal("9.90"),
+        close=Decimal("10.20"),
+        volume=100,
+        amount=Decimal("1000"),
+        source="unpublished-test",
     )
 
     assert DjangoStockRepository().get_stock_info("000001.SZ") is None
@@ -341,13 +359,10 @@ def test_get_stock_context_rows_backfills_missing_asset_master_name(
 ) -> None:
     calls: list[dict[str, object]] = []
 
-    class FakeAssetMasterBackfillService:
-        def backfill_codes(
-            self,
-            codes: Iterable[str],
-            include_remote: bool = False,
-        ) -> None:
-            calls.append({"codes": list(codes), "include_remote": include_remote})
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.stock_info_repository.backfill_asset_master_codes_port",
+        lambda codes, include_remote=True: (
+            calls.append({"codes": list(codes), "include_remote": include_remote}),
             AssetMasterModel.objects.create(
                 code="600026.SH",
                 name="中远海能股份有限公司",
@@ -355,11 +370,8 @@ def test_get_stock_context_rows_backfills_missing_asset_master_name(
                 asset_type="stock",
                 exchange="SSE",
                 is_active=True,
-            )
-
-    monkeypatch.setattr(
-        "apps.data_center.infrastructure.asset_master_backfill.AssetMasterBackfillService",
-        FakeAssetMasterBackfillService,
+            ),
+        )[1],
     )
 
     context = DjangoStockRepository().get_stock_context_rows(["600026.SH"])

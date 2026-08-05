@@ -18,10 +18,6 @@ from apps.data_center.application.public import (
 )
 from apps.data_center.domain.protocols import (
     AssetRepositoryProtocol,
-    FinancialFactRepositoryProtocol,
-    PriceBarRepositoryProtocol,
-    QuoteSnapshotRepositoryProtocol,
-    ValuationFactRepositoryProtocol,
 )
 from apps.equity.domain.entities import StockInfo
 
@@ -32,10 +28,6 @@ class StockInfoRepositoryMixin:
     """Stock master info, display-name resolution, and universe listing."""
 
     _dc_asset_repo: AssetRepositoryProtocol
-    _dc_financial_repo: FinancialFactRepositoryProtocol
-    _dc_price_bar_repo: PriceBarRepositoryProtocol
-    _dc_quote_repo: QuoteSnapshotRepositoryProtocol
-    _dc_valuation_repo: ValuationFactRepositoryProtocol
 
     if TYPE_CHECKING:
 
@@ -58,9 +50,7 @@ class StockInfoRepositoryMixin:
             StockInfo 或 None
         """
         dc_info = self._get_stock_info_from_data_center(stock_code)
-        if dc_info is not None:
-            return dc_info
-        return self._get_minimal_stock_info_from_data_center(stock_code)
+        return dc_info
 
     def get_listing_exchange(self, stock_code: str) -> str:
         """Resolve the primary listing exchange for the given stock code."""
@@ -265,34 +255,5 @@ class StockInfoRepositoryMixin:
             list_date=asset.list_date,
         )
 
-    def _get_minimal_stock_info_from_data_center(self, stock_code: str) -> StockInfo | None:
-        candidate_code = None
-
-        latest_quote = self._dc_quote_repo.get_latest(stock_code)
-        if latest_quote is not None:
-            candidate_code = latest_quote.asset_code
-        else:
-            latest_bar = self._dc_price_bar_repo.get_latest(stock_code)
-            if latest_bar is not None:
-                candidate_code = latest_bar.asset_code
-            else:
-                latest_valuation = self._dc_valuation_repo.get_latest(stock_code)
-                if latest_valuation is not None:
-                    candidate_code = latest_valuation.asset_code
-                else:
-                    latest_financial = self._dc_financial_repo.get_latest(stock_code)
-                    if latest_financial is not None:
-                        candidate_code = latest_financial.asset_code
-
-        if candidate_code is None:
-            return None
-
-        return StockInfo(
-            stock_code=candidate_code,
-            name=candidate_code,
-            sector="",
-            market=self._infer_market_from_stock_code(candidate_code),
-            list_date=None,
-        )
 
 __all__ = ["StockInfoRepositoryMixin"]

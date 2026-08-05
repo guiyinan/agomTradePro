@@ -4164,3 +4164,10 @@ Git SHA / 镜像 / migration：
 - 目标：修复 CI 只剩的治理基线失败，让已提交的 research-only fixed-income 组合风险模块以机器可审计的 owner/remediation/review-by 方式纳入检查，而不是留下未登记债务。
 - 变更：`governance/governance_baseline.json` 升级至 `2026-08-05.v207`，登记 `apps/fixed_income/domain/portfolio_risk.py` 当前 1238 个非空行、owner `fixed-income`、P1 拆分目标和 2026-09-30 review-by；不扩大业务能力或放宽行数上限。
 - 计划语义：该登记只代表债务可追踪，不能把 research-only 代码、真实数据覆盖、Publication 证据或生产 readiness 解释为完成；后续拆分完成后必须移除该 allowance。
+
+## 57. 2026-08-05：Equity AssetMaster 缺失时禁止事实反推
+
+- 目标：阻断 Equity 股票信息读取在 AssetMaster 缺失时从 quote/price/valuation/financial latest 事实猜测证券身份的旁路，避免未发布市场事实承担 D0 主数据职责。
+- 变更：`StockInfoRepositoryMixin.get_stock_info` 现在只返回 canonical AssetMaster 命中结果；删除按四类事实 `get_latest` 链式推断最小 `StockInfo` 的兼容路径。缺少 AssetMaster 时稳定返回 `None`，上层保持“未找到股票/blocked”语义。
+- 治理与测试：`equity.published_stock_context` 增加 AssetMaster-only markers 和“存在未发布 price fact 仍不推断主数据”的 nodeid。
+- 已运行验证：新增 Equity stock-context 回归、current-data manifest runner 与既有 Equity/Data Center 定向回归应在本批提交后复跑；未修改历史显式查询、canonical 写入或 provider 配置。

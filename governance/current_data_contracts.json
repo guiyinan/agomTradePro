@@ -1893,7 +1893,9 @@
         ],
         "apps/equity/infrastructure/stock_info_repository.py": [
           "def get_stock_master_rows(",
-          "without accidentally loading an un-gated price"
+          "without accidentally loading an un-gated price",
+          "def get_stock_info(",
+          "return dc_info"
         ],
         "apps/dashboard/application/integration_gateways.py": [
           "get_published_stock_context_map"
@@ -1931,6 +1933,11 @@
           "case": "dashboard_preserves_blocked_context_evidence",
           "test_file": "apps/dashboard/tests/test_alpha_context_repository.py",
           "test_function": "test_dashboard_alpha_context_preserves_blocked_publication_evidence"
+        },
+        {
+          "case": "stock_info_requires_asset_master",
+          "test_file": "apps/equity/tests/test_stock_context_repository.py",
+          "test_function": "test_stock_info_does_not_infer_asset_master_from_unpublished_market_facts"
         }
       ]
     },
