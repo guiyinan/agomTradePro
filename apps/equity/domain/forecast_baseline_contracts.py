@@ -140,6 +140,7 @@ class ForecastBaselineSpec:
     invalidation_rules: tuple[BaselineInvalidationRule, ...]
     invalidation_not_applicable_reason: str
     approved_at: datetime
+    approval_recorded_at: datetime
     valid_until: datetime
     content_hash: str
     research_only: bool = True
@@ -183,6 +184,7 @@ class ForecastBaselineSpec:
         invalidation_rules: tuple[BaselineInvalidationRule, ...],
         invalidation_not_applicable_reason: str,
         approved_at: datetime,
+        approval_recorded_at: datetime,
         valid_until: datetime,
     ) -> ForecastBaselineSpec:
         """Order and seal one approved specification without inserting defaults."""
@@ -224,6 +226,7 @@ class ForecastBaselineSpec:
             invalidation_rules=ordered_invalidations,
             invalidation_not_applicable_reason=invalidation_not_applicable_reason,
             approved_at=approved_at,
+            approval_recorded_at=approval_recorded_at,
             valid_until=valid_until,
         )
         return cls(
@@ -260,6 +263,7 @@ class ForecastBaselineSpec:
             invalidation_rules=ordered_invalidations,
             invalidation_not_applicable_reason=invalidation_not_applicable_reason,
             approved_at=approved_at,
+            approval_recorded_at=approval_recorded_at,
             valid_until=valid_until,
             content_hash=_hash_payload(payload),
         )
@@ -305,8 +309,9 @@ class ForecastBaselineSpec:
         elif self.seasonal_lag_periods is not None:
             raise ValueError("non-seasonal baseline cannot carry a seasonal lag")
         _require_aware(self.approved_at, "approved_at")
+        _require_aware(self.approval_recorded_at, "approval_recorded_at")
         _require_aware(self.valid_until, "valid_until")
-        if self.valid_until <= self.approved_at:
+        if self.valid_until <= self.approved_at or self.approval_recorded_at < self.approved_at:
             raise ValueError("baseline spec validity must follow approval")
         if self.training_window_end < self.training_window_start:
             raise ValueError("training window is invalid")
@@ -341,6 +346,7 @@ class ForecastBaselineSpec:
         if (
             not (
                 self.approved_at
+                <= self.approval_recorded_at
                 <= self.evaluation_policy.forecast_knowledge_cutoff_at
                 == forecast_origin_at
                 <= self.evaluation_policy.forecast_submission_deadline_at
@@ -460,6 +466,7 @@ def _spec_payload_from_domain(spec: ForecastBaselineSpec) -> dict[str, object]:
         invalidation_rules=spec.invalidation_rules,
         invalidation_not_applicable_reason=spec.invalidation_not_applicable_reason,
         approved_at=spec.approved_at,
+        approval_recorded_at=spec.approval_recorded_at,
         valid_until=spec.valid_until,
     )
 
@@ -499,10 +506,11 @@ def _spec_payload(
     invalidation_rules: tuple[BaselineInvalidationRule, ...],
     invalidation_not_applicable_reason: str,
     approved_at: datetime,
+    approval_recorded_at: datetime,
     valid_until: datetime,
 ) -> dict[str, object]:
     return {
-        "schema": "r1-forecast-baseline-spec.v3",
+        "schema": "r1-forecast-baseline-spec.v4",
         "spec_id": spec_id,
         "spec_version": spec_version,
         "owner": owner,
@@ -512,6 +520,7 @@ def _spec_payload(
             approval_evidence_content_hash,
             approval_owner,
             approval_status.value,
+            _utc_text(approval_recorded_at),
         ],
         "evaluation_policy": [
             evaluation_policy.policy_id,

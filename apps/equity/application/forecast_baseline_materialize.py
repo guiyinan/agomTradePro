@@ -192,7 +192,33 @@ class BaselineApprovalEvidence:
     invalidation_rules: tuple[ApprovedInvalidationRuleEvidence, ...]
     invalidation_not_applicable_reason: str
     approved_at: datetime
+    recorded_at: datetime
     valid_until: datetime
+
+    def __post_init__(self) -> None:
+        """Reject post-hoc or authority-inconsistent approval evidence."""
+
+        for field_name, value in (
+            ("approval approved_at", self.approved_at),
+            ("approval recorded_at", self.recorded_at),
+            ("approval forecast_origin_at", self.forecast_origin_at),
+            ("approval valid_until", self.valid_until),
+        ):
+            _require_aware(value, field_name)
+        if (
+            self.approval_owner != "equity"
+            or self.approval_status is not BaselineApprovalStatus.APPROVED
+        ):
+            raise ValueError("baseline approval authority is invalid")
+        if not (self.approved_at <= self.recorded_at <= self.forecast_origin_at < self.valid_until):
+            raise ValueError("baseline approval must be recorded before forecast origin")
+        if not (
+            self.forecast_origin_at
+            == self.evaluation_policy.forecast_knowledge_cutoff_at
+            <= self.evaluation_policy.forecast_submission_deadline_at
+            < self.evaluation_policy.valid_until
+        ):
+            raise ValueError("baseline approval freeze window is invalid")
 
 
 @dataclass(frozen=True)
@@ -358,6 +384,10 @@ class ForecastBaselineEvidenceError(ValueError):
     """Raised when an exact upstream identity or temporal rule is violated."""
 
 
+class ForecastBaselineConflictError(ForecastBaselineEvidenceError):
+    """Raised when an immutable ledger identity has different content."""
+
+
 @dataclass(frozen=True)
 class MaterializeForecastBaselineSpecCommand:
     """ID-only request to materialize one approved baseline specification."""
@@ -482,6 +512,7 @@ class MaterializeForecastBaselineSpecUseCase:
             ),
             invalidation_not_applicable_reason=(approval.invalidation_not_applicable_reason),
             approved_at=approval.approved_at,
+            approval_recorded_at=approval.recorded_at,
             valid_until=approval.valid_until,
         )
         persisted = self._repository.append_spec(spec)
@@ -971,10 +1002,27 @@ def _validate_approval(
         or approval.approval_status is not BaselineApprovalStatus.APPROVED
     ):
         raise ForecastBaselineEvidenceError("baseline approval identity is invalid")
+    for field_name, value in (
+        ("approval approved_at", approval.approved_at),
+        ("approval recorded_at", approval.recorded_at),
+        ("approval forecast_origin_at", approval.forecast_origin_at),
+        ("approval valid_until", approval.valid_until),
+    ):
+        try:
+            _require_aware(value, field_name)
+        except ValueError as error:
+            raise ForecastBaselineEvidenceError(str(error)) from error
     if not approval.approved_at <= command.as_of < approval.valid_until:
         raise ForecastBaselineEvidenceError("baseline approval is inactive at command as_of")
-    if not approval.approved_at <= approval.forecast_origin_at < approval.valid_until:
+    if not (
+        approval.approved_at
+        <= approval.recorded_at
+        <= approval.forecast_origin_at
+        < approval.valid_until
+    ):
         raise ForecastBaselineEvidenceError("forecast origin is outside approval validity")
+    if approval.recorded_at > command.as_of:
+        raise ForecastBaselineEvidenceError("baseline approval was not recorded at command as_of")
 
 
 def _materialize_pit_evidence(
@@ -1200,6 +1248,7 @@ __all__ = [
     "CalendarPeriodEvidence",
     "CalendarScheduleSnapshot",
     "EvidenceIdentity",
+    "ForecastBaselineConflictError",
     "ForecastBaselineEvidenceError",
     "ForecastBaselineSpecRepository",
     "MaterializeForecastBaselineSpecCommand",

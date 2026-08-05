@@ -201,6 +201,7 @@ def _approval() -> BaselineApprovalEvidence:
         invalidation_rules=(),
         invalidation_not_applicable_reason="Owner approved no invalidation rule.",
         approved_at=datetime(2025, 1, 1, 9, tzinfo=UTC),
+        recorded_at=datetime(2025, 1, 2, 9, tzinfo=UTC),
         valid_until=datetime(2026, 1, 1, 9, tzinfo=UTC),
     )
 
@@ -747,6 +748,7 @@ def _execute(
 
 def _build_artifact(
     *,
+    approval: BaselineApprovalEvidence | None = None,
     snapshot: OperatingForecastSnapshot | None = None,
     bundle: BaselinePITBundle | None = None,
     build_as_of: datetime = COMMAND_AS_OF,
@@ -756,7 +758,7 @@ def _build_artifact(
     _ForecastProvider,
     _Repository,
 ]:
-    spec, _, _, repository = _execute()
+    spec, _, _, repository = _execute(approval=approval)
     forecast_provider = _ForecastProvider(_forecast_snapshot() if snapshot is None else snapshot)
     artifact = BuildForecastBaselineArtifactUseCase(
         forecast_provider=forecast_provider,
@@ -775,6 +777,7 @@ def _build_artifact(
 
 def _evaluate_trial(
     *,
+    approval: BaselineApprovalEvidence | None = None,
     actual_snapshot: EvaluationActualManifestSnapshot | None = None,
     research_evidence: ResearchTrialEvidence | None = None,
 ) -> tuple[
@@ -785,7 +788,7 @@ def _evaluate_trial(
     _ResearchProvider,
     _Repository,
 ]:
-    spec, artifact, _, repository = _build_artifact()
+    spec, artifact, _, repository = _build_artifact(approval=approval)
     actual_provider = _ActualProvider(
         _actual_snapshot() if actual_snapshot is None else actual_snapshot
     )

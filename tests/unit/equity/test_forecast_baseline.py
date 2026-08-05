@@ -255,6 +255,7 @@ def _spec(
         invalidation_rules=registered_invalidations,
         invalidation_not_applicable_reason=invalidation_not_applicable_reason,
         approved_at=approved_at,
+        approval_recorded_at=approved_at,
         valid_until=datetime(2027, 1, 1, 9, tzinfo=UTC),
     )
 
@@ -1153,6 +1154,7 @@ def test_hashes_are_decimal_scale_and_timezone_independent_and_tamper_evident() 
         invalidation_rules=scaled.invalidation_rules,
         invalidation_not_applicable_reason=scaled.invalidation_not_applicable_reason,
         approved_at=scaled.approved_at,
+        approval_recorded_at=scaled.approval_recorded_at.astimezone(offset),
         valid_until=scaled.valid_until.astimezone(offset),
     )
     assert canonical.content_hash == scaled.content_hash

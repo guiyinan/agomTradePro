@@ -636,6 +636,13 @@ class StockScreeningRuleConfigModel(models.Model):
         return f"{self.regime} - {self.rule_name}"
 
 
+from .forecast_baseline_models import (  # noqa: E402,F401
+    ForecastBaselineApprovalEvidenceModel,
+    ForecastBaselineArtifactModel,
+    ForecastBaselineSpecModel,
+    ForecastBaselineTrialResultModel,
+)
+
 # Separate append-only R1 ledger models are imported here so Django discovers
 # them through the app's canonical ``models`` module.
 from .operating_forecast_models import (  # noqa: E402,F401

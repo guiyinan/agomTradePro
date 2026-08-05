@@ -314,8 +314,8 @@ def _materialize_research_authorization(
         or evidence.evaluation_policy != spec.evaluation_policy
         or evidence.baseline_spec_approved_at != spec.approved_at
         or evidence.forecast_origin_at != forecast_origin_at
-        or evidence.split_spec_hash != _trial_split_hash(spec)
-        or evidence.parameter_hash != _trial_parameter_hash(spec)
+        or evidence.split_spec_hash != forecast_baseline_trial_split_hash(spec)
+        or evidence.parameter_hash != forecast_baseline_trial_parameter_hash(spec)
         or not (
             spec.approved_at <= evidence.activated_at <= evidence.recorded_at <= forecast_origin_at
         )
@@ -378,7 +378,9 @@ def _materialize_paired_rows(
     return tuple(rows)
 
 
-def _trial_split_hash(spec: ForecastBaselineSpec) -> str:
+def forecast_baseline_trial_split_hash(spec: ForecastBaselineSpec) -> str:
+    """Return the canonical Research split hash required by one baseline spec."""
+
     return _canonical_hash(
         {
             "schema": "r1-trial-split.v1",
@@ -393,7 +395,9 @@ def _trial_split_hash(spec: ForecastBaselineSpec) -> str:
     )
 
 
-def _trial_parameter_hash(spec: ForecastBaselineSpec) -> str:
+def forecast_baseline_trial_parameter_hash(spec: ForecastBaselineSpec) -> str:
+    """Return the canonical Research parameter hash required by one baseline spec."""
+
     return _canonical_hash(
         {
             "schema": "r1-trial-parameters.v1",
@@ -414,4 +418,6 @@ __all__ = [
     "EvaluationActualManifestSnapshot",
     "ResearchTrialEvidence",
     "ResearchTrialEvidenceProvider",
+    "forecast_baseline_trial_parameter_hash",
+    "forecast_baseline_trial_split_hash",
 ]
