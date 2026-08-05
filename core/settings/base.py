@@ -202,6 +202,7 @@ INSTALLED_APPS = [
     "apps.portfolio",  # canonical portfolio construction and transition planning
     "apps.research",  # experiment registry and promotion governance
     "apps.fixed_income",  # research-only bond analytics and relative value
+    "apps.macro_factor",  # research-only external macro-factor evidence validation
 ]
 
 MIDDLEWARE = [
