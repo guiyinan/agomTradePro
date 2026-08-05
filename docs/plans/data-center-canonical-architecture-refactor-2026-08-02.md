@@ -4096,3 +4096,11 @@ Git SHA / 镜像 / migration：
 - 治理：扩展 `equity.technical_chart` current-data contract，登记接口传递、repository Publication marker 与 blocked/preserved 回归。
 - 已运行验证：技术图表/Equity Data Center/API 定向回归 `82 passed`；补充组件+用例回归 `29 passed`；current-data `43 surfaces`、legacy fact guard、architecture boundary/audit `0`、变更 4 个生产文件 mypy regression `0`、Ruff 通过。Black 对 3 个变更文件执行格式化后复核通过。
 - 明确未做：未修改 intraday、技术指标算法、历史模式、provider 写入和生产配置，未部署、未 push。
+
+## 48. 2026-08-05：Equity SDK 默认 current 读取绑定 Publication
+
+- 目标：避免 SDK 直接调用 `equity.get_stock_pool/get_stock_detail/get_stock_score/get_recommendations/get_financials/get_valuation` 时省略 `mode`，被服务端隐式解释为 historical，从而绕过 current Publication 语义。
+- 变更：上述 SDK current/research 入口默认显式发送 `mode=published`、`publication_key=current`；需要历史研究时必须显式传 `mode=historical`。MCP 原有 published 显式调用保持不变。
+- 治理：`data_center.publication_only_d4_d5` 增加 SDK 默认 published marker 与回归 nodeid。
+- 已运行验证：SDK Equity/MCP 定向回归 `50 passed`；current-data `43 surfaces`；SDK module mypy `0`、Ruff/Black 通过。新增显式 historical mode 回归，确认历史语义仍需主动选择。
+- 明确未做：未改变服务端 historical API、MCP tool schema、生产配置、部署或 VPS 数据。

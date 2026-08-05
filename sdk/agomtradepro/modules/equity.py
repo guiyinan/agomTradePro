@@ -5,7 +5,7 @@ AgomTradePro SDK - Equity 个股分析模块
 """
 
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 from .base import BaseModule
 
@@ -31,8 +31,8 @@ class EquityModule(BaseModule):
         stock_code: str,
         as_of_date: date | None = None,
         *,
-        mode: str | None = None,
-        publication_key: str | None = None,
+        mode: str | None = "published",
+        publication_key: str | None = "current",
     ) -> dict[str, Any]:
         """
         获取股票评分
@@ -84,8 +84,8 @@ class EquityModule(BaseModule):
         max_score: float | None = None,
         limit: int = 100,
         *,
-        mode: str | None = None,
-        publication_key: str | None = None,
+        mode: str | None = "published",
+        publication_key: str | None = "current",
     ) -> list[dict[str, Any]]:
         """
         获取股票列表
@@ -121,7 +121,7 @@ class EquityModule(BaseModule):
         result = self.get_stock_pool(
             **pool_kwargs,
         )
-        return result["stocks"]
+        return cast(list[dict[str, Any]], result["stocks"])
 
     def get_stock_pool_payload(
         self,
@@ -130,8 +130,8 @@ class EquityModule(BaseModule):
         max_score: float | None = None,
         limit: int = 100,
         *,
-        mode: str | None = None,
-        publication_key: str | None = None,
+        mode: str | None = "published",
+        publication_key: str | None = "current",
     ) -> dict[str, Any]:
         """Return the stock-pool envelope, including publication evidence."""
 
@@ -151,8 +151,8 @@ class EquityModule(BaseModule):
         max_score: float | None = None,
         limit: int = 100,
         *,
-        mode: str | None = None,
-        publication_key: str | None = None,
+        mode: str | None = "published",
+        publication_key: str | None = "current",
     ) -> dict[str, Any]:
         """Read the current persisted stock-pool snapshot with stable metadata."""
         params: dict[str, Any] | None = None
@@ -214,8 +214,8 @@ class EquityModule(BaseModule):
         self,
         stock_code: str,
         *,
-        mode: str | None = None,
-        publication_key: str | None = None,
+        mode: str | None = "published",
+        publication_key: str | None = "current",
     ) -> dict[str, Any]:
         """
         获取股票详情
@@ -285,8 +285,8 @@ class EquityModule(BaseModule):
         regime: str | None = None,
         limit: int = 20,
         *,
-        mode: str | None = None,
-        publication_key: str | None = None,
+        mode: str | None = "published",
+        publication_key: str | None = "current",
     ) -> list[dict[str, Any]]:
         """
         获取股票推荐
@@ -328,8 +328,8 @@ class EquityModule(BaseModule):
         regime: str | None = None,
         limit: int = 20,
         *,
-        mode: str | None = None,
-        publication_key: str | None = None,
+        mode: str | None = "published",
+        publication_key: str | None = "current",
     ) -> dict[str, Any]:
         """Return screening response with publication/freshness metadata intact."""
 
@@ -350,8 +350,8 @@ class EquityModule(BaseModule):
         stock_code: str,
         as_of_date: date | None = None,
         *,
-        mode: str | None = None,
-        publication_key: str | None = None,
+        mode: str | None = "published",
+        publication_key: str | None = "current",
     ) -> dict[str, Any]:
         """
         分析股票
@@ -426,8 +426,8 @@ class EquityModule(BaseModule):
         report_type: str = "annual",
         limit: int = 5,
         *,
-        mode: str | None = None,
-        publication_key: str | None = None,
+        mode: str | None = "published",
+        publication_key: str | None = "current",
     ) -> list[dict[str, Any]]:
         """
         获取财务数据
@@ -464,8 +464,8 @@ class EquityModule(BaseModule):
         report_type: str = "annual",
         limit: int = 5,
         *,
-        mode: str | None = None,
-        publication_key: str | None = None,
+        mode: str | None = "published",
+        publication_key: str | None = "current",
     ) -> dict[str, Any]:
         """Return financial history with publication/freshness metadata intact."""
 
@@ -492,8 +492,8 @@ class EquityModule(BaseModule):
         stock_code: str,
         lookback_days: int = 252,
         *,
-        mode: str | None = None,
-        publication_key: str | None = None,
+        mode: str | None = "published",
+        publication_key: str | None = "current",
     ) -> dict[str, Any]:
         """
         获取股票估值详情（完整数据）
@@ -601,7 +601,7 @@ class EquityModule(BaseModule):
             stock_code=stock_code,
             lookback_days=lookback_days,
         )
-        return response["points"]
+        return cast(list[dict[str, Any]], response["points"])
 
     def get_valuation_repair_history_payload(
         self,
@@ -766,7 +766,7 @@ class EquityModule(BaseModule):
             >>> print(f"目标百分位: {config['target_percentile']}")
         """
         response = self._get("config/valuation-repair/active/")
-        return response.get("data", response)
+        return cast(dict[str, Any], response.get("data", response))
 
     def list_valuation_repair_configs(self, limit: int = 20) -> list[dict[str, Any]]:
         """

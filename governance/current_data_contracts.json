@@ -1504,6 +1504,8 @@
           "def get_recommendations_payload(",
           "def get_stock_score(",
           "def analyze_stock(",
+          "mode: str | None = \"published\"",
+          "publication_key: str | None = \"current\"",
           "params[\"mode\"] = mode",
           "params[\"publication_key\"] = publication_key"
         ],
@@ -1561,6 +1563,11 @@
           "case": "equity_sdk_publication_parameters_propagated",
           "test_file": "sdk/tests/test_sdk/test_equity_module.py",
           "test_function": "test_equity_module_propagates_publication_gate_parameters"
+        },
+        {
+          "case": "equity_sdk_current_reads_default_to_published",
+          "test_file": "sdk/tests/test_sdk/test_equity_module.py",
+          "test_function": "test_get_stock_pool_uses_canonical_endpoint_and_returns_named_envelope"
         },
         {
           "case": "equity_mcp_defaults_to_published",

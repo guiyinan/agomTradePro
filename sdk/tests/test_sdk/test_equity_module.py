@@ -44,7 +44,10 @@ class TestEquityModuleReadContracts:
                 "limit": 10,
             },
         }
-        mock_get.assert_called_once_with("/api/equity/pool/", params=None)
+        mock_get.assert_called_once_with(
+            "/api/equity/pool/",
+            params={"mode": "published", "publication_key": "current"},
+        )
 
     def test_list_stocks_keeps_legacy_array_contract(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")
@@ -65,6 +68,8 @@ class TestEquityModuleReadContracts:
             min_score=60,
             max_score=None,
             limit=5,
+            mode="published",
+            publication_key="current",
         )
 
     def test_get_stock_pool_payload_preserves_publication_parameters(self):
@@ -135,7 +140,34 @@ class TestEquityModuleReadContracts:
         assert result["stock_code"] == "000001.SZ"
         mock_get.assert_called_once_with(
             "/api/equity/valuation/000001.SZ/",
-            params={"lookback_days": 365},
+            params={
+                "lookback_days": 365,
+                "mode": "published",
+                "publication_key": "current",
+            },
+        )
+
+    def test_equity_historical_mode_remains_explicit(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        with patch.object(
+            client,
+            "get",
+            return_value={"success": True, "stock_code": "000001.SZ"},
+        ) as mock_get:
+            client.equity.get_valuation(
+                "000001.SZ",
+                mode="historical",
+                publication_key="current",
+            )
+
+        mock_get.assert_called_once_with(
+            "/api/equity/valuation/000001.SZ/",
+            params={
+                "lookback_days": 252,
+                "mode": "historical",
+                "publication_key": "current",
+            },
         )
 
     def test_equity_module_propagates_publication_gate_parameters(self):
