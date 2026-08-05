@@ -153,6 +153,43 @@ def test_macro_health_reports_missing_stale_and_healthy_series() -> None:
     }
 
 
+def test_dashboard_regime_state_blocks_stale_current_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stale resolver result cannot be replaced by a newer-looking snapshot."""
+    stale_observed_at = date.today() - timedelta(days=60)
+    monkeypatch.setattr(
+        "apps.regime.application.current_regime.resolve_current_regime",
+        lambda **_: SimpleNamespace(
+            dominant_regime="Unknown",
+            observed_at=stale_observed_at,
+            confidence=0.91,
+            growth_momentum_z=1.2,
+            inflation_momentum_z=-0.4,
+            distribution={"Recovery": 1.0},
+            warnings=["Regime 宏观源观测已超过 freshness 阈值"],
+            must_not_use_for_decision=True,
+            blocked_reason="regime_macro_observation_stale",
+        ),
+    )
+
+    state = GetDashboardDataUseCase.__new__(GetDashboardDataUseCase)._resolve_regime_state(
+        as_of_date=date.today(),
+        health={"is_healthy": True, "warnings": []},
+    )
+
+    assert state["current_regime"] == "Unknown"
+    assert state["regime_date"] == stale_observed_at
+    assert state["regime_data_health"] == "degraded"
+    assert state["regime_distribution"] == {
+        "Recovery": 0.0,
+        "Overheat": 0.0,
+        "Deflation": 0.0,
+        "Stagflation": 0.0,
+    }
+    assert "Regime 宏观源观测已超过 freshness 阈值" in state["regime_warnings"]
+
+
 def test_simulated_positions_and_display_helpers() -> None:
     overview = SimpleNamespace(
         get_simulated_positions=lambda _user: [

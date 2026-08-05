@@ -340,29 +340,49 @@ def test_alpha_decision_chain_match_and_serialization_helpers() -> None:
 def test_regime_summary_current_empty_and_error_contracts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repository = SimpleNamespace(get_latest_snapshot=lambda: None)
     monkeypatch.setattr(
-        "apps.regime.application.repository_provider.get_regime_repository",
-        lambda: repository,
+        "apps.dashboard.application.queries.resolve_current_regime",
+        lambda: SimpleNamespace(
+            dominant_regime="Unknown",
+            observed_at=None,
+            confidence=0.0,
+            growth_momentum_z=None,
+            inflation_momentum_z=None,
+            distribution=None,
+            warnings=[],
+            must_not_use_for_decision=True,
+            blocked_reason="regime_data_unavailable",
+        ),
     )
     query = RegimeSummaryQuery()
     assert query.execute().regime_warnings == ["No regime data available"]
 
-    repository.get_latest_snapshot = lambda: SimpleNamespace(
-        dominant_regime=None,
-        observed_at=date(2026, 7, 1),
-        confidence=None,
-        growth_momentum_z=1.2,
-        inflation_momentum_z=-0.3,
+    monkeypatch.setattr(
+        "apps.dashboard.application.queries.resolve_current_regime",
+        lambda: SimpleNamespace(
+            dominant_regime="Unknown",
+            observed_at=date(2026, 7, 1),
+            confidence=None,
+            growth_momentum_z=1.2,
+            inflation_momentum_z=-0.3,
+            distribution=None,
+            warnings=["regime_macro_observation_stale"],
+            must_not_use_for_decision=True,
+            blocked_reason="regime_macro_observation_stale",
+        ),
     )
     monkeypatch.setattr(
         query, "_get_latest_macro_value", lambda code: 50.0 if code == "PMI" else 2.0
     )
     current = query.execute()
     assert current.current_regime == "Unknown"
-    assert current.regime_data_health is True
+    assert current.regime_data_health is False
+    assert current.regime_warnings == ["regime_macro_observation_stale"]
 
-    repository.get_latest_snapshot = lambda: (_ for _ in ()).throw(RuntimeError("db down"))
+    monkeypatch.setattr(
+        "apps.dashboard.application.queries.resolve_current_regime",
+        lambda: (_ for _ in ()).throw(RuntimeError("db down")),
+    )
     assert query.execute().regime_warnings == ["Regime data unavailable"]
 
     dashboard_repo = SimpleNamespace(

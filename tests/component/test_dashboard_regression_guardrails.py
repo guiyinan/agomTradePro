@@ -96,18 +96,20 @@ def test_dashboard_homepage_uses_unified_decision_workflow_entry():
 
 
 def test_regime_summary_uses_snapshot_repository_contract(monkeypatch):
-    """Dashboard reads the current regime through the repository's public snapshot API."""
-    snapshot = SimpleNamespace(
+    """Dashboard reads the current regime through the unified current resolver."""
+    current = SimpleNamespace(
         dominant_regime="Recovery",
         observed_at=date(2026, 7, 22),
         confidence=0.88,
         growth_momentum_z=0.4,
         inflation_momentum_z=-0.2,
+        distribution={"Recovery": 1.0},
+        warnings=[],
+        must_not_use_for_decision=False,
     )
-    repository = SimpleNamespace(get_latest_snapshot=lambda: snapshot)
     monkeypatch.setattr(
-        "apps.regime.application.repository_provider.get_regime_repository",
-        lambda: repository,
+        "apps.dashboard.application.queries.resolve_current_regime",
+        lambda: current,
     )
     monkeypatch.setattr(RegimeSummaryQuery, "_get_latest_macro_value", lambda *_: None)
 

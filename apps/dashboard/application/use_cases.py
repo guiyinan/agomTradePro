@@ -30,10 +30,8 @@ from apps.dashboard.application.repository_provider import (
     get_dashboard_overview_repository,
     get_portfolio_repository,
     get_position_repository,
-    get_regime_repository,
     get_signal_repository,
 )
-from apps.regime.domain.entities import RegimeSnapshot
 from apps.signal.domain.entities import InvestmentSignal, SignalStatus
 from apps.strategy.domain.protocols import (
     AssetClassValueProtocol,
@@ -72,17 +70,24 @@ class _MacroDataHealth(TypedDict):
     warnings: list[str]
 
 
+class _DashboardRegimeState(TypedDict):
+    """Dashboard projection of the canonical current-Regime result."""
+
+    current_regime: str
+    regime_date: date | None
+    regime_confidence: float
+    growth_momentum_z: float
+    inflation_momentum_z: float
+    regime_distribution: dict[str, float]
+    regime_data_health: str
+    regime_warnings: list[str]
+
+
 class _MacroObservation(Protocol):
     """Date fields required to assess macro observation staleness."""
 
     published_at: date | None
     reporting_period: date
-
-
-class _RegimeRepository(Protocol):
-    """Dashboard-facing Regime repository contract."""
-
-    def get_latest_snapshot(self, before_date: date | None = None) -> RegimeSnapshot | None: ...
 
 
 class _SignalRepository(Protocol):
@@ -188,7 +193,7 @@ class DashboardData:
 
     # 宏观环境
     current_regime: str
-    regime_date: date
+    regime_date: date | None
     regime_confidence: float
 
     # 资产总览
@@ -254,14 +259,15 @@ class GetDashboardDataUseCase:
         account_repo: AccountRepositoryProtocol | None = None,
         portfolio_repo: PortfolioRepositoryProtocol | None = None,
         position_repo: PositionRepositoryProtocol | None = None,
-        regime_repo: _RegimeRepository | None = None,
+        regime_repo: object | None = None,
         signal_repo: _SignalRepository | None = None,
         overview_repo: _DashboardOverviewRepository | None = None,
     ) -> None:
         self.account_repo = account_repo or get_account_repository()
         self.portfolio_repo = portfolio_repo or get_portfolio_repository()
         self.position_repo = position_repo or get_position_repository()
-        self.regime_repo = regime_repo or get_regime_repository()
+        # Kept for constructor compatibility; current Regime data is resolver-owned.
+        self.regime_repo = regime_repo
         self.signal_repo = signal_repo or get_signal_repository()
         self.overview_repo = overview_repo or get_dashboard_overview_repository()
 
@@ -297,8 +303,6 @@ class GetDashboardDataUseCase:
         # - CPI > 2% → 高通胀
         # 判定矩阵：Recovery (PMI>50, CPI<=2%), Overheat (PMI>50, CPI>2%),
         #          Stagflation (PMI<50, CPI>2%), Deflation (PMI<50, CPI<=2%)
-        from apps.regime.application.current_regime import resolve_current_regime
-
         step_started_at = perf_counter()
         health = self._assess_macro_data_health(
             growth_indicator="PMI",
@@ -308,46 +312,15 @@ class GetDashboardDataUseCase:
         _track_step("macro_health", step_started_at)
 
         step_started_at = perf_counter()
-        current = resolve_current_regime(as_of_date=date.today())
-        if current.dominant_regime != "Unknown":
-            current_regime = current.dominant_regime
-            regime_date = date.today()  # V2 返回结果中没有 observed_at
-            regime_confidence = current.confidence
-            # V2 返回趋势指标而非动量 Z-score
-            growth_momentum_z = 0.0
-            inflation_momentum_z = 0.0
-            regime_distribution = _normalize_regime_distribution(
-                current_regime=current_regime,
-                raw_distribution=getattr(current, "distribution", None),
-            )
-            regime_data_health = "healthy" if health["is_healthy"] else "degraded"
-            regime_warnings = list(health["warnings"])
-        else:
-            # 当本地未同步宏观数据时，回退到已落库的最新 Regime 快照，避免首页完全空白。
-            latest_snapshot = self.regime_repo.get_latest_snapshot()
-            if latest_snapshot:
-                current_regime = latest_snapshot.dominant_regime
-                regime_date = latest_snapshot.observed_at
-                regime_confidence = latest_snapshot.confidence
-                growth_momentum_z = latest_snapshot.growth_momentum_z
-                inflation_momentum_z = latest_snapshot.inflation_momentum_z
-                regime_distribution = _normalize_regime_distribution(
-                    current_regime=current_regime,
-                    raw_distribution=latest_snapshot.distribution or {},
-                )
-                regime_data_health = "fallback"
-                regime_warnings = ["Regime 实时计算失败，已回退到历史快照"]
-            else:
-                current_regime = "Unknown"
-                regime_date = date.today()
-                regime_confidence = 0.0
-                growth_momentum_z = 0.0
-                inflation_momentum_z = 0.0
-                regime_distribution = _normalize_regime_distribution(
-                    current_regime=current_regime,
-                )
-                regime_data_health = "unavailable"
-                regime_warnings = ["Regime 实时计算失败，且无可用历史快照"]
+        regime_state = self._resolve_regime_state(as_of_date=date.today(), health=health)
+        current_regime = regime_state["current_regime"]
+        regime_date = regime_state["regime_date"]
+        regime_confidence = regime_state["regime_confidence"]
+        growth_momentum_z = regime_state["growth_momentum_z"]
+        inflation_momentum_z = regime_state["inflation_momentum_z"]
+        regime_distribution = regime_state["regime_distribution"]
+        regime_data_health = regime_state["regime_data_health"]
+        regime_warnings = regime_state["regime_warnings"]
         _track_step("regime_resolution", step_started_at)
 
         # 获取最新的 PMI 和 CPI 值
@@ -491,6 +464,53 @@ class GetDashboardDataUseCase:
             },
         )
         return dashboard_data
+
+    def _resolve_regime_state(
+        self,
+        *,
+        as_of_date: date,
+        health: _MacroDataHealth,
+    ) -> _DashboardRegimeState:
+        """Project the canonical resolver result without reviving stale snapshots."""
+        from apps.regime.application.current_regime import resolve_current_regime
+
+        current = resolve_current_regime(as_of_date=as_of_date)
+        warnings = list(current.warnings)
+        for warning in health["warnings"]:
+            if warning not in warnings:
+                warnings.append(warning)
+
+        is_usable = current.dominant_regime != "Unknown" and not current.must_not_use_for_decision
+        current_regime = current.dominant_regime if is_usable else "Unknown"
+        regime_distribution = (
+            _normalize_regime_distribution(
+                current_regime=current_regime,
+                raw_distribution=current.distribution,
+            )
+            if is_usable
+            else _normalize_regime_distribution(current_regime="Unknown")
+        )
+
+        if is_usable:
+            regime_data_health = "healthy" if health["is_healthy"] and not warnings else "degraded"
+        else:
+            if current.blocked_reason == "regime_data_unavailable":
+                regime_data_health = "unavailable"
+            else:
+                regime_data_health = "degraded"
+            if not warnings:
+                warnings.append("Regime 当前数据不可用于决策")
+
+        return {
+            "current_regime": current_regime,
+            "regime_date": current.observed_at,
+            "regime_confidence": float(current.confidence or 0.0),
+            "growth_momentum_z": float(current.growth_momentum_z or 0.0),
+            "inflation_momentum_z": float(current.inflation_momentum_z or 0.0),
+            "regime_distribution": regime_distribution,
+            "regime_data_health": regime_data_health,
+            "regime_warnings": warnings,
+        }
 
     def _get_user_account_totals(self, user_id: int) -> dict[str, float]:
         """Prefer the current simulated-account system for dashboard totals."""

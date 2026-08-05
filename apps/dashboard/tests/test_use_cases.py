@@ -140,7 +140,13 @@ def test_get_dashboard_data_use_case_logs_step_timings(monkeypatch, caplog):
         lambda as_of_date: SimpleNamespace(
             dominant_regime="Recovery",
             confidence=0.91,
+            observed_at=date(2026, 8, 5),
+            growth_momentum_z=0.3,
+            inflation_momentum_z=-0.1,
             distribution={"Recovery": 1.0},
+            warnings=[],
+            must_not_use_for_decision=False,
+            blocked_reason="",
         ),
     )
     monkeypatch.setattr(
@@ -191,7 +197,11 @@ def test_get_dashboard_data_use_case_logs_step_timings(monkeypatch, caplog):
 
     assert data.current_regime == "Recovery"
 
-    records = [record for record in caplog.records if record.message == "Dashboard data aggregation completed"]
+    records = [
+        record
+        for record in caplog.records
+        if record.message == "Dashboard data aggregation completed"
+    ]
     assert records
 
     record = records[-1]

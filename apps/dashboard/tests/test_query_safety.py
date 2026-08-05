@@ -94,14 +94,14 @@ def test_position_detail_failure_is_sanitized(monkeypatch, caplog) -> None:
 
 
 def test_regime_summary_failure_is_sanitized(monkeypatch, caplog) -> None:
-    """Regime repository errors expose only a stable availability warning."""
+    """Current resolver errors expose only a stable availability warning."""
 
-    def fail_repository() -> object:
+    def fail_resolver() -> object:
         raise RuntimeError("dsn=secret-value")
 
     monkeypatch.setattr(
-        "apps.regime.application.repository_provider.get_regime_repository",
-        fail_repository,
+        "apps.dashboard.application.queries.resolve_current_regime",
+        fail_resolver,
     )
 
     result = RegimeSummaryQuery().execute(user_id=7)

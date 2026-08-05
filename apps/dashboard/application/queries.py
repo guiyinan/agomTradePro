@@ -26,6 +26,7 @@ from apps.dashboard.application.repository_provider import (
     get_dashboard_alpha_context_repository,
     get_dashboard_query_repository,
 )
+from apps.regime.application.current_regime import resolve_current_regime
 
 if TYPE_CHECKING:
     from apps.dashboard.application.alpha_homepage import AlphaHomepageQuery
@@ -1113,7 +1114,7 @@ class RegimeSummaryData:
     inflation_momentum_z: float
     pmi_value: float | None
     cpi_value: float | None
-    regime_distribution: dict[str, int]
+    regime_distribution: dict[str, float]
     regime_data_health: bool
     regime_warnings: list[str]
 
@@ -1141,37 +1142,39 @@ class RegimeSummaryQuery:
             RegimeSummaryData
         """
         try:
-            from apps.regime.application.repository_provider import get_regime_repository
-
-            regime_repo = get_regime_repository()
-            current_state = regime_repo.get_latest_snapshot()
-
-            if current_state:
+            current = resolve_current_regime()
+            if (
+                current.dominant_regime
+                and current.dominant_regime != "Unknown"
+                and not current.must_not_use_for_decision
+            ):
                 return RegimeSummaryData(
-                    current_regime=current_state.dominant_regime or "Unknown",
-                    regime_date=current_state.observed_at,
-                    regime_confidence=float(current_state.confidence or 0.0),
-                    growth_momentum_z=float(current_state.growth_momentum_z),
-                    inflation_momentum_z=float(current_state.inflation_momentum_z),
+                    current_regime=current.dominant_regime,
+                    regime_date=current.observed_at,
+                    regime_confidence=float(current.confidence or 0.0),
+                    growth_momentum_z=float(current.growth_momentum_z or 0.0),
+                    inflation_momentum_z=float(current.inflation_momentum_z or 0.0),
                     pmi_value=self._get_latest_macro_value("PMI"),
                     cpi_value=self._get_latest_macro_value("CPI"),
-                    regime_distribution={},
+                    regime_distribution=dict(current.distribution or {}),
                     regime_data_health=True,
-                    regime_warnings=[],
+                    regime_warnings=list(current.warnings),
                 )
 
-            # 返回默认值
+            warnings = list(current.warnings)
+            if not warnings:
+                warnings.append("No regime data available")
             return RegimeSummaryData(
                 current_regime="Unknown",
-                regime_date=None,
-                regime_confidence=0.0,
-                growth_momentum_z=0.0,
-                inflation_momentum_z=0.0,
+                regime_date=current.observed_at,
+                regime_confidence=float(current.confidence or 0.0),
+                growth_momentum_z=float(current.growth_momentum_z or 0.0),
+                inflation_momentum_z=float(current.inflation_momentum_z or 0.0),
                 pmi_value=None,
                 cpi_value=None,
                 regime_distribution={},
                 regime_data_health=False,
-                regime_warnings=["No regime data available"],
+                regime_warnings=warnings,
             )
 
         except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
