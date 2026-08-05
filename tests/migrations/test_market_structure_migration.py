@@ -114,5 +114,21 @@ def test_market_structure_migration_is_unseeded_and_enforces_research_scope() ->
                 is_proxy=True,
                 definition_hash="f" * 64,
             )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([("data_center", "0060_market_structure_definition_knowledge_time")])
+        temporal_apps = executor.loader.project_state(
+            [("data_center", "0060_market_structure_definition_knowledge_time")]
+        ).apps
+        TemporalActor = temporal_apps.get_model("data_center", "InvestorActorDefinitionModel")
+        TemporalSeries = temporal_apps.get_model(
+            "data_center", "MarketStructureSeriesDefinitionModel"
+        )
+        migrated_actor = TemporalActor.objects.get(actor_code="CALLER_ACTOR")
+        migrated_series = TemporalSeries.objects.get(series_code="CALLER_SERIES")
+        assert migrated_actor.available_at == effective_at
+        assert migrated_series.available_at == effective_at
+        assert migrated_actor.definition_hash != "a" * 64
+        assert migrated_series.definition_hash != "b" * 64
     finally:
         MigrationExecutor(connection).migrate(leaf_nodes)

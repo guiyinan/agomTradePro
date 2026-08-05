@@ -8,9 +8,13 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.base import ModelBase
 
+from shared.infrastructure.django_append_only import AppendOnlyManager
+
 
 class EquityForecastAppendOnlyModel(models.Model):
     """Reject mutation and deletion of forecast evidence records."""
+
+    objects = AppendOnlyManager()
 
     class Meta:
         abstract = True
@@ -153,6 +157,7 @@ class OperatingForecastAssumptionModel(EquityForecastAppendOnlyModel):
     observed_fact_version_id = models.PositiveBigIntegerField(null=True, blank=True)
     human_assumption_ref = models.CharField(max_length=255, blank=True, default="")
     model_version = models.CharField(max_length=255, blank=True, default="")
+    observed_metric_role = models.CharField(max_length=40, blank=True, default="")
 
     class Meta:
         db_table = "equity_operating_forecast_assumption"
@@ -264,6 +269,7 @@ class OperatingForecastEvaluationModel(EquityForecastAppendOnlyModel):
         on_delete=models.PROTECT,
         related_name="evaluations",
     )
+    subject_code = models.CharField(max_length=80)
     scenario = models.CharField(max_length=8, choices=SCENARIO_CHOICES)
     actual_period_end = models.DateField()
     recorded_at = models.DateTimeField()

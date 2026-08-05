@@ -31,6 +31,14 @@ class ForecastInputKind(str, Enum):
     MODEL_INFERENCE = "model_inference"
 
 
+class OperatingMetricRole(str, Enum):
+    """Typed operating metrics that may bind forecast and actual PIT values."""
+
+    REVENUE = "revenue"
+    NET_PROFIT = "net_profit"
+    PROFIT_MARGIN_PERCENT = "profit_margin_percent"
+
+
 def _require_text(value: str, field_name: str, *, maximum: int) -> None:
     if not value.strip():
         raise ValueError(f"{field_name} cannot be blank")
@@ -120,6 +128,7 @@ class OperatingForecastAssumption:
     observed_fact_version_id: int | None = None
     human_assumption_ref: str = ""
     model_version: str = ""
+    observed_metric_role: OperatingMetricRole | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.scenario, ForecastScenario):
@@ -133,6 +142,10 @@ class OperatingForecastAssumption:
         _require_text(self.unit, "OperatingForecastAssumption.unit", maximum=40)
         if not isinstance(self.input_kind, ForecastInputKind):
             raise ValueError("OperatingForecastAssumption.input_kind is invalid")
+        if self.observed_metric_role is not None and not isinstance(
+            self.observed_metric_role, OperatingMetricRole
+        ):
+            raise ValueError("OperatingForecastAssumption.observed_metric_role is invalid")
         _require_text(self.rationale, "OperatingForecastAssumption.rationale", maximum=500)
         self._validate_lineage()
 
@@ -150,6 +163,11 @@ class OperatingForecastAssumption:
         }
         if not populated[self.input_kind] or sum(populated.values()) != 1:
             raise ValueError("forecast input lineage must match exactly one input_kind")
+        if self.input_kind is ForecastInputKind.OBSERVED_FACT:
+            if self.observed_metric_role is None:
+                raise ValueError("observed forecast input requires a typed metric role")
+        elif self.observed_metric_role is not None:
+            raise ValueError("only observed forecast input may carry a metric role")
 
     @property
     def lineage_ref(self) -> str:
@@ -281,6 +299,12 @@ class OperatingForecastVersion:
             raise ValueError("operating fact references must be unique")
         if any(fact.available_at > self.as_of_time for fact in self.facts):
             raise ValueError("operating facts must be knowable at forecast as_of_time")
+        if any(
+            fact.subject_type != "company" or fact.subject_code != self.subject_code
+            for fact in self.facts
+        ):
+            raise ValueError("operating facts must belong to the forecast company subject")
+        facts_by_id = {fact.version_id: fact for fact in self.facts}
 
         required = set(ForecastScenario)
         projection_scenarios = [projection.scenario for projection in self.projections]
@@ -307,6 +331,19 @@ class OperatingForecastVersion:
                 raise ValueError(f"{scenario.value} requires observed PIT fact grounding")
             if not observed_ids.issubset(set(fact_ids)):
                 raise ValueError("observed assumptions must reference captured operating facts")
+            for assumption in scenario_assumptions:
+                if assumption.input_kind is not ForecastInputKind.OBSERVED_FACT:
+                    continue
+                fact = facts_by_id[assumption.observed_fact_version_id or 0]
+                if (
+                    assumption.observed_metric_role is None
+                    or fact.metric_code != assumption.observed_metric_role.value
+                    or fact.value != assumption.value
+                    or fact.unit != assumption.unit
+                ):
+                    raise ValueError(
+                        "observed assumption must exactly match PIT subject, metric, value and unit"
+                    )
 
     @property
     def contains_model_inference(self) -> bool:
@@ -366,6 +403,11 @@ class OperatingForecastVersion:
                     "input_kind": item.input_kind.value,
                     "rationale": item.rationale,
                     "lineage_ref": item.lineage_ref,
+                    "observed_metric_role": (
+                        item.observed_metric_role.value
+                        if item.observed_metric_role is not None
+                        else None
+                    ),
                 }
                 for item in sorted(
                     self.assumptions,
@@ -415,6 +457,7 @@ class OperatingForecastEvaluation:
     """Append-only quarterly actual-versus-forecast comparison."""
 
     forecast_id: str
+    subject_code: str
     scenario: ForecastScenario
     actual_period_end: date
     recorded_at: datetime
@@ -427,6 +470,7 @@ class OperatingForecastEvaluation:
 
     def __post_init__(self) -> None:
         _require_token(self.forecast_id, "OperatingForecastEvaluation.forecast_id", maximum=64)
+        _require_token(self.subject_code, "OperatingForecastEvaluation.subject_code", maximum=80)
         if not isinstance(self.scenario, ForecastScenario):
             raise ValueError("OperatingForecastEvaluation.scenario is invalid")
         _require_aware(self.recorded_at, "OperatingForecastEvaluation.recorded_at")
@@ -451,6 +495,29 @@ class OperatingForecastEvaluation:
             "OperatingForecastEvaluation.currency_unit",
             maximum=40,
         )
+        facts_by_metric = {fact.metric_code: fact for fact in self.actual_facts}
+        if len(facts_by_metric) != len(self.actual_facts):
+            raise ValueError("actual facts must contain unique typed metric roles")
+        if set(facts_by_metric) != {
+            OperatingMetricRole.REVENUE.value,
+            OperatingMetricRole.NET_PROFIT.value,
+        }:
+            raise ValueError("actual facts must contain exactly revenue and net_profit roles")
+        for role, expected_value in (
+            (OperatingMetricRole.REVENUE, self.actual_revenue),
+            (OperatingMetricRole.NET_PROFIT, self.actual_net_profit),
+        ):
+            fact = facts_by_metric.get(role.value)
+            if (
+                fact is None
+                or fact.subject_type != "company"
+                or fact.subject_code != self.subject_code
+                or fact.value != expected_value
+                or fact.unit != self.currency_unit
+            ):
+                raise ValueError(
+                    "quarterly actual must exactly match PIT subject, metric, value and unit"
+                )
 
     @property
     def forecast_profit_margin_percent(self) -> Decimal:
@@ -518,6 +585,7 @@ class OperatingForecastEvaluation:
 
         payload = {
             "forecast_id": self.forecast_id,
+            "subject_code": self.subject_code,
             "scenario": self.scenario.value,
             "actual_period_end": self.actual_period_end.isoformat(),
             "recorded_at": self.recorded_at.astimezone(UTC).isoformat(),
@@ -555,6 +623,7 @@ def build_quarterly_evaluations(
     return tuple(
         OperatingForecastEvaluation(
             forecast_id=forecast.forecast_id,
+            subject_code=forecast.subject_code,
             scenario=projection.scenario,
             actual_period_end=actual_period_end,
             recorded_at=recorded_at,
@@ -572,6 +641,7 @@ def build_quarterly_evaluations(
 __all__ = [
     "ForecastInputKind",
     "ForecastScenario",
+    "OperatingMetricRole",
     "OperatingFactEvidence",
     "OperatingForecastAssumption",
     "OperatingForecastEvaluation",

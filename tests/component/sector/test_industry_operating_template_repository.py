@@ -73,6 +73,16 @@ def test_repository_round_trip_and_run_evidence_are_hash_verified_and_immutable(
         model.save()
     with pytest.raises(ValidationError, match="cannot be deleted"):
         model.delete()
+    with pytest.raises(ValidationError, match="cannot be updated"):
+        IndustryTemplateRunEvidenceModel.objects.filter(pk=model.pk).update(
+            status=TemplateRunStatus.BLOCKED.value
+        )
+    with pytest.raises(ValidationError, match="bulk updated"):
+        IndustryTemplateRunEvidenceModel.objects.filter(pk=model.pk).bulk_update(
+            [model], ["status"]
+        )
+    with pytest.raises(ValidationError, match="cannot be deleted"):
+        IndustryTemplateRunEvidenceModel.objects.filter(pk=model.pk).delete()
 
 
 @pytest.mark.django_db

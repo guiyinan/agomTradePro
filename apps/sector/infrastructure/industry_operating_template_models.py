@@ -16,6 +16,7 @@ from apps.sector.domain.industry_operating_template import (
     TemplateLifecycle,
     TemplateRunStatus,
 )
+from shared.infrastructure.django_append_only import AppendOnlyManager
 
 
 def _payload_hash(payload: object) -> str:
@@ -33,6 +34,8 @@ def _payload_hash(payload: object) -> str:
 
 class ImmutableIndustryTemplateModel(models.Model):
     """Reject updates and deletes for versioned template evidence."""
+
+    objects = AppendOnlyManager()
 
     class Meta:
         abstract = True

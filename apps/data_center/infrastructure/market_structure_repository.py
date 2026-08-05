@@ -129,7 +129,9 @@ class MarketStructureResearchRepository:
             source=definition.source,
             revision_policy_ref=definition.revision_policy_ref,
             effective_at=definition.effective_at,
+            available_at=definition.available_at,
             effective_to=definition.effective_to,
+            expires_at=definition.expires_at,
             description=definition.description,
             is_active=definition.is_active,
             definition_hash=definition.definition_hash,
@@ -147,14 +149,26 @@ class MarketStructureResearchRepository:
         taxonomy_code: str,
         taxonomy_version: int,
         actor_code: str,
+        as_of_time: datetime,
     ) -> InvestorActorDefinition | None:
         """Return one exact immutable actor taxonomy entry."""
 
-        model = InvestorActorDefinitionModel._default_manager.filter(
-            taxonomy_code=taxonomy_code,
-            taxonomy_version=taxonomy_version,
-            actor_code=actor_code,
-        ).first()
+        _require_aware(as_of_time, "as_of_time")
+        model = (
+            InvestorActorDefinitionModel._default_manager.filter(
+                taxonomy_code=taxonomy_code,
+                taxonomy_version=taxonomy_version,
+                actor_code=actor_code,
+                is_active=True,
+                effective_at__lte=as_of_time,
+                available_at__lte=as_of_time,
+            )
+            .filter(
+                Q(effective_to__isnull=True) | Q(effective_to__gt=as_of_time),
+                Q(expires_at__isnull=True) | Q(expires_at__gt=as_of_time),
+            )
+            .first()
+        )
         return model.to_domain() if model is not None else None
 
     @transaction.atomic
@@ -181,6 +195,7 @@ class MarketStructureResearchRepository:
             taxonomy_code=definition.taxonomy_code,
             taxonomy_version=definition.taxonomy_version,
             actor_code=definition.actor_code,
+            as_of_time=definition.available_at,
         )
         if actor is None or not actor.is_active:
             raise ValueError("active investor actor definition was not found")
@@ -210,7 +225,9 @@ class MarketStructureResearchRepository:
             source=definition.source,
             revision_policy_ref=definition.revision_policy_ref,
             effective_at=definition.effective_at,
+            available_at=definition.available_at,
             effective_to=definition.effective_to,
+            expires_at=definition.expires_at,
             is_proxy=definition.is_proxy,
             proxy_target_actor_code=definition.proxy_target_actor_code,
             proxy_methodology_ref=definition.proxy_methodology_ref,
@@ -228,13 +245,26 @@ class MarketStructureResearchRepository:
     def get_series_definition(
         self,
         reference: MarketStructureSeriesRef,
+        *,
+        as_of_time: datetime,
     ) -> MarketStructureSeriesDefinition | None:
         """Return one exact immutable research series definition."""
 
-        model = MarketStructureSeriesDefinitionModel._default_manager.filter(
-            series_code=reference.series_code,
-            series_version=reference.series_version,
-        ).first()
+        _require_aware(as_of_time, "as_of_time")
+        model = (
+            MarketStructureSeriesDefinitionModel._default_manager.filter(
+                series_code=reference.series_code,
+                series_version=reference.series_version,
+                is_active=True,
+                effective_at__lte=as_of_time,
+                available_at__lte=as_of_time,
+            )
+            .filter(
+                Q(effective_to__isnull=True) | Q(effective_to__gt=as_of_time),
+                Q(expires_at__isnull=True) | Q(expires_at__gt=as_of_time),
+            )
+            .first()
+        )
         return model.to_domain() if model is not None else None
 
     def list_series_observations(

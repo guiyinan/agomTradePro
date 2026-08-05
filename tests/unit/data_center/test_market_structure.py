@@ -49,6 +49,7 @@ def _actor(actor_code: str) -> InvestorActorDefinition:
         source="test_governance",
         revision_policy_ref="governance://actor-revision/v1",
         effective_at=PERIODS[0],
+        available_at=PERIODS[0],
     )
 
 
@@ -80,6 +81,7 @@ def _series(
         revision_policy_ref="governance://flow-revision/v1",
         effective_at=PERIODS[0],
         is_proxy=is_proxy,
+        available_at=PERIODS[0],
         proxy_target_actor_code="TARGET_ACTOR" if is_proxy else "",
         proxy_methodology_ref="governance://proxy/v1" if is_proxy else "",
     )
@@ -91,6 +93,7 @@ def _policy() -> MarketStructureAggregationPolicy:
         policy_version=1,
         minimum_history_observations=3,
         minimum_actor_count=2,
+        minimum_membership_coverage_ratio=Decimal("1"),
         percentile_method=EmpiricalPercentileMethod.WEAK_EMPIRICAL_CDF,
     )
 
@@ -177,6 +180,8 @@ def test_actor_definition_requires_versioned_revision_semantics() -> None:
         replace(_actor("A"), revision_policy_ref="")
     with pytest.raises(ValueError, match="timezone-aware"):
         replace(_actor("A"), effective_at=datetime(2025, 1, 1))
+    with pytest.raises(ValueError, match="expires_at"):
+        replace(_actor("A"), expires_at=PERIODS[0])
 
 
 def test_series_rejects_measure_concept_relabelling_and_unlabelled_proxy() -> None:
@@ -276,6 +281,17 @@ def test_evidence_hash_seals_inputs_outputs_and_version() -> None:
     )
     with pytest.raises(ValueError, match="evidence_hash mismatch"):
         replace(evidence, evidence_hash="0" * 64)
+    with pytest.raises(ValueError, match="source_evidence conflicts"):
+        replace(
+            evidence,
+            source_evidence=(
+                VersionedEvidenceReference(
+                    dataset="research.investor_flow_observation.v1",
+                    version_id=999,
+                    content_hash="d" * 64,
+                ),
+            ),
+        )
 
 
 class _Gateway:
@@ -283,9 +299,11 @@ class _Gateway:
         self,
         definitions: tuple[MarketStructureSeriesDefinition, ...],
         observations: tuple[MarketStructureObservation, ...],
+        membership_assets: tuple[str, ...] = ("TEST.ASSET",),
     ) -> None:
         self._definitions = {(item.series_code, item.series_version): item for item in definitions}
         self._observations = observations
+        self._membership_assets = membership_assets
         self.membership_calls: list[tuple[datetime, datetime]] = []
         self.saved: ImmutableMarketStructureEvidence | None = None
 
@@ -301,7 +319,9 @@ class _Gateway:
         taxonomy_code: str,
         taxonomy_version: int,
         actor_code: str,
+        as_of_time: datetime,
     ) -> InvestorActorDefinition | None:
+        del taxonomy_code, taxonomy_version, as_of_time
         return _actor(actor_code)
 
     def save_series_definition(
@@ -313,7 +333,10 @@ class _Gateway:
     def get_series_definition(
         self,
         reference: MarketStructureSeriesRef,
+        *,
+        as_of_time: datetime,
     ) -> MarketStructureSeriesDefinition | None:
+        del as_of_time
         return self._definitions.get((reference.series_code, reference.series_version))
 
     def list_series_observations(
@@ -342,13 +365,14 @@ class _Gateway:
             group_revision=group_revision,
             effective_at=effective_at,
             knowledge_at=knowledge_at,
-            asset_codes=("TEST.ASSET",),
-            evidence=(
+            asset_codes=self._membership_assets,
+            evidence=tuple(
                 VersionedEvidenceReference(
                     dataset="research.asset_group_membership.v1",
-                    version_id=100 + len(self.membership_calls),
-                    content_hash="c" * 64,
-                ),
+                    version_id=1000 * len(self.membership_calls) + index,
+                    content_hash=f"{index:x}" * 64,
+                )
+                for index, _asset_code in enumerate(self._membership_assets, start=1)
             ),
         )
 
@@ -378,9 +402,44 @@ def test_application_resolves_membership_at_each_historical_observation_clock() 
 
     assert evidence.status is MarketStructureResearchStatus.AVAILABLE
     assert {call[0] for call in gateway.membership_calls} == set(PERIODS)
-    assert all(
-        effective_at == knowledge_at for effective_at, knowledge_at in gateway.membership_calls
-    )
+    assert all(knowledge_at == AS_OF for _, knowledge_at in gateway.membership_calls)
     payload = cast(dict[str, object], json.loads(evidence.payload_json))
     output = cast(dict[str, object], payload["output"])
     assert output["deterministic_conclusion"] is None
+
+
+def test_application_blocks_and_seals_partial_membership_coverage() -> None:
+    first = _series("A")
+    second = _series("B")
+    gateway = _Gateway(
+        (first, second),
+        _complete_observations(first, second),
+        membership_assets=("EXTRA.ASSET", "TEST.ASSET"),
+    )
+
+    evidence = RunMarketStructureResearch(gateway).execute(_request())
+
+    assert evidence.status is MarketStructureResearchStatus.BLOCKED
+    payload = cast(dict[str, object], json.loads(evidence.payload_json))
+    output = cast(dict[str, object], payload["output"])
+    blockers = cast(list[str], output["blocked_reasons"])
+    assert any(reason.startswith("membership_coverage_insufficient:") for reason in blockers)
+    coverage = cast(list[dict[str, object]], output["coverage"])
+    assert coverage
+    assert all(item["expected_count"] == 2 for item in coverage)
+    assert all(item["observed_count"] == 1 for item in coverage)
+    assert all(item["missing_asset_codes"] == ["EXTRA.ASSET"] for item in coverage)
+
+
+def test_application_rejects_definition_not_publicly_available_at_request_time() -> None:
+    first = replace(_series("A"), available_at=datetime(2025, 5, 1, tzinfo=UTC))
+    second = _series("B")
+    gateway = _Gateway((first, second), _complete_observations(first, second))
+
+    evidence = RunMarketStructureResearch(gateway).execute(_request())
+
+    assert evidence.status is MarketStructureResearchStatus.BLOCKED
+    assert (
+        "series_definition_unavailable:SERIES_A"
+        in json.loads(evidence.payload_json)["output"]["blocked_reasons"]
+    )

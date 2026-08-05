@@ -8,9 +8,13 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.base import ModelBase
 
+from shared.infrastructure.django_append_only import AppendOnlyManager
+
 
 class ImmutableModelMixin(models.Model):
     """Reject updates so evidence records can only be appended."""
+
+    objects = AppendOnlyManager()
 
     class Meta:
         abstract = True
@@ -101,4 +105,3 @@ class PITDatasetManifestModel(ImmutableModelMixin):
         db_table = "data_center_pit_dataset_manifest"
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["knowledge_scope", "as_of_time"])]
-

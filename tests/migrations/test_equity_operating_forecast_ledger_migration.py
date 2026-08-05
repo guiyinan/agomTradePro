@@ -92,5 +92,15 @@ def test_equity_operating_forecast_migration_creates_append_ledger_constraints()
                     human_assumption_ref="",
                     model_version="",
                 )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([("equity", "0011_operating_forecast_typed_fact_binding")])
+        typed_apps = executor.loader.project_state(
+            [("equity", "0011_operating_forecast_typed_fact_binding")]
+        ).apps
+        typed_assumption = typed_apps.get_model("equity", "OperatingForecastAssumptionModel")
+        typed_evaluation = typed_apps.get_model("equity", "OperatingForecastEvaluationModel")
+        assert typed_assumption._meta.get_field("observed_metric_role") is not None
+        assert typed_evaluation._meta.get_field("subject_code") is not None
     finally:
         MigrationExecutor(connection).migrate(leaf_nodes)

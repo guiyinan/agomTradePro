@@ -25,6 +25,7 @@ from apps.equity.domain.operating_forecast import (
     OperatingForecastEvaluation,
     OperatingForecastProjection,
     OperatingForecastVersion,
+    OperatingMetricRole,
     ValuationSensitivityPoint,
 )
 from core.integration.research_integrity_registry import (
@@ -214,6 +215,11 @@ class DjangoOperatingForecastRepository:
                     observed_fact_version_id=assumption.observed_fact_version_id,
                     human_assumption_ref=assumption.human_assumption_ref,
                     model_version=assumption.model_version,
+                    observed_metric_role=(
+                        assumption.observed_metric_role.value
+                        if assumption.observed_metric_role is not None
+                        else ""
+                    ),
                 )
                 for assumption in forecast.assumptions
             ]
@@ -326,6 +332,7 @@ class DjangoOperatingForecastRepository:
                 continue
             OperatingForecastEvaluationModel._default_manager.create(
                 forecast_id=evaluation.forecast_id,
+                subject_code=evaluation.subject_code,
                 scenario=evaluation.scenario.value,
                 actual_period_end=evaluation.actual_period_end,
                 recorded_at=evaluation.recorded_at,
@@ -403,6 +410,11 @@ class DjangoOperatingForecastRepository:
                 observed_fact_version_id=row.observed_fact_version_id,
                 human_assumption_ref=row.human_assumption_ref,
                 model_version=row.model_version,
+                observed_metric_role=(
+                    OperatingMetricRole(row.observed_metric_role)
+                    if row.observed_metric_role
+                    else None
+                ),
             )
             for row in model.assumptions.all()
         )

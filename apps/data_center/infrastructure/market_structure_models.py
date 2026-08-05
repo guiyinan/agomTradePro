@@ -32,7 +32,9 @@ class InvestorActorDefinitionModel(ImmutableModelMixin):
     source = models.CharField(max_length=100, db_index=True)
     revision_policy_ref = models.CharField(max_length=300)
     effective_at = models.DateTimeField(db_index=True)
+    available_at = models.DateTimeField(db_index=True)
     effective_to = models.DateTimeField(null=True, blank=True, db_index=True)
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
     definition_hash = models.CharField(max_length=64, unique=True)
@@ -50,6 +52,15 @@ class InvestorActorDefinitionModel(ImmutableModelMixin):
                 condition=models.Q(effective_to__isnull=True)
                 | models.Q(effective_to__gt=models.F("effective_at")),
                 name="dc_ms_actor_interval_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(available_at__gte=models.F("effective_at")),
+                name="dc_ms_actor_available_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(expires_at__isnull=True)
+                | models.Q(expires_at__gt=models.F("available_at")),
+                name="dc_ms_actor_expiry_valid",
             ),
         ]
         indexes = [
@@ -75,7 +86,9 @@ class InvestorActorDefinitionModel(ImmutableModelMixin):
             source=self.source,
             revision_policy_ref=self.revision_policy_ref,
             effective_at=self.effective_at,
+            available_at=self.available_at,
             effective_to=self.effective_to,
+            expires_at=self.expires_at,
             description=self.description,
             is_active=self.is_active,
         )
@@ -112,7 +125,9 @@ class MarketStructureSeriesDefinitionModel(ImmutableModelMixin):
     source = models.CharField(max_length=100, db_index=True)
     revision_policy_ref = models.CharField(max_length=300)
     effective_at = models.DateTimeField(db_index=True)
+    available_at = models.DateTimeField(db_index=True)
     effective_to = models.DateTimeField(null=True, blank=True, db_index=True)
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
     is_proxy = models.BooleanField(default=False, db_index=True)
     proxy_target_actor_code = models.CharField(max_length=64, blank=True)
     proxy_methodology_ref = models.CharField(max_length=300, blank=True)
@@ -133,6 +148,15 @@ class MarketStructureSeriesDefinitionModel(ImmutableModelMixin):
                 condition=models.Q(effective_to__isnull=True)
                 | models.Q(effective_to__gt=models.F("effective_at")),
                 name="dc_ms_series_interval_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(available_at__gte=models.F("effective_at")),
+                name="dc_ms_series_available_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(expires_at__isnull=True)
+                | models.Q(expires_at__gt=models.F("available_at")),
+                name="dc_ms_series_expiry_valid",
             ),
             models.CheckConstraint(
                 condition=(
@@ -177,7 +201,9 @@ class MarketStructureSeriesDefinitionModel(ImmutableModelMixin):
             source=self.source,
             revision_policy_ref=self.revision_policy_ref,
             effective_at=self.effective_at,
+            available_at=self.available_at,
             effective_to=self.effective_to,
+            expires_at=self.expires_at,
             is_proxy=self.is_proxy,
             proxy_target_actor_code=self.proxy_target_actor_code,
             proxy_methodology_ref=self.proxy_methodology_ref,

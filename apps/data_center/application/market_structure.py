@@ -13,6 +13,7 @@ from apps.data_center.domain.market_structure import (
     MarketStructureSeriesDefinition,
     MarketStructureSeriesRef,
     PITMembershipSnapshot,
+    SeriesPeriodCoverage,
     VersionedEvidenceReference,
     aggregate_market_structure,
     build_market_structure_evidence,
@@ -35,6 +36,7 @@ class MarketStructureResearchGateway(Protocol):
         taxonomy_code: str,
         taxonomy_version: int,
         actor_code: str,
+        as_of_time: datetime,
     ) -> InvestorActorDefinition | None:
         """Return one exact investor classification version."""
 
@@ -47,6 +49,8 @@ class MarketStructureResearchGateway(Protocol):
     def get_series_definition(
         self,
         reference: MarketStructureSeriesRef,
+        *,
+        as_of_time: datetime,
     ) -> MarketStructureSeriesDefinition | None:
         """Return one exact research series definition version."""
 
@@ -128,22 +132,47 @@ class RunMarketStructureResearch:
         blockers: set[str] = set()
 
         for reference in request.series:
-            definition = self._gateway.get_series_definition(reference)
+            definition = self._gateway.get_series_definition(
+                reference,
+                as_of_time=request.as_of_time,
+            )
             if definition is None:
                 blockers.add(
                     f"series_definition_missing:{reference.series_code}:v{reference.series_version}"
                 )
+                continue
+            if (
+                not definition.is_active
+                or definition.effective_at > request.as_of_time
+                or (
+                    definition.effective_to is not None
+                    and definition.effective_to <= request.as_of_time
+                )
+                or definition.available_at > request.as_of_time
+                or (
+                    definition.expires_at is not None
+                    and definition.expires_at <= request.as_of_time
+                )
+            ):
+                blockers.add(f"series_definition_unavailable:{definition.series_code}")
                 continue
             definitions.append(definition)
             actor = self._gateway.get_actor_definition(
                 taxonomy_code=definition.taxonomy_code,
                 taxonomy_version=definition.taxonomy_version,
                 actor_code=definition.actor_code,
+                as_of_time=request.as_of_time,
             )
             if actor is None:
                 blockers.add(f"actor_definition_missing:{definition.actor_code}")
-            elif not actor.is_active:
-                blockers.add(f"actor_definition_inactive:{definition.actor_code}")
+            elif (
+                not actor.is_active
+                or actor.effective_at > request.as_of_time
+                or (actor.effective_to is not None and actor.effective_to <= request.as_of_time)
+                or actor.available_at > request.as_of_time
+                or (actor.expires_at is not None and actor.expires_at <= request.as_of_time)
+            ):
+                blockers.add(f"actor_definition_unavailable:{definition.actor_code}")
             else:
                 actor_definitions.append(actor)
             try:
@@ -158,37 +187,61 @@ class RunMarketStructureResearch:
             observations.extend(series_observations)
             source_evidence.extend(item.evidence for item in series_observations)
 
-        membership_cache: dict[
-            tuple[datetime, datetime],
-            PITMembershipSnapshot,
-        ] = {}
-        for observation in observations:
-            cache_key = (observation.effective_at, observation.available_at)
-            membership = membership_cache.get(cache_key)
-            if membership is None:
-                try:
-                    membership = self._gateway.resolve_asset_group_membership(
-                        group_code=request.group_code,
-                        group_revision=request.group_revision,
-                        effective_at=observation.effective_at,
-                        knowledge_at=observation.available_at,
-                        knowledge_scope=request.knowledge_scope,
-                    )
-                except ValueError:
-                    blockers.add(
-                        "pit_membership_invalid:"
-                        f"{observation.effective_at.astimezone(UTC).isoformat()}"
-                    )
-                    continue
-                membership_cache[cache_key] = membership
-                source_evidence.extend(membership.evidence)
-            if not membership.asset_codes:
+        membership_cache: dict[datetime, PITMembershipSnapshot] = {}
+        for effective_at in sorted({item.effective_at for item in observations}):
+            try:
+                membership = self._gateway.resolve_asset_group_membership(
+                    group_code=request.group_code,
+                    group_revision=request.group_revision,
+                    effective_at=effective_at,
+                    knowledge_at=request.as_of_time,
+                    knowledge_scope=request.knowledge_scope,
+                )
+            except ValueError:
                 blockers.add(
-                    "pit_membership_missing:"
-                    f"{observation.effective_at.astimezone(UTC).isoformat()}"
+                    "pit_membership_invalid:" f"{effective_at.astimezone(UTC).isoformat()}"
                 )
                 continue
-            if observation.asset_code in set(membership.asset_codes):
+            membership_cache[effective_at] = membership
+            source_evidence.extend(membership.evidence)
+            if not membership.asset_codes:
+                blockers.add(
+                    "pit_membership_missing:" f"{effective_at.astimezone(UTC).isoformat()}"
+                )
+
+        coverage: list[SeriesPeriodCoverage] = []
+        for definition in definitions:
+            for effective_at in sorted(membership_cache):
+                membership = membership_cache[effective_at]
+                expected = tuple(sorted(membership.asset_codes))
+                observed = tuple(
+                    sorted(
+                        {
+                            item.asset_code
+                            for item in observations
+                            if item.series_code == definition.series_code
+                            and item.series_version == definition.series_version
+                            and item.effective_at == effective_at
+                            and item.asset_code in set(expected)
+                        }
+                    )
+                )
+                missing = tuple(sorted(set(expected) - set(observed)))
+                coverage.append(
+                    SeriesPeriodCoverage(
+                        series_code=definition.series_code,
+                        series_version=definition.series_version,
+                        effective_at=effective_at,
+                        expected_asset_codes=expected,
+                        observed_asset_codes=observed,
+                        missing_asset_codes=missing,
+                    )
+                )
+        for observation in observations:
+            selected_membership = membership_cache.get(observation.effective_at)
+            if selected_membership is not None and observation.asset_code in set(
+                selected_membership.asset_codes
+            ):
                 included_observations.append(observation)
 
         snapshot = aggregate_market_structure(
@@ -196,6 +249,7 @@ class RunMarketStructureResearch:
             definitions=tuple(definitions),
             observations=tuple(included_observations),
             external_blockers=tuple(sorted(blockers)),
+            coverage=tuple(coverage),
         )
         evidence = build_market_structure_evidence(
             request=request,

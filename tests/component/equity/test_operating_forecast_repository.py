@@ -20,6 +20,7 @@ from apps.equity.domain.operating_forecast import (
     ForecastScenario,
     OperatingForecastAssumption,
     OperatingForecastProjection,
+    OperatingMetricRole,
     ValuationSensitivityPoint,
 )
 from apps.equity.infrastructure.operating_forecast_models import (
@@ -56,15 +57,16 @@ def _append_operating_fact(
     revision_number: int = 0,
     value_kind: str = "observed_fact",
     pit_quality: str = "verified",
-    metric_code: str = "store_count",
+    metric_code: str = "revenue",
     value: str = "100",
-    unit: str = "count",
+    unit: str = "CNY_million",
+    subject_code: str = "000001.SZ",
 ) -> PITFactVersionModel:
     payload = {
         "metric_code": metric_code,
         "definition_version": 1,
         "subject_type": "company",
-        "subject_code": "000001.SZ",
+        "subject_code": subject_code,
         "effective_at": effective_at.isoformat(),
         "effective_to": None,
         "available_at": available_at.isoformat(),
@@ -144,12 +146,13 @@ def _assumptions(fact_id: int) -> tuple[OperatingForecastAssumption, ...]:
             (
                 OperatingForecastAssumption(
                     scenario=scenario,
-                    assumption_key="store_count_anchor",
+                    assumption_key="revenue_anchor",
                     value=Decimal("100"),
-                    unit="count",
+                    unit="CNY_million",
                     input_kind=ForecastInputKind.OBSERVED_FACT,
                     rationale="Frozen public PIT operating observation.",
                     observed_fact_version_id=fact_id,
+                    observed_metric_role=OperatingMetricRole.REVENUE,
                 ),
                 OperatingForecastAssumption(
                     scenario=scenario,
@@ -276,13 +279,33 @@ def test_forecast_repository_round_trip_promotion_and_quarterly_errors() -> None
     header.subject_code = "MUTATED"
     with pytest.raises(ValidationError, match="immutable"):
         header.save()
+    with pytest.raises(ValidationError, match="cannot be updated"):
+        OperatingForecastVersionModel.objects.filter(pk=header.pk).update(subject_code="MUTATED")
+    with pytest.raises(ValidationError, match="bulk updated"):
+        OperatingForecastVersionModel.objects.filter(pk=header.pk).bulk_update(
+            [header], ["subject_code"]
+        )
+    with pytest.raises(ValidationError, match="cannot be deleted"):
+        OperatingForecastVersionModel.objects.filter(pk=header.pk).delete()
+    with pytest.raises(ValidationError, match="cannot be updated"):
+        PITFactVersionModel.objects.filter(pk=source.pk).update(pit_quality="unknown")
+    with pytest.raises(ValidationError, match="cannot be deleted"):
+        PITFactVersionModel.objects.filter(pk=source.pk).delete()
 
-    actual = _append_operating_fact(
-        business_key="quarter-actual-v1",
+    actual_revenue = _append_operating_fact(
+        business_key="quarter-actual-revenue-v1",
         effective_at=datetime(2026, 6, 30, tzinfo=UTC),
         available_at=datetime(2026, 8, 15, tzinfo=UTC),
-        metric_code="quarter_actual_anchor",
+        metric_code="revenue",
         value="100",
+        unit="CNY_million",
+    )
+    actual_profit = _append_operating_fact(
+        business_key="quarter-actual-profit-v1",
+        effective_at=datetime(2026, 6, 30, tzinfo=UTC),
+        available_at=datetime(2026, 8, 15, tzinfo=UTC),
+        metric_code="net_profit",
+        value="8",
         unit="CNY_million",
     )
     evaluations = build_record_quarterly_actual_use_case().execute(
@@ -290,7 +313,7 @@ def test_forecast_repository_round_trip_promotion_and_quarterly_errors() -> None
             forecast_id=stored.forecast_id,
             actual_period_end=TARGET,
             recorded_at=datetime(2026, 8, 20, tzinfo=UTC),
-            actual_fact_version_ids=(actual.pk,),
+            actual_fact_version_ids=(actual_revenue.pk, actual_profit.pk),
             actual_revenue=Decimal("100"),
             actual_net_profit=Decimal("8"),
             currency_unit="CNY_million",
@@ -302,7 +325,10 @@ def test_forecast_repository_round_trip_promotion_and_quarterly_errors() -> None
     assert base.revenue_error == Decimal("20")
     assert base.net_profit_absolute_percentage_error == Decimal("50")
     assert base.profit_margin_error == Decimal("2")
-    assert base.actual_fact_evidence[0]["version_id"] == actual.pk
+    assert {item["version_id"] for item in base.actual_fact_evidence} == {
+        actual_revenue.pk,
+        actual_profit.pk,
+    }
     base.revenue_error = Decimal("999")
     with pytest.raises(ValidationError, match="immutable"):
         base.save()

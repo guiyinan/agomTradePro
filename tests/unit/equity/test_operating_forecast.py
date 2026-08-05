@@ -21,6 +21,7 @@ from apps.equity.domain.operating_forecast import (
     OperatingForecastEvaluation,
     OperatingForecastProjection,
     OperatingForecastVersion,
+    OperatingMetricRole,
     ValuationSensitivityPoint,
     build_quarterly_evaluations,
 )
@@ -29,20 +30,26 @@ AS_OF = datetime(2026, 4, 30, 8, tzinfo=UTC)
 TARGET = date(2026, 6, 30)
 
 
-def _fact(version_id: int = 11) -> OperatingFactEvidence:
+def _fact(
+    version_id: int = 11,
+    *,
+    metric_code: str = "revenue",
+    value: str = "100",
+    unit: str = "CNY_million",
+) -> OperatingFactEvidence:
     return OperatingFactEvidence(
         version_id=version_id,
         dataset="research.operating_observation.v1",
-        business_key=f"store_count|company|000001.SZ|{version_id}",
-        metric_code="store_count",
+        business_key=f"{metric_code}|company|000001.SZ|{version_id}",
+        metric_code=metric_code,
         subject_type="company",
         subject_code="000001.SZ",
         effective_at=datetime(2026, 3, 31, tzinfo=UTC),
         available_at=datetime(2026, 4, 20, tzinfo=UTC),
         source_record_id=f"annual-report-{version_id}",
         content_hash=f"{version_id:064x}",
-        value=Decimal("100"),
-        unit="count",
+        value=Decimal(value),
+        unit=unit,
     )
 
 
@@ -60,12 +67,13 @@ def _assumptions(
         items.append(
             OperatingForecastAssumption(
                 scenario=scenario,
-                assumption_key="store_count_anchor",
+                assumption_key="revenue_anchor",
                 value=Decimal("100"),
-                unit="count",
+                unit="CNY_million",
                 input_kind=ForecastInputKind.OBSERVED_FACT,
                 rationale="Latest public PIT store count available at forecast freeze.",
                 observed_fact_version_id=fact_id,
+                observed_metric_role=OperatingMetricRole.REVENUE,
             )
         )
         items.append(
@@ -193,12 +201,25 @@ def test_assumption_lineage_is_mutually_exclusive_and_reconstructible() -> None:
     assert model_input.lineage_ref == "model-trial-v3"
 
 
+def test_observed_assumption_rejects_tampered_value_metric_and_subject() -> None:
+    valid = _forecast()
+    with pytest.raises(ValueError, match="subject, metric, value and unit"):
+        replace(valid, facts=(replace(_fact(), value=Decimal("101")),))
+    with pytest.raises(ValueError, match="subject, metric, value and unit"):
+        replace(valid, facts=(replace(_fact(), metric_code="net_profit"),))
+    with pytest.raises(ValueError, match="forecast company subject"):
+        replace(valid, facts=(replace(_fact(), subject_code="OTHER.SZ"),))
+
+
 def test_quarterly_evaluation_calculates_signed_mae_mape_and_margin_error() -> None:
     evaluations = build_quarterly_evaluations(
         _forecast(),
         actual_period_end=TARGET,
         recorded_at=datetime(2026, 8, 15, tzinfo=UTC),
-        actual_facts=(_fact(21),),
+        actual_facts=(
+            _fact(21, metric_code="revenue", value="100"),
+            _fact(22, metric_code="net_profit", value="8"),
+        ),
         actual_revenue=Decimal("100"),
         actual_net_profit=Decimal("8"),
         currency_unit="CNY_million",
@@ -211,6 +232,20 @@ def test_quarterly_evaluation_calculates_signed_mae_mape_and_margin_error() -> N
     assert base.net_profit_absolute_percentage_error == Decimal("50")
     assert base.profit_margin_error == Decimal("2")
     assert len(base.content_hash) == 64
+
+    with pytest.raises(ValueError, match="quarterly actual must exactly match"):
+        build_quarterly_evaluations(
+            _forecast(),
+            actual_period_end=TARGET,
+            recorded_at=datetime(2026, 8, 15, tzinfo=UTC),
+            actual_facts=(
+                _fact(21, metric_code="revenue", value="999"),
+                _fact(22, metric_code="net_profit", value="8"),
+            ),
+            actual_revenue=Decimal("100"),
+            actual_net_profit=Decimal("8"),
+            currency_unit="CNY_million",
+        )
 
 
 class _FactProvider:
@@ -301,14 +336,19 @@ def test_record_actual_use_case_appends_all_three_scenarios() -> None:
     repository = _ForecastRepository(_forecast())
     use_case = RecordQuarterlyOperatingActualUseCase(
         repository,
-        _FactProvider((_fact(21),)),
+        _FactProvider(
+            (
+                _fact(21, metric_code="revenue", value="100"),
+                _fact(22, metric_code="net_profit", value="8"),
+            )
+        ),
     )
     result = use_case.execute(
         RecordQuarterlyActualCommand(
             forecast_id="forecast-000001-2026q2-v1",
             actual_period_end=TARGET,
             recorded_at=datetime(2026, 8, 15, tzinfo=UTC),
-            actual_fact_version_ids=(21,),
+            actual_fact_version_ids=(21, 22),
             actual_revenue=Decimal("100"),
             actual_net_profit=Decimal("8"),
             currency_unit="CNY_million",

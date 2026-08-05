@@ -68,6 +68,7 @@ def _actor(actor_code: str) -> InvestorActorDefinition:
         source="test_governance",
         revision_policy_ref="governance://actor-revision/v1",
         effective_at=GROUP_EFFECTIVE,
+        available_at=GROUP_EFFECTIVE,
     )
 
 
@@ -105,6 +106,7 @@ def _series(actor_code: str, *, is_proxy: bool) -> MarketStructureSeriesDefiniti
         revision_policy_ref="governance://flow-revision/v1",
         effective_at=GROUP_EFFECTIVE,
         is_proxy=is_proxy,
+        available_at=GROUP_EFFECTIVE,
         proxy_target_actor_code="TARGET_ACTOR" if is_proxy else "",
         proxy_methodology_ref="governance://proxy/v1" if is_proxy else "",
     )
@@ -128,6 +130,7 @@ def _request(*, evidence_key: str = "TEST_MARKET_STRUCTURE") -> MarketStructureR
             policy_version=1,
             minimum_history_observations=3,
             minimum_actor_count=2,
+            minimum_membership_coverage_ratio=Decimal("1"),
             percentile_method=EmpiricalPercentileMethod.WEAK_EMPIRICAL_CDF,
         ),
     )
@@ -254,6 +257,19 @@ def test_repository_run_uses_historical_membership_and_persists_immutable_eviden
     assert [item["total"] for item in metrics] == ["25", "19"]
     assert output["contains_proxy"] is True
     assert output["deterministic_conclusion"] is None
+    coverage = cast(list[dict[str, object]], output["coverage"])
+    assert len(coverage) == 6
+    assert all(item["expected_count"] == item["observed_count"] == 1 for item in coverage)
+
+    assert (
+        market_repository.get_actor_definition(
+            taxonomy_code="TEST_TAXONOMY",
+            taxonomy_version=1,
+            actor_code="A",
+            as_of_time=datetime(2024, 12, 31, tzinfo=UTC),
+        )
+        is None
+    )
 
     model = MarketStructureResearchEvidenceModel._default_manager.get()
     model.status = MarketStructureResearchStatus.BLOCKED.value
@@ -261,6 +277,16 @@ def test_repository_run_uses_historical_membership_and_persists_immutable_eviden
         model.save()
     with pytest.raises(ValidationError, match="cannot be deleted"):
         model.delete()
+    with pytest.raises(ValidationError, match="cannot be updated"):
+        MarketStructureResearchEvidenceModel.objects.filter(pk=model.pk).update(
+            status=MarketStructureResearchStatus.BLOCKED.value
+        )
+    with pytest.raises(ValidationError, match="bulk updated"):
+        MarketStructureResearchEvidenceModel.objects.filter(pk=model.pk).bulk_update(
+            [model], ["status"]
+        )
+    with pytest.raises(ValidationError, match="cannot be deleted"):
+        MarketStructureResearchEvidenceModel.objects.filter(pk=model.pk).delete()
 
 
 @pytest.mark.django_db

@@ -167,7 +167,9 @@ class InvestorActorDefinition:
     source: str
     revision_policy_ref: str
     effective_at: datetime
+    available_at: datetime
     effective_to: datetime | None = None
+    expires_at: datetime | None = None
     parent_actor_code: str = ""
     description: str = ""
     is_active: bool = True
@@ -201,6 +203,13 @@ class InvestorActorDefinition:
             self.effective_to,
             field_name="InvestorActorDefinition",
         )
+        _require_aware(self.available_at, "InvestorActorDefinition.available_at")
+        if self.available_at < self.effective_at:
+            raise ValueError("investor actor cannot be available before effective_at")
+        if self.expires_at is not None:
+            _require_aware(self.expires_at, "InvestorActorDefinition.expires_at")
+            if self.expires_at <= self.available_at:
+                raise ValueError("investor actor expires_at must follow available_at")
         if self.parent_actor_code:
             _require_token(
                 self.parent_actor_code,
@@ -218,9 +227,11 @@ class InvestorActorDefinition:
         return {
             "actor_code": self.actor_code,
             "actor_name": self.actor_name,
+            "available_at": _utc_iso(self.available_at),
             "description": self.description,
             "effective_at": _utc_iso(self.effective_at),
             "effective_to": _utc_iso(self.effective_to),
+            "expires_at": _utc_iso(self.expires_at),
             "is_active": self.is_active,
             "parent_actor_code": self.parent_actor_code,
             "revision_policy_ref": self.revision_policy_ref,
@@ -255,9 +266,11 @@ class MarketStructureSeriesDefinition:
     revision_policy_ref: str
     effective_at: datetime
     is_proxy: bool
+    available_at: datetime
     proxy_target_actor_code: str = ""
     proxy_methodology_ref: str = ""
     effective_to: datetime | None = None
+    expires_at: datetime | None = None
     description: str = ""
     is_active: bool = True
 
@@ -311,6 +324,13 @@ class MarketStructureSeriesDefinition:
             self.effective_to,
             field_name="MarketStructureSeriesDefinition",
         )
+        _require_aware(self.available_at, "MarketStructureSeriesDefinition.available_at")
+        if self.available_at < self.effective_at:
+            raise ValueError("market-structure series cannot be available before effective_at")
+        if self.expires_at is not None:
+            _require_aware(self.expires_at, "MarketStructureSeriesDefinition.expires_at")
+            if self.expires_at <= self.available_at:
+                raise ValueError("market-structure series expires_at must follow available_at")
         if not isinstance(self.is_proxy, bool) or not isinstance(self.is_active, bool):
             raise ValueError("MarketStructureSeriesDefinition boolean fields are invalid")
         if self.is_proxy:
@@ -332,10 +352,12 @@ class MarketStructureSeriesDefinition:
 
         return {
             "actor_code": self.actor_code,
+            "available_at": _utc_iso(self.available_at),
             "canonical_unit": self.canonical_unit,
             "description": self.description,
             "effective_at": _utc_iso(self.effective_at),
             "effective_to": _utc_iso(self.effective_to),
+            "expires_at": _utc_iso(self.expires_at),
             "flow_code": self.flow_code,
             "flow_definition_version": self.flow_definition_version,
             "frequency": self.frequency,
@@ -433,6 +455,7 @@ class MarketStructureAggregationPolicy:
     policy_version: int
     minimum_history_observations: int
     minimum_actor_count: int
+    minimum_membership_coverage_ratio: Decimal
     percentile_method: EmpiricalPercentileMethod
 
     def __post_init__(self) -> None:
@@ -450,6 +473,12 @@ class MarketStructureAggregationPolicy:
             raise ValueError("minimum_history_observations must support change and acceleration")
         if isinstance(self.minimum_actor_count, bool) or self.minimum_actor_count < 2:
             raise ValueError("minimum_actor_count must support cross-actor differences")
+        _require_finite(
+            self.minimum_membership_coverage_ratio,
+            "minimum_membership_coverage_ratio",
+        )
+        if not Decimal("0") <= self.minimum_membership_coverage_ratio <= Decimal("1"):
+            raise ValueError("minimum_membership_coverage_ratio must be within [0, 1]")
         if not isinstance(self.percentile_method, EmpiricalPercentileMethod):
             raise ValueError("percentile_method is invalid")
 
@@ -459,6 +488,7 @@ class MarketStructureAggregationPolicy:
         return {
             "minimum_actor_count": self.minimum_actor_count,
             "minimum_history_observations": self.minimum_history_observations,
+            "minimum_membership_coverage_ratio": str(self.minimum_membership_coverage_ratio),
             "percentile_method": self.percentile_method.value,
             "policy_code": self.policy_code,
             "policy_version": self.policy_version,
@@ -615,6 +645,59 @@ class PITMembershipSnapshot:
 
 
 @dataclass(frozen=True)
+class SeriesPeriodCoverage:
+    """Frozen expected/observed/missing PIT membership for one series-period."""
+
+    series_code: str
+    series_version: int
+    effective_at: datetime
+    expected_asset_codes: tuple[str, ...]
+    observed_asset_codes: tuple[str, ...]
+    missing_asset_codes: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        _require_token(self.series_code, "SeriesPeriodCoverage.series_code", maximum=64)
+        if isinstance(self.series_version, bool) or self.series_version <= 0:
+            raise ValueError("SeriesPeriodCoverage.series_version must be positive")
+        _require_aware(self.effective_at, "SeriesPeriodCoverage.effective_at")
+        expected = set(self.expected_asset_codes)
+        observed = set(self.observed_asset_codes)
+        missing = set(self.missing_asset_codes)
+        if len(expected) != len(self.expected_asset_codes):
+            raise ValueError("coverage expected assets cannot contain duplicates")
+        if len(observed) != len(self.observed_asset_codes):
+            raise ValueError("coverage observed assets cannot contain duplicates")
+        if len(missing) != len(self.missing_asset_codes):
+            raise ValueError("coverage missing assets cannot contain duplicates")
+        if not observed.issubset(expected) or missing != expected - observed:
+            raise ValueError("coverage observed/missing partition conflicts with expected assets")
+
+    @property
+    def coverage_ratio(self) -> Decimal:
+        """Return exact observed membership coverage, or zero for no expected members."""
+
+        if not self.expected_asset_codes:
+            return Decimal("0")
+        return Decimal(len(self.observed_asset_codes)) / Decimal(len(self.expected_asset_codes))
+
+    def to_payload(self) -> dict[str, object]:
+        """Return canonical coverage evidence for sealing."""
+
+        return {
+            "coverage_ratio": str(self.coverage_ratio),
+            "effective_at": _utc_iso(self.effective_at),
+            "expected_asset_codes": list(self.expected_asset_codes),
+            "expected_count": len(self.expected_asset_codes),
+            "missing_asset_codes": list(self.missing_asset_codes),
+            "missing_count": len(self.missing_asset_codes),
+            "observed_asset_codes": list(self.observed_asset_codes),
+            "observed_count": len(self.observed_asset_codes),
+            "series_code": self.series_code,
+            "series_version": self.series_version,
+        }
+
+
+@dataclass(frozen=True)
 class ActorStructureMetrics:
     """Total, dynamics and percentile for one comparable investor actor."""
 
@@ -693,6 +776,7 @@ class MarketStructureSnapshot:
     cross_actor_differences: tuple[CrossActorDifference, ...]
     blocked_reasons: tuple[str, ...]
     contains_proxy: bool
+    coverage: tuple[SeriesPeriodCoverage, ...]
     deterministic_conclusion: None = None
     interpretation_scope: str = "structure_description_only"
     research_only: bool = True
@@ -728,6 +812,7 @@ class MarketStructureSnapshot:
             "as_of_time": _utc_iso(self.as_of_time),
             "blocked_reasons": list(self.blocked_reasons),
             "contains_proxy": self.contains_proxy,
+            "coverage": [item.to_payload() for item in self.coverage],
             "cross_actor_differences": [item.to_payload() for item in self.cross_actor_differences],
             "deterministic_conclusion": None,
             "interpretation_scope": self.interpretation_scope,
@@ -744,6 +829,7 @@ def _blocked_snapshot(
     request: MarketStructureResearchRequest,
     blockers: set[str],
     contains_proxy: bool,
+    coverage: tuple[SeriesPeriodCoverage, ...],
 ) -> MarketStructureSnapshot:
     """Build a canonical fail-closed snapshot from stable blocker codes."""
 
@@ -755,6 +841,7 @@ def _blocked_snapshot(
         cross_actor_differences=(),
         blocked_reasons=tuple(sorted(blockers)),
         contains_proxy=contains_proxy,
+        coverage=coverage,
     )
 
 
@@ -764,6 +851,7 @@ def aggregate_market_structure(
     definitions: tuple[MarketStructureSeriesDefinition, ...],
     observations: tuple[MarketStructureObservation, ...],
     external_blockers: tuple[str, ...] = (),
+    coverage: tuple[SeriesPeriodCoverage, ...] = (),
 ) -> MarketStructureSnapshot:
     """Calculate comparable descriptive metrics or fail closed on any gap."""
 
@@ -785,6 +873,18 @@ def aggregate_market_structure(
         blockers.add("actor_series_ambiguous")
     if len(actor_codes) < request.policy.minimum_actor_count:
         blockers.add("actor_coverage_insufficient")
+    coverage_identities = {
+        (item.series_code, item.series_version, item.effective_at) for item in coverage
+    }
+    if len(coverage_identities) != len(coverage):
+        blockers.add("membership_coverage_duplicate")
+    for item in coverage:
+        if item.coverage_ratio < request.policy.minimum_membership_coverage_ratio:
+            blockers.add(
+                "membership_coverage_insufficient:"
+                f"{item.series_code}:v{item.series_version}:"
+                f"{item.effective_at.astimezone(UTC).isoformat()}"
+            )
 
     concepts = {definition.measure_concept for definition in definitions}
     units = {definition.canonical_unit for definition in definitions}
@@ -847,6 +947,7 @@ def aggregate_market_structure(
             request=request,
             blockers=blockers,
             contains_proxy=contains_proxy,
+            coverage=coverage,
         )
 
     metrics: list[ActorStructureMetrics] = []
@@ -887,6 +988,7 @@ def aggregate_market_structure(
             request=request,
             blockers={"cross_actor_period_mismatch"},
             contains_proxy=contains_proxy,
+            coverage=coverage,
         )
     differences = tuple(
         CrossActorDifference(
@@ -907,6 +1009,7 @@ def aggregate_market_structure(
         cross_actor_differences=differences,
         blocked_reasons=(),
         contains_proxy=contains_proxy,
+        coverage=coverage,
     )
 
 
@@ -965,8 +1068,7 @@ class ImmutableMarketStructureEvidence:
         ):
             raise ValueError("market-structure evidence must remain research-only")
         identities = {
-            (reference.dataset, reference.version_id, reference.content_hash.lower())
-            for reference in self.source_evidence
+            (reference.dataset, reference.version_id) for reference in self.source_evidence
         }
         if len(identities) != len(self.source_evidence):
             raise ValueError("source_evidence cannot contain duplicate versions")
@@ -983,6 +1085,16 @@ class ImmutableMarketStructureEvidence:
             raise ValueError("payload_json must contain input and output objects")
         if _canonical_hash(input_payload) != self.input_hash:
             raise ValueError("market-structure input_hash mismatch")
+        embedded_source_evidence = input_payload.get("source_evidence")
+        expected_source_evidence = [
+            reference.to_payload()
+            for reference in sorted(
+                self.source_evidence,
+                key=lambda item: (item.dataset, item.version_id, item.content_hash.lower()),
+            )
+        ]
+        if embedded_source_evidence != expected_source_evidence:
+            raise ValueError("market-structure source_evidence conflicts with sealed input")
         if _canonical_hash(output_payload) != self.output_hash:
             raise ValueError("market-structure output_hash mismatch")
         if output_payload.get("status") != self.status.value:
@@ -1145,6 +1257,7 @@ __all__ = [
     "MarketStructureSeriesRef",
     "MarketStructureSnapshot",
     "PITMembershipSnapshot",
+    "SeriesPeriodCoverage",
     "VersionedEvidenceReference",
     "aggregate_market_structure",
     "build_market_structure_evidence",
