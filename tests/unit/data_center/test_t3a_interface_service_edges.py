@@ -57,8 +57,28 @@ def test_provider_settings_save_returns_persisted_projection(
     monkeypatch.setattr(
         interface_services,
         "DataProviderSettingsRepository",
-        lambda: SimpleNamespace(save=lambda settings: saved.append(settings) or settings),
+        lambda: SimpleNamespace(
+            load=lambda: DataProviderSettings(
+                default_source="akshare",
+                enable_failover=True,
+                failover_tolerance=0.01,
+            ),
+            save_default_source=lambda default_source: saved.append(
+                DataProviderSettings(
+                    default_source=default_source,
+                    enable_failover=True,
+                    failover_tolerance=0.01,
+                )
+            )
+            or saved[-1],
+        ),
     )
+    monkeypatch.setattr(
+        interface_services,
+        "activate_runtime_profile_patch",
+        lambda **_kwargs: {"profile_version": 1},
+    )
+    monkeypatch.setattr(interface_services, "get_active_runtime_value", lambda **_kwargs: None)
     payload = interface_services.save_provider_settings_payload(
         default_source="akshare",
         enable_failover=True,

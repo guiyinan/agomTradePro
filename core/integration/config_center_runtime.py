@@ -7,6 +7,7 @@ root instead of importing Config Center application modules directly.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Protocol
 
 
@@ -71,6 +72,7 @@ def evaluate_storage_pressure(
             "usage_ratio": None,
             "reason": "config_center_runtime_port_unconfigured",
         }
+
     try:
         return _provider.evaluate_storage_pressure(
             used_bytes=used_bytes,
@@ -87,8 +89,36 @@ def evaluate_storage_pressure(
         }
 
 
+def activate_runtime_profile_patch(
+    *,
+    environment: str,
+    patch: Mapping[str, object],
+    bootstrap_values: Mapping[str, object] | None,
+    actor: str,
+    reason: str,
+) -> dict[str, object]:
+    """Activate a typed runtime patch through the configured owner bridge."""
+
+    if _provider is None:
+        raise RuntimeError("config_center_runtime_port_unconfigured")
+    callback = getattr(_provider, "activate_runtime_profile_patch_payload", None)
+    if not callable(callback):
+        raise RuntimeError("config_center_runtime_write_port_unconfigured")
+    result = callback(
+        environment=environment,
+        patch=patch,
+        bootstrap_values=bootstrap_values,
+        actor=actor,
+        reason=reason,
+    )
+    if not isinstance(result, dict):
+        raise TypeError("Config Center runtime write port returned an invalid payload")
+    return dict(result)
+
+
 __all__ = [
     "ConfigCenterRuntimeReadPort",
+    "activate_runtime_profile_patch",
     "configure_config_center_runtime_port",
     "evaluate_storage_pressure",
     "get_active_runtime_value",

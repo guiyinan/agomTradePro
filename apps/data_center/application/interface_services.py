@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import os
 from collections.abc import Callable, Mapping, Sequence
 from datetime import date
 from typing import Any, Protocol, cast
@@ -46,7 +47,6 @@ from apps.data_center.composition import (
 )
 from apps.data_center.domain.entities import (
     ConnectionTestResult,
-    DataProviderSettings,
     ProductionCoverageUniverseConfig,
     ProviderConfig,
 )
@@ -57,6 +57,10 @@ from apps.data_center.domain.protocols import (
 )
 from apps.task_monitor.application.tracking import record_pending_task
 from core.exceptions import DataFetchError
+from core.integration.config_center_runtime import (
+    activate_runtime_profile_patch,
+    get_active_runtime_value,
+)
 
 from .business_runtime_gateway import fetch_latest_prices as _fetch_latest_prices
 from .business_runtime_gateway import load_alpha_homepage_data as _load_alpha_homepage_data
@@ -358,10 +362,28 @@ def load_provider_settings_payload() -> dict[str, Any]:
     """Return the global provider settings as a response payload."""
 
     settings = DataProviderSettingsRepository().load()
+    module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
+    environment = "production" if module.endswith(".production") else "development"
+    runtime_enabled = get_active_runtime_value(
+        environment=environment,
+        definition_key="data_center.provider.enable_failover",
+    )
+    runtime_tolerance = get_active_runtime_value(
+        environment=environment,
+        definition_key="data_center.provider.failover_tolerance",
+    )
+    enable_failover = (
+        runtime_enabled if isinstance(runtime_enabled, bool) else settings.enable_failover
+    )
+    failover_tolerance = (
+        float(runtime_tolerance)
+        if isinstance(runtime_tolerance, (int, float)) and not isinstance(runtime_tolerance, bool)
+        else settings.failover_tolerance
+    )
     return {
         "default_source": settings.default_source,
-        "enable_failover": settings.enable_failover,
-        "failover_tolerance": settings.failover_tolerance,
+        "enable_failover": enable_failover,
+        "failover_tolerance": failover_tolerance,
     }
 
 
@@ -429,21 +451,25 @@ def save_provider_settings_payload(
     default_source: str,
     enable_failover: bool,
     failover_tolerance: float,
+    actor: str = "data-center-admin",
 ) -> dict[str, Any]:
-    """Persist the global provider settings and return a response payload."""
+    """Persist provider source metadata and typed failover runtime values."""
 
-    saved = DataProviderSettingsRepository().save(
-        DataProviderSettings(
-            default_source=default_source,
-            enable_failover=enable_failover,
-            failover_tolerance=failover_tolerance,
-        )
-    )
-    return {
-        "default_source": saved.default_source,
-        "enable_failover": saved.enable_failover,
-        "failover_tolerance": saved.failover_tolerance,
+    module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
+    environment = "production" if module.endswith(".production") else "development"
+    runtime_patch = {
+        "data_center.provider.enable_failover": bool(enable_failover),
+        "data_center.provider.failover_tolerance": float(failover_tolerance),
     }
+    activate_runtime_profile_patch(
+        environment=environment,
+        patch=runtime_patch,
+        bootstrap_values=runtime_patch,
+        actor=str(actor or "data-center-admin"),
+        reason="Data Center provider failover settings updated",
+    )
+    DataProviderSettingsRepository().save_default_source(default_source)
+    return load_provider_settings_payload()
 
 
 def load_production_coverage_universe_config_payload() -> dict[str, Any]:

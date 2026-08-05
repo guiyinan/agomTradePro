@@ -185,6 +185,33 @@ def activate_runtime_profile_patch(
     )
 
 
+def activate_runtime_profile_patch_payload(
+    *,
+    environment: str,
+    patch: Mapping[str, object],
+    bootstrap_values: Mapping[str, object] | None = None,
+    actor: str,
+    reason: str,
+) -> dict[str, object]:
+    """Activate a typed patch and return non-secret revision evidence."""
+
+    profile, snapshot = activate_runtime_profile_patch(
+        environment=environment,
+        patch=patch,
+        bootstrap_values=bootstrap_values,
+        actor=actor,
+        reason=reason,
+    )
+    return {
+        "profile_id": profile.profile_id,
+        "profile_key": profile.profile_key,
+        "profile_version": profile.version,
+        "snapshot_id": snapshot.snapshot_id,
+        "snapshot_hash": snapshot.snapshot_hash,
+        "changed_keys": tuple(sorted(patch)),
+    }
+
+
 def get_active_qlib_runtime_config(environment: str) -> dict[str, object] | None:
     """Resolve a complete Qlib runtime mapping from the active snapshot.
 
@@ -367,6 +394,7 @@ def get_latest_storage_capacity_observation(
 __all__ = [
     "activate_runtime_profile",
     "activate_runtime_profile_patch",
+    "activate_runtime_profile_patch_payload",
     "evaluate_storage_pressure",
     "get_active_runtime_profile",
     "get_active_runtime_value",

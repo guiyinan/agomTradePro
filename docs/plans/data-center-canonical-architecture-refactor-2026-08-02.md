@@ -4389,3 +4389,10 @@ Git SHA / 镜像 / migration：
 - 变更：新增 `activate_runtime_profile_patch()`，按 active profile 携带已有值、以显式 compatibility bootstrap 补齐缺键、由请求 patch 覆盖并原子激活新版本；`ConfigCenterSettingsRepository.update_runtime_config()` 与 `update_system_governance()` 改为调用该端口，不再写 Qlib/Alpha/benchmark/asset-proxy/market-color 旧字段。Qlib 运行配置摘要在无 typed snapshot 时返回 blocked，而不是展示旧 singleton 默认值；Data Center provider settings 增加只读 Application Public Port，兼容导入只发生在激活事务中。
 - 测试与治理：Config Center training/runtime 回归 `32 passed`，TUI/runtime 相关回归 `12 passed`；新增 typed update 回归断言旧 singleton 未写入；current-data manifest 实际执行 `268 nodeid / 307 passed`；变更文件 Black/Ruff/mypy regression 通过，runtime contract 登记 mutation consumers/tests。clean HEAD inventory 为 `current_surface_references=3291`，其余结构计数 `51/55/4/143/0/49`。
 - 明确未做：账户审批、备份 SMTP、决策运行状态等其他 SystemSettings 字段仍处于兼容迁移；尚未在生产 profile 上初始化/激活、执行 PostgreSQL/备份恢复/观察窗口、M9 删除旧字段或部署；不 push、不部署。
+
+## 87. 2026-08-06：Data Center Provider failover 管理写入接入 typed Profile
+
+- 目标：消除 Provider 设置页更新 `enable_failover/failover_tolerance` 后仍只写 Data Center 旧 singleton、导致 typed failover consumer 看不到新值的双真源。
+- 变更：新增 Config Center runtime write composition bridge；Data Center Provider 设置保存将 failover 两个值作为 typed patch 激活版本化 Profile，仅保留 `default_source` 在 Data Center 自有设置中；读取优先 active typed 值、无 profile 时才显式兼容旧设置。旧 singleton 的 failover 字段不再被管理写入覆盖。
+- 测试与治理：新增 component 回归断言 typed 返回值与旧字段未被覆盖；Data Center interface/bridge/config-center 回归通过，runtime contract 补齐写入 consumer/test。
+- 明确未做：未迁移 Data Center `default_source` 及其他 Provider 配置字段、生产 profile 初始化、PostgreSQL/备份恢复/观察窗口、M9/M10 或部署；不 push、不部署。

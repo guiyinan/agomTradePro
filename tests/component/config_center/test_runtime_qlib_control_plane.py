@@ -7,6 +7,11 @@ from apps.config_center.infrastructure.config_summary_repository import (
 )
 from apps.config_center.infrastructure.models import SystemSettingsModel
 from apps.config_center.infrastructure.repositories import ConfigCenterSettingsRepository
+from apps.data_center.application.interface_services import (
+    load_provider_settings_payload,
+    save_provider_settings_payload,
+)
+from apps.data_center.infrastructure.models import DataProviderSettingsModel
 
 
 @pytest.mark.django_db
@@ -180,3 +185,23 @@ def test_qlib_runtime_update_activates_typed_profile_without_legacy_write(tmp_pa
     assert governance["alpha_pool_mode"] == "market"
     assert governance["benchmark_code_map"] == {"equity_market_benchmark": "000300.SH"}
     assert governance["asset_proxy_code_map"] == {"A_SHARE_GROWTH": "000300.SH"}
+
+
+@pytest.mark.django_db
+def test_provider_settings_update_uses_typed_failover_values() -> None:
+    """Data Center provider settings publish failover values into the runtime profile."""
+
+    payload = save_provider_settings_payload(
+        default_source="akshare",
+        enable_failover=False,
+        failover_tolerance=0.025,
+        actor="pytest",
+    )
+
+    assert payload["enable_failover"] is False
+    assert payload["failover_tolerance"] == pytest.approx(0.025)
+    assert load_provider_settings_payload() == payload
+
+    legacy = DataProviderSettingsModel.objects.get(pk=1)
+    assert legacy.enable_failover is True
+    assert legacy.failover_tolerance == pytest.approx(0.01)

@@ -487,6 +487,7 @@ def provider_settings(request: Request) -> Response:
                 "failover_tolerance",
                 current["failover_tolerance"],
             ),
+            actor=str(getattr(request.user, "username", "") or "data-center-admin"),
         )
     )
 

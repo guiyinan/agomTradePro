@@ -92,6 +92,14 @@ class DataProviderSettingsRepository:
         model.save()
         return model.to_domain()
 
+    def save_default_source(self, default_source: str) -> DataProviderSettings:
+        """Persist only the Data Center-owned provider source preference."""
+
+        model = DataProviderSettingsModel.load()
+        model.default_source = default_source
+        model.save(update_fields=["default_source", "updated_at"])
+        return model.to_domain()
+
 
 class ProductionCoverageUniverseConfigRepository:
     """Persists and retrieves production coverage universe config."""
