@@ -4997,84 +4997,64 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 501,
+      "line": 502,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 507,
+      "line": 508,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read fresh, member-bound macro values for current-facing consumers.\"\"\""
     },
     {
-      "line": 555,
+      "line": 622,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 648,
+      "line": 715,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 655,
+      "line": 722,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 680,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 682,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
-    },
-    {
-      "line": 690,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 745,
+      "line": 747,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
       "line": 749,
       "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
+      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 762,
+      "line": 757,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 767,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
-    },
-    {
-      "line": 782,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 798,
+      "line": 812,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
       "line": 816,
       "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
+    },
+    {
+      "line": 829,
+      "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 833,
+      "line": 834,
       "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
+      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
       "line": 849,
@@ -5082,37 +5062,57 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 886,
+      "line": 865,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 883,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 900,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 916,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 953,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 889,
+      "line": 956,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 893,
+      "line": 960,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 895,
+      "line": 962,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 898,
+      "line": 965,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 899,
+      "line": 966,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 1056,
+      "line": 1123,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -8517,77 +8517,77 @@
       "text": "\"period_type\": latest[\"period_type\"],"
     },
     {
-      "line": 155,
+      "line": 156,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"\"\"Return current Regime context for the macro overview page.\"\"\""
     },
     {
-      "line": 163,
+      "line": 164,
       "path": "apps/macro/application/interface_services.py",
       "text": "logger.exception(\"Failed to load Regime summary for macro page snapshot\")"
     },
     {
-      "line": 195,
+      "line": 196,
       "path": "apps/macro/application/interface_services.py",
       "text": "logger.exception(\"Failed to load Pulse summary for macro page snapshot\")"
     },
     {
-      "line": 433,
+      "line": 434,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"\"\"Return selected publication members for one current macro series."
     },
     {
-      "line": 437,
+      "line": 438,
       "path": "apps/macro/application/interface_services.py",
       "text": "legacy latest-fact query."
     },
     {
-      "line": 467,
+      "line": 468,
       "path": "apps/macro/application/interface_services.py",
       "text": "current/latest values must come from freshness-validated Publication"
     },
     {
-      "line": 514,
+      "line": 515,
       "path": "apps/macro/application/interface_services.py",
       "text": "latest = read_repository.get_latest_indicator(code)"
     },
     {
-      "line": 515,
+      "line": 516,
       "path": "apps/macro/application/interface_services.py",
       "text": "if latest is not None:"
     },
     {
-      "line": 516,
+      "line": 517,
       "path": "apps/macro/application/interface_services.py",
       "text": "latest_by_code[code] = latest"
     },
     {
-      "line": 686,
+      "line": 693,
       "path": "apps/macro/application/interface_services.py",
       "text": "summary = read_repository.get_storage_summary()"
     },
     {
-      "line": 741,
+      "line": 748,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"total_records\": summary[\"total_records\"],"
     },
     {
-      "line": 742,
+      "line": 749,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"latest_date\": summary[\"latest_date\"],"
     },
     {
-      "line": 744,
+      "line": 751,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"min_date\": summary[\"min_date\"],"
     },
     {
-      "line": 745,
+      "line": 752,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"max_date\": summary[\"max_date\"],"
     },
     {
-      "line": 794,
+      "line": 801,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"summary\": summary_use_case.execute(),"
     },
@@ -8782,157 +8782,157 @@
       "text": "\"\"\"Return whether cached strict-runtime data has the governed summary shape.\"\"\""
     },
     {
-      "line": 87,
+      "line": 102,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "\"\"\"Return a compact decision-data summary from one readiness evidence payload.\"\"\""
     },
     {
-      "line": 99,
+      "line": 114,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "\"\"\"Return a compact operator-facing decision-data summary.\"\"\""
     },
     {
-      "line": 107,
+      "line": 122,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "summary = {"
     },
     {
-      "line": 133,
+      "line": 148,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "summary[\"skipped_latest_market_thermometer\"] = {"
     },
     {
-      "line": 141,
+      "line": 156,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "return summary"
     },
     {
-      "line": 149,
+      "line": 164,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "\"\"\"Return current decision-data readiness for operator-facing status output.\"\"\""
     },
     {
-      "line": 168,
+      "line": 183,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "\"\"\"Return current decision-data readiness using configured readiness assets.\"\"\""
     },
     {
-      "line": 245,
+      "line": 260,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "summary: dict[str, Any] = {}"
     },
     {
-      "line": 247,
+      "line": 262,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "summary[\"macro_sync\"] = {"
     },
     {
-      "line": 255,
+      "line": 270,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "summary[\"regime_snapshot\"] = {"
     },
     {
-      "line": 261,
+      "line": 276,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "summary[\"pulse_snapshot\"] = {"
     },
     {
-      "line": 267,
+      "line": 282,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "summary[\"action_recommendation\"] = {"
     },
     {
-      "line": 273,
+      "line": 288,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "summary[\"rotation_signals\"] = {"
     },
     {
-      "line": 281,
+      "line": 296,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "return summary"
     },
     {
-      "line": 340,
+      "line": 355,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "\"\"\"Return a compact operator-facing Alpha/workspace consistency summary.\"\"\""
     },
     {
-      "line": 370,
+      "line": 385,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "\"\"\"Return current Regime/Pulse context for operator-facing status output.\"\"\""
     },
     {
-      "line": 530,
+      "line": 545,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "\"message\": \"Scheduled readiness evidence must resolve the latest closed date.\","
     },
     {
-      "line": 731,
+      "line": 746,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "\"\"\"Count the latest contiguous formal scheduler records with task provenance.\"\"\""
     },
     {
-      "line": 759,
+      "line": 774,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "current = start_date"
     },
     {
-      "line": 761,
+      "line": 776,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "while current <= end_date:"
     },
     {
-      "line": 762,
+      "line": 777,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "if current.weekday() == weekday:"
-    },
-    {
-      "line": 764,
-      "path": "apps/operational_readiness/application/status_services.py",
-      "text": "current += timedelta(days=1)"
-    },
-    {
-      "line": 774,
-      "path": "apps/operational_readiness/application/status_services.py",
-      "text": "\"\"\"Resolve the latest scheduled weekly date inside an inclusive date window.\"\"\""
-    },
-    {
-      "line": 778,
-      "path": "apps/operational_readiness/application/status_services.py",
-      "text": "current = end_date"
     },
     {
       "line": 779,
       "path": "apps/operational_readiness/application/status_services.py",
+      "text": "current += timedelta(days=1)"
+    },
+    {
+      "line": 789,
+      "path": "apps/operational_readiness/application/status_services.py",
+      "text": "\"\"\"Resolve the latest scheduled weekly date inside an inclusive date window.\"\"\""
+    },
+    {
+      "line": 793,
+      "path": "apps/operational_readiness/application/status_services.py",
+      "text": "current = end_date"
+    },
+    {
+      "line": 794,
+      "path": "apps/operational_readiness/application/status_services.py",
       "text": "while current >= start_date:"
     },
     {
-      "line": 780,
+      "line": 795,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "if current.weekday() == weekday:"
     },
     {
-      "line": 781,
+      "line": 796,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "return current"
     },
     {
-      "line": 782,
+      "line": 797,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "current -= timedelta(days=1)"
     },
     {
-      "line": 830,
+      "line": 845,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "current = get_regime_current_payload(as_of_date=target_date)"
     },
     {
-      "line": 831,
+      "line": 846,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "data = _as_dict(current.get(\"data\"))"
     },
     {
-      "line": 833,
+      "line": 848,
       "path": "apps/operational_readiness/application/status_services.py",
       "text": "\"status\": \"ok\" if current.get(\"success\") else \"warning\","
     },
