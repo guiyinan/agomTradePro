@@ -1,9 +1,9 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3198,
+    "current_surface_references": 3199,
     "data_write_task_decorators": 55,
-    "external_http_imports_for_review": 5,
+    "external_http_imports_for_review": 4,
     "legacy_fact_references": 143,
     "provider_imports_outside_data_center": 0,
     "runtime_parameter_references": 49
@@ -4997,59 +4997,49 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 456,
+      "line": 476,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 462,
+      "line": 482,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read fresh, member-bound macro values for current-facing consumers.\"\"\""
     },
     {
-      "line": 510,
+      "line": 530,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 603,
+      "line": 623,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 610,
+      "line": 630,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 635,
+      "line": 655,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 637,
+      "line": 657,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 645,
+      "line": 665,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 649,
+      "line": 669,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
-    },
-    {
-      "line": 662,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 667,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
       "line": 682,
@@ -5057,57 +5047,67 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 698,
+      "line": 687,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
+    },
+    {
+      "line": 702,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 716,
+      "line": 718,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 733,
+      "line": 736,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 749,
+      "line": 753,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 786,
+      "line": 769,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 806,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 789,
+      "line": 809,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 793,
+      "line": 813,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 795,
+      "line": 815,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 798,
+      "line": 818,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 799,
+      "line": 819,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 901,
+      "line": 921,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -6642,12 +6642,12 @@
       "text": "\"\"\"Return exact versions only when they are the latest knowable facts.\"\"\""
     },
     {
-      "line": 157,
+      "line": 178,
       "path": "apps/data_center/infrastructure/rss_gateway.py",
       "text": "description = str(entry.get(\"description\", \"\") or entry.get(\"summary\", \"\") or \"\")"
     },
     {
-      "line": 165,
+      "line": 186,
       "path": "apps/data_center/infrastructure/rss_gateway.py",
       "text": "summary=description,"
     },
@@ -9470,6 +9470,11 @@
       "line": 80,
       "path": "apps/policy/infrastructure/adapters/feedparser_adapter.py",
       "text": "description = str(entry.get(\"description\", \"\") or entry.get(\"summary\", \"\") or \"\")"
+    },
+    {
+      "line": 236,
+      "path": "apps/policy/infrastructure/adapters/news_adapter.py",
+      "text": "\"content\": fact.summary,"
     },
     {
       "line": 12,
@@ -16539,11 +16544,6 @@
       "import": "requests",
       "line": 5,
       "path": "apps/dashboard/infrastructure/ai_insight_client.py"
-    },
-    {
-      "import": "requests",
-      "line": 14,
-      "path": "apps/policy/infrastructure/adapters/news_adapter.py"
     },
     {
       "import": "requests",
