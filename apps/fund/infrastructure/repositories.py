@@ -8,6 +8,7 @@
 """
 
 import math
+from collections.abc import Mapping
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -19,6 +20,7 @@ from apps.data_center.application.public import (
     build_provider_registry_port,
     get_fund_nav_repository_port,
     get_provider_config_repository_port,
+    get_published_fund_nav_series,
     get_raw_audit_repository_port,
 )
 from apps.data_center.application.use_cases import SyncFundNavUseCase
@@ -321,7 +323,11 @@ class DjangoFundRepository:
         return [self._dc_fact_to_entity_nav(fact) for fact in reversed(dc_facts)]
 
     def get_latest_nav(self, fund_code: str) -> FundNetValue | None:
-        """获取最新净值
+        """Return the latest decision-ready NAV from the active Publication.
+
+        Historical range reads continue to use :meth:`get_fund_nav`.  The
+        unqualified ``latest`` method is a current-data consumer, so a raw
+        Data Center row must never bypass the Publication/freshness gate.
 
         Args:
             fund_code: 基金代码
@@ -329,8 +335,41 @@ class DjangoFundRepository:
         Returns:
             最新净值或 None
         """
-        latest_fact = self._dc_fund_nav_repo.get_latest(fund_code)
-        return self._dc_fact_to_entity_nav(latest_fact) if latest_fact is not None else None
+        try:
+            payload = get_published_fund_nav_series(
+                fund_code,
+                publication_key="current",
+                limit=1,
+            )
+        except Exception:
+            return None
+        if not isinstance(payload, Mapping) or bool(payload.get("must_not_use_for_decision")):
+            return None
+        raw_rows = payload.get("rows", [])
+        if not isinstance(raw_rows, (list, tuple)):
+            return None
+        row = next((item for item in raw_rows if isinstance(item, Mapping)), None)
+        if row is None:
+            return None
+
+        nav_date = self._parse_nav_date(row.get("nav_date"))
+        nav = self._parse_nav_number(row.get("nav", row.get("unit_nav")))
+        accum_nav = self._parse_nav_number(row.get("acc_nav", row.get("accum_nav")))
+        daily_return = self._parse_nav_number(row.get("daily_return"))
+        if nav_date is None or nav is None or nav <= 0:
+            return None
+        if accum_nav is None or accum_nav <= 0:
+            accum_nav = nav
+        try:
+            return FundNetValue(
+                fund_code=str(row.get("fund_code") or fund_code),
+                nav_date=nav_date,
+                unit_nav=Decimal(str(nav)),
+                accum_nav=Decimal(str(accum_nav)),
+                daily_return=daily_return,
+            )
+        except (ArithmeticError, ValueError):
+            return None
 
     def save_fund_nav(self, nav: FundNetValue) -> None:
         """保存或更新基金净值
@@ -834,6 +873,35 @@ class DjangoFundRepository:
         return count
 
     # ==================== 私有方法 ====================
+
+    @staticmethod
+    def _parse_nav_date(value: object) -> date | None:
+        """Parse a publication NAV date without inventing a date boundary."""
+
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+        if not isinstance(value, str) or not value.strip():
+            return None
+        try:
+            return date.fromisoformat(value.strip())
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _parse_nav_number(value: object) -> float | None:
+        """Parse a finite numeric NAV field from a public payload."""
+
+        if value is None or isinstance(value, bool):
+            return None
+        if not isinstance(value, (Decimal, float, int, str)):
+            return None
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            return None
+        return parsed if math.isfinite(parsed) else None
 
     def _entity_nav_to_dc_fact(self, nav: FundNetValue) -> FundNavFact:
         return FundNavFact(

@@ -2321,6 +2321,7 @@
       "source_files": [
         "apps/fund/application/interface_services.py",
         "apps/fund/interface/views.py",
+        "apps/fund/infrastructure/repositories.py",
         "apps/data_center/application/public.py"
       ],
       "required_markers": {
@@ -2336,6 +2337,10 @@
         ],
         "apps/data_center/application/public.py": [
           "def get_published_fund_nav_series("
+        ],
+        "apps/fund/infrastructure/repositories.py": [
+          "get_published_fund_nav_series(",
+          "must_not_use_for_decision"
         ]
       },
       "required_tests": [
@@ -2353,6 +2358,16 @@
           "case": "fund_publication_query_error_blocks",
           "test_file": "tests/api/test_fund_api_edges.py",
           "test_function": "test_fund_nav_default_blocks_publication_query_errors"
+        },
+        {
+          "case": "fund_repository_latest_nav_uses_publication",
+          "test_file": "tests/component/test_fund_repository_data_center.py",
+          "test_function": "test_get_latest_nav_uses_published_fund_nav"
+        },
+        {
+          "case": "fund_repository_latest_nav_blocks_unusable_publication",
+          "test_file": "tests/component/test_fund_repository_data_center.py",
+          "test_function": "test_get_latest_nav_blocks_rows_when_publication_is_unusable"
         }
       ]
     },

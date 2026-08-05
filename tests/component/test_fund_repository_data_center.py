@@ -26,14 +26,22 @@ def _make_repo() -> DjangoFundRepository:
 
 
 @pytest.mark.django_db
-def test_get_latest_nav_prefers_data_center_fact():
+def test_get_latest_nav_uses_published_fund_nav(monkeypatch):
     repo = _make_repo()
-    repo._dc_fund_nav_repo.get_latest.return_value = SimpleNamespace(
-        fund_code="110011",
-        nav_date=date(2026, 3, 20),
-        nav=1.235,
-        acc_nav=2.468,
-        daily_return=0.5,
+    monkeypatch.setattr(
+        "apps.fund.infrastructure.repositories.get_published_fund_nav_series",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "fund_code": "110011",
+                    "nav_date": "2026-03-20",
+                    "nav": 1.235,
+                    "acc_nav": 2.468,
+                    "daily_return": 0.5,
+                }
+            ],
+            "must_not_use_for_decision": False,
+        },
     )
 
     nav = repo.get_latest_nav("110011")
@@ -42,6 +50,30 @@ def test_get_latest_nav_prefers_data_center_fact():
     assert nav.fund_code == "110011"
     assert nav.unit_nav == Decimal("1.235")
     assert nav.accum_nav == Decimal("2.468")
+    repo._dc_fund_nav_repo.get_latest.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_get_latest_nav_blocks_rows_when_publication_is_unusable(monkeypatch):
+    repo = _make_repo()
+    monkeypatch.setattr(
+        "apps.fund.infrastructure.repositories.get_published_fund_nav_series",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "fund_code": "110011",
+                    "nav_date": "2026-03-20",
+                    "nav": 1.235,
+                    "acc_nav": 2.468,
+                }
+            ],
+            "must_not_use_for_decision": True,
+            "blocked_reason": "publication_stale",
+        },
+    )
+
+    assert repo.get_latest_nav("110011") is None
+    repo._dc_fund_nav_repo.get_latest.assert_not_called()
 
 
 @pytest.mark.django_db

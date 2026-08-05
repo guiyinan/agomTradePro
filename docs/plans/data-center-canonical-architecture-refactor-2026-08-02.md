@@ -4010,3 +4010,13 @@ Git SHA / 镜像 / migration：
 - 已运行测试：`pytest tests/unit/alpha/test_t3b_provider_contracts.py apps/alpha/tests/test_simple_adapter.py tests/unit/alpha/test_alpha_infrastructure_edges.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：19 passed；`python scripts/check_current_data_contracts.py`：39 surfaces；其余架构、mypy、inventory 门禁随本批提交前复跑。
 - 明确未做：未改变 Alpha 的打分权重、基本面历史查询和 Qlib fallback，未修改 Tushare/AKShare provider 状态，未部署、未 push。
 - 未验证风险：生产行情 Publication 的覆盖率、Alpha 端到端任务调度和 PostgreSQL 性能仍待生产阶段证据；Realtime 诊断 failover 仍按 §47 的明确边界保留。
+
+## 39. 2026-08-05：Fund repository latest NAV Publication 收口
+
+- 目标：消除 `DjangoFundRepository.get_latest_nav()` 对 Data Center raw latest 的 current-data 旁路，避免基金内部调用在没有 Tushare 或 Publication 失效时仍消费未验证净值。
+- 变更：`get_latest_nav()` 改用 `get_published_fund_nav_series(publication_key="current", limit=1)`；缺少/过期/阻断 Publication、payload 结构错误或数值日期无效时 fail closed 返回 `None`。显式日期区间 `get_fund_nav()` 继续保留历史研究语义。
+- 测试：组件测试验证 latest NAV 只调用 Publication port；新增带旧 rows 的阻断 Publication 测试并断言 raw repository 未被调用。
+- 治理：`fund.current_nav` 纳入 Fund repository source/markers 与两条回归 nodeid。
+- 已运行测试：`pytest tests/component/test_fund_repository_data_center.py tests/api/test_fund_api_edges.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：39 passed；`python scripts/check_current_data_contracts.py`：40 surfaces。
+- 明确未做：未改变基金历史 NAV、业绩回测、同步写入和 provider failover，未修改 Tushare/AKShare provider 状态，未部署、未 push。
+- 未验证风险：生产基金 Publication 成员覆盖、基金 current 调用方完整盘点和 PostgreSQL 性能仍待生产阶段证据。

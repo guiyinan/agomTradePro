@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 52,
-    "current_surface_references": 3142,
+    "current_surface_references": 3145,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 6,
     "legacy_fact_references": 143,
@@ -8042,27 +8042,42 @@
       "text": "\"Current Regime is not decision-safe; provide regime explicitly.\""
     },
     {
-      "line": 571,
+      "line": 326,
+      "path": "apps/fund/infrastructure/repositories.py",
+      "text": "\"\"\"Return the latest decision-ready NAV from the active Publication."
+    },
+    {
+      "line": 329,
+      "path": "apps/fund/infrastructure/repositories.py",
+      "text": "unqualified ``latest`` method is a current-data consumer, so a raw"
+    },
+    {
+      "line": 341,
+      "path": "apps/fund/infrastructure/repositories.py",
+      "text": "publication_key=\"current\","
+    },
+    {
+      "line": 610,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "\"\"\"Anchor research windows to the latest locally available fund dataset.\"\"\""
     },
     {
-      "line": 574,
+      "line": 613,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "latest=Max(\"end_date\")"
     },
     {
-      "line": 575,
+      "line": 614,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": ")[\"latest\"]"
     },
     {
-      "line": 913,
+      "line": 981,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "for previous, current in zip(nav_series, nav_series[1:], strict=False):"
     },
     {
-      "line": 915,
+      "line": 983,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "curr_nav = float(current.unit_nav)"
     },
