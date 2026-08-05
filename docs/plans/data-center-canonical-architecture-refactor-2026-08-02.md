@@ -4050,3 +4050,13 @@ Git SHA / 镜像 / migration：
 - 已运行测试：`pytest tests/component/test_equity_repository_data_center.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：5 passed；目标文件 Black/Ruff 通过；`check_mypy_regression.py`：0 regression；`check_current_data_contracts.py`：41 surfaces。
 - 明确未做：未修改 Equity historical/PIT 读取、估值算法或 provider 写入，未部署、未 push。
 - 未验证风险：生产 valuation Publication 成员覆盖、完整 Equity current 调用方盘点、PostgreSQL 查询预算和旧估值表零读写仍待后续批次证据。
+
+## 43. 2026-08-05：Equity current 财务读取切换 Publication
+
+- 目标：消除 Equity fundamentals repository 在默认当前列表和股票上下文财务读取中的 raw financial facts 旁路，避免 Publication 失效时继续消费旧财报指标。
+- 变更：无 `as_of_date` 的 fundamentals 列表与股票上下文改用 `get_published_financial_facts(publication_key="current")`；校验 Publication 阻断、成员期间、带时区的源抓取时间、期间类型和数值字段，缺失/异常时 fail closed。显式历史/回测查询继续保留 Data Center historical repository 语义。
+- 测试：新增 Publication 阻断拒绝与 published financial observation 保留组件回归；复用同一事实组装逻辑，避免 current/historical 口径漂移。
+- 治理：新增 `equity.current_financials` current-data contract，登记 Equity repository/Public Port marker 与两条回归测试。
+- 已运行测试：`pytest tests/component/test_equity_repository_data_center.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：7 passed；目标文件 Black/Ruff 通过；`check_mypy_regression.py`：0 regression。
+- 明确未做：未修改 Equity historical/PIT 读取、财务指标算法或 provider 写入，未部署、未 push。
+- 未验证风险：生产 financial Publication 成员覆盖、完整 Equity current 调用方盘点、PostgreSQL 查询预算和旧财务表零读写仍待后续批次证据。

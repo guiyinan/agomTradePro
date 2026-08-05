@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 52,
-    "current_surface_references": 3147,
+    "current_surface_references": 3149,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 6,
     "legacy_fact_references": 143,
@@ -6592,7 +6592,7 @@
       "text": "\"\"\"Current valuation fields observed with a market quote timestamp.\"\"\""
     },
     {
-      "line": 1070,
+      "line": 1079,
       "path": "apps/data_center/infrastructure/models.py",
       "text": "summary = models.TextField(blank=True)"
     },
@@ -7702,77 +7702,87 @@
       "text": "\"updated_at\": latest.created_at.date().isoformat(),"
     },
     {
-      "line": 140,
+      "line": 144,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"\"\"Return stock info plus latest market and canonical fundamental context.\"\"\""
     },
     {
       "line": 221,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "latest = latest_financials[0]"
+      "text": "latest = self._get_latest_financial(stock_code, published_only=True)"
     },
     {
-      "line": 223,
-      "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "\"report_date\": latest.report_date,"
-    },
-    {
-      "line": 224,
-      "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "\"roe\": latest.roe,"
-    },
-    {
-      "line": 225,
-      "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "\"debt_ratio\": latest.debt_ratio,"
-    },
-    {
-      "line": 226,
-      "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "\"revenue_growth\": latest.revenue_growth,"
-    },
-    {
-      "line": 227,
-      "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "\"net_profit_growth\": latest.net_profit_growth,"
-    },
-    {
-      "line": 231,
-      "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "latest = self._get_latest_valuation(stock_code, published_only=True)"
-    },
-    {
-      "line": 232,
+      "line": 222,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "if latest is None:"
     },
     {
-      "line": 235,
+      "line": 225,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "\"trade_date\": latest.trade_date,"
+      "text": "\"report_date\": latest.report_date,"
     },
     {
-      "line": 236,
+      "line": 226,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "\"pe\": latest.pe,"
+      "text": "\"roe\": latest.roe,"
+    },
+    {
+      "line": 227,
+      "path": "apps/equity/infrastructure/fundamentals_repository.py",
+      "text": "\"debt_ratio\": latest.debt_ratio,"
+    },
+    {
+      "line": 228,
+      "path": "apps/equity/infrastructure/fundamentals_repository.py",
+      "text": "\"revenue_growth\": latest.revenue_growth,"
+    },
+    {
+      "line": 229,
+      "path": "apps/equity/infrastructure/fundamentals_repository.py",
+      "text": "\"net_profit_growth\": latest.net_profit_growth,"
+    },
+    {
+      "line": 233,
+      "path": "apps/equity/infrastructure/fundamentals_repository.py",
+      "text": "latest = self._get_latest_valuation(stock_code, published_only=True)"
+    },
+    {
+      "line": 234,
+      "path": "apps/equity/infrastructure/fundamentals_repository.py",
+      "text": "if latest is None:"
     },
     {
       "line": 237,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "\"pb\": latest.pb,"
+      "text": "\"trade_date\": latest.trade_date,"
     },
     {
       "line": 238,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "\"ps\": latest.ps,"
+      "text": "\"pe\": latest.pe,"
     },
     {
       "line": 239,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
+      "text": "\"pb\": latest.pb,"
+    },
+    {
+      "line": 240,
+      "path": "apps/equity/infrastructure/fundamentals_repository.py",
+      "text": "\"ps\": latest.ps,"
+    },
+    {
+      "line": 241,
+      "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"dividend_yield\": latest.dividend_yield,"
     },
     {
-      "line": 423,
+      "line": 421,
+      "path": "apps/equity/infrastructure/fundamentals_repository.py",
+      "text": "publication_key=\"current\","
+    },
+    {
+      "line": 499,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "publication_key=\"current\","
     },

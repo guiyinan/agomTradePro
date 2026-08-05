@@ -9,7 +9,7 @@ compatibility facade here.
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 from django.utils import timezone
 
 from apps.data_center.application.public import (
+    get_published_financial_facts,
     get_published_valuation_facts,
 )
 from apps.data_center.domain.entities import AssetMaster, FinancialFact, ValuationFact
@@ -118,7 +119,10 @@ class StockFundamentalsRepositoryMixin:
             stock_info = self._stock_info_from_asset(asset)
 
             # 获取最新财务数据
-            financial = self._get_latest_financial(stock_code)
+            financial = self._get_latest_financial(
+                stock_code,
+                published_only=as_of_date is None,
+            )
             if not financial:
                 # 没有财务数据，跳过
                 continue
@@ -214,11 +218,9 @@ class StockFundamentalsRepositoryMixin:
         return context
 
     def _get_stock_context_financial_fact_row(self, stock_code: str) -> dict[str, Any]:
-        latest_financials = self._get_financials_from_data_center(stock_code, limit=1)
-        if not latest_financials:
+        latest = self._get_latest_financial(stock_code, published_only=True)
+        if latest is None:
             return {}
-
-        latest = latest_financials[0]
         return {
             "report_date": latest.report_date,
             "roe": latest.roe,
@@ -407,9 +409,83 @@ class StockFundamentalsRepositoryMixin:
         # go exclusively through the canonical Data Center repository below.
         self._dc_valuation_repo.bulk_upsert([self._valuation_entity_to_dc_fact(valuation)])
 
-    def _get_latest_financial(self, stock_code: str) -> FinancialData | None:
-        dc_items = self._get_financials_from_data_center(stock_code, limit=1)
+    def _get_latest_financial(
+        self,
+        stock_code: str,
+        *,
+        published_only: bool = False,
+    ) -> FinancialData | None:
+        if published_only:
+            payload = get_published_financial_facts(
+                stock_code,
+                publication_key="current",
+                limit=120,
+            )
+            if bool(payload.get("must_not_use_for_decision")):
+                return None
+            rows = payload.get("rows", [])
+            if not isinstance(rows, (list, tuple)):
+                return None
+            facts = [
+                fact
+                for row in rows
+                if isinstance(row, Mapping)
+                for fact in [self._financial_fact_from_public_row(row)]
+                if fact is not None
+            ]
+            dc_items = self._financial_data_from_facts(stock_code, facts, limit=1)
+        else:
+            dc_items = self._get_financials_from_data_center(stock_code, limit=1)
         return dc_items[0] if dc_items else None
+
+    @staticmethod
+    def _financial_fact_from_public_row(row: Mapping[str, object]) -> FinancialFact | None:
+        """Convert a publication-bound financial row without fabricating timestamps."""
+
+        asset_code = str(row.get("asset_code") or "").strip().upper()
+        metric_code = str(row.get("metric_code") or "").strip()
+        period_end = _parse_fact_date(row.get("period_end"))
+        fetched_at = _parse_fact_datetime(row.get("fetched_at"))
+        value = safe_float(row.get("value"), default=None)
+        if not asset_code or not metric_code or period_end is None or fetched_at is None:
+            return None
+        if value is None:
+            return None
+
+        try:
+            period_type = FinancialPeriodType(str(row.get("period_type") or ""))
+        except ValueError:
+            return None
+
+        report_raw = row.get("report_date")
+        report_date = _parse_fact_date(report_raw) if report_raw not in (None, "") else None
+        available_raw = row.get("available_at")
+        available_at = (
+            _parse_fact_datetime(available_raw) if available_raw not in (None, "") else None
+        )
+        if report_raw not in (None, "") and report_date is None:
+            return None
+        if available_raw not in (None, "") and available_at is None:
+            return None
+        raw_extra = row.get("extra")
+        extra: dict[str, Any] = raw_extra if isinstance(raw_extra, dict) else {}
+
+        try:
+            return FinancialFact(
+                asset_code=asset_code,
+                period_end=period_end,
+                period_type=period_type,
+                metric_code=metric_code,
+                value=value,
+                unit=str(row.get("unit") or ""),
+                source=str(row.get("source") or ""),
+                report_date=report_date,
+                available_at=available_at,
+                fetched_at=fetched_at,
+                extra=extra,
+            )
+        except ValueError:
+            return None
 
     def _get_latest_valuation(
         self,
@@ -486,6 +562,15 @@ class StockFundamentalsRepositoryMixin:
         limit: int,
     ) -> list[FinancialData]:
         facts = self._dc_financial_repo.get_facts(stock_code, limit=max(limit * 12, 40))
+        return self._financial_data_from_facts(stock_code, facts, limit=limit)
+
+    def _financial_data_from_facts(
+        self,
+        stock_code: str,
+        facts: Sequence[FinancialFact],
+        *,
+        limit: int,
+    ) -> list[FinancialData]:
         if not facts:
             return []
 

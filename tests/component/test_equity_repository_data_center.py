@@ -178,6 +178,77 @@ def test_latest_valuation_current_read_preserves_published_fact(monkeypatch):
 
 
 @pytest.mark.django_db
+def test_latest_financial_current_read_requires_publication(monkeypatch):
+    repo = DjangoStockRepository()
+    repo._dc_financial_repo.get_facts = lambda *args, **kwargs: (_ for _ in ()).throw(
+        AssertionError("raw latest financial facts must not be read")
+    )
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.fundamentals_repository.get_published_financial_facts",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "asset_code": "600519.SH",
+                    "period_end": "2025-12-31",
+                    "period_type": "annual",
+                    "metric_code": "roe",
+                    "value": 18.5,
+                    "unit": "%",
+                    "source": "akshare-main",
+                    "fetched_at": datetime(2026, 7, 31, tzinfo=UTC).isoformat(),
+                }
+            ],
+            "must_not_use_for_decision": True,
+            "blocked_reason": "publication_stale",
+        },
+    )
+
+    assert repo._get_latest_financial("600519.SH", published_only=True) is None
+
+
+@pytest.mark.django_db
+def test_latest_financial_current_read_preserves_published_facts(monkeypatch):
+    values = {
+        "revenue": (1_000_000.0, "元"),
+        "net_profit": (200_000.0, "元"),
+        "total_assets": (3_000_000.0, "元"),
+        "total_liabilities": (500_000.0, "元"),
+        "equity": (2_500_000.0, "元"),
+        "roe": (18.5, "%"),
+        "debt_ratio": (16.7, "%"),
+    }
+    fetched_at = datetime(2026, 7, 31, tzinfo=UTC).isoformat()
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.fundamentals_repository.get_published_financial_facts",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "asset_code": "600519.SH",
+                    "period_end": "2025-12-31",
+                    "period_type": "annual",
+                    "metric_code": metric_code,
+                    "value": value,
+                    "unit": unit,
+                    "source": "akshare-main",
+                    "fetched_at": fetched_at,
+                }
+                for metric_code, (value, unit) in values.items()
+            ],
+            "must_not_use_for_decision": False,
+        },
+    )
+
+    financial = DjangoStockRepository()._get_latest_financial("600519.SH", published_only=True)
+
+    assert financial is not None
+    assert financial.report_date == date(2025, 12, 31)
+    assert financial.roe == 18.5
+    assert financial.debt_ratio == 16.7
+    assert financial.source == "akshare-main"
+    assert financial.fetched_at == datetime(2026, 7, 31, tzinfo=UTC)
+
+
+@pytest.mark.django_db
 def test_save_methods_mirror_equity_data_to_data_center():
     repo = DjangoStockRepository()
     repo.save_financial_data(
