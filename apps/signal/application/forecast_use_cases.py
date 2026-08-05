@@ -8,6 +8,14 @@ import re
 from collections.abc import Mapping
 from datetime import datetime
 from typing import Any, Protocol
+from uuid import UUID
+
+from apps.signal.domain.forecast_scenario_evidence import (
+    ScenarioForecastBinding,
+    ScenarioForecastOutcomeEvidence,
+    ScenarioProbabilitySource,
+    scenario_revision_uuid,
+)
 
 _ENTRY_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]+$")
 _ASSET_CODE_PATTERN = re.compile(r"^[A-Z0-9._-]+$")
@@ -43,8 +51,33 @@ class ForecastEvaluationGateway(Protocol):
         asset_return: float | None,
         benchmark_return: float | None,
         neutral_band: float,
+        scenario_realized: bool | None,
         evidence: dict[str, Any],
     ) -> Any: ...
+
+    def list_scenario_outcomes(
+        self,
+        *,
+        scenario_revision_id: UUID,
+        scenario_set_revision_id: UUID | None,
+        probability_source: ScenarioProbabilitySource | None,
+    ) -> tuple[ScenarioForecastOutcomeEvidence, ...]: ...
+
+
+class ScenarioForecastReferenceChecker(Protocol):
+    """Risk Center-owned validation boundary for stable UUID references."""
+
+    def __call__(
+        self,
+        scenario_revision_id: str,
+        scenario_set_revision_id: str | None,
+    ) -> bool: ...
+
+
+class ResearchPromotionChecker(Protocol):
+    """Research-owned approval boundary for model-derived probability evidence."""
+
+    def __call__(self, decision_id: str) -> bool: ...
 
 
 def _bounded_text(
@@ -123,11 +156,59 @@ def _entry_id(value: object) -> str:
     return normalized
 
 
+_SCENARIO_BINDING_FIELDS = frozenset(
+    {
+        "scenario_revision_id",
+        "scenario_set_revision_id",
+        "subjective_probability",
+        "subjective_probability_source_version",
+        "model_probability",
+        "model_probability_source_version",
+        "model_promotion_decision_id",
+    }
+)
+
+
+def _scenario_binding_from_payload(
+    payload: Mapping[str, object],
+) -> ScenarioForecastBinding | None:
+    """Build a complete scenario binding or preserve a non-scenario forecast."""
+
+    present = _SCENARIO_BINDING_FIELDS.intersection(payload)
+    if not present:
+        return None
+    required = {
+        "scenario_revision_id",
+        "subjective_probability",
+        "subjective_probability_source_version",
+    }
+    missing = required - set(payload)
+    if missing:
+        raise ValueError(f"missing scenario binding fields: {', '.join(sorted(missing))}")
+    return ScenarioForecastBinding.from_values(
+        scenario_revision_id=payload["scenario_revision_id"],
+        scenario_set_revision_id=payload.get("scenario_set_revision_id"),
+        subjective_probability=payload["subjective_probability"],
+        subjective_probability_source_version=payload["subjective_probability_source_version"],
+        model_probability=payload.get("model_probability"),
+        model_probability_source_version=payload.get("model_probability_source_version"),
+        model_promotion_decision_id=payload.get("model_promotion_decision_id"),
+    )
+
+
 class RecordForecastLedgerEntryUseCase:
     """Freeze all fields needed to score a signal at publication time."""
 
-    def __init__(self, repository: ForecastEvaluationGateway) -> None:
+    def __init__(
+        self,
+        repository: ForecastEvaluationGateway,
+        *,
+        scenario_reference_checker: ScenarioForecastReferenceChecker | None = None,
+        research_promotion_checker: ResearchPromotionChecker | None = None,
+    ) -> None:
         self._repository = repository
+        self._scenario_reference_checker = scenario_reference_checker
+        self._research_promotion_checker = research_promotion_checker
 
     def execute(self, **payload: Any) -> Any:
         """Validate and freeze one forecast publication."""
@@ -151,6 +232,7 @@ class RecordForecastLedgerEntryUseCase:
             "model_version",
             "prompt_version",
             "regime",
+            *_SCENARIO_BINDING_FIELDS,
         }
         unknown_fields = set(payload) - required_fields - optional_fields
         if unknown_fields:
@@ -185,6 +267,25 @@ class RecordForecastLedgerEntryUseCase:
             isinstance(signal_id, bool) or not isinstance(signal_id, int) or signal_id <= 0
         ):
             raise ValueError("signal_id must be a positive integer")
+
+        binding = _scenario_binding_from_payload(payload)
+        if binding is not None:
+            if self._scenario_reference_checker is None or not self._scenario_reference_checker(
+                str(binding.scenario_revision_id),
+                (
+                    str(binding.scenario_set_revision_id)
+                    if binding.scenario_set_revision_id is not None
+                    else None
+                ),
+            ):
+                raise ValueError(
+                    "scenario revision binding is not an approved Risk Center reference"
+                )
+            if binding.has_model_probability and (
+                self._research_promotion_checker is None
+                or not self._research_promotion_checker(binding.model_promotion_decision_id or "")
+            ):
+                raise ValueError("model probability requires an approved research promotion")
 
         normalized: dict[str, Any] = {
             "published_at": published_at,
@@ -238,6 +339,22 @@ class RecordForecastLedgerEntryUseCase:
             normalized["entry_id"] = _entry_id(payload["entry_id"])
         if signal_id is not None:
             normalized["signal_id"] = signal_id
+        if binding is not None:
+            normalized.update(
+                {
+                    "scenario_revision_id": binding.scenario_revision_id,
+                    "scenario_set_revision_id": binding.scenario_set_revision_id,
+                    "subjective_probability": binding.subjective_probability,
+                    "subjective_probability_source_version": (
+                        binding.subjective_probability_source_version
+                    ),
+                    "model_probability": binding.model_probability,
+                    "model_probability_source_version": (
+                        binding.model_probability_source_version or ""
+                    ),
+                    "model_promotion_decision_id": (binding.model_promotion_decision_id or ""),
+                }
+            )
         return self._repository.create_entry(**normalized)
 
 
@@ -313,6 +430,7 @@ class FinalizeForecastOutcomeUseCase:
         asset_return: float | None,
         benchmark_return: float | None,
         neutral_band: float,
+        scenario_realized: bool | None = None,
         evidence: dict[str, Any] | None = None,
     ) -> Any:
         """Validate and persist one immutable forecast outcome."""
@@ -334,6 +452,8 @@ class FinalizeForecastOutcomeUseCase:
             else _finite_float(benchmark_return, "benchmark_return")
         )
         normalized_evidence = _json_object(evidence or {}, "evidence")
+        if scenario_realized is not None and not isinstance(scenario_realized, bool):
+            raise ValueError("scenario_realized must be boolean or null")
         return self._repository.finalize_outcome(
             entry_id=normalized_entry_id,
             finalized_at=normalized_finalized_at,
@@ -341,5 +461,48 @@ class FinalizeForecastOutcomeUseCase:
             asset_return=normalized_asset_return,
             benchmark_return=normalized_benchmark_return,
             neutral_band=normalized_neutral_band,
+            scenario_realized=scenario_realized,
             evidence=normalized_evidence,
+        )
+
+
+class ListScenarioForecastOutcomeEvidenceUseCase:
+    """Query row-level realization scores without claiming model calibration."""
+
+    def __init__(self, repository: ForecastEvaluationGateway) -> None:
+        self._repository = repository
+
+    def execute(
+        self,
+        *,
+        scenario_revision_id: str | UUID,
+        scenario_set_revision_id: str | UUID | None = None,
+        probability_source: str | ScenarioProbabilitySource | None = None,
+    ) -> tuple[ScenarioForecastOutcomeEvidence, ...]:
+        """Return immutable observations for one exact scenario revision binding."""
+
+        normalized_revision_id = scenario_revision_uuid(
+            scenario_revision_id,
+            "scenario_revision_id",
+        )
+        normalized_set_revision_id = (
+            None
+            if scenario_set_revision_id is None
+            else scenario_revision_uuid(
+                scenario_set_revision_id,
+                "scenario_set_revision_id",
+            )
+        )
+        try:
+            normalized_source = (
+                None
+                if probability_source is None
+                else ScenarioProbabilitySource(probability_source)
+            )
+        except ValueError as exc:
+            raise ValueError("unsupported scenario probability source") from exc
+        return self._repository.list_scenario_outcomes(
+            scenario_revision_id=normalized_revision_id,
+            scenario_set_revision_id=normalized_set_revision_id,
+            probability_source=normalized_source,
         )

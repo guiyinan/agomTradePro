@@ -13,6 +13,7 @@ _research_promotion_checker: Callable[[str], bool] | None = None
 _active_prompt_checker: Callable[[str], bool] | None = None
 _forecast_entry_provider: Callable[[], Any] | None = None
 _forecast_evaluation_recorder: Callable[..., Any] | None = None
+_scenario_forecast_reference_checker: Callable[[str, str | None], bool] | None = None
 
 
 def configure_pit_providers(
@@ -119,4 +120,28 @@ def record_forecast_evaluation_for_signal(
         data_version_ids=data_version_ids,
         conditions=conditions,
         missing_reason=missing_reason,
+    )
+
+
+def configure_scenario_forecast_reference_checker(
+    checker: Callable[[str, str | None], bool],
+) -> None:
+    """Register the Risk Center-owned immutable revision membership checker."""
+
+    global _scenario_forecast_reference_checker
+    _scenario_forecast_reference_checker = checker
+
+
+def is_scenario_forecast_reference_valid(
+    scenario_revision_id: str,
+    scenario_set_revision_id: str | None,
+) -> bool:
+    """Fail closed unless Risk Center confirms the published revision reference."""
+
+    return bool(
+        _scenario_forecast_reference_checker
+        and _scenario_forecast_reference_checker(
+            scenario_revision_id,
+            scenario_set_revision_id,
+        )
     )

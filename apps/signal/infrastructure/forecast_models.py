@@ -1,6 +1,9 @@
 """Append-only forecast ledger models."""
 
+from decimal import Decimal
+
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -21,6 +24,13 @@ class ForecastLedgerEntry(models.Model):
         "prompt_version",
         "source",
         "regime",
+        "scenario_revision_id",
+        "scenario_set_revision_id",
+        "subjective_probability",
+        "subjective_probability_source_version",
+        "model_probability",
+        "model_probability_source_version",
+        "model_promotion_decision_id",
     )
     entry_id = models.CharField(max_length=64, primary_key=True)
     signal = models.OneToOneField(
@@ -44,19 +54,114 @@ class ForecastLedgerEntry(models.Model):
     prompt_version = models.CharField(max_length=64, blank=True)
     source = models.CharField(max_length=64, db_index=True)
     regime = models.CharField(max_length=32, blank=True, db_index=True)
+    scenario_revision_id = models.UUIDField(null=True, blank=True)
+    scenario_set_revision_id = models.UUIDField(null=True, blank=True)
+    subjective_probability = models.DecimalField(
+        max_digits=18,
+        decimal_places=12,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("1"))],
+    )
+    subjective_probability_source_version = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+    )
+    model_probability = models.DecimalField(
+        max_digits=18,
+        decimal_places=12,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("1"))],
+    )
+    model_probability_source_version = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+    )
+    model_promotion_decision_id = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+    )
     status = models.CharField(max_length=24, default="open", db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "signal_forecast_ledger_entry"
-        indexes = [models.Index(fields=["source", "published_at"])]
+        indexes = [
+            models.Index(fields=["source", "published_at"]),
+            models.Index(
+                fields=["scenario_revision_id", "published_at"],
+                name="signal_scn_rev_pub_idx",
+            ),
+            models.Index(
+                fields=["scenario_set_revision_id", "published_at"],
+                name="signal_scn_set_pub_idx",
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        scenario_revision_id__isnull=True,
+                        scenario_set_revision_id__isnull=True,
+                        subjective_probability__isnull=True,
+                        subjective_probability_source_version="",
+                        model_probability__isnull=True,
+                        model_probability_source_version="",
+                        model_promotion_decision_id="",
+                    )
+                    | (
+                        models.Q(
+                            scenario_revision_id__isnull=False,
+                            subjective_probability__isnull=False,
+                        )
+                        & ~models.Q(subjective_probability_source_version="")
+                    )
+                ),
+                name="signal_scn_binding_complete_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        model_probability__isnull=True,
+                        model_probability_source_version="",
+                        model_promotion_decision_id="",
+                    )
+                    | (
+                        models.Q(model_probability__isnull=False)
+                        & ~models.Q(model_probability_source_version="")
+                        & ~models.Q(model_promotion_decision_id="")
+                    )
+                ),
+                name="signal_scn_model_complete_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(subjective_probability__isnull=True)
+                    | models.Q(
+                        subjective_probability__gte=0,
+                        subjective_probability__lte=1,
+                    )
+                ),
+                name="signal_scn_subjective_range_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(model_probability__isnull=True)
+                    | models.Q(model_probability__gte=0, model_probability__lte=1)
+                ),
+                name="signal_scn_model_range_ck",
+            ),
+        ]
 
     def save(self, *args, **kwargs):  # type: ignore[no-untyped-def]
         if self.pk:
             original = type(self)._default_manager.filter(pk=self.pk).first()
             if original and any(
-                getattr(original, field) != getattr(self, field)
-                for field in self.IMMUTABLE_FIELDS
+                getattr(original, field) != getattr(self, field) for field in self.IMMUTABLE_FIELDS
             ):
                 raise ValidationError("Forecast publication evidence is immutable.")
         return super().save(*args, **kwargs)
@@ -64,7 +169,9 @@ class ForecastLedgerEntry(models.Model):
 
 class ForecastEvaluation(models.Model):
     evaluation_id = models.CharField(max_length=64, primary_key=True)
-    entry = models.ForeignKey(ForecastLedgerEntry, on_delete=models.CASCADE, related_name="evaluations")
+    entry = models.ForeignKey(
+        ForecastLedgerEntry, on_delete=models.CASCADE, related_name="evaluations"
+    )
     checked_at = models.DateTimeField(db_index=True)
     data_version_ids = models.JSONField(default=list)
     conditions = models.JSONField(default=list)
@@ -97,10 +204,46 @@ class ForecastOutcome(models.Model):
     excess_return = models.FloatField(null=True, blank=True)
     hit = models.BooleanField(null=True, blank=True)
     brier_score = models.FloatField(null=True, blank=True)
+    scenario_realized = models.BooleanField(null=True, blank=True)
+    subjective_brier_score = models.FloatField(null=True, blank=True)
+    model_brier_score = models.FloatField(null=True, blank=True)
     evidence = models.JSONField(default=dict)
 
     class Meta:
         db_table = "signal_forecast_outcome"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(subjective_brier_score__isnull=True)
+                    | models.Q(
+                        subjective_brier_score__gte=0,
+                        subjective_brier_score__lte=1,
+                    )
+                ),
+                name="signal_scn_subjective_brier_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(model_brier_score__isnull=True)
+                    | models.Q(model_brier_score__gte=0, model_brier_score__lte=1)
+                ),
+                name="signal_scn_model_brier_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        scenario_realized__isnull=True,
+                        subjective_brier_score__isnull=True,
+                        model_brier_score__isnull=True,
+                    )
+                    | models.Q(
+                        scenario_realized__isnull=False,
+                        subjective_brier_score__isnull=False,
+                    )
+                ),
+                name="signal_scn_outcome_score_ck",
+            ),
+        ]
 
     def save(self, *args, **kwargs):  # type: ignore[no-untyped-def]
         if self.pk and type(self)._default_manager.filter(pk=self.pk).exists():
