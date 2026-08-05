@@ -436,6 +436,42 @@
       ]
     },
     {
+      "id": "equity.current_price_context",
+      "surface": "Equity repository and asset scoring current price context",
+      "source_files": [
+        "apps/equity/infrastructure/fundamentals_repository.py",
+        "apps/equity/infrastructure/asset_repository.py",
+        "apps/data_center/application/public.py"
+      ],
+      "required_markers": {
+        "apps/equity/infrastructure/fundamentals_repository.py": [
+          "get_published_price_bar_series(",
+          "def _get_latest_price_bar(",
+          "published_only=True",
+          "must_not_use_for_decision"
+        ],
+        "apps/equity/infrastructure/asset_repository.py": [
+          "_get_latest_price_bar(",
+          "published_only=True"
+        ],
+        "apps/data_center/application/public.py": [
+          "def get_published_price_bar_series("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "blocked_publication_rejects_current_price",
+          "test_file": "tests/component/test_equity_repository_data_center.py",
+          "test_function": "test_latest_price_bar_current_read_requires_publication"
+        },
+        {
+          "case": "published_price_observation_preserved",
+          "test_file": "tests/component/test_equity_repository_data_center.py",
+          "test_function": "test_latest_price_bar_current_read_preserves_published_observation"
+        }
+      ]
+    },
+    {
       "id": "regime.current",
       "surface": "GET /api/regime/current/ -> SDK/MCP/Terminal",
       "source_files": [
@@ -1809,6 +1845,8 @@
       ],
       "required_markers": {
         "apps/equity/application/query_services.py": [
+          "def get_stock_context_map(",
+          "get_published_stock_context_map(normalized_codes)",
           "def get_published_stock_context_map(",
           "get_published_price_bar_series(",
           "get_published_financial_facts(",
@@ -1832,6 +1870,11 @@
         ]
       },
       "required_tests": [
+        {
+          "case": "legacy_context_wrapper_routes_to_publication",
+          "test_file": "tests/unit/equity/test_published_stock_context.py",
+          "test_function": "test_stock_context_map_routes_to_publication_gated_context"
+        },
         {
           "case": "published_context_aggregates_same_financial_period",
           "test_file": "tests/unit/equity/test_published_stock_context.py",

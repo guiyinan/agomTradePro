@@ -18,10 +18,16 @@ from django.utils import timezone
 
 from apps.data_center.application.public import (
     get_published_financial_facts,
+    get_published_price_bar_series,
     get_published_valuation_facts,
 )
-from apps.data_center.domain.entities import AssetMaster, FinancialFact, ValuationFact
-from apps.data_center.domain.enums import AssetType, FinancialPeriodType, MarketExchange
+from apps.data_center.domain.entities import AssetMaster, FinancialFact, PriceBar, ValuationFact
+from apps.data_center.domain.enums import (
+    AssetType,
+    FinancialPeriodType,
+    MarketExchange,
+    PriceAdjustment,
+)
 from apps.data_center.domain.protocols import (
     AssetRepositoryProtocol,
     FinancialFactRepositoryProtocol,
@@ -140,8 +146,19 @@ class StockFundamentalsRepositoryMixin:
 
         return result
 
-    def get_stock_context_rows(self, stock_codes: list[str]) -> dict[str, dict[str, Any]]:
-        """Return stock info plus latest market and canonical fundamental context."""
+    def get_stock_context_rows(
+        self,
+        stock_codes: list[str],
+        *,
+        published_only: bool = False,
+    ) -> dict[str, dict[str, Any]]:
+        """Return stock context, with an explicit gate for current consumers.
+
+        The default remains a historical/maintenance compatibility read.  All
+        decision-facing callers use the application ``get_published_stock_context_map``
+        or pass ``published_only=True`` so raw latest facts cannot masquerade as
+        current observations.
+        """
 
         normalized_codes = [str(code).upper() for code in stock_codes if code]
         if not normalized_codes:
@@ -167,7 +184,10 @@ class StockFundamentalsRepositoryMixin:
 
         daily_map: dict[str, Mapping[str, object]] = {}
         for candidate in sorted(candidate_codes):
-            latest_bar = self._dc_price_bar_repo.get_latest(candidate)
+            latest_bar = self._get_latest_price_bar(
+                candidate,
+                published_only=published_only,
+            )
             if latest_bar is None:
                 continue
             daily_map[candidate.upper()] = {
@@ -197,8 +217,14 @@ class StockFundamentalsRepositoryMixin:
 
             # Dashboard / equity-screen fundamental metrics must come from the
             # canonical data-center fact tables instead of legacy equity mirrors.
-            latest_financial = self._get_stock_context_financial_fact_row(requested_code)
-            latest_valuation = self._get_stock_context_valuation_fact_row(requested_code)
+            latest_financial = self._get_stock_context_financial_fact_row(
+                requested_code,
+                published_only=published_only,
+            )
+            latest_valuation = self._get_stock_context_valuation_fact_row(
+                requested_code,
+                published_only=published_only,
+            )
             context[requested_code] = {
                 **context_row,
                 "trade_date": latest_daily.get("trade_date"),
@@ -217,8 +243,13 @@ class StockFundamentalsRepositoryMixin:
             }
         return context
 
-    def _get_stock_context_financial_fact_row(self, stock_code: str) -> dict[str, Any]:
-        latest = self._get_latest_financial(stock_code, published_only=True)
+    def _get_stock_context_financial_fact_row(
+        self,
+        stock_code: str,
+        *,
+        published_only: bool = False,
+    ) -> dict[str, Any]:
+        latest = self._get_latest_financial(stock_code, published_only=published_only)
         if latest is None:
             return {}
         return {
@@ -229,8 +260,13 @@ class StockFundamentalsRepositoryMixin:
             "net_profit_growth": latest.net_profit_growth,
         }
 
-    def _get_stock_context_valuation_fact_row(self, stock_code: str) -> dict[str, Any]:
-        latest = self._get_latest_valuation(stock_code, published_only=True)
+    def _get_stock_context_valuation_fact_row(
+        self,
+        stock_code: str,
+        *,
+        published_only: bool = False,
+    ) -> dict[str, Any]:
+        latest = self._get_latest_valuation(stock_code, published_only=published_only)
         if latest is None:
             return {}
         return {
@@ -408,6 +444,77 @@ class StockFundamentalsRepositoryMixin:
         # Legacy valuation rows are read-only migration fixtures.  New writes
         # go exclusively through the canonical Data Center repository below.
         self._dc_valuation_repo.bulk_upsert([self._valuation_entity_to_dc_fact(valuation)])
+
+    def _get_latest_price_bar(
+        self,
+        stock_code: str,
+        *,
+        published_only: bool = False,
+    ) -> PriceBar | None:
+        if not published_only:
+            return self._dc_price_bar_repo.get_latest(stock_code)
+
+        payload = get_published_price_bar_series(
+            stock_code,
+            publication_key="current",
+            limit=1,
+        )
+        if bool(payload.get("must_not_use_for_decision")):
+            return None
+        rows = payload.get("rows", [])
+        if not isinstance(rows, (list, tuple)):
+            return None
+        bars = [
+            bar
+            for row in rows
+            if isinstance(row, Mapping)
+            for bar in [self._price_bar_from_public_row(row, stock_code)]
+            if bar is not None
+        ]
+        return max(bars, key=lambda bar: bar.bar_date) if bars else None
+
+    @staticmethod
+    def _price_bar_from_public_row(
+        row: Mapping[str, object],
+        default_asset_code: str,
+    ) -> PriceBar | None:
+        """Convert one publication-bound OHLCV row without fabricating time."""
+
+        asset_code = str(row.get("asset_code") or default_asset_code).strip().upper()
+        bar_date = _parse_fact_date(row.get("bar_date", row.get("timestamp")))
+        fetched_at = _parse_fact_datetime(row.get("fetched_at"))
+        if not asset_code or bar_date is None or fetched_at is None:
+            return None
+
+        def _number(field: str) -> float | None:
+            return safe_float(row.get(field), default=None)
+
+        open_price = _number("open")
+        high = _number("high")
+        low = _number("low")
+        close = _number("close")
+        if open_price is None or high is None or low is None or close is None:
+            return None
+        volume = _number("volume")
+        amount = _number("amount")
+        try:
+            adjustment = PriceAdjustment(str(row.get("adjustment") or "none"))
+            return PriceBar(
+                asset_code=asset_code,
+                bar_date=bar_date,
+                open=open_price,
+                high=high,
+                low=low,
+                close=close,
+                freq=str(row.get("freq") or row.get("period") or "1d"),
+                adjustment=adjustment,
+                volume=volume,
+                amount=amount,
+                source=str(row.get("source") or ""),
+                fetched_at=fetched_at,
+            )
+        except ValueError:
+            return None
 
     def _get_latest_financial(
         self,

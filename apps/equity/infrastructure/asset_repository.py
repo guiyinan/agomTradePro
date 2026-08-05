@@ -85,7 +85,9 @@ class DjangoEquityAssetRepository:
         # Canonical asset-master and D1/D4/D5 facts are queried through the
         # Data Center repositories; legacy equity tables are not read.
         market_alias = {"SH": "SSE", "SZ": "SZSE", "BJ": "BSE"}
-        requested_exchange = market_alias.get(str(market).upper(), str(market).upper()) if market else None
+        requested_exchange = (
+            market_alias.get(str(market).upper(), str(market).upper()) if market else None
+        )
         stocks_data = []
         for asset in self._asset_repo.list_active():
             if asset.asset_type.value != "stock":
@@ -97,7 +99,10 @@ class DjangoEquityAssetRepository:
             stock_code = asset.code
 
             # 获取最新估值数据
-            valuation = self._stock_repo._get_latest_valuation(stock_code)
+            valuation = self._stock_repo._get_latest_valuation(
+                stock_code,
+                published_only=True,
+            )
 
             if not valuation:
                 continue
@@ -120,8 +125,14 @@ class DjangoEquityAssetRepository:
                 continue
 
             # 获取最新财务数据和 canonical 价格事实
-            financial = self._stock_repo._get_latest_financial(stock_code)
-            daily = self._stock_repo._dc_price_bar_repo.get_latest(stock_code)
+            financial = self._stock_repo._get_latest_financial(
+                stock_code,
+                published_only=True,
+            )
+            daily = self._stock_repo._get_latest_price_bar(
+                stock_code,
+                published_only=True,
+            )
 
             # 构建 EquityAssetScore
             stock_info = StockInfo(
@@ -230,13 +241,16 @@ class DjangoEquityAssetRepository:
             )
 
             # 获取最新估值数据
-            valuation = self._get_latest_valuation(asset_code)
+            valuation = self._get_latest_valuation(asset_code, published_only=True)
 
             # 获取最新财务数据
-            financial = self._get_latest_financial(asset_code)
+            financial = self._get_latest_financial(asset_code, published_only=True)
 
             # 获取最新技术指标
-            daily_model = self._stock_repo._dc_price_bar_repo.get_latest(asset_code)
+            daily_model = self._stock_repo._get_latest_price_bar(
+                asset_code,
+                published_only=True,
+            )
 
             technical = (
                 TechnicalIndicators(
@@ -260,12 +274,27 @@ class DjangoEquityAssetRepository:
         except (LookupError, ValueError):
             return None
 
-    def _get_latest_financial(self, stock_code: str) -> FinancialData | None:
-        items = self._stock_repo.get_financial_data(stock_code, limit=1)
-        return items[0] if items else None
+    def _get_latest_financial(
+        self,
+        stock_code: str,
+        *,
+        published_only: bool = False,
+    ) -> FinancialData | None:
+        return self._stock_repo._get_latest_financial(
+            stock_code,
+            published_only=published_only,
+        )
 
-    def _get_latest_valuation(self, stock_code: str) -> ValuationMetrics | None:
-        return self._stock_repo._get_latest_valuation(stock_code)
+    def _get_latest_valuation(
+        self,
+        stock_code: str,
+        *,
+        published_only: bool = False,
+    ) -> ValuationMetrics | None:
+        return self._stock_repo._get_latest_valuation(
+            stock_code,
+            published_only=published_only,
+        )
 
 
 __all__ = ["DjangoEquityAssetRepository"]

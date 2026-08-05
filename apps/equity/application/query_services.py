@@ -40,12 +40,12 @@ def get_valuation_repair_snapshot_map(stock_codes: list[str]) -> dict[str, dict[
 
 
 def get_stock_context_map(stock_codes: list[str]) -> dict[str, dict[str, Any]]:
-    """Return stock info and latest local daily context keyed by requested code."""
+    """Return current stock context through the publication-gated query port."""
 
     normalized_codes = [str(code).upper() for code in stock_codes if code]
     if not normalized_codes:
         return {}
-    return get_equity_stock_repository().get_stock_context_rows(normalized_codes)
+    return get_published_stock_context_map(normalized_codes)
 
 
 def get_stock_name_map(stock_codes: list[str]) -> dict[str, str]:

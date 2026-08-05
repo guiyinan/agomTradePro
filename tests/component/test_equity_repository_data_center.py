@@ -249,6 +249,73 @@ def test_latest_financial_current_read_preserves_published_facts(monkeypatch):
 
 
 @pytest.mark.django_db
+def test_latest_price_bar_current_read_requires_publication(monkeypatch):
+    repo = DjangoStockRepository()
+    repo._dc_price_bar_repo.get_latest = lambda _code: (_ for _ in ()).throw(
+        AssertionError("raw latest price bar must not be read")
+    )
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.fundamentals_repository.get_published_price_bar_series",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "asset_code": "600519.SH",
+                    "timestamp": "2026-07-31",
+                    "period": "1d",
+                    "adjustment": "none",
+                    "open": 1700.0,
+                    "high": 1720.0,
+                    "low": 1690.0,
+                    "close": 1710.0,
+                    "volume": 123456.0,
+                    "amount": 2_000_000_000.0,
+                    "source": "akshare-main",
+                    "fetched_at": datetime(2026, 7, 31, tzinfo=UTC).isoformat(),
+                }
+            ],
+            "must_not_use_for_decision": True,
+            "blocked_reason": "publication_stale",
+        },
+    )
+
+    assert repo._get_latest_price_bar("600519.SH", published_only=True) is None
+
+
+@pytest.mark.django_db
+def test_latest_price_bar_current_read_preserves_published_observation(monkeypatch):
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.fundamentals_repository.get_published_price_bar_series",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "asset_code": "600519.SH",
+                    "timestamp": "2026-07-31",
+                    "period": "1d",
+                    "adjustment": "none",
+                    "open": 1700.0,
+                    "high": 1720.0,
+                    "low": 1690.0,
+                    "close": 1710.0,
+                    "volume": 123456.0,
+                    "amount": 2_000_000_000.0,
+                    "source": "akshare-main",
+                    "fetched_at": datetime(2026, 7, 31, tzinfo=UTC).isoformat(),
+                }
+            ],
+            "must_not_use_for_decision": False,
+        },
+    )
+
+    bar = DjangoStockRepository()._get_latest_price_bar("600519.SH", published_only=True)
+
+    assert bar is not None
+    assert bar.bar_date == date(2026, 7, 31)
+    assert bar.close == 1710.0
+    assert bar.volume == 123456.0
+    assert bar.fetched_at == datetime(2026, 7, 31, tzinfo=UTC)
+
+
+@pytest.mark.django_db
 def test_save_methods_mirror_equity_data_to_data_center():
     repo = DjangoStockRepository()
     repo.save_financial_data(

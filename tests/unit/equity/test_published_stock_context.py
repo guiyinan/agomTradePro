@@ -29,6 +29,21 @@ def _fresh_gate() -> dict[str, object]:
     }
 
 
+def test_stock_context_map_routes_to_publication_gated_context(monkeypatch) -> None:
+    calls: list[list[str]] = []
+
+    def _published(codes: list[str]) -> dict[str, dict[str, object]]:
+        calls.append(codes)
+        return {"000001.SZ": {"must_not_use_for_decision": True}}
+
+    monkeypatch.setattr(query_services, "get_published_stock_context_map", _published)
+
+    context = query_services.get_stock_context_map(["000001.SZ"])
+
+    assert calls == [["000001.SZ"]]
+    assert context["000001.SZ"]["must_not_use_for_decision"] is True
+
+
 def test_published_stock_context_aggregates_same_financial_period(monkeypatch) -> None:
     monkeypatch.setattr(
         query_services,

@@ -4060,3 +4060,13 @@ Git SHA / 镜像 / migration：
 - 已运行测试：`pytest tests/component/test_equity_repository_data_center.py -q --no-migrations --reuse-db --disable-warnings --timeout=180`：7 passed；目标文件 Black/Ruff 通过；`check_mypy_regression.py`：0 regression。
 - 明确未做：未修改 Equity historical/PIT 读取、财务指标算法或 provider 写入，未部署、未 push。
 - 未验证风险：生产 financial Publication 成员覆盖、完整 Equity current 调用方盘点、PostgreSQL 查询预算和旧财务表零读写仍待后续批次证据。
+
+## 44. 2026-08-05：Equity current 价格上下文与资产评分切换 Publication
+
+- 目标：消除 Equity stock context 与通用资产评分对最新日线价格 raw `get_latest()` 的旁路，避免无 Tushare 或价格 Publication 失效时把旧收盘包装为当前技术指标。
+- 变更：新增 `_get_latest_price_bar(..., published_only=True)`，读取 `get_published_price_bar_series` 并严格解析 bar 日期、OHLCV、源抓取时间和复权类型；资产筛选/单资产评分均改用该 gate，应用层 `get_stock_context_map` 统一转到 `get_published_stock_context_map`。repository 的无 gate 方法仅保留历史/维护兼容语义。Publication 阻断、成员缺失或事实结构无效时返回空技术上下文，不回读 raw latest。
+- 测试：新增 Publication 阻断拒绝与 published price observation 保留组件回归；资产仓储显式传递 `published_only=True`。
+- 治理：新增 `equity.current_price_context` current-data contract，登记 Equity fundamentals/asset repository 与 Public Port marker/test。
+- 已运行测试：目标组件回归将覆盖 9 tests；目标文件 Black/Ruff/mypy 及 current-data/architecture 门禁在本批提交前复跑。
+- 明确未做：未修改 Equity historical/PIT 日线查询、技术指标算法或 provider 写入，未部署、未 push。
+- 未验证风险：生产 price-bar Publication 成员覆盖、资产筛选大批量查询预算、旧价格表零读写和生产 PostgreSQL 性能仍待后续批次证据。
