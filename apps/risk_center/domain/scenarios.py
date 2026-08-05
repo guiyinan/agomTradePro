@@ -525,12 +525,12 @@ class ScenarioSetRevision:
         if any(not axis.strip() for axis in self.driver_axes):
             raise ValueError("scenario set driver axes cannot be blank")
         _require_aware("ScenarioSetRevision.created_at", self.created_at)
-        for field_name, value in (
+        for field_name, effective_value in (
             ("effective_from", self.effective_from),
             ("effective_to", self.effective_to),
         ):
-            if value is not None:
-                _require_aware(field_name, value)
+            if effective_value is not None:
+                _require_aware(field_name, effective_value)
         if self.effective_from and self.effective_to and self.effective_to <= self.effective_from:
             raise ValueError("effective_to must be after effective_from")
         expected_hash = stable_content_hash(
