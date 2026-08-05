@@ -21,6 +21,9 @@ from apps.broker_execution.application.query_services import (
 from apps.broker_execution.application.use_case_errors import (
     BrokerExecutionValidationError,
 )
+from apps.broker_execution.application.use_cases import (
+    CreateLiveOrderFromExecutionPlanUseCase,
+)
 
 
 def _repository(**methods: Any) -> BrokerExecutionRepositoryProtocol:
@@ -73,6 +76,33 @@ def test_alert_forwarding_is_fail_safe_and_reports_each_failure(
     assert alert_ids == ["alert-1"]
     assert failure_count == 2
     assert recorded[0]["metadata"] == {"account_id": 7}
+
+
+def test_live_order_default_quote_provider_uses_published_public_port(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pre-trade quote evidence must not call Data Center internal services."""
+
+    expected = {
+        "asset_code": "000001.SZ",
+        "current_price": 12.3,
+        "must_not_use_for_decision": False,
+        "is_stale": False,
+        "publication_id": "pub-1",
+    }
+    monkeypatch.setattr(
+        "apps.data_center.application.public.get_published_latest_quote_payload",
+        lambda asset_code: expected if asset_code == "000001.SZ" else None,
+    )
+
+    use_case = CreateLiveOrderFromExecutionPlanUseCase(
+        repository=_repository(),
+        account_projection_provider=lambda **_kwargs: {},
+        risk_evaluator=SimpleNamespace(),
+    )
+
+    assert use_case.latest_quote_provider is not None
+    assert use_case.latest_quote_provider("000001.SZ") == expected
 
 
 def test_alert_forwarding_never_propagates_monitoring_exception(

@@ -100,16 +100,12 @@ class CreateLiveOrderFromExecutionPlanUseCase:
         else:
             self.risk_evaluator = risk_evaluator
         if latest_quote_provider is None:
-            from apps.data_center.application.dtos import LatestQuoteRequest
-            from apps.data_center.application.interface_services import (
-                make_query_latest_quote_use_case,
+            from apps.data_center.application.public import (
+                get_published_latest_quote_payload,
             )
 
             def latest_quote_provider(asset_code: str) -> dict[str, Any] | None:
-                response = make_query_latest_quote_use_case().execute(
-                    LatestQuoteRequest(asset_code=asset_code)
-                )
-                return response.to_dict() if response else None
+                return get_published_latest_quote_payload(asset_code)
 
         self.account_projection_provider = account_projection_provider
         self.latest_quote_provider = latest_quote_provider

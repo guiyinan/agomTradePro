@@ -684,6 +684,61 @@ def get_published_quote_payloads(
     return query_published_quote_payloads(asset_codes, publication_key=publication_key)
 
 
+def get_published_latest_quote_payload(
+    asset_code: str,
+    *,
+    publication_key: str = "current",
+) -> dict[str, object] | None:
+    """Return one publication-bound quote payload for a decision consumer.
+
+    A blocked publication is returned as an explicit blocked payload so callers
+    can preserve the reason in risk evidence; a usable publication with no
+    selected member returns ``None``.
+    """
+
+    normalized_code = str(asset_code or "").strip().upper()
+    if not normalized_code:
+        return None
+    published = get_published_quote_payloads(
+        [normalized_code],
+        publication_key=publication_key,
+    )
+    if bool(published.get("must_not_use_for_decision")):
+        return {
+            "asset_code": normalized_code,
+            "is_stale": True,
+            "must_not_use_for_decision": True,
+            "freshness_status": published.get("freshness_status") or "blocked",
+            "blocked_reason": published.get("blocked_reason") or "canonical_publication_missing",
+            "publication_id": published.get("publication_id"),
+            "dataset_key": published.get("dataset_key"),
+        }
+    rows = published.get("rows")
+    if not isinstance(rows, list):
+        return None
+    row = next((item for item in rows if isinstance(item, dict)), None)
+    if row is None:
+        return None
+    result = dict(row)
+    for key in (
+        "publication_id",
+        "dataset_key",
+        "publication_key",
+        "published_at",
+        "as_of",
+        "observed_at",
+        "age_seconds",
+        "max_age_seconds",
+        "freshness_status",
+        "blocked_reason",
+    ):
+        if key not in result and key in published:
+            result[key] = published[key]
+    result.setdefault("is_stale", False)
+    result.setdefault("must_not_use_for_decision", False)
+    return result
+
+
 def get_published_quote_series(
     asset_code: str,
     *,
@@ -1122,6 +1177,7 @@ __all__ = [
     "get_published_market_news",
     "get_published_capital_flow_series",
     "get_published_financial_facts",
+    "get_published_latest_quote_payload",
     "get_published_fund_nav_series",
     "sync_fund_nav_from_active_provider",
     "get_published_price_bar_series",

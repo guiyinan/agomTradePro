@@ -1038,6 +1038,41 @@
       ]
     },
     {
+      "id": "broker_execution.live_order_quote",
+      "surface": "Live-order pre-trade quote evidence",
+      "source_files": [
+        "apps/data_center/application/public.py",
+        "apps/broker_execution/application/use_cases.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/public.py": [
+          "def get_published_latest_quote_payload(",
+          "get_published_quote_payloads("
+        ],
+        "apps/broker_execution/application/use_cases.py": [
+          "from apps.data_center.application.public import",
+          "get_published_latest_quote_payload(asset_code)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "blocked_publication_preserved",
+          "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
+          "test_function": "test_published_latest_quote_public_port_preserves_blocked_gate"
+        },
+        {
+          "case": "member_row_preserves_gate_metadata",
+          "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
+          "test_function": "test_published_latest_quote_public_port_returns_member_row_with_gate_metadata"
+        },
+        {
+          "case": "broker_default_provider_uses_public_port",
+          "test_file": "tests/unit/broker_execution/test_application_boundaries.py",
+          "test_function": "test_live_order_default_quote_provider_uses_published_public_port"
+        }
+      ]
+    },
+    {
       "id": "data_center.quote_observation_provenance",
       "surface": "Provider quote gateway -> QuoteSnapshot -> Realtime read",
       "source_files": [

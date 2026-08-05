@@ -4249,3 +4249,11 @@ Git SHA / 镜像 / migration：
 - 治理与测试：`data_center.public_current_read_ports` 增加 TUI consumer marker 与精确回归节点；更新 TUI operator 测试以验证 Public Port 注入。
 - 明确未做：未改变 TUI 文案、页面动作、Data Center 计算/写入、历史查询或生产配置，未部署。
 - 未验证风险：生产 TUI 端到端渲染、Public Port 真实 publication 覆盖和 PostgreSQL 查询预算仍待生产阶段证据。
+
+## 69. 2026-08-05：实盘下单风控报价绑定 Quote Publication
+
+- 目标：避免 Broker Execution 的 live-order pre-trade risk 通过 Data Center 内部 `QueryLatestQuoteUseCase` 读取 raw latest quote；下单前的市场报价必须来自同一 canonical Quote Publication/member gate。
+- 变更：新增 `get_published_latest_quote_payload` Public Port，保留 publication/member/freshness/blocked 证据；`CreateLiveOrderFromExecutionPlanUseCase` 的默认报价 provider 改为该端口，缺失或阻断时仍按风险违规 fail closed。
+- 治理与测试：新增 `broker_execution.live_order_quote` current-data contract；Public Port blocked/member-row 和 Broker 默认 provider 回归共 `16 passed`，变更文件 mypy 0、Black/Ruff/isort 通过；current-data contracts `45 surfaces`。
+- 明确未做：未改变显式注入的测试/维护报价 provider、订单状态机、QMT 写入或执行路由，未部署。
+- 未验证风险：生产 Quote Publication 覆盖、真实下单 PostgreSQL 查询预算、QMT/VPS 生产链路与旧报价读取零访问仍待生产阶段证据。
