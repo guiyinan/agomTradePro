@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3251,
+    "current_surface_references": 3257,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 143,
@@ -12710,6 +12710,36 @@
       "line": 21,
       "path": "apps/sector/application/query_services.py",
       "text": "\"\"\"Return one sector's latest computed score from the rotation use case.\"\"\""
+    },
+    {
+      "line": 172,
+      "path": "apps/sector/application/use_cases.py",
+      "text": "current = resolve_current_regime()"
+    },
+    {
+      "line": 174,
+      "path": "apps/sector/application/use_cases.py",
+      "text": "current.must_not_use_for_decision"
+    },
+    {
+      "line": 175,
+      "path": "apps/sector/application/use_cases.py",
+      "text": "or not current.dominant_regime"
+    },
+    {
+      "line": 176,
+      "path": "apps/sector/application/use_cases.py",
+      "text": "or current.dominant_regime == \"Unknown\""
+    },
+    {
+      "line": 186,
+      "path": "apps/sector/application/use_cases.py",
+      "text": "warning_message=current.blocked_reason or \"regime_data_unavailable\","
+    },
+    {
+      "line": 189,
+      "path": "apps/sector/application/use_cases.py",
+      "text": "regime = current.dominant_regime"
     },
     {
       "line": 395,
