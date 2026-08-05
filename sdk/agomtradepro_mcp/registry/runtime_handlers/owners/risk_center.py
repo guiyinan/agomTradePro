@@ -639,6 +639,236 @@ def _internal_handler_risk_center_generate_daily_report(
     )
 
 
+def _internal_handler_risk_center_stress_scenario_list(
+    include_inactive: bool = False,
+) -> dict[str, Any]:
+    """List scenarios through the formal SDK."""
+
+    from agomtradepro import AgomTradeProClient
+
+    scenarios = AgomTradeProClient().risk_center.list_scenarios(include_inactive=include_inactive)
+    return {"scenarios": scenarios, "total_count": len(scenarios)}
+
+
+def _internal_handler_risk_center_stress_scenario_read(
+    scenario_key: str,
+) -> dict[str, Any]:
+    """Read one repository-backed scenario through the formal SDK."""
+
+    from agomtradepro import AgomTradeProClient
+
+    normalized_key = str(scenario_key or "").strip()
+    if not normalized_key:
+        raise ValueError("scenario_key must be a non-empty string")
+    return AgomTradeProClient().risk_center.get_scenario(normalized_key)
+
+
+def _internal_handler_risk_center_stress_scenario_compare(
+    scenario_key: str,
+    left_version: int,
+    right_version: int,
+) -> dict[str, Any]:
+    """Compare two immutable revision payloads without a write."""
+
+    payload = _internal_handler_risk_center_stress_scenario_read(scenario_key)
+    revisions = payload.get("revisions")
+    if not isinstance(revisions, list):
+        raise ValueError("scenario response must include a revisions array")
+    by_version = {item.get("version"): item for item in revisions if isinstance(item, dict)}
+    left = by_version.get(left_version)
+    right = by_version.get(right_version)
+    if left is None or right is None:
+        raise ValueError("both requested scenario revisions must exist")
+    fields = sorted(set(left).union(right))
+    diff = {
+        field: {"left": left.get(field), "right": right.get(field)}
+        for field in fields
+        if left.get(field) != right.get(field)
+    }
+    return {
+        "scenario_key": scenario_key,
+        "left_version": left_version,
+        "right_version": right_version,
+        "diff": diff,
+    }
+
+
+def _internal_handler_risk_center_stress_scenario_validate_revision(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Validate one revision with zero writes through the canonical API."""
+
+    from agomtradepro import AgomTradeProClient
+
+    return AgomTradeProClient().risk_center.validate_scenario_revision(dict(payload))
+
+
+def _internal_handler_risk_center_stress_scenario_preview_revision(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Preview one revision with zero writes through the canonical API."""
+
+    from agomtradepro import AgomTradeProClient
+
+    return AgomTradeProClient().risk_center.preview_scenario_revision(dict(payload))
+
+
+def _scenario_write_payload(
+    *,
+    payload: dict[str, Any],
+    preview_id: str,
+    proposal_id: str | None,
+    expected_active_version: int | None,
+    expected_active_hash: str | None,
+    change_reason: str,
+    correlation_id: str,
+    idempotency_key: str | None,
+) -> dict[str, Any]:
+    """Normalize the persisted evidence contract for scenario writes."""
+
+    normalized_preview_id = str(preview_id or "").strip()
+    normalized_reason = str(change_reason or "").strip()
+    normalized_correlation_id = str(correlation_id or "").strip()
+    normalized_idempotency_key = str(idempotency_key or "").strip()
+    if not normalized_preview_id:
+        raise ValueError("preview_id is required")
+    if not normalized_reason:
+        raise ValueError("change_reason is required")
+    if not normalized_correlation_id:
+        raise ValueError("correlation_id is required")
+    if not normalized_idempotency_key:
+        raise ValueError("idempotency_key is required")
+    return {
+        **dict(payload),
+        "preview_id": normalized_preview_id,
+        "proposal_id": str(proposal_id).strip() if proposal_id else None,
+        "expected_active_version": expected_active_version,
+        "expected_active_hash": (
+            str(expected_active_hash).strip() if expected_active_hash else None
+        ),
+        "change_reason": normalized_reason,
+        "correlation_id": normalized_correlation_id,
+        "idempotency_key": normalized_idempotency_key,
+    }
+
+
+def _internal_handler_risk_center_stress_scenario_write(
+    operation: str,
+    *,
+    payload: dict[str, Any],
+    preview_id: str,
+    change_reason: str,
+    correlation_id: str,
+    idempotency_key: str | None = None,
+    proposal_id: str | None = None,
+    expected_active_version: int | None = None,
+    expected_active_hash: str | None = None,
+    preview_only: bool = False,
+) -> dict[str, Any]:
+    """Execute a preview-first scenario write through formal SDK methods."""
+
+    from agomtradepro import AgomTradeProClient
+
+    request = _scenario_write_payload(
+        payload=payload,
+        preview_id=preview_id,
+        proposal_id=proposal_id,
+        expected_active_version=expected_active_version,
+        expected_active_hash=expected_active_hash,
+        change_reason=change_reason,
+        correlation_id=correlation_id,
+        idempotency_key=idempotency_key,
+    )
+    client = AgomTradeProClient()
+    if preview_only:
+        target_fields = {
+            key: request[key]
+            for key in (
+                "scenario_key",
+                "scenario_set_revision_id",
+                "environment",
+                "purpose",
+                "target_version",
+            )
+            if request.get(key) is not None
+        }
+        transport_fields = {
+            "preview_id",
+            "proposal_id",
+            "idempotency_key",
+            "expected_active_version",
+            "expected_active_hash",
+            "change_reason",
+            "correlation_id",
+        }
+        revision_payload = {
+            key: value
+            for key, value in request.items()
+            if key not in transport_fields and (operation == "propose" or key not in target_fields)
+        }
+        result = client.risk_center.preview_scenario_action(
+            operation,
+            {
+                "payload": revision_payload if operation == "propose" else {},
+                **target_fields,
+                "expected_active_version": request.get("expected_active_version"),
+                "expected_active_hash": request.get("expected_active_hash"),
+                "change_reason": request["change_reason"],
+                "correlation_id": request["correlation_id"],
+            },
+        )
+        return {
+            **result,
+            "preview_only": True,
+            "operation": operation,
+            "correlation_id": correlation_id,
+        }
+    if operation == "propose":
+        return client.risk_center.propose_scenario_revision(request)
+    if operation == "activate":
+        return client.risk_center.activate_scenario_revision(request)
+    if operation == "rollback":
+        return client.risk_center.rollback_scenario_revision(request)
+    if operation == "retire":
+        scenario_key = str(request.get("scenario_key") or "").strip()
+        if not scenario_key:
+            raise ValueError("scenario_key is required for retirement")
+        return client.risk_center.retire_scenario(scenario_key, request)
+    raise ValueError(f"unsupported scenario write operation: {operation}")
+
+
+def _internal_handler_risk_center_stress_scenario_propose_revision(
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Preview or create a persistent scenario revision proposal."""
+
+    return _internal_handler_risk_center_stress_scenario_write("propose", **kwargs)
+
+
+def _internal_handler_risk_center_stress_scenario_activate_revision(
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Preview or activate a human-approved scenario revision."""
+
+    return _internal_handler_risk_center_stress_scenario_write("activate", **kwargs)
+
+
+def _internal_handler_risk_center_stress_scenario_rollback_revision(
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Preview or create-and-activate a rollback revision."""
+
+    return _internal_handler_risk_center_stress_scenario_write("rollback", **kwargs)
+
+
+def _internal_handler_risk_center_stress_scenario_retire(
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Preview or retire a scenario through a replacement revision."""
+
+    return _internal_handler_risk_center_stress_scenario_write("retire", **kwargs)
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "get_risk_floor": _fallback_get_risk_floor,
     "list_risk_templates": _fallback_list_risk_templates,
@@ -656,4 +886,23 @@ GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
     "risk_center_update_floor": _internal_handler_risk_center_update_floor,
     "risk_center_update_account_policy": _internal_handler_risk_center_update_account_policy,
     "risk_center_generate_daily_report": _internal_handler_risk_center_generate_daily_report,
+    "risk_center_stress_scenario_list": _internal_handler_risk_center_stress_scenario_list,
+    "risk_center_stress_scenario_read": _internal_handler_risk_center_stress_scenario_read,
+    "risk_center_stress_scenario_compare": _internal_handler_risk_center_stress_scenario_compare,
+    "risk_center_stress_scenario_validate_revision": (
+        _internal_handler_risk_center_stress_scenario_validate_revision
+    ),
+    "risk_center_stress_scenario_preview_revision": (
+        _internal_handler_risk_center_stress_scenario_preview_revision
+    ),
+    "risk_center_stress_scenario_propose_revision": (
+        _internal_handler_risk_center_stress_scenario_propose_revision
+    ),
+    "risk_center_stress_scenario_activate_revision": (
+        _internal_handler_risk_center_stress_scenario_activate_revision
+    ),
+    "risk_center_stress_scenario_rollback_revision": (
+        _internal_handler_risk_center_stress_scenario_rollback_revision
+    ),
+    "risk_center_stress_scenario_retire": (_internal_handler_risk_center_stress_scenario_retire),
 }

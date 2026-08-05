@@ -29,7 +29,9 @@ class RiskCenterModule(BaseModule):
         response = self._post("templates/", json=payload)
         return response.get("data", response)
 
-    def update_template(self, template_id: int, payload: dict[str, Any], *, partial: bool = True) -> dict[str, Any]:
+    def update_template(
+        self, template_id: int, payload: dict[str, Any], *, partial: bool = True
+    ) -> dict[str, Any]:
         method = self._patch if partial else self._put
         response = method(f"templates/{template_id}/", json=payload)
         return response.get("data", response)
@@ -123,4 +125,134 @@ class RiskCenterModule(BaseModule):
             "daily-report/",
             params={"account_id": account_id, "report_date": report_date},
         )
+        return response.get("data", response)
+
+    def list_scenarios(self, *, include_inactive: bool = False) -> list[dict[str, Any]]:
+        """List repository-backed stress-scenario definitions."""
+
+        response = self._get(
+            "stress-scenarios/",
+            params={"include_inactive": str(include_inactive).lower()},
+        )
+        if isinstance(response, list):
+            return response
+        return response.get("data", response)
+
+    def get_scenario(self, scenario_key: str) -> dict[str, Any]:
+        """Read one scenario and its immutable revision history."""
+
+        response = self._get(f"stress-scenarios/{scenario_key}/")
+        return response.get("data", response)
+
+    def get_active_scenario_set(
+        self,
+        *,
+        environment: str = "production",
+        purpose: str = "portfolio_stress",
+    ) -> dict[str, Any]:
+        """Read the active scenario-set revision for one scope."""
+
+        response = self._get(
+            "stress-scenario-sets/active/",
+            params={"environment": environment, "purpose": purpose},
+        )
+        return response.get("data", response)
+
+    def validate_scenario_revision(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Validate a scenario revision without writing it."""
+
+        response = self._post("stress-scenarios/validate-revision/", json=payload)
+        return response.get("data", response)
+
+    def preview_scenario_revision(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Preview an immutable replacement revision without activating it."""
+
+        response = self._post("stress-scenarios/preview-revision/", json=payload)
+        return response.get("data", response)
+
+    def preview_scenario_action(
+        self,
+        operation: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Persist an exact preview for propose, activate, rollback, or retire."""
+
+        response = self._post(
+            "stress-scenarios/preview-revision/",
+            json={"operation": operation, **payload},
+        )
+        return response.get("data", response)
+
+    def propose_scenario_revision(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Create a draft/proposed revision and persistent human-review proposal."""
+
+        response = self._post("stress-scenarios/propose-revision/", json=payload)
+        return response.get("data", response)
+
+    def activate_scenario_revision(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Activate a human-approved scenario-set revision."""
+
+        response = self._post("stress-scenario-sets/activate/", json=payload)
+        return response.get("data", response)
+
+    def approve_scenario_proposal(
+        self,
+        proposal_id: int,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Approve a scenario proposal as a human staff principal."""
+
+        response = self._post(
+            f"stress-scenario-proposals/{proposal_id}/approve/",
+            json=payload,
+        )
+        return response.get("data", response)
+
+    def reject_scenario_proposal(
+        self,
+        proposal_id: int,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Reject a scenario proposal as a human staff principal."""
+
+        response = self._post(
+            f"stress-scenario-proposals/{proposal_id}/reject/",
+            json=payload,
+        )
+        return response.get("data", response)
+
+    def rollback_scenario_revision(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Copy a prior revision into a new revision and activate the copy."""
+
+        response = self._post("stress-scenario-sets/rollback/", json=payload)
+        return response.get("data", response)
+
+    def retire_scenario(self, scenario_key: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Retire a scenario through the governed replacement workflow."""
+
+        response = self._post(f"stress-scenarios/{scenario_key}/retire/", json=payload)
+        return response.get("data", response)
+
+    def preview_scenario_matrix(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Preview probability-weighted impacts for an immutable portfolio snapshot."""
+
+        response = self._post("stress-scenario-sets/impact-preview/", json=payload)
+        return response.get("data", response)
+
+    def get_market_state_evidence(self) -> dict[str, Any]:
+        """Read the five-dimensional market-state evidence card."""
+
+        response = self._get("research/market-state/")
+        return response.get("data", response)
+
+    def build_decision_scorecard(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Build the governed ex-ante environment/valuation scorecard."""
+
+        response = self._post("research/decision-scorecard/", json=payload)
+        return response.get("data", response)
+
+    def generate_strategy_brief(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Generate an auditable brief from structured, referenced facts."""
+
+        response = self._post("research/strategy-brief/", json=payload)
         return response.get("data", response)

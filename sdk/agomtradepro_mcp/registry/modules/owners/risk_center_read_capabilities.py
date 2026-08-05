@@ -332,3 +332,129 @@ MANIFESTS = [
         legacy_tool_names=("list_risk_center_daily_reports",),
     ),
 ]
+
+_SCENARIO_RESULT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "status": {"type": "string"},
+        "scenario_key": {"type": "string"},
+        "revision_id": {"type": "string"},
+        "version": {"type": "integer"},
+        "content_hash": {"type": "string"},
+        "warnings": {"type": "array"},
+        "blocked_reason": {"type": ["string", "null"]},
+        "must_not_use_for_decision": {"type": "boolean"},
+    },
+    "required": [],
+}
+
+MANIFESTS.extend(
+    [
+        CapabilityManifest(
+            capability_key="risk_center.stress_scenario.list",
+            title="List governed stress scenarios",
+            summary="List repository-backed scenario definitions and active revisions.",
+            description=(
+                "Return versioned stress scenarios from the Risk Center canonical repository; "
+                "no Python scenario catalog fallback is used."
+            ),
+            owner_app="risk_center",
+            risk_level="low",
+            executor_kind="internal_handler",
+            executor_ref="risk_center_stress_scenario_list",
+            tags=("risk_center", "stress_scenario", "versioned", "read"),
+            input_schema={
+                "type": "object",
+                "properties": {"include_inactive": {"type": "boolean"}},
+                "required": [],
+            },
+            output_schema={
+                "type": "object",
+                "properties": {"scenarios": {"type": "array"}},
+                "required": ["scenarios"],
+            },
+        ),
+        CapabilityManifest(
+            capability_key="risk_center.stress_scenario.read",
+            title="Read governed stress scenario",
+            summary="Read one scenario and its immutable revision history.",
+            description="Return a scenario definition, revisions, evidence, and activation state.",
+            owner_app="risk_center",
+            risk_level="low",
+            executor_kind="internal_handler",
+            executor_ref="risk_center_stress_scenario_read",
+            tags=("risk_center", "stress_scenario", "revision", "read"),
+            input_schema={
+                "type": "object",
+                "properties": {"scenario_key": {"type": "string", "minLength": 1}},
+                "required": ["scenario_key"],
+            },
+            output_schema=_SCENARIO_RESULT_SCHEMA,
+        ),
+        CapabilityManifest(
+            capability_key="risk_center.stress_scenario.compare",
+            title="Compare stress scenario revisions",
+            summary="Compare two immutable revisions without writing state.",
+            description="Return a stable field-level diff for two revisions of one scenario.",
+            owner_app="risk_center",
+            risk_level="low",
+            executor_kind="internal_handler",
+            executor_ref="risk_center_stress_scenario_compare",
+            tags=("risk_center", "stress_scenario", "diff", "read"),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "scenario_key": {"type": "string", "minLength": 1},
+                    "left_version": {"type": "integer", "minimum": 1},
+                    "right_version": {"type": "integer", "minimum": 1},
+                },
+                "required": ["scenario_key", "left_version", "right_version"],
+            },
+            output_schema={
+                "type": "object",
+                "properties": {"diff": {"type": "object"}},
+                "required": ["diff"],
+            },
+        ),
+        CapabilityManifest(
+            capability_key="risk_center.stress_scenario.validate_revision",
+            title="Validate stress scenario revision",
+            summary="Validate typed scenario assumptions without creating a revision.",
+            description=(
+                "Run canonical Risk Center schema and business validation with zero writes and "
+                "reject unknown fields."
+            ),
+            owner_app="risk_center",
+            risk_level="low",
+            executor_kind="internal_handler",
+            executor_ref="risk_center_stress_scenario_validate_revision",
+            tags=("risk_center", "stress_scenario", "validate", "read"),
+            input_schema={
+                "type": "object",
+                "properties": {"payload": {"type": "object"}},
+                "required": ["payload"],
+            },
+            output_schema=_SCENARIO_RESULT_SCHEMA,
+        ),
+        CapabilityManifest(
+            capability_key="risk_center.stress_scenario.preview_revision",
+            title="Preview stress scenario revision",
+            summary="Preview revision diff and portfolio impact with zero writes.",
+            description=(
+                "Return preview ID, request fingerprint, base and after hashes, expiry, warnings, "
+                "and decision-use blocking state."
+            ),
+            owner_app="risk_center",
+            risk_level="medium",
+            executor_kind="internal_handler",
+            executor_ref="risk_center_stress_scenario_preview_revision",
+            tags=("risk_center", "stress_scenario", "preview", "read"),
+            input_schema={
+                "type": "object",
+                "properties": {"payload": {"type": "object"}},
+                "required": ["payload"],
+            },
+            output_schema=_SCENARIO_RESULT_SCHEMA,
+        ),
+    ]
+)

@@ -1,11 +1,25 @@
 # 情景治理与策略研究 Quick Wins 整改计划（2026-08-04）
 
-> 状态：提案，待评审后按独立主线实施
+> 状态：本地代码阶段已实施；生产验收与部分数据前置待完成
 > 级别：业务配置治理 / 风险研究 / MCP 写能力 / TUI 用户任务
 > 适用版本：0.8.0 之后
 > Canonical owner：`risk_center`（情景定义与风险解释）
 > 依赖 owner：`data_center`、`portfolio`、`strategy`、`research`、`ai_capability`、`terminal`、`audit`
 > 来源边界：方法参考来自用户对四份策略会材料的摘要；本计划未读取原始 PDF，不把摘要外推为原材料的精确需求。
+
+## 0. 实施记录（2026-08-05）
+
+本轮在 `dev/refactor-scenario-governance-quick-wins` 独立分支实施，未触发 VPS 部署。已完成：
+
+- M0：业务配置契约、AST 全仓扫描器、CI 门禁、正反 fixture 和架构职责说明；Account 临时例外已清零。
+- M1：四类 Scenario Domain、7 个 canonical ORM 模型、Repository/Application ports、三个旧情景迁移；Strategy Allocation Policy 4×4 矩阵及 Policy 调整已版本化迁移，运行时无静态 fallback。
+- M2：Account 旧入口已变为 Risk Center 兼容 Facade；本金、行情和建议分别要求不可变 Portfolio Snapshot、Data Center published port 和版本化建议策略 port，缺失即阻断。
+- M3：只读/校验 API、SDK、governed MCP、TUI 元数据，以及持久 preview、幂等、AgentProposal、人工审批、激活、回滚、停用和 canonical audit 安全层。
+- M4：1 个滚动、1 个参数冲击、AI Capex×海外货币和货币×信用两个四象限候选集；全部为 candidate，不自动激活，缺失观测显式标记 blocked。
+- M5A 基础：QW-1—QW-4 的纯 Domain/Application 计算、证据时间、缺失阻断和结构化输出契约已建立。
+- M5B/M5C：QW-5—QW-7 仅完成数据门、有限算子和描述性边界；没有满足数据覆盖时保持 blocked，不宣称生产可用。
+
+仍需生产环境证据后才能关闭本计划：Portfolio-owned 不可变快照具体适配器、五维市场证据与版本化记分卡权重 provider、QW-1—QW-4 的真实数据端到端接线、PostgreSQL 并发迁移验证、shadow 对账、数据库备份恢复、生产创建—预览—审批—激活—回滚演练和普通用户/管理员 UAT。上述事项涉及生产数据或部署授权，本轮未擅自执行。
 
 ## 1. 执行结论
 
