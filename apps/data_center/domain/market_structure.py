@@ -448,6 +448,113 @@ class MarketStructureSeriesRef:
 
 
 @dataclass(frozen=True)
+class MarketStructurePeriodCalendar:
+    """Caller-governed exact period schedule for one R2 research horizon."""
+
+    calendar_code: str
+    calendar_version: int
+    frequency: str
+    source: str
+    revision_policy_ref: str
+    available_at: datetime
+    periods: tuple[datetime, ...]
+    expires_at: datetime | None = None
+    description: str = ""
+    is_active: bool = True
+
+    def __post_init__(self) -> None:
+        _require_token(
+            self.calendar_code,
+            "MarketStructurePeriodCalendar.calendar_code",
+            maximum=64,
+        )
+        if isinstance(self.calendar_version, bool) or self.calendar_version <= 0:
+            raise ValueError("MarketStructurePeriodCalendar.calendar_version must be positive")
+        _require_token(
+            self.frequency,
+            "MarketStructurePeriodCalendar.frequency",
+            maximum=40,
+        )
+        _require_token(
+            self.source,
+            "MarketStructurePeriodCalendar.source",
+            maximum=100,
+        )
+        _require_text(
+            self.revision_policy_ref,
+            "MarketStructurePeriodCalendar.revision_policy_ref",
+            maximum=300,
+        )
+        _require_aware(
+            self.available_at,
+            "MarketStructurePeriodCalendar.available_at",
+        )
+        if self.expires_at is not None:
+            _require_aware(
+                self.expires_at,
+                "MarketStructurePeriodCalendar.expires_at",
+            )
+            if self.expires_at <= self.available_at:
+                raise ValueError("period calendar expires_at must follow available_at")
+        if not self.periods:
+            raise ValueError("MarketStructurePeriodCalendar.periods cannot be empty")
+        for period in self.periods:
+            _require_aware(period, "MarketStructurePeriodCalendar.period")
+        canonical_periods = tuple(sorted(self.periods))
+        if canonical_periods != self.periods or len(set(self.periods)) != len(self.periods):
+            raise ValueError("period calendar periods must be unique and strictly increasing")
+        if not isinstance(self.is_active, bool):
+            raise ValueError("MarketStructurePeriodCalendar.is_active must be a boolean")
+
+    def to_payload(self) -> dict[str, object]:
+        """Return the complete immutable period schedule for evidence sealing."""
+
+        return {
+            "available_at": _utc_iso(self.available_at),
+            "calendar_code": self.calendar_code,
+            "calendar_version": self.calendar_version,
+            "description": self.description,
+            "expires_at": _utc_iso(self.expires_at),
+            "frequency": self.frequency,
+            "is_active": self.is_active,
+            "periods": [_utc_iso(period) for period in self.periods],
+            "revision_policy_ref": self.revision_policy_ref,
+            "source": self.source,
+        }
+
+    @property
+    def calendar_hash(self) -> str:
+        """Return the stable hash of the exact governed schedule."""
+
+        return _canonical_hash(self.to_payload())
+
+
+@dataclass(frozen=True)
+class MarketStructurePeriodCalendarRef:
+    """Exact period-calendar version selected for one research run."""
+
+    calendar_code: str
+    calendar_version: int
+
+    def __post_init__(self) -> None:
+        _require_token(
+            self.calendar_code,
+            "MarketStructurePeriodCalendarRef.calendar_code",
+            maximum=64,
+        )
+        if isinstance(self.calendar_version, bool) or self.calendar_version <= 0:
+            raise ValueError("MarketStructurePeriodCalendarRef.calendar_version must be positive")
+
+    def to_payload(self) -> dict[str, object]:
+        """Return this exact calendar reference as a stable payload."""
+
+        return {
+            "calendar_code": self.calendar_code,
+            "calendar_version": self.calendar_version,
+        }
+
+
+@dataclass(frozen=True)
 class MarketStructureAggregationPolicy:
     """Caller-governed thresholds and methodology for descriptive aggregation."""
 
@@ -505,6 +612,7 @@ class MarketStructureResearchRequest:
     knowledge_scope: KnowledgeScope
     group_code: str
     group_revision: int
+    period_calendar: MarketStructurePeriodCalendarRef
     method_version: str
     series: tuple[MarketStructureSeriesRef, ...]
     policy: MarketStructureAggregationPolicy
@@ -527,6 +635,8 @@ class MarketStructureResearchRequest:
         )
         if isinstance(self.group_revision, bool) or self.group_revision <= 0:
             raise ValueError("MarketStructureResearchRequest.group_revision must be positive")
+        if not isinstance(self.period_calendar, MarketStructurePeriodCalendarRef):
+            raise ValueError("MarketStructureResearchRequest.period_calendar is invalid")
         _require_token(
             self.method_version,
             "MarketStructureResearchRequest.method_version",
@@ -549,6 +659,7 @@ class MarketStructureResearchRequest:
             "group_revision": self.group_revision,
             "knowledge_scope": self.knowledge_scope.value,
             "method_version": self.method_version,
+            "period_calendar": self.period_calendar.to_payload(),
             "policy": self.policy.to_payload(),
             "series": [item.to_payload() for item in self.series],
         }
@@ -848,6 +959,7 @@ def _blocked_snapshot(
 def aggregate_market_structure(
     *,
     request: MarketStructureResearchRequest,
+    period_calendar: MarketStructurePeriodCalendar | None,
     definitions: tuple[MarketStructureSeriesDefinition, ...],
     observations: tuple[MarketStructureObservation, ...],
     external_blockers: tuple[str, ...] = (),
@@ -857,6 +969,37 @@ def aggregate_market_structure(
 
     blockers = {reason for reason in external_blockers if reason.strip()}
     contains_proxy = any(definition.is_proxy for definition in definitions)
+    calendar_periods: set[datetime] = set()
+    if period_calendar is None:
+        blockers.add("period_calendar_missing")
+    else:
+        selected_calendar = (
+            period_calendar.calendar_code,
+            period_calendar.calendar_version,
+        )
+        requested_calendar = (
+            request.period_calendar.calendar_code,
+            request.period_calendar.calendar_version,
+        )
+        if selected_calendar != requested_calendar:
+            blockers.add("period_calendar_identity_mismatch")
+        if (
+            not period_calendar.is_active
+            or period_calendar.available_at > request.as_of_time
+            or (
+                period_calendar.expires_at is not None
+                and period_calendar.expires_at <= request.as_of_time
+            )
+        ):
+            blockers.add("period_calendar_unavailable")
+        calendar_periods = set(period_calendar.periods)
+        for effective_at in period_calendar.periods:
+            if effective_at > request.as_of_time:
+                blockers.add(
+                    "period_calendar_future_period:" f"{effective_at.astimezone(UTC).isoformat()}"
+                )
+        if len(period_calendar.periods) < request.policy.minimum_history_observations:
+            blockers.add("period_calendar_history_insufficient")
     definitions_by_identity = {
         (definition.series_code, definition.series_version): definition
         for definition in definitions
@@ -873,18 +1016,64 @@ def aggregate_market_structure(
         blockers.add("actor_series_ambiguous")
     if len(actor_codes) < request.policy.minimum_actor_count:
         blockers.add("actor_coverage_insufficient")
+    if period_calendar is not None and any(
+        definition.frequency != period_calendar.frequency for definition in definitions
+    ):
+        blockers.add("period_calendar_frequency_mismatch")
     coverage_identities = {
         (item.series_code, item.series_version, item.effective_at) for item in coverage
     }
     if len(coverage_identities) != len(coverage):
         blockers.add("membership_coverage_duplicate")
+    expected_coverage_identities = {
+        (reference.series_code, reference.series_version, effective_at)
+        for reference in request.series
+        for effective_at in calendar_periods
+    }
+    if coverage_identities != expected_coverage_identities:
+        blockers.add("membership_coverage_incomplete")
+    coverage_by_identity = {
+        (item.series_code, item.series_version, item.effective_at): item for item in coverage
+    }
+    observation_assets_by_identity: dict[tuple[str, int, datetime], set[str]] = {}
+    observation_counts_by_asset: dict[tuple[str, int, datetime, str], int] = {}
+    for observation in observations:
+        identity = (
+            observation.series_code,
+            observation.series_version,
+            observation.effective_at,
+        )
+        if identity not in expected_coverage_identities:
+            continue
+        observation_assets_by_identity.setdefault(identity, set()).add(observation.asset_code)
+        asset_identity = (*identity, observation.asset_code)
+        observation_counts_by_asset[asset_identity] = (
+            observation_counts_by_asset.get(asset_identity, 0) + 1
+        )
+    if any(count > 1 for count in observation_counts_by_asset.values()):
+        blockers.add("observation_asset_duplicate")
     for item in coverage:
+        identity = (item.series_code, item.series_version, item.effective_at)
+        observed_assets = observation_assets_by_identity.get(identity, set())
+        if observed_assets != set(item.observed_asset_codes):
+            blockers.add("membership_coverage_observation_mismatch")
+        if not observed_assets.issubset(set(item.expected_asset_codes)):
+            blockers.add("observation_outside_membership")
         if item.coverage_ratio < request.policy.minimum_membership_coverage_ratio:
             blockers.add(
                 "membership_coverage_insufficient:"
                 f"{item.series_code}:v{item.series_version}:"
                 f"{item.effective_at.astimezone(UTC).isoformat()}"
             )
+    for effective_at in sorted(calendar_periods):
+        if not any(
+            observation_assets_by_identity.get(
+                (reference.series_code, reference.series_version, effective_at),
+                set(),
+            )
+            for reference in request.series
+        ):
+            blockers.add("period_all_series_missing:" f"{effective_at.astimezone(UTC).isoformat()}")
 
     concepts = {definition.measure_concept for definition in definitions}
     units = {definition.canonical_unit for definition in definitions}
@@ -900,8 +1089,15 @@ def aggregate_market_structure(
         definition.actor_code: {} for definition in definitions
     }
     for observation in observations:
-        identity = (observation.series_code, observation.series_version)
-        definition = definitions_by_identity.get(identity)
+        coverage_identity = (
+            observation.series_code,
+            observation.series_version,
+            observation.effective_at,
+        )
+        if coverage_identity not in expected_coverage_identities:
+            continue
+        series_identity = (observation.series_code, observation.series_version)
+        definition = definitions_by_identity.get(series_identity)
         if definition is None:
             blockers.add("observation_series_unknown")
             continue
@@ -933,6 +1129,11 @@ def aggregate_market_structure(
         )
         if semantic_actual != semantic_expected:
             blockers.add("observation_semantics_mismatch")
+            continue
+        selected_coverage = coverage_by_identity.get(coverage_identity)
+        if selected_coverage is None or observation.asset_code not in set(
+            selected_coverage.expected_asset_codes
+        ):
             continue
         actor_values = values[definition.actor_code]
         actor_values[observation.effective_at] = (
@@ -1157,6 +1358,7 @@ def build_market_structure_evidence(
     *,
     request: MarketStructureResearchRequest,
     snapshot: MarketStructureSnapshot,
+    period_calendar: MarketStructurePeriodCalendar | None,
     actor_definitions: tuple[InvestorActorDefinition, ...],
     series_definitions: tuple[MarketStructureSeriesDefinition, ...],
     source_evidence: tuple[VersionedEvidenceReference, ...],
@@ -1186,6 +1388,14 @@ def build_market_structure_evidence(
                 ),
             )
         ],
+        "period_calendar": (
+            {
+                **period_calendar.to_payload(),
+                "calendar_hash": period_calendar.calendar_hash,
+            }
+            if period_calendar is not None
+            else None
+        ),
         "request": request.to_payload(),
         "series_definitions": [
             {
@@ -1251,6 +1461,8 @@ __all__ = [
     "MarketStructureAggregationPolicy",
     "MarketStructureMeasureConcept",
     "MarketStructureObservation",
+    "MarketStructurePeriodCalendar",
+    "MarketStructurePeriodCalendarRef",
     "MarketStructureResearchRequest",
     "MarketStructureResearchStatus",
     "MarketStructureSeriesDefinition",

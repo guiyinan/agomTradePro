@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import cast
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.db import connection
+from django.db.models import QuerySet
 
 from apps.data_center.application.market_structure import (
     MarketStructureGovernanceFacade,
@@ -22,6 +25,8 @@ from apps.data_center.domain.market_structure import (
     InvestorActorDefinition,
     MarketStructureAggregationPolicy,
     MarketStructureMeasureConcept,
+    MarketStructurePeriodCalendar,
+    MarketStructurePeriodCalendarRef,
     MarketStructureResearchRequest,
     MarketStructureResearchStatus,
     MarketStructureSeriesDefinition,
@@ -37,6 +42,7 @@ from apps.data_center.domain.research_data_foundation import (
 )
 from apps.data_center.infrastructure.market_structure_models import (
     InvestorActorDefinitionModel,
+    MarketStructurePeriodCalendarModel,
     MarketStructureResearchEvidenceModel,
     MarketStructureSeriesDefinitionModel,
 )
@@ -112,6 +118,47 @@ def _series(actor_code: str, *, is_proxy: bool) -> MarketStructureSeriesDefiniti
     )
 
 
+def _calendar() -> MarketStructurePeriodCalendar:
+    return MarketStructurePeriodCalendar(
+        calendar_code="TEST_MONTHLY_CALENDAR",
+        calendar_version=1,
+        frequency="monthly",
+        source="test_governance",
+        revision_policy_ref="governance://period-calendar/v1",
+        available_at=AS_OF,
+        periods=PERIODS,
+    )
+
+
+def _force_first_calendar_lookup_miss(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Expose the insert-time unique race after a winner already committed."""
+
+    manager = MarketStructurePeriodCalendarModel._default_manager
+    original_select_for_update = manager.select_for_update
+    first_call = True
+
+    def select_for_update(
+        *args: object,
+        **kwargs: object,
+    ) -> QuerySet[MarketStructurePeriodCalendarModel]:
+        nonlocal first_call
+        queryset = original_select_for_update(*args, **kwargs)
+        if first_call:
+            first_call = False
+            return queryset.none()
+        return queryset
+
+    def skip_full_clean(
+        _model: MarketStructurePeriodCalendarModel,
+        *args: object,
+        **kwargs: object,
+    ) -> None:
+        del args, kwargs
+
+    monkeypatch.setattr(manager, "select_for_update", select_for_update)
+    monkeypatch.setattr(MarketStructurePeriodCalendarModel, "full_clean", skip_full_clean)
+
+
 def _request(*, evidence_key: str = "TEST_MARKET_STRUCTURE") -> MarketStructureResearchRequest:
     return MarketStructureResearchRequest(
         evidence_key=evidence_key,
@@ -120,6 +167,10 @@ def _request(*, evidence_key: str = "TEST_MARKET_STRUCTURE") -> MarketStructureR
         knowledge_scope=KnowledgeScope.PUBLIC,
         group_code="TEST_GROUP",
         group_revision=1,
+        period_calendar=MarketStructurePeriodCalendarRef(
+            calendar_code="TEST_MONTHLY_CALENDAR",
+            calendar_version=1,
+        ),
         method_version="r2-component-v1",
         series=(
             MarketStructureSeriesRef(series_code="TEST_SERIES_A", series_version=1),
@@ -193,19 +244,26 @@ def _prepare_governance_and_membership(
             source_record_id="current-membership",
         )
     )
+    governance.register_period_calendar(_calendar())
     for actor_code, is_proxy in (("A", False), ("B", True)):
         governance.register_actor(_actor(actor_code))
         foundation.register_investor_flow(_flow_definition(actor_code, is_proxy=is_proxy))
         governance.register_series(_series(actor_code, is_proxy=is_proxy))
 
 
-def _record_observations(foundation: ResearchDataFoundationFacade) -> None:
+def _record_observations(
+    foundation: ResearchDataFoundationFacade,
+    *,
+    excluded_period: datetime | None = None,
+) -> None:
     values = {
         "A": ("10", "15", "25"),
         "B": ("20", "18", "19"),
     }
     for actor_code, is_proxy in (("A", False), ("B", True)):
         for period_index, effective_at in enumerate(PERIODS):
+            if effective_at == excluded_period:
+                continue
             for asset_code, multiplier in (
                 ("HISTORICAL.ASSET", Decimal("1")),
                 ("CURRENT.ASSET", Decimal("100")),
@@ -242,6 +300,10 @@ def test_repository_run_uses_historical_membership_and_persists_immutable_eviden
     _prepare_governance_and_membership(foundation, governance)
     _record_observations(foundation)
 
+    assert governance.register_period_calendar(_calendar()) == _calendar()
+    with pytest.raises(ValueError, match="conflicting immutable content"):
+        governance.register_period_calendar(replace(_calendar(), source="other_governance"))
+
     evidence = RunMarketStructureResearch(market_repository).execute(_request())
 
     assert evidence.status is MarketStructureResearchStatus.AVAILABLE
@@ -249,6 +311,7 @@ def test_repository_run_uses_historical_membership_and_persists_immutable_eviden
     assert evidence.must_not_use_for_decision is True
     assert evidence.must_not_execute is True
     assert InvestorActorDefinitionModel._default_manager.count() == 2
+    assert MarketStructurePeriodCalendarModel._default_manager.count() == 1
     assert MarketStructureSeriesDefinitionModel._default_manager.count() == 2
     assert MarketStructureResearchEvidenceModel._default_manager.count() == 1
     payload = cast(dict[str, object], json.loads(evidence.payload_json))
@@ -260,7 +323,18 @@ def test_repository_run_uses_historical_membership_and_persists_immutable_eviden
     coverage = cast(list[dict[str, object]], output["coverage"])
     assert len(coverage) == 6
     assert all(item["expected_count"] == item["observed_count"] == 1 for item in coverage)
+    input_payload = cast(dict[str, object], payload["input"])
+    assert cast(dict[str, object], input_payload["period_calendar"])["calendar_hash"] == (
+        _calendar().calendar_hash
+    )
 
+    assert (
+        market_repository.get_period_calendar(
+            _request().period_calendar,
+            as_of_time=datetime(2025, 3, 31, tzinfo=UTC),
+        )
+        is None
+    )
     assert (
         market_repository.get_actor_definition(
             taxonomy_code="TEST_TAXONOMY",
@@ -288,6 +362,69 @@ def test_repository_run_uses_historical_membership_and_persists_immutable_eviden
     with pytest.raises(ValidationError, match="cannot be deleted"):
         MarketStructureResearchEvidenceModel.objects.filter(pk=model.pk).delete()
 
+    calendar_model = MarketStructurePeriodCalendarModel._default_manager.get()
+    with pytest.raises(ValidationError, match="cannot be updated"):
+        MarketStructurePeriodCalendarModel._base_manager.filter(pk=calendar_model.pk).update(
+            frequency="weekly"
+        )
+    calendar_model.frequency = "weekly"
+    with pytest.raises(ValidationError, match="immutable"):
+        calendar_model.save()
+    with pytest.raises(ValidationError, match="bulk updated"):
+        MarketStructurePeriodCalendarModel._base_manager.bulk_update(
+            [calendar_model], ["frequency"]
+        )
+    with pytest.raises(ValidationError, match="cannot be deleted"):
+        MarketStructurePeriodCalendarModel._base_manager.filter(pk=calendar_model.pk).delete()
+    with pytest.raises(ValidationError, match="cannot be updated"):
+        MarketStructurePeriodCalendarModel.objects.filter(pk=calendar_model.pk).update(
+            frequency="weekly"
+        )
+
+
+@pytest.mark.django_db
+def test_calendar_concurrent_same_content_unique_winner_is_idempotent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = MarketStructureResearchRepository()
+    calendar = _calendar()
+    assert repository.save_period_calendar(calendar) == calendar
+    _force_first_calendar_lookup_miss(monkeypatch)
+
+    assert repository.save_period_calendar(calendar) == calendar
+    assert MarketStructurePeriodCalendarModel._default_manager.count() == 1
+
+
+@pytest.mark.django_db
+def test_calendar_concurrent_different_content_unique_winner_is_conflict(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = MarketStructureResearchRepository()
+    assert repository.save_period_calendar(_calendar()) == _calendar()
+    _force_first_calendar_lookup_miss(monkeypatch)
+
+    with pytest.raises(ValueError, match="conflicting immutable content"):
+        repository.save_period_calendar(replace(_calendar(), source="other_governance"))
+    assert MarketStructurePeriodCalendarModel._default_manager.count() == 1
+
+
+@pytest.mark.django_db
+def test_calendar_raw_hash_tamper_is_detected_on_read() -> None:
+    repository = MarketStructureResearchRepository()
+    repository.save_period_calendar(_calendar())
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE data_center_market_structure_period_calendar "
+            "SET calendar_hash = %s WHERE calendar_code = %s",
+            ["0" * 64, _calendar().calendar_code],
+        )
+
+    with pytest.raises(ValidationError, match="calendar hash mismatch"):
+        repository.get_period_calendar(
+            _request().period_calendar,
+            as_of_time=AS_OF,
+        )
+
 
 @pytest.mark.django_db
 def test_no_flow_data_persists_blocked_research_only_evidence_without_conclusion() -> None:
@@ -308,8 +445,37 @@ def test_no_flow_data_persists_blocked_research_only_evidence_without_conclusion
     blockers = cast(list[str], output["blocked_reasons"])
     assert "history_insufficient:A" in blockers
     assert "history_insufficient:B" in blockers
+    assert all(f"period_all_series_missing:{period.isoformat()}" in blockers for period in PERIODS)
+    coverage = cast(list[dict[str, object]], output["coverage"])
+    assert len(coverage) == len(_request().series) * len(PERIODS)
+    assert all(item["expected_count"] == 1 for item in coverage)
+    assert all(item["observed_count"] == 0 for item in coverage)
     assert output["actor_metrics"] == []
     assert output["deterministic_conclusion"] is None
     assert MarketStructureResearchEvidenceModel._default_manager.filter(
         evidence_key="TEST_NO_DATA"
     ).exists()
+
+
+@pytest.mark.django_db
+def test_repository_calendar_makes_whole_period_all_missing_visible() -> None:
+    foundation = ResearchDataFoundationFacade(
+        ResearchDataFoundationRepository(clock=lambda: INGESTED_AT)
+    )
+    market_repository = MarketStructureResearchRepository()
+    governance = MarketStructureGovernanceFacade(market_repository)
+    _prepare_governance_and_membership(foundation, governance)
+    _record_observations(foundation, excluded_period=PERIODS[1])
+
+    evidence = RunMarketStructureResearch(market_repository).execute(
+        _request(evidence_key="TEST_WHOLE_PERIOD_MISSING")
+    )
+
+    assert evidence.status is MarketStructureResearchStatus.BLOCKED
+    output = cast(dict[str, object], json.loads(evidence.payload_json)["output"])
+    blockers = cast(list[str], output["blocked_reasons"])
+    assert f"period_all_series_missing:{PERIODS[1].isoformat()}" in blockers
+    coverage = cast(list[dict[str, object]], output["coverage"])
+    missing_period = [item for item in coverage if item["effective_at"] == PERIODS[1].isoformat()]
+    assert len(missing_period) == len(_request().series)
+    assert all(item["observed_count"] == 0 for item in missing_period)

@@ -132,3 +132,97 @@ def test_market_structure_migration_is_unseeded_and_enforces_research_scope() ->
         assert migrated_series.definition_hash != "b" * 64
     finally:
         MigrationExecutor(connection).migrate(leaf_nodes)
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_period_calendar_migration_is_unseeded_and_preserves_legacy_evidence() -> None:
+    """Add only calendar governance and leave prior evidence byte-for-byte intact."""
+
+    executor = MigrationExecutor(connection)
+    leaf_nodes = executor.loader.graph.leaf_nodes()
+    try:
+        executor.migrate([("data_center", "0060_market_structure_definition_knowledge_time")])
+        before_apps = executor.loader.project_state(
+            [("data_center", "0060_market_structure_definition_knowledge_time")]
+        ).apps
+        LegacyEvidence = before_apps.get_model(
+            "data_center", "MarketStructureResearchEvidenceModel"
+        )
+        as_of_time = datetime(2025, 4, 1, tzinfo=UTC)
+        legacy_payload = {
+            "input": {"request": {"method_version": "legacy-v1"}},
+            "output": {"status": "blocked"},
+        }
+        LegacyEvidence.objects.create(
+            evidence_key="LEGACY_EVIDENCE",
+            evidence_version=1,
+            as_of_time=as_of_time,
+            group_code="LEGACY_GROUP",
+            group_revision=1,
+            method_version="legacy-v1",
+            policy_code="LEGACY_POLICY",
+            policy_version=1,
+            status="blocked",
+            input_hash="a" * 64,
+            output_hash="b" * 64,
+            evidence_hash="c" * 64,
+            payload=legacy_payload,
+            source_evidence=[],
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([("data_center", "0061_market_structure_period_calendar")])
+        apps = executor.loader.project_state(
+            [("data_center", "0061_market_structure_period_calendar")]
+        ).apps
+        Calendar = apps.get_model("data_center", "MarketStructurePeriodCalendarModel")
+        Evidence = apps.get_model("data_center", "MarketStructureResearchEvidenceModel")
+
+        assert Calendar.objects.count() == 0
+        assert Calendar._meta.base_manager_name == "objects"
+        assert Calendar._meta.default_manager_name == "objects"
+        legacy = Evidence.objects.get(evidence_key="LEGACY_EVIDENCE")
+        assert legacy.input_hash == "a" * 64
+        assert legacy.output_hash == "b" * 64
+        assert legacy.evidence_hash == "c" * 64
+        assert legacy.payload == legacy_payload
+
+        Calendar.objects.create(
+            calendar_code="CALLER_MONTHLY_CALENDAR",
+            calendar_version=1,
+            frequency="monthly",
+            source="caller_governance",
+            revision_policy_ref="governance://calendar/v1",
+            available_at=as_of_time,
+            periods=[
+                "2025-01-01T00:00:00+00:00",
+                "2025-02-01T00:00:00+00:00",
+                "2025-03-01T00:00:00+00:00",
+            ],
+            calendar_hash="d" * 64,
+        )
+        with pytest.raises(IntegrityError), transaction.atomic():
+            Calendar.objects.create(
+                calendar_code="CALLER_MONTHLY_CALENDAR",
+                calendar_version=1,
+                frequency="monthly",
+                source="caller_governance",
+                revision_policy_ref="governance://calendar/v2",
+                available_at=as_of_time,
+                periods=["2025-03-01T00:00:00+00:00"],
+                calendar_hash="e" * 64,
+            )
+        with pytest.raises(IntegrityError), transaction.atomic():
+            Calendar.objects.create(
+                calendar_code="INVALID_EXPIRY",
+                calendar_version=1,
+                frequency="monthly",
+                source="caller_governance",
+                revision_policy_ref="governance://calendar/v1",
+                available_at=as_of_time,
+                expires_at=as_of_time,
+                periods=["2025-03-01T00:00:00+00:00"],
+                calendar_hash="f" * 64,
+            )
+    finally:
+        MigrationExecutor(connection).migrate(leaf_nodes)

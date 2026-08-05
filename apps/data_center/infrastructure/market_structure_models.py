@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any, cast
 
 from django.core.exceptions import ValidationError
@@ -12,6 +13,7 @@ from apps.data_center.domain.market_structure import (
     ImmutableMarketStructureEvidence,
     InvestorActorDefinition,
     MarketStructureMeasureConcept,
+    MarketStructurePeriodCalendar,
     MarketStructureResearchStatus,
     MarketStructureSeriesDefinition,
     VersionedEvidenceReference,
@@ -101,6 +103,83 @@ class InvestorActorDefinitionModel(ImmutableModelMixin):
 
         if self.pk and type(self)._default_manager.filter(pk=self.pk).exists():
             raise ValidationError("InvestorActorDefinitionModel is immutable")
+        self.to_domain()
+        super().save(*args, **kwargs)
+
+
+class MarketStructurePeriodCalendarModel(ImmutableModelMixin):
+    """Immutable caller-governed expected-period schedule and version."""
+
+    calendar_code = models.CharField(max_length=64, db_index=True)
+    calendar_version = models.PositiveIntegerField()
+    frequency = models.CharField(max_length=40, db_index=True)
+    source = models.CharField(max_length=100, db_index=True)
+    revision_policy_ref = models.CharField(max_length=300)
+    available_at = models.DateTimeField(db_index=True)
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    periods = models.JSONField()
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    calendar_hash = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "data_center_market_structure_period_calendar"
+        base_manager_name = "objects"
+        default_manager_name = "objects"
+        ordering = ["calendar_code", "calendar_version"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["calendar_code", "calendar_version"],
+                name="dc_ms_calendar_version_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(expires_at__isnull=True)
+                | models.Q(expires_at__gt=models.F("available_at")),
+                name="dc_ms_calendar_expiry_valid",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["frequency", "is_active", "available_at"],
+                name="dc_ms_calendar_freq_idx",
+            ),
+        ]
+
+    def to_domain(self) -> MarketStructurePeriodCalendar:
+        """Rebuild and verify the exact immutable calendar schedule."""
+
+        if not isinstance(self.periods, list):
+            raise ValidationError("market-structure period calendar must be a list")
+        parsed_periods: list[datetime] = []
+        for raw_period in self.periods:
+            if not isinstance(raw_period, str):
+                raise ValidationError("market-structure period calendar entry is invalid")
+            try:
+                parsed_periods.append(datetime.fromisoformat(raw_period))
+            except ValueError as exc:
+                raise ValidationError("market-structure period calendar entry is invalid") from exc
+        calendar = MarketStructurePeriodCalendar(
+            calendar_code=self.calendar_code,
+            calendar_version=self.calendar_version,
+            frequency=self.frequency,
+            source=self.source,
+            revision_policy_ref=self.revision_policy_ref,
+            available_at=self.available_at,
+            expires_at=self.expires_at,
+            periods=tuple(parsed_periods),
+            description=self.description,
+            is_active=self.is_active,
+        )
+        if self.calendar_hash != calendar.calendar_hash:
+            raise ValidationError("market-structure period calendar hash mismatch")
+        return calendar
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Validate the schedule hash and immutable semantics before insert."""
+
+        if self.pk and type(self)._default_manager.filter(pk=self.pk).exists():
+            raise ValidationError("MarketStructurePeriodCalendarModel is immutable")
         self.to_domain()
         super().save(*args, **kwargs)
 
@@ -350,6 +429,7 @@ class MarketStructureResearchEvidenceModel(ImmutableModelMixin):
 
 __all__ = [
     "InvestorActorDefinitionModel",
+    "MarketStructurePeriodCalendarModel",
     "MarketStructureResearchEvidenceModel",
     "MarketStructureSeriesDefinitionModel",
 ]

@@ -9,6 +9,8 @@ from apps.data_center.domain.market_structure import (
     ImmutableMarketStructureEvidence,
     InvestorActorDefinition,
     MarketStructureObservation,
+    MarketStructurePeriodCalendar,
+    MarketStructurePeriodCalendarRef,
     MarketStructureResearchRequest,
     MarketStructureSeriesDefinition,
     MarketStructureSeriesRef,
@@ -45,6 +47,20 @@ class MarketStructureResearchGateway(Protocol):
         definition: MarketStructureSeriesDefinition,
     ) -> MarketStructureSeriesDefinition:
         """Persist one immutable research-eligible series overlay."""
+
+    def save_period_calendar(
+        self,
+        calendar: MarketStructurePeriodCalendar,
+    ) -> MarketStructurePeriodCalendar:
+        """Persist one immutable caller-governed expected-period schedule."""
+
+    def get_period_calendar(
+        self,
+        reference: MarketStructurePeriodCalendarRef,
+        *,
+        as_of_time: datetime,
+    ) -> MarketStructurePeriodCalendar | None:
+        """Return one exact calendar version available at the request clock."""
 
     def get_series_definition(
         self,
@@ -111,6 +127,14 @@ class MarketStructureGovernanceFacade:
 
         return self._gateway.save_series_definition(definition)
 
+    def register_period_calendar(
+        self,
+        calendar: MarketStructurePeriodCalendar,
+    ) -> MarketStructurePeriodCalendar:
+        """Register an exact expected-period schedule without business seed data."""
+
+        return self._gateway.save_period_calendar(calendar)
+
 
 class RunMarketStructureResearch:
     """Resolve PIT inputs, aggregate descriptively and persist sealed evidence."""
@@ -130,6 +154,17 @@ class RunMarketStructureResearch:
         included_observations: list[MarketStructureObservation] = []
         source_evidence: list[VersionedEvidenceReference] = []
         blockers: set[str] = set()
+        period_calendar = self._gateway.get_period_calendar(
+            request.period_calendar,
+            as_of_time=request.as_of_time,
+        )
+        if period_calendar is None:
+            blockers.add(
+                "period_calendar_missing:"
+                f"{request.period_calendar.calendar_code}:"
+                f"v{request.period_calendar.calendar_version}"
+            )
+        expected_periods = period_calendar.periods if period_calendar is not None else ()
 
         for reference in request.series:
             definition = self._gateway.get_series_definition(
@@ -185,10 +220,14 @@ class RunMarketStructureResearch:
                 blockers.add(f"series_evidence_invalid:{definition.series_code}")
                 continue
             observations.extend(series_observations)
-            source_evidence.extend(item.evidence for item in series_observations)
 
         membership_cache: dict[datetime, PITMembershipSnapshot] = {}
-        for effective_at in sorted({item.effective_at for item in observations}):
+        for effective_at in expected_periods:
+            if effective_at > request.as_of_time:
+                blockers.add(
+                    "period_calendar_future_period:" f"{effective_at.astimezone(UTC).isoformat()}"
+                )
+                continue
             try:
                 membership = self._gateway.resolve_asset_group_membership(
                     group_code=request.group_code,
@@ -210,27 +249,32 @@ class RunMarketStructureResearch:
                 )
 
         coverage: list[SeriesPeriodCoverage] = []
-        for definition in definitions:
-            for effective_at in sorted(membership_cache):
-                membership = membership_cache[effective_at]
-                expected = tuple(sorted(membership.asset_codes))
+        for reference in request.series:
+            for effective_at in expected_periods:
+                selected_membership = membership_cache.get(effective_at)
+                expected = (
+                    tuple(sorted(selected_membership.asset_codes))
+                    if selected_membership is not None
+                    else ()
+                )
+                expected_set = set(expected)
                 observed = tuple(
                     sorted(
                         {
                             item.asset_code
                             for item in observations
-                            if item.series_code == definition.series_code
-                            and item.series_version == definition.series_version
+                            if item.series_code == reference.series_code
+                            and item.series_version == reference.series_version
                             and item.effective_at == effective_at
-                            and item.asset_code in set(expected)
+                            and item.asset_code in expected_set
                         }
                     )
                 )
-                missing = tuple(sorted(set(expected) - set(observed)))
+                missing = tuple(sorted(expected_set - set(observed)))
                 coverage.append(
                     SeriesPeriodCoverage(
-                        series_code=definition.series_code,
-                        series_version=definition.series_version,
+                        series_code=reference.series_code,
+                        series_version=reference.series_version,
                         effective_at=effective_at,
                         expected_asset_codes=expected,
                         observed_asset_codes=observed,
@@ -243,9 +287,11 @@ class RunMarketStructureResearch:
                 selected_membership.asset_codes
             ):
                 included_observations.append(observation)
+                source_evidence.append(observation.evidence)
 
         snapshot = aggregate_market_structure(
             request=request,
+            period_calendar=period_calendar,
             definitions=tuple(definitions),
             observations=tuple(included_observations),
             external_blockers=tuple(sorted(blockers)),
@@ -254,6 +300,7 @@ class RunMarketStructureResearch:
         evidence = build_market_structure_evidence(
             request=request,
             snapshot=snapshot,
+            period_calendar=period_calendar,
             actor_definitions=tuple(actor_definitions),
             series_definitions=tuple(definitions),
             source_evidence=tuple(source_evidence),

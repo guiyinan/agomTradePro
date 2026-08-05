@@ -18,11 +18,14 @@ from apps.data_center.domain.market_structure import (
     MarketStructureAggregationPolicy,
     MarketStructureMeasureConcept,
     MarketStructureObservation,
+    MarketStructurePeriodCalendar,
+    MarketStructurePeriodCalendarRef,
     MarketStructureResearchRequest,
     MarketStructureResearchStatus,
     MarketStructureSeriesDefinition,
     MarketStructureSeriesRef,
     PITMembershipSnapshot,
+    SeriesPeriodCoverage,
     VersionedEvidenceReference,
     aggregate_market_structure,
     build_market_structure_evidence,
@@ -98,6 +101,18 @@ def _policy() -> MarketStructureAggregationPolicy:
     )
 
 
+def _calendar() -> MarketStructurePeriodCalendar:
+    return MarketStructurePeriodCalendar(
+        calendar_code="TEST_MONTHLY_CALENDAR",
+        calendar_version=1,
+        frequency="monthly",
+        source="test_governance",
+        revision_policy_ref="governance://period-calendar/v1",
+        available_at=AS_OF,
+        periods=PERIODS,
+    )
+
+
 def _request() -> MarketStructureResearchRequest:
     return MarketStructureResearchRequest(
         evidence_key="TEST_EVIDENCE",
@@ -106,6 +121,10 @@ def _request() -> MarketStructureResearchRequest:
         knowledge_scope=KnowledgeScope.PUBLIC,
         group_code="TEST_GROUP",
         group_revision=1,
+        period_calendar=MarketStructurePeriodCalendarRef(
+            calendar_code="TEST_MONTHLY_CALENDAR",
+            calendar_version=1,
+        ),
         method_version="r2-test-v1",
         series=(
             MarketStructureSeriesRef(series_code="SERIES_A", series_version=1),
@@ -165,6 +184,36 @@ def _complete_observations(
     return tuple(rows)
 
 
+def _coverage_for(
+    observations: tuple[MarketStructureObservation, ...],
+) -> tuple[SeriesPeriodCoverage, ...]:
+    coverage: list[SeriesPeriodCoverage] = []
+    for reference in _request().series:
+        for effective_at in PERIODS:
+            observed = tuple(
+                sorted(
+                    {
+                        item.asset_code
+                        for item in observations
+                        if item.series_code == reference.series_code
+                        and item.series_version == reference.series_version
+                        and item.effective_at == effective_at
+                    }
+                )
+            )
+            coverage.append(
+                SeriesPeriodCoverage(
+                    series_code=reference.series_code,
+                    series_version=reference.series_version,
+                    effective_at=effective_at,
+                    expected_asset_codes=("TEST.ASSET",),
+                    observed_asset_codes=observed,
+                    missing_asset_codes=tuple(sorted({"TEST.ASSET"} - set(observed))),
+                )
+            )
+    return tuple(coverage)
+
+
 def test_measure_concepts_distinguish_flow_holding_stock_and_transaction() -> None:
     assert {item.value for item in MarketStructureMeasureConcept} == {
         "flow",
@@ -194,14 +243,100 @@ def test_series_rejects_measure_concept_relabelling_and_unlabelled_proxy() -> No
         replace(_series("A", is_proxy=True), proxy_target_actor_code="")
 
 
-def test_complete_aggregation_reports_all_descriptive_metrics_and_proxy_label() -> None:
+def test_period_calendar_requires_canonical_versioned_aware_periods() -> None:
+    calendar = _calendar()
+
+    assert calendar.periods == PERIODS
+    assert len(calendar.calendar_hash) == 64
+    with pytest.raises(ValueError, match="strictly increasing"):
+        replace(calendar, periods=(PERIODS[1], PERIODS[0], PERIODS[2]))
+    with pytest.raises(ValueError, match="timezone-aware"):
+        replace(calendar, periods=(datetime(2025, 1, 1), *PERIODS[1:]))
+    with pytest.raises(ValueError, match="calendar_version"):
+        replace(calendar, calendar_version=0)
+
+
+@pytest.mark.parametrize(
+    ("calendar", "expected_blocker"),
+    (
+        (
+            replace(_calendar(), calendar_code="OTHER_CALENDAR"),
+            "period_calendar_identity_mismatch",
+        ),
+        (
+            replace(_calendar(), frequency="weekly"),
+            "period_calendar_frequency_mismatch",
+        ),
+        (
+            replace(_calendar(), is_active=False),
+            "period_calendar_unavailable",
+        ),
+        (
+            replace(_calendar(), available_at=PERIODS[0], expires_at=AS_OF),
+            "period_calendar_unavailable",
+        ),
+    ),
+)
+def test_period_calendar_mismatch_or_unavailable_fails_closed(
+    calendar: MarketStructurePeriodCalendar,
+    expected_blocker: str,
+) -> None:
     first = _series("A")
-    second = _series("B", is_proxy=True)
+    second = _series("B")
+    observations = _complete_observations(first, second)
 
     snapshot = aggregate_market_structure(
         request=_request(),
+        period_calendar=calendar,
         definitions=(first, second),
-        observations=_complete_observations(first, second),
+        observations=observations,
+        coverage=_coverage_for(observations),
+    )
+
+    assert snapshot.status is MarketStructureResearchStatus.BLOCKED
+    assert expected_blocker in snapshot.blocked_reasons
+
+
+@pytest.mark.parametrize(
+    ("coverage_transform", "expected_blocker"),
+    (
+        ("missing", "membership_coverage_incomplete"),
+        ("duplicate", "membership_coverage_duplicate"),
+    ),
+)
+def test_period_coverage_missing_or_duplicate_cell_fails_closed(
+    coverage_transform: str,
+    expected_blocker: str,
+) -> None:
+    first = _series("A")
+    second = _series("B")
+    observations = _complete_observations(first, second)
+    complete = _coverage_for(observations)
+    coverage = complete[:-1] if coverage_transform == "missing" else (*complete, complete[0])
+
+    snapshot = aggregate_market_structure(
+        request=_request(),
+        period_calendar=_calendar(),
+        definitions=(first, second),
+        observations=observations,
+        coverage=coverage,
+    )
+
+    assert snapshot.status is MarketStructureResearchStatus.BLOCKED
+    assert expected_blocker in snapshot.blocked_reasons
+
+
+def test_complete_aggregation_reports_all_descriptive_metrics_and_proxy_label() -> None:
+    first = _series("A")
+    second = _series("B", is_proxy=True)
+    observations = _complete_observations(first, second)
+
+    snapshot = aggregate_market_structure(
+        request=_request(),
+        period_calendar=_calendar(),
+        definitions=(first, second),
+        observations=observations,
+        coverage=_coverage_for(observations),
     )
 
     assert snapshot.status is MarketStructureResearchStatus.AVAILABLE
@@ -228,11 +363,14 @@ def test_complete_aggregation_reports_all_descriptive_metrics_and_proxy_label() 
 def test_missing_history_fails_closed_without_partial_metrics_or_conclusion() -> None:
     first = _series("A")
     second = _series("B")
+    observations = (_observation(first, period_index=0, value="10", version_id=1),)
 
     snapshot = aggregate_market_structure(
         request=_request(),
+        period_calendar=_calendar(),
         definitions=(first, second),
-        observations=(_observation(first, period_index=0, value="10", version_id=1),),
+        observations=observations,
+        coverage=_coverage_for(observations),
     )
 
     assert snapshot.status is MarketStructureResearchStatus.BLOCKED
@@ -249,8 +387,10 @@ def test_cross_actor_comparison_rejects_mixed_measure_concepts() -> None:
 
     snapshot = aggregate_market_structure(
         request=_request(),
+        period_calendar=_calendar(),
         definitions=(first, second),
         observations=(),
+        coverage=_coverage_for(()),
     )
 
     assert snapshot.status is MarketStructureResearchStatus.BLOCKED
@@ -263,13 +403,16 @@ def test_evidence_hash_seals_inputs_outputs_and_version() -> None:
     observations = _complete_observations(first, second)
     snapshot = aggregate_market_structure(
         request=_request(),
+        period_calendar=_calendar(),
         definitions=(first, second),
         observations=observations,
+        coverage=_coverage_for(observations),
     )
 
     evidence = build_market_structure_evidence(
         request=_request(),
         snapshot=snapshot,
+        period_calendar=_calendar(),
         actor_definitions=(_actor("A"), _actor("B")),
         series_definitions=(first, second),
         source_evidence=tuple(item.evidence for item in observations),
@@ -300,10 +443,12 @@ class _Gateway:
         definitions: tuple[MarketStructureSeriesDefinition, ...],
         observations: tuple[MarketStructureObservation, ...],
         membership_assets: tuple[str, ...] = ("TEST.ASSET",),
+        period_calendar: MarketStructurePeriodCalendar | None = None,
     ) -> None:
         self._definitions = {(item.series_code, item.series_version): item for item in definitions}
         self._observations = observations
         self._membership_assets = membership_assets
+        self._period_calendar = period_calendar or _calendar()
         self.membership_calls: list[tuple[datetime, datetime]] = []
         self.saved: ImmutableMarketStructureEvidence | None = None
 
@@ -329,6 +474,29 @@ class _Gateway:
         definition: MarketStructureSeriesDefinition,
     ) -> MarketStructureSeriesDefinition:
         return definition
+
+    def save_period_calendar(
+        self,
+        calendar: MarketStructurePeriodCalendar,
+    ) -> MarketStructurePeriodCalendar:
+        return calendar
+
+    def get_period_calendar(
+        self,
+        reference: MarketStructurePeriodCalendarRef,
+        *,
+        as_of_time: datetime,
+    ) -> MarketStructurePeriodCalendar | None:
+        del as_of_time
+        if (
+            reference.calendar_code,
+            reference.calendar_version,
+        ) != (
+            self._period_calendar.calendar_code,
+            self._period_calendar.calendar_version,
+        ):
+            return None
+        return self._period_calendar
 
     def get_series_definition(
         self,
@@ -429,6 +597,34 @@ def test_application_blocks_and_seals_partial_membership_coverage() -> None:
     assert all(item["expected_count"] == 2 for item in coverage)
     assert all(item["observed_count"] == 1 for item in coverage)
     assert all(item["missing_asset_codes"] == ["EXTRA.ASSET"] for item in coverage)
+
+
+def test_application_calendar_exposes_and_blocks_whole_period_all_missing() -> None:
+    first = _series("A")
+    second = _series("B")
+    observations = tuple(
+        item for item in _complete_observations(first, second) if item.effective_at != PERIODS[1]
+    )
+    gateway = _Gateway((first, second), observations)
+
+    evidence = RunMarketStructureResearch(gateway).execute(_request())
+
+    assert evidence.status is MarketStructureResearchStatus.BLOCKED
+    payload = cast(dict[str, object], json.loads(evidence.payload_json))
+    input_payload = cast(dict[str, object], payload["input"])
+    output = cast(dict[str, object], payload["output"])
+    assert cast(dict[str, object], input_payload["period_calendar"])["calendar_hash"] == (
+        _calendar().calendar_hash
+    )
+    assert {call[0] for call in gateway.membership_calls} == set(PERIODS)
+    coverage = cast(list[dict[str, object]], output["coverage"])
+    assert len(coverage) == len(_request().series) * len(PERIODS)
+    missing_period = [item for item in coverage if item["effective_at"] == PERIODS[1].isoformat()]
+    assert len(missing_period) == len(_request().series)
+    assert all(item["expected_count"] == 1 for item in missing_period)
+    assert all(item["observed_count"] == 0 for item in missing_period)
+    blockers = cast(list[str], output["blocked_reasons"])
+    assert f"period_all_series_missing:{PERIODS[1].isoformat()}" in blockers
 
 
 def test_application_rejects_definition_not_publicly_available_at_request_time() -> None:

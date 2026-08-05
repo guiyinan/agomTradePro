@@ -16,6 +16,9 @@ from apps.data_center.infrastructure.market_structure_models import (
     InvestorActorDefinitionModel as InvestorActorDefinitionModel,
 )
 from apps.data_center.infrastructure.market_structure_models import (
+    MarketStructurePeriodCalendarModel as MarketStructurePeriodCalendarModel,
+)
+from apps.data_center.infrastructure.market_structure_models import (
     MarketStructureResearchEvidenceModel as MarketStructureResearchEvidenceModel,
 )
 from apps.data_center.infrastructure.market_structure_models import (

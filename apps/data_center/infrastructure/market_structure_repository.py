@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any, cast
 
@@ -15,6 +15,8 @@ from apps.data_center.domain.market_structure import (
     ImmutableMarketStructureEvidence,
     InvestorActorDefinition,
     MarketStructureObservation,
+    MarketStructurePeriodCalendar,
+    MarketStructurePeriodCalendarRef,
     MarketStructureSeriesDefinition,
     MarketStructureSeriesRef,
     PITMembershipSnapshot,
@@ -30,6 +32,7 @@ from apps.data_center.domain.research_data_foundation import (
 
 from .market_structure_models import (
     InvestorActorDefinitionModel,
+    MarketStructurePeriodCalendarModel,
     MarketStructureResearchEvidenceModel,
     MarketStructureSeriesDefinitionModel,
 )
@@ -85,6 +88,45 @@ def _payload_decimal(payload: dict[str, Any], key: str) -> Decimal:
     if not decimal_value.is_finite():
         raise ValueError(f"PIT payload {key} is invalid")
     return decimal_value
+
+
+_PERIOD_CALENDAR_CONFLICT = (
+    "market-structure period calendar identity already has conflicting immutable content"
+)
+
+
+def _reload_period_calendar_after_unique_conflict(
+    calendar: MarketStructurePeriodCalendar,
+) -> MarketStructurePeriodCalendar:
+    """Replay a concurrent unique winner only when identity, hash and payload agree."""
+
+    candidates = list(
+        MarketStructurePeriodCalendarModel._default_manager.filter(
+            Q(
+                calendar_code=calendar.calendar_code,
+                calendar_version=calendar.calendar_version,
+            )
+            | Q(calendar_hash=calendar.calendar_hash)
+        )
+    )
+    if not candidates:
+        raise LookupError("concurrent period calendar winner was not found")
+    if len(candidates) != 1:
+        raise ValueError(_PERIOD_CALENDAR_CONFLICT)
+    candidate = candidates[0]
+    if (
+        candidate.calendar_code != calendar.calendar_code
+        or candidate.calendar_version != calendar.calendar_version
+        or candidate.calendar_hash != calendar.calendar_hash
+    ):
+        raise ValueError(_PERIOD_CALENDAR_CONFLICT)
+    try:
+        stored = candidate.to_domain()
+    except (ValidationError, ValueError) as exc:
+        raise ValueError(_PERIOD_CALENDAR_CONFLICT) from exc
+    if stored != calendar:
+        raise ValueError(_PERIOD_CALENDAR_CONFLICT)
+    return stored
 
 
 class MarketStructureResearchRepository:
@@ -167,6 +209,85 @@ class MarketStructureResearchRepository:
                 Q(effective_to__isnull=True) | Q(effective_to__gt=as_of_time),
                 Q(expires_at__isnull=True) | Q(expires_at__gt=as_of_time),
             )
+            .first()
+        )
+        return model.to_domain() if model is not None else None
+
+    @transaction.atomic
+    def save_period_calendar(
+        self,
+        calendar: MarketStructurePeriodCalendar,
+    ) -> MarketStructurePeriodCalendar:
+        """Insert one exact schedule idempotently and reject version mutation."""
+
+        existing = (
+            MarketStructurePeriodCalendarModel._default_manager.select_for_update()
+            .filter(
+                calendar_code=calendar.calendar_code,
+                calendar_version=calendar.calendar_version,
+            )
+            .first()
+        )
+        if existing is not None:
+            stored = existing.to_domain()
+            if stored != calendar:
+                raise ValueError(_PERIOD_CALENDAR_CONFLICT)
+            return stored
+        model = MarketStructurePeriodCalendarModel(
+            calendar_code=calendar.calendar_code,
+            calendar_version=calendar.calendar_version,
+            frequency=calendar.frequency,
+            source=calendar.source,
+            revision_policy_ref=calendar.revision_policy_ref,
+            available_at=calendar.available_at,
+            expires_at=calendar.expires_at,
+            periods=[period.astimezone(UTC).isoformat() for period in calendar.periods],
+            description=calendar.description,
+            is_active=calendar.is_active,
+            calendar_hash=calendar.calendar_hash,
+        )
+        try:
+            model.full_clean()
+        except ValidationError as exc:
+            try:
+                return _reload_period_calendar_after_unique_conflict(calendar)
+            except LookupError:
+                raise ValueError("invalid market-structure period calendar") from exc
+            except ValueError as conflict:
+                raise conflict from exc
+        try:
+            with transaction.atomic():
+                model.save(force_insert=True)
+        except ValidationError as exc:
+            raise ValueError("invalid market-structure period calendar") from exc
+        except IntegrityError as exc:
+            try:
+                return _reload_period_calendar_after_unique_conflict(calendar)
+            except LookupError as missing:
+                raise RuntimeError(
+                    "concurrent market-structure period calendar could not be resolved"
+                ) from missing
+            except ValueError as conflict:
+                raise conflict from exc
+        return model.to_domain()
+
+    def get_period_calendar(
+        self,
+        reference: MarketStructurePeriodCalendarRef,
+        *,
+        as_of_time: datetime,
+    ) -> MarketStructurePeriodCalendar | None:
+        """Return one exact active schedule knowable at the request clock."""
+
+        _require_aware(as_of_time, "as_of_time")
+        model = (
+            MarketStructurePeriodCalendarModel._default_manager.filter(
+                calendar_code=reference.calendar_code,
+                calendar_version=reference.calendar_version,
+                is_active=True,
+                available_at__lte=as_of_time,
+            )
+            .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=as_of_time))
             .first()
         )
         return model.to_domain() if model is not None else None
