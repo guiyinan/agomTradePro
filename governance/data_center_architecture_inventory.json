@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3218,
+    "current_surface_references": 3220,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 143,
@@ -4997,122 +4997,132 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 502,
+      "line": 503,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 508,
+      "line": 509,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read fresh, member-bound macro values for current-facing consumers.\"\"\""
     },
     {
-      "line": 622,
+      "line": 518,
+      "path": "apps/data_center/application/public.py",
+      "text": "maintenance screens.  Current-facing pages use this port so a non-empty"
+    },
+    {
+      "line": 519,
+      "path": "apps/data_center/application/public.py",
+      "text": "raw latest fact cannot be presented as a usable indicator value."
+    },
+    {
+      "line": 669,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 715,
+      "line": 762,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 722,
+      "line": 769,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 747,
+      "line": 794,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 749,
+      "line": 796,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 757,
+      "line": 804,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 812,
+      "line": 859,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 816,
+      "line": 863,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
     },
     {
-      "line": 829,
+      "line": 876,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 834,
+      "line": 881,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 849,
+      "line": 896,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 865,
+      "line": 912,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 883,
+      "line": 930,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 900,
+      "line": 947,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 916,
+      "line": 963,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 953,
+      "line": 1000,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 956,
+      "line": 1003,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 960,
+      "line": 1007,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 962,
+      "line": 1009,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 965,
+      "line": 1012,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 966,
+      "line": 1013,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 1123,
+      "line": 1170,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -13307,47 +13317,47 @@
       "text": "last_updated=latest.observed_at.isoformat() if latest.observed_at else None,"
     },
     {
-      "line": 140,
+      "line": 142,
       "path": "apps/signal/application/query_services.py",
       "text": "\"\"\"Return current regime payload for signal pages.\"\"\""
     },
     {
-      "line": 142,
+      "line": 144,
       "path": "apps/signal/application/query_services.py",
       "text": "latest = resolve_current_regime(as_of_date=date.today())"
     },
     {
-      "line": 143,
+      "line": 145,
       "path": "apps/signal/application/query_services.py",
       "text": "if latest is None:"
     },
     {
-      "line": 146,
+      "line": 148,
       "path": "apps/signal/application/query_services.py",
       "text": "\"dominant_regime\": latest.dominant_regime,"
     },
     {
-      "line": 147,
+      "line": 149,
       "path": "apps/signal/application/query_services.py",
       "text": "\"confidence\": latest.confidence,"
     },
     {
-      "line": 148,
+      "line": 150,
       "path": "apps/signal/application/query_services.py",
       "text": "\"observed_at\": latest.observed_at,"
     },
     {
-      "line": 507,
+      "line": 509,
       "path": "apps/signal/application/query_services.py",
       "text": "\"\"\"Return signal summary for operational diagnostics.\"\"\""
     },
     {
-      "line": 561,
+      "line": 563,
       "path": "apps/signal/application/query_services.py",
       "text": "\"\"\"Validate one existing signal against current regime context.\"\"\""
     },
     {
-      "line": 587,
+      "line": 589,
       "path": "apps/signal/application/query_services.py",
       "text": "raise ValueError(\"Current regime payload is invalid\")"
     },
@@ -13457,22 +13467,22 @@
       "text": "\"\"\"Read signal summary rows for operational diagnostics.\"\"\""
     },
     {
-      "line": 438,
+      "line": 439,
       "path": "apps/signal/interface/views.py",
       "text": "def summary(self, request: Request) -> Response:"
     },
     {
-      "line": 439,
+      "line": 440,
       "path": "apps/signal/interface/views.py",
       "text": "\"\"\"Get signal summary for a date range\"\"\""
     },
     {
-      "line": 457,
+      "line": 458,
       "path": "apps/signal/interface/views.py",
       "text": "summary = service.get_signal_summary(start_date=start_date)"
     },
     {
-      "line": 459,
+      "line": 460,
       "path": "apps/signal/interface/views.py",
       "text": "return Response(summary)"
     },
