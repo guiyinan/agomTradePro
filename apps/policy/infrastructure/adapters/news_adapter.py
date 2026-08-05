@@ -5,13 +5,15 @@ News Policy Adapter - 新闻政策事件适配器
 注意：本适配器提供基础框架，实际使用时需要根据具体新闻源进行调整。
 """
 
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any
+from typing import Any, Protocol
 from urllib.parse import urlsplit
 
-import requests
+from apps.data_center.application.public import fetch_rss_news_feed, probe_rss_news_feed
 
 from ...domain.entities import PolicyEvent, PolicyLevel
 from .base import (
@@ -21,6 +23,39 @@ from .base import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class _NewsProbeResponseProtocol(Protocol):
+    status_code: int
+
+
+class _NewsSessionProtocol(Protocol):
+    def get(self, url: str, *, timeout: int) -> _NewsProbeResponseProtocol:
+        """Probe an external source through the Data Center transport."""
+
+
+@dataclass
+class _NewsProbeResponse:
+    status_code: int
+
+
+class _DataCenterNewsSession:
+    """Compatibility session facade backed by the Data Center RSS port."""
+
+    def __init__(self, config: NewsSourceConfig) -> None:
+        self._config = config
+
+    def get(self, url: str, *, timeout: int) -> _NewsProbeResponseProtocol:
+        try:
+            probe_rss_news_feed(
+                url=url,
+                source_name=self._config.name,
+                timeout_seconds=timeout,
+                retry_times=1,
+            )
+        except Exception:
+            return _NewsProbeResponse(status_code=503)
+        return _NewsProbeResponse(status_code=200)
 
 
 @dataclass
@@ -112,10 +147,7 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
             config: 新闻源配置
         """
         self.config = config
-        self.session = requests.Session()
-        self.session.headers.update(
-            {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        )
+        self.session: _NewsSessionProtocol = _DataCenterNewsSession(config)
 
     def fetch_policy_events(
         self, start_date: date | None = None, end_date: date | None = None
@@ -187,33 +219,27 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
         Returns:
             List[Dict]: 新闻列表
         """
-        # 注意：这里是示例实现，实际需要根据具体 API 调整
+        try:
+            facts = fetch_rss_news_feed(
+                url=self.config.base_url,
+                source_name=self.config.name,
+                timeout_seconds=self.config.request_timeout,
+                retry_times=1,
+            )
+        except Exception as exc:
+            logger.warning("policy_news_search_failed: error_type=%s", type(exc).__name__)
+            return []
 
-        # 示例：使用关键词搜索
-        keywords = ["货币政策", "财政政策", "降准", "降息", "股市", "救市", "刺激计划"]
-
-        news_items: list[dict[str, Any]] = []
-
-        for keyword in keywords:
-            try:
-                # 这里应该是实际的 API 调用
-                # 例如：api.search(keyword, start_date, end_date)
-
-                # 示例响应格式
-                # items = self._call_search_api(keyword, start_date, end_date)
-                # news_items.extend(items)
-
-                pass
-
-            except Exception as exc:
-                logger.warning(
-                    "policy_news_search_failed: keyword=%s error_type=%s",
-                    keyword,
-                    type(exc).__name__,
-                )
-                continue
-
-        return news_items
+        return [
+            {
+                "title": fact.title,
+                "content": fact.summary,
+                "url": fact.url,
+                "pub_date": fact.published_at.date().isoformat(),
+            }
+            for fact in facts
+            if start_date <= fact.published_at.date() <= end_date
+        ]
 
     def _parse_news_to_event(self, news_item: dict[str, Any]) -> PolicyEvent | None:
         """

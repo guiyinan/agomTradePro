@@ -161,7 +161,41 @@ def test_news_adapter_unavailable_search_and_malformed_item_failures(
 
     assert adapter._parse_news_to_event(_MalformedItem()) is None
     fresh_adapter = NewsPolicyAdapter(NewsSourceConfig("fresh", "https://news.test"))
+    monkeypatch.setattr(
+        "apps.policy.infrastructure.adapters.news_adapter.fetch_rss_news_feed",
+        lambda **kwargs: [],
+    )
     assert fresh_adapter._search_policy_news(date(2026, 7, 1), date(2026, 7, 24)) == []
+
+
+def test_news_adapter_maps_data_center_facts_to_policy_items(monkeypatch) -> None:
+    adapter = NewsPolicyAdapter(NewsSourceConfig("canonical", "https://news.test"))
+    monkeypatch.setattr(
+        "apps.policy.infrastructure.adapters.news_adapter.fetch_rss_news_feed",
+        lambda **kwargs: [
+            SimpleNamespace(
+                title="降准",
+                summary="policy summary",
+                url="https://news.test/item",
+                published_at=datetime(2026, 7, 24, 8, 0, tzinfo=UTC),
+            ),
+            SimpleNamespace(
+                title="outside",
+                summary="old",
+                url="https://news.test/old",
+                published_at=datetime(2026, 6, 30, 8, 0, tzinfo=UTC),
+            ),
+        ],
+    )
+
+    assert adapter._search_policy_news(date(2026, 7, 1), date(2026, 7, 24)) == [
+        {
+            "title": "降准",
+            "content": "policy summary",
+            "url": "https://news.test/item",
+            "pub_date": "2026-07-24",
+        }
+    ]
 
 
 def test_rss_policy_adapter_maps_unknown_levels_and_reports_repository_availability(

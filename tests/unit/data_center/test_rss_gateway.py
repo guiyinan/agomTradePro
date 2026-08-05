@@ -80,3 +80,25 @@ def test_rss_gateway_rejects_credentialed_urls() -> None:
             url="https://user:secret@example.test/feed",
             source_name="policy",
         )
+
+
+def test_rss_gateway_probe_uses_bounded_transport_without_parser(monkeypatch) -> None:
+    response = SimpleNamespace(content=b"<rss/>", raise_for_status=lambda: None)
+    calls: list[dict[str, object]] = []
+
+    def _get(*args, **kwargs):
+        calls.append(kwargs)
+        return response
+
+    monkeypatch.setattr(rss_gateway.requests, "get", _get)
+
+    rss_gateway.probe_rss_feed(
+        url="https://example.test/feed",
+        source_name="policy",
+        timeout_seconds=7,
+        retry_times=1,
+    )
+
+    assert calls == [
+        {"proxies": None, "headers": {"User-Agent": "AgomTradePro-RSS-Bot/1.0"}, "timeout": 7}
+    ]

@@ -4150,3 +4150,11 @@ Git SHA / 镜像 / migration：
 - 已运行验证：Config Center public/跨 App bridge/运行时回归 `7 passed`；Account system-settings/runtime/model structure 回归 `13 passed`；变更文件 Ruff、Black、isort、mypy regression 通过；architecture boundary/audit 0、module-cycle 0、legacy-fact 0、current-data 43 surfaces 通过。
 - 明确未做：未迁移 Account 账户注册、备份和管理写入流程中的 SystemSettings 维护 ORM；未删除兼容 re-export、未部署、未 push。
 - 未验证风险：Config Center 全局 owner registry、SystemSettings 过期字段清理、生产 profile/rollback 与 PostgreSQL 证据仍未完成；全仓 governance consistency 受其他 agent 未提交的 `fixed_income` 大文件缺少 baseline 阻断，不能把该门禁结果记为通过。
+
+## 55. 2026-08-05：Policy 通用新闻适配器退出直连 HTTP
+
+- 目标：清除 D8 外部事实接入清单中 `apps/policy/infrastructure/adapters/news_adapter.py` 的直接 `requests` 依赖，避免通用政策新闻适配器绕过 Data Center transport/retry/observed-time 规则。
+- 变更：Data Center RSS gateway 新增 bounded `probe_rss_feed` 与 Application `probe_rss_news_feed` Public Port；`NewsPolicyAdapter` 的可用性探测和新闻事实读取均经 Data Center，保留原 `session.get` 兼容注入面，并将 canonical `NewsFact` 映射为政策事件输入。
+- 可靠性：新闻条目沿用 Data Center 源发布时间，缺失/超出日期窗口的条目不进入政策事件；适配器失败仍返回稳定的 `PolicyAdapterError`/不可用语义，不泄露凭据或底层异常。
+- 已运行验证：RSS gateway + Policy adapter 回归 `19 passed`；变更文件 Ruff、Black、isort、mypy regression 通过；architecture boundary/audit 0、module-cycle 0、legacy-fact 0、current-data 43 surfaces；inventory external HTTP imports 从 5 降至 4。
+- 明确未做：未删除 PolicyLog/RSS 配置维护投影，未改变 Policy AI 分类/审核工作流，未部署、未 push；生产 market.news backfill/publication 观察与 M9 旧链清理仍未完成。

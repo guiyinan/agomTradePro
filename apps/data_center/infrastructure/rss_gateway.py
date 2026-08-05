@@ -90,6 +90,27 @@ def fetch_rss_feed(
     return items
 
 
+def probe_rss_feed(
+    *,
+    url: str,
+    source_name: str,
+    timeout_seconds: int = 30,
+    retry_times: int = 1,
+    proxy_config: Mapping[str, str] | None = None,
+    user_agent: str = _DEFAULT_USER_AGENT,
+) -> None:
+    """Probe one RSS source without parsing or persisting its response."""
+
+    _validate_request(url, source_name, timeout_seconds, retry_times)
+    _fetch_bytes(
+        url=url,
+        timeout_seconds=timeout_seconds,
+        retry_times=retry_times,
+        proxy_config=proxy_config,
+        user_agent=user_agent,
+    )
+
+
 def _validate_request(
     url: str,
     source_name: str,
@@ -191,4 +212,4 @@ def _parse_source_datetime(entry: RSSFeedEntryProtocol) -> datetime | None:
     return None
 
 
-__all__ = ["RSSGatewayError", "fetch_rss_feed"]
+__all__ = ["RSSGatewayError", "fetch_rss_feed", "probe_rss_feed"]

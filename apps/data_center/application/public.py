@@ -46,6 +46,7 @@ from apps.data_center.composition import (
     backfill_asset_master_codes,
     build_provider_registry_for_repo,
     build_tushare_client,
+    fetch_rss_feed,
     get_akshare_eastmoney_gateway,
     get_akshare_module,
     get_asset_repository,
@@ -67,9 +68,7 @@ from apps.data_center.composition import (
     get_reconciliation_evidence_repository,
     get_sector_membership_repository,
     get_valuation_fact_repository,
-)
-from apps.data_center.composition import (
-    fetch_rss_feed as _fetch_rss_feed,
+    probe_rss_feed,
 )
 from apps.data_center.domain.contracts import (
     DataOwnerRegistration,
@@ -424,7 +423,28 @@ def fetch_rss_news_feed(
 ) -> list[NewsFact]:
     """Fetch one external RSS feed through the Data Center transport port."""
 
-    return _fetch_rss_feed(
+    return fetch_rss_feed(
+        url=url,
+        source_name=source_name,
+        timeout_seconds=timeout_seconds,
+        retry_times=retry_times,
+        proxy_config=proxy_config,
+        user_agent=user_agent,
+    )
+
+
+def probe_rss_news_feed(
+    *,
+    url: str,
+    source_name: str,
+    timeout_seconds: int = 30,
+    retry_times: int = 1,
+    proxy_config: dict[str, str] | None = None,
+    user_agent: str = "AgomTradePro-RSS-Bot/1.0",
+) -> None:
+    """Probe one external RSS source through the Data Center transport port."""
+
+    probe_rss_feed(
         url=url,
         source_name=source_name,
         timeout_seconds=timeout_seconds,
@@ -1016,6 +1036,7 @@ __all__ = [
     "get_sector_membership_repository_port",
     "get_news_repository_port",
     "fetch_rss_news_feed",
+    "probe_rss_news_feed",
     "get_capital_flow_repository_port",
     "get_provider_config_repository_port",
     "get_provider_registry_port",
