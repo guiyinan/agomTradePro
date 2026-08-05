@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-05.v206",
+  "version": "2026-08-05.v207",
   "mcp_tool_count": 377,
   "mcp_governance": {
     "default_top_level_tool_count": 9,
@@ -78,6 +78,7 @@
   "allowed_large_python_files": {
     "apps/data_center/infrastructure/models.py": 1746,
     "apps/equity/application/use_cases.py": 1226,
+    "apps/fixed_income/domain/portfolio_risk.py": 1238,
     "apps/risk_center/infrastructure/scenario_governance_repository.py": 1483,
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_risk_center.py": 1304
   },
@@ -95,6 +96,15 @@
       "owner": "equity",
       "kind": "split-published-use-cases",
       "rationale": "Published and historical valuation flows still share one application module; split the compatibility orchestration before the M6 consumer cutover is declared complete.",
+      "plan_path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
+      "priority": "P1",
+      "target_non_empty_lines": 1200,
+      "review_by": "2026-09-30"
+    },
+    "apps/fixed_income/domain/portfolio_risk.py": {
+      "owner": "fixed-income",
+      "kind": "split-portfolio-risk-domain",
+      "rationale": "Research-only portfolio risk calculations and evidence validation remain in one domain module; split calculation families before the research capability is promoted or the canonical migration exit is claimed.",
       "plan_path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
       "priority": "P1",
       "target_non_empty_lines": 1200,

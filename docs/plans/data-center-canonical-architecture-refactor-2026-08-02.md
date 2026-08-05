@@ -4158,3 +4158,9 @@ Git SHA / 镜像 / migration：
 - 可靠性：新闻条目沿用 Data Center 源发布时间，缺失/超出日期窗口的条目不进入政策事件；适配器失败仍返回稳定的 `PolicyAdapterError`/不可用语义，不泄露凭据或底层异常。
 - 已运行验证：RSS gateway + Policy adapter 回归 `19 passed`；变更文件 Ruff、Black、isort、mypy regression 通过；architecture boundary/audit 0、module-cycle 0、legacy-fact 0、current-data 43 surfaces；inventory external HTTP imports 从 5 降至 4。
 - 明确未做：未删除 PolicyLog/RSS 配置维护投影，未改变 Policy AI 分类/审核工作流，未部署、未 push；生产 market.news backfill/publication 观察与 M9 旧链清理仍未完成。
+
+## 56. 2026-08-05：治理 baseline 登记 fixed-income 大文件债务
+
+- 目标：修复 CI 只剩的治理基线失败，让已提交的 research-only fixed-income 组合风险模块以机器可审计的 owner/remediation/review-by 方式纳入检查，而不是留下未登记债务。
+- 变更：`governance/governance_baseline.json` 升级至 `2026-08-05.v207`，登记 `apps/fixed_income/domain/portfolio_risk.py` 当前 1238 个非空行、owner `fixed-income`、P1 拆分目标和 2026-09-30 review-by；不扩大业务能力或放宽行数上限。
+- 计划语义：该登记只代表债务可追踪，不能把 research-only 代码、真实数据覆盖、Publication 证据或生产 readiness 解释为完成；后续拆分完成后必须移除该 allowance。
