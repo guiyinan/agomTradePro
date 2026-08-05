@@ -13,9 +13,13 @@ from apps.macro_factor.domain.entities import (
     ImmutableMacroFactorResearchRecord,
 )
 
+from .append_only import MacroFactorAppendOnlyManager
+
 
 class MacroFactorResearchResultModel(models.Model):
     """Immutable external result that can never authorize a decision."""
+
+    objects = MacroFactorAppendOnlyManager()
 
     result_id = models.CharField(max_length=160, primary_key=True)
     factor_version = models.CharField(max_length=160, unique=True)
@@ -39,6 +43,8 @@ class MacroFactorResearchResultModel(models.Model):
 
     class Meta:
         db_table = "macro_factor_research_result"
+        base_manager_name = "objects"
+        default_manager_name = "objects"
         indexes = [
             models.Index(
                 fields=["target_code", "-evidence_produced_at"],

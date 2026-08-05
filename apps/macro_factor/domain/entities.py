@@ -156,7 +156,12 @@ class MacroTargetDefinition:
             "horizon_unit",
         ):
             _require_token(str(getattr(self, name)), f"MacroTargetDefinition.{name}")
-        _require_positive_int(self.horizon_periods, "MacroTargetDefinition.horizon_periods")
+        if isinstance(self.horizon_periods, bool) or self.horizon_periods < 0:
+            raise ValueError("MacroTargetDefinition.horizon_periods cannot be negative")
+        if self.output_role is FactorOutputRole.CURRENT_STATE and self.horizon_periods != 0:
+            raise ValueError("current-state targets require horizon_periods=0")
+        if self.output_role is FactorOutputRole.FORWARD_EXPECTATION and self.horizon_periods == 0:
+            raise ValueError("forward targets require a positive horizon")
 
 
 @dataclass(frozen=True)
@@ -190,12 +195,31 @@ class ProxyAssetDefinition:
 
 
 @dataclass(frozen=True)
+class PITSelectedFactVersion:
+    """Exact immutable fact version selected by a canonical PIT manifest."""
+
+    version_id: int
+    content_hash: str
+    effective_at: datetime
+    available_at: datetime
+
+    def __post_init__(self) -> None:
+        _require_positive_int(self.version_id, "PITSelectedFactVersion.version_id")
+        _require_sha256(self.content_hash, "PITSelectedFactVersion.content_hash")
+        _require_aware(self.effective_at, "PITSelectedFactVersion.effective_at")
+        _require_aware(self.available_at, "PITSelectedFactVersion.available_at")
+        if self.available_at < self.effective_at:
+            raise ValueError("PIT selected fact cannot be available before effective time")
+
+
+@dataclass(frozen=True)
 class PITDatasetSlice:
     """Exact PIT fact versions covering one target or proxy business key."""
 
     dataset_key: str
     business_key: str
     version_ids: tuple[int, ...]
+    selected_versions: tuple[PITSelectedFactVersion, ...]
 
     def __post_init__(self) -> None:
         _require_token(self.dataset_key, "PITDatasetSlice.dataset_key")
@@ -206,6 +230,19 @@ class PITDatasetSlice:
             _require_positive_int(version_id, "PITDatasetSlice.version_id")
         if len(self.version_ids) != len(set(self.version_ids)):
             raise ValueError("PITDatasetSlice.version_ids must be unique")
+        if not self.selected_versions:
+            raise ValueError("PITDatasetSlice.selected_versions cannot be empty")
+        selected_ids = tuple(item.version_id for item in self.selected_versions)
+        if len(selected_ids) != len(set(selected_ids)):
+            raise ValueError("PIT selected version identities must be unique")
+        if frozenset(selected_ids) != frozenset(self.version_ids):
+            raise ValueError("PIT selected versions must match version_ids exactly")
+
+    @property
+    def selected_by_id(self) -> dict[int, PITSelectedFactVersion]:
+        """Return an ephemeral exact-version lookup for runner validation."""
+
+        return {item.version_id: item for item in self.selected_versions}
 
 
 @dataclass(frozen=True)
@@ -1016,6 +1053,7 @@ __all__ = [
     "MacroTargetFamily",
     "ModelEvaluationEvidence",
     "PITDatasetSlice",
+    "PITSelectedFactVersion",
     "PITManifestEvidence",
     "ProxyAssetDefinition",
     "ProxyAssetKind",

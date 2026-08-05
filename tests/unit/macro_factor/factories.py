@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from apps.macro_factor.domain.entities import (
@@ -21,6 +21,7 @@ from apps.macro_factor.domain.entities import (
     ModelEvaluationEvidence,
     PITDatasetSlice,
     PITManifestEvidence,
+    PITSelectedFactVersion,
     ProxyAssetDefinition,
     ProxyAssetKind,
     ReproducibilityEvidence,
@@ -38,6 +39,48 @@ ASSESSED_AT = datetime(2026, 7, 3, 9, tzinfo=UTC)
 def complete_manifest() -> PITManifestEvidence:
     """Return complete, verified PIT evidence for one target and two proxies."""
 
+    observations = (
+        date(2015, 1, 1),
+        date(2016, 1, 1),
+        date(2017, 1, 1),
+        date(2018, 1, 1),
+        date(2019, 1, 6),
+        date(2020, 1, 6),
+        date(2021, 1, 6),
+    )
+
+    def selected_versions(
+        start_id: int,
+        hash_character: str,
+        *,
+        target: bool,
+    ) -> tuple[PITSelectedFactVersion, ...]:
+        versions: list[PITSelectedFactVersion] = []
+        for offset, observed_on in enumerate(observations):
+            effective_on = observed_on + timedelta(days=30) if target else observed_on
+            available_on = effective_on + timedelta(days=5) if target else observed_on
+            versions.append(
+                PITSelectedFactVersion(
+                    version_id=start_id + offset,
+                    content_hash=hash_character * 64,
+                    effective_at=datetime.combine(
+                        effective_on,
+                        datetime.min.time(),
+                        tzinfo=UTC,
+                    ),
+                    available_at=datetime.combine(
+                        available_on,
+                        datetime.min.time(),
+                        tzinfo=UTC,
+                    ),
+                )
+            )
+        return tuple(versions)
+
+    target_versions = selected_versions(101, "1", target=True)
+    etf_versions = selected_versions(201, "2", target=False)
+    future_versions = selected_versions(301, "3", target=False)
+
     return PITManifestEvidence(
         manifest_id="pit-r3-growth-v1",
         manifest_hash="a" * 64,
@@ -45,9 +88,24 @@ def complete_manifest() -> PITManifestEvidence:
         knowledge_scope="public",
         calendar_version="cn-trading-calendar-v3",
         slices=(
-            PITDatasetSlice("macro.vintage", "CN_GROWTH_TARGET", (101, 102)),
-            PITDatasetSlice("market.proxy.etf", "ETF_CREDIT", (201, 202)),
-            PITDatasetSlice("market.proxy.future", "FUTURE_COPPER", (301, 302)),
+            PITDatasetSlice(
+                "macro.vintage",
+                "CN_GROWTH_TARGET",
+                tuple(item.version_id for item in target_versions),
+                target_versions,
+            ),
+            PITDatasetSlice(
+                "market.proxy.etf",
+                "ETF_CREDIT",
+                tuple(item.version_id for item in etf_versions),
+                etf_versions,
+            ),
+            PITDatasetSlice(
+                "market.proxy.future",
+                "FUTURE_COPPER",
+                tuple(item.version_id for item in future_versions),
+                future_versions,
+            ),
         ),
         coverage_ratio=Decimal("1"),
         missing_count=0,

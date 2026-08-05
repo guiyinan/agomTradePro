@@ -1,0 +1,89 @@
+"""Stable public exports for the split R3 reproducible-runner domain."""
+
+from .baselines import (
+    DeterministicErrorMetrics,
+    FixedFMPDefinition,
+    FixedFMPWeight,
+    FoldBenchmarkResult,
+)
+from .dated_outputs import DatedMacroFactorOutput, ExternalDatedFactorOutput
+from .lifecycle import (
+    RETIREMENT_OWNER_ATTESTATION_MEDIA_TYPE,
+    MacroFactorLifecycleEvent,
+    MacroFactorLifecycleEventType,
+    MacroFactorOutputResearchStatus,
+    RetirementOwnerAttestation,
+    append_retirement_event,
+    assess_output_research_status,
+)
+from .run_artifacts import (
+    MACRO_FACTOR_EXTERNAL_ARTIFACT_MEDIA_TYPE,
+    ExternalAlphaScore,
+    ExternalFoldPrediction,
+    ExternalInnerFoldScore,
+    ExternalNestedCVArtifact,
+    ExternalOuterFoldSelectionEvidence,
+    ExternalProxyCoefficient,
+    ReproducibleMacroFactorRunArtifact,
+)
+from .runner_inputs import (
+    PITResearchDataset,
+    PITResearchRow,
+    ProxyObservation,
+    VersionedResearchContract,
+)
+from .runner_service import ReproducibleMacroFactorRunBundle, build_reproducible_run
+from .temporal_plan import (
+    ExecutionFoldBinding,
+    InnerFoldBinding,
+    InnerTemporalFoldPlan,
+    MacroFactorRunnerSpec,
+    NestedCVExecutionRequest,
+    NestedTemporalCVPlan,
+    OptimizationDirection,
+    OuterTemporalFoldPlan,
+    TargetAvailabilityPolicy,
+    build_execution_request,
+    calculate_temporal_split_hash,
+)
+
+__all__ = [
+    "DatedMacroFactorOutput",
+    "DeterministicErrorMetrics",
+    "ExecutionFoldBinding",
+    "ExternalDatedFactorOutput",
+    "ExternalAlphaScore",
+    "ExternalFoldPrediction",
+    "ExternalInnerFoldScore",
+    "ExternalNestedCVArtifact",
+    "ExternalOuterFoldSelectionEvidence",
+    "ExternalProxyCoefficient",
+    "MACRO_FACTOR_EXTERNAL_ARTIFACT_MEDIA_TYPE",
+    "FixedFMPDefinition",
+    "FixedFMPWeight",
+    "FoldBenchmarkResult",
+    "InnerFoldBinding",
+    "InnerTemporalFoldPlan",
+    "MacroFactorLifecycleEvent",
+    "MacroFactorLifecycleEventType",
+    "MacroFactorOutputResearchStatus",
+    "RETIREMENT_OWNER_ATTESTATION_MEDIA_TYPE",
+    "RetirementOwnerAttestation",
+    "MacroFactorRunnerSpec",
+    "NestedCVExecutionRequest",
+    "NestedTemporalCVPlan",
+    "OptimizationDirection",
+    "OuterTemporalFoldPlan",
+    "PITResearchDataset",
+    "PITResearchRow",
+    "ProxyObservation",
+    "ReproducibleMacroFactorRunArtifact",
+    "ReproducibleMacroFactorRunBundle",
+    "TargetAvailabilityPolicy",
+    "VersionedResearchContract",
+    "append_retirement_event",
+    "assess_output_research_status",
+    "build_execution_request",
+    "build_reproducible_run",
+    "calculate_temporal_split_hash",
+]

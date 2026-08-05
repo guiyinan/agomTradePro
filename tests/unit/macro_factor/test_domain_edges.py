@@ -371,7 +371,11 @@ def test_output_role_and_evaluation_report_are_sealed_by_content_hash() -> None:
     result = complete_result()
     current_state = replace(
         result,
-        target=replace(result.target, output_role=FactorOutputRole.CURRENT_STATE),
+        target=replace(
+            result.target,
+            output_role=FactorOutputRole.CURRENT_STATE,
+            horizon_periods=0,
+        ),
     )
     changed_bic = replace(
         result,
