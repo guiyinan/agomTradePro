@@ -4332,4 +4332,5 @@ Git SHA / 镜像 / migration：
 - 目标：消除宏观页面 Application 对 `apps.macro.application.indicator_service.IndicatorService` 的元数据依赖，避免 current TUI catalog 与旧 projection 维护服务形成隐式旁路。
 - 变更：`get_supported_macro_indicators()` 与 `get_macro_data_page_snapshot()` 统一调用 `apps.data_center.application.public.get_macro_runtime_metadata()`；历史指标统计、单位维护和写入服务仍保留在宏观 owner 内，仅页面元数据读取切换到 Data Center canonical catalog。
 - 治理与测试：`macro.tui_publication` 增加 `get_macro_runtime_metadata()` marker；宏观 interface/composition/TUI API 回归 `22 passed`，current-data contract `45 surface(s)`，Ruff/Black 通过。
+- inventory：在包含已提交 portfolio canonical optimization 变更、且不含工作区未提交内容的 clean HEAD worktree 重生成架构 inventory，`current_surface_references=3249`，其余结构计数保持 `51/55/4/143/0/49`。
 - 明确未做：未改变宏观事实查询、历史维护接口、Publication writer/provider、生产数据、VPS 或部署；生产 catalog 覆盖、PostgreSQL 查询预算、观察窗口和 M9 旧链清理仍未完成。

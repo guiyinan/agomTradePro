@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3220,
+    "current_surface_references": 3249,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 143,
@@ -9927,6 +9927,46 @@
       "text": "\"\"\"Return the latest eligible source observation at a fixed cutoff.\"\"\""
     },
     {
+      "line": 143,
+      "path": "apps/portfolio/application/governed_optimization.py",
+      "text": "\"\"\"Trusted numerical problem plus its unmodified current configuration.\"\"\""
+    },
+    {
+      "line": 171,
+      "path": "apps/portfolio/application/governed_optimization.py",
+      "text": "raise ValueError(\"current configuration snapshot mismatch\")"
+    },
+    {
+      "line": 253,
+      "path": "apps/portfolio/application/governed_optimization.py",
+      "text": "current = build_current_configuration_baseline("
+    },
+    {
+      "line": 287,
+      "path": "apps/portfolio/application/governed_optimization.py",
+      "text": "current_by_asset = dict(zip(current.asset_codes, current.weights, strict=True))"
+    },
+    {
+      "line": 380,
+      "path": "apps/portfolio/application/governed_optimization.py",
+      "text": "current_configuration_hash=current.content_hash,"
+    },
+    {
+      "line": 388,
+      "path": "apps/portfolio/application/governed_optimization.py",
+      "text": "current_configuration=current,"
+    },
+    {
+      "line": 569,
+      "path": "apps/portfolio/application/governed_optimization.py",
+      "text": "raise ValueError(\"engine current baseline rewrites the canonical configuration\")"
+    },
+    {
+      "line": 684,
+      "path": "apps/portfolio/application/governed_optimization.py",
+      "text": "raise ValueError(\"macro numerical evidence is not current\")"
+    },
+    {
       "line": 42,
       "path": "apps/portfolio/application/use_cases.py",
       "text": "current: PortfolioSnapshot,"
@@ -9942,19 +9982,89 @@
       "text": "raise ValueError(\"snapshot as_of must preserve the latest source observation time\")"
     },
     {
-      "line": 73,
+      "line": 80,
       "path": "apps/portfolio/domain/constrained_optimization_contracts.py",
       "text": "\"\"\"Versioned asset assumptions excluding canonical current weight.\"\"\""
     },
     {
-      "line": 111,
+      "line": 119,
       "path": "apps/portfolio/domain/constrained_optimization_contracts.py",
       "text": "\"\"\"Asset assumptions bound to current weight from a canonical snapshot.\"\"\""
     },
     {
-      "line": 583,
+      "line": 629,
       "path": "apps/portfolio/domain/constrained_optimization_contracts.py",
       "text": "\"\"\"Build a problem whose current weights come only from the canonical snapshot.\"\"\""
+    },
+    {
+      "line": 1,
+      "path": "apps/portfolio/domain/current_baseline.py",
+      "text": "\"\"\"Current-configuration benchmark derived from Portfolio canonical truth.\"\"\""
+    },
+    {
+      "line": 43,
+      "path": "apps/portfolio/domain/current_baseline.py",
+      "text": "raise ValueError(\"current baseline candidate kind is invalid\")"
+    },
+    {
+      "line": 47,
+      "path": "apps/portfolio/domain/current_baseline.py",
+      "text": "require_ordered_unique(self.asset_codes, \"current baseline assets\")"
+    },
+    {
+      "line": 49,
+      "path": "apps/portfolio/domain/current_baseline.py",
+      "text": "raise ValueError(\"current baseline weights must align with assets\")"
+    },
+    {
+      "line": 51,
+      "path": "apps/portfolio/domain/current_baseline.py",
+      "text": "require_unit_interval(weight, \"current baseline weight\")"
+    },
+    {
+      "line": 52,
+      "path": "apps/portfolio/domain/current_baseline.py",
+      "text": "require_unit_interval(self.cash_weight, \"current baseline cash_weight\")"
+    },
+    {
+      "line": 53,
+      "path": "apps/portfolio/domain/current_baseline.py",
+      "text": "require_positive(self.weight_tolerance, \"current baseline weight_tolerance\")"
+    },
+    {
+      "line": 55,
+      "path": "apps/portfolio/domain/current_baseline.py",
+      "text": "raise ValueError(\"current baseline weights and cash must sum to one\")"
+    },
+    {
+      "line": 57,
+      "path": "apps/portfolio/domain/current_baseline.py",
+      "text": "raise ValueError(\"current baseline must preserve zero observed trade and cost\")"
+    },
+    {
+      "line": 58,
+      "path": "apps/portfolio/domain/current_baseline.py",
+      "text": "require_sha256(self.content_hash, \"current baseline content_hash\")"
+    },
+    {
+      "line": 60,
+      "path": "apps/portfolio/domain/current_baseline.py",
+      "text": "raise ValueError(\"current baseline content hash mismatch\")"
+    },
+    {
+      "line": 69,
+      "path": "apps/portfolio/domain/current_baseline.py",
+      "text": "\"\"\"Derive current weights, preserving held-only and zero-weight new members.\"\"\""
+    },
+    {
+      "line": 113,
+      "path": "apps/portfolio/domain/current_baseline.py",
+      "text": "\"\"\"Recompute the current-configuration benchmark digest.\"\"\""
+    },
+    {
+      "line": 136,
+      "path": "apps/portfolio/domain/current_baseline.py",
+      "text": "\"current-configuration-baseline.v1\","
     },
     {
       "line": 77,
@@ -9962,9 +10072,29 @@
       "text": "\"\"\"Non-executable order generated from target/current differences.\"\"\""
     },
     {
+      "line": 518,
+      "path": "apps/portfolio/domain/governed_input_set.py",
+      "text": "raise ValueError(f\"{kind.value} owner binding is not current\")"
+    },
+    {
+      "line": 536,
+      "path": "apps/portfolio/domain/governed_input_set.py",
+      "text": "raise ValueError(\"promotion attestation is not current\")"
+    },
+    {
+      "line": 561,
+      "path": "apps/portfolio/domain/governed_input_set.py",
+      "text": "raise ValueError(\"market constraint row is not current at input-set creation\")"
+    },
+    {
       "line": 199,
       "path": "apps/portfolio/domain/macro_factor_risk.py",
       "text": "\"\"\"Current or candidate portfolio weight and liquidity capacity.\"\"\""
+    },
+    {
+      "line": 400,
+      "path": "apps/portfolio/domain/optimization_lifecycle.py",
+      "text": "\"\"\"Verify a complete ordered chain and derive its current state.\"\"\""
     },
     {
       "line": 27,
@@ -10047,14 +10177,29 @@
       "text": "cash_before=current.cash,"
     },
     {
-      "line": 155,
+      "line": 35,
+      "path": "apps/portfolio/infrastructure/deterministic_optimizer.py",
+      "text": "\"canonical current configuration has no positive portfolio value\","
+    },
+    {
+      "line": 45,
+      "path": "apps/portfolio/infrastructure/deterministic_optimizer.py",
+      "text": "\"observed canonical current configuration; zero turnover and cost; \""
+    },
+    {
+      "line": 181,
       "path": "apps/portfolio/infrastructure/deterministic_optimizer.py",
       "text": "current = tuple(asset.current_weight for asset in problem.assets)"
     },
     {
-      "line": 156,
+      "line": 182,
       "path": "apps/portfolio/infrastructure/deterministic_optimizer.py",
       "text": "weights = _project_to_effective_bounds(problem, current)"
+    },
+    {
+      "line": 138,
+      "path": "apps/portfolio/infrastructure/optimization_research_repository.py",
+      "text": "raise ValueError(\"lifecycle event does not extend the current chain\")"
     },
     {
       "line": 90,
