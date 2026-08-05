@@ -312,7 +312,7 @@
           "get_market_thermometer_payload(user_id=None, use_personal_thresholds=False)"
         ],
         "apps/operational_readiness/application/status_services.py": [
-          "from apps.data_center.application.public import",
+          "module = import_module(\"apps.data_center.application.public\")",
           "get_decision_data_readiness_payload(",
           "payload = get_decision_data_readiness_payload("
         ],
