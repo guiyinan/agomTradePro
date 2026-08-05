@@ -29,15 +29,24 @@ def get_latest_regime_observed_at() -> date | None:
 
 
 def get_latest_regime_cache_payload() -> dict[str, Any] | None:
-    """Return the latest regime snapshot in cache-warmup payload shape."""
+    """Return a fresh current-Regime payload for cache warmup.
 
-    latest = get_regime_repository().get_latest_snapshot()
-    if latest is None:
+    Cache warmup is a current-data consumer.  It must use the same resolver as
+    decision surfaces and must not reheat a stale persisted diagnostic snapshot.
+    """
+
+    from apps.regime.application.current_regime import resolve_current_regime
+
+    latest = resolve_current_regime()
+    if latest.must_not_use_for_decision or not latest.dominant_regime.strip():
         return None
     return {
         "regime": latest.dominant_regime,
-        "observed_at": str(latest.observed_at),
+        "observed_at": latest.observed_at.isoformat() if latest.observed_at else None,
         "confidence": latest.confidence,
+        "freshness_status": "fresh",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
     }
 
 

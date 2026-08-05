@@ -276,11 +276,16 @@ def test_data_connection_diagnostics_cover_all_successful_business_paths(
     assert tester.test_macro_data_update() is True
 
     monkeypatch.setattr(
-        "apps.regime.application.query_services." "get_latest_regime_diagnostic_payload",
-        lambda: {
-            "observed_at": today,
-            "dominant_regime": "recovery",
-            "confidence": 0.8,
+        "apps.regime.application.interface_services.get_regime_current_payload",
+        lambda **_kwargs: {
+            "success": True,
+            "data": {
+                "observed_at": today,
+                "dominant_regime": "recovery",
+                "confidence": 0.8,
+                "must_not_use_for_decision": False,
+                "blocked_reason": "",
+            },
         },
     )
     monkeypatch.setattr(
@@ -405,7 +410,7 @@ def test_data_connection_diagnostics_cover_all_successful_business_paths(
         ),
         (
             "test_regime_calculation",
-            "apps.regime.application.query_services." "get_latest_regime_diagnostic_payload",
+            "apps.regime.application.interface_services.get_regime_current_payload",
         ),
         (
             "test_policy_events",

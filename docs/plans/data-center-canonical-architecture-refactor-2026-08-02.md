@@ -4375,3 +4375,10 @@ Git SHA / 镜像 / migration：
 - 治理：`governance/runtime_config_contracts.json` 登记 5 个 key、owner、consumer、fallback 和精确测试；账户代理读取回归明确断言旧 singleton getter 未被调用。
 - 测试：Config Center 定向回归 `16 passed`，Config Center component `3 passed`，Account repository/backtest 回归 `5 passed`；变更文件 Black/Ruff/mypy regression 通过；current-data manifest 实际执行 `266 nodeid / 305 passed`；runtime config coverage `49`、current-data contracts `45 surfaces`、architecture boundary `0`、module-cycle `0`、legacy-fact guard、Celery task contracts（18 tasks）和 governance consistency `0 violations`。
 - 明确未做：仍保留 SystemSettings compatibility fallback；`ConfigCenterSettingsRepository.update_runtime_config()` 等旧管理写入流程尚未改成 typed profile activation，未执行全量字段迁移、生产 profile 初始化、PostgreSQL/备份恢复、观察窗口、M9 旧字段删除或 M10 生产切读；不部署、不 push。
+
+## 85. 2026-08-06：Regime current cache warmup 与诊断命令退出 raw snapshot 旁路
+
+- 目标：防止运维缓存预热和数据连接诊断把过期 Regime 持久化快照重新包装成当前状态，确保这两个 current/diagnostic 入口复用统一 freshness-aware resolver。
+- 变更：`get_latest_regime_cache_payload()` 改为调用 `resolve_current_regime()`；stale/blocked/Unknown 结果不再写入 `regime:current`，fresh 结果保留源 `observed_at`、`freshness_status` 和阻断字段。`test_data_connections.test_regime_calculation()` 改用 `get_regime_current_payload()`，阻断时输出 warning，不再直接读 raw `get_latest_regime_diagnostic_payload()`。
+- 治理与测试：新增 `regime.current_cache_warmup` current-data contract，current surface 增至 `46`；Regime freshness/management command 回归 `17 + 14 passed`，变更文件 Black/Ruff/mypy regression 通过，架构与 legacy guard 保持通过。
+- 明确未做：未改变历史 Regime 查询、计算算法、Publication writer/provider、生产缓存、PostgreSQL、观察窗口、M9/M10 或部署；Config Center typed profile activation 与 SystemSettings 全量退役仍待继续。

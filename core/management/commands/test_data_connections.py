@@ -287,15 +287,16 @@ class DataConnectionTester:
         self.stdout.write("=" * 60)
 
         try:
+            from apps.regime.application.interface_services import get_regime_current_payload
             from apps.regime.application.query_services import (
                 calculate_regime_diagnostic_payload,
-                get_latest_regime_diagnostic_payload,
                 get_regime_distribution_payload,
             )
 
-            # Get latest regime
-            latest = get_latest_regime_diagnostic_payload()
-            if latest:
+            # Get the current regime through the same freshness-aware resolver as decision APIs.
+            current_payload = get_regime_current_payload(as_of_date=django_timezone.now().date())
+            latest = current_payload.get("data") if current_payload.get("success") else None
+            if isinstance(latest, dict) and not latest.get("must_not_use_for_decision", True):
                 self.log_result(
                     "Regime",
                     "最新Regime状态",
@@ -303,6 +304,13 @@ class DataConnectionTester:
                     f"日期: {latest['observed_at']}, "
                     f"象限: {latest['dominant_regime']}, "
                     f"置信度: {latest['confidence']:.2%}",
+                )
+            elif isinstance(latest, dict):
+                self.log_result(
+                    "Regime",
+                    "最新Regime状态",
+                    "warning",
+                    f"当前 Regime 被阻断: {latest.get('blocked_reason') or '可靠性证据不足'}",
                 )
             else:
                 self.log_result("Regime", "最新Regime状态", "warning", "暂无Regime数据")

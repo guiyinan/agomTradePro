@@ -2,6 +2,37 @@
   "schema_version": 1,
   "contracts": [
     {
+      "id": "regime.current_cache_warmup",
+      "surface": "Regime current cache warmup",
+      "source_files": [
+        "apps/regime/application/query_services.py",
+        "core/management/commands/warmup_cache.py"
+      ],
+      "required_markers": {
+        "apps/regime/application/query_services.py": [
+          "def get_latest_regime_cache_payload()",
+          "resolve_current_regime()",
+          "latest.must_not_use_for_decision",
+          "\"freshness_status\": \"fresh\""
+        ],
+        "core/management/commands/warmup_cache.py": [
+          "CacheEntry(\"regime:current\", dict(latest))"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "blocked_snapshot_not_reheated",
+          "test_file": "tests/unit/regime/test_current_regime_freshness.py",
+          "test_function": "test_regime_cache_warmup_does_not_reheat_blocked_snapshot"
+        },
+        {
+          "case": "observation_preserved",
+          "test_file": "tests/unit/regime/test_current_regime_freshness.py",
+          "test_function": "test_regime_cache_warmup_preserves_resolver_observation"
+        }
+      ]
+    },
+    {
       "id": "realtime.market_summary",
       "surface": "GET /api/realtime/market-summary/ + MCP get_market_summary",
       "source_files": [

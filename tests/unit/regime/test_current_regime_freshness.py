@@ -3,7 +3,7 @@
 from datetime import date
 from types import SimpleNamespace
 
-from apps.regime.application import current_regime
+from apps.regime.application import current_regime, query_services
 
 
 def test_current_regime_preserves_macro_observation_and_blocks_stale_result(monkeypatch):
@@ -50,3 +50,46 @@ def test_current_regime_preserves_macro_observation_and_blocks_stale_result(monk
     assert result.must_not_use_for_decision is True
     assert result.blocked_reason == "regime_macro_observation_stale"
     assert captured["request"].published_only is True
+
+
+def test_regime_cache_warmup_does_not_reheat_blocked_snapshot(monkeypatch):
+    """Current cache warmup must skip stale/blocked resolver results."""
+
+    monkeypatch.setattr(
+        current_regime,
+        "resolve_current_regime",
+        lambda: SimpleNamespace(
+            dominant_regime="Unknown",
+            confidence=0.8,
+            observed_at=date(2026, 5, 31),
+            must_not_use_for_decision=True,
+            blocked_reason="regime_snapshot_stale",
+        ),
+    )
+
+    assert query_services.get_latest_regime_cache_payload() is None
+
+
+def test_regime_cache_warmup_preserves_resolver_observation(monkeypatch):
+    """Fresh cache entries retain the resolver observation date and contract."""
+
+    monkeypatch.setattr(
+        current_regime,
+        "resolve_current_regime",
+        lambda: SimpleNamespace(
+            dominant_regime="Recovery",
+            confidence=0.8,
+            observed_at=date(2026, 7, 31),
+            must_not_use_for_decision=False,
+            blocked_reason="",
+        ),
+    )
+
+    assert query_services.get_latest_regime_cache_payload() == {
+        "regime": "Recovery",
+        "observed_at": "2026-07-31",
+        "confidence": 0.8,
+        "freshness_status": "fresh",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
+    }
