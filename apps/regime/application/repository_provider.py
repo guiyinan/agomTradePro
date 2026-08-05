@@ -72,8 +72,9 @@ class MacroRepositoryAdapterProtocol(Protocol):
         end_date: date | None = None,
         use_pit: bool = False,
         source: str | None = None,
+        published_only: bool = False,
     ) -> list[float]:
-        """Return growth values."""
+        """Return growth values, optionally restricted to current publication members."""
 
     def get_growth_series_full(
         self,
@@ -81,8 +82,9 @@ class MacroRepositoryAdapterProtocol(Protocol):
         end_date: date | None = None,
         use_pit: bool = False,
         source: str | None = None,
+        published_only: bool = False,
     ) -> list[MacroIndicator]:
-        """Return growth observations."""
+        """Return growth observations, optionally restricted to current publication members."""
 
     def get_inflation_series(
         self,
@@ -90,8 +92,9 @@ class MacroRepositoryAdapterProtocol(Protocol):
         end_date: date | None = None,
         use_pit: bool = False,
         source: str | None = None,
+        published_only: bool = False,
     ) -> list[float]:
-        """Return inflation values."""
+        """Return inflation values, optionally restricted to current publication members."""
 
     def get_inflation_series_full(
         self,
@@ -99,8 +102,9 @@ class MacroRepositoryAdapterProtocol(Protocol):
         end_date: date | None = None,
         use_pit: bool = False,
         source: str | None = None,
+        published_only: bool = False,
     ) -> list[MacroIndicator]:
-        """Return inflation observations."""
+        """Return inflation observations, optionally restricted to current publication members."""
 
     def get_available_dates(
         self,

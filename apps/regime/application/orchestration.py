@@ -329,6 +329,7 @@ def calculate_regime_after_sync(
                 inflation_indicator="CPI",
                 data_source="akshare",
                 skip_cache=True,
+                published_only=True,
             )
         )
 

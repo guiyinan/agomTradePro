@@ -27,11 +27,14 @@ def test_current_regime_preserves_macro_observation_and_blocks_stale_result(monk
         },
     )
 
+    captured: dict[str, object] = {}
+
     class _UseCase:
         def __init__(self, repository):
             self.repository = repository
 
         def execute(self, request):
+            captured["request"] = request
             return response
 
     monkeypatch.setattr(current_regime, "get_macro_data_provider", lambda: object())
@@ -46,3 +49,4 @@ def test_current_regime_preserves_macro_observation_and_blocks_stale_result(monk
     assert result.is_stale is True
     assert result.must_not_use_for_decision is True
     assert result.blocked_reason == "regime_macro_observation_stale"
+    assert captured["request"].published_only is True

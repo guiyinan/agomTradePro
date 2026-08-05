@@ -260,6 +260,7 @@ class DataCenterMacroRepositoryAdapter:
         end_date: date | None = None,
         use_pit: bool = False,
         source: str | None = None,
+        published_only: bool = False,
     ) -> list[float]:
         return [
             indicator.value
@@ -269,6 +270,7 @@ class DataCenterMacroRepositoryAdapter:
                 end_date=end_date,
                 use_pit=use_pit,
                 source=source,
+                published_only=published_only,
             )
         ]
 
@@ -279,6 +281,7 @@ class DataCenterMacroRepositoryAdapter:
         end_date: date | None = None,
         use_pit: bool = False,
         source: str | None = None,
+        published_only: bool = False,
     ) -> list[MacroIndicator]:
         code = self.GROWTH_INDICATORS.get(indicator_code, indicator_code)
         if not self._is_regime_direct_input_allowed(code):
@@ -287,6 +290,13 @@ class DataCenterMacroRepositoryAdapter:
                 code,
             )
             return []
+        if published_only:
+            return self.get_published_series(
+                code=code,
+                start_date=start_date,
+                end_date=end_date,
+                publication_key=code,
+            )
         return self.get_series(
             code=code,
             start_date=start_date,
@@ -302,6 +312,7 @@ class DataCenterMacroRepositoryAdapter:
         end_date: date | None = None,
         use_pit: bool = False,
         source: str | None = None,
+        published_only: bool = False,
     ) -> list[float]:
         return [
             indicator.value
@@ -311,6 +322,7 @@ class DataCenterMacroRepositoryAdapter:
                 end_date=end_date,
                 use_pit=use_pit,
                 source=source,
+                published_only=published_only,
             )
         ]
 
@@ -321,6 +333,7 @@ class DataCenterMacroRepositoryAdapter:
         end_date: date | None = None,
         use_pit: bool = False,
         source: str | None = None,
+        published_only: bool = False,
     ) -> list[MacroIndicator]:
         code = self.INFLATION_INDICATORS.get(indicator_code, indicator_code)
         if not self._is_regime_direct_input_allowed(code):
@@ -329,16 +342,14 @@ class DataCenterMacroRepositoryAdapter:
                 code,
             )
             return []
-        indicators = self.get_series(
-            code=code,
-            start_date=start_date,
-            end_date=end_date,
-            use_pit=use_pit,
-            source=source,
-        )
-
-        if indicator_code == "CPI" and not indicators and code == "CN_CPI_NATIONAL_YOY":
-            code = "CN_CPI"
+        if published_only:
+            indicators = self.get_published_series(
+                code=code,
+                start_date=start_date,
+                end_date=end_date,
+                publication_key=code,
+            )
+        else:
             indicators = self.get_series(
                 code=code,
                 start_date=start_date,
@@ -346,6 +357,24 @@ class DataCenterMacroRepositoryAdapter:
                 use_pit=use_pit,
                 source=source,
             )
+
+        if indicator_code == "CPI" and not indicators and code == "CN_CPI_NATIONAL_YOY":
+            code = "CN_CPI"
+            if published_only:
+                indicators = self.get_published_series(
+                    code=code,
+                    start_date=start_date,
+                    end_date=end_date,
+                    publication_key=code,
+                )
+            else:
+                indicators = self.get_series(
+                    code=code,
+                    start_date=start_date,
+                    end_date=end_date,
+                    use_pit=use_pit,
+                    source=source,
+                )
 
         if indicator_code != "CPI":
             return indicators
@@ -759,12 +788,14 @@ class MacroRepositoryAdapter:
         end_date: date | None = None,
         use_pit: bool = False,
         source: str | None = None,
+        published_only: bool = False,
     ) -> list[float]:
         return self._get_repository().get_growth_series(
             indicator_code=indicator_code,
             end_date=end_date or date.today(),
             use_pit=use_pit,
             source=source,
+            published_only=published_only,
         )
 
     def get_growth_series_full(
@@ -773,12 +804,14 @@ class MacroRepositoryAdapter:
         end_date: date | None = None,
         use_pit: bool = False,
         source: str | None = None,
+        published_only: bool = False,
     ) -> list[MacroIndicator]:
         return self._get_repository().get_growth_series_full(
             indicator_code=indicator_code,
             end_date=end_date or date.today(),
             use_pit=use_pit,
             source=source,
+            published_only=published_only,
         )
 
     def get_inflation_series(
@@ -787,12 +820,14 @@ class MacroRepositoryAdapter:
         end_date: date | None = None,
         use_pit: bool = False,
         source: str | None = None,
+        published_only: bool = False,
     ) -> list[float]:
         return self._get_repository().get_inflation_series(
             indicator_code=indicator_code,
             end_date=end_date or date.today(),
             use_pit=use_pit,
             source=source,
+            published_only=published_only,
         )
 
     def get_inflation_series_full(
@@ -801,12 +836,14 @@ class MacroRepositoryAdapter:
         end_date: date | None = None,
         use_pit: bool = False,
         source: str | None = None,
+        published_only: bool = False,
     ) -> list[MacroIndicator]:
         return self._get_repository().get_inflation_series_full(
             indicator_code=indicator_code,
             end_date=end_date or date.today(),
             use_pit=use_pit,
             source=source,
+            published_only=published_only,
         )
 
     def get_available_dates(

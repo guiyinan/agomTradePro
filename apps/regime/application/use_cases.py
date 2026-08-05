@@ -1194,6 +1194,7 @@ class CalculateRegimeV2Request:
     inflation_indicator: str = "CPI"
     data_source: str | None = None
     skip_cache: bool = False
+    published_only: bool = False
 
 
 @dataclass
@@ -1267,6 +1268,7 @@ class CalculateRegimeV2UseCase:
                 end_date=request.as_of_date,
                 use_pit=request.use_pit,
                 source=request.data_source,
+                published_only=request.published_only,
             )
 
             inflation_series = self.repository.get_inflation_series(
@@ -1274,6 +1276,7 @@ class CalculateRegimeV2UseCase:
                 end_date=request.as_of_date,
                 use_pit=request.use_pit,
                 source=request.data_source,
+                published_only=request.published_only,
             )
 
             if not growth_series or not inflation_series:
@@ -1296,12 +1299,14 @@ class CalculateRegimeV2UseCase:
                 end_date=request.as_of_date,
                 use_pit=request.use_pit,
                 source=request.data_source,
+                published_only=request.published_only,
             )
             inflation_full = self.repository.get_inflation_series_full(
                 indicator_code=request.inflation_indicator,
                 end_date=request.as_of_date,
                 use_pit=request.use_pit,
                 source=request.data_source,
+                published_only=request.published_only,
             )
 
             raw_data = {

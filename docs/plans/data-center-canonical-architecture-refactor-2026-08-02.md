@@ -4307,3 +4307,12 @@ Git SHA / 镜像 / migration：
 - 变更：`get_macro_data_page_snapshot(published_only=True)` 的 selected history 改调用 `get_published_macro_series_response`；只有 Classic staff/historical maintenance 分支继续使用内部历史 query use case。
 - 治理与测试：`macro.tui_publication` 更新 interface marker；宏观 interface/composition/API 回归 `22 passed`，current-data `45 surfaces`、mypy regression 0。
 - 明确未做：未改变 Classic staff raw/historical 语义、趋势算法、Publication writer/provider 配置或生产部署；生产 query budget、Publication 覆盖和 M9 旧链退出仍待完成。
+
+## 77. 2026-08-05：Regime V2 当前输入切换 Publication-only
+
+- 目标：消除 Regime V2 当前决策链对 `get_*_series(... use_pit=True)` raw facts 的旁路，避免未发布或过期的非空事实进入 current Regime。
+- 变更：`CalculateRegimeV2Request` 新增显式 `published_only` 选择；Regime Data Center adapter 在该模式下只调用 `get_published_series`，按映射后的 canonical indicator code 绑定 Publication member/freshness，CPI fallback 也继续走 Publication；历史回算默认保持 raw/PIT 语义。
+- 消费者：`resolve_current_regime`、同步后当前计算和 Regime Navigator 均显式传 `published_only=True`；未声明 current 的计算 API 仍保留显式 historical/PIT 入口，避免把研究日期误解释为当前出版快照。
+- 治理与测试：扩展 `data_center.publication_only_d2_d3` markers；Publication-only adapter 的 raw-read 禁止、缺失 Publication fail-closed、V2 全量 selector 传播和 current resolver selector 回归已登记。
+- 已运行验证：Regime/adapter 相关回归 `26 passed`；`tests/unit/regime` `60 passed`；current-data manifest 实际执行 `259 nodeid / 298 passed`；architecture boundary/audit 0、module-cycle 0、legacy fact guard 通过；`manage.py check` 0 issues；变更生产文件 mypy regression 0，Ruff/Black 通过。
+- 明确未做：未修改 Regime 历史研究/PIT API、Publication writer/provider、生产数据、VPS 或部署；生产 Publication 覆盖、PostgreSQL 性能/备份恢复、连续交易日观察窗口和 M9 旧链清理仍未完成。

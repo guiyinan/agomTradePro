@@ -139,7 +139,7 @@ def resolve_current_regime(
     Resolve current regime via the unified V2 chain.
 
     Primary chain:
-    - CalculateRegimeV2UseCase + use_pit=True + configured data source
+    - CalculateRegimeV2UseCase + published_only=True + configured data source
 
     Fallback chain:
     - latest persisted regime snapshot
@@ -169,6 +169,7 @@ def resolve_current_regime(
             inflation_indicator="CPI",
             data_source=source,
             skip_cache=skip_cache,
+            published_only=True,
         )
     )
 

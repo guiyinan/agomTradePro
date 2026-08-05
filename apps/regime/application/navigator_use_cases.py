@@ -238,6 +238,7 @@ class BuildRegimeNavigatorUseCase:
                     use_pit=True,
                     growth_indicator="PMI",
                     inflation_indicator="CPI",
+                    published_only=True,
                 )
             )
 

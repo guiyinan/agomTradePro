@@ -1403,6 +1403,10 @@
     "apps/alpha/infrastructure/adapters/simple_adapter.py",
     "apps/pulse/infrastructure/data_provider.py",
     "apps/regime/infrastructure/macro_data_provider.py",
+    "apps/regime/application/use_cases.py",
+    "apps/regime/application/current_regime.py",
+    "apps/regime/application/orchestration.py",
+    "apps/regime/application/navigator_use_cases.py",
     "apps/prompt/infrastructure/adapters/macro_adapter.py",
     "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
     "apps/strategy/infrastructure/providers.py",
@@ -1456,6 +1460,19 @@
         "apps/regime/infrastructure/macro_data_provider.py": [
           "get_published_macro_fact_series(code, limit=1)",
           "get_published_series(indicator_code, limit=limit)"
+        ],
+        "apps/regime/application/use_cases.py": [
+          "published_only: bool = False",
+          "published_only=request.published_only"
+        ],
+        "apps/regime/application/current_regime.py": [
+          "published_only=True"
+        ],
+        "apps/regime/application/orchestration.py": [
+          "published_only=True"
+        ],
+        "apps/regime/application/navigator_use_cases.py": [
+          "published_only=True"
         ],
     "apps/prompt/infrastructure/adapters/macro_adapter.py": [
           "published_only",
@@ -1588,6 +1605,26 @@
           "case": "signal_invalidation_uses_publication",
           "test_file": "tests/unit/test_signal_invalidation_checker.py",
           "test_function": "test_signal_macro_repository_uses_publication_members"
+        },
+        {
+          "case": "regime_published_input_never_reads_raw_facts",
+          "test_file": "tests/component/regime/test_macro_data_provider_guardrails.py",
+          "test_function": "test_regime_adapter_published_only_uses_publication_members"
+        },
+        {
+          "case": "regime_publication_missing_fails_closed",
+          "test_file": "tests/component/regime/test_macro_data_provider_guardrails.py",
+          "test_function": "test_regime_adapter_published_only_fails_closed_without_publication"
+        },
+        {
+          "case": "regime_v2_propagates_publication_selector",
+          "test_file": "tests/unit/regime/test_published_regime_inputs.py",
+          "test_function": "test_v2_published_only_propagates_to_every_regime_input_read"
+        },
+        {
+          "case": "current_regime_requests_published_inputs",
+          "test_file": "tests/unit/regime/test_current_regime_freshness.py",
+          "test_function": "test_current_regime_preserves_macro_observation_and_blocks_stale_result"
         }
       ]
     },

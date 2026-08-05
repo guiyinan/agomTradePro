@@ -3,6 +3,7 @@ from datetime import date
 import pytest
 
 from apps.data_center.infrastructure.models import MacroFactModel
+from apps.regime.domain.protocols import MacroIndicator
 from apps.regime.infrastructure.macro_data_provider import DataCenterMacroRepositoryAdapter
 
 
@@ -71,6 +72,58 @@ def test_regime_adapter_converts_legacy_cpi_index_from_base_100() -> None:
     normalized = DataCenterMacroRepositoryAdapter._normalize_cpi_value("CN_CPI", 100.1)
 
     assert normalized == pytest.approx(0.1)
+
+
+def test_regime_adapter_published_only_uses_publication_members(monkeypatch):
+    """Current Regime inputs must never fall back to raw facts."""
+
+    adapter = DataCenterMacroRepositoryAdapter()
+    calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(adapter, "_is_regime_direct_input_allowed", lambda _code: True)
+
+    def _unexpected_raw_series(**_kwargs):
+        raise AssertionError("published Regime input must not read raw macro facts")
+
+    def _published_series(**kwargs):
+        calls.append(dict(kwargs))
+        return [
+            MacroIndicator(
+                code=str(kwargs["code"]),
+                value=50.2 if kwargs["code"] == "CN_PMI" else 0.3,
+                reporting_period=date(2026, 7, 31),
+                unit="指数" if kwargs["code"] == "CN_PMI" else "%",
+            )
+        ]
+
+    monkeypatch.setattr(adapter, "get_series", _unexpected_raw_series)
+    monkeypatch.setattr(adapter, "get_published_series", _published_series)
+
+    growth = adapter.get_growth_series_full("PMI", published_only=True)
+    inflation = adapter.get_inflation_series_full("CPI", published_only=True)
+
+    assert [item.value for item in growth] == [50.2]
+    assert [item.value for item in inflation] == [0.3]
+    assert [call["code"] for call in calls] == ["CN_PMI", "CN_CPI_NATIONAL_YOY"]
+    assert all(call["publication_key"] == call["code"] for call in calls)
+
+
+def test_regime_adapter_published_only_fails_closed_without_publication(monkeypatch):
+    """A missing publication must not be replaced with a non-empty raw series."""
+
+    adapter = DataCenterMacroRepositoryAdapter()
+    monkeypatch.setattr(adapter, "_is_regime_direct_input_allowed", lambda _code: True)
+    monkeypatch.setattr(adapter, "get_published_series", lambda **_kwargs: [])
+    monkeypatch.setattr(
+        adapter,
+        "get_series",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("blocked publication must not query raw macro facts")
+        ),
+    )
+
+    assert adapter.get_growth_series_full("PMI", published_only=True) == []
+    assert adapter.get_inflation_series_full("CPI", published_only=True) == []
 
 
 @pytest.mark.django_db
