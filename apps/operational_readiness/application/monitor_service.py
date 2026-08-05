@@ -91,7 +91,7 @@ def get_terminal_surface_status_payload() -> dict[str, Any]:
 def get_active_stock_fact_coverage_payload() -> dict[str, Any]:
     """Resolve Data Center coverage status without a static app dependency."""
 
-    module = import_module("apps.data_center.application.query_services")
+    module = import_module("apps.data_center.application.public")
     result: object = module.get_active_stock_fact_coverage_payload()
     return _require_payload_mapping(result, label="active stock fact coverage")
 

@@ -6,6 +6,8 @@ from datetime import date, datetime, timedelta
 from importlib import import_module
 from typing import Any
 
+from apps.data_center.application.public import get_decision_data_readiness_payload
+
 MAX_SCHEDULED_QLIB_STALENESS_DAYS = 5
 
 
@@ -147,8 +149,6 @@ def build_current_decision_data(
     """Return current decision-data readiness for operator-facing status output."""
 
     try:
-        module = import_module("apps.data_center.application.interface_services")
-        get_decision_data_readiness_payload = module.get_decision_data_readiness_payload
         payload = get_decision_data_readiness_payload(
             asset_codes=asset_codes,
             quote_max_age_hours=quote_max_age_hours,

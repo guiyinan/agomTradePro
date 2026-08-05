@@ -4278,3 +4278,11 @@ Git SHA / 镜像 / migration：
 - 治理与测试：`data_center.provider_capability_health` 增加 Core consumer marker/test；新增 readiness Public Port 回归。
 - 明确未做：未改变健康检查阈值、provider health 记录器、发布器或生产配置，未部署。
 - 未验证风险：生产 readiness API 的真实 provider health 覆盖、PostgreSQL 查询预算和运行时观察窗口仍待生产阶段证据。
+
+## 73. 2026-08-05：Operational Readiness current 读取切换 Public Port
+
+- 目标：消除 readiness 状态命令和 monitor 对 Data Center `interface_services/query_services` 的 current 决策数据与覆盖率旁路，使用户可见的 readiness 结果统一经过 Application Public Port。
+- 变更：`build_current_decision_data()` 改为直接调用 `get_decision_data_readiness_payload` Public Port；`get_active_stock_fact_coverage_payload()` 的动态解析目标改为 `apps.data_center.application.public`，保留 payload 校验和错误脱敏语义。
+- 治理与测试：扩展 `data_center.public_current_read_ports` marker/source/test；新增 Public Port 委托和动态模块目标回归，readiness 定向安全测试 `15 passed`，current-data 静态合同 `45 surfaces`。
+- 明确未做：未改变 readiness 阈值、证据窗口、覆盖率计算、历史/维护查询、Publication writer/provider 配置或生产部署。
+- 未验证风险：生产 readiness monitor 的真实 Publication 覆盖、PostgreSQL 查询预算、连续交易日观察窗口与旧链 M9 清理仍待生产阶段证据。
