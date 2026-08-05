@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-05.v207",
+  "version": "2026-08-05.v208",
   "mcp_tool_count": 377,
   "mcp_governance": {
     "default_top_level_tool_count": 9,
@@ -76,13 +76,24 @@
   "core_management_command_orm_access_count": 0,
   "python_file_non_empty_line_limit": 1200,
   "allowed_large_python_files": {
+    "apps/data_center/domain/market_structure.py": 1327,
     "apps/data_center/infrastructure/models.py": 1746,
     "apps/equity/application/use_cases.py": 1226,
     "apps/fixed_income/domain/portfolio_risk.py": 1238,
     "apps/risk_center/infrastructure/scenario_governance_repository.py": 1483,
+    "apps/sector/domain/industry_operating_template.py": 1372,
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_risk_center.py": 1304
   },
   "large_file_remediation": {
+    "apps/data_center/domain/market_structure.py": {
+      "owner": "data-platform",
+      "kind": "split-market-structure-domain",
+      "rationale": "Market-structure period coverage, membership evidence, and research projections remain in one domain module; split by evidence and calculation responsibility before canonical migration exit.",
+      "plan_path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
+      "priority": "P1",
+      "target_non_empty_lines": 1200,
+      "review_by": "2026-09-30"
+    },
     "apps/data_center/infrastructure/models.py": {
       "owner": "data-platform",
       "kind": "split-model-registry",
@@ -115,6 +126,15 @@
       "kind": "split-scenario-governance-repository",
       "rationale": "Scenario preview, proposal lifecycle, audit, and idempotency persistence remain in one adapter; split responsibilities before the M9 old-chain retirement evidence is accepted.",
       "plan_path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
+      "priority": "P1",
+      "target_non_empty_lines": 1200,
+      "review_by": "2026-09-30"
+    },
+    "apps/sector/domain/industry_operating_template.py": {
+      "owner": "sector",
+      "kind": "split-industry-operating-template-domain",
+      "rationale": "Industry operating templates and forecast-rule evidence remain in one domain module; split template definitions from forecast calculations before research capability promotion or canonical migration exit.",
+      "plan_path": "docs/plans/strategy-research-capability-roadmap-execution-2026-08-05.md",
       "priority": "P1",
       "target_non_empty_lines": 1200,
       "review_by": "2026-09-30"

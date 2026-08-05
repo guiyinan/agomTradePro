@@ -4184,3 +4184,9 @@ Git SHA / 镜像 / migration：
 - 变更：新增带 `user_id`/`use_personal_thresholds` 显式参数的 `get_market_thermometer_payload` Public Port；账户、宏观页保留原本的用户阈值语义但改走该端口，Alpha 的非个人 current 端口复用同一实现。Realtime breadth 改用 `get_market_breadth_snapshot` Public Port。TUI 运维摘要仍保留其既有内部 interface 依赖，待下一批单独收口。
 - 治理与测试：`data_center.market_thermometer` 与 `realtime.market_summary` 合约登记 Public Port、消费者 import marker 和精确回归 nodeid；定向回归 51 passed，current-data 43 surfaces、mypy regression 0、architecture boundary/audit 0。
 - 明确未做：未改变市场温度计计算/阈值规则、历史查询、Publication writer/provider 配置、生产数据或部署；其余 maintenance/on-demand interface service 仍保留在 owner 内部边界。
+
+## 60. 2026-08-05：已提交大文件治理债务登记
+
+- 证据：clean HEAD 的治理门禁发现 `apps/data_center/domain/market_structure.py` 1327 行、`apps/sector/domain/industry_operating_template.py` 1372 行超过 1200 行上限，且此前没有精确 owner/remediation 登记。
+- 收口：`governance_baseline.json` 升级至 `2026-08-05.v208`，为两个文件登记 P1 拆分目标、owner、review-by 和对应计划路径；不抬高全局行数上限，也不把登记解释为拆分完成。
+- 边界：该治理提交只解决 CI 可审计债务，不改变市场结构/行业模板业务语义，不删除代码、不部署生产；拆分仍需各 owner 按独立研究能力批次实施。
