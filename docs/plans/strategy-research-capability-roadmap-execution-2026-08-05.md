@@ -26,6 +26,7 @@
 15. 完成 R3 exact-PIT historical-mean/FMP、nested temporal-CV runner、canonical artifact bytes、dated current/forward output ledger 和 append-only retirement lifecycle。所有产物继续三重 decision-blocked，不接 current、组合或执行链。
 16. 完成 R8 13 类 typed 数值输入、current baseline、可投资 universe、四市场约束、path drawdown、四候选可复算比较及 append-only result/Promotion/retirement/rollback lifecycle；canonical provider 重读、Decimal/UTC hash 和无法证明的数量约束均 fail closed，未接 transition plan 或执行链。
 17. 完成 R1 owner-approval-enforced baseline spec、forecast/baseline/actual manifest 精确封存、完整 period×metric 配对 trial，以及 Research 专用 exact Promotion/retirement/rollback lifecycle；所有消费均从 canonical provider 重读，未用 fixture 解锁 Valuation。
+18. 完成 R4 typed rolling/Regime exposure、等权/资产风险平价/宏观因子风险平价同窗 OOS 比较与 authoritative R3 attestation provider contract；所有形成时点和派生结果 fail closed、可复算，未新增持久化、晋级或生产消费入口。
 
 ## 2. 启动状态矩阵
 
@@ -34,7 +35,7 @@
 | R1 行业经营驱动与盈利预测 | `blocked` | 已有版本化行业模板、Sector→Equity 持久 bridge、三情景六阶段/cash-flow seal、owner-approval-enforced baseline contract、完整配对 trial 和 Research exact Promotion/lifecycle；仍需 QW-7 反馈、连续 PIT 事实、Production Publication、真实 owner approval/trial/approved decision，且未接 Valuation | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
 | R2 市场结构与投资者资金流 | `blocked` | 已有 taxonomy/measure/proxy/PIT membership、版本化 expected-period calendar、完整 coverage 和整期全缺阻断；仍需批准定义、真实 calendar、两个周期真实 PIT 覆盖和 Publication 证据 | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
 | R3 高频宏观因子与 nowcast | `blocked` | 已有 exact PIT runner、逐 fold baseline/FMP/nested-CV、canonical artifact bytes、dated outputs 和 retirement lifecycle；仍需宏观 vintage/代理资产 PIT、真实 benchmark/cost、regime/OOS trial 和 exact Promotion | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
-| R4 宏观敞口与风险平价 | `blocked` | 已有暴露/协方差/风险贡献候选验证；仍需 R3 晋级版本、真实资产暴露和 canonical constraint snapshot | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
+| R4 宏观敞口与风险平价 | `blocked` | 已有暴露/协方差/风险贡献候选验证、typed rolling/Regime 汇总、三方法同窗比较和 exact R3 attestation provider contract；仍需 append-only result/Promotion lifecycle、conditioning/missing-coverage 证据、真实 R3 晋级和 canonical inputs | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
 | R5 固收相对价值与久期 | `blocked` | 已有 research-only 定价/久期/曲线/信用内核；仍需真实 Publication、Bond Master、现金流/交易日历和外部对账 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
 | R6 高级状态模型 | `blocked` | 已有简单基准不足取证器和外部高级状态证据验证；仍需真实不足证据、PIT 输入、稳定标签/OOS/政策目标和晋级 | [R6](r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md) |
 | R7 情景概率校准 | `blocked` | 已有 source-separated Brier/分箱、PIT 类比、typed 逐期路径证据和 internal-only reminder lifecycle；仍需完整 outcome 历史、获批样本政策、结果持久化与研究晋级 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
@@ -124,6 +125,8 @@ python scripts/verify_architecture.py
 2026-08-06 R8 governed optimization 续批验证：主代理独立复跑 unit/component/migration 为 `21 / 11 / 2 passed`；19 个生产文件增量 mypy 0 regression，Portfolio 无 migration drift，Ruff/Black/isort、Django system check、45 个 current-data surface、架构边界（2182 files / 0 violations）、业务配置、governance consistency 与 Celery contracts 均通过。Luna Max 最终只读复核无 P0/P1；软件证据不替代真实 R3/R4/R5 Promotion、Portfolio snapshot、broker reconciliation 或约束校准。
 
 2026-08-06 R1 精确基线与晋级续批验证：Domain/Application `80 passed`；Equity unit/component 合计 `99 passed`、migration `2 passed`；Research unit/component/migration 为 `48 / 24 / 3 passed`。相关生产文件增量 mypy 0 regression，Ruff、Black、isort、Equity/Research migration drift、Django system check、架构边界、业务配置和 governance consistency 均通过，Luna Max 最终只读复核无 P0/P1。软件证据不替代真实 QW-7、Production Publication、连续经营事实、真实 trial 或 Valuation 消费授权。
+
+2026-08-06 R4 rolling 续批验证：主代理复跑新增合同/服务/Application 与既有 R4 candidate 共 `29 passed`，实现代理另复跑相关 R8 `15 passed`；5 个生产文件增量 mypy 0 regression，Ruff、Black、isort、架构边界、业务配置和 governance consistency 均通过。Luna Max 两轮定点复核关闭 selection/validation 因果、协方差 estimation-window 穿越和派生 artifact 伪造后无 P0/P1；软件证据不替代真实 R3 Promotion、canonical inputs、历史 OOS 或 R4 lifecycle。
 
 完整路线图审计后的 R4/R5 增量批次另行复验 fixed-income 全部 unit/component 与 R4 macro-risk，共 `49 passed`；增量 mypy/ruff/black、Django check、架构边界（2148 files / 0 violations）、业务配置硬编码和 43 个 current-data surface 均通过。
 

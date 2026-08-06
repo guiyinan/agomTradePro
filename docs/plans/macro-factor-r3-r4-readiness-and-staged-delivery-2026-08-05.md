@@ -162,24 +162,26 @@ verified 证据必须来自合同指定 owner、包含非空引用、timezone-aw
 ### M4：R4 Portfolio canonical inputs
 
 - [x] 实现 exposure/covariance/constraint 候选合同、PSD 检查、风险贡献恒等式和版本化成本预算；
-- 不可变资产收益协方差快照及 PSD/条件数/缺失值证据；
-- 资产×宏观因子 exposure version 与置信区间；
-- 成本、上下限、换手、流动性和人工限制统一版本；
-- 等权和资产风险平价基准可复算。
+- [x] 不可变资产收益协方差 evidence、PIT/source/estimation-window seal 与 PSD 检查；condition number、rank 和 missing-coverage policy 仍待持久化切片；
+- [x] 资产×宏观因子 exposure version、置信区间及 Macro Factor owner projection；
+- [x] 成本、上下限、换手、流动性和人工限制统一版本；
+- [x] 等权和资产风险平价基准可复算。
 
 ### M5：R4 研究和晋级
 
-- 风险贡献恒等式和数值容差；
-- 协方差异常 fail closed；
-- 比较等权、资产风险平价、宏观因子风险平价；
-- 报告滚动 beta、R²、残差、稳定性、成本和真实可交易性；
+- [x] 风险贡献恒等式和数值容差；
+- [x] 协方差异常 fail closed；
+- [x] 比较等权、资产风险平价、宏观因子风险平价；
+- [x] 报告 rolling beta、CI、R²、残差、稳定性、gross return、drawdown、turnover 和 cost；真实可交易性仍待 canonical input；
 - 仅 approved 版本可进入组合预览，真实执行另立计划。
 
 现有 R4 代码只评估 caller/provider 提供的候选并保持 `research_only / must_not_execute`；没有真实 exposure/covariance row，也没有 R3 approved version，因此 M4/M5 退出条件均未满足。
 
 2026-08-05 交叉复核后，R8 优化输入必须完整绑定 R4 exposure、covariance、snapshot 和宏观风险预算；求解后的宏观风险贡献由 solver weights 重新计算并进入输出 seal，不接受调用方沿用旧权重预填的贡献。该收紧只防止证据错配，不代表 R4 已有真实 canonical inputs。
 
-2026-08-05 完成度审计整改进一步将 R4 exposure/covariance 的 `valid_until` 边界收紧为到期时刻立即 stale，并让 candidate report hash 覆盖 input hash、资格状态、factor/residual/total variance、完整 contribution vector 及 blocker detail。仍待实施独立 R3 Promotion/PIT attestation、滚动/regime exposure 和同窗三基准历史比较。
+2026-08-05 完成度审计整改进一步将 R4 exposure/covariance 的 `valid_until` 边界收紧为到期时刻立即 stale，并让 candidate report hash 覆盖 input hash、资格状态、factor/residual/total variance、完整 contribution vector 及 blocker detail。
+
+2026-08-06 rolling 续批完成 typed walk-forward/embargo、formation-time Regime PIT assignment、rolling exposure/Regime summary 与同窗三基准 OOS 比较。ID-only Application 必须从 authoritative provider 重读 exact R3 Promotion attestation；三候选共享全部 formation/OOS inputs，selection/validation、covariance estimation window、available-at、expiry 和 return knowledge cutoff 均 fail closed。服务端重算所有候选与路径数值，artifact factory 再把 exposure、Regime/method summary 逐值绑定回 source projection/window metrics。该批没有 ORM、R4 Promotion/lifecycle、组合预览或执行接线；真实 R3 approved artifact、canonical inputs、历史样本、conditioning/missing-coverage 与 append-only lifecycle 仍未形成，R4 保持 `blocked`。
 
 ## 6. 明确非目标
 
