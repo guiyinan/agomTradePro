@@ -173,6 +173,13 @@ class PromotionDecision(models.Model):
         return super().save(*args, **kwargs)
 
 
+from apps.research.infrastructure.r1_forecast_promotion_models import (  # noqa: E402,F401
+    R1ForecastPromotionDecisionBundleModel,
+    R1ForecastPromotionPolicyModel,
+    R1PromotionDecisionReceiptModel,
+    R1PromotionLifecycleEventBundleModel,
+    R1PromotionLifecycleReceiptModel,
+)
 from apps.research.infrastructure.scenario_review_reminder_models import (  # noqa: E402,F401
     ScenarioReviewReminderEventModel,
     ScenarioReviewReminderModel,
