@@ -424,7 +424,7 @@ def build_sync_macro_data_use_case(
     source: str | None = None,
 ) -> CanonicalMacroSyncUseCase:
     """Build the Macro facade over Data Center's canonical provider registry."""
-    from apps.data_center.application.interface_services import (
+    from apps.data_center.application.public import (
         make_sync_macro_batch_use_case,
     )
 

@@ -9,11 +9,14 @@ can use the typed contracts in :mod:`apps.data_center.domain.contracts`.
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import replace
 from datetime import date, datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
-from apps.data_center.application.dtos import MacroSeriesResponse
+from apps.data_center.application.dtos import MacroSeriesResponse, SyncResult
+from apps.data_center.application.market_thermometer import CalculateMarketThermometerUseCase
+from apps.data_center.application.on_demand import OnDemandDataCenterService
 from apps.data_center.application.query_services import (
     fetch_price_bar_payloads,
     get_current_publication_gate,
@@ -44,6 +47,16 @@ from apps.data_center.application.query_services import (
     query_valuation_facts,
 )
 from apps.data_center.application.reconciliation import RecordReconciliationEvidenceUseCase
+from apps.data_center.application.reliability_use_cases import (
+    RepairDecisionDataReliabilityUseCase,
+)
+from apps.data_center.application.use_cases import (
+    QueryMacroSeriesUseCase,
+    SyncFinancialUseCase,
+    SyncMacroBatchUseCase,
+    SyncMacroUseCase,
+    SyncValuationUseCase,
+)
 from apps.data_center.composition import (
     backfill_asset_master_codes,
     build_provider_registry_for_repo,
@@ -51,6 +64,7 @@ from apps.data_center.composition import (
     fetch_rss_feed,
     get_akshare_eastmoney_gateway,
     get_akshare_module,
+    get_alpha_price_coverage_sync_service,
     get_asset_repository,
     get_canonical_publication_repository,
     get_capital_flow_repository,
@@ -96,6 +110,25 @@ from apps.data_center.domain.protocols import (
     ValuationFactRepositoryProtocol,
 )
 from apps.data_center.domain.reconciliation import ReconciliationEvidence, ReconciliationReport
+
+
+class AlphaPriceCoverageReportProtocol(Protocol):
+    """Minimum report contract exposed to the Alpha maintenance command."""
+
+    def to_dict(self) -> dict[str, object]: ...
+
+
+class AlphaPriceCoverageSyncProtocol(Protocol):
+    """Public contract for Alpha cache price-coverage maintenance."""
+
+    def sync_from_alpha_cache(
+        self,
+        *,
+        start_date: date,
+        end_date: date,
+        include_remote: bool = True,
+        extra_codes: Iterable[str] = (),
+    ) -> AlphaPriceCoverageReportProtocol: ...
 
 
 class MacroProjectionRepositoryProtocol(Protocol):
@@ -391,6 +424,134 @@ def persist_provider_credentials(
         api_secret=api_secret,
         allow_legacy_fallback=allow_legacy_fallback,
     )
+
+
+def get_active_provider_selection_by_source(
+    source_type: str,
+) -> tuple[int, str] | None:
+    """Return the highest-priority active provider through the public port."""
+
+    from apps.data_center.application.interface_services import (
+        get_active_provider_selection_by_source as _get_selection,
+    )
+
+    return _get_selection(source_type)
+
+
+def get_alpha_price_coverage_sync_service_port() -> AlphaPriceCoverageSyncProtocol:
+    """Return the Alpha price-coverage maintenance service through its public port."""
+
+    return cast(AlphaPriceCoverageSyncProtocol, get_alpha_price_coverage_sync_service())
+
+
+def get_active_provider_id_by_source(source_type: str) -> int | None:
+    """Return the active provider id through the public port."""
+
+    from apps.data_center.application.interface_services import (
+        get_active_provider_id_by_source as _get_provider_id,
+    )
+
+    return _get_provider_id(source_type)
+
+
+def make_sync_financial_use_case() -> SyncFinancialUseCase:
+    """Build the canonical financial synchronization use case."""
+
+    from apps.data_center.application.interface_services import (
+        make_sync_financial_use_case as _make_use_case,
+    )
+
+    return _make_use_case()
+
+
+def make_sync_valuation_use_case() -> SyncValuationUseCase:
+    """Build the canonical valuation synchronization use case."""
+
+    from apps.data_center.application.interface_services import (
+        make_sync_valuation_use_case as _make_use_case,
+    )
+
+    return _make_use_case()
+
+
+def make_sync_macro_use_case() -> SyncMacroUseCase:
+    """Build the canonical macro synchronization use case."""
+
+    from apps.data_center.application.interface_services import (
+        make_sync_macro_use_case as _make_use_case,
+    )
+
+    return _make_use_case()
+
+
+def make_sync_macro_batch_use_case() -> SyncMacroBatchUseCase:
+    """Build the provider-selected macro batch synchronization use case."""
+
+    from apps.data_center.application.interface_services import (
+        make_sync_macro_batch_use_case as _make_use_case,
+    )
+
+    return _make_use_case()
+
+
+def make_query_macro_series_use_case() -> QueryMacroSeriesUseCase:
+    """Build the canonical macro query use case."""
+
+    from apps.data_center.application.interface_services import (
+        make_query_macro_series_use_case as _make_use_case,
+    )
+
+    return _make_use_case()
+
+
+def make_calculate_market_thermometer_use_case() -> CalculateMarketThermometerUseCase:
+    """Build the market-thermometer calculation use case."""
+
+    from apps.data_center.application.interface_services import (
+        make_calculate_market_thermometer_use_case as _make_use_case,
+    )
+
+    return _make_use_case()
+
+
+def make_on_demand_data_center_service() -> OnDemandDataCenterService:
+    """Build the canonical single-asset Data Center service."""
+
+    from apps.data_center.application.interface_services import (
+        make_on_demand_data_center_service as _make_service,
+    )
+
+    return _make_service()
+
+
+def make_decision_repair_use_case(user: Any) -> RepairDecisionDataReliabilityUseCase:
+    """Build the decision-data repair use case through the public port."""
+
+    from apps.data_center.application.interface_services import (
+        make_decision_repair_use_case as _make_use_case,
+    )
+
+    return _make_use_case(user)
+
+
+def sync_market_news_for_sentiment(*, limit: int = 100) -> SyncResult:
+    """Refresh broad-market news through the canonical provider port."""
+
+    from apps.data_center.application.interface_services import (
+        sync_market_news_for_sentiment as _sync_news,
+    )
+
+    return _sync_news(limit=limit)
+
+
+def load_macro_governance_payload() -> dict[str, Any]:
+    """Return the macro governance summary through the public port."""
+
+    from apps.data_center.application.interface_services import (
+        load_macro_governance_payload as _load_payload,
+    )
+
+    return _load_payload()
 
 
 def get_provider_registry_port() -> ProviderRegistryProtocol:
@@ -1321,6 +1482,19 @@ __all__ = [
     "get_capital_flow_repository_port",
     "get_provider_config_repository_port",
     "persist_provider_credentials",
+    "get_alpha_price_coverage_sync_service_port",
+    "get_active_provider_selection_by_source",
+    "get_active_provider_id_by_source",
+    "make_sync_financial_use_case",
+    "make_sync_valuation_use_case",
+    "make_sync_macro_use_case",
+    "make_sync_macro_batch_use_case",
+    "make_query_macro_series_use_case",
+    "make_calculate_market_thermometer_use_case",
+    "make_on_demand_data_center_service",
+    "make_decision_repair_use_case",
+    "sync_market_news_for_sentiment",
+    "load_macro_governance_payload",
     "get_provider_registry_port",
     "build_provider_registry_port",
     "get_publication_as_of",

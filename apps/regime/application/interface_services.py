@@ -10,7 +10,7 @@ from typing import Any, Protocol, cast
 from django.core.cache import cache
 from django.utils import timezone
 
-from apps.data_center.application.interface_services import get_active_provider_id_by_source
+from apps.data_center.application.public import get_active_provider_id_by_source
 from apps.regime.application import current_regime
 from apps.regime.application.repository_provider import (
     get_default_macro_repository,

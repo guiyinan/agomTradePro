@@ -7,7 +7,7 @@ from celery import shared_task
 from django.conf import settings
 
 from apps.data_center.application.dtos import SyncFinancialRequest
-from apps.data_center.application.interface_services import (
+from apps.data_center.application.public import (
     get_active_provider_id_by_source,
     make_sync_financial_use_case,
 )

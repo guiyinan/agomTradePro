@@ -13,8 +13,8 @@ from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 
-from apps.data_center.application.interface_services import make_on_demand_data_center_service
 from apps.data_center.application.on_demand import OnDemandDataCenterService
+from apps.data_center.application.public import make_on_demand_data_center_service
 from apps.data_center.composition import (
     get_asset_repository,
     get_financial_fact_repository,
@@ -85,7 +85,11 @@ class DjangoStockRepository(
         candidates = [normalized]
         exchange_prefix = normalized[:2]
         prefix_code = normalized[2:]
-        if exchange_prefix in {"SH", "SZ", "BJ"} and len(prefix_code) == 6 and prefix_code.isdigit():
+        if (
+            exchange_prefix in {"SH", "SZ", "BJ"}
+            and len(prefix_code) == 6
+            and prefix_code.isdigit()
+        ):
             candidates.append(f"{prefix_code}.{exchange_prefix}")
             candidates.append(prefix_code)
         base_code = normalized.split(".", 1)[0]

@@ -19,7 +19,7 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 
 from apps.data_center.application.dtos import MacroSeriesRequest, SyncMacroRequest
-from apps.data_center.application.interface_services import (
+from apps.data_center.application.public import (
     get_active_provider_id_by_source,
     make_query_macro_series_use_case,
     make_sync_macro_use_case,

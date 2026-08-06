@@ -236,7 +236,7 @@ def refresh_current_sentiment_index(
 
     target_date_obj = _parse_target_date(target_date)
     try:
-        from apps.data_center.application.interface_services import (
+        from apps.data_center.application.public import (
             sync_market_news_for_sentiment,
         )
 

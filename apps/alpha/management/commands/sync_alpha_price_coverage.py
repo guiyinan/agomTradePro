@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from datetime import date, timedelta
 from typing import Any
 
@@ -8,9 +9,34 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.utils import timezone
 
 from apps.alpha.application.query_services import get_alpha_cache_earliest_trade_date
-from apps.data_center.infrastructure.alpha_price_coverage_sync import (
-    AlphaPriceCoverageSyncService,
+from apps.data_center.application.public import (
+    AlphaPriceCoverageReportProtocol,
+    get_alpha_price_coverage_sync_service_port,
 )
+
+
+class AlphaPriceCoverageSyncService:
+    """Compatibility façade preserving the command's patchable construction seam."""
+
+    def __init__(self) -> None:
+        self._delegate = get_alpha_price_coverage_sync_service_port()
+
+    def sync_from_alpha_cache(
+        self,
+        *,
+        start_date: date,
+        end_date: date,
+        include_remote: bool = True,
+        extra_codes: Iterable[str] = (),
+    ) -> AlphaPriceCoverageReportProtocol:
+        """Run the Data Center-owned Alpha price-coverage synchronization."""
+
+        return self._delegate.sync_from_alpha_cache(
+            start_date=start_date,
+            end_date=end_date,
+            include_remote=include_remote,
+            extra_codes=extra_codes,
+        )
 
 
 class Command(BaseCommand):

@@ -5,7 +5,7 @@ the stable import and monkeypatch surface used by providers, tests, and
 integrations; keep public symbol identities and legacy patch paths stable.
 """
 
-from apps.data_center.application.interface_services import make_on_demand_data_center_service
+from apps.data_center.application.public import make_on_demand_data_center_service
 from apps.equity.infrastructure.asset_repository import DjangoEquityAssetRepository
 from apps.equity.infrastructure.config_repositories import (
     EquityBootstrapConfigRepository,

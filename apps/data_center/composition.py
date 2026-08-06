@@ -129,6 +129,7 @@ __all__ = [
     "build_provider_registry_for_repo",
     "build_tushare_client",
     "backfill_asset_master_codes",
+    "get_alpha_price_coverage_sync_service",
     "fetch_akshare_eastmoney_historical_prices",
     "fetch_rss_feed",
     "probe_rss_feed",
@@ -433,6 +434,16 @@ def backfill_asset_master_codes(
         asset_codes,
         include_remote=include_remote,
     )
+
+
+def get_alpha_price_coverage_sync_service() -> object:
+    """Compose Alpha price-coverage maintenance behind the Data Center boundary."""
+
+    from apps.data_center.infrastructure.alpha_price_coverage_sync import (
+        AlphaPriceCoverageSyncService,
+    )
+
+    return AlphaPriceCoverageSyncService()
 
 
 def fetch_tushare_historical_prices(
