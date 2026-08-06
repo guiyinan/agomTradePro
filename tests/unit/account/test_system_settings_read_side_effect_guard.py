@@ -16,6 +16,7 @@ READ_ONLY_FUNCTIONS = {
         "build_system_settings_context",
     ),
     "apps/account/infrastructure/account_interface_registration_repository.py": (
+        "get_system_settings",
         "build_settings_context",
         "build_mcp_guide_context",
     ),

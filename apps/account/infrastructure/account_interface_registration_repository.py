@@ -35,7 +35,7 @@ class AccountInterfaceRegistrationRepositoryMixin:
     def get_system_settings(self) -> Any:
         """Return the singleton system settings model."""
 
-        return SystemSettingsModel.get_settings()
+        return SystemSettingsModel.get_settings_for_read()
 
     def list_global_investment_rule_payloads(self) -> list[dict[str, Any]]:
         """Return active global investment rules for read-only consumers."""
