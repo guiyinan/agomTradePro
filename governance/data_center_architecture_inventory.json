@@ -4308,7 +4308,7 @@
       "text": "raise RuntimeError(\"Config center summary repository is not configured\")"
     },
     {
-      "line": 26,
+      "line": 29,
       "path": "apps/config_center/application/public.py",
       "text": "\"\"\"Return the Config Center-owned system settings summary.\"\"\""
     },
@@ -4318,12 +4318,12 @@
       "text": "\"\"\"Return the latest immutable resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 92,
+      "line": 93,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Read the latest resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 455,
+      "line": 538,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Return the latest capacity observation without a fallback.\"\"\""
     },
@@ -4348,7 +4348,7 @@
       "text": "\"\"\"Return one value from the active typed profile for the current environment.\"\"\""
     },
     {
-      "line": 441,
+      "line": 461,
       "path": "apps/config_center/infrastructure/repositories.py",
       "text": "\"\"\"Atomically consume the current token and reject replay/expiry.\"\"\""
     },
@@ -5143,137 +5143,137 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 548,
+      "line": 547,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the macro governance summary through the public port.\"\"\""
     },
     {
-      "line": 681,
+      "line": 680,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 687,
+      "line": 750,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read fresh, member-bound macro values for current-facing consumers.\"\"\""
     },
     {
-      "line": 696,
+      "line": 759,
       "path": "apps/data_center/application/public.py",
       "text": "maintenance screens.  Current-facing pages use this port so a non-empty"
     },
     {
-      "line": 697,
+      "line": 760,
       "path": "apps/data_center/application/public.py",
       "text": "raw latest fact cannot be presented as a usable indicator value."
     },
     {
-      "line": 847,
+      "line": 910,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 940,
+      "line": 1003,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 947,
+      "line": 1010,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 972,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 974,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
-    },
-    {
-      "line": 982,
+      "line": 1035,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
       "line": 1037,
       "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
+    },
+    {
+      "line": 1045,
+      "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1041,
+      "line": 1100,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 1104,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
     },
     {
-      "line": 1054,
+      "line": 1117,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1059,
+      "line": 1122,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 1074,
+      "line": 1137,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1090,
+      "line": 1153,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1108,
+      "line": 1171,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1125,
+      "line": 1188,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1141,
+      "line": 1204,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1178,
+      "line": 1241,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 1181,
+      "line": 1244,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 1185,
+      "line": 1248,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 1187,
+      "line": 1250,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 1190,
+      "line": 1253,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 1191,
+      "line": 1254,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 1356,
+      "line": 1419,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -16788,7 +16788,7 @@
       "text": "\"\"\"Prepare latest canonical macro indicator cache entries.\"\"\""
     },
     {
-      "line": 152,
+      "line": 150,
       "path": "core/management/commands/warmup_cache.py",
       "text": "f\"macro:latest:{indicator_code.strip().upper()}\","
     },
@@ -17461,17 +17461,17 @@
         "symbol": "CapitalFlowModel"
       },
       {
-        "line": 361,
+        "line": 381,
         "path": "apps/account/interface/admin.py",
         "symbol": "CapitalFlowModel"
       },
       {
-        "line": 362,
+        "line": 382,
         "path": "apps/account/interface/admin.py",
         "symbol": "CapitalFlowModel"
       },
       {
-        "line": 372,
+        "line": 392,
         "path": "apps/account/interface/admin.py",
         "symbol": "CapitalFlowModel"
       },

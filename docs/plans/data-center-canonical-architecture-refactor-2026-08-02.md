@@ -4567,3 +4567,11 @@ Git SHA / 镜像 / migration：
 - 治理与证据：`runtime_config_contracts.json` 将两个 secret owner 改为 `config_center`，登记新表/store、迁移命令和回归；本地 migration、Django check、mypy regression 通过；secret store/cutover 回归 `3 passed`，既有 backup/runtime/Admin 回归 `19 passed`；无密钥新写入 fail closed，数据库行不含明文。
 - 防回归：新增 `governance/backup_delivery_secret_contracts.json` 与 `scripts/check_backup_delivery_secret_ownership.py`，对生产源码扫描 legacy 加密列/ setter 直写，并接入 fast-feedback/consistency CI；当前 guard 输出 `legacy writes=0`，对应自测 `1 passed`。
 - 明确未做：未执行真实生产密钥迁移、外部 Vault/云 KMS 接入、VPS/备份恢复演练或旧 `SystemSettingsModel` secret 列删除；旧列仅作为显式 migration/legacy projection 兼容，需在生产 profile 初始化、verified restore 和 M9 观察窗口后清理。
+
+## 111. 2026-08-06：Core 运维入口退出 Data Center query-service 直连
+
+- 入口盘点：除业务 App 外，`core/integration/price_history.py`、`warmup_cache` 和 `test_data_connections` 仍直接 import `apps.data_center.application.query_services`；这类运维/桥接入口不属于 Data Center owner，却会绕过 Public Port 清单。
+- 变更：Public Port 新增历史 close、诊断摘要、macro coverage boundary；Core price bridge、cache warmup 和数据连接诊断均改走 Public Port。`list_latest_macro_values` 使用延迟 query-service bridge，保留既有测试 patch/维护兼容而不让 Core 再绑定内部模块。
+- 防回归：architecture inventory 的 `direct_data_center_imports_outside_data_center` 扩展为同时捕获 `infrastructure`、`interface_services`、`query_services` 和 `read_facade`；提交态 clean inventory 重新生成后该计数保持 0。
+- 证据：Core price/management contract 回归 `17 passed`，Public/Core Ruff 通过，`public.py` 与 price bridge mypy regression 0；全量 management-command mypy 在当前 Windows 环境超时，未把超时当作通过。
+- 明确未做：未改变历史回放语义、诊断输出格式、生产数据或调度；旧脚本/测试 fixture 和 Data Center owner 内部 query-service imports 仍是明确兼容边界。PostgreSQL/生产观察、M9/M10 仍未完成。
