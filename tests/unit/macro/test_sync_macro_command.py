@@ -1,3 +1,4 @@
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
@@ -66,6 +67,43 @@ def test_sync_macro_command_reports_canonical_batch_errors(monkeypatch, capsys):
     assert "operator:secret" not in captured.err
 
 
+def test_sync_macro_command_uses_explicit_validated_date_range(monkeypatch):
+    use_case = _FakeSyncUseCase(SimpleNamespace(success=True, synced_count=1, errors=[]))
+    monkeypatch.setattr(
+        sync_macro_module,
+        "build_sync_macro_data_use_case",
+        lambda _source: use_case,
+    )
+
+    call_command(
+        "sync_macro_data",
+        source="akshare",
+        indicators=["CN_PMI"],
+        start="2020-01-01",
+        end="2024-12-31",
+    )
+
+    assert use_case.request.start_date == date(2020, 1, 1)
+    assert use_case.request.end_date == date(2024, 12, 31)
+
+
+def test_sync_macro_command_lists_canonical_catalog_without_sync(monkeypatch, capsys):
+    monkeypatch.setattr(
+        sync_macro_module,
+        "list_macro_indicator_codes",
+        lambda: ["CN_PMI", "CN_CPI", "CN_PMI"],
+    )
+    monkeypatch.setattr(
+        sync_macro_module,
+        "build_sync_macro_data_use_case",
+        lambda _source: (_ for _ in ()).throw(AssertionError("sync must not run")),
+    )
+
+    call_command("sync_macro_data", list_indicators=True)
+
+    assert capsys.readouterr().out.splitlines() == ["CN_CPI", "CN_PMI"]
+
+
 @pytest.mark.parametrize(
     ("options", "error_code"),
     [
@@ -74,6 +112,25 @@ def test_sync_macro_command_reports_canonical_batch_errors(monkeypatch, capsys):
         (
             {"source": "akshare", "indicators": ["CN_PMI", "CN_PMI"], "years": 1},
             "macro_indicators_invalid",
+        ),
+        (
+            {
+                "source": "akshare",
+                "indicators": ["CN_PMI"],
+                "years": 1,
+                "start": "2024-01-01",
+            },
+            "macro_date_range_incomplete",
+        ),
+        (
+            {
+                "source": "akshare",
+                "indicators": ["CN_PMI"],
+                "years": 1,
+                "start": "2024-02-01",
+                "end": "2024-01-01",
+            },
+            "macro_date_range_invalid",
         ),
     ],
 )

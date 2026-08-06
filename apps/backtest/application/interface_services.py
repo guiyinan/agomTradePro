@@ -138,9 +138,9 @@ def get_backtest_equity_curve_payload(backtest_id: int) -> dict[str, Any] | None
 def run_backtest_payload(
     validated_data: dict[str, Any],
     *,
-    user_id: int,
+    user_id: int | None,
 ) -> RunBacktestResponse:
-    """Execute a backtest run from validated request data."""
+    """Execute a user-owned or system management backtest run."""
     resolved_data = dict(validated_data)
     resolved_data.pop("run_async", None)
     resolved_data["user_id"] = user_id

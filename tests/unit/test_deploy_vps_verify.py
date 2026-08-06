@@ -159,16 +159,8 @@ def test_build_migration_check_command_rejects_unapplied_migrations():
 def test_build_canonical_schema_check_command_rejects_old_data_center_schema():
     command = deploy_vps_verify.build_canonical_schema_check_command("/opt/agomtradepro")
 
-    assert "exec -T web python -c" in command
-    assert "data_center_sync_run" in command
-    assert "data_center_sync_checkpoint" in command
-    assert "data_center_raw_payload" in command
-    assert "data_center_dataset_contract" in command
-    assert "data_center_retention_run" in command
-    assert "data_center_publication_rollback" in command
-    assert "0057_publicationrollbackmodel" in command
-    assert "canonical_migration_missing" in command
-    assert "canonical_control_plane_missing" in command
+    assert "exec -T web python manage.py verify_canonical_schema --json" in command
+    assert "python -c" not in command
 
 
 def test_build_tui_metadata_check_command_compares_registry_with_release():
@@ -271,11 +263,11 @@ def test_resource_result_warns_at_80_and_fails_at_95_or_restart():
     assert "restarts=1" in failure
 
 
-def test_verification_commands_cover_identity_backup_resources_and_model_metadata():
+def test_verification_commands_cover_identity_backup_resources_and_healthcheck():
     identity = deploy_vps_verify.build_release_identity_command("/opt/agomtradepro")
     backup = deploy_vps_verify.build_security_backup_command("/opt/agomtradepro")
     resources = deploy_vps_verify.build_resource_command("/opt/agomtradepro")
-    freshness = deploy_vps_verify.build_data_freshness_command("/opt/agomtradepro")
+    healthcheck = deploy_vps_verify.build_healthcheck_command("/opt/agomtradepro")
     certificate = deploy_vps_verify.build_certificate_expiry_command("demo.agomtrade.pro")
     rollback = deploy_vps_verify.build_rollback_command(
         "/opt/agomtradepro", 8000, expect_celery=True
@@ -287,7 +279,8 @@ def test_verification_commands_cover_identity_backup_resources_and_model_metadat
     assert "gzip -t" in backup
     assert "PGDMP" in backup
     assert "OOMKilled" in resources
-    assert "_meta.db_table" in freshness
+    assert "exec -T web python manage.py healthcheck --json" in healthcheck
+    assert "apps.data_center.infrastructure" not in healthcheck
     assert "-checkend 1814400" in certificate
     assert 'readlink -f "$target/previous"' in rollback
     assert "mv -Tf" in rollback

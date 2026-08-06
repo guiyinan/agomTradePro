@@ -15,16 +15,12 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-from apps.data_center.infrastructure.canonical_schema_contract import (  # noqa: E402
-    CANONICAL_SCHEMA_MIGRATIONS,
-    CANONICAL_SCHEMA_TABLES,
-)
 
 HTTP_CODE_MARKER = "__AGOM_HTTP_CODE__="
 DJANGO_DEPLOY_CHECK_TIMEOUT_SECONDS = 180
@@ -39,7 +35,7 @@ def _summarize(text: str, limit: int = 200) -> str:
     return f"{normalized[: limit - 3]}..."
 
 
-def _ssh_connect(host: str, port: int, username: str, password: str, timeout: int):
+def _ssh_connect(host: str, port: int, username: str, password: str, timeout: int) -> Any:
     try:
         import paramiko  # type: ignore
     except Exception as exc:  # pragma: no cover - dependency failure is environment-specific
@@ -62,7 +58,7 @@ def _ssh_connect(host: str, port: int, username: str, password: str, timeout: in
     return client
 
 
-def _run(ssh, command: str, timeout: int) -> tuple[int, str, str]:
+def _run(ssh: Any, command: str, timeout: int) -> tuple[int, str, str]:
     _stdin, stdout, stderr = ssh.exec_command(command, timeout=timeout)
     channel = stdout.channel
     deadline = time.monotonic() + timeout
@@ -404,36 +400,17 @@ def build_migration_check_command(target_dir: str) -> str:
 
 
 def build_canonical_schema_check_command(target_dir: str) -> str:
-    """Build a command that rejects releases missing canonical control-plane tables.
+    """Delegate canonical schema verification to its governed command."""
 
-    ``migrate --check`` can be green when an old image is self-consistent but
-    does not contain the newest migration files.  The table contract closes
-    that false-green deployment path for the Data Center cutover.
-    """
-
-    table_literal = repr(CANONICAL_SCHEMA_TABLES)
-    migration_literal = repr(CANONICAL_SCHEMA_MIGRATIONS)
-    python_code = (
-        "from django.db import connection; "
-        "from django.db.migrations.recorder import MigrationRecorder; "
-        f"required=set({table_literal}); "
-        f"required_migrations=set({migration_literal}); "
-        "actual=set(connection.introspection.table_names()); "
-        "missing=sorted(required-actual); "
-        "applied={row.name for row in MigrationRecorder.Migration.objects.filter(app='data_center')}; "
-        "missing_migrations=sorted(required_migrations-applied); "
-        "print('canonical_control_plane_missing=' + ','.join(missing)); "
-        "print('canonical_migration_missing=' + ','.join(missing_migrations)); "
-        "import sys; sys.exit(1 if missing or missing_migrations else 0)"
-    )
     return build_compose_command(
         target_dir,
         "exec",
         "-T",
         "web",
         "python",
-        "-c",
-        python_code,
+        "manage.py",
+        "verify_canonical_schema",
+        "--json",
     )
 
 
@@ -532,24 +509,18 @@ print(json.dumps(rows))
     return f"cd {shlex.quote(target_dir)}/current && python3 -c {shlex.quote(python_code)}"
 
 
-def build_data_freshness_command(target_dir: str) -> str:
-    """Use model metadata instead of stale hard-coded database table names."""
+def build_healthcheck_command(target_dir: str) -> str:
+    """Delegate production readiness and freshness checks to ``healthcheck``."""
 
-    python_code = """from datetime import timedelta
-from django.utils import timezone
-from apps.data_center.infrastructure.models import QuoteSnapshotModel
-from apps.task_monitor.infrastructure.models import TaskExecutionModel
-quote = QuoteSnapshotModel._default_manager.order_by('-snapshot_at').values_list('snapshot_at', flat=True).first()
-task = TaskExecutionModel._default_manager.order_by('-updated_at').values_list('updated_at', flat=True).first()
-print(f'quote_table={QuoteSnapshotModel._meta.db_table} quote_latest={quote}')
-print(f'task_table={TaskExecutionModel._meta.db_table} task_latest={task}')
-if not quote: raise SystemExit('quote data is missing')
-if not task: raise SystemExit('task history is missing')
-if quote and quote < timezone.now() - timedelta(days=4): raise SystemExit('quote data is stale')
-if task and task < timezone.now() - timedelta(hours=26): raise SystemExit('task history is stale')
-"""
     return build_compose_command(
-        target_dir, "exec", "-T", "web", "python", "manage.py", "shell", "-c", python_code
+        target_dir,
+        "exec",
+        "-T",
+        "web",
+        "python",
+        "manage.py",
+        "healthcheck",
+        "--json",
     )
 
 
@@ -768,16 +739,16 @@ def main() -> int:
             print(f"[WARN] Resources: {warning}")
         ok = resource_ok and ok
 
-        freshness_code, freshness_out, freshness_err = _run(
+        healthcheck_code, healthcheck_out, healthcheck_err = _run(
             ssh,
-            build_data_freshness_command(args.target_dir),
+            build_healthcheck_command(args.target_dir),
             timeout=max(args.timeout, 30),
         )
-        freshness_ok, freshness_summary = evaluate_runtime_command_result(
-            freshness_code, freshness_out, freshness_err
+        healthcheck_ok, healthcheck_summary = evaluate_runtime_command_result(
+            healthcheck_code, healthcheck_out, healthcheck_err
         )
-        print(f"[{'OK' if freshness_ok else 'FAIL'}] Data freshness: {freshness_summary}")
-        ok = freshness_ok and ok
+        print(f"[{'OK' if healthcheck_ok else 'FAIL'}] Healthcheck: {healthcheck_summary}")
+        ok = healthcheck_ok and ok
 
         if args.expect_celery:
             for service in ("celery_worker", "celery_beat"):
