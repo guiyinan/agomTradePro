@@ -187,6 +187,8 @@ verified 证据必须来自合同指定 owner、包含非空引用、timezone-aw
 
 2026-08-06 Promotion Phase A 已完成 Research Domain/Application 软件合同：stable semantic scope 与 exact evidence seal 分离，Policy 必须在最早 selection 前预注册，Decision 在同一 atomic/UoW 内动态重读 exact policy/Portfolio/current-R3 并派生 gates/outcome/validity。Lifecycle 使用 scope-local stack，A→B→C 只能逐层 C→B→A；PROMOTE/ROLLBACK/active 重验当前 evidence，RETIRE 可按 decision-time 历史 PIT 清理失效 top。当前没有五表 append-only repository/migration、concrete owner provider/composition、组合预览或下游 active input，Phase A 测试不能替代真实 Promotion，R4 继续 `blocked`。
 
+2026-08-06 Promotion Phase B 已完成五表 append-only persistence、schema-only `0004`、strict typed restore、server-clock policy registration、private UoW/insert claim、concrete repository/providers/composition 与持久 PIT replay。Portfolio 只通过 Application exact query 注入；decision/lifecycle receipt 与 child 同事务，first-miss race 只重放完整一致 winner，stream fork、异证据、raw tamper 和所有 ORM mutation shortcut fail closed。Phase A + codec `38 passed`、component `13 passed`、migration `4 passed`，Luna Max 最终复核 P0/P1 为 0。仍未接组合预览或下游 active consumer；真实 R3 Promotion、canonical input、owner authorization 与 OOS trial 缺失，R4 继续 `blocked`。
+
 ## 6. 明确非目标
 
 - 本阶段不添加 sklearn/statsmodels/cvxpy 依赖；
