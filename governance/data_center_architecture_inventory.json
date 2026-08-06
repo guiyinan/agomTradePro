@@ -5762,7 +5762,7 @@
       "text": "\"summary\": self.summary,"
     },
     {
-      "line": 143,
+      "line": 144,
       "path": "apps/data_center/domain/protocols.py",
       "text": "\"\"\"Optional provider capability for one-request current valuation batches.\"\"\""
     },

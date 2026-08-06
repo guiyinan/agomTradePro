@@ -84,6 +84,11 @@ class DataProviderSettingsRepository:
     def load(self) -> DataProviderSettings:
         return DataProviderSettingsModel.load().to_domain()
 
+    def load_for_read(self) -> DataProviderSettings:
+        """Return provider settings without creating the compatibility row."""
+
+        return DataProviderSettingsModel.load_for_read().to_domain()
+
     def save(self, settings: DataProviderSettings) -> DataProviderSettings:
         model = DataProviderSettingsModel.load()
         model.default_source = settings.default_source

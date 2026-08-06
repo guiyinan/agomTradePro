@@ -4424,3 +4424,10 @@ Git SHA / 镜像 / migration：
 - 变更：上述只读入口统一改用 `get_settings_for_read()` 的 unsaved-default 语义；仍需保存账户注册策略或提交管理表单的写入流程保留显式 `get_settings()`。
 - 测试与治理：新增 AST guard 覆盖 core encryption readiness、backup URL、Account admin/registration read paths；账户/备份/加密 readiness 回归 `25 + 3 passed`，变更文件 Black/Ruff/mypy 通过。
 - 明确未做：未迁移账户注册策略、备份发送写入、决策运行状态或其他兼容字段、未初始化生产 profile、未执行 PostgreSQL/观察窗口/M9/M10 或部署；不 push、不部署。
+
+## 92. 2026-08-06：Provider 设置 Public Read Port 禁止创建旧单例
+
+- 目标：修复前一轮新增的 Data Center Provider 设置只读 Public Port 仍经 `DataProviderSettingsRepository.load()` 创建旧 singleton 的副作用，确保 typed failover 摘要读取本身不产生配置写入。
+- 变更：Provider settings repository 新增 `load_for_read()` 并让 `load_provider_settings_payload()` 使用它；写入流程继续显式使用 `load()`/`save_default_source()`，domain Protocol 同步声明读写分离。
+- 测试与治理：新增 Provider payload AST side-effect guard；typed failover component 回归与 guard `2 passed`，变更文件 Black/Ruff 通过。
+- 明确未做：未删除 DataProviderSettings 兼容 singleton、未迁移 default_source/Provider credentials、未初始化生产 profile、未执行 PostgreSQL/观察窗口/M9/M10 或部署；不 push、不部署。

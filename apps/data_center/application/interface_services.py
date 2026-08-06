@@ -361,7 +361,7 @@ def make_run_provider_connection_test_use_case() -> RunProviderConnectionTestUse
 def load_provider_settings_payload() -> dict[str, Any]:
     """Return the global provider settings as a response payload."""
 
-    settings = DataProviderSettingsRepository().load()
+    settings = DataProviderSettingsRepository().load_for_read()
     module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
     environment = "production" if module.endswith(".production") else "development"
     runtime_enabled = get_active_runtime_value(
