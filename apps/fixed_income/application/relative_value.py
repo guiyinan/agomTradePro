@@ -23,6 +23,7 @@ from apps.fixed_income.domain.relative_value_assessment import (
     R5RelativeValueBlockerCode,
     R5RelativeValueInputSet,
     R5RelativeValuePolicySet,
+    R5RelativeValueStatus,
     blocked_r5_relative_value_assessment,
     evaluate_r5_relative_value,
 )
@@ -129,6 +130,41 @@ class RunR5RelativeValueResearchCommand:
     def __post_init__(self) -> None:
         require_token(self.assessment_id, "RunR5RelativeValueResearchCommand.assessment_id")
         require_aware(self.evaluated_at, "RunR5RelativeValueResearchCommand.evaluated_at")
+
+
+@dataclass(frozen=True)
+class R5AuthoritativeRelativeValueRun:
+    """Phase-A output plus the exact graphs that produced it."""
+
+    input_set: R5RelativeValueInputSet | None
+    policy_set: R5RelativeValuePolicySet | None
+    assessment: R5RelativeValueAssessment
+    owner_graph_verified: bool
+
+    def __post_init__(self) -> None:
+        require_aware(
+            self.assessment.evaluated_at,
+            "R5AuthoritativeRelativeValueRun.assessment.evaluated_at",
+        )
+        if self.input_set is not None and (
+            self.assessment.input_set_hash != self.input_set.input_set_hash
+            or self.assessment.input_set_id != self.input_set.input_set_id
+            or self.assessment.input_set_version != self.input_set.input_set_version
+        ):
+            raise ValueError("authoritative R5 input graph differs from assessment")
+        if self.policy_set is not None and (
+            self.assessment.policy_set_hash != self.policy_set.policy_set_hash
+            or self.assessment.policy_set_id != self.policy_set.policy_set_id
+            or self.assessment.policy_set_version != self.policy_set.policy_set_version
+        ):
+            raise ValueError("authoritative R5 policy graph differs from assessment")
+        if self.owner_graph_verified and (self.input_set is None or self.policy_set is None):
+            raise ValueError("verified R5 run requires complete input and policy graphs")
+        if (
+            not self.owner_graph_verified
+            and self.assessment.status is not R5RelativeValueStatus.BLOCKED
+        ):
+            raise ValueError("unverified R5 owner graph must remain blocked")
 
 
 class RunR5RelativeValueResearch:
@@ -301,41 +337,69 @@ class RunR5RelativeValueResearch:
     ) -> R5RelativeValueAssessment:
         """Reread exact IDs at one cutoff and return only research-safe output."""
 
+        return self.execute_authoritative(command).assessment
+
+    def execute_authoritative(
+        self,
+        command: RunR5RelativeValueResearchCommand,
+    ) -> R5AuthoritativeRelativeValueRun:
+        """Return the exact input/policy graphs only after all owner rereads pass."""
+
         input_set = self._input_provider.get_exact(
             command.input_set,
             evaluated_at=command.evaluated_at,
         )
         if input_set is None:
-            return self._blocked(
-                command,
-                code=R5RelativeValueBlockerCode.INPUT_SET_MISSING,
-                detail="exact PIT input set missing",
+            return R5AuthoritativeRelativeValueRun(
+                input_set=None,
+                policy_set=None,
+                assessment=self._blocked(
+                    command,
+                    code=R5RelativeValueBlockerCode.INPUT_SET_MISSING,
+                    detail="exact PIT input set missing",
+                ),
+                owner_graph_verified=False,
             )
         if input_set.source.locator != command.input_set:
-            return self._blocked(
-                command,
-                code=R5RelativeValueBlockerCode.LOCATOR_MISMATCH,
-                detail="input set locator mismatch",
-                input_set_hash=input_set.input_set_hash,
+            return R5AuthoritativeRelativeValueRun(
+                input_set=None,
+                policy_set=None,
+                assessment=self._blocked(
+                    command,
+                    code=R5RelativeValueBlockerCode.LOCATOR_MISMATCH,
+                    detail="input set locator mismatch",
+                    input_set_hash=input_set.input_set_hash,
+                ),
+                owner_graph_verified=False,
             )
         policy_set = self._policy_provider.get_exact(
             command.policy_set,
             evaluated_at=command.evaluated_at,
         )
         if policy_set is None:
-            return self._blocked(
-                command,
-                code=R5RelativeValueBlockerCode.POLICY_SET_MISSING,
-                detail="exact R5 policy set missing",
-                input_set_hash=input_set.input_set_hash,
+            return R5AuthoritativeRelativeValueRun(
+                input_set=input_set,
+                policy_set=None,
+                assessment=self._blocked(
+                    command,
+                    code=R5RelativeValueBlockerCode.POLICY_SET_MISSING,
+                    detail="exact R5 policy set missing",
+                    input_set_hash=input_set.input_set_hash,
+                ),
+                owner_graph_verified=False,
             )
         if policy_set.source.locator != command.policy_set:
-            return self._blocked(
-                command,
-                code=R5RelativeValueBlockerCode.LOCATOR_MISMATCH,
-                detail="policy set locator mismatch",
-                input_set_hash=input_set.input_set_hash,
-                policy_set_hash=policy_set.policy_set_hash,
+            return R5AuthoritativeRelativeValueRun(
+                input_set=input_set,
+                policy_set=None,
+                assessment=self._blocked(
+                    command,
+                    code=R5RelativeValueBlockerCode.LOCATOR_MISMATCH,
+                    detail="policy set locator mismatch",
+                    input_set_hash=input_set.input_set_hash,
+                    policy_set_hash=policy_set.policy_set_hash,
+                ),
+                owner_graph_verified=False,
             )
         for reread in (
             self._reread_publications,
@@ -346,18 +410,28 @@ class RunR5RelativeValueResearch:
         ):
             blocker = reread(input_set, evaluated_at=command.evaluated_at)
             if blocker is not None:
-                return self._blocked(
-                    command,
-                    code=blocker.code,
-                    detail=blocker.detail,
-                    input_set_hash=input_set.input_set_hash,
-                    policy_set_hash=policy_set.policy_set_hash,
+                return R5AuthoritativeRelativeValueRun(
+                    input_set=input_set,
+                    policy_set=policy_set,
+                    assessment=self._blocked(
+                        command,
+                        code=blocker.code,
+                        detail=blocker.detail,
+                        input_set_hash=input_set.input_set_hash,
+                        policy_set_hash=policy_set.policy_set_hash,
+                    ),
+                    owner_graph_verified=False,
                 )
-        return evaluate_r5_relative_value(
-            assessment_id=command.assessment_id,
+        return R5AuthoritativeRelativeValueRun(
             input_set=input_set,
             policy_set=policy_set,
-            evaluated_at=command.evaluated_at,
+            assessment=evaluate_r5_relative_value(
+                assessment_id=command.assessment_id,
+                input_set=input_set,
+                policy_set=policy_set,
+                evaluated_at=command.evaluated_at,
+            ),
+            owner_graph_verified=True,
         )
 
 
@@ -368,6 +442,7 @@ __all__ = [
     "ExactPITInputEvidenceProvider",
     "ExactOwnerEvidenceProvider",
     "PublicationEvidenceProvider",
+    "R5AuthoritativeRelativeValueRun",
     "R5RelativeValuePolicySetProvider",
     "RunR5RelativeValueResearch",
     "RunR5RelativeValueResearchCommand",
