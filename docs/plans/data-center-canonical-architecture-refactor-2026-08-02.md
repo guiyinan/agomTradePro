@@ -4628,3 +4628,10 @@ Git SHA / 镜像 / migration：
 - 防回归与证据：fast-feedback 和 consistency CI 均执行 stale guard；默认重建校验通过，清单单测 3 passed，Ruff/Black 与 workflow YAML 解析通过。90 个待审入口保留为显式债务，其中包含未纳入 Celery task contract 的任务/调度候选，不以本次枚举冒充消费者全切换。
 - 合并态 architecture inventory 在干净 detached worktree 重建：`direct_data_center_imports_outside_data_center=0`、`provider_imports_outside_data_center=0`、`cross_app_orm_imports=51`、`legacy_fact_references=143`、`current_surface_references=3364`、`data_write_task_decorators=56`；主工作区未跟踪的 Research 开发文件未混入基线。
 - 明确未做：该清单是静态调用面证据，不执行 Django、数据库或外网；它不能替代 D0-D9 跨入口字段一致性、PostgreSQL 性能、生产观察窗口、备份恢复和 M9/M10 验收。
+
+## 119. 2026-08-07：Data Center Public Port 类型契约拆分
+
+- 根因：合并态治理检查发现 `apps/data_center/application/public.py` 达到 1242 个非空行，超过 1200 行门禁；文件同时承载稳定调用函数和大型宏观投影 Protocol，是结构膨胀而非应登记的新基线。
+- 变更：将 Alpha 价格覆盖与 Macro projection 的纯 Application Protocol 移到 `public_protocols.py`，`public.py` 继续原名导入/导出，既有调用路径和 Public Port API 不变。
+- 证据：`public.py` 降至 1118 个非空行，新类型文件 133 行；目标回归 16 passed，两个生产文件增量 mypy 0，Ruff/Black 通过。未提高 `allowed_large_python_files` 或其他债务基线。
+- 并行工作区说明：治理检查仍报告 Fixed Income/Research 的 3 个大文件候选，它们属于其他开发提交/未跟踪文件，本批未修改、未登记豁免，也未误提交。
