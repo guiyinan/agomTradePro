@@ -48,6 +48,16 @@ _DOMAIN_RUNTIME_FIELDS: tuple[tuple[str, str, type[object]], ...] = (
     ("asset_proxy_code_map", "config_center.market.asset_proxy_code_map", dict),
 )
 
+_ACCOUNT_RUNTIME_FIELDS: tuple[tuple[str, str, type[object]], ...] = (
+    ("require_user_approval", "account.require_user_approval", bool),
+    ("auto_approve_first_admin", "account.auto_approve_first_admin", bool),
+    ("default_mcp_enabled", "account.default_mcp_enabled", bool),
+    ("allow_token_plaintext_view", "account.allow_token_plaintext_view", bool),
+    ("user_agreement_content", "account.user_agreement_content", str),
+    ("risk_warning_content", "account.risk_warning_content", str),
+    ("notes", "account.notes", str),
+)
+
 
 def validate_runtime_values(values: tuple[RuntimeConfigValue, ...]) -> dict[str, object]:
     """Validate typed values against the registered definition catalog."""
@@ -252,12 +262,27 @@ def get_active_domain_runtime_config(environment: str) -> dict[str, object] | No
     sources.
     """
 
+    return _get_typed_runtime_projection(environment, _DOMAIN_RUNTIME_FIELDS)
+
+
+def get_active_account_runtime_config(environment: str) -> dict[str, object] | None:
+    """Resolve account access/content values from one active typed snapshot."""
+
+    return _get_typed_runtime_projection(environment, _ACCOUNT_RUNTIME_FIELDS)
+
+
+def _get_typed_runtime_projection(
+    environment: str,
+    fields: tuple[tuple[str, str, type[object]], ...],
+) -> dict[str, object] | None:
+    """Resolve one all-or-nothing typed projection from an active snapshot."""
+
     normalized_environment = str(environment or "").strip()
     if not normalized_environment:
         return None
 
     resolved: dict[str, object] = {}
-    for field_name, definition_key, expected_type in _DOMAIN_RUNTIME_FIELDS:
+    for field_name, definition_key, expected_type in fields:
         value = get_active_runtime_value(
             environment=normalized_environment,
             definition_key=definition_key,
@@ -399,6 +424,7 @@ __all__ = [
     "get_active_runtime_profile",
     "get_active_runtime_value",
     "get_active_domain_runtime_config",
+    "get_active_account_runtime_config",
     "get_active_qlib_runtime_config",
     "get_active_storage_budget",
     "get_latest_runtime_snapshot",

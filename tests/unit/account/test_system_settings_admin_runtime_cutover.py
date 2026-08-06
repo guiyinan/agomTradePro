@@ -29,6 +29,21 @@ def test_system_settings_admin_form_excludes_typed_runtime_fields() -> None:
     )
 
 
+def test_system_settings_admin_excludes_account_runtime_fields() -> None:
+    """Account governance writes must use Config Center/TUI, not compatibility Admin."""
+
+    account_fields = {
+        "require_user_approval",
+        "auto_approve_first_admin",
+        "default_mcp_enabled",
+        "allow_token_plaintext_view",
+        "user_agreement_content",
+        "risk_warning_content",
+        "notes",
+    }
+    assert not account_fields.intersection(SystemSettingsAdminForm.base_fields)
+
+
 def test_system_settings_admin_fieldsets_do_not_expose_typed_runtime_fields() -> None:
     """Admin operators are directed to Config Center/TUI for runtime settings."""
 

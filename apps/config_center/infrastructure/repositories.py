@@ -15,6 +15,7 @@ from django.utils import timezone
 
 from apps.config_center.application.runtime_public import (
     activate_runtime_profile_patch,
+    get_active_account_runtime_config,
     get_active_domain_runtime_config,
     get_active_qlib_runtime_config,
 )
@@ -113,11 +114,16 @@ class ConfigCenterSettingsRepository:
 
         provider = get_provider_settings_payload()
         return {
-            "data_center.provider.default_source": str(
-                provider.get("default_source") or "akshare"
-            ),
+            "data_center.provider.default_source": str(provider.get("default_source") or "akshare"),
             "data_center.provider.failover_tolerance": provider.get("failover_tolerance"),
             "data_center.provider.enable_failover": provider.get("enable_failover"),
+            "account.require_user_approval": bool(settings_obj.require_user_approval),
+            "account.auto_approve_first_admin": bool(settings_obj.auto_approve_first_admin),
+            "account.default_mcp_enabled": bool(settings_obj.default_mcp_enabled),
+            "account.allow_token_plaintext_view": bool(settings_obj.allow_token_plaintext_view),
+            "account.user_agreement_content": str(settings_obj.user_agreement_content or ""),
+            "account.risk_warning_content": str(settings_obj.risk_warning_content or ""),
+            "account.notes": str(settings_obj.notes or ""),
             "alpha.qlib.enabled": bool(settings_obj.qlib_enabled),
             "alpha.qlib.provider_uri": str(settings_obj.qlib_provider_uri or ""),
             "alpha.qlib.region": str(settings_obj.qlib_region or "CN"),
@@ -304,10 +310,13 @@ class ConfigCenterSettingsRepository:
 
         settings_obj = self.get_system_settings_for_read()
         typed = get_active_domain_runtime_config(self._runtime_environment())
+        typed_account = get_active_account_runtime_config(self._runtime_environment())
         payload = {
             field_name: getattr(settings_obj, field_name)
             for field_name in self.SYSTEM_GOVERNANCE_FIELDS
         }
+        if typed_account is not None:
+            payload.update(typed_account)
         if typed is not None:
             payload.update(
                 {
@@ -340,6 +349,13 @@ class ConfigCenterSettingsRepository:
         update_fields: list[str] = []
         runtime_patch: dict[str, object] = {}
         runtime_field_map = {
+            "require_user_approval": "account.require_user_approval",
+            "auto_approve_first_admin": "account.auto_approve_first_admin",
+            "default_mcp_enabled": "account.default_mcp_enabled",
+            "allow_token_plaintext_view": "account.allow_token_plaintext_view",
+            "user_agreement_content": "account.user_agreement_content",
+            "risk_warning_content": "account.risk_warning_content",
+            "notes": "account.notes",
             "market_color_convention": "config_center.market.color_convention",
             "alpha_pool_mode": "alpha.runtime.pool_mode",
             "benchmark_code_map": "config_center.market.benchmark_code_map",

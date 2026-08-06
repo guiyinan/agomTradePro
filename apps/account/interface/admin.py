@@ -44,6 +44,13 @@ SYSTEM_SETTINGS_TYPED_RUNTIME_FIELDS = frozenset(
         "market_color_convention",
         "benchmark_code_map",
         "asset_proxy_code_map",
+        "require_user_approval",
+        "auto_approve_first_admin",
+        "default_mcp_enabled",
+        "allow_token_plaintext_view",
+        "user_agreement_content",
+        "risk_warning_content",
+        "notes",
         "qlib_enabled",
         "qlib_provider_uri",
         "qlib_region",
@@ -453,27 +460,12 @@ class SystemSettingsModelAdmin(TypedModelAdmin[SystemSettingsModel]):
         return False
 
     list_display = [
-        "require_user_approval",
-        "auto_approve_first_admin",
-        "default_mcp_enabled",
-        "allow_token_plaintext_view",
         "backup_enabled",
         "backup_email",
         "backup_last_sent_at",
     ]
 
     fieldsets = (
-        (
-            "用户审批",
-            {
-                "fields": (
-                    "require_user_approval",
-                    "auto_approve_first_admin",
-                    "default_mcp_enabled",
-                    "allow_token_plaintext_view",
-                )
-            },
-        ),
         (
             "数据库备份邮件",
             {
@@ -496,13 +488,11 @@ class SystemSettingsModelAdmin(TypedModelAdmin[SystemSettingsModel]):
                 )
             },
         ),
-        ("协议内容", {"fields": ("user_agreement_content", "risk_warning_content")}),
-        ("备注", {"fields": ("notes",)}),
         (
             "运行时配置",
             {
                 "fields": ("runtime_config_notice",),
-                "description": "Qlib、Alpha、市场颜色及基准/代理映射已迁移到 Config Center/TUI；此兼容 Admin 不直接写入运行时 Profile。",
+                "description": "账户准入、MCP/Token 开关、协议内容以及 Qlib/Alpha/市场映射已迁移到 Config Center/TUI；此兼容 Admin 不直接写入运行时 Profile。",
             },
         ),
         ("时间戳", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),

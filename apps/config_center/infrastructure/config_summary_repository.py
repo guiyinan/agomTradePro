@@ -6,6 +6,7 @@ import os
 from typing import Any
 
 from apps.config_center.application.runtime_public import (
+    get_active_account_runtime_config,
     get_active_domain_runtime_config,
     get_active_qlib_runtime_config,
     get_active_runtime_value,
@@ -69,6 +70,17 @@ class DjangoConfigCenterSummaryRepository:
         settings_obj = SystemSettingsModel.get_settings_for_read()
         runtime_qlib = self.get_runtime_qlib_config()
         typed_domain = self._get_typed_domain_runtime_config()
+        typed_account = get_active_account_runtime_config(self._runtime_environment())
+        default_mcp_enabled = (
+            typed_account["default_mcp_enabled"]
+            if typed_account is not None
+            else settings_obj.default_mcp_enabled
+        )
+        allow_token_plaintext_view = (
+            typed_account["allow_token_plaintext_view"]
+            if typed_account is not None
+            else settings_obj.allow_token_plaintext_view
+        )
         if typed_domain is not None:
             market_convention = str(typed_domain["market_color_convention"])
             market_tokens = self._market_visual_tokens(market_convention)
@@ -82,8 +94,8 @@ class DjangoConfigCenterSummaryRepository:
         return {
             "status": "configured",
             "summary": {
-                "default_mcp_enabled": settings_obj.default_mcp_enabled,
-                "allow_token_plaintext_view": settings_obj.allow_token_plaintext_view,
+                "default_mcp_enabled": default_mcp_enabled,
+                "allow_token_plaintext_view": allow_token_plaintext_view,
                 "market_color_convention": market_convention,
                 "market_color_label": market_tokens["label"],
                 "benchmark_map_size": len(benchmark_map) if isinstance(benchmark_map, dict) else 0,

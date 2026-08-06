@@ -17,7 +17,7 @@
         "name": "account_access_and_content",
         "owner": "account",
         "lifecycle": "compatibility",
-        "replacement": "account.application.registration_policy_and_user_content",
+        "replacement": "config_center.runtime_profile.account_access_and_content",
         "fields": [
           "require_user_approval",
           "auto_approve_first_admin",
@@ -571,6 +571,155 @@
         "tests/component/test_task_monitor.py::test_backup_without_typed_retention_policy_fails_closed_before_io",
         "tests/unit/task_monitor/test_backup_command_contracts.py::test_backup_database_command_reports_artifact_and_cleanup",
         "tests/unit/test_runtime_settings_bridge.py::test_runtime_config_value_bridge_delegates_to_config_center_provider"
+      ]
+    },
+    {
+      "config_key": "account.require_user_approval",
+      "namespace": "account",
+      "owner": "account",
+      "type": "boolean",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "system_settings_compatibility",
+      "migration_status": "consumer_cutover_in_progress",
+      "consumers": [
+        "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
+        "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.update_system_governance",
+        "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.register_user_with_account_scaffolding",
+        "apps/account/interface/admin.py::SYSTEM_SETTINGS_TYPED_RUNTIME_FIELDS"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_account_runtime_definitions_are_bounded_and_typed",
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance",
+        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_admin_excludes_account_runtime_fields"
+      ]
+    },
+    {
+      "config_key": "account.auto_approve_first_admin",
+      "namespace": "account",
+      "owner": "account",
+      "type": "boolean",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "system_settings_compatibility",
+      "migration_status": "consumer_cutover_in_progress",
+      "consumers": [
+        "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
+        "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.register_user_with_account_scaffolding"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_account_runtime_definitions_are_bounded_and_typed",
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance"
+      ]
+    },
+    {
+      "config_key": "account.default_mcp_enabled",
+      "namespace": "account",
+      "owner": "account",
+      "type": "boolean",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "system_settings_compatibility",
+      "migration_status": "consumer_cutover_in_progress",
+      "consumers": [
+        "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
+        "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.provision_registered_user",
+        "apps/account/infrastructure/account_interface_administration_repository.py::AccountInterfaceAdministrationRepositoryMixin.approve_user",
+        "apps/account/infrastructure/account_interface_administration_repository.py::AccountInterfaceAdministrationRepositoryMixin.toggle_user_mcp"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_account_runtime_definitions_are_bounded_and_typed",
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance"
+      ]
+    },
+    {
+      "config_key": "account.allow_token_plaintext_view",
+      "namespace": "account",
+      "owner": "account",
+      "type": "boolean",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "system_settings_compatibility",
+      "migration_status": "consumer_cutover_in_progress",
+      "consumers": [
+        "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
+        "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.build_mcp_guide_context",
+        "apps/account/application/mcp_access_services.py::build_token_payload",
+        "apps/account/application/interface_services.py::build_token_payload"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_account_runtime_definitions_are_bounded_and_typed",
+        "tests/integration/account/test_mcp_guide_view.py::test_mcp_guide_view_renders_connection_contract"
+      ]
+    },
+    {
+      "config_key": "account.user_agreement_content",
+      "namespace": "account",
+      "owner": "account",
+      "type": "string",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "system_settings_compatibility",
+      "migration_status": "consumer_cutover_in_progress",
+      "consumers": [
+        "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
+        "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.get_system_settings",
+        "apps/account/interface/admin.py::SYSTEM_SETTINGS_TYPED_RUNTIME_FIELDS"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_account_runtime_definitions_are_bounded_and_typed",
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance"
+      ]
+    },
+    {
+      "config_key": "account.risk_warning_content",
+      "namespace": "account",
+      "owner": "account",
+      "type": "string",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "system_settings_compatibility",
+      "migration_status": "consumer_cutover_in_progress",
+      "consumers": [
+        "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
+        "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.get_system_settings",
+        "apps/account/interface/admin.py::SYSTEM_SETTINGS_TYPED_RUNTIME_FIELDS"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_account_runtime_definitions_are_bounded_and_typed",
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance"
+      ]
+    },
+    {
+      "config_key": "account.notes",
+      "namespace": "account",
+      "owner": "account",
+      "type": "string",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "system_settings_compatibility",
+      "migration_status": "consumer_cutover_in_progress",
+      "consumers": [
+        "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
+        "apps/account/infrastructure/account_interface_administration_repository.py::AccountInterfaceAdministrationRepositoryMixin.update_system_settings_from_mapping"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_account_runtime_definitions_are_bounded_and_typed",
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance"
       ]
     },
     {

@@ -33,6 +33,29 @@ logger = logging.getLogger(__name__)
 class AccountInterfaceAdministrationRepositoryMixin:
     """Persist administrative access and system-management workflows."""
 
+    _ACCOUNT_RUNTIME_FIELDS = (
+        "require_user_approval",
+        "auto_approve_first_admin",
+        "default_mcp_enabled",
+        "allow_token_plaintext_view",
+        "user_agreement_content",
+        "risk_warning_content",
+        "notes",
+    )
+
+    @classmethod
+    def _account_settings_projection(
+        cls,
+    ) -> tuple[SystemSettingsModel, dict[str, Any]]:
+        """Return the compatibility model overlaid with the typed account profile."""
+
+        system_settings = SystemSettingsModel.get_settings_for_read()
+        governance = get_system_governance_settings()
+        for field_name in cls._ACCOUNT_RUNTIME_FIELDS:
+            if field_name in governance:
+                setattr(system_settings, field_name, governance[field_name])
+        return system_settings, governance
+
     def create_access_token(
         self,
         *,
@@ -110,9 +133,10 @@ class AccountInterfaceAdministrationRepositoryMixin:
             )
         profiles = profiles.order_by("-created_at")
 
+        system_settings, _governance = self._account_settings_projection()
         return {
             "profiles": profiles,
-            "system_settings": SystemSettingsModel.get_settings_for_read(),
+            "system_settings": system_settings,
             "status_filter": status_filter,
             "search_query": search_query,
             "total_count": profiles.count(),
@@ -168,6 +192,7 @@ class AccountInterfaceAdministrationRepositoryMixin:
                 }
             )
 
+        system_settings, _governance = self._account_settings_projection()
         return {
             "rows": rows,
             "search_query": search_query,
@@ -176,13 +201,12 @@ class AccountInterfaceAdministrationRepositoryMixin:
             "with_token_count": sum(1 for row in rows if row["has_token"]),
             "without_token_count": sum(1 for row in rows if not row["has_token"]),
             "total_token_count": sum(row["token_count"] for row in rows),
-            "system_settings": SystemSettingsModel.get_settings_for_read(),
+            "system_settings": system_settings,
         }
 
     def toggle_user_mcp(self, target_user_id: int) -> dict[str, Any]:
         """Toggle MCP access for a user."""
 
-        settings_obj = SystemSettingsModel.get_settings_for_read()
         target_user = User._default_manager.select_related("account_profile").get(id=target_user_id)
         profile = target_user.account_profile
         profile.mcp_enabled = not profile.mcp_enabled
@@ -198,7 +222,9 @@ class AccountInterfaceAdministrationRepositoryMixin:
         return {
             "username": target_user.username,
             "mcp_enabled": profile.mcp_enabled,
-            "default_mcp_enabled": settings_obj.default_mcp_enabled,
+            "default_mcp_enabled": bool(
+                get_system_governance_settings().get("default_mcp_enabled", False)
+            ),
         }
 
     def approve_user(self, *, actor_user_id: int, target_user_id: int) -> dict[str, Any]:
@@ -234,7 +260,9 @@ class AccountInterfaceAdministrationRepositoryMixin:
             profile.approval_status = "approved"
             profile.approved_at = timezone.now()
             profile.approved_by = actor
-            profile.mcp_enabled = SystemSettingsModel.get_settings_for_read().default_mcp_enabled
+            profile.mcp_enabled = bool(
+                get_system_governance_settings().get("default_mcp_enabled", False)
+            )
             profile.rejection_reason = ""
             profile.save(
                 update_fields=[
@@ -368,8 +396,7 @@ class AccountInterfaceAdministrationRepositoryMixin:
     def build_system_settings_context(self) -> dict[str, Any]:
         """Build the system settings page context."""
 
-        system_settings = SystemSettingsModel.get_settings_for_read()
-        governance = get_system_governance_settings()
+        system_settings, governance = self._account_settings_projection()
         for field_name in (
             "market_color_convention",
             "alpha_pool_mode",
@@ -434,39 +461,19 @@ class AccountInterfaceAdministrationRepositoryMixin:
         with transaction.atomic():
             update_system_governance_settings(
                 {
+                    "require_user_approval": data.get("require_user_approval") == "on",
+                    "auto_approve_first_admin": data.get("auto_approve_first_admin") == "on",
+                    "default_mcp_enabled": data.get("default_mcp_enabled") == "on",
+                    "allow_token_plaintext_view": data.get("allow_token_plaintext_view") == "on",
+                    "user_agreement_content": data.get("user_agreement_content", ""),
+                    "risk_warning_content": data.get("risk_warning_content", ""),
+                    "notes": data.get("notes", ""),
                     "market_color_convention": market_color_convention,
                     "alpha_pool_mode": alpha_pool_mode,
                     "benchmark_code_map": benchmark_code_map,
                     "asset_proxy_code_map": asset_proxy_code_map,
                 },
                 actor=actor,
-            )
-
-            # Account-owned admission, agreement, and note fields remain in
-            # the compatibility singleton during the migration.  Runtime
-            # market and Alpha fields above are deliberately not assigned to
-            # this model.
-            system_settings = SystemSettingsModel.get_settings()
-            system_settings.require_user_approval = data.get("require_user_approval") == "on"
-            system_settings.auto_approve_first_admin = data.get("auto_approve_first_admin") == "on"
-            system_settings.default_mcp_enabled = data.get("default_mcp_enabled") == "on"
-            system_settings.allow_token_plaintext_view = (
-                data.get("allow_token_plaintext_view") == "on"
-            )
-            system_settings.user_agreement_content = data.get("user_agreement_content", "")
-            system_settings.risk_warning_content = data.get("risk_warning_content", "")
-            system_settings.notes = data.get("notes", "")
-            system_settings.save(
-                update_fields=[
-                    "require_user_approval",
-                    "auto_approve_first_admin",
-                    "default_mcp_enabled",
-                    "allow_token_plaintext_view",
-                    "user_agreement_content",
-                    "risk_warning_content",
-                    "notes",
-                    "updated_at",
-                ]
             )
 
     def build_backup_download_payload(self, token: str) -> dict[str, Any]:

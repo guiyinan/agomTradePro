@@ -4,6 +4,7 @@ import pytest
 
 from apps.account.infrastructure.account_interface_repository import AccountInterfaceRepository
 from apps.config_center.application.runtime_public import (
+    get_active_account_runtime_config,
     get_active_domain_runtime_config,
     get_active_runtime_value,
 )
@@ -223,6 +224,15 @@ def test_account_system_settings_update_uses_typed_market_governance() -> None:
     """The legacy admin form must publish runtime fields through Config Center."""
 
     legacy = SystemSettingsModel.get_settings()
+    legacy_account_before = {
+        "require_user_approval": legacy.require_user_approval,
+        "auto_approve_first_admin": legacy.auto_approve_first_admin,
+        "default_mcp_enabled": legacy.default_mcp_enabled,
+        "allow_token_plaintext_view": legacy.allow_token_plaintext_view,
+        "user_agreement_content": legacy.user_agreement_content,
+        "risk_warning_content": legacy.risk_warning_content,
+        "notes": legacy.notes,
+    }
     legacy.market_color_convention = "cn_a_share"
     legacy.alpha_pool_mode = SystemSettingsModel.ALPHA_POOL_MODE_STRICT_VALUATION
     legacy.benchmark_code_map = {"legacy": "000001.SH"}
@@ -261,7 +271,26 @@ def test_account_system_settings_update_uses_typed_market_governance() -> None:
     assert typed["benchmark_code_map"] == {"equity_market_benchmark": "000300.SH"}
     assert typed["asset_proxy_code_map"] == {"A_SHARE_GROWTH": "000300.SH"}
 
+    typed_account = get_active_account_runtime_config("development")
+    assert typed_account is not None
+    assert typed_account["require_user_approval"] is True
+    assert typed_account["auto_approve_first_admin"] is True
+    assert typed_account["default_mcp_enabled"] is True
+    assert typed_account["allow_token_plaintext_view"] is True
+    assert typed_account["user_agreement_content"] == "agreement"
+    assert typed_account["risk_warning_content"] == "risk"
+    assert typed_account["notes"] == "typed runtime update"
+
     legacy = SystemSettingsModel.get_settings_for_read()
+    assert {
+        "require_user_approval": legacy.require_user_approval,
+        "auto_approve_first_admin": legacy.auto_approve_first_admin,
+        "default_mcp_enabled": legacy.default_mcp_enabled,
+        "allow_token_plaintext_view": legacy.allow_token_plaintext_view,
+        "user_agreement_content": legacy.user_agreement_content,
+        "risk_warning_content": legacy.risk_warning_content,
+        "notes": legacy.notes,
+    } == legacy_account_before
     assert legacy.market_color_convention == "cn_a_share"
     assert legacy.alpha_pool_mode == SystemSettingsModel.ALPHA_POOL_MODE_STRICT_VALUATION
     assert legacy.benchmark_code_map == {"legacy": "000001.SH"}

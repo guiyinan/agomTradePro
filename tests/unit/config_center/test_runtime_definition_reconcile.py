@@ -68,6 +68,24 @@ def test_backup_retention_is_bounded_typed_runtime_definition() -> None:
     assert definition.constraints == {"minimum": 1, "maximum": 3650}
 
 
+def test_account_runtime_definitions_are_bounded_and_typed() -> None:
+    definitions = {
+        item.key: item for item in DEFAULT_RUNTIME_DEFINITIONS if item.namespace == "account"
+    }
+
+    assert set(definitions) == {
+        "account.require_user_approval",
+        "account.auto_approve_first_admin",
+        "account.default_mcp_enabled",
+        "account.allow_token_plaintext_view",
+        "account.user_agreement_content",
+        "account.risk_warning_content",
+        "account.notes",
+    }
+    assert all(item.owner_app == "account" for item in definitions.values())
+    assert all(item.value_type.value in {"bool", "string"} for item in definitions.values())
+
+
 class _ProfileRepository:
     def __init__(self, profile: RuntimeConfigProfile) -> None:
         self.profile = profile

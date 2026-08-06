@@ -4503,3 +4503,10 @@ Git SHA / 镜像 / migration：
 - 变更：新增 `task_monitor.retention_days` bounded `RuntimeConfigDefinition`（1–3650 天）及 runtime contract；Celery beat 不再传递 14 天常量，任务/服务省略参数时经 `core.integration.runtime_settings` bridge 读取当前 typed snapshot；缺失、失效或异常在创建目录/文件前 fail closed。CLI `--keep` 保留为显式、可审计的运维覆盖，且仍经过同一范围校验。Config Center summary bridge 增加通用 typed value 读取，避免 task_monitor 反向依赖 Config Center app。
 - 测试与门禁：备份/配置定向回归 `28 passed`；runtime config coverage `49`、governance consistency `0 violations`、Celery contracts `18 tasks`、Django check 0、architecture boundary/audit 0、module-cycle 0、current-data contracts `46 surfaces`、变更生产文件 mypy regression 0、Ruff 和 diff check 通过。
 - 明确未做：未在生产 profile 写入实际保留天数、未执行外部备份/下载后清理、PostgreSQL 真实恢复/容量故障注入、M9/M10 或 VPS 部署；生产 profile 应由受控初始化把本地暂存窗口设为 1 天并配套外部保留策略，不能以代码默认替代运维证据；不 push、不部署。
+
+## 103. 2026-08-06：账户准入与 MCP 治理入口收编 account runtime projection
+
+- 根因：用户审批、首个管理员、默认 MCP、Token 明文、协议、风险提示和备注共 7 个字段仍由 `SystemSettingsModel` 在注册、MCP 指引、账户管理、Classic Admin 和 Config Center API 之间分别读写；即使市场/Qlib 已切到 Profile，这组字段仍会形成旧 singleton 双真源。
+- 变更：新增 `account.*` 7 个 typed definitions 与 all-or-nothing account projection；Config Center `build/update_system_governance` 读写同一 Profile，`_legacy_runtime_values` 只负责显式 compatibility bootstrap。账户注册、MCP 指引、用户审批/默认 MCP、账户设置上下文统一经 Config Center governance projection；Classic SystemSettings Admin 移除这 7 个可写字段并保留迁移提示。兼容期字段 criticality 设为 `normal`，缺少 account projection 时整组回退旧 singleton，避免对已有未迁移 Profile 造成跨域激活阻断。
+- 测试与门禁：runtime definition/Provider 组件 `14 passed`；Config Center/账户设置 API `41 passed`；账户/MCP 页面 `19 passed`；runtime config coverage `49`、governance consistency `0 violations`、Celery contracts `18 tasks`、Django check 0、architecture boundary/audit 0、module-cycle 0、current-data contracts `46 surfaces`、变更生产文件 mypy regression 0、Ruff/diff check 通过。
+- 明确未做：未删除 `SystemSettingsModel` 账户兼容列、未将备份 SMTP/Decision Runtime 状态迁入 typed definitions、未初始化生产 account profile、未执行 PostgreSQL/备份恢复/观察窗口/M9/M10 或 VPS 部署；这些字段仍需按同一 projection/外部密钥策略分组收编；不 push、不部署。
