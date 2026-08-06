@@ -168,8 +168,19 @@ class ProviderConfigModel(models.Model):
     def __str__(self) -> str:
         return f"{self.name} ({self.get_source_type_display()}, priority={self.priority})"
 
-    def to_domain(self) -> ProviderConfig:
-        """Convert to domain ProviderConfig value object."""
+    def to_domain(
+        self,
+        *,
+        api_key: str = "",
+        api_secret: str = "",
+        credential_ref: str = "",
+    ) -> ProviderConfig:
+        """Convert to domain value object with explicitly resolved secrets.
+
+        The model no longer exposes its legacy plaintext columns by default.
+        Infrastructure repositories must resolve credentials through the
+        encrypted provider-credential store and pass them explicitly.
+        """
 
         return ProviderConfig(
             id=self.pk,
@@ -177,12 +188,13 @@ class ProviderConfigModel(models.Model):
             source_type=self.source_type,
             is_active=self.is_active,
             priority=self.priority,
-            api_key=self.api_key,
-            api_secret=self.api_secret,
+            api_key=api_key,
+            api_secret=api_secret,
             http_url=self.http_url,
             api_endpoint=self.api_endpoint,
             extra_config=self.extra_config or {},
             description=self.description,
+            credential_ref=credential_ref,
         )
 
 
@@ -1533,7 +1545,9 @@ class RetentionPolicyModel(models.Model):
     class Meta:
         db_table = "data_center_retention_policy"
         constraints = [
-            models.UniqueConstraint(fields=["dataset_key", "version"], name="dc_retention_dataset_version_unique"),
+            models.UniqueConstraint(
+                fields=["dataset_key", "version"], name="dc_retention_dataset_version_unique"
+            ),
         ]
         indexes = [models.Index(fields=["dataset_key", "active"])]
 
@@ -1593,7 +1607,12 @@ class ArchiveManifestModel(models.Model):
     size_bytes = models.PositiveBigIntegerField(default=0)
     location = models.CharField(max_length=500)
     checksum = models.CharField(max_length=128, db_index=True)
-    state = models.CharField(max_length=20, choices=ARCHIVE_STATE_CHOICES, default=ArchiveState.PLANNED.value, db_index=True)
+    state = models.CharField(
+        max_length=20,
+        choices=ARCHIVE_STATE_CHOICES,
+        default=ArchiveState.PLANNED.value,
+        db_index=True,
+    )
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     verified_at = models.DateTimeField(null=True, blank=True)
     retention_until = models.DateTimeField(null=True, blank=True, db_index=True)
@@ -1638,7 +1657,9 @@ class SyncRunModel(models.Model):
     run_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     dataset_key = models.CharField(max_length=160, db_index=True)
     trigger = models.CharField(max_length=40)
-    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=SyncRunStatus.REQUESTED.value)
+    status = models.CharField(
+        max_length=24, choices=STATUS_CHOICES, default=SyncRunStatus.REQUESTED.value
+    )
     outcome = models.CharField(max_length=16, choices=OUTCOME_CHOICES, default="blocked")
     provider_name = models.CharField(max_length=100, blank=True, db_index=True)
     contract_version = models.CharField(max_length=40, blank=True)
@@ -1667,8 +1688,12 @@ class SyncRunModel(models.Model):
             models.Index(fields=["status", "outcome"]),
         ]
         constraints = [
-            models.CheckConstraint(condition=models.Q(stored__gte=0), name="dc_sync_run_stored_nonnegative"),
-            models.CheckConstraint(condition=models.Q(published__gte=0), name="dc_sync_run_published_nonnegative"),
+            models.CheckConstraint(
+                condition=models.Q(stored__gte=0), name="dc_sync_run_stored_nonnegative"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(published__gte=0), name="dc_sync_run_published_nonnegative"
+            ),
         ]
 
     def to_domain(self) -> SyncRun:
@@ -1709,7 +1734,9 @@ class SyncBatchModel(models.Model):
     dataset_key = models.CharField(max_length=160, db_index=True)
     provider_name = models.CharField(max_length=100, db_index=True)
     idempotency_key = models.CharField(max_length=240, unique=True)
-    state = models.CharField(max_length=20, choices=STATE_CHOICES, default=SyncItemState.PENDING.value)
+    state = models.CharField(
+        max_length=20, choices=STATE_CHOICES, default=SyncItemState.PENDING.value
+    )
     requested = models.PositiveIntegerField(default=0)
     fetched = models.PositiveIntegerField(default=0)
     validated = models.PositiveIntegerField(default=0)
@@ -1772,7 +1799,9 @@ class SyncCheckpointModel(models.Model):
     batch_id = models.UUIDField(db_index=True)
     cursor_name = models.CharField(max_length=100)
     cursor_value = models.CharField(max_length=500)
-    state = models.CharField(max_length=20, choices=STATE_CHOICES, default=SyncItemState.SUCCEEDED.value)
+    state = models.CharField(
+        max_length=20, choices=STATE_CHOICES, default=SyncItemState.SUCCEEDED.value
+    )
     processed = models.PositiveIntegerField(default=0)
     failed = models.PositiveIntegerField(default=0)
     recorded_at = models.DateTimeField(db_index=True)
@@ -1823,7 +1852,9 @@ class QuarantineRecordModel(models.Model):
     observed_at = models.DateTimeField(null=True, blank=True, db_index=True)
     run_id = models.UUIDField(null=True, blank=True, db_index=True)
     batch_id = models.UUIDField(null=True, blank=True, db_index=True)
-    resolution = models.CharField(max_length=20, choices=RESOLUTION_CHOICES, default=QuarantineResolution.OPEN.value)
+    resolution = models.CharField(
+        max_length=20, choices=RESOLUTION_CHOICES, default=QuarantineResolution.OPEN.value
+    )
     quarantined_at = models.DateTimeField(db_index=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
     resolved_by = models.CharField(max_length=150, blank=True)
@@ -1857,4 +1888,3 @@ class QuarantineRecordModel(models.Model):
             resolved_at=self.resolved_at,
             resolved_by=self.resolved_by,
         )
-

@@ -25,9 +25,9 @@ from apps.data_center.infrastructure.models import (
     IndicatorCatalogModel,
     IndicatorUnitRuleModel,
     MacroFactModel,
-    ProviderConfigModel,
 )
 from apps.data_center.infrastructure.orm_retry import retry_macro_fact_upsert
+from apps.data_center.infrastructure.provider_state_repositories import ProviderConfigRepository
 
 
 @dataclass
@@ -300,9 +300,9 @@ class MacroGovernanceRepository:
 
     def _build_provider_source_lookup(self) -> dict[str, str]:
         provider_lookup: dict[str, str] = {}
-        for row in ProviderConfigModel.objects.exclude(name="").values("name", "source_type"):
-            provider_name = str(row.get("name") or "").strip()
-            source_type = str(row.get("source_type") or "").strip()
+        for provider in ProviderConfigRepository().list_all():
+            provider_name = provider.name.strip()
+            source_type = provider.source_type.strip()
             if provider_name and source_type:
                 provider_lookup[provider_name] = source_type
         return provider_lookup

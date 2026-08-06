@@ -47,6 +47,7 @@ def _config_to_response(config: ProviderConfig) -> ProviderResponse:
         api_endpoint=config.api_endpoint,
         extra_config=config.extra_config,
         description=config.description,
+        credential_ref=config.credential_ref,
     )
 
 

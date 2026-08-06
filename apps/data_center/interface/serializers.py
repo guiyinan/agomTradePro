@@ -95,6 +95,7 @@ class ProviderConfigListSerializer(serializers.Serializer[Any]):
     has_api_secret = serializers.SerializerMethodField()
     http_url = serializers.CharField()
     api_endpoint = serializers.CharField()
+    credential_ref = serializers.CharField()
     extra_config = serializers.SerializerMethodField()
     tushare_request_mode = serializers.SerializerMethodField()
     tushare_request_mode_label = serializers.SerializerMethodField()

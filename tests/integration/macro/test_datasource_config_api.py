@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 import pytest
 from django.contrib.auth.models import User
-from django.test import Client
+from django.test import Client, override_settings
 
 from apps.data_center.infrastructure.models import ProviderConfigModel
 
@@ -83,6 +83,7 @@ def admin_client(db):
 
 
 @pytest.mark.django_db
+@override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="provider-api-test-key")
 def test_data_center_provider_api_create_and_update_http_url(admin_client):
     create_response = admin_client.post(
         "/api/data-center/providers/",
@@ -122,6 +123,7 @@ def test_data_center_provider_api_create_and_update_http_url(admin_client):
 
 
 @pytest.mark.django_db
+@override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="provider-api-test-key")
 def test_tushare_transport_mode_is_explicit_safe_and_preserves_provider_config(admin_client):
     create_response = admin_client.post(
         "/api/data-center/providers/",
@@ -165,7 +167,11 @@ def test_tushare_transport_mode_is_explicit_safe_and_preserves_provider_config(a
     assert updated["tushare_request_mode_label"] == "标准 Tushare"
 
     config = ProviderConfigModel.objects.get(id=provider_id)
-    assert config.api_key == "stored-relay-key"
+    assert config.api_key == ""
+    from apps.data_center.infrastructure.provider_credential_models import ProviderCredentialModel
+
+    credential = ProviderCredentialModel.objects.get(provider_id=provider_id)
+    assert credential.api_key_encrypted.startswith("encrypted:v1:")
     assert config.http_url == ""
     assert config.extra_config == {
         "health_metrics": {"success_count": 12},
@@ -174,6 +180,7 @@ def test_tushare_transport_mode_is_explicit_safe_and_preserves_provider_config(a
 
 
 @pytest.mark.django_db
+@override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="provider-api-test-key")
 def test_multiple_active_tushare_routes_can_be_configured_in_parallel(admin_client):
     routes = [
         {

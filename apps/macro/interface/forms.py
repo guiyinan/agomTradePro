@@ -1,36 +1,37 @@
-"""Forms for macro configuration pages."""
+"""Input-only forms for macro configuration compatibility pages.
 
-from typing import Any
+This module deliberately does not bind a Django ModelForm to the Data Center
+provider table.  Persistence must go through the Data Center Application
+public port so credentials are encrypted and the owner boundary remains
+auditable.
+"""
 
 from django import forms
-from django.apps import apps as django_apps
-
-DataSourceConfig = django_apps.get_model("data_center", "ProviderConfigModel")
 
 
-class DataSourceConfigForm(forms.ModelForm[Any]):
+class DataSourceConfigForm(forms.Form):
+    """Validate provider input without exposing a direct ORM save path."""
+
+    SOURCE_TYPE_CHOICES = (
+        ("tushare", "Tushare Pro"),
+        ("akshare", "AKShare"),
+        ("eastmoney", "EastMoney"),
+        ("qmt", "QMT (XtQuant)"),
+        ("fred", "FRED"),
+        ("wind", "Wind"),
+        ("choice", "Choice"),
+    )
+
+    name = forms.CharField(max_length=100)
+    source_type = forms.ChoiceField(choices=SOURCE_TYPE_CHOICES)
+    is_active = forms.BooleanField(required=False, initial=True)
+    priority = forms.IntegerField(min_value=0, max_value=999, initial=100)
+    api_endpoint = forms.URLField(required=False)
+    http_url = forms.URLField(required=False)
+    api_key = forms.CharField(required=False, widget=forms.PasswordInput(render_value=False))
+    api_secret = forms.CharField(required=False, widget=forms.PasswordInput(render_value=False))
+    extra_config = forms.JSONField(required=False)
+    description = forms.CharField(required=False, widget=forms.Textarea)
+
     class Meta:
-        model = DataSourceConfig
-        fields = [
-            "name",
-            "source_type",
-            "is_active",
-            "priority",
-            "api_endpoint",
-            "http_url",
-            "api_key",
-            "api_secret",
-            "extra_config",
-            "description",
-        ]
-        widgets = {
-            "name": forms.TextInput(attrs={"class": "form-control"}),
-            "source_type": forms.Select(attrs={"class": "form-control"}),
-            "priority": forms.NumberInput(attrs={"min": 0, "max": 999, "class": "form-control"}),
-            "api_endpoint": forms.URLInput(attrs={"class": "form-control"}),
-            "http_url": forms.URLInput(attrs={"class": "form-control"}),
-            "api_key": forms.TextInput(attrs={"class": "form-control"}),
-            "api_secret": forms.TextInput(attrs={"class": "form-control"}),
-            "extra_config": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
-            "description": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
-        }
+        """Retain the historical class namespace for template discovery."""

@@ -46,6 +46,7 @@ class ProviderConfig:
     api_endpoint: str
     extra_config: dict[str, Any]
     description: str
+    credential_ref: str = ""
 
     def __post_init__(self) -> None:
         if not self.name:

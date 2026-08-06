@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from django.contrib.auth.models import User
-from django.test import Client
+from django.test import Client, override_settings
 
 from apps.data_center.domain.entities import ConnectionTestResult
 from apps.data_center.infrastructure.models import ProviderConfigModel
@@ -78,6 +78,7 @@ def test_provider_connection_test_persists_redacted_health_metadata(
 
 
 @pytest.mark.django_db
+@override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="provider-api-test-key")
 def test_provider_detail_and_create_responses_never_echo_credentials(
     staff_client: Client,
 ) -> None:

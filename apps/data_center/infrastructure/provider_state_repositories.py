@@ -15,35 +15,53 @@ from apps.data_center.infrastructure.models import (
     RawAuditModel,
 )
 
+from .provider_credentials import (
+    ProviderCredentialEncryptionUnavailable,
+    ProviderCredentialStore,
+)
+
 
 class ProviderConfigRepository:
     """Persists and retrieves ProviderConfig domain objects via Django ORM."""
 
+    def __init__(self) -> None:
+        self._credentials = ProviderCredentialStore()
+
+    def _to_domain(self, model: ProviderConfigModel) -> ProviderConfig:
+        """Resolve secrets through the encrypted credential owner."""
+
+        api_key, api_secret, credential_ref = self._credentials.resolve(model)
+        return model.to_domain(
+            api_key=api_key,
+            api_secret=api_secret,
+            credential_ref=credential_ref,
+        )
+
     def list_all(self) -> list[ProviderConfig]:
-        return [m.to_domain() for m in ProviderConfigModel.objects.all()]
+        return [self._to_domain(m) for m in ProviderConfigModel.objects.all()]
 
     def list_active(self) -> list[ProviderConfig]:
         """Return active provider configs ordered by priority."""
         return [
-            m.to_domain()
+            self._to_domain(m)
             for m in ProviderConfigModel.objects.filter(is_active=True).order_by("priority")
         ]
 
     def get_by_id(self, provider_id: int) -> ProviderConfig | None:
         try:
-            return ProviderConfigModel.objects.get(pk=provider_id).to_domain()
+            return self._to_domain(ProviderConfigModel.objects.get(pk=provider_id))
         except ProviderConfigModel.DoesNotExist:
             return None
 
     def get_by_name(self, name: str) -> ProviderConfig | None:
         try:
-            return ProviderConfigModel.objects.get(name=name).to_domain()
+            return self._to_domain(ProviderConfigModel.objects.get(name=name))
         except ProviderConfigModel.DoesNotExist:
             return None
 
     def get_active_by_type(self, source_type: str) -> list[ProviderConfig]:
         return [
-            m.to_domain()
+            self._to_domain(m)
             for m in ProviderConfigModel.objects.filter(
                 source_type=source_type, is_active=True
             ).order_by("priority")
@@ -51,23 +69,77 @@ class ProviderConfigRepository:
 
     def save(self, config: ProviderConfig) -> ProviderConfig:
         """Create or update a ProviderConfigModel row."""
-        if config.id is not None:
-            model = ProviderConfigModel.objects.get(pk=config.id)
-        else:
-            model = ProviderConfigModel()
+        from django.db import transaction
 
-        model.name = config.name
-        model.source_type = config.source_type
-        model.is_active = config.is_active
-        model.priority = config.priority
-        model.api_key = config.api_key
-        model.api_secret = config.api_secret
-        model.http_url = config.http_url
-        model.api_endpoint = config.api_endpoint
-        model.extra_config = config.extra_config
-        model.description = config.description
-        model.save()
-        return model.to_domain()
+        with transaction.atomic():
+            if config.id is not None:
+                model = ProviderConfigModel.objects.get(pk=config.id)
+            else:
+                model = ProviderConfigModel()
+
+            has_encrypted_record = self._credentials.has_record(model)
+            encryption_available = self._credentials.encryption_available()
+            legacy_unchanged = (
+                config.id is not None
+                and not has_encrypted_record
+                and model.api_key == config.api_key
+                and model.api_secret == config.api_secret
+                and bool(model.api_key or model.api_secret)
+            )
+            if (config.api_key or config.api_secret) and not encryption_available:
+                if not legacy_unchanged:
+                    raise ProviderCredentialEncryptionUnavailable(
+                        "AGOMTRADEPRO_ENCRYPTION_KEY not configured"
+                    )
+
+            model.name = config.name
+            model.source_type = config.source_type
+            model.is_active = config.is_active
+            model.priority = config.priority
+            # Never write a new credential to the compatibility columns. An
+            # untouched legacy value is retained only when the deployment key
+            # is unavailable and an explicit migration has not happened yet.
+            if encryption_available:
+                model.api_key = ""
+                model.api_secret = ""
+            else:
+                model.api_key = model.api_key if legacy_unchanged else ""
+                model.api_secret = model.api_secret if legacy_unchanged else ""
+            model.http_url = config.http_url
+            model.api_endpoint = config.api_endpoint
+            model.extra_config = config.extra_config
+            model.description = config.description
+            model.save()
+            self._credentials.persist(
+                model,
+                api_key=(None if has_encrypted_record and not config.api_key else config.api_key),
+                api_secret=(
+                    None if has_encrypted_record and not config.api_secret else config.api_secret
+                ),
+                allow_legacy_fallback=config.id is not None,
+            )
+            return self._to_domain(model)
+
+    def persist_credentials(
+        self,
+        provider_id: int,
+        *,
+        api_key: str | None,
+        api_secret: str | None,
+        allow_legacy_fallback: bool = False,
+    ) -> str:
+        """Persist Admin-supplied credentials through the encrypted owner."""
+
+        from django.db import transaction
+
+        with transaction.atomic():
+            model = ProviderConfigModel.objects.select_for_update().get(pk=provider_id)
+            return self._credentials.persist(
+                model,
+                api_key=api_key,
+                api_secret=api_secret,
+                allow_legacy_fallback=allow_legacy_fallback,
+            )
 
     def delete(self, provider_id: int) -> None:
         ProviderConfigModel.objects.filter(pk=provider_id).delete()

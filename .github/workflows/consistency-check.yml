@@ -53,6 +53,9 @@ jobs:
         run: |
           python scripts/check_current_data_contracts.py
 
+      - name: Enforce Data Center provider credential boundary
+        run: python scripts/check_data_center_provider_credentials.py
+
       - name: Enforce Qlib runtime entrypoint inventory
         run: python scripts/check_qlib_runtime_entrypoints.py
 

@@ -376,6 +376,23 @@ def get_provider_config_repository_port() -> ProviderConfigRepositoryProtocol:
     return get_provider_config_repository()
 
 
+def persist_provider_credentials(
+    provider_id: int,
+    *,
+    api_key: str | None,
+    api_secret: str | None,
+    allow_legacy_fallback: bool = False,
+) -> str:
+    """Persist provider secrets through the Data Center application port."""
+
+    return get_provider_config_repository().persist_credentials(
+        provider_id,
+        api_key=api_key,
+        api_secret=api_secret,
+        allow_legacy_fallback=allow_legacy_fallback,
+    )
+
+
 def get_provider_registry_port() -> ProviderRegistryProtocol:
     """Return the canonical provider registry port."""
 
@@ -1303,6 +1320,7 @@ __all__ = [
     "resolve_asset_payload",
     "get_capital_flow_repository_port",
     "get_provider_config_repository_port",
+    "persist_provider_credentials",
     "get_provider_registry_port",
     "build_provider_registry_port",
     "get_publication_as_of",

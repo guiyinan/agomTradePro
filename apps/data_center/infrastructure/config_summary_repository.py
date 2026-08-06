@@ -11,6 +11,7 @@ from .macro_sources.failover_adapter import (
     _resolve_failover_tolerance,
 )
 from .models import DataProviderSettingsModel, ProviderConfigModel
+from .provider_credentials import ProviderCredentialStore
 
 
 class DjangoDataCenterConfigSummaryRepository:
@@ -34,21 +35,36 @@ class DjangoDataCenterConfigSummaryRepository:
             provider_settings.failover_tolerance,
             environment=environment,
         )
-        rows = list(
+        provider_rows = list(
             ProviderConfigModel._default_manager.all().values(
+                "id",
                 "source_type",
                 "name",
                 "is_active",
                 "api_key",
+                "api_secret",
                 "http_url",
             )
         )
+        credential_statuses = ProviderCredentialStore().statuses_from_rows(provider_rows)
+        rows: list[dict[str, Any]] = [
+            {
+                "id": provider.get("id"),
+                "source_type": provider.get("source_type"),
+                "name": provider.get("name"),
+                "is_active": provider.get("is_active"),
+                "http_url": provider.get("http_url"),
+                "has_api_key": credential_statuses[int(provider["id"])].has_api_key,
+            }
+            for provider in provider_rows
+        ]
         active_rows = [row for row in rows if row["is_active"]]
         requires_key_types = {"tushare", "fred", "wind", "choice"}
         missing_key_count = sum(
             1
             for row in active_rows
-            if row["source_type"] in requires_key_types and not (row.get("api_key") or "").strip()
+            if str(row.get("source_type") or "") in requires_key_types
+            and not bool(row.get("has_api_key"))
         )
         status = "configured"
         if active_rows and missing_key_count > 0:
@@ -56,7 +72,8 @@ class DjangoDataCenterConfigSummaryRepository:
         custom_http_url_count = sum(
             1
             for row in active_rows
-            if row["source_type"] == "tushare" and (row.get("http_url") or "").strip()
+            if str(row.get("source_type") or "") == "tushare"
+            and str(row.get("http_url") or "").strip()
         )
         if not rows:
             return {

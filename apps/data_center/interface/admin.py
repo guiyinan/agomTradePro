@@ -6,12 +6,14 @@ from typing import Any
 
 from django import forms
 from django.contrib import admin
+from django.db import transaction
 from django.http import HttpRequest
 
 from apps.data_center.application.interface_services import (
     can_create_provider_settings,
     load_provider_settings_payload,
 )
+from apps.data_center.application.public import persist_provider_credentials
 from apps.data_center.models import (
     DataOwnerRegistrationModel,
     DataProviderSettingsModel,
@@ -79,7 +81,9 @@ class ProviderConfigAdminForm(TypedModelForm[ProviderConfigModel]):
 
         value = self.cleaned_data.get("api_key")
         if isinstance(value, str) and value:
+            self._api_key_replaced = True
             return value
+        self._api_key_replaced = False
         return self.instance.api_key if self.instance.pk is not None else ""
 
     def clean_api_secret(self) -> str:
@@ -87,7 +91,9 @@ class ProviderConfigAdminForm(TypedModelForm[ProviderConfigModel]):
 
         value = self.cleaned_data.get("api_secret")
         if isinstance(value, str) and value:
+            self._api_secret_replaced = True
             return value
+        self._api_secret_replaced = False
         return self.instance.api_secret if self.instance.pk is not None else ""
 
     def clean(self) -> dict[str, Any]:
@@ -164,6 +170,48 @@ class ProviderConfigAdmin(TypedModelAdmin[ProviderConfigModel]):
         ),
         ("Timestamps", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
+
+    def save_model(
+        self,
+        request: HttpRequest,
+        obj: ProviderConfigModel,
+        form: ProviderConfigAdminForm,
+        change: bool,
+    ) -> None:
+        """Persist provider metadata and credentials through the app port."""
+
+        existing = (
+            ProviderConfigModel._default_manager.filter(pk=obj.pk).first()
+            if obj.pk is not None
+            else None
+        )
+        submitted_key = (
+            form.cleaned_data.get("api_key") if getattr(form, "_api_key_replaced", False) else None
+        )
+        submitted_secret = (
+            form.cleaned_data.get("api_secret")
+            if getattr(form, "_api_secret_replaced", False)
+            else None
+        )
+        # Keep an old plaintext value only as a transient compatibility
+        # projection when the masked field is untouched. The application port
+        # encrypts it whenever the deployment key is available.
+        obj.api_key = (
+            "" if submitted_key is not None else (existing.api_key if existing is not None else "")
+        )
+        obj.api_secret = (
+            ""
+            if submitted_secret is not None
+            else (existing.api_secret if existing is not None else "")
+        )
+        with transaction.atomic():
+            super().save_model(request, obj, form, change)
+            persist_provider_credentials(
+                int(obj.pk),
+                api_key=submitted_key,
+                api_secret=submitted_secret,
+                allow_legacy_fallback=True,
+            )
 
     @admin.display(description="连接方式")
     def tushare_connection_mode(self, obj: ProviderConfigModel) -> str:

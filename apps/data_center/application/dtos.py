@@ -61,6 +61,7 @@ class ProviderResponse:
     api_endpoint: str
     extra_config: dict[str, Any]
     description: str
+    credential_ref: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -75,6 +76,7 @@ class ProviderResponse:
             "api_endpoint": self.api_endpoint,
             "extra_config": self.extra_config,
             "description": self.description,
+            "credential_ref": self.credential_ref,
         }
 
 

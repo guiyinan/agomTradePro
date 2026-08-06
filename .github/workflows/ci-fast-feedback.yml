@@ -239,6 +239,9 @@ jobs:
       - name: Enforce Data Center legacy fact access guard
         run: python scripts/check_data_center_legacy_fact_access.py
 
+      - name: Enforce Data Center provider credential boundary
+        run: python scripts/check_data_center_provider_credentials.py
+
       - name: Enforce Data Center query budgets
         run: python scripts/check_data_center_query_budgets.py
 
