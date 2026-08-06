@@ -83,7 +83,11 @@ class TestQlibTrainingTasks:
         """测试训练任务成功"""
         monkeypatch.setattr(
             "apps.alpha.application.tasks._get_runtime_qlib_config",
-            lambda: {"enabled": True},
+            lambda: {
+                "enabled": True,
+                "provider_uri": "local-data",
+                "model_path": "configured-models",
+            },
         )
         # 设置 mock
         mock_model = Mock()
@@ -137,7 +141,11 @@ class TestQlibTrainingTasks:
         """测试训练任务失败"""
         monkeypatch.setattr(
             "apps.alpha.application.tasks._get_runtime_qlib_config",
-            lambda: {"enabled": True},
+            lambda: {
+                "enabled": True,
+                "provider_uri": "local-data",
+                "model_path": "configured-models",
+            },
         )
         mock_train.side_effect = Exception("Training failed")
         run = QlibTrainingRunModel.objects.create(

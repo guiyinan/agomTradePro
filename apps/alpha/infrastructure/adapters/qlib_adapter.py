@@ -106,11 +106,13 @@ class QlibAlphaProvider(BaseAlphaProvider):
         """
         super().__init__()
         if not provider_uri or not model_path:
-            from django.conf import settings
+            from core.integration.runtime_settings import get_runtime_qlib_config
 
-            qlib_settings = settings.QLIB_SETTINGS
-            provider_uri = provider_uri or qlib_settings.get("provider_uri", "")
-            model_path = model_path or qlib_settings.get("model_path", "")
+            runtime_qlib = get_runtime_qlib_config()
+            provider_uri = provider_uri or str(runtime_qlib.get("provider_uri") or "")
+            model_path = model_path or str(runtime_qlib.get("model_path") or "")
+        if not provider_uri or not model_path:
+            raise ValueError("Qlib provider requires typed runtime provider_uri and model_path")
         self._data_path = Path(provider_uri).expanduser()
         self._model_path = Path(model_path)
         self._region = region
@@ -565,6 +567,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
     def _get_latest_data_date(self) -> date | None:
         """Return the latest trading date available in the local qlib dataset."""
         try:
+            from apps.alpha.infrastructure.qlib_runtime_init import initialize_qlib_runtime
             from core.integration.runtime_settings import get_runtime_qlib_config
 
             qlib = import_module("qlib")
@@ -580,12 +583,11 @@ class QlibAlphaProvider(BaseAlphaProvider):
             if not provider_uri:
                 return None
 
-            if not hasattr(self, "_qlib_initialized_for_calendar"):
-                qlib.init(
-                    provider_uri=provider_uri,
-                    region=str(region).lower(),
-                )
-                self._qlib_initialized_for_calendar = True
+            initialize_qlib_runtime(
+                provider_uri=provider_uri,
+                region=region,
+                qlib_module=qlib,
+            )
 
             calendar = data_api.calendar(start_time="2000-01-01", end_time="2100-12-31")
             if len(calendar) == 0:

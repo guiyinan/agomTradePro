@@ -47,6 +47,17 @@ def test_runtime_definition_reconcile_is_idempotent() -> None:
     assert list(repository.items) == [definition.key for definition in DEFAULT_RUNTIME_DEFINITIONS]
 
 
+def test_provider_default_source_is_typed_enum_definition() -> None:
+    definition = next(
+        item
+        for item in DEFAULT_RUNTIME_DEFINITIONS
+        if item.key == "data_center.provider.default_source"
+    )
+
+    assert definition.value_type.value == "enum"
+    assert definition.constraints["choices"] == ["akshare", "tushare", "failover"]
+
+
 class _ProfileRepository:
     def __init__(self, profile: RuntimeConfigProfile) -> None:
         self.profile = profile

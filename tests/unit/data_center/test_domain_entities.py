@@ -69,6 +69,14 @@ class TestDataProviderSettings:
         )
         assert s.failover_tolerance == 0.01
 
+    def test_unknown_default_source_is_rejected(self):
+        with pytest.raises(ValueError, match="default_source"):
+            DataProviderSettings(
+                default_source="legacy",
+                enable_failover=True,
+                failover_tolerance=0.01,
+            )
+
     def test_tolerance_out_of_range(self):
         with pytest.raises(ValueError, match="failover_tolerance"):
             DataProviderSettings(

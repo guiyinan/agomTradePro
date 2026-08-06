@@ -186,7 +186,7 @@ def test_alpha_registry_fallback_to_next_provider_is_quiet(caplog):
 
 
 def test_qlib_provider_no_worker_path_is_quiet(monkeypatch, caplog):
-    provider = QlibAlphaProvider()
+    provider = QlibAlphaProvider(provider_uri=".", model_path=".")
     monkeypatch.setattr(provider, "_get_from_cache", lambda *args, **kwargs: None)
     monkeypatch.setattr(provider, "_resolve_live_inference_queue", lambda: None)
     monkeypatch.setattr(provider, "_can_run_inline_inference", lambda pool_scope: False)

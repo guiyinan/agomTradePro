@@ -14,6 +14,7 @@ from apps.data_center.infrastructure.macro_sources.base import (
 from apps.data_center.infrastructure.macro_sources.failover_adapter import (
     FailoverAdapter,
     MultiSourceAdapter,
+    _resolve_default_source,
     _resolve_failover_enabled,
     _resolve_failover_tolerance,
 )
@@ -82,6 +83,29 @@ def test_runtime_failover_tolerance_is_preferred(monkeypatch) -> None:
     )
 
     assert _resolve_failover_tolerance(0.01, environment="production") == pytest.approx(0.025)
+
+
+def test_runtime_default_source_is_preferred(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "core.integration.config_center_runtime.get_active_runtime_value",
+        lambda *, environment, definition_key: (
+            "tushare"
+            if environment == "production"
+            and definition_key == "data_center.provider.default_source"
+            else None
+        ),
+    )
+
+    assert _resolve_default_source("akshare", environment="production") == "tushare"
+
+
+def test_runtime_default_source_keeps_owner_compatibility_on_invalid_value(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "core.integration.config_center_runtime.get_active_runtime_value",
+        lambda **_: "legacy",
+    )
+
+    assert _resolve_default_source("akshare", environment="development") == "akshare"
 
 
 def test_runtime_failover_tolerance_keeps_owner_compatibility_on_missing_profile(

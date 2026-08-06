@@ -113,6 +113,9 @@ class ConfigCenterSettingsRepository:
 
         provider = get_provider_settings_payload()
         return {
+            "data_center.provider.default_source": str(
+                provider.get("default_source") or "akshare"
+            ),
             "data_center.provider.failover_tolerance": provider.get("failover_tolerance"),
             "data_center.provider.enable_failover": provider.get("enable_failover"),
             "alpha.qlib.enabled": bool(settings_obj.qlib_enabled),

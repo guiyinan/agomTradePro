@@ -9,6 +9,7 @@ import pytest
 
 from apps.data_center.application import interface_services
 from apps.data_center.domain.entities import DataProviderSettings, ProviderConfig
+from apps.data_center.infrastructure import config_summary_repository
 
 
 def _provider() -> ProviderConfig:
@@ -53,30 +54,23 @@ def test_dynamic_runtime_wrappers_fail_closed(
 def test_provider_settings_save_returns_persisted_projection(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    saved: list[DataProviderSettings] = []
+    saved = DataProviderSettings(
+        default_source="akshare",
+        enable_failover=True,
+        failover_tolerance=0.01,
+    )
     monkeypatch.setattr(
         interface_services,
         "DataProviderSettingsRepository",
         lambda: SimpleNamespace(
-            load=lambda: DataProviderSettings(
-                default_source="akshare",
-                enable_failover=True,
-                failover_tolerance=0.01,
-            ),
-            save_default_source=lambda default_source: saved.append(
-                DataProviderSettings(
-                    default_source=default_source,
-                    enable_failover=True,
-                    failover_tolerance=0.01,
-                )
-            )
-            or saved[-1],
+            load_for_read=lambda: saved,
         ),
     )
+    runtime_patches: list[dict[str, object]] = []
     monkeypatch.setattr(
         interface_services,
         "activate_runtime_profile_patch",
-        lambda **_kwargs: {"profile_version": 1},
+        lambda **kwargs: runtime_patches.append(dict(kwargs["patch"])) or {"profile_version": 1},
     )
     monkeypatch.setattr(interface_services, "get_active_runtime_value", lambda **_kwargs: None)
     payload = interface_services.save_provider_settings_payload(
@@ -88,6 +82,98 @@ def test_provider_settings_save_returns_persisted_projection(
         "default_source": "akshare",
         "enable_failover": True,
         "failover_tolerance": 0.01,
+    }
+    assert runtime_patches == [
+        {
+            "data_center.provider.default_source": "akshare",
+            "data_center.provider.enable_failover": True,
+            "data_center.provider.failover_tolerance": 0.01,
+        }
+    ]
+
+
+def test_provider_settings_payload_prefers_typed_default_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        interface_services,
+        "DataProviderSettingsRepository",
+        lambda: SimpleNamespace(
+            load_for_read=lambda: DataProviderSettings(
+                default_source="akshare",
+                enable_failover=True,
+                failover_tolerance=0.01,
+            )
+        ),
+    )
+    values = {
+        "data_center.provider.default_source": "tushare",
+        "data_center.provider.enable_failover": False,
+        "data_center.provider.failover_tolerance": 0.025,
+    }
+    monkeypatch.setattr(
+        interface_services,
+        "get_active_runtime_value",
+        lambda *, definition_key, environment: values.get(definition_key),
+    )
+
+    assert interface_services.load_provider_settings_payload() == {
+        "default_source": "tushare",
+        "enable_failover": False,
+        "failover_tolerance": 0.025,
+    }
+
+
+def test_provider_summary_prefers_typed_provider_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Rows:
+        def values(self, *_fields: str) -> list[dict[str, object]]:
+            return []
+
+    monkeypatch.setattr(
+        config_summary_repository,
+        "DataProviderSettingsModel",
+        SimpleNamespace(
+            load_for_read=lambda: SimpleNamespace(
+                default_source="akshare",
+                enable_failover=True,
+                failover_tolerance=0.01,
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        config_summary_repository,
+        "ProviderConfigModel",
+        SimpleNamespace(_default_manager=SimpleNamespace(all=lambda: _Rows())),
+    )
+    monkeypatch.setattr(
+        config_summary_repository,
+        "_resolve_default_source",
+        lambda *_args, **_kwargs: "tushare",
+    )
+    monkeypatch.setattr(
+        config_summary_repository,
+        "_resolve_failover_enabled",
+        lambda *_args, **_kwargs: False,
+    )
+    monkeypatch.setattr(
+        config_summary_repository,
+        "_resolve_failover_tolerance",
+        lambda *_args, **_kwargs: 0.025,
+    )
+
+    summary = (
+        config_summary_repository.DjangoDataCenterConfigSummaryRepository().get_provider_summary()
+    )
+
+    assert summary["summary"] == {
+        "message": "当前没有配置 Provider 记录。",
+        "total_providers": 0,
+        "active_providers": 0,
+        "default_source": "tushare",
+        "enable_failover": False,
+        "failover_tolerance": 0.025,
+        "custom_http_url_count": 0,
+        "missing_api_key_count": 0,
     }
 
 

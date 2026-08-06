@@ -4452,3 +4452,40 @@ Git SHA / 镜像 / migration：
 - 变更：`QlibModelRegistryAdmin._run_validation()` 的 runtime 异常分支现在清空数据路径并发布不可用检查结果，不再从旧 settings/default URI 补值；模型验证不会因读取异常触碰本地 Qlib 目录。
 - 测试与治理：新增 AST guard 断言该验证函数不包含默认 Qlib 路径或旧 settings fallback；Admin guard `1 passed`，Ruff/Black 通过，runtime contract 将 Admin consumer/test 登记到 Alpha Qlib enabled/provider URI 定义。
 - 明确未做：未改动模型导入存储根目录、Qlib 训练/推理算法、显式维护入口或生产 profile，未执行 PostgreSQL/观察窗口/M9/M10 或部署；不 push、不部署。
+
+## 96. 2026-08-06：Data Center 默认 Provider 迁移 typed Profile
+
+- 目标：消除 `DataProviderSettingsModel.default_source` 作为运行时主读写真源的旁路，使 Provider API、配置摘要和宏观 failover adapter 统一读取 Config Center typed snapshot。
+- 变更：新增 `data_center.provider.default_source` enum runtime definition；Provider 设置保存将 source、failover 开关和容差作为同一 typed patch 版本化激活，不再回写旧 singleton 的 `default_source`；payload、配置摘要和 failover adapter 优先读取 typed source，只有 profile 缺失/非法时才使用已登记的 owner compatibility 值。Data Center Admin 移除 `default_source` 旧写字段，改为 typed source 只读摘要；domain 对 source choices 做显式校验。旧 repository/model 的 `load()`、`save_default_source()` 兼容写入入口一并移除，保留只读 compatibility projection。
+- 测试与治理：补充 runtime definition、source resolver、Provider 保存 patch、Admin 只读切换和未知 source fail-closed 回归；`runtime_config_contracts.json` 登记 source consumer、fallback 和测试。
+- 明确未做：未删除 DataProviderSettings 兼容列、未迁移 Provider credentials/其他 Data Center 参数、未初始化生产 profile、未执行 PostgreSQL/备份恢复/观察窗口/M9/M10 或部署；不 push、不部署。
+
+## 97. 2026-08-06：Qlib Admin 模型存储根目录切换 typed Runtime
+
+- 目标：补齐 Qlib Admin 模型上传这一条运行时路径，禁止在缺少 Config Center typed Qlib snapshot 时从 `QLIB_SETTINGS` 或 `/models/qlib` 猜测模型存储根目录。
+- 变更：`QlibModelRegistryAdmin._model_root()` 只接受 typed runtime 的非空 `model_path`，blocked/缺失/不完整配置统一抛出 `runtime_config_snapshot_unavailable`；移除 Admin 侧旧 `_qlib_settings_mapping()` 读取边界，上传入口将该阻断转成表单错误，不创建 artifact 或模型记录。
+- 测试与治理：更新模型导入/验证 fixture 显式注入 typed `model_path`；新增 blocked storage guard，`runtime_config_contracts.json` 为 `alpha.qlib.model_path` 登记 Admin consumer/test。
+- 明确未做：未改动 Qlib 模型算法、训练/推理数据路径、模型激活策略、生产 profile 初始化、PostgreSQL/备份恢复/观察窗口/M9/M10 或部署；不 push、不部署。
+
+## 98. 2026-08-06：Qlib Runtime 路径解析收敛到统一 typed 边界
+
+- 根因：此前多个 Qlib 消费者在收到“enabled”后各自对缺失 `provider_uri/model_path` 做默认补值，形成同一配置缺失在不同入口产生不同结果的双真源旁路。
+- 变更：`qlib_runtime_init._require_usable_qlib_runtime()` 成为统一 provider URI 可用性门；日历探测、预测、训练和 Alpha Service 注册均不再补 `~/.qlib/qlib_data/cn_data` 或 `/models/qlib`；Qlib Provider 构造在缺少 typed path 时读取 typed runtime，仍不完整则 fail closed；维护命令移除无效默认 URI 常量。
+- 测试与治理：补充 Provider typed-path 构造阻断、任务 fixture 显式路径和运行时边界回归；`runtime_config_contracts.json` 登记 provider/model path consumer/test。Qlib runtime/T3B 定向回归 `43 passed`，mypy/Ruff 通过。
+- 明确未做：未删除 `core.settings.base.QLIB_SETTINGS` 兼容配置声明（仅保留模型/迁移兼容用途待后续 M9），未初始化生产 profile、未执行 PostgreSQL/备份恢复/观察窗口/M9/M10 或部署；不 push、不部署。
+
+## 99. 2026-08-06：Qlib 运行入口一次登记并接入 CI 防漏门
+
+- 目标：防止只修单个调用点而遗漏任务、Admin、readiness、TUI、维护命令或旧脚本旁路。
+- 变更：新增 `governance/qlib_runtime_entrypoints.json`，登记 Config Center typed source、Alpha runtime/provider/task/service、维护命令、Admin、readiness、TUI 以及 legacy compatibility/script 入口，共 31 项；新增 `scripts/check_qlib_runtime_entrypoints.py` 校验文件/符号存在，并拒绝已标记 blocked 的消费者重新出现默认 Qlib 路径、`QLIB_SETTINGS` 或 `SystemSettingsModel.get_runtime_qlib_config`。CI fast-feedback 与 consistency workflow 均执行该 guard。
+- 测试与治理：入口清单 guard `31 entries validated`；readiness 回归 `30 passed`，Qlib 集成 `29 passed`，Alpha/T3B/Qlib 定向回归 `44 passed`；后续新增 Qlib 入口必须先登记 inventory 再合并。
+- 变更补充：历史 `scripts/train_qlib_model.py` 已收编为只转发 `manage.py train_qlib_model` 的 compatibility wrapper，不再直接读取 SystemSettings、初始化 Qlib 或写模型注册表。
+- 明确未做：legacy `scripts/prepare_qlib_training_data.py`、`core.settings.base.QLIB_SETTINGS` 和 SystemSettings Qlib compatibility getter 尚未删除，生产 profile/实际数据目录/PostgreSQL/备份恢复/观察窗口/M9/M10 仍待受控阶段；不 push、不部署。
+
+## 100. 2026-08-06：修复长驻进程 Qlib 旧绑定与显式维护目录混用
+
+- 根因：此前 Qlib 推理、日历和 Provider freshness 各自用一次性布尔标记缓存 `qlib.init()`；运行时 Profile 切换 provider URI/region 后，Celery/长驻进程仍可能继续读旧 provider。`init_qlib_data --provider-uri` 还会用显式目录初始化，却调用无参数日历 helper 回读 typed runtime 目录，造成同一次维护任务的来源不一致。
+- 变更：新增统一 `initialize_qlib_runtime(provider_uri, region)`，以规范化 provider URI + region 作为进程级绑定键，绑定变化时重新初始化；推理、训练、日历、Provider freshness 和维护命令统一复用该边界。数据刷新后由统一 reset 清掉绑定，保证新写入数据可见。维护命令的显式 provider override 改用 path-specific calendar helper，不再混用 typed runtime 日历。
+- 治理：入口 inventory 从 31 项扩展为 47 项，补齐 application facade、runtime payload、Admin training、HTTP/page、cold-start、账户兼容 Admin 和训练 runtime start/stop 脚本；guard 新增生产源码 `get_runtime_qlib_config` 读取文件覆盖扫描，漏登记直接失败，并改为完整符号标记校验。
+- 测试：Qlib runtime/command/provider 定向回归 `42 passed`，维护命令边界回归 `4 passed`，完整 Qlib integration `29 passed`，Qlib/config/readiness/task 组件联合回归 `75 passed`；current-data contracts `46 surface(s)`、入口 inventory `47 entries validated`、architecture boundary/audit 0、module-cycle 0、变更生产文件 mypy regression 0、governance consistency 0 violations。全仓 mypy ceiling 仍被工作区外部 Portfolio 变更的 2 条新增错误阻断，未纳入本次提交。
+- 明确未做：未删除 `core.settings.base.QLIB_SETTINGS`、SystemSettings Qlib compatibility getter、显式维护脚本及训练 runtime 兼容工作区；未初始化生产 profile、未执行 PostgreSQL/备份恢复/观察窗口/M9/M10、未 push、未部署。

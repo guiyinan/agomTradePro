@@ -35,6 +35,17 @@ DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
         user_impact="Disabling failover leaves only the configured primary provider.",
     ),
     RuntimeConfigDefinition(
+        key="data_center.provider.default_source",
+        namespace="data_center",
+        owner_app="data_center",
+        value_type=RuntimeValueType.ENUM,
+        constraints={"choices": ["akshare", "tushare", "failover"]},
+        criticality=RuntimeConfigCriticality.NORMAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="Primary macro data provider selected for the next data task.",
+        user_impact="Controls whether macro tasks start with AKShare, Tushare, or the failover chain.",
+    ),
+    RuntimeConfigDefinition(
         key="alpha.qlib.enabled",
         namespace="alpha",
         owner_app="alpha",

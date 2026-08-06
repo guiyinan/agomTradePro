@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
+from .macro_sources.failover_adapter import (
+    _resolve_default_source,
+    _resolve_failover_enabled,
+    _resolve_failover_tolerance,
+)
 from .models import DataProviderSettingsModel, ProviderConfigModel
 
 
@@ -14,6 +20,20 @@ class DjangoDataCenterConfigSummaryRepository:
         """Return provider configuration summary."""
 
         provider_settings = DataProviderSettingsModel.load_for_read()
+        module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
+        environment = "production" if module.endswith(".production") else "development"
+        default_source = _resolve_default_source(
+            provider_settings.default_source,
+            environment=environment,
+        )
+        enable_failover = _resolve_failover_enabled(
+            provider_settings.enable_failover,
+            environment=environment,
+        )
+        failover_tolerance = _resolve_failover_tolerance(
+            provider_settings.failover_tolerance,
+            environment=environment,
+        )
         rows = list(
             ProviderConfigModel._default_manager.all().values(
                 "source_type",
@@ -45,8 +65,9 @@ class DjangoDataCenterConfigSummaryRepository:
                     "message": "当前没有配置 Provider 记录。",
                     "total_providers": 0,
                     "active_providers": 0,
-                    "default_source": provider_settings.default_source,
-                    "enable_failover": provider_settings.enable_failover,
+                    "default_source": default_source,
+                    "enable_failover": enable_failover,
+                    "failover_tolerance": failover_tolerance,
                     "custom_http_url_count": 0,
                     "missing_api_key_count": 0,
                 },
@@ -58,8 +79,9 @@ class DjangoDataCenterConfigSummaryRepository:
                 "total_providers": len(rows),
                 "active_providers": len(active_rows),
                 "source_types": sorted({row["source_type"] for row in active_rows}),
-                "default_source": provider_settings.default_source,
-                "enable_failover": provider_settings.enable_failover,
+                "default_source": default_source,
+                "enable_failover": enable_failover,
+                "failover_tolerance": failover_tolerance,
                 "missing_api_key_count": missing_key_count,
                 "custom_http_url_count": custom_http_url_count,
             },

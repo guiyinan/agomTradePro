@@ -16,8 +16,10 @@ from django.utils import timezone
 
 from apps.alpha.infrastructure.qlib_runtime_init import (
     _get_runtime_qlib_config,
+    _initialize_qlib_runtime,
     _normalize_qlib_feature_set_id,
     _normalize_qlib_region,
+    _require_usable_qlib_runtime,
     _resolve_qlib_stock_list,
 )
 from apps.alpha.infrastructure.scientific_runtime import get_numpy, get_pandas
@@ -200,7 +202,7 @@ def _select_handler(
 def _train_qlib_model(
     model_type: str,
     train_config: Mapping[str, object],
-    model_path: str = "/models/qlib",
+    model_path: str | None = None,
 ) -> _QlibModel:
     """Train a supported Qlib model using an independent validation segment."""
 
@@ -219,10 +221,15 @@ def _train_qlib_model(
         qlib_config = _get_runtime_qlib_config()
         if not qlib_config.get("enabled"):
             raise ValueError("Qlib 未启用，请先在系统配置中启用 Qlib")
+        _require_usable_qlib_runtime(qlib_config)
 
-        provider_uri = str(qlib_config.get("provider_uri") or "~/.qlib/qlib_data/cn_data")
+        provider_uri = str(qlib_config["provider_uri"])
         region = _normalize_qlib_region(str(qlib_config.get("region") or "CN"))
-        qlib.init(provider_uri=provider_uri, region=region)
+        _initialize_qlib_runtime(
+            provider_uri=provider_uri,
+            region=region,
+            qlib_module=qlib,
+        )
 
         start_dt, valid_start, end_dt = _parse_training_period(train_config, pd)
         universe = str(train_config.get("universe") or "csi300")

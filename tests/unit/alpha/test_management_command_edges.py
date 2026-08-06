@@ -180,6 +180,7 @@ def test_init_qlib_data_orchestration_and_integrity_boundaries(monkeypatch, tmp_
     monkeypatch.setattr(
         "core.integration.runtime_settings.get_runtime_qlib_config",
         lambda: {
+            "enabled": True,
             "region": "CN",
             "provider_uri": str(tmp_path),
             "default_universe": "csi500",
@@ -273,7 +274,12 @@ def test_init_qlib_data_orchestration_and_integrity_boundaries(monkeypatch, tmp_
 
     monkeypatch.setattr(
         "core.integration.runtime_settings.get_runtime_qlib_config",
-        lambda: {"region": "CN", "provider_uri": {"unsafe": "path"}, "default_universe": "csi300"},
+        lambda: {
+            "enabled": True,
+            "region": "CN",
+            "provider_uri": {"unsafe": "path"},
+            "default_universe": "csi300",
+        },
     )
     with pytest.raises(CommandError, match="provider_uri"):
         command.handle(
@@ -288,6 +294,7 @@ def test_init_qlib_data_orchestration_and_integrity_boundaries(monkeypatch, tmp_
     monkeypatch.setattr(
         "core.integration.runtime_settings.get_runtime_qlib_config",
         lambda: {
+            "enabled": True,
             "region": "CN",
             "provider_uri": str(tmp_path),
             "default_universe": "csi300",
@@ -365,6 +372,7 @@ def test_init_qlib_data_propagates_region_and_rejects_empty_features(
 
     runtime = _Runtime()
     data = _Data()
+    latest_date_calls: list[tuple[str, str]] = []
     command = init_qlib_data.Command(stdout=StringIO())
     monkeypatch.setattr(command, "_load_qlib_components", lambda: (runtime, data))
     monkeypatch.setattr(
@@ -372,13 +380,16 @@ def test_init_qlib_data_propagates_region_and_rejects_empty_features(
         lambda *_args, **_kwargs: ["000001.SZ"],
     )
     monkeypatch.setattr(
-        "apps.alpha.application.tasks._get_qlib_data_latest_date",
-        lambda: date(2026, 7, 24),
+        "apps.alpha.application.tasks._get_qlib_data_latest_date_for_provider",
+        lambda provider_uri, region: latest_date_calls.append((provider_uri, region))
+        or date(2026, 7, 24),
     )
 
     assert command._check_data_integrity(tmp_path, "csi300", "US") is True
     assert runtime.calls[-1]["region"] == "us"
+    assert latest_date_calls[-1] == (str(tmp_path), "US")
 
     data.empty = True
     assert command._prepare_universe_data(tmp_path, "csi300", 30, "US") is False
     assert runtime.calls[-1]["region"] == "us"
+    assert latest_date_calls[-1] == (str(tmp_path), "US")

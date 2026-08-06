@@ -61,11 +61,9 @@ class ProviderConfigRepositoryProtocol(Protocol):
 
 @runtime_checkable
 class DataProviderSettingsRepositoryProtocol(Protocol):
-    """Persistence contract for global provider settings (singleton)."""
+    """Read contract for the legacy provider-settings compatibility projection."""
 
-    def load(self) -> DataProviderSettings: ...
     def load_for_read(self) -> DataProviderSettings: ...
-    def save(self, settings: DataProviderSettings) -> DataProviderSettings: ...
 
 
 @runtime_checkable

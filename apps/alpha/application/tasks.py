@@ -51,6 +51,9 @@ from apps.alpha.application.repository_provider import (
     get_qlib_data_latest_date as _get_qlib_data_latest_date,
 )
 from apps.alpha.application.repository_provider import (
+    get_qlib_data_latest_date_for_provider as _get_qlib_data_latest_date_for_provider,
+)
+from apps.alpha.application.repository_provider import (
     get_qlib_model_registry_repository,
 )
 from apps.alpha.application.repository_provider import (
@@ -79,6 +82,12 @@ from apps.alpha.application.repository_provider import (
     normalize_reused_scores as _normalize_reused_scores,
 )
 from apps.alpha.application.repository_provider import parse_universe_list as _parse_universe_list
+from apps.alpha.application.repository_provider import (
+    require_usable_qlib_runtime as _require_usable_qlib_runtime,
+)
+from apps.alpha.application.repository_provider import (
+    reset_qlib_runtime_binding as _reset_qlib_runtime_binding,
+)
 from apps.alpha.application.repository_provider import (
     resolve_effective_trade_date,
 )
@@ -113,6 +122,7 @@ __all__ = [
     "_extract_model_filename",
     "_find_broader_qlib_cache_for_scope",
     "_get_qlib_data_latest_date",
+    "_get_qlib_data_latest_date_for_provider",
     "_get_runtime_qlib_config",
     "_install_qlib_pandas_compat",
     "_make_json_safe",
@@ -155,18 +165,6 @@ def _make_json_safe(value: Any) -> Any:
     return serializer(value)
 
 
-def _require_usable_qlib_runtime(runtime_config: dict[str, Any]) -> None:
-    """Fail closed before training when Config Center runtime evidence is unusable."""
-
-    if runtime_config.get("enabled") is True and not runtime_config.get(
-        "must_not_use_for_decision",
-        False,
-    ):
-        return
-    reason = str(runtime_config.get("blocked_reason") or "runtime_config_unavailable")
-    raise RuntimeError(f"Qlib runtime blocked: {reason}")
-
-
 class _PredictionProxy(Protocol):
     """Typed prediction proxy with the legacy implementation marker."""
 
@@ -194,6 +192,7 @@ _execute_qlib_prediction.runtime_implementation = _execute_qlib_prediction_runti
 
 def _reset_qlib_runtime_state() -> None:
     """Clear one-process qlib init markers so refreshed day data becomes visible immediately."""
+    _reset_qlib_runtime_binding()
     for func in (
         _get_qlib_data_latest_date,
         _execute_qlib_prediction,
@@ -584,9 +583,9 @@ def qlib_train_model(
         # 解析训练配置
         universe = train_config.get("universe") or runtime_qlib.get("default_universe", "csi300")
         end_date = train_config.get("end_date")
-        model_path = train_config.get("model_path") or runtime_qlib.get(
-            "model_path", "/models/qlib"
-        )
+        model_path = train_config.get("model_path") or runtime_qlib.get("model_path")
+        if not isinstance(model_path, str) or not model_path.strip():
+            raise RuntimeError("Qlib runtime blocked: runtime_config_snapshot_unavailable")
         if "activate" in train_config:
             activate_after_train = bool(train_config.get("activate", False))
         else:

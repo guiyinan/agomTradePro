@@ -13,7 +13,6 @@ from apps.alpha.infrastructure.qlib_builder import (
 )
 from core.integration.runtime_settings import get_runtime_qlib_config
 
-_DEFAULT_PROVIDER_URI = "~/.qlib/qlib_data/cn_data"
 _DEFAULT_REGION = "cn"
 _DEFAULT_UNIVERSES = "csi300,csi500,sse50,csi1000"
 _UNIVERSE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")

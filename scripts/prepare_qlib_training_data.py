@@ -35,72 +35,58 @@ sys.path.insert(0, str(project_root))
 
 # 配置日志
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
 def parse_arguments():
     """解析命令行参数"""
-    parser = argparse.ArgumentParser(
-        description='Prepare Qlib training data from Tushare/AKShare'
-    )
+    parser = argparse.ArgumentParser(description="Prepare Qlib training data from Tushare/AKShare")
 
     parser.add_argument(
-        '--universe',
+        "--universe",
         type=str,
-        default='csi300',
-        choices=['csi300', 'csi500', 'sse50', 'csi1000'],
-        help='Stock universe (default: csi300)'
+        default="csi300",
+        choices=["csi300", "csi500", "sse50", "csi1000"],
+        help="Stock universe (default: csi300)",
     )
 
     parser.add_argument(
-        '--start-date',
+        "--start-date",
         type=str,
-        default='2020-01-01',
-        help='Start date (YYYY-MM-DD format, default: 2020-01-01)'
+        default="2020-01-01",
+        help="Start date (YYYY-MM-DD format, default: 2020-01-01)",
     )
 
     parser.add_argument(
-        '--end-date',
+        "--end-date",
         type=str,
         default=None,
-        help='End date (YYYY-MM-DD format, default: yesterday)'
+        help="End date (YYYY-MM-DD format, default: yesterday)",
     )
 
     parser.add_argument(
-        '--source',
+        "--source",
         type=str,
-        default='tushare',
-        choices=['tushare', 'akshare'],
-        help='Data source (default: tushare)'
+        default="tushare",
+        choices=["tushare", "akshare"],
+        help="Data source (default: tushare)",
     )
 
     parser.add_argument(
-        '--output-dir',
+        "--output-dir",
         type=str,
-        default='~/.qlib/qlib_data/cn_data',
-        help='Output directory for Qlib data (default: ~/.qlib/qlib_data/cn_data)'
+        required=True,
+        help="Explicit output directory for Qlib data; no legacy default path is used",
     )
 
-    parser.add_argument(
-        '--config',
-        type=str,
-        default=None,
-        help='Path to feature config YAML file'
-    )
+    parser.add_argument("--config", type=str, default=None, help="Path to feature config YAML file")
+
+    parser.add_argument("--force", action="store_true", help="Force overwrite existing data")
 
     parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Force overwrite existing data'
-    )
-
-    parser.add_argument(
-        '--check',
-        action='store_true',
-        help='Check existing data without downloading'
+        "--check", action="store_true", help="Check existing data without downloading"
     )
 
     return parser.parse_args()
@@ -118,26 +104,26 @@ def check_qlib_data(output_dir: str) -> dict:
     """
     output_path = Path(output_dir).expanduser()
     result = {
-        'exists': output_path.exists(),
-        'has_stocks': False,
-        'has_features': False,
-        'stock_count': 0,
-        'date_range': None,
+        "exists": output_path.exists(),
+        "has_stocks": False,
+        "has_features": False,
+        "stock_count": 0,
+        "date_range": None,
     }
 
-    if not result['exists']:
+    if not result["exists"]:
         return result
 
     # 检查 stocks 目录
-    stocks_dir = output_path / 'stocks'
+    stocks_dir = output_path / "stocks"
     if stocks_dir.exists():
-        result['has_stocks'] = True
-        result['stock_count'] = len(list(stocks_dir.glob('*.csv')))
+        result["has_stocks"] = True
+        result["stock_count"] = len(list(stocks_dir.glob("*.csv")))
 
     # 检查 features 目录
-    features_dir = output_path / 'features'
+    features_dir = output_path / "features"
     if features_dir.exists():
-        result['has_features'] = True
+        result["has_features"] = True
 
     return result
 
@@ -154,10 +140,10 @@ def load_stock_codes(universe: str) -> list:
     """
     # 股票池映射
     universe_map = {
-        'csi300': '000300.SH',
-        'csi500': '000905.SH',
-        'sse50': '000016.SH',
-        'csi1000': '000852.SH',
+        "csi300": "000300.SH",
+        "csi500": "000905.SH",
+        "sse50": "000016.SH",
+        "csi1000": "000852.SH",
     }
 
     index_code = universe_map.get(universe)
@@ -173,28 +159,22 @@ def load_stock_codes(universe: str) -> list:
         pro = ts.pro_api()
 
         # 获取指数成分股
-        df = pro.index_weight(
-            index_code=index_code,
-            start_date='20200101'
-        )
+        df = pro.index_weight(index_code=index_code, start_date="20200101")
 
         if df is None or df.empty:
             # 使用最新日期
-            latest_date = datetime.now().strftime('%Y%m%d')
-            df = pro.index_weight(
-                index_code=index_code,
-                start_date=latest_date
-            )
+            latest_date = datetime.now().strftime("%Y%m%d")
+            df = pro.index_weight(index_code=index_code, start_date=latest_date)
 
         if df is not None and not df.empty:
-            stock_codes = df['con_code'].unique().tolist()
+            stock_codes = df["con_code"].unique().tolist()
             # 转换为 Qlib 格式 (例如: 000001.SZ)
             qlib_codes = []
             for code in stock_codes:
-                if code.endswith('.SH'):
-                    qlib_codes.append(code.replace('.SH', '.SH'))
-                elif code.endswith('.SZ'):
-                    qlib_codes.append(code.replace('.SZ', '.SZ'))
+                if code.endswith(".SH"):
+                    qlib_codes.append(code.replace(".SH", ".SH"))
+                elif code.endswith(".SZ"):
+                    qlib_codes.append(code.replace(".SZ", ".SZ"))
 
             logger.info(f"加载 {universe} 股票池: {len(qlib_codes)} 只股票")
             return qlib_codes
@@ -208,10 +188,7 @@ def load_stock_codes(universe: str) -> list:
 
 
 def fetch_daily_data(
-    stock_codes: list,
-    start_date: str,
-    end_date: str,
-    source: str = 'tushare'
+    stock_codes: list, start_date: str, end_date: str, source: str = "tushare"
 ) -> dict:
     """
     获取日线数据
@@ -229,9 +206,9 @@ def fetch_daily_data(
 
     logger.info(f"开始获取数据: {len(stock_codes)} 只股票, {start_date} 到 {end_date}")
 
-    if source == 'tushare':
+    if source == "tushare":
         data_map = _fetch_from_tushare(stock_codes, start_date, end_date)
-    elif source == 'akshare':
+    elif source == "akshare":
         data_map = _fetch_from_akshare(stock_codes, start_date, end_date)
     else:
         raise ValueError(f"不支持的数据源: {source}")
@@ -252,37 +229,35 @@ def _fetch_from_tushare(stock_codes: list, start_date: str, end_date: str) -> di
         pro = ts.pro_api()
 
         # 转换日期格式
-        start = start_date.replace('-', '')
-        end = end_date.replace('-', '')
+        start = start_date.replace("-", "")
+        end = end_date.replace("-", "")
 
         data_map = {}
         total = len(stock_codes)
 
         for i, code in enumerate(stock_codes):
             try:
-                df = pro.daily(
-                    ts_code=code,
-                    start_date=start,
-                    end_date=end
-                )
+                df = pro.daily(ts_code=code, start_date=start, end_date=end)
 
                 if df is not None and not df.empty:
                     # 重命名列
-                    df = df.rename(columns={
-                        'trade_date': 'date',
-                        'open': 'open',
-                        'high': 'high',
-                        'low': 'low',
-                        'close': 'close',
-                        'vol': 'volume',
-                        'amount': 'amount'
-                    })
+                    df = df.rename(
+                        columns={
+                            "trade_date": "date",
+                            "open": "open",
+                            "high": "high",
+                            "low": "low",
+                            "close": "close",
+                            "vol": "volume",
+                            "amount": "amount",
+                        }
+                    )
 
                     # 转换日期格式
-                    df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
+                    df["date"] = pd.to_datetime(df["date"], format="%Y%m%d")
 
                     # 按日期排序
-                    df = df.sort_values('date')
+                    df = df.sort_values("date")
 
                     data_map[code] = df
 
@@ -312,32 +287,34 @@ def _fetch_from_akshare(stock_codes: list, start_date: str, end_date: str) -> di
         for i, code in enumerate(stock_codes):
             try:
                 # 转换代码格式
-                symbol = code.replace('.SH', '').replace('.SZ', '')
+                symbol = code.replace(".SH", "").replace(".SZ", "")
                 df = ak.stock_zh_a_hist(
                     symbol=symbol,
                     period="daily",
-                    start_date=start_date.replace('-', ''),
-                    end_date=end_date.replace('-', ''),
-                    adjust="qfq"
+                    start_date=start_date.replace("-", ""),
+                    end_date=end_date.replace("-", ""),
+                    adjust="qfq",
                 )
 
                 if df is not None and not df.empty:
                     # 重命名列
-                    df = df.rename(columns={
-                        '日期': 'date',
-                        '开盘': 'open',
-                        '收盘': 'close',
-                        '最高': 'high',
-                        '最低': 'low',
-                        '成交量': 'volume',
-                        '成交额': 'amount'
-                    })
+                    df = df.rename(
+                        columns={
+                            "日期": "date",
+                            "开盘": "open",
+                            "收盘": "close",
+                            "最高": "high",
+                            "最低": "low",
+                            "成交量": "volume",
+                            "成交额": "amount",
+                        }
+                    )
 
                     # 选择需要的列
-                    df = df[['date', 'open', 'high', 'low', 'close', 'volume', 'amount']]
+                    df = df[["date", "open", "high", "low", "close", "volume", "amount"]]
 
                     # 按日期排序
-                    df = df.sort_values('date')
+                    df = df.sort_values("date")
 
                     data_map[code] = df
 
@@ -371,42 +348,42 @@ def calculate_features(df):
     df = df.copy()
 
     # 收益率
-    df['return_1d'] = df['close'].pct_change(1)
-    df['return_5d'] = df['close'].pct_change(5)
-    df['return_10d'] = df['close'].pct_change(10)
-    df['return_20d'] = df['close'].pct_change(20)
+    df["return_1d"] = df["close"].pct_change(1)
+    df["return_5d"] = df["close"].pct_change(5)
+    df["return_10d"] = df["close"].pct_change(10)
+    df["return_20d"] = df["close"].pct_change(20)
 
     # 移动平均
-    df['ma5'] = df['close'] / df['close'].rolling(5).mean() - 1
-    df['ma10'] = df['close'] / df['close'].rolling(10).mean() - 1
-    df['ma20'] = df['close'] / df['close'].rolling(20).mean() - 1
-    df['ma60'] = df['close'] / df['close'].rolling(60).mean() - 1
+    df["ma5"] = df["close"] / df["close"].rolling(5).mean() - 1
+    df["ma10"] = df["close"] / df["close"].rolling(10).mean() - 1
+    df["ma20"] = df["close"] / df["close"].rolling(20).mean() - 1
+    df["ma60"] = df["close"] / df["close"].rolling(60).mean() - 1
 
     # 波动率
-    df['volatility_5d'] = df['close'].rolling(5).std() / df['close']
-    df['volatility_20d'] = df['close'].rolling(20).std() / df['close']
+    df["volatility_5d"] = df["close"].rolling(5).std() / df["close"]
+    df["volatility_20d"] = df["close"].rolling(20).std() / df["close"]
 
     # 振幅
-    df['amplitude_20d'] = df['close'].rolling(20).max() / df['close'].rolling(20).min() - 1
+    df["amplitude_20d"] = df["close"].rolling(20).max() / df["close"].rolling(20).min() - 1
 
     # RSI
-    delta = df['close'].diff()
+    delta = df["close"].diff()
     gain = delta.where(delta > 0, 0)
     loss = -delta.where(delta < 0, 0)
     avg_gain = gain.rolling(14).mean()
     avg_loss = loss.rolling(14).mean()
     rs = avg_gain / avg_loss
-    df['rsi'] = 100 - (100 / (1 + rs))
+    df["rsi"] = 100 - (100 / (1 + rs))
 
     # MACD
-    exp1 = df['close'].ewm(span=12).mean()
-    exp2 = df['close'].ewm(span=26).mean()
-    df['macd'] = exp1 - exp2
-    df['macd_signal'] = df['macd'].ewm(span=9).mean()
+    exp1 = df["close"].ewm(span=12).mean()
+    exp2 = df["close"].ewm(span=26).mean()
+    df["macd"] = exp1 - exp2
+    df["macd_signal"] = df["macd"].ewm(span=9).mean()
 
     # 动量
-    df['momentum_5d'] = df['close'] / df['close'].shift(5) - 1
-    df['momentum_10d'] = df['close'] / df['close'].shift(10) - 1
+    df["momentum_5d"] = df["close"] / df["close"].shift(5) - 1
+    df["momentum_10d"] = df["close"] / df["close"].shift(10) - 1
 
     return df
 
@@ -423,7 +400,7 @@ def calculate_labels(df, horizon: int = 5):
         标签序列
     """
     # 未来收益率
-    labels = df['close'].shift(-horizon) / df['close'] - 1
+    labels = df["close"].shift(-horizon) / df["close"] - 1
     return labels
 
 
@@ -459,7 +436,7 @@ def main():
 
     # 设置结束日期
     if args.end_date is None:
-        end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        end_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
     else:
         end_date = args.end_date
 
@@ -488,10 +465,7 @@ def main():
 
     # 获取数据
     data_map = fetch_daily_data(
-        stock_codes=stock_codes,
-        start_date=args.start_date,
-        end_date=end_date,
-        source=args.source
+        stock_codes=stock_codes, start_date=args.start_date, end_date=end_date, source=args.source
     )
 
     if not data_map:
@@ -513,5 +487,5 @@ def main():
     logger.info(f"  股票数量: {len(data_map)}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

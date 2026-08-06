@@ -9,6 +9,7 @@ import math
 from collections.abc import Sequence
 from datetime import date
 
+from apps.data_center.domain.entities import DataProviderSettings
 from apps.data_center.domain.rules import macro_series_are_consistent
 from core.integration import config_center_runtime
 
@@ -22,6 +23,41 @@ logger = logging.getLogger(__name__)
 
 RUNTIME_FAILOVER_TOLERANCE_KEY = "data_center.provider.failover_tolerance"
 RUNTIME_FAILOVER_ENABLED_KEY = "data_center.provider.enable_failover"
+RUNTIME_DEFAULT_SOURCE_KEY = "data_center.provider.default_source"
+
+
+def _resolve_default_source(
+    persisted_source: str,
+    *,
+    environment: str,
+) -> str:
+    """Prefer the typed Config Center source while retaining an explicit owner fallback."""
+
+    try:
+        raw_value = config_center_runtime.get_active_runtime_value(
+            environment=environment,
+            definition_key=RUNTIME_DEFAULT_SOURCE_KEY,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Config Center default provider unavailable; using owner setting " "(error_type=%s)",
+            type(exc).__name__,
+        )
+        raw_value = None
+
+    if isinstance(raw_value, str) and raw_value in DataProviderSettings.SOURCE_CHOICES:
+        logger.info("Using Config Center default provider for environment %s", environment)
+        return raw_value
+
+    if raw_value is not None:
+        logger.error(
+            "Invalid Config Center default provider; using owner setting " "(value_type=%s)",
+            type(raw_value).__name__,
+        )
+    if persisted_source in DataProviderSettings.SOURCE_CHOICES:
+        return persisted_source
+    logger.error("Invalid owner default provider; using akshare compatibility value")
+    return "akshare"
 
 
 def _resolve_failover_tolerance(
@@ -428,7 +464,10 @@ def create_default_adapter(
             runtime_environment = (
                 "production" if not bool(getattr(settings, "DEBUG", True)) else "development"
             )
-            default_source = settings_obj.default_source
+            default_source = _resolve_default_source(
+                settings_obj.default_source,
+                environment=runtime_environment,
+            )
             enable_failover = _resolve_failover_enabled(
                 settings_obj.enable_failover,
                 environment=runtime_environment,

@@ -504,9 +504,9 @@ def refresh_provider_registry() -> ProviderRegistry:
 
 
 def load_data_provider_settings() -> DataProviderSettings:
-    """Load the singleton provider settings via the application boundary."""
+    """Read the provider compatibility projection without creating its singleton row."""
 
-    return get_data_provider_settings_repository().load()
+    return get_data_provider_settings_repository().load_for_read()
 
 
 def list_active_provider_configs() -> list[ProviderConfig]:

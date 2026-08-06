@@ -233,19 +233,6 @@ class DataProviderSettingsModel(models.Model):
         super().save(*args, **kwargs)
 
     @classmethod
-    def load(cls) -> "DataProviderSettingsModel":
-        """Return singleton, creating with defaults if absent."""
-        obj, _ = cls.objects.get_or_create(
-            pk=cls._SINGLETON_PK,
-            defaults={
-                "default_source": "akshare",
-                "enable_failover": True,
-                "failover_tolerance": 0.01,
-            },
-        )
-        return obj
-
-    @classmethod
     def load_for_read(cls) -> "DataProviderSettingsModel":
         """Return persisted settings or an unsaved in-memory default."""
 

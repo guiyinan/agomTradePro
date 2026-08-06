@@ -28,9 +28,7 @@ class _PickleablePredictor:
     def predict(self, dataset):
         import pandas as pd
 
-        return pd.Series(
-            {"SYNTH0001": 0.91, "SYNTH0002": 0.87, "SYNTH0003": 0.83}
-        )
+        return pd.Series({"SYNTH0001": 0.91, "SYNTH0002": 0.87, "SYNTH0003": 0.83})
 
 
 @pytest.mark.django_db
@@ -52,7 +50,7 @@ class TestQlibAlphaProvider:
 
     def test_provider_properties(self):
         """测试 Provider 属性"""
-        provider = QlibAlphaProvider()
+        provider = QlibAlphaProvider(provider_uri=".", model_path=".")
 
         assert provider.name == "qlib"
         assert provider.priority == 1
@@ -60,29 +58,29 @@ class TestQlibAlphaProvider:
 
     def test_supports_common_universes(self):
         """测试支持的股票池"""
-        provider = QlibAlphaProvider()
+        provider = QlibAlphaProvider(provider_uri=".", model_path=".")
 
         assert provider.supports("csi300")
         assert provider.supports("csi500")
         assert provider.supports("sse50")
 
-    @patch('apps.alpha.infrastructure.adapters.qlib_adapter.Path')
+    @patch("apps.alpha.infrastructure.adapters.qlib_adapter.Path")
     def test_health_check_no_data_dir(self, mock_path):
         """测试健康检查 - 数据目录不存在"""
         mock_path.return_value.expanduser.return_value.exists.return_value = False
 
-        provider = QlibAlphaProvider()
+        provider = QlibAlphaProvider(provider_uri=".", model_path=".")
         status = provider.health_check()
 
         # 应该返回 UNAVAILABLE 或 DEGRADED（取决于是否有激活模型）
         assert status in [AlphaProviderStatus.UNAVAILABLE, AlphaProviderStatus.DEGRADED]
 
-    @patch('apps.alpha.infrastructure.adapters.qlib_adapter.Path')
+    @patch("apps.alpha.infrastructure.adapters.qlib_adapter.Path")
     def test_health_check_data_dir_exists(self, mock_path):
         """测试健康检查 - 数据目录存在"""
         mock_path.return_value.expanduser.return_value.exists.return_value = True
 
-        provider = QlibAlphaProvider()
+        provider = QlibAlphaProvider(provider_uri=".", model_path=".")
         status = provider.health_check()
 
         # 可能是 AVAILABLE（如果有激活模型且有缓存）
@@ -90,12 +88,12 @@ class TestQlibAlphaProvider:
         assert status in [
             AlphaProviderStatus.AVAILABLE,
             AlphaProviderStatus.DEGRADED,
-            AlphaProviderStatus.UNAVAILABLE
+            AlphaProviderStatus.UNAVAILABLE,
         ]
 
     def test_get_stock_scores_no_cache(self):
         """测试获取股票评分 - 缓存未命中"""
-        provider = QlibAlphaProvider()
+        provider = QlibAlphaProvider(provider_uri=".", model_path=".")
         result = provider.get_stock_scores("csi300", date.today())
 
         # 第一次调用应该返回 degraded（触发异步任务）
@@ -115,7 +113,7 @@ class TestQlibAlphaProvider:
         }
         mock_apply_async.return_value = Mock(id="task-123")
 
-        provider = QlibAlphaProvider()
+        provider = QlibAlphaProvider(provider_uri=".", model_path=".")
         provider._trigger_infer_task("csi300", date(2026, 2, 5), 10)
 
         _, kwargs = mock_apply_async.call_args
@@ -143,7 +141,7 @@ class TestQlibAlphaProvider:
             status="available",
             metadata={"asof_date": "2026-02-05"},
         )
-        provider = QlibAlphaProvider()
+        provider = QlibAlphaProvider(provider_uri=".", model_path=".")
         trade_date = date(2026, 2, 6)
         pool_scope = self._small_pool_scope(trade_date)
 
@@ -179,7 +177,7 @@ class TestQlibAlphaProvider:
         mock_task_result.failed.return_value = False
         mock_apply.return_value = mock_task_result
 
-        provider = QlibAlphaProvider()
+        provider = QlibAlphaProvider(provider_uri=".", model_path=".")
         trade_date = date(2026, 2, 7)
         pool_scope = self._small_pool_scope(trade_date)
         with patch.object(provider, "_get_from_cache", return_value=None):
@@ -204,7 +202,7 @@ class TestQlibAlphaProvider:
     ):
         """全市场请求没有 worker 时不能卡住前台请求。"""
         mock_current_app.control.inspect.return_value.active_queues.return_value = None
-        provider = QlibAlphaProvider()
+        provider = QlibAlphaProvider(provider_uri=".", model_path=".")
 
         with patch.object(provider, "_get_from_cache", return_value=None):
             result = provider.get_stock_scores("csi300", date(2026, 2, 8), 10)
@@ -275,7 +273,7 @@ class TestQlibAlphaProvider:
             },
         )
 
-        provider = QlibAlphaProvider()
+        provider = QlibAlphaProvider(provider_uri=".", model_path=".")
         result = provider.get_stock_scores("csi300", date.today(), top_n=3)
 
         assert result.status == "degraded"
@@ -314,20 +312,21 @@ class TestQlibCeleryTasks:
         scores = []
         for i in range(1, top_n + 1):
             score = 1.0 - (i * 0.01)
-            scores.append({
-                "code": f"SYNTH{i:04d}",
-                "score": float(score),
-                "rank": i,
-                "factors": {},
-                "source": "qlib",
-                "confidence": 0.8,
-            })
+            scores.append(
+                {
+                    "code": f"SYNTH{i:04d}",
+                    "score": float(score),
+                    "rank": i,
+                    "factors": {},
+                    "source": "qlib",
+                    "confidence": 0.8,
+                }
+            )
         return scores
 
     @pytest.mark.optional_runtime
     @pytest.mark.skipif(
-        os.environ.get('CI') == 'true',
-        reason="Skip in CI - requires Celery worker"
+        os.environ.get("CI") == "true", reason="Skip in CI - requires Celery worker"
     )
     @patch("apps.alpha.application.tasks._get_qlib_data_latest_date")
     @patch("apps.alpha.application.tasks._execute_qlib_prediction")
@@ -701,7 +700,7 @@ class TestQlibModelRegistry:
             data_version="2026.02.05",
             ic=0.05,
             icir=0.8,
-            model_path="/models/qlib/test_model/abc123/model.pkl"
+            model_path="/models/qlib/test_model/abc123/model.pkl",
         )
 
         assert model.model_name == "test_model"
@@ -721,7 +720,7 @@ class TestQlibModelRegistry:
             label_id="return_5d",
             data_version="2026.02.01",
             model_path="/models/v1.pkl",
-            is_active=True
+            is_active=True,
         )
 
         model2 = QlibModelRegistryModel.objects.create(
@@ -734,7 +733,7 @@ class TestQlibModelRegistry:
             label_id="return_5d",
             data_version="2026.02.05",
             model_path="/models/v2.pkl",
-            is_active=False
+            is_active=False,
         )
 
         # 激活 model2
@@ -760,7 +759,7 @@ class TestQlibModelRegistry:
             feature_set_id="v1",
             label_id="return_5d",
             data_version="2026.02.05",
-            model_path="/models/active.pkl"
+            model_path="/models/active.pkl",
         )
         model.activate()
 
@@ -784,7 +783,7 @@ class TestAlphaScoreCacheWithQlib:
                 "rank": 1,
                 "factors": {"momentum": 0.7},
                 "source": "qlib",
-                "confidence": 0.8
+                "confidence": 0.8,
             }
         ]
 
@@ -799,7 +798,7 @@ class TestAlphaScoreCacheWithQlib:
             label_id="return_5d",
             data_version="2026.02.05",
             scores=scores_data,
-            status="available"
+            status="available",
         )
 
         assert cache.universe_id == "csi300"
@@ -822,7 +821,7 @@ class TestAlphaScoreCacheWithQlib:
             label_id="return_5d",
             data_version="2026.02.05",
             scores=[],
-            status="available"
+            status="available",
         )
 
         # 检查是否过期
@@ -853,9 +852,9 @@ class TestQlibIntegrationWithAlphaService:
         if qlib_installed and "qlib" in provider_names:
             assert True  # qlib 已安装且已注册
         elif not qlib_installed:
-            assert "qlib" not in provider_names, (
-                "qlib provider should not be registered when qlib is not installed"
-            )
+            assert (
+                "qlib" not in provider_names
+            ), "qlib provider should not be registered when qlib is not installed"
 
     def test_qlib_provider_priority(self):
         """测试 Qlib Provider 优先级最高（仅在 qlib 可用时）"""
@@ -871,7 +870,7 @@ class TestQlibIntegrationWithAlphaService:
         """测试降级链路包含 Qlib"""
         registry = AlphaProviderRegistry()
 
-        qlib_provider = QlibAlphaProvider()
+        qlib_provider = QlibAlphaProvider(provider_uri=".", model_path=".")
         registry.register(qlib_provider)
 
         providers = registry.get_all_providers()
@@ -885,10 +884,7 @@ class TestQlibEndToEnd:
     """Qlib 端到端测试"""
 
     @pytest.mark.optional_runtime
-    @pytest.mark.skipif(
-        not importlib.util.find_spec("qlib"),
-        reason="qlib not installed"
-    )
+    @pytest.mark.skipif(not importlib.util.find_spec("qlib"), reason="qlib not installed")
     @patch("apps.alpha.application.tasks._build_outdated_qlib_reason", return_value=None)
     @patch("qlib.data.D")
     @patch("qlib.data.dataset.DatasetH", autospec=True)
@@ -972,10 +968,7 @@ class TestQlibEndToEnd:
 
         # 执行预测（会使用模拟数据）
         scores = _execute_qlib_prediction(
-            active_model=model,
-            universe_id="csi300",
-            trade_date=date.today(),
-            top_n=10
+            active_model=model, universe_id="csi300", trade_date=date.today(), top_n=10
         )
 
         # 应该返回模拟数据
@@ -1025,19 +1018,14 @@ class TestQlibManagementCommands:
 
         # 使用 --check 选项
         try:
-            call_command(
-                'init_qlib_data',
-                '--check',
-                stdout=out
-            )
+            call_command("init_qlib_data", "--check", stdout=out)
         except Exception as e:
             # 预期可能失败（如果 Qlib 未安装）
             assert "Qlib" in str(e) or "qlib" in str(e).lower()
 
     @pytest.mark.optional_runtime
     @pytest.mark.skipif(
-        os.environ.get('CI') == 'true',
-        reason="Skip in CI - requires Qlib installation"
+        os.environ.get("CI") == "true", reason="Skip in CI - requires Qlib installation"
     )
     def test_init_qlib_data_with_download(self):
         """测试 init_qlib_data 命令（下载）"""
@@ -1049,11 +1037,7 @@ class TestQlibManagementCommands:
 
         # 这个测试需要 Qlib 已安装
         try:
-            call_command(
-                'init_qlib_data',
-                '--check',
-                stdout=out
-            )
+            call_command("init_qlib_data", "--check", stdout=out)
             output = out.getvalue()
 
             # 应该包含 Qlib 版本信息
@@ -1083,7 +1067,7 @@ class TestQlibCacheWriteFlow:
             feature_set_id="v1",
             label_id="return_5d",
             data_version="2026.02.05",
-            model_path="/models/test.pkl"
+            model_path="/models/test.pkl",
         )
         model.activate()
 
@@ -1091,9 +1075,7 @@ class TestQlibCacheWriteFlow:
         # 注意：这会尝试调用 Qlib，如果未安装会使用模拟数据
         try:
             result = qlib_predict_scores(
-                universe_id="csi300",
-                intended_trade_date="2026-02-05",
-                top_n=10
+                universe_id="csi300", intended_trade_date="2026-02-05", top_n=10
             )
 
             # 检查返回
@@ -1101,9 +1083,7 @@ class TestQlibCacheWriteFlow:
 
             # 检查缓存是否写入
             cache = AlphaScoreCacheModel.objects.filter(
-                universe_id="csi300",
-                provider_source="qlib",
-                model_artifact_hash="test_hash"
+                universe_id="csi300", provider_source="qlib", model_artifact_hash="test_hash"
             ).first()
 
             # 如果任务成功完成，应该有缓存

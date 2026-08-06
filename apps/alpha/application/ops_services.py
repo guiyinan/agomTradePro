@@ -17,6 +17,7 @@ from apps.alpha.application.repository_provider import (
     get_alpha_score_cache_repository,
     get_qlib_model_registry_repository,
     inspect_latest_trade_date,
+    require_usable_qlib_runtime,
 )
 from apps.alpha.domain.entities import normalize_stock_code
 from apps.task_monitor.domain.interfaces import (
@@ -181,6 +182,16 @@ def _get_provider_uri(runtime_config: Mapping[str, object]) -> str | None:
     return provider_uri
 
 
+def _runtime_gate_reason(runtime_config: dict[str, object]) -> str | None:
+    """Return a stable blocked reason from the canonical Qlib runtime gate."""
+
+    try:
+        require_usable_qlib_runtime(runtime_config)
+    except RuntimeError as exc:
+        return str(exc).split(": ", maxsplit=1)[-1]
+    return None
+
+
 class QlibRuntimeDataRefreshService:
     """Refresh local qlib runtime data for universes or explicit code scopes."""
 
@@ -204,6 +215,9 @@ class QlibRuntimeDataRefreshService:
         provider_uri = _get_provider_uri(qlib_config)
         if provider_uri is None:
             return {"status": "skipped", "reason": "qlib_provider_uri_invalid"}
+        gate_reason = _runtime_gate_reason(qlib_config)
+        if gate_reason is not None:
+            return {"status": "blocked", "reason": gate_reason}
         normalized_universes = _parse_universe_list(universes) or ["csi300"]
         summary = TushareQlibBuilder(provider_uri).build_recent_data(
             target_date=target_date,
@@ -242,6 +256,9 @@ class QlibRuntimeDataRefreshService:
         provider_uri = _get_provider_uri(qlib_config)
         if provider_uri is None:
             return {"status": "skipped", "reason": "qlib_provider_uri_invalid"}
+        gate_reason = _runtime_gate_reason(qlib_config)
+        if gate_reason is not None:
+            return {"status": "blocked", "reason": gate_reason}
         normalized_codes = sorted(
             {normalize_stock_code(code) for code in stock_codes if normalize_stock_code(code)}
         )
@@ -415,6 +432,8 @@ class QlibDataOpsOverviewQueryService:
             provider_uri = _get_provider_uri(runtime_config)
             if provider_uri is None:
                 local_data_error = "qlib_provider_uri_invalid"
+            elif (gate_reason := _runtime_gate_reason(runtime_config)) is not None:
+                local_data_error = gate_reason
             else:
                 try:
                     latest_local_trade_date = inspect_latest_trade_date(provider_uri)

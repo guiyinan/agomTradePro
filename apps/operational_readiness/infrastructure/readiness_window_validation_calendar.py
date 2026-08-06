@@ -9,7 +9,6 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from django.conf import settings
 from django.core.management.base import CommandError
 
 
@@ -73,11 +72,9 @@ def _load_qlib_trading_calendar() -> list[date]:
         runtime_config = get_runtime_qlib_config()
         provider_uri = runtime_config.get("provider_uri")
     except Exception:
-        provider_uri = None
+        return []
 
-    if not provider_uri:
-        provider_uri = getattr(settings, "QLIB_SETTINGS", {}).get("provider_uri")
-    if not provider_uri:
+    if not isinstance(provider_uri, str) or not provider_uri.strip():
         return []
 
     calendar_path = Path(str(provider_uri)).expanduser() / "calendars" / "day.txt"

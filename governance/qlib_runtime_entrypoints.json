@@ -1,0 +1,472 @@
+{
+  "schema_version": "1.0",
+  "owner": "alpha-config-center",
+  "source_of_truth": "config_center_runtime_profile",
+  "required_gate": "apps/alpha/infrastructure/qlib_runtime_init.py::require_usable_qlib_runtime",
+  "coverage": {
+    "runtime_read_files": [
+      "apps/account/application/config_summary_service.py",
+      "apps/account/infrastructure/config_summary_repository.py",
+      "apps/alpha/admin.py",
+      "apps/alpha/application/ops_services.py",
+      "apps/alpha/application/repository_provider.py",
+      "apps/alpha/application/services.py",
+      "apps/alpha/application/tasks.py",
+      "apps/alpha/infrastructure/adapters/qlib_adapter.py",
+      "apps/alpha/infrastructure/qlib_artifact_runtime.py",
+      "apps/alpha/infrastructure/qlib_prediction_runtime.py",
+      "apps/alpha/infrastructure/qlib_runtime_init.py",
+      "apps/alpha/interface/views.py",
+      "apps/alpha/management/commands/build_qlib_data.py",
+      "apps/alpha/management/commands/init_qlib_data.py",
+      "apps/config_center/application/config_summary_service.py",
+      "apps/config_center/application/public.py",
+      "apps/config_center/infrastructure/config_summary_repository.py",
+      "apps/config_center/infrastructure/models.py",
+      "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py",
+      "apps/terminal/application/tui_operator_services.py",
+      "core/integration/runtime_settings.py"
+    ]
+  },
+  "entrypoint_policy": {
+    "decision_or_write": "must use typed runtime gate before provider/model/filesystem I/O",
+    "summary_or_ui": "must publish blocked status and must_not_use_for_decision when typed runtime is absent",
+    "explicit_maintenance_override": "may use an explicit CLI path only when the command records that override and does not silently reuse a legacy setting",
+    "legacy_singleton": "compatibility read only; never a runtime write source"
+  },
+  "entries": [
+    {
+      "id": "config_center.typed_qlib_snapshot",
+      "kind": "runtime_source",
+      "file": "apps/config_center/application/runtime_public.py",
+      "symbol": "get_active_qlib_runtime_config",
+      "source": "config_center_runtime_profile_snapshot",
+      "gate": "typed_complete_snapshot",
+      "legacy_status": "blocked",
+      "tests": ["tests/unit/config_center/test_runtime_public.py::test_active_qlib_runtime_config_requires_complete_typed_snapshot"]
+    },
+    {
+      "id": "config_center.qlib_runtime_public_port",
+      "kind": "application_port",
+      "file": "apps/config_center/application/public.py",
+      "symbol": "get_runtime_qlib_config",
+      "source": "config_center_runtime_summary",
+      "gate": "blocked_summary",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "config_center.qlib_runtime_write",
+      "kind": "runtime_write",
+      "file": "apps/config_center/application/use_cases.py",
+      "symbol": "UpdateQlibRuntimeConfigUseCase",
+      "source": "typed_profile_revision_snapshot",
+      "gate": "profile_activation_validation",
+      "legacy_status": "compatibility_bootstrap_only",
+      "tests": ["tests/component/config_center/test_runtime_qlib_control_plane.py::test_runtime_qlib_summary_prefers_typed_snapshot"]
+    },
+    {
+      "id": "config_center.qlib_runtime_summary",
+      "kind": "summary_read",
+      "file": "apps/config_center/infrastructure/config_summary_repository.py",
+      "symbol": "DjangoConfigCenterSummaryRepository.get_runtime_qlib_config",
+      "source": "typed_snapshot",
+      "gate": "blocked_summary",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "config_center.qlib_runtime_summary_service",
+      "kind": "application_facade",
+      "file": "apps/config_center/application/config_summary_service.py",
+      "symbol": "ConfigCenterSummaryService.get_runtime_qlib_config",
+      "source": "config_center_summary_repository",
+      "gate": "owner_returns_blocked_payload",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "config_center.qlib_runtime_settings_payload",
+      "kind": "runtime_payload",
+      "file": "apps/config_center/infrastructure/repositories.py",
+      "symbol": "ConfigCenterSettingsRepository.build_runtime_config_payload",
+      "source": "typed_snapshot_and_explicit_validation",
+      "gate": "typed_complete_snapshot",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "account.qlib_runtime_summary_alias",
+      "kind": "compatibility_port",
+      "file": "apps/account/infrastructure/config_summary_repository.py",
+      "symbol": "DjangoAccountConfigSummaryRepository.get_runtime_qlib_config",
+      "source": "config_center_public_port",
+      "gate": "blocked_summary",
+      "legacy_status": "compatibility_alias"
+    },
+    {
+      "id": "account.qlib_runtime_summary_service",
+      "kind": "application_facade",
+      "file": "apps/account/application/config_summary_service.py",
+      "symbol": "AccountConfigSummaryService.get_runtime_qlib_config",
+      "source": "account_repository_alias",
+      "gate": "blocked_summary",
+      "legacy_status": "compatibility_alias"
+    },
+    {
+      "id": "core.runtime_qlib_bridge",
+      "kind": "integration_bridge",
+      "file": "core/integration/runtime_settings.py",
+      "symbol": "get_runtime_qlib_config",
+      "source": "config_center_runtime_provider",
+      "gate": "owner_returns_blocked_payload",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_runtime_gate",
+      "kind": "runtime_gate",
+      "file": "apps/alpha/infrastructure/qlib_runtime_init.py",
+      "symbol": "require_usable_qlib_runtime",
+      "source": "typed_runtime_mapping",
+      "gate": "enabled_and_provider_uri",
+      "legacy_status": "blocked",
+      "tests": ["tests/unit/alpha/test_qlib_runtime_contracts.py::test_qlib_latest_date_blocks_without_typed_runtime_snapshot"]
+    },
+    {
+      "id": "alpha.qlib_calendar_probe",
+      "kind": "decision_runtime",
+      "file": "apps/alpha/infrastructure/qlib_runtime_init.py",
+      "symbol": "_get_qlib_data_latest_date",
+      "source": "typed_provider_uri_region",
+      "gate": "require_usable_qlib_runtime",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_model_path_resolution",
+      "kind": "model_path",
+      "file": "apps/alpha/infrastructure/qlib_runtime_init.py",
+      "symbol": "_resolve_qlib_model_path",
+      "source": "active_model_or_typed_model_path",
+      "gate": "typed_runtime_before_fallback_resolution",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_prediction_runtime",
+      "kind": "decision_runtime",
+      "file": "apps/alpha/infrastructure/qlib_prediction_runtime.py",
+      "symbol": "_execute_qlib_prediction",
+      "source": "typed_provider_uri_model_path",
+      "gate": "require_usable_qlib_runtime",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_artifact_runtime",
+      "kind": "training_runtime",
+      "file": "apps/alpha/infrastructure/qlib_artifact_runtime.py",
+      "symbol": "_train_qlib_model",
+      "source": "typed_provider_uri",
+      "gate": "require_usable_qlib_runtime",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_provider_constructor",
+      "kind": "provider_constructor",
+      "file": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
+      "symbol": "QlibAlphaProvider.__init__",
+      "source": "explicit_paths_or_typed_runtime",
+      "gate": "typed_provider_uri_and_model_path",
+      "legacy_status": "blocked",
+      "tests": ["tests/unit/alpha/test_t3b_provider_contracts.py::test_qlib_provider_requires_typed_runtime_paths"]
+    },
+    {
+      "id": "alpha.qlib_provider_freshness",
+      "kind": "freshness_probe",
+      "file": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
+      "symbol": "QlibAlphaProvider._get_latest_data_date",
+      "source": "typed_provider_uri_region",
+      "gate": "enabled_and_not_blocked",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_task_inference",
+      "kind": "task_entrypoint",
+      "file": "apps/alpha/application/tasks.py",
+      "symbol": "qlib_predict_scores",
+      "source": "typed_runtime_and_checkpointed_task",
+      "gate": "require_usable_qlib_runtime",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_task_training",
+      "kind": "task_entrypoint",
+      "file": "apps/alpha/application/tasks.py",
+      "symbol": "qlib_train_model",
+      "source": "typed_runtime_and_checkpointed_task",
+      "gate": "require_usable_qlib_runtime",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_service_registration",
+      "kind": "provider_registration",
+      "file": "apps/alpha/application/services.py",
+      "symbol": "AlphaService._setup_providers",
+      "source": "typed_runtime_summary",
+      "gate": "typed_provider_uri_model_path_region",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_application_runtime_facade",
+      "kind": "application_facade",
+      "file": "apps/alpha/application/repository_provider.py",
+      "symbol": "get_runtime_qlib_config",
+      "source": "typed_runtime_bridge",
+      "gate": "owner_returns_blocked_payload",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_data_refresh",
+      "kind": "maintenance_runtime",
+      "file": "apps/alpha/application/ops_services.py",
+      "symbol": "QlibRuntimeDataRefreshService",
+      "source": "typed_provider_uri",
+      "gate": "enabled_and_bounded_provider_uri",
+      "legacy_status": "blocked",
+      "tests": ["tests/unit/alpha/test_ops_service_safety.py::test_refresh_rejects_invalid_provider_uri_without_builder"]
+    },
+    {
+      "id": "alpha.qlib_ops_overview",
+      "kind": "operations_summary",
+      "file": "apps/alpha/application/ops_services.py",
+      "symbol": "QlibDataOpsOverviewQueryService.build",
+      "source": "typed_runtime_summary",
+      "gate": "blocked_summary",
+      "legacy_status": "blocked",
+      "tests": ["tests/unit/alpha/test_ops_service_safety.py::test_qlib_overview_rejects_invalid_provider_uri_without_inspection"]
+    },
+    {
+      "id": "alpha.qlib_data_init_command",
+      "kind": "maintenance_command",
+      "file": "apps/alpha/management/commands/init_qlib_data.py",
+      "symbol": "Command.handle",
+      "source": "explicit_provider_uri_or_typed_runtime",
+      "gate": "typed_runtime_when_no_explicit_override",
+      "legacy_status": "cutover_in_progress",
+      "tests": ["tests/unit/alpha/test_management_command_edges.py::test_init_qlib_data_orchestration_and_integrity_boundaries"]
+    },
+    {
+      "id": "alpha.qlib_data_build_command",
+      "kind": "maintenance_command",
+      "file": "apps/alpha/management/commands/build_qlib_data.py",
+      "symbol": "Command.handle",
+      "source": "explicit_provider_uri_or_typed_runtime",
+      "gate": "typed_runtime_when_no_explicit_override",
+      "legacy_status": "blocked",
+      "tests": ["tests/unit/alpha/test_build_qlib_data_safety.py::test_missing_runtime_config_blocks_default_provider_path_before_io"]
+    },
+    {
+      "id": "alpha.qlib_training_command",
+      "kind": "task_command",
+      "file": "apps/alpha/management/commands/train_qlib_model.py",
+      "symbol": "Command.handle",
+      "source": "canonical_qlib_train_model_task",
+      "gate": "task_gate",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_admin_import",
+      "kind": "admin_entrypoint",
+      "file": "apps/alpha/admin.py",
+      "symbol": "QlibModelRegistryAdmin.import_model_view",
+      "source": "typed_model_path",
+      "gate": "runtime_config_snapshot_available",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_admin_validation",
+      "kind": "admin_entrypoint",
+      "file": "apps/alpha/admin.py",
+      "symbol": "QlibModelRegistryAdmin._run_validation",
+      "source": "typed_provider_uri",
+      "gate": "blocked_summary",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_admin_training",
+      "kind": "admin_entrypoint",
+      "file": "apps/alpha/admin.py",
+      "symbol": "QlibModelRegistryAdmin.train_model_view",
+      "source": "typed_runtime_trigger_use_case",
+      "gate": "trigger_use_case_gate",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_api_scores",
+      "kind": "http_entrypoint",
+      "file": "apps/alpha/interface/views.py",
+      "symbol": "get_stock_scores",
+      "source": "canonical_alpha_service_and_task",
+      "gate": "task_runtime_gate",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_readiness_calendar",
+      "kind": "readiness_entrypoint",
+      "file": "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py",
+      "symbol": "_load_qlib_trading_calendar",
+      "source": "typed_provider_uri",
+      "gate": "blocked_without_typed_runtime",
+      "legacy_status": "blocked",
+      "tests": ["tests/unit/test_personal_readiness_window_validation.py::test_qlib_calendar_loader_does_not_reheat_legacy_settings"]
+    },
+    {
+      "id": "terminal.qlib_operator_summary",
+      "kind": "tui_summary",
+      "file": "apps/terminal/application/tui_operator_services.py",
+      "symbol": "_config_center_governance_rows",
+      "source": "typed_runtime_summary",
+      "gate": "blocked_summary",
+      "legacy_status": "blocked",
+      "tests": ["tests/unit/test_tui_operator_services.py::test_config_center_governance_rows_use_lightweight_runtime_summary"]
+    },
+    {
+      "id": "alpha.qlib_ops_page",
+      "kind": "http_page",
+      "file": "apps/alpha/interface/views.py",
+      "symbol": "alpha_ops_qlib_data_page",
+      "source": "typed_ops_overview",
+      "gate": "blocked_summary",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_ops_http",
+      "kind": "http_entrypoint",
+      "file": "apps/alpha/interface/views.py",
+      "symbol": "qlib_data_ops_refresh",
+      "source": "typed_ops_use_case",
+      "gate": "task_gate",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "alpha.qlib_cold_start_command",
+      "kind": "maintenance_command",
+      "file": "apps/alpha/management/commands/bootstrap_alpha_cold_start.py",
+      "symbol": "Command.handle",
+      "source": "canonical_prediction_runtime",
+      "gate": "prediction_runtime_gate",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "config_center.qlib_runtime_http",
+      "kind": "http_entrypoint",
+      "file": "apps/config_center/interface/api_views.py",
+      "symbol": "QlibRuntimeConfigView",
+      "source": "runtime_use_cases",
+      "gate": "profile_activation_validation",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "config_center.qlib_training_http",
+      "kind": "http_entrypoint",
+      "file": "apps/config_center/interface/api_views.py",
+      "symbol": "QlibTrainingRunTriggerView",
+      "source": "typed_runtime_training_use_case",
+      "gate": "trigger_use_case_gate",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "config_center.qlib_runtime_page",
+      "kind": "http_page",
+      "file": "apps/config_center/interface/views.py",
+      "symbol": "qlib_config_center_view",
+      "source": "runtime_use_cases",
+      "gate": "profile_activation_validation",
+      "legacy_status": "blocked"
+    },
+    {
+      "id": "legacy.system_settings_qlib_getter",
+      "kind": "legacy_compatibility",
+      "file": "apps/config_center/infrastructure/models.py",
+      "symbol": "SystemSettingsModel.get_runtime_qlib_config",
+      "source": "SystemSettingsModel",
+      "gate": "compatibility_only",
+      "legacy_status": "retirement_pending"
+    },
+    {
+      "id": "legacy.account_system_settings_admin",
+      "kind": "legacy_compatibility",
+      "file": "apps/account/interface/admin.py",
+      "symbol": "SystemSettingsAdminForm",
+      "source": "compatibility_fields_excluded_from_form",
+      "gate": "typed_runtime_admin_guard",
+      "legacy_status": "retirement_pending"
+    },
+    {
+      "id": "legacy.settings_qlib_mapping",
+      "kind": "legacy_compatibility",
+      "file": "core/settings/base.py",
+      "symbol": "QLIB_SETTINGS",
+      "source": "environment/settings",
+      "gate": "bootstrap_only",
+      "legacy_status": "retirement_pending"
+    },
+    {
+      "id": "legacy.script_train_qlib",
+      "kind": "legacy_script",
+      "file": "scripts/train_qlib_model.py",
+      "symbol": "main",
+      "source": "canonical_management_command",
+      "gate": "delegates_to_task_gate",
+      "legacy_status": "compatibility_wrapper"
+    },
+    {
+      "id": "legacy.script_prepare_qlib_data",
+      "kind": "legacy_script",
+      "file": "scripts/prepare_qlib_training_data.py",
+      "symbol": "main",
+      "source": "CLI output_dir",
+      "gate": "explicit_path_required",
+      "legacy_status": "maintenance_compatibility"
+    },
+    {
+      "id": "legacy.script_get_qlib_data",
+      "kind": "legacy_script",
+      "file": "scripts/get_qlib_data.py",
+      "symbol": "GetData",
+      "source": "explicit downloader CLI arguments",
+      "gate": "explicit_path_required",
+      "legacy_status": "maintenance_compatibility"
+    },
+    {
+      "id": "legacy.script_start_qlib_train_runtime_sh",
+      "kind": "legacy_script",
+      "file": "scripts/start-qlib-train-runtime.sh",
+      "symbol": "docker compose",
+      "source": "explicit_training_runtime_workspace",
+      "gate": "maintenance_compatibility",
+      "legacy_status": "maintenance_compatibility"
+    },
+    {
+      "id": "legacy.script_start_qlib_train_runtime_ps1",
+      "kind": "legacy_script",
+      "file": "scripts/start-qlib-train-runtime.ps1",
+      "symbol": "docker compose",
+      "source": "explicit_training_runtime_workspace",
+      "gate": "maintenance_compatibility",
+      "legacy_status": "maintenance_compatibility"
+    },
+    {
+      "id": "legacy.script_stop_qlib_train_runtime_sh",
+      "kind": "legacy_script",
+      "file": "scripts/stop-qlib-train-runtime.sh",
+      "symbol": "docker compose",
+      "source": "explicit_training_runtime_workspace",
+      "gate": "maintenance_compatibility",
+      "legacy_status": "maintenance_compatibility"
+    },
+    {
+      "id": "legacy.script_stop_qlib_train_runtime_ps1",
+      "kind": "legacy_script",
+      "file": "scripts/stop-qlib-train-runtime.ps1",
+      "symbol": "docker compose",
+      "source": "explicit_training_runtime_workspace",
+      "gate": "maintenance_compatibility",
+      "legacy_status": "maintenance_compatibility"
+    }
+  ]
+}

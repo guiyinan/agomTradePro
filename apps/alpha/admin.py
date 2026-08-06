@@ -5,12 +5,10 @@ import importlib
 import json
 import pickle
 import re
-from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
 from django import forms
-from django.conf import settings
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import UploadedFile
@@ -21,6 +19,7 @@ from django.urls import path, reverse
 from django.urls.resolvers import URLPattern
 from django.utils import timezone
 
+from apps.alpha.application.repository_provider import require_usable_qlib_runtime
 from apps.alpha.application.tasks import _execute_qlib_prediction
 from apps.alpha.models import (
     AlphaAlertModel,
@@ -92,15 +91,6 @@ def _parse_json_object(value: object, *, label: str) -> dict[str, object]:
     if not isinstance(parsed, dict):
         raise ValidationError(f"{label}必须是 JSON object。")
     return cast(dict[str, object], parsed)
-
-
-def _qlib_settings_mapping() -> Mapping[str, object]:
-    """Return Qlib settings through a typed dynamic-settings boundary."""
-
-    raw_settings: object = getattr(settings, "QLIB_SETTINGS", {})
-    if not isinstance(raw_settings, Mapping):
-        return {}
-    return cast(Mapping[str, object], raw_settings)
 
 
 class QlibModelImportForm(forms.Form):
@@ -326,56 +316,64 @@ class QlibModelRegistryAdmin(TypedModelAdmin[QlibModelRegistryModel]):
             if QlibModelRegistryModel._default_manager.filter(artifact_hash=artifact_hash).exists():
                 form.add_error("model_file", f"相同 artifact_hash 已存在: {artifact_hash}")
             else:
-                model_file_path = self._store_uploaded_model(uploaded, model_name, artifact_hash)
-                train_config = cast(dict[str, object], form.cleaned_data["train_config"])
-                metrics_payload: dict[str, float | None] = {
-                    "ic": (
-                        float(form.cleaned_data["ic"])
-                        if form.cleaned_data["ic"] is not None
-                        else None
-                    ),
-                    "icir": (
-                        float(form.cleaned_data["icir"])
-                        if form.cleaned_data["icir"] is not None
-                        else None
-                    ),
-                    "rank_ic": (
-                        float(form.cleaned_data["rank_ic"])
-                        if form.cleaned_data["rank_ic"] is not None
-                        else None
-                    ),
-                }
-                self._write_metadata_files(
-                    model_file_path=model_file_path,
-                    model_name=model_name,
-                    artifact_hash=artifact_hash,
-                    data_version=form.cleaned_data["data_version"],
-                    train_config=train_config,
-                    metrics=metrics_payload,
-                )
-
-                model = QlibModelRegistryModel._default_manager.create(
-                    model_name=model_name,
-                    artifact_hash=artifact_hash,
-                    model_type=form.cleaned_data["model_type"],
-                    universe=form.cleaned_data["universe"],
-                    train_config=train_config,
-                    feature_set_id=form.cleaned_data["feature_set_id"],
-                    label_id=form.cleaned_data["label_id"],
-                    data_version=form.cleaned_data["data_version"],
-                    ic=form.cleaned_data["ic"],
-                    icir=form.cleaned_data["icir"],
-                    rank_ic=form.cleaned_data["rank_ic"],
-                    model_path=str(model_file_path),
-                    is_active=False,
-                )
-
-                return HttpResponseRedirect(
-                    reverse(
-                        "admin:alpha_qlibmodelregistry_validate",
-                        args=[model.artifact_hash],
+                try:
+                    model_file_path = self._store_uploaded_model(
+                        uploaded,
+                        model_name,
+                        artifact_hash,
                     )
-                )
+                except RuntimeError as exc:
+                    form.add_error(None, f"模型存储配置不可用：{exc}")
+                else:
+                    train_config = cast(dict[str, object], form.cleaned_data["train_config"])
+                    metrics_payload: dict[str, float | None] = {
+                        "ic": (
+                            float(form.cleaned_data["ic"])
+                            if form.cleaned_data["ic"] is not None
+                            else None
+                        ),
+                        "icir": (
+                            float(form.cleaned_data["icir"])
+                            if form.cleaned_data["icir"] is not None
+                            else None
+                        ),
+                        "rank_ic": (
+                            float(form.cleaned_data["rank_ic"])
+                            if form.cleaned_data["rank_ic"] is not None
+                            else None
+                        ),
+                    }
+                    self._write_metadata_files(
+                        model_file_path=model_file_path,
+                        model_name=model_name,
+                        artifact_hash=artifact_hash,
+                        data_version=form.cleaned_data["data_version"],
+                        train_config=train_config,
+                        metrics=metrics_payload,
+                    )
+
+                    model = QlibModelRegistryModel._default_manager.create(
+                        model_name=model_name,
+                        artifact_hash=artifact_hash,
+                        model_type=form.cleaned_data["model_type"],
+                        universe=form.cleaned_data["universe"],
+                        train_config=train_config,
+                        feature_set_id=form.cleaned_data["feature_set_id"],
+                        label_id=form.cleaned_data["label_id"],
+                        data_version=form.cleaned_data["data_version"],
+                        ic=form.cleaned_data["ic"],
+                        icir=form.cleaned_data["icir"],
+                        rank_ic=form.cleaned_data["rank_ic"],
+                        model_path=str(model_file_path),
+                        is_active=False,
+                    )
+
+                    return HttpResponseRedirect(
+                        reverse(
+                            "admin:alpha_qlibmodelregistry_validate",
+                            args=[model.artifact_hash],
+                        )
+                    )
 
         context = {
             **self.admin_site.each_context(request),
@@ -493,10 +491,16 @@ class QlibModelRegistryAdmin(TypedModelAdmin[QlibModelRegistryModel]):
         return render(request, "admin/alpha/qlibmodelregistry/train_form.html", context)
 
     def _model_root(self) -> Path:
-        qlib_settings = _qlib_settings_mapping()
-        configured_root = qlib_settings.get("model_path", "/models/qlib")
-        root = configured_root if isinstance(configured_root, str) else "/models/qlib"
-        return Path(root).expanduser().resolve()
+        runtime_qlib = runtime_settings.get_runtime_qlib_config()
+        if (
+            not isinstance(runtime_qlib, dict)
+            or runtime_qlib.get("must_not_use_for_decision") is True
+        ):
+            raise RuntimeError("runtime_config_snapshot_unavailable")
+        configured_root = runtime_qlib.get("model_path")
+        if not isinstance(configured_root, str) or not configured_root.strip():
+            raise RuntimeError("runtime_config_snapshot_unavailable")
+        return Path(configured_root).expanduser().resolve()
 
     def _hash_uploaded_file(self, uploaded: UploadedFile) -> str:
         sha256 = hashlib.sha256()
@@ -617,6 +621,7 @@ class QlibModelRegistryAdmin(TypedModelAdmin[QlibModelRegistryModel]):
         # 优先从数据库读取 Qlib 配置
         try:
             qlib_runtime_config = runtime_settings.get_runtime_qlib_config()
+            require_usable_qlib_runtime(qlib_runtime_config)
             provider_uri = qlib_runtime_config.get("provider_uri", "")
             enabled = qlib_runtime_config.get("enabled", False)
             qlib_data_path = provider_uri if isinstance(provider_uri, str) else ""

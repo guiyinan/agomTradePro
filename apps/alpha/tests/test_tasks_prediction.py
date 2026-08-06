@@ -64,7 +64,7 @@ def test_qlib_predict_scores_refreshes_default_workspace_after_current_alpha_cac
     )
     monkeypatch.setattr(
         "apps.alpha.application.tasks._get_runtime_qlib_config",
-        lambda: {"enabled": True, "source": "test"},
+        lambda: {"enabled": True, "source": "test", "provider_uri": "local-data"},
     )
     monkeypatch.setattr(
         "apps.alpha.application.tasks._get_qlib_data_latest_date",
@@ -151,7 +151,7 @@ def test_qlib_predict_scores_refreshes_general_runtime_data_before_prediction(mo
     )
     monkeypatch.setattr(
         "apps.alpha.application.tasks._get_runtime_qlib_config",
-        lambda: {"enabled": True, "source": "test"},
+        lambda: {"enabled": True, "source": "test", "provider_uri": "local-data"},
     )
     monkeypatch.setattr(
         "apps.alpha.application.tasks._get_qlib_data_latest_date",
@@ -222,7 +222,7 @@ def test_qlib_predict_scores_refreshes_scoped_runtime_data_before_prediction(mon
     )
     monkeypatch.setattr(
         "apps.alpha.application.tasks._get_runtime_qlib_config",
-        lambda: {"enabled": True, "source": "test"},
+        lambda: {"enabled": True, "source": "test", "provider_uri": "local-data"},
     )
     monkeypatch.setattr(
         "apps.alpha.application.tasks._get_qlib_data_latest_date",

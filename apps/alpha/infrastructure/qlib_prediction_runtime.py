@@ -14,10 +14,12 @@ from apps.alpha.infrastructure.providers import AlphaScoreCacheRepository
 from apps.alpha.infrastructure.qlib_runtime_init import (
     _build_outdated_qlib_reason,
     _get_runtime_qlib_config,
+    _initialize_qlib_runtime,
     _install_qlib_pandas_compat,
     _make_json_safe,
     _normalize_qlib_instrument_list,
     _normalize_qlib_region,
+    _require_usable_qlib_runtime,
     _resolve_qlib_handler_class,
     _resolve_qlib_model_path,
     _resolve_qlib_stock_list,
@@ -240,17 +242,20 @@ def _execute_qlib_prediction(
 
         if not qlib_config.get("enabled"):
             raise RuntimeError("Qlib 未启用，无法执行实时预测")
+        _require_usable_qlib_runtime(qlib_config)
 
         _install_qlib_pandas_compat()
 
-        provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
+        provider_uri = str(qlib_config["provider_uri"])
         region = _normalize_qlib_region(qlib_config.get("region", "CN"))
 
-        # 初始化 Qlib（仅初始化一次）
-        if not hasattr(_execute_qlib_prediction, "_qlib_initialized"):
-            qlib.init(provider_uri=provider_uri, region=region)
-            _execute_qlib_prediction.__dict__["_qlib_initialized"] = True
-            logger.info(f"Qlib 已初始化: provider={provider_uri}, region={region}")
+        # Qlib state is process-global; rebind when the typed runtime path/region changes.
+        _initialize_qlib_runtime(
+            provider_uri=provider_uri,
+            region=region,
+            qlib_module=qlib,
+        )
+        logger.info("Qlib 已绑定: provider=%s, region=%s", provider_uri, region)
 
         # 加载模型
         model_path = _resolve_qlib_model_path(active_model, qlib_config)

@@ -3,7 +3,10 @@ from __future__ import annotations
 import pytest
 
 from apps.account.infrastructure.account_interface_repository import AccountInterfaceRepository
-from apps.config_center.application.runtime_public import get_active_domain_runtime_config
+from apps.config_center.application.runtime_public import (
+    get_active_domain_runtime_config,
+    get_active_runtime_value,
+)
 from apps.config_center.infrastructure.config_summary_repository import (
     DjangoConfigCenterSummaryRepository,
 )
@@ -202,11 +205,17 @@ def test_provider_settings_update_uses_typed_failover_values() -> None:
 
     assert payload["enable_failover"] is False
     assert payload["failover_tolerance"] == pytest.approx(0.025)
+    assert payload["default_source"] == "akshare"
     assert load_provider_settings_payload() == payload
 
-    legacy = DataProviderSettingsModel.objects.get(pk=1)
-    assert legacy.enable_failover is True
-    assert legacy.failover_tolerance == pytest.approx(0.01)
+    assert (
+        get_active_runtime_value(
+            environment="development",
+            definition_key="data_center.provider.default_source",
+        )
+        == "akshare"
+    )
+    assert not DataProviderSettingsModel.objects.filter(pk=1).exists()
 
 
 @pytest.mark.django_db

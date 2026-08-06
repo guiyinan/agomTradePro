@@ -47,6 +47,7 @@ from apps.data_center.composition import (
 )
 from apps.data_center.domain.entities import (
     ConnectionTestResult,
+    DataProviderSettings,
     ProductionCoverageUniverseConfig,
     ProviderConfig,
 )
@@ -364,6 +365,16 @@ def load_provider_settings_payload() -> dict[str, Any]:
     settings = DataProviderSettingsRepository().load_for_read()
     module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
     environment = "production" if module.endswith(".production") else "development"
+    runtime_default_source = get_active_runtime_value(
+        environment=environment,
+        definition_key="data_center.provider.default_source",
+    )
+    default_source = (
+        runtime_default_source
+        if isinstance(runtime_default_source, str)
+        and runtime_default_source in DataProviderSettings.SOURCE_CHOICES
+        else settings.default_source
+    )
     runtime_enabled = get_active_runtime_value(
         environment=environment,
         definition_key="data_center.provider.enable_failover",
@@ -381,7 +392,7 @@ def load_provider_settings_payload() -> dict[str, Any]:
         else settings.failover_tolerance
     )
     return {
-        "default_source": settings.default_source,
+        "default_source": default_source,
         "enable_failover": enable_failover,
         "failover_tolerance": failover_tolerance,
     }
@@ -458,6 +469,7 @@ def save_provider_settings_payload(
     module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
     environment = "production" if module.endswith(".production") else "development"
     runtime_patch = {
+        "data_center.provider.default_source": str(default_source),
         "data_center.provider.enable_failover": bool(enable_failover),
         "data_center.provider.failover_tolerance": float(failover_tolerance),
     }
@@ -466,9 +478,8 @@ def save_provider_settings_payload(
         patch=runtime_patch,
         bootstrap_values=runtime_patch,
         actor=str(actor or "data-center-admin"),
-        reason="Data Center provider failover settings updated",
+        reason="Data Center provider runtime settings updated",
     )
-    DataProviderSettingsRepository().save_default_source(default_source)
     return load_provider_settings_payload()
 
 

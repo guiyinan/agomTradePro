@@ -253,6 +253,37 @@ def test_runtime_helpers_normalize_resolve_and_explain_failures(monkeypatch, tmp
         )
 
 
+def test_qlib_runtime_rebinds_when_provider_binding_changes() -> None:
+    """Long-lived workers must not keep using a previous provider directory."""
+
+    module = SimpleNamespace(init_calls=[])
+
+    def _init(**kwargs: str) -> None:
+        module.init_calls.append(kwargs)
+
+    module.init = _init
+    runtime._initialize_qlib_runtime(
+        provider_uri="old-data",
+        region="CN",
+        qlib_module=module,
+    )
+    runtime._initialize_qlib_runtime(
+        provider_uri="old-data",
+        region="cn",
+        qlib_module=module,
+    )
+    runtime._initialize_qlib_runtime(
+        provider_uri="new-data",
+        region="US",
+        qlib_module=module,
+    )
+
+    assert module.init_calls == [
+        {"provider_uri": "old-data", "region": "cn"},
+        {"provider_uri": "new-data", "region": "us"},
+    ]
+
+
 def test_qlib_latest_date_blocks_without_typed_runtime_snapshot(monkeypatch) -> None:
     """Calendar probes must not fall back to the legacy/default provider URI."""
     _install_fake_qlib(monkeypatch)
@@ -671,7 +702,7 @@ def test_train_command_routes_sync_and_async_through_canonical_task(monkeypatch)
     assert parsed.name == "sample"
 
 
-def test_alpha_admin_forms_artifact_storage_and_validation(monkeypatch, settings, tmp_path) -> None:
+def test_alpha_admin_forms_artifact_storage_and_validation(monkeypatch, tmp_path) -> None:
     """Admin import validates JSON and produces reproducible metadata before activation."""
     invalid_file = alpha_admin.QlibModelImportForm(
         data={
@@ -767,11 +798,14 @@ def test_alpha_admin_forms_artifact_storage_and_validation(monkeypatch, settings
     assert "model_params" in invalid_train.errors
     assert "extra_train_config" in invalid_train.errors
 
-    settings.QLIB_SETTINGS = {
-        **getattr(settings, "QLIB_SETTINGS", {}),
-        "model_path": str(tmp_path),
-        "provider_uri": str(tmp_path),
-    }
+    monkeypatch.setattr(
+        "core.integration.runtime_settings.get_runtime_qlib_config",
+        lambda: {
+            "enabled": True,
+            "provider_uri": str(tmp_path),
+            "model_path": str(tmp_path),
+        },
+    )
     admin_instance = alpha_admin.QlibModelRegistryAdmin(
         alpha_admin.QlibModelRegistryModel,
         AdminSite(),

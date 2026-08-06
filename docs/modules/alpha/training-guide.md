@@ -62,16 +62,16 @@ data_sources:
 
 ```bash
 # 准备 CSI300 数据（默认）
-python scripts/prepare_qlib_training_data.py --universe csi300 --start-date 2020-01-01
+python scripts/prepare_qlib_training_data.py --output-dir runtime/qlib_data --universe csi300 --start-date 2020-01-01
 
 # 准备 CSI500 数据
-python scripts/prepare_qlib_training_data.py --universe csi500 --start-date 2020-01-01
+python scripts/prepare_qlib_training_data.py --output-dir runtime/qlib_data --universe csi500 --start-date 2020-01-01
 
 # 使用 AKShare 数据源
-python scripts/prepare_qlib_training_data.py --universe csi300 --source akshare
+python scripts/prepare_qlib_training_data.py --output-dir runtime/qlib_data --universe csi300 --source akshare
 
 # 检查现有数据
-python scripts/prepare_qlib_training_data.py --check
+python scripts/prepare_qlib_training_data.py --output-dir runtime/qlib_data --check
 ```
 
 ### 2.2 数据格式要求
@@ -367,7 +367,7 @@ python manage.py init_qlib_data
 **解决**:
 ```bash
 # 重新准备数据
-python scripts/prepare_qlib_training_data.py --universe csi300 --force
+python scripts/prepare_qlib_training_data.py --output-dir runtime/qlib_data --universe csi300 --force
 ```
 
 ### 6.3 模型评估指标异常

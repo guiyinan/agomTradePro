@@ -163,7 +163,7 @@ def test_prediction_task_uses_auditable_cache_fallbacks(
     monkeypatch.setattr(
         tasks,
         "_get_runtime_qlib_config",
-        lambda: {"enabled": True, "source": "test"},
+        lambda: {"enabled": True, "source": "test", "provider_uri": "local-data"},
     )
     monkeypatch.setattr(
         tasks,

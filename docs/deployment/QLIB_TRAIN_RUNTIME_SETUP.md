@@ -245,7 +245,7 @@ celery -A core worker -l info -Q qlib_train --concurrency=1 --max-tasks-per-chil
 项目里已有相关命令和脚本：
 
 - `python manage.py init_qlib_data --check`
-- `python scripts/prepare_qlib_training_data.py --universe csi300 --start-date 2020-01-01`
+- `python scripts/prepare_qlib_training_data.py --output-dir runtime/qlib_data --universe csi300 --start-date 2020-01-01`
 
 ### 6.1 训练前最低要求
 
@@ -258,7 +258,7 @@ celery -A core worker -l info -Q qlib_train --concurrency=1 --max-tasks-per-chil
 ### 6.2 推荐准备流程
 
 ```bash
-python scripts/prepare_qlib_training_data.py --universe csi300 --start-date 2020-01-01
+python scripts/prepare_qlib_training_data.py --output-dir runtime/qlib_data --universe csi300 --start-date 2020-01-01
 python manage.py init_qlib_data --check
 ```
 

@@ -53,6 +53,9 @@ jobs:
         run: |
           python scripts/check_current_data_contracts.py
 
+      - name: Enforce Qlib runtime entrypoint inventory
+        run: python scripts/check_qlib_runtime_entrypoints.py
+
       - name: Enforce business configuration contracts
         run: |
           python scripts/check_business_configuration_hardcodes.py --mode full

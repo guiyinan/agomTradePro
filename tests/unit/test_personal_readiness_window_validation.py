@@ -7,6 +7,7 @@ from hashlib import sha256
 import pytest
 from django.core.management import CommandError
 
+from apps.operational_readiness.infrastructure import readiness_window_validation_calendar
 from apps.task_monitor.management.commands import (
     validate_personal_readiness_window as command_module,
 )
@@ -346,6 +347,20 @@ def test_validate_personal_readiness_window_reports_calendar_source(tmp_path):
     assert payload["status"] == "accepted"
     assert payload["calendar_source"] == "weekday"
     assert payload["calendar_day_count"] is None
+
+
+def test_qlib_calendar_loader_does_not_reheat_legacy_settings(monkeypatch, tmp_path):
+    """Readiness calendar loading must stop when typed Qlib runtime is unavailable."""
+
+    calendar_path = tmp_path / "calendars"
+    calendar_path.mkdir()
+    (calendar_path / "day.txt").write_text("2026-07-01\n", encoding="utf-8")
+    monkeypatch.setattr(
+        "core.integration.runtime_settings.get_runtime_qlib_config",
+        lambda: {"status": "blocked", "must_not_use_for_decision": True},
+    )
+
+    assert readiness_window_validation_calendar._load_qlib_trading_calendar() == []
 
 
 def test_validate_personal_readiness_window_auto_uses_qlib_calendar(monkeypatch, tmp_path):

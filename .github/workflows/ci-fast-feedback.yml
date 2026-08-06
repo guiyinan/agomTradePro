@@ -245,6 +245,9 @@ jobs:
       - name: Enforce runtime config reference coverage
         run: python scripts/check_runtime_config_coverage.py
 
+      - name: Enforce Qlib runtime entrypoint inventory
+        run: python scripts/check_qlib_runtime_entrypoints.py
+
       - name: Run ruff on changed Python files
         if: steps.targets.outputs.lint-count != '0'
         run: |

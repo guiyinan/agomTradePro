@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
-from typing import Any
+from typing import Any, ClassVar
 
 from apps.data_center.domain.enums import (
     AssetType,
@@ -97,11 +97,17 @@ class ProviderHealthSnapshot:
 class DataProviderSettings:
     """Global provider behaviour settings (singleton in DB)."""
 
+    SOURCE_CHOICES: ClassVar[tuple[str, ...]] = ("akshare", "tushare", "failover")
+
     default_source: str  # tushare | akshare | failover
     enable_failover: bool
     failover_tolerance: float  # e.g. 0.01 = 1 %
 
     def __post_init__(self) -> None:
+        if self.default_source not in self.SOURCE_CHOICES:
+            raise ValueError(
+                f"default_source must be one of {self.SOURCE_CHOICES}, got {self.default_source}"
+            )
         if not 0.0 <= self.failover_tolerance <= 1.0:
             raise ValueError(f"failover_tolerance must be in [0, 1], got {self.failover_tolerance}")
 

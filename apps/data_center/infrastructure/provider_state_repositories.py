@@ -81,29 +81,10 @@ class DataProviderSettingsRepository:
 
         return DataProviderSettingsModel.objects.exists()
 
-    def load(self) -> DataProviderSettings:
-        return DataProviderSettingsModel.load().to_domain()
-
     def load_for_read(self) -> DataProviderSettings:
         """Return provider settings without creating the compatibility row."""
 
         return DataProviderSettingsModel.load_for_read().to_domain()
-
-    def save(self, settings: DataProviderSettings) -> DataProviderSettings:
-        model = DataProviderSettingsModel.load()
-        model.default_source = settings.default_source
-        model.enable_failover = settings.enable_failover
-        model.failover_tolerance = settings.failover_tolerance
-        model.save()
-        return model.to_domain()
-
-    def save_default_source(self, default_source: str) -> DataProviderSettings:
-        """Persist only the Data Center-owned provider source preference."""
-
-        model = DataProviderSettingsModel.load()
-        model.default_source = default_source
-        model.save(update_fields=["default_source", "updated_at"])
-        return model.to_domain()
 
 
 class ProductionCoverageUniverseConfigRepository:

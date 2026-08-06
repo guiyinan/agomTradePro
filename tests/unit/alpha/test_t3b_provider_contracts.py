@@ -19,6 +19,21 @@ from apps.alpha.infrastructure.adapters.simple_adapter import SimpleAlphaProvide
 TARGET_DATE = date(2026, 7, 24)
 
 
+def test_qlib_provider_requires_typed_runtime_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Provider construction must not revive the legacy SystemSettings path fallback."""
+
+    monkeypatch.setattr(
+        "core.integration.runtime_settings.get_runtime_qlib_config",
+        lambda: {
+            "status": "blocked",
+            "must_not_use_for_decision": True,
+        },
+    )
+
+    with pytest.raises(ValueError, match="typed runtime"):
+        QlibAlphaProvider()
+
+
 class _Values(list[str]):
     def distinct(self) -> _Values:
         return self

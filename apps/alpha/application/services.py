@@ -18,9 +18,7 @@ from django.utils import timezone as django_timezone
 from core.integration.runtime_settings import (
     get_runtime_alpha_fixed_provider as load_runtime_alpha_fixed_provider,
 )
-from core.integration.runtime_settings import (
-    get_runtime_qlib_config as load_runtime_qlib_config,
-)
+from core.integration.runtime_settings import get_runtime_qlib_config as load_runtime_qlib_config
 
 if TYPE_CHECKING:
     from shared.infrastructure.metrics import AlphaMetrics
@@ -35,6 +33,7 @@ from .repository_provider import (
     SimpleAlphaProvider,
     build_qlib_alpha_provider,
     get_alpha_alert_repository,
+    require_usable_qlib_runtime,
 )
 
 logger = logging.getLogger(__name__)
@@ -932,11 +931,21 @@ class AlphaService:
         try:
             qlib_config = _get_runtime_qlib_config()
             if qlib_config.get("enabled"):
+                require_usable_qlib_runtime(qlib_config)
+                provider_uri = qlib_config.get("provider_uri")
+                model_path = qlib_config.get("model_path")
+                region = qlib_config.get("region")
+                if not isinstance(provider_uri, str) or not provider_uri.strip():
+                    raise RuntimeError("runtime_config_snapshot_unavailable")
+                if not isinstance(model_path, str) or not model_path.strip():
+                    raise RuntimeError("runtime_config_snapshot_unavailable")
+                if not isinstance(region, str) or not region.strip():
+                    raise RuntimeError("runtime_config_snapshot_unavailable")
                 _register_optional_provider(
                     lambda: build_qlib_alpha_provider(
-                        provider_uri=qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data"),
-                        model_path=qlib_config.get("model_path", "/models/qlib"),
-                        region=qlib_config.get("region", "CN"),
+                        provider_uri=provider_uri,
+                        model_path=model_path,
+                        region=region,
                     ),
                     failure_message="Qlib Provider 初始化失败（预期，如果未安装 Qlib）",
                 )

@@ -117,11 +117,11 @@ class ProviderConfigAdminForm(TypedModelForm[ProviderConfigModel]):
 
 
 class DataProviderSettingsAdminForm(TypedModelForm[DataProviderSettingsModel]):
-    """Keep typed failover runtime values out of the legacy singleton form."""
+    """Keep all typed provider runtime values out of the legacy singleton form."""
 
     class Meta:
         model = DataProviderSettingsModel
-        fields = ("default_source", "description")
+        fields = ("description",)
 
 
 @admin.register(ProviderConfigModel)
@@ -180,7 +180,7 @@ class ProviderConfigAdmin(TypedModelAdmin[ProviderConfigModel]):
 class DataProviderSettingsAdmin(TypedModelAdmin[DataProviderSettingsModel]):
     form = DataProviderSettingsAdminForm
     list_display = (
-        "default_source",
+        "typed_default_source",
         "typed_failover_enabled",
         "typed_failover_tolerance",
         "updated_at",
@@ -190,20 +190,22 @@ class DataProviderSettingsAdmin(TypedModelAdmin[DataProviderSettingsModel]):
         "updated_at",
         "typed_failover_enabled",
         "typed_failover_tolerance",
+        "typed_default_source",
         "runtime_config_notice",
     )
 
     fieldsets = (
-        (None, {"fields": ("default_source", "description")}),
+        (None, {"fields": ("description",)}),
         (
-            "运行时容错配置",
+            "Config Center 运行时配置",
             {
                 "fields": (
+                    "typed_default_source",
                     "typed_failover_enabled",
                     "typed_failover_tolerance",
                     "runtime_config_notice",
                 ),
-                "description": "Failover 开关和容差已迁移到 Config Center typed runtime profile；此 Admin 仅保留只读摘要。",
+                "description": "Provider source、failover 开关和容差已迁移到 Config Center typed runtime profile；此 Admin 仅保留只读摘要。",
             },
         ),
         ("Timestamps", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
@@ -229,6 +231,15 @@ class DataProviderSettingsAdmin(TypedModelAdmin[DataProviderSettingsModel]):
 
         payload = load_provider_settings_payload()
         return "启用" if bool(payload.get("enable_failover")) else "停用"
+
+    @admin.display(description="Typed default source")
+    def typed_default_source(self, obj: DataProviderSettingsModel) -> str:
+        """Display the active typed provider source without enabling legacy writes."""
+
+        payload = load_provider_settings_payload()
+        labels = dict(DataProviderSettingsModel.DEFAULT_SOURCE_CHOICES)
+        value = str(payload.get("default_source") or "")
+        return labels.get(value, "未知")
 
     @admin.display(description="Typed tolerance")
     def typed_failover_tolerance(self, obj: DataProviderSettingsModel) -> str:

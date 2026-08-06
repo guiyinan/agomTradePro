@@ -22,6 +22,7 @@ from apps.ai_provider.application.use_cases import (
 from apps.alpha.application.repository_provider import (
     get_qlib_model_registry_repository,
     inspect_latest_trade_date,
+    require_usable_qlib_runtime,
 )
 from apps.audit.domain.entities import mask_sensitive_text
 from apps.config_center.application.query_services import has_qlib_training_runs
@@ -761,13 +762,19 @@ def _config_center_governance_rows(*, user: Any) -> list[dict[str, Any]]:
     active_model = get_qlib_model_registry_repository().get_active_model()
     lag_days = None
     provider_uri = runtime.get("provider_uri")
+    runtime_gate_reason = None
     if runtime.get("enabled") and provider_uri:
         try:
-            latest_local_trade_date = inspect_latest_trade_date(str(provider_uri))
-            if latest_local_trade_date is not None:
-                lag_days = max((timezone.localdate() - latest_local_trade_date).days, 0)
-        except Exception:
-            lag_days = None
+            require_usable_qlib_runtime(runtime)
+        except RuntimeError as exc:
+            runtime_gate_reason = str(exc).split(": ", maxsplit=1)[-1]
+        else:
+            try:
+                latest_local_trade_date = inspect_latest_trade_date(str(provider_uri))
+                if latest_local_trade_date is not None:
+                    lag_days = max((timezone.localdate() - latest_local_trade_date).days, 0)
+            except Exception:
+                lag_days = None
     lag_warning = isinstance(lag_days, int) and lag_days > 3
     has_training_runs = has_qlib_training_runs()
     enabled = bool(runtime.get("enabled"))
@@ -776,16 +783,22 @@ def _config_center_governance_rows(*, user: Any) -> list[dict[str, Any]]:
             _governance_row(
                 severity=(
                     "blocked"
-                    if enabled and active_model is None
+                    if runtime_gate_reason or (enabled and active_model is None)
                     else ("notice" if not enabled else "ok")
                 ),
                 domain="config-center",
                 title="Qlib Runtime 与当前模型",
-                status="enabled" if enabled else "disabled",
+                status=(
+                    "blocked" if runtime_gate_reason else ("enabled" if enabled else "disabled")
+                ),
                 blocking_reason=(
-                    "Qlib Runtime 已启用但没有活动模型。"
-                    if enabled and active_model is None
-                    else ("当前未启用 Qlib Runtime。" if not enabled else "")
+                    runtime_gate_reason
+                    if runtime_gate_reason
+                    else (
+                        "Qlib Runtime 已启用但没有活动模型。"
+                        if enabled and active_model is None
+                        else ("当前未启用 Qlib Runtime。" if not enabled else "")
+                    )
                 ),
                 next_action="查看 Qlib 运行配置",
                 target_screen="api-library.config-center",

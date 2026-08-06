@@ -175,15 +175,23 @@ class Command(BaseCommand):
             raise CommandError("days must be a positive integer")
 
         runtime_config = runtime_settings.get_runtime_qlib_config()
+        explicit_provider_uri = _optional_nonempty_string(
+            options.get("provider_uri"), option_name="provider_uri"
+        )
+        if explicit_provider_uri is None and (
+            runtime_config.get("enabled") is not True
+            or runtime_config.get("must_not_use_for_decision", False)
+        ):
+            raise CommandError(
+                str(runtime_config.get("blocked_reason") or "runtime_config_snapshot_unavailable")
+            )
         universe = _optional_nonempty_string(
             options.get("universe"), option_name="universe"
         ) or _runtime_string(runtime_config, key="default_universe")
         region = _optional_nonempty_string(
             options.get("region"), option_name="region"
         ) or _runtime_string(runtime_config, key="region")
-        provider_uri = _optional_nonempty_string(
-            options.get("provider_uri"), option_name="provider_uri"
-        ) or _runtime_string(runtime_config, key="provider_uri")
+        provider_uri = explicit_provider_uri or _runtime_string(runtime_config, key="provider_uri")
 
         self.stdout.write(self.style.SUCCESS("Qlib 数据初始化"))
         self.stdout.write(f"  股票池: {universe}")
@@ -243,12 +251,17 @@ class Command(BaseCommand):
 
         try:
             qlib, data_provider = self._load_qlib_components()
+            from apps.alpha.application.repository_provider import initialize_qlib_runtime
             from apps.alpha.application.tasks import (
-                _get_qlib_data_latest_date,
+                _get_qlib_data_latest_date_for_provider,
                 _resolve_qlib_stock_list,
             )
 
-            qlib.init(provider_uri=str(data_path), region=region.lower())
+            initialize_qlib_runtime(
+                provider_uri=str(data_path),
+                region=region,
+                qlib_module=qlib,
+            )
             stock_list = _resolve_qlib_stock_list(data_provider, universe_id=universe)
             if not stock_list:
                 self.stdout.write(self.style.ERROR(f"  ✗ {universe} 股票池为空"))
@@ -257,7 +270,10 @@ class Command(BaseCommand):
                 self.style.SUCCESS(f"  ✓ {universe} 股票池: {len(stock_list)} 只股票")
             )
 
-            latest_trade_date = _get_qlib_data_latest_date()
+            latest_trade_date = _get_qlib_data_latest_date_for_provider(
+                str(data_path),
+                region,
+            )
             if latest_trade_date is None:
                 self.stdout.write(self.style.ERROR("  ✗ 本地交易日历为空"))
                 return False
@@ -317,19 +333,27 @@ class Command(BaseCommand):
         self.stdout.write(f"\n准备 {universe} 数据...")
         try:
             qlib, data_provider = self._load_qlib_components()
+            from apps.alpha.application.repository_provider import initialize_qlib_runtime
             from apps.alpha.application.tasks import (
-                _get_qlib_data_latest_date,
+                _get_qlib_data_latest_date_for_provider,
                 _resolve_qlib_stock_list,
             )
 
-            qlib.init(provider_uri=str(data_path), region=region.lower())
+            initialize_qlib_runtime(
+                provider_uri=str(data_path),
+                region=region,
+                qlib_module=qlib,
+            )
             stock_list = _resolve_qlib_stock_list(data_provider, universe_id=universe)
             self.stdout.write(f"  股票池大小: {len(stock_list)}")
             if not stock_list:
                 self.stdout.write(self.style.ERROR("  ✗ 股票池为空"))
                 return False
 
-            latest_trade_date = _get_qlib_data_latest_date()
+            latest_trade_date = _get_qlib_data_latest_date_for_provider(
+                str(data_path),
+                region,
+            )
             if latest_trade_date is None:
                 self.stdout.write(self.style.ERROR("  ✗ 本地交易日历为空"))
                 return False

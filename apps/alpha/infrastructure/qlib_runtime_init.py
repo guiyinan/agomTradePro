@@ -177,24 +177,72 @@ def _install_qlib_pandas_compat() -> None:
     _install_qlib_pandas_compat.__dict__["_installed"] = True
 
 
-def _get_qlib_data_latest_date() -> date | None:
-    """Inspect the local qlib dataset and return its latest trading date."""
+def _initialize_qlib_runtime(
+    *,
+    provider_uri: str,
+    region: str,
+    qlib_module: Any | None = None,
+) -> None:
+    """Initialize Qlib for one explicit binding and rebind when it changes.
+
+    Qlib keeps process-global provider state.  A boolean ``initialized`` flag is
+    insufficient for long-lived workers because a Config Center profile may
+    switch the provider directory or region while the worker remains alive.
+    The binding key is stored on the Qlib module so every runtime consumer uses
+    the same process-global decision.
+    """
+
+    normalized_provider_uri = str(provider_uri or "").strip()
+    if not normalized_provider_uri:
+        raise ValueError("Qlib provider_uri must be non-empty")
+    normalized_region = _normalize_qlib_region(region)
+    module = cast(Any, qlib_module if qlib_module is not None else import_module("qlib"))
+    binding = (str(Path(normalized_provider_uri).expanduser()), normalized_region)
+    if getattr(module, "_agomtradepro_qlib_binding", None) == binding:
+        return
+    init = getattr(module, "init", None)
+    if not callable(init):
+        raise RuntimeError("Qlib runtime does not expose init()")
+    cast(Callable[..., Any], init)(provider_uri=normalized_provider_uri, region=normalized_region)
+    module._agomtradepro_qlib_binding = binding
+
+
+def _reset_qlib_runtime_binding() -> None:
+    """Forget the process-global Qlib binding after a data refresh."""
+
+    try:
+        module = import_module("qlib")
+    except Exception:
+        return
+    if hasattr(module, "_agomtradepro_qlib_binding"):
+        delattr(module, "_agomtradepro_qlib_binding")
+
+
+def _get_qlib_data_latest_date_for_provider(provider_uri: str, region: str) -> date | None:
+    """Inspect one explicit provider directory without consulting runtime config."""
+
     import qlib
     from qlib.data import D
 
-    qlib_config = _get_runtime_qlib_config()
-    _require_usable_qlib_runtime(qlib_config)
-    provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
-    region = _normalize_qlib_region(qlib_config.get("region", "CN"))
-
-    if not hasattr(_get_qlib_data_latest_date, "_qlib_initialized"):
-        qlib.init(provider_uri=provider_uri, region=region)
-        _get_qlib_data_latest_date.__dict__["_qlib_initialized"] = True
-
+    _initialize_qlib_runtime(
+        provider_uri=provider_uri,
+        region=region,
+        qlib_module=qlib,
+    )
     calendar = D.calendar(start_time="2000-01-01", end_time="2100-12-31")
     if len(calendar) == 0:
         return None
     return _normalize_calendar_date(calendar[-1])
+
+
+def _get_qlib_data_latest_date() -> date | None:
+    """Inspect the typed runtime provider and return its latest trading date."""
+
+    qlib_config = _get_runtime_qlib_config()
+    _require_usable_qlib_runtime(qlib_config)
+    provider_uri = str(qlib_config["provider_uri"])
+    region = _normalize_qlib_region(qlib_config.get("region", "CN"))
+    return _get_qlib_data_latest_date_for_provider(provider_uri, region)
 
 
 def _build_outdated_qlib_reason(trade_date: date) -> str | None:
@@ -228,13 +276,15 @@ def _get_runtime_qlib_config() -> dict[str, Any]:
 
 
 def _require_usable_qlib_runtime(runtime_config: dict[str, Any]) -> None:
-    """Fail closed before touching a Qlib provider without typed runtime evidence."""
+    """Fail closed before touching Qlib without a complete typed provider binding."""
 
     if runtime_config.get("enabled") is True and not runtime_config.get(
-        "must_not_use_for_decision",
-        False,
+        "must_not_use_for_decision", False
     ):
-        return
+        provider_uri = runtime_config.get("provider_uri")
+        if isinstance(provider_uri, str) and provider_uri.strip():
+            return
+        raise RuntimeError("Qlib runtime blocked: runtime_config_snapshot_unavailable")
     reason = str(runtime_config.get("blocked_reason") or "runtime_config_unavailable")
     raise RuntimeError(f"Qlib runtime blocked: {reason}")
 
@@ -385,9 +435,13 @@ normalize_qlib_instrument_list = _normalize_qlib_instrument_list
 normalize_qlib_feature_set_id = _normalize_qlib_feature_set_id
 install_qlib_pandas_compat = _install_qlib_pandas_compat
 get_qlib_data_latest_date = _get_qlib_data_latest_date
+get_qlib_data_latest_date_for_provider = _get_qlib_data_latest_date_for_provider
+initialize_qlib_runtime = _initialize_qlib_runtime
+reset_qlib_runtime_binding = _reset_qlib_runtime_binding
 build_outdated_qlib_reason = _build_outdated_qlib_reason
 build_qlib_runtime_failure_reason = _build_qlib_runtime_failure_reason
 get_runtime_qlib_config = _get_runtime_qlib_config
+require_usable_qlib_runtime = _require_usable_qlib_runtime
 parse_universe_list = _parse_universe_list
 cache_is_fresh_for_trade_date = _cache_is_fresh_for_trade_date
 extract_model_filename = _extract_model_filename
