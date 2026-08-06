@@ -163,6 +163,8 @@ Owner：`data_center`，独立 plan/分支。
 
 2026-08-05 完成度审计后补充了组合级 R5 纵切：`fixed_income.domain.portfolio_risk` 与 Application use case 绑定 Portfolio-owned snapshot、可复算 budget policy、PIT manifest 和四类 canonical owner evidence，计算 DV01、CS01、convexity、可变现比例和流动性成本，支持显式 parallel/key-rate/steepener/flattening/credit widening stress，并封存逐持仓与总压力 P&L 恒等式。缺输入、错 owner/hash/as-of/currency、PIT 不完整、future/stale 或任一预算 breach 均稳定 blocked；输出仍固定 research-only。尚未实现历史分位、等级迁移、流动性溢价、曲线组合和结果晋级/持久化，也没有真实 Publication，因此 R5 总门禁不变。
 
+2026-08-06 R5 relative-value Phase A 已完成此前四项软件缺口：owner-attested expected calendar/revision PIT 历史分位；formation-time taxonomy/cohort 五桶评级迁移；premium driver 与 once-only cost 分解；signed multi-leg curve/key-rate/steepener/flattening/butterfly/credit-spread portfolio、容量、流动性与 shortability 门禁。Composite 对多 subject raw liquidity 在同 cutoff/同 policy 现场重算，并逐项权威重读 Publication、BondMaster、CashFlow、Calendar、cohort、analytics 与 funding seal；owner 方向为 Data Center raw facts、fixed_income analytics/candidate/input set、Portfolio funding、Research policy。主代理复跑 `32 passed`，Luna Max 最终复核 P0/P1 为 0。该批不新增 ORM/migration/concrete provider/跨 owner UoW/Promotion/API/TUI/Celery/current/Portfolio-R8 consumer/order/execution；真实 Publication、PIT 样本、券级事实、容量/借券和外部对账仍缺，R5 总门禁不变。
+
 ### R6-S0：简单基准缺口取证
 
 Owner：`regime` + `research`。

@@ -21,7 +21,7 @@
 | R2 | actor/series 双时间、proxy/measure semantics、PIT membership、描述性证据、版本化 expected-period calendar、series×period 完整 coverage、整期全缺门禁 | 运行时 taxonomy/calendar Publication 接线与研究晋级闭环 | 获批 taxonomy、授权、两个市场周期、Production Publication、Audit 解释力 |
 | R3 | 独立 App、exact PIT fact/manifest、historical-mean/FMP、nested temporal-CV runner、canonical artifact bytes、dated current/forward ledger、append-only retirement lifecycle | regime 分段、trial/Promotion exact artifact binding、监控与生产读取投影 | 宏观 vintage、代理资产/连续期货、真实 cost/benchmark、OOS trial、Promotion |
 | R4 | beta/CI/R²/残差、PSD、风险贡献、typed rolling/regime、三基准同窗 OOS、Portfolio result ledger/query、covariance diagnostics、Research stable scope/policy/trial/decision、五表 append-only ledger、lifecycle/active provider 与 concrete composition | 下游 active consumer 接线须等待真实 Promotion 并另行验收 | R3 晋级版本、真实 exposure/covariance/constraint snapshot、Regime PIT assignment、owner authorization 和历史样本 |
-| R5 | 单券定价、久期/凸性、carry/roll-down、曲线/信用利差 | 历史分位、等级迁移、流动性溢价、曲线组合及容量门禁；组合结果持久化/晋级闭环 | 两条曲线、信用估值、Bond Master/CashFlow/Calendar Publication、外部对账 |
+| R5 | 单券定价、久期/凸性、carry/roll-down、曲线/信用利差、PIT 历史分位、评级迁移、流动性溢价、signed curve portfolio、容量/流动性/shortability 与 ID-only composite 软件合同 | append-only result ledger、concrete providers/跨 owner atomic UoW、Research Promotion/retire/rollback | 两条曲线、信用估值、Bond Master/CashFlow/Calendar Publication、PIT 历史/评级 cohort、容量/借券与外部对账 |
 | R6 | 简单基准不足 report、高级 artifact evidence gate | duration/决策损失/复杂度/稳定性比较；政策反应系数和诊断；监控/退役/Promotion 闭环 | 真实 shortfall、PIT 输入、预注册 family、OOS 证据 |
 | R7 | 概率分栏、Brier/分箱、PIT 类比、typed 逐期路径证据、append-only reminder ledger/internal outbox、due/ack/escalate/expiry | calibration/path 结果持久化、retirement/Promotion lifecycle 与审计分页 | 完整预测—复核—兑现历史、获批 sample policy、PIT 路径样本 |
 | R8 | canonical snapshot、execution feedback、13 类 typed 输入、current baseline、可投资 universe、四市场约束、path drawdown、四候选比较、append-only result/Promotion/retirement/rollback lifecycle | 本轮无数据软件清单经 Luna Max 复核已无 P0/P1；进入 transition plan/生产消费前仍须基于真实证据另建阶段 | broker reconciliation、R3/R4/R5 晋级、真实 Portfolio snapshot、成本/容量/市场约束校准 |
@@ -136,9 +136,18 @@
 - Strict typed codec 逐类型恢复并重验 dataclass/domain hash；repository 重建 trial/decision/lifecycle prefix，active 每次动态重读 policy、Portfolio Application exact record 与 current R3。RETIRE 仍按 decision-time historical PIT 清理过期 top。
 - Composition 只注入 Portfolio Application port 和 current-R3 provider；未注册 API/TUI/Celery，也未开放 consumer/current/preview/execution。Phase B 软件合同不能替代真实 owner authorization、R3 Promotion、canonical inputs 或 OOS trial。
 
+### 3.13 R5 relative-value Phase A
+
+- 历史利差分位使用 owner-attested expected calendar denominator、release/PIT cutoff、latest-available revision、target-period 隔离、mid-rank tie 与完整 coverage/count/hash 重算；未来 revision、重复任意 revision、缺 target 或 coverage 不足稳定 blocked。
+- 评级迁移显式封存 taxonomy/version、formation-time origin、horizon/grace、DEFAULT absorbing、WITHDRAWN/CENSORED/UNRESOLVED 五桶、完整 cohort denominator 与终态 Publication；逐行/顶层 count、rate、coverage 和 selection policy 全量重算。
+- 流动性把 premium driver 与 financing/transaction/impact/liquidation cost 分离，区分 INCLUDES/EXCLUDES spread identity、one-way/round-trip、holding horizon、owner gross-included-cost manifest，并现场推导 quote age；partial evidence 在 blocked 状态可 canonical 封存，available 必须完整全集。
+- Curve portfolio 使用 positive notional + LONG/SHORT 单一符号，版本化 topology 与合法 curve-role/kind pair，逐腿重算 KRD/DV01/CS01/convexity/carry/roll-down/cost/capacity/liquidity/borrow 及 cash conservation；每腿 raw liquidity evidence 在同 cutoff/同 policy 现场重算，不能信 caller derived result。
+- Composite 将多 subject liquidity raw/result seals 与 curve 消费集合精确对齐；四 child 的 evaluated_at/policy hash/状态/阻断均进入 seal。Application 只收 input/policy ID/version/cutoff，并重读 Publication、BondMaster、CashFlow、Calendar 及 nested PIT/cohort/analytics/funding exact seals。
+- Owner 方向固定为 Data Center raw facts、fixed_income analytics/candidate/input set、Portfolio funding、Research policy；全链固定 research-only/must-not-execute/must-not-use-for-decision。Phase A 不新增 ORM/migration/concrete providers/UoW/Promotion 或消费接线。
+
 ## 4. 后续实施顺序
 
-1. R5 relative-value 扩展；R6 lifecycle。
+1. R5 Phase B（append-only persistence、concrete providers/UoW 与 Promotion lifecycle）；R6 lifecycle。
 2. R3 regime 分段、trial/Promotion exact binding 与监控读取投影。
 3. R7 calibration/path 结果持久化与 retirement/Promotion lifecycle。
 
@@ -174,5 +183,7 @@ R4 persistence/query 续批经 Luna Max 实现和多轮独立只读复核后关�
 R4 Promotion Phase A 经 Luna Max 实现、持续旁审和最终独立复核后关闭 stable scope、Portfolio UoW/atomic TOCTOU、receipt recorded-at binding、RETIRE 失效死锁、连续 rollback 与 mypy 回退，最终无 P0/P1；主代理复跑 `29 passed`。10 个生产文件增量 mypy 0 regression，Ruff、Black、架构、业务配置与模块循环均通过。该证据只证明 Domain/Application 软件合同；Phase B 五表、concrete provider、真实 trial 与 active downstream 尚未形成。
 
 R4 Promotion Phase B 经 Luna Max 实现和持续只读复核后关闭 caller policy backdate、五表 direct/bulk/related-manager 绕过、receipt→child 回滚、first-miss raced winner、stream fork 与 raw tamper 问题，最终 P0/P1 均为 0。Phase A + codec `38 passed`，Phase B component `13 passed`，migration `4 passed`；7 个生产文件增量 mypy 0 regression，Black/Ruff、2236-file 架构、业务配置、模块循环和 migration drift 均通过。真实数据、owner authorization 与下游 active consumption 仍未形成。
+
+R5 relative-value Phase A 经 Luna Max 实现、持续旁审和多轮定点整改后关闭 historical-current freshness 混淆、评级 survivor bias、流动性 hash 自引用/重复扣费、curve StopIteration、owner 反向依赖与 caller-derived liquidity 问题，最终 P0/P1 均为 0。主代理独立复跑 `32 passed`；7 个生产文件增量 mypy 0 regression，Black/Ruff、架构边界/增量审计、业务配置与模块循环均通过。真实数据、持久化、跨 owner UoW 和 Promotion 尚未形成。
 
 完成路线图仍需为上表每项取得代码、迁移/台账、研究证据、运行时行为和 Promotion/回滚的直接证明；“测试全绿”只证明已覆盖合同，不替代真实数据和样本外结果。
