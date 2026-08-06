@@ -182,6 +182,8 @@ Owner：`regime` + `research`。
 
 2026-08-05 开发先行状态：S0 基准不足 evaluator 与外部高级状态 artifact evidence validator 均已实现。后者不训练模型，要求 `PROVEN` shortfall、完整 PIT、稳定经济标签、有效概率/转移/持续期、优于简单基准的 OOS 指标、policy target 和独立 artifact attestation；即使全部通过也固定 `must_not_replace_regime=true`。
 
+2026-08-07 qualification evidence 已完成七指标同窗比较、预注册 family/split/embargo、S2 PIT/artifact/threshold exact replay、独立 derived metric bundle、政策反应系数与回归诊断。Study ID 由完整 body hash 派生，Application 只接受 ID/time 并逐 owner 重读；同 ID 重封、裸 `ACCEPTED`、provider substitution、公开 mint、future/stale/retired 均 fail closed。R6 相关回归 `57 passed`，Luna Max 最终复核 P0/P1 为 0。成功结果仍固定 research-only，仅允许人工晋级复核；真实 shortfall、PIT/OOS 数据、qualification persistence、monitoring/retirement/Promotion 均未完成，R6 总门禁不变。
+
 ### R7-C0：情景 Forecast Ledger 扩展
 
 Owner：`risk_center` + `signal` + `audit`，独立 plan/迁移。

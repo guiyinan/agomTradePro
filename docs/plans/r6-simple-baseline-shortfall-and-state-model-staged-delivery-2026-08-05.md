@@ -1,6 +1,6 @@
 # R6 简单基准不足证据与高级状态模型分阶段计划（2026-08-05）
 
-> 状态：S0 基准不足评估与 S2 外部高级状态证据验证均已实现；真实 S1 证据和 PromotionDecision 仍 `blocked`
+> 状态：S0 基准不足评估、S2 外部高级状态证据验证与 qualification evidence 均已实现；真实 S1 证据、持久化/监控和 PromotionDecision 仍 `blocked`
 > 来源：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md) R6
 > 边界：不在仓库内训练 Markov/HMM/贝叶斯/政策反应模型；只验证外部 artifact、状态概率/转移/OOS/政策目标证据，且永不替换现有 Regime/Pulse。
 
@@ -58,6 +58,8 @@ S1 通过后另建计划与分支：
 
 交叉复核整改后，S0 report 额外封存 baseline key/version、PIT manifest、窗口、原始指标、证据引用/时间/状态及 canonical SHA-256；高级候选不得自报基准指标，只能绑定 report hash 并读取该报告的真实指标。因而“比较器可用”仍不能替代 S1 的真实不足证据。
 
+2026-08-07 qualification 续批进一步实现：content-addressed comparative study 与 OOS 前预注册 family/split/embargo；transition accuracy、log loss、calibration、duration、decision loss、complexity、label stability 七指标同窗比较；政策反应系数的 target/lag/sign/CI/p-value/magnitude 与回归诊断。Application 命令只接受 study ID/time，并精确重读 candidate、baseline、S2 attestation、derived metric bundle、preregistration 和 policy。S2 attestation 必须用完整 PIT manifest、独立 artifact attestation 与 threshold payload 重放原 gate，不能包装裸 `ACCEPTED`；成功也只表示可送人工 Promotion review，不生成 decision 或替换 Regime。真实 S1/PIT/OOS 证据、持久化、monitoring/retirement/Promotion 仍未完成。
+
 ## 5. 非目标
 
 - 不从当前 Regime 分数反推“模型概率”；
@@ -75,4 +77,4 @@ python scripts/check_mypy_regression.py apps/research/domain/state_model_baselin
 python scripts/verify_architecture.py
 ```
 
-S0/S2 仅新增纯 Domain/Application 合约和测试，无 ORM、迁移、训练任务或运行时接线。回滚不会修改现有 Regime、Policy、Pulse 或决策结果。
+S0/S2/qualification 仅新增纯 Domain/Application 合约和测试，无 ORM、迁移、训练任务或运行时接线。回滚不会修改现有 Regime、Policy、Pulse 或决策结果。

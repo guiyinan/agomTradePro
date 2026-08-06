@@ -22,7 +22,7 @@
 | R3 | 独立 App、exact PIT fact/manifest、historical-mean/FMP、nested temporal-CV runner、canonical artifact bytes、dated current/forward ledger、append-only retirement lifecycle | regime 分段、trial/Promotion exact artifact binding、监控与生产读取投影 | 宏观 vintage、代理资产/连续期货、真实 cost/benchmark、OOS trial、Promotion |
 | R4 | beta/CI/R²/残差、PSD、风险贡献、typed rolling/regime、三基准同窗 OOS、Portfolio result ledger/query、covariance diagnostics、Research stable scope/policy/trial/decision、五表 append-only ledger、lifecycle/active provider 与 concrete composition | 下游 active consumer 接线须等待真实 Promotion 并另行验收 | R3 晋级版本、真实 exposure/covariance/constraint snapshot、Regime PIT assignment、owner authorization 和历史样本 |
 | R5 | 单券定价、久期/凸性、carry/roll-down、曲线/信用利差、PIT 历史分位、评级迁移、流动性溢价、signed curve portfolio、容量/流动性/shortability 与 ID-only composite 软件合同 | append-only result ledger、concrete providers/跨 owner atomic UoW、Research Promotion/retire/rollback | 两条曲线、信用估值、Bond Master/CashFlow/Calendar Publication、PIT 历史/评级 cohort、容量/借券与外部对账 |
-| R6 | 简单基准不足 report、高级 artifact evidence gate | duration/决策损失/复杂度/稳定性比较；政策反应系数和诊断；监控/退役/Promotion 闭环 | 真实 shortfall、PIT 输入、预注册 family、OOS 证据 |
+| R6 | 简单基准不足 report、高级 artifact evidence gate、七指标同窗 qualification、政策反应系数/诊断 | qualification persistence、监控/退役/Promotion 闭环 | 真实 shortfall、PIT 输入、预注册 family、OOS 证据 |
 | R7 | 概率分栏、Brier/分箱、PIT 类比、typed 逐期路径证据、append-only reminder ledger/internal outbox、due/ack/escalate/expiry | calibration/path 结果持久化、retirement/Promotion lifecycle 与审计分页 | 完整预测—复核—兑现历史、获批 sample policy、PIT 路径样本 |
 | R8 | canonical snapshot、execution feedback、13 类 typed 输入、current baseline、可投资 universe、四市场约束、path drawdown、四候选比较、append-only result/Promotion/retirement/rollback lifecycle | 本轮无数据软件清单经 Luna Max 复核已无 P0/P1；进入 transition plan/生产消费前仍须基于真实证据另建阶段 | broker reconciliation、R3/R4/R5 晋级、真实 Portfolio snapshot、成本/容量/市场约束校准 |
 
@@ -154,9 +154,18 @@
 - Default/base/related manager、instance save/save_base/delete、bulk/create/update/get-or-create missing/update-or-create 等常规 ORM mutation 均拒绝；raw SQL、underscored QuerySet 和显式 unbound base dispatch 属防线外，任何由此产生的篡改必须在 exact restore 被发现。
 - 本阶段不创建 Research PromotionDecision、retirement/rollback、active provider、consumer/current/API/TUI/Celery 或 execution 接线；B1 软件证据不替代真实 Publication、券级 PIT 历史、容量/借券或外部对账。
 
+### 3.15 R6 qualification evidence
+
+- 新增 Research Domain/Application qualification contract；命令只含 content-addressed study ID 与 assessment time，study provider 返回同 ID 不同 payload 时在读取其他依赖前稳定阻断。
+- Study 在 OOS 前预注册 trial family、split、embargo、policy-reaction specification 和 exact policy hash；同窗比较固定 transition accuracy、log loss、calibration error、duration MAE、decision loss、complexity 与 label stability 七项指标、单位、方向和版本化最小改善阈值。
+- S2 attestation 不接受裸 `ACCEPTED`；公共工厂必须读取 candidate、baseline shortfall、完整/verified PIT manifest、独立 artifact attestation 和 threshold payload，并重放原 S2 gate。PIT、artifact、threshold canonical hash 与时钟全部进入 qualification seal。
+- Decision loss、complexity 与 label stability candidate 值由独立 content-sealed exact bundle 提供，Application 按 ID/version 重读；study 重封三值、provider substitution、future/stale、label drift 或 retired candidate 均 fail closed。
+- 政策反应函数按 target/lag/预期符号/置信区间/p-value/最小幅度验证，并检查样本量、adjusted R²、残差自相关、异方差、参数稳定性和条件数；阈值全部来自 exact policy，无代码默认。
+- 成功结果仅为 `EVIDENCE_COMPLETE` 且 `may_request_promotion_review=true`；没有 PromotionDecision、持久化、current/Regime/决策/执行接线，固定 research-only/must-not-use-for-decision/must-not-replace-regime。
+
 ## 4. 后续实施顺序
 
-1. R5 Phase B2 Research Promotion/retirement/rollback lifecycle；R6 qualification persistence/lifecycle。
+1. R5 Phase B2 Research Promotion/retirement/rollback lifecycle；R6 qualification persistence/monitoring/Promotion lifecycle。
 2. R3 regime 分段、trial/Promotion exact binding 与监控读取投影。
 3. R7 calibration/path 结果持久化与 retirement/Promotion lifecycle。
 
@@ -196,5 +205,7 @@ R4 Promotion Phase B 经 Luna Max 实现和持续只读复核后关闭 caller po
 R5 relative-value Phase A 经 Luna Max 实现、持续旁审和多轮定点整改后关闭 historical-current freshness 混淆、评级 survivor bias、流动性 hash 自引用/重复扣费、curve StopIteration、owner 反向依赖与 caller-derived liquidity 问题，最终 P0/P1 均为 0。主代理独立复跑 `32 passed`；7 个生产文件增量 mypy 0 regression，Black/Ruff、架构边界/增量审计、业务配置与模块循环均通过。真实数据、持久化、跨 owner UoW 和 Promotion 尚未形成。
 
 R5 relative-value Phase B1 经 Luna Max 实现、持续旁审与 exploit 定点整改后关闭 caller capability 自提权、command/draft 非语义绑定、历史/current freshness 混淆、strict-query content-hash 短路、`save_base` 与 related-manager 绕过、race/rollback/tamper 假覆盖，最终 P0/P1 均为 0。Codec `15 passed`、component `23 passed`、migration `2 passed`；7 个生产文件增量 mypy 0 regression，Black/Ruff、架构边界/增量审计、业务配置、模块循环和 migration drift 均通过。真实数据、Research Promotion/lifecycle 与下游消费仍未形成。
+
+R6 qualification evidence 经 Luna Max 实现、两轮独立攻击复核与定点整改后关闭同 ID study 重封替换、公开 zero-hash/私有 mint 绕过、裸 S2 `ACCEPTED` 包装和 derived metric 自证，最终 P0/P1 均为 0。R6 相关回归 `57 passed`；2 个生产文件增量 mypy 0 regression，Black/Ruff、架构边界/增量审计、业务配置与模块循环均通过。真实 shortfall、PIT/OOS 数据、持久化、monitoring 与 Promotion lifecycle 仍未形成。
 
 完成路线图仍需为上表每项取得代码、迁移/台账、研究证据、运行时行为和 Promotion/回滚的直接证明；“测试全绿”只证明已覆盖合同，不替代真实数据和样本外结果。
