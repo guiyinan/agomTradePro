@@ -145,9 +145,18 @@
 - Composite 将多 subject liquidity raw/result seals 与 curve 消费集合精确对齐；四 child 的 evaluated_at/policy hash/状态/阻断均进入 seal。Application 只收 input/policy ID/version/cutoff，并重读 Publication、BondMaster、CashFlow、Calendar 及 nested PIT/cohort/analytics/funding exact seals。
 - Owner 方向固定为 Data Center raw facts、fixed_income analytics/candidate/input set、Portfolio funding、Research policy；全链固定 research-only/must-not-execute/must-not-use-for-decision。Phase A 不新增 ORM/migration/concrete providers/UoW/Promotion 或消费接线。
 
+### 3.14 R5 relative-value Phase B1 persistence
+
+- fixed_income 新增 input receipt/result 两张 append-only 表与 schema-only `0003`；无 `RunPython`、`RunSQL` 或 seed，旧 `0001/0002` bytes 与历史 sentinel 行保持不变。
+- Receipt 封存完整 input/policy graph、owner、ID-only command hash、evaluation cutoff、server-owned `recorded_at` 与原始 evidence clock graph；历史证据只按 evaluation-time PIT 语义复算，不因记录时或今天已过期而误拒绝。
+- 公开 Repository 仅提供 exact query；写能力位于 composition closure，只接受 ID/version/cutoff command，在共享 UoW 中进入 Data Center、Portfolio、Research Application atomic port 后重新执行 authoritative Phase A。任一 owner 缺失、事务键不一致、command/draft 错配或伪造 Draft 均零写入。
+- Receipt/result 同事务 append，child 失败回滚 parent；first-miss race 只接受完整一致 winner。strict codec 与 query 重验 schema、UTC/Decimal/tuple 类型、payload、header、content hash、FK、owner 与 knowledge time；raw tamper 稳定报 corruption。
+- Default/base/related manager、instance save/save_base/delete、bulk/create/update/get-or-create missing/update-or-create 等常规 ORM mutation 均拒绝；raw SQL、underscored QuerySet 和显式 unbound base dispatch 属防线外，任何由此产生的篡改必须在 exact restore 被发现。
+- 本阶段不创建 Research PromotionDecision、retirement/rollback、active provider、consumer/current/API/TUI/Celery 或 execution 接线；B1 软件证据不替代真实 Publication、券级 PIT 历史、容量/借券或外部对账。
+
 ## 4. 后续实施顺序
 
-1. R5 Phase B（append-only persistence、concrete providers/UoW 与 Promotion lifecycle）；R6 lifecycle。
+1. R5 Phase B2 Research Promotion/retirement/rollback lifecycle；R6 qualification persistence/lifecycle。
 2. R3 regime 分段、trial/Promotion exact binding 与监控读取投影。
 3. R7 calibration/path 结果持久化与 retirement/Promotion lifecycle。
 
@@ -185,5 +194,7 @@ R4 Promotion Phase A 经 Luna Max 实现、持续旁审和最终独立复核后�
 R4 Promotion Phase B 经 Luna Max 实现和持续只读复核后关闭 caller policy backdate、五表 direct/bulk/related-manager 绕过、receipt→child 回滚、first-miss raced winner、stream fork 与 raw tamper 问题，最终 P0/P1 均为 0。Phase A + codec `38 passed`，Phase B component `13 passed`，migration `4 passed`；7 个生产文件增量 mypy 0 regression，Black/Ruff、2236-file 架构、业务配置、模块循环和 migration drift 均通过。真实数据、owner authorization 与下游 active consumption 仍未形成。
 
 R5 relative-value Phase A 经 Luna Max 实现、持续旁审和多轮定点整改后关闭 historical-current freshness 混淆、评级 survivor bias、流动性 hash 自引用/重复扣费、curve StopIteration、owner 反向依赖与 caller-derived liquidity 问题，最终 P0/P1 均为 0。主代理独立复跑 `32 passed`；7 个生产文件增量 mypy 0 regression，Black/Ruff、架构边界/增量审计、业务配置与模块循环均通过。真实数据、持久化、跨 owner UoW 和 Promotion 尚未形成。
+
+R5 relative-value Phase B1 经 Luna Max 实现、持续旁审与 exploit 定点整改后关闭 caller capability 自提权、command/draft 非语义绑定、历史/current freshness 混淆、strict-query content-hash 短路、`save_base` 与 related-manager 绕过、race/rollback/tamper 假覆盖，最终 P0/P1 均为 0。Codec `15 passed`、component `23 passed`、migration `2 passed`；7 个生产文件增量 mypy 0 regression，Black/Ruff、架构边界/增量审计、业务配置、模块循环和 migration drift 均通过。真实数据、Research Promotion/lifecycle 与下游消费仍未形成。
 
 完成路线图仍需为上表每项取得代码、迁移/台账、研究证据、运行时行为和 Promotion/回滚的直接证明；“测试全绿”只证明已覆盖合同，不替代真实数据和样本外结果。

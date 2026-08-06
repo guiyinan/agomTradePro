@@ -165,6 +165,8 @@ Owner：`data_center`，独立 plan/分支。
 
 2026-08-06 R5 relative-value Phase A 已完成此前四项软件缺口：owner-attested expected calendar/revision PIT 历史分位；formation-time taxonomy/cohort 五桶评级迁移；premium driver 与 once-only cost 分解；signed multi-leg curve/key-rate/steepener/flattening/butterfly/credit-spread portfolio、容量、流动性与 shortability 门禁。Composite 对多 subject raw liquidity 在同 cutoff/同 policy 现场重算，并逐项权威重读 Publication、BondMaster、CashFlow、Calendar、cohort、analytics 与 funding seal；owner 方向为 Data Center raw facts、fixed_income analytics/candidate/input set、Portfolio funding、Research policy。主代理复跑 `32 passed`，Luna Max 最终复核 P0/P1 为 0。该批不新增 ORM/migration/concrete provider/跨 owner UoW/Promotion/API/TUI/Celery/current/Portfolio-R8 consumer/order/execution；真实 Publication、PIT 样本、券级事实、容量/借券和外部对账仍缺，R5 总门禁不变。
 
+2026-08-07 R5 relative-value Phase B1 已完成 fixed_income-owned append-only persistence 与 exact query：input receipt/result 两表、schema-only `0003`、strict typed codec、server-owned `recorded_at`、完整历史 evidence clock graph seal、Data Center/Portfolio/Research Application shared UoW，以及只接受 ID/version/cutoff 的 closure-bound writer。公开 Repository 不含写入口；伪造 Draft/capability、command/draft 或 owner graph 错配、事务键不一致、direct/bulk/related mutation、race fork、receipt→result 回滚失败和 raw header/payload/FK tamper 均 fail closed。Codec/component/migration 为 `15 / 23 / 2 passed`，Luna Max 最终复核 P0/P1 为 0。该批不新增 Research Promotion/retirement/rollback、active provider、API/TUI/Celery/current/Portfolio-R8 consumer/order/execution；真实 Publication、PIT 样本、券级事实、容量/借券和外部对账仍缺，R5 总门禁不变。
+
 ### R6-S0：简单基准缺口取证
 
 Owner：`regime` + `research`。
