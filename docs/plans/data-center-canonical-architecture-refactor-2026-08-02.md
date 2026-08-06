@@ -4410,3 +4410,10 @@ Git SHA / 镜像 / migration：
 - 变更：`SystemSettingsAdminForm` 排除全部 typed runtime fields；Admin fieldsets/list display 不再暴露旧运行时字段，改为只读迁移提示并引导 Config Center/TUI。账户准入、协议、备份和备注等兼容字段仍保持原有 Admin 流程。
 - 测试与治理：新增 Admin 结构回归，断言 form 和 fieldsets 均不接受 typed runtime 字段；Admin import、Django check、Ruff/Black 通过；runtime contract 为 Alpha/market 定义登记该 guard test。
 - 明确未做：未删除兼容模型字段、未改动 Config Center/TUI 管理页面、未迁移备份/决策状态字段、未初始化生产 profile、未执行 PostgreSQL/观察窗口/M9/M10 或部署；不 push、不部署。
+
+## 90. 2026-08-06：Data Center Provider Admin 禁止 failover 旧链写入
+
+- 目标：补齐 Data Center `DataProviderSettingsModel` Admin 入口，避免管理员直接修改旧 singleton 的 `enable_failover/failover_tolerance`，导致 failover adapter 读取 typed profile 与管理界面不一致。
+- 变更：新增专用 Admin Form，仅保留 Data Center 自有 `default_source/description`；typed failover 开关、容差和迁移说明改为只读摘要，管理修改继续走 Provider API 的 Config Center runtime write port。
+- 测试与治理：新增 Admin form/fieldset guard `2 passed`，Django check、Ruff/Black 通过；runtime contract 为两个 Data Center provider keys 登记 Admin guard test。
+- 明确未做：未删除 DataProviderSettings 兼容字段、未迁移其他 Provider 配置/生产 profile、未执行 PostgreSQL/观察窗口/M9/M10 或部署；不 push、不部署。

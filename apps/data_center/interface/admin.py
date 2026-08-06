@@ -8,7 +8,10 @@ from django import forms
 from django.contrib import admin
 from django.http import HttpRequest
 
-from apps.data_center.application.interface_services import can_create_provider_settings
+from apps.data_center.application.interface_services import (
+    can_create_provider_settings,
+    load_provider_settings_payload,
+)
 from apps.data_center.models import (
     DataOwnerRegistrationModel,
     DataProviderSettingsModel,
@@ -113,6 +116,14 @@ class ProviderConfigAdminForm(TypedModelForm[ProviderConfigModel]):
         return cleaned_data
 
 
+class DataProviderSettingsAdminForm(TypedModelForm[DataProviderSettingsModel]):
+    """Keep typed failover runtime values out of the legacy singleton form."""
+
+    class Meta:
+        model = DataProviderSettingsModel
+        fields = ("default_source", "description")
+
+
 @admin.register(ProviderConfigModel)
 class ProviderConfigAdmin(TypedModelAdmin[ProviderConfigModel]):
     form = ProviderConfigAdminForm
@@ -167,8 +178,36 @@ class ProviderConfigAdmin(TypedModelAdmin[ProviderConfigModel]):
 
 @admin.register(DataProviderSettingsModel)
 class DataProviderSettingsAdmin(TypedModelAdmin[DataProviderSettingsModel]):
-    list_display = ("default_source", "enable_failover", "failover_tolerance", "updated_at")
-    readonly_fields = ("created_at", "updated_at")
+    form = DataProviderSettingsAdminForm
+    list_display = (
+        "default_source",
+        "typed_failover_enabled",
+        "typed_failover_tolerance",
+        "updated_at",
+    )
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "typed_failover_enabled",
+        "typed_failover_tolerance",
+        "runtime_config_notice",
+    )
+
+    fieldsets = (
+        (None, {"fields": ("default_source", "description")}),
+        (
+            "运行时容错配置",
+            {
+                "fields": (
+                    "typed_failover_enabled",
+                    "typed_failover_tolerance",
+                    "runtime_config_notice",
+                ),
+                "description": "Failover 开关和容差已迁移到 Config Center typed runtime profile；此 Admin 仅保留只读摘要。",
+            },
+        ),
+        ("Timestamps", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
 
     def has_add_permission(self, request: HttpRequest) -> bool:
         """Require model permission and allow only one singleton row."""
@@ -183,6 +222,29 @@ class DataProviderSettingsAdmin(TypedModelAdmin[DataProviderSettingsModel]):
         """Keep the global provider settings singleton non-deletable."""
 
         return False
+
+    @admin.display(description="Typed failover")
+    def typed_failover_enabled(self, obj: DataProviderSettingsModel) -> str:
+        """Display the active typed failover switch without enabling legacy writes."""
+
+        payload = load_provider_settings_payload()
+        return "启用" if bool(payload.get("enable_failover")) else "停用"
+
+    @admin.display(description="Typed tolerance")
+    def typed_failover_tolerance(self, obj: DataProviderSettingsModel) -> str:
+        """Display the active typed failover tolerance."""
+
+        payload = load_provider_settings_payload()
+        try:
+            return f"{float(payload.get('failover_tolerance', 0.0)):.2%}"
+        except (TypeError, ValueError):
+            return "未知"
+
+    @admin.display(description="运行时配置入口")
+    def runtime_config_notice(self, obj: DataProviderSettingsModel) -> str:
+        """Explain where typed failover settings are managed."""
+
+        return "请使用 Config Center/TUI 系统设置页面管理 typed runtime profile。"
 
 
 @admin.register(ProductionCoverageUniverseConfigModel)

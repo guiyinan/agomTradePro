@@ -158,7 +158,8 @@
         "tests/unit/config_center/test_runtime_definition_reconcile.py::test_runtime_definition_reconcile_is_idempotent",
         "tests/unit/config_center/test_runtime_definition_reconcile.py::test_active_profile_passes_reconciled_definition_validation",
         "tests/unit/config_center/test_runtime_definition_reconcile.py::test_active_profile_reports_missing_critical_definition",
-        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_provider_settings_update_uses_typed_failover_values"
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_provider_settings_update_uses_typed_failover_values",
+        "tests/unit/data_center/test_data_provider_settings_admin_runtime_cutover.py::test_data_provider_settings_admin_excludes_typed_failover_fields"
       ]
     },
     {
@@ -180,7 +181,8 @@
         "tests/unit/data_center/test_macro_failover_adapter.py::test_runtime_failover_switch_is_preferred",
         "tests/unit/data_center/test_macro_failover_adapter.py::test_runtime_failover_switch_keeps_owner_compatibility_on_invalid_value",
         "tests/unit/config_center/test_runtime_definition_reconcile.py::test_runtime_definition_reconcile_is_idempotent",
-        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_provider_settings_update_uses_typed_failover_values"
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_provider_settings_update_uses_typed_failover_values",
+        "tests/unit/data_center/test_data_provider_settings_admin_runtime_cutover.py::test_data_provider_settings_admin_excludes_typed_failover_fields"
       ]
     },
     {
