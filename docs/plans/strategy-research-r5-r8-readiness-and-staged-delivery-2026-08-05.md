@@ -167,6 +167,8 @@ Owner：`data_center`，独立 plan/分支。
 
 2026-08-07 R5 relative-value Phase B1 已完成 fixed_income-owned append-only persistence 与 exact query：input receipt/result 两表、schema-only `0003`、strict typed codec、server-owned `recorded_at`、完整历史 evidence clock graph seal、Data Center/Portfolio/Research Application shared UoW，以及只接受 ID/version/cutoff 的 closure-bound writer。公开 Repository 不含写入口；伪造 Draft/capability、command/draft 或 owner graph 错配、事务键不一致、direct/bulk/related mutation、race fork、receipt→result 回滚失败和 raw header/payload/FK tamper 均 fail closed。Codec/component/migration 为 `15 / 23 / 2 passed`，Luna Max 最终复核 P0/P1 为 0。该批不新增 Research Promotion/retirement/rollback、active provider、API/TUI/Celery/current/Portfolio-R8 consumer/order/execution；真实 Publication、PIT 样本、券级事实、容量/借券和外部对账仍缺，R5 总门禁不变。
 
+2026-08-07 R5 Promotion Phase A 已完成 Research-owned scope/policy/trial/decision/lifecycle 软件合同。Trial 精确配对 fixed_income B1 result 与唯一 Portfolio owner outcome，封存 OOS clocks、return/cost/drawdown/liquidity/capacity/credit-loss；Decision 与 Lifecycle Application 只接受 ID，在 shared UoW 动态重读全 owner graph。Authorization 绑定 decision/record/validity clocks；PROMOTE/RETIRE/ROLLBACK 完整重放且 rollback 只能 `stack[-2]`；active 每次 PIT 重读 policy/trial/FI/Portfolio/auth，任一替换/失效即不发布。完整 suite `26 passed`，Luna Max 最终复核 P0/P1 为 0。该批无 ORM/migration/concrete providers，不接 R8/current/execution；真实 Publication、OOS outcome、owner authorization、approved trial 和外部对账仍缺，R5 总门禁不变。
+
 ### R6-S0：简单基准缺口取证
 
 Owner：`regime` + `research`。

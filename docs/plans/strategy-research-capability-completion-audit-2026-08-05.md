@@ -163,9 +163,18 @@
 - 政策反应函数按 target/lag/预期符号/置信区间/p-value/最小幅度验证，并检查样本量、adjusted R²、残差自相关、异方差、参数稳定性和条件数；阈值全部来自 exact policy，无代码默认。
 - 成功结果仅为 `EVIDENCE_COMPLETE` 且 `may_request_promotion_review=true`；没有 PromotionDecision、持久化、current/Regime/决策/执行接线，固定 research-only/must-not-use-for-decision/must-not-replace-regime。
 
+### 3.16 R5 Promotion Phase A
+
+- Research scope、registration/policy、trial、decision、decision authorization 与 lifecycle event 使用 content-addressed identity；预注册必须早于 selection/OOS，caller 不能提交 derived decision、hash 或完整 lifecycle stream。
+- Trial 将每个 fixed_income B1 exact result 与唯一 Portfolio canonical owner record 配对；Portfolio outcome seal 封存 owner row、FI result/owner seal、OOS clocks、return/cost/drawdown/liquidity/capacity/credit-loss 和三重安全标志。随机 hash、同 FI/Portfolio record 重解释或 trial provider 单方“好指标”均阻断。
+- Decision Application 在 shared UoW 中逐项重读 Research policy/trial/authorization、fixed_income exact result 和 Portfolio outcome；authorization 精确绑定 `decided_at`、`decision_recorded_at` 与派生 `decision_valid_until`，不得跨 as-of 复用或延长有效期。
+- Lifecycle Application 命令只含 scope/action/evidence identity；完整 prefix、authorization、winner 与 append 均在 shared UoW 中处理。PROMOTE/RETIRE/ROLLBACK 复用完整 Domain replay，rollback 只能回到 `stack[-2]`，stream fork、跨 scope、缺前缀或异 winner fail closed。
+- Active provider 每次按 PIT 重放 stream，并动态重读 policy、trial、FI、Portfolio 与 decision authorization；失效 decision 可按 decision-time 历史 PIT 由 RETIRE 清理，任一 current owner evidence 缺失/替换/过期则不发布 active。
+- Phase A 仅有 Domain/Application 与测试，无 ORM/migration/concrete repository/provider、API/TUI/Celery、R8/current/执行接线；fixtures 不构成真实 OOS、owner authorization 或 approved PromotionDecision。
+
 ## 4. 后续实施顺序
 
-1. R5 Phase B2 Research Promotion/retirement/rollback lifecycle；R6 qualification persistence/monitoring/Promotion lifecycle。
+1. R5 Promotion Phase B append-only persistence/concrete providers；R6 qualification persistence/monitoring/Promotion lifecycle。
 2. R3 regime 分段、trial/Promotion exact binding 与监控读取投影。
 3. R7 calibration/path 结果持久化与 retirement/Promotion lifecycle。
 
@@ -207,5 +216,7 @@ R5 relative-value Phase A 经 Luna Max 实现、持续旁审和多轮定点整�
 R5 relative-value Phase B1 经 Luna Max 实现、持续旁审与 exploit 定点整改后关闭 caller capability 自提权、command/draft 非语义绑定、历史/current freshness 混淆、strict-query content-hash 短路、`save_base` 与 related-manager 绕过、race/rollback/tamper 假覆盖，最终 P0/P1 均为 0。Codec `15 passed`、component `23 passed`、migration `2 passed`；7 个生产文件增量 mypy 0 regression，Black/Ruff、架构边界/增量审计、业务配置、模块循环和 migration drift 均通过。真实数据、Research Promotion/lifecycle 与下游消费仍未形成。
 
 R6 qualification evidence 经 Luna Max 实现、两轮独立攻击复核与定点整改后关闭同 ID study 重封替换、公开 zero-hash/私有 mint 绕过、裸 S2 `ACCEPTED` 包装和 derived metric 自证，最终 P0/P1 均为 0。R6 相关回归 `57 passed`；2 个生产文件增量 mypy 0 regression，Black/Ruff、架构边界/增量审计、业务配置与模块循环均通过。真实 shortfall、PIT/OOS 数据、持久化、monitoring 与 Promotion lifecycle 仍未形成。
+
+R5 Promotion Phase A 经 Luna Max 实现、持续旁审与三轮定点整改后关闭 Portfolio outcome/caller metric 自证、lifecycle 本地重放、authorization 跨 as-of 复用和 mypy 宽类型展开问题，最终 P0/P1 均为 0。完整 suite `26 passed`；9 个生产文件增量 mypy 0 regression，Black/Ruff、架构边界、业务配置与模块循环均通过。Phase B append-only persistence/concrete providers、真实 OOS outcome/authorization/trial 与下游 active consumption 仍未形成。
 
 完成路线图仍需为上表每项取得代码、迁移/台账、研究证据、运行时行为和 Promotion/回滚的直接证明；“测试全绿”只证明已覆盖合同，不替代真实数据和样本外结果。
