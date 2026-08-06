@@ -48,8 +48,11 @@ def proven_shortfall_report() -> BaselineShortfallReport:
         BaselineMetricObservation("transition_accuracy", "ratio", Decimal("0.55")),
         BaselineMetricObservation("log_loss", "score", Decimal("0.70")),
         BaselineMetricObservation("calibration_error", "score", Decimal("0.15")),
+        BaselineMetricObservation("duration_mae_periods", "periods", Decimal("2.10")),
         BaselineMetricObservation("transition_false_negative_rate", "ratio", Decimal("0.25")),
         BaselineMetricObservation("decision_loss_utility", "score", Decimal("0.60")),
+        BaselineMetricObservation("complexity_score", "score", Decimal("0.10")),
+        BaselineMetricObservation("label_stability_score", "score", Decimal("0.70")),
     )
     metric_results = (
         ("transition_false_negative_rate", True),
