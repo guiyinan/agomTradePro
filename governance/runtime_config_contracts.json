@@ -359,7 +359,8 @@
       "tests": [
         "tests/unit/config_center/test_runtime_public.py::test_active_domain_runtime_config_requires_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
-        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_qlib_runtime_update_activates_typed_profile_without_legacy_write"
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_qlib_runtime_update_activates_typed_profile_without_legacy_write",
+        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_admin_form_excludes_typed_runtime_fields"
       ]
     },
     {
@@ -381,7 +382,8 @@
         "tests/unit/config_center/test_runtime_public.py::test_active_domain_runtime_config_requires_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_qlib_runtime_update_activates_typed_profile_without_legacy_write",
-        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance"
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance",
+        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_admin_form_excludes_typed_runtime_fields"
       ]
     },
     {
@@ -402,7 +404,8 @@
       "tests": [
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_qlib_runtime_update_activates_typed_profile_without_legacy_write",
-        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance"
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance",
+        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_admin_form_excludes_typed_runtime_fields"
       ]
     },
     {
@@ -424,6 +427,7 @@
         "tests/unit/config_center/test_runtime_public.py::test_active_domain_runtime_config_requires_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_qlib_runtime_update_activates_typed_profile_without_legacy_write",
+        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_admin_form_excludes_typed_runtime_fields",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance"
       ]
     },
@@ -446,6 +450,7 @@
         "tests/unit/config_center/test_runtime_public.py::test_active_domain_runtime_config_requires_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
         "tests/unit/account/test_account_repository_structure.py::test_system_settings_repository_reads_asset_proxy_from_config_center",
+        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_admin_form_excludes_typed_runtime_fields",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance"
       ]
     },

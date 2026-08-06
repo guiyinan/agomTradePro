@@ -4403,3 +4403,10 @@ Git SHA / 镜像 / migration：
 - 变更：新增 Config Center `get_system_governance_settings` / `update_system_governance_settings` Application Public Port；账户设置上下文优先读取 typed governance 并使用 typed visual tokens，提交时把四项运行时字段交给 Config Center use case，以 actor 记录 Profile revision；旧 singleton 仅继续保存账户准入、协议和备注兼容字段。视图将管理员作为 actor 传入。
 - 测试与治理：新增组件回归断言账户设置提交激活 typed market governance 且旧 singleton 五项运行时字段不变；Config Center runtime component `6 passed`，账户 repository/view 回归 `4 + 18 passed`，完整 current-data manifest `268 nodeid / 307 passed`，变更文件 Black/Ruff/isort 通过；runtime contract 为五个 Alpha/market keys 登记账户管理 mutation consumer/test，clean inventory `current_surface_references=3291`（结构计数 `51/55/4/143/0/49`）。
 - 明确未做：未删除 SystemSettings 兼容字段、未迁移账户准入/备份/决策状态、未初始化生产 profile、未执行 PostgreSQL/备份恢复/观察窗口/M9/M10 或部署；不 push、不部署。
+
+## 89. 2026-08-06：兼容 Django Admin 禁止 typed runtime 直写
+
+- 目标：补齐 `SystemSettingsModel` Django Admin 这一条未受账户设置页改造覆盖的写入入口，避免管理员从 Classic Admin 直接提交 Qlib、Alpha、市场颜色、benchmark 或 asset-proxy 字段绕过 Config Center Profile。
+- 变更：`SystemSettingsAdminForm` 排除全部 typed runtime fields；Admin fieldsets/list display 不再暴露旧运行时字段，改为只读迁移提示并引导 Config Center/TUI。账户准入、协议、备份和备注等兼容字段仍保持原有 Admin 流程。
+- 测试与治理：新增 Admin 结构回归，断言 form 和 fieldsets 均不接受 typed runtime 字段；Admin import、Django check、Ruff/Black 通过；runtime contract 为 Alpha/market 定义登记该 guard test。
+- 明确未做：未删除兼容模型字段、未改动 Config Center/TUI 管理页面、未迁移备份/决策状态字段、未初始化生产 profile、未执行 PostgreSQL/观察窗口/M9/M10 或部署；不 push、不部署。

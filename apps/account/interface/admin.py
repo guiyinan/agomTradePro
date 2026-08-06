@@ -39,6 +39,36 @@ from apps.account.models import (
 from apps.config_center.models import SystemSettingsModel
 from shared.infrastructure.django_admin import TypedModelAdmin, TypedModelForm
 
+SYSTEM_SETTINGS_TYPED_RUNTIME_FIELDS = frozenset(
+    {
+        "market_color_convention",
+        "benchmark_code_map",
+        "asset_proxy_code_map",
+        "qlib_enabled",
+        "qlib_provider_uri",
+        "qlib_region",
+        "qlib_model_path",
+        "qlib_default_universe",
+        "qlib_default_feature_set_id",
+        "qlib_default_label_id",
+        "qlib_train_queue_name",
+        "qlib_infer_queue_name",
+        "qlib_allow_auto_activate",
+        "alpha_fixed_provider",
+        "alpha_pool_mode",
+    }
+)
+
+
+def _system_settings_admin_fields() -> tuple[str, ...]:
+    """Return only Account-owned fields for the compatibility admin form."""
+
+    return tuple(
+        field.name
+        for field in SystemSettingsModel._meta.fields
+        if field.editable and field.name not in SYSTEM_SETTINGS_TYPED_RUNTIME_FIELDS
+    )
+
 
 def _account_interface_repository() -> AccountInterfaceRepository:
     """Return the lightweight account interface repository."""
@@ -62,7 +92,7 @@ class SystemSettingsAdminForm(TypedModelForm[SystemSettingsModel]):
 
     class Meta:
         model = SystemSettingsModel
-        fields = "__all__"
+        fields = _system_settings_admin_fields()
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -426,7 +456,6 @@ class SystemSettingsModelAdmin(TypedModelAdmin[SystemSettingsModel]):
         "require_user_approval",
         "auto_approve_first_admin",
         "default_mcp_enabled",
-        "market_color_convention",
         "allow_token_plaintext_view",
         "backup_enabled",
         "backup_email",
@@ -445,7 +474,6 @@ class SystemSettingsModelAdmin(TypedModelAdmin[SystemSettingsModel]):
                 )
             },
         ),
-        ("视觉约定", {"fields": ("market_color_convention",)}),
         (
             "数据库备份邮件",
             {
@@ -471,19 +499,26 @@ class SystemSettingsModelAdmin(TypedModelAdmin[SystemSettingsModel]):
         ("协议内容", {"fields": ("user_agreement_content", "risk_warning_content")}),
         ("备注", {"fields": ("notes",)}),
         (
-            "运行时市场配置",
+            "运行时配置",
             {
-                "fields": (
-                    "alpha_fixed_provider",
-                    "alpha_pool_mode",
-                    "benchmark_code_map",
-                    "asset_proxy_code_map",
-                )
+                "fields": ("runtime_config_notice",),
+                "description": "Qlib、Alpha、市场颜色及基准/代理映射已迁移到 Config Center/TUI；此兼容 Admin 不直接写入运行时 Profile。",
             },
         ),
         ("时间戳", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
-    readonly_fields = ["created_at", "updated_at", "backup_last_sent_at"]
+    readonly_fields = [
+        "created_at",
+        "updated_at",
+        "backup_last_sent_at",
+        "runtime_config_notice",
+    ]
+
+    @admin.display(description="运行时配置入口")
+    def runtime_config_notice(self, obj: SystemSettingsModel) -> str:
+        """Explain where typed runtime settings are managed."""
+
+        return "请使用 Config Center/TUI 系统设置页面管理 typed runtime profile。"
 
     def changelist_view(
         self,
