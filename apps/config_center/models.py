@@ -1,5 +1,8 @@
 """Config center models re-export."""
 
+from apps.config_center.infrastructure.backup_delivery_models import (  # noqa: F401
+    BackupDeliveryStateModel as BackupDeliveryStateModel,
+)
 from apps.config_center.infrastructure.capacity_models import (  # noqa: F401
     StorageCapacityObservationModel as StorageCapacityObservationModel,
 )

@@ -16,14 +16,17 @@ from django.utils import timezone
 from apps.config_center.application.runtime_public import (
     activate_runtime_profile_patch,
     get_active_account_runtime_config,
+    get_active_backup_delivery_config,
     get_active_domain_runtime_config,
     get_active_qlib_runtime_config,
 )
+from apps.config_center.domain.backup_delivery import BackupDeliveryState
 from apps.config_center.domain.entities import (
     AlphaUniverseConfig,
     DecisionRuntimeState,
     DecisionRuntimeStatus,
 )
+from apps.config_center.infrastructure.backup_delivery_models import BackupDeliveryStateModel
 from apps.config_center.infrastructure.decision_runtime_models import DecisionRuntimeStateModel
 from apps.config_center.infrastructure.models import (
     AlphaUniverseConfigModel,
@@ -98,6 +101,24 @@ class ConfigCenterSettingsRepository:
         "benchmark_code_map",
         "asset_proxy_code_map",
     )
+    BACKUP_RUNTIME_FIELD_MAP = {
+        "backup_enabled": "backup.enabled",
+        "backup_email": "backup.recipient_email",
+        "backup_app_base_url": "backup.app_base_url",
+        "backup_mail_from_email": "backup.mail_from_email",
+        "backup_smtp_host": "backup.smtp_host",
+        "backup_smtp_port": "backup.smtp_port",
+        "backup_smtp_username": "backup.smtp_username",
+        "backup_smtp_use_tls": "backup.smtp_use_tls",
+        "backup_smtp_use_ssl": "backup.smtp_use_ssl",
+        "backup_interval_days": "backup.interval_days",
+        "backup_link_ttl_days": "backup.link_ttl_days",
+        "backup_password_hint": "backup.password_hint",
+    }
+    BACKUP_SECRET_REF_MAP = {
+        "backup_archive_password_ref": "backup.archive_password",
+        "backup_smtp_password_ref": "backup.smtp_password",
+    }
 
     def get_system_settings(self) -> SystemSettingsModel:
         return SystemSettingsModel.get_settings()
@@ -148,7 +169,84 @@ class ConfigCenterSettingsRepository:
             "config_center.market.asset_proxy_code_map": dict(
                 settings_obj.asset_proxy_code_map or {}
             ),
+            "backup.enabled": bool(settings_obj.backup_enabled),
+            "backup.recipient_email": str(settings_obj.backup_email or ""),
+            "backup.app_base_url": str(settings_obj.backup_app_base_url or ""),
+            "backup.mail_from_email": str(settings_obj.backup_mail_from_email or ""),
+            "backup.smtp_host": str(settings_obj.backup_smtp_host or ""),
+            "backup.smtp_port": int(settings_obj.backup_smtp_port or 587),
+            "backup.smtp_username": str(settings_obj.backup_smtp_username or ""),
+            "backup.smtp_use_tls": bool(settings_obj.backup_smtp_use_tls),
+            "backup.smtp_use_ssl": bool(settings_obj.backup_smtp_use_ssl),
+            "backup.interval_days": int(settings_obj.backup_interval_days or 7),
+            "backup.link_ttl_days": int(settings_obj.backup_link_ttl_days or 3),
+            "backup.password_hint": str(settings_obj.backup_password_hint or ""),
         }
+
+    @staticmethod
+    def _legacy_runtime_secret_refs() -> dict[str, str]:
+        """Return transitional references without copying secret plaintext."""
+
+        return {
+            "backup.archive_password": "system_settings.backup_password_encrypted",
+            "backup.smtp_password": "system_settings.backup_smtp_password_encrypted",
+        }
+
+    def build_backup_delivery_payload(self) -> dict[str, Any]:
+        """Return typed backup policy plus isolated delivery state.
+
+        During migration, the two secret refs resolve to the encrypted legacy
+        columns inside the account-owned compatibility row.  No plaintext is
+        placed in the runtime profile or in this payload.
+        """
+
+        settings_obj = self.get_system_settings_for_read()
+        try:
+            typed = get_active_backup_delivery_config(self._runtime_environment())
+        except RuntimeError:
+            typed = None
+        payload: dict[str, Any] = {
+            field_name: getattr(settings_obj, field_name)
+            for field_name in self.BACKUP_RUNTIME_FIELD_MAP
+        }
+        payload.update(
+            {
+                "backup_archive_password_ref": "system_settings.backup_password_encrypted",
+                "backup_smtp_password_ref": "system_settings.backup_smtp_password_encrypted",
+            }
+        )
+        source = "system_settings_compatibility"
+        if typed is not None:
+            payload.update(
+                {
+                    field_name: typed[field_name]
+                    for field_name in self.BACKUP_RUNTIME_FIELD_MAP
+                }
+            )
+            payload.update(
+                {
+                    field_name: typed[field_name]
+                    for field_name in self.BACKUP_SECRET_REF_MAP
+                }
+            )
+            source = "config_center_runtime_profile"
+
+        state = self.get_backup_delivery_state()
+        payload.update(
+            {
+                "backup_last_sent_at": state.last_sent_at,
+                "backup_download_token_digest": state.download_token_digest,
+                "backup_download_token_expires_at": state.download_token_expires_at,
+                "backup_download_consumed_at": state.download_token_consumed_at,
+                "policy_source": source,
+                "state_source": (
+                    "config_center_backup_delivery_state"
+                    if BackupDeliveryStateModel._default_manager.filter(pk=1).exists()
+                    else "system_settings_compatibility"
+                ),
+            }
+        )
+        return payload
 
     def get_system_settings_for_read(self) -> SystemSettingsModel:
         settings_obj = SystemSettingsModel._default_manager.filter(pk=1).first()
@@ -243,6 +341,119 @@ class ConfigCenterSettingsRepository:
             state_model.save()
         return self.get_decision_runtime_state()
 
+    def get_backup_delivery_state(self) -> BackupDeliveryState:
+        """Read new backup delivery state, falling back to legacy columns once."""
+
+        state_model = BackupDeliveryStateModel._default_manager.filter(pk=1).first()
+        if state_model is not None:
+            return BackupDeliveryState(
+                last_sent_at=state_model.last_sent_at,
+                download_token_digest=state_model.download_token_digest,
+                download_token_expires_at=state_model.download_token_expires_at,
+                download_token_consumed_at=state_model.download_token_consumed_at,
+            )
+        settings_obj = self.get_system_settings_for_read()
+        return BackupDeliveryState(
+            last_sent_at=settings_obj.backup_last_sent_at,
+            download_token_digest=settings_obj.backup_download_token_digest,
+            download_token_expires_at=settings_obj.backup_download_token_expires_at,
+            download_token_consumed_at=settings_obj.backup_download_consumed_at,
+        )
+
+    @staticmethod
+    def _backup_state_defaults(state: BackupDeliveryState) -> dict[str, object]:
+        return {
+            "last_sent_at": state.last_sent_at,
+            "download_token_digest": state.download_token_digest,
+            "download_token_expires_at": state.download_token_expires_at,
+            "download_token_consumed_at": state.download_token_consumed_at,
+        }
+
+    def _ensure_backup_delivery_state_locked(self) -> BackupDeliveryStateModel:
+        """Create the new state row from legacy state while holding a DB lock."""
+
+        state_model = BackupDeliveryStateModel._default_manager.select_for_update().filter(
+            pk=1
+        ).first()
+        if state_model is not None:
+            return state_model
+        legacy = self.get_system_settings_for_read()
+        state_model = BackupDeliveryStateModel._default_manager.create(
+            pk=1,
+            last_sent_at=legacy.backup_last_sent_at,
+            download_token_digest=legacy.backup_download_token_digest,
+            download_token_expires_at=legacy.backup_download_token_expires_at,
+            download_token_consumed_at=legacy.backup_download_consumed_at,
+        )
+        return state_model
+
+    def set_backup_delivery_state(self, state: BackupDeliveryState) -> BackupDeliveryState:
+        """Persist backup delivery state only in the new owner table."""
+
+        with transaction.atomic():
+            state_model = self._ensure_backup_delivery_state_locked()
+            for field_name, value in self._backup_state_defaults(state).items():
+                setattr(state_model, field_name, value)
+            state_model.save(
+                update_fields=[
+                    "last_sent_at",
+                    "download_token_digest",
+                    "download_token_expires_at",
+                    "download_token_consumed_at",
+                    "updated_at",
+                ]
+            )
+        return self.get_backup_delivery_state()
+
+    def record_backup_download_token(
+        self,
+        *,
+        digest: str,
+        expires_at: Any,
+    ) -> BackupDeliveryState:
+        """Replace the active download token under the state row lock."""
+
+        with transaction.atomic():
+            state_model = self._ensure_backup_delivery_state_locked()
+            state_model.download_token_digest = str(digest)
+            state_model.download_token_expires_at = expires_at
+            state_model.download_token_consumed_at = None
+            state_model.save(
+                update_fields=[
+                    "download_token_digest",
+                    "download_token_expires_at",
+                    "download_token_consumed_at",
+                    "updated_at",
+                ]
+            )
+        return self.get_backup_delivery_state()
+
+    def mark_backup_delivery_sent(self, sent_at: Any) -> BackupDeliveryState:
+        """Record one successfully sent backup notification."""
+
+        with transaction.atomic():
+            state_model = self._ensure_backup_delivery_state_locked()
+            state_model.last_sent_at = sent_at
+            state_model.save(update_fields=["last_sent_at", "updated_at"])
+        return self.get_backup_delivery_state()
+
+    def consume_backup_download_token(self, *, digest: str, consumed_at: Any) -> bool:
+        """Atomically consume the current token and reject replay/expiry."""
+
+        with transaction.atomic():
+            state_model = self._ensure_backup_delivery_state_locked()
+            if (
+                not str(digest)
+                or state_model.download_token_digest != str(digest)
+                or state_model.download_token_expires_at is None
+                or state_model.download_token_expires_at <= consumed_at
+                or state_model.download_token_consumed_at is not None
+            ):
+                return False
+            state_model.download_token_consumed_at = consumed_at
+            state_model.save(update_fields=["download_token_consumed_at", "updated_at"])
+        return True
+
     def build_runtime_config_payload(self) -> dict[str, Any]:
         environment = self._runtime_environment()
         typed_runtime = get_active_qlib_runtime_config(environment)
@@ -336,6 +547,7 @@ class ConfigCenterSettingsRepository:
                 environment=self._runtime_environment(),
                 patch=patch,
                 bootstrap_values=self._legacy_runtime_values(settings_obj),
+                bootstrap_secret_refs=self._legacy_runtime_secret_refs(),
                 actor=str(actor or "config-center"),
                 reason="Qlib/Alpha runtime configuration updated",
             )
@@ -417,10 +629,40 @@ class ConfigCenterSettingsRepository:
                 environment=self._runtime_environment(),
                 patch=runtime_patch,
                 bootstrap_values=self._legacy_runtime_values(settings_obj),
+                bootstrap_secret_refs=self._legacy_runtime_secret_refs(),
                 actor=str(actor or "config-center"),
                 reason="Global runtime governance configuration updated",
             )
         return self.build_system_governance_payload()
+
+    def update_backup_delivery(
+        self,
+        data: Mapping[str, Any],
+        *,
+        actor: str = "config-center",
+    ) -> dict[str, Any]:
+        """Activate a complete typed backup policy revision.
+
+        Secret material remains in the transitional encrypted compatibility
+        columns; the profile stores only their stable ``secret_ref`` values.
+        """
+
+        settings_obj = self.get_system_settings_for_read()
+        patch: dict[str, object] = {}
+        for field_name, definition_key in self.BACKUP_RUNTIME_FIELD_MAP.items():
+            if field_name in data:
+                patch[definition_key] = data[field_name]
+        if not patch:
+            return self.build_backup_delivery_payload()
+        activate_runtime_profile_patch(
+            environment=self._runtime_environment(),
+            patch=patch,
+            bootstrap_values=self._legacy_runtime_values(settings_obj),
+            bootstrap_secret_refs=self._legacy_runtime_secret_refs(),
+            actor=str(actor or "config-center"),
+            reason="Backup delivery policy updated",
+        )
+        return self.build_backup_delivery_payload()
 
 
 class QlibTrainingProfileRepository:

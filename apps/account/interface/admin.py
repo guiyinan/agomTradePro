@@ -4,7 +4,7 @@ Django Admin for Account Module.
 提供 Account 模块所有模型的 Admin 管理界面。
 """
 
-from typing import Any
+from typing import Any, cast
 
 from django import forms
 from django.contrib import admin
@@ -14,6 +14,7 @@ from django.utils.html import format_html
 from apps.account.application.repository_provider import (
     AccountInterfaceRepository,
     get_account_interface_repository,
+    get_backup_delivery_settings,
 )
 from apps.account.models import (
     AccountProfileModel,
@@ -36,6 +37,7 @@ from apps.account.models import (
     TransactionModel,
     UserAccessTokenModel,
 )
+from apps.config_center.application.public import update_backup_delivery_settings
 from apps.config_center.models import SystemSettingsModel
 from shared.infrastructure.django_admin import TypedModelAdmin, TypedModelForm
 
@@ -131,14 +133,47 @@ class SystemSettingsAdminForm(TypedModelForm[SystemSettingsModel]):
         instance = super().save(commit=False)
         raw_password = (self.cleaned_data.get("backup_password") or "").strip()
         raw_smtp_password = (self.cleaned_data.get("backup_smtp_password") or "").strip()
+        if not commit:
+            if raw_password:
+                instance.set_backup_password(raw_password)
+            if raw_smtp_password:
+                instance.set_backup_smtp_password(raw_smtp_password)
+            return instance
+
+        persisted = SystemSettingsModel.get_settings()
+        encrypted_fields: list[str] = []
         if raw_password:
-            instance.set_backup_password(raw_password)
+            persisted.set_backup_password(raw_password)
+            encrypted_fields.append("backup_password_encrypted")
         if raw_smtp_password:
-            instance.set_backup_smtp_password(raw_smtp_password)
-        if commit:
-            instance.save()
-            self.save_m2m()
-        return instance
+            persisted.set_backup_smtp_password(raw_smtp_password)
+            encrypted_fields.append("backup_smtp_password_encrypted")
+        if encrypted_fields:
+            encrypted_fields.append("updated_at")
+            persisted.save(update_fields=encrypted_fields)
+
+        update_backup_delivery_settings(
+            {
+                field_name: getattr(instance, field_name)
+                for field_name in (
+                    "backup_enabled",
+                    "backup_email",
+                    "backup_app_base_url",
+                    "backup_mail_from_email",
+                    "backup_smtp_host",
+                    "backup_smtp_port",
+                    "backup_smtp_username",
+                    "backup_smtp_use_tls",
+                    "backup_smtp_use_ssl",
+                    "backup_interval_days",
+                    "backup_link_ttl_days",
+                    "backup_password_hint",
+                )
+            },
+            actor="django-admin",
+        )
+        self.save_m2m()
+        return cast(SystemSettingsModel, get_backup_delivery_settings())
 
 
 @admin.register(CurrencyModel)
@@ -448,6 +483,17 @@ class SystemSettingsModelAdmin(TypedModelAdmin[SystemSettingsModel]):
     """系统配置管理（单例模式）"""
 
     form = SystemSettingsAdminForm
+
+    def get_object(
+        self,
+        request: HttpRequest,
+        object_id: str,
+        from_field: str | None = None,
+    ) -> SystemSettingsModel | None:
+        """Display the Config Center-owned backup policy projection."""
+
+        persisted = super().get_object(request, object_id, from_field=from_field)
+        return get_backup_delivery_settings() if persisted is not None else None
 
     def has_add_permission(self, request: HttpRequest) -> bool:
         """禁止手动添加（单例模式）"""

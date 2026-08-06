@@ -2,7 +2,6 @@
 
 import json
 import logging
-import secrets
 from collections.abc import Mapping
 from typing import Any
 
@@ -11,6 +10,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from apps.account.infrastructure.backup_delivery_projection import get_backup_delivery_settings
 from apps.account.infrastructure.backup_service import (
     generate_backup_archive,
     hash_download_nonce,
@@ -22,6 +22,7 @@ from apps.account.infrastructure.models import (
     UserAccessTokenModel,
 )
 from apps.config_center.application.public import (
+    consume_backup_download_token,
     get_runtime_market_visual_tokens,
     get_system_governance_settings,
     update_system_governance_settings,
@@ -46,10 +47,11 @@ class AccountInterfaceAdministrationRepositoryMixin:
     @classmethod
     def _account_settings_projection(
         cls,
+        base_settings: SystemSettingsModel | None = None,
     ) -> tuple[SystemSettingsModel, dict[str, Any]]:
         """Return the compatibility model overlaid with the typed account profile."""
 
-        system_settings = SystemSettingsModel.get_settings_for_read()
+        system_settings = get_backup_delivery_settings(base_settings=base_settings)
         governance = get_system_governance_settings()
         for field_name in cls._ACCOUNT_RUNTIME_FIELDS:
             if field_name in governance:
@@ -133,7 +135,8 @@ class AccountInterfaceAdministrationRepositoryMixin:
             )
         profiles = profiles.order_by("-created_at")
 
-        system_settings, _governance = self._account_settings_projection()
+        legacy_settings = SystemSettingsModel.get_settings_for_read()
+        system_settings, _governance = self._account_settings_projection(legacy_settings)
         return {
             "profiles": profiles,
             "system_settings": system_settings,
@@ -192,7 +195,8 @@ class AccountInterfaceAdministrationRepositoryMixin:
                 }
             )
 
-        system_settings, _governance = self._account_settings_projection()
+        legacy_settings = SystemSettingsModel.get_settings_for_read()
+        system_settings, _governance = self._account_settings_projection(legacy_settings)
         return {
             "rows": rows,
             "search_query": search_query,
@@ -207,6 +211,7 @@ class AccountInterfaceAdministrationRepositoryMixin:
     def toggle_user_mcp(self, target_user_id: int) -> dict[str, Any]:
         """Toggle MCP access for a user."""
 
+        legacy_settings = SystemSettingsModel.get_settings_for_read()
         target_user = User._default_manager.select_related("account_profile").get(id=target_user_id)
         profile = target_user.account_profile
         profile.mcp_enabled = not profile.mcp_enabled
@@ -223,7 +228,9 @@ class AccountInterfaceAdministrationRepositoryMixin:
             "username": target_user.username,
             "mcp_enabled": profile.mcp_enabled,
             "default_mcp_enabled": bool(
-                get_system_governance_settings().get("default_mcp_enabled", False)
+                get_system_governance_settings().get(
+                    "default_mcp_enabled", legacy_settings.default_mcp_enabled
+                )
             ),
         }
 
@@ -396,7 +403,8 @@ class AccountInterfaceAdministrationRepositoryMixin:
     def build_system_settings_context(self) -> dict[str, Any]:
         """Build the system settings page context."""
 
-        system_settings, governance = self._account_settings_projection()
+        legacy_settings = SystemSettingsModel.get_settings_for_read()
+        system_settings, governance = self._account_settings_projection(legacy_settings)
         for field_name in (
             "market_color_convention",
             "alpha_pool_mode",
@@ -480,7 +488,7 @@ class AccountInterfaceAdministrationRepositoryMixin:
         """Atomically consume one current backup token and generate its archive."""
 
         with transaction.atomic():
-            config = SystemSettingsModel._default_manager.select_for_update().get(pk=1)
+            config = get_backup_delivery_settings()
             max_age_seconds = max(config.backup_link_ttl_days, 1) * 86400
 
             try:
@@ -493,31 +501,10 @@ class AccountInterfaceAdministrationRepositoryMixin:
             if not config.backup_enabled:
                 raise ValueError("数据库备份邮件功能未启用")
 
-            expected_digest = config.backup_download_token_digest
             supplied_digest = hash_download_nonce(payload["nonce"])
-            expires_at = config.backup_download_token_expires_at
             consumed_at = timezone.now()
-            if (
-                not expected_digest
-                or not secrets.compare_digest(supplied_digest, expected_digest)
-                or expires_at is None
-                or expires_at <= consumed_at
-                or config.backup_download_consumed_at is not None
-            ):
+            if not consume_backup_download_token(digest=supplied_digest, consumed_at=consumed_at):
                 raise LookupError("备份链接无效或已使用")
-
-            claimed = SystemSettingsModel._default_manager.filter(
-                pk=config.pk,
-                backup_download_token_digest=expected_digest,
-                backup_download_token_expires_at__gt=consumed_at,
-                backup_download_consumed_at__isnull=True,
-            ).update(
-                backup_download_consumed_at=consumed_at,
-                updated_at=consumed_at,
-            )
-            if claimed != 1:
-                raise LookupError("备份链接无效或已使用")
-            config.backup_download_consumed_at = consumed_at
 
         archive = generate_backup_archive(config)
         return {

@@ -24,6 +24,7 @@ from apps.account.application.repository_provider import (
     describe_backup_package,
     generate_download_token,
     get_backup_email_connection,
+    mark_backup_delivery_sent,
 )
 from apps.account.application.stop_loss_use_cases import (
     AutoStopLossUseCase,
@@ -104,8 +105,12 @@ def send_database_backup_email_task(self: Any) -> dict[str, str]:
         )
         email.send(fail_silently=False)
 
-        config.backup_last_sent_at = timezone.now()
-        config.save(update_fields=["backup_last_sent_at", "updated_at"])
+        sent_at = timezone.now()
+        if getattr(config, "pk", None):
+            mark_backup_delivery_sent(sent_at)
+        else:
+            config.backup_last_sent_at = sent_at
+            config.save(update_fields=["backup_last_sent_at", "updated_at"])
         logger.info("数据库备份下载链接已发送至 %s", config.backup_email)
         return {"status": "sent", "email": config.backup_email}
     except Exception as exc:

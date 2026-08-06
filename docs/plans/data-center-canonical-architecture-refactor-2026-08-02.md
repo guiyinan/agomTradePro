@@ -4524,3 +4524,11 @@ Git SHA / 镜像 / migration：
 - 变更：新增 `DecisionRuntimeStateModel` 与 `0008_decisionruntimestatemodel`；Config Center repository 首次读取优先新表、无新行时读取旧 singleton 兼容值；写入只创建/更新新 state 行，不再回写旧字段。Middleware、health check、readiness 无需改调用方，继续通过 `GetDecisionRuntimeStateUseCase` 获得同一领域状态。
 - 测试与门禁：Decision Runtime component `6 passed`，middleware/health `26 passed`；`makemigrations --check` 无差异，Django check、mypy 增量、architecture/cycle/governance 门禁随本批复核。
 - 明确未做：未删除旧 `SystemSettingsModel.decision_runtime_*` 列；必须等生产零旧读观察、备份/恢复和独立 release 后再执行 M9 删除；不 push、不部署。
+
+## 106. 2026-08-06：Backup delivery 策略、密钥引用与状态入口收编
+
+- 根因：备份接收邮箱、站点、SMTP、启停/周期/链接 TTL、密码提示、加密密码、下载令牌和发送时间曾由 `SystemSettingsModel` 同时承载；Celery 任务、下载视图、账户管理仓储、加密 readiness 和兼容 Admin 各自读取/写入不同字段，导致策略、secret 和一次性状态无法独立审计。
+- 变更：新增 `backup.*` typed runtime definitions（含 `secret_ref` 约束）与 all-or-nothing backup policy projection；Config Center 的 profile bootstrap 只保存 `system_settings.backup_*_encrypted` 引用，不保存明文。新增 `BackupDeliveryStateModel`/`0009_backupdeliverystatemodel`，首次读取兼容旧令牌/发送状态，首次写入只进入新状态表。备份任务、下载链接生成/消费、账户管理和 encryption readiness 统一经 Config Center owner port；兼容 Admin 保存策略时先激活 typed profile，密钥仅继续写入过渡加密列。
+- 入口清单：`apps/account/application/tasks.py::send_database_backup_email_task`、`apps/account/infrastructure/backup_service.py`、`apps/account/infrastructure/account_interface_administration_repository.py::build_backup_download_payload`、`apps/account/infrastructure/repositories.py::SystemSettingsRepository.get_settings`、`core/encryption_readiness.py`、`apps/account/interface/admin.py::SystemSettingsAdminForm` 均已登记到 `governance/runtime_config_contracts.json` 的 `backup.delivery_policy` 组。
+- 测试与门禁：runtime public/definition 单测通过；`makemigrations --check`、Django check、governance consistency、SystemSettings field contract、current-data contract guard、变更文件 mypy regression 和 Ruff 通过。组件测试新增 state fallback/写新 owner 证据及下载链路迁移断言；完整组件回归仍需在干净测试库执行。
+- 明确未做：外部 secret store 尚未接入，当前两个 `secret_ref` 仍明确指向旧加密列；尚未删除旧 backup policy/state 列、尚未初始化生产 profile、尚未做 PostgreSQL 真实恢复/容量故障注入/观察窗口/M9/M10，也不 push、不部署。

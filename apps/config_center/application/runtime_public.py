@@ -58,6 +58,23 @@ _ACCOUNT_RUNTIME_FIELDS: tuple[tuple[str, str, type[object]], ...] = (
     ("notes", "account.notes", str),
 )
 
+_BACKUP_RUNTIME_FIELDS: tuple[tuple[str, str, type[object]], ...] = (
+    ("backup_enabled", "backup.enabled", bool),
+    ("backup_email", "backup.recipient_email", str),
+    ("backup_app_base_url", "backup.app_base_url", str),
+    ("backup_mail_from_email", "backup.mail_from_email", str),
+    ("backup_smtp_host", "backup.smtp_host", str),
+    ("backup_smtp_port", "backup.smtp_port", int),
+    ("backup_smtp_username", "backup.smtp_username", str),
+    ("backup_smtp_use_tls", "backup.smtp_use_tls", bool),
+    ("backup_smtp_use_ssl", "backup.smtp_use_ssl", bool),
+    ("backup_interval_days", "backup.interval_days", int),
+    ("backup_link_ttl_days", "backup.link_ttl_days", int),
+    ("backup_password_hint", "backup.password_hint", str),
+    ("backup_archive_password_ref", "backup.archive_password", str),
+    ("backup_smtp_password_ref", "backup.smtp_password", str),
+)
+
 
 def validate_runtime_values(values: tuple[RuntimeConfigValue, ...]) -> dict[str, object]:
     """Validate typed values against the registered definition catalog."""
@@ -107,6 +124,7 @@ def activate_runtime_profile_patch(
     environment: str,
     patch: Mapping[str, object],
     bootstrap_values: Mapping[str, object] | None = None,
+    bootstrap_secret_refs: Mapping[str, str] | None = None,
     actor: str,
     reason: str,
     release_ref: str = "",
@@ -137,13 +155,23 @@ def activate_runtime_profile_patch(
     )
     existing_by_key = {value.definition_key: value for value in existing_values}
     compatibility = dict(bootstrap_values or {})
+    compatibility_secret_refs = {
+        str(key).strip(): str(value).strip()
+        for key, value in (bootstrap_secret_refs or {}).items()
+        if str(key).strip() and str(value).strip()
+    }
     normalized_patch = {str(key).strip(): value for key, value in patch.items()}
     if any(not key for key in normalized_patch):
         raise ValueError("Runtime profile patch contains an empty definition key")
 
     profile_id = str(uuid4())
     next_values: list[RuntimeConfigValue] = []
-    for definition_key in sorted(set(existing_by_key) | set(compatibility) | set(normalized_patch)):
+    for definition_key in sorted(
+        set(existing_by_key)
+        | set(compatibility)
+        | set(compatibility_secret_refs)
+        | set(normalized_patch)
+    ):
         if definition_key in normalized_patch:
             next_values.append(
                 RuntimeConfigValue(
@@ -172,8 +200,13 @@ def activate_runtime_profile_patch(
             RuntimeConfigValue(
                 profile_id=profile_id,
                 definition_key=definition_key,
-                value_json=compatibility[definition_key],
-                source="compatibility_migration",
+                value_json=compatibility.get(definition_key),
+                secret_ref=compatibility_secret_refs.get(definition_key, ""),
+                source=(
+                    "compatibility_secret_ref"
+                    if definition_key in compatibility_secret_refs
+                    else "compatibility_migration"
+                ),
             )
         )
 
@@ -200,6 +233,7 @@ def activate_runtime_profile_patch_payload(
     environment: str,
     patch: Mapping[str, object],
     bootstrap_values: Mapping[str, object] | None = None,
+    bootstrap_secret_refs: Mapping[str, str] | None = None,
     actor: str,
     reason: str,
 ) -> dict[str, object]:
@@ -209,6 +243,7 @@ def activate_runtime_profile_patch_payload(
         environment=environment,
         patch=patch,
         bootstrap_values=bootstrap_values,
+        bootstrap_secret_refs=bootstrap_secret_refs,
         actor=actor,
         reason=reason,
     )
@@ -269,6 +304,12 @@ def get_active_account_runtime_config(environment: str) -> dict[str, object] | N
     """Resolve account access/content values from one active typed snapshot."""
 
     return _get_typed_runtime_projection(environment, _ACCOUNT_RUNTIME_FIELDS)
+
+
+def get_active_backup_delivery_config(environment: str) -> dict[str, object] | None:
+    """Resolve the complete typed backup policy and secret references."""
+
+    return _get_typed_runtime_projection(environment, _BACKUP_RUNTIME_FIELDS)
 
 
 def _get_typed_runtime_projection(
@@ -425,6 +466,7 @@ __all__ = [
     "get_active_runtime_value",
     "get_active_domain_runtime_config",
     "get_active_account_runtime_config",
+    "get_active_backup_delivery_config",
     "get_active_qlib_runtime_config",
     "get_active_storage_budget",
     "get_latest_runtime_snapshot",

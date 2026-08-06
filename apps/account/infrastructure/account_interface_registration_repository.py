@@ -16,6 +16,7 @@ from django.db.models import Q, Sum
 from django.utils import timezone
 
 from apps.account.infrastructure.account_profile_repository import AccountRepository
+from apps.account.infrastructure.backup_delivery_projection import get_backup_delivery_settings
 from apps.account.infrastructure.models import (
     AccountProfileModel,
     CapitalFlowModel,
@@ -43,10 +44,11 @@ class AccountInterfaceRegistrationRepositoryMixin:
         "notes",
     )
 
-    def get_system_settings(self) -> Any:
+    def get_system_settings(self, base_settings: SystemSettingsModel | None = None) -> Any:
         """Return the singleton system settings model."""
 
-        settings_obj = SystemSettingsModel.get_settings_for_read()
+        legacy_settings = base_settings or SystemSettingsModel.get_settings_for_read()
+        settings_obj = get_backup_delivery_settings(base_settings=legacy_settings)
         governance = get_system_governance_settings()
         for field_name in self._ACCOUNT_RUNTIME_FIELDS:
             if field_name in governance:
@@ -170,7 +172,8 @@ class AccountInterfaceRegistrationRepositoryMixin:
     ) -> dict[str, Any]:
         """Create the Django user row and all account scaffolding in one transaction."""
 
-        system_settings = self.get_system_settings()
+        legacy_settings = SystemSettingsModel.get_settings_for_read()
+        system_settings = self.get_system_settings(base_settings=legacy_settings)
         with transaction.atomic():
             user = self.create_registered_user(
                 username=username,
@@ -251,7 +254,8 @@ class AccountInterfaceRegistrationRepositoryMixin:
         user = User._default_manager.select_related("account_profile").get(id=user_id)
         profile = user.account_profile
         portfolio = PortfolioModel._default_manager.filter(user_id=user_id, is_active=True).first()
-        system_settings = self.get_system_settings()
+        legacy_settings = SystemSettingsModel.get_settings_for_read()
+        system_settings = self.get_system_settings(base_settings=legacy_settings)
 
         capital_flows: Any
         if portfolio:
@@ -298,7 +302,8 @@ class AccountInterfaceRegistrationRepositoryMixin:
 
         user = User._default_manager.select_related("account_profile").get(id=user_id)
         profile = user.account_profile
-        system_settings = self.get_system_settings()
+        legacy_settings = SystemSettingsModel.get_settings_for_read()
+        system_settings = self.get_system_settings(base_settings=legacy_settings)
         token_plaintext_allowed = bool(system_settings.allow_token_plaintext_view)
         investment_accounts = AccountRepository().list_investment_accounts(user_id)
         preferred_account = investment_accounts[0] if investment_accounts else None

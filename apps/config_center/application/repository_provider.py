@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Protocol
 
+from apps.config_center.domain.backup_delivery import BackupDeliveryState
 from apps.config_center.domain.entities import AlphaUniverseConfig, DecisionRuntimeState
 
 
@@ -28,6 +30,22 @@ class ConfigCenterSettingsRepository(Protocol):
         self,
         state: DecisionRuntimeState,
     ) -> DecisionRuntimeState: ...
+    def build_backup_delivery_payload(self) -> dict[str, Any]: ...
+    def get_backup_delivery_state(self) -> BackupDeliveryState: ...
+    def record_backup_download_token(
+        self,
+        *,
+        digest: str,
+        expires_at: datetime,
+    ) -> BackupDeliveryState: ...
+    def mark_backup_delivery_sent(self, sent_at: datetime) -> BackupDeliveryState: ...
+    def consume_backup_download_token(self, *, digest: str, consumed_at: datetime) -> bool: ...
+    def update_backup_delivery(
+        self,
+        data: dict[str, Any],
+        *,
+        actor: str = "config-center",
+    ) -> dict[str, Any]: ...
 
 
 class QlibTrainingProfileRepository(Protocol):

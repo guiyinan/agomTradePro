@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from apps.account.infrastructure.backup_delivery_projection import (
+    get_backup_delivery_payload,
+    get_backup_delivery_settings,
+)
 from apps.account.infrastructure.models import UserAccessTokenModel
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.ai_provider.infrastructure.repositories import AIProviderRepository
@@ -18,7 +22,9 @@ def collect_encryption_readiness() -> dict[str, Any]:
     )
     provider_repo = AIProviderRepository()
     encrypted_providers = list(AIProviderConfig._default_manager.exclude(api_key_encrypted=""))
-    settings_obj = SystemSettingsModel.get_settings_for_read()
+    legacy_settings = SystemSettingsModel.get_settings_for_read()
+    settings_obj = get_backup_delivery_settings(base_settings=legacy_settings)
+    backup_payload = get_backup_delivery_payload()
     result: dict[str, Any] = {
         "status": "ready",
         "active_encrypted_token_count": len(active_tokens),
@@ -31,6 +37,8 @@ def collect_encryption_readiness() -> dict[str, Any]:
         "backup_password_recoverable": bool(settings_obj.get_backup_password()),
         "smtp_password_present": bool(settings_obj.backup_smtp_password_encrypted),
         "smtp_password_recoverable": bool(settings_obj.get_backup_smtp_password()),
+        "backup_policy_source": backup_payload.get("policy_source", "unknown"),
+        "backup_state_source": backup_payload.get("state_source", "unknown"),
         "failures": [],
     }
     failures: list[str] = result["failures"]

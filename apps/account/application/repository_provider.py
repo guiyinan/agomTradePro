@@ -186,6 +186,26 @@ def get_backup_email_connection(config: Any) -> BaseEmailBackend:
     return _impl(config)
 
 
+def mark_backup_delivery_sent(sent_at: Any) -> Any:
+    """Record successful backup delivery through Config Center."""
+
+    from apps.config_center.application.public import (
+        mark_backup_delivery_sent as _impl,
+    )
+
+    return _impl(sent_at)
+
+
+def get_backup_delivery_settings() -> Any:
+    """Return the compatibility-shaped backup settings projection."""
+
+    from apps.account.infrastructure.backup_delivery_projection import (
+        get_backup_delivery_settings as _impl,
+    )
+
+    return _impl()
+
+
 __all__ = [
     "AccountClassificationRepository",
     "AccountDiagnosticRepository",
@@ -218,6 +238,8 @@ __all__ = [
     "get_account_repository",
     "get_asset_metadata_repository",
     "get_backup_email_connection",
+    "mark_backup_delivery_sent",
+    "get_backup_delivery_settings",
     "get_portfolio_repository",
     "get_portfolio_api_repository",
     "get_manual_trade_sync_repository",

@@ -163,6 +163,41 @@ def test_active_domain_runtime_config_requires_complete_typed_snapshot(monkeypat
     assert runtime_public.get_active_domain_runtime_config("development") is None
 
 
+def test_active_backup_delivery_config_requires_policy_and_secret_refs(monkeypatch) -> None:
+    values: dict[str, object] = {
+        "backup.enabled": True,
+        "backup.recipient_email": "owner@example.test",
+        "backup.app_base_url": "https://example.test",
+        "backup.mail_from_email": "noreply@example.test",
+        "backup.smtp_host": "smtp.example.test",
+        "backup.smtp_port": 587,
+        "backup.smtp_username": "mailer",
+        "backup.smtp_use_tls": True,
+        "backup.smtp_use_ssl": False,
+        "backup.interval_days": 7,
+        "backup.link_ttl_days": 2,
+        "backup.password_hint": "vault-a",
+        "backup.archive_password": "system_settings.backup_password_encrypted",
+        "backup.smtp_password": "system_settings.backup_smtp_password_encrypted",
+    }
+    monkeypatch.setattr(
+        runtime_public,
+        "get_active_runtime_value",
+        lambda *, environment, definition_key: (
+            values.get(definition_key) if environment == "development" else None
+        ),
+    )
+
+    result = runtime_public.get_active_backup_delivery_config("development")
+
+    assert result is not None
+    assert result["backup_smtp_port"] == 587
+    assert result["backup_archive_password_ref"].startswith("system_settings.")
+
+    values.pop("backup.smtp_password")
+    assert runtime_public.get_active_backup_delivery_config("development") is None
+
+
 @pytest.mark.parametrize(
     "missing_key",
     ["alpha.qlib.provider_uri", "alpha.qlib.allow_auto_activate"],

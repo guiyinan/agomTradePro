@@ -14,6 +14,7 @@ from apps.account.infrastructure.backup_service import (
     get_backup_email_connection,
 )
 from apps.account.infrastructure.models import SystemSettingsModel
+from apps.config_center.models import BackupDeliveryStateModel
 
 
 @pytest.mark.django_db(transaction=True)
@@ -137,8 +138,9 @@ def test_persisted_backup_link_expiry_is_enforced(client):
     settings_obj.set_backup_smtp_password("smtp-secret")
     settings_obj.save()
     token = generate_download_token(settings_obj)
-    settings_obj.backup_download_token_expires_at = timezone.now() - timedelta(seconds=1)
-    settings_obj.save(update_fields=["backup_download_token_expires_at", "updated_at"])
+    state = BackupDeliveryStateModel._default_manager.get(pk=1)
+    state.download_token_expires_at = timezone.now() - timedelta(seconds=1)
+    state.save(update_fields=["download_token_expires_at", "updated_at"])
 
     response = client.get(reverse("admin-db-backup-download", kwargs={"token": token}))
 

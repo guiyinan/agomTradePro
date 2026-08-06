@@ -23,7 +23,9 @@ from django.db import connections
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.account.infrastructure.backup_delivery_projection import get_backup_delivery_settings
 from apps.account.infrastructure.models import SystemSettingsModel
+from apps.config_center.application.public import record_backup_download_token
 
 DOWNLOAD_TOKEN_SALT = "account-db-backup-download"
 BACKUP_FILE_MAGIC = b"AGBK1"
@@ -55,7 +57,8 @@ class BackupPackageDescription(TypedDict):
 
 def build_backup_download_url(token: str) -> str:
     path = reverse("admin-db-backup-download", kwargs={"token": token})
-    config = SystemSettingsModel.get_settings_for_read()
+    legacy_settings = SystemSettingsModel.get_settings_for_read()
+    config = get_backup_delivery_settings(base_settings=legacy_settings)
     base_url = (config.backup_app_base_url or getattr(settings, "APP_BASE_URL", "")).rstrip("/")
     if base_url:
         return f"{base_url}{path}"
@@ -81,19 +84,24 @@ def generate_download_token(config: SystemSettingsModel) -> str:
         "nonce": nonce,
         "ts": issued_at.isoformat(),
     }
-    config.backup_download_token_digest = hash_download_nonce(nonce)
-    config.backup_download_token_expires_at = issued_at + timedelta(
-        days=config.backup_link_ttl_days
-    )
-    config.backup_download_consumed_at = None
-    config.save(
-        update_fields=[
-            "backup_download_token_digest",
-            "backup_download_token_expires_at",
-            "backup_download_consumed_at",
-            "updated_at",
-        ]
-    )
+    digest = hash_download_nonce(nonce)
+    expires_at = issued_at + timedelta(days=config.backup_link_ttl_days)
+    if getattr(config, "pk", None):
+        record_backup_download_token(digest=digest, expires_at=expires_at)
+    else:
+        # Lightweight test doubles remain supported without bypassing the
+        # production state owner.
+        config.backup_download_token_digest = digest
+        config.backup_download_token_expires_at = expires_at
+        config.backup_download_consumed_at = None
+        config.save(
+            update_fields=[
+                "backup_download_token_digest",
+                "backup_download_token_expires_at",
+                "backup_download_consumed_at",
+                "updated_at",
+            ]
+        )
     return signing.dumps(payload, salt=DOWNLOAD_TOKEN_SALT)
 
 

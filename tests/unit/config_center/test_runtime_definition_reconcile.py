@@ -68,6 +68,35 @@ def test_backup_retention_is_bounded_typed_runtime_definition() -> None:
     assert definition.constraints == {"minimum": 1, "maximum": 3650}
 
 
+def test_backup_delivery_definitions_are_typed() -> None:
+    definitions = {
+        item.key: item for item in DEFAULT_RUNTIME_DEFINITIONS if item.namespace == "backup"
+    }
+
+    assert set(definitions) == {
+        "backup.enabled",
+        "backup.recipient_email",
+        "backup.app_base_url",
+        "backup.mail_from_email",
+        "backup.smtp_host",
+        "backup.smtp_port",
+        "backup.smtp_username",
+        "backup.smtp_use_tls",
+        "backup.smtp_use_ssl",
+        "backup.interval_days",
+        "backup.link_ttl_days",
+        "backup.password_hint",
+        "backup.archive_password",
+        "backup.smtp_password",
+    }
+    assert definitions["backup.smtp_port"].constraints == {
+        "minimum": 1,
+        "maximum": 65535,
+    }
+    assert definitions["backup.archive_password"].secret is True
+    assert definitions["backup.smtp_password"].secret is True
+
+
 def test_account_runtime_definitions_are_bounded_and_typed() -> None:
     definitions = {
         item.key: item for item in DEFAULT_RUNTIME_DEFINITIONS if item.namespace == "account"
