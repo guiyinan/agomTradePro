@@ -4557,3 +4557,13 @@ Git SHA / 镜像 / migration：
 - 防回归：`scripts/data_center_architecture_inventory.py` 新增 `direct_data_center_imports_outside_data_center` 清单与计数（测试 fixture 不作为生产入口）；`tests/unit/test_data_center_architecture_inventory.py` 固定断言为 0。后续新增业务侧 Data Center internal import 会让提交态 inventory/CI 直接失配，而不是静默增加入口。
 - 证据：architecture boundary/audit 0、module-cycle 0、legacy fact guard 通过；provider credential guard 11 entries validated；Alpha command contract `2 passed`；本批变更文件 Ruff/Black 通过，目标回归此前 `48 passed` 保持通过。全文件 Alpha component 在当前工作区一次运行超过 120 秒无输出，拆分命令契约已通过，需在干净测试库另行补充完整组件证据。
 - 明确未做：未修改 Alpha 业务算法、历史价格数据、Provider writer、生产 PostgreSQL/VPS、部署或 push；仍保留测试 fixture 对 Data Center infrastructure 的直接使用，以及 Data Center owner 内部 implementation imports。生产 profile、真实备份恢复、容量故障注入、观察窗口、M9/M10 旧链清理仍未完成。
+
+## 110. 2026-08-06：Backup delivery secret owner 收编
+
+- 根因：此前 `backup.archive_password`/`backup.smtp_password` 虽已登记为 typed `secret_ref`，但 profile 只保存引用，实际密文仍在 `SystemSettingsModel.backup_*_encrypted`；snapshot 又故意隐藏 secret 值，导致新 ref 无法解析时回退旧 singleton，形成隐蔽双真源。
+- 变更：Config Center 新增 `ConfigCenterSecretModel`（`config_center_secret`）和 `ConfigCenterSecretStore`，复用 `FieldEncryptionService` 加密、按 stable ref 读写、无 `AGOMTRADEPRO_ENCRYPTION_KEY` 时新写入 fail closed；新增 `0010_configcentersecretmodel`。Runtime profile patch 增加显式 `secret_ref_patch`，active snapshot 只发布非 secret 值，secret ref 由匹配的 profile/value owner 读取。
+- 消费者切换：Provider/Admin 之外的 backup delivery Admin、新策略写入、backup projection、archive 加密、SMTP connection、encryption readiness 统一经 Config Center secret public port；projection 仅在内存中构造兼容模型，不把新 secret 回写 `SystemSettingsModel`。新写入不再落 legacy encrypted columns。
+- 迁移：新增 `manage.py migrate_backup_delivery_secrets [--dry-run]`；只在显式执行时读取旧加密列并通过 owner port 导入，已存在新 ref 不覆盖。dry-run 在本地无可解密旧值时输出 `unavailable`，不写入。
+- 治理与证据：`runtime_config_contracts.json` 将两个 secret owner 改为 `config_center`，登记新表/store、迁移命令和回归；本地 migration、Django check、mypy regression 通过；secret store/cutover 回归 `3 passed`，既有 backup/runtime/Admin 回归 `19 passed`；无密钥新写入 fail closed，数据库行不含明文。
+- 防回归：新增 `governance/backup_delivery_secret_contracts.json` 与 `scripts/check_backup_delivery_secret_ownership.py`，对生产源码扫描 legacy 加密列/ setter 直写，并接入 fast-feedback/consistency CI；当前 guard 输出 `legacy writes=0`，对应自测 `1 passed`。
+- 明确未做：未执行真实生产密钥迁移、外部 Vault/云 KMS 接入、VPS/备份恢复演练或旧 `SystemSettingsModel` secret 列删除；旧列仅作为显式 migration/legacy projection 兼容，需在生产 profile 初始化、verified restore 和 M9 观察窗口后清理。
