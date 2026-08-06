@@ -2,8 +2,8 @@
   "version": "tui-workbench.v2",
   "registry_key": "default",
   "source_evidence_counts": {
-    "api_safe_read": 511,
-    "sdk_methods": 475,
+    "api_safe_read": 523,
+    "sdk_methods": 497,
     "mcp_tools": 378,
     "classic_templates": 125
   },
@@ -51,6 +51,15 @@
         "method": "GET",
         "endpoint": "/api/ready/",
         "category": "ready",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.decision-ready",
+        "name": "Get Decision Ready",
+        "method": "GET",
+        "endpoint": "/api/decision-ready/",
+        "category": "decision-ready",
         "risk_level": "safe",
         "visibility": "internal"
       },
@@ -1274,6 +1283,33 @@
         "name": "Get Strategy",
         "method": "GET",
         "endpoint": "/api/strategy/",
+        "category": "strategy",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.strategy.allocation-policies.active",
+        "name": "Get Strategy Allocation Policies Active",
+        "method": "GET",
+        "endpoint": "/api/strategy/allocation-policies/active/",
+        "category": "strategy",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.strategy.allocation-policies.versions",
+        "name": "Get Strategy Allocation Policies Versions",
+        "method": "GET",
+        "endpoint": "/api/strategy/allocation-policies/versions/",
+        "category": "strategy",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.strategy.allocation-policies.versions.int:version",
+        "name": "Get Allocation Policies Versions Int:Version",
+        "method": "GET",
+        "endpoint": "/api/strategy/allocation-policies/versions/<int:version>/",
         "category": "strategy",
         "risk_level": "safe",
         "visibility": "internal"
@@ -3448,6 +3484,69 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.risk-center.stress-scenarios",
+        "name": "Get Risk Center Stress Scenarios",
+        "method": "GET",
+        "endpoint": "/api/risk-center/stress-scenarios/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.risk-center.stress-scenarios.str:scenario_key",
+        "name": "Get Risk Center Stress Scenarios Str:Scenario Key",
+        "method": "GET",
+        "endpoint": "/api/risk-center/stress-scenarios/<str:scenario_key>/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.risk-center.stress-scenario-sets.active",
+        "name": "Get Risk Center Stress Scenario Sets Active",
+        "method": "GET",
+        "endpoint": "/api/risk-center/stress-scenario-sets/active/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.risk-center.stress-scenario-sets.impact-preview",
+        "name": "Get Risk Center Stress Scenario Sets Impact Preview",
+        "method": "GET",
+        "endpoint": "/api/risk-center/stress-scenario-sets/impact-preview/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.risk-center.research.market-state",
+        "name": "Get Risk Center Research Market State",
+        "method": "GET",
+        "endpoint": "/api/risk-center/research/market-state/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.risk-center.research.decision-scorecard",
+        "name": "Get Risk Center Research Decision Scorecard",
+        "method": "GET",
+        "endpoint": "/api/risk-center/research/decision-scorecard/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.risk-center.research.strategy-brief",
+        "name": "Get Risk Center Research Strategy Brief",
+        "method": "GET",
+        "endpoint": "/api/risk-center/research/strategy-brief/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.hedge",
         "name": "Get Hedge",
         "method": "GET",
@@ -4451,6 +4550,15 @@
         "name": "Get Data Center",
         "method": "GET",
         "endpoint": "/api/data-center/",
+        "category": "data-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.data-center.providers.status",
+        "name": "Get Data Center Providers Status",
+        "method": "GET",
+        "endpoint": "/api/data-center/providers/status/",
         "category": "data-center",
         "risk_level": "safe",
         "visibility": "internal"
@@ -6381,7 +6489,9 @@
           "start",
           "end",
           "limit",
-          "source"
+          "source",
+          "mode",
+          "publication_key"
         ],
         "summary": "",
         "source": "sdk/agomtradepro/modules/data_center.py"
@@ -6404,7 +6514,9 @@
           "end",
           "freq",
           "adjustment",
-          "limit"
+          "limit",
+          "mode",
+          "publication_key"
         ],
         "summary": "",
         "source": "sdk/agomtradepro/modules/data_center.py"
@@ -6450,7 +6562,9 @@
           "fund_code",
           "start",
           "end",
-          "limit"
+          "limit",
+          "mode",
+          "publication_key"
         ],
         "summary": "",
         "source": "sdk/agomtradepro/modules/data_center.py"
@@ -6490,7 +6604,9 @@
           "asset_code",
           "start",
           "end",
-          "limit"
+          "limit",
+          "mode",
+          "publication_key"
         ],
         "summary": "",
         "source": "sdk/agomtradepro/modules/data_center.py"
@@ -6549,7 +6665,9 @@
           "asset_code",
           "start",
           "end",
-          "limit"
+          "limit",
+          "mode",
+          "publication_key"
         ],
         "summary": "",
         "source": "sdk/agomtradepro/modules/data_center.py"
@@ -6778,6 +6896,18 @@
       },
       {
         "module": "equity",
+        "method": "get_stock_pool_payload",
+        "args": [
+          "sector",
+          "min_score",
+          "max_score",
+          "limit"
+        ],
+        "summary": "Return the stock-pool envelope, including publication evidence.",
+        "source": "sdk/agomtradepro/modules/equity.py"
+      },
+      {
+        "module": "equity",
         "method": "get_stock_pool",
         "args": [
           "sector",
@@ -6809,6 +6939,16 @@
       },
       {
         "module": "equity",
+        "method": "get_recommendations_payload",
+        "args": [
+          "regime",
+          "limit"
+        ],
+        "summary": "Return screening response with publication/freshness metadata intact.",
+        "source": "sdk/agomtradepro/modules/equity.py"
+      },
+      {
+        "module": "equity",
         "method": "analyze_stock",
         "args": [
           "stock_code",
@@ -6835,6 +6975,17 @@
           "limit"
         ],
         "summary": "获取财务数据",
+        "source": "sdk/agomtradepro/modules/equity.py"
+      },
+      {
+        "module": "equity",
+        "method": "get_financials_payload",
+        "args": [
+          "stock_code",
+          "report_type",
+          "limit"
+        ],
+        "summary": "Return financial history with publication/freshness metadata intact.",
         "source": "sdk/agomtradepro/modules/equity.py"
       },
       {
@@ -8144,6 +8295,148 @@
         "source": "sdk/agomtradepro/modules/risk_center.py"
       },
       {
+        "module": "risk_center",
+        "method": "list_scenarios",
+        "args": [],
+        "summary": "List repository-backed stress-scenario definitions.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "get_scenario",
+        "args": [
+          "scenario_key"
+        ],
+        "summary": "Read one scenario and its immutable revision history.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "get_active_scenario_set",
+        "args": [],
+        "summary": "Read the active scenario-set revision for one scope.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "validate_scenario_revision",
+        "args": [
+          "payload"
+        ],
+        "summary": "Validate a scenario revision without writing it.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "preview_scenario_revision",
+        "args": [
+          "payload"
+        ],
+        "summary": "Preview an immutable replacement revision without activating it.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "preview_scenario_action",
+        "args": [
+          "operation",
+          "payload"
+        ],
+        "summary": "Persist an exact preview for propose, activate, rollback, or retire.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "propose_scenario_revision",
+        "args": [
+          "payload"
+        ],
+        "summary": "Create a draft/proposed revision and persistent human-review proposal.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "activate_scenario_revision",
+        "args": [
+          "payload"
+        ],
+        "summary": "Activate a human-approved scenario-set revision.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "approve_scenario_proposal",
+        "args": [
+          "proposal_id",
+          "payload"
+        ],
+        "summary": "Approve a scenario proposal as a human staff principal.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "reject_scenario_proposal",
+        "args": [
+          "proposal_id",
+          "payload"
+        ],
+        "summary": "Reject a scenario proposal as a human staff principal.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "rollback_scenario_revision",
+        "args": [
+          "payload"
+        ],
+        "summary": "Copy a prior revision into a new revision and activate the copy.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "retire_scenario",
+        "args": [
+          "scenario_key",
+          "payload"
+        ],
+        "summary": "Retire a scenario through the governed replacement workflow.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "preview_scenario_matrix",
+        "args": [
+          "payload"
+        ],
+        "summary": "Preview probability-weighted impacts for an immutable portfolio snapshot.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "get_market_state_evidence",
+        "args": [],
+        "summary": "Read the five-dimensional market-state evidence card.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "build_decision_scorecard",
+        "args": [
+          "payload"
+        ],
+        "summary": "Build the governed ex-ante environment/valuation scorecard.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "generate_strategy_brief",
+        "args": [
+          "payload"
+        ],
+        "summary": "Generate an auditable brief from structured, referenced facts.",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
         "module": "rotation",
         "method": "get_recommendation",
         "args": [
@@ -8779,6 +9072,34 @@
           "strategy_id"
         ],
         "summary": "获取策略详情",
+        "source": "sdk/agomtradepro/modules/strategy.py"
+      },
+      {
+        "module": "strategy",
+        "method": "get_active_allocation_policy",
+        "args": [
+          "policy_key"
+        ],
+        "summary": "Return the complete active Strategy allocation policy.",
+        "source": "sdk/agomtradepro/modules/strategy.py"
+      },
+      {
+        "module": "strategy",
+        "method": "list_allocation_policy_versions",
+        "args": [
+          "policy_key"
+        ],
+        "summary": "List immutable allocation-policy version summaries newest first.",
+        "source": "sdk/agomtradepro/modules/strategy.py"
+      },
+      {
+        "module": "strategy",
+        "method": "get_allocation_policy_version",
+        "args": [
+          "version",
+          "policy_key"
+        ],
+        "summary": "Return one immutable allocation-policy version by number.",
         "source": "sdk/agomtradepro/modules/strategy.py"
       },
       {
@@ -10069,9 +10390,10 @@
           "api_endpoint",
           "api_secret",
           "extra_config",
+          "tushare_request_mode",
           "description"
         ],
-        "summary": "创建数据中台 Provider 配置。",
+        "summary": "创建数据中台 Provider；Tushare 可重复创建为多线路连接池。",
         "source": "sdk/agomtradepro_mcp/tools/config_center_tools.py"
       },
       {
@@ -10087,6 +10409,8 @@
           "api_endpoint",
           "api_secret",
           "extra_config",
+          "tushare_request_mode",
+          "clear_service_address",
           "description"
         ],
         "summary": "更新数据中台 Provider 配置。",
@@ -10503,9 +10827,11 @@
         "args": [
           "asset_code",
           "strict_freshness",
-          "max_age_hours"
+          "max_age_hours",
+          "mode",
+          "publication_key"
         ],
-        "summary": "读取指定资产的最新行情快照，可选启用 freshness 严格模式。",
+        "summary": "读取指定资产的最新行情快照；默认只返回已发布事实。",
         "source": "sdk/agomtradepro_mcp/tools/data_center_tools.py"
       },
       {
@@ -10514,9 +10840,11 @@
           "asset_code",
           "start",
           "end",
-          "limit"
+          "limit",
+          "mode",
+          "publication_key"
         ],
-        "summary": "读取指定资产的历史价格。",
+        "summary": "读取指定资产的价格；默认只返回已发布事实。",
         "source": "sdk/agomtradepro_mcp/tools/data_center_tools.py"
       },
       {
@@ -10525,7 +10853,9 @@
           "indicator_code",
           "start",
           "end",
-          "limit"
+          "limit",
+          "mode",
+          "publication_key"
         ],
         "summary": "读取指定宏观指标的标准化时序。",
         "source": "sdk/agomtradepro_mcp/tools/data_center_tools.py"
@@ -10560,9 +10890,11 @@
           "asset_code",
           "start",
           "end",
-          "limit"
+          "limit",
+          "mode",
+          "publication_key"
         ],
-        "summary": "读取指定资产的资金流数据。",
+        "summary": "读取指定资产的资金流数据；默认只返回已发布事实。",
         "source": "sdk/agomtradepro_mcp/tools/data_center_tools.py"
       },
       {
@@ -10579,9 +10911,11 @@
         "tool": "data_center_get_news",
         "args": [
           "asset_code",
-          "limit"
+          "limit",
+          "mode",
+          "publication_key"
         ],
-        "summary": "读取指定资产的新闻事实。",
+        "summary": "读取指定资产的新闻事实；默认只返回已发布事实。",
         "source": "sdk/agomtradepro_mcp/tools/data_center_tools.py"
       },
       {
@@ -10766,7 +11100,9 @@
         "tool": "get_stock_score",
         "args": [
           "stock_code",
-          "as_of_date"
+          "as_of_date",
+          "mode",
+          "publication_key"
         ],
         "summary": "获取股票评分",
         "source": "sdk/agomtradepro_mcp/tools/equity_tools.py"
@@ -10776,7 +11112,9 @@
         "args": [
           "sector",
           "min_score",
-          "limit"
+          "limit",
+          "mode",
+          "publication_key"
         ],
         "summary": "获取股票列表",
         "source": "sdk/agomtradepro_mcp/tools/equity_tools.py"
@@ -10784,7 +11122,9 @@
       {
         "tool": "get_stock_detail",
         "args": [
-          "stock_code"
+          "stock_code",
+          "mode",
+          "publication_key"
         ],
         "summary": "获取股票详情",
         "source": "sdk/agomtradepro_mcp/tools/equity_tools.py"
@@ -10793,7 +11133,9 @@
         "tool": "get_stock_recommendations",
         "args": [
           "regime",
-          "limit"
+          "limit",
+          "mode",
+          "publication_key"
         ],
         "summary": "获取股票推荐",
         "source": "sdk/agomtradepro_mcp/tools/equity_tools.py"
@@ -10802,7 +11144,9 @@
         "tool": "analyze_stock",
         "args": [
           "stock_code",
-          "as_of_date"
+          "as_of_date",
+          "mode",
+          "publication_key"
         ],
         "summary": "分析股票",
         "source": "sdk/agomtradepro_mcp/tools/equity_tools.py"
@@ -10812,7 +11156,9 @@
         "args": [
           "stock_code",
           "report_type",
-          "limit"
+          "limit",
+          "mode",
+          "publication_key"
         ],
         "summary": "获取股票财务数据",
         "source": "sdk/agomtradepro_mcp/tools/equity_tools.py"
@@ -10821,7 +11167,9 @@
         "tool": "get_stock_valuation",
         "args": [
           "stock_code",
-          "lookback_days"
+          "lookback_days",
+          "mode",
+          "publication_key"
         ],
         "summary": "获取股票估值数据",
         "source": "sdk/agomtradepro_mcp/tools/equity_tools.py"

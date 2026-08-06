@@ -523,6 +523,7 @@ ACTION_SCREEN_RULES: tuple[tuple[str, str], ...] = (
     ("param.api.get.api.beta-gate", "macro-regime.beta-gate"),
     ("param.api.get.api.hedge", "macro-regime.hedge"),
     ("param.api.get.api.system", "api-library.runtime"),
+    ("param.api.get.api.data-center", "api-library.data-center"),
     ("param.api.get.api.share", "execution.share"),
     ("param.api.get.api.ai.me", "ai-ops.providers"),
     ("param.api.get.api.prompt", "ai-ops.prompt-workbench"),

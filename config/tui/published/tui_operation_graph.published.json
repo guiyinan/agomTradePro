@@ -1,7 +1,7 @@
 {
   "version": "tui-workbench.v2",
   "registry_key": "default",
-  "status": "published",
+  "status": "generated",
   "default_screen": "command-center.overview",
   "interaction_model": "user-task-workbench-to-approved-tools",
   "principles": [
@@ -25410,6 +25410,113 @@
       "task_group": "09 条件查询",
       "sequence": 900,
       "task_tier": "advanced"
+    },
+    {
+      "key": "auto.api.get.api.decision-ready",
+      "label": "决策 Ready",
+      "endpoint": "/api/decision-ready/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "command-center.decision-flow",
+      "view_type": "detail",
+      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "常用任务",
+      "sequence": 900,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.strategy.allocation-policies.active",
+      "label": "策略 全部ocation Policie 当前",
+      "endpoint": "/api/strategy/allocation-policies/active/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "macro-regime.strategy",
+      "view_type": "status",
+      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "常用任务",
+      "sequence": 900,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.strategy.allocation-policies.versions",
+      "label": "策略 全部ocation Policie Version",
+      "endpoint": "/api/strategy/allocation-policies/versions/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "macro-regime.strategy",
+      "view_type": "status",
+      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "常用任务",
+      "sequence": 900,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.data-center.providers.status",
+      "label": "数据中心 服务商 状态",
+      "endpoint": "/api/data-center/providers/status/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.data-center",
+      "view_type": "status",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 数据中心",
+      "sequence": 100,
+      "task_tier": "support",
+      "result_semantics": [
+        "primary_status"
+      ]
+    },
+    {
+      "key": "param.api.get.api.strategy.allocation-policies.versions.int.version",
+      "label": "策略 / 全部ocation Policie / Version / 详情",
+      "endpoint": "/api/strategy/allocation-policies/versions/<int:version>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "macro-regime.strategy",
+      "view_type": "status",
+      "fields": [
+        {
+          "key": "version",
+          "label": "Version",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Version",
+          "binding": "path",
+          "value_type": "float",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "source": "approved:parameterized-promoted",
+      "task_group": "05 条件查询",
+      "sequence": 500,
+      "task_tier": "advanced"
+    },
+    {
+      "key": "param.api.get.api.data-center.pit-manifests.str.manifest_id",
+      "label": "数据中心 / Pit Manifest / 详情",
+      "endpoint": "/api/data-center/pit-manifests/<str:manifest_id>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.data-center",
+      "view_type": "status",
+      "fields": [
+        {
+          "key": "manifest_id",
+          "label": "PIT 清单 ID",
+          "input_type": "text",
+          "required": true,
+          "default": "",
+          "placeholder": "输入 PIT 清单 ID",
+          "binding": "path",
+          "value_type": "string",
+          "presentation_semantic": "primary_selector"
+        }
+      ],
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "source": "approved:parameterized-promoted",
+      "task_group": "09 条件查询",
+      "sequence": 900,
+      "task_tier": "advanced"
     }
   ],
   "promotion_review": {
@@ -25430,18 +25537,18 @@
     ]
   },
   "coverage_summary": {
-    "safe_read_evidence": 511,
-    "direct_safe_read_candidates": 283,
-    "parameterized_safe_read_candidates": 157,
-    "added_safe_api_actions": 22,
-    "added_parameterized_api_actions": 157,
-    "published_actions": 462,
+    "safe_read_evidence": 523,
+    "direct_safe_read_candidates": 293,
+    "parameterized_safe_read_candidates": 159,
+    "added_safe_api_actions": 32,
+    "added_parameterized_api_actions": 159,
+    "published_actions": 474,
     "deferred": {
       "path_parameters": 13,
       "write_like_or_heavy": 11,
       "internal_debug_or_docs": 27
     },
-    "business_promoted_actions": 432,
+    "business_promoted_actions": 438,
     "approved_operation_actions": 23,
     "operator_first_default_actions": 1,
     "user_facing_design_annotations": 0,
@@ -25713,5 +25820,13 @@
       "type",
       "name"
     ]
-  }
+  },
+  "source_evidence_ref": "config/tui/generated/tui_operation_evidence.generated.json",
+  "source_evidence_counts": {
+    "api_safe_read": 523,
+    "sdk_methods": 497,
+    "mcp_tools": 378,
+    "classic_templates": 125
+  },
+  "generation_note": "Candidate metadata generated at compile time. Review graph and separate evidence before publishing."
 }

@@ -842,6 +842,18 @@ QUERY_FIELD_RULES: dict[str, list[dict[str, Any]]] = {
 }
 
 PATH_FIELD_RULES: dict[str, dict[str, dict[str, Any]]] = {
+    "/api/data-center/pit-manifests/<str:manifest_id>/": {
+        "manifest_id": {
+            "key": "manifest_id",
+            "label": "PIT 清单 ID",
+            "input_type": "text",
+            "required": True,
+            "default": "",
+            "placeholder": "输入 PIT 清单 ID",
+            "binding": "path",
+            "value_type": "string",
+        }
+    },
     "/api/account/observer-grants/<pk>/": {
         "pk": {
             "key": "pk",

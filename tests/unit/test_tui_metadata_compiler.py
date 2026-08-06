@@ -408,6 +408,40 @@ def test_parameterized_safe_api_actions_use_curated_uuid_path_field_rules(genera
     ]
 
 
+def test_parameterized_pit_manifest_detail_uses_string_identifier(generator_module):
+    safe_records = [
+        {
+            "key": "api.get.api.data-center.pit-manifests.str:manifest_id",
+            "name": "Get PIT Manifest Detail",
+            "method": "GET",
+            "endpoint": "/api/data-center/pit-manifests/<str:manifest_id>/",
+            "summary": "Return one immutable PIT manifest.",
+            "category": "data-center",
+            "risk_level": "low",
+            "visibility": "user",
+        }
+    ]
+
+    payload = _sample_payload()
+    added = generator_module.add_parameterized_safe_api_actions(payload, safe_records, limit=10)
+
+    assert added == 1
+    action = payload["actions"][1]
+    assert action["key"] == "param.api.get.api.data-center.pit-manifests.str.manifest_id"
+    assert action["fields"] == [
+        {
+            "key": "manifest_id",
+            "label": "PIT 清单 ID",
+            "input_type": "text",
+            "required": True,
+            "default": "",
+            "placeholder": "输入 PIT 清单 ID",
+            "binding": "path",
+            "value_type": "string",
+        }
+    ]
+
+
 def test_parameterized_safe_api_actions_skip_get_routes_with_operation_semantics(generator_module):
     safe_records = [
         {
@@ -928,6 +962,30 @@ def test_generated_metadata_is_not_using_old_evidence_caps():
     assert counts["classic_templates"] > 32
 
 
+def test_published_metadata_contains_pit_manifest_detail_action():
+    root = Path(__file__).resolve().parents[2]
+    graph_path = root / "config" / "tui" / "published" / "tui_operation_graph.published.json"
+    payload = json.loads(graph_path.read_text(encoding="utf-8"))
+    action_by_key = {action["key"]: action for action in payload["actions"]}
+
+    action = action_by_key["param.api.get.api.data-center.pit-manifests.str.manifest_id"]
+    assert action["screen_key"] == "api-library.data-center"
+    assert action["source"] == "approved:parameterized-promoted"
+    assert action["fields"] == [
+        {
+            "key": "manifest_id",
+            "label": "PIT 清单 ID",
+            "input_type": "text",
+            "required": True,
+            "default": "",
+            "placeholder": "输入 PIT 清单 ID",
+            "binding": "path",
+            "value_type": "string",
+            "presentation_semantic": "primary_selector",
+        }
+    ]
+
+
 def test_promoter_routes_decision_rhythm_before_generic_decision(promoter_module):
     assert (
         promoter_module._promoted_screen_for("auto.api.get.api.decision-rhythm.summary")
@@ -983,6 +1041,15 @@ def test_promoter_routes_portfolio_pk_and_valuation_snapshot_to_row_compatible_s
     assert (
         promoter_module._promoted_screen_for("param.api.get.api.valuation.snapshot.str.snapshot_id")
         == "command-center.decision-flow"
+    )
+
+
+def test_promoter_routes_pit_manifest_detail_to_data_center_screen(promoter_module):
+    assert (
+        promoter_module._promoted_screen_for(
+            "param.api.get.api.data-center.pit-manifests.str.manifest_id"
+        )
+        == "api-library.data-center"
     )
 
 
