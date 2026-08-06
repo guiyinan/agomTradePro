@@ -696,7 +696,8 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
         ),
     )
     category_counts = Counter(str(item["category"]) for item in ordered)
-    status_counts = Counter(str(item["status"]) for item in ordered)
+    status_counts = Counter({status: 0 for status in STATUSES})
+    status_counts.update(str(item["status"]) for item in ordered)
     return {
         "schema_version": "1.0",
         "owner": "data_center",

@@ -5,7 +5,9 @@
     "apps/data_center/application/tasks.py",
     "apps/equity/application/tasks_valuation_sync.py",
     "apps/config_center/application/decision_readiness_guard_tasks.py",
-    "apps/sentiment/application/tasks.py"
+    "apps/sentiment/application/tasks.py",
+    "apps/macro/application/tasks.py",
+    "apps/realtime/application/tasks.py"
   ],
   "tasks": [
     {
@@ -370,6 +372,214 @@
         "complete_failure": {
           "test_file": "tests/unit/sentiment/test_t4b_task_contracts.py",
           "test_function": "test_freshness_task_reports_repository_error"
+        }
+      }
+    },
+    {
+      "task_path": "apps.macro.application.tasks.sync_macro_data",
+      "source_file": "apps/macro/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_sync_macro_data_rejects_invalid_input_before_use_case"
+        },
+        "all_success": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_sync_macro_data_reports_all_success_with_normalized_counts"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_sync_macro_data_reports_partial_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_sync_macro_data_reports_complete_failure"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_sync_macro_data_reports_zero_output_as_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.macro.application.tasks.check_data_freshness",
+      "source_file": "apps/macro/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_check_data_freshness_reports_all_success"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_check_data_freshness_reports_complete_failure"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_check_data_freshness_reports_zero_output_as_noop"
+        }
+      }
+    },
+    {
+      "task_path": "apps.macro.application.tasks.send_data_freshness_alert",
+      "source_file": "apps/macro/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_send_data_freshness_alert_rejects_invalid_input"
+        },
+        "all_success": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_send_data_freshness_alert_reports_all_success"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_send_data_freshness_alert_reports_complete_failure"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_send_data_freshness_alert_reports_zero_output_as_noop"
+        }
+      }
+    },
+    {
+      "task_path": "apps.macro.application.tasks.auto_sync_due_macro_indicators",
+      "source_file": "apps/macro/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_auto_sync_due_macro_indicators_rejects_invalid_input"
+        },
+        "all_success": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_auto_sync_due_macro_indicators_reports_all_success"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_auto_sync_due_macro_indicators_reports_partial_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_auto_sync_due_macro_indicators_reports_complete_failure"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_auto_sync_due_macro_indicators_rejects_zero_stored_result"
+        },
+        "blocked": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_auto_sync_due_macro_indicators_blocks_without_provider"
+        }
+      }
+    },
+    {
+      "task_path": "apps.macro.application.tasks.cleanup_old_data",
+      "source_file": "apps/macro/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_cleanup_old_data_rejects_invalid_input_before_repository"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_cleanup_old_data_reports_complete_failure"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_cleanup_old_data_reports_zero_output_as_noop"
+        },
+        "blocked": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_cleanup_old_data_blocks_when_deletion_is_disabled"
+        }
+      }
+    },
+    {
+      "task_path": "apps.macro.application.tasks.sync_high_frequency_bonds",
+      "source_file": "apps/macro/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_high_frequency_tasks_reject_invalid_input"
+        },
+        "all_success": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_high_frequency_tasks_report_all_success"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_high_frequency_tasks_report_partial_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_high_frequency_tasks_report_complete_failure"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_high_frequency_tasks_report_zero_output_as_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.macro.application.tasks.sync_high_frequency_commodities",
+      "source_file": "apps/macro/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_high_frequency_tasks_reject_invalid_input"
+        },
+        "all_success": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_high_frequency_tasks_report_all_success"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_high_frequency_tasks_report_partial_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_high_frequency_tasks_report_complete_failure"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/macro/test_macro_celery_task_contracts.py",
+          "test_function": "test_high_frequency_tasks_report_zero_output_as_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.realtime.application.tasks.poll_realtime_prices_task",
+      "source_file": "apps/realtime/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/test_realtime_tasks.py",
+          "test_function": "test_poll_realtime_prices_task_rejects_invalid_input"
+        },
+        "all_success": {
+          "test_file": "tests/unit/test_realtime_tasks.py",
+          "test_function": "test_poll_realtime_prices_task_polls_full_watchlist_successfully"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/test_realtime_tasks.py",
+          "test_function": "test_poll_realtime_prices_task_reports_partial_requested_output"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/test_realtime_tasks.py",
+          "test_function": "test_poll_realtime_prices_task_normalizes_execution_failure"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/test_realtime_tasks.py",
+          "test_function": "test_poll_realtime_prices_task_returns_noop_for_empty_watchlist"
+        },
+        "blocked": {
+          "test_file": "tests/unit/test_realtime_tasks.py",
+          "test_function": "test_poll_realtime_prices_task_preserves_upstream_business_block"
         }
       }
     }

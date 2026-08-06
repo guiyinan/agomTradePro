@@ -12,15 +12,15 @@
       "rest_url": 54,
       "script": 6,
       "sdk": 45,
-      "terminal_tui": 23
+      "terminal_tui": 24
     },
     "by_status": {
-      "active_public": 350,
+      "active_public": 356,
       "adjacent_operational": 66,
-      "candidate-review": 13,
-      "compatibility": 118
+      "candidate-review": 0,
+      "compatibility": 126
     },
-    "total": 547
+    "total": 548
   },
   "entries": [
     {
@@ -43,11 +43,11 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled data acquisition task lacks Celery task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:auto_sync_due_macro_indicators:auto-sync-due-macro-indicators",
       "locator": "auto-sync-due-macro-indicators",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "auto_sync_due_macro_indicators"
     },
     {
@@ -97,11 +97,11 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled data acquisition task lacks Celery task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:check_data_freshness:check-data-freshness",
       "locator": "check-data-freshness",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "check_data_freshness"
     },
     {
@@ -475,20 +475,20 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled data acquisition task lacks Celery task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:sync_high_frequency_bonds:high-frequency-sync-bonds",
       "locator": "high-frequency-sync-bonds",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "sync_high_frequency_bonds"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled data acquisition task lacks Celery task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:sync_high_frequency_commodities:high-frequency-sync-commodities",
       "locator": "high-frequency-sync-commodities",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "sync_high_frequency_commodities"
     },
     {
@@ -970,65 +970,65 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Data acquisition task lacks Celery task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/macro/application/tasks.py:auto_sync_due_macro_indicators:auto_sync_due_macro_indicators",
       "locator": "auto_sync_due_macro_indicators",
       "path": "apps/macro/application/tasks.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "auto_sync_due_macro_indicators"
     },
     {
       "category": "celery_task",
-      "evidence": "Data acquisition task lacks Celery task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/macro/application/tasks.py:check_data_freshness:check_data_freshness",
       "locator": "check_data_freshness",
       "path": "apps/macro/application/tasks.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "check_data_freshness"
     },
     {
       "category": "celery_task",
-      "evidence": "Data acquisition task lacks Celery task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/macro/application/tasks.py:cleanup_old_data:cleanup_old_data",
       "locator": "cleanup_old_data",
       "path": "apps/macro/application/tasks.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "cleanup_old_data"
     },
     {
       "category": "celery_task",
-      "evidence": "Data acquisition task lacks Celery task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/macro/application/tasks.py:send_data_freshness_alert:send_data_freshness_alert",
       "locator": "send_data_freshness_alert",
       "path": "apps/macro/application/tasks.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "send_data_freshness_alert"
     },
     {
       "category": "celery_task",
-      "evidence": "Data acquisition task lacks Celery task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/macro/application/tasks.py:sync_high_frequency_bonds:sync_high_frequency_bonds",
       "locator": "sync_high_frequency_bonds",
       "path": "apps/macro/application/tasks.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "sync_high_frequency_bonds"
     },
     {
       "category": "celery_task",
-      "evidence": "Data acquisition task lacks Celery task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/macro/application/tasks.py:sync_high_frequency_commodities:sync_high_frequency_commodities",
       "locator": "sync_high_frequency_commodities",
       "path": "apps/macro/application/tasks.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "sync_high_frequency_commodities"
     },
     {
       "category": "celery_task",
-      "evidence": "Data acquisition task lacks Celery task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/macro/application/tasks.py:sync_macro_data:sync_macro_data",
       "locator": "sync_macro_data",
       "path": "apps/macro/application/tasks.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "sync_macro_data"
     },
     {
@@ -1150,11 +1150,11 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Data acquisition task lacks Celery task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/realtime/application/tasks.py:poll_realtime_prices_task:apps.realtime.application.tasks.poll_realtime_prices_task",
       "locator": "apps.realtime.application.tasks.poll_realtime_prices_task",
       "path": "apps/realtime/application/tasks.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "poll_realtime_prices_task"
     },
     {
@@ -4868,6 +4868,15 @@
     {
       "category": "terminal_tui",
       "evidence": "published TUI operation graph",
+      "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.providers.status:/api/data-center/providers/status/",
+      "locator": "/api/data-center/providers/status/",
+      "path": "config/tui/generated/tui_operation_graph.generated.json",
+      "status": "active_public",
+      "symbol": "auto.api.get.api.data-center.providers.status"
+    },
+    {
+      "category": "terminal_tui",
+      "evidence": "published TUI operation graph",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.publishers:/api/data-center/publishers/",
       "locator": "/api/data-center/publishers/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
@@ -4939,11 +4948,11 @@
     },
     {
       "category": "terminal_tui",
-      "evidence": "generated TUI action is not present in published graph",
+      "evidence": "published TUI operation graph",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:param.api.get.api.data-center.pit-manifests.str.manifest_id:/api/data-center/pit-manifests/<str:manifest_id>/",
       "locator": "/api/data-center/pit-manifests/<str:manifest_id>/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "param.api.get.api.data-center.pit-manifests.str.manifest_id"
     }
   ],
@@ -4956,7 +4965,7 @@
     "compatibility": "supported migration seam with a canonical Data Center replacement"
   },
   "source_contract_counts": {
-    "celery_tasks": 19,
+    "celery_tasks": 27,
     "current_data_contracts": 46,
     "legacy_entrypoints_and_wrappers": 4
   },

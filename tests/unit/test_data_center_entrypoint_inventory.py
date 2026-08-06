@@ -44,14 +44,15 @@ def test_inventory_covers_every_governed_invocation_category(
     }
 
 
-def test_inventory_does_not_promote_discovery(
+def test_inventory_has_no_unreviewed_discovery_and_preserves_evidence(
     inventory_payload: tuple[ModuleType, dict[str, object]],
 ) -> None:
     _inventory, first = inventory_payload
 
     ids = [entry["id"] for entry in first["entries"]]
     assert len(ids) == len(set(ids))
-    assert any(entry["status"] == "candidate-review" for entry in first["entries"])
+    assert first["counts"]["by_status"]["candidate-review"] == 0
+    assert all(entry["status"] != "candidate-review" for entry in first["entries"])
     assert all(entry["evidence"] for entry in first["entries"])
 
 
