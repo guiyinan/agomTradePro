@@ -235,7 +235,7 @@ class AccountInterfaceRegistrationRepositoryMixin:
         user = User._default_manager.select_related("account_profile").get(id=user_id)
         profile = user.account_profile
         portfolio = PortfolioModel._default_manager.filter(user_id=user_id, is_active=True).first()
-        system_settings = SystemSettingsModel.get_settings()
+        system_settings = SystemSettingsModel.get_settings_for_read()
 
         capital_flows: Any
         if portfolio:
@@ -282,7 +282,7 @@ class AccountInterfaceRegistrationRepositoryMixin:
 
         user = User._default_manager.select_related("account_profile").get(id=user_id)
         profile = user.account_profile
-        system_settings = SystemSettingsModel.get_settings()
+        system_settings = SystemSettingsModel.get_settings_for_read()
         token_plaintext_allowed = bool(system_settings.allow_token_plaintext_view)
         investment_accounts = AccountRepository().list_investment_accounts(user_id)
         preferred_account = investment_accounts[0] if investment_accounts else None

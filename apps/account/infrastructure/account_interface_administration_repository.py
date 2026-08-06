@@ -112,7 +112,7 @@ class AccountInterfaceAdministrationRepositoryMixin:
 
         return {
             "profiles": profiles,
-            "system_settings": SystemSettingsModel.get_settings(),
+            "system_settings": SystemSettingsModel.get_settings_for_read(),
             "status_filter": status_filter,
             "search_query": search_query,
             "total_count": profiles.count(),
@@ -176,13 +176,13 @@ class AccountInterfaceAdministrationRepositoryMixin:
             "with_token_count": sum(1 for row in rows if row["has_token"]),
             "without_token_count": sum(1 for row in rows if not row["has_token"]),
             "total_token_count": sum(row["token_count"] for row in rows),
-            "system_settings": SystemSettingsModel.get_settings(),
+            "system_settings": SystemSettingsModel.get_settings_for_read(),
         }
 
     def toggle_user_mcp(self, target_user_id: int) -> dict[str, Any]:
         """Toggle MCP access for a user."""
 
-        settings_obj = SystemSettingsModel.get_settings()
+        settings_obj = SystemSettingsModel.get_settings_for_read()
         target_user = User._default_manager.select_related("account_profile").get(id=target_user_id)
         profile = target_user.account_profile
         profile.mcp_enabled = not profile.mcp_enabled
@@ -234,7 +234,7 @@ class AccountInterfaceAdministrationRepositoryMixin:
             profile.approval_status = "approved"
             profile.approved_at = timezone.now()
             profile.approved_by = actor
-            profile.mcp_enabled = SystemSettingsModel.get_settings().default_mcp_enabled
+            profile.mcp_enabled = SystemSettingsModel.get_settings_for_read().default_mcp_enabled
             profile.rejection_reason = ""
             profile.save(
                 update_fields=[

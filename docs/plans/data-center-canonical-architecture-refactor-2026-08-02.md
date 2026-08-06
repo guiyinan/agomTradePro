@@ -4417,3 +4417,10 @@ Git SHA / 镜像 / migration：
 - 变更：新增专用 Admin Form，仅保留 Data Center 自有 `default_source/description`；typed failover 开关、容差和迁移说明改为只读摘要，管理修改继续走 Provider API 的 Config Center runtime write port。
 - 测试与治理：新增 Admin form/fieldset guard `2 passed`，Django check、Ruff/Black 通过；runtime contract 为两个 Data Center provider keys 登记 Admin guard test。
 - 明确未做：未删除 DataProviderSettings 兼容字段、未迁移其他 Provider 配置/生产 profile、未执行 PostgreSQL/观察窗口/M9/M10 或部署；不 push、不部署。
+
+## 91. 2026-08-06：只读配置路径禁止创建 SystemSettings 单例
+
+- 目标：避免 readiness、备份下载 URL、账户管理上下文和账户设置/MCP 指引等只读路径调用带 `get_or_create()` 的 `SystemSettingsModel.get_settings()`，产生隐式 INSERT/修复性 UPDATE 并污染配置变更审计。
+- 变更：上述只读入口统一改用 `get_settings_for_read()` 的 unsaved-default 语义；仍需保存账户注册策略或提交管理表单的写入流程保留显式 `get_settings()`。
+- 测试与治理：新增 AST guard 覆盖 core encryption readiness、backup URL、Account admin/registration read paths；账户/备份/加密 readiness 回归 `25 + 3 passed`，变更文件 Black/Ruff/mypy 通过。
+- 明确未做：未迁移账户注册策略、备份发送写入、决策运行状态或其他兼容字段、未初始化生产 profile、未执行 PostgreSQL/观察窗口/M9/M10 或部署；不 push、不部署。

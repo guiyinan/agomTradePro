@@ -18,7 +18,7 @@ def collect_encryption_readiness() -> dict[str, Any]:
     )
     provider_repo = AIProviderRepository()
     encrypted_providers = list(AIProviderConfig._default_manager.exclude(api_key_encrypted=""))
-    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj = SystemSettingsModel.get_settings_for_read()
     result: dict[str, Any] = {
         "status": "ready",
         "active_encrypted_token_count": len(active_tokens),

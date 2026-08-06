@@ -55,7 +55,7 @@ class BackupPackageDescription(TypedDict):
 
 def build_backup_download_url(token: str) -> str:
     path = reverse("admin-db-backup-download", kwargs={"token": token})
-    config = SystemSettingsModel.get_settings()
+    config = SystemSettingsModel.get_settings_for_read()
     base_url = (config.backup_app_base_url or getattr(settings, "APP_BASE_URL", "")).rstrip("/")
     if base_url:
         return f"{base_url}{path}"
