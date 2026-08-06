@@ -4611,3 +4611,19 @@ Git SHA / 镜像 / migration：
 - 变更：仓储把同一个 legacy-shaped read instance 直接交给 Config Center backup projection，policy、state 与两项临时 secret 在同一对象完成装配；投影仍不把新密钥回写旧数据库列。
 - 证据：新增组件回归先通过 Config Center 写入 archive/SMTP secret，再确认两个旧密文列为空，同时仓储消费者仍能解析密钥并判定备份到期；目标组件 2 passed，增量 mypy 0，Ruff/Black 通过。
 - 明确未做：未执行生产 secret migration、真实邮件/备份/恢复或旧列删除；破坏性字段清理仍受 M9 前置条件约束。
+
+## 117. 2026-08-07：Legacy Data Center 脚本入口退役
+
+- 根因：§112 只把 6 个脚本列账，没有消除内部 import；其中宏观刷新会先删除旧表却把新数据写入 canonical，旧回测还会在数据异常时伪造 Recovery 并使用模拟价格，属于会产生错误证据的活动入口。
+- 变更：`refresh_macro_data`、`sync_akshare_data`、`seed_historical` 统一改为 `sync_macro_data` 薄包装，正式命令增加受验证的 `--start/--end/--list`；`test_adapters.py` 删除并由现有 adapter/failover 测试替代。VPS verifier 改调用 `verify_canonical_schema --json` 与 `healthcheck --json`，不再内嵌 Data Center ORM/schema 实现。
+- 回测收口：新增正式 `run_backtest` management command，通过 Backtest Application façade 持久化执行；旧 runner 只转发命令，synthetic validator 改为 fail-closed tombstone。PIT 模式必须同时提供 canonical data manifest 与 decision snapshot，禁止把模拟价格、默认 Recovery 或无证据 PIT 包装成有效回测。
+- 治理与证据：legacy guard 升级为 exact/status-aware，拒绝漏登记、陈旧条目、错误生命周期和 wrapper 再导入 Data Center internal；当前为 `0 direct, 4 compatibility wrappers`。目标回归 44 passed，3 个生产文件增量 mypy 0，Ruff/Black、Django check 与 diff-check 通过。
+- 明确未做：4 个薄 wrapper 为命令兼容入口，尚未删除文件名；生产 backtest 数据覆盖、PostgreSQL/VPS 和 M9 破坏性清理仍未执行。
+
+## 118. 2026-08-07：Data Center 全调用入口一次枚举
+
+- 目标：把此前分散在 architecture/current-data/Celery/TUI/SDK/MCP 清单中的入口合成一个确定性视图，后续每类问题先定位 owner、状态和替代口，再决定迁移或退役，不再依赖人工全文搜索。
+- 变更：新增 `data_center_entrypoint_inventory.py` 与 `governance/data_center_entrypoints.json`，静态枚举 REST、SDK、MCP、Terminal/TUI、Capability、management command、Celery task、Beat schedule、script、Application Public Port、compatibility façade 和 current-data surface；状态严格区分 `active_public / compatibility / candidate-review`，发现入口不会自动升级为已治理。
+- 当前快照：共 547 个入口；`active_public=347`、`compatibility=110`、`candidate-review=90`。分类为 Beat 57、Capability 25、Celery 53、compatibility façade 93、current-data 46、management command 25、MCP 29、Public Port 91、REST 54、script 6、SDK 45、Terminal/TUI 23。
+- 防回归与证据：fast-feedback 和 consistency CI 均执行 stale guard；默认重建校验通过，清单单测 3 passed，Ruff/Black 与 workflow YAML 解析通过。90 个待审入口保留为显式债务，其中包含未纳入 Celery task contract 的任务/调度候选，不以本次枚举冒充消费者全切换。
+- 明确未做：该清单是静态调用面证据，不执行 Django、数据库或外网；它不能替代 D0-D9 跨入口字段一致性、PostgreSQL 性能、生产观察窗口、备份恢复和 M9/M10 验收。

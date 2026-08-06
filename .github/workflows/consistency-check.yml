@@ -59,6 +59,9 @@ jobs:
       - name: Enforce deterministic Data Center architecture inventory
         run: python scripts/data_center_architecture_inventory.py
 
+      - name: Enforce complete Data Center entrypoint inventory
+        run: python scripts/data_center_entrypoint_inventory.py
+
       - name: Enforce Data Center provider credential boundary
         run: python scripts/check_data_center_provider_credentials.py
 
