@@ -793,7 +793,7 @@ def system_settings_view(request: HttpRequest) -> HttpResponse:
     """
     if request.method == "POST":
         try:
-            outcome = interface_services.update_system_settings(request.POST)
+            outcome = interface_services.update_system_settings(request.POST, actor=request.user)
             _add_flash_message(request, outcome.level, outcome.message)
             return redirect(outcome.redirect_to or "/account/admin/settings/")
         except (json.JSONDecodeError, ValueError, TypeError) as exc:

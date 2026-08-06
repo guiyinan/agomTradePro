@@ -4396,3 +4396,10 @@ Git SHA / 镜像 / migration：
 - 变更：新增 Config Center runtime write composition bridge；Data Center Provider 设置保存将 failover 两个值作为 typed patch 激活版本化 Profile，仅保留 `default_source` 在 Data Center 自有设置中；读取优先 active typed 值、无 profile 时才显式兼容旧设置。旧 singleton 的 failover 字段不再被管理写入覆盖。
 - 测试与治理：新增 component 回归断言 typed 返回值与旧字段未被覆盖；Data Center interface/bridge/config-center 回归通过，current-data manifest 保持 `268 nodeid / 307 passed`、current contracts `46 surfaces`，runtime contract 补齐写入 consumer/test；clean HEAD inventory 保持 `current_surface_references=3291`，其余结构计数 `51/55/4/143/0/49`。
 - 明确未做：未迁移 Data Center `default_source` 及其他 Provider 配置字段、生产 profile 初始化、PostgreSQL/备份恢复/观察窗口、M9/M10 或部署；不 push、不部署。
+
+## 88. 2026-08-06：账户系统设置页运行时写入切换 Config Center Public Port
+
+- 目标：消除 Classic 账户管理页仍直接给 `SystemSettingsModel` 写市场颜色、Alpha pool、benchmark map 和 asset-proxy map 的最后一条管理旁路，确保页面提交与 TUI/Config Center 使用同一 typed Profile。
+- 变更：新增 Config Center `get_system_governance_settings` / `update_system_governance_settings` Application Public Port；账户设置上下文优先读取 typed governance 并使用 typed visual tokens，提交时把四项运行时字段交给 Config Center use case，以 actor 记录 Profile revision；旧 singleton 仅继续保存账户准入、协议和备注兼容字段。视图将管理员作为 actor 传入。
+- 测试与治理：新增组件回归断言账户设置提交激活 typed market governance 且旧 singleton 五项运行时字段不变；Config Center runtime component `6 passed`，账户 repository/view 回归 `4 + 18 passed`，完整 current-data manifest `268 nodeid / 307 passed`，变更文件 Black/Ruff/isort 通过；runtime contract 为五个 Alpha/market keys 登记账户管理 mutation consumer/test，clean inventory `current_surface_references=3291`（结构计数 `51/55/4/143/0/49`）。
+- 明确未做：未删除 SystemSettings 兼容字段、未迁移账户准入/备份/决策状态、未初始化生产 profile、未执行 PostgreSQL/备份恢复/观察窗口/M9/M10 或部署；不 push、不部署。

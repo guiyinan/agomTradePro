@@ -1,20 +1,44 @@
-"""Public application ports for Config Center runtime summaries.
+"""Public application ports for Config Center runtime and governance.
 
-Business apps may consume these read-only functions from their infrastructure
-composition roots.  They must not import Config Center ORM models directly.
+Business apps may consume these functions from their infrastructure
+composition roots. They must not import Config Center ORM models directly.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from .config_summary_service import get_config_center_summary_service
+from .use_cases import (
+    GetSystemGovernanceSettingsUseCase,
+    UpdateSystemGovernanceSettingsUseCase,
+)
 
 
 def get_system_settings_summary() -> dict[str, Any]:
     """Return the Config Center-owned system settings summary."""
 
     return get_config_center_summary_service().get_system_settings_summary()
+
+
+def get_system_governance_settings() -> dict[str, Any]:
+    """Return the administrator-facing typed global-settings contract."""
+
+    return GetSystemGovernanceSettingsUseCase().execute()
+
+
+def update_system_governance_settings(
+    payload: Mapping[str, Any],
+    *,
+    actor: Any = None,
+) -> dict[str, Any]:
+    """Update Config Center-owned global runtime settings through its use case."""
+
+    return UpdateSystemGovernanceSettingsUseCase().execute(
+        payload=dict(payload),
+        actor=actor,
+    )
 
 
 def get_runtime_market_visual_tokens() -> dict[str, str]:
@@ -54,6 +78,7 @@ def get_runtime_asset_proxy_map() -> dict[str, str]:
 
 
 __all__ = [
+    "get_system_governance_settings",
     "get_runtime_alpha_fixed_provider",
     "get_runtime_alpha_pool_mode",
     "get_runtime_asset_proxy_map",
@@ -61,4 +86,5 @@ __all__ = [
     "get_runtime_market_visual_tokens",
     "get_runtime_qlib_config",
     "get_system_settings_summary",
+    "update_system_governance_settings",
 ]

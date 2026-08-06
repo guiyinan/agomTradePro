@@ -890,10 +890,10 @@ def build_system_settings_context() -> dict[str, Any]:
     return _interface_repo().build_system_settings_context()
 
 
-def update_system_settings(data: Mapping[str, Any]) -> FlashOutcome:
+def update_system_settings(data: Mapping[str, Any], *, actor: Any = None) -> FlashOutcome:
     """Persist system settings from a form mapping."""
 
-    _interface_repo().update_system_settings_from_mapping(data)
+    _interface_repo().update_system_settings_from_mapping(data, actor=actor)
     return FlashOutcome(
         level="success",
         message="系统配置已更新",

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pytest
 
+from apps.account.infrastructure.account_interface_repository import AccountInterfaceRepository
+from apps.config_center.application.runtime_public import get_active_domain_runtime_config
 from apps.config_center.infrastructure.config_summary_repository import (
     DjangoConfigCenterSummaryRepository,
 )
@@ -205,3 +207,53 @@ def test_provider_settings_update_uses_typed_failover_values() -> None:
     legacy = DataProviderSettingsModel.objects.get(pk=1)
     assert legacy.enable_failover is True
     assert legacy.failover_tolerance == pytest.approx(0.01)
+
+
+@pytest.mark.django_db
+def test_account_system_settings_update_uses_typed_market_governance() -> None:
+    """The legacy admin form must publish runtime fields through Config Center."""
+
+    legacy = SystemSettingsModel.get_settings()
+    legacy.market_color_convention = "cn_a_share"
+    legacy.alpha_pool_mode = SystemSettingsModel.ALPHA_POOL_MODE_STRICT_VALUATION
+    legacy.benchmark_code_map = {"legacy": "000001.SH"}
+    legacy.asset_proxy_code_map = {"legacy": "510050.SH"}
+    legacy.save(
+        update_fields=[
+            "market_color_convention",
+            "alpha_pool_mode",
+            "benchmark_code_map",
+            "asset_proxy_code_map",
+            "updated_at",
+        ]
+    )
+
+    AccountInterfaceRepository().update_system_settings_from_mapping(
+        {
+            "require_user_approval": "on",
+            "auto_approve_first_admin": "on",
+            "default_mcp_enabled": "on",
+            "allow_token_plaintext_view": "on",
+            "market_color_convention": "us_market",
+            "alpha_pool_mode": "market",
+            "user_agreement_content": "agreement",
+            "risk_warning_content": "risk",
+            "notes": "typed runtime update",
+            "benchmark_code_map": '{"equity_market_benchmark": "000300.SH"}',
+            "asset_proxy_code_map": '{"A_SHARE_GROWTH": "000300.SH"}',
+        },
+        actor="pytest",
+    )
+
+    typed = get_active_domain_runtime_config("development")
+    assert typed is not None
+    assert typed["market_color_convention"] == "us_market"
+    assert typed["alpha_pool_mode"] == "market"
+    assert typed["benchmark_code_map"] == {"equity_market_benchmark": "000300.SH"}
+    assert typed["asset_proxy_code_map"] == {"A_SHARE_GROWTH": "000300.SH"}
+
+    legacy = SystemSettingsModel.get_settings_for_read()
+    assert legacy.market_color_convention == "cn_a_share"
+    assert legacy.alpha_pool_mode == SystemSettingsModel.ALPHA_POOL_MODE_STRICT_VALUATION
+    assert legacy.benchmark_code_map == {"legacy": "000001.SH"}
+    assert legacy.asset_proxy_code_map == {"legacy": "510050.SH"}

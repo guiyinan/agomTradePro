@@ -677,7 +677,7 @@
       "text": "return max(0.0, (peak - current) / peak)"
     },
     {
-      "line": 424,
+      "line": 473,
       "path": "apps/account/infrastructure/account_interface_administration_repository.py",
       "text": "\"\"\"Atomically consume one current backup token and generate its archive.\"\"\""
     },
@@ -4307,7 +4307,7 @@
       "text": "raise RuntimeError(\"Config center summary repository is not configured\")"
     },
     {
-      "line": 15,
+      "line": 20,
       "path": "apps/config_center/application/public.py",
       "text": "\"\"\"Return the Config Center-owned system settings summary.\"\"\""
     },

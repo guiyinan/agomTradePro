@@ -21,6 +21,11 @@ from apps.account.infrastructure.models import (
     SystemSettingsModel,
     UserAccessTokenModel,
 )
+from apps.config_center.application.public import (
+    get_runtime_market_visual_tokens,
+    get_system_governance_settings,
+    update_system_governance_settings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -363,28 +368,42 @@ class AccountInterfaceAdministrationRepositoryMixin:
     def build_system_settings_context(self) -> dict[str, Any]:
         """Build the system settings page context."""
 
-        system_settings = SystemSettingsModel.get_settings()
+        system_settings = SystemSettingsModel.get_settings_for_read()
+        governance = get_system_governance_settings()
+        for field_name in (
+            "market_color_convention",
+            "alpha_pool_mode",
+            "benchmark_code_map",
+            "asset_proxy_code_map",
+        ):
+            if field_name in governance:
+                setattr(system_settings, field_name, governance[field_name])
         return {
             "system_settings": system_settings,
             "market_color_choices": SystemSettingsModel.MARKET_COLOR_CONVENTION_CHOICES,
             "alpha_pool_mode_choices": SystemSettingsModel.ALPHA_POOL_MODE_CHOICES,
-            "market_visuals": system_settings.get_market_visual_tokens(),
+            "market_visuals": get_runtime_market_visual_tokens(),
             "benchmark_code_map_json": json.dumps(
-                system_settings.benchmark_code_map or {},
+                governance.get("benchmark_code_map") or {},
                 ensure_ascii=False,
                 indent=2,
             ),
             "asset_proxy_code_map_json": json.dumps(
-                system_settings.asset_proxy_code_map or {},
+                governance.get("asset_proxy_code_map") or {},
                 ensure_ascii=False,
                 indent=2,
             ),
         }
 
-    def update_system_settings_from_mapping(self, data: Mapping[str, Any]) -> None:
+    def update_system_settings_from_mapping(
+        self,
+        data: Mapping[str, Any],
+        *,
+        actor: Any = None,
+    ) -> None:
         """Update system settings from an HTTP form mapping."""
 
-        system_settings = SystemSettingsModel.get_settings()
+        current_governance = get_system_governance_settings()
         market_color_choices = {
             key for key, _ in SystemSettingsModel.MARKET_COLOR_CONVENTION_CHOICES
         }
@@ -394,9 +413,14 @@ class AccountInterfaceAdministrationRepositoryMixin:
         asset_proxy_code_map = json.loads(data.get("asset_proxy_code_map", "{}") or "{}")
         market_color_convention = data.get(
             "market_color_convention",
-            system_settings.market_color_convention,
+            current_governance.get("market_color_convention", "cn_a_share"),
         )
-        alpha_pool_mode = data.get("alpha_pool_mode", system_settings.alpha_pool_mode)
+        alpha_pool_mode = data.get(
+            "alpha_pool_mode",
+            current_governance.get(
+                "alpha_pool_mode", SystemSettingsModel.ALPHA_POOL_MODE_STRICT_VALUATION
+            ),
+        )
 
         if not isinstance(benchmark_code_map, dict):
             raise ValueError("基准代码映射必须是 JSON 对象")
@@ -407,18 +431,43 @@ class AccountInterfaceAdministrationRepositoryMixin:
         if alpha_pool_mode not in alpha_pool_mode_choices:
             raise ValueError("Alpha 股票池模式不合法")
 
-        system_settings.require_user_approval = data.get("require_user_approval") == "on"
-        system_settings.auto_approve_first_admin = data.get("auto_approve_first_admin") == "on"
-        system_settings.default_mcp_enabled = data.get("default_mcp_enabled") == "on"
-        system_settings.allow_token_plaintext_view = data.get("allow_token_plaintext_view") == "on"
-        system_settings.market_color_convention = market_color_convention
-        system_settings.alpha_pool_mode = alpha_pool_mode
-        system_settings.user_agreement_content = data.get("user_agreement_content", "")
-        system_settings.risk_warning_content = data.get("risk_warning_content", "")
-        system_settings.notes = data.get("notes", "")
-        system_settings.benchmark_code_map = benchmark_code_map
-        system_settings.asset_proxy_code_map = asset_proxy_code_map
-        system_settings.save()
+        with transaction.atomic():
+            update_system_governance_settings(
+                {
+                    "market_color_convention": market_color_convention,
+                    "alpha_pool_mode": alpha_pool_mode,
+                    "benchmark_code_map": benchmark_code_map,
+                    "asset_proxy_code_map": asset_proxy_code_map,
+                },
+                actor=actor,
+            )
+
+            # Account-owned admission, agreement, and note fields remain in
+            # the compatibility singleton during the migration.  Runtime
+            # market and Alpha fields above are deliberately not assigned to
+            # this model.
+            system_settings = SystemSettingsModel.get_settings()
+            system_settings.require_user_approval = data.get("require_user_approval") == "on"
+            system_settings.auto_approve_first_admin = data.get("auto_approve_first_admin") == "on"
+            system_settings.default_mcp_enabled = data.get("default_mcp_enabled") == "on"
+            system_settings.allow_token_plaintext_view = (
+                data.get("allow_token_plaintext_view") == "on"
+            )
+            system_settings.user_agreement_content = data.get("user_agreement_content", "")
+            system_settings.risk_warning_content = data.get("risk_warning_content", "")
+            system_settings.notes = data.get("notes", "")
+            system_settings.save(
+                update_fields=[
+                    "require_user_approval",
+                    "auto_approve_first_admin",
+                    "default_mcp_enabled",
+                    "allow_token_plaintext_view",
+                    "user_agreement_content",
+                    "risk_warning_content",
+                    "notes",
+                    "updated_at",
+                ]
+            )
 
     def build_backup_download_payload(self, token: str) -> dict[str, Any]:
         """Atomically consume one current backup token and generate its archive."""
