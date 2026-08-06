@@ -180,6 +180,13 @@ from apps.research.infrastructure.r1_forecast_promotion_models import (  # noqa:
     R1PromotionLifecycleEventBundleModel,
     R1PromotionLifecycleReceiptModel,
 )
+from apps.research.infrastructure.r4_promotion_models import (  # noqa: E402,F401
+    R4PromotionDecisionBundleModel,
+    R4PromotionDecisionReceiptModel,
+    R4PromotionLifecycleAuthorizationReceiptModel,
+    R4PromotionLifecycleEventModel,
+    R4PromotionPolicyModel,
+)
 from apps.research.infrastructure.scenario_review_reminder_models import (  # noqa: E402,F401
     ScenarioReviewReminderEventModel,
     ScenarioReviewReminderModel,

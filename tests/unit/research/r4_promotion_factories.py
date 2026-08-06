@@ -14,6 +14,11 @@ from apps.portfolio.application.r4_rolling_research_record import (
 )
 from apps.portfolio.domain.macro_factor_risk import MacroRiskCandidateKind
 from apps.portfolio.domain.macro_risk_rolling_contracts import R4RollingStudyInput
+from apps.research.application.r4_promotion_decision import (
+    R4PromotionDecisionBundle,
+    R4PromotionDecisionReceipt,
+    R4PromotionVersionRef,
+)
 from apps.research.domain.r4_promotion_decision import (
     R4PromotionDecision,
     create_r4_promotion_decision,
@@ -290,6 +295,41 @@ def promotion_decision(
     )
 
 
+def promotion_decision_bundle(
+    decision: R4PromotionDecision | None = None,
+) -> R4PromotionDecisionBundle:
+    """Return one exact Research decision and server receipt bundle."""
+
+    selected = decision or promotion_decision()
+    record = selected.trial.portfolio_record
+    receipt = R4PromotionDecisionReceipt.create(
+        receipt_id=f"receipt:{selected.decision_id}",
+        receipt_version="receipt.v1",
+        decision_ref=R4PromotionVersionRef(
+            selected.decision_id,
+            selected.decision_version,
+        ),
+        trial_ref=R4PromotionVersionRef(
+            selected.trial.trial_id,
+            selected.trial.trial_version,
+        ),
+        policy_ref=R4PromotionVersionRef(
+            selected.policy.policy_id,
+            selected.policy.policy_version,
+        ),
+        policy_content_hash=selected.policy.content_hash,
+        portfolio_record_id=record.record_id,
+        portfolio_record_hash=record.record_hash,
+        portfolio_owner_record_key=record.owner_record_key,
+        portfolio_recorded_at=record.recorded_at,
+        current_r3_content_hash=selected.trial.current_r3_attestation.content_hash,
+        decided_at=selected.decided_at,
+        recorded_at=selected.recorded_at,
+        decision_valid_until=selected.valid_until,
+    )
+    return R4PromotionDecisionBundle.create(decision=selected, receipt=receipt)
+
+
 __all__ = [
     "POLICY_ACTIVE_FROM",
     "POLICY_ACTIVE_UNTIL",
@@ -301,6 +341,7 @@ __all__ = [
     "DECISION_RECORDED_AT",
     "portfolio_record",
     "portfolio_record_seal",
+    "promotion_decision_bundle",
     "promotion_decision",
     "promotion_trial",
     "promotion_policy",
