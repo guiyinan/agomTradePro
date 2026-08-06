@@ -26,7 +26,6 @@ from apps.data_center.application.query_services import (
     get_runtime_macro_metadata_map,
     list_active_asset_codes,
     list_active_provider_summaries,
-    list_latest_macro_indicator_payloads,
     list_latest_published_macro_indicator_payloads,
     list_price_covered_asset_codes,
     list_valuation_covered_asset_codes,
@@ -680,7 +679,71 @@ def get_macro_indicator_value(indicator_code: str) -> float | None:
 def list_latest_macro_values(limit: int = 50) -> list[dict[str, Any]]:
     """Read latest canonical macro values for a bounded consumer snapshot."""
 
-    return list_latest_macro_indicator_payloads(limit=limit)
+    from apps.data_center.application.query_services import (
+        list_latest_macro_indicator_payloads as _list_latest_macro_indicator_payloads,
+    )
+
+    return _list_latest_macro_indicator_payloads(limit=limit)
+
+
+def fetch_close_price_series(
+    *,
+    asset_code: str,
+    start_date: date,
+    end_date: date,
+    limit: int = 5000,
+) -> list[tuple[date, float]]:
+    """Read historical canonical closes through the public price port."""
+
+    from apps.data_center.application.query_services import (
+        fetch_close_price_series as _fetch_close_price_series,
+    )
+
+    return _fetch_close_price_series(
+        asset_code=asset_code,
+        start_date=start_date,
+        end_date=end_date,
+        limit=limit,
+    )
+
+
+def fetch_close_prices(
+    *,
+    asset_code: str,
+    start_date: date,
+    end_date: date,
+) -> list[float] | None:
+    """Read historical canonical closes through the public price port."""
+
+    from apps.data_center.application.query_services import (
+        fetch_close_prices as _fetch_close_prices,
+    )
+
+    return _fetch_close_prices(
+        asset_code=asset_code,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
+def get_data_center_diagnostic_summary() -> dict[str, int]:
+    """Read diagnostic counts through the Data Center public port."""
+
+    from apps.data_center.application.query_services import (
+        get_data_center_diagnostic_summary as _get_summary,
+    )
+
+    return _get_summary()
+
+
+def macro_fact_exists_on_or_before(reporting_period: date) -> bool:
+    """Check canonical macro coverage at an explicit historical boundary."""
+
+    from apps.data_center.application.query_services import (
+        macro_fact_exists_on_or_before as _macro_fact_exists_on_or_before,
+    )
+
+    return _macro_fact_exists_on_or_before(reporting_period)
 
 
 def list_latest_published_macro_values(limit: int = 50) -> list[dict[str, Any]]:
@@ -1520,6 +1583,10 @@ __all__ = [
     "list_active_stock_codes",
     "list_active_data_sources",
     "list_latest_macro_values",
+    "fetch_close_price_series",
+    "fetch_close_prices",
+    "get_data_center_diagnostic_summary",
+    "macro_fact_exists_on_or_before",
     "list_latest_published_macro_values",
     "list_published_macro_indicator_summaries",
     "list_macro_facts_by_original_unit",

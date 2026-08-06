@@ -93,7 +93,7 @@ class DataConnectionTester:
             from apps.account.application.query_services import (
                 get_account_diagnostic_user_count,
             )
-            from apps.data_center.application.query_services import (
+            from apps.data_center.application.public import (
                 get_data_center_diagnostic_summary,
             )
             from apps.policy.application.query_services import get_policy_event_count
@@ -238,7 +238,7 @@ class DataConnectionTester:
                 self.log_result("Macro", "CPI数据", "warning", "暂无CPI数据")
 
             # Check data sources
-            from apps.data_center.application.query_services import (
+            from apps.data_center.application.public import (
                 get_data_center_diagnostic_summary,
             )
 
@@ -573,7 +573,7 @@ class DataConnectionTester:
                 self.log_result("Consistency", "信号资产元数据", "success", "正常")
 
             # Check if regime states have macro data
-            from apps.data_center.application.query_services import (
+            from apps.data_center.application.public import (
                 macro_fact_exists_on_or_before,
             )
             from apps.regime.application.query_services import get_latest_regime_observed_at

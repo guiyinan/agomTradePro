@@ -135,11 +135,9 @@ class Command(BaseCommand):
     def _prepare_macro() -> WarmupTargetResult:
         """Prepare latest canonical macro indicator cache entries."""
 
-        from apps.data_center.application.query_services import (
-            list_latest_macro_indicator_payloads,
-        )
+        from apps.data_center.application.public import list_latest_macro_values
 
-        rows = list(list_latest_macro_indicator_payloads(limit=MACRO_LIMIT))
+        rows = list(list_latest_macro_values(limit=MACRO_LIMIT))
         entries: list[CacheEntry] = []
         for row in rows:
             if not isinstance(row, dict):

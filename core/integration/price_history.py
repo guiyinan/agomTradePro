@@ -7,12 +7,12 @@ from collections.abc import Mapping
 from datetime import date, timedelta
 
 from apps.data_center.application.public import (
-    get_published_price_bar_series,
-)
-from apps.data_center.application.query_services import (
     fetch_close_price_series as _fetch_close_price_series,
 )
-from apps.data_center.application.query_services import fetch_close_prices as _fetch_close_prices
+from apps.data_center.application.public import fetch_close_prices as _fetch_close_prices
+from apps.data_center.application.public import (
+    get_published_price_bar_series,
+)
 
 
 def fetch_close_price_series_from_data_center(

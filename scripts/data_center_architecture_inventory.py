@@ -92,6 +92,8 @@ def build_inventory() -> dict[str, object]:
                 and (
                     import_name.startswith("apps.data_center.infrastructure")
                     or import_name.startswith("apps.data_center.application.interface_services")
+                    or import_name.startswith("apps.data_center.application.query_services")
+                    or import_name.startswith("apps.data_center.application.read_facade")
                 )
             ):
                 direct_data_center_imports.append(
