@@ -4517,3 +4517,10 @@ Git SHA / 镜像 / migration：
 - 已确认无需另造定义：Decision Runtime 六个状态字段的唯一 owner 是 `ConfigCenterSettingsRepository.get/set_decision_runtime_state`，`core.middleware.decision_gate`、`core.health_checks` 和 readiness guard 均通过 `GetDecisionRuntimeStateUseCase` 读取；后续只需在 M9 删除兼容列与迁移，不再增加第二个 runtime value。
 - 尚未收编且必须成组处理：backup delivery 的邮箱、站点、SMTP 参数、启停/周期/链接 TTL、加密密码、下载令牌和发送状态仍由 `SystemSettingsModel` 供 `send_database_backup_email_task`、账户 backup repository、下载视图、`core.encryption_readiness` 和兼容 Admin 使用。其根因是配置、密钥引用、一次性 token 状态混在同一模型；在外部 secret-ref/backup delivery policy 与状态表落地前，不能只迁移其中几个字段。
 - 兼容残留：`core.settings.base.QLIB_SETTINGS`、Qlib/SystemSettings getter、旧账户/备份字段和 legacy maintenance 脚本均已有 owner/guard 记录，但仍等待 profile 初始化、生产观察、备份恢复和 M9 破坏性清理。工作区另有未跟踪 research 方向文件，未纳入本专项提交；其新增 mypy 债务会使全仓 ceiling 保持阻断。
+
+## 105. 2026-08-06：Decision Runtime state 独立持久化
+
+- 根因：`decision_runtime_*` 是受控 observed state，却与普通账户/运行参数共存于 `SystemSettingsModel`；虽然已有 UseCase 统一读写，物理单例仍阻止独立审计、迁移和 M9 清理。
+- 变更：新增 `DecisionRuntimeStateModel` 与 `0008_decisionruntimestatemodel`；Config Center repository 首次读取优先新表、无新行时读取旧 singleton 兼容值；写入只创建/更新新 state 行，不再回写旧字段。Middleware、health check、readiness 无需改调用方，继续通过 `GetDecisionRuntimeStateUseCase` 获得同一领域状态。
+- 测试与门禁：Decision Runtime component `6 passed`，middleware/health `26 passed`；`makemigrations --check` 无差异，Django check、mypy 增量、architecture/cycle/governance 门禁随本批复核。
+- 明确未做：未删除旧 `SystemSettingsModel.decision_runtime_*` 列；必须等生产零旧读观察、备份/恢复和独立 release 后再执行 M9 删除；不 push、不部署。

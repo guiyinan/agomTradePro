@@ -727,9 +727,22 @@
       "namespace": "readiness",
       "owner": "reliability",
       "type": "boolean",
-      "current_source": "config_center",
-      "fallback": "false",
-      "migration_status": "registered"
+      "current_source": "config_center_decision_runtime_state",
+      "fallback": "system_settings_decision_runtime_compatibility",
+      "migration_status": "consumer_cutover_in_progress",
+      "consumers": [
+        "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.get_decision_runtime_state",
+        "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.set_decision_runtime_state",
+        "core/middleware/decision_gate.py::DecisionRuntimeGateMiddleware",
+        "core/health_checks.py::check_decision_runtime_state"
+      ],
+      "state_source": "apps/config_center/infrastructure/decision_runtime_models.py::DecisionRuntimeStateModel",
+      "migration": "apps/config_center/migrations/0008_decisionruntimestatemodel.py",
+      "tests": [
+        "tests/component/config_center/test_decision_runtime_state.py::test_decision_runtime_reads_legacy_singleton_before_state_row_exists",
+        "tests/component/config_center/test_decision_runtime_state.py::test_decision_runtime_maintenance_persists_across_reads",
+        "tests/unit/core/test_decision_runtime_gate_middleware.py::test_decision_path_is_blocked_during_maintenance"
+      ]
     },
     {
       "config_key": "storage.capacity.configured_bytes",

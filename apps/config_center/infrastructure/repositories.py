@@ -24,6 +24,7 @@ from apps.config_center.domain.entities import (
     DecisionRuntimeState,
     DecisionRuntimeStatus,
 )
+from apps.config_center.infrastructure.decision_runtime_models import DecisionRuntimeStateModel
 from apps.config_center.infrastructure.models import (
     AlphaUniverseConfigModel,
     QlibTrainingProfileModel,
@@ -162,22 +163,54 @@ class ConfigCenterSettingsRepository:
     def get_decision_runtime_state(self) -> DecisionRuntimeState:
         """Return the persisted global decision gate without creating a row."""
 
+        state_model = DecisionRuntimeStateModel._default_manager.filter(pk=1).first()
+        if state_model is not None:
+            return self._decision_runtime_state_from_values(
+                status=state_model.status,
+                reason=state_model.reason,
+                changed_at=state_model.changed_at,
+                changed_by=state_model.changed_by,
+                release_ref=state_model.release_ref,
+                expected_resume_at=state_model.expected_resume_at,
+            )
+
         settings_obj = self.get_system_settings_for_read()
-        raw_status = str(settings_obj.decision_runtime_status or "active")
+        return self._decision_runtime_state_from_values(
+            status=settings_obj.decision_runtime_status,
+            reason=settings_obj.decision_runtime_reason,
+            changed_at=settings_obj.decision_runtime_changed_at,
+            changed_by=settings_obj.decision_runtime_changed_by,
+            release_ref=settings_obj.decision_runtime_release_ref,
+            expected_resume_at=settings_obj.decision_runtime_expected_resume_at,
+        )
+
+    @staticmethod
+    def _decision_runtime_state_from_values(
+        *,
+        status: object,
+        reason: object,
+        changed_at: Any,
+        changed_by: object,
+        release_ref: object,
+        expected_resume_at: Any,
+    ) -> DecisionRuntimeState:
+        """Normalize a new or legacy state row into the domain state."""
+
+        raw_status = str(status or "active")
         try:
             status = DecisionRuntimeStatus(raw_status)
         except ValueError:
             status = DecisionRuntimeStatus.BLOCKED
-        reason = str(settings_obj.decision_runtime_reason or "")
-        if status is DecisionRuntimeStatus.BLOCKED and not reason:
-            reason = "配置中心包含未知决策运行状态。"
+        normalized_reason = str(reason or "")
+        if status is DecisionRuntimeStatus.BLOCKED and not normalized_reason:
+            normalized_reason = "配置中心包含未知决策运行状态。"
         return DecisionRuntimeState(
             status=status,
-            reason=reason,
-            changed_at=settings_obj.decision_runtime_changed_at,
-            changed_by=str(settings_obj.decision_runtime_changed_by or ""),
-            release_ref=str(settings_obj.decision_runtime_release_ref or ""),
-            expected_resume_at=settings_obj.decision_runtime_expected_resume_at,
+            reason=normalized_reason,
+            changed_at=changed_at,
+            changed_by=str(changed_by or ""),
+            release_ref=str(release_ref or ""),
+            expected_resume_at=expected_resume_at,
         )
 
     def set_decision_runtime_state(
@@ -187,24 +220,27 @@ class ConfigCenterSettingsRepository:
         """Persist the global decision gate under a row lock."""
 
         with transaction.atomic():
-            settings_obj = self.acquire_system_settings_lock()
-            settings_obj.decision_runtime_status = state.status.value
-            settings_obj.decision_runtime_reason = state.reason
-            settings_obj.decision_runtime_changed_at = state.changed_at
-            settings_obj.decision_runtime_changed_by = state.changed_by
-            settings_obj.decision_runtime_release_ref = state.release_ref
-            settings_obj.decision_runtime_expected_resume_at = state.expected_resume_at
-            settings_obj.save(
-                update_fields=[
-                    "decision_runtime_status",
-                    "decision_runtime_reason",
-                    "decision_runtime_changed_at",
-                    "decision_runtime_changed_by",
-                    "decision_runtime_release_ref",
-                    "decision_runtime_expected_resume_at",
-                    "updated_at",
-                ]
+            (
+                state_model,
+                _created,
+            ) = DecisionRuntimeStateModel._default_manager.select_for_update().get_or_create(
+                pk=1,
+                defaults={
+                    "status": state.status.value,
+                    "reason": state.reason,
+                    "changed_at": state.changed_at,
+                    "changed_by": state.changed_by,
+                    "release_ref": state.release_ref,
+                    "expected_resume_at": state.expected_resume_at,
+                },
             )
+            state_model.status = state.status.value
+            state_model.reason = state.reason
+            state_model.changed_at = state.changed_at
+            state_model.changed_by = state.changed_by
+            state_model.release_ref = state.release_ref
+            state_model.expected_resume_at = state.expected_resume_at
+            state_model.save()
         return self.get_decision_runtime_state()
 
     def build_runtime_config_payload(self) -> dict[str, Any]:

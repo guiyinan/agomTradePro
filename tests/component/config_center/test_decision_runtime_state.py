@@ -15,6 +15,7 @@ from apps.config_center.domain.entities import DecisionRuntimeStatus
 
 @pytest.mark.django_db
 def test_decision_runtime_defaults_to_active_without_creating_settings() -> None:
+    from apps.config_center.infrastructure.decision_runtime_models import DecisionRuntimeStateModel
     from apps.config_center.infrastructure.models import SystemSettingsModel
 
     state = GetDecisionRuntimeStateUseCase().execute()
@@ -22,11 +23,17 @@ def test_decision_runtime_defaults_to_active_without_creating_settings() -> None
     assert state.status is DecisionRuntimeStatus.ACTIVE
     assert state.must_not_use_for_decision is False
     assert SystemSettingsModel._default_manager.count() == 0
+    assert DecisionRuntimeStateModel._default_manager.count() == 0
 
 
 @pytest.mark.django_db
 def test_decision_runtime_maintenance_persists_across_reads() -> None:
     changed_at = datetime(2026, 8, 1, 10, 0, tzinfo=UTC)
+
+    from apps.config_center.infrastructure.models import SystemSettingsModel
+
+    legacy = SystemSettingsModel.get_settings()
+    legacy_status = legacy.decision_runtime_status
 
     updated = UpdateDecisionRuntimeStateUseCase().execute(
         status="maintenance",
@@ -41,6 +48,31 @@ def test_decision_runtime_maintenance_persists_across_reads() -> None:
     assert reloaded == updated
     assert reloaded.must_not_use_for_decision is True
     assert reloaded.block_reason_code == "decision_runtime_maintenance"
+
+    from apps.config_center.infrastructure.decision_runtime_models import DecisionRuntimeStateModel
+
+    persisted = DecisionRuntimeStateModel._default_manager.get(pk=1)
+    assert persisted.status == "maintenance"
+    assert persisted.reason == "全市场核心数据重建中"
+    legacy.refresh_from_db()
+    assert legacy.decision_runtime_status == legacy_status
+
+
+@pytest.mark.django_db
+def test_decision_runtime_reads_legacy_singleton_before_state_row_exists() -> None:
+    from apps.config_center.infrastructure.decision_runtime_models import DecisionRuntimeStateModel
+    from apps.config_center.infrastructure.models import SystemSettingsModel
+
+    legacy = SystemSettingsModel.get_settings()
+    legacy.decision_runtime_status = "maintenance"
+    legacy.decision_runtime_reason = "legacy compatibility state"
+    legacy.save(update_fields=["decision_runtime_status", "decision_runtime_reason", "updated_at"])
+
+    state = GetDecisionRuntimeStateUseCase().execute()
+
+    assert state.status is DecisionRuntimeStatus.MAINTENANCE
+    assert state.reason == "legacy compatibility state"
+    assert DecisionRuntimeStateModel._default_manager.count() == 0
 
 
 @pytest.mark.django_db
