@@ -2552,22 +2552,22 @@
       "text": "\"\"\"Return the latest trading date available in the local qlib dataset.\"\"\""
     },
     {
-      "line": 767,
+      "line": 774,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary: dict[str, object] = {}"
     },
     {
-      "line": 770,
+      "line": 777,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary[\"status\"] = status"
     },
     {
-      "line": 774,
+      "line": 781,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary[key] = value"
     },
     {
-      "line": 775,
+      "line": 782,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "return summary or None"
     },

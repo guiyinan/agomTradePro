@@ -4431,3 +4431,10 @@ Git SHA / 镜像 / migration：
 - 变更：Provider settings repository 新增 `load_for_read()` 并让 `load_provider_settings_payload()` 使用它；写入流程继续显式使用 `load()`/`save_default_source()`，domain Protocol 同步声明读写分离。
 - 测试与治理：新增 Provider payload AST side-effect guard；typed failover component 回归与 guard `2 passed`，变更文件 Black/Ruff 通过。
 - 明确未做：未删除 DataProviderSettings 兼容 singleton、未迁移 default_source/Provider credentials、未初始化生产 profile、未执行 PostgreSQL/观察窗口/M9/M10 或部署；不 push、不部署。
+
+## 93. 2026-08-06：Qlib Alpha 健康检查退出默认数据目录
+
+- 目标：阻断 Qlib Alpha provider 健康检查的本地日历探测在 typed runtime 缺失/blocked 时回退到 `~/.qlib/qlib_data/cn_data`，避免健康检查触碰未授权旧数据源并把结果误当作当前运行能力。
+- 变更：`QlibAlphaProvider._get_latest_data_date()` 先校验 typed runtime `enabled`、`must_not_use_for_decision` 和非空 `provider_uri`，不满足时直接返回不可用，不导入/初始化 Qlib；可用配置只使用 typed URI/region。
+- 测试与治理：Qlib provider freshness 回归 `11 passed`，新增 blocked 配置不调用 `qlib.init` 断言；runtime contract 将该 consumer/test 登记到 Alpha Qlib enabled/provider URI 定义，变更文件 Black/Ruff 通过。
+- 明确未做：未改变 Qlib 模型/推理算法、缓存前推、显式维护命令或生产 profile，未执行 PostgreSQL/观察窗口/M9/M10 或部署；不 push、不部署。

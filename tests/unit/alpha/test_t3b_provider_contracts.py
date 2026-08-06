@@ -445,10 +445,28 @@ def test_qlib_cache_and_local_calendar_freshness_fail_closed(
     monkeypatch.setattr(
         runtime_settings,
         "get_runtime_qlib_config",
-        lambda: {"provider_uri": "local-data", "region": "CN"},
+        lambda: {
+            "enabled": True,
+            "must_not_use_for_decision": False,
+            "provider_uri": "local-data",
+            "region": "CN",
+        },
     )
     assert provider._get_latest_data_date() == TARGET_DATE
     assert init_calls == [{"provider_uri": "local-data", "region": "cn"}]
+
+    monkeypatch.setattr(
+        runtime_settings,
+        "get_runtime_qlib_config",
+        lambda: {
+            "enabled": False,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "runtime_config_snapshot_unavailable",
+        },
+    )
+    init_calls.clear()
+    assert provider._get_latest_data_date() is None
+    assert init_calls == []
 
     data_module.D = SimpleNamespace(calendar=lambda **kwargs: [])
     assert provider._get_latest_data_date() is None

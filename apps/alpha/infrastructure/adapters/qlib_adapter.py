@@ -570,8 +570,15 @@ class QlibAlphaProvider(BaseAlphaProvider):
             qlib = import_module("qlib")
             data_api = import_module("qlib.data").D
             qlib_config = get_runtime_qlib_config()
-            provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
-            region = qlib_config.get("region", "CN")
+            if qlib_config.get("enabled") is not True or qlib_config.get(
+                "must_not_use_for_decision",
+                False,
+            ):
+                return None
+            provider_uri = str(qlib_config.get("provider_uri") or "").strip()
+            region = str(qlib_config.get("region") or "CN")
+            if not provider_uri:
+                return None
 
             if not hasattr(self, "_qlib_initialized_for_calendar"):
                 qlib.init(
