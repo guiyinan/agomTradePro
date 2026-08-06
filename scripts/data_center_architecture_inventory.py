@@ -147,27 +147,28 @@ def build_inventory() -> dict[str, object]:
         "schema_version": "1.0",
         "scan_roots": list(SOURCE_ROOTS),
         "provider_imports_outside_data_center": sorted(
-            provider_imports, key=lambda row: (str(row["path"]), int(row["line"]))
+            provider_imports, key=lambda row: (str(row["path"]), int(str(row["line"])))
         ),
         "direct_data_center_imports_outside_data_center": sorted(
             direct_data_center_imports,
-            key=lambda row: (str(row["path"]), int(row["line"])),
+            key=lambda row: (str(row["path"]), int(str(row["line"]))),
         ),
         "external_http_imports_for_review": sorted(
-            external_http_imports, key=lambda row: (str(row["path"]), int(row["line"]))
+            external_http_imports,
+            key=lambda row: (str(row["path"]), int(str(row["line"]))),
         ),
         "cross_app_orm_imports": sorted(
-            cross_app_orm, key=lambda row: (str(row["path"]), int(row["line"]))
+            cross_app_orm, key=lambda row: (str(row["path"]), int(str(row["line"])))
         ),
         "legacy_fact_references": {
-            key: sorted(value, key=lambda row: (str(row["path"]), int(row["line"])))
+            key: sorted(value, key=lambda row: (str(row["path"]), int(str(row["line"]))))
             for key, value in sorted(grouped_legacy.items())
         },
         "current_surface_references": sorted(
-            current_surfaces, key=lambda row: (str(row["path"]), int(row["line"]))
+            current_surfaces, key=lambda row: (str(row["path"]), int(str(row["line"])))
         ),
         "data_write_task_decorators": sorted(
-            data_tasks, key=lambda row: (str(row["path"]), int(row["line"]))
+            data_tasks, key=lambda row: (str(row["path"]), int(str(row["line"])))
         ),
         "runtime_parameter_references": sorted(runtime_parameters),
         "counts": {
