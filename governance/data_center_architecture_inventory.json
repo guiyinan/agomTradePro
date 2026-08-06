@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3291,
+    "current_surface_references": 3347,
     "data_write_task_decorators": 55,
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 143,
@@ -21,7 +21,7 @@
     },
     {
       "import": "apps.config_center.infrastructure.models",
-      "line": 58,
+      "line": 59,
       "path": "apps/account/infrastructure/repositories.py"
     },
     {
@@ -677,7 +677,7 @@
       "text": "return max(0.0, (peak - current) / peak)"
     },
     {
-      "line": 473,
+      "line": 488,
       "path": "apps/account/infrastructure/account_interface_administration_repository.py",
       "text": "\"\"\"Atomically consume one current backup token and generate its archive.\"\"\""
     },
@@ -697,12 +697,12 @@
       "text": "\"\"\"Return positions and summary statistics for the owner's active portfolio.\"\"\""
     },
     {
-      "line": 335,
+      "line": 356,
       "path": "apps/account/infrastructure/account_interface_registration_repository.py",
       "text": "dashboard_summary_endpoint = f\"{normalized_base_url}/api/dashboard/v1/summary/\""
     },
     {
-      "line": 367,
+      "line": 388,
       "path": "apps/account/infrastructure/account_interface_registration_repository.py",
       "text": "\"summary = client.dashboard.get_summary()\","
     },
@@ -857,12 +857,12 @@
       "text": "trade_date.isoformat() if trade_date is not None else \"latest\","
     },
     {
-      "line": 807,
+      "line": 829,
       "path": "apps/account/infrastructure/repositories.py",
       "text": "current = self._get_active_model()"
     },
     {
-      "line": 813,
+      "line": 835,
       "path": "apps/account/infrastructure/repositories.py",
       "text": "payload[\"version\"] = (current.version + 1) if current is not None else 1"
     },
@@ -2372,122 +2372,122 @@
       "text": "\"\"\"Return current dashboard alpha refresh locks visible to the ops page.\"\"\""
     },
     {
-      "line": 208,
+      "line": 222,
       "path": "apps/alpha/application/ops_services.py",
       "text": "summary = TushareQlibBuilder(provider_uri).build_recent_data("
     },
     {
-      "line": 217,
+      "line": 231,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"requested_target_date\": summary.requested_target_date.isoformat(),"
     },
     {
-      "line": 218,
+      "line": 232,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"effective_target_date\": _to_iso(summary.effective_target_date),"
     },
     {
-      "line": 219,
+      "line": 233,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"latest_local_date_before\": _to_iso(summary.latest_local_date_before),"
     },
     {
-      "line": 220,
+      "line": 234,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"latest_local_date_after\": _to_iso(summary.latest_local_date_after),"
     },
     {
-      "line": 221,
+      "line": 235,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"calendar_days_written\": summary.calendar_days_written,"
     },
     {
-      "line": 222,
+      "line": 236,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"instrument_files_written\": summary.instrument_files_written,"
     },
     {
-      "line": 223,
+      "line": 237,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"feature_series_written\": summary.feature_series_written,"
     },
     {
-      "line": 224,
+      "line": 238,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"stock_count\": summary.stock_count,"
     },
     {
-      "line": 225,
+      "line": 239,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"universe_count\": summary.universe_count,"
     },
     {
-      "line": 226,
+      "line": 240,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"warning_messages\": list(summary.warning_messages),"
-    },
-    {
-      "line": 255,
-      "path": "apps/alpha/application/ops_services.py",
-      "text": "summary = TushareQlibBuilder(provider_uri).build_recent_data_for_codes("
-    },
-    {
-      "line": 265,
-      "path": "apps/alpha/application/ops_services.py",
-      "text": "\"requested_target_date\": summary.requested_target_date.isoformat(),"
-    },
-    {
-      "line": 266,
-      "path": "apps/alpha/application/ops_services.py",
-      "text": "\"effective_target_date\": _to_iso(summary.effective_target_date),"
-    },
-    {
-      "line": 267,
-      "path": "apps/alpha/application/ops_services.py",
-      "text": "\"latest_local_date_before\": _to_iso(summary.latest_local_date_before),"
-    },
-    {
-      "line": 268,
-      "path": "apps/alpha/application/ops_services.py",
-      "text": "\"latest_local_date_after\": _to_iso(summary.latest_local_date_after),"
-    },
-    {
-      "line": 269,
-      "path": "apps/alpha/application/ops_services.py",
-      "text": "\"calendar_days_written\": summary.calendar_days_written,"
-    },
-    {
-      "line": 270,
-      "path": "apps/alpha/application/ops_services.py",
-      "text": "\"instrument_files_written\": summary.instrument_files_written,"
-    },
-    {
-      "line": 271,
-      "path": "apps/alpha/application/ops_services.py",
-      "text": "\"feature_series_written\": summary.feature_series_written,"
     },
     {
       "line": 272,
       "path": "apps/alpha/application/ops_services.py",
+      "text": "summary = TushareQlibBuilder(provider_uri).build_recent_data_for_codes("
+    },
+    {
+      "line": 282,
+      "path": "apps/alpha/application/ops_services.py",
+      "text": "\"requested_target_date\": summary.requested_target_date.isoformat(),"
+    },
+    {
+      "line": 283,
+      "path": "apps/alpha/application/ops_services.py",
+      "text": "\"effective_target_date\": _to_iso(summary.effective_target_date),"
+    },
+    {
+      "line": 284,
+      "path": "apps/alpha/application/ops_services.py",
+      "text": "\"latest_local_date_before\": _to_iso(summary.latest_local_date_before),"
+    },
+    {
+      "line": 285,
+      "path": "apps/alpha/application/ops_services.py",
+      "text": "\"latest_local_date_after\": _to_iso(summary.latest_local_date_after),"
+    },
+    {
+      "line": 286,
+      "path": "apps/alpha/application/ops_services.py",
+      "text": "\"calendar_days_written\": summary.calendar_days_written,"
+    },
+    {
+      "line": 287,
+      "path": "apps/alpha/application/ops_services.py",
+      "text": "\"instrument_files_written\": summary.instrument_files_written,"
+    },
+    {
+      "line": 288,
+      "path": "apps/alpha/application/ops_services.py",
+      "text": "\"feature_series_written\": summary.feature_series_written,"
+    },
+    {
+      "line": 289,
+      "path": "apps/alpha/application/ops_services.py",
       "text": "\"stock_count\": summary.stock_count,"
     },
     {
-      "line": 273,
+      "line": 290,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"warning_messages\": list(summary.warning_messages),"
     },
     {
-      "line": 424,
+      "line": 443,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"Failed to inspect qlib latest local date\","
     },
     {
-      "line": 455,
+      "line": 474,
       "path": "apps/alpha/application/ops_services.py",
       "text": "if \"summary\" in result and isinstance(result[\"summary\"], dict):"
     },
     {
-      "line": 456,
+      "line": 475,
       "path": "apps/alpha/application/ops_services.py",
       "text": "return result[\"summary\"]"
     },
@@ -2497,42 +2497,42 @@
       "text": "\"\"\"Resolve the homepage Alpha pool from the current portfolio context.\"\"\""
     },
     {
-      "line": 181,
+      "line": 180,
       "path": "apps/alpha/application/services.py",
       "text": "\"\"\"Return True when the cache row is only the delivery channel for the latest Qlib output.\"\"\""
     },
     {
-      "line": 1140,
+      "line": 1139,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data("
     },
     {
-      "line": 1146,
+      "line": 1145,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"status\": \"success\" if summary.get(\"status\") == \"success\" else summary.get(\"status\"),"
     },
     {
-      "line": 1148,
+      "line": 1147,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": summary,"
     },
     {
-      "line": 1216,
+      "line": 1215,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data_for_codes("
     },
     {
-      "line": 1223,
+      "line": 1222,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"status\": \"success\" if summary.get(\"status\") == \"success\" else summary.get(\"status\"),"
     },
     {
-      "line": 1227,
+      "line": 1226,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1228,
+      "line": 1227,
       "path": "apps/alpha/application/tasks.py",
       "text": "**summary,"
     },
@@ -2547,27 +2547,27 @@
       "text": "\"\"\"Accept legacy 2-tuple mocks and normalize to the current 3-tuple contract.\"\"\""
     },
     {
-      "line": 566,
+      "line": 568,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "\"\"\"Return the latest trading date available in the local qlib dataset.\"\"\""
     },
     {
-      "line": 774,
+      "line": 776,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary: dict[str, object] = {}"
     },
     {
-      "line": 777,
+      "line": 779,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary[\"status\"] = status"
     },
     {
-      "line": 781,
+      "line": 783,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary[key] = value"
     },
     {
-      "line": 782,
+      "line": 784,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "return summary or None"
     },
@@ -2602,19 +2602,19 @@
       "text": "\"\"\"Fetch the latest effective constituents for one configured index.\"\"\""
     },
     {
-      "line": 98,
+      "line": 100,
       "path": "apps/alpha/infrastructure/qlib_prediction_runtime.py",
       "text": "\"\"\"Forward-fill the latest qlib cache into today's active model slot when fresh inference fails.\"\"\""
     },
     {
-      "line": 181,
+      "line": 183,
       "path": "apps/alpha/infrastructure/qlib_prediction_runtime.py",
       "text": "\"\"\"Find a broader qlib cache row and trim it to the current scoped instrument set.\"\"\""
     },
     {
-      "line": 181,
+      "line": 239,
       "path": "apps/alpha/infrastructure/qlib_runtime_init.py",
-      "text": "\"\"\"Inspect the local qlib dataset and return its latest trading date.\"\"\""
+      "text": "\"\"\"Inspect the typed runtime provider and return its latest trading date.\"\"\""
     },
     {
       "line": 294,
@@ -2627,57 +2627,57 @@
       "text": "\"\"\"Return a 403 response when the current user is not staff.\"\"\""
     },
     {
-      "line": 245,
+      "line": 244,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "help=\"Expected latest trade date; defaults to today.\","
     },
     {
-      "line": 304,
+      "line": 303,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "summary = builder.build_recent_data("
     },
     {
-      "line": 312,
+      "line": 311,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "self.stdout.write(f\"  latest_before: {summary.latest_local_date_before}\")"
     },
     {
-      "line": 313,
+      "line": 312,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "self.stdout.write(f\"  latest_after: {summary.latest_local_date_after}\")"
     },
     {
-      "line": 316,
+      "line": 315,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "f\"{summary.effective_target_date.isoformat() if summary.effective_target_date else 'None'}\""
     },
     {
-      "line": 318,
+      "line": 317,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "self.stdout.write(f\"  calendar_days_written: {summary.calendar_days_written}\")"
     },
     {
-      "line": 319,
+      "line": 318,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "self.stdout.write(f\"  instrument_files_written: {summary.instrument_files_written}\")"
     },
     {
-      "line": 320,
+      "line": 319,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "self.stdout.write(f\"  feature_series_written: {summary.feature_series_written}\")"
     },
     {
-      "line": 321,
+      "line": 320,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "self.stdout.write(f\"  stock_count: {summary.stock_count}\")"
     },
     {
-      "line": 323,
+      "line": 322,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "if summary.warning_messages:"
     },
     {
-      "line": 324,
+      "line": 323,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "for warning in summary.warning_messages:"
     },
@@ -4302,12 +4302,12 @@
       "text": "\"\"\"Return singleton system-settings summary.\"\"\""
     },
     {
-      "line": 89,
+      "line": 97,
       "path": "apps/config_center/application/config_summary_service.py",
       "text": "raise RuntimeError(\"Config center summary repository is not configured\")"
     },
     {
-      "line": 20,
+      "line": 26,
       "path": "apps/config_center/application/public.py",
       "text": "\"\"\"Return the Config Center-owned system settings summary.\"\"\""
     },
@@ -4317,12 +4317,12 @@
       "text": "\"\"\"Return the latest immutable resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 65,
+      "line": 92,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Read the latest resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 389,
+      "line": 455,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Return the latest capacity observation without a fallback.\"\"\""
     },
@@ -4337,9 +4337,19 @@
       "text": "\"\"\"ORM-backed config-center summary repository.\"\"\""
     },
     {
-      "line": 83,
+      "line": 96,
       "path": "apps/config_center/infrastructure/config_summary_repository.py",
       "text": "\"summary\": {"
+    },
+    {
+      "line": 194,
+      "path": "apps/config_center/infrastructure/config_summary_repository.py",
+      "text": "\"\"\"Return one value from the active typed profile for the current environment.\"\"\""
+    },
+    {
+      "line": 441,
+      "path": "apps/config_center/infrastructure/repositories.py",
+      "text": "\"\"\"Atomically consume the current token and reject replay/expiry.\"\"\""
     },
     {
       "line": 408,
@@ -4817,72 +4827,72 @@
       "text": "\"\"\"Fetch and store one current valuation row per available asset.\"\"\""
     },
     {
-      "line": 506,
+      "line": 508,
       "path": "apps/data_center/application/dtos.py",
       "text": "\"\"\"Input DTO for fetching the latest quote snapshot.\"\"\""
     },
     {
-      "line": 679,
+      "line": 681,
       "path": "apps/data_center/application/dtos.py",
       "text": "\"\"\"Result of one current-valuation batch sync.\"\"\""
     },
     {
-      "line": 173,
+      "line": 174,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Refresh the latest pulse snapshot through the owning pulse use case.\"\"\""
     },
     {
-      "line": 179,
+      "line": 180,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Fetch latest realtime prices through the owning realtime use case.\"\"\""
     },
     {
-      "line": 533,
+      "line": 544,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Build the latest quote query use case.\"\"\""
     },
     {
-      "line": 539,
+      "line": 550,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Fetch real-time prices from the realtime app fallback service.\"\"\""
     },
     {
-      "line": 641,
+      "line": 652,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Return the latest market-thermometer payload for UI/API consumers.\"\"\""
     },
     {
-      "line": 758,
+      "line": 769,
       "path": "apps/data_center/application/interface_services.py",
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
     {
-      "line": 904,
+      "line": 915,
       "path": "apps/data_center/application/interface_services.py",
       "text": "latest = MarketThermometerSnapshotRepository().get_latest()"
     },
     {
-      "line": 905,
+      "line": 916,
       "path": "apps/data_center/application/interface_services.py",
       "text": "if latest is None:"
     },
     {
-      "line": 909,
+      "line": 920,
       "path": "apps/data_center/application/interface_services.py",
       "text": "latest_observed_at = latest.observed_at.isoformat()"
     },
     {
-      "line": 911,
+      "line": 922,
       "path": "apps/data_center/application/interface_services.py",
       "text": "latest_is_blocked = latest.must_not_use_for_decision"
     },
     {
-      "line": 915,
+      "line": 926,
       "path": "apps/data_center/application/interface_services.py",
       "text": "skipped_payload = latest.to_dict()"
     },
     {
-      "line": 1136,
+      "line": 1147,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Build the current valuation batch sync use case.\"\"\""
     },
@@ -5132,64 +5142,54 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 503,
+      "line": 520,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 509,
+      "line": 526,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read fresh, member-bound macro values for current-facing consumers.\"\"\""
     },
     {
-      "line": 518,
+      "line": 535,
       "path": "apps/data_center/application/public.py",
       "text": "maintenance screens.  Current-facing pages use this port so a non-empty"
     },
     {
-      "line": 519,
+      "line": 536,
       "path": "apps/data_center/application/public.py",
       "text": "raw latest fact cannot be presented as a usable indicator value."
     },
     {
-      "line": 669,
+      "line": 686,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 762,
+      "line": 779,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 769,
+      "line": 786,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 794,
+      "line": 811,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 796,
+      "line": 813,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 804,
+      "line": 821,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 859,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 863,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
     },
     {
       "line": 876,
@@ -5197,22 +5197,27 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 881,
+      "line": 880,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
+    },
+    {
+      "line": 893,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 898,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 896,
+      "line": 913,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 912,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 930,
+      "line": 929,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
@@ -5222,42 +5227,47 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 963,
+      "line": 964,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1000,
+      "line": 980,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 1017,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 1003,
+      "line": 1020,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 1007,
+      "line": 1024,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 1009,
+      "line": 1026,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 1012,
+      "line": 1029,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 1013,
+      "line": 1030,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 1178,
+      "line": 1195,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -5742,27 +5752,27 @@
       "text": "raise ValueError(\"current DataEnvelope requires publication_id\")"
     },
     {
-      "line": 166,
+      "line": 173,
       "path": "apps/data_center/domain/entities.py",
       "text": "summary: str"
     },
     {
-      "line": 174,
+      "line": 181,
       "path": "apps/data_center/domain/entities.py",
       "text": "\"summary\": self.summary,"
     },
     {
-      "line": 679,
+      "line": 686,
       "path": "apps/data_center/domain/entities.py",
       "text": "summary: str = \"\""
     },
     {
-      "line": 694,
+      "line": 701,
       "path": "apps/data_center/domain/entities.py",
       "text": "\"summary\": self.summary,"
     },
     {
-      "line": 144,
+      "line": 150,
       "path": "apps/data_center/domain/protocols.py",
       "text": "\"\"\"Optional provider capability for one-request current valuation batches.\"\"\""
     },
@@ -5867,22 +5877,22 @@
       "text": "\"\"\"Return the latest fact for each indicator, capped for cache warmup.\"\"\""
     },
     {
-      "line": 11,
+      "line": 18,
       "path": "apps/data_center/infrastructure/config_summary_repository.py",
       "text": "\"\"\"ORM-backed data-center config-summary repository.\"\"\""
     },
     {
-      "line": 14,
+      "line": 21,
       "path": "apps/data_center/infrastructure/config_summary_repository.py",
       "text": "\"\"\"Return provider configuration summary.\"\"\""
     },
     {
-      "line": 44,
+      "line": 81,
       "path": "apps/data_center/infrastructure/config_summary_repository.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 57,
+      "line": 95,
       "path": "apps/data_center/infrastructure/config_summary_repository.py",
       "text": "\"summary\": {"
     },
@@ -6697,17 +6707,17 @@
       "text": "if (latest := self.get_latest_indicator(code)) is not None"
     },
     {
-      "line": 385,
+      "line": 421,
       "path": "apps/data_center/infrastructure/macro_sources/failover_adapter.py",
       "text": "current = seen.get(key)"
     },
     {
-      "line": 386,
+      "line": 422,
       "path": "apps/data_center/infrastructure/macro_sources/failover_adapter.py",
       "text": "if current is None or (point.published_at or date.min) > ("
     },
     {
-      "line": 387,
+      "line": 423,
       "path": "apps/data_center/infrastructure/macro_sources/failover_adapter.py",
       "text": "current.published_at or date.min"
     },
@@ -6767,7 +6777,7 @@
       "text": "\"\"\"Resolve historical members without substituting the current component set.\"\"\""
     },
     {
-      "line": 1079,
+      "line": 1078,
       "path": "apps/data_center/infrastructure/models.py",
       "text": "summary = models.TextField(blank=True)"
     },
@@ -6785,6 +6795,11 @@
       "line": 89,
       "path": "apps/data_center/infrastructure/pit_repository.py",
       "text": "\"\"\"Return one latest knowable version per business key.\"\"\""
+    },
+    {
+      "line": 93,
+      "path": "apps/data_center/infrastructure/provider_credentials.py",
+      "text": "logger.warning(\"Provider credential cannot be decrypted in the current environment\")"
     },
     {
       "line": 388,
@@ -6982,7 +6997,7 @@
       "text": "\"\"\"Apply an explicit current-publication gate to a Data Center read.\"\"\""
     },
     {
-      "line": 182,
+      "line": 183,
       "path": "apps/data_center/interface/serializers.py",
       "text": "summary = serializers.CharField()"
     },
@@ -9137,47 +9152,47 @@
       "text": "\"target_count\": summary.get(\"target_count\"),"
     },
     {
-      "line": 66,
+      "line": 65,
       "path": "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py",
       "text": "raise CommandError(\"expected-latest-date must be YYYY-MM-DD\") from exc"
     },
     {
-      "line": 130,
+      "line": 127,
       "path": "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py",
       "text": "current = date.fromordinal(value.toordinal() - 1)"
     },
     {
-      "line": 131,
+      "line": 128,
       "path": "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py",
       "text": "while not _is_weekday(current):"
     },
     {
-      "line": 132,
+      "line": 129,
       "path": "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py",
       "text": "current = date.fromordinal(current.toordinal() - 1)"
     },
     {
-      "line": 133,
+      "line": 130,
       "path": "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py",
       "text": "return current"
     },
     {
-      "line": 137,
+      "line": 134,
       "path": "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py",
       "text": "current = date.fromordinal(value.toordinal() + 1)"
     },
     {
-      "line": 138,
+      "line": 135,
       "path": "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py",
       "text": "while not _is_weekday(current):"
     },
     {
-      "line": 139,
+      "line": 136,
       "path": "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py",
       "text": "current = date.fromordinal(current.toordinal() + 1)"
     },
     {
-      "line": 140,
+      "line": 137,
       "path": "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py",
       "text": "return current"
     },
@@ -10102,6 +10117,11 @@
       "text": "raise ValueError(\"macro numerical evidence is not current\")"
     },
     {
+      "line": 54,
+      "path": "apps/portfolio/application/r4_rolling_research_query.py",
+      "text": "\"\"\"Read one exact PIT-valid Portfolio owner record; never latest/current/list.\"\"\""
+    },
+    {
       "line": 42,
       "path": "apps/portfolio/application/use_cases.py",
       "text": "current: PortfolioSnapshot,"
@@ -10227,6 +10247,41 @@
       "text": "\"\"\"Current or candidate portfolio weight and liquidity capacity.\"\"\""
     },
     {
+      "line": 707,
+      "path": "apps/portfolio/domain/macro_risk_rolling_contracts.py",
+      "text": "\"\"\"Create and seal one regime exposure summary.\"\"\""
+    },
+    {
+      "line": 743,
+      "path": "apps/portfolio/domain/macro_risk_rolling_contracts.py",
+      "text": "raise ValueError(\"regime beta summary is inconsistent\")"
+    },
+    {
+      "line": 763,
+      "path": "apps/portfolio/domain/macro_risk_rolling_contracts.py",
+      "text": "raise ValueError(\"regime summary content_hash mismatch\")"
+    },
+    {
+      "line": 779,
+      "path": "apps/portfolio/domain/macro_risk_rolling_contracts.py",
+      "text": "\"r4-regime-summary.v1\","
+    },
+    {
+      "line": 820,
+      "path": "apps/portfolio/domain/macro_risk_rolling_contracts.py",
+      "text": "\"\"\"Create and seal one aggregate method summary.\"\"\""
+    },
+    {
+      "line": 862,
+      "path": "apps/portfolio/domain/macro_risk_rolling_contracts.py",
+      "text": "raise ValueError(\"method summary content_hash mismatch\")"
+    },
+    {
+      "line": 876,
+      "path": "apps/portfolio/domain/macro_risk_rolling_contracts.py",
+      "text": "\"r4-method-summary.v1\","
+    },
+    {
       "line": 400,
       "path": "apps/portfolio/domain/optimization_lifecycle.py",
       "text": "\"\"\"Verify a complete ordered chain and derive its current state.\"\"\""
@@ -10335,6 +10390,16 @@
       "line": 138,
       "path": "apps/portfolio/infrastructure/optimization_research_repository.py",
       "text": "raise ValueError(\"lifecycle event does not extend the current chain\")"
+    },
+    {
+      "line": 36,
+      "path": "apps/portfolio/infrastructure/r4_rolling_research_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server time.\"\"\""
+    },
+    {
+      "line": 43,
+      "path": "apps/portfolio/infrastructure/r4_rolling_research_repository.py",
+      "text": "\"\"\"Return the current server time.\"\"\""
     },
     {
       "line": 90,
@@ -12217,6 +12282,31 @@
       "text": "\"\"\"Return current artifact attestation or ``None``.\"\"\""
     },
     {
+      "line": 381,
+      "path": "apps/research/application/r4_promotion_decision.py",
+      "text": "\"\"\"Re-read exact policy, Portfolio and current R3 before decision append.\"\"\""
+    },
+    {
+      "line": 445,
+      "path": "apps/research/application/r4_promotion_decision.py",
+      "text": "raise R4PromotionEvidenceError(\"exact current R3 attestation is unavailable\")"
+    },
+    {
+      "line": 255,
+      "path": "apps/research/application/r4_promotion_lifecycle.py",
+      "text": "\"\"\"Resolve one exact current R4 promotion by scope and PIT replay.\"\"\""
+    },
+    {
+      "line": 394,
+      "path": "apps/research/application/r4_promotion_lifecycle.py",
+      "text": "raise R4PromotionEvidenceError(\"exact current r3 attestation is unavailable\")"
+    },
+    {
+      "line": 402,
+      "path": "apps/research/application/r4_promotion_lifecycle.py",
+      "text": "\"exact current r3 attestation was substituted or is inactive\""
+    },
+    {
       "line": 72,
       "path": "apps/research/application/scenario_probability_research.py",
       "text": "\"\"\"Return frozen evidence and never rebuild history from current values.\"\"\""
@@ -12232,6 +12322,166 @@
       "text": "publish current state, authorize decisions, or replace the canonical Regime."
     },
     {
+      "line": 36,
+      "path": "apps/research/domain/r1_forecast_promotion_lifecycle.py",
+      "text": "\"\"\"Current state derived exclusively by replaying the event chain.\"\"\""
+    },
+    {
+      "line": 621,
+      "path": "apps/research/domain/r1_forecast_promotion_lifecycle.py",
+      "text": "latest = events[-1]"
+    },
+    {
+      "line": 638,
+      "path": "apps/research/domain/r1_forecast_promotion_lifecycle.py",
+      "text": "promotion_scope=latest.promotion_scope,"
+    },
+    {
+      "line": 639,
+      "path": "apps/research/domain/r1_forecast_promotion_lifecycle.py",
+      "text": "stream_id=latest.stream_id,"
+    },
+    {
+      "line": 642,
+      "path": "apps/research/domain/r1_forecast_promotion_lifecycle.py",
+      "text": "latest_event_hash=latest.content_hash,"
+    },
+    {
+      "line": 369,
+      "path": "apps/research/domain/r4_promotion_decision.py",
+      "text": "\"\"\"Return min(policy, Portfolio record, current R3, policy duration).\"\"\""
+    },
+    {
+      "line": 1,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "\"\"\"Exact Portfolio record and current-R3 projections for R4 promotion trials.\"\"\""
+    },
+    {
+      "line": 59,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "\"\"\"Seal one exact current or record-bound R3 attestation.\"\"\""
+    },
+    {
+      "line": 144,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "\"schema\": \"research-r4-current-r3-attestation.v1\","
+    },
+    {
+      "line": 347,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "\"\"\"Seal full realized metric values rather than a caller summary.\"\"\""
+    },
+    {
+      "line": 444,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "\"\"\"Exact aggregate method summary sealed by Portfolio.\"\"\""
+    },
+    {
+      "line": 471,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "\"\"\"Seal one exact Portfolio method summary projection.\"\"\""
+    },
+    {
+      "line": 489,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "raise ValueError(\"R4 promotion summary window_count must be positive\")"
+    },
+    {
+      "line": 497,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "_require_finite(value, f\"R4 promotion summary {field_name}\")"
+    },
+    {
+      "line": 499,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "raise ValueError(\"R4 promotion summary risk metrics are invalid\")"
+    },
+    {
+      "line": 501,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "raise ValueError(\"R4 promotion summary turnover/cost cannot be negative\")"
+    },
+    {
+      "line": 502,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "_require_token(self.cost_semantics_version, \"R4 promotion summary cost semantics\")"
+    },
+    {
+      "line": 503,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "_require_hash(self.source_content_hash, \"R4 promotion summary source_content_hash\")"
+    },
+    {
+      "line": 504,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "_require_hash(self.content_hash, \"R4 promotion summary content_hash\")"
+    },
+    {
+      "line": 506,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "raise ValueError(\"R4 promotion method summary content hash mismatch\")"
+    },
+    {
+      "line": 521,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "\"schema\": \"research-r4-promotion-method-summary.v1\","
+    },
+    {
+      "line": 539,
+      "path": "apps/research/domain/r4_promotion_evidence.py",
+      "text": "\"\"\"Recompute one exact method-summary projection hash.\"\"\""
+    },
+    {
+      "line": 38,
+      "path": "apps/research/domain/r4_promotion_lifecycle.py",
+      "text": "\"\"\"Current state derived only by replaying a recorded prefix.\"\"\""
+    },
+    {
+      "line": 594,
+      "path": "apps/research/domain/r4_promotion_lifecycle.py",
+      "text": "\"\"\"Verify a complete recorded prefix and derive current scope state.\"\"\""
+    },
+    {
+      "line": 600,
+      "path": "apps/research/domain/r4_promotion_lifecycle.py",
+      "text": "latest = events[-1]"
+    },
+    {
+      "line": 617,
+      "path": "apps/research/domain/r4_promotion_lifecycle.py",
+      "text": "scope=latest.scope,"
+    },
+    {
+      "line": 618,
+      "path": "apps/research/domain/r4_promotion_lifecycle.py",
+      "text": "stream_id=latest.stream_id,"
+    },
+    {
+      "line": 621,
+      "path": "apps/research/domain/r4_promotion_lifecycle.py",
+      "text": "latest_event_hash=latest.content_hash,"
+    },
+    {
+      "line": 1,
+      "path": "apps/research/domain/r4_promotion_trial.py",
+      "text": "\"\"\"Exact R4 promotion trial seal over Portfolio and current R3 evidence.\"\"\""
+    },
+    {
+      "line": 75,
+      "path": "apps/research/domain/r4_promotion_trial.py",
+      "text": "raise ValueError(\"current authoritative R3 attestation differs from the record\")"
+    },
+    {
+      "line": 77,
+      "path": "apps/research/domain/r4_promotion_trial.py",
+      "text": "raise ValueError(\"current authoritative R3 attestation is inactive\")"
+    },
+    {
+      "line": 165,
+      "path": "apps/research/domain/r4_promotion_trial.py",
+      "text": "raise ValueError(\"R4 promotion trial current R3 evidence was substituted\")"
+    },
+    {
       "line": 65,
       "path": "apps/research/domain/scenario_research_evidence.py",
       "text": "\"\"\"Freeze a canonical reference without resolving current data.\"\"\""
@@ -12245,6 +12495,36 @@
       "line": 353,
       "path": "apps/research/domain/state_model_baseline.py",
       "text": "\"\"\"Prove shortfall only from complete, current, specification-bound evidence.\"\"\""
+    },
+    {
+      "line": 235,
+      "path": "apps/research/infrastructure/r4_promotion_repository.py",
+      "text": "raise R4PromotionRepositoryCorruption(\"Portfolio or current R3 receipt was substituted\")"
+    },
+    {
+      "line": 668,
+      "path": "apps/research/infrastructure/r4_promotion_repository.py",
+      "text": "current = self._current_r3_provider.get_exact("
+    },
+    {
+      "line": 678,
+      "path": "apps/research/infrastructure/r4_promotion_repository.py",
+      "text": "if current is None:"
+    },
+    {
+      "line": 679,
+      "path": "apps/research/infrastructure/r4_promotion_repository.py",
+      "text": "raise R4PromotionRepositoryCorruption(\"exact current R3 evidence is unavailable\")"
+    },
+    {
+      "line": 680,
+      "path": "apps/research/infrastructure/r4_promotion_repository.py",
+      "text": "current_evidence = project_r4_promotion_r3_attestation(current)"
+    },
+    {
+      "line": 694,
+      "path": "apps/research/infrastructure/r4_promotion_repository.py",
+      "text": "\"Portfolio R4 record or current R3 evidence was substituted\""
     },
     {
       "line": 1,
@@ -14762,152 +15042,152 @@
       "text": "\"summary_id\": [\"summary_id\", \"summary.id\"],"
     },
     {
-      "line": 221,
+      "line": 222,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": dict(Counter(row[\"severity\"] for row in rows)),"
     },
     {
-      "line": 383,
+      "line": 384,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "summary = ("
     },
     {
-      "line": 391,
+      "line": 392,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": summary,"
     },
     {
-      "line": 411,
+      "line": 412,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": \"当前存在政策干预\" if intervention else \"政策状态可用\","
     },
     {
-      "line": 427,
+      "line": 428,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": \"当前没有可用脉搏快照。\","
     },
     {
-      "line": 439,
+      "line": 440,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": \"存在转折预警\" if snapshot.transition_warning else \"脉搏层正常\","
     },
     {
-      "line": 457,
+      "line": 458,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": blocked_reasons[0] if blocked_reasons else \"决策数据链路可用\","
     },
     {
-      "line": 484,
+      "line": 485,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": f\"活跃持仓 {open_position_count} 笔\","
     },
     {
-      "line": 493,
+      "line": 494,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": f\"已失效 {invalidated_count} 条\","
     },
     {
-      "line": 502,
+      "line": 503,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "summary = get_personal_readiness_monitor_summary(strict_runtime=False)"
     },
     {
-      "line": 506,
+      "line": 507,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "severity=_monitor_severity(summary),"
     },
     {
-      "line": 508,
+      "line": 509,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "title=str(((summary.get(\"daily_state\") or {}).get(\"title\")) or \"Readiness monitor\"),"
     },
     {
-      "line": 509,
+      "line": 510,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "status=str(summary.get(\"status\") or \"unknown\"),"
     },
     {
-      "line": 511,
+      "line": 512,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "(summary.get(\"blocking_issues\") or []),"
     },
     {
-      "line": 512,
+      "line": 513,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "(summary.get(\"daily_state\") or {}).get(\"message\"),"
     },
     {
-      "line": 513,
+      "line": 514,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "(summary.get(\"monitor_gate\") or {}).get(\"reason\"),"
     },
     {
-      "line": 677,
+      "line": 678,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "summary = get_operator_repository().get_summary()"
     },
     {
-      "line": 678,
+      "line": 679,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "needs_attention = int(summary.get(\"needs_attention_count\") or 0)"
     },
     {
-      "line": 679,
+      "line": 680,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "failed = int((summary.get(\"task_counts\") or {}).get(\"failed\", 0) or 0)"
     },
     {
-      "line": 680,
+      "line": 681,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "active = int(summary.get(\"total_tasks\") or 0)"
     },
     {
-      "line": 707,
+      "line": 708,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "summary = get_account_diagnostic_summary()"
     },
     {
-      "line": 709,
+      "line": 710,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "if int(summary.get(\"active_currency_count\") or 0) == 0:"
     },
     {
-      "line": 711,
+      "line": 712,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "if int(summary.get(\"asset_category_count\") or 0) == 0:"
     },
     {
-      "line": 713,
+      "line": 714,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "if int(summary.get(\"portfolio_count\") or 0) == 0:"
     },
     {
-      "line": 909,
+      "line": 922,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "def _monitor_severity(summary: dict[str, Any]) -> str:"
     },
     {
-      "line": 910,
+      "line": 923,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "daily_state = dict(summary.get(\"daily_state\") or {})"
     },
     {
-      "line": 969,
+      "line": 982,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "latest = None"
     },
     {
-      "line": 974,
+      "line": 987,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "if latest is None or created_at > latest:"
     },
     {
-      "line": 975,
+      "line": 988,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "latest = created_at"
     },
     {
-      "line": 976,
+      "line": 989,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "return _iso(latest or timezone.now())"
     },
@@ -16202,12 +16482,12 @@
       "text": "\"\"\"Compose the realtime query with the sector-owned repository.\"\"\""
     },
     {
-      "line": 51,
+      "line": 54,
       "path": "core/integration/runtime_settings.py",
       "text": "\"\"\"Resolve the current runtime settings source."
     },
     {
-      "line": 53,
+      "line": 56,
       "path": "core/integration/runtime_settings.py",
       "text": "Prefer the config-center owned summary service so tests can monkeypatch the public"
     },
@@ -16527,7 +16807,7 @@
       "text": "\"realtime-update-prices-after-close\": {"
     },
     {
-      "line": 958,
+      "line": 957,
       "path": "core/settings/base.py",
       "text": "\"sentiment-refresh-current-index\": {"
     },
@@ -16724,27 +17004,27 @@
   ],
   "data_write_task_decorators": [
     {
-      "line": 59,
+      "line": 60,
       "path": "apps/account/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 119,
+      "line": 124,
       "path": "apps/account/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 192,
+      "line": 197,
       "path": "apps/account/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 235,
+      "line": 240,
       "path": "apps/account/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 448,
+      "line": 453,
       "path": "apps/account/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
@@ -17039,12 +17319,12 @@
         "symbol": "CapitalFlowModel"
       },
       {
-        "line": 21,
+        "line": 22,
         "path": "apps/account/infrastructure/account_interface_registration_repository.py",
         "symbol": "CapitalFlowModel"
       },
       {
-        "line": 242,
+        "line": 262,
         "path": "apps/account/infrastructure/account_interface_registration_repository.py",
         "symbol": "CapitalFlowModel"
       },
@@ -17099,22 +17379,22 @@
         "symbol": "CapitalFlowModel"
       },
       {
-        "line": 22,
+        "line": 23,
         "path": "apps/account/interface/admin.py",
         "symbol": "CapitalFlowModel"
       },
       {
-        "line": 319,
+        "line": 361,
         "path": "apps/account/interface/admin.py",
         "symbol": "CapitalFlowModel"
       },
       {
-        "line": 320,
+        "line": 362,
         "path": "apps/account/interface/admin.py",
         "symbol": "CapitalFlowModel"
       },
       {
-        "line": 330,
+        "line": 372,
         "path": "apps/account/interface/admin.py",
         "symbol": "CapitalFlowModel"
       },

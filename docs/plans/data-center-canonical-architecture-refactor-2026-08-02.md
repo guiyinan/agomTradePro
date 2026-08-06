@@ -4541,3 +4541,10 @@ Git SHA / 镜像 / migration：
 - 写入与迁移：Provider API、Setup Wizard 和 Admin 保存均经 repository/Application port；新凭据在缺少 `AGOMTRADEPRO_ENCRYPTION_KEY` 时 fail closed，不回退明文。新增 `manage.py encrypt_provider_credentials [--dry-run]`，用于受控加密旧行并清空旧列；已有加密记录在密钥暂不可用时的元数据更新不会被误删。
 - 输出与防回归：Provider 响应只发布 `has_api_key/has_api_secret` 与 `credential_ref`，配置摘要只计算 presence；新增 `scripts/check_data_center_provider_credentials.py` 并接入 fast-feedback/consistency CI，阻断未登记的 `ProviderConfigModel` ORM 入口。迁移 `0062_providercredentialmodel` 已在本地数据库应用，`manage.py check`、makemigrations check、architecture/audit、module-cycle、mypy、Ruff/Black 和入口 guard 通过；新增凭据组件回归覆盖新写入、旧行迁移、无密钥阻断、加密记录保留和 Admin port（6 passed），Provider API 三条回归通过（3 passed）。
 - 明确未做：外部 Vault/云 secret store 尚未接入；旧 `ProviderConfigModel.api_key/api_secret` 列、环境变量兼容和宏观 `DataSourceSecretsDTO` 投影仍待生产密钥迁移、备份恢复和 M9 观察后删除；未执行 PostgreSQL 生产容量/恢复、生产观察窗口、M9/M10 或部署，不 push、不部署。
+
+## 108. 2026-08-06：刷新提交态架构 inventory，隔离工作区外部改动
+
+- 发现：Provider 凭据收编及此前宏观/账户/Qlib 批次已经改变生产源码行号和 current-surface 数量，但 `governance/data_center_architecture_inventory.json` 仍停留在旧提交，直接在主工作区重生成还会把未提交的 fixed_income 研究文件混入清单。
+- 处理：从当前 `HEAD=3b5ddeea` 建立隔离 clean worktree，只扫描已提交源码并重生成 inventory；提交态计数为 `cross_app_orm_imports=51`、`current_surface_references=3347`、`data_write_task_decorators=55`、`external_http_imports_for_review=4`、`legacy_fact_references=143`、`provider_imports_outside_data_center=0`、`runtime_parameter_references=49`。主工作区仍保留外部未提交 fixed_income 文件，不纳入本批。
+- 证据：clean worktree 中 `python scripts/data_center_architecture_inventory.py --write` 成功生成清单；主工作区 inventory 与提交态一致，后续 CI checkout 不会因本批代码行号变化而使用过期基线。
+- 明确未做：没有修改或提交 fixed_income 外部研究代码；生产数据画像、PostgreSQL/备份恢复、观察窗口、M9/M10 和部署仍未完成。
