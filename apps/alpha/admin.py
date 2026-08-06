@@ -614,8 +614,6 @@ class QlibModelRegistryAdmin(TypedModelAdmin[QlibModelRegistryModel]):
             )
             passed = False
 
-        qlib_settings = _qlib_settings_mapping()
-
         # 优先从数据库读取 Qlib 配置
         try:
             qlib_runtime_config = runtime_settings.get_runtime_qlib_config()
@@ -624,11 +622,7 @@ class QlibModelRegistryAdmin(TypedModelAdmin[QlibModelRegistryModel]):
             qlib_data_path = provider_uri if isinstance(provider_uri, str) else ""
             qlib_enabled = enabled if isinstance(enabled, bool) else False
         except Exception as exc:
-            configured_uri = qlib_settings.get("provider_uri", "~/.qlib/qlib_data/cn_data")
-            fallback_uri = (
-                configured_uri if isinstance(configured_uri, str) else "~/.qlib/qlib_data/cn_data"
-            )
-            qlib_data_path = str(Path(fallback_uri).expanduser())
+            qlib_data_path = ""
             qlib_enabled = False
             checks.append(
                 {

@@ -4445,3 +4445,10 @@ Git SHA / 镜像 / migration：
 - 变更：命令参数解析在无显式 `--provider-uri` 时先校验 typed runtime；缺失、disabled、blocked 或 URI 为空直接抛出稳定 `runtime_config_snapshot_unavailable`（ malformed URI 仍保留输入边界错误），只有显式维护 URI 才允许继续参数校验。
 - 测试与治理：Qlib build safety/management command 回归 `26 passed`；新增缺失 runtime 不调用本地 inspection 断言，runtime contract 将命令 parser consumer/test 登记到 Alpha Qlib enabled/provider URI 定义。
 - 明确未做：未改变显式维护 URI 的行为、Qlib builder/provider 算法或 Tushare 数据同步，未初始化生产 profile、未执行 PostgreSQL/观察窗口/M9/M10 或部署；不 push、不部署。
+
+## 95. 2026-08-06：Qlib Admin 模型验证退出异常时默认路径回退
+
+- 目标：避免 Qlib Admin 模型验证在 Config Center runtime 读取异常时回退 `QLIB_SETTINGS`/默认数据目录，防止诊断页误探测旧路径。
+- 变更：`QlibModelRegistryAdmin._run_validation()` 的 runtime 异常分支现在清空数据路径并发布不可用检查结果，不再从旧 settings/default URI 补值；模型验证不会因读取异常触碰本地 Qlib 目录。
+- 测试与治理：新增 AST guard 断言该验证函数不包含默认 Qlib 路径或旧 settings fallback；Admin guard `1 passed`，Ruff/Black 通过，runtime contract 将 Admin consumer/test 登记到 Alpha Qlib enabled/provider URI 定义。
+- 明确未做：未改动模型导入存储根目录、Qlib 训练/推理算法、显式维护入口或生产 profile，未执行 PostgreSQL/观察窗口/M9/M10 或部署；不 push、不部署。

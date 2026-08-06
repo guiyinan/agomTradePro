@@ -201,7 +201,8 @@
         "apps/alpha/infrastructure/qlib_runtime_init.py::_require_usable_qlib_runtime",
         "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py::_load_qlib_trading_calendar",
         "apps/alpha/management/commands/build_qlib_data.py::_parse_command_options",
-        "apps/alpha/infrastructure/adapters/qlib_adapter.py::QlibAlphaProvider._get_latest_data_date"
+        "apps/alpha/infrastructure/adapters/qlib_adapter.py::QlibAlphaProvider._get_latest_data_date",
+        "apps/alpha/admin.py::QlibModelRegistryAdmin._run_validation"
       ],
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "bootstrap_command": "python manage.py initialize_runtime_definitions",
@@ -212,7 +213,8 @@
           "tests/unit/alpha/test_t3b_task_failure_contracts.py::test_prediction_task_blocks_before_legacy_runtime_probe",
           "tests/unit/alpha/test_qlib_runtime_contracts.py::test_qlib_latest_date_blocks_without_typed_runtime_snapshot",
           "tests/unit/alpha/test_t3b_provider_contracts.py::test_qlib_cache_and_local_calendar_freshness_fail_closed",
-          "tests/unit/alpha/test_build_qlib_data_safety.py::test_missing_runtime_config_blocks_default_provider_path_before_io"
+          "tests/unit/alpha/test_build_qlib_data_safety.py::test_missing_runtime_config_blocks_default_provider_path_before_io",
+          "tests/unit/alpha/test_qlib_admin_runtime_contracts.py::test_qlib_admin_validation_does_not_reheat_default_provider_path"
         ]
     },
     {
@@ -229,7 +231,8 @@
         "apps/alpha/infrastructure/qlib_runtime_init.py::_get_qlib_runtime_config",
         "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py::_load_qlib_trading_calendar",
         "apps/alpha/management/commands/build_qlib_data.py::_parse_command_options",
-        "apps/alpha/infrastructure/adapters/qlib_adapter.py::QlibAlphaProvider._get_latest_data_date"
+        "apps/alpha/infrastructure/adapters/qlib_adapter.py::QlibAlphaProvider._get_latest_data_date",
+        "apps/alpha/admin.py::QlibModelRegistryAdmin._run_validation"
       ],
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "bootstrap_command": "python manage.py initialize_runtime_definitions",
@@ -237,7 +240,8 @@
         "tests/unit/config_center/test_runtime_public.py::test_active_qlib_runtime_config_requires_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_runtime_qlib_summary_prefers_typed_snapshot",
         "tests/unit/alpha/test_t3b_provider_contracts.py::test_qlib_cache_and_local_calendar_freshness_fail_closed",
-        "tests/unit/alpha/test_build_qlib_data_safety.py::test_missing_runtime_config_blocks_default_provider_path_before_io"
+        "tests/unit/alpha/test_build_qlib_data_safety.py::test_missing_runtime_config_blocks_default_provider_path_before_io",
+        "tests/unit/alpha/test_qlib_admin_runtime_contracts.py::test_qlib_admin_validation_does_not_reheat_default_provider_path"
       ]
     },
     {
