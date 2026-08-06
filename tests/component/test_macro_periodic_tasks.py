@@ -63,9 +63,9 @@ def test_database_scheduler_entries_use_persisted_expiration_field() -> None:
     for task_name, entry in schedule.items():
         options = entry.get("options", {})
         unsupported_options = set(options) - allowed_options
-        assert not unsupported_options, (
-            f"{task_name} has unsupported options: {unsupported_options}"
-        )
+        assert (
+            not unsupported_options
+        ), f"{task_name} has unsupported options: {unsupported_options}"
 
     assert schedule["broker-execution-maintenance"]["options"]["expire_seconds"] == 50
     assert schedule["alpha-evaluate-alerts"]["options"]["expire_seconds"] == 60
@@ -104,6 +104,13 @@ def test_database_scheduler_entries_use_persisted_expiration_field() -> None:
     )
     assert schedule["data-center-storage-budget-check"]["task"] == (
         "apps.data_center.application.tasks.verify_storage_budget_task"
+    )
+    assert schedule["config-center-storage-capacity-profile-hourly"]["task"] == (
+        "apps.config_center.application.tasks.collect_storage_capacity_profile_task"
+    )
+    assert (
+        schedule["config-center-storage-capacity-profile-hourly"]["options"]["expire_seconds"]
+        == 300
     )
 
 

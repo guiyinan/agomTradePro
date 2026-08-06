@@ -912,6 +912,11 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute="*/15"),
         "options": {"expire_seconds": 300},
     },
+    "config-center-storage-capacity-profile-hourly": {
+        "task": "apps.config_center.application.tasks.collect_storage_capacity_profile_task",
+        "schedule": crontab(minute=10),
+        "options": {"expire_seconds": 300},
+    },
     # ============================================
     # ========== P1-2: 数据库备份 ==========
     "database-daily-backup": {

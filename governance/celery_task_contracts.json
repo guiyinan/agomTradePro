@@ -1,12 +1,36 @@
 {
   "schema_version": 1,
   "governed_source_files": [
+    "apps/config_center/application/tasks.py",
     "apps/data_center/application/tasks.py",
     "apps/equity/application/tasks_valuation_sync.py",
     "apps/config_center/application/decision_readiness_guard_tasks.py",
     "apps/sentiment/application/tasks.py"
   ],
   "tasks": [
+    {
+      "task_path": "apps.config_center.application.tasks.collect_storage_capacity_profile_task",
+      "source_file": "apps/config_center/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/config_center/test_storage_capacity_tasks.py",
+          "test_function": "test_storage_capacity_task_rejects_invalid_input_before_collection"
+        },
+        "all_success": {
+          "test_file": "tests/unit/config_center/test_storage_capacity_tasks.py",
+          "test_function": "test_storage_capacity_task_persists_observation_with_normalized_counts"
+        },
+        "blocked": {
+          "test_file": "tests/unit/config_center/test_storage_capacity_tasks.py",
+          "test_function": "test_storage_capacity_task_blocks_without_active_policy"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/config_center/test_storage_capacity_tasks.py",
+          "test_function": "test_storage_capacity_task_reports_collection_failure"
+        }
+      }
+    },
     {
       "task_path": "apps.config_center.application.decision_readiness_guard_tasks.audit_decision_readiness_task",
       "source_file": "apps/config_center/application/decision_readiness_guard_tasks.py",

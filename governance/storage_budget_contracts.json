@@ -6,6 +6,9 @@
   "capacity_observation": {
     "model": "config_center_storage_capacity_observation",
     "command": "collect_storage_capacity_profile",
+    "celery_task": "apps.config_center.application.tasks.collect_storage_capacity_profile_task",
+    "schedule": "hourly",
+    "application_public_port": "collect_and_record_storage_capacity_profile",
     "source": "read_only_filesystem_and_database_observer",
     "required_fields": [
       "filesystem_total_bytes",

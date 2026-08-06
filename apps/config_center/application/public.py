@@ -12,13 +12,16 @@ from datetime import datetime
 from typing import Any
 
 from apps.config_center.domain.backup_delivery import BackupDeliveryState
+from apps.config_center.domain.runtime_config import StorageCapacityObservation
 
+from .capacity_profile import StorageCapacityProfileBlockedError
 from .config_summary_service import get_config_center_summary_service
 from .repository_provider import (
     get_config_center_secret_repository,
     get_config_center_settings_repository,
 )
 from .runtime_public import get_active_runtime_value
+from .runtime_repository_provider import get_storage_capacity_profile_service
 from .use_cases import (
     GetSystemGovernanceSettingsUseCase,
     UpdateSystemGovernanceSettingsUseCase,
@@ -187,6 +190,19 @@ def update_backup_delivery_settings(
     )
 
 
+def collect_and_record_storage_capacity_profile(
+    *,
+    environment: str,
+    source: str = "runtime-observer",
+) -> StorageCapacityObservation:
+    """Collect and persist one observation through the Config Center owner port."""
+
+    return get_storage_capacity_profile_service().collect_and_record(
+        environment=environment,
+        source=source,
+    )
+
+
 __all__ = [
     "get_system_governance_settings",
     "get_runtime_alpha_fixed_provider",
@@ -204,7 +220,9 @@ __all__ = [
     "record_backup_download_token",
     "mark_backup_delivery_sent",
     "consume_backup_download_token",
+    "collect_and_record_storage_capacity_profile",
     "update_backup_delivery_settings",
     "get_system_settings_summary",
     "update_system_governance_settings",
+    "StorageCapacityProfileBlockedError",
 ]

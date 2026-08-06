@@ -84,4 +84,25 @@ def collect_storage_capacity_observation(
     )
 
 
-__all__ = ["collect_storage_capacity_observation"]
+class StorageCapacityObserver:
+    """Infrastructure adapter for the capacity-profile application port."""
+
+    def collect(
+        self,
+        *,
+        environment: str,
+        policy_key: str,
+        configured_capacity_bytes: int,
+        source: str,
+    ) -> StorageCapacityObservation:
+        """Collect one read-only observation for an active storage policy."""
+
+        return collect_storage_capacity_observation(
+            environment=environment,
+            policy_key=policy_key,
+            configured_capacity_bytes=configured_capacity_bytes,
+            source=source,
+        )
+
+
+__all__ = ["StorageCapacityObserver", "collect_storage_capacity_observation"]

@@ -21,6 +21,9 @@ class ConfigCenterConfig(AppConfig):
         from apps.config_center.application.runtime_repository_provider import (
             configure_runtime_config_services,
         )
+        from apps.config_center.infrastructure.capacity_observer import (
+            StorageCapacityObserver,
+        )
         from apps.config_center.infrastructure.capacity_repositories import (
             StorageCapacityObservationRepository,
         )
@@ -65,4 +68,5 @@ class ConfigCenterConfig(AppConfig):
             snapshots=RuntimeConfigSnapshotRepository(),
             storage_budget=StorageBudgetPolicyRepository(),
             capacity_observations=StorageCapacityObservationRepository(),
+            capacity_observer=StorageCapacityObserver(),
         )

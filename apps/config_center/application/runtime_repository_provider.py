@@ -5,6 +5,8 @@ from __future__ import annotations
 from apps.config_center.application.capacity_profile import (
     StorageCapacityObservationRepositoryProtocol,
     StorageCapacityObservationService,
+    StorageCapacityObserverProtocol,
+    StorageCapacityProfileService,
 )
 from apps.config_center.application.runtime_config import (
     RuntimeConfigDefinitionRepositoryPort,
@@ -23,6 +25,7 @@ _runtime_profile_repository: RuntimeConfigProfileRepositoryPort | None = None
 _runtime_value_repository: RuntimeConfigValueRepositoryPort | None = None
 _storage_budget_service: StorageBudgetQueryService | None = None
 _capacity_observation_service: StorageCapacityObservationService | None = None
+_capacity_profile_service: StorageCapacityProfileService | None = None
 
 
 def configure_runtime_config_services(
@@ -34,18 +37,24 @@ def configure_runtime_config_services(
     snapshots: RuntimeConfigSnapshotRepositoryPort,
     storage_budget: StorageBudgetRepositoryPort,
     capacity_observations: StorageCapacityObservationRepositoryProtocol,
+    capacity_observer: StorageCapacityObserverProtocol,
 ) -> None:
     """Configure concrete infrastructure repositories at the composition root."""
 
     global _runtime_service, _runtime_definition_repository
     global _runtime_profile_repository, _runtime_value_repository
-    global _storage_budget_service, _capacity_observation_service
+    global _storage_budget_service, _capacity_observation_service, _capacity_profile_service
     _runtime_definition_repository = definitions
     _runtime_profile_repository = profiles
     _runtime_value_repository = values
     _runtime_service = RuntimeConfigService(definitions, profiles, values, revisions, snapshots)
     _storage_budget_service = StorageBudgetQueryService(storage_budget)
     _capacity_observation_service = StorageCapacityObservationService(capacity_observations)
+    _capacity_profile_service = StorageCapacityProfileService(
+        _storage_budget_service,
+        capacity_observer,
+        capacity_observations,
+    )
 
 
 def get_runtime_config_service() -> RuntimeConfigService:
@@ -96,6 +105,14 @@ def get_storage_capacity_observation_service() -> StorageCapacityObservationServ
     return _capacity_observation_service
 
 
+def get_storage_capacity_profile_service() -> StorageCapacityProfileService:
+    """Return the configured capacity-profile orchestration service."""
+
+    if _capacity_profile_service is None:
+        raise RuntimeError("Storage capacity profile service is not configured")
+    return _capacity_profile_service
+
+
 __all__ = [
     "configure_runtime_config_services",
     "get_runtime_definition_repository",
@@ -104,4 +121,5 @@ __all__ = [
     "get_runtime_value_repository",
     "get_storage_budget_query_service",
     "get_storage_capacity_observation_service",
+    "get_storage_capacity_profile_service",
 ]

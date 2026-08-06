@@ -4597,3 +4597,17 @@ Git SHA / 镜像 / migration：
 - 变更：新增 `governance/reliability_contracts.json`，固定 7 个 reliability 状态、14 个稳定阻断码及 9 个动态生成边界；`ReliabilityContract` 对非空阻断码执行稳定格式校验。新增 `check_reliability_contract_ownership.py`，扫描提交态生产 Python，拒绝第二个 `ReliabilityStatus`、状态集合漂移、未登记 literal reason 或未登记动态边界。
 - 防回归：fast-feedback 与 consistency workflow 均执行 reliability guard；本地 guard 输出 `statuses=7; reasons=14`。扫描使用 Git 提交态文件清单，避免 Windows 全仓 `rglob` 的不稳定耗时；CI checkout 会覆盖所有待合并生产文件。
 - 明确未做：本批没有把所有 legacy 裸 dict 一次改写成 `ReliabilityContract`，也不声称 D0-D9 跨入口语义已全部验收；生产入口一致性、PostgreSQL、观察窗口和 M9/M10 仍需后续证据。
+
+## 115. 2026-08-07：StorageBudget 周期容量观测闭环
+
+- 根因：`collect_storage_capacity_profile` 只能由人工运行，管理命令还直接组装 Infrastructure observer、压力规则与持久化，生产容量策略即使已配置也没有连续观测证据。
+- 变更：Config Center Application 新增 policy-bound 容量观测编排和只读 observer port，由 `apps.py` composition root 注入 Infrastructure adapter；管理命令只调用 Application Public Port。新增每小时第 10 分钟执行的容量任务，按 `success/blocked/failed` 发布统一的 `requested/succeeded/failed/stored/blocked` 计数并持久化 observation。
+- 治理与证据：Celery contract 扩展为 19 个任务、5 个受管文件；StorageBudget contract 登记 Public Port、任务与 hourly schedule。容量编排/任务回归 8 passed，Beat 回归 1 passed；Celery、architecture、Django check、Ruff/Black 和 8 个生产文件增量 mypy 均通过。
+- 明确未做：未在生产 PostgreSQL/VPS 启动该调度，未取得 90 GiB production profile、连续容量趋势、告警投递或故障注入证据；本批不部署、不 push。
+
+## 116. 2026-08-07：Backup secret owner 到任务消费者断链修复
+
+- 根因：`SystemSettingsRepository.get_settings()` 先创建 legacy settings 实例，再从另一个投影实例逐字段复制 policy/state；Config Center secret 只临时投影到第二个实例的两个密文字段，复制时被遗漏，导致旧列清空后备份到期判断和 SMTP/archive 密钥读取失效。
+- 变更：仓储把同一个 legacy-shaped read instance 直接交给 Config Center backup projection，policy、state 与两项临时 secret 在同一对象完成装配；投影仍不把新密钥回写旧数据库列。
+- 证据：新增组件回归先通过 Config Center 写入 archive/SMTP secret，再确认两个旧密文列为空，同时仓储消费者仍能解析密钥并判定备份到期；目标组件 2 passed，增量 mypy 0，Ruff/Black 通过。
+- 明确未做：未执行生产 secret migration、真实邮件/备份/恢复或旧列删除；破坏性字段清理仍受 M9 前置条件约束。
