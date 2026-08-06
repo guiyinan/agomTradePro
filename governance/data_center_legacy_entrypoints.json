@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "owner": "data_center",
+  "retirement_gate": "M9 after production zero-access observation and verified backup/restore",
+  "entrypoints": [
+    {
+      "path": "scripts/debug/refresh_macro_data.py",
+      "kind": "destructive_debug_script",
+      "replacement": "manage.py sync_macro_data",
+      "status": "blocked_retirement"
+    },
+    {
+      "path": "scripts/deploy_vps_verify.py",
+      "kind": "deployment_schema_verifier",
+      "replacement": "Data Center deployment verification port",
+      "status": "compatibility_owner"
+    },
+    {
+      "path": "scripts/run_backtest.py",
+      "kind": "historical_backtest_script",
+      "replacement": "backtest application/PIT public port",
+      "status": "compatibility_owner"
+    },
+    {
+      "path": "scripts/seed_historical.py",
+      "kind": "legacy_macro_seed_script",
+      "replacement": "manage.py sync_macro_data with explicit historical bounds",
+      "status": "blocked_retirement"
+    },
+    {
+      "path": "scripts/sync_akshare_data.py",
+      "kind": "legacy_macro_sync_script",
+      "replacement": "manage.py sync_macro_data",
+      "status": "blocked_retirement"
+    },
+    {
+      "path": "scripts/test_adapters.py",
+      "kind": "developer_smoke_script",
+      "replacement": "Data Center adapter component suite",
+      "status": "compatibility_owner"
+    }
+  ]
+}

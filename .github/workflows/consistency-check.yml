@@ -56,6 +56,9 @@ jobs:
       - name: Enforce Data Center provider credential boundary
         run: python scripts/check_data_center_provider_credentials.py
 
+      - name: Enforce Data Center legacy script entrypoints
+        run: python scripts/check_data_center_legacy_entrypoints.py
+
       - name: Enforce backup delivery secret ownership
         run: python scripts/check_backup_delivery_secret_ownership.py
 

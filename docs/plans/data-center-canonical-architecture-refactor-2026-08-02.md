@@ -4575,3 +4575,11 @@ Git SHA / 镜像 / migration：
 - 防回归：architecture inventory 的 `direct_data_center_imports_outside_data_center` 扩展为同时捕获 `infrastructure`、`interface_services`、`query_services` 和 `read_facade`；提交态 clean inventory 重新生成后该计数保持 0。
 - 证据：Core price/management contract 回归 `17 passed`，Public/Core Ruff 通过，`public.py` 与 price bridge mypy regression 0；全量 management-command mypy 在当前 Windows 环境超时，未把超时当作通过。
 - 明确未做：未改变历史回放语义、诊断输出格式、生产数据或调度；旧脚本/测试 fixture 和 Data Center owner 内部 query-service imports 仍是明确兼容边界。PostgreSQL/生产观察、M9/M10 仍未完成。
+
+## 112. 2026-08-06：Legacy Data Center 脚本入口一次登记
+
+- 目标：把 `scripts/` 下仍直接触碰 Data Center adapter/query 实现的维护、调试、部署校验和开发 smoke 入口全部显式列账，避免生产源码清零后脚本继续形成未审计旁路。
+- 入口清单：新增 `governance/data_center_legacy_entrypoints.json`，登记 6 个入口：宏观刷新、VPS 校验、历史回测、历史 seed、AKShare 同步和 adapter smoke。每项记录用途、Public/Application replacement、当前 compatibility/blocked-retirement 状态及 M9 retirement gate。
+- 防回归：新增 `scripts/check_data_center_legacy_entrypoints.py`，AST 扫描所有 `scripts/**/*.py` 的 Data Center infrastructure/interface/query/read-facade import，要求每个直接入口在清单中存在、replacement/status 非空且文件存在；CI fast-feedback 与 consistency workflow 均执行该 guard。当前输出 `6 registered`，未登记新增入口会 fail closed。
+- 证据：legacy entrypoint guard 与单测通过；本批只做入口收编和状态登记，没有伪装成已迁移，仍保留这些脚本直到生产零旧读、真实备份/恢复及 M9 破坏性清理条件满足。
+- 明确未做：未删除或改写 legacy 脚本、未切换生产任务、未执行 PostgreSQL/备份恢复/观察窗口/M9/M10 或部署，不 push；脚本迁移须在后续单独阶段按用途逐项替换并补运行证据。
