@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+
+RELIABILITY_REASON_CODE_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$")
 
 
 class ReliabilityStatus(str, Enum):
@@ -57,6 +60,10 @@ class ReliabilityContract:
             not self.block_reason_code.strip() or not self.block_reason.strip()
         ):
             raise ValueError("blocked reliability requires stable reason code and reason")
+        if self.block_reason_code and not RELIABILITY_REASON_CODE_PATTERN.fullmatch(
+            self.block_reason_code
+        ):
+            raise ValueError("block_reason_code must use the governed stable-code format")
 
     @classmethod
     def fresh(

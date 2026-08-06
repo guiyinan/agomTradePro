@@ -257,6 +257,9 @@ jobs:
       - name: Enforce Data Center query budgets
         run: python scripts/check_data_center_query_budgets.py
 
+      - name: Enforce reliability contract ownership
+        run: python scripts/check_reliability_contract_ownership.py
+
       - name: Enforce runtime config reference coverage
         run: python scripts/check_runtime_config_coverage.py
 

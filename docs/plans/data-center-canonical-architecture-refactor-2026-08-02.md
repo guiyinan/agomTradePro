@@ -2869,7 +2869,7 @@ Data Center Public Port → 业务 Application 聚合 → REST DTO → SDK/MCP/T
 交付：
 
 - [x] 建立 DataEnvelope、SourceEvidence、QualityAssessment、SyncOutcome、PublicationDecision。
-- 将 shared/domain/reliability.py 收敛为 Data Center 可复用的纯 Domain 契约，或明确 shared 只保存技术中立基础类型；全仓只保留一个 ReliabilityStatus 定义。
+- [x] 将 shared/domain/reliability.py 收敛为 Data Center 可复用的纯 Domain 契约；全仓只保留一个 ReliabilityStatus 定义，并由 reliability ownership guard 固定状态集合与稳定阻断码边界。
 - [x] 建立 Dataset Contract / Field Contract / Provider Binding / Freshness / Reconciliation / Publication Policy 模型（Domain 类型 + 版本化清单 + `0054` 持久化 Catalog/幂等初始化）。
 - [x] 在 Config Center 建立 RuntimeConfigDefinition / Profile / Value / Revision / Snapshot，以及 owner Application registration（首批 data-center/storage owner；全域 owner registry 仍需扩展）。
 - 以 storage / backup / logging / task_monitor / readiness 作为首批 active runtime profile。
@@ -3765,7 +3765,7 @@ VPS 本地备份不是持久备份，只是传输暂存。
 
 ### 22.6 测试与治理
 
-- [x] current-data 与 Celery manifest 中的 pytest nodeid 在 CI 实际执行（nightly PostgreSQL job）。
+- [ ] current-data 与 Celery manifest 中的 pytest nodeid 在 CI 实际执行（nightly PostgreSQL job；当前只有本地 SQLite runner 证据，尚缺 GitHub Actions run/artifact）。
 - [ ] 核心链路在 PostgreSQL 通过。
 - [ ] Provider schema drift、故障注入、性能和全市场回填通过。
 - [ ] runtime_config_contracts 覆盖所有受管运行参数，非默认 profile 和无 active profile 测试通过。
@@ -4590,3 +4590,10 @@ Git SHA / 镜像 / migration：
 - 变更：fast-feedback 与 consistency workflow 均新增 deterministic inventory gate。脚本在 clean checkout 中按提交源码重建 inventory，与 `governance/data_center_architecture_inventory.json` 不一致即失败；脚本/测试 fixture 入口由 §112 的 legacy-entrypoint guard 单独覆盖。
 - 证据：本地提交态 inventory artifact 保持 `direct_data_center_imports_outside_data_center=0`、`provider_imports_outside_data_center=0`；当前工作区 inventory 命令因未提交的 fixed_income/research 外部文件报告 stale，未覆盖或重生成 artifact。
 - 明确未做：未声称 legacy fact 已清零、未删除旧表/adapter/task/fixture、未执行 PostgreSQL/生产观察/备份恢复/M9/M10 或部署；CI gate 只防止基线继续漂移，不能替代生产迁移证据。
+
+## 114. 2026-08-07：ReliabilityStatus 唯一真源与阻断码治理
+
+- 根因：全仓实际只剩 `shared/domain/reliability.py::ReliabilityStatus` 一个类型定义，但计划没有机器证据；`block_reason_code` 仍由多个 current/readiness/MCP 边界以字符串发布，新增拼写或第二个状态枚举不会被 CI 阻断。
+- 变更：新增 `governance/reliability_contracts.json`，固定 7 个 reliability 状态、14 个稳定阻断码及 9 个动态生成边界；`ReliabilityContract` 对非空阻断码执行稳定格式校验。新增 `check_reliability_contract_ownership.py`，扫描提交态生产 Python，拒绝第二个 `ReliabilityStatus`、状态集合漂移、未登记 literal reason 或未登记动态边界。
+- 防回归：fast-feedback 与 consistency workflow 均执行 reliability guard；本地 guard 输出 `statuses=7; reasons=14`。扫描使用 Git 提交态文件清单，避免 Windows 全仓 `rglob` 的不稳定耗时；CI checkout 会覆盖所有待合并生产文件。
+- 明确未做：本批没有把所有 legacy 裸 dict 一次改写成 `ReliabilityContract`，也不声称 D0-D9 跨入口语义已全部验收；生产入口一致性、PostgreSQL、观察窗口和 M9/M10 仍需后续证据。

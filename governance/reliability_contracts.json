@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "owner": "data_center",
+  "status_source": "shared/domain/reliability.py::ReliabilityStatus",
+  "contract_source": "shared/domain/reliability.py::ReliabilityContract",
+  "block_reason_code_format": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+  "statuses": [
+    "fresh",
+    "stale",
+    "missing",
+    "partial",
+    "conflict",
+    "maintenance",
+    "failed"
+  ],
+  "block_reason_codes": [
+    {"code": "core_data_coverage_incomplete", "owner": "operational_readiness"},
+    {"code": "core_data_coverage_unavailable", "owner": "operational_readiness"},
+    {"code": "decision_provider_health_unavailable", "owner": "operational_readiness"},
+    {"code": "decision_provider_capabilities_unhealthy", "owner": "data_center"},
+    {"code": "decision_readiness_blocked", "owner": "operational_readiness"},
+    {"code": "decision_runtime_state_unavailable", "owner": "config_center"},
+    {"code": "equity_core_evidence_incomplete", "owner": "equity"},
+    {"code": "equity_identity_unresolved", "owner": "equity"},
+    {"code": "financial_evidence_capability_unavailable", "owner": "ai_capability"},
+    {"code": "provider_capability_never_succeeded", "owner": "data_center"},
+    {"code": "provider_capability_recent_failure", "owner": "data_center"},
+    {"code": "provider_capability_success_stale", "owner": "data_center"},
+    {"code": "section_evidence_missing", "owner": "equity"},
+    {"code": "upstream_read_failed", "owner": "equity"}
+  ],
+  "dynamic_reason_boundaries": [
+    {
+      "path": "apps/config_center/domain/entities.py",
+      "symbol": "def block_reason_code",
+      "pattern": "^decision_runtime_(maintenance|validating|blocked)$"
+    },
+    {
+      "path": "apps/config_center/application/decision_readiness_guard.py",
+      "symbol": "run_decision_readiness_guard",
+      "pattern": "^[a-z0-9_]+_probe_failed$"
+    },
+    {
+      "path": "apps/data_center/application/interface_services.py",
+      "symbol": "blocked_capabilities",
+      "pattern": "^[a-z][a-z0-9_]+$"
+    },
+    {
+      "path": "apps/data_center/application/provider_health.py",
+      "symbol": "build_capability_health_payload",
+      "pattern": "^provider_capability_[a-z_]+$"
+    },
+    {
+      "path": "core/integration/data_center_readiness.py",
+      "symbol": "_blocked_payload",
+      "pattern": "^[a-z][a-z0-9_]+$"
+    },
+    {
+      "path": "core/health_checks.py",
+      "symbol": "check_core_data_coverage",
+      "pattern": "^core_data_coverage_[a-z_]+$"
+    },
+    {
+      "path": "core/middleware/decision_gate.py",
+      "symbol": "DecisionRuntimeGateMiddleware",
+      "pattern": "^decision_runtime_[a-z_]+$"
+    },
+    {
+      "path": "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py",
+      "symbol": "_read_research_section",
+      "pattern": "^[a-z][a-z0-9_]+$"
+    },
+    {
+      "path": "shared/domain/reliability.py",
+      "symbol": "def to_dict",
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+    }
+  ]
+}

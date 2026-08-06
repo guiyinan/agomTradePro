@@ -53,6 +53,9 @@ jobs:
         run: |
           python scripts/check_current_data_contracts.py
 
+      - name: Enforce reliability contract ownership
+        run: python scripts/check_reliability_contract_ownership.py
+
       - name: Enforce deterministic Data Center architecture inventory
         run: python scripts/data_center_architecture_inventory.py
 
