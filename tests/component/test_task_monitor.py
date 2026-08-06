@@ -463,6 +463,18 @@ def test_backup_database_task_uses_backup_service(monkeypatch):
     assert result["compressed"] is False
 
 
+def test_backup_without_typed_retention_policy_fails_closed_before_io(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "core.integration.runtime_settings.get_runtime_config_value",
+        lambda _key: None,
+    )
+
+    with pytest.raises(RuntimeError, match="backup_retention_policy_missing_or_invalid"):
+        DatabaseBackupService().backup_database(output_dir=str(tmp_path / "backups"))
+
+    assert not (tmp_path / "backups").exists()
+
+
 def test_sqlite_backup_is_online_verified_atomic_and_private(tmp_path, settings):
     database = tmp_path / "source.sqlite3"
     with sqlite3.connect(database) as connection:

@@ -14,6 +14,8 @@ from pathlib import Path
 
 from django.conf import settings
 
+from core.integration import runtime_settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,11 +36,19 @@ class DatabaseBackupService:
     def backup_database(
         self,
         *,
-        keep_days: int = 14,
+        keep_days: int | None = None,
         compress: bool = True,
         output_dir: str | None = None,
     ) -> DatabaseBackupResult:
-        """Create a database backup and clean up expired files."""
+        """Create a database backup and clean up expired files.
+
+        ``keep_days`` is an explicit maintenance override.  Scheduled callers
+        leave it unset so the active typed Config Center profile controls the
+        retention window; a missing or invalid profile blocks the backup
+        before an artifact is created.
+        """
+
+        resolved_keep_days = self._resolve_keep_days(keep_days)
 
         output_path = Path(output_dir or self._get_default_backup_dir())
         output_path.mkdir(parents=True, exist_ok=True)
@@ -52,12 +62,12 @@ class DatabaseBackupService:
         else:
             raise ValueError(f"Unsupported database engine: {db_engine}")
 
-        removed_old_backups = self._cleanup_old_backups(output_path, keep_days)
+        removed_old_backups = self._cleanup_old_backups(output_path, resolved_keep_days)
         logger.info(
             "Database backup completed",
             extra={
                 "backup_file": str(backup_file),
-                "keep_days": keep_days,
+                "keep_days": resolved_keep_days,
                 "compressed": compress,
                 "removed_old_backups": removed_old_backups,
             },
@@ -65,10 +75,30 @@ class DatabaseBackupService:
         return DatabaseBackupResult(
             backup_file=str(backup_file),
             removed_old_backups=removed_old_backups,
-            keep_days=keep_days,
+            keep_days=resolved_keep_days,
             compressed=compress,
             engine=db_engine,
         )
+
+    @staticmethod
+    def _resolve_keep_days(keep_days: int | None) -> int:
+        """Resolve an explicit override or the active typed runtime value."""
+
+        if keep_days is None:
+            try:
+                configured = runtime_settings.get_runtime_config_value(
+                    "task_monitor.retention_days"
+                )
+            except Exception as exc:
+                raise RuntimeError("runtime_config_snapshot_unavailable") from exc
+            if isinstance(configured, bool) or not isinstance(configured, int):
+                raise RuntimeError("backup_retention_policy_missing_or_invalid")
+            keep_days = configured
+        if isinstance(keep_days, bool) or not isinstance(keep_days, int):
+            raise ValueError("keep_days must be an integer")
+        if not 1 <= keep_days <= 3650:
+            raise ValueError("keep_days must be between 1 and 3650")
+        return keep_days
 
     def _get_default_backup_dir(self) -> str:
         """Return the default backup directory."""

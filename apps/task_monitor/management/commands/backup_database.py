@@ -9,7 +9,7 @@ Supports:
 
 Usage:
     python manage.py backup_database
-    python manage.py backup_database --keep 14
+    python manage.py backup_database --keep 1
     python manage.py backup_database --output /custom/path
 """
 
@@ -36,8 +36,8 @@ class Command(BaseCommand):
         parser.add_argument(
             "--keep",
             type=int,
-            default=14,
-            help="Number of backup days to keep (default: 14)",
+            default=None,
+            help="Explicit backup retention override; otherwise use Config Center policy",
         )
         parser.add_argument(
             "--compress",

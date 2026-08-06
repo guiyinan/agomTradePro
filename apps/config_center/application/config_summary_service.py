@@ -36,6 +36,9 @@ class ConfigCenterSummaryRepository(Protocol):
     def get_runtime_asset_proxy_map(self) -> dict[str, str]:
         """Return runtime asset proxy map."""
 
+    def get_runtime_config_value(self, definition_key: str) -> object | None:
+        """Return one active typed runtime value by definition key."""
+
 
 class ConfigCenterSummaryService:
     def __init__(self, repository: ConfigCenterSummaryRepository):
@@ -72,6 +75,11 @@ class ConfigCenterSummaryService:
 
     def get_runtime_asset_proxy_map(self) -> dict[str, str]:
         return self.repository.get_runtime_asset_proxy_map()
+
+    def get_runtime_config_value(self, definition_key: str) -> object | None:
+        """Return one active typed runtime value by definition key."""
+
+        return self.repository.get_runtime_config_value(definition_key)
 
 
 _config_center_summary_repository: ConfigCenterSummaryRepository | None = None

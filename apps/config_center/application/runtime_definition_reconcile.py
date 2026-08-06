@@ -46,6 +46,17 @@ DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
         user_impact="Controls whether macro tasks start with AKShare, Tushare, or the failover chain.",
     ),
     RuntimeConfigDefinition(
+        key="task_monitor.retention_days",
+        namespace="task_monitor",
+        owner_app="task_monitor",
+        value_type=RuntimeValueType.INT,
+        constraints={"minimum": 1, "maximum": 3650},
+        criticality=RuntimeConfigCriticality.NORMAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="Number of days to retain local database backup artifacts.",
+        user_impact="Controls bounded backup cleanup; missing typed policy blocks automatic backup.",
+    ),
+    RuntimeConfigDefinition(
         key="alpha.qlib.enabled",
         namespace="alpha",
         owner_app="alpha",

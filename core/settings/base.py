@@ -918,7 +918,6 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.task_monitor.application.tasks.backup_database_task",
         "schedule": crontab(hour=3, minute=0),  # 每天凌晨 3:00
         "kwargs": {
-            "keep_days": 14,  # 保留 14 天
             "compress": True,
         },
         "options": {

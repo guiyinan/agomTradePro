@@ -58,6 +58,16 @@ def test_provider_default_source_is_typed_enum_definition() -> None:
     assert definition.constraints["choices"] == ["akshare", "tushare", "failover"]
 
 
+def test_backup_retention_is_bounded_typed_runtime_definition() -> None:
+    definition = next(
+        item for item in DEFAULT_RUNTIME_DEFINITIONS if item.key == "task_monitor.retention_days"
+    )
+
+    assert definition.value_type.value == "int"
+    assert definition.owner_app == "task_monitor"
+    assert definition.constraints == {"minimum": 1, "maximum": 3650}
+
+
 class _ProfileRepository:
     def __init__(self, profile: RuntimeConfigProfile) -> None:
         self.profile = profile

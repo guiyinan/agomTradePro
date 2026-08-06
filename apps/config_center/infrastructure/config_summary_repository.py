@@ -8,6 +8,7 @@ from typing import Any
 from apps.config_center.application.runtime_public import (
     get_active_domain_runtime_config,
     get_active_qlib_runtime_config,
+    get_active_runtime_value,
 )
 from apps.config_center.infrastructure.models import SystemSettingsModel
 from core.integration.data_center_readiness import get_macro_runtime_metadata
@@ -176,3 +177,14 @@ class DjangoConfigCenterSummaryRepository:
             key: str(value)
             for key, value in SystemSettingsModel.get_runtime_asset_proxy_map().items()
         }
+
+    def get_runtime_config_value(self, definition_key: str) -> object | None:
+        """Return one value from the active typed profile for the current environment."""
+
+        normalized_key = str(definition_key or "").strip()
+        if not normalized_key:
+            return None
+        return get_active_runtime_value(
+            environment=self._runtime_environment(),
+            definition_key=normalized_key,
+        )

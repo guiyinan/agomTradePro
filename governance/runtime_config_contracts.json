@@ -550,11 +550,28 @@
     {
       "config_key": "task_monitor.retention_days",
       "namespace": "task_monitor",
-      "owner": "operations",
+      "owner": "task_monitor",
       "type": "integer",
-      "current_source": "config_center",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
       "fallback": "blocked",
-      "migration_status": "registered"
+      "migration_status": "consumer_cutover_in_progress",
+      "consumers": [
+        "apps/task_monitor/infrastructure/backup_service.py::DatabaseBackupService._resolve_keep_days",
+        "apps/task_monitor/application/tasks.py::backup_database_task",
+        "core/settings/base.py::CELERY_BEAT_SCHEDULE.database-daily-backup",
+        "apps/task_monitor/management/commands/backup_database.py::Command.handle",
+        "core/integration/runtime_settings.py::get_runtime_config_value",
+        "apps/config_center/infrastructure/config_summary_repository.py::DjangoConfigCenterSummaryRepository.get_runtime_config_value"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_backup_retention_is_bounded_typed_runtime_definition",
+        "tests/component/test_task_monitor.py::test_backup_without_typed_retention_policy_fails_closed_before_io",
+        "tests/unit/task_monitor/test_backup_command_contracts.py::test_backup_database_command_reports_artifact_and_cleanup",
+        "tests/unit/test_runtime_settings_bridge.py::test_runtime_config_value_bridge_delegates_to_config_center_provider"
+      ]
     },
     {
       "config_key": "readiness.decision_maintenance",

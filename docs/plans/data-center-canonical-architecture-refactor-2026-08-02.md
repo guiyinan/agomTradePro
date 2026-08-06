@@ -4489,3 +4489,17 @@ Git SHA / 镜像 / migration：
 - 治理：入口 inventory 从 31 项扩展为 47 项，补齐 application facade、runtime payload、Admin training、HTTP/page、cold-start、账户兼容 Admin 和训练 runtime start/stop 脚本；guard 新增生产源码 `get_runtime_qlib_config` 读取文件覆盖扫描，漏登记直接失败，并改为完整符号标记校验。
 - 测试：Qlib runtime/command/provider 定向回归 `42 passed`，维护命令边界回归 `4 passed`，完整 Qlib integration `29 passed`，Qlib/config/readiness/task 组件联合回归 `75 passed`；current-data contracts `46 surface(s)`、入口 inventory `47 entries validated`、architecture boundary/audit 0、module-cycle 0、变更生产文件 mypy regression 0、governance consistency 0 violations。全仓 mypy ceiling 仍被工作区外部 Portfolio 变更的 2 条新增错误阻断，未纳入本次提交。
 - 明确未做：未删除 `core.settings.base.QLIB_SETTINGS`、SystemSettings Qlib compatibility getter、显式维护脚本及训练 runtime 兼容工作区；未初始化生产 profile、未执行 PostgreSQL/备份恢复/观察窗口/M9/M10、未 push、未部署。
+
+## 101. 2026-08-06：真实执行 current-data manifest 全量 nodeid
+
+- 目标：把“manifest 已登记”与“CI 真实执行”分开验收，避免只验证函数名存在却没有运行证据。
+- 证据：`python scripts/run_current_data_contract_tests.py --pytest-arg=-q --pytest-arg=--reuse-db --pytest-arg=--disable-warnings` 校验并执行登记的 `268` 个 nodeid，结果 `307 passed`。
+- 当前门禁：`python scripts/check_current_data_contracts.py` 保持 `46 surface(s)`；执行 runner 会先拒绝 manifest/source/test/function 缺失，再启动 pytest。
+- 明确未做：该证据仍是本地 SQLite/复用测试库执行，不替代 PostgreSQL、生产覆盖/对账、观察窗口、容量/备份恢复和 M9/M10；不 push、不部署。
+
+## 102. 2026-08-06：数据库备份保留策略收编 typed runtime 入口
+
+- 根因：`database-daily-backup`、`backup_database_task`、`DatabaseBackupService` 和管理命令各自携带 `keep_days=14` 默认值；同一 VPS 上的全量备份因此可能长期累积，且运行时配置无法审计/切换。直接让 task_monitor infrastructure import Config Center 又会形成 `config_center → data_center → task_monitor → config_center` 模块环。
+- 变更：新增 `task_monitor.retention_days` bounded `RuntimeConfigDefinition`（1–3650 天）及 runtime contract；Celery beat 不再传递 14 天常量，任务/服务省略参数时经 `core.integration.runtime_settings` bridge 读取当前 typed snapshot；缺失、失效或异常在创建目录/文件前 fail closed。CLI `--keep` 保留为显式、可审计的运维覆盖，且仍经过同一范围校验。Config Center summary bridge 增加通用 typed value 读取，避免 task_monitor 反向依赖 Config Center app。
+- 测试与门禁：备份/配置定向回归 `28 passed`；runtime config coverage `49`、governance consistency `0 violations`、Celery contracts `18 tasks`、Django check 0、architecture boundary/audit 0、module-cycle 0、current-data contracts `46 surfaces`、变更生产文件 mypy regression 0、Ruff 和 diff check 通过。
+- 明确未做：未在生产 profile 写入实际保留天数、未执行外部备份/下载后清理、PostgreSQL 真实恢复/容量故障注入、M9/M10 或 VPS 部署；生产 profile 应由受控初始化把本地暂存窗口设为 1 天并配套外部保留策略，不能以代码默认替代运维证据；不 push、不部署。

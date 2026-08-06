@@ -29,6 +29,9 @@ class RuntimeSettingsProvider(Protocol):
     def get_runtime_benchmark_code(self, key: str, default: str = "") -> str:
         """Return runtime benchmark code."""
 
+    def get_runtime_config_value(self, definition_key: str) -> object | None:
+        """Return one active typed runtime value by definition key."""
+
 
 _provider: RuntimeSettingsProvider | None = None
 
@@ -129,3 +132,12 @@ def get_runtime_benchmark_code(key: str, default: str = "") -> str:
     if provider is None:
         return default
     return provider.get_runtime_benchmark_code(key, default)
+
+
+def get_runtime_config_value(definition_key: str) -> object | None:
+    """Return one active typed Config Center value through the core bridge."""
+
+    provider = _get_runtime_settings_source()
+    if provider is None:
+        return None
+    return provider.get_runtime_config_value(definition_key)
