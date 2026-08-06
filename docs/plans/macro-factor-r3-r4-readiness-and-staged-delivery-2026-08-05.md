@@ -162,7 +162,7 @@ verified 证据必须来自合同指定 owner、包含非空引用、timezone-aw
 ### M4：R4 Portfolio canonical inputs
 
 - [x] 实现 exposure/covariance/constraint 候选合同、PSD 检查、风险贡献恒等式和版本化成本预算；
-- [x] 不可变资产收益协方差 evidence、PIT/source/estimation-window seal 与 PSD 检查；condition number、rank 和 missing-coverage policy 仍待持久化切片；
+- [x] 不可变资产收益协方差 evidence、PIT/source/estimation-window seal、PSD、condition number、rank、expected/missing denominator 与 missing-coverage policy；
 - [x] 资产×宏观因子 exposure version、置信区间及 Macro Factor owner projection；
 - [x] 成本、上下限、换手、流动性和人工限制统一版本；
 - [x] 等权和资产风险平价基准可复算。
@@ -182,6 +182,8 @@ verified 证据必须来自合同指定 owner、包含非空引用、timezone-aw
 2026-08-05 完成度审计整改进一步将 R4 exposure/covariance 的 `valid_until` 边界收紧为到期时刻立即 stale，并让 candidate report hash 覆盖 input hash、资格状态、factor/residual/total variance、完整 contribution vector 及 blocker detail。
 
 2026-08-06 rolling 续批完成 typed walk-forward/embargo、formation-time Regime PIT assignment、rolling exposure/Regime summary 与同窗三基准 OOS 比较。ID-only Application 必须从 authoritative provider 重读 exact R3 Promotion attestation；三候选共享全部 formation/OOS inputs，selection/validation、covariance estimation window、available-at、expiry 和 return knowledge cutoff 均 fail closed。服务端重算所有候选与路径数值，artifact factory 再把 exposure、Regime/method summary 逐值绑定回 source projection/window metrics。该批没有 ORM、R4 Promotion/lifecycle、组合预览或执行接线；真实 R3 approved artifact、canonical inputs、历史样本、conditioning/missing-coverage 与 append-only lifecycle 仍未形成，R4 保持 `blocked`。
+
+2026-08-06 persistence/query 续批新增 Portfolio-owned append-only receipt/result ledger 与 schema-only `0007`。持久化入口只收 identity/provenance，通过 exact study/R3 provider 重读后由 server-clock Repository 写入；typed restore 会重新运行 R4 service/output integrity 并核对完整 subhash ledger。协方差 condition/rank/coverage denominator 与版本化阈值已进入 study/payload/hash；exact query 只按 record id/hash/as-of 返回 PIT-valid owner evidence。所有 bulk/direct mutation、错误 UoW/clock、raw tamper、非 canonical UTC 与并发冲突 fail closed。Research R4 policy/trial/decision、Promotion/retirement/rollback lifecycle、组合预览和下游 active consumption 仍未形成，R4 保持 `blocked`。
 
 ## 6. 明确非目标
 
