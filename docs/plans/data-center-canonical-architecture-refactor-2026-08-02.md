@@ -4623,10 +4623,10 @@ Git SHA / 镜像 / migration：
 ## 118. 2026-08-07：Data Center 全调用入口一次枚举
 
 - 目标：把此前分散在 architecture/current-data/Celery/TUI/SDK/MCP 清单中的入口合成一个确定性视图，后续每类问题先定位 owner、状态和替代口，再决定迁移或退役，不再依赖人工全文搜索。
-- 变更：新增 `data_center_entrypoint_inventory.py` 与 `governance/data_center_entrypoints.json`，静态枚举 REST、SDK、MCP、Terminal/TUI、Capability、management command、Celery task、Beat schedule、script、Application Public Port、compatibility façade 和 current-data surface；状态严格区分 `active_public / compatibility / candidate-review`，发现入口不会自动升级为已治理。
-- 当前快照：共 547 个入口；`active_public=347`、`compatibility=110`、`candidate-review=90`。分类为 Beat 57、Capability 25、Celery 53、compatibility façade 93、current-data 46、management command 25、MCP 29、Public Port 91、REST 54、script 6、SDK 45、Terminal/TUI 23。
-- 防回归与证据：fast-feedback 和 consistency CI 均执行 stale guard；默认重建校验通过，清单单测 3 passed，Ruff/Black 与 workflow YAML 解析通过。90 个待审入口保留为显式债务，其中包含未纳入 Celery task contract 的任务/调度候选，不以本次枚举冒充消费者全切换。
-- 合并态 architecture inventory 在干净 detached worktree 重建：`direct_data_center_imports_outside_data_center=0`、`provider_imports_outside_data_center=0`、`cross_app_orm_imports=51`、`legacy_fact_references=143`、`current_surface_references=3364`、`data_write_task_decorators=56`；主工作区未跟踪的 Research 开发文件未混入基线。
+- 变更：新增 `data_center_entrypoint_inventory.py` 与 `governance/data_center_entrypoints.json`，静态枚举 REST、SDK、MCP、Terminal/TUI、Capability、management command、Celery task、Beat schedule、script、Application Public Port、compatibility façade 和 current-data surface；状态严格区分 `active_public / compatibility / adjacent_operational / candidate-review`，发现入口不会自动升级为已治理。
+- 首次快照：共 547 个入口；`active_public=350`、`compatibility=118`、`adjacent_operational=66`、`candidate-review=13`。分类为 Beat 57、Capability 25、Celery 53、compatibility façade 93、current-data 46、management command 25、MCP 29、Public Port 91、REST 54、script 6、SDK 45、Terminal/TUI 23。
+- 防回归与证据：fast-feedback 和 consistency CI 均执行 stale guard；默认重建校验通过，清单单测 3 passed，Ruff/Black 与 workflow YAML 解析通过。非 Data Center owner 的业务任务/调度明确标为 `adjacent_operational`，不再冒充迁移债务；13 个真实待审入口为 Macro 7 个任务、Realtime 1 个任务、对应 4 个 Beat 调度及 1 个未发布 TUI action。已登记 task 的短 decorator 名、治理/测量脚本不会再被误报为候选。不以本次枚举冒充消费者全切换。
+- 首次合并态 architecture inventory 在干净 detached worktree 重建：`direct_data_center_imports_outside_data_center=0`、`provider_imports_outside_data_center=0`、`cross_app_orm_imports=51`、`legacy_fact_references=143`、`current_surface_references=3365`、`data_write_task_decorators=56`；当时主工作区未跟踪的 Research 开发文件未混入基线。
 - 明确未做：该清单是静态调用面证据，不执行 Django、数据库或外网；它不能替代 D0-D9 跨入口字段一致性、PostgreSQL 性能、生产观察窗口、备份恢复和 M9/M10 验收。
 
 ## 119. 2026-08-07：Data Center Public Port 类型契约拆分
@@ -4635,3 +4635,19 @@ Git SHA / 镜像 / migration：
 - 变更：将 Alpha 价格覆盖与 Macro projection 的纯 Application Protocol 移到 `public_protocols.py`，`public.py` 继续原名导入/导出，既有调用路径和 Public Port API 不变。
 - 证据：`public.py` 降至 1118 个非空行，新类型文件 133 行；目标回归 16 passed，两个生产文件增量 mypy 0，Ruff/Black 通过。未提高 `allowed_large_python_files` 或其他债务基线。
 - 并行工作区说明：治理检查仍报告 Fixed Income/Research 的 3 个大文件候选，它们属于其他开发提交/未跟踪文件，本批未修改、未登记豁免，也未误提交。
+
+## 120. 2026-08-07：合并态大文件治理债务清零
+
+- 根因：并行提交把 `curve_relative_value.py`、`state_model_qualification.py` 和 `r4_promotion_repository.py` 分别推到 2092、1607、1242 个非空行，导致一致性门禁失败；这些不是可接受的“既有债务”，也不应通过抬高 baseline 放行。
+- 变更：Fixed Income curve-relative-value 按 contracts/results/evaluator 拆为 804/631/689 行，原路径保留 68 行兼容导出；State Model 按 contracts/evaluation 拆为 892/746 行，原路径保留 47 行 façade；R4 repository 抽出 6 个 ORM value projection helper 到 172 行模块，主仓储降至 1100 行。
+- 行为保持：Fixed Income 34 个类/函数 AST 定义对比 `missing=0/extra=0/changed=0`；State Model 原 `__all__` 与导入路径保持；R4 旧私有 helper 路径继续指向新实现。
+- 证据：Fixed Income 20 passed、State Model 34 passed、R4 repository component 13 passed；9 个生产文件增量 mypy 0，Ruff/Black 通过；`check_governance_consistency.py` 最终 `large_python_files=0`、总 violations=0。未增加任何大文件豁免或债务基线。
+- 并行边界：未跟踪的 R5 relative-value promotion 开发文件未纳入本批提交或测试结论。
+
+## 121. 2026-08-07：全入口候选收编完成
+
+- 根因：首次枚举的 13 个候选不是同一类遗漏。Macro 7 个任务和 Realtime 1 个任务缺 Celery 业务结果契约，对应 4 个 Beat 调度因此也无法证明受治理；PIT manifest 详情动作虽在 generated graph 中，却因 promotion 缺 Data Center 参数化动作路由而被 published graph 丢弃，并把字符串 `manifest_id` 错判成整数。
+- 任务收编：8 个任务在 Celery 边界完成参数校验，统一发布 `success/outcome/requested/succeeded/failed/stored/blocked/count_unit/error`，明确 `success/partial/noop/blocked/failed`，零写入不再静默成功；Realtime 额外保留源报价时间并在任务边界拒绝缺失、未来或超过 300 秒的观测。Celery 治理扩展为 27 个任务、7 个源文件，任务和对应 Beat 均由精确测试证据反向登记。
+- TUI 收编：compiler 增加 `param.api.get.api.data-center* -> api-library.data-center` 晋级规则，并为 PIT manifest 详情声明 `text/string` path field；generated/published 工件由 compiler 全量重建，目标动作成为 `approved:parameterized-promoted`。同一次确定性重建还发现并发布已有的 Data Center provider status 安全读入口，因此总数净增 1，不是人工追加 JSON。
+- 最终快照：共 548 个入口；`active_public=356`、`compatibility=126`、`adjacent_operational=66`、`candidate-review=0`。分类为 Beat 57、Capability 25、Celery 53、compatibility façade 93、current-data 46、management command 25、MCP 29、Public Port 91、REST 54、script 6、SDK 45、Terminal/TUI 24。
+- 证据：Macro 37 passed、Realtime 11 passed、TUI compiler 48 passed、入口清单 3 passed；Celery contract guard 为 27 tasks/7 files，current-data 46 surfaces、Reliability owner、mypy、Ruff/Black 均通过。最终 architecture inventory 为 Data Center 外部直连 0、Provider 外部直连 0、跨 App ORM 51、旧事实引用 143、current-surface 引用 3372、数据写任务 decorator 56。候选清零表示所有静态入口已有明确治理状态，不冒充 D0-D9 跨入口语义一致性、PostgreSQL 性能或生产观察窗口已经完成。

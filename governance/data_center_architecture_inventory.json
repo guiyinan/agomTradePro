@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3364,
+    "current_surface_references": 3372,
     "data_write_task_decorators": 56,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 4,
@@ -5143,39 +5143,89 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 547,
+      "line": 386,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the macro governance summary through the public port.\"\"\""
     },
     {
-      "line": 680,
+      "line": 519,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 750,
+      "line": 589,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read fresh, member-bound macro values for current-facing consumers.\"\"\""
     },
     {
-      "line": 759,
+      "line": 598,
       "path": "apps/data_center/application/public.py",
       "text": "maintenance screens.  Current-facing pages use this port so a non-empty"
     },
     {
-      "line": 760,
+      "line": 599,
       "path": "apps/data_center/application/public.py",
       "text": "raw latest fact cannot be presented as a usable indicator value."
     },
     {
-      "line": 910,
+      "line": 749,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1003,
+      "line": 842,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
+    },
+    {
+      "line": 849,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 874,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 876,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
+    },
+    {
+      "line": 884,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 939,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 943,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
+    },
+    {
+      "line": 956,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 961,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
+    },
+    {
+      "line": 976,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 992,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
     },
     {
       "line": 1010,
@@ -5183,97 +5233,47 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1035,
+      "line": 1027,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1037,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
-    },
-    {
-      "line": 1045,
+      "line": 1043,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1100,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 1104,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
-    },
-    {
-      "line": 1117,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 1122,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
-    },
-    {
-      "line": 1137,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 1153,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 1171,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 1188,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 1204,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 1241,
+      "line": 1080,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 1244,
+      "line": 1083,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 1248,
+      "line": 1087,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 1250,
+      "line": 1089,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 1253,
+      "line": 1092,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 1254,
+      "line": 1093,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 1419,
+      "line": 1258,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -8843,22 +8843,22 @@
       "text": "\"\"\"Return the latest date for one macro indicator.\"\"\""
     },
     {
-      "line": 124,
+      "line": 207,
       "path": "apps/macro/application/tasks.py",
       "text": "latest = response.data[0] if response.data else None"
     },
     {
-      "line": 149,
+      "line": 232,
       "path": "apps/macro/application/tasks.py",
       "text": "\"days_lag\": latest.age_days if latest else None,"
     },
     {
-      "line": 311,
+      "line": 509,
       "path": "apps/macro/application/tasks.py",
-      "text": "f\"latest={item['latest_date']} \""
+      "text": "f\"latest={item.get('latest_date', '')} \""
     },
     {
-      "line": 335,
+      "line": 553,
       "path": "apps/macro/application/tasks.py",
       "text": "dict: Sync result summary."
     },
@@ -10995,27 +10995,32 @@
     {
       "line": 12,
       "path": "apps/realtime/application/tasks.py",
+      "text": "from apps.realtime.domain.entities import PricePollingConfig, normalize_asset_code"
+    },
+    {
+      "line": 213,
+      "path": "apps/realtime/application/tasks.py",
       "text": "name=\"apps.realtime.application.tasks.poll_realtime_prices_task\","
     },
     {
-      "line": 20,
-      "path": "apps/realtime/application/tasks.py",
-      "text": "Poll realtime prices for monitored assets or fetch the latest snapshot for a subset."
-    },
-    {
-      "line": 29,
+      "line": 238,
       "path": "apps/realtime/application/tasks.py",
       "text": "from apps.realtime.application.price_polling_service import PricePollingUseCase"
     },
     {
-      "line": 35,
+      "line": 246,
       "path": "apps/realtime/application/tasks.py",
-      "text": "logger.info(\"Polling realtime prices for %s requested assets\", len(requested_codes))"
+      "text": "\"Polling realtime prices for %s requested assets\","
     },
     {
-      "line": 42,
+      "line": 282,
       "path": "apps/realtime/application/tasks.py",
       "text": "logger.info(\"Polling realtime prices for the monitored watchlist\")"
+    },
+    {
+      "line": 335,
+      "path": "apps/realtime/application/tasks.py",
+      "text": "logger.exception(\"Realtime price polling task failed mode=%s\", mode)"
     },
     {
       "line": 1,
@@ -12393,6 +12398,11 @@
       "text": "\"exact current r3 attestation was substituted or is inactive\""
     },
     {
+      "line": 635,
+      "path": "apps/research/application/r5_relative_value_promotion_lifecycle.py",
+      "text": "\"authorization predates the current stream head\","
+    },
+    {
       "line": 72,
       "path": "apps/research/application/scenario_probability_research.py",
       "text": "\"\"\"Return frozen evidence and never rebuild history from current values.\"\"\""
@@ -12568,6 +12578,31 @@
       "text": "raise ValueError(\"R4 promotion trial current R3 evidence was substituted\")"
     },
     {
+      "line": 656,
+      "path": "apps/research/domain/r5_relative_value_promotion_lifecycle.py",
+      "text": "\"\"\"Verify a complete recorded prefix and derive current scope state.\"\"\""
+    },
+    {
+      "line": 662,
+      "path": "apps/research/domain/r5_relative_value_promotion_lifecycle.py",
+      "text": "latest = events[-1]"
+    },
+    {
+      "line": 679,
+      "path": "apps/research/domain/r5_relative_value_promotion_lifecycle.py",
+      "text": "scope=latest.scope,"
+    },
+    {
+      "line": 680,
+      "path": "apps/research/domain/r5_relative_value_promotion_lifecycle.py",
+      "text": "stream_id=latest.stream_id,"
+    },
+    {
+      "line": 683,
+      "path": "apps/research/domain/r5_relative_value_promotion_lifecycle.py",
+      "text": "latest_event_hash=latest.content_hash,"
+    },
+    {
       "line": 65,
       "path": "apps/research/domain/scenario_research_evidence.py",
       "text": "\"\"\"Freeze a canonical reference without resolving current data.\"\"\""
@@ -12583,32 +12618,37 @@
       "text": "\"\"\"Prove shortfall only from complete, current, specification-bound evidence.\"\"\""
     },
     {
-      "line": 235,
+      "line": 6,
+      "path": "apps/research/domain/state_model_qualification_contracts.py",
+      "text": "publishes a current state, authorizes a decision, or replaces canonical Regime."
+    },
+    {
+      "line": 238,
       "path": "apps/research/infrastructure/r4_promotion_repository.py",
       "text": "raise R4PromotionRepositoryCorruption(\"Portfolio or current R3 receipt was substituted\")"
     },
     {
-      "line": 668,
+      "line": 671,
       "path": "apps/research/infrastructure/r4_promotion_repository.py",
       "text": "current = self._current_r3_provider.get_exact("
     },
     {
-      "line": 678,
+      "line": 681,
       "path": "apps/research/infrastructure/r4_promotion_repository.py",
       "text": "if current is None:"
     },
     {
-      "line": 679,
+      "line": 682,
       "path": "apps/research/infrastructure/r4_promotion_repository.py",
       "text": "raise R4PromotionRepositoryCorruption(\"exact current R3 evidence is unavailable\")"
     },
     {
-      "line": 680,
+      "line": 683,
       "path": "apps/research/infrastructure/r4_promotion_repository.py",
       "text": "current_evidence = project_r4_promotion_r3_attestation(current)"
     },
     {
-      "line": 694,
+      "line": 697,
       "path": "apps/research/infrastructure/r4_promotion_repository.py",
       "text": "\"Portfolio R4 record or current R3 evidence was substituted\""
     },
@@ -17205,37 +17245,37 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 155,
+      "line": 238,
       "path": "apps/macro/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 258,
+      "line": 401,
       "path": "apps/macro/application/tasks.py",
       "text": "@shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]"
     },
     {
-      "line": 289,
+      "line": 461,
       "path": "apps/macro/application/tasks.py",
       "text": "@shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]"
     },
     {
-      "line": 324,
+      "line": 542,
       "path": "apps/macro/application/tasks.py",
       "text": "@shared_task(time_limit=1800, soft_time_limit=1700)  # type: ignore[misc]"
     },
     {
-      "line": 443,
+      "line": 730,
       "path": "apps/macro/application/tasks.py",
       "text": "@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]"
     },
     {
-      "line": 488,
+      "line": 911,
       "path": "apps/macro/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 556,
+      "line": 952,
       "path": "apps/macro/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
@@ -17305,7 +17345,7 @@
       "text": "@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]"
     },
     {
-      "line": 11,
+      "line": 212,
       "path": "apps/realtime/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
