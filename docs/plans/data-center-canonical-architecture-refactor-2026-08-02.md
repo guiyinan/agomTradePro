@@ -4510,3 +4510,10 @@ Git SHA / 镜像 / migration：
 - 变更：新增 `account.*` 7 个 typed definitions 与 all-or-nothing account projection；Config Center `build/update_system_governance` 读写同一 Profile，`_legacy_runtime_values` 只负责显式 compatibility bootstrap。账户注册、MCP 指引、用户审批/默认 MCP、账户设置上下文统一经 Config Center governance projection；Classic SystemSettings Admin 移除这 7 个可写字段并保留迁移提示。兼容期字段 criticality 设为 `normal`，缺少 account projection 时整组回退旧 singleton，避免对已有未迁移 Profile 造成跨域激活阻断。
 - 测试与门禁：runtime definition/Provider 组件 `14 passed`；Config Center/账户设置 API `41 passed`；账户/MCP 页面 `19 passed`；runtime config coverage `49`、governance consistency `0 violations`、Celery contracts `18 tasks`、Django check 0、architecture boundary/audit 0、module-cycle 0、current-data contracts `46 surfaces`、变更生产文件 mypy regression 0、Ruff/diff check 通过。
 - 明确未做：未删除 `SystemSettingsModel` 账户兼容列、未将备份 SMTP/Decision Runtime 状态迁入 typed definitions、未初始化生产 account profile、未执行 PostgreSQL/备份恢复/观察窗口/M9/M10 或 VPS 部署；这些字段仍需按同一 projection/外部密钥策略分组收编；不 push、不部署。
+
+## 104. 2026-08-06：SystemSettings 兼容入口全量盘点与剩余边界
+
+- 已收编：Qlib/Alpha/market/provider runtime → typed Profile；`task_monitor.retention_days` → typed Profile；account 准入、MCP 默认值、Token 明文、协议/风险文案和备注 → typed account projection。对应读入口分别覆盖 provider/adapter、Celery/Admin/readiness/TUI、注册/MCP/账户管理/Config Center API。
+- 已确认无需另造定义：Decision Runtime 六个状态字段的唯一 owner 是 `ConfigCenterSettingsRepository.get/set_decision_runtime_state`，`core.middleware.decision_gate`、`core.health_checks` 和 readiness guard 均通过 `GetDecisionRuntimeStateUseCase` 读取；后续只需在 M9 删除兼容列与迁移，不再增加第二个 runtime value。
+- 尚未收编且必须成组处理：backup delivery 的邮箱、站点、SMTP 参数、启停/周期/链接 TTL、加密密码、下载令牌和发送状态仍由 `SystemSettingsModel` 供 `send_database_backup_email_task`、账户 backup repository、下载视图、`core.encryption_readiness` 和兼容 Admin 使用。其根因是配置、密钥引用、一次性 token 状态混在同一模型；在外部 secret-ref/backup delivery policy 与状态表落地前，不能只迁移其中几个字段。
+- 兼容残留：`core.settings.base.QLIB_SETTINGS`、Qlib/SystemSettings getter、旧账户/备份字段和 legacy maintenance 脚本均已有 owner/guard 记录，但仍等待 profile 初始化、生产观察、备份恢复和 M9 破坏性清理。工作区另有未跟踪 research 方向文件，未纳入本专项提交；其新增 mypy 债务会使全仓 ceiling 保持阻断。
