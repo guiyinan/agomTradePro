@@ -38,6 +38,7 @@ def test_inventory_covers_every_governed_invocation_category(
     assert set(payload["counts"]["by_category"]) == inventory.REQUIRED_CATEGORIES
     assert set(payload["counts"]["by_status"]) == {
         "active_public",
+        "adjacent_operational",
         "compatibility",
         "candidate-review",
     }

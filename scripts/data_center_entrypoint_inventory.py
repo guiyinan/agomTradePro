@@ -19,7 +19,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "governance" / "data_center_entrypoints.json"
-STATUSES = frozenset({"active_public", "compatibility", "candidate-review"})
+STATUSES = frozenset({"active_public", "compatibility", "adjacent_operational", "candidate-review"})
 REQUIRED_CATEGORIES = frozenset(
     {
         "script",
@@ -40,6 +40,12 @@ COMPATIBILITY_FACADES = (
     "apps/data_center/application/interface_services.py",
     "apps/data_center/application/query_services.py",
     "apps/data_center/application/read_facade.py",
+)
+GOVERNANCE_SCRIPT_ENTRYPOINTS = frozenset(
+    {
+        "scripts/check_data_center_runtime_catalog.py",
+        "scripts/measure_data_center_query_ports.py",
+    }
 )
 
 
@@ -147,16 +153,25 @@ def _discover_scripts(legacy: dict[str, Any]) -> list[dict[str, object]]:
         ):
             continue
         registered = path_text in legacy_paths
+        governed_tool = path_text in GOVERNANCE_SCRIPT_ENTRYPOINTS
         results.append(
             _entry(
                 category="script",
                 path=path_text,
                 symbol="__main__",
-                status="compatibility" if registered else "candidate-review",
+                status=(
+                    "compatibility"
+                    if registered
+                    else "active_public" if governed_tool else "candidate-review"
+                ),
                 evidence=(
                     "governance/data_center_legacy_entrypoints.json"
                     if registered
-                    else "static Data Center reference; explicit owner review required"
+                    else (
+                        "Data Center governance/measurement tooling"
+                        if governed_tool
+                        else "static Data Center reference; explicit owner review required"
+                    )
                 ),
             )
         )
@@ -222,13 +237,29 @@ def _discover_celery_tasks(celery: dict[str, Any]) -> list[dict[str, object]]:
             if not task_name:
                 continue
             record = governed.get(task_name)
+            if record is None:
+                record = next(
+                    (
+                        item
+                        for governed_path, item in governed.items()
+                        if str(item.get("source_file") or "") == path_text
+                        and governed_path.rsplit(".", 1)[-1] == node.name
+                    ),
+                    None,
+                )
             owned = path_text.startswith(("apps/data_center/", "apps/config_center/"))
             if record is not None:
                 status = "active_public" if owned else "compatibility"
                 evidence = "governance/celery_task_contracts.json"
-            else:
+            elif path_text == "apps/equity/application/tasks.py" and node.name.endswith("_alias"):
+                status = "compatibility"
+                evidence = "Celery compatibility alias delegates to a governed equity task"
+            elif path_text.startswith(("apps/macro/", "apps/realtime/")):
                 status = "candidate-review"
-                evidence = "Celery decorator discovered without task-contract registration"
+                evidence = "Data acquisition task lacks Celery task-contract registration"
+            else:
+                status = "adjacent_operational"
+                evidence = "Adjacent app-owned operational task; not a Data Center owner task"
             results.append(
                 _entry(
                     category="celery_task",
@@ -280,11 +311,33 @@ def _discover_beat_schedule(celery: dict[str, Any]) -> list[dict[str, object]]:
                 path=_relative(path),
                 symbol=task_path.rsplit(".", 1)[-1],
                 locator=schedule_key,
-                status="active_public" if task_path in governed else "candidate-review",
+                status=(
+                    "active_public"
+                    if task_path in governed
+                    else (
+                        "candidate-review"
+                        if task_path.startswith(
+                            (
+                                "apps.macro.application.tasks.",
+                                "apps.realtime.application.tasks.",
+                            )
+                        )
+                        else "adjacent_operational"
+                    )
+                ),
                 evidence=(
                     "governance/celery_task_contracts.json"
                     if task_path in governed
-                    else "scheduled task lacks Celery task-contract registration"
+                    else (
+                        "scheduled data acquisition task lacks Celery task-contract registration"
+                        if task_path.startswith(
+                            (
+                                "apps.macro.application.tasks.",
+                                "apps.realtime.application.tasks.",
+                            )
+                        )
+                        else "adjacent app-owned operational schedule"
+                    )
                 ),
             )
         )
@@ -650,6 +703,7 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
         "semantics": {
             "active_public": "explicitly governed canonical external or cross-app port",
             "compatibility": "supported migration seam with a canonical Data Center replacement",
+            "adjacent_operational": "enumerated app-owned operation outside the Data Center owner contract",
             "candidate-review": "discovered callable surface; discovery is not approval or completion",
         },
         "source_contracts": [

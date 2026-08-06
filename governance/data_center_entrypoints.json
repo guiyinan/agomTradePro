@@ -15,9 +15,10 @@
       "terminal_tui": 23
     },
     "by_status": {
-      "active_public": 347,
-      "candidate-review": 90,
-      "compatibility": 110
+      "active_public": 350,
+      "adjacent_operational": 66,
+      "candidate-review": 13,
+      "compatibility": 118
     },
     "total": 547
   },
@@ -33,16 +34,16 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:auto_assign_pending_audits_task:policy-review-auto-assign",
       "locator": "policy-review-auto-assign",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "auto_assign_pending_audits_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "scheduled data acquisition task lacks Celery task-contract registration",
       "id": "beat_schedule:core/settings/base.py:auto_sync_due_macro_indicators:auto-sync-due-macro-indicators",
       "locator": "auto-sync-due-macro-indicators",
       "path": "core/settings/base.py",
@@ -51,52 +52,52 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:backup_database_task:database-daily-backup",
       "locator": "database-daily-backup",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "backup_database_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:calculate_all_performance_task:simulated-weekly-performance",
       "locator": "simulated-weekly-performance",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "calculate_all_performance_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:calculate_ic_drift:alpha-calculate-ic-drift",
       "locator": "alpha-calculate-ic-drift",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "calculate_ic_drift"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:calculate_weekly:pulse-weekly-calculate",
       "locator": "pulse-weekly-calculate",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "calculate_weekly"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:check_all_invalidations:daily-signal-invalidation",
       "locator": "daily-signal-invalidation",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "check_all_invalidations"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "scheduled data acquisition task lacks Celery task-contract registration",
       "id": "beat_schedule:core/settings/base.py:check_data_freshness:check-data-freshness",
       "locator": "check-data-freshness",
       "path": "core/settings/base.py",
@@ -105,74 +106,74 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:check_position_invalidation_task:simulated-check-position-invalidation-afternoon",
       "locator": "simulated-check-position-invalidation-afternoon",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "check_position_invalidation_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:check_position_invalidation_task:simulated-check-position-invalidation-morning",
       "locator": "simulated-check-position-invalidation-morning",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "check_position_invalidation_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:check_queue_lag:alpha-check-queue-lag",
       "locator": "alpha-check-queue-lag",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "check_queue_lag"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:check_regime_health:check-regime-health",
       "locator": "check-regime-health",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "check_regime_health"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:check_stop_loss_and_take_profit_task:account-check-stop-loss-take-profit-intraday",
       "locator": "account-check-stop-loss-take-profit-intraday",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "check_stop_loss_and_take_profit_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:cleanup_inactive_accounts_task:simulated-cleanup-accounts",
       "locator": "simulated-cleanup-accounts",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "cleanup_inactive_accounts_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:cleanup_old_metrics:alpha-cleanup-metrics",
       "locator": "alpha-cleanup-metrics",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "cleanup_old_metrics"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:cleanup_old_task_records:task-monitor-cleanup",
       "locator": "task-monitor-cleanup",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "cleanup_old_task_records"
     },
     {
@@ -186,101 +187,101 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:daily_auto_trading_task:simulated-daily-auto-trading",
       "locator": "simulated-daily-auto-trading",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "daily_auto_trading_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:daily_portfolio_inspection:simulated-daily-inspection",
       "locator": "simulated-daily-inspection",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "daily_portfolio_inspection"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:daily_summary:daily-signal-summary",
       "locator": "daily-signal-summary",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "daily_summary"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:evaluate_alerts:alpha-evaluate-alerts",
       "locator": "alpha-evaluate-alerts",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "evaluate_alerts"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:fetch_rss_sources:policy-fetch-rss-sources",
       "locator": "policy-fetch-rss-sources",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "fetch_rss_sources"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:generate_daily_regime_signal:high-frequency-generate-signal",
       "locator": "high-frequency-generate-signal",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "generate_daily_regime_signal"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:generate_daily_report:alpha-daily-report",
       "locator": "alpha-daily-report",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "generate_daily_report"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:generate_reconciliation_runs:broker-execution-reconciliation-eod",
       "locator": "broker-execution-reconciliation-eod",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "generate_reconciliation_runs"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:generate_reconciliation_runs:broker-execution-reconciliation-intraday",
       "locator": "broker-execution-reconciliation-intraday",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "generate_reconciliation_runs"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:monitor_sla_exceeded_task:policy-sla-monitor",
       "locator": "policy-sla-monitor",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "monitor_sla_exceeded_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:notify_invalidated_positions_task:simulated-notify-invalidated-positions",
       "locator": "simulated-notify-invalidated-positions",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "notify_invalidated_positions_task"
     },
     {
@@ -375,56 +376,56 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:qlib_daily_scoped_inference:qlib-daily-scoped-inference",
       "locator": "qlib-daily-scoped-inference",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "qlib_daily_scoped_inference"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:qlib_daily_scoped_inference:qlib-post-close-scoped-inference-recovery",
       "locator": "qlib-post-close-scoped-inference-recovery",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "qlib_daily_scoped_inference"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:qlib_refresh_cache:qlib-weekly-cache-refresh",
       "locator": "qlib-weekly-cache-refresh",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "qlib_refresh_cache"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:recalculate_regime_with_daily_signal:high-frequency-recalculate-regime",
       "locator": "high-frequency-recalculate-regime",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "recalculate_regime_with_daily_signal"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:refresh_current_sentiment_index:sentiment-refresh-current-index",
       "locator": "sentiment-refresh-current-index",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "refresh_current_sentiment_index"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:refresh_gate_constraints_task:policy-gate-refresh",
       "locator": "policy-gate-refresh",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "refresh_gate_constraints_task"
     },
     {
@@ -438,43 +439,43 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:run_maintenance:broker-execution-maintenance",
       "locator": "broker-execution-maintenance",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "run_maintenance"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:run_personal_readiness_daily_task:personal-readiness-daily-evidence",
       "locator": "personal-readiness-daily-evidence",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "run_personal_readiness_daily_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:send_database_backup_email_task:send-database-backup-email",
       "locator": "send-database-backup-email",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "send_database_backup_email_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:send_performance_summary_task:simulated-daily-summary",
       "locator": "simulated-daily-summary",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "send_performance_summary_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "scheduled data acquisition task lacks Celery task-contract registration",
       "id": "beat_schedule:core/settings/base.py:sync_high_frequency_bonds:high-frequency-sync-bonds",
       "locator": "high-frequency-sync-bonds",
       "path": "core/settings/base.py",
@@ -483,7 +484,7 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "scheduled data acquisition task lacks Celery task-contract registration",
       "id": "beat_schedule:core/settings/base.py:sync_high_frequency_commodities:high-frequency-sync-commodities",
       "locator": "high-frequency-sync-commodities",
       "path": "core/settings/base.py",
@@ -492,38 +493,38 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:sync_macro_then_refresh_regime:daily-sync-and-calculate",
       "locator": "daily-sync-and-calculate",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "sync_macro_then_refresh_regime"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:update_all_prices_after_close:realtime-update-prices-after-close",
       "locator": "realtime-update-prices-after-close",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "update_all_prices_after_close"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:update_position_prices_task:simulated-update-prices",
       "locator": "simulated-update-prices",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "update_position_prices_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "scheduled task lacks Celery task-contract registration",
+      "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/base.py:update_provider_metrics:alpha-update-provider-metrics",
       "locator": "alpha-update-provider-metrics",
       "path": "core/settings/base.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "update_provider_metrics"
     },
     {
@@ -762,56 +763,56 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/account/application/tasks.py:check_stop_loss_and_take_profit_task:check_stop_loss_and_take_profit_task",
       "locator": "check_stop_loss_and_take_profit_task",
       "path": "apps/account/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "check_stop_loss_and_take_profit_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/account/application/tasks.py:check_stop_loss_task:check_stop_loss_task",
       "locator": "check_stop_loss_task",
       "path": "apps/account/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "check_stop_loss_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/account/application/tasks.py:check_take_profit_task:check_take_profit_task",
       "locator": "check_take_profit_task",
       "path": "apps/account/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "check_take_profit_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/account/application/tasks.py:check_volatility_and_adjust_task:check_volatility_and_adjust_task",
       "locator": "check_volatility_and_adjust_task",
       "path": "apps/account/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "check_volatility_and_adjust_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/account/application/tasks.py:send_database_backup_email_task:send_database_backup_email_task",
       "locator": "send_database_backup_email_task",
       "path": "apps/account/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "send_database_backup_email_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/config_center/application/decision_readiness_guard_tasks.py:audit_decision_readiness_task:audit_decision_readiness_task",
       "locator": "audit_decision_readiness_task",
       "path": "apps/config_center/application/decision_readiness_guard_tasks.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "audit_decision_readiness_task"
     },
     {
@@ -897,79 +898,79 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Celery compatibility alias delegates to a governed equity task",
       "id": "celery_task:apps/equity/application/tasks.py:sync_equity_valuation_task_alias:apps.equity.application.tasks.sync_equity_valuation_task",
       "locator": "apps.equity.application.tasks.sync_equity_valuation_task",
       "path": "apps/equity/application/tasks.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "sync_equity_valuation_task_alias"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Celery compatibility alias delegates to a governed equity task",
       "id": "celery_task:apps/equity/application/tasks.py:sync_financial_data_task_alias:apps.equity.application.tasks.sync_financial_data_task",
       "locator": "apps.equity.application.tasks.sync_financial_data_task",
       "path": "apps/equity/application/tasks.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "sync_financial_data_task_alias"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Celery compatibility alias delegates to a governed equity task",
       "id": "celery_task:apps/equity/application/tasks.py:sync_validate_scan_equity_valuation_task_alias:apps.equity.application.tasks.sync_validate_scan_equity_valuation_task",
       "locator": "apps.equity.application.tasks.sync_validate_scan_equity_valuation_task",
       "path": "apps/equity/application/tasks.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "sync_validate_scan_equity_valuation_task_alias"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Celery compatibility alias delegates to a governed equity task",
       "id": "celery_task:apps/equity/application/tasks.py:validate_equity_valuation_quality_task_alias:apps.equity.application.tasks.validate_equity_valuation_quality_task",
       "locator": "apps.equity.application.tasks.validate_equity_valuation_quality_task",
       "path": "apps/equity/application/tasks.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "validate_equity_valuation_quality_task_alias"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/equity/application/tasks_valuation_sync.py:sync_equity_valuation_task:sync_equity_valuation_task",
       "locator": "sync_equity_valuation_task",
       "path": "apps/equity/application/tasks_valuation_sync.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "sync_equity_valuation_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/equity/application/tasks_valuation_sync.py:sync_financial_data_task:sync_financial_data_task",
       "locator": "sync_financial_data_task",
       "path": "apps/equity/application/tasks_valuation_sync.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "sync_financial_data_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/equity/application/tasks_valuation_sync.py:sync_validate_scan_equity_valuation_task:sync_validate_scan_equity_valuation_task",
       "locator": "sync_validate_scan_equity_valuation_task",
       "path": "apps/equity/application/tasks_valuation_sync.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "sync_validate_scan_equity_valuation_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/equity/application/tasks_valuation_sync.py:validate_equity_valuation_quality_task:validate_equity_valuation_quality_task",
       "locator": "validate_equity_valuation_quality_task",
       "path": "apps/equity/application/tasks_valuation_sync.py",
-      "status": "candidate-review",
+      "status": "compatibility",
       "symbol": "validate_equity_valuation_quality_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Data acquisition task lacks Celery task-contract registration",
       "id": "celery_task:apps/macro/application/tasks.py:auto_sync_due_macro_indicators:auto_sync_due_macro_indicators",
       "locator": "auto_sync_due_macro_indicators",
       "path": "apps/macro/application/tasks.py",
@@ -978,7 +979,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Data acquisition task lacks Celery task-contract registration",
       "id": "celery_task:apps/macro/application/tasks.py:check_data_freshness:check_data_freshness",
       "locator": "check_data_freshness",
       "path": "apps/macro/application/tasks.py",
@@ -987,7 +988,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Data acquisition task lacks Celery task-contract registration",
       "id": "celery_task:apps/macro/application/tasks.py:cleanup_old_data:cleanup_old_data",
       "locator": "cleanup_old_data",
       "path": "apps/macro/application/tasks.py",
@@ -996,7 +997,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Data acquisition task lacks Celery task-contract registration",
       "id": "celery_task:apps/macro/application/tasks.py:send_data_freshness_alert:send_data_freshness_alert",
       "locator": "send_data_freshness_alert",
       "path": "apps/macro/application/tasks.py",
@@ -1005,7 +1006,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Data acquisition task lacks Celery task-contract registration",
       "id": "celery_task:apps/macro/application/tasks.py:sync_high_frequency_bonds:sync_high_frequency_bonds",
       "locator": "sync_high_frequency_bonds",
       "path": "apps/macro/application/tasks.py",
@@ -1014,7 +1015,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Data acquisition task lacks Celery task-contract registration",
       "id": "celery_task:apps/macro/application/tasks.py:sync_high_frequency_commodities:sync_high_frequency_commodities",
       "locator": "sync_high_frequency_commodities",
       "path": "apps/macro/application/tasks.py",
@@ -1023,7 +1024,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Data acquisition task lacks Celery task-contract registration",
       "id": "celery_task:apps/macro/application/tasks.py:sync_macro_data:sync_macro_data",
       "locator": "sync_macro_data",
       "path": "apps/macro/application/tasks.py",
@@ -1032,124 +1033,124 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/operational_readiness/application/tasks.py:run_personal_readiness_daily_task:run_personal_readiness_daily_task",
       "locator": "run_personal_readiness_daily_task",
       "path": "apps/operational_readiness/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "run_personal_readiness_daily_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/policy/application/tasks.py:auto_assign_pending_audits:auto_assign_pending_audits",
       "locator": "auto_assign_pending_audits",
       "path": "apps/policy/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "auto_assign_pending_audits"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/policy/application/tasks.py:auto_assign_pending_audits_task:auto_assign_pending_audits_task",
       "locator": "auto_assign_pending_audits_task",
       "path": "apps/policy/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "auto_assign_pending_audits_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/policy/application/tasks.py:check_policy_status_alert:check_policy_status_alert",
       "locator": "check_policy_status_alert",
       "path": "apps/policy/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "check_policy_status_alert"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/policy/application/tasks.py:cleanup_old_audit_queues:cleanup_old_audit_queues",
       "locator": "cleanup_old_audit_queues",
       "path": "apps/policy/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "cleanup_old_audit_queues"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/policy/application/tasks.py:cleanup_old_policy_logs:cleanup_old_policy_logs",
       "locator": "cleanup_old_policy_logs",
       "path": "apps/policy/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "cleanup_old_policy_logs"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/policy/application/tasks.py:cleanup_old_rss_logs:cleanup_old_rss_logs",
       "locator": "cleanup_old_rss_logs",
       "path": "apps/policy/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "cleanup_old_rss_logs"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/policy/application/tasks.py:fetch_rss_sources:fetch_rss_sources",
       "locator": "fetch_rss_sources",
       "path": "apps/policy/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "fetch_rss_sources"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/policy/application/tasks.py:generate_daily_policy_summary:generate_daily_policy_summary",
       "locator": "generate_daily_policy_summary",
       "path": "apps/policy/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "generate_daily_policy_summary"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/policy/application/tasks.py:monitor_policy_transitions:monitor_policy_transitions",
       "locator": "monitor_policy_transitions",
       "path": "apps/policy/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "monitor_policy_transitions"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/policy/application/tasks.py:monitor_sla_exceeded_task:monitor_sla_exceeded_task",
       "locator": "monitor_sla_exceeded_task",
       "path": "apps/policy/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "monitor_sla_exceeded_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/policy/application/tasks.py:refresh_gate_constraints_task:refresh_gate_constraints_task",
       "locator": "refresh_gate_constraints_task",
       "path": "apps/policy/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "refresh_gate_constraints_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/policy/application/tasks.py:trigger_signal_reevaluation:trigger_signal_reevaluation",
       "locator": "trigger_signal_reevaluation",
       "path": "apps/policy/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "trigger_signal_reevaluation"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Data acquisition task lacks Celery task-contract registration",
       "id": "celery_task:apps/realtime/application/tasks.py:poll_realtime_prices_task:apps.realtime.application.tasks.poll_realtime_prices_task",
       "locator": "apps.realtime.application.tasks.poll_realtime_prices_task",
       "path": "apps/realtime/application/tasks.py",
@@ -1158,83 +1159,83 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/regime/application/orchestration.py:calculate_regime_after_sync:calculate_regime_after_sync",
       "locator": "calculate_regime_after_sync",
       "path": "apps/regime/application/orchestration.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "calculate_regime_after_sync"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/regime/application/orchestration.py:generate_daily_regime_signal:generate_daily_regime_signal",
       "locator": "generate_daily_regime_signal",
       "path": "apps/regime/application/orchestration.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "generate_daily_regime_signal"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/regime/application/orchestration.py:notify_regime_change_after_calculation:notify_regime_change_after_calculation",
       "locator": "notify_regime_change_after_calculation",
       "path": "apps/regime/application/orchestration.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "notify_regime_change_after_calculation"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/regime/application/orchestration.py:recalculate_regime_with_daily_signal:recalculate_regime_with_daily_signal",
       "locator": "recalculate_regime_with_daily_signal",
       "path": "apps/regime/application/orchestration.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "recalculate_regime_with_daily_signal"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/regime/application/orchestration.py:sync_macro_then_refresh_regime:sync_macro_then_refresh_regime",
       "locator": "sync_macro_then_refresh_regime",
       "path": "apps/regime/application/orchestration.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "sync_macro_then_refresh_regime"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/task_monitor/application/tasks.py:backup_database_task:backup_database_task",
       "locator": "backup_database_task",
       "path": "apps/task_monitor/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "backup_database_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/task_monitor/application/tasks.py:cleanup_old_task_records:cleanup_old_task_records",
       "locator": "cleanup_old_task_records",
       "path": "apps/task_monitor/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "cleanup_old_task_records"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/task_monitor/application/tasks.py:run_personal_readiness_daily_task:apps.task_monitor.application.tasks.run_personal_readiness_daily_task",
       "locator": "apps.task_monitor.application.tasks.run_personal_readiness_daily_task",
       "path": "apps/task_monitor/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "run_personal_readiness_daily_task"
     },
     {
       "category": "celery_task",
-      "evidence": "Celery decorator discovered without task-contract registration",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
       "id": "celery_task:apps/task_monitor/application/tasks.py:verify_backup_task:verify_backup_task",
       "locator": "verify_backup_task",
       "path": "apps/task_monitor/application/tasks.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "verify_backup_task"
     },
     {
@@ -4281,11 +4282,11 @@
     },
     {
       "category": "script",
-      "evidence": "static Data Center reference; explicit owner review required",
+      "evidence": "Data Center governance/measurement tooling",
       "id": "script:scripts/check_data_center_runtime_catalog.py:__main__:",
       "locator": "",
       "path": "scripts/check_data_center_runtime_catalog.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "__main__"
     },
     {
@@ -4299,11 +4300,11 @@
     },
     {
       "category": "script",
-      "evidence": "static Data Center reference; explicit owner review required",
+      "evidence": "Data Center governance/measurement tooling",
       "id": "script:scripts/measure_data_center_query_ports.py:__main__:",
       "locator": "",
       "path": "scripts/measure_data_center_query_ports.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "__main__"
     },
     {
@@ -4950,6 +4951,7 @@
   "schema_version": "1.0",
   "semantics": {
     "active_public": "explicitly governed canonical external or cross-app port",
+    "adjacent_operational": "enumerated app-owned operation outside the Data Center owner contract",
     "candidate-review": "discovered callable surface; discovery is not approval or completion",
     "compatibility": "supported migration seam with a canonical Data Center replacement"
   },
