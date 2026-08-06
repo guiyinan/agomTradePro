@@ -1,8 +1,9 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3347,
+    "current_surface_references": 3362,
     "data_write_task_decorators": 55,
+    "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 143,
     "provider_imports_outside_data_center": 0,
@@ -5142,84 +5143,39 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 520,
+      "line": 548,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Return the macro governance summary through the public port.\"\"\""
+    },
+    {
+      "line": 681,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 526,
+      "line": 687,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read fresh, member-bound macro values for current-facing consumers.\"\"\""
     },
     {
-      "line": 535,
+      "line": 696,
       "path": "apps/data_center/application/public.py",
       "text": "maintenance screens.  Current-facing pages use this port so a non-empty"
     },
     {
-      "line": 536,
+      "line": 697,
       "path": "apps/data_center/application/public.py",
       "text": "raw latest fact cannot be presented as a usable indicator value."
     },
     {
-      "line": 686,
+      "line": 847,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 779,
+      "line": 940,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
-    },
-    {
-      "line": 786,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 811,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 813,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
-    },
-    {
-      "line": 821,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 876,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 880,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
-    },
-    {
-      "line": 893,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 898,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
-    },
-    {
-      "line": 913,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 929,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
     },
     {
       "line": 947,
@@ -5227,47 +5183,97 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 964,
+      "line": 972,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 980,
+      "line": 974,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
+    },
+    {
+      "line": 982,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1017,
+      "line": 1037,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 1041,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
+    },
+    {
+      "line": 1054,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 1059,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
+    },
+    {
+      "line": 1074,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 1090,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 1108,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 1125,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 1141,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 1178,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 1020,
+      "line": 1181,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 1024,
+      "line": 1185,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 1026,
+      "line": 1187,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 1029,
+      "line": 1190,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 1030,
+      "line": 1191,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 1195,
+      "line": 1356,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -8347,6 +8353,76 @@
       "text": "\"\"\"Return the latest persisted holdings for a factor config.\"\"\""
     },
     {
+      "line": 40,
+      "path": "apps/fixed_income/application/relative_value.py",
+      "text": "\"\"\"Return the exact Publication or ``None`` without fallback/current fill.\"\"\""
+    },
+    {
+      "line": 92,
+      "path": "apps/fixed_income/application/relative_value.py",
+      "text": "\"\"\"Reread the fixed-income-owned exact PIT/current-target input set."
+    },
+    {
+      "line": 285,
+      "path": "apps/fixed_income/domain/relative_value_assessment.py",
+      "text": "raise ValueError(\"R5 input-set observed_at must preserve latest source clock\")"
+    },
+    {
+      "line": 287,
+      "path": "apps/fixed_income/domain/relative_value_assessment.py",
+      "text": "raise ValueError(\"R5 input-set available_at must preserve latest availability\")"
+    },
+    {
+      "line": 38,
+      "path": "apps/fixed_income/domain/spread_history.py",
+      "text": "\"\"\"Whether the target/current point participates in the reference sample.\"\"\""
+    },
+    {
+      "line": 143,
+      "path": "apps/fixed_income/domain/spread_history.py",
+      "text": "for previous, current in zip(self.periods, self.periods[1:], strict=False):"
+    },
+    {
+      "line": 144,
+      "path": "apps/fixed_income/domain/spread_history.py",
+      "text": "if current.starts_at < previous.ends_at:"
+    },
+    {
+      "line": 977,
+      "path": "apps/fixed_income/domain/spread_history.py",
+      "text": "for previous, current in zip("
+    },
+    {
+      "line": 983,
+      "path": "apps/fixed_income/domain/spread_history.py",
+      "text": "current.revision_number > previous.revision_number"
+    },
+    {
+      "line": 984,
+      "path": "apps/fixed_income/domain/spread_history.py",
+      "text": "and current.available_at <= previous.available_at"
+    },
+    {
+      "line": 1000,
+      "path": "apps/fixed_income/domain/spread_history.py",
+      "text": "latest = tuple("
+    },
+    {
+      "line": 1003,
+      "path": "apps/fixed_income/domain/spread_history.py",
+      "text": "if len(latest) != 1:"
+    },
+    {
+      "line": 1007,
+      "path": "apps/fixed_income/domain/spread_history.py",
+      "text": "\"duplicate latest period revision\","
+    },
+    {
+      "line": 1011,
+      "path": "apps/fixed_income/domain/spread_history.py",
+      "text": "chosen = latest[0]"
+    },
+    {
       "line": 206,
       "path": "apps/fund/application/interface_services.py",
       "text": "\"\"\"Return the current fund NAV series with publication evidence."
@@ -8677,77 +8753,77 @@
       "text": "\"period_type\": latest[\"period_type\"],"
     },
     {
-      "line": 156,
+      "line": 154,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"\"\"Return current Regime context for the macro overview page.\"\"\""
     },
     {
-      "line": 164,
+      "line": 162,
       "path": "apps/macro/application/interface_services.py",
       "text": "logger.exception(\"Failed to load Regime summary for macro page snapshot\")"
     },
     {
-      "line": 196,
+      "line": 194,
       "path": "apps/macro/application/interface_services.py",
       "text": "logger.exception(\"Failed to load Pulse summary for macro page snapshot\")"
     },
     {
-      "line": 434,
+      "line": 432,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"\"\"Return selected publication members for one current macro series."
     },
     {
-      "line": 438,
+      "line": 436,
       "path": "apps/macro/application/interface_services.py",
       "text": "legacy latest-fact query."
     },
     {
-      "line": 468,
+      "line": 466,
       "path": "apps/macro/application/interface_services.py",
       "text": "current/latest values must come from freshness-validated Publication"
     },
     {
-      "line": 515,
+      "line": 513,
       "path": "apps/macro/application/interface_services.py",
       "text": "latest = read_repository.get_latest_indicator(code)"
     },
     {
-      "line": 516,
+      "line": 514,
       "path": "apps/macro/application/interface_services.py",
       "text": "if latest is not None:"
     },
     {
-      "line": 517,
+      "line": 515,
       "path": "apps/macro/application/interface_services.py",
       "text": "latest_by_code[code] = latest"
     },
     {
-      "line": 693,
+      "line": 691,
       "path": "apps/macro/application/interface_services.py",
       "text": "summary = read_repository.get_storage_summary()"
     },
     {
-      "line": 748,
+      "line": 746,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"total_records\": summary[\"total_records\"],"
     },
     {
-      "line": 749,
+      "line": 747,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"latest_date\": summary[\"latest_date\"],"
     },
     {
-      "line": 751,
+      "line": 749,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"min_date\": summary[\"min_date\"],"
     },
     {
-      "line": 752,
+      "line": 750,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"max_date\": summary[\"max_date\"],"
     },
     {
-      "line": 801,
+      "line": 799,
       "path": "apps/macro/application/interface_services.py",
       "text": "\"summary\": summary_use_case.execute(),"
     },
@@ -17279,6 +17355,7 @@
       "text": "@shared_task"
     }
   ],
+  "direct_data_center_imports_outside_data_center": [],
   "external_http_imports_for_review": [
     {
       "import": "requests",

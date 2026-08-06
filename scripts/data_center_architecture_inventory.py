@@ -68,6 +68,7 @@ def build_inventory() -> dict[str, object]:
     """Return a deterministic source inventory with no generated timestamp."""
 
     provider_imports: list[dict[str, object]] = []
+    direct_data_center_imports: list[dict[str, object]] = []
     external_http_imports: list[dict[str, object]] = []
     cross_app_orm: list[dict[str, object]] = []
     legacy_fact_reads: list[dict[str, object]] = []
@@ -84,6 +85,22 @@ def build_inventory() -> dict[str, object]:
             continue
         for import_name, lineno in _import_names(tree):
             top_level = import_name.split(".", 1)[0]
+            if (
+                "tests/" not in relative
+                and relative != "apps/data_center"
+                and not relative.startswith("apps/data_center/")
+                and (
+                    import_name.startswith("apps.data_center.infrastructure")
+                    or import_name.startswith("apps.data_center.application.interface_services")
+                )
+            ):
+                direct_data_center_imports.append(
+                    {
+                        "path": relative,
+                        "line": lineno,
+                        "import": import_name,
+                    }
+                )
             if top_level in PROVIDER_SDK_MODULES:
                 if not relative.startswith(ALLOWED_PROVIDER_ROOT):
                     provider_imports.append(
@@ -113,9 +130,7 @@ def build_inventory() -> dict[str, object]:
             stripped = line.strip()
             for pattern in LEGACY_FACT_PATTERNS:
                 if pattern in stripped and not stripped.startswith(("#", '"""', "'''")):
-                    legacy_fact_reads.append(
-                        {"path": relative, "line": lineno, "symbol": pattern}
-                    )
+                    legacy_fact_reads.append({"path": relative, "line": lineno, "symbol": pattern})
             if SURFACE_PATTERN.search(stripped) and "#" not in stripped[:2]:
                 current_surfaces.append({"path": relative, "line": lineno, "text": stripped})
             if CELERY_DECORATOR_PATTERN.search(stripped):
@@ -133,6 +148,10 @@ def build_inventory() -> dict[str, object]:
         "scan_roots": list(SOURCE_ROOTS),
         "provider_imports_outside_data_center": sorted(
             provider_imports, key=lambda row: (str(row["path"]), int(row["line"]))
+        ),
+        "direct_data_center_imports_outside_data_center": sorted(
+            direct_data_center_imports,
+            key=lambda row: (str(row["path"]), int(row["line"])),
         ),
         "external_http_imports_for_review": sorted(
             external_http_imports, key=lambda row: (str(row["path"]), int(row["line"]))
@@ -153,6 +172,7 @@ def build_inventory() -> dict[str, object]:
         "runtime_parameter_references": sorted(runtime_parameters),
         "counts": {
             "provider_imports_outside_data_center": len(provider_imports),
+            "direct_data_center_imports_outside_data_center": len(direct_data_center_imports),
             "external_http_imports_for_review": len(external_http_imports),
             "cross_app_orm_imports": len(cross_app_orm),
             "legacy_fact_references": len(legacy_fact_reads),

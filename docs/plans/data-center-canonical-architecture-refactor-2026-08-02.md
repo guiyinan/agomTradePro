@@ -4548,3 +4548,12 @@ Git SHA / 镜像 / migration：
 - 处理：从当前 `HEAD=3b5ddeea` 建立隔离 clean worktree，只扫描已提交源码并重生成 inventory；提交态计数为 `cross_app_orm_imports=51`、`current_surface_references=3347`、`data_write_task_decorators=55`、`external_http_imports_for_review=4`、`legacy_fact_references=143`、`provider_imports_outside_data_center=0`、`runtime_parameter_references=49`。主工作区仍保留外部未提交 fixed_income 文件，不纳入本批。
 - 证据：clean worktree 中 `python scripts/data_center_architecture_inventory.py --write` 成功生成清单；主工作区 inventory 与提交态一致，后续 CI checkout 不会因本批代码行号变化而使用过期基线。
 - 明确未做：没有修改或提交 fixed_income 外部研究代码；生产数据画像、PostgreSQL/备份恢复、观察窗口、M9/M10 和部署仍未完成。
+
+## 109. 2026-08-06：业务侧 Data Center 入口一次收编
+
+- 目标：把最后一条业务应用直连 Data Center infrastructure 以及一组跨 App 直接引用 `application.interface_services` 的入口全部收回稳定 Public Port，避免后续继续从具体实现层拼接 provider/use case。
+- 入口盘点：在生产源码（排除 Data Center owner 与测试 fixture）中扫描 `apps.data_center.infrastructure.*` 和 `apps.data_center.application.interface_services.*`，初始命中 Alpha 价格覆盖管理命令 1 条；收编后命中为 0。宏观同步、估值同步、Equity 按需查询、Pulse 修复、Regime provider 选择和 Sentiment 新闻任务等已全部改为 `apps.data_center.application.public` 的显式 factory/selector port。
+- 变更：新增 `get_alpha_price_coverage_sync_service_port()` 与 Data Center composition factory；Alpha 管理命令保留同名 compatibility façade 供既有测试/运维 patch，但实际实例化只经 Public Port。Public Port 对同步/查询/修复/新闻/治理 payload factory 做延迟桥接，避免业务 App 重新导入 Data Center implementation。
+- 防回归：`scripts/data_center_architecture_inventory.py` 新增 `direct_data_center_imports_outside_data_center` 清单与计数（测试 fixture 不作为生产入口）；`tests/unit/test_data_center_architecture_inventory.py` 固定断言为 0。后续新增业务侧 Data Center internal import 会让提交态 inventory/CI 直接失配，而不是静默增加入口。
+- 证据：architecture boundary/audit 0、module-cycle 0、legacy fact guard 通过；provider credential guard 11 entries validated；Alpha command contract `2 passed`；本批变更文件 Ruff/Black 通过，目标回归此前 `48 passed` 保持通过。全文件 Alpha component 在当前工作区一次运行超过 120 秒无输出，拆分命令契约已通过，需在干净测试库另行补充完整组件证据。
+- 明确未做：未修改 Alpha 业务算法、历史价格数据、Provider writer、生产 PostgreSQL/VPS、部署或 push；仍保留测试 fixture 对 Data Center infrastructure 的直接使用，以及 Data Center owner 内部 implementation imports。生产 profile、真实备份恢复、容量故障注入、观察窗口、M9/M10 旧链清理仍未完成。

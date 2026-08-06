@@ -37,6 +37,7 @@ def test_inventory_separates_sdk_ownership_from_http_review() -> None:
     module = _load_inventory_module()
     payload = module.build_inventory()
     assert payload["counts"]["provider_imports_outside_data_center"] == 0
+    assert payload["counts"]["direct_data_center_imports_outside_data_center"] == 0
     assert payload["counts"]["external_http_imports_for_review"] > 0
     assert "generated_at" not in payload
 
