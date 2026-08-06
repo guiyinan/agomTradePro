@@ -6,6 +6,7 @@ from django.test import override_settings
 from apps.account.infrastructure.backup_delivery_projection import (
     get_backup_delivery_settings,
 )
+from apps.account.infrastructure.repositories import SystemSettingsRepository
 from apps.config_center.application.public import (
     get_backup_delivery_runtime_payload,
     update_backup_delivery_settings,
@@ -14,7 +15,7 @@ from apps.config_center.domain.backup_delivery import (
     BACKUP_ARCHIVE_PASSWORD_SECRET_REF,
     BACKUP_SMTP_PASSWORD_SECRET_REF,
 )
-from apps.config_center.models import ConfigCenterSecretModel
+from apps.config_center.models import ConfigCenterSecretModel, SystemSettingsModel
 
 
 @pytest.mark.django_db(transaction=True)
@@ -44,5 +45,37 @@ def test_backup_policy_update_uses_config_center_secret_owner() -> None:
         for row in rows
     )
     projected = get_backup_delivery_settings()
+    assert projected.get_backup_password() == "archive-secret"
+    assert projected.get_backup_smtp_password() == "smtp-secret"
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="backup-cutover-test-key")
+def test_account_repository_preserves_config_center_owned_backup_secrets() -> None:
+    update_backup_delivery_settings(
+        {
+            "backup_enabled": True,
+            "backup_email": "operator@example.com",
+            "backup_app_base_url": "https://example.com",
+            "backup_mail_from_email": "backup@example.com",
+            "backup_smtp_host": "smtp.example.com",
+            "backup_smtp_port": 465,
+            "backup_smtp_username": "backup-user",
+            "backup_smtp_use_tls": False,
+            "backup_smtp_use_ssl": True,
+            "backup_interval_days": 7,
+            "backup_link_ttl_days": 2,
+            "backup_archive_password": "archive-secret",
+            "backup_smtp_password": "smtp-secret",
+        },
+        actor="component-test",
+    )
+
+    projected = SystemSettingsRepository().get_settings()
+    persisted = SystemSettingsModel._default_manager.get(pk=1)
+    assert persisted.backup_password_encrypted == ""
+    assert persisted.backup_smtp_password_encrypted == ""
+
+    assert projected.is_backup_due() is True
     assert projected.get_backup_password() == "archive-secret"
     assert projected.get_backup_smtp_password() == "smtp-secret"

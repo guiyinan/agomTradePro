@@ -725,28 +725,7 @@ class SystemSettingsRepository:
         """返回系统设置模型实例。"""
 
         get_settings = cast(Callable[[], SystemSettingsModel], SystemSettingsModel.get_settings)
-        settings_obj = get_settings()
-        projected = get_backup_delivery_settings()
-        for field_name in (
-            "backup_enabled",
-            "backup_email",
-            "backup_app_base_url",
-            "backup_mail_from_email",
-            "backup_smtp_host",
-            "backup_smtp_port",
-            "backup_smtp_username",
-            "backup_smtp_use_tls",
-            "backup_smtp_use_ssl",
-            "backup_interval_days",
-            "backup_link_ttl_days",
-            "backup_password_hint",
-            "backup_last_sent_at",
-            "backup_download_token_digest",
-            "backup_download_token_expires_at",
-            "backup_download_consumed_at",
-        ):
-            setattr(settings_obj, field_name, getattr(projected, field_name))
-        return settings_obj
+        return get_backup_delivery_settings(base_settings=get_settings())
 
     def get_runtime_asset_proxy_code(self, asset_class: str, default: str = "") -> str:
         """获取运行时资产代理代码。"""
