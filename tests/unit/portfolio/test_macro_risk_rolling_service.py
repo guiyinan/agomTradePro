@@ -148,6 +148,11 @@ def test_non_psd_asset_covariance_fails_closed() -> None:
         asset_codes=first.asset_covariance.asset_codes,
         values=((Decimal("0.01"), Decimal("0.02")), (Decimal("0.02"), Decimal("0.01"))),
         estimator_version=first.asset_covariance.estimator_version,
+        condition_number=first.asset_covariance.condition_number,
+        matrix_rank=first.asset_covariance.matrix_rank,
+        expected_observation_count=first.asset_covariance.expected_observation_count,
+        missing_observation_count=first.asset_covariance.missing_observation_count,
+        missing_value_policy_version=first.asset_covariance.missing_value_policy_version,
         estimation_window=first.asset_covariance.estimation_window,
         observed_at=first.asset_covariance.observed_at,
         available_at=first.asset_covariance.available_at,
@@ -169,6 +174,38 @@ def test_non_psd_asset_covariance_fails_closed() -> None:
     )
 
     assert R4RollingBlockerCode.ASSET_COVARIANCE_INVALID in _codes(artifact)
+    assert artifact.eligible_for_research_comparison is False
+
+
+def test_ill_conditioned_or_rank_deficient_asset_covariance_fails_closed() -> None:
+    artifact = evaluate_r4_rolling_study(
+        build_study(
+            windows=(
+                build_window(1, condition_number=Decimal("101")),
+                build_window(2, matrix_rank=1),
+            )
+        ),
+        promotion_attestation=promotion_attestation(),
+        evaluated_at=EVALUATED_AT,
+    )
+
+    assert R4RollingBlockerCode.ASSET_COVARIANCE_ILL_CONDITIONED in _codes(artifact)
+    assert artifact.eligible_for_research_comparison is False
+
+
+def test_covariance_missing_coverage_above_versioned_limit_fails_closed() -> None:
+    artifact = evaluate_r4_rolling_study(
+        build_study(
+            windows=(
+                build_window(1, missing_observation_count=1),
+                build_window(2),
+            )
+        ),
+        promotion_attestation=promotion_attestation(),
+        evaluated_at=EVALUATED_AT,
+    )
+
+    assert R4RollingBlockerCode.ASSET_COVARIANCE_MISSING_COVERAGE in _codes(artifact)
     assert artifact.eligible_for_research_comparison is False
 
 

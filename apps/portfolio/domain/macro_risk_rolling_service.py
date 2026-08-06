@@ -332,6 +332,34 @@ def _validate_asset_risk_parity(
             )
         )
         return
+    if (
+        window.asset_covariance.condition_number > study.rolling_policy.maximum_condition_number
+        or window.asset_covariance.matrix_rank < len(window.asset_covariance.asset_codes)
+    ):
+        blockers.append(
+            _block(
+                R4RollingBlockerCode.ASSET_COVARIANCE_ILL_CONDITIONED,
+                "asset covariance exceeds the condition limit or is rank deficient",
+                window,
+            )
+        )
+        return
+    observed_count = (
+        window.asset_covariance.expected_observation_count
+        - window.asset_covariance.missing_observation_count
+    )
+    coverage_ratio = Decimal(observed_count) / Decimal(
+        window.asset_covariance.expected_observation_count
+    )
+    if coverage_ratio < study.rolling_policy.minimum_covariance_coverage_ratio:
+        blockers.append(
+            _block(
+                R4RollingBlockerCode.ASSET_COVARIANCE_MISSING_COVERAGE,
+                "asset covariance missing observations exceed the versioned policy limit",
+                window,
+            )
+        )
+        return
     weights_by_asset = {item.asset_code: item.candidate_weight for item in candidate.allocations}
     if set(weights_by_asset) != set(window.asset_covariance.asset_codes):
         blockers.append(

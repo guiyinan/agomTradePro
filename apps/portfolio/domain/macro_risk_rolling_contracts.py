@@ -122,6 +122,8 @@ class R4RollingBlockerCode(str, Enum):
     REGIME_EVIDENCE_INVALID = "regime_evidence_invalid"
     EQUAL_WEIGHT_MISMATCH = "equal_weight_mismatch"
     ASSET_COVARIANCE_INVALID = "asset_covariance_invalid"
+    ASSET_COVARIANCE_ILL_CONDITIONED = "asset_covariance_ill_conditioned"
+    ASSET_COVARIANCE_MISSING_COVERAGE = "asset_covariance_missing_coverage"
     ASSET_RISK_PARITY_MISMATCH = "asset_risk_parity_mismatch"
     CANDIDATE_INELIGIBLE = "candidate_ineligible"
     REGIME_SAMPLE_INSUFFICIENT = "regime_sample_insufficient"
@@ -138,6 +140,8 @@ class R4RollingValidationPolicy:
     weight_tolerance: Decimal
     covariance_symmetry_tolerance: Decimal
     covariance_psd_tolerance: Decimal
+    maximum_condition_number: Decimal
+    minimum_covariance_coverage_ratio: Decimal
     asset_risk_parity_tolerance: Decimal
     minimum_regime_windows: int
 
@@ -150,11 +154,20 @@ class R4RollingValidationPolicy:
             ("weight_tolerance", self.weight_tolerance),
             ("covariance_symmetry_tolerance", self.covariance_symmetry_tolerance),
             ("covariance_psd_tolerance", self.covariance_psd_tolerance),
+            ("maximum_condition_number", self.maximum_condition_number),
+            (
+                "minimum_covariance_coverage_ratio",
+                self.minimum_covariance_coverage_ratio,
+            ),
             ("asset_risk_parity_tolerance", self.asset_risk_parity_tolerance),
         ):
             _require_finite(decimal_value, decimal_name)
             if decimal_value < 0:
                 raise ValueError(f"{decimal_name} cannot be negative")
+        if self.maximum_condition_number < 1:
+            raise ValueError("maximum_condition_number must be at least one")
+        if not Decimal("0") < self.minimum_covariance_coverage_ratio <= Decimal("1"):
+            raise ValueError("minimum_covariance_coverage_ratio must be within (0, 1]")
         if isinstance(self.minimum_regime_windows, bool) or self.minimum_regime_windows < 1:
             raise ValueError("minimum_regime_windows must be a positive integer")
 
@@ -366,7 +379,7 @@ def _rolling_study_hash(
     windows: tuple[R4RollingWindowInput, ...],
 ) -> str:
     return _hash_parts(
-        "r4-rolling-study.v2",
+        "r4-rolling-study.v3",
         study_id,
         study_version,
         _temporal_split_hash(temporal_split),
@@ -386,6 +399,8 @@ def _rolling_study_hash(
         _decimal_text(rolling_policy.weight_tolerance),
         _decimal_text(rolling_policy.covariance_symmetry_tolerance),
         _decimal_text(rolling_policy.covariance_psd_tolerance),
+        _decimal_text(rolling_policy.maximum_condition_number),
+        _decimal_text(rolling_policy.minimum_covariance_coverage_ratio),
         _decimal_text(rolling_policy.asset_risk_parity_tolerance),
         str(rolling_policy.minimum_regime_windows),
         *(item.content_hash.lower() for item in windows),

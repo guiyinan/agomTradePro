@@ -14,6 +14,10 @@ from apps.portfolio.infrastructure.optimization_research_models import (
 )
 from apps.portfolio.infrastructure.order_models import OrderIntentModel
 from apps.portfolio.infrastructure.policy_models import PortfolioPlanningPolicyModel
+from apps.portfolio.infrastructure.r4_rolling_research_models import (
+    R4RollingResearchReceiptModel,
+    R4RollingResearchResultModel,
+)
 from apps.portfolio.infrastructure.transition_models import PortfolioTransitionPlanModel
 
 __all__ = [
@@ -24,4 +28,6 @@ __all__ = [
     "PortfolioTransitionPlanModel",
     "GovernedOptimizationResearchResultModel",
     "OptimizationResearchLifecycleEventModel",
+    "R4RollingResearchReceiptModel",
+    "R4RollingResearchResultModel",
 ]

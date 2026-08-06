@@ -99,6 +99,11 @@ class R4AssetCovarianceEvidence:
     asset_codes: tuple[str, ...]
     values: tuple[tuple[Decimal, ...], ...]
     estimator_version: str
+    condition_number: Decimal
+    matrix_rank: int
+    expected_observation_count: int
+    missing_observation_count: int
+    missing_value_policy_version: str
     estimation_window: SampleWindow
     observed_at: datetime
     available_at: datetime
@@ -120,6 +125,11 @@ class R4AssetCovarianceEvidence:
         asset_codes: tuple[str, ...],
         values: tuple[tuple[Decimal, ...], ...],
         estimator_version: str,
+        condition_number: Decimal,
+        matrix_rank: int,
+        expected_observation_count: int,
+        missing_observation_count: int,
+        missing_value_policy_version: str,
         estimation_window: SampleWindow,
         observed_at: datetime,
         available_at: datetime,
@@ -139,6 +149,11 @@ class R4AssetCovarianceEvidence:
             asset_codes=asset_codes,
             values=values,
             estimator_version=estimator_version,
+            condition_number=condition_number,
+            matrix_rank=matrix_rank,
+            expected_observation_count=expected_observation_count,
+            missing_observation_count=missing_observation_count,
+            missing_value_policy_version=missing_value_policy_version,
             estimation_window=estimation_window,
             observed_at=observed_at,
             available_at=available_at,
@@ -157,6 +172,11 @@ class R4AssetCovarianceEvidence:
             asset_codes=asset_codes,
             values=values,
             estimator_version=estimator_version,
+            condition_number=condition_number,
+            matrix_rank=matrix_rank,
+            expected_observation_count=expected_observation_count,
+            missing_observation_count=missing_observation_count,
+            missing_value_policy_version=missing_value_policy_version,
             estimation_window=estimation_window,
             observed_at=observed_at,
             available_at=available_at,
@@ -176,6 +196,7 @@ class R4AssetCovarianceEvidence:
             ("covariance_version", self.covariance_version),
             ("universe_id", self.universe_id),
             ("estimator_version", self.estimator_version),
+            ("missing_value_policy_version", self.missing_value_policy_version),
             ("pit_manifest_id", self.pit_manifest_id),
         ):
             _require_text(text_value, text_name)
@@ -189,6 +210,17 @@ class R4AssetCovarianceEvidence:
         for row in self.values:
             for matrix_value in row:
                 _require_finite(matrix_value, "asset covariance value")
+        _require_finite(self.condition_number, "condition_number")
+        if self.condition_number < 1:
+            raise ValueError("condition_number must be at least one")
+        if isinstance(self.matrix_rank, bool) or not 1 <= self.matrix_rank <= size:
+            raise ValueError("matrix_rank must be within the covariance dimension")
+        if isinstance(self.expected_observation_count, bool) or self.expected_observation_count < 1:
+            raise ValueError("expected_observation_count must be positive")
+        if isinstance(self.missing_observation_count, bool) or self.missing_observation_count < 0:
+            raise ValueError("missing_observation_count cannot be negative")
+        if self.missing_observation_count > self.expected_observation_count:
+            raise ValueError("missing observations cannot exceed expected observations")
         for clock_name, clock_value in (
             ("observed_at", self.observed_at),
             ("available_at", self.available_at),
@@ -199,7 +231,9 @@ class R4AssetCovarianceEvidence:
         if not self.observed_at <= self.available_at <= self.knowledge_as_of < self.valid_until:
             raise ValueError("asset covariance bitemporal clocks are invalid")
         if self.estimation_window.end > self.observed_at.date():
-            raise ValueError("asset covariance cannot be observed before its estimation window ends")
+            raise ValueError(
+                "asset covariance cannot be observed before its estimation window ends"
+            )
         _validate_source_hashes(self.source_content_hashes)
         _require_sha256(self.content_hash, "content_hash")
         if self.content_hash.lower() != _asset_covariance_hash(
@@ -210,6 +244,11 @@ class R4AssetCovarianceEvidence:
             asset_codes=self.asset_codes,
             values=self.values,
             estimator_version=self.estimator_version,
+            condition_number=self.condition_number,
+            matrix_rank=self.matrix_rank,
+            expected_observation_count=self.expected_observation_count,
+            missing_observation_count=self.missing_observation_count,
+            missing_value_policy_version=self.missing_value_policy_version,
             estimation_window=self.estimation_window,
             observed_at=self.observed_at,
             available_at=self.available_at,
@@ -231,6 +270,11 @@ def _asset_covariance_hash(
     asset_codes: tuple[str, ...],
     values: tuple[tuple[Decimal, ...], ...],
     estimator_version: str,
+    condition_number: Decimal,
+    matrix_rank: int,
+    expected_observation_count: int,
+    missing_observation_count: int,
+    missing_value_policy_version: str,
     estimation_window: SampleWindow,
     observed_at: datetime,
     available_at: datetime,
@@ -241,7 +285,7 @@ def _asset_covariance_hash(
     source_content_hashes: tuple[str, ...],
 ) -> str:
     return _hash_parts(
-        "r4-asset-covariance.v1",
+        "r4-asset-covariance.v3",
         covariance_id,
         covariance_version,
         universe_id,
@@ -249,6 +293,11 @@ def _asset_covariance_hash(
         *asset_codes,
         *("|".join(_decimal_text(value) for value in row) for row in values),
         estimator_version,
+        _decimal_text(condition_number),
+        str(matrix_rank),
+        str(expected_observation_count),
+        str(missing_observation_count),
+        missing_value_policy_version,
         estimation_window.start.isoformat(),
         estimation_window.end.isoformat(),
         _utc_text(observed_at),

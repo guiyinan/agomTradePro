@@ -68,6 +68,8 @@ def rolling_policy(*, minimum_regime_windows: int = 2) -> R4RollingValidationPol
         weight_tolerance=Decimal("0.00000001"),
         covariance_symmetry_tolerance=Decimal("0.00000001"),
         covariance_psd_tolerance=Decimal("0.00000001"),
+        maximum_condition_number=Decimal("100"),
+        minimum_covariance_coverage_ratio=Decimal("1"),
         asset_risk_parity_tolerance=Decimal("0.00000001"),
         minimum_regime_windows=minimum_regime_windows,
     )
@@ -259,6 +261,11 @@ def build_window(
     candidates: tuple[MacroRiskCandidateInput, ...] | None = None,
     regime_code: str = "custom-expansion-state",
     covariance_values: tuple[tuple[Decimal, ...], ...] | None = None,
+    condition_number: Decimal = Decimal("9"),
+    matrix_rank: int = 2,
+    expected_observation_count: int = 30,
+    missing_observation_count: int = 0,
+    missing_value_policy_version: str = "complete-case.v1",
     regime_available_at: datetime | None = None,
 ) -> R4RollingWindowInput:
     """Build one exact rolling window."""
@@ -292,6 +299,11 @@ def build_window(
         values=covariance_values
         or ((Decimal("0.09"), Decimal("0")), (Decimal("0"), Decimal("0.01"))),
         estimator_version="asset-covariance.v2",
+        condition_number=condition_number,
+        matrix_rank=matrix_rank,
+        expected_observation_count=expected_observation_count,
+        missing_observation_count=missing_observation_count,
+        missing_value_policy_version=missing_value_policy_version,
         estimation_window=SampleWindow(current_fold.training.start, current_fold.validation.end),
         observed_at=selection - timedelta(days=1),
         available_at=selection - timedelta(hours=6),
