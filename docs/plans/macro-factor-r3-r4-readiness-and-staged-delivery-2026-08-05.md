@@ -185,6 +185,8 @@ verified 证据必须来自合同指定 owner、包含非空引用、timezone-aw
 
 2026-08-06 persistence/query 续批新增 Portfolio-owned append-only receipt/result ledger 与 schema-only `0007`。持久化入口只收 identity/provenance，通过 exact study/R3 provider 重读后由 server-clock Repository 写入；typed restore 会重新运行 R4 service/output integrity 并核对完整 subhash ledger。协方差 condition/rank/coverage denominator 与版本化阈值已进入 study/payload/hash；exact query 只按 record id/hash/as-of 返回 PIT-valid owner evidence。所有 bulk/direct mutation、错误 UoW/clock、raw tamper、非 canonical UTC 与并发冲突 fail closed。Research R4 policy/trial/decision、Promotion/retirement/rollback lifecycle、组合预览和下游 active consumption 仍未形成，R4 保持 `blocked`。
 
+2026-08-06 Promotion Phase A 已完成 Research Domain/Application 软件合同：stable semantic scope 与 exact evidence seal 分离，Policy 必须在最早 selection 前预注册，Decision 在同一 atomic/UoW 内动态重读 exact policy/Portfolio/current-R3 并派生 gates/outcome/validity。Lifecycle 使用 scope-local stack，A→B→C 只能逐层 C→B→A；PROMOTE/ROLLBACK/active 重验当前 evidence，RETIRE 可按 decision-time 历史 PIT 清理失效 top。当前没有五表 append-only repository/migration、concrete owner provider/composition、组合预览或下游 active input，Phase A 测试不能替代真实 Promotion，R4 继续 `blocked`。
+
 ## 6. 明确非目标
 
 - 本阶段不添加 sklearn/statsmodels/cvxpy 依赖；
