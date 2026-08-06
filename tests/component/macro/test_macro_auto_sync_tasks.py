@@ -47,8 +47,11 @@ class MacroAutoSyncTaskTests(SimpleTestCase):
             errors=["failed: CPI"],
         )
 
-        with self.assertRaisesRegex(RuntimeError, "no usable data"):
-            sync_macro_data.run(source="akshare")
+        payload = sync_macro_data.run(source="akshare")
+
+        self.assertEqual(payload["outcome"], "failed")
+        self.assertEqual(payload["failed"], 1)
+        self.assertEqual(payload["stored"], 0)
 
     @staticmethod
     def _catalog(
