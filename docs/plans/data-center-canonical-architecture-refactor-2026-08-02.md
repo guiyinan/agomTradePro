@@ -4626,4 +4626,5 @@ Git SHA / 镜像 / migration：
 - 变更：新增 `data_center_entrypoint_inventory.py` 与 `governance/data_center_entrypoints.json`，静态枚举 REST、SDK、MCP、Terminal/TUI、Capability、management command、Celery task、Beat schedule、script、Application Public Port、compatibility façade 和 current-data surface；状态严格区分 `active_public / compatibility / candidate-review`，发现入口不会自动升级为已治理。
 - 当前快照：共 547 个入口；`active_public=347`、`compatibility=110`、`candidate-review=90`。分类为 Beat 57、Capability 25、Celery 53、compatibility façade 93、current-data 46、management command 25、MCP 29、Public Port 91、REST 54、script 6、SDK 45、Terminal/TUI 23。
 - 防回归与证据：fast-feedback 和 consistency CI 均执行 stale guard；默认重建校验通过，清单单测 3 passed，Ruff/Black 与 workflow YAML 解析通过。90 个待审入口保留为显式债务，其中包含未纳入 Celery task contract 的任务/调度候选，不以本次枚举冒充消费者全切换。
+- 合并态 architecture inventory 在干净 detached worktree 重建：`direct_data_center_imports_outside_data_center=0`、`provider_imports_outside_data_center=0`、`cross_app_orm_imports=51`、`legacy_fact_references=143`、`current_surface_references=3364`、`data_write_task_decorators=56`；主工作区未跟踪的 Research 开发文件未混入基线。
 - 明确未做：该清单是静态调用面证据，不执行 Django、数据库或外网；它不能替代 D0-D9 跨入口字段一致性、PostgreSQL 性能、生产观察窗口、备份恢复和 M9/M10 验收。

@@ -1,8 +1,8 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3362,
-    "data_write_task_decorators": 55,
+    "current_surface_references": 3364,
+    "data_write_task_decorators": 56,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 143,
@@ -858,12 +858,12 @@
       "text": "trade_date.isoformat() if trade_date is not None else \"latest\","
     },
     {
-      "line": 829,
+      "line": 808,
       "path": "apps/account/infrastructure/repositories.py",
       "text": "current = self._get_active_model()"
     },
     {
-      "line": 835,
+      "line": 814,
       "path": "apps/account/infrastructure/repositories.py",
       "text": "payload[\"version\"] = (current.version + 1) if current is not None else 1"
     },
@@ -4288,7 +4288,7 @@
       "text": "\"summary\": {\"title\": title, \"subtitle\": subtitle},"
     },
     {
-      "line": 47,
+      "line": 67,
       "path": "apps/config_center/application/capacity_profile.py",
       "text": "\"\"\"Return the latest observation for an environment.\"\"\""
     },
@@ -4308,7 +4308,7 @@
       "text": "raise RuntimeError(\"Config center summary repository is not configured\")"
     },
     {
-      "line": 29,
+      "line": 32,
       "path": "apps/config_center/application/public.py",
       "text": "\"\"\"Return the Config Center-owned system settings summary.\"\"\""
     },
@@ -8353,14 +8353,19 @@
       "text": "\"\"\"Return the latest persisted holdings for a factor config.\"\"\""
     },
     {
-      "line": 40,
+      "line": 41,
       "path": "apps/fixed_income/application/relative_value.py",
       "text": "\"\"\"Return the exact Publication or ``None`` without fallback/current fill.\"\"\""
     },
     {
-      "line": 92,
+      "line": 93,
       "path": "apps/fixed_income/application/relative_value.py",
       "text": "\"\"\"Reread the fixed-income-owned exact PIT/current-target input set."
+    },
+    {
+      "line": 545,
+      "path": "apps/fixed_income/application/relative_value_persistence.py",
+      "text": "\"\"\"Exact audit query without latest/current/list semantics.\"\"\""
     },
     {
       "line": 285,
@@ -8421,6 +8426,11 @@
       "line": 1011,
       "path": "apps/fixed_income/domain/spread_history.py",
       "text": "chosen = latest[0]"
+    },
+    {
+      "line": 41,
+      "path": "apps/fixed_income/infrastructure/relative_value_repository.py",
+      "text": "\"\"\"Return the current server timestamp.\"\"\""
     },
     {
       "line": 206,
@@ -16883,7 +16893,7 @@
       "text": "\"realtime-update-prices-after-close\": {"
     },
     {
-      "line": 957,
+      "line": 962,
       "path": "core/settings/base.py",
       "text": "\"sentiment-refresh-current-index\": {"
     },
@@ -17038,7 +17048,7 @@
       "text": "\"\"\"Canonical reliability metadata for data exposed as current or decision-ready.\"\"\""
     },
     {
-      "line": 11,
+      "line": 14,
       "path": "shared/domain/reliability.py",
       "text": "\"\"\"Supported reliability states for current-data surfaces.\"\"\""
     },
@@ -17107,6 +17117,11 @@
     {
       "line": 12,
       "path": "apps/config_center/application/decision_readiness_guard_tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 58,
+      "path": "apps/config_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
