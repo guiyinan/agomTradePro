@@ -48,6 +48,22 @@ class ConfigCenterSettingsRepository(Protocol):
     ) -> dict[str, Any]: ...
 
 
+class ConfigCenterSecretStatus(Protocol):
+    """Non-secret presence contract returned by the encrypted secret owner."""
+
+    present: bool
+
+
+class ConfigCenterSecretRepository(Protocol):
+    """Application port for Config Center-owned encrypted secret material."""
+
+    def persist(self, secret_ref: str, value: str | None) -> ConfigCenterSecretStatus: ...
+
+    def resolve(self, secret_ref: str) -> str: ...
+
+    def status(self, secret_ref: str) -> ConfigCenterSecretStatus: ...
+
+
 class QlibTrainingProfileRepository(Protocol):
     def list_profiles(self) -> list[Any]: ...
     def get_profile(
@@ -99,6 +115,7 @@ _settings_repository: ConfigCenterSettingsRepository | None = None
 _profile_repository: QlibTrainingProfileRepository | None = None
 _run_repository: QlibTrainingRunRepository | None = None
 _alpha_universe_repository: AlphaUniverseConfigRepository | None = None
+_secret_repository: ConfigCenterSecretRepository | None = None
 
 
 def configure_config_center_repositories(
@@ -107,14 +124,17 @@ def configure_config_center_repositories(
     profile_repository: QlibTrainingProfileRepository,
     run_repository: QlibTrainingRunRepository,
     alpha_universe_repository: AlphaUniverseConfigRepository | None = None,
+    secret_repository: ConfigCenterSecretRepository | None = None,
 ) -> None:
     """Register concrete config-center repositories at the composition root."""
 
     global _settings_repository, _profile_repository, _run_repository, _alpha_universe_repository
+    global _secret_repository
     _settings_repository = settings_repository
     _profile_repository = profile_repository
     _run_repository = run_repository
     _alpha_universe_repository = alpha_universe_repository
+    _secret_repository = secret_repository
 
 
 def get_config_center_settings_repository() -> ConfigCenterSettingsRepository:
@@ -139,3 +159,11 @@ def get_alpha_universe_config_repository() -> AlphaUniverseConfigRepository:
     if _alpha_universe_repository is None:
         raise RuntimeError("Alpha universe config repository is not configured")
     return _alpha_universe_repository
+
+
+def get_config_center_secret_repository() -> ConfigCenterSecretRepository:
+    """Return the Config Center encrypted-secret owner port."""
+
+    if _secret_repository is None:
+        raise RuntimeError("Config center secret repository is not configured")
+    return _secret_repository

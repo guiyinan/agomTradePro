@@ -45,6 +45,9 @@ jobs:
       - name: Verify SystemSettings field contract
         run: python scripts/check_system_settings_field_contract.py
 
+      - name: Verify backup delivery secret ownership
+        run: python scripts/check_backup_delivery_secret_ownership.py
+
       - name: Run Business Configuration Guard self-tests
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
@@ -241,6 +244,9 @@ jobs:
 
       - name: Enforce Data Center provider credential boundary
         run: python scripts/check_data_center_provider_credentials.py
+
+      - name: Enforce backup delivery secret ownership
+        run: python scripts/check_backup_delivery_secret_ownership.py
 
       - name: Enforce Data Center query budgets
         run: python scripts/check_data_center_query_budgets.py

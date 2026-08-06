@@ -10,3 +10,6 @@ from apps.config_center.infrastructure.decision_runtime_models import (  # noqa:
     DecisionRuntimeStateModel as DecisionRuntimeStateModel,
 )
 from apps.config_center.infrastructure.models import *  # noqa: F401,F403
+from apps.config_center.infrastructure.secret_models import (  # noqa: F401
+    ConfigCenterSecretModel as ConfigCenterSecretModel,
+)

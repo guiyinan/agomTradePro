@@ -1,3 +1,5 @@
+from typing import cast
+
 from django.apps import AppConfig
 
 
@@ -13,6 +15,7 @@ class ConfigCenterConfig(AppConfig):
             get_config_center_summary_service,
         )
         from apps.config_center.application.repository_provider import (
+            ConfigCenterSecretRepository,
             configure_config_center_repositories,
         )
         from apps.config_center.application.runtime_repository_provider import (
@@ -38,6 +41,7 @@ class ConfigCenterConfig(AppConfig):
             RuntimeConfigValueRepository,
             StorageBudgetPolicyRepository,
         )
+        from apps.config_center.infrastructure.secret_store import ConfigCenterSecretStore
         from core.integration.config_center_runtime import (
             configure_config_center_runtime_port,
         )
@@ -48,6 +52,7 @@ class ConfigCenterConfig(AppConfig):
             profile_repository=QlibTrainingProfileRepository(),
             run_repository=QlibTrainingRunRepository(),
             alpha_universe_repository=AlphaUniverseConfigRepository(),
+            secret_repository=cast(ConfigCenterSecretRepository, ConfigCenterSecretStore()),
         )
         configure_config_center_summary_repository(DjangoConfigCenterSummaryRepository())
         configure_runtime_settings_provider(get_config_center_summary_service())

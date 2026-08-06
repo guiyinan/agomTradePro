@@ -5,7 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from apps.account.infrastructure.models import SystemSettingsModel
-from apps.config_center.application.public import get_backup_delivery_runtime_payload
+from apps.config_center.application.public import (
+    get_backup_delivery_runtime_payload,
+    resolve_config_secret,
+)
 
 _BACKUP_POLICY_FIELDS: tuple[str, ...] = (
     "backup_enabled",
@@ -27,6 +30,33 @@ _BACKUP_STATE_FIELDS: tuple[str, ...] = (
     "backup_download_token_expires_at",
     "backup_download_consumed_at",
 )
+_LEGACY_ARCHIVE_PASSWORD_REF = "system_settings.backup_password_encrypted"
+_LEGACY_SMTP_PASSWORD_REF = "system_settings.backup_smtp_password_encrypted"
+
+
+def _project_secret(
+    settings_obj: SystemSettingsModel,
+    *,
+    secret_ref: object,
+    legacy_ref: str,
+    encrypted_field: str,
+    setter_name: str,
+) -> None:
+    """Resolve a Config Center ref into an ephemeral compatibility projection."""
+
+    normalized_ref = str(secret_ref or "").strip()
+    if not normalized_ref or normalized_ref == legacy_ref:
+        return
+    setattr(settings_obj, encrypted_field, "")
+    try:
+        plaintext = resolve_config_secret(normalized_ref)
+        if plaintext:
+            setter = getattr(settings_obj, setter_name)
+            setter(plaintext)
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        # A missing deployment key must remain a blocked, empty projection;
+        # never re-open the legacy column as a silent bypass.
+        setattr(settings_obj, encrypted_field, "")
 
 
 def get_backup_delivery_settings(
@@ -47,10 +77,20 @@ def get_backup_delivery_settings(
     for field_name in _BACKUP_POLICY_FIELDS + _BACKUP_STATE_FIELDS:
         if field_name in payload:
             setattr(settings_obj, field_name, payload[field_name])
-    if payload.get("backup_archive_password_ref") != "system_settings.backup_password_encrypted":
-        settings_obj.backup_password_encrypted = ""
-    if payload.get("backup_smtp_password_ref") != "system_settings.backup_smtp_password_encrypted":
-        settings_obj.backup_smtp_password_encrypted = ""
+    _project_secret(
+        settings_obj,
+        secret_ref=payload.get("backup_archive_password_ref"),
+        legacy_ref=_LEGACY_ARCHIVE_PASSWORD_REF,
+        encrypted_field="backup_password_encrypted",
+        setter_name="set_backup_password",
+    )
+    _project_secret(
+        settings_obj,
+        secret_ref=payload.get("backup_smtp_password_ref"),
+        legacy_ref=_LEGACY_SMTP_PASSWORD_REF,
+        encrypted_field="backup_smtp_password_encrypted",
+        setter_name="set_backup_smtp_password",
+    )
     return settings_obj
 
 

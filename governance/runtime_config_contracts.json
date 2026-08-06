@@ -55,9 +55,9 @@
       },
       {
         "name": "backup_delivery",
-        "owner": "operations",
-        "lifecycle": "active_compatibility",
-        "replacement": "operations.backup_policy_and_delivery",
+        "owner": "config_center",
+        "lifecycle": "compatibility",
+        "replacement": "config_center.runtime_profile.backup_delivery_and_secret_owner",
         "fields": [
           "backup_email",
           "backup_app_base_url",
@@ -735,32 +735,32 @@
     {
       "config_key": "backup.archive_password",
       "namespace": "backup",
-      "owner": "account",
+      "owner": "config_center",
       "type": "secret_ref",
       "secret": true,
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
       "fallback": "system_settings_compatibility",
-      "migration_status": "transitional_secret_ref",
-      "secret_ref_policy": "system_settings.backup_password_encrypted until external secret store cutover",
+      "migration_status": "config_center_secret_owner_with_legacy_migration",
+      "secret_ref_policy": "config_center.backup.archive_password; legacy system_settings.backup_password_encrypted only for explicit migration",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
-      "consumers": ["apps/account/infrastructure/backup_service.py::generate_backup_archive", "core/encryption_readiness.py::collect_encryption_readiness"],
-      "tests": ["tests/component/account/test_db_backup_email.py::test_system_settings_can_roundtrip_backup_password"]
+      "consumers": ["apps/config_center/infrastructure/secret_store.py::ConfigCenterSecretStore", "apps/account/infrastructure/backup_service.py::generate_backup_archive", "core/encryption_readiness.py::collect_encryption_readiness"],
+      "tests": ["tests/component/config_center/test_config_center_secret_store.py::test_config_center_secret_store_encrypts_and_resolves_without_plaintext_row", "tests/component/config_center/test_backup_delivery_secret_cutover.py::test_backup_policy_update_uses_config_center_secret_owner"]
     },
     {
       "config_key": "backup.smtp_password",
       "namespace": "backup",
-      "owner": "account",
+      "owner": "config_center",
       "type": "secret_ref",
       "secret": true,
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
       "fallback": "system_settings_compatibility",
-      "migration_status": "transitional_secret_ref",
-      "secret_ref_policy": "system_settings.backup_smtp_password_encrypted until external secret store cutover",
+      "migration_status": "config_center_secret_owner_with_legacy_migration",
+      "secret_ref_policy": "config_center.backup.smtp_password; legacy system_settings.backup_smtp_password_encrypted only for explicit migration",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
-      "consumers": ["apps/account/infrastructure/backup_service.py::get_backup_email_connection", "core/encryption_readiness.py::collect_encryption_readiness"],
-      "tests": ["tests/component/account/test_db_backup_email.py::test_system_settings_can_roundtrip_backup_password"]
+      "consumers": ["apps/config_center/infrastructure/secret_store.py::ConfigCenterSecretStore", "apps/account/infrastructure/backup_service.py::get_backup_email_connection", "core/encryption_readiness.py::collect_encryption_readiness"],
+      "tests": ["tests/component/config_center/test_config_center_secret_store.py::test_config_center_secret_store_fails_closed_for_new_secret_without_key", "tests/component/config_center/test_backup_delivery_secret_cutover.py::test_backup_policy_update_uses_config_center_secret_owner"]
     },
     {
       "config_key": "account.require_user_approval",

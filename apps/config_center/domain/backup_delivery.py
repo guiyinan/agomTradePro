@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+BACKUP_ARCHIVE_PASSWORD_SECRET_REF = "config_center.backup.archive_password"
+BACKUP_SMTP_PASSWORD_SECRET_REF = "config_center.backup.smtp_password"
+
 
 @dataclass(frozen=True)
 class BackupDeliveryState:
@@ -16,4 +19,8 @@ class BackupDeliveryState:
     download_token_consumed_at: datetime | None = None
 
 
-__all__ = ["BackupDeliveryState"]
+__all__ = [
+    "BACKUP_ARCHIVE_PASSWORD_SECRET_REF",
+    "BACKUP_SMTP_PASSWORD_SECRET_REF",
+    "BackupDeliveryState",
+]

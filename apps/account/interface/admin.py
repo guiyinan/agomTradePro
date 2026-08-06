@@ -37,7 +37,14 @@ from apps.account.models import (
     TransactionModel,
     UserAccessTokenModel,
 )
-from apps.config_center.application.public import update_backup_delivery_settings
+from apps.config_center.application.public import (
+    config_secret_present,
+    update_backup_delivery_settings,
+)
+from apps.config_center.domain.backup_delivery import (
+    BACKUP_ARCHIVE_PASSWORD_SECRET_REF,
+    BACKUP_SMTP_PASSWORD_SECRET_REF,
+)
 from apps.config_center.models import SystemSettingsModel
 from shared.infrastructure.django_admin import TypedModelAdmin, TypedModelForm
 
@@ -105,11 +112,25 @@ class SystemSettingsAdminForm(TypedModelForm[SystemSettingsModel]):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        if self.instance and self.instance.pk and self.instance.backup_password_encrypted:
+        if (
+            self.instance
+            and self.instance.pk
+            and (
+                self.instance.backup_password_encrypted
+                or _secret_present(BACKUP_ARCHIVE_PASSWORD_SECRET_REF)
+            )
+        ):
             self.fields["backup_password"].help_text = (
                 "已设置备份密码。留空表示保持当前密码不变；输入新值会覆盖旧密码。"
             )
-        if self.instance and self.instance.pk and self.instance.backup_smtp_password_encrypted:
+        if (
+            self.instance
+            and self.instance.pk
+            and (
+                self.instance.backup_smtp_password_encrypted
+                or _secret_present(BACKUP_SMTP_PASSWORD_SECRET_REF)
+            )
+        ):
             self.fields["backup_smtp_password"].help_text = (
                 "已设置 SMTP 密码。留空表示保持当前密码不变；输入新值会覆盖旧密码。"
             )
@@ -119,9 +140,13 @@ class SystemSettingsAdminForm(TypedModelForm[SystemSettingsModel]):
         raw_password = (cleaned_data.get("backup_password") or "").strip()
         raw_smtp_password = (cleaned_data.get("backup_smtp_password") or "").strip()
         backup_enabled = cleaned_data.get("backup_enabled")
-        has_existing_password = bool(getattr(self.instance, "backup_password_encrypted", ""))
+        has_existing_password = bool(
+            getattr(self.instance, "backup_password_encrypted", "")
+            or _secret_present(BACKUP_ARCHIVE_PASSWORD_SECRET_REF)
+        )
         has_existing_smtp_password = bool(
             getattr(self.instance, "backup_smtp_password_encrypted", "")
+            or _secret_present(BACKUP_SMTP_PASSWORD_SECRET_REF)
         )
         if backup_enabled and not (raw_password or has_existing_password):
             self.add_error("backup_password", "启用数据库备份邮件时必须设置备份密码。")
@@ -134,46 +159,41 @@ class SystemSettingsAdminForm(TypedModelForm[SystemSettingsModel]):
         raw_password = (self.cleaned_data.get("backup_password") or "").strip()
         raw_smtp_password = (self.cleaned_data.get("backup_smtp_password") or "").strip()
         if not commit:
-            if raw_password:
-                instance.set_backup_password(raw_password)
-            if raw_smtp_password:
-                instance.set_backup_smtp_password(raw_smtp_password)
             return instance
 
-        persisted = SystemSettingsModel.get_settings()
-        encrypted_fields: list[str] = []
+        payload: dict[str, Any] = {
+            field_name: getattr(instance, field_name)
+            for field_name in (
+                "backup_enabled",
+                "backup_email",
+                "backup_app_base_url",
+                "backup_mail_from_email",
+                "backup_smtp_host",
+                "backup_smtp_port",
+                "backup_smtp_username",
+                "backup_smtp_use_tls",
+                "backup_smtp_use_ssl",
+                "backup_interval_days",
+                "backup_link_ttl_days",
+                "backup_password_hint",
+            )
+        }
         if raw_password:
-            persisted.set_backup_password(raw_password)
-            encrypted_fields.append("backup_password_encrypted")
+            payload["backup_archive_password"] = raw_password
         if raw_smtp_password:
-            persisted.set_backup_smtp_password(raw_smtp_password)
-            encrypted_fields.append("backup_smtp_password_encrypted")
-        if encrypted_fields:
-            encrypted_fields.append("updated_at")
-            persisted.save(update_fields=encrypted_fields)
-
-        update_backup_delivery_settings(
-            {
-                field_name: getattr(instance, field_name)
-                for field_name in (
-                    "backup_enabled",
-                    "backup_email",
-                    "backup_app_base_url",
-                    "backup_mail_from_email",
-                    "backup_smtp_host",
-                    "backup_smtp_port",
-                    "backup_smtp_username",
-                    "backup_smtp_use_tls",
-                    "backup_smtp_use_ssl",
-                    "backup_interval_days",
-                    "backup_link_ttl_days",
-                    "backup_password_hint",
-                )
-            },
-            actor="django-admin",
-        )
+            payload["backup_smtp_password"] = raw_smtp_password
+        update_backup_delivery_settings(payload, actor="django-admin")
         self.save_m2m()
         return cast(SystemSettingsModel, get_backup_delivery_settings())
+
+
+def _secret_present(secret_ref: str) -> bool:
+    """Read only presence metadata for a Config Center-owned secret."""
+
+    try:
+        return config_secret_present(secret_ref)
+    except (RuntimeError, ValueError):
+        return False
 
 
 @admin.register(CurrencyModel)

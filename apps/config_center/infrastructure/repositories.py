@@ -13,6 +13,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from apps.config_center.application.public import config_secret_present, persist_config_secret
 from apps.config_center.application.runtime_public import (
     activate_runtime_profile_patch,
     get_active_account_runtime_config,
@@ -20,7 +21,11 @@ from apps.config_center.application.runtime_public import (
     get_active_domain_runtime_config,
     get_active_qlib_runtime_config,
 )
-from apps.config_center.domain.backup_delivery import BackupDeliveryState
+from apps.config_center.domain.backup_delivery import (
+    BACKUP_ARCHIVE_PASSWORD_SECRET_REF,
+    BACKUP_SMTP_PASSWORD_SECRET_REF,
+    BackupDeliveryState,
+)
 from apps.config_center.domain.entities import (
     AlphaUniverseConfig,
     DecisionRuntimeState,
@@ -119,6 +124,10 @@ class ConfigCenterSettingsRepository:
         "backup_archive_password_ref": "backup.archive_password",
         "backup_smtp_password_ref": "backup.smtp_password",
     }
+    LEGACY_BACKUP_SECRET_REF_MAP = {
+        "backup.archive_password": "system_settings.backup_password_encrypted",
+        "backup.smtp_password": "system_settings.backup_smtp_password_encrypted",
+    }
 
     def get_system_settings(self) -> SystemSettingsModel:
         return SystemSettingsModel.get_settings()
@@ -185,12 +194,28 @@ class ConfigCenterSettingsRepository:
 
     @staticmethod
     def _legacy_runtime_secret_refs() -> dict[str, str]:
-        """Return transitional references without copying secret plaintext."""
+        """Return new secret refs when migrated, else explicit legacy refs."""
 
         return {
-            "backup.archive_password": "system_settings.backup_password_encrypted",
-            "backup.smtp_password": "system_settings.backup_smtp_password_encrypted",
+            definition_key: (
+                new_ref
+                if ConfigCenterSettingsRepository._config_secret_present(new_ref)
+                else ConfigCenterSettingsRepository.LEGACY_BACKUP_SECRET_REF_MAP[definition_key]
+            )
+            for definition_key, new_ref in (
+                ("backup.archive_password", BACKUP_ARCHIVE_PASSWORD_SECRET_REF),
+                ("backup.smtp_password", BACKUP_SMTP_PASSWORD_SECRET_REF),
+            )
         }
+
+    @staticmethod
+    def _config_secret_present(secret_ref: str) -> bool:
+        """Read secret presence while preserving explicit bootstrap compatibility."""
+
+        try:
+            return config_secret_present(secret_ref)
+        except (RuntimeError, ValueError):
+            return False
 
     def build_backup_delivery_payload(self) -> dict[str, Any]:
         """Return typed backup policy plus isolated delivery state.
@@ -209,25 +234,20 @@ class ConfigCenterSettingsRepository:
             field_name: getattr(settings_obj, field_name)
             for field_name in self.BACKUP_RUNTIME_FIELD_MAP
         }
+        legacy_refs = self._legacy_runtime_secret_refs()
         payload.update(
             {
-                "backup_archive_password_ref": "system_settings.backup_password_encrypted",
-                "backup_smtp_password_ref": "system_settings.backup_smtp_password_encrypted",
+                "backup_archive_password_ref": legacy_refs["backup.archive_password"],
+                "backup_smtp_password_ref": legacy_refs["backup.smtp_password"],
             }
         )
         source = "system_settings_compatibility"
         if typed is not None:
             payload.update(
-                {
-                    field_name: typed[field_name]
-                    for field_name in self.BACKUP_RUNTIME_FIELD_MAP
-                }
+                {field_name: typed[field_name] for field_name in self.BACKUP_RUNTIME_FIELD_MAP}
             )
             payload.update(
-                {
-                    field_name: typed[field_name]
-                    for field_name in self.BACKUP_SECRET_REF_MAP
-                }
+                {field_name: typed[field_name] for field_name in self.BACKUP_SECRET_REF_MAP}
             )
             source = "config_center_runtime_profile"
 
@@ -372,9 +392,9 @@ class ConfigCenterSettingsRepository:
     def _ensure_backup_delivery_state_locked(self) -> BackupDeliveryStateModel:
         """Create the new state row from legacy state while holding a DB lock."""
 
-        state_model = BackupDeliveryStateModel._default_manager.select_for_update().filter(
-            pk=1
-        ).first()
+        state_model = (
+            BackupDeliveryStateModel._default_manager.select_for_update().filter(pk=1).first()
+        )
         if state_model is not None:
             return state_model
         legacy = self.get_system_settings_for_read()
@@ -643,20 +663,38 @@ class ConfigCenterSettingsRepository:
     ) -> dict[str, Any]:
         """Activate a complete typed backup policy revision.
 
-        Secret material remains in the transitional encrypted compatibility
-        columns; the profile stores only their stable ``secret_ref`` values.
+        Secret material is encrypted in the Config Center secret owner; the
+        profile stores only its stable ``secret_ref`` values.
         """
 
         settings_obj = self.get_system_settings_for_read()
         patch: dict[str, object] = {}
+        secret_ref_patch: dict[str, str] = {}
         for field_name, definition_key in self.BACKUP_RUNTIME_FIELD_MAP.items():
             if field_name in data:
                 patch[definition_key] = data[field_name]
-        if not patch:
+        secret_inputs = {
+            "backup_archive_password": (
+                "backup.archive_password",
+                BACKUP_ARCHIVE_PASSWORD_SECRET_REF,
+            ),
+            "backup_smtp_password": (
+                "backup.smtp_password",
+                BACKUP_SMTP_PASSWORD_SECRET_REF,
+            ),
+        }
+        for field_name, (definition_key, secret_ref) in secret_inputs.items():
+            if field_name in data:
+                persist_config_secret(secret_ref, data[field_name])
+                secret_ref_patch[definition_key] = secret_ref
+            elif self._config_secret_present(secret_ref):
+                secret_ref_patch[definition_key] = secret_ref
+        if not patch and not secret_ref_patch:
             return self.build_backup_delivery_payload()
         activate_runtime_profile_patch(
             environment=self._runtime_environment(),
             patch=patch,
+            secret_ref_patch=secret_ref_patch,
             bootstrap_values=self._legacy_runtime_values(settings_obj),
             bootstrap_secret_refs=self._legacy_runtime_secret_refs(),
             actor=str(actor or "config-center"),

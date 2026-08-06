@@ -74,6 +74,7 @@ _BACKUP_RUNTIME_FIELDS: tuple[tuple[str, str, type[object]], ...] = (
     ("backup_archive_password_ref", "backup.archive_password", str),
     ("backup_smtp_password_ref", "backup.smtp_password", str),
 )
+_BACKUP_SECRET_DEFINITION_KEYS = frozenset({"backup.archive_password", "backup.smtp_password"})
 
 
 def validate_runtime_values(values: tuple[RuntimeConfigValue, ...]) -> dict[str, object]:
@@ -108,10 +109,18 @@ def get_active_runtime_value(*, environment: str, definition_key: str) -> object
     normalized_key = str(definition_key or "").strip()
     if not normalized_environment or not normalized_key:
         return None
-    profile = get_active_runtime_profile(normalized_environment)
+    try:
+        profile = get_active_runtime_profile(normalized_environment)
+    except RuntimeError:
+        # Unit-level callers may provide an explicit value seam without a
+        # configured database; the typed projection will use that seam below.
+        return None
     if profile is None:
         return None
-    snapshot = get_latest_runtime_snapshot(profile.profile_key)
+    try:
+        snapshot = get_latest_runtime_snapshot(profile.profile_key)
+    except RuntimeError:
+        return None
     if snapshot is None:
         return None
     if snapshot.profile_id != profile.profile_id or snapshot.profile_version != profile.version:
@@ -119,10 +128,43 @@ def get_active_runtime_value(*, environment: str, definition_key: str) -> object
     return snapshot.resolved_values.get(normalized_key)
 
 
+def get_active_runtime_secret_ref(*, environment: str, definition_key: str) -> str | None:
+    """Read one active profile's secret reference without resolving its value."""
+
+    normalized_environment = str(environment or "").strip()
+    normalized_key = str(definition_key or "").strip()
+    if not normalized_environment or not normalized_key:
+        return None
+    try:
+        profile = get_active_runtime_profile(normalized_environment)
+    except RuntimeError:
+        # A value-only test seam may be used without database access.
+        return None
+    if profile is None:
+        return None
+    try:
+        snapshot = get_latest_runtime_snapshot(profile.profile_key)
+    except RuntimeError:
+        return None
+    if snapshot is None:
+        return None
+    if snapshot.profile_id != profile.profile_id or snapshot.profile_version != profile.version:
+        return None
+    try:
+        values = get_runtime_value_repository().list_for_profile(profile.profile_id)
+    except RuntimeError:
+        return None
+    for value in values:
+        if value.definition_key == normalized_key and value.secret_ref.strip():
+            return value.secret_ref.strip()
+    return None
+
+
 def activate_runtime_profile_patch(
     *,
     environment: str,
     patch: Mapping[str, object],
+    secret_ref_patch: Mapping[str, str] | None = None,
     bootstrap_values: Mapping[str, object] | None = None,
     bootstrap_secret_refs: Mapping[str, str] | None = None,
     actor: str,
@@ -161,6 +203,11 @@ def activate_runtime_profile_patch(
         if str(key).strip() and str(value).strip()
     }
     normalized_patch = {str(key).strip(): value for key, value in patch.items()}
+    normalized_secret_ref_patch = {
+        str(key).strip(): str(value).strip()
+        for key, value in (secret_ref_patch or {}).items()
+        if str(key).strip() and str(value).strip()
+    }
     if any(not key for key in normalized_patch):
         raise ValueError("Runtime profile patch contains an empty definition key")
 
@@ -171,7 +218,19 @@ def activate_runtime_profile_patch(
         | set(compatibility)
         | set(compatibility_secret_refs)
         | set(normalized_patch)
+        | set(normalized_secret_ref_patch)
     ):
+        if definition_key in normalized_secret_ref_patch:
+            next_values.append(
+                RuntimeConfigValue(
+                    profile_id=profile_id,
+                    definition_key=definition_key,
+                    value_json=None,
+                    secret_ref=normalized_secret_ref_patch[definition_key],
+                    source="admin_secret",
+                )
+            )
+            continue
         if definition_key in normalized_patch:
             next_values.append(
                 RuntimeConfigValue(
@@ -232,6 +291,7 @@ def activate_runtime_profile_patch_payload(
     *,
     environment: str,
     patch: Mapping[str, object],
+    secret_ref_patch: Mapping[str, str] | None = None,
     bootstrap_values: Mapping[str, object] | None = None,
     bootstrap_secret_refs: Mapping[str, str] | None = None,
     actor: str,
@@ -242,6 +302,7 @@ def activate_runtime_profile_patch_payload(
     profile, snapshot = activate_runtime_profile_patch(
         environment=environment,
         patch=patch,
+        secret_ref_patch=secret_ref_patch,
         bootstrap_values=bootstrap_values,
         bootstrap_secret_refs=bootstrap_secret_refs,
         actor=actor,
@@ -253,7 +314,7 @@ def activate_runtime_profile_patch_payload(
         "profile_version": profile.version,
         "snapshot_id": snapshot.snapshot_id,
         "snapshot_hash": snapshot.snapshot_hash,
-        "changed_keys": tuple(sorted(patch)),
+        "changed_keys": tuple(sorted(set(patch) | set(secret_ref_patch or {}))),
     }
 
 
@@ -309,12 +370,18 @@ def get_active_account_runtime_config(environment: str) -> dict[str, object] | N
 def get_active_backup_delivery_config(environment: str) -> dict[str, object] | None:
     """Resolve the complete typed backup policy and secret references."""
 
-    return _get_typed_runtime_projection(environment, _BACKUP_RUNTIME_FIELDS)
+    return _get_typed_runtime_projection(
+        environment,
+        _BACKUP_RUNTIME_FIELDS,
+        secret_definition_keys=_BACKUP_SECRET_DEFINITION_KEYS,
+    )
 
 
 def _get_typed_runtime_projection(
     environment: str,
     fields: tuple[tuple[str, str, type[object]], ...],
+    *,
+    secret_definition_keys: frozenset[str] = frozenset(),
 ) -> dict[str, object] | None:
     """Resolve one all-or-nothing typed projection from an active snapshot."""
 
@@ -324,10 +391,26 @@ def _get_typed_runtime_projection(
 
     resolved: dict[str, object] = {}
     for field_name, definition_key, expected_type in fields:
-        value = get_active_runtime_value(
-            environment=normalized_environment,
-            definition_key=definition_key,
-        )
+        value: object | None
+        if definition_key in secret_definition_keys:
+            value = get_active_runtime_secret_ref(
+                environment=normalized_environment,
+                definition_key=definition_key,
+            )
+            # Keep unit-test and explicit migration shims able to provide a
+            # ref through the ordinary public-value seam; production snapshots
+            # never expose secret values.
+            if value is None:
+                fallback = get_active_runtime_value(
+                    environment=normalized_environment,
+                    definition_key=definition_key,
+                )
+                value = fallback if isinstance(fallback, str) else None
+        else:
+            value = get_active_runtime_value(
+                environment=normalized_environment,
+                definition_key=definition_key,
+            )
         if expected_type is dict:
             if not isinstance(value, dict):
                 return None
@@ -464,6 +547,7 @@ __all__ = [
     "evaluate_storage_pressure",
     "get_active_runtime_profile",
     "get_active_runtime_value",
+    "get_active_runtime_secret_ref",
     "get_active_domain_runtime_config",
     "get_active_account_runtime_config",
     "get_active_backup_delivery_config",

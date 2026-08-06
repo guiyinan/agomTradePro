@@ -14,7 +14,10 @@ from typing import Any
 from apps.config_center.domain.backup_delivery import BackupDeliveryState
 
 from .config_summary_service import get_config_center_summary_service
-from .repository_provider import get_config_center_settings_repository
+from .repository_provider import (
+    get_config_center_secret_repository,
+    get_config_center_settings_repository,
+)
 from .runtime_public import get_active_runtime_value
 from .use_cases import (
     GetSystemGovernanceSettingsUseCase,
@@ -117,6 +120,24 @@ def get_backup_delivery_runtime_payload() -> dict[str, Any]:
     return get_config_center_settings_repository().build_backup_delivery_payload()
 
 
+def persist_config_secret(secret_ref: str, value: str | None) -> bool:
+    """Persist or clear one Config Center secret without returning plaintext."""
+
+    return bool(get_config_center_secret_repository().persist(secret_ref, value).present)
+
+
+def resolve_config_secret(secret_ref: str) -> str:
+    """Resolve one Config Center secret for an infrastructure consumer."""
+
+    return get_config_center_secret_repository().resolve(secret_ref)
+
+
+def config_secret_present(secret_ref: str) -> bool:
+    """Return secret presence metadata without decrypting the value."""
+
+    return bool(get_config_center_secret_repository().status(secret_ref).present)
+
+
 def get_backup_delivery_state() -> BackupDeliveryState:
     """Read the backup delivery state through Config Center ownership."""
 
@@ -176,6 +197,9 @@ __all__ = [
     "get_runtime_qlib_config",
     "get_runtime_config_value",
     "get_backup_delivery_runtime_payload",
+    "persist_config_secret",
+    "resolve_config_secret",
+    "config_secret_present",
     "get_backup_delivery_state",
     "record_backup_download_token",
     "mark_backup_delivery_sent",
