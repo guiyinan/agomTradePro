@@ -4438,3 +4438,10 @@ Git SHA / 镜像 / migration：
 - 变更：`QlibAlphaProvider._get_latest_data_date()` 先校验 typed runtime `enabled`、`must_not_use_for_decision` 和非空 `provider_uri`，不满足时直接返回不可用，不导入/初始化 Qlib；可用配置只使用 typed URI/region。
 - 测试与治理：Qlib provider freshness 回归 `11 passed`，新增 blocked 配置不调用 `qlib.init` 断言；runtime contract 将该 consumer/test 登记到 Alpha Qlib enabled/provider URI 定义，变更文件 Black/Ruff 通过。
 - 明确未做：未改变 Qlib 模型/推理算法、缓存前推、显式维护命令或生产 profile，未执行 PostgreSQL/观察窗口/M9/M10 或部署；不 push、不部署。
+
+## 94. 2026-08-06：Qlib 自建维护命令禁止 runtime 缺失时回退默认目录
+
+- 目标：阻断 `build_qlib_data` 在 Config Center typed runtime 缺失/blocked 时通过 `_DEFAULT_PROVIDER_URI` 继续检查或写入本地默认 Qlib 目录。
+- 变更：命令参数解析在无显式 `--provider-uri` 时先校验 typed runtime；缺失、disabled、blocked 或 URI 为空直接抛出稳定 `runtime_config_snapshot_unavailable`（ malformed URI 仍保留输入边界错误），只有显式维护 URI 才允许继续参数校验。
+- 测试与治理：Qlib build safety/management command 回归 `26 passed`；新增缺失 runtime 不调用本地 inspection 断言，runtime contract 将命令 parser consumer/test 登记到 Alpha Qlib enabled/provider URI 定义。
+- 明确未做：未改变显式维护 URI 的行为、Qlib builder/provider 算法或 Tushare 数据同步，未初始化生产 profile、未执行 PostgreSQL/观察窗口/M9/M10 或部署；不 push、不部署。

@@ -2627,57 +2627,57 @@
       "text": "\"\"\"Return a 403 response when the current user is not staff.\"\"\""
     },
     {
-      "line": 230,
+      "line": 245,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "help=\"Expected latest trade date; defaults to today.\","
     },
     {
-      "line": 289,
+      "line": 304,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "summary = builder.build_recent_data("
     },
     {
-      "line": 297,
+      "line": 312,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "self.stdout.write(f\"  latest_before: {summary.latest_local_date_before}\")"
     },
     {
-      "line": 298,
+      "line": 313,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "self.stdout.write(f\"  latest_after: {summary.latest_local_date_after}\")"
     },
     {
-      "line": 301,
+      "line": 316,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "f\"{summary.effective_target_date.isoformat() if summary.effective_target_date else 'None'}\""
     },
     {
-      "line": 303,
+      "line": 318,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "self.stdout.write(f\"  calendar_days_written: {summary.calendar_days_written}\")"
     },
     {
-      "line": 304,
+      "line": 319,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "self.stdout.write(f\"  instrument_files_written: {summary.instrument_files_written}\")"
     },
     {
-      "line": 305,
+      "line": 320,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "self.stdout.write(f\"  feature_series_written: {summary.feature_series_written}\")"
     },
     {
-      "line": 306,
+      "line": 321,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "self.stdout.write(f\"  stock_count: {summary.stock_count}\")"
     },
     {
-      "line": 308,
+      "line": 323,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "if summary.warning_messages:"
     },
     {
-      "line": 309,
+      "line": 324,
       "path": "apps/alpha/management/commands/build_qlib_data.py",
       "text": "for warning in summary.warning_messages:"
     },

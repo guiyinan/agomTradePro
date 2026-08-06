@@ -79,6 +79,21 @@ def test_runtime_provider_config_is_validated_before_io(monkeypatch) -> None:
         build_qlib_data.Command(stdout=StringIO()).handle(**options)
 
 
+def test_missing_runtime_config_blocks_default_provider_path_before_io(monkeypatch) -> None:
+    """The maintenance command must not fall back to the local default Qlib path."""
+
+    monkeypatch.setattr(build_qlib_data, "get_runtime_qlib_config", lambda: {})
+    monkeypatch.setattr(
+        build_qlib_data,
+        "_inspect_latest_trade_date",
+        lambda *_args: pytest.fail("blocked runtime must not inspect local qlib data"),
+    )
+    options = _valid_options() | {"provider_uri": None, "region": None}
+
+    with pytest.raises(CommandError, match="runtime_config_snapshot_unavailable"):
+        build_qlib_data.Command(stdout=StringIO()).handle(**options)
+
+
 def test_option_parser_normalizes_and_deduplicates_universes() -> None:
     options = _valid_options() | {"universes": " CSI300, custom_index, csi300 "}
 

@@ -90,11 +90,26 @@ def _parse_command_options(
     """Validate every dynamic command/config value before external or filesystem I/O."""
 
     provider_override = raw_options.get("provider_uri")
+    if provider_override is None and "provider_uri" in runtime_config:
+        # Validate a malformed runtime value before the fail-closed status
+        # check so callers receive the stable input-boundary error.
+        _bounded_option_text(
+            runtime_config.get("provider_uri"),
+            label="provider_uri",
+            max_length=4_096,
+        )
+    if provider_override is None and (
+        runtime_config.get("enabled") is not True
+        or runtime_config.get("must_not_use_for_decision", False)
+    ):
+        raise CommandError(
+            str(runtime_config.get("blocked_reason") or "runtime_config_snapshot_unavailable")
+        )
     provider_uri = _bounded_option_text(
         (
             provider_override
             if provider_override is not None
-            else runtime_config.get("provider_uri", _DEFAULT_PROVIDER_URI)
+            else runtime_config.get("provider_uri")
         ),
         label="provider_uri",
         max_length=4_096,
