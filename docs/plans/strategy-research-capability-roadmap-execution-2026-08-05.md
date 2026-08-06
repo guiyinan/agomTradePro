@@ -1,6 +1,6 @@
 # 策略研究能力路线图 R1—R8 执行状态（2026-08-05）
 
-> 状态：R1—R8 第一批无数据先行研究纵切已实现；完整审计确认仍有无数据可开发 P1，且真实数据、生产 Publication、样本历史和 PromotionDecision 尚未形成，能力门禁均保持 `blocked`
+> 状态：R1—R8 第一批无数据先行研究纵切已实现；完整审计确认仍有无数据可开发 P1，且真实数据、生产 Publication、样本历史和真实 approved PromotionDecision 尚未形成，能力门禁均保持 `blocked`
 > 来源：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
 > 适用分支：`dev/refactor-scenario-governance-quick-wins`
 > 决策边界：本文件完成的是“能否启动”的可执行治理，不把缺少数据和研究证据的长期能力声明为完成。
@@ -25,12 +25,13 @@
 14. 完成 R7 Research-owned append-only reminder ledger/internal outbox，精确绑定 forecast/revision/policy 与逐期 path evidence，并实现 deterministic due/ack/escalate/expiry；只允许内部人工 pull/ACK，明确禁止外发、自动审批与执行。
 15. 完成 R3 exact-PIT historical-mean/FMP、nested temporal-CV runner、canonical artifact bytes、dated current/forward output ledger 和 append-only retirement lifecycle。所有产物继续三重 decision-blocked，不接 current、组合或执行链。
 16. 完成 R8 13 类 typed 数值输入、current baseline、可投资 universe、四市场约束、path drawdown、四候选可复算比较及 append-only result/Promotion/retirement/rollback lifecycle；canonical provider 重读、Decimal/UTC hash 和无法证明的数量约束均 fail closed，未接 transition plan 或执行链。
+17. 完成 R1 owner-approval-enforced baseline spec、forecast/baseline/actual manifest 精确封存、完整 period×metric 配对 trial，以及 Research 专用 exact Promotion/retirement/rollback lifecycle；所有消费均从 canonical provider 重读，未用 fixture 解锁 Valuation。
 
 ## 2. 启动状态矩阵
 
 | 能力 | 决策 | 解除阻断所需的核心证据 | 独立阶段计划 |
 |---|---|---|---|
-| R1 行业经营驱动与盈利预测 | `blocked` | 已有版本化行业模板、Sector→Equity 持久 bridge、三情景六阶段/cash-flow seal 和误差台账；仍需 QW-7 反馈、连续 PIT 事实、正式 baseline 及 Promotion artifact exact binding | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
+| R1 行业经营驱动与盈利预测 | `blocked` | 已有版本化行业模板、Sector→Equity 持久 bridge、三情景六阶段/cash-flow seal、owner-approval-enforced baseline contract、完整配对 trial 和 Research exact Promotion/lifecycle；仍需 QW-7 反馈、连续 PIT 事实、Production Publication、真实 owner approval/trial/approved decision，且未接 Valuation | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
 | R2 市场结构与投资者资金流 | `blocked` | 已有 taxonomy/measure/proxy/PIT membership、版本化 expected-period calendar、完整 coverage 和整期全缺阻断；仍需批准定义、真实 calendar、两个周期真实 PIT 覆盖和 Publication 证据 | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
 | R3 高频宏观因子与 nowcast | `blocked` | 已有 exact PIT runner、逐 fold baseline/FMP/nested-CV、canonical artifact bytes、dated outputs 和 retirement lifecycle；仍需宏观 vintage/代理资产 PIT、真实 benchmark/cost、regime/OOS trial 和 exact Promotion | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
 | R4 宏观敞口与风险平价 | `blocked` | 已有暴露/协方差/风险贡献候选验证；仍需 R3 晋级版本、真实资产暴露和 canonical constraint snapshot | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
@@ -121,6 +122,8 @@ python scripts/verify_architecture.py
 2026-08-05 R3 runner 续批验证：主代理独立复跑 unit/component 为 `32 / 11 passed`，实现 agent 迁移测试 `1 passed`；16 个生产文件增量 mypy 0 regression，Macro Factor 无 migration drift，Django system check、45 个 current-data surface、架构边界（2168 files / 0 violations）、业务配置与 governance consistency 均通过。软件可复算不替代真实 vintage/price/cost/benchmark、OOS trial 或 exact Promotion attestation。
 
 2026-08-06 R8 governed optimization 续批验证：主代理独立复跑 unit/component/migration 为 `21 / 11 / 2 passed`；19 个生产文件增量 mypy 0 regression，Portfolio 无 migration drift，Ruff/Black/isort、Django system check、45 个 current-data surface、架构边界（2182 files / 0 violations）、业务配置、governance consistency 与 Celery contracts 均通过。Luna Max 最终只读复核无 P0/P1；软件证据不替代真实 R3/R4/R5 Promotion、Portfolio snapshot、broker reconciliation 或约束校准。
+
+2026-08-06 R1 精确基线与晋级续批验证：Domain/Application `80 passed`；Equity unit/component 合计 `99 passed`、migration `2 passed`；Research unit/component/migration 为 `48 / 24 / 3 passed`。相关生产文件增量 mypy 0 regression，Ruff、Black、isort、Equity/Research migration drift、Django system check、架构边界、业务配置和 governance consistency 均通过，Luna Max 最终只读复核无 P0/P1。软件证据不替代真实 QW-7、Production Publication、连续经营事实、真实 trial 或 Valuation 消费授权。
 
 完整路线图审计后的 R4/R5 增量批次另行复验 fixed-income 全部 unit/component 与 R4 macro-risk，共 `49 passed`；增量 mypy/ruff/black、Django check、架构边界（2148 files / 0 violations）、业务配置硬编码和 43 个 current-data surface 均通过。
 

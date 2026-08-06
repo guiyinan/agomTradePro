@@ -17,7 +17,7 @@
 
 | 能力 | 已有可靠基础 | 仍可无数据开发的主要 P1 | 必须等待的真实证据 |
 |---|---|---|---|
-| R1 | Sector typed AST/DAG、三情景、PIT fact、Equity 误差台账、Sector→Equity 持久证据桥接、cash-flow/六阶段/template-run seal、通用 driver 绑定 | baseline spec；Promotion artifact 精确绑定 | QW-7 反馈、连续行业 KPI、财务/估值 Publication、真实 trial |
+| R1 | Sector typed AST/DAG、三情景、PIT fact、Equity 误差台账与持久 bridge、cash-flow/六阶段/template-run seal、owner-approval-enforced baseline spec、完整配对 trial、Research exact Promotion/retirement/rollback | 当前 R1 无数据软件切片经 Luna Max 复核已无 P0/P1；Valuation 消费须等待真实证据并另建阶段 | QW-7 反馈、连续行业 KPI、财务/估值 Publication、真实 owner approval、trial 与 approved decision |
 | R2 | actor/series 双时间、proxy/measure semantics、PIT membership、描述性证据、版本化 expected-period calendar、series×period 完整 coverage、整期全缺门禁 | 运行时 taxonomy/calendar Publication 接线与研究晋级闭环 | 获批 taxonomy、授权、两个市场周期、Production Publication、Audit 解释力 |
 | R3 | 独立 App、exact PIT fact/manifest、historical-mean/FMP、nested temporal-CV runner、canonical artifact bytes、dated current/forward ledger、append-only retirement lifecycle | regime 分段、trial/Promotion exact artifact binding、监控与生产读取投影 | 宏观 vintage、代理资产/连续期货、真实 cost/benchmark、OOS trial、Promotion |
 | R4 | beta/CI/R²/残差、PSD、风险贡献、成本/流动性门禁 | 独立 R3 Promotion/PIT attestation；滚动/regime exposure；三基准同窗回测；完整持久证据 | R3 晋级版本、真实 exposure/covariance/constraint snapshot 和历史样本 |
@@ -92,14 +92,21 @@
 - `portfolio.0006` 只创建 append-only input/result/lifecycle 台账，不 seed、不回填。Promotion 事件必须从 Research provider 精确回读，retirement/rollback 必须从 Portfolio owner authorization provider 精确回读；Repository 只持久化，不承担授权。
 - 本纵切未注册 API/TUI/Celery/订单或 transition plan 写入口，所有输出固定 `research_only / must_not_use_for_decision / must_not_execute`。
 
+### 3.8 R1 精确预测基线、trial 与晋级生命周期
+
+- Equity 定义强制 owner approval 的 baseline spec 合同，精确绑定 subject、industry、scenario、purpose、horizon、calendar 和 metric set；预测与 baseline 在每个 period×metric 上完整配对，actual 使用独立 PIT manifest，不允许以评估时可见事实改写预测起点。
+- Baseline artifact、trial result、forecast/template-run/sensitivity seal 与 owner receipt 均使用 canonical hash；trial 预注册样本、误差指标、失效条件和比较口径，缺行、重复行、单位不一致、未来知识或 owner 不一致均 fail closed。
+- Research 使用 R1 专用 typed Promotion policy/decision，不复用通用 Sharpe/FDR/DSR 语义；approved/rejected 都保存完整审计结果，生命周期按 canonical scope 隔离并支持 promoted、retired、rolled_back。
+- Research Infrastructure 只依赖 Equity Application query port，在决策、查询 active promotion 与回滚时重读 canonical Equity ledger；decision id、自报 hash、伪造 receipt、非尾回滚、过期 policy/trial 和跨 scope 替换均不能放行。
+- Equity 四张、Research 五张 append-only ledger 均通过 schema-only、零 seed 迁移建立；未注册 Valuation consumer、API/TUI/Celery 或生产读取面。
+
 ## 4. 后续实施顺序
 
-1. R1 baseline/Promotion artifact exact binding。
-2. R4 rolling backtest、R5 relative-value 扩展、R6 lifecycle。
-3. R3 regime 分段、trial/Promotion exact binding 与监控读取投影。
-4. R7 calibration/path 结果持久化与 retirement/Promotion lifecycle。
+1. R4 rolling backtest、regime exposure 与三基准同窗比较；R5 relative-value 扩展；R6 lifecycle。
+2. R3 regime 分段、trial/Promotion exact binding 与监控读取投影。
+3. R7 calibration/path 结果持久化与 retirement/Promotion lifecycle。
 
-R8 本轮无数据软件清单已关闭；只有取得真实 R3/R4/R5 Promotion、Portfolio snapshot、broker reconciliation 和约束校准后，才另建 transition plan/生产消费阶段，不在 fixture 上提前接线。
+R1 与 R8 本轮无数据软件清单已关闭。R1 只有取得真实 QW-7、Publication、连续 KPI、真实 trial 与 approved decision 后，才另建 Valuation 消费阶段；R8 只有取得真实 R3/R4/R5 Promotion、Portfolio snapshot、broker reconciliation 和约束校准后，才另建 transition plan/生产消费阶段。两者都不在 fixture 上提前接线。
 
 每项按独立 commit 组推进；真实证据未齐时保持 blocked，不使用 fixture、模型文件或迁移存在作为 ready 证明。
 
@@ -121,5 +128,7 @@ R7 reminder 续批经 Luna Max 实现与只读复核关闭全部 P0/P1；主代�
 R3 runner 续批经 Luna Max 实现与多轮泄漏/持久化复核关闭全部 P0/P1；主代理独立复跑 unit `32 passed`、component `11 passed`，实现 agent migration `1 passed`。16 个生产文件增量 mypy 为 0 regression；Ruff、Black、isort、Macro Factor migration drift、Django system check、架构扫描（2168 files / 0 violations）、45 个 current-data surface、业务配置和 governance consistency 均通过。
 
 R8 governed optimization 续批经 Luna Max 实现、两轮独立只读复核和定点整改后无 P0/P1；主代理独立复跑 unit `21 passed`、component `11 passed`、migration `2 passed`。19 个生产文件增量 mypy 为 0 regression；Ruff、Black、isort、Portfolio migration drift、Django system check、架构扫描（2182 files / 0 violations）、45 个 current-data surface、业务配置、governance consistency 和 Celery contracts 均通过。测试只证明 software contract，不替代真实 Promotion、snapshot、broker reconciliation 或约束校准。
+
+R1 精确基线与晋级续批经 Luna Max 实现、独立只读复核和定点整改后无 P0/P1：Domain/Application `80 passed`；Equity unit/component `99 passed`、migration `2 passed`；Research unit/component/migration `48 / 24 / 3 passed`。相关生产文件增量 mypy 为 0 regression，Ruff、Black、isort、Equity/Research migration drift、Django system check、架构边界、业务配置与 governance consistency 均通过。测试只证明 baseline/trial/Promotion/lifecycle 软件合同，不替代真实 Publication、经营事实、样本外结果或 Valuation 授权。
 
 完成路线图仍需为上表每项取得代码、迁移/台账、研究证据、运行时行为和 Promotion/回滚的直接证明；“测试全绿”只证明已覆盖合同，不替代真实数据和样本外结果。

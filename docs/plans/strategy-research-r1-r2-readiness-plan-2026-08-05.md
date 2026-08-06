@@ -1,6 +1,6 @@
 # R1/R2 策略研究能力启动门整改计划（2026-08-05）
 
-> 状态：**R1 持久证据桥接与 R2 expected-period coverage 已实现；真实数据、baseline 和晋级证据仍缺失，R1/R2 能力保持 Blocked**
+> 状态：**R1 持久证据桥接、精确 baseline/Promotion 生命周期与 R2 expected-period coverage 已实现；真实数据和真实晋级证据仍缺失，R1/R2 能力保持 Blocked**
 > 依据：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
 > 复核基线：`dev/refactor-scenario-governance-quick-wins`
 > 本轮主任务：判断 R1 行业经营驱动与盈利预测、R2 市场结构与投资者资金流是否具备启动条件。
@@ -8,12 +8,12 @@
 
 ## 1. 执行结论
 
-R1、R2 当前均不得进入业务模型实现阶段。
+R1、R2 当前均不得进入真实 pilot 或生产消费阶段；R1 research-only 软件切片可继续收口，但不得据此发布业务预测。
 
-- R1 的 QW-7 仍没有真实使用反馈、连续经营事实或预测误差基线；Data Center 已新增无 seed 的经营指标版本定义和 PIT observation 合约，但没有把“结构存在”解释为真实数据已具备。
+- R1 的 QW-7 仍没有真实使用反馈、连续经营事实或真实预测误差历史；Data Center 已新增无 seed 的经营指标版本定义和 PIT observation 合约，但没有把“结构存在”解释为真实数据已具备。
 - R2 已新增治理数据驱动的 actor/measure/source/proxy 定义、资产组 revision 与 PIT membership 合约；完整主体分类、两个市场周期覆盖和正式 Publication 仍未具备。
 - Data Center 已具备 Publication 和 PIT 技术基座；技术路径存在不等于生产数据已经通过门禁。没有 production publication、coverage、manifest 和 as-of 证据时，相关条件保持 `unverified`。
-- Research 已具备通用 `PromotionDecision`；R1 尚无预测 trial、benchmark、误差指标或进入 Valuation 的绑定规则，因此不能把通用门禁的存在解释为 R1 已 ready。
+- Research 已具备 R1 专用 exact PromotionDecision、trial seal 与 retirement/rollback 生命周期；但尚无真实 trial、approved decision 或 Valuation consumer，因此不能把软件门禁的存在解释为 R1 已 ready。
 
 本轮已交付统一 typed readiness contract，以及 Data Center-owned 定义、append-only PIT writer/query facade、无 seed 迁移和 Equity-owned 可审计预测/季度偏差账本。账本只提供安全积累与复算结构，不包含行业公式、自动预测或默认业务数据；不得新增 Classic 页面，不发布盈利预测或“增量/存量/减量博弈”结论。
 
@@ -33,8 +33,17 @@ R1、R2 当前均不得进入业务模型实现阶段。
 - Sector append-only run 通过 `run_key/run_version` 进入 Equity，调用方不能提交自称可信的 run result；template/run identity、通用 driver PIT identity、cash flow 和三情景六阶段输出全部进入 v2 seal。
 - 每个情景保存收入、净利润、现金流、可复算利润率，以及 Equity-owned typed 估值敏感性输入、输出、单位、方法版本和 source artifact hash。
 - 季度 actual 到达后，账本一次性追加三情景对比，保存 revenue/profit/margin 的 signed error、absolute error 与适用的 absolute percentage error，并引用当时可知的 operating PIT actual evidence。
-- v2 当前强制 research-only，旧的 decision-id-only checker 不能将预测标为 `valuation_consumable`。后续必须实现 PromotionDecision 对 forecast artifact hash、template run hash、owner、purpose 和 sensitivity evidence 的精确绑定，才可开放 Valuation 消费。
+- v2 当前强制 research-only，旧的 decision-id-only checker 不能将预测标为 `valuation_consumable`。Research 已实现 PromotionDecision 对 forecast artifact hash、template run hash、owner、purpose、sensitivity evidence 和 trial result 的精确绑定；只有未来取得真实 approved decision 并另建 Valuation consumer 阶段后，才可考虑开放消费。
 - 能力仍为 `blocked`：当前实现证明可安全积累数据，不证明任何行业 forecast 已有效、已晋级或可用于投资决策。
+
+### 1.3 2026-08-06 R1 精确 baseline、trial 与 Promotion 实施状态
+
+- Equity 新增强制 owner approval 的 baseline spec 合同、baseline artifact 和 trial result；预测、基线与 actual 使用独立 manifest，并按完整 period×metric 集合逐项配对，保留原始值、单位、误差和来源时间。
+- Trial 预注册 canonical scope、calendar、metric set、样本窗口、比较指标、通过/失效条件以及 forecast/template-run/sensitivity seal；缺行、重复行、单位错配、未来知识或跨 scope 替换均 fail closed。
+- Research 新增 R1 专用 typed policy/decision，而不是套用通用 Sharpe/FDR/DSR 规则；approved/rejected 都有稳定 receipt，生命周期支持 promoted、retired、rolled_back，并按 subject/industry/scenario/purpose/horizon/calendar/metric-set 隔离。
+- Research 只通过 Equity Application query port 重读 canonical artifact/trial，active 查询会重验 policy、owner row、bundle receipt、hash chain 和 expiry；调用方不能用 decision id、自报 hash 或伪造 receipt 解锁。
+- Equity 四张、Research 五张 append-only ledger 均由 schema-only、零 seed 迁移建立；当前没有 Valuation consumer、API/TUI/Celery 或生产读取接线。
+- 能力仍为 `blocked`：真实 QW-7、连续经营事实、Production Publication、真实 trial/approved decision 均未到位。
 
 ## 2. 目标与非目标
 
@@ -79,8 +88,8 @@ Readiness Application 只能通过 Protocol 收集 owner evidence。它不得 im
 | 至少一个行业的连续、可审计经营事实 | `data_center` | `missing` | 未发现公司门店、同店销售、客单价、销量/吨价、培训人数/学费等 canonical operating-fact entity、catalog、Publication 或 repository | `industry_earnings_forecast.auditable_operating_fact_series.missing` |
 | 财务事实 Publication/PIT | `data_center` | `unverified` | `FinancialFact.available_at`、financial Publication publisher/query 和 PIT manifest 基座已存在；没有本轮生产 publication/coverage/manifest 证据 | `industry_earnings_forecast.financial_publication_pit.unverified` |
 | 估值事实 Publication/PIT | `data_center` | `unverified` | `ValuationFact.available_at` 与 published valuation query 已存在；没有本轮生产 publication/coverage/manifest 证据 | `industry_earnings_forecast.valuation_publication_pit.unverified` |
-| horizon、误差指标与 baseline | `equity` | `missing` | 已实现版本化 horizon、三情景 quarterly actual-vs-forecast ledger、signed/absolute/percentage error；仍没有 owner-approved naive/consensus baseline、样本规范或误差门槛 | `industry_earnings_forecast.forecast_evaluation_spec.missing` |
-| R1 绑定的 Research PromotionDecision | `research` | `unverified` | v2 账本强制 research-only，已拒绝旧 decision-id-only 放行；尚未实现 forecast/run/sensitivity artifact exact binding，也没有真实 R1 trial、通过标准、approved decision 或 Valuation 读取证据 | `industry_earnings_forecast.research_promotion_gate.unverified` |
+| horizon、误差指标与 baseline | `equity` | `missing` | 已实现 owner-approval-enforced baseline spec 合同、完整 period×metric 配对、独立 actual manifest、预注册 trial 和误差/失效门槛；尚无真实 owner approval receipt、样本与 trial 结果 | `industry_earnings_forecast.forecast_evaluation_spec.missing` |
+| R1 绑定的 Research PromotionDecision | `research` | `unverified` | 已实现 R1 专用 exact forecast/run/sensitivity/trial binding、owner-authorized lifecycle 与 active replay；没有真实 R1 trial、approved decision 或 Valuation 读取证据 | `industry_earnings_forecast.research_promotion_gate.unverified` |
 
 ### 4.1 R1 可启动的最小 pilot
 
@@ -197,6 +206,13 @@ pytest tests/unit/research/test_capability_readiness.py -q
 pytest tests/unit/equity/test_operating_forecast.py -q
 pytest tests/component/equity/test_operating_forecast_repository.py -q
 pytest tests/migrations/test_equity_operating_forecast_ledger_migration.py -q
+pytest tests/unit/equity/test_forecast_baseline.py tests/unit/equity/test_forecast_baseline_application.py -q
+pytest tests/unit/equity/test_forecast_baseline_codec.py tests/component/equity/test_forecast_baseline_repository.py -q
+pytest tests/migrations/test_equity_forecast_baseline_ledger_migration.py -q
+pytest tests/unit/research/test_r1_forecast_promotion.py tests/unit/research/test_r1_forecast_promotion_application.py tests/unit/research/test_r1_forecast_promotion_codec.py -q
+pytest tests/unit/research/test_r1_forecast_promotion_lifecycle.py tests/unit/research/test_r1_forecast_promotion_lifecycle_application.py -q
+pytest tests/component/research/test_r1_forecast_promotion_repository.py tests/component/research/test_r1_forecast_promotion_repository_hardening.py -q
+pytest tests/migrations/test_r1_forecast_promotion_migration.py -q
 pytest tests/unit/sector/test_industry_operating_template.py tests/component/sector/test_industry_operating_template_repository.py -q
 pytest tests/migrations/test_sector_industry_template_migration.py -q
 pytest tests/unit/data_center/test_market_structure.py tests/component/data_center/test_market_structure.py -q
@@ -223,6 +239,8 @@ python scripts/verify_architecture.py --include-audit --format text
 若后续新增 current/latest readiness API 或 TUI 面，必须同步 `governance/current_data_contracts.json`，并覆盖 missing、stale、owner mismatch、future evidence 和 observation preservation。当前阶段不新增该决策面。
 
 2026-08-05 交叉复核整改已把 R1 observed assumption 与 quarterly actual 逐字段绑定到 company/metric/value/unit 的 PIT fact；R2 actor/series 查询同时约束 effective、available、expiry 和 request as-of，并逐 series/period 封存 expected/observed/missing membership coverage。外部 source evidence 必须与 sealed payload 精确一致，Equity、Sector、Data Center PIT/R2 的 QuerySet/Manager 更新、批量更新和删除路径均 fail closed。以上机制仍不替代真实 Publication、两个市场周期 coverage 或 approved PromotionDecision。
+
+2026-08-06 R1 精确 baseline/Promotion 续批验证：Domain/Application `80 passed`；Equity unit/component 合计 `99 passed`、migration `2 passed`；Research 拆分后 unit/component/migration 为 `48 / 24 / 3 passed`（unit+component 合计 `72 passed`）。相关生产文件增量 mypy 0 regression，Ruff、Black、isort、Equity/Research migration drift、Django system check、架构、业务配置和治理门禁均通过；Luna Max 最终只读复核无 P0/P1。以上仍不替代真实 owner approval、Publication、trial、approved decision 或 Valuation 消费授权。
 
 ## 9. 回滚
 
