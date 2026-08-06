@@ -4583,3 +4583,10 @@ Git SHA / 镜像 / migration：
 - 防回归：新增 `scripts/check_data_center_legacy_entrypoints.py`，AST 扫描所有 `scripts/**/*.py` 的 Data Center infrastructure/interface/query/read-facade import，要求每个直接入口在清单中存在、replacement/status 非空且文件存在；CI fast-feedback 与 consistency workflow 均执行该 guard。当前输出 `6 registered`，未登记新增入口会 fail closed。
 - 证据：legacy entrypoint guard 与单测通过；本批只做入口收编和状态登记，没有伪装成已迁移，仍保留这些脚本直到生产零旧读、真实备份/恢复及 M9 破坏性清理条件满足。
 - 明确未做：未删除或改写 legacy 脚本、未切换生产任务、未执行 PostgreSQL/备份恢复/观察窗口/M9/M10 或部署，不 push；脚本迁移须在后续单独阶段按用途逐项替换并补运行证据。
+
+## 113. 2026-08-06：提交态 Data Center architecture inventory 接入 CI
+
+- 根因：architecture inventory 虽有 deterministic artifact 和本地回归，但两条 CI workflow 未直接执行 `data_center_architecture_inventory.py` 的 stale 检查；新增业务代码可能只在本地被发现，无法在提交阶段阻断 cross-App ORM、legacy fact、current surface 或 Data Center internal import 增长。
+- 变更：fast-feedback 与 consistency workflow 均新增 deterministic inventory gate。脚本在 clean checkout 中按提交源码重建 inventory，与 `governance/data_center_architecture_inventory.json` 不一致即失败；脚本/测试 fixture 入口由 §112 的 legacy-entrypoint guard 单独覆盖。
+- 证据：本地提交态 inventory artifact 保持 `direct_data_center_imports_outside_data_center=0`、`provider_imports_outside_data_center=0`；当前工作区 inventory 命令因未提交的 fixed_income/research 外部文件报告 stale，未覆盖或重生成 artifact。
+- 明确未做：未声称 legacy fact 已清零、未删除旧表/adapter/task/fixture、未执行 PostgreSQL/生产观察/备份恢复/M9/M10 或部署；CI gate 只防止基线继续漂移，不能替代生产迁移证据。
