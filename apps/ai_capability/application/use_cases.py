@@ -8,8 +8,8 @@ import re
 import uuid
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import UTC, date, datetime
-from typing import Any, Protocol, cast
+from datetime import UTC, datetime
+from typing import Any, cast
 
 from django.urls import Resolver404, resolve
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -20,7 +20,6 @@ from apps.ai_capability.application.repository_provider import (
     get_capability_execution_support_repository,
     get_confirmation_codec,
 )
-from apps.ai_provider.application.repository_provider import get_ai_client_factory
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.prompt.application.runtime_provider import execute_builtin_tool
 from apps.regime.application.current_regime import resolve_current_regime
@@ -44,6 +43,7 @@ from ..domain.services import (
     CapabilityParameterPolicy,
 )
 from . import sync_use_cases as _sync_use_cases
+from .ai_client_factory import AIClientFactory
 from .catalog_query_use_cases import (
     GetCapabilityDetailUseCase,
     GetCapabilityListUseCase,
@@ -61,6 +61,9 @@ from .financial_fact_routing import (
 from .mcp_runtime_gateway import McpRuntimeValidationError
 from .mcp_runtime_gateway import call_sdk_mcp_tool as _call_sdk_mcp_tool
 from .result_enrichment import enrich_security_names
+from .routing_runtime_adapters import (
+    _get_fallback_chat_system_prompt,
+)
 from .terminal_gateway import get_terminal_capability_gateway
 
 logger = logging.getLogger(__name__)
@@ -109,38 +112,6 @@ _list_sdk_mcp_tools = cast(
 )
 
 
-class AIChatClientProtocol(Protocol):
-    """Narrow chat client contract consumed by capability fallback routing."""
-
-    def chat_completion(
-        self,
-        *,
-        messages: list[dict[str, Any]],
-        model: str | None = None,
-    ) -> dict[str, Any]:
-        """Generate one non-streaming chat completion."""
-
-
-class AIClientFactoryProtocol(Protocol):
-    """Narrow provider factory contract consumed by capability routing."""
-
-    def get_client(
-        self,
-        provider_ref: str | None = None,
-        user: object | None = None,
-    ) -> AIChatClientProtocol:
-        """Return a user-scoped chat client."""
-
-
-def _create_ai_client_factory() -> AIClientFactoryProtocol:
-    """Build the default typed AI client factory."""
-
-    return cast(AIClientFactoryProtocol, get_ai_client_factory())
-
-
-AIClientFactory: Callable[[], AIClientFactoryProtocol] = _create_ai_client_factory
-
-
 class SyncCapabilitiesUseCase(_sync_use_cases.SyncCapabilitiesUseCase):
     """Compatibility wrapper for tests and callers patching the legacy module path."""
 
@@ -169,53 +140,6 @@ class SyncCapabilitiesUseCase(_sync_use_cases.SyncCapabilitiesUseCase):
                 original_core_names_loader,
             )
             _write_sync_loader("_list_sdk_mcp_tools", original_tools_loader)
-
-
-class _CapabilityRegimeAdapter:
-    """Adapter for exposing regime queries to tool registry."""
-
-    def get_current_regime(self, as_of_date: date | None = None) -> dict[str, Any]:
-        result = resolve_current_regime(as_of_date=as_of_date)
-        return {
-            "dominant_regime": result.dominant_regime,
-            "confidence": result.confidence,
-            "observed_at": result.observed_at.isoformat() if result.observed_at else None,
-            "data_source": result.data_source,
-            "warnings": result.warnings,
-            "distribution": result.distribution or {},
-            "is_fallback": result.is_fallback,
-        }
-
-    def get_regime_distribution(self, as_of_date: date | None = None) -> dict[str, Any]:
-        result = resolve_current_regime(as_of_date=as_of_date)
-        return {
-            "observed_at": result.observed_at.isoformat() if result.observed_at else None,
-            "distribution": result.distribution or {},
-            "dominant_regime": result.dominant_regime,
-            "confidence": result.confidence,
-            "data_source": result.data_source,
-            "warnings": result.warnings,
-            "is_fallback": result.is_fallback,
-        }
-
-
-_DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT = (
-    "You are the AgomTradePro system assistant for an investment decision platform. "
-    "Prioritize answers within AgomTradePro operational context, including system status, "
-    "macro environment, market regime, policy level, portfolio, positions, signals, "
-    "backtest, audit, AI provider configuration, terminal commands, RSS ingestion, "
-    "policy news, hotspot events, and other system modules already present in the platform. "
-    "If the user asks an ambiguous question such as recommendations, interpret it in this platform context first. "
-    "Do not drift into unrelated lifestyle topics like fitness, travel, entertainment, or generic life coaching. "
-    "If the request is underspecified, ask a short clarifying question tied to the platform context, "
-    "or provide the most relevant system-oriented answer."
-)
-
-
-def _get_fallback_chat_system_prompt() -> str:
-    settings_data = get_terminal_capability_gateway().get_runtime_settings()
-    custom_prompt = str(settings_data.get("fallback_chat_system_prompt", "") or "").strip()
-    return custom_prompt or _DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT
 
 
 class CapabilityDecisionService:

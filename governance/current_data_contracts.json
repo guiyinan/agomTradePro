@@ -1187,7 +1187,7 @@
         "apps/data_center/infrastructure/market_gateway_entities.py",
         "apps/data_center/infrastructure/gateways/tencent_gateway.py",
         "apps/data_center/infrastructure/gateways/tushare_gateway.py",
-        "apps/data_center/infrastructure/market_data_repositories.py",
+        "apps/data_center/infrastructure/quote_snapshot_repository.py",
         "apps/realtime/infrastructure/repositories.py",
         "apps/realtime/application/price_polling_service.py",
         "apps/realtime/domain/entities.py"
@@ -1203,7 +1203,7 @@
         "apps/data_center/infrastructure/gateways/tushare_gateway.py": [
           "observed_at=observed_at"
         ],
-        "apps/data_center/infrastructure/market_data_repositories.py": [
+        "apps/data_center/infrastructure/quote_snapshot_repository.py": [
           "fetched_at=m.fetched_at",
           "\"fetched_at\": q.fetched_at"
         ],
@@ -2014,7 +2014,7 @@
       "source_files": [
         "apps/data_center/application/query_services.py",
         "apps/data_center/application/public.py",
-        "apps/data_center/infrastructure/fundamental_fact_repositories.py",
+        "apps/data_center/infrastructure/financial_fact_repository.py",
         "apps/alpha/infrastructure/adapters/simple_adapter.py",
         "apps/factor/infrastructure/adapters/__init__.py"
       ],
@@ -2027,7 +2027,7 @@
           "as_of: date | None = None",
           "end=as_of"
         ],
-        "apps/data_center/infrastructure/fundamental_fact_repositories.py": [
+        "apps/data_center/infrastructure/financial_fact_repository.py": [
           "period_end__lte=end"
         ],
         "apps/alpha/infrastructure/adapters/simple_adapter.py": [
@@ -2426,11 +2426,14 @@
         "apps/data_center/application/sync_use_cases.py",
         "apps/data_center/application/interface_services.py",
         "apps/data_center/infrastructure/market_breadth_repositories.py",
-        "apps/data_center/infrastructure/macro_fact_repositories.py",
-        "apps/data_center/infrastructure/fundamental_fact_repositories.py",
+        "apps/data_center/infrastructure/macro_fact_storage_repository.py",
+        "apps/data_center/infrastructure/financial_fact_repository.py",
+        "apps/data_center/infrastructure/fund_nav_repository.py",
+        "apps/data_center/infrastructure/valuation_fact_repository.py",
         "apps/data_center/infrastructure/_provider_adapter_tushare.py",
         "apps/data_center/infrastructure/_provider_adapter_akshare.py",
-        "apps/data_center/infrastructure/market_data_repositories.py"
+        "apps/data_center/infrastructure/price_bar_repository.py",
+        "apps/data_center/infrastructure/quote_snapshot_repository.py"
       ],
       "required_markers": {
         "apps/data_center/application/control_plane.py": [
@@ -2494,19 +2497,25 @@
           "observed_at=datetime.combine(row.effective_date, time.min, tzinfo=UTC)",
           "row.raw_payload_hash or _sector_membership_payload_hash(row)"
         ],
-        "apps/data_center/infrastructure/fundamental_fact_repositories.py": [
+        "apps/data_center/infrastructure/financial_fact_repository.py": [
           "def list_publication_candidates(",
           "available_at=m.available_at",
           "if row.available_at is None",
           "observed_at=row.available_at",
-          "row.raw_payload_hash or _financial_payload_hash(row)",
+          "row.raw_payload_hash or _financial_payload_hash(row)"
+        ],
+        "apps/data_center/infrastructure/fund_nav_repository.py": [
+          "def list_publication_candidates(",
           "observed_at=datetime.combine(row.nav_date, time.min, tzinfo=UTC)",
-          "row.raw_payload_hash or _fund_nav_payload_hash(row)",
+          "row.raw_payload_hash or _fund_nav_payload_hash(row)"
+        ],
+        "apps/data_center/infrastructure/valuation_fact_repository.py": [
+          "def list_publication_candidates(",
           "observed_at=datetime.combine(row.val_date, time.min, tzinfo=UTC)",
           "available_at_unverified",
           "valuation available_at cannot be in the future"
         ],
-        "apps/data_center/infrastructure/macro_fact_repositories.py": [
+        "apps/data_center/infrastructure/macro_fact_storage_repository.py": [
           "def list_publication_candidates(",
           "observed_at=datetime.combine(row.published_at, time.min, tzinfo=UTC)",
           "row.raw_payload_hash or _macro_payload_hash(row)"
@@ -2517,10 +2526,13 @@
         "apps/data_center/infrastructure/_provider_adapter_akshare.py": [
           "available_at=_available_at_from_report_date(report_date)"
         ],
-        "apps/data_center/infrastructure/market_data_repositories.py": [
+        "apps/data_center/infrastructure/price_bar_repository.py": [
           "def list_publication_candidates(",
           "observed_at = datetime.combine(row.bar_date, time.min, tzinfo=UTC)",
-          "row.raw_payload_hash or _price_bar_payload_hash(row)",
+          "row.raw_payload_hash or _price_bar_payload_hash(row)"
+        ],
+        "apps/data_center/infrastructure/quote_snapshot_repository.py": [
+          "def list_publication_candidates(",
           "observed_at=row.snapshot_at",
           "row.raw_payload_hash or _quote_payload_hash(row)"
         ]

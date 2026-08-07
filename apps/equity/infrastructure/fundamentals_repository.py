@@ -14,18 +14,15 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from django.utils import timezone
-
 from apps.data_center.application.public import (
     get_published_financial_facts,
     get_published_price_bar_series,
     get_published_valuation_facts,
 )
-from apps.data_center.domain.entities import AssetMaster, FinancialFact, PriceBar, ValuationFact
+from apps.data_center.domain.entities import FinancialFact, PriceBar, ValuationFact
 from apps.data_center.domain.enums import (
     AssetType,
     FinancialPeriodType,
-    MarketExchange,
     PriceAdjustment,
 )
 from apps.data_center.domain.protocols import (
@@ -39,60 +36,22 @@ from apps.equity.domain.entities import (
     StockInfo,
     ValuationMetrics,
 )
+from apps.equity.infrastructure.fundamentals_fact_helpers import parse_fact_date as _parse_fact_date
+from apps.equity.infrastructure.fundamentals_fact_helpers import (
+    parse_fact_datetime as _parse_fact_datetime,
+)
+from apps.equity.infrastructure.fundamentals_write_repository import (
+    StockFundamentalsWriteRepositoryMixin,
+)
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
-
-
-def _parse_fact_date(value: object) -> date | None:
-    """Parse a canonical fact date without substituting the request date."""
-
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, date):
-        return value
-    if not isinstance(value, str) or not value.strip():
-        return None
-    try:
-        return date.fromisoformat(value.strip()[:10])
-    except ValueError:
-        return None
-
-
-def _parse_fact_datetime(value: object) -> datetime | None:
-    """Parse an aware canonical observation/fetch timestamp."""
-
-    if isinstance(value, datetime):
-        parsed = value
-    elif isinstance(value, str) and value.strip():
-        try:
-            parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
-        except ValueError:
-            return None
-    else:
-        return None
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        return None
-    return parsed
-
-
-def _canonical_fact_source(raw_source: str) -> tuple[str, dict[str, object]]:
-    """Normalize compatibility DTO lineage without publishing a fake legacy owner."""
-
-    normalized = str(raw_source or "").strip()
-    if normalized and normalized.lower() != "unknown" and "legacy" not in normalized.lower():
-        return normalized, {}
-    extra: dict[str, object] = {}
-    if normalized:
-        extra["upstream_source"] = normalized
-    return "equity_application_port", extra
-
 
 if TYPE_CHECKING:
     from apps.data_center.application.on_demand import OnDemandDataCenterService
 
 
-class StockFundamentalsRepositoryMixin:
+class StockFundamentalsRepositoryMixin(StockFundamentalsWriteRepositoryMixin):
     """Financial, valuation, and aggregated fundamental context persistence."""
 
     _dc_asset_repo: AssetRepositoryProtocol
@@ -343,128 +302,6 @@ class StockFundamentalsRepositoryMixin:
             self._dc_on_demand.ensure_valuations(stock_code, start_date, end_date)
         dc_valuations = self._get_valuations_from_data_center(stock_code, start_date, end_date)
         return dc_valuations
-
-    def save_stock_info(self, stock_info: StockInfo) -> None:
-        """
-        保存股票基本信息
-
-        Args:
-            stock_info: StockInfo 实体
-        """
-        market = str(stock_info.market or "").strip().upper()
-        if market not in {"SH", "SZ", "BJ"}:
-            market = self._infer_market_from_stock_code(stock_info.stock_code)
-        exchange = self._infer_exchange_from_market(market)
-        base_code = str(stock_info.stock_code or "").strip().upper().split(".", 1)[0]
-        if base_code[:2] in {"SH", "SZ", "BJ"} and len(base_code) > 2:
-            base_code = base_code[2:]
-        canonical_code = (
-            f"{base_code}.{market}"
-            if market in {"SH", "SZ", "BJ"} and base_code
-            else str(stock_info.stock_code).strip().upper()
-        )
-        exchange_enum = MarketExchange(exchange)
-        self._dc_asset_repo.upsert(
-            AssetMaster(
-                code=canonical_code,
-                name=str(stock_info.name or canonical_code),
-                short_name=str(stock_info.name or canonical_code),
-                asset_type=AssetType.STOCK,
-                exchange=exchange_enum,
-                is_active=True,
-                list_date=stock_info.list_date,
-                sector=str(stock_info.sector or ""),
-                industry=str(stock_info.sector or ""),
-            )
-        )
-
-    @staticmethod
-    def _stock_info_from_asset(asset: AssetMaster) -> StockInfo:
-        """Convert a canonical AssetMaster record to the equity value object."""
-
-        market_map = {"SSE": "SH", "SZSE": "SZ", "BSE": "BJ"}
-        return StockInfo(
-            stock_code=asset.code,
-            name=asset.short_name or asset.name,
-            sector=asset.sector or asset.industry or "",
-            market=market_map.get(asset.exchange.value, ""),
-            list_date=asset.list_date,
-        )
-
-    def save_financial_data(self, financial: FinancialData) -> None:
-        """
-        保存财务数据
-
-        Args:
-            financial: FinancialData 实体
-        """
-        required_values = (
-            financial.revenue,
-            financial.net_profit,
-            financial.total_assets,
-            financial.total_liabilities,
-            financial.equity,
-            financial.roe,
-            financial.debt_ratio,
-        )
-        if any(value is None for value in required_values):
-            logger.warning(
-                "Skip persisting incomplete financial fact for %s/%s",
-                financial.stock_code,
-                financial.report_date,
-            )
-            return
-
-        # 确定报告类型
-        month = financial.report_date.month
-        if month == 3:
-            report_type = "1Q"
-        elif month == 6:
-            report_type = "2Q"
-        elif month == 9:
-            report_type = "3Q"
-        else:
-            report_type = "4Q"
-
-        # Legacy equity rows are read-only migration fixtures.  New writes go
-        # exclusively through the canonical Data Center repository below.
-        self._dc_financial_repo.bulk_upsert(
-            self._financial_entity_to_dc_facts(financial, report_type)
-        )
-
-    def save_valuation(self, valuation: ValuationMetrics) -> None:
-        """
-        保存估值数据
-
-        Args:
-            valuation: ValuationMetrics 实体
-        """
-        pe = valuation.pe
-        pb = valuation.pb
-        ps = valuation.ps
-        total_mv = valuation.total_mv
-        circ_mv = valuation.circ_mv
-        dividend_yield = valuation.dividend_yield
-        if not valuation.is_valid or any(
-            value is None for value in (pe, pb, ps, total_mv, circ_mv, dividend_yield)
-        ):
-            logger.warning(
-                "Skip persisting incomplete valuation fact for %s/%s",
-                valuation.stock_code,
-                valuation.trade_date,
-            )
-            return
-
-        assert pe is not None
-        assert pb is not None
-        assert ps is not None
-        assert total_mv is not None
-        assert circ_mv is not None
-        assert dividend_yield is not None
-
-        # Legacy valuation rows are read-only migration fixtures.  New writes
-        # go exclusively through the canonical Data Center repository below.
-        self._dc_valuation_repo.bulk_upsert([self._valuation_entity_to_dc_fact(valuation)])
 
     def _get_latest_price_bar(
         self,
@@ -843,89 +680,6 @@ class StockFundamentalsRepositoryMixin:
             is_valid=quality_is_complete,
             quality_flag="ok" if quality_is_complete else "missing_required_metric",
             quality_notes=("" if quality_is_complete else "missing PE, PB, or market cap"),
-        )
-
-    def _financial_entity_to_dc_facts(
-        self,
-        financial: FinancialData,
-        report_type: str,
-    ) -> list[FinancialFact]:
-        period_type_map = {
-            "1Q": FinancialPeriodType.QUARTERLY,
-            "2Q": FinancialPeriodType.SEMI_ANNUAL,
-            "3Q": FinancialPeriodType.QUARTERLY,
-            "4Q": FinancialPeriodType.ANNUAL,
-        }
-        period_type = period_type_map[report_type]
-        source, lineage_extra = _canonical_fact_source(financial.source)
-        fetched_at = _parse_fact_datetime(financial.fetched_at) or timezone.now()
-
-        def build_fact(metric_code: str, value: float | None, unit: str) -> FinancialFact | None:
-            if value is None:
-                return None
-            return FinancialFact(
-                asset_code=financial.stock_code,
-                period_end=financial.report_date,
-                period_type=period_type,
-                metric_code=metric_code,
-                value=value,
-                unit=unit,
-                source=source,
-                report_date=financial.report_date,
-                fetched_at=fetched_at,
-                extra=dict(lineage_extra),
-            )
-
-        raw_facts = [
-            build_fact(
-                "revenue", float(financial.revenue) if financial.revenue is not None else None, "元"
-            ),
-            build_fact(
-                "net_profit",
-                float(financial.net_profit) if financial.net_profit is not None else None,
-                "元",
-            ),
-            build_fact("revenue_growth", financial.revenue_growth, "%"),
-            build_fact("net_profit_growth", financial.net_profit_growth, "%"),
-            build_fact(
-                "total_assets",
-                float(financial.total_assets) if financial.total_assets is not None else None,
-                "元",
-            ),
-            build_fact(
-                "total_liabilities",
-                (
-                    float(financial.total_liabilities)
-                    if financial.total_liabilities is not None
-                    else None
-                ),
-                "元",
-            ),
-            build_fact(
-                "equity", float(financial.equity) if financial.equity is not None else None, "元"
-            ),
-            build_fact("roe", financial.roe, "%"),
-            build_fact("roa", financial.roa, "%"),
-            build_fact("debt_ratio", financial.debt_ratio, "%"),
-        ]
-        return [fact for fact in raw_facts if fact is not None]
-
-    def _valuation_entity_to_dc_fact(self, valuation: ValuationMetrics) -> ValuationFact:
-        source, lineage_extra = _canonical_fact_source(valuation.source_provider)
-        fetched_at = _parse_fact_datetime(valuation.fetched_at) or timezone.now()
-        return ValuationFact(
-            asset_code=valuation.stock_code,
-            val_date=valuation.trade_date,
-            pe_ttm=valuation.pe,
-            pb=valuation.pb,
-            ps_ttm=valuation.ps,
-            market_cap=(float(valuation.total_mv) if valuation.total_mv is not None else None),
-            float_market_cap=(float(valuation.circ_mv) if valuation.circ_mv is not None else None),
-            dv_ratio=valuation.dividend_yield,
-            source=source,
-            available_at=_parse_fact_datetime(valuation.source_updated_at),
-            fetched_at=fetched_at,
-            extra=lineage_extra,
         )
 
     def get_latest_financial_data(

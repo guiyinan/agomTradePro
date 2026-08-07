@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3415,
+    "current_surface_references": 3420,
     "data_write_task_decorators": 58,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 4,
@@ -1888,6 +1888,16 @@
       "text": "\"summary\","
     },
     {
+      "line": 17,
+      "path": "apps/ai_capability/application/routing_runtime_adapters.py",
+      "text": "\"\"\"Return the current regime in registry-compatible form.\"\"\""
+    },
+    {
+      "line": 31,
+      "path": "apps/ai_capability/application/routing_runtime_adapters.py",
+      "text": "\"\"\"Return the current regime probability distribution.\"\"\""
+    },
+    {
       "line": 59,
       "path": "apps/ai_capability/application/semantic_governance.py",
       "text": "\"\"\"Current missing, conflicting, and orphaned semantic governance state.\"\"\""
@@ -1933,47 +1943,47 @@
       "text": "summary=summary,"
     },
     {
-      "line": 247,
+      "line": 171,
       "path": "apps/ai_capability/application/use_cases.py",
       "text": "\"reason\": \"No capability candidates matched the current message.\","
     },
     {
-      "line": 1157,
+      "line": 1081,
       "path": "apps/ai_capability/application/use_cases.py",
       "text": "\"summary\": f\"Retrieved {len(candidates)} candidates, top: {capability.name}\","
     },
     {
-      "line": 1162,
+      "line": 1086,
       "path": "apps/ai_capability/application/use_cases.py",
       "text": "\"summary\": ("
     },
     {
-      "line": 1171,
+      "line": 1095,
+      "path": "apps/ai_capability/application/use_cases.py",
+      "text": "steps[1][\"summary\"] += f\". {reason}\""
+    },
+    {
+      "line": 1119,
+      "path": "apps/ai_capability/application/use_cases.py",
+      "text": "\"summary\": \"No high-confidence capability match found\","
+    },
+    {
+      "line": 1124,
+      "path": "apps/ai_capability/application/use_cases.py",
+      "text": "\"summary\": \"Falling back to general chat\","
+    },
+    {
+      "line": 1129,
       "path": "apps/ai_capability/application/use_cases.py",
       "text": "steps[1][\"summary\"] += f\". {reason}\""
     },
     {
       "line": 1195,
       "path": "apps/ai_capability/application/use_cases.py",
-      "text": "\"summary\": \"No high-confidence capability match found\","
-    },
-    {
-      "line": 1200,
-      "path": "apps/ai_capability/application/use_cases.py",
-      "text": "\"summary\": \"Falling back to general chat\","
-    },
-    {
-      "line": 1205,
-      "path": "apps/ai_capability/application/use_cases.py",
-      "text": "steps[1][\"summary\"] += f\". {reason}\""
-    },
-    {
-      "line": 1271,
-      "path": "apps/ai_capability/application/use_cases.py",
       "text": "summary=\"\","
     },
     {
-      "line": 1283,
+      "line": 1207,
       "path": "apps/ai_capability/application/use_cases.py",
       "text": "summary=\"\","
     },
@@ -2308,6 +2318,11 @@
       "text": "def current(self, request: Request) -> Response:"
     },
     {
+      "line": 17,
+      "path": "apps/alpha/application/model_evaluation_service.py",
+      "text": "\"\"\"Evaluate one registered artifact and persist its latest metrics.\"\"\""
+    },
+    {
       "line": 191,
       "path": "apps/alpha/application/monitoring_tasks.py",
       "text": "\"\"\"Compare the current rolling IC with up to 20 prior observations.\"\"\""
@@ -2503,37 +2518,37 @@
       "text": "\"\"\"Return True when the cache row is only the delivery channel for the latest Qlib output.\"\"\""
     },
     {
-      "line": 1139,
+      "line": 1069,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data("
     },
     {
-      "line": 1145,
+      "line": 1075,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"status\": \"success\" if summary.get(\"status\") == \"success\" else summary.get(\"status\"),"
     },
     {
-      "line": 1147,
+      "line": 1077,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": summary,"
     },
     {
-      "line": 1215,
+      "line": 1145,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data_for_codes("
     },
     {
-      "line": 1222,
+      "line": 1152,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"status\": \"success\" if summary.get(\"status\") == \"success\" else summary.get(\"status\"),"
     },
     {
-      "line": 1226,
+      "line": 1156,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1227,
+      "line": 1157,
       "path": "apps/alpha/application/tasks.py",
       "text": "**summary,"
     },
@@ -6483,14 +6498,9 @@
       "text": "status=str(summary[\"status\"]),"
     },
     {
-      "line": 62,
-      "path": "apps/data_center/infrastructure/fundamental_fact_repositories.py",
+      "line": 56,
+      "path": "apps/data_center/infrastructure/fund_nav_repository.py",
       "text": "value = FundNavFactModel._default_manager.aggregate(latest=Max(\"nav_date\"))[\"latest\"]"
-    },
-    {
-      "line": 337,
-      "path": "apps/data_center/infrastructure/fundamental_fact_repositories.py",
-      "text": "value = ValuationFactModel._default_manager.aggregate(latest=Max(\"val_date\"))[\"latest\"]"
     },
     {
       "line": 93,
@@ -6678,9 +6688,14 @@
       "text": "open=_safe_decimal(latest.get(\"open\")),"
     },
     {
-      "line": 474,
+      "line": 227,
       "path": "apps/data_center/infrastructure/macro_fact_repositories.py",
       "text": "\"summary\": {"
+    },
+    {
+      "line": 144,
+      "path": "apps/data_center/infrastructure/macro_fact_storage_repository.py",
+      "text": "\"\"\"Return the selected fact for the latest reporting period.\"\"\""
     },
     {
       "line": 125,
@@ -6768,44 +6783,9 @@
       "text": "\"\"\"Resolve the SHIBOR 1-week tenor column from current or legacy casing.\"\"\""
     },
     {
-      "line": 151,
-      "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
-      "text": "summary=m.summary,"
-    },
-    {
-      "line": 211,
-      "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
-      "text": "\"summary\": a.summary,"
-    },
-    {
-      "line": 262,
-      "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
-      "text": "summary=row.summary,"
-    },
-    {
-      "line": 412,
+      "line": 228,
       "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
       "text": "an old flow into a current observation."
-    },
-    {
-      "line": 463,
-      "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
-      "text": "summary: str,"
-    },
-    {
-      "line": 474,
-      "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
-      "text": "\"summary\": summary,"
-    },
-    {
-      "line": 529,
-      "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
-      "text": "summary=article.summary,"
-    },
-    {
-      "line": 237,
-      "path": "apps/data_center/infrastructure/market_data_repositories.py",
-      "text": "becomes the realtime observation boundary."
     },
     {
       "line": 247,
@@ -6821,6 +6801,36 @@
       "line": 1079,
       "path": "apps/data_center/infrastructure/models.py",
       "text": "summary = models.TextField(blank=True)"
+    },
+    {
+      "line": 39,
+      "path": "apps/data_center/infrastructure/news_repository.py",
+      "text": "summary=m.summary,"
+    },
+    {
+      "line": 99,
+      "path": "apps/data_center/infrastructure/news_repository.py",
+      "text": "\"summary\": a.summary,"
+    },
+    {
+      "line": 150,
+      "path": "apps/data_center/infrastructure/news_repository.py",
+      "text": "summary=row.summary,"
+    },
+    {
+      "line": 219,
+      "path": "apps/data_center/infrastructure/news_repository.py",
+      "text": "summary: str,"
+    },
+    {
+      "line": 230,
+      "path": "apps/data_center/infrastructure/news_repository.py",
+      "text": "\"summary\": summary,"
+    },
+    {
+      "line": 249,
+      "path": "apps/data_center/infrastructure/news_repository.py",
+      "text": "summary=article.summary,"
     },
     {
       "line": 38,
@@ -6841,6 +6851,11 @@
       "line": 93,
       "path": "apps/data_center/infrastructure/provider_credentials.py",
       "text": "logger.warning(\"Provider credential cannot be decrypted in the current environment\")"
+    },
+    {
+      "line": 101,
+      "path": "apps/data_center/infrastructure/quote_snapshot_repository.py",
+      "text": "becomes the realtime observation boundary."
     },
     {
       "line": 119,
@@ -6921,6 +6936,11 @@
       "line": 172,
       "path": "apps/data_center/infrastructure/sse_investor_accounts.py",
       "text": "\"\"\"Return SSE MDATE query months, allowing current-year publication lag.\"\"\""
+    },
+    {
+      "line": 73,
+      "path": "apps/data_center/infrastructure/valuation_fact_repository.py",
+      "text": "value = ValuationFactModel._default_manager.aggregate(latest=Max(\"val_date\"))[\"latest\"]"
     },
     {
       "line": 91,
@@ -8058,112 +8078,112 @@
       "text": "\"updated_at\": latest.created_at.date().isoformat(),"
     },
     {
-      "line": 167,
+      "line": 126,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"\"\"Return stock context, with an explicit gate for current consumers."
     },
     {
-      "line": 171,
+      "line": 130,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "or pass ``published_only=True`` so raw latest facts cannot masquerade as"
     },
     {
-      "line": 172,
+      "line": 131,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "current observations."
     },
     {
-      "line": 264,
+      "line": 223,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "latest = self._get_latest_financial(stock_code, published_only=published_only)"
     },
     {
-      "line": 265,
+      "line": 224,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "if latest is None:"
     },
     {
-      "line": 268,
+      "line": 227,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"report_date\": latest.report_date,"
     },
     {
-      "line": 269,
+      "line": 228,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"roe\": latest.roe,"
     },
     {
-      "line": 270,
+      "line": 229,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"debt_ratio\": latest.debt_ratio,"
     },
     {
-      "line": 271,
+      "line": 230,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"revenue_growth\": latest.revenue_growth,"
     },
     {
-      "line": 272,
+      "line": 231,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"net_profit_growth\": latest.net_profit_growth,"
     },
     {
-      "line": 281,
+      "line": 240,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "latest = self._get_latest_valuation(stock_code, published_only=published_only)"
     },
     {
-      "line": 282,
+      "line": 241,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "if latest is None:"
     },
     {
-      "line": 285,
+      "line": 244,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"trade_date\": latest.trade_date,"
     },
     {
-      "line": 286,
+      "line": 245,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"pe\": latest.pe,"
     },
     {
-      "line": 287,
+      "line": 246,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"pb\": latest.pb,"
     },
     {
-      "line": 288,
+      "line": 247,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"ps\": latest.ps,"
     },
     {
-      "line": 289,
+      "line": 248,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"dividend_yield\": latest.dividend_yield,"
     },
     {
-      "line": 322,
+      "line": 281,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 474,
+      "line": 311,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 546,
+      "line": 383,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 625,
+      "line": 462,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 937,
+      "line": 691,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "publication_key: str = \"current\","
     },
@@ -12528,7 +12548,12 @@
       "text": "\"exact current r3 attestation was substituted or is inactive\""
     },
     {
-      "line": 639,
+      "line": 97,
+      "path": "apps/research/application/r5_relative_value_promotion_lifecycle.py",
+      "text": "\"\"\"Return the current UTC server timestamp.\"\"\""
+    },
+    {
+      "line": 648,
       "path": "apps/research/application/r5_relative_value_promotion_lifecycle.py",
       "text": "\"authorization predates the current stream head\","
     },
@@ -13413,22 +13438,22 @@
       "text": "\"\"\"Aggregate current price-read evidence for rotation responses.\"\"\""
     },
     {
-      "line": 633,
+      "line": 656,
       "path": "apps/rotation/infrastructure/services.py",
       "text": "Get current macro regime from regime module."
     },
     {
-      "line": 636,
+      "line": 659,
       "path": "apps/rotation/infrastructure/services.py",
       "text": "Current regime name or None"
     },
     {
-      "line": 646,
+      "line": 669,
       "path": "apps/rotation/infrastructure/services.py",
       "text": "logger.warning(f\"Failed to get current regime: {e}\")"
     },
     {
-      "line": 681,
+      "line": 704,
       "path": "apps/rotation/infrastructure/services.py",
       "text": "Summary of signal generation"
     },

@@ -12,6 +12,8 @@ REPOSITORY_FACADE = "apps.equity.infrastructure.repositories"
 REPOSITORY_OWNERS = (
     "apps.equity.infrastructure.stock_info_repository",
     "apps.equity.infrastructure.fundamentals_repository",
+    "apps.equity.infrastructure.fundamentals_fact_helpers",
+    "apps.equity.infrastructure.fundamentals_write_repository",
     "apps.equity.infrastructure.market_data_repository",
     "apps.equity.infrastructure.intraday_repository",
     "apps.equity.infrastructure.stock_repository",
@@ -37,9 +39,7 @@ REPOSITORY_EXPORT_OWNER = {
     "ScoringWeightConfigRepository": "apps.equity.infrastructure.config_repositories",
     "ValuationRepairConfigRepository": "apps.equity.infrastructure.config_repositories",
     "EquityBootstrapConfigRepository": "apps.equity.infrastructure.config_repositories",
-    "DjangoValuationRepairRepository": (
-        "apps.equity.infrastructure.valuation_repair_repositories"
-    ),
+    "DjangoValuationRepairRepository": ("apps.equity.infrastructure.valuation_repair_repositories"),
     "DjangoValuationDataQualityRepository": (
         "apps.equity.infrastructure.valuation_repair_repositories"
     ),
@@ -81,9 +81,7 @@ def _imports_module(source: str, module_name: str) -> bool:
             if node.level:
                 if node.module == leaf_name:
                     return True
-                if node.module is None and any(
-                    alias.name == leaf_name for alias in node.names
-                ):
+                if node.module is None and any(alias.name == leaf_name for alias in node.names):
                     return True
     return False
 
@@ -173,6 +171,8 @@ def test_equity_split_modules_stay_bounded_and_one_way() -> None:
         REPOSITORY_FACADE: 150,
         "apps.equity.infrastructure.stock_info_repository": 400,
         "apps.equity.infrastructure.fundamentals_repository": 750,
+        "apps.equity.infrastructure.fundamentals_fact_helpers": 100,
+        "apps.equity.infrastructure.fundamentals_write_repository": 300,
         "apps.equity.infrastructure.market_data_repository": 650,
         "apps.equity.infrastructure.intraday_repository": 450,
         "apps.equity.infrastructure.stock_repository": 250,

@@ -14,8 +14,12 @@ from typing import Any, Protocol, cast
 
 from django.utils import timezone
 
+from apps.alpha.application.model_evaluation_service import evaluate_model_artifact
 from apps.alpha.application.ops_services import QlibRuntimeDataRefreshService
 from apps.alpha.application.ops_use_cases import collect_portfolio_refs_for_refresh
+from apps.alpha.application.prediction_refresh_orchestration import (
+    refresh_runtime_for_prediction,
+)
 from apps.alpha.application.repository_provider import (
     build_outdated_qlib_reason as _build_outdated_qlib_reason,
 )
@@ -246,46 +250,16 @@ def _maybe_refresh_qlib_runtime_data_for_prediction(
     latest_qlib_data_date: date | None,
 ) -> tuple[date | None, dict[str, Any]]:
     """Try refreshing local qlib data inline before prediction when the request is newer."""
-    metadata: dict[str, Any] = {}
-    if latest_qlib_data_date is not None:
-        metadata["qlib_data_latest_date_before_refresh"] = latest_qlib_data_date.isoformat()
-
-    if latest_qlib_data_date is not None and latest_qlib_data_date >= trade_date:
-        metadata["qlib_runtime_refresh_status"] = "skipped"
-        metadata["qlib_runtime_refresh_reason"] = "already_up_to_date"
-        return latest_qlib_data_date, metadata
-
-    try:
-        if pool_scope is not None and getattr(pool_scope, "instrument_codes", None):
-            refresh_summary = _refresh_qlib_runtime_data_for_codes(
-                target_date=trade_date,
-                stock_codes=list(getattr(pool_scope, "instrument_codes", ()) or ()),
-                universe_id=getattr(pool_scope, "universe_id", None) or universe_id,
-                lookback_days=120,
-            )
-        else:
-            refresh_summary = _refresh_qlib_runtime_data(
-                target_date=trade_date,
-                universes=[universe_id],
-                lookback_days=400,
-            )
-    except Exception as exc:
-        metadata["qlib_runtime_refresh_status"] = "failed"
-        metadata["qlib_runtime_refresh_error"] = str(exc)
-        return latest_qlib_data_date, metadata
-
-    metadata["qlib_runtime_refresh_status"] = str(refresh_summary.get("status") or "unknown")
-    metadata["qlib_runtime_refresh_summary"] = _make_json_safe(refresh_summary)
-
-    try:
-        latest_after_refresh = _get_qlib_data_latest_date()
-    except Exception as exc:
-        metadata["qlib_runtime_refresh_post_check_error"] = str(exc)
-        return latest_qlib_data_date, metadata
-
-    if latest_after_refresh is not None:
-        metadata["qlib_data_latest_date_after_refresh"] = latest_after_refresh.isoformat()
-    return latest_after_refresh, metadata
+    return refresh_runtime_for_prediction(
+        trade_date=trade_date,
+        universe_id=universe_id,
+        pool_scope=pool_scope,
+        latest_qlib_data_date=latest_qlib_data_date,
+        refresh_universes=_refresh_qlib_runtime_data,
+        refresh_codes=_refresh_qlib_runtime_data_for_codes,
+        get_latest_date=_get_qlib_data_latest_date,
+        make_json_safe=_make_json_safe,
+    )
 
 
 @typed_shared_task(
@@ -712,63 +686,19 @@ def qlib_evaluate_model(
     self: BoundTask,
     model_artifact_hash: str,
 ) -> dict[str, Any]:
-    """
-    Qlib 模型评估任务
-
-    计算模型的 IC/ICIR/Rank IC 等指标。
-
-    Args:
-        self: Celery task 实例
-        model_artifact_hash: 模型哈希
-
-    Returns:
-        评估结果字典
-
-    Example:
-        >>> from apps.alpha.application.tasks import qlib_evaluate_model
-        >>> qlib_evaluate_model.delay("abc123...")
-    """
+    """Evaluate one Qlib model and persist its IC metrics."""
     try:
-        from datetime import timedelta
-
-        from django.utils import timezone as tz
-
-        logger.info(f"开始评估模型: {model_artifact_hash}")
-
-        registry_repo = get_qlib_model_registry_repository()
-        model = registry_repo.get_by_artifact_hash(model_artifact_hash)
-
-        # 计算 IC/ICIR：取最近 60 天缓存数据评估
-        end_date = tz.now().date()
-        start_date = end_date - timedelta(days=60)
-
-        metrics = evaluate_model_from_cache(
+        logger.info("开始评估模型: %s", model_artifact_hash)
+        result = evaluate_model_artifact(
             model_artifact_hash=model_artifact_hash,
-            universe_id=model.universe,
-            start_date=start_date,
-            end_date=end_date,
+            as_of_date=timezone.now().date(),
+            registry_repository=get_qlib_model_registry_repository(),
+            evaluator=evaluate_model_from_cache,
         )
-
-        model = registry_repo.update_metrics(
-            artifact_hash=model_artifact_hash,
-            ic=metrics.ic,
-            icir=metrics.icir,
-            rank_ic=metrics.rank_ic,
-        )
-
-        logger.info(
-            f"模型评估完成: {model_artifact_hash}, " f"IC={metrics.ic}, ICIR={metrics.icir}"
-        )
-
-        return {
-            "status": "success",
-            "model_artifact_hash": model_artifact_hash,
-            "ic": float(model.ic) if model.ic else None,
-            "icir": float(model.icir) if model.icir else None,
-        }
-
+        logger.info("模型评估完成: %s", model_artifact_hash)
+        return result
     except Exception as exc:
-        logger.error(f"模型评估失败: {exc}", exc_info=True)
+        logger.error("模型评估失败: %s", exc, exc_info=True)
         raise
 
 

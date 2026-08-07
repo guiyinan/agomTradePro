@@ -51,6 +51,12 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/integration/macro/",
         "tests/unit/domain/test_macro_entities.py",
     ],
+    "macro_factor": [
+        "tests/unit/macro_factor/",
+    ],
+    "fixed_income": [
+        "tests/unit/fixed_income/",
+    ],
     # Regime 模块
     "regime": [
         "tests/api/test_regime_action_api.py",

@@ -16,10 +16,20 @@ REPOSITORY_OWNER_MODULES = (
     "apps.data_center.infrastructure.provider_state_repositories",
     "apps.data_center.infrastructure.market_thermometer_repositories",
     "apps.data_center.infrastructure.catalog_repositories",
+    "apps.data_center.infrastructure.catalog_runtime_repositories",
     "apps.data_center.infrastructure.macro_fact_repositories",
+    "apps.data_center.infrastructure.macro_fact_storage_repository",
     "apps.data_center.infrastructure.market_data_repositories",
+    "apps.data_center.infrastructure.price_bar_repository",
+    "apps.data_center.infrastructure.quote_snapshot_repository",
     "apps.data_center.infrastructure.fundamental_fact_repositories",
+    "apps.data_center.infrastructure.financial_fact_repository",
+    "apps.data_center.infrastructure.fund_nav_repository",
+    "apps.data_center.infrastructure.valuation_fact_repository",
     "apps.data_center.infrastructure.market_breadth_repositories",
+    "apps.data_center.infrastructure._market_breadth_helpers",
+    "apps.data_center.infrastructure.news_repository",
+    "apps.data_center.infrastructure.reconciliation_evidence_repositories",
 )
 THERMOMETER_FACADE = "apps.data_center.application.market_thermometer"
 THERMOMETER_OWNER_MODULES = (
@@ -57,13 +67,17 @@ def test_repository_legacy_exports_resolve_to_owner_modules() -> None:
         "DataProviderSettingsRepository": (
             "apps.data_center.infrastructure.provider_state_repositories"
         ),
-        "FinancialFactRepository": (
-            "apps.data_center.infrastructure.fundamental_fact_repositories"
+        "DataOwnerRegistryRepository": (
+            "apps.data_center.infrastructure.catalog_runtime_repositories"
         ),
-        "FundNavRepository": "apps.data_center.infrastructure.fundamental_fact_repositories",
+        "DatasetContractRepository": (
+            "apps.data_center.infrastructure.catalog_runtime_repositories"
+        ),
+        "FinancialFactRepository": ("apps.data_center.infrastructure.financial_fact_repository"),
+        "FundNavRepository": "apps.data_center.infrastructure.fund_nav_repository",
         "IndicatorCatalogRepository": "apps.data_center.infrastructure.catalog_repositories",
         "IndicatorUnitRuleRepository": "apps.data_center.infrastructure.catalog_repositories",
-        "MacroFactRepository": "apps.data_center.infrastructure.macro_fact_repositories",
+        "MacroFactRepository": ("apps.data_center.infrastructure.macro_fact_storage_repository"),
         "MacroGovernanceRepository": "apps.data_center.infrastructure.macro_fact_repositories",
         "MarketThermometerConfigRepository": (
             "apps.data_center.infrastructure.market_thermometer_repositories"
@@ -74,19 +88,28 @@ def test_repository_legacy_exports_resolve_to_owner_modules() -> None:
         "MarketThermometerUserOverrideRepository": (
             "apps.data_center.infrastructure.market_thermometer_repositories"
         ),
-        "NewsRepository": "apps.data_center.infrastructure.market_breadth_repositories",
-        "PriceBarRepository": "apps.data_center.infrastructure.market_data_repositories",
+        "NewsRepository": "apps.data_center.infrastructure.news_repository",
+        "PriceBarRepository": "apps.data_center.infrastructure.price_bar_repository",
         "ProductionCoverageUniverseConfigRepository": (
             "apps.data_center.infrastructure.provider_state_repositories"
         ),
         "ProviderConfigRepository": "apps.data_center.infrastructure.provider_state_repositories",
+        "ProviderBindingRepository": (
+            "apps.data_center.infrastructure.catalog_runtime_repositories"
+        ),
         "PublisherCatalogRepository": "apps.data_center.infrastructure.catalog_repositories",
-        "QuoteSnapshotRepository": "apps.data_center.infrastructure.market_data_repositories",
+        "PublicationPolicyRepository": (
+            "apps.data_center.infrastructure.catalog_runtime_repositories"
+        ),
+        "QuoteSnapshotRepository": ("apps.data_center.infrastructure.quote_snapshot_repository"),
         "RawAuditRepository": "apps.data_center.infrastructure.provider_state_repositories",
+        "ReconciliationEvidenceRepository": (
+            "apps.data_center.infrastructure.reconciliation_evidence_repositories"
+        ),
         "SectorMembershipRepository": (
             "apps.data_center.infrastructure.market_breadth_repositories"
         ),
-        "ValuationFactRepository": "apps.data_center.infrastructure.fundamental_fact_repositories",
+        "ValuationFactRepository": ("apps.data_center.infrastructure.valuation_fact_repository"),
         "_build_asset_code_candidates": "apps.data_center.infrastructure._repository_helpers",
     }
     assert set(repositories.__all__) == set(expected_owners)
@@ -103,10 +126,20 @@ def test_repository_modules_stay_bounded_and_one_way() -> None:
         "apps.data_center.infrastructure.provider_state_repositories": 250,
         "apps.data_center.infrastructure.market_thermometer_repositories": 200,
         "apps.data_center.infrastructure.catalog_repositories": 400,
+        "apps.data_center.infrastructure.catalog_runtime_repositories": 250,
         "apps.data_center.infrastructure.macro_fact_repositories": 600,
-        "apps.data_center.infrastructure.market_data_repositories": 250,
-        "apps.data_center.infrastructure.fundamental_fact_repositories": 300,
+        "apps.data_center.infrastructure.macro_fact_storage_repository": 300,
+        "apps.data_center.infrastructure.market_data_repositories": 50,
+        "apps.data_center.infrastructure.price_bar_repository": 200,
+        "apps.data_center.infrastructure.quote_snapshot_repository": 200,
+        "apps.data_center.infrastructure.fundamental_fact_repositories": 50,
+        "apps.data_center.infrastructure.financial_fact_repository": 200,
+        "apps.data_center.infrastructure.fund_nav_repository": 150,
+        "apps.data_center.infrastructure.valuation_fact_repository": 220,
         "apps.data_center.infrastructure.market_breadth_repositories": 400,
+        "apps.data_center.infrastructure._market_breadth_helpers": 100,
+        "apps.data_center.infrastructure.news_repository": 250,
+        "apps.data_center.infrastructure.reconciliation_evidence_repositories": 100,
     }
     for module_name, budget in budgets.items():
         relative_path = Path(*module_name.split(".")).with_suffix(".py")
@@ -168,9 +201,7 @@ def test_market_thermometer_legacy_exports_resolve_to_owner_modules() -> None:
 
     specs_module = import_module("apps.data_center.application.market_thermometer_specs")
     for constant_name in constant_names:
-        assert getattr(market_thermometer, constant_name) is getattr(
-            specs_module, constant_name
-        )
+        assert getattr(market_thermometer, constant_name) is getattr(specs_module, constant_name)
 
     runtime_module = import_module("apps.data_center.application._market_thermometer_runtime")
     assert runtime_module._FACADE is market_thermometer

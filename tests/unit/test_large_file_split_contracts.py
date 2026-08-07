@@ -91,6 +91,16 @@ CONTRACTS = (
     ),
     SplitModuleContract("apps/alpha/application/tasks.py", 1100),
     SplitModuleContract(
+        "apps/alpha/application/model_evaluation_service.py",
+        100,
+        (ALPHA_TASKS_ENTRYPOINT,),
+    ),
+    SplitModuleContract(
+        "apps/alpha/application/prediction_refresh_orchestration.py",
+        100,
+        (ALPHA_TASKS_ENTRYPOINT,),
+    ),
+    SplitModuleContract(
         "apps/alpha/infrastructure/qlib_artifact_runtime.py",
         800,
         (ALPHA_TASKS_ENTRYPOINT,),

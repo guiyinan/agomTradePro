@@ -140,8 +140,10 @@ def test_ai_capability_use_case_split_is_bounded_and_compatible() -> None:
     owners = _assert_owner_contract(
         facade_name="apps.ai_capability.application.use_cases",
         owner_budgets={
+            "apps.ai_capability.application.ai_client_factory": 80,
             "apps.ai_capability.application.catalog_routing_services": 100,
             "apps.ai_capability.application.catalog_query_use_cases": 120,
+            "apps.ai_capability.application.routing_runtime_adapters": 100,
         },
     )
     for owner in owners.values():
