@@ -8,6 +8,9 @@ from datetime import datetime
 from enum import Enum
 from typing import Protocol, TypedDict
 
+from apps.fixed_income.application.relative_value_projection import (
+    project_r5_relative_value_owner_record,
+)
 from apps.fixed_income.domain.evidence import (
     canonical_hash,
     require_aware,
@@ -23,9 +26,6 @@ from apps.research.application.r5_relative_value_promotion_decision import (
     R5RelativeValuePromotionDecisionBundle,
     R5RelativeValuePromotionEvidenceError,
     R5RelativeValuePromotionRef,
-)
-from apps.research.application.r5_relative_value_promotion_projection import (
-    project_r5_relative_value_owner_record,
 )
 from apps.research.domain.r5_relative_value_promotion_decision import (
     R5RelativeValuePromotionDecision,

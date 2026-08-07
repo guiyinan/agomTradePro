@@ -5,6 +5,7 @@ from apps.portfolio.infrastructure.models import (
     OrderIntentModel,
     PortfolioExecutionFeedbackModel,
     PortfolioPlanningPolicyModel,
+    PortfolioR5RelativeValueOutcomeModel,
     PortfolioTransitionPlanModel,
 )
 
@@ -13,5 +14,6 @@ __all__ = [
     "OrderIntentModel",
     "PortfolioExecutionFeedbackModel",
     "PortfolioPlanningPolicyModel",
+    "PortfolioR5RelativeValueOutcomeModel",
     "PortfolioTransitionPlanModel",
 ]

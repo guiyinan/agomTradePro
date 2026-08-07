@@ -8,24 +8,22 @@ from decimal import Decimal
 from enum import Enum
 from typing import TypedDict
 
-from apps.fixed_income.domain.evidence import (
-    canonical_hash as _strict_canonical_hash,
-)
+from apps.fixed_income.domain.evidence import canonical_hash as _strict_canonical_hash
 from apps.fixed_income.domain.evidence import (
     require_aware,
     require_sha256,
     require_token,
 )
 from apps.fixed_income.domain.relative_value_assessment import R5ComponentStatus
-from apps.research.domain.r5_relative_value_portfolio_outcome import (
+from apps.fixed_income.domain.relative_value_record_seal import (
+    R5RelativeValueOwnerRecordSeal,
+)
+from apps.portfolio.domain.r5_relative_value_outcome import (
     R5PortfolioOutcomeSeal,
 )
 from apps.research.domain.r5_relative_value_promotion_policy import (
     R5RelativeValuePromotionPolicy,
     R5RelativeValuePromotionScope,
-)
-from apps.research.domain.r5_relative_value_promotion_record import (
-    R5RelativeValueOwnerRecordSeal,
 )
 
 

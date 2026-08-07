@@ -29,6 +29,9 @@ from apps.fixed_income.application.relative_value_persistence import (
     R5RelativeValuePersistenceConflict,
     R5RelativeValuePersistenceDraft,
 )
+from apps.fixed_income.application.relative_value_projection import (
+    GetExactR5RelativeValueOwnerRecord,
+)
 from apps.fixed_income.infrastructure.relative_value_models import (
     FixedIncomeR5InputReceiptModel,
     FixedIncomeR5ResultModel,
@@ -297,7 +300,17 @@ def build_django_r5_relative_value_runtime(
     )
 
 
+def build_django_r5_relative_value_owner_record_query(
+    *,
+    using: str = "default",
+) -> GetExactR5RelativeValueOwnerRecord:
+    """Build the public FixedIncome Application projection used by consumers."""
+
+    return GetExactR5RelativeValueOwnerRecord(DjangoR5RelativeValueRepository(using=using))
+
+
 __all__ = [
     "DjangoR5RelativeValueRuntime",
+    "build_django_r5_relative_value_owner_record_query",
     "build_django_r5_relative_value_runtime",
 ]

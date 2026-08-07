@@ -18,6 +18,9 @@ from apps.portfolio.infrastructure.r4_rolling_research_models import (
     R4RollingResearchReceiptModel,
     R4RollingResearchResultModel,
 )
+from apps.portfolio.infrastructure.r5_relative_value_outcome_models import (
+    PortfolioR5RelativeValueOutcomeModel,
+)
 from apps.portfolio.infrastructure.transition_models import PortfolioTransitionPlanModel
 
 __all__ = [
@@ -30,4 +33,5 @@ __all__ = [
     "OptimizationResearchLifecycleEventModel",
     "R4RollingResearchReceiptModel",
     "R4RollingResearchResultModel",
+    "PortfolioR5RelativeValueOutcomeModel",
 ]

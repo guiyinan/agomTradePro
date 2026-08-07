@@ -10,16 +10,16 @@ from typing import Protocol, TypedDict
 from apps.fixed_income.application.relative_value_persistence import (
     R5PersistedRelativeValueBundle,
 )
+from apps.fixed_income.application.relative_value_projection import (
+    project_r5_relative_value_owner_record,
+)
 from apps.fixed_income.domain.evidence import (
     canonical_hash,
     require_aware,
     require_sha256,
     require_token,
 )
-from apps.research.application.r5_relative_value_promotion_projection import (
-    project_r5_relative_value_owner_record,
-)
-from apps.research.domain.r5_relative_value_portfolio_outcome import (
+from apps.portfolio.domain.r5_relative_value_outcome import (
     R5PortfolioOutcomeSeal,
 )
 from apps.research.domain.r5_relative_value_promotion_decision import (
