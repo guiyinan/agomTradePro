@@ -1,13 +1,13 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3378,
-    "data_write_task_decorators": 56,
-    "direct_data_center_imports_outside_data_center": 0,
+    "current_surface_references": 3416,
+    "data_write_task_decorators": 58,
+    "direct_data_center_imports_outside_data_center": 2,
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 0,
     "provider_imports_outside_data_center": 0,
-    "runtime_parameter_references": 49
+    "runtime_parameter_references": 52
   },
   "cross_app_orm_imports": [
     {
@@ -858,12 +858,12 @@
       "text": "trade_date.isoformat() if trade_date is not None else \"latest\","
     },
     {
-      "line": 808,
+      "line": 810,
       "path": "apps/account/infrastructure/repositories.py",
       "text": "current = self._get_active_model()"
     },
     {
-      "line": 814,
+      "line": 816,
       "path": "apps/account/infrastructure/repositories.py",
       "text": "payload[\"version\"] = (current.version + 1) if current is not None else 1"
     },
@@ -4893,7 +4893,7 @@
       "text": "skipped_payload = latest.to_dict()"
     },
     {
-      "line": 1147,
+      "line": 1141,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Build the current valuation batch sync use case.\"\"\""
     },
@@ -5703,22 +5703,52 @@
       "text": "\"\"\"Resolve exact latest operating versions under an explicit PIT clock.\"\"\""
     },
     {
-      "line": 138,
+      "line": 45,
+      "path": "apps/data_center/application/retention.py",
+      "text": "\"\"\"Current byte-backed exact archive coverage used by deletion.\"\"\""
+    },
+    {
+      "line": 658,
+      "path": "apps/data_center/application/retention.py",
+      "text": "current = self._candidates.get_by_id(member.payload_id)"
+    },
+    {
+      "line": 660,
+      "path": "apps/data_center/application/retention.py",
+      "text": "if current is None or raw_payload_record_digest(current) != member.record_digest:"
+    },
+    {
+      "line": 674,
+      "path": "apps/data_center/application/retention.py",
+      "text": "current,"
+    },
+    {
+      "line": 694,
+      "path": "apps/data_center/application/retention.py",
+      "text": "if current is None:"
+    },
+    {
+      "line": 695,
+      "path": "apps/data_center/application/retention.py",
+      "text": "raise AssertionError(\"retention current payload guard failed\")"
+    },
+    {
+      "line": 144,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 533,
+      "line": 539,
       "path": "apps/data_center/application/tasks.py",
       "text": "error_message=\"latest completed China market session is unavailable\","
     },
     {
-      "line": 539,
+      "line": 545,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"error\": \"latest completed China market session is unavailable\","
     },
     {
-      "line": 954,
+      "line": 1002,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Check current filesystem pressure before another mutating batch.\"\"\""
     },
@@ -5786,6 +5816,11 @@
       "line": 34,
       "path": "apps/data_center/domain/reconciliation.py",
       "text": "\"\"\"Immutable summary suitable for audit logs and CI evidence.\"\"\""
+    },
+    {
+      "line": 261,
+      "path": "apps/data_center/domain/retention.py",
+      "text": "raise ValueError(\"ArchiveArtifact coverage end must equal latest member\")"
     },
     {
       "line": 83,
@@ -5871,6 +5906,11 @@
       "line": 44,
       "path": "apps/data_center/infrastructure/alpha_price_coverage_sync.py",
       "text": "\"\"\"Summary of one Alpha price coverage sync run.\"\"\""
+    },
+    {
+      "line": 49,
+      "path": "apps/data_center/infrastructure/archive_repositories.py",
+      "text": "\"\"\"Authorize deletion only when DB coverage and current cold bytes agree.\"\"\""
     },
     {
       "line": 24,
@@ -6783,7 +6823,7 @@
       "text": "\"\"\"Resolve historical members without substituting the current component set.\"\"\""
     },
     {
-      "line": 1078,
+      "line": 1079,
       "path": "apps/data_center/infrastructure/models.py",
       "text": "summary = models.TextField(blank=True)"
     },
@@ -6808,9 +6848,69 @@
       "text": "logger.warning(\"Provider credential cannot be decrypted in the current environment\")"
     },
     {
+      "line": 119,
+      "path": "apps/data_center/infrastructure/raw_landing_repositories.py",
+      "text": "current = model.to_domain()"
+    },
+    {
+      "line": 121,
+      "path": "apps/data_center/infrastructure/raw_landing_repositories.py",
+      "text": "current.dataset_key != payload.dataset_key"
+    },
+    {
+      "line": 122,
+      "path": "apps/data_center/infrastructure/raw_landing_repositories.py",
+      "text": "or raw_payload_record_digest(current) != expected_record_digest"
+    },
+    {
+      "line": 123,
+      "path": "apps/data_center/infrastructure/raw_landing_repositories.py",
+      "text": "or (current.retention_until is not None and current.retention_until > now)"
+    },
+    {
       "line": 388,
       "path": "apps/data_center/infrastructure/research_data_foundation_repository.py",
       "text": "\"\"\"Return exact versions only when they are the latest knowable facts.\"\"\""
+    },
+    {
+      "line": 124,
+      "path": "apps/data_center/infrastructure/retention_models.py",
+      "text": "\"\"\"Convert the persisted plan and execution summary to its domain value.\"\"\""
+    },
+    {
+      "line": 287,
+      "path": "apps/data_center/infrastructure/retention_repositories.py",
+      "text": "current = model.to_domain()"
+    },
+    {
+      "line": 288,
+      "path": "apps/data_center/infrastructure/retention_repositories.py",
+      "text": "if current.snapshot_fields() != member.snapshot_fields():"
+    },
+    {
+      "line": 290,
+      "path": "apps/data_center/infrastructure/retention_repositories.py",
+      "text": "if current.execution.value not in {\"pending\", member.execution.value}:"
+    },
+    {
+      "line": 421,
+      "path": "apps/data_center/infrastructure/retention_repositories.py",
+      "text": "\"\"\"Persist the terminal summary for the currently claimed operation.\"\"\""
+    },
+    {
+      "line": 426,
+      "path": "apps/data_center/infrastructure/retention_repositories.py",
+      "text": "current = model.to_domain()"
+    },
+    {
+      "line": 444,
+      "path": "apps/data_center/infrastructure/retention_repositories.py",
+      "text": "if any(getattr(current, field) != getattr(plan, field) for field in immutable):"
+    },
+    {
+      "line": 651,
+      "path": "apps/data_center/infrastructure/retention_repositories.py",
+      "text": "\"\"\"Append restore evidence and make the latest result the deletion gate.\"\"\""
     },
     {
       "line": 178,
@@ -8908,6 +9008,11 @@
       "text": "\"summary\": {"
     },
     {
+      "line": 105,
+      "path": "apps/macro_factor/application/governed_read.py",
+      "text": "\"\"\"ID-only exact output read at a PIT cutoff; never a latest/current query.\"\"\""
+    },
+    {
       "line": 26,
       "path": "apps/macro_factor/domain/dated_outputs.py",
       "text": "\"\"\"Typed current/forward output returned in the canonical external artifact.\"\"\""
@@ -8936,6 +9041,16 @@
       "line": 162,
       "path": "apps/macro_factor/domain/entities.py",
       "text": "raise ValueError(\"current-state targets require horizon_periods=0\")"
+    },
+    {
+      "line": 1001,
+      "path": "apps/macro_factor/domain/governed_read.py",
+      "text": "latest = matching[-rule.consecutive_windows :]"
+    },
+    {
+      "line": 1002,
+      "path": "apps/macro_factor/domain/governed_read.py",
+      "text": "if all(_comparison_holds(rule.operator, item.value, rule.threshold) for item in latest):"
     },
     {
       "line": 90,
@@ -12418,9 +12533,49 @@
       "text": "\"exact current r3 attestation was substituted or is inactive\""
     },
     {
-      "line": 635,
+      "line": 639,
       "path": "apps/research/application/r5_relative_value_promotion_lifecycle.py",
       "text": "\"authorization predates the current stream head\","
+    },
+    {
+      "line": 119,
+      "path": "apps/research/application/r7_research_result_lifecycle.py",
+      "text": "\"\"\"Return the exact owner record without latest/current fallback.\"\"\""
+    },
+    {
+      "line": 150,
+      "path": "apps/research/application/r7_research_result_lifecycle.py",
+      "text": "\"\"\"Load a complete exact stream, never an active/current projection.\"\"\""
+    },
+    {
+      "line": 308,
+      "path": "apps/research/application/r7_research_result_lifecycle.py",
+      "text": "\"\"\"Bounded audit snapshot facade; it is not a current-result selector.\"\"\""
+    },
+    {
+      "line": 72,
+      "path": "apps/research/application/r7_research_result_persistence.py",
+      "text": "\"\"\"Exact PIT query that never falls back to latest/current.\"\"\""
+    },
+    {
+      "line": 104,
+      "path": "apps/research/application/r7_research_result_persistence.py",
+      "text": "\"\"\"Resolve Signal, analogy, and path evidence without current-value fallback.\"\"\""
+    },
+    {
+      "line": 134,
+      "path": "apps/research/application/r7_research_result_persistence.py",
+      "text": "\"\"\"Return exact observations visible at ``as_of`` without latest fallback.\"\"\""
+    },
+    {
+      "line": 297,
+      "path": "apps/research/application/r7_research_result_persistence.py",
+      "text": "\"\"\"Return the exact result without latest/current fallback.\"\"\""
+    },
+    {
+      "line": 209,
+      "path": "apps/research/application/r7_sample_policy.py",
+      "text": "\"\"\"Exact historical query with no latest/current fallback.\"\"\""
     },
     {
       "line": 72,
@@ -12431,6 +12586,11 @@
       "line": 37,
       "path": "apps/research/application/state_model_baseline.py",
       "text": "\"\"\"Return evidence without recomputing it from revised current data.\"\"\""
+    },
+    {
+      "line": 130,
+      "path": "apps/research/application/state_model_qualification_persistence.py",
+      "text": "\"\"\"Return a bounded deterministic page without latest/current fallback.\"\"\""
     },
     {
       "line": 5,
@@ -12671,6 +12831,36 @@
       "line": 697,
       "path": "apps/research/infrastructure/r4_promotion_repository.py",
       "text": "\"Portfolio R4 record or current R3 evidence was substituted\""
+    },
+    {
+      "line": 63,
+      "path": "apps/research/infrastructure/r5_relative_value_promotion_repository_support.py",
+      "text": "\"\"\"Return the current server timestamp.\"\"\""
+    },
+    {
+      "line": 106,
+      "path": "apps/research/infrastructure/r7_research_result_lifecycle_repository.py",
+      "text": "\"\"\"Exact append/PIT audit repository with no active/current result reader.\"\"\""
+    },
+    {
+      "line": 49,
+      "path": "apps/research/infrastructure/state_model_qualification_models.py",
+      "text": "\"\"\"Activate a repository unit-of-work token for the current context.\"\"\""
+    },
+    {
+      "line": 66,
+      "path": "apps/research/infrastructure/state_model_qualification_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 260,
+      "path": "apps/research/infrastructure/state_model_qualification_repository.py",
+      "text": "\"\"\"Restore a scope-local event stream without latest/current fallback.\"\"\""
+    },
+    {
+      "line": 24,
+      "path": "apps/research/r7_research_result_lifecycle_composition.py",
+      "text": "\"\"\"Safe public apply/audit capabilities with no active/current selector.\"\"\""
     },
     {
       "line": 1,
@@ -16943,27 +17133,27 @@
       "text": "\"/api/pulse/current/\","
     },
     {
-      "line": 170,
+      "line": 182,
       "path": "core/settings/base.py",
       "text": "\"apps.realtime\",  # 新增：实时价格监控模块"
     },
     {
-      "line": 604,
+      "line": 616,
       "path": "core/settings/base.py",
       "text": "\"daily-signal-summary\": {"
     },
     {
-      "line": 679,
+      "line": 691,
       "path": "core/settings/base.py",
       "text": "\"simulated-daily-summary\": {"
     },
     {
-      "line": 726,
+      "line": 738,
       "path": "core/settings/base.py",
       "text": "\"realtime-update-prices-after-close\": {"
     },
     {
-      "line": 962,
+      "line": 974,
       "path": "core/settings/base.py",
       "text": "\"sentiment-refresh-current-index\": {"
     },
@@ -17195,42 +17385,52 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 262,
+      "line": 56,
+      "path": "apps/data_center/application/archive_tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 113,
+      "path": "apps/data_center/application/archive_tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 152,
+      "path": "apps/data_center/application/archive_tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 268,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 294,
+      "line": 300,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 376,
+      "line": 382,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 814,
+      "line": 823,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 835,
+      "line": 860,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 851,
+      "line": 933,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 891,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "@shared_task(  # type: ignore[misc]"
-    },
-    {
-      "line": 948,
+      "line": 996,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
@@ -17440,7 +17640,18 @@
       "text": "@shared_task"
     }
   ],
-  "direct_data_center_imports_outside_data_center": [],
+  "direct_data_center_imports_outside_data_center": [
+    {
+      "import": "apps.data_center.infrastructure.market_structure_publication",
+      "line": 11,
+      "path": "apps/research/r2_market_structure_promotion_composition.py"
+    },
+    {
+      "import": "apps.data_center.infrastructure.market_structure_repository",
+      "line": 14,
+      "path": "apps/research/r2_market_structure_promotion_composition.py"
+    }
+  ],
   "external_http_imports_for_review": [
     {
       "import": "requests",
@@ -17484,6 +17695,9 @@
     "CELERY_BROKER_URL = env(\"REDIS_URL\")",
     "CELERY_RESULT_BACKEND = env(\"REDIS_URL\")",
     "DATABASE_URL = env(\"DATABASE_URL\", default=\"\")",
+    "DATA_CENTER_ARCHIVE_ENCRYPTION_KEY = env(",
+    "DATA_CENTER_ARCHIVE_ENCRYPTION_KEY_VERSION = env(",
+    "DATA_CENTER_ARCHIVE_ROOT = env(\"DATA_CENTER_ARCHIVE_ROOT\", default=\"\")",
     "DEFAULT_FROM_EMAIL = env(\"DEFAULT_FROM_EMAIL\", default=\"noreply@agomtradepro.com\")",
     "DISABLE_CELERY_FILE_LOGS = os.getenv(\"DISABLE_CELERY_FILE_LOGS\", \"false\").lower() in {",
     "EXECUTION_MODE = env(\"EXECUTION_MODE\", default=\"paper\")  # paper | broker | canary",
