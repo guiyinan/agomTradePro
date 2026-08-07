@@ -4791,5 +4791,6 @@ Git SHA / 镜像 / migration：
 
 - 首轮远端反馈：Architecture 与 Security 通过；Consistency 和 Fast Feedback 同时发现 architecture inventory 未随已删除 runtime 参数重建。重建后 runtime parameter reference 从 52 降到 49，行号与删除内容同步，不抬高债务基线。
 - 全量 guard 额外暴露两个此前未进入 AGENTS 人工目录的既有模块 `fixed_income/macro_factor`，以及 Fixed Income blocker 名中被运行时 mock guard 禁止的 `SYNTH*` 标记；目录清单补齐，blocker 改为稳定 `quote_age.unverifiable` 语义，不通过 guard 白名单掩盖。CI 新版 Ruff 进一步暴露 5 个 `str + Enum` 旧写法，统一迁到 Python 3.11 `StrEnum`，保持序列化值不变并清掉增量债务。
-- 治理计数：仓库提交态静态测试函数已从旧基线 9937 增至 11241；按实际 committed tree 更新为 `v211`。共享工作区另有用户未提交的 R5 测试，局部实际计数会多 1，未纳入 baseline 或提交。
+- 覆盖门根因：旧 workflow 对任意 `apps/<app>/domain` 改动都只执行 `tests/unit/domain/`，遗漏 `tests/unit/<app>/`，使已有完整 Fixed Income 测试不参与覆盖率。新增 app-aware runner，按 changed Domain module 自动加入共享和 App 自有测试目录；门槛仍为 70%，真实 `liquidity_premium.py` 覆盖为 73.7%，1597 passed。
+- 治理计数：仓库提交态静态测试函数已从旧基线 9937 增至 11241；补充 Domain coverage runner 的 2 条精确回归后更新为 11243 / `v212`。共享工作区另有用户未提交的 R5 测试，局部实际计数会多 1，未纳入 baseline 或提交。
 - 验证：AGENTS module inventory 与 runtime mock guard 2 passed，governance consistency 为 0 violation；修复后重新 push 并以新 SHA 重新执行四条 CI。本批继续不部署。

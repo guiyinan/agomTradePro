@@ -307,26 +307,9 @@ jobs:
       - name: Run incremental domain coverage gate
         if: steps.targets.outputs.domain-coverage-count != '0'
         run: |
-          python - <<'PY'
-          import shlex
-          import subprocess
-
-          targets = """${{ steps.targets.outputs.domain-coverage-targets }}""".split()
-          cmd = [
-              "pytest",
-              "tests/unit/domain/",
-              "-v",
-              "--tb=short",
-              "-o",
-              "addopts=",
-              "--cov-fail-under=70",
-              "--cov-report=term-missing",
-          ]
-          cmd.extend(f"--cov={target}" for target in targets)
-          print("Running incremental domain coverage gate:")
-          print(" ".join(shlex.quote(part) for part in cmd))
-          raise SystemExit(subprocess.call(cmd))
-          PY
+          python scripts/run_incremental_domain_coverage.py \
+            --fail-under 70 \
+            ${{ steps.targets.outputs.domain-coverage-targets }}
 
   fast-feedback:
     name: Fast feedback (Python ${{ matrix.python-version }})
