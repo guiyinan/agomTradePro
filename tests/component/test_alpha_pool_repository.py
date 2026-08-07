@@ -4,8 +4,11 @@ from decimal import Decimal
 import pytest
 
 from apps.alpha.infrastructure.repositories import AlphaPoolDataRepository
-from apps.data_center.infrastructure.models import AssetMasterModel, PriceBarModel
-from apps.equity.infrastructure.models import ValuationModel
+from apps.data_center.infrastructure.models import (
+    AssetMasterModel,
+    PriceBarModel,
+    ValuationFactModel,
+)
 
 
 @pytest.mark.django_db
@@ -24,13 +27,12 @@ def test_alpha_pool_repository_strict_valuation_uses_latest_valuation_intersecti
         exchange="SSE",
         is_active=True,
     )
-    ValuationModel.objects.create(
-        stock_code="600519.SH",
-        trade_date=date(2026, 4, 18),
-        total_mv=Decimal("1000000000"),
-        circ_mv=Decimal("800000000"),
-        source_provider="test",
-        is_valid=True,
+    ValuationFactModel.objects.create(
+        asset_code="600519.SH",
+        val_date=date(2026, 4, 18),
+        market_cap=Decimal("1000000000"),
+        float_market_cap=Decimal("800000000"),
+        source="test",
     )
 
     codes = AlphaPoolDataRepository().resolve_instrument_codes(
