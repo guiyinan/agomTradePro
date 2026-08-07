@@ -149,6 +149,12 @@ python scripts/verify_architecture.py
 
 2026-08-07 R5 Promotion Phase A 验证：完整 suite `26 passed`；9 个生产文件增量 mypy 0 regression，Black/Ruff、架构边界、业务配置与模块循环均通过。Luna Max 最终复核 FI/Portfolio outcome exact binding、shared-UoW、authorization clocks、ID-only lifecycle、stack[-2] rollback、expired RETIRE 与 active dynamic reread 后 P0/P1 均为 0；Phase B persistence、真实 trial/authorization 和下游消费仍未完成。
 
+2026-08-07 R5 Promotion Phase B2a 验证：Portfolio-owned outcome ledger 的 codec/component/migration `12/9/3 passed`；增量 mypy 0 regression，Ruff/Black、架构边界与 migration drift 通过。Outcome 只由 Portfolio 持有，跨 fixed_income 仅经 Application exact query；同 observation 唯一约束、server clock/UoW、append-only guards、race/rollback/raw tamper 均 fail closed。Research B2b、真实 OOS outcome、owner authorization 与下游消费仍未完成。
+
+2026-08-07 R7 approved sample policy 验证：unit/component/migration `8/12/4 passed`；6 个生产文件增量 mypy 0 regression，Ruff/Black/isort、`makemigrations research --check --dry-run` 通过。两表 ledger 只接收 ID/version/cutoff，owner evidence 通过 Risk Center Application port/concrete adapter 在 shared UoW 中重读；UUID、scope-policy coherence、PIT/header/payload/reference tamper、append-only、race/rollback 均 fail closed。生产 composition 在真实 owner source 缺失时固定 unavailable，真实 approved audit、forecast/outcome history 与 calibration evidence 尚缺，R7 仍 blocked。
+2026-08-07 R5 Promotion Phase B2b 验证：Research `0006` 五张 append-only ledger 已落地；artifact registration、decision/lifecycle receipt→child、fixed_income/Portfolio exact reread、server-clock/shared-UoW、future PIT cutoff、raw selector recovery、stream fork、race/rollback 与 private append surface 均 fail closed。修复后 component `4 passed`、codec+migration `6 passed`；真实 trial/OOS/owner authorization/Publication 仍缺，R5 仍 blocked。
+2026-08-07 R7 result persistence 验证：Research `0007` evidence graph + input receipt/result ledger 已落地；ID-only writer 现场重算 calibration/analogy/path，strict typed codec、exact PIT/future gate、header/payload/transition tamper、append-only、race/rollback 均 fail closed。Unit/component/migration `4/7/3 passed`；真实 owner evidence、forecast/outcome history、approved source 与 Promotion 仍缺，R7 仍 blocked。
+
 完整路线图审计后的 R4/R5 增量批次另行复验 fixed-income 全部 unit/component 与 R4 macro-risk，共 `49 passed`；增量 mypy/ruff/black、Django check、架构边界（2148 files / 0 violations）、业务配置硬编码和 43 个 current-data surface 均通过。
 
 回滚点按 R1、R5、R6、R8 四个独立提交组切分。新增迁移只建立 append-only 研究台账与 canonical snapshot/反馈存储；没有任务注册、API/MCP/TUI 发布，也不把研究结果接入现有决策或执行路径。

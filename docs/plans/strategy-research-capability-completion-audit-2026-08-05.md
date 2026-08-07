@@ -219,4 +219,12 @@ R6 qualification evidence 经 Luna Max 实现、两轮独立攻击复核与定�
 
 R5 Promotion Phase A 经 Luna Max 实现、持续旁审与三轮定点整改后关闭 Portfolio outcome/caller metric 自证、lifecycle 本地重放、authorization 跨 as-of 复用和 mypy 宽类型展开问题，最终 P0/P1 均为 0。完整 suite `26 passed`；9 个生产文件增量 mypy 0 regression，Black/Ruff、架构边界、业务配置与模块循环均通过。Phase B append-only persistence/concrete providers、真实 OOS outcome/authorization/trial 与下游 active consumption 仍未形成。
 
+R5 Promotion Phase B2a 已完成 Portfolio-owned relative-value outcome ledger：`portfolio.0008` schema-only、strict codec、server-clock/UoW ID-only writer、fixed_income Application exact owner reread 与 exact PIT query。Observation identity 唯一约束、owner seal/reference/header/payload 复核、append-only ORM guards、竞态/回滚均有证据；unit/component/migration `12/9/3 passed`，增量 mypy 0 regression。Research B2b persistence、真实 OOS outcome、owner authorization、Publication/容量/外部对账和下游消费仍未形成。
+
+R7 approved sample policy 已完成 Research 两表 append-only approval/policy ledger、`research.0005` schema-only migration、strict UUID/typed codec、server-clock registration、Risk Center Application owner port/concrete adapter、shared UoW 与 exact PIT replay；scope/policy coherence、clock/header/payload/reference tamper、ORM shortcut、race/rollback 均 fail closed。R7 unit/component/migration `8/12/4 passed`，增量 mypy 0 regression。当前没有真实 Risk Center approved audit、forecast/outcome history 或 calibration sample，production composition 在 owner source 缺失时固定 unavailable 且不写入两表；calibration/path result persistence 与 Promotion/lifecycle 仍未形成。
+
+R5 Promotion B2b 已完成 Research `0006` 五张 append-only ledger：artifact、decision authorization/bundle、lifecycle authorization/event 均由 shared-UoW/server-clock/ID-only closure 写入，fixed_income 与 Portfolio owner graph exact reread；PIT future cutoff、raw selector hiding、stream fork、append-only、race/rollback 均 fail closed。修复后 component `4 passed`、codec+migration `6 passed`；真实 approved trial、OOS outcome、owner authorization、Publication 与外部对账仍缺。
+
+R7 result persistence 已完成 Research `0007` evidence graph、input receipt/result 两层 append-only ledger；calibration、历史类比、路径 assessment 只从 exact owner evidence 现场重算，结果固定 research-only。Unit/component/migration `4/7/3 passed`；真实 owner evidence、forecast/outcome history、Risk Center approved source 与 Promotion/lifecycle 仍缺。
+
 完成路线图仍需为上表每项取得代码、迁移/台账、研究证据、运行时行为和 Promotion/回滚的直接证明；“测试全绿”只证明已覆盖合同，不替代真实数据和样本外结果。

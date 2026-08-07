@@ -169,6 +169,12 @@ Owner：`data_center`，独立 plan/分支。
 
 2026-08-07 R5 Promotion Phase A 已完成 Research-owned scope/policy/trial/decision/lifecycle 软件合同。Trial 精确配对 fixed_income B1 result 与唯一 Portfolio owner outcome，封存 OOS clocks、return/cost/drawdown/liquidity/capacity/credit-loss；Decision 与 Lifecycle Application 只接受 ID，在 shared UoW 动态重读全 owner graph。Authorization 绑定 decision/record/validity clocks；PROMOTE/RETIRE/ROLLBACK 完整重放且 rollback 只能 `stack[-2]`；active 每次 PIT 重读 policy/trial/FI/Portfolio/auth，任一替换/失效即不发布。完整 suite `26 passed`，Luna Max 最终复核 P0/P1 为 0。该批无 ORM/migration/concrete providers，不接 R8/current/execution；真实 Publication、OOS outcome、owner authorization、approved trial 和外部对账仍缺，R5 总门禁不变。
 
+2026-08-07 R5 Promotion Phase B2a 完成 Portfolio-owned outcome persistence：`portfolio.0008` 为 schema-only、零 seed；ID-only writer 在 shared UoW 内经 fixed_income Application exact query 重读结果/owner seal/observation，Portfolio 仅保存研究 outcome，不创建跨 App ORM FK。严格 codec、server clock、PIT query、observation 唯一约束和 append-only/竞态/回滚/raw tamper 保护均已验证（unit/component/migration `12/9/3 passed`）。Research B2b 仍在实施，真实 OOS outcome、Publication、容量/借券与外部对账仍缺，R5 保持 `blocked`。
+
+2026-08-07 R7 approved sample policy 完成 Research 两表 append-only ledger 与 `research.0005` migration。Scope/policy 全字段 canonical seal、UUID/clock/PIT/header/payload/reference tamper、server-clock/UoW、direct/bulk/save_base/delete、race/rollback 均 fail closed；production composition 在 Risk Center owner Application source 未接入前固定 unavailable，私有 test factory 才能注入 fake（unit/component/migration `8/12/4 passed`）。真实 approved audit、forecast/outcome history、calibration/path 结果与 Promotion/lifecycle 仍缺，R7 继续 `blocked`。
+2026-08-07 R5 Promotion Phase B2b 完成 Research 五张 append-only ledger 与 `research.0006` migration。Artifact、decision receipt/bundle、lifecycle receipt/event 均由 shared-UoW/server-clock/ID-only closure 写入，fixed_income 与 Portfolio owner graph exact reread；future PIT、raw selector hiding、stream fork、append-only、race/rollback 均 fail closed。修复后 component `4 passed`、codec+migration `6 passed`；真实 approved trial、OOS outcome、owner authorization、Publication 与外部对账仍缺，R5 继续 `blocked`。
+2026-08-07 R7 result persistence 完成 Research evidence graph、input receipt/result 两层 ledger 与 `research.0007` migration。Calibration、历史类比、路径 assessment 只从 shared-UoW exact owner evidence 现场重算；结果固定 research-only，禁止训练、发布概率、决策和执行。Unit/component/migration `4/7/3 passed`；真实 owner evidence、forecast/outcome history、Risk Center approved source 与 Promotion/lifecycle 仍缺，R7 继续 `blocked`。
+
 ### R6-S0：简单基准缺口取证
 
 Owner：`regime` + `research`。
