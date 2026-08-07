@@ -7,7 +7,7 @@
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 0,
     "provider_imports_outside_data_center": 0,
-    "runtime_parameter_references": 52
+    "runtime_parameter_references": 49
   },
   "cross_app_orm_imports": [
     {
@@ -363,82 +363,82 @@
       "text": "message = f\"Latest exchange rate is stale ({age} business days old)\""
     },
     {
-      "line": 348,
+      "line": 338,
       "path": "apps/account/application/interface_services.py",
       "text": "\"\"\"Change the current user's password after explicit re-authentication.\"\"\""
     },
     {
-      "line": 447,
+      "line": 437,
       "path": "apps/account/application/interface_services.py",
       "text": "\"\"\"Return the latest FX record with current-decision freshness metadata.\"\"\""
     },
     {
-      "line": 468,
+      "line": 458,
       "path": "apps/account/application/interface_services.py",
       "text": "\"\"\"Convert one amount, blocking unsafe implicit-latest FX observations.\"\"\""
     },
     {
-      "line": 490,
+      "line": 480,
       "path": "apps/account/application/interface_services.py",
       "text": "\"\"\"Convert with one repository while enforcing implicit-latest safety.\"\"\""
     },
     {
-      "line": 511,
+      "line": 501,
       "path": "apps/account/application/interface_services.py",
       "text": "latest = _build_latest_exchange_rate_result("
     },
     {
-      "line": 515,
+      "line": 505,
       "path": "apps/account/application/interface_services.py",
       "text": "if latest.must_not_use_for_decision:"
     },
     {
-      "line": 518,
+      "line": 508,
       "path": "apps/account/application/interface_services.py",
       "text": "freshness_status=latest.freshness_status,"
     },
     {
-      "line": 519,
+      "line": 509,
       "path": "apps/account/application/interface_services.py",
       "text": "staleness_days=latest.staleness_days,"
     },
     {
-      "line": 520,
+      "line": 510,
       "path": "apps/account/application/interface_services.py",
       "text": "is_stale=latest.is_stale,"
     },
     {
-      "line": 521,
+      "line": 511,
       "path": "apps/account/application/interface_services.py",
       "text": "must_not_use_for_decision=latest.must_not_use_for_decision,"
     },
     {
-      "line": 522,
+      "line": 512,
       "path": "apps/account/application/interface_services.py",
       "text": "blocked_reason=latest.blocked_reason,"
     },
     {
-      "line": 650,
+      "line": 640,
       "path": "apps/account/application/interface_services.py",
       "text": "\"\"\"Create a token for the current user.\"\"\""
     },
     {
-      "line": 683,
+      "line": 673,
       "path": "apps/account/application/interface_services.py",
       "text": "\"\"\"Revoke one token owned by the current user.\"\"\""
     },
     {
-      "line": 705,
+      "line": 695,
       "path": "apps/account/application/interface_services.py",
       "text": "\"\"\"Create a capital flow entry for the current user.\"\"\""
     },
     {
-      "line": 1014,
+      "line": 1004,
       "path": "apps/account/application/interface_services.py",
       "text": "\"\"\"Return the account API health summary for one user.\"\"\""
     },
     {
-      "line": 1059,
+      "line": 1049,
       "path": "apps/account/application/interface_services.py",
       "text": "\"\"\"Return observer grants scoped to the current owner or observer view.\"\"\""
     },
@@ -698,12 +698,12 @@
       "text": "\"\"\"Return positions and summary statistics for the owner's active portfolio.\"\"\""
     },
     {
-      "line": 356,
+      "line": 346,
       "path": "apps/account/infrastructure/account_interface_registration_repository.py",
       "text": "dashboard_summary_endpoint = f\"{normalized_base_url}/api/dashboard/v1/summary/\""
     },
     {
-      "line": 388,
+      "line": 378,
       "path": "apps/account/infrastructure/account_interface_registration_repository.py",
       "text": "\"summary = client.dashboard.get_summary()\","
     },
@@ -17683,9 +17683,6 @@
     "\"backtest\": env(\"DRF_THROTTLE_BACKTEST\", default=\"10/hour\"),  # P0-2：回测专用限流",
     "\"burst\": env(\"DRF_THROTTLE_BURST\", default=\"30/minute\"),  # P0-2：突发保护限流",
     "\"level\": normalize_log_level(os.getenv(\"DJANGO_LOG_LEVEL\")),",
-    "\"model_path\": env(\"QLIB_MODEL_PATH\", default=str(BASE_DIR / \"data\" / \"qlib\" / \"models\")),",
-    "\"provider_uri\": env(\"QLIB_PROVIDER_URI\", default=str(BASE_DIR / \"data\" / \"qlib\" / \"cn_data\")),",
-    "\"region\": env(\"QLIB_REGION\", default=\"CN\"),",
     "\"user\": env(\"DRF_THROTTLE_USER\", default=\"1000/hour\"),",
     "\"write\": env(\"DRF_THROTTLE_WRITE\", default=\"100/hour\"),  # P0-2：写操作限流",
     "AGOMTRADEPRO_ENCRYPTION_KEY = env(\"AGOMTRADEPRO_ENCRYPTION_KEY\", default=\"\")",
