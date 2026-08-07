@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3375,
+    "current_surface_references": 3374,
     "data_write_task_decorators": 56,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 4,
@@ -14898,11 +14898,6 @@
       "text": "summary=\"按策略计算仓位管理建议\","
     },
     {
-      "line": 54,
-      "path": "apps/task_monitor/application/backup_tasks.py",
-      "text": "\"\"\"Collect current capacity and reserve one database-sized backup peak.\"\"\""
-    },
-    {
       "line": 130,
       "path": "apps/task_monitor/application/dtos.py",
       "text": "summary: SchedulerSummaryResponse"
@@ -17390,12 +17385,12 @@
       "text": "@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]"
     },
     {
-      "line": 83,
+      "line": 42,
       "path": "apps/task_monitor/application/backup_tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 188,
+      "line": 147,
       "path": "apps/task_monitor/application/backup_tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },

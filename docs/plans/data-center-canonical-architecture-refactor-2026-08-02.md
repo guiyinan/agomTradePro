@@ -4666,5 +4666,5 @@ Git SHA / 镜像 / migration：
 
 - 根因：architecture inventory 原先按行搜索 `MacroIndicator`、`CapitalFlowModel` 等裸字符串，把宏观 Domain dataclass、账户资本流水模型、类型标注与测试兼容名称都算作 legacy fact access，产生 143 条伪债务；该数字与模块限定的 legacy access guard 不一致。
 - 变更：inventory 改为读取 `data_center_legacy_access_contracts.json`，按具体 legacy module、导入 symbol、alias、相对导入和模块属性引用解析；保留 owner model/admin/migration 的显式 allowed path，不再以类名同名判定旧链访问。新增回归分别证明 Domain `MacroIndicator`/本地 `CapitalFlowModel` 不误报，absolute/relative legacy ORM import 必须命中。
-- 提交态清单：在隔离 clean worktree 中只投影本批文件后重建，结果为 `legacy_fact_references=0`、Data Center internal 外部直连 0、Provider 外部直连 0、cross-App ORM 51、current-surface 3375、data task decorators 56；总入口仍为 548、candidate-review=0。主工作区并行 R5 文件没有混入治理基线。
+- 提交态清单：在提交 `a66ded94` 的隔离 clean worktree 中重建并复核，结果为 `legacy_fact_references=0`、Data Center internal 外部直连 0、Provider 外部直连 0、cross-App ORM 51、current-surface 3374、data task decorators 56；总入口仍为 548、candidate-review=0。主工作区并行 R5 文件没有混入治理基线。
 - 语义边界：这里的 0 表示“当前生产源码没有未允许的 legacy fact ORM import/reference”，不表示旧表、兼容 façade、126/128 个 compatibility 入口或 D4/D5 双读已物理删除；M9 仍必须等待真实备份恢复、生产零访问证据与明确授权。
