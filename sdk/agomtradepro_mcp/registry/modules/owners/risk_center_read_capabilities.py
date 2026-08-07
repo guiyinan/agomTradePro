@@ -449,6 +449,7 @@ MANIFESTS.extend(
             executor_kind="internal_handler",
             executor_ref="risk_center_stress_scenario_preview_revision",
             tags=("risk_center", "stress_scenario", "preview", "read"),
+            audit_tags=("risk_center:stress_scenario:preview", "mcp:read"),
             input_schema={
                 "type": "object",
                 "properties": {"payload": {"type": "object"}},

@@ -28,6 +28,17 @@ def test_scenario_registry_exposes_only_governed_capabilities() -> None:
         assert registry[key].executor_kind == "internal_handler"
 
 
+def test_scenario_preview_declares_synced_audit_tags() -> None:
+    manifest = CapabilityRegistryLoader().build_registry()[
+        "risk_center.stress_scenario.preview_revision"
+    ]
+
+    assert manifest.audit_tags == (
+        "risk_center:stress_scenario:preview",
+        "mcp:read",
+    )
+
+
 @pytest.mark.parametrize(
     ("key", "roles"),
     [
