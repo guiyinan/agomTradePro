@@ -8,7 +8,6 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
 
-from apps.macro_factor.domain.entities import TemporalSplitSpec, WalkForwardFold
 from apps.portfolio.domain.macro_factor_risk import (
     MacroRiskCandidateInput,
     MacroRiskCandidateKind,
@@ -22,6 +21,7 @@ from apps.portfolio.domain.r4_rolling_evidence import (
     R4OOSReturnPathEvidence,
     R4RegimeAssignmentEvidence,
 )
+from apps.portfolio.domain.r4_temporal_split import TemporalSplitSpec, WalkForwardFold
 
 
 def _require_text(value: str, field_name: str, *, maximum: int = 300) -> None:

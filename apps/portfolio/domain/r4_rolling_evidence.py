@@ -11,8 +11,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from apps.macro_factor.domain.entities import SampleWindow
 from apps.portfolio.domain.macro_factor_risk import MacroExposureVersion
+from apps.portfolio.domain.r4_temporal_split import SampleWindow
 
 
 def _require_text(value: str, field_name: str, *, maximum: int = 200) -> None:

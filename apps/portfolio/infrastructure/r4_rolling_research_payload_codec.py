@@ -8,7 +8,6 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any, cast
 
-from apps.macro_factor.domain.entities import SampleWindow, TemporalSplitSpec, WalkForwardFold
 from apps.portfolio.domain.macro_factor_risk import (
     AssetAllocation,
     AssetMacroExposure,
@@ -36,6 +35,7 @@ from apps.portfolio.domain.r4_rolling_evidence import (
     R4RegimeAssignmentEvidence,
     R4ReturnObservation,
 )
+from apps.portfolio.domain.r4_temporal_split import SampleWindow, TemporalSplitSpec, WalkForwardFold
 
 _STUDY_SCHEMA = "portfolio-r4-rolling-study-payload.v1"
 _ATTESTATION_SCHEMA = "portfolio-r4-r3-attestation-payload.v1"
