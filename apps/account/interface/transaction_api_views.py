@@ -1,5 +1,7 @@
 """Account transaction and capital flow API views."""
 
+from __future__ import annotations
+
 from dataclasses import asdict
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, cast
@@ -122,7 +124,7 @@ class BrokerTradeImportSerializer(serializers.Serializer[dict[str, Any]]):
     )
     file = serializers.FileField()
 
-    def validate_file(self, value: UploadedFile) -> UploadedFile:
+    def validate_file(self, value: UploadedFile[bytes]) -> UploadedFile[bytes]:
         """Reject unsupported or unbounded broker files before reading them."""
         raw_filename = value.name
         if not isinstance(raw_filename, str) or not raw_filename:
@@ -212,7 +214,7 @@ class BrokerTradeImportPreviewView(APIView):
     def post(self, request: Request) -> Response:
         serializer = BrokerTradeImportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        uploaded_file = cast(UploadedFile, serializer.validated_data["file"])
+        uploaded_file = cast("UploadedFile[bytes]", serializer.validated_data["file"])
         filename = uploaded_file.name
         if not isinstance(filename, str):
             raise ValidationError("导入文件名无效")
@@ -240,7 +242,7 @@ class BrokerTradeImportConfirmView(APIView):
     def post(self, request: Request) -> Response:
         serializer = BrokerTradeImportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        uploaded_file = cast(UploadedFile, serializer.validated_data["file"])
+        uploaded_file = cast("UploadedFile[bytes]", serializer.validated_data["file"])
         filename = uploaded_file.name
         if not isinstance(filename, str):
             raise ValidationError("导入文件名无效")

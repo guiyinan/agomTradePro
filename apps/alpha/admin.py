@@ -122,7 +122,7 @@ class QlibModelImportForm(forms.Form):
         help_text="可选。用于记录模型来源、训练参数等。",
     )
 
-    def clean_model_file(self) -> UploadedFile:
+    def clean_model_file(self) -> UploadedFile[bytes]:
         """Accept only a Django uploaded pickle artifact."""
 
         uploaded: object = self.cleaned_data.get("model_file")
@@ -309,7 +309,7 @@ class QlibModelRegistryAdmin(TypedModelAdmin[QlibModelRegistryModel]):
         form = QlibModelImportForm(request.POST or None, request.FILES or None)
 
         if request.method == "POST" and form.is_valid():
-            uploaded = cast(UploadedFile, form.cleaned_data["model_file"])
+            uploaded = cast("UploadedFile[bytes]", form.cleaned_data["model_file"])
             model_name = cast(str, form.cleaned_data["model_name"])
             artifact_hash = self._hash_uploaded_file(uploaded)
 
@@ -502,7 +502,7 @@ class QlibModelRegistryAdmin(TypedModelAdmin[QlibModelRegistryModel]):
             raise RuntimeError("runtime_config_snapshot_unavailable")
         return Path(configured_root).expanduser().resolve()
 
-    def _hash_uploaded_file(self, uploaded: UploadedFile) -> str:
+    def _hash_uploaded_file(self, uploaded: UploadedFile[bytes]) -> str:
         sha256 = hashlib.sha256()
         for chunk in uploaded.chunks():
             sha256.update(chunk)
@@ -511,7 +511,7 @@ class QlibModelRegistryAdmin(TypedModelAdmin[QlibModelRegistryModel]):
 
     def _store_uploaded_model(
         self,
-        uploaded: UploadedFile,
+        uploaded: UploadedFile[bytes],
         model_name: str,
         artifact_hash: str,
     ) -> Path:

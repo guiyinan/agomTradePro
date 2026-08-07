@@ -109,13 +109,15 @@ DEFAULT_SCRIPT_ALLOWED_MODULES: list[str] = [
 ]
 DEFAULT_SCRIPT_SANDBOX_CONFIG: dict[str, str] = {"mode": "relaxed"}
 VALID_STRATEGY_TYPES: set[str] = {
-    str(choice[0]) for choice in StrategyModel._meta.get_field("strategy_type").choices
+    str(choice[0]) for choice in (StrategyModel._meta.get_field("strategy_type").choices or ())
 }
 VALID_SCRIPT_LANGUAGES: set[str] = {
-    str(choice[0]) for choice in ScriptConfigModel._meta.get_field("script_language").choices
+    str(choice[0])
+    for choice in (ScriptConfigModel._meta.get_field("script_language").choices or ())
 }
 VALID_AI_APPROVAL_MODES: set[str] = {
-    str(choice[0]) for choice in AIStrategyConfigModel._meta.get_field("approval_mode").choices
+    str(choice[0])
+    for choice in (AIStrategyConfigModel._meta.get_field("approval_mode").choices or ())
 }
 DEFAULT_POSITION_RULE_VARIABLES: list[dict[str, Any]] = [
     {"name": "current_price", "type": "number", "required": True},
