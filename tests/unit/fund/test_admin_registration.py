@@ -12,7 +12,6 @@ from apps.fund.interface.admin import (
     FundHoldingAdmin,
     FundInfoAdmin,
     FundManagerAdmin,
-    FundNetValueAdmin,
     FundPerformanceAdmin,
     FundSectorAllocationAdmin,
 )
@@ -33,7 +32,6 @@ def test_fund_models_are_registered_by_the_interface_admin() -> None:
     expected = {
         FundInfoModel: FundInfoAdmin,
         FundManagerModel: FundManagerAdmin,
-        FundNetValueModel: FundNetValueAdmin,
         FundHoldingModel: FundHoldingAdmin,
         FundSectorAllocationModel: FundSectorAllocationAdmin,
         FundPerformanceModel: FundPerformanceAdmin,
@@ -42,6 +40,7 @@ def test_fund_models_are_registered_by_the_interface_admin() -> None:
         assert admin.site.is_registered(model)
         assert isinstance(admin.site._registry[model], admin_class)
         assert issubclass(admin_class, TypedModelAdmin)
+    assert not admin.site.is_registered(FundNetValueModel)
 
 
 def test_fund_amount_displays_keep_canonical_yuan_scaling() -> None:

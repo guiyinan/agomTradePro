@@ -43,7 +43,6 @@
         "scripts/backup-vps-postgres.ps1",
         "scripts/backup-vps-postgres.py",
         "scripts/deploy-docker-dev.ps1",
-        "scripts/deploy_canary.sh",
         "scripts/dev-smoke.ps1",
         "scripts/dev.bat",
         "scripts/docker-dev.bat",
@@ -77,26 +76,6 @@
         "scripts/verify-vps-bundle.ps1"
       ],
       "status": "compatibility"
-    },
-    {
-      "category": [
-        "operational_script",
-        "operational_dispatch_edge"
-      ],
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "path": [
-        "scripts/auto-backup.ps1",
-        "scripts/debug/check_and_migrate.py",
-        "scripts/docker-menu.ps1",
-        "scripts/migration/direct_migrate.py",
-        "scripts/migration/do_migrate.py",
-        "scripts/migration/migrate_data.py",
-        "scripts/promote_canary.sh",
-        "scripts/rollback.sh",
-        "scripts/vps-backup.ps1",
-        "scripts/vps-restore.ps1"
-      ],
-      "status": "retired_blocked"
     },
     {
       "category": "workflow_step",
@@ -186,15 +165,6 @@
         "docs/deployment/VPS_DEPLOYMENT_CLOSURE_2026-07-16.md"
       ],
       "status": "compatibility"
-    },
-    {
-      "category": "runbook",
-      "evidence": "stale SQLite or venv production procedure; blocked from current PostgreSQL production use",
-      "path": [
-        "docs/operations/database-restore-drill.md",
-        "docs/operations/deployment.md"
-      ],
-      "status": "retired_blocked"
     },
     {
       "category": "agent_skill",

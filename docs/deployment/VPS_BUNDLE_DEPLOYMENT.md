@@ -337,22 +337,6 @@ bash /opt/agomtradepro/current/scripts/vps-restore.sh \
   --redis-file /opt/agomtradepro/backups/redis/dump-20260208-130000.rdb.gz
 ```
 
-### 11.3 PowerShell on Linux (optional)
-
-Backup:
-
-```powershell
-pwsh /opt/agomtradepro/current/scripts/vps-backup.ps1 -TargetDir /opt/agomtradepro/current -BackupDir /opt/agomtradepro/backups -KeepDays 14
-```
-
-Restore:
-
-```powershell
-pwsh /opt/agomtradepro/current/scripts/vps-restore.ps1 -TargetDir /opt/agomtradepro/current -BackupDir /opt/agomtradepro/backups
-```
-
----
-
 ## 12. Troubleshooting
 
 ### Bundle extraction fails

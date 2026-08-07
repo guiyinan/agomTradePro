@@ -126,21 +126,13 @@ def test_inventory_classifies_known_operational_surfaces(
             "scripts/check_migration_graph.py",
             "active_public",
         ),
-        (
-            "operational_script",
-            "scripts/auto-backup.ps1",
-            "retired_blocked",
-        ),
+        ("operational_script", "scripts/vps-backup.sh", "adjacent_operational"),
         (
             "migration_evidence",
             "apps/data_center/migrations/0064_retention_exact_plan_members.py",
             "active_public",
         ),
-        (
-            "runbook",
-            "docs/operations/database-restore-drill.md",
-            "retired_blocked",
-        ),
+        ("runbook", "docs/deployment/VPS_BUNDLE_DEPLOYMENT.md", "compatibility"),
         (
             "agent_skill",
             ".agents/skills/backup-vps-postgres/SKILL.md",

@@ -248,9 +248,7 @@ $excludeFilePaths = @(
     (Join-Path $projectRoot 'scripts\package-for-vps.ps1'),
     (Join-Path $projectRoot 'scripts\remote_build_deploy_vps.py'),
     (Join-Path $projectRoot 'scripts\verify-vps-bundle.ps1'),
-    (Join-Path $projectRoot 'scripts\vps-backup.ps1'),
     (Join-Path $projectRoot 'scripts\vps-backup.sh'),
-    (Join-Path $projectRoot 'scripts\vps-restore.ps1'),
     (Join-Path $projectRoot 'scripts\vps-restore.sh')
 )
 

@@ -273,14 +273,6 @@ a newer schema. Implications:
 - After any rollback, verify application behavior against the current schema
   before declaring the rollback complete.
 
-## Legacy Scripts (Deprecated)
-
-`scripts/deploy_canary.sh`, `scripts/promote_canary.sh`, and
-`scripts/rollback.sh` date from the retired venv-based deployment model and
-are kept for reference only. They do not work with the current
-docker-compose production topology. Use `scripts/deploy-vps.ps1` (remote
-build + deploy + verify) as the single supported deployment path.
-
 ## What is included
 
 - Docker image tars for app + postgres + redis + caddy

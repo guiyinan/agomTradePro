@@ -12,32 +12,32 @@
       "current_data_surface": 46,
       "dynamic_import_edge": 8,
       "management_command": 27,
-      "management_command_edge": 65,
+      "management_command_edge": 60,
       "mcp_tool": 40,
       "migration_evidence": 10,
-      "operational_dispatch_edge": 92,
-      "operational_script": 40,
+      "operational_dispatch_edge": 61,
+      "operational_script": 29,
       "orchestration_entry": 8,
       "public_port": 91,
       "rest_url": 66,
-      "runbook": 8,
+      "runbook": 6,
       "runtime_config_key": 45,
       "scheduler_writer": 16,
       "script": 7,
       "sdk": 46,
-      "system_settings_compatibility": 11,
+      "system_settings_compatibility": 10,
       "terminal_tui": 28,
       "test_evidence": 30,
       "workflow_step": 9
     },
     "by_status": {
       "active_public": 617,
-      "adjacent_operational": 281,
+      "adjacent_operational": 272,
       "candidate-review": 0,
-      "compatibility": 250,
-      "retired_blocked": 34
+      "compatibility": 243,
+      "retired_blocked": 0
     },
-    "total": 1182
+    "total": 1132
   },
   "entries": [
     {
@@ -6302,56 +6302,6 @@
     },
     {
       "category": "management_command_edge",
-      "evidence": "call_command target is external or runtime-selected",
-      "id": "management_command_edge:scripts/migration/direct_migrate.py:dumpdata:line:39",
-      "locator": "line:39",
-      "path": "scripts/migration/direct_migrate.py",
-      "status": "adjacent_operational",
-      "symbol": "dumpdata",
-      "target": "dumpdata"
-    },
-    {
-      "category": "management_command_edge",
-      "evidence": "call_command target is external or runtime-selected",
-      "id": "management_command_edge:scripts/migration/direct_migrate.py:loaddata:line:62",
-      "locator": "line:62",
-      "path": "scripts/migration/direct_migrate.py",
-      "status": "adjacent_operational",
-      "symbol": "loaddata",
-      "target": "loaddata"
-    },
-    {
-      "category": "management_command_edge",
-      "evidence": "call_command target is external or runtime-selected",
-      "id": "management_command_edge:scripts/migration/do_migrate.py:dumpdata:line:37",
-      "locator": "line:37",
-      "path": "scripts/migration/do_migrate.py",
-      "status": "adjacent_operational",
-      "symbol": "dumpdata",
-      "target": "dumpdata"
-    },
-    {
-      "category": "management_command_edge",
-      "evidence": "call_command target is external or runtime-selected",
-      "id": "management_command_edge:scripts/migration/do_migrate.py:loaddata:line:67",
-      "locator": "line:67",
-      "path": "scripts/migration/do_migrate.py",
-      "status": "adjacent_operational",
-      "symbol": "loaddata",
-      "target": "loaddata"
-    },
-    {
-      "category": "management_command_edge",
-      "evidence": "call_command target is external or runtime-selected",
-      "id": "management_command_edge:scripts/migration/migrate_data.py:dumpdata:line:35",
-      "locator": "line:35",
-      "path": "scripts/migration/migrate_data.py",
-      "status": "adjacent_operational",
-      "symbol": "dumpdata",
-      "target": "dumpdata"
-    },
-    {
-      "category": "management_command_edge",
       "evidence": "execute_from_command_line resolves to apps/backtest/management/commands/run_backtest.py",
       "id": "management_command_edge:scripts/run_backtest.py:run_backtest:line:25",
       "locator": "line:25",
@@ -6952,26 +6902,6 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/auto-backup.ps1:auto-backup.ps1:token:auto-backup.ps1",
-      "locator": "token:auto-backup.ps1",
-      "path": "scripts/auto-backup.ps1",
-      "status": "retired_blocked",
-      "symbol": "auto-backup.ps1",
-      "target": "scripts/auto-backup.ps1"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/auto-backup.ps1:pg_dump:token:pg_dump",
-      "locator": "token:pg_dump",
-      "path": "scripts/auto-backup.ps1",
-      "status": "retired_blocked",
-      "symbol": "pg_dump",
-      "target": "postgres:pg_dump"
-    },
-    {
-      "category": "operational_dispatch_edge",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/backup-vps-postgres.ps1:backup-vps-postgres.ps1:token:backup-vps-postgres.ps1",
       "locator": "token:backup-vps-postgres.ps1",
@@ -7049,16 +6979,6 @@
       "status": "active_public",
       "symbol": "check_migration_graph.py",
       "target": "scripts/check_migration_graph.py"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/debug/check_and_migrate.py:check_and_migrate.py:token:check_and_migrate.py",
-      "locator": "token:check_and_migrate.py",
-      "path": "scripts/debug/check_and_migrate.py",
-      "status": "retired_blocked",
-      "symbol": "check_and_migrate.py",
-      "target": "scripts/debug/check_and_migrate.py"
     },
     {
       "category": "operational_dispatch_edge",
@@ -7143,36 +7063,6 @@
     {
       "category": "operational_dispatch_edge",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
-      "id": "operational_dispatch_edge:scripts/deploy_canary.sh:deploy-vps.ps1:token:deploy-vps.ps1",
-      "locator": "token:deploy-vps.ps1",
-      "path": "scripts/deploy_canary.sh",
-      "status": "adjacent_operational",
-      "symbol": "deploy-vps.ps1",
-      "target": "scripts/deploy-vps.ps1"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
-      "id": "operational_dispatch_edge:scripts/deploy_canary.sh:manage.py migrate:token:manage.py migrate",
-      "locator": "token:manage.py migrate",
-      "path": "scripts/deploy_canary.sh",
-      "status": "adjacent_operational",
-      "symbol": "manage.py migrate",
-      "target": "django:migrate"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
-      "id": "operational_dispatch_edge:scripts/deploy_canary.sh:rollback.sh:token:rollback.sh",
-      "locator": "token:rollback.sh",
-      "path": "scripts/deploy_canary.sh",
-      "status": "adjacent_operational",
-      "symbol": "rollback.sh",
-      "target": "scripts/rollback.sh"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/deploy_vps_verify.py:deploy-vps.ps1:token:deploy-vps.ps1",
       "locator": "token:deploy-vps.ps1",
       "path": "scripts/deploy_vps_verify.py",
@@ -7209,46 +7099,6 @@
       "status": "adjacent_operational",
       "symbol": "manage.py migrate",
       "target": "django:migrate"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/docker-menu.ps1:Register-ScheduledTask:token:Register-ScheduledTask",
-      "locator": "token:Register-ScheduledTask",
-      "path": "scripts/docker-menu.ps1",
-      "status": "retired_blocked",
-      "symbol": "Register-ScheduledTask",
-      "target": "windows:scheduled-task"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/docker-menu.ps1:auto-backup.ps1:token:auto-backup.ps1",
-      "locator": "token:auto-backup.ps1",
-      "path": "scripts/docker-menu.ps1",
-      "status": "retired_blocked",
-      "symbol": "auto-backup.ps1",
-      "target": "scripts/auto-backup.ps1"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/docker-menu.ps1:manage.py migrate:token:manage.py migrate",
-      "locator": "token:manage.py migrate",
-      "path": "scripts/docker-menu.ps1",
-      "status": "retired_blocked",
-      "symbol": "manage.py migrate",
-      "target": "django:migrate"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/docker-menu.ps1:pg_dump:token:pg_dump",
-      "locator": "token:pg_dump",
-      "path": "scripts/docker-menu.ps1",
-      "status": "retired_blocked",
-      "symbol": "pg_dump",
-      "target": "postgres:pg_dump"
     },
     {
       "category": "operational_dispatch_edge",
@@ -7312,86 +7162,6 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/migration/direct_migrate.py:call_command dumpdata:token:call_command dumpdata",
-      "locator": "token:call_command dumpdata",
-      "path": "scripts/migration/direct_migrate.py",
-      "status": "retired_blocked",
-      "symbol": "call_command dumpdata",
-      "target": "django:dumpdata"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/migration/direct_migrate.py:call_command loaddata:token:call_command loaddata",
-      "locator": "token:call_command loaddata",
-      "path": "scripts/migration/direct_migrate.py",
-      "status": "retired_blocked",
-      "symbol": "call_command loaddata",
-      "target": "django:loaddata"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/migration/direct_migrate.py:direct_migrate.py:token:direct_migrate.py",
-      "locator": "token:direct_migrate.py",
-      "path": "scripts/migration/direct_migrate.py",
-      "status": "retired_blocked",
-      "symbol": "direct_migrate.py",
-      "target": "scripts/migration/direct_migrate.py"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/migration/do_migrate.py:call_command dumpdata:token:call_command dumpdata",
-      "locator": "token:call_command dumpdata",
-      "path": "scripts/migration/do_migrate.py",
-      "status": "retired_blocked",
-      "symbol": "call_command dumpdata",
-      "target": "django:dumpdata"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/migration/do_migrate.py:call_command loaddata:token:call_command loaddata",
-      "locator": "token:call_command loaddata",
-      "path": "scripts/migration/do_migrate.py",
-      "status": "retired_blocked",
-      "symbol": "call_command loaddata",
-      "target": "django:loaddata"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/migration/do_migrate.py:do_migrate.py:token:do_migrate.py",
-      "locator": "token:do_migrate.py",
-      "path": "scripts/migration/do_migrate.py",
-      "status": "retired_blocked",
-      "symbol": "do_migrate.py",
-      "target": "scripts/migration/do_migrate.py"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/migration/migrate_data.py:call_command dumpdata:token:call_command dumpdata",
-      "locator": "token:call_command dumpdata",
-      "path": "scripts/migration/migrate_data.py",
-      "status": "retired_blocked",
-      "symbol": "call_command dumpdata",
-      "target": "django:dumpdata"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/migration/migrate_data.py:migrate_data.py:token:migrate_data.py",
-      "locator": "token:migrate_data.py",
-      "path": "scripts/migration/migrate_data.py",
-      "status": "retired_blocked",
-      "symbol": "migrate_data.py",
-      "target": "scripts/migration/migrate_data.py"
-    },
-    {
-      "category": "operational_dispatch_edge",
       "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
       "id": "operational_dispatch_edge:scripts/package-for-vps.ps1:deploy-on-vps.sh:token:deploy-on-vps.sh",
       "locator": "token:deploy-on-vps.sh",
@@ -7403,32 +7173,12 @@
     {
       "category": "operational_dispatch_edge",
       "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
-      "id": "operational_dispatch_edge:scripts/package-for-vps.ps1:vps-backup.ps1:token:vps-backup.ps1",
-      "locator": "token:vps-backup.ps1",
-      "path": "scripts/package-for-vps.ps1",
-      "status": "compatibility",
-      "symbol": "vps-backup.ps1",
-      "target": "scripts/vps-backup.ps1"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
       "id": "operational_dispatch_edge:scripts/package-for-vps.ps1:vps-backup.sh:token:vps-backup.sh",
       "locator": "token:vps-backup.sh",
       "path": "scripts/package-for-vps.ps1",
       "status": "compatibility",
       "symbol": "vps-backup.sh",
       "target": "scripts/vps-backup.sh"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
-      "id": "operational_dispatch_edge:scripts/package-for-vps.ps1:vps-restore.ps1:token:vps-restore.ps1",
-      "locator": "token:vps-restore.ps1",
-      "path": "scripts/package-for-vps.ps1",
-      "status": "compatibility",
-      "symbol": "vps-restore.ps1",
-      "target": "scripts/vps-restore.ps1"
     },
     {
       "category": "operational_dispatch_edge",
@@ -7463,16 +7213,6 @@
     {
       "category": "operational_dispatch_edge",
       "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
-      "id": "operational_dispatch_edge:scripts/package-portable-project.ps1:vps-backup.ps1:token:vps-backup.ps1",
-      "locator": "token:vps-backup.ps1",
-      "path": "scripts/package-portable-project.ps1",
-      "status": "compatibility",
-      "symbol": "vps-backup.ps1",
-      "target": "scripts/vps-backup.ps1"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
       "id": "operational_dispatch_edge:scripts/package-portable-project.ps1:vps-backup.sh:token:vps-backup.sh",
       "locator": "token:vps-backup.sh",
       "path": "scripts/package-portable-project.ps1",
@@ -7483,42 +7223,12 @@
     {
       "category": "operational_dispatch_edge",
       "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
-      "id": "operational_dispatch_edge:scripts/package-portable-project.ps1:vps-restore.ps1:token:vps-restore.ps1",
-      "locator": "token:vps-restore.ps1",
-      "path": "scripts/package-portable-project.ps1",
-      "status": "compatibility",
-      "symbol": "vps-restore.ps1",
-      "target": "scripts/vps-restore.ps1"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
       "id": "operational_dispatch_edge:scripts/package-portable-project.ps1:vps-restore.sh:token:vps-restore.sh",
       "locator": "token:vps-restore.sh",
       "path": "scripts/package-portable-project.ps1",
       "status": "compatibility",
       "symbol": "vps-restore.sh",
       "target": "scripts/vps-restore.sh"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/promote_canary.sh:deploy-vps.ps1:token:deploy-vps.ps1",
-      "locator": "token:deploy-vps.ps1",
-      "path": "scripts/promote_canary.sh",
-      "status": "retired_blocked",
-      "symbol": "deploy-vps.ps1",
-      "target": "scripts/deploy-vps.ps1"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/promote_canary.sh:rollback.sh:token:rollback.sh",
-      "locator": "token:rollback.sh",
-      "path": "scripts/promote_canary.sh",
-      "status": "retired_blocked",
-      "symbol": "rollback.sh",
-      "target": "scripts/rollback.sh"
     },
     {
       "category": "operational_dispatch_edge",
@@ -7592,36 +7302,6 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/rollback.sh:deploy-vps.ps1:token:deploy-vps.ps1",
-      "locator": "token:deploy-vps.ps1",
-      "path": "scripts/rollback.sh",
-      "status": "retired_blocked",
-      "symbol": "deploy-vps.ps1",
-      "target": "scripts/deploy-vps.ps1"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/rollback.sh:manage.py migrate:token:manage.py migrate",
-      "locator": "token:manage.py migrate",
-      "path": "scripts/rollback.sh",
-      "status": "retired_blocked",
-      "symbol": "manage.py migrate",
-      "target": "django:migrate"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/rollback.sh:rollback.sh:token:rollback.sh",
-      "locator": "token:rollback.sh",
-      "path": "scripts/rollback.sh",
-      "status": "retired_blocked",
-      "symbol": "rollback.sh",
-      "target": "scripts/rollback.sh"
-    },
-    {
-      "category": "operational_dispatch_edge",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/start-dev.ps1:manage.py migrate:token:manage.py migrate",
       "locator": "token:manage.py migrate",
@@ -7643,32 +7323,12 @@
     {
       "category": "operational_dispatch_edge",
       "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
-      "id": "operational_dispatch_edge:scripts/verify-vps-bundle.ps1:vps-backup.ps1:token:vps-backup.ps1",
-      "locator": "token:vps-backup.ps1",
-      "path": "scripts/verify-vps-bundle.ps1",
-      "status": "compatibility",
-      "symbol": "vps-backup.ps1",
-      "target": "scripts/vps-backup.ps1"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
       "id": "operational_dispatch_edge:scripts/verify-vps-bundle.ps1:vps-backup.sh:token:vps-backup.sh",
       "locator": "token:vps-backup.sh",
       "path": "scripts/verify-vps-bundle.ps1",
       "status": "compatibility",
       "symbol": "vps-backup.sh",
       "target": "scripts/vps-backup.sh"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
-      "id": "operational_dispatch_edge:scripts/verify-vps-bundle.ps1:vps-restore.ps1:token:vps-restore.ps1",
-      "locator": "token:vps-restore.ps1",
-      "path": "scripts/verify-vps-bundle.ps1",
-      "status": "compatibility",
-      "symbol": "vps-restore.ps1",
-      "target": "scripts/vps-restore.ps1"
     },
     {
       "category": "operational_dispatch_edge",
@@ -7702,16 +7362,6 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/vps-backup.ps1:vps-backup.ps1:token:vps-backup.ps1",
-      "locator": "token:vps-backup.ps1",
-      "path": "scripts/vps-backup.ps1",
-      "status": "retired_blocked",
-      "symbol": "vps-backup.ps1",
-      "target": "scripts/vps-backup.ps1"
-    },
-    {
-      "category": "operational_dispatch_edge",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/vps-backup.sh:pg_dump:token:pg_dump",
       "locator": "token:pg_dump",
@@ -7739,16 +7389,6 @@
       "status": "adjacent_operational",
       "symbol": "vps-backup.sh",
       "target": "scripts/vps-backup.sh"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_dispatch_edge:scripts/vps-restore.ps1:vps-restore.ps1:token:vps-restore.ps1",
-      "locator": "token:vps-restore.ps1",
-      "path": "scripts/vps-restore.ps1",
-      "status": "retired_blocked",
-      "symbol": "vps-restore.ps1",
-      "target": "scripts/vps-restore.ps1"
     },
     {
       "category": "operational_dispatch_edge",
@@ -7842,16 +7482,6 @@
     },
     {
       "category": "operational_script",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_script:scripts/auto-backup.ps1:__main__:",
-      "locator": "",
-      "path": "scripts/auto-backup.ps1",
-      "status": "retired_blocked",
-      "symbol": "__main__",
-      "target": "scripts/auto-backup.ps1,postgres:pg_dump"
-    },
-    {
-      "category": "operational_script",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_script:scripts/backup-vps-postgres.ps1:__main__:",
       "locator": "",
@@ -7879,16 +7509,6 @@
       "status": "active_public",
       "symbol": "__main__",
       "target": "django:MigrationExecutor,scripts/check_migration_graph.py"
-    },
-    {
-      "category": "operational_script",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_script:scripts/debug/check_and_migrate.py:__main__:",
-      "locator": "",
-      "path": "scripts/debug/check_and_migrate.py",
-      "status": "retired_blocked",
-      "symbol": "__main__",
-      "target": "scripts/debug/check_and_migrate.py"
     },
     {
       "category": "operational_script",
@@ -7943,16 +7563,6 @@
     {
       "category": "operational_script",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
-      "id": "operational_script:scripts/deploy_canary.sh:__main__:",
-      "locator": "",
-      "path": "scripts/deploy_canary.sh",
-      "status": "adjacent_operational",
-      "symbol": "__main__",
-      "target": "scripts/deploy-vps.ps1,django:migrate,scripts/rollback.sh"
-    },
-    {
-      "category": "operational_script",
-      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_script:scripts/deploy_vps_verify.py:__main__:",
       "locator": "",
       "path": "scripts/deploy_vps_verify.py",
@@ -7992,16 +7602,6 @@
     },
     {
       "category": "operational_script",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_script:scripts/docker-menu.ps1:__main__:",
-      "locator": "",
-      "path": "scripts/docker-menu.ps1",
-      "status": "retired_blocked",
-      "symbol": "__main__",
-      "target": "windows:scheduled-task,scripts/auto-backup.ps1,django:migrate,postgres:pg_dump"
-    },
-    {
-      "category": "operational_script",
       "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
       "id": "operational_script:scripts/migrate-to-postgres.ps1:__main__:",
       "locator": "",
@@ -8022,43 +7622,13 @@
     },
     {
       "category": "operational_script",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_script:scripts/migration/direct_migrate.py:__main__:",
-      "locator": "",
-      "path": "scripts/migration/direct_migrate.py",
-      "status": "retired_blocked",
-      "symbol": "__main__",
-      "target": "django:dumpdata,django:loaddata,scripts/migration/direct_migrate.py"
-    },
-    {
-      "category": "operational_script",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_script:scripts/migration/do_migrate.py:__main__:",
-      "locator": "",
-      "path": "scripts/migration/do_migrate.py",
-      "status": "retired_blocked",
-      "symbol": "__main__",
-      "target": "django:dumpdata,django:loaddata,scripts/migration/do_migrate.py"
-    },
-    {
-      "category": "operational_script",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_script:scripts/migration/migrate_data.py:__main__:",
-      "locator": "",
-      "path": "scripts/migration/migrate_data.py",
-      "status": "retired_blocked",
-      "symbol": "__main__",
-      "target": "django:dumpdata,scripts/migration/migrate_data.py"
-    },
-    {
-      "category": "operational_script",
       "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
       "id": "operational_script:scripts/package-for-vps.ps1:__main__:",
       "locator": "",
       "path": "scripts/package-for-vps.ps1",
       "status": "compatibility",
       "symbol": "__main__",
-      "target": "scripts/deploy-on-vps.sh,scripts/vps-backup.ps1,scripts/vps-backup.sh,scripts/vps-restore.ps1,scripts/vps-restore.sh"
+      "target": "scripts/deploy-on-vps.sh,scripts/vps-backup.sh,scripts/vps-restore.sh"
     },
     {
       "category": "operational_script",
@@ -8068,17 +7638,7 @@
       "path": "scripts/package-portable-project.ps1",
       "status": "compatibility",
       "symbol": "__main__",
-      "target": "scripts/deploy-on-vps.sh,scripts/remote_build_deploy_vps.py,scripts/vps-backup.ps1,scripts/vps-backup.sh,scripts/vps-restore.ps1,scripts/vps-restore.sh"
-    },
-    {
-      "category": "operational_script",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_script:scripts/promote_canary.sh:__main__:",
-      "locator": "",
-      "path": "scripts/promote_canary.sh",
-      "status": "retired_blocked",
-      "symbol": "__main__",
-      "target": "scripts/deploy-vps.ps1,scripts/rollback.sh"
+      "target": "scripts/deploy-on-vps.sh,scripts/remote_build_deploy_vps.py,scripts/vps-backup.sh,scripts/vps-restore.sh"
     },
     {
       "category": "operational_script",
@@ -8112,16 +7672,6 @@
     },
     {
       "category": "operational_script",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_script:scripts/rollback.sh:__main__:",
-      "locator": "",
-      "path": "scripts/rollback.sh",
-      "status": "retired_blocked",
-      "symbol": "__main__",
-      "target": "scripts/deploy-vps.ps1,django:migrate,scripts/rollback.sh"
-    },
-    {
-      "category": "operational_script",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_script:scripts/start-dev.ps1:__main__:",
       "locator": "",
@@ -8138,7 +7688,7 @@
       "path": "scripts/verify-vps-bundle.ps1",
       "status": "compatibility",
       "symbol": "__main__",
-      "target": "scripts/deploy-on-vps.sh,scripts/vps-backup.ps1,scripts/vps-backup.sh,scripts/vps-restore.ps1,scripts/vps-restore.sh"
+      "target": "scripts/deploy-on-vps.sh,scripts/vps-backup.sh,scripts/vps-restore.sh"
     },
     {
       "category": "operational_script",
@@ -8152,16 +7702,6 @@
     },
     {
       "category": "operational_script",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_script:scripts/vps-backup.ps1:__main__:",
-      "locator": "",
-      "path": "scripts/vps-backup.ps1",
-      "status": "retired_blocked",
-      "symbol": "__main__",
-      "target": "scripts/vps-backup.ps1"
-    },
-    {
-      "category": "operational_script",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_script:scripts/vps-backup.sh:__main__:",
       "locator": "",
@@ -8169,16 +7709,6 @@
       "status": "adjacent_operational",
       "symbol": "__main__",
       "target": "postgres:pg_dump,postgres:pg_restore,scripts/vps-backup.sh"
-    },
-    {
-      "category": "operational_script",
-      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
-      "id": "operational_script:scripts/vps-restore.ps1:__main__:",
-      "locator": "",
-      "path": "scripts/vps-restore.ps1",
-      "status": "retired_blocked",
-      "symbol": "__main__",
-      "target": "scripts/vps-restore.ps1"
     },
     {
       "category": "operational_script",
@@ -9912,26 +9442,6 @@
     },
     {
       "category": "runbook",
-      "evidence": "stale SQLite or venv production procedure; blocked from current PostgreSQL production use",
-      "id": "runbook:docs/operations/database-restore-drill.md:database-restore-drill:",
-      "locator": "",
-      "path": "docs/operations/database-restore-drill.md",
-      "status": "retired_blocked",
-      "symbol": "database-restore-drill",
-      "target": ""
-    },
-    {
-      "category": "runbook",
-      "evidence": "stale SQLite or venv production procedure; blocked from current PostgreSQL production use",
-      "id": "runbook:docs/operations/deployment.md:deployment:",
-      "locator": "",
-      "path": "docs/operations/deployment.md",
-      "status": "retired_blocked",
-      "symbol": "deployment",
-      "target": ""
-    },
-    {
-      "category": "runbook",
       "evidence": "canonical Data Center architecture and operational convergence plan",
       "id": "runbook:docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md:data-center-canonical-architecture-refactor-2026-08-02:",
       "locator": "",
@@ -9982,7 +9492,7 @@
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=4; migration_status=consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=3; migration_status=consumer_cutover_in_progress",
       "id": "runtime_config_key:governance/runtime_config_contracts.json:account.require_user_approval:consumer_cutover_in_progress",
       "locator": "consumer_cutover_in_progress",
       "path": "governance/runtime_config_contracts.json",
@@ -9992,7 +9502,7 @@
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=3; migration_status=consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=2; migration_status=consumer_cutover_in_progress",
       "id": "runtime_config_key:governance/runtime_config_contracts.json:account.risk_warning_content:consumer_cutover_in_progress",
       "locator": "consumer_cutover_in_progress",
       "path": "governance/runtime_config_contracts.json",
@@ -10002,7 +9512,7 @@
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=3; migration_status=consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=2; migration_status=consumer_cutover_in_progress",
       "id": "runtime_config_key:governance/runtime_config_contracts.json:account.user_agreement_content:consumer_cutover_in_progress",
       "locator": "consumer_cutover_in_progress",
       "path": "governance/runtime_config_contracts.json",
@@ -10152,7 +9662,7 @@
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=2; migration_status=consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
       "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.enabled:consumer_cutover_in_progress",
       "locator": "consumer_cutover_in_progress",
       "path": "governance/runtime_config_contracts.json",
@@ -11093,8 +10603,8 @@
     {
       "category": "system_settings_compatibility",
       "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/account/infrastructure/account_interface_registration_repository.py:SystemSettingsModel:lines:20,47,50,83,88,175,257,305",
-      "locator": "lines:20,47,50,83,88,175,257,305",
+      "id": "system_settings_compatibility:apps/account/infrastructure/account_interface_registration_repository.py:SystemSettingsModel:lines:20,47,50,165,247,295",
+      "locator": "lines:20,47,50,165,247,295",
       "path": "apps/account/infrastructure/account_interface_registration_repository.py",
       "status": "compatibility",
       "symbol": "SystemSettingsModel",
@@ -11136,16 +10646,6 @@
       "id": "system_settings_compatibility:apps/account/infrastructure/repositories.py:SystemSettingsModel:lines:59,724,728",
       "locator": "lines:59,724,728",
       "path": "apps/account/infrastructure/repositories.py",
-      "status": "compatibility",
-      "symbol": "SystemSettingsModel",
-      "target": ""
-    },
-    {
-      "category": "system_settings_compatibility",
-      "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/account/interface/admin.py:SystemSettingsModel:lines:48,84,95,110,157,187,501,511,522,573",
-      "locator": "lines:48,84,95,110,157,187,501,511,522,573",
-      "path": "apps/account/interface/admin.py",
       "status": "compatibility",
       "symbol": "SystemSettingsModel",
       "target": ""
@@ -11874,7 +11374,7 @@
     "celery_tasks": 31,
     "current_data_contracts": 46,
     "legacy_entrypoints_and_wrappers": 4,
-    "operational_governance_rules": 14,
+    "operational_governance_rules": 12,
     "runtime_config_keys": 45
   },
   "source_contracts": [

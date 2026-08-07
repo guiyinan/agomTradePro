@@ -15,7 +15,6 @@ from apps.sector.infrastructure.models import (
     SectorRelativeStrengthModel,
 )
 from apps.sector.interface.admin import (
-    SectorConstituentAdmin,
     SectorIndexAdmin,
     SectorInfoAdmin,
     SectorPreferenceConfigAdmin,
@@ -151,16 +150,15 @@ def test_sector_admin_uses_typed_contracts_and_locks_generated_evidence():
     expected_admin_types = {
         SectorInfoModel: SectorInfoAdmin,
         SectorIndexModel: SectorIndexAdmin,
-        SectorConstituentModel: SectorConstituentAdmin,
         SectorRelativeStrengthModel: SectorRelativeStrengthAdmin,
         SectorPreferenceConfigModel: SectorPreferenceConfigAdmin,
     }
     for model, admin_type in expected_admin_types.items():
         assert isinstance(admin.site._registry[model], admin_type)
+    assert not admin.site.is_registered(SectorConstituentModel)
 
     for model in (
         SectorIndexModel,
-        SectorConstituentModel,
         SectorRelativeStrengthModel,
     ):
         model_admin = admin.site._registry[model]

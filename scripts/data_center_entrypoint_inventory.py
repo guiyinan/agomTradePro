@@ -169,38 +169,24 @@ OPERATIONAL_TOKEN_PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ),
 )
 
-SCRIPT_DISPATCH_PATH_OVERRIDES = {
-    "check_and_migrate.py": "scripts/debug/check_and_migrate.py",
-    "direct_migrate.py": "scripts/migration/direct_migrate.py",
-    "do_migrate.py": "scripts/migration/do_migrate.py",
-    "migrate_data.py": "scripts/migration/migrate_data.py",
-}
 SCRIPT_DISPATCH_PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = tuple(
     (
         script_name,
         re.compile(re.escape(script_name), re.IGNORECASE),
-        SCRIPT_DISPATCH_PATH_OVERRIDES.get(script_name, f"scripts/{script_name}"),
+        f"scripts/{script_name}",
     )
     for script_name in (
-        "auto-backup.ps1",
         "backup-vps-postgres.py",
         "backup-vps-postgres.ps1",
-        "check_and_migrate.py",
         "check_migration_graph.py",
         "deploy-on-vps.sh",
         "deploy-vps.ps1",
-        "direct_migrate.py",
-        "do_migrate.py",
-        "migrate_data.py",
         "migrate-to-postgres.ps1",
         "migrate-vps-sqlite-to-postgres.sh",
         "remote-build-deploy-vps.ps1",
         "remote_build_deploy_vps.py",
-        "rollback.sh",
         "verify_postgres_backup_restore.py",
-        "vps-backup.ps1",
         "vps-backup.sh",
-        "vps-restore.ps1",
         "vps-restore.sh",
     )
 )
@@ -893,18 +879,12 @@ def _discover_management_command_edges() -> list[dict[str, object]]:
                 if target:
                     targets = (target,)
             else:
-                command_argument = (
-                    node.args[0]
-                    if node.args
-                    else next(
-                        (
-                            keyword.value
-                            for keyword in node.keywords
-                            if keyword.arg in {"command_name", "name"}
-                        ),
-                        None,
-                    )
-                )
+                command_argument: ast.expr | None = node.args[0] if node.args else None
+                if command_argument is None:
+                    for keyword in node.keywords:
+                        if keyword.arg in {"command_name", "name"}:
+                            command_argument = keyword.value
+                            break
                 literal = _resolved_string(command_argument, constants)
                 if literal is not None:
                     targets = (literal,)
@@ -1091,13 +1071,13 @@ def _discover_admin_surfaces() -> list[dict[str, object]]:
                             ),
                         )
                     )
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Call) or not node.args:
+        for call_node in ast.walk(tree):
+            if not isinstance(call_node, ast.Call) or not call_node.args:
                 continue
-            dotted = _dotted_attribute(node.func) or ""
+            dotted = _dotted_attribute(call_node.func) or ""
             if not dotted.endswith(".register") or dotted == "admin.register":
                 continue
-            for model in _admin_call_targets(node):
+            for model in _admin_call_targets(call_node):
                 canonical_model = imported_aliases.get(model, model)
                 if path_text.startswith(("apps/data_center/", "apps/config_center/")):
                     status = "active_public"
@@ -2230,9 +2210,9 @@ def _discover_terminal_tui() -> list[dict[str, object]]:
     for key, item in sorted(generated_actions.items()):
         published_item = published_actions.get(key)
         is_published = published_item is not None
-        contract_matches = is_published and _tui_action_signature(item) == _tui_action_signature(
-            published_item
-        )
+        contract_matches = published_item is not None and _tui_action_signature(
+            item
+        ) == _tui_action_signature(published_item)
         endpoint = str(item.get("endpoint", ""))
         results.append(
             _entry(

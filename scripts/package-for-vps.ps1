@@ -557,9 +557,7 @@ Copy-Item deploy/README_DEPLOY.md (Join-Path $deployDir "README_DEPLOY.md") -For
 Copy-Item scripts/deploy-on-vps.sh (Join-Path $scriptsDir "deploy-on-vps.sh") -Force
 Copy-Item scripts/deploy-on-vps.ps1 (Join-Path $scriptsDir "deploy-on-vps.ps1") -Force
 Copy-Item scripts/vps-backup.sh (Join-Path $scriptsDir "vps-backup.sh") -Force
-Copy-Item scripts/vps-backup.ps1 (Join-Path $scriptsDir "vps-backup.ps1") -Force
 Copy-Item scripts/vps-restore.sh (Join-Path $scriptsDir "vps-restore.sh") -Force
-Copy-Item scripts/vps-restore.ps1 (Join-Path $scriptsDir "vps-restore.ps1") -Force
 Copy-Item scripts/verify-vps-bundle.ps1 (Join-Path $scriptsDir "verify-vps-bundle.ps1") -Force
 Copy-Item scripts/deploy-one-click.sh (Join-Path $scriptsDir "deploy-one-click.sh") -Force
 Copy-Item scripts/shared/common.sh (Join-Path $scriptsDir "common.sh") -Force
