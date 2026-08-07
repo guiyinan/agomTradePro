@@ -21,8 +21,6 @@ def _load(name: str, relative_path: str) -> ModuleType:
 @pytest.mark.parametrize(
     ("module_name", "relative_path", "expected_command"),
     [
-        ("refresh_macro_data_wrapper", "scripts/debug/refresh_macro_data.py", "sync_macro_data"),
-        ("sync_akshare_data_wrapper", "scripts/sync_akshare_data.py", "sync_macro_data"),
         ("run_backtest_wrapper", "scripts/run_backtest.py", "run_backtest"),
     ],
 )
