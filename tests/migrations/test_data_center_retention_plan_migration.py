@@ -13,7 +13,7 @@ from django.db.models.deletion import ProtectedError
 NOW = datetime(2026, 8, 7, 5, 0, tzinfo=UTC)
 
 
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+@pytest.mark.django_db(transaction=True)
 def test_retention_plan_migration_forward_reverse_and_reapply() -> None:
     executor = MigrationExecutor(connection)
     leaf_nodes = executor.loader.graph.leaf_nodes()
@@ -26,10 +26,10 @@ def test_retention_plan_migration_forward_reverse_and_reapply() -> None:
         with pytest.raises(LookupError):
             old_apps.get_model("data_center", "RetentionPlanModel")
 
-        executor.migrate([("data_center", "0064_retention_exact_plan_members")])
+        executor.migrate([("data_center", "0065_widen_retention_member_digests")])
         executor = MigrationExecutor(connection)
         new_apps = executor.loader.project_state(
-            [("data_center", "0064_retention_exact_plan_members")]
+            [("data_center", "0065_widen_retention_member_digests")]
         ).apps
         Archive = new_apps.get_model("data_center", "ArchiveManifestModel")
         Plan = new_apps.get_model("data_center", "RetentionPlanModel")
@@ -79,8 +79,8 @@ def test_retention_plan_migration_forward_reverse_and_reapply() -> None:
             plan=plan,
             ordinal=0,
             payload_id=uuid4(),
-            payload_hash="c" * 64,
-            record_digest="d" * 64,
+            payload_hash="sha256:" + ("c" * 64),
+            record_digest="sha256:" + ("d" * 64),
             schema_fingerprint="sha256:schema",
             fetched_at=NOW - timedelta(days=31),
             size_bytes=128,
@@ -93,8 +93,8 @@ def test_retention_plan_migration_forward_reverse_and_reapply() -> None:
                 plan=plan,
                 ordinal=1,
                 payload_id=member.payload_id,
-                payload_hash="e" * 64,
-                record_digest="f" * 64,
+                payload_hash="sha256:" + ("e" * 64),
+                record_digest="sha256:" + ("f" * 64),
                 schema_fingerprint="sha256:schema",
                 fetched_at=NOW - timedelta(days=31),
                 size_bytes=128,
@@ -113,10 +113,10 @@ def test_retention_plan_migration_forward_reverse_and_reapply() -> None:
         with pytest.raises(LookupError):
             reversed_apps.get_model("data_center", "RetentionPlanModel")
 
-        executor.migrate([("data_center", "0064_retention_exact_plan_members")])
+        executor.migrate([("data_center", "0065_widen_retention_member_digests")])
         executor = MigrationExecutor(connection)
         reapplied_apps = executor.loader.project_state(
-            [("data_center", "0064_retention_exact_plan_members")]
+            [("data_center", "0065_widen_retention_member_digests")]
         ).apps
         assert reapplied_apps.get_model("data_center", "RetentionPlanModel") is not None
     finally:

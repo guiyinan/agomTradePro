@@ -1071,7 +1071,7 @@ class RuntimeConfigSnapshotModel(models.Model):
 class StorageBudgetPolicyModel(models.Model):
     """Runtime storage policy; no code-level capacity fallback is implied."""
 
-    policy_key = models.CharField(max_length=100, unique=True, db_index=True)
+    policy_key = models.CharField(max_length=100, db_index=True)
     version = models.PositiveIntegerField()
     configured_capacity_bytes = models.PositiveBigIntegerField()
     raw_budget_ratio = models.FloatField()
@@ -1095,6 +1095,11 @@ class StorageBudgetPolicyModel(models.Model):
             models.UniqueConstraint(
                 fields=["policy_key", "version"],
                 name="config_center_storage_policy_version_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["active"],
+                condition=models.Q(active=True),
+                name="config_center_one_active_storage_policy",
             ),
             models.CheckConstraint(
                 condition=models.Q(configured_capacity_bytes__gt=0),

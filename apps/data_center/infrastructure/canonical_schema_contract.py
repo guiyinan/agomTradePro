@@ -34,6 +34,7 @@ CANONICAL_SCHEMA_MIGRATIONS: tuple[str, ...] = (
     "0057_publicationrollbackmodel",
     "0063_archivemanifest_archive_restore_evidence",
     "0064_retention_exact_plan_members",
+    "0065_widen_retention_member_digests",
 )
 
 

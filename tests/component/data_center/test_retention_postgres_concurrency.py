@@ -28,7 +28,10 @@ from tests.unit.data_center.test_retention_control_plane import (
     _exact_plan,
 )
 
-pytestmark = pytest.mark.django_db(transaction=True)
+pytestmark = pytest.mark.django_db(
+    transaction=True,
+    available_apps=["apps.data_center"],
+)
 
 
 def _require_postgresql() -> None:
@@ -36,12 +39,12 @@ def _require_postgresql() -> None:
         pytest.skip("PostgreSQL advisory-lock evidence requires PostgreSQL")
 
 
-def test_two_workers_cannot_claim_one_plan_with_different_operations() -> None:
-    _require_postgresql()
+def _assert_two_workers_cannot_claim_one_plan() -> None:
     plan, members, archive = _exact_plan()
     ArchiveManifestRepository().save(archive)
     RetentionPlanRepository().create(plan, members)
     barrier = Barrier(2)
+    operation_ids = (f"worker-one-{uuid4()}", f"worker-two-{uuid4()}")
 
     def claim(operation_id: str) -> str:
         close_old_connections()
@@ -54,17 +57,16 @@ def test_two_workers_cannot_claim_one_plan_with_different_operations() -> None:
         except ValueError as exc:
             return f"blocked:{exc}"
         finally:
-            close_old_connections()
+            connection.close()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        results = sorted(executor.map(claim, ("worker-one", "worker-two")))
+        results = sorted(executor.map(claim, operation_ids))
 
     assert sum(result.startswith("claimed:") for result in results) == 1
     assert sum("retention_plan_already_claimed" in result for result in results) == 1
 
 
-def test_concurrent_same_operation_plan_creation_replays_single_snapshot() -> None:
-    _require_postgresql()
+def _assert_same_operation_replays_single_snapshot() -> None:
     operation_id = f"concurrent-plan-{uuid4()}"
     policy_id = str(uuid4())
     barrier = Barrier(2)
@@ -102,7 +104,7 @@ def test_concurrent_same_operation_plan_creation_replays_single_snapshot() -> No
             saved, _ = RetentionPlanRepository().create(plan, ())
             return saved.plan_id
         finally:
-            close_old_connections()
+            connection.close()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         plan_ids = list(executor.map(create_plan, (1, 2)))
@@ -110,8 +112,7 @@ def test_concurrent_same_operation_plan_creation_replays_single_snapshot() -> No
     assert len(set(plan_ids)) == 1
 
 
-def test_hold_insert_serializes_before_member_delete_and_blocks_it() -> None:
-    _require_postgresql()
+def _assert_hold_serializes_before_member_delete() -> None:
     _, raw_rows, plan, member, payload = _consumable_retention_plan()
     hold_locked = Event()
     release_hold = Event()
@@ -133,7 +134,7 @@ def test_hold_insert_serializes_before_member_delete_and_blocks_it() -> None:
                 hold_locked.set()
                 assert release_hold.wait(timeout=10)
         finally:
-            close_old_connections()
+            connection.close()
 
     def consume() -> RetentionMemberExecution:
         close_old_connections()
@@ -142,7 +143,7 @@ def test_hold_insert_serializes_before_member_delete_and_blocks_it() -> None:
             return consumed.execution
         finally:
             consume_done.set()
-            close_old_connections()
+            connection.close()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         hold_future = executor.submit(create_hold_while_locked)
@@ -155,3 +156,11 @@ def test_hold_insert_serializes_before_member_delete_and_blocks_it() -> None:
 
     assert execution is RetentionMemberExecution.BLOCKED
     assert raw_rows.get_by_id(payload.payload_id) == payload
+
+
+def test_postgresql_retention_concurrency_contract() -> None:
+    """Prove claim replay and hold/delete serialization in one DB lifecycle."""
+    _require_postgresql()
+    _assert_two_workers_cannot_claim_one_plan()
+    _assert_same_operation_replays_single_snapshot()
+    _assert_hold_serializes_before_member_delete()

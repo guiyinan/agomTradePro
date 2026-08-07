@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from math import ceil
 from uuid import uuid4
@@ -365,3 +366,16 @@ def test_runtime_profile_and_storage_policy_repositories_round_trip() -> None:
     )
     StorageBudgetPolicyRepository().save(policy)
     assert StorageBudgetPolicyRepository().get_active() == policy
+    next_policy = replace(
+        policy,
+        version=2,
+        configured_capacity_bytes=2048,
+        active=False,
+    )
+    repository = StorageBudgetPolicyRepository()
+    repository.save(next_policy)
+    assert repository.get_active() == policy
+    activated = repository.activate(next_policy)
+    assert activated.active is True
+    assert activated.version == 2
+    assert repository.get_active() == activated
