@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
 import logging
 import os
 import shutil
@@ -28,6 +29,9 @@ class DatabaseBackupResult:
     keep_days: int
     compressed: bool
     engine: str
+    sha256: str = ""
+    size_bytes: int = 0
+    backup_format: str = ""
 
 
 class DatabaseBackupService:
@@ -55,14 +59,26 @@ class DatabaseBackupService:
         output_path.chmod(0o700)
 
         db_engine = settings.DATABASES["default"]["ENGINE"]
+        superseded_backups = 0
         if "sqlite" in db_engine:
             backup_file = self._backup_sqlite(output_path, compress)
+            backup_format = "sqlite-gzip" if compress else "sqlite"
         elif "postgresql" in db_engine or "postgis" in db_engine:
             backup_file = self._backup_postgresql(output_path, compress)
+            backup_format = "postgresql-custom"
+            superseded_backups = self._prune_superseded_postgresql_backups(
+                output_path,
+                keep=backup_file,
+            )
         else:
             raise ValueError(f"Unsupported database engine: {db_engine}")
 
-        removed_old_backups = self._cleanup_old_backups(output_path, resolved_keep_days)
+        removed_old_backups = superseded_backups + self._cleanup_old_backups(
+            output_path,
+            resolved_keep_days,
+        )
+        size_bytes = backup_file.stat().st_size
+        sha256 = self._sha256_file(backup_file)
         logger.info(
             "Database backup completed",
             extra={
@@ -78,6 +94,9 @@ class DatabaseBackupService:
             keep_days=resolved_keep_days,
             compressed=compress,
             engine=db_engine,
+            sha256=sha256,
+            size_bytes=size_bytes,
+            backup_format=backup_format,
         )
 
     @staticmethod
@@ -148,7 +167,7 @@ class DatabaseBackupService:
         return backup_file
 
     def _backup_postgresql(self, output_path: Path, compress: bool) -> Path:
-        """Backup PostgreSQL using pg_dump."""
+        """Create an atomic, restorable PostgreSQL custom-format backup."""
 
         db_config = settings.DATABASES["default"]
         db_name = db_config["NAME"]
@@ -157,11 +176,9 @@ class DatabaseBackupService:
         db_port = db_config.get("PORT", "5432")
         db_password = db_config.get("PASSWORD", "")
 
-        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-        backup_name = f"db_backup_{timestamp}.sql"
-        if compress:
-            backup_name += ".gz"
-        backup_file = output_path / backup_name
+        backup_file = output_path / "postgres-current.dump"
+        backup_temp = output_path / ".postgres-current.dump.partial"
+        backup_temp.unlink(missing_ok=True)
 
         env = os.environ.copy()
         if db_password:
@@ -175,46 +192,72 @@ class DatabaseBackupService:
             str(db_port),
             "-U",
             db_user,
-            "-F",
-            "p",
+            "--format=custom",
+            f"--compress={6 if compress else 0}",
+            "--no-owner",
+            "--no-acl",
             "-f",
-            str(backup_file) if not compress else "-",
+            str(backup_temp),
             db_name,
         ]
 
         try:
-            if compress:
-                process = subprocess.Popen(
-                    cmd,
-                    env=env,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                )
-                assert process.stdout is not None
-                with gzip.open(backup_file, "wb") as dst:
-                    for chunk in process.stdout:
-                        dst.write(chunk)
-                _, stderr = process.communicate()
-                if process.returncode != 0:
-                    raise subprocess.CalledProcessError(
-                        process.returncode,
-                        cmd,
-                        stderr=stderr.decode("utf-8", errors="ignore"),
-                    )
-            else:
-                subprocess.run(
-                    cmd,
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
+            subprocess.run(
+                cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            if not backup_temp.is_file() or backup_temp.stat().st_size == 0:
+                raise RuntimeError("postgresql_backup_empty")
+            subprocess.run(
+                ["pg_restore", "--list", str(backup_temp)],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            os.replace(backup_temp, backup_file)
+            backup_file.chmod(0o600)
         except FileNotFoundError as exc:
             raise RuntimeError(
-                "pg_dump not found. Please install PostgreSQL client tools."
+                "PostgreSQL client tools pg_dump and pg_restore are required."
             ) from exc
+        finally:
+            backup_temp.unlink(missing_ok=True)
 
         return backup_file
+
+    @staticmethod
+    def _prune_superseded_postgresql_backups(
+        output_path: Path,
+        *,
+        keep: Path,
+    ) -> int:
+        """Keep exactly one completed local PostgreSQL backup artifact."""
+
+        removed_count = 0
+        candidates = {
+            *output_path.glob("postgres-*.dump"),
+            *output_path.glob("db_backup_*.sql"),
+            *output_path.glob("db_backup_*.sql.gz"),
+        }
+        for backup_file in candidates:
+            if backup_file.is_file() and backup_file != keep:
+                backup_file.unlink()
+                removed_count += 1
+        return removed_count
+
+    @staticmethod
+    def _sha256_file(path: Path) -> str:
+        """Return the streaming SHA-256 digest of one completed artifact."""
+
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
 
     def _cleanup_old_backups(self, output_path: Path, keep_days: int) -> int:
         """Remove backup files older than the retention window."""

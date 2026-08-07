@@ -221,20 +221,20 @@ def test_backup_verification_distinguishes_missing_empty_valid_and_corrupt(
     tmp_path: Path,
 ) -> None:
     missing = tmp_path / "missing.sql"
-    assert tasks.verify_backup_task.run(str(missing))["status"] == "error"
+    assert tasks.verify_backup_task.run(str(missing))["outcome"] == "failed"
 
     empty = tmp_path / "empty.sql"
     empty.write_bytes(b"")
-    assert tasks.verify_backup_task.run(str(empty))["message"] == "Backup file is empty"
+    assert tasks.verify_backup_task.run(str(empty))["reason"] == "backup_file_empty"
 
     valid = tmp_path / "valid.sql.gz"
     with gzip.open(valid, "wb") as stream:
         stream.write(b"SELECT 1;")
-    assert tasks.verify_backup_task.run(str(valid))["status"] == "success"
+    assert tasks.verify_backup_task.run(str(valid))["outcome"] == "success"
 
     corrupt = tmp_path / "corrupt.sql.gz"
     corrupt.write_bytes(b"not gzip")
-    assert tasks.verify_backup_task.run(str(corrupt))["status"] == "error"
+    assert tasks.verify_backup_task.run(str(corrupt))["outcome"] == "failed"
 
 
 def test_cleanup_task_reports_deleted_count(monkeypatch: pytest.MonkeyPatch) -> None:

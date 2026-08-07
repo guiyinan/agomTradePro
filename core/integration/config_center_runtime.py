@@ -30,6 +30,14 @@ class ConfigCenterRuntimeReadPort(Protocol):
     ) -> dict[str, object]:
         """Evaluate observed storage usage against the active policy."""
 
+    def collect_storage_capacity_profile(
+        self,
+        *,
+        environment: str,
+        source: str,
+    ) -> dict[str, object]:
+        """Collect and persist one policy-bound capacity observation payload."""
+
 
 _provider: ConfigCenterRuntimeReadPort | None = None
 
@@ -89,6 +97,21 @@ def evaluate_storage_pressure(
         }
 
 
+def collect_storage_capacity_profile(
+    *,
+    environment: str,
+    source: str,
+) -> dict[str, object]:
+    """Collect policy-bound capacity evidence through the owner facade."""
+
+    if _provider is None:
+        raise RuntimeError("config_center_runtime_port_unconfigured")
+    return _provider.collect_storage_capacity_profile(
+        environment=environment,
+        source=source,
+    )
+
+
 def activate_runtime_profile_patch(
     *,
     environment: str,
@@ -119,6 +142,7 @@ def activate_runtime_profile_patch(
 __all__ = [
     "ConfigCenterRuntimeReadPort",
     "activate_runtime_profile_patch",
+    "collect_storage_capacity_profile",
     "configure_config_center_runtime_port",
     "evaluate_storage_pressure",
     "get_active_runtime_value",

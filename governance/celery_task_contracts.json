@@ -5,11 +5,54 @@
     "apps/data_center/application/tasks.py",
     "apps/equity/application/tasks_valuation_sync.py",
     "apps/config_center/application/decision_readiness_guard_tasks.py",
+    "apps/task_monitor/application/backup_tasks.py",
     "apps/sentiment/application/tasks.py",
     "apps/macro/application/tasks.py",
     "apps/realtime/application/tasks.py"
   ],
   "tasks": [
+    {
+      "task_path": "apps.task_monitor.application.backup_tasks.backup_database_task",
+      "source_file": "apps/task_monitor/application/backup_tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/task_monitor/test_backup_task_contracts.py",
+          "test_function": "test_backup_database_task_rejects_invalid_input_before_capacity_io"
+        },
+        "all_success": {
+          "test_file": "tests/unit/task_monitor/test_backup_task_contracts.py",
+          "test_function": "test_backup_database_task_creates_one_verified_artifact"
+        },
+        "blocked": {
+          "test_file": "tests/unit/task_monitor/test_backup_task_contracts.py",
+          "test_function": "test_backup_database_task_blocks_at_critical_projected_pressure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/task_monitor/test_backup_task_contracts.py",
+          "test_function": "test_backup_database_task_propagates_complete_backup_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.task_monitor.application.backup_tasks.verify_backup_task",
+      "source_file": "apps/task_monitor/application/backup_tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/task_monitor/test_backup_task_contracts.py",
+          "test_function": "test_verify_backup_task_rejects_invalid_input"
+        },
+        "all_success": {
+          "test_file": "tests/unit/task_monitor/test_backup_task_contracts.py",
+          "test_function": "test_verify_backup_task_accepts_readable_artifact_and_matching_sha"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/task_monitor/test_backup_task_contracts.py",
+          "test_function": "test_verify_backup_task_reports_unreadable_artifact"
+        }
+      }
+    },
     {
       "task_path": "apps.config_center.application.tasks.collect_storage_capacity_profile_task",
       "source_file": "apps/config_center/application/tasks.py",

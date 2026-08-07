@@ -16,6 +16,7 @@ from apps.config_center.application.runtime_repository_provider import (
     get_runtime_value_repository,
     get_storage_budget_query_service,
     get_storage_capacity_observation_service,
+    get_storage_capacity_profile_service,
 )
 from apps.config_center.application.storage_budget import StoragePressureGuard
 from apps.config_center.domain.runtime_config import (
@@ -524,6 +525,30 @@ def evaluate_storage_pressure(
     }
 
 
+def collect_storage_capacity_profile(
+    *,
+    environment: str,
+    source: str,
+) -> dict[str, object]:
+    """Collect and publish one policy-bound capacity observation payload."""
+
+    observation = get_storage_capacity_profile_service().collect_and_record(
+        environment=environment,
+        source=source,
+    )
+    return {
+        "observation_id": observation.observation_id,
+        "environment": observation.environment,
+        "observed_at": observation.observed_at.isoformat(),
+        "filesystem_total_bytes": observation.filesystem_total_bytes,
+        "filesystem_used_bytes": observation.filesystem_used_bytes,
+        "filesystem_free_bytes": observation.filesystem_free_bytes,
+        "database_size_bytes": observation.database_size_bytes,
+        "policy_key": observation.policy_key,
+        "pressure_state": observation.pressure_state,
+    }
+
+
 def record_storage_capacity_observation(
     observation: StorageCapacityObservation,
 ) -> StorageCapacityObservation:
@@ -544,6 +569,7 @@ __all__ = [
     "activate_runtime_profile",
     "activate_runtime_profile_patch",
     "activate_runtime_profile_patch_payload",
+    "collect_storage_capacity_profile",
     "evaluate_storage_pressure",
     "get_active_runtime_profile",
     "get_active_runtime_value",

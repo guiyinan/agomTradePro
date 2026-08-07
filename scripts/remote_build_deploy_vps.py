@@ -1137,7 +1137,7 @@ if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
     bash "$RELEASE_DIR/scripts/vps-backup.sh" \
       --target-dir "$PREVIOUS_RELEASE" \
       --backup-dir "$TARGET_DIR/backups" \
-      --keep-days 14
+      --keep-days 1
   fi
   ROLLBACK_READY=1
 fi
@@ -1674,14 +1674,12 @@ report = {
 Path("/tmp/agomtradepro-deploy-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
 PY
 
-# Idempotent daily backup cron: 18:00 UTC (02:00 Beijing), logging to /var/log/agomtradepro-backup.log.
-BACKUP_CRON_JOB="0 18 * * * $TARGET_DIR/current/scripts/vps-backup.sh --keep-days 14 >> /var/log/agomtradepro-backup.log 2>&1"
-if crontab -l 2>/dev/null | grep -qF "vps-backup.sh"; then
-  echo "[INFO] backup cron already installed; skipping"
-elif ( crontab -l 2>/dev/null || true; echo "$BACKUP_CRON_JOB" ) | crontab -; then
-  echo "[INFO] installed daily backup cron: $BACKUP_CRON_JOB"
+# Daily database backups are owned by Django Beat.  This deploy path only
+# creates the explicit, verified pre-deploy recovery point above.
+if crontab -l 2>/dev/null | grep -v "vps-backup.sh" | crontab -; then
+  echo "[INFO] removed legacy duplicate vps-backup cron; Django Beat is the daily owner"
 else
-  echo "[WARN] failed to install backup cron; schedule backups manually" >&2
+  echo "[WARN] unable to remove legacy duplicate vps-backup cron" >&2
 fi
 
 DEPLOY_SUCCEEDED=1

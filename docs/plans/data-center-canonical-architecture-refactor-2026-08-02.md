@@ -4651,3 +4651,20 @@ Git SHA / 镜像 / migration：
 - TUI 收编：compiler 增加 `param.api.get.api.data-center* -> api-library.data-center` 晋级规则，并为 PIT manifest 详情声明 `text/string` path field；generated/published 工件由 compiler 全量重建，目标动作成为 `approved:parameterized-promoted`。同一次确定性重建还发现并发布已有的 Data Center provider status 安全读入口，因此总数净增 1，不是人工追加 JSON。
 - 最终快照：共 548 个入口；`active_public=356`、`compatibility=126`、`adjacent_operational=66`、`candidate-review=0`。分类为 Beat 57、Capability 25、Celery 53、compatibility façade 93、current-data 46、management command 25、MCP 29、Public Port 91、REST 54、script 6、SDK 45、Terminal/TUI 24。
 - 证据：Macro 37 passed、Realtime 11 passed、TUI compiler 48 passed、入口清单 3 passed；Celery contract guard 为 27 tasks/7 files，current-data 46 surfaces、Reliability owner、mypy、Ruff/Black 均通过。最终 architecture inventory 为 Data Center 外部直连 0、Provider 外部直连 0、跨 App ORM 51、旧事实引用 143、current-surface 引用 3372、数据写任务 decorator 56。候选清零表示所有静态入口已有明确治理状态，不冒充 D0-D9 跨入口语义一致性、PostgreSQL 性能或生产观察窗口已经完成。
+
+## 122. 2026-08-07：备份入口单一 owner 与可恢复格式收编
+
+- 根因：每日全量备份同时由 Django Beat 和部署脚本安装的 VPS cron 持有，应用内 PostgreSQL 路径仍使用 plain SQL/gzip；这会形成重复全备、14 天累积、无峰值容量预检、无 `pg_restore --list` 和无稳定 SHA 证据。
+- 单一 owner：每日数据库备份只由 Django Beat 的 `backup_database_task` 负责；远端部署脚本不再安装第二个 cron，并会移除历史 `vps-backup.sh` cron。`vps-backup.sh` 只保留为显式部署前恢复点，默认本地暂存 1 天，且新备份验证成功后只保留一份完整数据库工件。
+- 边界澄清：账户侧每日 `send_database_backup_email_task` 只发送按策略到期的加密逻辑数据导出链接，真正导出发生在用户下载时；PostgreSQL 路径是 Django JSON，不具备灾备恢复语义。保留兼容 task path，但用户文案明确“数据携带、不能替代 custom-format 灾备”，不把它计作第二个恢复备份 owner。
+- 可恢复性：应用 PostgreSQL 备份统一为 custom format，写入 `.partial`、校验非空、执行 `pg_restore --list` 后原子替换 `postgres-current.dump`；结果发布 format/size/SHA-256，并在成功替换后清理旧 plain SQL 与旧 timestamp dump。SQLite 继续使用 online backup、integrity check 和原子 gzip。
+- 容量与任务契约：所有生成数据库工件的入口（Beat/Celery 与 `manage.py backup_database`）先执行同一个 Application capacity policy，再按“当前 filesystem used + database size”评估备份峰值；策略/证据缺失或 projected pressure 为 critical/emergency 时阻断，不创建工件。跨 App 调用经 `core.integration.config_center_runtime` composition bridge 注入 owner，避免 `config_center → data_center → task_monitor → config_center` 依赖环。备份与验证任务移入独立受管源文件，统一发布 `outcome/success/requested/succeeded/failed/stored/reason`；Celery contract 扩展为 29 tasks/8 files，PostgreSQL nightly job也执行完整 Celery manifest runner。
+- 证据：备份任务/SQLite/PostgreSQL command/部署 owner 定向回归 15 passed，capacity/backup/management command 回归 10 passed，bridge/backup 回归 12 passed，Celery manifest 98 nodeids 实际执行为 107 passed；Celery contract guard、Django check、architecture boundary 0、module cycle 0、8 个生产文件增量 mypy 和 Ruff 通过。
+- 明确未做：本批未连接生产、未执行真实 PostgreSQL dump→隔离 restore/RTO、未验证外部下载回执后删除，也未执行 M9/M10 或部署；这些仍需生产授权和恢复演练证据。
+
+## 123. 2026-08-07：旧事实 inventory 去字符串误报并按语义归零
+
+- 根因：architecture inventory 原先按行搜索 `MacroIndicator`、`CapitalFlowModel` 等裸字符串，把宏观 Domain dataclass、账户资本流水模型、类型标注与测试兼容名称都算作 legacy fact access，产生 143 条伪债务；该数字与模块限定的 legacy access guard 不一致。
+- 变更：inventory 改为读取 `data_center_legacy_access_contracts.json`，按具体 legacy module、导入 symbol、alias、相对导入和模块属性引用解析；保留 owner model/admin/migration 的显式 allowed path，不再以类名同名判定旧链访问。新增回归分别证明 Domain `MacroIndicator`/本地 `CapitalFlowModel` 不误报，absolute/relative legacy ORM import 必须命中。
+- 提交态清单：在隔离 clean worktree 中只投影本批文件后重建，结果为 `legacy_fact_references=0`、Data Center internal 外部直连 0、Provider 外部直连 0、cross-App ORM 51、current-surface 3375、data task decorators 56；总入口仍为 548、candidate-review=0。主工作区并行 R5 文件没有混入治理基线。
+- 语义边界：这里的 0 表示“当前生产源码没有未允许的 legacy fact ORM import/reference”，不表示旧表、兼容 façade、126/128 个 compatibility 入口或 D4/D5 双读已物理删除；M9 仍必须等待真实备份恢复、生产零访问证据与明确授权。

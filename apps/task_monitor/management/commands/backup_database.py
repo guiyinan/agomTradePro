@@ -19,6 +19,7 @@ from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
+from apps.task_monitor.application.backup_capacity import require_backup_capacity
 from apps.task_monitor.application.repository_provider import get_database_backup_service
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ class Command(BaseCommand):
         compress = options["compress"]
 
         try:
+            capacity = require_backup_capacity()
             result = get_database_backup_service().backup_database(
                 keep_days=keep_days,
                 compress=compress,
@@ -69,6 +71,7 @@ class Command(BaseCommand):
                     "keep_days": result.keep_days,
                     "compressed": result.compressed,
                     "removed_old_backups": result.removed_old_backups,
+                    "capacity": capacity,
                 },
             )
 

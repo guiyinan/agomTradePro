@@ -447,6 +447,14 @@ jobs:
             --pytest-arg=--disable-warnings \
             --pytest-arg=--maxfail=1
 
+      - name: Run Celery task contract manifest on PostgreSQL
+        run: |
+          python scripts/run_celery_task_contract_tests.py \
+            --pytest-arg=--reuse-db \
+            --pytest-arg=--no-migrations \
+            --pytest-arg=--disable-warnings \
+            --pytest-arg=--maxfail=1
+
       - name: Run backfill coverage and retention control-plane evidence on PostgreSQL
         run: |
           python -m pytest \

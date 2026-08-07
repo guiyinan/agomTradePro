@@ -17,7 +17,7 @@ fi
 
 TARGET_DIR="/opt/agomtradepro/current"
 BACKUP_DIR="/opt/agomtradepro/backups"
-KEEP_DAYS=14
+KEEP_DAYS=1
 DO_DATABASE=1
 DO_REDIS=1
 
@@ -64,6 +64,7 @@ TS=$(date +%Y%m%d-%H%M%S)
 DATABASE_URL=$(sed -n 's/^DATABASE_URL=//p' deploy/.env | tail -n 1)
 
 if [ "$DO_DATABASE" = "1" ]; then
+  find "$BACKUP_DIR/database" -maxdepth 1 -type f -name ".*.tmp" -delete
   case "$DATABASE_URL" in
     postgres://*|postgresql://*)
       log_info "Backing up PostgreSQL"
@@ -113,6 +114,16 @@ PY
       chmod 600 "$sqlite_file.gz"
       ;;
   esac
+
+  # A verified replacement exists now; keep one completed local database copy.
+  find "$BACKUP_DIR/database" -maxdepth 1 -type f ! -name ".*.tmp" \
+    -printf '%T@ %p\n' \
+    | sort -nr \
+    | sed -n '2,$p' \
+    | cut -d' ' -f2- \
+    | while IFS= read -r superseded_database_backup; do
+        [ -n "$superseded_database_backup" ] && rm -f "$superseded_database_backup"
+      done
 fi
 
 if [ "$DO_REDIS" = "1" ]; then

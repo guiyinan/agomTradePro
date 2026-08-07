@@ -28,6 +28,21 @@ class _ConfigCenterRuntimeProvider:
             "effective_capacity_bytes": actual_capacity_bytes,
         }
 
+    def collect_storage_capacity_profile(
+        self,
+        *,
+        environment: str,
+        source: str,
+    ) -> dict[str, object]:
+        return {
+            "observation_id": "capacity-1",
+            "environment": environment,
+            "source": source,
+            "filesystem_total_bytes": 100,
+            "filesystem_used_bytes": 20,
+            "database_size_bytes": 5,
+        }
+
 
 class _DataCenterReadProvider:
     def get_macro_runtime_metadata(self) -> dict[str, dict[str, object]]:
@@ -62,6 +77,17 @@ def test_config_center_runtime_bridge_delegates_to_registered_owner(monkeypatch)
         "used_bytes": 10,
         "effective_capacity_bytes": 100,
     }
+    assert config_center_runtime.collect_storage_capacity_profile(
+        environment="production",
+        source="backup-preflight",
+    ) == {
+        "observation_id": "capacity-1",
+        "environment": "production",
+        "source": "backup-preflight",
+        "filesystem_total_bytes": 100,
+        "filesystem_used_bytes": 20,
+        "database_size_bytes": 5,
+    }
 
 
 def test_config_center_runtime_bridge_fails_closed_without_owner(monkeypatch) -> None:
@@ -77,6 +103,15 @@ def test_config_center_runtime_bridge_fails_closed_without_owner(monkeypatch) ->
     pressure = config_center_runtime.evaluate_storage_pressure(used_bytes=10)
     assert pressure["state"] == "blocked"
     assert pressure["reason"] == "config_center_runtime_port_unconfigured"
+    try:
+        config_center_runtime.collect_storage_capacity_profile(
+            environment="production",
+            source="backup-preflight",
+        )
+    except RuntimeError as exc:
+        assert str(exc) == "config_center_runtime_port_unconfigured"
+    else:
+        raise AssertionError("capacity collection must fail closed without its owner")
 
 
 def test_data_center_readiness_bridge_delegates_to_registered_owner(monkeypatch) -> None:

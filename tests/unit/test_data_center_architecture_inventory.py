@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 from pathlib import Path
@@ -43,3 +44,62 @@ def test_inventory_separates_sdk_ownership_from_http_review() -> None:
 
     artifact = json.loads(_ARTIFACT.read_text(encoding="utf-8"))
     assert artifact["counts"] == payload["counts"]
+
+
+def test_legacy_inventory_uses_module_identity_instead_of_symbol_substrings() -> None:
+    """Same-name domain entities and account ledgers are not legacy fact access."""
+
+    module = _load_inventory_module()
+    source = """
+from apps.macro.domain.entities import MacroIndicator
+
+class CapitalFlowModel:
+    pass
+
+value = MacroIndicator
+"""
+
+    references = module._legacy_fact_references(
+        tree=ast.parse(source),
+        relative="apps/example/application/demo.py",
+        modules={
+            "apps.macro.infrastructure.models": {"MacroIndicator"},
+            "apps.market.infrastructure.models": {"CapitalFlowModel"},
+        },
+        allowed_paths=[],
+    )
+
+    assert references == []
+
+
+def test_legacy_inventory_resolves_absolute_and_relative_model_imports() -> None:
+    """Actual legacy ORM imports remain visible even when aliased or relative."""
+
+    module = _load_inventory_module()
+    modules = {
+        "apps.equity.infrastructure.models": {
+            "FinancialDataModel",
+            "ValuationModel",
+        }
+    }
+    absolute = module._legacy_fact_references(
+        tree=ast.parse(
+            "from apps.equity.infrastructure.models import ValuationModel as LegacyValue\n"
+            "record = LegacyValue\n"
+        ),
+        relative="apps/research/application/absolute.py",
+        modules=modules,
+        allowed_paths=[],
+    )
+    relative = module._legacy_fact_references(
+        tree=ast.parse(
+            "from ..infrastructure.models import FinancialDataModel\n"
+            "record = FinancialDataModel\n"
+        ),
+        relative="apps/equity/application/relative.py",
+        modules=modules,
+        allowed_paths=[],
+    )
+
+    assert {item["symbol"] for item in absolute} == {"ValuationModel"}
+    assert {item["symbol"] for item in relative} == {"FinancialDataModel"}

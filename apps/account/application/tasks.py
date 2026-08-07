@@ -65,7 +65,7 @@ class CombinedRiskCheckCheckpoint(TypedDict, total=False):
     soft_time_limit=270,
 )
 def send_database_backup_email_task(self: Any) -> dict[str, str]:
-    """按系统配置定期发送数据库全量备份下载链接。"""
+    """按系统配置发送加密逻辑数据导出链接；该工件不是灾备恢复点。"""
     try:
         config = system_settings_repo.get_settings()
         if not config.is_backup_due():
@@ -75,11 +75,11 @@ def send_database_backup_email_task(self: Any) -> dict[str, str]:
         download_url = build_backup_download_url(token)
         package_meta = describe_backup_package()
 
-        subject = "【AgomTradePro】数据库全量备份下载链接"
+        subject = "【AgomTradePro】数据库逻辑导出下载链接"
         message = f"""
 管理员您好：
 
-数据库全量备份已准备好，请在链接有效期内下载。
+数据库逻辑导出已准备好，请在链接有效期内下载。
 
 下载链接：
 {download_url}
@@ -91,8 +91,9 @@ def send_database_backup_email_task(self: Any) -> dict[str, str]:
 
 说明：
 1. 下载得到的是压缩后并加密的备份文件。
-2. SQLite 环境导出原始数据库文件；其他数据库环境导出 Django 全量 JSON 数据。
-3. 如非本人操作，请立即检查系统后台配置。
+2. SQLite 环境导出原始数据库快照；其他数据库环境导出 Django 全量 JSON 数据。
+3. 该下载用于用户数据携带，不能替代 PostgreSQL custom-format 灾备和恢复演练。
+4. 如非本人操作，请立即检查系统后台配置。
         """.strip()
 
         email = EmailMessage(

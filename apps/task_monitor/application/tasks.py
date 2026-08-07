@@ -23,10 +23,9 @@ from apps.operational_readiness.application.tasks import (
 from apps.operational_readiness.management.commands.run_personal_readiness_daily import (
     run_personal_readiness_daily,
 )
-from apps.task_monitor.application.repository_provider import (
-    get_database_backup_service,
-    get_task_record_repository,
-)
+from apps.task_monitor.application.backup_tasks import backup_database_task as backup_database_task
+from apps.task_monitor.application.backup_tasks import verify_backup_task as verify_backup_task
+from apps.task_monitor.application.repository_provider import get_task_record_repository
 from apps.task_monitor.application.use_cases import RecordTaskExecutionUseCase
 from apps.task_monitor.domain.entities import (
     TaskExecutionRecord,
@@ -402,140 +401,6 @@ def cleanup_old_task_records(days_to_keep: int = 30) -> dict[str, Any]:
             exc.__class__.__name__,
         )
         raise
-
-
-# ========== P1-2: 数据库备份任务 ==========
-
-
-@shared_task(  # type: ignore[misc]
-    bind=True,
-    max_retries=3,
-    default_retry_delay=300,  # 5 minutes
-    time_limit=300,
-    soft_time_limit=280,
-)
-def backup_database_task(
-    self: Any,
-    keep_days: int | None = None,
-    compress: bool = True,
-    output_dir: str | None = None,
-) -> dict[str, Any]:
-    """
-    P1-2: 数据库备份 Celery 任务
-
-    执行数据库备份并清理旧备份文件。
-    支持 SQLite 和 PostgreSQL。
-
-    Args:
-        keep_days: 显式保留最近 N 天的运维覆盖；省略时读取 typed runtime policy
-        compress: 是否压缩备份文件（默认 True）
-        output_dir: 自定义备份目录（可选）
-
-    Returns:
-        dict: 备份结果，包含备份文件路径和清理统计
-    """
-    import subprocess
-
-    try:
-        result = get_database_backup_service().backup_database(
-            keep_days=keep_days,
-            compress=compress,
-            output_dir=output_dir,
-        )
-
-        logger.info(
-            "Database backup task completed",
-            extra={
-                "keep_days": keep_days,
-                "compress": compress,
-                "output_dir": output_dir,
-                "backup_file": result.backup_file,
-                "removed_old_backups": result.removed_old_backups,
-            },
-        )
-
-        return {
-            "status": "success",
-            "message": f"Database backup created: {result.backup_file}",
-            "backup_file": result.backup_file,
-            "keep_days": result.keep_days,
-            "compressed": result.compressed,
-            "removed_old_backups": result.removed_old_backups,
-        }
-
-    except subprocess.CalledProcessError as exc:
-        logger.error(
-            "Database backup command failed: error_type=%s",
-            exc.__class__.__name__,
-        )
-        # 重试任务
-        raise self.retry(exc=exc) from exc
-
-    except Exception as exc:
-        logger.error(
-            "Database backup task failed: error_type=%s",
-            exc.__class__.__name__,
-        )
-        raise
-
-
-@shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]
-def verify_backup_task(backup_file: str) -> dict[str, Any]:
-    """
-    验证备份文件完整性
-
-    Args:
-        backup_file: 备份文件路径
-
-    Returns:
-        dict: 验证结果
-    """
-    from pathlib import Path
-
-    backup_path = Path(backup_file)
-
-    if not backup_path.exists():
-        return {
-            "status": "error",
-            "message": f"Backup file not found: {backup_file}",
-        }
-
-    # 检查文件大小
-    file_size = backup_path.stat().st_size
-
-    if file_size == 0:
-        return {
-            "status": "error",
-            "message": "Backup file is empty",
-        }
-
-    # 对于压缩文件，尝试读取验证
-    if backup_file.endswith(".gz"):
-        import gzip
-
-        try:
-            with gzip.open(backup_path, "rb") as f:
-                # 读取一小部分验证
-                f.read(1024)
-        except Exception as exc:
-            return {
-                "status": "error",
-                "message": f"Backup file is corrupted ({exc.__class__.__name__})",
-            }
-
-    logger.info(
-        "Backup verification passed",
-        extra={
-            "backup_file": backup_file,
-            "file_size": file_size,
-        },
-    )
-
-    return {
-        "status": "success",
-        "backup_file": backup_file,
-        "file_size": file_size,
-    }
 
 
 @shared_task(  # type: ignore[misc]

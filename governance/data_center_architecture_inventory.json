@@ -1,11 +1,11 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3372,
+    "current_surface_references": 3375,
     "data_write_task_decorators": 56,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 4,
-    "legacy_fact_references": 143,
+    "legacy_fact_references": 0,
     "provider_imports_outside_data_center": 0,
     "runtime_parameter_references": 49
   },
@@ -4318,12 +4318,12 @@
       "text": "\"\"\"Return the latest immutable resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 93,
+      "line": 94,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Read the latest resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 538,
+      "line": 563,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Return the latest capacity observation without a fallback.\"\"\""
     },
@@ -14898,6 +14898,11 @@
       "text": "summary=\"按策略计算仓位管理建议\","
     },
     {
+      "line": 54,
+      "path": "apps/task_monitor/application/backup_tasks.py",
+      "text": "\"\"\"Collect current capacity and reserve one database-sized backup peak.\"\"\""
+    },
+    {
       "line": 130,
       "path": "apps/task_monitor/application/dtos.py",
       "text": "summary: SchedulerSummaryResponse"
@@ -14956,6 +14961,16 @@
       "line": 531,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "one_off_tasks=summary.one_off_tasks,"
+    },
+    {
+      "line": 179,
+      "path": "apps/task_monitor/infrastructure/backup_service.py",
+      "text": "backup_file = output_path / \"postgres-current.dump\""
+    },
+    {
+      "line": 180,
+      "path": "apps/task_monitor/infrastructure/backup_service.py",
+      "text": "backup_temp = output_path / \".postgres-current.dump.partial\""
     },
     {
       "line": 300,
@@ -17135,22 +17150,22 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 124,
+      "line": 125,
       "path": "apps/account/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 197,
+      "line": 198,
       "path": "apps/account/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 240,
+      "line": 241,
       "path": "apps/account/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 453,
+      "line": 454,
       "path": "apps/account/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
@@ -17375,22 +17390,22 @@
       "text": "@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]"
     },
     {
-      "line": 372,
-      "path": "apps/task_monitor/application/tasks.py",
-      "text": "@shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]"
-    },
-    {
-      "line": 410,
-      "path": "apps/task_monitor/application/tasks.py",
+      "line": 83,
+      "path": "apps/task_monitor/application/backup_tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 482,
+      "line": 188,
+      "path": "apps/task_monitor/application/backup_tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 371,
       "path": "apps/task_monitor/application/tasks.py",
       "text": "@shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]"
     },
     {
-      "line": 541,
+      "line": 406,
       "path": "apps/task_monitor/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
@@ -17433,733 +17448,7 @@
       "path": "shared/infrastructure/alerts.py"
     }
   ],
-  "legacy_fact_references": {
-    "CapitalFlowModel": [
-      {
-        "line": 18,
-        "path": "apps/account/infrastructure/account_interface_portfolio_repository.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 79,
-        "path": "apps/account/infrastructure/account_interface_portfolio_repository.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 355,
-        "path": "apps/account/infrastructure/account_interface_portfolio_repository.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 22,
-        "path": "apps/account/infrastructure/account_interface_registration_repository.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 262,
-        "path": "apps/account/infrastructure/account_interface_registration_repository.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 23,
-        "path": "apps/account/infrastructure/models.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 45,
-        "path": "apps/account/infrastructure/models.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 18,
-        "path": "apps/account/infrastructure/portfolio_models.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 442,
-        "path": "apps/account/infrastructure/portfolio_models.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 21,
-        "path": "apps/account/infrastructure/portfolio_repository.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 131,
-        "path": "apps/account/infrastructure/portfolio_repository.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 133,
-        "path": "apps/account/infrastructure/portfolio_repository.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 136,
-        "path": "apps/account/infrastructure/portfolio_repository.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 234,
-        "path": "apps/account/infrastructure/portfolio_repository.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 238,
-        "path": "apps/account/infrastructure/portfolio_repository.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 23,
-        "path": "apps/account/interface/admin.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 381,
-        "path": "apps/account/interface/admin.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 382,
-        "path": "apps/account/interface/admin.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 392,
-        "path": "apps/account/interface/admin.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 30,
-        "path": "apps/account/interface/serializers.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 306,
-        "path": "apps/account/interface/serializers.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 326,
-        "path": "apps/account/interface/serializers.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 621,
-        "path": "apps/simulated_trading/application/performance_use_cases.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 675,
-        "path": "apps/simulated_trading/application/performance_use_cases.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 677,
-        "path": "apps/simulated_trading/application/performance_use_cases.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 336,
-        "path": "apps/simulated_trading/domain/entities.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 346,
-        "path": "apps/simulated_trading/domain/entities.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 17,
-        "path": "apps/simulated_trading/infrastructure/account_portfolio_repository.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 610,
-        "path": "apps/simulated_trading/infrastructure/account_portfolio_repository.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 1095,
-        "path": "apps/simulated_trading/infrastructure/models.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 388,
-        "path": "apps/simulated_trading/infrastructure/performance_repositories.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 393,
-        "path": "apps/simulated_trading/infrastructure/performance_repositories.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 410,
-        "path": "apps/simulated_trading/infrastructure/performance_repositories.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 411,
-        "path": "apps/simulated_trading/infrastructure/performance_repositories.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 381,
-        "path": "apps/simulated_trading/interface/performance_views.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 121,
-        "path": "apps/simulated_trading/management/commands/migrate_account_ledger.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 141,
-        "path": "apps/simulated_trading/management/commands/migrate_account_ledger.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 19,
-        "path": "core/integration/account_ledger.py",
-        "symbol": "CapitalFlowModel"
-      },
-      {
-        "line": 21,
-        "path": "core/integration/account_ledger.py",
-        "symbol": "CapitalFlowModel"
-      }
-    ],
-    "FinancialDataModel": [
-      {
-        "line": 108,
-        "path": "apps/equity/infrastructure/models.py",
-        "symbol": "FinancialDataModel"
-      },
-      {
-        "line": 17,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "FinancialDataModel"
-      },
-      {
-        "line": 120,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "FinancialDataModel"
-      },
-      {
-        "line": 121,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "FinancialDataModel"
-      },
-      {
-        "line": 158,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "FinancialDataModel"
-      },
-      {
-        "line": 167,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "FinancialDataModel"
-      },
-      {
-        "line": 16,
-        "path": "apps/equity/tests/test_stock_context_repository.py",
-        "symbol": "FinancialDataModel"
-      },
-      {
-        "line": 262,
-        "path": "apps/equity/tests/test_stock_context_repository.py",
-        "symbol": "FinancialDataModel"
-      }
-    ],
-    "MacroIndicator": [
-      {
-        "line": 76,
-        "path": "apps/audit/application/indicator_use_cases.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 145,
-        "path": "apps/audit/domain/interfaces.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 140,
-        "path": "apps/data_center/infrastructure/macro_fact_repositories.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 386,
-        "path": "apps/equity/infrastructure/adapters.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 83,
-        "path": "apps/filter/infrastructure/repositories.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 241,
-        "path": "apps/filter/infrastructure/repositories.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 262,
-        "path": "apps/filter/infrastructure/repositories.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 13,
-        "path": "apps/macro/application/query_services.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 28,
-        "path": "apps/macro/application/query_services.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 8,
-        "path": "apps/macro/application/repository_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 21,
-        "path": "apps/macro/application/repository_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 34,
-        "path": "apps/macro/application/repository_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 38,
-        "path": "apps/macro/application/repository_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 40,
-        "path": "apps/macro/application/repository_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 16,
-        "path": "apps/macro/application/use_cases.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 147,
-        "path": "apps/macro/application/use_cases.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 150,
-        "path": "apps/macro/application/use_cases.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 232,
-        "path": "apps/macro/application/use_cases.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 233,
-        "path": "apps/macro/application/use_cases.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 240,
-        "path": "apps/macro/application/use_cases.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 264,
-        "path": "apps/macro/application/use_cases.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 337,
-        "path": "apps/macro/application/use_cases.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 363,
-        "path": "apps/macro/application/use_cases.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 106,
-        "path": "apps/macro/domain/entities.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 188,
-        "path": "apps/macro/domain/entities.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 190,
-        "path": "apps/macro/domain/entities.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 3,
-        "path": "apps/macro/infrastructure/data_center_fact_repository.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 19,
-        "path": "apps/macro/infrastructure/data_center_fact_repository.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 28,
-        "path": "apps/macro/infrastructure/data_center_fact_repository.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 37,
-        "path": "apps/macro/infrastructure/data_center_fact_repository.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 65,
-        "path": "apps/macro/infrastructure/data_center_fact_repository.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 68,
-        "path": "apps/macro/infrastructure/data_center_fact_repository.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 104,
-        "path": "apps/macro/infrastructure/data_center_fact_repository.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 106,
-        "path": "apps/macro/infrastructure/data_center_fact_repository.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 119,
-        "path": "apps/macro/infrastructure/data_center_fact_repository.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 135,
-        "path": "apps/macro/infrastructure/data_center_fact_repository.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 179,
-        "path": "apps/macro/infrastructure/data_center_fact_repository.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 214,
-        "path": "apps/macro/infrastructure/data_center_fact_repository.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 230,
-        "path": "apps/macro/infrastructure/data_center_fact_repository.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 13,
-        "path": "apps/macro/infrastructure/models.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 12,
-        "path": "apps/macro/interface/serializers.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 10,
-        "path": "apps/regime/application/repository_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 38,
-        "path": "apps/regime/application/repository_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 45,
-        "path": "apps/regime/application/repository_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 52,
-        "path": "apps/regime/application/repository_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 66,
-        "path": "apps/regime/application/repository_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 86,
-        "path": "apps/regime/application/repository_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 106,
-        "path": "apps/regime/application/repository_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 21,
-        "path": "apps/regime/domain/protocols.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 43,
-        "path": "apps/regime/domain/protocols.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 99,
-        "path": "apps/regime/domain/protocols.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 32,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 33,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 122,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 136,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 154,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 173,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 199,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 210,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 238,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 252,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 285,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 337,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 382,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 385,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 467,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 476,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 488,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 499,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 695,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 722,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 735,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 742,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 779,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 808,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 840,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 73,
-        "path": "apps/strategy/application/rule_evaluator.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 503,
-        "path": "apps/strategy/application/rule_evaluator.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 621,
-        "path": "apps/strategy/application/rule_evaluator.py",
-        "symbol": "MacroIndicator"
-      }
-    ],
-    "StockDailyModel": [
-      {
-        "line": 52,
-        "path": "apps/equity/infrastructure/models.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 19,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 65,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 66,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 101,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 106,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 112,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "StockDailyModel"
-      }
-    ],
-    "ValuationModel": [
-      {
-        "line": 157,
-        "path": "apps/equity/infrastructure/models.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 21,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 174,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 175,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 203,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 208,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 214,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 220,
-        "path": "apps/equity/interface/admin.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 18,
-        "path": "apps/equity/tests/test_stock_context_repository.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 277,
-        "path": "apps/equity/tests/test_stock_context_repository.py",
-        "symbol": "ValuationModel"
-      }
-    ]
-  },
+  "legacy_fact_references": {},
   "provider_imports_outside_data_center": [],
   "runtime_parameter_references": [
     "\"LOCATION\": env(\"REDIS_URL\"),",

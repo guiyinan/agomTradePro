@@ -143,9 +143,9 @@ def test_remote_deploy_publishes_and_verifies_tui_release_metadata():
 
 
 def test_legacy_deploy_verifies_canonical_schema_after_migrations():
-    script = (
-        Path(__file__).resolve().parents[2] / "scripts" / "deploy-on-vps.sh"
-    ).read_text(encoding="utf-8")
+    script = (Path(__file__).resolve().parents[2] / "scripts" / "deploy-on-vps.sh").read_text(
+        encoding="utf-8"
+    )
 
     assert "python manage.py verify_canonical_schema --json" in script
     assert script.index("verify_canonical_schema --json") > script.index(
@@ -175,14 +175,13 @@ def test_remote_deploy_synchronizes_mcp_catalog_before_release_publish():
     )
 
 
-def test_remote_deploy_installs_idempotent_daily_backup_cron():
+def test_remote_deploy_removes_duplicate_backup_cron_and_keeps_beat_as_owner():
     script = (
         Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"
     ).read_text(encoding="utf-8")
 
-    assert (
-        'BACKUP_CRON_JOB="0 18 * * * $TARGET_DIR/current/scripts/vps-backup.sh'
-        ' --keep-days 14 >> /var/log/agomtradepro-backup.log 2>&1"' in script
-    )
-    assert 'grep -qF "vps-backup.sh"' in script
-    assert "backup cron already installed; skipping" in script
+    assert "BACKUP_CRON_JOB=" not in script
+    assert 'grep -v "vps-backup.sh" | crontab -' in script
+    assert "Django Beat is the daily owner" in script
+    assert "--keep-days 14" not in script
+    assert "--keep-days 1" in script

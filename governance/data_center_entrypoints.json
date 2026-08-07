@@ -16,9 +16,9 @@
     },
     "by_status": {
       "active_public": 356,
-      "adjacent_operational": 66,
+      "adjacent_operational": 64,
       "candidate-review": 0,
-      "compatibility": 126
+      "compatibility": 128
     },
     "total": 548
   },
@@ -1204,12 +1204,21 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
-      "id": "celery_task:apps/task_monitor/application/tasks.py:backup_database_task:backup_database_task",
-      "locator": "backup_database_task",
-      "path": "apps/task_monitor/application/tasks.py",
-      "status": "adjacent_operational",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/task_monitor/application/backup_tasks.py:backup_database_task:apps.task_monitor.application.tasks.backup_database_task",
+      "locator": "apps.task_monitor.application.tasks.backup_database_task",
+      "path": "apps/task_monitor/application/backup_tasks.py",
+      "status": "compatibility",
       "symbol": "backup_database_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/task_monitor/application/backup_tasks.py:verify_backup_task:apps.task_monitor.application.tasks.verify_backup_task",
+      "locator": "apps.task_monitor.application.tasks.verify_backup_task",
+      "path": "apps/task_monitor/application/backup_tasks.py",
+      "status": "compatibility",
+      "symbol": "verify_backup_task"
     },
     {
       "category": "celery_task",
@@ -1228,15 +1237,6 @@
       "path": "apps/task_monitor/application/tasks.py",
       "status": "adjacent_operational",
       "symbol": "run_personal_readiness_daily_task"
-    },
-    {
-      "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
-      "id": "celery_task:apps/task_monitor/application/tasks.py:verify_backup_task:verify_backup_task",
-      "locator": "verify_backup_task",
-      "path": "apps/task_monitor/application/tasks.py",
-      "status": "adjacent_operational",
-      "symbol": "verify_backup_task"
     },
     {
       "category": "compatibility_facade",
@@ -4965,7 +4965,7 @@
     "compatibility": "supported migration seam with a canonical Data Center replacement"
   },
   "source_contract_counts": {
-    "celery_tasks": 27,
+    "celery_tasks": 29,
     "current_data_contracts": 46,
     "legacy_entrypoints_and_wrappers": 4
   },

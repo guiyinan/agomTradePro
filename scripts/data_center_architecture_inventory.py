@@ -17,20 +17,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "governance" / "data_center_architecture_inventory.json"
+LEGACY_ACCESS_CONTRACT = ROOT / "governance" / "data_center_legacy_access_contracts.json"
 SOURCE_ROOTS = ("apps", "core", "shared")
 ALLOWED_PROVIDER_ROOT = "apps/data_center/infrastructure/"
 PROVIDER_SDK_MODULES = frozenset({"tushare", "akshare", "xtquant", "baostock"})
 HTTP_MODULES = frozenset({"requests", "httpx", "aiohttp"})
-LEGACY_FACT_PATTERNS = (
-    "MacroIndicator",
-    "FinancialDataModel",
-    "ValuationModel",
-    "StockDailyModel",
-    "FundNavModel",
-    "SectorMembershipModel",
-    "NewsModel",
-    "CapitalFlowModel",
-)
 SURFACE_PATTERN = re.compile(r"\b(current|latest|realtime|summary)\b", re.IGNORECASE)
 RUNTIME_ENV_PATTERN = re.compile(r"\b(?:os\.getenv|os\.environ|getenv|env)\s*\(")
 CELERY_DECORATOR_PATTERN = re.compile(r"@(?:shared_task|app\.task|celery\.task)\b")
@@ -64,6 +55,138 @@ def _import_names(tree: ast.AST) -> list[tuple[str, int]]:
     return imports
 
 
+def _load_legacy_access_contract() -> tuple[dict[str, set[str]], list[re.Pattern[str]]]:
+    """Load module-qualified legacy symbols and explicitly retained owner paths."""
+
+    payload = json.loads(LEGACY_ACCESS_CONTRACT.read_text(encoding="utf-8"))
+    modules = {
+        str(module): {str(symbol) for symbol in symbols}
+        for module, symbols in dict(payload["legacy_modules"]).items()
+    }
+    allowed = [re.compile(str(pattern)) for pattern in payload.get("allowed_path_patterns", [])]
+    return modules, allowed
+
+
+def _resolved_import_from_module(node: ast.ImportFrom, relative: str) -> str:
+    """Resolve an absolute module name for both absolute and relative imports."""
+
+    if node.level == 0:
+        return node.module or ""
+    package_parts = Path(relative).with_suffix("").parts[:-1]
+    retained = max(0, len(package_parts) - (node.level - 1))
+    prefix = list(package_parts[:retained])
+    if node.module:
+        prefix.extend(node.module.split("."))
+    return ".".join(prefix)
+
+
+def _dotted_attribute(node: ast.AST) -> str | None:
+    """Return a dotted name for a simple Name/Attribute expression."""
+
+    parts: list[str] = []
+    current = node
+    while isinstance(current, ast.Attribute):
+        parts.append(current.attr)
+        current = current.value
+    if not isinstance(current, ast.Name):
+        return None
+    parts.append(current.id)
+    return ".".join(reversed(parts))
+
+
+def _legacy_fact_references(
+    *,
+    tree: ast.AST,
+    relative: str,
+    modules: dict[str, set[str]],
+    allowed_paths: list[re.Pattern[str]],
+) -> list[dict[str, object]]:
+    """Return semantic legacy references without same-name domain false positives."""
+
+    if any(pattern.search(relative) for pattern in allowed_paths):
+        return []
+    imported_names: dict[str, str] = {}
+    module_aliases: dict[str, str] = {}
+    imported_modules: set[str] = set()
+    references: list[dict[str, object]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            module = _resolved_import_from_module(node, relative)
+            symbols = modules.get(module)
+            if symbols is None:
+                continue
+            for alias in node.names:
+                if alias.name == "*":
+                    for symbol in sorted(symbols):
+                        imported_names[symbol] = symbol
+                        references.append(
+                            {
+                                "path": relative,
+                                "line": node.lineno,
+                                "symbol": symbol,
+                                "kind": "legacy_model_wildcard_import",
+                            }
+                        )
+                elif alias.name in symbols:
+                    imported_names[alias.asname or alias.name] = alias.name
+                    references.append(
+                        {
+                            "path": relative,
+                            "line": node.lineno,
+                            "symbol": alias.name,
+                            "kind": "legacy_model_import",
+                        }
+                    )
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in modules:
+                    if alias.asname:
+                        module_aliases[alias.asname] = alias.name
+                    else:
+                        imported_modules.add(alias.name)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id in imported_names:
+            references.append(
+                {
+                    "path": relative,
+                    "line": node.lineno,
+                    "symbol": imported_names[node.id],
+                    "kind": "legacy_model_reference",
+                }
+            )
+        elif (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id in module_aliases
+            and node.attr in modules[module_aliases[node.value.id]]
+        ):
+            references.append(
+                {
+                    "path": relative,
+                    "line": node.lineno,
+                    "symbol": node.attr,
+                    "kind": "legacy_module_attribute_reference",
+                }
+            )
+        elif isinstance(node, ast.Attribute):
+            dotted = _dotted_attribute(node)
+            if dotted is None:
+                continue
+            for module in imported_modules:
+                prefix = f"{module}."
+                if dotted.startswith(prefix) and dotted.removeprefix(prefix) in modules[module]:
+                    references.append(
+                        {
+                            "path": relative,
+                            "line": node.lineno,
+                            "symbol": dotted.removeprefix(prefix),
+                            "kind": "legacy_module_attribute_reference",
+                        }
+                    )
+    return references
+
+
 def build_inventory() -> dict[str, object]:
     """Return a deterministic source inventory with no generated timestamp."""
 
@@ -75,6 +198,7 @@ def build_inventory() -> dict[str, object]:
     current_surfaces: list[dict[str, object]] = []
     data_tasks: list[dict[str, object]] = []
     runtime_parameters: set[str] = set()
+    legacy_modules, legacy_allowed_paths = _load_legacy_access_contract()
 
     for path in _iter_python_files():
         relative = _source_path(path)
@@ -128,11 +252,16 @@ def build_inventory() -> dict[str, object]:
                             "import": import_name,
                         }
                     )
+        legacy_fact_reads.extend(
+            _legacy_fact_references(
+                tree=tree,
+                relative=relative,
+                modules=legacy_modules,
+                allowed_paths=legacy_allowed_paths,
+            )
+        )
         for lineno, line in enumerate(text.splitlines(), start=1):
             stripped = line.strip()
-            for pattern in LEGACY_FACT_PATTERNS:
-                if pattern in stripped and not stripped.startswith(("#", '"""', "'''")):
-                    legacy_fact_reads.append({"path": relative, "line": lineno, "symbol": pattern})
             if SURFACE_PATTERN.search(stripped) and "#" not in stripped[:2]:
                 current_surfaces.append({"path": relative, "line": lineno, "text": stripped})
             if CELERY_DECORATOR_PATTERN.search(stripped):

@@ -444,11 +444,18 @@ def test_backup_database_task_uses_backup_service(monkeypatch):
                 keep_days=keep_days,
                 compressed=compress,
                 engine="django.db.backends.sqlite3",
+                sha256="b" * 64,
+                size_bytes=128,
+                backup_format="sqlite",
             )
 
     monkeypatch.setattr(
-        "apps.task_monitor.application.tasks.get_database_backup_service",
+        "apps.task_monitor.application.backup_tasks.get_database_backup_service",
         lambda: FakeBackupService(),
+    )
+    monkeypatch.setattr(
+        "apps.task_monitor.application.backup_tasks.collect_backup_capacity_report",
+        lambda: {"state": "healthy", "reason": "within_active_policy"},
     )
 
     result = backup_database_task.run(
@@ -457,7 +464,7 @@ def test_backup_database_task_uses_backup_service(monkeypatch):
         output_dir="D:/tmp/backups",
     )
 
-    assert result["status"] == "success"
+    assert result["outcome"] == "success"
     assert result["backup_file"] == "D:/tmp/backups/db_backup_20260430.sqlite3"
     assert result["removed_old_backups"] == 2
     assert result["compressed"] is False
