@@ -40,6 +40,20 @@ def test_generate_rotation_signal_treats_empty_allocation_as_expected_gap(monkey
         "reason": "Target allocation weights must sum to 1.0, got 0",
         "target_allocation": {},
         "momentum_ranking": [],
+        "price_reliability": {
+            "status": "blocked",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_missing_or_unusable",
+            "blocked_assets": ["510300"],
+            "by_asset": {
+                "510300": {
+                    "status": "unverified",
+                    "freshness_status": "unverified",
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": "price_read_not_executed",
+                }
+            },
+        },
     }
     assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
 

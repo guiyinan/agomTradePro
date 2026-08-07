@@ -5,7 +5,7 @@ from __future__ import annotations
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Protocol, TypedDict
 
 from apps.fixed_income.application.relative_value_projection import (
@@ -61,7 +61,7 @@ class R5RelativeValueLifecycleScopeRef:
         require_token(self.scope_id, "R5 lifecycle scope_id", maximum=300)
 
 
-class R5RelativeValueLifecycleAction(str, Enum):
+class R5RelativeValueLifecycleAction(StrEnum):
     """Caller-selectable lifecycle action without outcome authority."""
 
     PROMOTE = "promote"
