@@ -6,13 +6,10 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import datetime
 
-from apps.data_center.application.market_structure import ReadMarketStructureEvidence
 from apps.data_center.domain.market_structure import ImmutableMarketStructureEvidence
-from apps.data_center.infrastructure.market_structure_publication import (
-    DjangoMarketStructurePublicationGate,
-)
-from apps.data_center.infrastructure.market_structure_repository import (
-    MarketStructureResearchRepository,
+from apps.data_center.market_structure_composition import (
+    make_market_structure_evidence_reader,
+    make_market_structure_publication_gate,
 )
 from apps.research.application.r2_market_structure_promotion import (
     ApplyR2MarketStructurePromotionLifecycle,
@@ -47,9 +44,8 @@ class DjangoExactR2MarketStructureEvidenceProvider:
             raise ValueError(
                 "default R2 Data Center evidence provider supports only the default database"
             )
-        repository = MarketStructureResearchRepository()
-        self._reader = ReadMarketStructureEvidence(repository)
-        self._publication_gate = DjangoMarketStructurePublicationGate()
+        self._reader = make_market_structure_evidence_reader()
+        self._publication_gate = make_market_structure_publication_gate()
         self._unit_of_work_key = f"django:{using}"
 
     @property

@@ -11,9 +11,11 @@ from django.http import HttpRequest
 
 from apps.data_center.application.interface_services import (
     can_create_provider_settings,
-    load_provider_settings_payload,
 )
-from apps.data_center.application.public import persist_provider_credentials
+from apps.data_center.application.public import (
+    get_provider_settings_payload,
+    persist_provider_credentials,
+)
 from apps.data_center.models import (
     DataOwnerRegistrationModel,
     DataProviderSettingsModel,
@@ -277,14 +279,14 @@ class DataProviderSettingsAdmin(TypedModelAdmin[DataProviderSettingsModel]):
     def typed_failover_enabled(self, obj: DataProviderSettingsModel) -> str:
         """Display the active typed failover switch without enabling legacy writes."""
 
-        payload = load_provider_settings_payload()
+        payload = get_provider_settings_payload()
         return "启用" if bool(payload.get("enable_failover")) else "停用"
 
     @admin.display(description="Typed default source")
     def typed_default_source(self, obj: DataProviderSettingsModel) -> str:
         """Display the active typed provider source without enabling legacy writes."""
 
-        payload = load_provider_settings_payload()
+        payload = get_provider_settings_payload()
         labels = dict(DataProviderSettingsModel.DEFAULT_SOURCE_CHOICES)
         value = str(payload.get("default_source") or "")
         return labels.get(value, "未知")
@@ -293,7 +295,7 @@ class DataProviderSettingsAdmin(TypedModelAdmin[DataProviderSettingsModel]):
     def typed_failover_tolerance(self, obj: DataProviderSettingsModel) -> str:
         """Display the active typed failover tolerance."""
 
-        payload = load_provider_settings_payload()
+        payload = get_provider_settings_payload()
         try:
             return f"{float(payload.get('failover_tolerance', 0.0)):.2%}"
         except (TypeError, ValueError):

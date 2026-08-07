@@ -12,46 +12,62 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
 from apps.data_center.application.interface_services import (
-    load_macro_governance_payload,
     run_macro_governance_action,
 )
+from apps.data_center.application.public import load_macro_governance_payload
 
 
 @staff_member_required
 def providers_page(request: HttpRequest) -> HttpResponse:
     """Main provider configuration page at /data-center/providers/."""
-    return render(request, "data_center/providers.html", {
-        "page_title": "Data Center — Providers",
-        "active_nav": "data-center",
-    })
+    return render(
+        request,
+        "data_center/providers.html",
+        {
+            "page_title": "Data Center — Providers",
+            "active_nav": "data-center",
+        },
+    )
 
 
 @staff_member_required
 def monitor_page(request: HttpRequest) -> HttpResponse:
     """Provider health monitor at /data-center/monitor/."""
-    return render(request, "data_center/monitor.html", {
-        "page_title": "Data Center — Monitor",
-        "active_nav": "data-center",
-    })
+    return render(
+        request,
+        "data_center/monitor.html",
+        {
+            "page_title": "Data Center — Monitor",
+            "active_nav": "data-center",
+        },
+    )
 
 
 @staff_member_required
 def universe_page(request: HttpRequest) -> HttpResponse:
     """Production coverage universe config page at /data-center/universe/."""
 
-    return render(request, "data_center/universe.html", {
-        "page_title": "Data Center — Universe",
-        "active_nav": "data-center",
-    })
+    return render(
+        request,
+        "data_center/universe.html",
+        {
+            "page_title": "Data Center — Universe",
+            "active_nav": "data-center",
+        },
+    )
 
 
 @staff_member_required
 def publishers_page(request: HttpRequest) -> HttpResponse:
     """Publisher governance page at /data-center/publishers/."""
-    return render(request, "data_center/publishers.html", {
-        "page_title": "Data Center — Publishers",
-        "active_nav": "data-center",
-    })
+    return render(
+        request,
+        "data_center/publishers.html",
+        {
+            "page_title": "Data Center — Publishers",
+            "active_nav": "data-center",
+        },
+    )
 
 
 @staff_member_required
@@ -77,7 +93,11 @@ def governance_page(request: HttpRequest) -> HttpResponse:
 def market_thermometer_page(request: HttpRequest) -> HttpResponse:
     """Market thermometer control panel at /data-center/market-thermometer/."""
 
-    return render(request, "data_center/market_thermometer.html", {
-        "page_title": "Data Center — Market Thermometer",
-        "active_nav": "data-center",
-    })
+    return render(
+        request,
+        "data_center/market_thermometer.html",
+        {
+            "page_title": "Data Center — Market Thermometer",
+            "active_nav": "data-center",
+        },
+    )

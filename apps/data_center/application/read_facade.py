@@ -40,13 +40,11 @@ class DataCenterReadFacade:
 def build_data_center_read_facade() -> DataCenterReadFacade:
     """Compose the Data Center-owned application readers without querying data."""
 
-    from apps.data_center.application.interface_services import (
+    from apps.data_center.application.public import (
+        get_active_stock_fact_coverage_payload,
         get_decision_data_readiness_payload,
         get_decision_provider_capability_health_payload,
-    )
-    from apps.data_center.application.public import get_macro_runtime_metadata
-    from apps.data_center.application.query_services import (
-        get_active_stock_fact_coverage_payload,
+        get_macro_runtime_metadata,
     )
 
     return DataCenterReadFacade(

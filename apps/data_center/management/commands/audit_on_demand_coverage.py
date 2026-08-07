@@ -11,7 +11,7 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.data_center.application.interface_services import make_on_demand_data_center_service
+from apps.data_center.application.public import make_on_demand_data_center_service
 from apps.data_center.infrastructure.models import (
     AssetMasterModel,
     FinancialFactModel,

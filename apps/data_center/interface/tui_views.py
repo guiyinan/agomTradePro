@@ -13,10 +13,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.data_center.application.interface_services import (
-    load_macro_governance_payload,
     make_manage_market_thermometer_config_use_case,
     run_macro_governance_action,
 )
+from apps.data_center.application.public import load_macro_governance_payload
 
 from .tui_serializers import (
     MacroGovernanceTuiActionSerializer,

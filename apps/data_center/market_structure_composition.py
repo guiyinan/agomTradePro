@@ -34,8 +34,15 @@ def make_market_structure_evidence_reader() -> ReadMarketStructureEvidence:
     return ReadMarketStructureEvidence(MarketStructureResearchRepository())
 
 
+def make_market_structure_publication_gate() -> DjangoMarketStructurePublicationGate:
+    """Build the canonical publication verifier for exact R2 evidence."""
+
+    return DjangoMarketStructurePublicationGate()
+
+
 __all__ = [
     "make_market_structure_evidence_reader",
     "make_market_structure_governance_facade",
+    "make_market_structure_publication_gate",
     "make_market_structure_research_runner",
 ]

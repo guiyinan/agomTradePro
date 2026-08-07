@@ -9,12 +9,12 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.data_center.application.interface_services import (
-    make_calculate_market_thermometer_use_case,
     make_sync_market_thermometer_inputs_use_case,
 )
 from apps.data_center.application.market_thermometer_dates import (
     resolve_market_thermometer_as_of_date,
 )
+from apps.data_center.application.public import make_calculate_market_thermometer_use_case
 
 
 class Command(BaseCommand):
