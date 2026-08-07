@@ -70,6 +70,45 @@ def test_custom_dump_validation_uses_pg_restore_list_without_password(
     assert "secret" not in observed
 
 
+def test_restore_uses_parallel_fail_closed_client_without_password(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_script()
+    dump = tmp_path / "postgres-current.dump"
+    target = module.parse_postgres_target("postgresql://agom:secret@localhost/agom_ci")
+    observed: list[str] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
+        observed.extend(command)
+        assert kwargs["check"] is True
+        return SimpleNamespace()
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    module.restore_dump(dump, target, "agom_ci_restore_verify_deadbeef")
+
+    assert "--jobs=4" in observed
+    assert "--exit-on-error" in observed
+    assert "secret" not in observed
+
+
+def test_constraint_normalization_collapses_postgres_dump_reparse_casts() -> None:
+    module = _load_script()
+    source = (
+        "CHECK (status::text = ANY "
+        "(ARRAY['ready'::character varying, 'blocked'::character varying]::text[]))"
+    )
+    restored = (
+        "CHECK (status::text = ANY "
+        "(ARRAY['ready'::character varying::text, "
+        "'blocked'::character varying::text]))"
+    )
+
+    assert module._normalize_constraint_definition(source) == (
+        module._normalize_constraint_definition(restored)
+    )
+
+
 def test_main_writes_success_evidence_after_exact_restore_match(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -79,8 +118,9 @@ def test_main_writes_success_evidence_after_exact_restore_match(
     report_path = tmp_path / "evidence.json"
     snapshot = {
         "tables": {"django_migrations": {"rows": 1, "content_sha256": "abc"}},
-        "data_center_migrations": ["0064_retention_exact_plan_members"],
+        "data_center_migrations": ["0065_widen_retention_member_digests"],
         "schema_sha256": "schema-hash",
+        "sequences": {"sample_id_seq": {"last_value": 7, "is_called": True}},
     }
     monkeypatch.setattr(module, "validate_custom_dump", lambda *_args: 7)
     monkeypatch.setattr(module, "snapshot_database", lambda _url: snapshot)
@@ -109,6 +149,17 @@ def test_main_writes_success_evidence_after_exact_restore_match(
     assert evidence["outcome"] == "success"
     assert evidence["restore_entries"] == 7
     assert evidence["source_snapshot"] == evidence["restored_snapshot"]
+    assert evidence["snapshot_difference"] == {
+        "changed_sequences": {},
+        "changed_tables": {},
+        "extra_migrations": [],
+        "extra_sequences": [],
+        "extra_tables": [],
+        "missing_migrations": [],
+        "missing_sequences": [],
+        "missing_tables": [],
+        "schema_sha256": None,
+    }
     assert len(evidence["dump_sha256"]) == 64
     assert not report_path.with_suffix(".json.partial").exists()
 
@@ -145,3 +196,69 @@ def test_main_rejects_uncontrolled_restore_database_without_dropping_it(
     assert evidence["outcome"] == "failed"
     assert "controlled verification prefix" in evidence["error"]
     assert dropped == []
+
+
+def test_main_persists_component_differences_on_snapshot_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_script()
+    dump = tmp_path / "postgres-current.dump"
+    dump.write_bytes(b"verified-custom-dump")
+    report_path = tmp_path / "mismatch-evidence.json"
+    source = {
+        "tables": {"sample": {"rows": 2, "content_sha256": "source-data"}},
+        "data_center_migrations": ["0065_widen_retention_member_digests"],
+        "schema_sha256": "source-schema",
+        "sequences": {"sample_id_seq": {"last_value": 2, "is_called": True}},
+    }
+    restored = {
+        "tables": {"sample": {"rows": 1, "content_sha256": "restored-data"}},
+        "data_center_migrations": [],
+        "schema_sha256": "restored-schema",
+        "sequences": {"sample_id_seq": {"last_value": 1, "is_called": True}},
+    }
+    snapshots = iter([source, restored])
+    monkeypatch.setattr(module, "validate_custom_dump", lambda *_args: 7)
+    monkeypatch.setattr(module, "snapshot_database", lambda _url: next(snapshots))
+    monkeypatch.setattr(module, "recreate_restore_database", lambda *_args: None)
+    monkeypatch.setattr(module, "restore_dump", lambda *_args: None)
+    monkeypatch.setattr(module, "drop_restore_database", lambda *_args: None)
+    monkeypatch.setattr(
+        module,
+        "build_canonical_schema_report",
+        lambda *_args: {"missing_tables": [], "missing_migrations": []},
+    )
+
+    exit_code = module.main(
+        [
+            "--database-url",
+            "postgresql://agom:secret@localhost/agom_ci",
+            "--dump-path",
+            str(dump),
+            "--report-path",
+            str(report_path),
+        ]
+    )
+    evidence = json.loads(report_path.read_text(encoding="utf-8"))
+
+    assert exit_code == 1
+    assert evidence["error"] == "RuntimeError: postgres_restore_snapshot_mismatch"
+    assert evidence["source_snapshot"] == source
+    assert evidence["restored_snapshot"] == restored
+    assert evidence["snapshot_difference"]["changed_tables"]["sample"] == {
+        "source": source["tables"]["sample"],
+        "restored": restored["tables"]["sample"],
+    }
+    assert evidence["snapshot_difference"]["missing_migrations"] == [
+        "0065_widen_retention_member_digests"
+    ]
+    assert evidence["snapshot_difference"]["changed_sequences"] == {
+        "sample_id_seq": {
+            "source": source["sequences"]["sample_id_seq"],
+            "restored": restored["sequences"]["sample_id_seq"],
+        }
+    }
+    assert evidence["snapshot_difference"]["schema_sha256"] == {
+        "source": "source-schema",
+        "restored": "restored-schema",
+    }

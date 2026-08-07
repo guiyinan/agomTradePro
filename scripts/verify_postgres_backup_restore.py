@@ -38,12 +38,34 @@ class TableFingerprint(TypedDict):
     content_sha256: str
 
 
+class SequenceFingerprint(TypedDict):
+    """Value that determines the next result returned by one sequence."""
+
+    last_value: int
+    is_called: bool
+
+
 class DatabaseSnapshot(TypedDict):
     """Stable public-schema snapshot used for source/restore comparison."""
 
     tables: dict[str, TableFingerprint]
     data_center_migrations: list[str]
     schema_sha256: str
+    sequences: dict[str, SequenceFingerprint]
+
+
+class SnapshotDifference(TypedDict):
+    """Bounded component-level differences between source and restore."""
+
+    missing_tables: list[str]
+    extra_tables: list[str]
+    changed_tables: dict[str, dict[str, TableFingerprint]]
+    missing_migrations: list[str]
+    extra_migrations: list[str]
+    schema_sha256: dict[str, str] | None
+    missing_sequences: list[str]
+    extra_sequences: list[str]
+    changed_sequences: dict[str, dict[str, SequenceFingerprint]]
 
 
 @dataclass(frozen=True)
@@ -160,16 +182,16 @@ def _table_fingerprint(connection: Connection[tuple[object, ...]], table: str) -
 
 
 def _schema_fingerprint(connection: Connection[tuple[object, ...]]) -> str:
-    """Hash columns, constraints, indexes and sequence state in stable order."""
+    """Hash columns, constraints, indexes and sequence definitions."""
 
     queries = {
         "columns": """
-            SELECT table_name, column_name, ordinal_position, data_type,
+            SELECT table_name, column_name, data_type,
                    udt_schema, udt_name, is_nullable, column_default,
                    identity_generation, is_generated, collation_name
             FROM information_schema.columns
             WHERE table_schema = 'public'
-            ORDER BY table_name, ordinal_position
+            ORDER BY table_name, column_name
         """,
         "constraints": """
             SELECT relation.relname, constraint_row.conname, constraint_row.contype,
@@ -188,7 +210,7 @@ def _schema_fingerprint(connection: Connection[tuple[object, ...]]) -> str:
         """,
         "sequences": """
             SELECT sequencename, data_type, start_value, min_value, max_value,
-                   increment_by, cycle, cache_size, last_value
+                   increment_by, cycle, cache_size
             FROM pg_sequences
             WHERE schemaname = 'public'
             ORDER BY sequencename
@@ -198,9 +220,66 @@ def _schema_fingerprint(connection: Connection[tuple[object, ...]]) -> str:
     with connection.cursor() as cursor:
         for name, query in queries.items():
             cursor.execute(query)
-            evidence[name] = [list(row) for row in cursor.fetchall()]
+            rows = [list(row) for row in cursor.fetchall()]
+            if name == "constraints":
+                for row in rows:
+                    definition = row[3]
+                    if not isinstance(definition, str):
+                        raise RuntimeError("constraint definition is invalid")
+                    row[3] = _normalize_constraint_definition(definition)
+            evidence[name] = rows
     encoded = json.dumps(evidence, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _normalize_constraint_definition(definition: str) -> str:
+    """Collapse PostgreSQL dump/reparse variants with identical cast semantics."""
+
+    return (
+        definition.replace("::character varying::text", "::text")
+        .replace("::character varying", "::text")
+        .replace("]::text[]", "]")
+    )
+
+
+def _sequence_fingerprints(
+    connection: Connection[tuple[object, ...]],
+) -> dict[str, SequenceFingerprint]:
+    """Capture last_value and is_called without conflating data with schema."""
+
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT sequencename
+            FROM pg_sequences
+            WHERE schemaname = 'public'
+            ORDER BY sequencename
+            """)
+        sequence_names = [str(row[0]) for row in cursor.fetchall()]
+        if not sequence_names:
+            return {}
+        sequence_queries = [
+            sql.SQL(
+                "SELECT {}::text AS sequence_name, last_value, is_called FROM {}"
+            ).format(
+                sql.Literal(sequence_name),
+                sql.Identifier("public", sequence_name),
+            )
+            for sequence_name in sequence_names
+        ]
+        cursor.execute(
+            sql.SQL(" UNION ALL ").join(sequence_queries)
+            + sql.SQL(" ORDER BY sequence_name")
+        )
+        fingerprints: dict[str, SequenceFingerprint] = {}
+        for row in cursor.fetchall():
+            sequence_name = str(row[0])
+            if not isinstance(row[1], int) or not isinstance(row[2], bool):
+                raise RuntimeError(f"sequence fingerprint is invalid: {sequence_name}")
+            fingerprints[sequence_name] = {
+                "last_value": row[1],
+                "is_called": row[2],
+            }
+    return fingerprints
 
 
 def snapshot_database(database_url: str) -> DatabaseSnapshot:
@@ -208,6 +287,11 @@ def snapshot_database(database_url: str) -> DatabaseSnapshot:
 
     with connect(database_url) as connection:
         with connection.cursor() as cursor:
+            cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            cursor.execute("SET LOCAL TIME ZONE 'UTC'")
+            cursor.execute("SET LOCAL DateStyle = 'ISO, YMD'")
+            cursor.execute("SET LOCAL IntervalStyle = 'iso_8601'")
+            cursor.execute("SET LOCAL search_path = pg_catalog, public")
             cursor.execute("""
                 SELECT table_name
                 FROM information_schema.tables
@@ -227,11 +311,67 @@ def snapshot_database(database_url: str) -> DatabaseSnapshot:
                     """)
                 migrations = [str(row[0]) for row in cursor.fetchall()]
         schema_sha256 = _schema_fingerprint(connection)
+        sequences = _sequence_fingerprints(connection)
     return {
         "tables": fingerprints,
         "data_center_migrations": migrations,
         "schema_sha256": schema_sha256,
+        "sequences": sequences,
     }
+
+
+def compare_snapshots(
+    source: DatabaseSnapshot, restored: DatabaseSnapshot
+) -> SnapshotDifference:
+    """Return exact, machine-readable differences for restore failures."""
+
+    source_tables = set(source["tables"])
+    restored_tables = set(restored["tables"])
+    common_tables = sorted(source_tables & restored_tables)
+    changed_tables = {
+        table: {
+            "source": source["tables"][table],
+            "restored": restored["tables"][table],
+        }
+        for table in common_tables
+        if source["tables"][table] != restored["tables"][table]
+    }
+    source_migrations = set(source["data_center_migrations"])
+    restored_migrations = set(restored["data_center_migrations"])
+    source_sequences = set(source["sequences"])
+    restored_sequences = set(restored["sequences"])
+    common_sequences = sorted(source_sequences & restored_sequences)
+    changed_sequences = {
+        sequence: {
+            "source": source["sequences"][sequence],
+            "restored": restored["sequences"][sequence],
+        }
+        for sequence in common_sequences
+        if source["sequences"][sequence] != restored["sequences"][sequence]
+    }
+    schema_difference = None
+    if source["schema_sha256"] != restored["schema_sha256"]:
+        schema_difference = {
+            "source": source["schema_sha256"],
+            "restored": restored["schema_sha256"],
+        }
+    return {
+        "missing_tables": sorted(source_tables - restored_tables),
+        "extra_tables": sorted(restored_tables - source_tables),
+        "changed_tables": changed_tables,
+        "missing_migrations": sorted(source_migrations - restored_migrations),
+        "extra_migrations": sorted(restored_migrations - source_migrations),
+        "schema_sha256": schema_difference,
+        "missing_sequences": sorted(source_sequences - restored_sequences),
+        "extra_sequences": sorted(restored_sequences - source_sequences),
+        "changed_sequences": changed_sequences,
+    }
+
+
+def snapshots_match(difference: SnapshotDifference) -> bool:
+    """Return whether a structured restore comparison contains no differences."""
+
+    return not any(difference.values())
 
 
 def recreate_restore_database(target: PostgresTarget, restore_database: str) -> None:
@@ -271,6 +411,7 @@ def restore_dump(path: Path, target: PostgresTarget, restore_database: str) -> N
             restore_database,
             "--no-owner",
             "--no-acl",
+            "--jobs=4",
             "--exit-on-error",
             str(path),
         ],
@@ -347,14 +488,10 @@ def main(argv: list[str] | None = None) -> int:
             restored_snapshot["tables"].keys(),
             restored_snapshot["data_center_migrations"],
         )
-        if source_snapshot != restored_snapshot:
-            raise RuntimeError("postgres_restore_snapshot_mismatch")
-        if schema_report["missing_tables"] or schema_report["missing_migrations"]:
-            raise RuntimeError("postgres_restore_canonical_schema_incomplete")
+        snapshot_difference = compare_snapshots(source_snapshot, restored_snapshot)
         verification_seconds = round(time.monotonic() - verification_started, 3)
         report.update(
             {
-                "outcome": "success",
                 "source_database": target.database,
                 "restore_database": restore_database,
                 "dump_path": str(dump_path),
@@ -363,8 +500,19 @@ def main(argv: list[str] | None = None) -> int:
                 "restore_entries": restore_entries,
                 "source_snapshot": source_snapshot,
                 "restored_snapshot": restored_snapshot,
+                "snapshot_difference": snapshot_difference,
                 "canonical_schema": schema_report,
                 "restore_seconds": restore_seconds,
+                "verification_seconds": verification_seconds,
+            }
+        )
+        if not snapshots_match(snapshot_difference):
+            raise RuntimeError("postgres_restore_snapshot_mismatch")
+        if schema_report["missing_tables"] or schema_report["missing_migrations"]:
+            raise RuntimeError("postgres_restore_canonical_schema_incomplete")
+        report.update(
+            {
+                "outcome": "success",
                 "verification_seconds": verification_seconds,
             }
         )

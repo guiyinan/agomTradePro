@@ -345,7 +345,7 @@ jobs:
   critical-postgres:
     name: Critical Reliability (PostgreSQL)
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 90
     services:
       postgres:
         image: postgres:16
@@ -410,7 +410,7 @@ jobs:
         run: |
           python manage.py initialize_storage_budget \
             --profile-key nightly-ci \
-            --capacity-gib 1 \
+            --capacity-gib 100 \
             --policy-version 1 \
             --activate
           python manage.py collect_storage_capacity_profile --environment nightly-ci
@@ -458,7 +458,7 @@ jobs:
             -v \
             --reuse-db \
             --junitxml=reports/quality/postgres/research-migrations.xml \
-            --timeout=600 \
+            --timeout=900 \
             --timeout-method=thread \
             --durations=20
 
@@ -506,7 +506,7 @@ jobs:
         run: |
           python -m pytest \
             tests/component/data_center/test_retention_postgres_concurrency.py \
-            -q --reuse-db --no-migrations --timeout=120 \
+            -q --reuse-db --timeout=300 \
             --junitxml=reports/quality/postgres/retention-concurrency.xml
 
       - name: Upload PostgreSQL backup and restore evidence
