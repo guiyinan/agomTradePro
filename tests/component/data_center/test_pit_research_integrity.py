@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+from django.db import connection, models
 
 from apps.data_center.domain.pit import (
     KnowledgeScope,
@@ -17,6 +18,34 @@ from apps.data_center.infrastructure.pit_repository import (
     ManifestBoundPITDataView,
     PITManifestRepository,
 )
+
+
+def _force_out_of_band_update(
+    model: type[models.Model],
+    *,
+    identity_field: str,
+    identity: object,
+    values: dict[str, object],
+) -> None:
+    """Simulate storage corruption beneath the append-only ORM boundary."""
+
+    quote = connection.ops.quote_name
+    assignments: list[str] = []
+    parameters: list[object] = []
+    for field_name, raw_value in values.items():
+        field = model._meta.get_field(field_name)
+        value = raw_value
+        if isinstance(field, models.JSONField):
+            value = connection.ops.adapt_json_value(raw_value, field.encoder)
+        assignments.append(f"{quote(field_name)} = %s")
+        parameters.append(value)
+    parameters.append(identity)
+    statement = (
+        f"UPDATE {quote(model._meta.db_table)} SET {', '.join(assignments)} "
+        f"WHERE {quote(identity_field)} = %s"
+    )
+    with connection.cursor() as cursor:
+        cursor.execute(statement, parameters)
 
 
 @pytest.mark.django_db
@@ -201,7 +230,12 @@ def test_manifest_bound_view_rejects_payload_tampering_after_freeze() -> None:
         required_keys={"price_bar": ["000001.SZ"]},
     )
     view = ManifestBoundPITDataView(manifest.manifest_id)
-    PITFactVersionModel._default_manager.filter(pk=fact.pk).update(payload={"close": "999.00"})
+    _force_out_of_band_update(
+        PITFactVersionModel,
+        identity_field="id",
+        identity=fact.pk,
+        values={"payload": {"close": "999.00"}},
+    )
 
     with pytest.raises(ValueError, match="missing or altered"):
         view.query(
@@ -235,8 +269,11 @@ def test_manifest_rebuild_rejects_conflicting_persisted_evidence() -> None:
         "required_keys": {"price_bar": ["000001.SZ"]},
     }
     manifest = repository.build(**kwargs)
-    PITDatasetManifestModel._default_manager.filter(manifest_id=manifest.manifest_id).update(
-        calendar_version="tampered"
+    _force_out_of_band_update(
+        PITDatasetManifestModel,
+        identity_field="manifest_id",
+        identity=manifest.manifest_id,
+        values={"calendar_version": "tampered"},
     )
 
     with pytest.raises(ValueError, match="conflicts with the requested snapshot"):
@@ -278,9 +315,14 @@ def test_manifest_bound_view_rejects_duplicate_selected_version_ids() -> None:
         unknown=manifest.unknown,
         manifest_hash="",
     )
-    PITDatasetManifestModel._default_manager.filter(manifest_id=manifest.manifest_id).update(
-        selected_versions=[*selected, selected[0]],
-        manifest_hash=calculate_pit_manifest_hash(duplicated),
+    _force_out_of_band_update(
+        PITDatasetManifestModel,
+        identity_field="manifest_id",
+        identity=manifest.manifest_id,
+        values={
+            "selected_versions": [*selected, selected[0]],
+            "manifest_hash": calculate_pit_manifest_hash(duplicated),
+        },
     )
 
     with pytest.raises(ValueError, match="version evidence is invalid"):
