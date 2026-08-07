@@ -79,3 +79,36 @@ def test_guard_requires_exact_wrapper_inventory_and_status(tmp_path: Path) -> No
         scripts_root=scripts,
         repository_root=tmp_path,
     ) == ["wrapper_status_invalid:scripts/wrapper.py:retirement_pending"]
+
+
+def test_guard_uses_operational_governance_for_canonical_scripts(tmp_path: Path) -> None:
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    canonical = scripts / "canonical.py"
+    canonical.write_text(
+        "from apps.data_center.infrastructure.models import CanonicalFactModel\n",
+        encoding="utf-8",
+    )
+    manifest = tmp_path / "governance" / "entrypoints.json"
+    _write_manifest(manifest, entrypoints=[], wrappers=[])
+    operational = tmp_path / "governance" / "data_center_operational_entrypoints.json"
+    operational.write_text(
+        json.dumps(
+            {
+                "entries": [
+                    {
+                        "category": ["operational_script", "operational_dispatch_edge"],
+                        "path": "scripts/canonical.py",
+                        "status": "active_public",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert validate(
+        manifest_path=manifest,
+        scripts_root=scripts,
+        repository_root=tmp_path,
+    ) == []

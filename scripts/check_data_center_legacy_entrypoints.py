@@ -77,6 +77,38 @@ def _entry_map(raw: object, group: str, violations: list[str]) -> dict[str, dict
     return result
 
 
+def _governed_operational_script_paths(repository_root: Path) -> set[str]:
+    """Return canonical operational scripts that are not legacy entrypoints."""
+
+    path = repository_root / "governance" / "data_center_operational_entrypoints.json"
+    if not path.exists():
+        return set()
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    rules = payload.get("entries", [])
+    if not isinstance(rules, list):
+        raise ValueError("operational governance entries must be a list")
+    governed: set[str] = set()
+    for rule in rules:
+        if not isinstance(rule, dict) or rule.get("status") != "active_public":
+            continue
+        categories_raw = rule.get("category", [])
+        categories = (
+            {str(item) for item in categories_raw}
+            if isinstance(categories_raw, list)
+            else {str(categories_raw)}
+        )
+        if "operational_script" not in categories:
+            continue
+        paths_raw = rule.get("path", [])
+        paths = paths_raw if isinstance(paths_raw, list) else [paths_raw]
+        governed.update(
+            str(item).replace("\\", "/")
+            for item in paths
+            if str(item).strip() and not any(token in str(item) for token in "*?[")
+        )
+    return governed
+
+
 def validate(
     *,
     manifest_path: Path = MANIFEST,
@@ -95,11 +127,12 @@ def validate(
     violations.extend(f"entrypoint_wrapper_overlap:{path}" for path in overlap)
 
     resolved_scripts_root = scripts_root or repository_root / "scripts"
+    excluded_paths = EXCLUDED_PATHS | _governed_operational_script_paths(repository_root)
     discovered_direct: dict[str, list[str]] = {}
     discovered_wrappers: dict[str, str] = {}
     for path in sorted(resolved_scripts_root.rglob("*.py")):
         path_text = path.relative_to(repository_root).as_posix()
-        if path_text in EXCLUDED_PATHS:
+        if path_text in excluded_paths:
             continue
         imports = _script_imports(path)
         if imports:

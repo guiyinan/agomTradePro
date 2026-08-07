@@ -4221,7 +4221,7 @@ Git SHA / 镜像 / migration：
 
 ## 65. 2026-08-05：Qlib 训练任务增加 typed runtime fail-closed
 
-- 目标：防止 Qlib 训练任务在 Config Center typed snapshot 缺失时继续使用 `/models/qlib` 等代码默认值启动训练，绕过运行时配置可靠性门。
+- 目标：防止 Qlib 训练任务在 Config Center typed snapshot 缺失时继续使用 POSIX 根目录下的 `models/qlib` 文件系统目录等代码默认值启动训练，绕过运行时配置可靠性门。
 - 变更：`qlib_train_model` 在标记训练 run 前校验 typed runtime 的 `enabled`/阻断字段；快照缺失、失效或显式 blocked 时抛出稳定错误并把训练 run 标为失败，不写 Registry、不保存 artifact。
 - 测试：成功/失败训练 fixture 显式注入可用 typed runtime；新增缺失快照阻断回归；Qlib training/runtime/task 定向回归 50 passed，最新变更 mypy/Ruff/Black/isort 通过。
 - 明确未做：未改动 Qlib 模型算法、缓存前推、历史数据路径或 SystemSettings 迁移字段；推理任务及生产 profile 初始化仍需后续阶段证据。
@@ -4462,7 +4462,7 @@ Git SHA / 镜像 / migration：
 
 ## 97. 2026-08-06：Qlib Admin 模型存储根目录切换 typed Runtime
 
-- 目标：补齐 Qlib Admin 模型上传这一条运行时路径，禁止在缺少 Config Center typed Qlib snapshot 时从 `QLIB_SETTINGS` 或 `/models/qlib` 猜测模型存储根目录。
+- 目标：补齐 Qlib Admin 模型上传这一条运行时路径，禁止在缺少 Config Center typed Qlib snapshot 时从 `QLIB_SETTINGS` 或 POSIX 根目录下的 `models/qlib` 文件系统目录猜测模型存储根目录。
 - 变更：`QlibModelRegistryAdmin._model_root()` 只接受 typed runtime 的非空 `model_path`，blocked/缺失/不完整配置统一抛出 `runtime_config_snapshot_unavailable`；移除 Admin 侧旧 `_qlib_settings_mapping()` 读取边界，上传入口将该阻断转成表单错误，不创建 artifact 或模型记录。
 - 测试与治理：更新模型导入/验证 fixture 显式注入 typed `model_path`；新增 blocked storage guard，`runtime_config_contracts.json` 为 `alpha.qlib.model_path` 登记 Admin consumer/test。
 - 明确未做：未改动 Qlib 模型算法、训练/推理数据路径、模型激活策略、生产 profile 初始化、PostgreSQL/备份恢复/观察窗口/M9/M10 或部署；不 push、不部署。
@@ -4470,7 +4470,7 @@ Git SHA / 镜像 / migration：
 ## 98. 2026-08-06：Qlib Runtime 路径解析收敛到统一 typed 边界
 
 - 根因：此前多个 Qlib 消费者在收到“enabled”后各自对缺失 `provider_uri/model_path` 做默认补值，形成同一配置缺失在不同入口产生不同结果的双真源旁路。
-- 变更：`qlib_runtime_init._require_usable_qlib_runtime()` 成为统一 provider URI 可用性门；日历探测、预测、训练和 Alpha Service 注册均不再补 `~/.qlib/qlib_data/cn_data` 或 `/models/qlib`；Qlib Provider 构造在缺少 typed path 时读取 typed runtime，仍不完整则 fail closed；维护命令移除无效默认 URI 常量。
+- 变更：`qlib_runtime_init._require_usable_qlib_runtime()` 成为统一 provider URI 可用性门；日历探测、预测、训练和 Alpha Service 注册均不再补 `~/.qlib/qlib_data/cn_data` 或 POSIX 根目录下的 `models/qlib` 文件系统目录；Qlib Provider 构造在缺少 typed path 时读取 typed runtime，仍不完整则 fail closed；维护命令移除无效默认 URI 常量。
 - 测试与治理：补充 Provider typed-path 构造阻断、任务 fixture 显式路径和运行时边界回归；`runtime_config_contracts.json` 登记 provider/model path consumer/test。Qlib runtime/T3B 定向回归 `43 passed`，mypy/Ruff 通过。
 - 明确未做：未删除 `core.settings.base.QLIB_SETTINGS` 兼容配置声明（仅保留模型/迁移兼容用途待后续 M9），未初始化生产 profile、未执行 PostgreSQL/备份恢复/观察窗口/M9/M10 或部署；不 push、不部署。
 
@@ -4763,5 +4763,6 @@ Git SHA / 镜像 / migration：
 - 修复：列指纹按稳定列名比较 type/null/default/identity/generated/collation，不比较无业务语义的物理 ordinal；CHECK constraint 对 PostgreSQL dump/reparse 的等价 varchar/text array cast 做稳定归一，同时仍比较表、约束名/类型与完整约束定义。schema 定义与 sequence 状态拆分，sequence 额外记录 `is_called`，避免“相同 last_value、下一次 nextval 不同”漏报。
 - 快照一致性：source snapshot 改为单个 `REPEATABLE READ READ ONLY` transaction，并固定 UTC、DateStyle、IntervalStyle 与 search_path，避免逐表 READ COMMITTED 混合快照和会话文本差异。sequence 状态不是 MVCC，正式生产演练仍须停止 writer 或将 `pg_dump --snapshot` 与 source evidence 绑定；本轮本地静态源库证据不能替代该生产门禁。
 - 失败可诊断：verifier 在比较前即持久化 source/restored snapshot、逐表 count/hash diff、migration 集合差异、schema hash 差异与 sequence 增删改；失败 evidence 不再只给通用错误。sequence 读取由 326 次 round trip 合并为一次查询，隔离恢复使用 4 worker，本地 restore 阶段由约 2442 秒降至约 468 秒。
+- 入口治理收口：旧入口精确校验不再维护一份重复的 active script 硬编码排除表，而是从 `data_center_operational_entrypoints.json` 读取 `active_public` 运维脚本；因此恢复验证器只作为真实运维入口登记，不会因治理文本再次生成伪 dispatch edge。旧入口精确测试 4 passed，入口 stale-check 仍为 1182 项且无待审候选。
 - 最终复核：修复后的真实 PostgreSQL source/restore 全量比较为空差异；397 张表逐行有序 JSON SHA-256、Data Center migrations、稳定 schema SHA-256 与 326 个 sequence 状态全部一致。source fingerprint 约 382 秒、restore fingerprint 约 306 秒；入口清单重建仍为 1182 项且 `candidate-review=0`，专项 40 passed。
 - 明确边界：本地 dump 来自一次性 client 容器，尚未证明 `manage.py backup_database` owner 路径；dump 与随后 live-source snapshot 也未使用同一 exported snapshot。GitHub PostgreSQL job 实际绿灯、artifact 下载、VPS 生产规模 RTO、host-key pinning、真实 archive mount/key 与 writer quiescence 仍是生产切换/M9 的前置条件；本轮不部署。
