@@ -2,6 +2,7 @@
   "counts": {
     "by_category": {
       "admin_surface": 14,
+      "agent_skill": 3,
       "application_consumer": 158,
       "beat_schedule": 57,
       "capability_runtime": 25,
@@ -13,23 +14,30 @@
       "management_command": 27,
       "management_command_edge": 65,
       "mcp_tool": 40,
+      "migration_evidence": 10,
+      "operational_dispatch_edge": 92,
+      "operational_script": 40,
       "orchestration_entry": 8,
       "public_port": 91,
       "rest_url": 66,
+      "runbook": 8,
       "runtime_config_key": 45,
       "scheduler_writer": 16,
       "script": 7,
       "sdk": 46,
       "system_settings_compatibility": 11,
-      "terminal_tui": 28
+      "terminal_tui": 28,
+      "test_evidence": 30,
+      "workflow_step": 9
     },
     "by_status": {
-      "active_public": 562,
-      "adjacent_operational": 217,
+      "active_public": 617,
+      "adjacent_operational": 281,
       "candidate-review": 0,
-      "compatibility": 211
+      "compatibility": 250,
+      "retired_blocked": 34
     },
-    "total": 990
+    "total": 1182
   },
   "entries": [
     {
@@ -171,6 +179,36 @@
       "status": "active_public",
       "symbol": "ReconciliationEvidenceAdmin",
       "target": "ReconciliationEvidenceModel"
+    },
+    {
+      "category": "agent_skill",
+      "evidence": "explicitly owned adjacent VPS backup, deployment, or hot-update operator skill",
+      "id": "agent_skill:.agents/skills/backup-vps-postgres/SKILL.md:backup-vps-postgres:",
+      "locator": "",
+      "path": ".agents/skills/backup-vps-postgres/SKILL.md",
+      "status": "adjacent_operational",
+      "symbol": "backup-vps-postgres",
+      "target": "scripts/backup-vps-postgres.ps1,postgres:pg_restore"
+    },
+    {
+      "category": "agent_skill",
+      "evidence": "explicitly owned adjacent VPS backup, deployment, or hot-update operator skill",
+      "id": "agent_skill:.agents/skills/vps-deploy-agomtradepro/SKILL.md:vps-deploy-agomtradepro:",
+      "locator": "",
+      "path": ".agents/skills/vps-deploy-agomtradepro/SKILL.md",
+      "status": "adjacent_operational",
+      "symbol": "vps-deploy-agomtradepro",
+      "target": "scripts/deploy-vps.ps1,scripts/remote_build_deploy_vps.py"
+    },
+    {
+      "category": "agent_skill",
+      "evidence": "explicitly owned adjacent VPS backup, deployment, or hot-update operator skill",
+      "id": "agent_skill:.agents/skills/vps-hot-update-agomtradepro/SKILL.md:vps-hot-update-agomtradepro:",
+      "locator": "",
+      "path": ".agents/skills/vps-hot-update-agomtradepro/SKILL.md",
+      "status": "adjacent_operational",
+      "symbol": "vps-hot-update-agomtradepro",
+      "target": ""
     },
     {
       "category": "application_consumer",
@@ -3154,13 +3192,13 @@
     },
     {
       "category": "celery_task",
-      "evidence": "governance/celery_task_contracts.json",
+      "evidence": "legacy retention preview task; canonical writes use plan_retention_task and enforce_retention_task",
       "id": "celery_task:apps/data_center/application/tasks.py:cleanup_expired_raw_payloads_task:apps.data_center.application.tasks.cleanup_expired_raw_payloads_task",
       "locator": "apps.data_center.application.tasks.cleanup_expired_raw_payloads_task",
       "path": "apps/data_center/application/tasks.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "cleanup_expired_raw_payloads_task",
-      "target": "apps.data_center.application.tasks.cleanup_expired_raw_payloads_task"
+      "target": "apps.data_center.application.tasks.plan_retention_task"
     },
     {
       "category": "celery_task",
@@ -3934,21 +3972,21 @@
     },
     {
       "category": "celery_task",
-      "evidence": "governance/celery_task_contracts.json",
+      "evidence": "Task Monitor owns these adjacent database backup and verification operations",
       "id": "celery_task:apps/task_monitor/application/backup_tasks.py:backup_database_task:apps.task_monitor.application.tasks.backup_database_task",
       "locator": "apps.task_monitor.application.tasks.backup_database_task",
       "path": "apps/task_monitor/application/backup_tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "backup_database_task",
       "target": "apps.task_monitor.application.tasks.backup_database_task"
     },
     {
       "category": "celery_task",
-      "evidence": "governance/celery_task_contracts.json",
+      "evidence": "Task Monitor owns these adjacent database backup and verification operations",
       "id": "celery_task:apps/task_monitor/application/backup_tasks.py:verify_backup_task:apps.task_monitor.application.tasks.verify_backup_task",
       "locator": "apps.task_monitor.application.tasks.verify_backup_task",
       "path": "apps/task_monitor/application/backup_tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "verify_backup_task",
       "target": "apps.task_monitor.application.tasks.verify_backup_task"
     },
@@ -6753,6 +6791,1426 @@
       "target": "register_data_center_tools"
     },
     {
+      "category": "migration_evidence",
+      "evidence": "executable Data Center archive/retention schema evidence",
+      "id": "migration_evidence:apps/config_center/migrations/0003_systemsettingsmodel_backup_download_token_state.py:0003_systemsettingsmodel_backup_download_token_state:",
+      "locator": "",
+      "path": "apps/config_center/migrations/0003_systemsettingsmodel_backup_download_token_state.py",
+      "status": "active_public",
+      "symbol": "0003_systemsettingsmodel_backup_download_token_state",
+      "target": ""
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "executable Data Center archive/retention schema evidence",
+      "id": "migration_evidence:apps/config_center/migrations/0006_runtimeconfigdefinitionmodel_and_more.py:0006_runtimeconfigdefinitionmodel_and_more:",
+      "locator": "",
+      "path": "apps/config_center/migrations/0006_runtimeconfigdefinitionmodel_and_more.py",
+      "status": "active_public",
+      "symbol": "0006_runtimeconfigdefinitionmodel_and_more",
+      "target": ""
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "executable Data Center archive/retention schema evidence",
+      "id": "migration_evidence:apps/config_center/migrations/0009_backupdeliverystatemodel.py:0009_backupdeliverystatemodel:",
+      "locator": "",
+      "path": "apps/config_center/migrations/0009_backupdeliverystatemodel.py",
+      "status": "active_public",
+      "symbol": "0009_backupdeliverystatemodel",
+      "target": ""
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "executable Data Center archive/retention schema evidence",
+      "id": "migration_evidence:apps/config_center/migrations/0011_version_storage_budget_policies.py:0011_version_storage_budget_policies:",
+      "locator": "",
+      "path": "apps/config_center/migrations/0011_version_storage_budget_policies.py",
+      "status": "active_public",
+      "symbol": "0011_version_storage_budget_policies",
+      "target": ""
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "executable Data Center archive/retention schema evidence",
+      "id": "migration_evidence:apps/data_center/migrations/0053_archivemanifestmodel_retentionpolicymodel_and_more.py:0053_archivemanifestmodel_retentionpolicymodel_and_more:",
+      "locator": "",
+      "path": "apps/data_center/migrations/0053_archivemanifestmodel_retentionpolicymodel_and_more.py",
+      "status": "active_public",
+      "symbol": "0053_archivemanifestmodel_retentionpolicymodel_and_more",
+      "target": ""
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "executable Data Center archive/retention schema evidence",
+      "id": "migration_evidence:apps/data_center/migrations/0056_retentionrunmodel.py:0056_retentionrunmodel:",
+      "locator": "",
+      "path": "apps/data_center/migrations/0056_retentionrunmodel.py",
+      "status": "active_public",
+      "symbol": "0056_retentionrunmodel",
+      "target": ""
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "executable Data Center archive/retention schema evidence",
+      "id": "migration_evidence:apps/data_center/migrations/0063_archivemanifest_archive_restore_evidence.py:0063_archivemanifest_archive_restore_evidence:",
+      "locator": "",
+      "path": "apps/data_center/migrations/0063_archivemanifest_archive_restore_evidence.py",
+      "status": "active_public",
+      "symbol": "0063_archivemanifest_archive_restore_evidence",
+      "target": ""
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "executable Data Center archive/retention schema evidence",
+      "id": "migration_evidence:apps/data_center/migrations/0064_retention_exact_plan_members.py:0064_retention_exact_plan_members:",
+      "locator": "",
+      "path": "apps/data_center/migrations/0064_retention_exact_plan_members.py",
+      "status": "active_public",
+      "symbol": "0064_retention_exact_plan_members",
+      "target": ""
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "executable Data Center archive/retention schema evidence",
+      "id": "migration_evidence:apps/data_center/migrations/0065_widen_retention_member_digests.py:0065_widen_retention_member_digests:",
+      "locator": "",
+      "path": "apps/data_center/migrations/0065_widen_retention_member_digests.py",
+      "status": "active_public",
+      "symbol": "0065_widen_retention_member_digests",
+      "target": ""
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "executable Data Center archive/retention schema evidence",
+      "id": "migration_evidence:tests/migrations/test_data_center_retention_plan_migration.py:test_data_center_retention_plan_migration:",
+      "locator": "",
+      "path": "tests/migrations/test_data_center_retention_plan_migration.py",
+      "status": "active_public",
+      "symbol": "test_data_center_retention_plan_migration",
+      "target": ""
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:apps/config_center/management/commands/collect_storage_capacity_profile.py:collect_storage_capacity_profile:token:collect_storage_capacity_profile",
+      "locator": "token:collect_storage_capacity_profile",
+      "path": "apps/config_center/management/commands/collect_storage_capacity_profile.py",
+      "status": "adjacent_operational",
+      "symbol": "collect_storage_capacity_profile",
+      "target": "django:collect_storage_capacity_profile"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:apps/config_center/management/commands/initialize_storage_budget.py:initialize_storage_budget:token:initialize_storage_budget",
+      "locator": "token:initialize_storage_budget",
+      "path": "apps/config_center/management/commands/initialize_storage_budget.py",
+      "status": "adjacent_operational",
+      "symbol": "initialize_storage_budget",
+      "target": "django:initialize_storage_budget"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:apps/config_center/management/commands/initialize_storage_budget.py:storage_budget_control:token:storage_budget_control",
+      "locator": "token:storage_budget_control",
+      "path": "apps/config_center/management/commands/initialize_storage_budget.py",
+      "status": "adjacent_operational",
+      "symbol": "storage_budget_control",
+      "target": "config_center:storage_budget"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:apps/task_monitor/management/commands/backup_database.py:manage.py backup_database:token:manage.py backup_database",
+      "locator": "token:manage.py backup_database",
+      "path": "apps/task_monitor/management/commands/backup_database.py",
+      "status": "adjacent_operational",
+      "symbol": "manage.py backup_database",
+      "target": "django:backup_database"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:apps/task_monitor/management/commands/backup_database.py:pg_dump:token:pg_dump",
+      "locator": "token:pg_dump",
+      "path": "apps/task_monitor/management/commands/backup_database.py",
+      "status": "adjacent_operational",
+      "symbol": "pg_dump",
+      "target": "postgres:pg_dump"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:apps/task_monitor/management/commands/backup_database.py:storage_budget_control:token:storage_budget_control",
+      "locator": "token:storage_budget_control",
+      "path": "apps/task_monitor/management/commands/backup_database.py",
+      "status": "adjacent_operational",
+      "symbol": "storage_budget_control",
+      "target": "config_center:storage_budget"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/auto-backup.ps1:auto-backup.ps1:token:auto-backup.ps1",
+      "locator": "token:auto-backup.ps1",
+      "path": "scripts/auto-backup.ps1",
+      "status": "retired_blocked",
+      "symbol": "auto-backup.ps1",
+      "target": "scripts/auto-backup.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/auto-backup.ps1:pg_dump:token:pg_dump",
+      "locator": "token:pg_dump",
+      "path": "scripts/auto-backup.ps1",
+      "status": "retired_blocked",
+      "symbol": "pg_dump",
+      "target": "postgres:pg_dump"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/backup-vps-postgres.ps1:backup-vps-postgres.ps1:token:backup-vps-postgres.ps1",
+      "locator": "token:backup-vps-postgres.ps1",
+      "path": "scripts/backup-vps-postgres.ps1",
+      "status": "adjacent_operational",
+      "symbol": "backup-vps-postgres.ps1",
+      "target": "scripts/backup-vps-postgres.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/backup-vps-postgres.ps1:backup-vps-postgres.py:token:backup-vps-postgres.py",
+      "locator": "token:backup-vps-postgres.py",
+      "path": "scripts/backup-vps-postgres.ps1",
+      "status": "adjacent_operational",
+      "symbol": "backup-vps-postgres.py",
+      "target": "scripts/backup-vps-postgres.py"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/backup-vps-postgres.ps1:pg_restore:token:pg_restore",
+      "locator": "token:pg_restore",
+      "path": "scripts/backup-vps-postgres.ps1",
+      "status": "adjacent_operational",
+      "symbol": "pg_restore",
+      "target": "postgres:pg_restore"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/backup-vps-postgres.py:backup-vps-postgres.py:token:backup-vps-postgres.py",
+      "locator": "token:backup-vps-postgres.py",
+      "path": "scripts/backup-vps-postgres.py",
+      "status": "adjacent_operational",
+      "symbol": "backup-vps-postgres.py",
+      "target": "scripts/backup-vps-postgres.py"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/backup-vps-postgres.py:pg_dump:token:pg_dump",
+      "locator": "token:pg_dump",
+      "path": "scripts/backup-vps-postgres.py",
+      "status": "adjacent_operational",
+      "symbol": "pg_dump",
+      "target": "postgres:pg_dump"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/backup-vps-postgres.py:pg_restore:token:pg_restore",
+      "locator": "token:pg_restore",
+      "path": "scripts/backup-vps-postgres.py",
+      "status": "adjacent_operational",
+      "symbol": "pg_restore",
+      "target": "postgres:pg_restore"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "id": "operational_dispatch_edge:scripts/check_migration_graph.py:MigrationExecutor:token:MigrationExecutor",
+      "locator": "token:MigrationExecutor",
+      "path": "scripts/check_migration_graph.py",
+      "status": "active_public",
+      "symbol": "MigrationExecutor",
+      "target": "django:MigrationExecutor"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "id": "operational_dispatch_edge:scripts/check_migration_graph.py:check_migration_graph.py:token:check_migration_graph.py",
+      "locator": "token:check_migration_graph.py",
+      "path": "scripts/check_migration_graph.py",
+      "status": "active_public",
+      "symbol": "check_migration_graph.py",
+      "target": "scripts/check_migration_graph.py"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/debug/check_and_migrate.py:check_and_migrate.py:token:check_and_migrate.py",
+      "locator": "token:check_and_migrate.py",
+      "path": "scripts/debug/check_and_migrate.py",
+      "status": "retired_blocked",
+      "symbol": "check_and_migrate.py",
+      "target": "scripts/debug/check_and_migrate.py"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/deploy-bundle-to-vps.py:deploy-on-vps.sh:token:deploy-on-vps.sh",
+      "locator": "token:deploy-on-vps.sh",
+      "path": "scripts/deploy-bundle-to-vps.py",
+      "status": "compatibility",
+      "symbol": "deploy-on-vps.sh",
+      "target": "scripts/deploy-on-vps.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/deploy-docker-dev.ps1:manage.py migrate:token:manage.py migrate",
+      "locator": "token:manage.py migrate",
+      "path": "scripts/deploy-docker-dev.ps1",
+      "status": "adjacent_operational",
+      "symbol": "manage.py migrate",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/deploy-docker-dev.ps1:pg_dump:token:pg_dump",
+      "locator": "token:pg_dump",
+      "path": "scripts/deploy-docker-dev.ps1",
+      "status": "adjacent_operational",
+      "symbol": "pg_dump",
+      "target": "postgres:pg_dump"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/deploy-on-vps.sh:deploy-on-vps.sh:token:deploy-on-vps.sh",
+      "locator": "token:deploy-on-vps.sh",
+      "path": "scripts/deploy-on-vps.sh",
+      "status": "compatibility",
+      "symbol": "deploy-on-vps.sh",
+      "target": "scripts/deploy-on-vps.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/deploy-on-vps.sh:manage.py migrate:token:manage.py migrate",
+      "locator": "token:manage.py migrate",
+      "path": "scripts/deploy-on-vps.sh",
+      "status": "compatibility",
+      "symbol": "manage.py migrate",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/deploy-one-click.sh:deploy-on-vps.sh:token:deploy-on-vps.sh",
+      "locator": "token:deploy-on-vps.sh",
+      "path": "scripts/deploy-one-click.sh",
+      "status": "compatibility",
+      "symbol": "deploy-on-vps.sh",
+      "target": "scripts/deploy-on-vps.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/deploy-vps.ps1:deploy-vps.ps1:token:deploy-vps.ps1",
+      "locator": "token:deploy-vps.ps1",
+      "path": "scripts/deploy-vps.ps1",
+      "status": "adjacent_operational",
+      "symbol": "deploy-vps.ps1",
+      "target": "scripts/deploy-vps.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/deploy-vps.ps1:remote_build_deploy_vps.py:token:remote_build_deploy_vps.py",
+      "locator": "token:remote_build_deploy_vps.py",
+      "path": "scripts/deploy-vps.ps1",
+      "status": "adjacent_operational",
+      "symbol": "remote_build_deploy_vps.py",
+      "target": "scripts/remote_build_deploy_vps.py"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/deploy_canary.sh:deploy-vps.ps1:token:deploy-vps.ps1",
+      "locator": "token:deploy-vps.ps1",
+      "path": "scripts/deploy_canary.sh",
+      "status": "adjacent_operational",
+      "symbol": "deploy-vps.ps1",
+      "target": "scripts/deploy-vps.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/deploy_canary.sh:manage.py migrate:token:manage.py migrate",
+      "locator": "token:manage.py migrate",
+      "path": "scripts/deploy_canary.sh",
+      "status": "adjacent_operational",
+      "symbol": "manage.py migrate",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/deploy_canary.sh:rollback.sh:token:rollback.sh",
+      "locator": "token:rollback.sh",
+      "path": "scripts/deploy_canary.sh",
+      "status": "adjacent_operational",
+      "symbol": "rollback.sh",
+      "target": "scripts/rollback.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/deploy_vps_verify.py:deploy-vps.ps1:token:deploy-vps.ps1",
+      "locator": "token:deploy-vps.ps1",
+      "path": "scripts/deploy_vps_verify.py",
+      "status": "adjacent_operational",
+      "symbol": "deploy-vps.ps1",
+      "target": "scripts/deploy-vps.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/dev-smoke.ps1:manage.py migrate:token:manage.py migrate",
+      "locator": "token:manage.py migrate",
+      "path": "scripts/dev-smoke.ps1",
+      "status": "adjacent_operational",
+      "symbol": "manage.py migrate",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/dev.bat:manage.py migrate:token:manage.py migrate",
+      "locator": "token:manage.py migrate",
+      "path": "scripts/dev.bat",
+      "status": "adjacent_operational",
+      "symbol": "manage.py migrate",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/docker-dev.bat:manage.py migrate:token:manage.py migrate",
+      "locator": "token:manage.py migrate",
+      "path": "scripts/docker-dev.bat",
+      "status": "adjacent_operational",
+      "symbol": "manage.py migrate",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/docker-menu.ps1:Register-ScheduledTask:token:Register-ScheduledTask",
+      "locator": "token:Register-ScheduledTask",
+      "path": "scripts/docker-menu.ps1",
+      "status": "retired_blocked",
+      "symbol": "Register-ScheduledTask",
+      "target": "windows:scheduled-task"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/docker-menu.ps1:auto-backup.ps1:token:auto-backup.ps1",
+      "locator": "token:auto-backup.ps1",
+      "path": "scripts/docker-menu.ps1",
+      "status": "retired_blocked",
+      "symbol": "auto-backup.ps1",
+      "target": "scripts/auto-backup.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/docker-menu.ps1:manage.py migrate:token:manage.py migrate",
+      "locator": "token:manage.py migrate",
+      "path": "scripts/docker-menu.ps1",
+      "status": "retired_blocked",
+      "symbol": "manage.py migrate",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/docker-menu.ps1:pg_dump:token:pg_dump",
+      "locator": "token:pg_dump",
+      "path": "scripts/docker-menu.ps1",
+      "status": "retired_blocked",
+      "symbol": "pg_dump",
+      "target": "postgres:pg_dump"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/migrate-to-postgres.ps1:manage.py migrate:token:manage.py migrate",
+      "locator": "token:manage.py migrate",
+      "path": "scripts/migrate-to-postgres.ps1",
+      "status": "compatibility",
+      "symbol": "manage.py migrate",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/migrate-to-postgres.ps1:migrate-to-postgres.ps1:token:migrate-to-postgres.ps1",
+      "locator": "token:migrate-to-postgres.ps1",
+      "path": "scripts/migrate-to-postgres.ps1",
+      "status": "compatibility",
+      "symbol": "migrate-to-postgres.ps1",
+      "target": "scripts/migrate-to-postgres.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/migrate-vps-sqlite-to-postgres.sh:createdb:token:createdb",
+      "locator": "token:createdb",
+      "path": "scripts/migrate-vps-sqlite-to-postgres.sh",
+      "status": "compatibility",
+      "symbol": "createdb",
+      "target": "postgres:createdb"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/migrate-vps-sqlite-to-postgres.sh:dropdb:token:dropdb",
+      "locator": "token:dropdb",
+      "path": "scripts/migrate-vps-sqlite-to-postgres.sh",
+      "status": "compatibility",
+      "symbol": "dropdb",
+      "target": "postgres:dropdb"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/migrate-vps-sqlite-to-postgres.sh:manage.py migrate:token:manage.py migrate",
+      "locator": "token:manage.py migrate",
+      "path": "scripts/migrate-vps-sqlite-to-postgres.sh",
+      "status": "compatibility",
+      "symbol": "manage.py migrate",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/migrate-vps-sqlite-to-postgres.sh:migrate-vps-sqlite-to-postgres.sh:token:migrate-vps-sqlite-to-postgres.sh",
+      "locator": "token:migrate-vps-sqlite-to-postgres.sh",
+      "path": "scripts/migrate-vps-sqlite-to-postgres.sh",
+      "status": "compatibility",
+      "symbol": "migrate-vps-sqlite-to-postgres.sh",
+      "target": "scripts/migrate-vps-sqlite-to-postgres.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/migration/direct_migrate.py:call_command dumpdata:token:call_command dumpdata",
+      "locator": "token:call_command dumpdata",
+      "path": "scripts/migration/direct_migrate.py",
+      "status": "retired_blocked",
+      "symbol": "call_command dumpdata",
+      "target": "django:dumpdata"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/migration/direct_migrate.py:call_command loaddata:token:call_command loaddata",
+      "locator": "token:call_command loaddata",
+      "path": "scripts/migration/direct_migrate.py",
+      "status": "retired_blocked",
+      "symbol": "call_command loaddata",
+      "target": "django:loaddata"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/migration/direct_migrate.py:direct_migrate.py:token:direct_migrate.py",
+      "locator": "token:direct_migrate.py",
+      "path": "scripts/migration/direct_migrate.py",
+      "status": "retired_blocked",
+      "symbol": "direct_migrate.py",
+      "target": "scripts/migration/direct_migrate.py"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/migration/do_migrate.py:call_command dumpdata:token:call_command dumpdata",
+      "locator": "token:call_command dumpdata",
+      "path": "scripts/migration/do_migrate.py",
+      "status": "retired_blocked",
+      "symbol": "call_command dumpdata",
+      "target": "django:dumpdata"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/migration/do_migrate.py:call_command loaddata:token:call_command loaddata",
+      "locator": "token:call_command loaddata",
+      "path": "scripts/migration/do_migrate.py",
+      "status": "retired_blocked",
+      "symbol": "call_command loaddata",
+      "target": "django:loaddata"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/migration/do_migrate.py:do_migrate.py:token:do_migrate.py",
+      "locator": "token:do_migrate.py",
+      "path": "scripts/migration/do_migrate.py",
+      "status": "retired_blocked",
+      "symbol": "do_migrate.py",
+      "target": "scripts/migration/do_migrate.py"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/migration/migrate_data.py:call_command dumpdata:token:call_command dumpdata",
+      "locator": "token:call_command dumpdata",
+      "path": "scripts/migration/migrate_data.py",
+      "status": "retired_blocked",
+      "symbol": "call_command dumpdata",
+      "target": "django:dumpdata"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/migration/migrate_data.py:migrate_data.py:token:migrate_data.py",
+      "locator": "token:migrate_data.py",
+      "path": "scripts/migration/migrate_data.py",
+      "status": "retired_blocked",
+      "symbol": "migrate_data.py",
+      "target": "scripts/migration/migrate_data.py"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/package-for-vps.ps1:deploy-on-vps.sh:token:deploy-on-vps.sh",
+      "locator": "token:deploy-on-vps.sh",
+      "path": "scripts/package-for-vps.ps1",
+      "status": "compatibility",
+      "symbol": "deploy-on-vps.sh",
+      "target": "scripts/deploy-on-vps.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/package-for-vps.ps1:vps-backup.ps1:token:vps-backup.ps1",
+      "locator": "token:vps-backup.ps1",
+      "path": "scripts/package-for-vps.ps1",
+      "status": "compatibility",
+      "symbol": "vps-backup.ps1",
+      "target": "scripts/vps-backup.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/package-for-vps.ps1:vps-backup.sh:token:vps-backup.sh",
+      "locator": "token:vps-backup.sh",
+      "path": "scripts/package-for-vps.ps1",
+      "status": "compatibility",
+      "symbol": "vps-backup.sh",
+      "target": "scripts/vps-backup.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/package-for-vps.ps1:vps-restore.ps1:token:vps-restore.ps1",
+      "locator": "token:vps-restore.ps1",
+      "path": "scripts/package-for-vps.ps1",
+      "status": "compatibility",
+      "symbol": "vps-restore.ps1",
+      "target": "scripts/vps-restore.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/package-for-vps.ps1:vps-restore.sh:token:vps-restore.sh",
+      "locator": "token:vps-restore.sh",
+      "path": "scripts/package-for-vps.ps1",
+      "status": "compatibility",
+      "symbol": "vps-restore.sh",
+      "target": "scripts/vps-restore.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/package-portable-project.ps1:deploy-on-vps.sh:token:deploy-on-vps.sh",
+      "locator": "token:deploy-on-vps.sh",
+      "path": "scripts/package-portable-project.ps1",
+      "status": "compatibility",
+      "symbol": "deploy-on-vps.sh",
+      "target": "scripts/deploy-on-vps.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/package-portable-project.ps1:remote_build_deploy_vps.py:token:remote_build_deploy_vps.py",
+      "locator": "token:remote_build_deploy_vps.py",
+      "path": "scripts/package-portable-project.ps1",
+      "status": "compatibility",
+      "symbol": "remote_build_deploy_vps.py",
+      "target": "scripts/remote_build_deploy_vps.py"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/package-portable-project.ps1:vps-backup.ps1:token:vps-backup.ps1",
+      "locator": "token:vps-backup.ps1",
+      "path": "scripts/package-portable-project.ps1",
+      "status": "compatibility",
+      "symbol": "vps-backup.ps1",
+      "target": "scripts/vps-backup.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/package-portable-project.ps1:vps-backup.sh:token:vps-backup.sh",
+      "locator": "token:vps-backup.sh",
+      "path": "scripts/package-portable-project.ps1",
+      "status": "compatibility",
+      "symbol": "vps-backup.sh",
+      "target": "scripts/vps-backup.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/package-portable-project.ps1:vps-restore.ps1:token:vps-restore.ps1",
+      "locator": "token:vps-restore.ps1",
+      "path": "scripts/package-portable-project.ps1",
+      "status": "compatibility",
+      "symbol": "vps-restore.ps1",
+      "target": "scripts/vps-restore.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/package-portable-project.ps1:vps-restore.sh:token:vps-restore.sh",
+      "locator": "token:vps-restore.sh",
+      "path": "scripts/package-portable-project.ps1",
+      "status": "compatibility",
+      "symbol": "vps-restore.sh",
+      "target": "scripts/vps-restore.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/promote_canary.sh:deploy-vps.ps1:token:deploy-vps.ps1",
+      "locator": "token:deploy-vps.ps1",
+      "path": "scripts/promote_canary.sh",
+      "status": "retired_blocked",
+      "symbol": "deploy-vps.ps1",
+      "target": "scripts/deploy-vps.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/promote_canary.sh:rollback.sh:token:rollback.sh",
+      "locator": "token:rollback.sh",
+      "path": "scripts/promote_canary.sh",
+      "status": "retired_blocked",
+      "symbol": "rollback.sh",
+      "target": "scripts/rollback.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/register-macro-daily-sync-task.ps1:Register-ScheduledTask:token:Register-ScheduledTask",
+      "locator": "token:Register-ScheduledTask",
+      "path": "scripts/register-macro-daily-sync-task.ps1",
+      "status": "adjacent_operational",
+      "symbol": "Register-ScheduledTask",
+      "target": "windows:scheduled-task"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/remote-build-deploy-vps.ps1:deploy-vps.ps1:token:deploy-vps.ps1",
+      "locator": "token:deploy-vps.ps1",
+      "path": "scripts/remote-build-deploy-vps.ps1",
+      "status": "compatibility",
+      "symbol": "deploy-vps.ps1",
+      "target": "scripts/deploy-vps.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/remote-build-deploy-vps.ps1:remote-build-deploy-vps.ps1:token:remote-build-deploy-vps.ps1",
+      "locator": "token:remote-build-deploy-vps.ps1",
+      "path": "scripts/remote-build-deploy-vps.ps1",
+      "status": "compatibility",
+      "symbol": "remote-build-deploy-vps.ps1",
+      "target": "scripts/remote-build-deploy-vps.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/remote-build-deploy-vps.ps1:remote_build_deploy_vps.py:token:remote_build_deploy_vps.py",
+      "locator": "token:remote_build_deploy_vps.py",
+      "path": "scripts/remote-build-deploy-vps.ps1",
+      "status": "compatibility",
+      "symbol": "remote_build_deploy_vps.py",
+      "target": "scripts/remote_build_deploy_vps.py"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/remote_build_deploy_vps.py:migrate-vps-sqlite-to-postgres.sh:token:migrate-vps-sqlite-to-postgres.sh",
+      "locator": "token:migrate-vps-sqlite-to-postgres.sh",
+      "path": "scripts/remote_build_deploy_vps.py",
+      "status": "adjacent_operational",
+      "symbol": "migrate-vps-sqlite-to-postgres.sh",
+      "target": "scripts/migrate-vps-sqlite-to-postgres.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/remote_build_deploy_vps.py:remote_build_deploy_vps.py:token:remote_build_deploy_vps.py",
+      "locator": "token:remote_build_deploy_vps.py",
+      "path": "scripts/remote_build_deploy_vps.py",
+      "status": "adjacent_operational",
+      "symbol": "remote_build_deploy_vps.py",
+      "target": "scripts/remote_build_deploy_vps.py"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/remote_build_deploy_vps.py:vps-backup.sh:token:vps-backup.sh",
+      "locator": "token:vps-backup.sh",
+      "path": "scripts/remote_build_deploy_vps.py",
+      "status": "adjacent_operational",
+      "symbol": "vps-backup.sh",
+      "target": "scripts/vps-backup.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/rollback.sh:deploy-vps.ps1:token:deploy-vps.ps1",
+      "locator": "token:deploy-vps.ps1",
+      "path": "scripts/rollback.sh",
+      "status": "retired_blocked",
+      "symbol": "deploy-vps.ps1",
+      "target": "scripts/deploy-vps.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/rollback.sh:manage.py migrate:token:manage.py migrate",
+      "locator": "token:manage.py migrate",
+      "path": "scripts/rollback.sh",
+      "status": "retired_blocked",
+      "symbol": "manage.py migrate",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/rollback.sh:rollback.sh:token:rollback.sh",
+      "locator": "token:rollback.sh",
+      "path": "scripts/rollback.sh",
+      "status": "retired_blocked",
+      "symbol": "rollback.sh",
+      "target": "scripts/rollback.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/start-dev.ps1:manage.py migrate:token:manage.py migrate",
+      "locator": "token:manage.py migrate",
+      "path": "scripts/start-dev.ps1",
+      "status": "adjacent_operational",
+      "symbol": "manage.py migrate",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/verify-vps-bundle.ps1:deploy-on-vps.sh:token:deploy-on-vps.sh",
+      "locator": "token:deploy-on-vps.sh",
+      "path": "scripts/verify-vps-bundle.ps1",
+      "status": "compatibility",
+      "symbol": "deploy-on-vps.sh",
+      "target": "scripts/deploy-on-vps.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/verify-vps-bundle.ps1:vps-backup.ps1:token:vps-backup.ps1",
+      "locator": "token:vps-backup.ps1",
+      "path": "scripts/verify-vps-bundle.ps1",
+      "status": "compatibility",
+      "symbol": "vps-backup.ps1",
+      "target": "scripts/vps-backup.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/verify-vps-bundle.ps1:vps-backup.sh:token:vps-backup.sh",
+      "locator": "token:vps-backup.sh",
+      "path": "scripts/verify-vps-bundle.ps1",
+      "status": "compatibility",
+      "symbol": "vps-backup.sh",
+      "target": "scripts/vps-backup.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/verify-vps-bundle.ps1:vps-restore.ps1:token:vps-restore.ps1",
+      "locator": "token:vps-restore.ps1",
+      "path": "scripts/verify-vps-bundle.ps1",
+      "status": "compatibility",
+      "symbol": "vps-restore.ps1",
+      "target": "scripts/vps-restore.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_dispatch_edge:scripts/verify-vps-bundle.ps1:vps-restore.sh:token:vps-restore.sh",
+      "locator": "token:vps-restore.sh",
+      "path": "scripts/verify-vps-bundle.ps1",
+      "status": "compatibility",
+      "symbol": "vps-restore.sh",
+      "target": "scripts/vps-restore.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "id": "operational_dispatch_edge:scripts/verify_postgres_backup_restore.py:pg_restore:token:pg_restore",
+      "locator": "token:pg_restore",
+      "path": "scripts/verify_postgres_backup_restore.py",
+      "status": "active_public",
+      "symbol": "pg_restore",
+      "target": "postgres:pg_restore"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "id": "operational_dispatch_edge:scripts/verify_postgres_backup_restore.py:verify_postgres_backup_restore.py:token:verify_postgres_backup_restore.py",
+      "locator": "token:verify_postgres_backup_restore.py",
+      "path": "scripts/verify_postgres_backup_restore.py",
+      "status": "active_public",
+      "symbol": "verify_postgres_backup_restore.py",
+      "target": "scripts/verify_postgres_backup_restore.py"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/vps-backup.ps1:vps-backup.ps1:token:vps-backup.ps1",
+      "locator": "token:vps-backup.ps1",
+      "path": "scripts/vps-backup.ps1",
+      "status": "retired_blocked",
+      "symbol": "vps-backup.ps1",
+      "target": "scripts/vps-backup.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/vps-backup.sh:pg_dump:token:pg_dump",
+      "locator": "token:pg_dump",
+      "path": "scripts/vps-backup.sh",
+      "status": "adjacent_operational",
+      "symbol": "pg_dump",
+      "target": "postgres:pg_dump"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/vps-backup.sh:pg_restore:token:pg_restore",
+      "locator": "token:pg_restore",
+      "path": "scripts/vps-backup.sh",
+      "status": "adjacent_operational",
+      "symbol": "pg_restore",
+      "target": "postgres:pg_restore"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/vps-backup.sh:vps-backup.sh:token:vps-backup.sh",
+      "locator": "token:vps-backup.sh",
+      "path": "scripts/vps-backup.sh",
+      "status": "adjacent_operational",
+      "symbol": "vps-backup.sh",
+      "target": "scripts/vps-backup.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_dispatch_edge:scripts/vps-restore.ps1:vps-restore.ps1:token:vps-restore.ps1",
+      "locator": "token:vps-restore.ps1",
+      "path": "scripts/vps-restore.ps1",
+      "status": "retired_blocked",
+      "symbol": "vps-restore.ps1",
+      "target": "scripts/vps-restore.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/vps-restore.sh:createdb:token:createdb",
+      "locator": "token:createdb",
+      "path": "scripts/vps-restore.sh",
+      "status": "adjacent_operational",
+      "symbol": "createdb",
+      "target": "postgres:createdb"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/vps-restore.sh:dropdb:token:dropdb",
+      "locator": "token:dropdb",
+      "path": "scripts/vps-restore.sh",
+      "status": "adjacent_operational",
+      "symbol": "dropdb",
+      "target": "postgres:dropdb"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/vps-restore.sh:pg_restore:token:pg_restore",
+      "locator": "token:pg_restore",
+      "path": "scripts/vps-restore.sh",
+      "status": "adjacent_operational",
+      "symbol": "pg_restore",
+      "target": "postgres:pg_restore"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/vps-restore.sh:vps-restore.sh:token:vps-restore.sh",
+      "locator": "token:vps-restore.sh",
+      "path": "scripts/vps-restore.sh",
+      "status": "adjacent_operational",
+      "symbol": "vps-restore.sh",
+      "target": "scripts/vps-restore.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:start.bat:manage.py migrate:token:manage.py migrate",
+      "locator": "token:manage.py migrate",
+      "path": "start.bat",
+      "status": "adjacent_operational",
+      "symbol": "manage.py migrate",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:venv.bat:manage.py migrate:token:manage.py migrate",
+      "locator": "token:manage.py migrate",
+      "path": "venv.bat",
+      "status": "adjacent_operational",
+      "symbol": "manage.py migrate",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:apps/config_center/management/commands/collect_storage_capacity_profile.py:collect_storage_capacity_profile:",
+      "locator": "",
+      "path": "apps/config_center/management/commands/collect_storage_capacity_profile.py",
+      "status": "adjacent_operational",
+      "symbol": "collect_storage_capacity_profile",
+      "target": "django:collect_storage_capacity_profile"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:apps/config_center/management/commands/initialize_storage_budget.py:initialize_storage_budget:",
+      "locator": "",
+      "path": "apps/config_center/management/commands/initialize_storage_budget.py",
+      "status": "adjacent_operational",
+      "symbol": "initialize_storage_budget",
+      "target": "django:initialize_storage_budget,config_center:storage_budget"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:apps/task_monitor/management/commands/backup_database.py:backup_database:",
+      "locator": "",
+      "path": "apps/task_monitor/management/commands/backup_database.py",
+      "status": "adjacent_operational",
+      "symbol": "backup_database",
+      "target": "django:backup_database,postgres:pg_dump,config_center:storage_budget"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_script:scripts/auto-backup.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/auto-backup.ps1",
+      "status": "retired_blocked",
+      "symbol": "__main__",
+      "target": "scripts/auto-backup.ps1,postgres:pg_dump"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/backup-vps-postgres.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/backup-vps-postgres.ps1",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "scripts/backup-vps-postgres.ps1,scripts/backup-vps-postgres.py,postgres:pg_restore"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/backup-vps-postgres.py:__main__:",
+      "locator": "",
+      "path": "scripts/backup-vps-postgres.py",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "scripts/backup-vps-postgres.py,postgres:pg_dump,postgres:pg_restore"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "id": "operational_script:scripts/check_migration_graph.py:__main__:",
+      "locator": "",
+      "path": "scripts/check_migration_graph.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": "django:MigrationExecutor,scripts/check_migration_graph.py"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_script:scripts/debug/check_and_migrate.py:__main__:",
+      "locator": "",
+      "path": "scripts/debug/check_and_migrate.py",
+      "status": "retired_blocked",
+      "symbol": "__main__",
+      "target": "scripts/debug/check_and_migrate.py"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_script:scripts/deploy-bundle-to-vps.py:__main__:",
+      "locator": "",
+      "path": "scripts/deploy-bundle-to-vps.py",
+      "status": "compatibility",
+      "symbol": "__main__",
+      "target": "scripts/deploy-on-vps.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/deploy-docker-dev.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/deploy-docker-dev.ps1",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "django:migrate,postgres:pg_dump"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_script:scripts/deploy-on-vps.sh:__main__:",
+      "locator": "",
+      "path": "scripts/deploy-on-vps.sh",
+      "status": "compatibility",
+      "symbol": "__main__",
+      "target": "scripts/deploy-on-vps.sh,django:migrate"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_script:scripts/deploy-one-click.sh:__main__:",
+      "locator": "",
+      "path": "scripts/deploy-one-click.sh",
+      "status": "compatibility",
+      "symbol": "__main__",
+      "target": "scripts/deploy-on-vps.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/deploy-vps.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/deploy-vps.ps1",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "scripts/deploy-vps.ps1,scripts/remote_build_deploy_vps.py"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/deploy_canary.sh:__main__:",
+      "locator": "",
+      "path": "scripts/deploy_canary.sh",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "scripts/deploy-vps.ps1,django:migrate,scripts/rollback.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/deploy_vps_verify.py:__main__:",
+      "locator": "",
+      "path": "scripts/deploy_vps_verify.py",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "scripts/deploy-vps.ps1"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/dev-smoke.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/dev-smoke.ps1",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/dev.bat:__main__:",
+      "locator": "",
+      "path": "scripts/dev.bat",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/docker-dev.bat:__main__:",
+      "locator": "",
+      "path": "scripts/docker-dev.bat",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_script:scripts/docker-menu.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/docker-menu.ps1",
+      "status": "retired_blocked",
+      "symbol": "__main__",
+      "target": "windows:scheduled-task,scripts/auto-backup.ps1,django:migrate,postgres:pg_dump"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_script:scripts/migrate-to-postgres.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/migrate-to-postgres.ps1",
+      "status": "compatibility",
+      "symbol": "__main__",
+      "target": "django:migrate,scripts/migrate-to-postgres.ps1"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_script:scripts/migrate-vps-sqlite-to-postgres.sh:__main__:",
+      "locator": "",
+      "path": "scripts/migrate-vps-sqlite-to-postgres.sh",
+      "status": "compatibility",
+      "symbol": "__main__",
+      "target": "postgres:createdb,postgres:dropdb,django:migrate,scripts/migrate-vps-sqlite-to-postgres.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_script:scripts/migration/direct_migrate.py:__main__:",
+      "locator": "",
+      "path": "scripts/migration/direct_migrate.py",
+      "status": "retired_blocked",
+      "symbol": "__main__",
+      "target": "django:dumpdata,django:loaddata,scripts/migration/direct_migrate.py"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_script:scripts/migration/do_migrate.py:__main__:",
+      "locator": "",
+      "path": "scripts/migration/do_migrate.py",
+      "status": "retired_blocked",
+      "symbol": "__main__",
+      "target": "django:dumpdata,django:loaddata,scripts/migration/do_migrate.py"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_script:scripts/migration/migrate_data.py:__main__:",
+      "locator": "",
+      "path": "scripts/migration/migrate_data.py",
+      "status": "retired_blocked",
+      "symbol": "__main__",
+      "target": "django:dumpdata,scripts/migration/migrate_data.py"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_script:scripts/package-for-vps.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/package-for-vps.ps1",
+      "status": "compatibility",
+      "symbol": "__main__",
+      "target": "scripts/deploy-on-vps.sh,scripts/vps-backup.ps1,scripts/vps-backup.sh,scripts/vps-restore.ps1,scripts/vps-restore.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_script:scripts/package-portable-project.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/package-portable-project.ps1",
+      "status": "compatibility",
+      "symbol": "__main__",
+      "target": "scripts/deploy-on-vps.sh,scripts/remote_build_deploy_vps.py,scripts/vps-backup.ps1,scripts/vps-backup.sh,scripts/vps-restore.ps1,scripts/vps-restore.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_script:scripts/promote_canary.sh:__main__:",
+      "locator": "",
+      "path": "scripts/promote_canary.sh",
+      "status": "retired_blocked",
+      "symbol": "__main__",
+      "target": "scripts/deploy-vps.ps1,scripts/rollback.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/register-macro-daily-sync-task.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/register-macro-daily-sync-task.ps1",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "windows:scheduled-task"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_script:scripts/remote-build-deploy-vps.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/remote-build-deploy-vps.ps1",
+      "status": "compatibility",
+      "symbol": "__main__",
+      "target": "scripts/deploy-vps.ps1,scripts/remote-build-deploy-vps.ps1,scripts/remote_build_deploy_vps.py"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/remote_build_deploy_vps.py:__main__:",
+      "locator": "",
+      "path": "scripts/remote_build_deploy_vps.py",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "scripts/migrate-vps-sqlite-to-postgres.sh,scripts/remote_build_deploy_vps.py,scripts/vps-backup.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_script:scripts/rollback.sh:__main__:",
+      "locator": "",
+      "path": "scripts/rollback.sh",
+      "status": "retired_blocked",
+      "symbol": "__main__",
+      "target": "scripts/deploy-vps.ps1,django:migrate,scripts/rollback.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/start-dev.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/start-dev.ps1",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "id": "operational_script:scripts/verify-vps-bundle.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/verify-vps-bundle.ps1",
+      "status": "compatibility",
+      "symbol": "__main__",
+      "target": "scripts/deploy-on-vps.sh,scripts/vps-backup.ps1,scripts/vps-backup.sh,scripts/vps-restore.ps1,scripts/vps-restore.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "id": "operational_script:scripts/verify_postgres_backup_restore.py:__main__:",
+      "locator": "",
+      "path": "scripts/verify_postgres_backup_restore.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": "postgres:pg_restore,scripts/verify_postgres_backup_restore.py"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_script:scripts/vps-backup.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/vps-backup.ps1",
+      "status": "retired_blocked",
+      "symbol": "__main__",
+      "target": "scripts/vps-backup.ps1"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/vps-backup.sh:__main__:",
+      "locator": "",
+      "path": "scripts/vps-backup.sh",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "postgres:pg_dump,postgres:pg_restore,scripts/vps-backup.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "id": "operational_script:scripts/vps-restore.ps1:__main__:",
+      "locator": "",
+      "path": "scripts/vps-restore.ps1",
+      "status": "retired_blocked",
+      "symbol": "__main__",
+      "target": "scripts/vps-restore.ps1"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/vps-restore.sh:__main__:",
+      "locator": "",
+      "path": "scripts/vps-restore.sh",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "postgres:createdb,postgres:dropdb,postgres:pg_restore,scripts/vps-restore.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:start.bat:__main__:",
+      "locator": "",
+      "path": "start.bat",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "django:migrate"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:venv.bat:__main__:",
+      "locator": "",
+      "path": "venv.bat",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "django:migrate"
+    },
+    {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
       "id": "orchestration_entry:.github/workflows/nightly-tests.yml:initialize_data_center_catalog:line:406",
@@ -8403,6 +9861,86 @@
       "target": "include(('apps.data_center.interface.api_urls', 'api_data_center'), namespace='api_data_center')"
     },
     {
+      "category": "runbook",
+      "evidence": "current database posture or development-only database deployment guidance",
+      "id": "runbook:docs/deployment/DOCKER_DEPLOYMENT.md:DOCKER_DEPLOYMENT:",
+      "locator": "",
+      "path": "docs/deployment/DOCKER_DEPLOYMENT.md",
+      "status": "adjacent_operational",
+      "symbol": "DOCKER_DEPLOYMENT",
+      "target": ""
+    },
+    {
+      "category": "runbook",
+      "evidence": "historical package or VPS deployment guidance retained as a compatibility reference",
+      "id": "runbook:docs/deployment/VPS_BUNDLE_DEPLOYMENT.md:VPS_BUNDLE_DEPLOYMENT:",
+      "locator": "",
+      "path": "docs/deployment/VPS_BUNDLE_DEPLOYMENT.md",
+      "status": "compatibility",
+      "symbol": "VPS_BUNDLE_DEPLOYMENT",
+      "target": ""
+    },
+    {
+      "category": "runbook",
+      "evidence": "historical package or VPS deployment guidance retained as a compatibility reference",
+      "id": "runbook:docs/deployment/VPS_DEPLOYMENT_CLOSURE_2026-07-16.md:VPS_DEPLOYMENT_CLOSURE_2026-07-16:",
+      "locator": "",
+      "path": "docs/deployment/VPS_DEPLOYMENT_CLOSURE_2026-07-16.md",
+      "status": "compatibility",
+      "symbol": "VPS_DEPLOYMENT_CLOSURE_2026-07-16",
+      "target": ""
+    },
+    {
+      "category": "runbook",
+      "evidence": "current database posture or development-only database deployment guidance",
+      "id": "runbook:docs/deployment/database_configuration.md:database_configuration:",
+      "locator": "",
+      "path": "docs/deployment/database_configuration.md",
+      "status": "adjacent_operational",
+      "symbol": "database_configuration",
+      "target": ""
+    },
+    {
+      "category": "runbook",
+      "evidence": "current database posture or development-only database deployment guidance",
+      "id": "runbook:docs/deployment/postgres_windows_docker.md:postgres_windows_docker:",
+      "locator": "",
+      "path": "docs/deployment/postgres_windows_docker.md",
+      "status": "adjacent_operational",
+      "symbol": "postgres_windows_docker",
+      "target": ""
+    },
+    {
+      "category": "runbook",
+      "evidence": "stale SQLite or venv production procedure; blocked from current PostgreSQL production use",
+      "id": "runbook:docs/operations/database-restore-drill.md:database-restore-drill:",
+      "locator": "",
+      "path": "docs/operations/database-restore-drill.md",
+      "status": "retired_blocked",
+      "symbol": "database-restore-drill",
+      "target": ""
+    },
+    {
+      "category": "runbook",
+      "evidence": "stale SQLite or venv production procedure; blocked from current PostgreSQL production use",
+      "id": "runbook:docs/operations/deployment.md:deployment:",
+      "locator": "",
+      "path": "docs/operations/deployment.md",
+      "status": "retired_blocked",
+      "symbol": "deployment",
+      "target": ""
+    },
+    {
+      "category": "runbook",
+      "evidence": "canonical Data Center architecture and operational convergence plan",
+      "id": "runbook:docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md:data-center-canonical-architecture-refactor-2026-08-02:",
+      "locator": "",
+      "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
+      "status": "active_public",
+      "symbol": "data-center-canonical-architecture-refactor-2026-08-02",
+      "target": ""
+    },
+    {
       "category": "runtime_config_key",
       "evidence": "runtime owner=account; consumers=4; migration_status=consumer_cutover_in_progress",
       "id": "runtime_config_key:governance/runtime_config_contracts.json:account.allow_token_plaintext_view:consumer_cutover_in_progress",
@@ -9931,6 +11469,396 @@
       "status": "active_public",
       "symbol": "param.api.get.api.data-center.pit-manifests.str.manifest_id",
       "target": "/api/data-center/pit-manifests/<str:manifest_id>/"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/component/account/test_db_backup_email.py:test_db_backup_email:",
+      "locator": "",
+      "path": "tests/component/account/test_db_backup_email.py",
+      "status": "active_public",
+      "symbol": "test_db_backup_email",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/component/config_center/test_backup_delivery_secret_cutover.py:test_backup_delivery_secret_cutover:",
+      "locator": "",
+      "path": "tests/component/config_center/test_backup_delivery_secret_cutover.py",
+      "status": "active_public",
+      "symbol": "test_backup_delivery_secret_cutover",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/component/config_center/test_backup_delivery_state.py:test_backup_delivery_state:",
+      "locator": "",
+      "path": "tests/component/config_center/test_backup_delivery_state.py",
+      "status": "active_public",
+      "symbol": "test_backup_delivery_state",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/component/data_center/test_archive_repository.py:test_archive_repository:",
+      "locator": "",
+      "path": "tests/component/data_center/test_archive_repository.py",
+      "status": "active_public",
+      "symbol": "test_archive_repository",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/component/data_center/test_retention_postgres_concurrency.py:test_retention_postgres_concurrency:",
+      "locator": "",
+      "path": "tests/component/data_center/test_retention_postgres_concurrency.py",
+      "status": "active_public",
+      "symbol": "test_retention_postgres_concurrency",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/component/test_macro_periodic_tasks.py:test_macro_periodic_tasks:",
+      "locator": "",
+      "path": "tests/component/test_macro_periodic_tasks.py",
+      "status": "active_public",
+      "symbol": "test_macro_periodic_tasks",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/component/test_task_monitor.py:test_task_monitor:",
+      "locator": "",
+      "path": "tests/component/test_task_monitor.py",
+      "status": "active_public",
+      "symbol": "test_task_monitor",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/integration/test_tui_registry_backup_commands.py:test_tui_registry_backup_commands:",
+      "locator": "",
+      "path": "tests/integration/test_tui_registry_backup_commands.py",
+      "status": "active_public",
+      "symbol": "test_tui_registry_backup_commands",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/account/test_t3a_documentation_view_and_task_contracts.py:test_t3a_documentation_view_and_task_contracts:",
+      "locator": "",
+      "path": "tests/unit/account/test_t3a_documentation_view_and_task_contracts.py",
+      "status": "active_public",
+      "symbol": "test_t3a_documentation_view_and_task_contracts",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/config_center/test_capacity_observations.py:test_capacity_observations:",
+      "locator": "",
+      "path": "tests/unit/config_center/test_capacity_observations.py",
+      "status": "active_public",
+      "symbol": "test_capacity_observations",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/config_center/test_runtime_config_control_plane.py:test_runtime_config_control_plane:",
+      "locator": "",
+      "path": "tests/unit/config_center/test_runtime_config_control_plane.py",
+      "status": "active_public",
+      "symbol": "test_runtime_config_control_plane",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/core/test_cross_app_read_ports.py:test_cross_app_read_ports:",
+      "locator": "",
+      "path": "tests/unit/core/test_cross_app_read_ports.py",
+      "status": "active_public",
+      "symbol": "test_cross_app_read_ports",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/data_center/test_archive_application.py:test_archive_application:",
+      "locator": "",
+      "path": "tests/unit/data_center/test_archive_application.py",
+      "status": "active_public",
+      "symbol": "test_archive_application",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/data_center/test_archive_tasks.py:test_archive_tasks:",
+      "locator": "",
+      "path": "tests/unit/data_center/test_archive_tasks.py",
+      "status": "active_public",
+      "symbol": "test_archive_tasks",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/data_center/test_raw_archive_store.py:test_raw_archive_store:",
+      "locator": "",
+      "path": "tests/unit/data_center/test_raw_archive_store.py",
+      "status": "active_public",
+      "symbol": "test_raw_archive_store",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/data_center/test_retention_control_plane.py:test_retention_control_plane:",
+      "locator": "",
+      "path": "tests/unit/data_center/test_retention_control_plane.py",
+      "status": "active_public",
+      "symbol": "test_retention_control_plane",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/data_center/test_retention_plan_domain.py:test_retention_plan_domain:",
+      "locator": "",
+      "path": "tests/unit/data_center/test_retention_plan_domain.py",
+      "status": "active_public",
+      "symbol": "test_retention_plan_domain",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/data_center/test_retention_tasks.py:test_retention_tasks:",
+      "locator": "",
+      "path": "tests/unit/data_center/test_retention_tasks.py",
+      "status": "active_public",
+      "symbol": "test_retention_tasks",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/task_monitor/test_backup_command_contracts.py:test_backup_command_contracts:",
+      "locator": "",
+      "path": "tests/unit/task_monitor/test_backup_command_contracts.py",
+      "status": "active_public",
+      "symbol": "test_backup_command_contracts",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/task_monitor/test_backup_task_contracts.py:test_backup_task_contracts:",
+      "locator": "",
+      "path": "tests/unit/task_monitor/test_backup_task_contracts.py",
+      "status": "active_public",
+      "symbol": "test_backup_task_contracts",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/task_monitor/test_repository_retention_safety.py:test_repository_retention_safety:",
+      "locator": "",
+      "path": "tests/unit/task_monitor/test_repository_retention_safety.py",
+      "status": "active_public",
+      "symbol": "test_repository_retention_safety",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_account_backup_views.py:test_account_backup_views:",
+      "locator": "",
+      "path": "tests/unit/test_account_backup_views.py",
+      "status": "active_public",
+      "symbol": "test_account_backup_views",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_alpha_trigger_subscriber_wiring.py:test_alpha_trigger_subscriber_wiring:",
+      "locator": "",
+      "path": "tests/unit/test_alpha_trigger_subscriber_wiring.py",
+      "status": "active_public",
+      "symbol": "test_alpha_trigger_subscriber_wiring",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_backup_delivery_secret_ownership.py:test_backup_delivery_secret_ownership:",
+      "locator": "",
+      "path": "tests/unit/test_backup_delivery_secret_ownership.py",
+      "status": "active_public",
+      "symbol": "test_backup_delivery_secret_ownership",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_backup_vps_postgres.py:test_backup_vps_postgres:",
+      "locator": "",
+      "path": "tests/unit/test_backup_vps_postgres.py",
+      "status": "active_public",
+      "symbol": "test_backup_vps_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_data_center_entrypoint_inventory.py:test_data_center_entrypoint_inventory:",
+      "locator": "",
+      "path": "tests/unit/test_data_center_entrypoint_inventory.py",
+      "status": "active_public",
+      "symbol": "test_data_center_entrypoint_inventory",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_deploy_vps_verify.py:test_deploy_vps_verify:",
+      "locator": "",
+      "path": "tests/unit/test_deploy_vps_verify.py",
+      "status": "active_public",
+      "symbol": "test_deploy_vps_verify",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_docker_pyqlib_install.py:test_docker_pyqlib_install:",
+      "locator": "",
+      "path": "tests/unit/test_docker_pyqlib_install.py",
+      "status": "active_public",
+      "symbol": "test_docker_pyqlib_install",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_remote_build_deploy_vps.py:test_remote_build_deploy_vps:",
+      "locator": "",
+      "path": "tests/unit/test_remote_build_deploy_vps.py",
+      "status": "active_public",
+      "symbol": "test_remote_build_deploy_vps",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_verify_postgres_backup_restore.py:test_verify_postgres_backup_restore:",
+      "locator": "",
+      "path": "tests/unit/test_verify_postgres_backup_restore.py",
+      "status": "active_public",
+      "symbol": "test_verify_postgres_backup_restore",
+      "target": ""
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/ci-fast-feedback.yml:Prepare database:tokens:manage.py migrate",
+      "locator": "tokens:manage.py migrate",
+      "path": ".github/workflows/ci-fast-feedback.yml",
+      "status": "active_public",
+      "symbol": "Prepare database",
+      "target": "django:migrate"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/nightly-tests.yml:Apply full migration graph to empty PostgreSQL database:tokens:manage.py migrate",
+      "locator": "tokens:manage.py migrate",
+      "path": ".github/workflows/nightly-tests.yml",
+      "status": "active_public",
+      "symbol": "Apply full migration graph to empty PostgreSQL database",
+      "target": "django:migrate"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/nightly-tests.yml:Create application-owned custom PostgreSQL backup:tokens:manage.py backup_database",
+      "locator": "tokens:manage.py backup_database",
+      "path": ".github/workflows/nightly-tests.yml",
+      "status": "active_public",
+      "symbol": "Create application-owned custom PostgreSQL backup",
+      "target": "django:backup_database"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/nightly-tests.yml:Prepare database:tokens:manage.py migrate",
+      "locator": "tokens:manage.py migrate",
+      "path": ".github/workflows/nightly-tests.yml",
+      "status": "active_public",
+      "symbol": "Prepare database",
+      "target": "django:migrate"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/nightly-tests.yml:Record PostgreSQL storage capacity observation:tokens:collect_storage_capacity_profile,initialize_storage_budget",
+      "locator": "tokens:collect_storage_capacity_profile,initialize_storage_budget",
+      "path": ".github/workflows/nightly-tests.yml",
+      "status": "active_public",
+      "symbol": "Record PostgreSQL storage capacity observation",
+      "target": "django:collect_storage_capacity_profile,django:initialize_storage_budget"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/nightly-tests.yml:Restore backup in isolation and compare exact PostgreSQL state:tokens:verify_postgres_backup_restore.py",
+      "locator": "tokens:verify_postgres_backup_restore.py",
+      "path": ".github/workflows/nightly-tests.yml",
+      "status": "active_public",
+      "symbol": "Restore backup in isolation and compare exact PostgreSQL state",
+      "target": "scripts/verify_postgres_backup_restore.py"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/nightly-tests.yml:Verify complete PostgreSQL migration graph:tokens:check_migration_graph.py",
+      "locator": "tokens:check_migration_graph.py",
+      "path": ".github/workflows/nightly-tests.yml",
+      "status": "active_public",
+      "symbol": "Verify complete PostgreSQL migration graph",
+      "target": "scripts/check_migration_graph.py"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/rc-gate.yml:Prepare database:tokens:manage.py migrate",
+      "locator": "tokens:manage.py migrate",
+      "path": ".github/workflows/rc-gate.yml",
+      "status": "active_public",
+      "symbol": "Prepare database",
+      "target": "django:migrate"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/rc-gate.yml:Run Journey Tests:tokens:manage.py migrate",
+      "locator": "tokens:manage.py migrate",
+      "path": ".github/workflows/rc-gate.yml",
+      "status": "active_public",
+      "symbol": "Run Journey Tests",
+      "target": "django:migrate"
     }
   ],
   "owner": "data_center",
@@ -9939,18 +11867,21 @@
     "active_public": "explicitly governed canonical external or cross-app port",
     "adjacent_operational": "enumerated app-owned operation outside the Data Center owner contract",
     "candidate-review": "discovered callable surface; discovery is not approval or completion",
-    "compatibility": "supported migration seam with a canonical Data Center replacement"
+    "compatibility": "supported migration seam with a canonical Data Center replacement",
+    "retired_blocked": "known unsafe or obsolete operational path retained only as blocked evidence"
   },
   "source_contract_counts": {
     "celery_tasks": 31,
     "current_data_contracts": 46,
     "legacy_entrypoints_and_wrappers": 4,
+    "operational_governance_rules": 14,
     "runtime_config_keys": 45
   },
   "source_contracts": [
     "governance/celery_task_contracts.json",
     "governance/current_data_contracts.json",
     "governance/data_center_legacy_entrypoints.json",
+    "governance/data_center_operational_entrypoints.json",
     "governance/runtime_config_contracts.json",
     "config/tui/generated/tui_operation_graph.generated.json",
     "config/tui/published/tui_operation_graph.published.json"

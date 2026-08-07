@@ -4738,3 +4738,30 @@ Git SHA / 镜像 / migration：
 - CI 可下载证据：critical/current-data/Celery/retention/migration/concurrency 各自产出 JUnit，另保存 PostgreSQL/client version、migration plan 和 restore evidence JSON；artifact 不上传数据库 dump。入口图把 verifier 作为 active governance script 收编，更新为 990 entries、`active_public=562`、`candidate-review=0`。
 - 本地证据：Retention task 28 passed、verifier unit 7 passed、ORM/UoW 10 passed、migration forward/reverse 1 passed；PG concurrency 3 条在 SQLite 按设计 skip。Ruff、增量 mypy、YAML 解析通过。
 - 外部边界：以上仅完成可执行 CI 与证据产出定义；在 GitHub PostgreSQL job 实际绿灯并下载 artifact 前，不宣称 PG concurrency/restore DoD 已完成。它也不替代 VPS 生产规模 custom backup 下载、隔离恢复 RTO、host-key pinning、真实 archive key/mount 演练和 M9/M10。
+
+## 132. 2026-08-07：运维、证据与人机入口全量收编
+
+- 补漏根因：§129 的 990 项调用图只覆盖扫描器已经认识的 Python/HTTP/Celery/TUI 面；`pg_dump/pg_restore/dropdb/createdb`、通用 `manage.py migrate/backup_database`、Shell/PowerShell dispatch、migration test、workflow step、runbook 与 Agent Skill 都在盲区，因此原 `candidate-review=0` 不能证明运维入口完整。
+- 扫描扩展：入口图新增 `operational_script / operational_dispatch_edge / workflow_step / test_evidence / migration_evidence / runbook / agent_skill` 七类；静态识别 PostgreSQL 备份恢复、Django migrate/backup/dumpdata/loaddata、`MigrationExecutor`、Windows ScheduledTask、Retention/Archive 任务及 StorageBudget 初始化、观测和容量门。任何新命中默认 `candidate-review`，不会按关键词自动批准。
+- 生命周期真源：新增 `governance/data_center_operational_entrypoints.json`，显式登记 owner、状态和证据；增加 `retired_blocked`，用于已经退出批准生产路径但为审计/迁移仍保留文件的危险旧入口。该状态是治理级阻断和 dispatch 禁用依据，不冒充文件已经物理删除；最终 tombstone/删文件仍应独立提交。
+- 分类纠偏：永久阻断真实删除的 `cleanup_expired_raw_payloads_task` 改记 compatibility，replacement 为 plan/enforce 两阶段任务；Task Monitor 的 `backup_database_task/verify_backup_task` 改记 adjacent owner，不再错误伪装成 Data Center 迁移缝。旧 Windows 自动备份、SQLite restore、动态 settings 迁移和旧 rollback 等 34 项被收入口账并标 `retired_blocked`。
+- 最终快照：共 1182 项，`active_public=617`、`adjacent_operational=281`、`compatibility=250`、`retired_blocked=34`、`candidate-review=0`；其中新增运维/证据面 192 项。入口专项 17 passed，扩展 StorageBudget 迁移/测试发现后专项合计 26 passed，stale-check、Ruff 与 diff-check 通过。
+
+## 133. 2026-08-07：真实 PostgreSQL 反向发现与 CI 时限校准
+
+- 实测环境：本地一次性 PostgreSQL 16 空库执行全迁移图，首次迁移在工具十分钟外层超时后从已提交 migration 位置幂等续跑并完成；总耗时约 16 分钟。`0063 -> 0065 -> 0063 -> 0065` reverse/reapply 在真实 PostgreSQL 通过 1 项，约 537 秒；`serialized_rollback` 会触发无必要的全库反序列化，已移除。
+- 并发证据：双 worker 不同 operation 抢单 plan、相同 operation 并发建 plan 重放同一快照、Hold 先锁再 consume 三个场景合并为一次事务数据库生命周期；线程连接显式关闭，测试清理范围限制为 Data Center App，真实 PG16 为 1 passed/约 146 秒。SQLite 仍按设计 skip，不冒充并发证据。
+- 摘要字段根因：真实 PG 暴露 `raw_payload_record_digest()` 的 `sha256:` 前缀摘要长度为 71，而 0064 把 member hash/digest 列设为 64；SQLite 未执行 varchar 长度约束而漏报。新增 0065 把两列扩到 128，canonical schema marker、迁移测试和 restore fixture 同步跟进。
+- StorageBudget 根因：策略声称按 `(policy_key, version)` 版本化，但模型同时把 `policy_key` 单列 unique，v2 永远无法写入。Config Center 0011 移除单列唯一，保留 key/version 唯一并新增全局单 active 条件唯一；v1 保存、v2 非激活保存、v2 activate/旧版本退役在 SQLite repository 回归和真实 PG migration 均通过。
+- CI 校准：critical PostgreSQL job 从 35 分钟调为 90 分钟，migration test 单项 timeout 从 600 调为 900 秒；并发证据使用已迁移测试库、300 秒 teardown 预算。nightly StorageBudget 配置容量从错误的 1 GiB 改为 100 GiB，使 guard 继续以 runner 实际磁盘为较小硬上限，不再因为配置上限本身必然进入 emergency。隔离 restore 改用 custom-format 四 worker，并继续 `--exit-on-error / --no-owner / --no-acl`。
+- 本地限制：主机 D 盘容量门为 healthy，但 Windows 宿主未安装 `pg_dump/pg_restore`，应用备份命令按设计 fail closed；因此本地 custom dump 由一次性 PostgreSQL client 容器生成，不能冒充“应用 owner 端到端已通过”。应用 owner 路径仍以 GitHub PostgreSQL artifact 为最终 CI 证据。
+
+## 134. 2026-08-07：恢复快照假阴性根因与可诊断证据
+
+- 真实失败：同一份 PostgreSQL custom dump 首次隔离恢复后返回 `postgres_restore_snapshot_mismatch`，但旧 evidence 只保存通用错误和耗时，未保存 source/restored 快照及差异；这类证据不能区分数据损坏、模式漂移或校验器假阴性，不能作为 M9 删除授权。
+- 根因定位：隔离库与源库的 397 张表集合及精确行数、Data Center migration、326 个 sequence 的 `last_value + is_called` 全部一致；失败只来自 schema fingerprint。旧指纹错误纳入 `ordinal_position`，把源库历史 DROP COLUMN 留下的物理 attnum gap 当成 schema 差异；另外 PostgreSQL 将 dump 中的 CHECK expression 重新 parse 后，会把 `varchar[] -> text[]` 等价 cast 分布到数组元素，`pg_get_constraintdef()` 文本不同但约束语义相同。
+- 修复：列指纹按稳定列名比较 type/null/default/identity/generated/collation，不比较无业务语义的物理 ordinal；CHECK constraint 对 PostgreSQL dump/reparse 的等价 varchar/text array cast 做稳定归一，同时仍比较表、约束名/类型与完整约束定义。schema 定义与 sequence 状态拆分，sequence 额外记录 `is_called`，避免“相同 last_value、下一次 nextval 不同”漏报。
+- 快照一致性：source snapshot 改为单个 `REPEATABLE READ READ ONLY` transaction，并固定 UTC、DateStyle、IntervalStyle 与 search_path，避免逐表 READ COMMITTED 混合快照和会话文本差异。sequence 状态不是 MVCC，正式生产演练仍须停止 writer 或将 `pg_dump --snapshot` 与 source evidence 绑定；本轮本地静态源库证据不能替代该生产门禁。
+- 失败可诊断：verifier 在比较前即持久化 source/restored snapshot、逐表 count/hash diff、migration 集合差异、schema hash 差异与 sequence 增删改；失败 evidence 不再只给通用错误。sequence 读取由 326 次 round trip 合并为一次查询，隔离恢复使用 4 worker，本地 restore 阶段由约 2442 秒降至约 468 秒。
+- 最终复核：修复后的真实 PostgreSQL source/restore 全量比较为空差异；397 张表逐行有序 JSON SHA-256、Data Center migrations、稳定 schema SHA-256 与 326 个 sequence 状态全部一致。source fingerprint 约 382 秒、restore fingerprint 约 306 秒；入口清单重建仍为 1182 项且 `candidate-review=0`，专项 40 passed。
+- 明确边界：本地 dump 来自一次性 client 容器，尚未证明 `manage.py backup_database` owner 路径；dump 与随后 live-source snapshot 也未使用同一 exported snapshot。GitHub PostgreSQL job 实际绿灯、artifact 下载、VPS 生产规模 RTO、host-key pinning、真实 archive mount/key 与 writer quiescence 仍是生产切换/M9 的前置条件；本轮不部署。

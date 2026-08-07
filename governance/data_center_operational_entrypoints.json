@@ -1,0 +1,212 @@
+{
+  "entries": [
+    {
+      "category": "celery_task",
+      "evidence": "legacy retention preview task; canonical writes use plan_retention_task and enforce_retention_task",
+      "path": "apps/data_center/application/tasks.py",
+      "status": "compatibility",
+      "symbol": "cleanup_expired_raw_payloads_task",
+      "target": "apps.data_center.application.tasks.plan_retention_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Task Monitor owns these adjacent database backup and verification operations",
+      "path": "apps/task_monitor/application/backup_tasks.py",
+      "status": "adjacent_operational",
+      "symbol": [
+        "backup_database_task",
+        "verify_backup_task"
+      ]
+    },
+    {
+      "category": [
+        "operational_script",
+        "operational_dispatch_edge"
+      ],
+      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "path": [
+        "scripts/check_migration_graph.py",
+        "scripts/verify_postgres_backup_restore.py"
+      ],
+      "status": "active_public"
+    },
+    {
+      "category": [
+        "operational_script",
+        "operational_dispatch_edge"
+      ],
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "path": [
+        "apps/config_center/management/commands/collect_storage_capacity_profile.py",
+        "apps/config_center/management/commands/initialize_storage_budget.py",
+        "apps/task_monitor/management/commands/backup_database.py",
+        "scripts/backup-vps-postgres.ps1",
+        "scripts/backup-vps-postgres.py",
+        "scripts/deploy-docker-dev.ps1",
+        "scripts/deploy_canary.sh",
+        "scripts/dev-smoke.ps1",
+        "scripts/dev.bat",
+        "scripts/docker-dev.bat",
+        "scripts/register-macro-daily-sync-task.ps1",
+        "scripts/remote_build_deploy_vps.py",
+        "scripts/deploy-vps.ps1",
+        "scripts/deploy_vps_verify.py",
+        "scripts/start-dev.ps1",
+        "scripts/vps-backup.sh",
+        "scripts/vps-restore.sh",
+        "start.bat",
+        "venv.bat"
+      ],
+      "status": "adjacent_operational"
+    },
+    {
+      "category": [
+        "operational_script",
+        "operational_dispatch_edge"
+      ],
+      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "path": [
+        "scripts/deploy-bundle-to-vps.py",
+        "scripts/deploy-on-vps.sh",
+        "scripts/deploy-one-click.sh",
+        "scripts/migrate-to-postgres.ps1",
+        "scripts/migrate-vps-sqlite-to-postgres.sh",
+        "scripts/package-for-vps.ps1",
+        "scripts/package-portable-project.ps1",
+        "scripts/remote-build-deploy-vps.ps1",
+        "scripts/verify-vps-bundle.ps1"
+      ],
+      "status": "compatibility"
+    },
+    {
+      "category": [
+        "operational_script",
+        "operational_dispatch_edge"
+      ],
+      "evidence": "obsolete or unsafe operational path; retained as blocked evidence and must not be dispatched",
+      "path": [
+        "scripts/auto-backup.ps1",
+        "scripts/debug/check_and_migrate.py",
+        "scripts/docker-menu.ps1",
+        "scripts/migration/direct_migrate.py",
+        "scripts/migration/do_migrate.py",
+        "scripts/migration/migrate_data.py",
+        "scripts/promote_canary.sh",
+        "scripts/rollback.sh",
+        "scripts/vps-backup.ps1",
+        "scripts/vps-restore.ps1"
+      ],
+      "status": "retired_blocked"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "path": [
+        ".github/workflows/ci-fast-feedback.yml",
+        ".github/workflows/nightly-tests.yml",
+        ".github/workflows/rc-gate.yml"
+      ],
+      "status": "active_public"
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "executable Data Center archive/retention schema evidence",
+      "path": [
+        "apps/config_center/migrations/0006_runtimeconfigdefinitionmodel_and_more.py",
+        "apps/config_center/migrations/0003_systemsettingsmodel_backup_download_token_state.py",
+        "apps/config_center/migrations/0009_backupdeliverystatemodel.py",
+        "apps/config_center/migrations/0011_version_storage_budget_policies.py",
+        "apps/data_center/migrations/0053_archivemanifestmodel_retentionpolicymodel_and_more.py",
+        "apps/data_center/migrations/0056_retentionrunmodel.py",
+        "apps/data_center/migrations/0063_archivemanifest_archive_restore_evidence.py",
+        "apps/data_center/migrations/0064_retention_exact_plan_members.py",
+        "apps/data_center/migrations/0065_widen_retention_member_digests.py",
+        "tests/migrations/test_data_center_retention_plan_migration.py"
+      ],
+      "status": "active_public"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "path": [
+        "tests/component/account/test_db_backup_email.py",
+        "tests/component/config_center/test_backup_delivery_secret_cutover.py",
+        "tests/component/config_center/test_backup_delivery_state.py",
+        "tests/component/data_center/test_archive_repository.py",
+        "tests/component/data_center/test_retention_postgres_concurrency.py",
+        "tests/component/test_macro_periodic_tasks.py",
+        "tests/component/test_task_monitor.py",
+        "tests/integration/test_tui_registry_backup_commands.py",
+        "tests/unit/account/test_t3a_documentation_view_and_task_contracts.py",
+        "tests/unit/data_center/test_archive_application.py",
+        "tests/unit/data_center/test_archive_tasks.py",
+        "tests/unit/data_center/test_raw_archive_store.py",
+        "tests/unit/data_center/test_retention_control_plane.py",
+        "tests/unit/data_center/test_retention_plan_domain.py",
+        "tests/unit/data_center/test_retention_tasks.py",
+        "tests/unit/config_center/test_capacity_observations.py",
+        "tests/unit/config_center/test_runtime_config_control_plane.py",
+        "tests/unit/core/test_cross_app_read_ports.py",
+        "tests/unit/task_monitor/test_backup_command_contracts.py",
+        "tests/unit/task_monitor/test_backup_task_contracts.py",
+        "tests/unit/task_monitor/test_repository_retention_safety.py",
+        "tests/unit/test_account_backup_views.py",
+        "tests/unit/test_alpha_trigger_subscriber_wiring.py",
+        "tests/unit/test_backup_delivery_secret_ownership.py",
+        "tests/unit/test_backup_vps_postgres.py",
+        "tests/unit/test_data_center_entrypoint_inventory.py",
+        "tests/unit/test_deploy_vps_verify.py",
+        "tests/unit/test_docker_pyqlib_install.py",
+        "tests/unit/test_remote_build_deploy_vps.py",
+        "tests/unit/test_verify_postgres_backup_restore.py"
+      ],
+      "status": "active_public"
+    },
+    {
+      "category": "runbook",
+      "evidence": "canonical Data Center architecture and operational convergence plan",
+      "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
+      "status": "active_public"
+    },
+    {
+      "category": "runbook",
+      "evidence": "current database posture or development-only database deployment guidance",
+      "path": [
+        "docs/deployment/database_configuration.md",
+        "docs/deployment/DOCKER_DEPLOYMENT.md",
+        "docs/deployment/postgres_windows_docker.md"
+      ],
+      "status": "adjacent_operational"
+    },
+    {
+      "category": "runbook",
+      "evidence": "historical package or VPS deployment guidance retained as a compatibility reference",
+      "path": [
+        "docs/deployment/VPS_BUNDLE_DEPLOYMENT.md",
+        "docs/deployment/VPS_DEPLOYMENT_CLOSURE_2026-07-16.md"
+      ],
+      "status": "compatibility"
+    },
+    {
+      "category": "runbook",
+      "evidence": "stale SQLite or venv production procedure; blocked from current PostgreSQL production use",
+      "path": [
+        "docs/operations/database-restore-drill.md",
+        "docs/operations/deployment.md"
+      ],
+      "status": "retired_blocked"
+    },
+    {
+      "category": "agent_skill",
+      "evidence": "explicitly owned adjacent VPS backup, deployment, or hot-update operator skill",
+      "path": [
+        ".agents/skills/backup-vps-postgres/SKILL.md",
+        ".agents/skills/vps-deploy-agomtradepro/SKILL.md",
+        ".agents/skills/vps-hot-update-agomtradepro/SKILL.md"
+      ],
+      "status": "adjacent_operational"
+    }
+  ],
+  "owner": "data_center",
+  "schema_version": "1.0"
+}

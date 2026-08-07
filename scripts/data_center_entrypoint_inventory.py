@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import fnmatch
 import json
 import re
 from collections import Counter
@@ -21,7 +22,15 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "governance" / "data_center_entrypoints.json"
-STATUSES = frozenset({"active_public", "compatibility", "adjacent_operational", "candidate-review"})
+STATUSES = frozenset(
+    {
+        "active_public",
+        "compatibility",
+        "adjacent_operational",
+        "retired_blocked",
+        "candidate-review",
+    }
+)
 REQUIRED_CATEGORIES = frozenset(
     {
         "admin_surface",
@@ -45,6 +54,13 @@ REQUIRED_CATEGORIES = frozenset(
         "scheduler_writer",
         "dynamic_import_edge",
         "system_settings_compatibility",
+        "operational_script",
+        "operational_dispatch_edge",
+        "workflow_step",
+        "test_evidence",
+        "migration_evidence",
+        "runbook",
+        "agent_skill",
     }
 )
 COMPATIBILITY_FACADES = (
@@ -57,8 +73,142 @@ GOVERNANCE_SCRIPT_ENTRYPOINTS = frozenset(
         "scripts/check_data_center_runtime_catalog.py",
         "scripts/measure_data_center_query_ports.py",
         "scripts/verify_postgres_backup_restore.py",
+        "scripts/check_migration_graph.py",
     }
 )
+
+OPERATIONAL_TOKEN_PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = (
+    ("pg_dump", re.compile(r"\bpg_dump\b", re.IGNORECASE), "postgres:pg_dump"),
+    ("pg_restore", re.compile(r"\bpg_restore\b", re.IGNORECASE), "postgres:pg_restore"),
+    ("dropdb", re.compile(r"\bdropdb\b", re.IGNORECASE), "postgres:dropdb"),
+    ("createdb", re.compile(r"\bcreatedb\b", re.IGNORECASE), "postgres:createdb"),
+    (
+        "manage.py migrate",
+        re.compile(r"manage\.py[\s\"'`]+migrate\b", re.IGNORECASE),
+        "django:migrate",
+    ),
+    (
+        "manage.py backup_database",
+        re.compile(r"manage\.py[\s\"'`]+backup_database\b", re.IGNORECASE),
+        "django:backup_database",
+    ),
+    (
+        "MigrationExecutor",
+        re.compile(r"\bMigrationExecutor\b"),
+        "django:MigrationExecutor",
+    ),
+    (
+        "Register-ScheduledTask",
+        re.compile(r"\bRegister-ScheduledTask\b", re.IGNORECASE),
+        "windows:scheduled-task",
+    ),
+    (
+        "backup_database_task",
+        re.compile(r"\bbackup_database_task\b"),
+        "apps.task_monitor.application.tasks.backup_database_task",
+    ),
+    (
+        "plan_retention_task",
+        re.compile(r"\bplan_retention_task\b"),
+        "apps.data_center.application.tasks.plan_retention_task",
+    ),
+    (
+        "enforce_retention_task",
+        re.compile(r"\benforce_retention_task\b"),
+        "apps.data_center.application.tasks.enforce_retention_task",
+    ),
+    (
+        "cleanup_expired_raw_payloads_task",
+        re.compile(r"\bcleanup_expired_raw_payloads_task\b"),
+        "apps.data_center.application.tasks.cleanup_expired_raw_payloads_task",
+    ),
+    (
+        "archive_raw_payloads_task",
+        re.compile(r"\barchive_raw_payloads_task\b"),
+        "apps.data_center.application.archive_tasks.archive_raw_payloads_task",
+    ),
+    (
+        "verify_archive_manifest_task",
+        re.compile(r"\bverify_archive_manifest_task\b"),
+        "apps.data_center.application.tasks.verify_archive_manifest_task",
+    ),
+    (
+        "audit_archive_restore_task",
+        re.compile(r"\baudit_archive_restore_task\b"),
+        "apps.data_center.application.archive_tasks.audit_archive_restore_task",
+    ),
+    (
+        "send_database_backup_email_task",
+        re.compile(r"\bsend_database_backup_email_task\b"),
+        "apps.account.application.tasks.send_database_backup_email_task",
+    ),
+    (
+        "initialize_storage_budget",
+        re.compile(r"\binitialize_storage_budget\b"),
+        "django:initialize_storage_budget",
+    ),
+    (
+        "collect_storage_capacity_profile",
+        re.compile(r"\bcollect_storage_capacity_profile\b"),
+        "django:collect_storage_capacity_profile",
+    ),
+    (
+        "storage_budget_control",
+        re.compile(r"\b(?:StorageBudgetPolicy(?:Model)?|require_backup_capacity)\b"),
+        "config_center:storage_budget",
+    ),
+    (
+        "call_command dumpdata",
+        re.compile(r"call_command\(\s*[\"']dumpdata[\"']", re.IGNORECASE),
+        "django:dumpdata",
+    ),
+    (
+        "call_command loaddata",
+        re.compile(r"call_command\(\s*[\"']loaddata[\"']", re.IGNORECASE),
+        "django:loaddata",
+    ),
+)
+
+SCRIPT_DISPATCH_PATH_OVERRIDES = {
+    "check_and_migrate.py": "scripts/debug/check_and_migrate.py",
+    "direct_migrate.py": "scripts/migration/direct_migrate.py",
+    "do_migrate.py": "scripts/migration/do_migrate.py",
+    "migrate_data.py": "scripts/migration/migrate_data.py",
+}
+SCRIPT_DISPATCH_PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = tuple(
+    (
+        script_name,
+        re.compile(re.escape(script_name), re.IGNORECASE),
+        SCRIPT_DISPATCH_PATH_OVERRIDES.get(script_name, f"scripts/{script_name}"),
+    )
+    for script_name in (
+        "auto-backup.ps1",
+        "backup-vps-postgres.py",
+        "backup-vps-postgres.ps1",
+        "check_and_migrate.py",
+        "check_migration_graph.py",
+        "deploy-on-vps.sh",
+        "deploy-vps.ps1",
+        "direct_migrate.py",
+        "do_migrate.py",
+        "migrate_data.py",
+        "migrate-to-postgres.ps1",
+        "migrate-vps-sqlite-to-postgres.sh",
+        "remote-build-deploy-vps.ps1",
+        "remote_build_deploy_vps.py",
+        "rollback.sh",
+        "verify_postgres_backup_restore.py",
+        "vps-backup.ps1",
+        "vps-backup.sh",
+        "vps-restore.ps1",
+        "vps-restore.sh",
+    )
+)
+OPERATIONAL_EVIDENCE_PATTERN = re.compile(
+    r"\b(?:backup|restore|retention|archive|migration|postgres(?:ql)?)\b",
+    re.IGNORECASE,
+)
+OPERATIONAL_SCRIPT_SUFFIXES = frozenset({".py", ".ps1", ".sh", ".bat"})
 IGNORED_PATH_PARTS = frozenset(
     {
         ".git",
@@ -202,6 +352,293 @@ def _entry(
         "status": status,
         "evidence": evidence,
     }
+
+
+def _operational_tokens(text: str) -> tuple[tuple[str, str], ...]:
+    """Return stable operational token/target pairs found in ``text``."""
+
+    matches: dict[str, str] = {}
+    for label, pattern, target in (*OPERATIONAL_TOKEN_PATTERNS, *SCRIPT_DISPATCH_PATTERNS):
+        if pattern.search(text):
+            matches[label] = target
+    return tuple(sorted(matches.items()))
+
+
+def _operational_script_files() -> Iterable[Path]:
+    """Yield executable repository files that can own operational dispatch."""
+
+    candidates: set[Path] = set()
+    scripts_root = ROOT / "scripts"
+    if scripts_root.exists():
+        candidates.update(path for path in scripts_root.rglob("*") if path.is_file())
+    candidates.update(
+        path
+        for path in ROOT.iterdir()
+        if path.is_file() and path.suffix.lower() in OPERATIONAL_SCRIPT_SUFFIXES
+    )
+    apps_root = ROOT / "apps"
+    if apps_root.exists():
+        candidates.update(
+            path
+            for path in apps_root.rglob("*.py")
+            if "management" in path.parts and "commands" in path.parts
+        )
+    own_path = ROOT / "scripts" / "data_center_entrypoint_inventory.py"
+    for path in sorted(candidates):
+        if path == own_path or path.suffix.lower() not in OPERATIONAL_SCRIPT_SUFFIXES:
+            continue
+        relative_parts = path.relative_to(ROOT).parts
+        if any(part in IGNORED_PATH_PARTS for part in relative_parts):
+            continue
+        yield path
+
+
+def _discover_operational_scripts() -> list[dict[str, object]]:
+    """Discover scripts/commands containing governed database operations."""
+
+    results: list[dict[str, object]] = []
+    for path in _operational_script_files():
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        tokens = _operational_tokens(f"{path.name}\n{text}")
+        if not tokens:
+            continue
+        targets = ",".join(target for _label, target in tokens)
+        results.append(
+            _entry(
+                category="operational_script",
+                path=_relative(path),
+                symbol="__main__" if "management" not in path.parts else path.stem,
+                target=targets,
+                status="candidate-review",
+                evidence="static operational command token discovery; governance review required",
+            )
+        )
+    return results
+
+
+def _discover_operational_dispatch_edges() -> list[dict[str, object]]:
+    """Expand each script-level database operation into a reviewable edge."""
+
+    results: list[dict[str, object]] = []
+    for path in _operational_script_files():
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for label, target in _operational_tokens(f"{path.name}\n{text}"):
+            results.append(
+                _entry(
+                    category="operational_dispatch_edge",
+                    path=_relative(path),
+                    symbol=label,
+                    locator=f"token:{label}",
+                    target=target,
+                    status="candidate-review",
+                    evidence="static operational dispatch token discovery; governance review required",
+                )
+            )
+    return results
+
+
+def _discover_workflow_steps() -> list[dict[str, object]]:
+    """Discover CI workflow steps that execute database operations."""
+
+    results: list[dict[str, object]] = []
+    workflow_root = ROOT / ".github" / "workflows"
+    if not workflow_root.exists():
+        return results
+    step_pattern = re.compile(r"^\s*-\s+name:\s*(.+?)\s*$", re.MULTILINE)
+    for path in sorted((*workflow_root.glob("*.yml"), *workflow_root.glob("*.yaml"))):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        matches = list(step_pattern.finditer(text))
+        for index, match in enumerate(matches):
+            block_end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+            block = text[match.start() : block_end]
+            tokens = _operational_tokens(block)
+            if not tokens:
+                continue
+            step_name = match.group(1).strip().strip('"\'')
+            results.append(
+                _entry(
+                    category="workflow_step",
+                    path=_relative(path),
+                    symbol=step_name,
+                    locator="tokens:" + ",".join(label for label, _target in tokens),
+                    target=",".join(target for _label, target in tokens),
+                    status="candidate-review",
+                    evidence="workflow step contains an operational database dispatch",
+                )
+            )
+    return results
+
+
+def _evidence_files(root: Path, pattern: str) -> Iterable[Path]:
+    if not root.exists():
+        return ()
+    return (
+        path
+        for path in sorted(root.rglob(pattern))
+        if not any(part in IGNORED_PATH_PARTS for part in path.relative_to(ROOT).parts)
+    )
+
+
+def _discover_test_and_migration_evidence() -> list[dict[str, object]]:
+    """Discover executable test and migration evidence for operational behavior."""
+
+    results: list[dict[str, object]] = []
+    candidates: set[tuple[Path, str]] = set()
+    for path in _evidence_files(ROOT / "tests", "*.py"):
+        category = "migration_evidence" if "migrations" in path.relative_to(ROOT).parts else "test_evidence"
+        candidates.add((path, category))
+    for path in _evidence_files(ROOT / "apps" / "data_center" / "migrations", "*.py"):
+        candidates.add((path, "migration_evidence"))
+    for path in _evidence_files(ROOT / "apps" / "config_center" / "migrations", "*.py"):
+        candidates.add((path, "migration_evidence"))
+    for path, category in sorted(candidates, key=lambda item: _relative(item[0])):
+        if path.name == "__init__.py":
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        relative = _relative(path).lower()
+        basename_is_evidence = bool(
+            re.search(
+                r"(?:backup|restore|retention|archive|postgres|migration_graph|storage_budget)",
+                path.stem,
+            )
+        )
+        is_owner_migration = relative.startswith(
+            ("apps/data_center/migrations/", "apps/config_center/migrations/")
+        )
+        if is_owner_migration:
+            relevant = basename_is_evidence or bool(_operational_tokens(text))
+        elif category == "migration_evidence":
+            relevant = "data_center" in relative and (
+                basename_is_evidence or bool(_operational_tokens(text))
+            )
+        else:
+            relevant = basename_is_evidence or bool(_operational_tokens(text))
+        if not relevant:
+            continue
+        results.append(
+            _entry(
+                category=category,
+                path=_relative(path),
+                symbol=path.stem,
+                status="candidate-review",
+                evidence="executable operational test/migration evidence; governance review required",
+            )
+        )
+    return results
+
+
+def _discover_runbooks() -> list[dict[str, object]]:
+    """Discover operational runbooks and the canonical refactor plan."""
+
+    results: list[dict[str, object]] = []
+    candidates: set[Path] = set()
+    for relative_root in ("docs/operations", "docs/deployment"):
+        candidates.update(_evidence_files(ROOT / relative_root, "*.md"))
+    canonical_plan = ROOT / "docs" / "plans" / "data-center-canonical-architecture-refactor-2026-08-02.md"
+    if canonical_plan.exists():
+        candidates.add(canonical_plan)
+    for path in sorted(candidates):
+        path_is_operational = bool(
+            re.search(
+                r"(?:backup|restore|deploy|deployment|postgres|database)",
+                path.stem,
+                re.IGNORECASE,
+            )
+        )
+        if path != canonical_plan and not path_is_operational:
+            continue
+        results.append(
+            _entry(
+                category="runbook",
+                path=_relative(path),
+                symbol=path.stem,
+                status="candidate-review",
+                evidence="operational runbook keyword discovery; governance review required",
+            )
+        )
+    return results
+
+
+def _discover_agent_skills() -> list[dict[str, object]]:
+    """Discover agent skills that can dispatch database operations."""
+
+    results: list[dict[str, object]] = []
+    skills_root = ROOT / ".agents" / "skills"
+    if not skills_root.exists():
+        return results
+    for path in sorted(skills_root.rglob("SKILL.md")):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        skill_is_operational = bool(
+            re.search(r"(?:backup|deploy|hot-update)", path.parent.name, re.IGNORECASE)
+        )
+        if not (skill_is_operational or _operational_tokens(text)):
+            continue
+        results.append(
+            _entry(
+                category="agent_skill",
+                path=_relative(path),
+                symbol=path.parent.name,
+                target=",".join(target for _label, target in _operational_tokens(text)),
+                status="candidate-review",
+                evidence="agent skill contains operational database instructions",
+            )
+        )
+    return results
+
+
+def _apply_operational_governance(
+    entries: list[dict[str, object]], governance: dict[str, Any]
+) -> list[dict[str, object]]:
+    """Overlay explicit lifecycle decisions without approving new discoveries."""
+
+    rules = governance.get("entries", [])
+    if not isinstance(rules, list):
+        raise ValueError("operational governance entries must be a list")
+    for rule in rules:
+        if not isinstance(rule, dict):
+            raise ValueError("operational governance rule must be an object")
+        status = str(rule.get("status", ""))
+        if status not in STATUSES - {"candidate-review"}:
+            raise ValueError(f"invalid governed operational status: {status}")
+        evidence = str(rule.get("evidence", "")).strip()
+        if not evidence:
+            raise ValueError("operational governance evidence is required")
+        selectors: dict[str, tuple[str, ...]] = {}
+        for key in ("category", "path", "symbol", "locator"):
+            raw_selector = rule.get(key, "*")
+            if isinstance(raw_selector, list):
+                selectors[key] = tuple(str(item) for item in raw_selector)
+            else:
+                selectors[key] = (str(raw_selector),)
+        matching_entries = [
+            entry
+            for entry in entries
+            if all(
+                any(
+                    fnmatch.fnmatchcase(str(entry.get(key, "")), pattern)
+                    for pattern in patterns
+                )
+                for key, patterns in selectors.items()
+            )
+        ]
+        if not matching_entries:
+            raise ValueError(f"operational governance rule matched no entry: {selectors}")
+        for key, patterns in selectors.items():
+            for pattern in patterns:
+                if not any(
+                    fnmatch.fnmatchcase(str(entry.get(key, "")), pattern)
+                    for entry in matching_entries
+                ):
+                    raise ValueError(
+                        f"operational governance selector matched no entry: {key}={pattern}"
+                    )
+        for entry in matching_entries:
+            entry["status"] = status
+            entry["evidence"] = evidence
+            target = str(rule.get("target", "")).strip()
+            if target:
+                entry["target"] = target
+    return entries
 
 
 def _discover_scripts(legacy: dict[str, Any]) -> list[dict[str, object]]:
@@ -1974,6 +2411,9 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
         celery = _load_json(ROOT / "governance" / "celery_task_contracts.json")
         current_data = _load_json(ROOT / "governance" / "current_data_contracts.json")
         runtime_config = _load_json(ROOT / "governance" / "runtime_config_contracts.json")
+        operational = _load_json(
+            ROOT / "governance" / "data_center_operational_entrypoints.json"
+        )
         entries = (
             _discover_scripts(legacy)
             + _discover_management_commands()
@@ -1995,7 +2435,14 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
             + _discover_ports_and_facades()
             + _discover_runtime_config_keys(runtime_config)
             + _discover_system_settings_compatibility()
+            + _discover_operational_scripts()
+            + _discover_operational_dispatch_edges()
+            + _discover_workflow_steps()
+            + _discover_test_and_migration_evidence()
+            + _discover_runbooks()
+            + _discover_agent_skills()
         )
+        entries = _apply_operational_governance(entries, operational)
     finally:
         ROOT = previous_root
     ordered = sorted(
@@ -2017,12 +2464,14 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
             "active_public": "explicitly governed canonical external or cross-app port",
             "compatibility": "supported migration seam with a canonical Data Center replacement",
             "adjacent_operational": "enumerated app-owned operation outside the Data Center owner contract",
+            "retired_blocked": "known unsafe or obsolete operational path retained only as blocked evidence",
             "candidate-review": "discovered callable surface; discovery is not approval or completion",
         },
         "source_contracts": [
             "governance/celery_task_contracts.json",
             "governance/current_data_contracts.json",
             "governance/data_center_legacy_entrypoints.json",
+            "governance/data_center_operational_entrypoints.json",
             "governance/runtime_config_contracts.json",
             "config/tui/generated/tui_operation_graph.generated.json",
             "config/tui/published/tui_operation_graph.published.json",
@@ -2033,6 +2482,7 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
             "legacy_entrypoints_and_wrappers": len(legacy.get("entrypoints", []))
             + len(legacy.get("wrappers", [])),
             "runtime_config_keys": len(runtime_config.get("definitions", [])),
+            "operational_governance_rules": len(operational.get("entries", [])),
         },
         "entries": ordered,
         "counts": {
@@ -2086,10 +2536,12 @@ def validate_inventory(payload: dict[str, object]) -> list[str]:
                 "dynamic_import_edge",
                 "management_command_edge",
                 "mcp_tool",
+                "operational_dispatch_edge",
                 "rest_url",
                 "scheduler_writer",
                 "sdk",
                 "terminal_tui",
+                "workflow_step",
             }
             and not str(item.get("target", "")).strip()
         ):

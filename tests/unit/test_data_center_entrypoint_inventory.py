@@ -41,6 +41,7 @@ def test_inventory_covers_every_governed_invocation_category(
         "active_public",
         "adjacent_operational",
         "compatibility",
+        "retired_blocked",
         "candidate-review",
     }
 
@@ -63,8 +64,99 @@ def test_inventory_preserves_unreviewed_discovery_and_evidence(
             "celery_task",
             "dynamic_import_edge",
             "management_command_edge",
+            "operational_dispatch_edge",
             "scheduler_writer",
+            "workflow_step",
         }
+    )
+
+
+def test_operational_inventory_has_no_unreviewed_repository_entrypoints(
+    inventory_payload: tuple[ModuleType, dict[str, object]],
+) -> None:
+    """Every currently discovered operational entry must have an explicit lifecycle."""
+
+    _inventory, payload = inventory_payload
+
+    assert payload["counts"]["by_status"]["candidate-review"] == 0
+
+
+def test_operational_lifecycles_correct_legacy_and_adjacent_tasks(
+    inventory_payload: tuple[ModuleType, dict[str, object]],
+) -> None:
+    """Keep the retention compatibility seam separate from Task Monitor ownership."""
+
+    _inventory, payload = inventory_payload
+    entries = payload["entries"]
+
+    cleanup = next(
+        entry
+        for entry in entries
+        if entry["category"] == "celery_task"
+        and entry["path"] == "apps/data_center/application/tasks.py"
+        and entry["symbol"] == "cleanup_expired_raw_payloads_task"
+    )
+    assert cleanup["status"] == "compatibility"
+    assert cleanup["target"] == "apps.data_center.application.tasks.plan_retention_task"
+
+    backup_tasks = {
+        entry["symbol"]: entry["status"]
+        for entry in entries
+        if entry["category"] == "celery_task"
+        and entry["path"] == "apps/task_monitor/application/backup_tasks.py"
+        and entry["symbol"] in {"backup_database_task", "verify_backup_task"}
+    }
+    assert backup_tasks == {
+        "backup_database_task": "adjacent_operational",
+        "verify_backup_task": "adjacent_operational",
+    }
+
+
+def test_inventory_classifies_known_operational_surfaces(
+    inventory_payload: tuple[ModuleType, dict[str, object]],
+) -> None:
+    """Pin representative script, workflow, evidence, runbook, and skill lifecycles."""
+
+    _inventory, payload = inventory_payload
+    entries = payload["entries"]
+
+    expected = {
+        (
+            "operational_script",
+            "scripts/check_migration_graph.py",
+            "active_public",
+        ),
+        (
+            "operational_script",
+            "scripts/auto-backup.ps1",
+            "retired_blocked",
+        ),
+        (
+            "migration_evidence",
+            "apps/data_center/migrations/0064_retention_exact_plan_members.py",
+            "active_public",
+        ),
+        (
+            "runbook",
+            "docs/operations/database-restore-drill.md",
+            "retired_blocked",
+        ),
+        (
+            "agent_skill",
+            ".agents/skills/backup-vps-postgres/SKILL.md",
+            "adjacent_operational",
+        ),
+    }
+    actual = {
+        (entry["category"], entry["path"], entry["status"])
+        for entry in entries
+    }
+    assert expected <= actual
+    assert any(
+        entry["category"] == "workflow_step"
+        and entry["path"] == ".github/workflows/nightly-tests.yml"
+        and entry["status"] == "active_public"
+        for entry in entries
     )
 
 
@@ -312,6 +404,89 @@ def _write_source(tmp_path: Path, relative_path: str, source: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(source, encoding="utf-8")
     return path
+
+
+def test_new_operational_surfaces_default_to_candidate_review(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A newly discovered operation must not inherit approval from its keywords."""
+
+    inventory = _load_script()
+    _write_source(tmp_path, "scripts/new_backup.sh", "pg_dump db > backup.dump\n")
+    _write_source(
+        tmp_path,
+        ".github/workflows/ops.yml",
+        "steps:\n  - name: Restore database\n    run: pg_restore backup.dump\n",
+    )
+    _write_source(
+        tmp_path,
+        "tests/unit/test_new_backup.py",
+        "def test_backup() -> None:\n    pass\n",
+    )
+    _write_source(
+        tmp_path,
+        "apps/data_center/migrations/0001_retention.py",
+        "# retention schema evidence\n",
+    )
+    _write_source(
+        tmp_path,
+        "tests/migrations/test_data_center_graph.py",
+        "from django.db.migrations.executor import MigrationExecutor\n",
+    )
+    _write_source(
+        tmp_path,
+        "docs/operations/database-restore.md",
+        "# Database restore\n",
+    )
+    _write_source(
+        tmp_path,
+        ".agents/skills/backup-demo/SKILL.md",
+        "# backup skill\npg_restore backup.dump\n",
+    )
+    monkeypatch.setattr(inventory, "ROOT", tmp_path)
+    inventory._tree.cache_clear()
+
+    entries = (
+        inventory._discover_operational_scripts()
+        + inventory._discover_operational_dispatch_edges()
+        + inventory._discover_workflow_steps()
+        + inventory._discover_test_and_migration_evidence()
+        + inventory._discover_runbooks()
+        + inventory._discover_agent_skills()
+    )
+
+    assert {
+        "operational_script",
+        "operational_dispatch_edge",
+        "workflow_step",
+        "test_evidence",
+        "migration_evidence",
+        "runbook",
+        "agent_skill",
+    } <= {entry["category"] for entry in entries}
+    assert all(entry["status"] == "candidate-review" for entry in entries)
+
+    inventory._apply_operational_governance(
+        entries,
+        {
+            "entries": [
+                {
+                    "category": "operational_script",
+                    "path": "scripts/new_backup.sh",
+                    "symbol": "__main__",
+                    "status": "adjacent_operational",
+                    "evidence": "explicit synthetic owner decision",
+                }
+            ]
+        },
+    )
+    assert next(
+        entry
+        for entry in entries
+        if entry["category"] == "operational_script"
+    )["status"] == "adjacent_operational"
+    assert any(entry["status"] == "candidate-review" for entry in entries)
 
 
 def test_typed_task_aliases_and_celery_dispatch_edges_are_discovered(
