@@ -121,6 +121,8 @@ def test_postgres_current_data_contracts_run_with_migration_seed_evidence() -> N
     )[1].split("- name:", maxsplit=1)[0]
 
     assert "python scripts/run_current_data_contract_tests.py" in current_data_step
+    assert "--pytest-arg=--create-db" in current_data_step
+    assert "--pytest-arg=--reuse-db" not in current_data_step
     assert "--pytest-arg=--no-migrations" not in current_data_step
 
 
