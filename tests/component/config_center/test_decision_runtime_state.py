@@ -18,6 +18,7 @@ def test_decision_runtime_missing_state_fails_closed_without_creating_settings()
     from apps.config_center.infrastructure.decision_runtime_models import DecisionRuntimeStateModel
     from apps.config_center.infrastructure.models import SystemSettingsModel
 
+    DecisionRuntimeStateModel._default_manager.all().delete()
     state = GetDecisionRuntimeStateUseCase().execute()
 
     assert state.status is DecisionRuntimeStatus.BLOCKED
@@ -69,6 +70,7 @@ def test_decision_runtime_does_not_fallback_to_legacy_singleton() -> None:
     legacy.decision_runtime_status = "maintenance"
     legacy.decision_runtime_reason = "legacy compatibility state"
     legacy.save(update_fields=["decision_runtime_status", "decision_runtime_reason", "updated_at"])
+    DecisionRuntimeStateModel._default_manager.all().delete()
 
     state = GetDecisionRuntimeStateUseCase().execute()
 

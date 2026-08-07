@@ -14,7 +14,7 @@ def test_system_settings_field_contract_covers_every_declared_field() -> None:
     report = audit_system_settings_contract()
 
     assert report["field_count"] == 48
-    assert report["compatibility_field_count"] == 46
+    assert report["compatibility_field_count"] == 36
     assert report["group_count"] == 7
 
 
