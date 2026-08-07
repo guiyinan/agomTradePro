@@ -765,6 +765,24 @@ class QlibTrainingRunModel(models.Model):
         return f"{self.model_name} [{self.status}]"
 
 
+class QlibTrainingRunLockModel(models.Model):
+    """Singleton lock row for cross-worker Qlib training run admission."""
+
+    GLOBAL_LOCK_KEY = "global"
+
+    lock_key = models.CharField(max_length=64, primary_key=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "config_center_qlib_training_run_lock"
+        verbose_name = "Qlib 训练准入锁"
+        verbose_name_plural = "Qlib 训练准入锁"
+
+    def __str__(self) -> str:
+        return self.lock_key
+
+
 # ---------------------------------------------------------------------------
 # Versioned runtime configuration and storage budget control plane
 # ---------------------------------------------------------------------------

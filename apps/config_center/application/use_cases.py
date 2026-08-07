@@ -241,7 +241,6 @@ class TriggerQlibTrainingUseCase:
             raise ValidationFailureError("model_type 不能为空")
 
         run = run_repo.create_pending_run_if_idle(
-            settings_repo=settings_repo,
             profile=profile,
             requested_by=actor if getattr(actor, "is_authenticated", False) else None,
             model_name=model_name,

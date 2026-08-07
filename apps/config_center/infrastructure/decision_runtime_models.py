@@ -14,7 +14,7 @@ class DecisionRuntimeStateModel(models.Model):
     status = models.CharField(
         max_length=16,
         choices=[(item.value, item.value) for item in DecisionRuntimeStatus],
-        default=DecisionRuntimeStatus.ACTIVE.value,
+        default=DecisionRuntimeStatus.BLOCKED.value,
         db_index=True,
     )
     reason = models.TextField(blank=True)

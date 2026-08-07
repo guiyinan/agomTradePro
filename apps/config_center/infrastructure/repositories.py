@@ -6,10 +6,11 @@ import os
 from collections.abc import Mapping
 from datetime import date
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
 from django.apps import apps as django_apps
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -36,10 +37,13 @@ from apps.config_center.infrastructure.decision_runtime_models import DecisionRu
 from apps.config_center.infrastructure.models import (
     AlphaUniverseConfigModel,
     QlibTrainingProfileModel,
+    QlibTrainingRunLockModel,
     QlibTrainingRunModel,
     SystemSettingsModel,
 )
 from apps.data_center.application.public import get_provider_settings_payload
+
+_QLIB_TRAINING_RUN_PROCESS_LOCK = RLock()
 
 
 def normalize_alpha_universe_code(raw_code: str) -> str:
@@ -274,12 +278,8 @@ class ConfigCenterSettingsRepository:
             return settings_obj
         return SystemSettingsModel(pk=1)
 
-    def acquire_system_settings_lock(self) -> SystemSettingsModel:
-        settings_obj = SystemSettingsModel.get_settings()
-        return SystemSettingsModel._default_manager.select_for_update().get(pk=settings_obj.pk)
-
     def get_decision_runtime_state(self) -> DecisionRuntimeState:
-        """Return the persisted global decision gate without creating a row."""
+        """Return the persisted global decision gate and fail closed if absent."""
 
         state_model = DecisionRuntimeStateModel._default_manager.filter(pk=1).first()
         if state_model is not None:
@@ -292,14 +292,10 @@ class ConfigCenterSettingsRepository:
                 expected_resume_at=state_model.expected_resume_at,
             )
 
-        settings_obj = self.get_system_settings_for_read()
-        return self._decision_runtime_state_from_values(
-            status=settings_obj.decision_runtime_status,
-            reason=settings_obj.decision_runtime_reason,
-            changed_at=settings_obj.decision_runtime_changed_at,
-            changed_by=settings_obj.decision_runtime_changed_by,
-            release_ref=settings_obj.decision_runtime_release_ref,
-            expected_resume_at=settings_obj.decision_runtime_expected_resume_at,
+        return DecisionRuntimeState(
+            status=DecisionRuntimeStatus.BLOCKED,
+            reason="决策运行状态尚未初始化。",
+            changed_by="config-center",
         )
 
     @staticmethod
@@ -866,18 +862,55 @@ class QlibTrainingRunRepository:
             ]
         ).exists()
 
-    @transaction.atomic
     def create_pending_run_if_idle(
         self,
         *,
-        settings_repo: Any,
         profile: Any,
         requested_by: Any,
         model_name: str,
         model_type: str,
         resolved_train_config: dict[str, Any],
     ) -> QlibTrainingRunModel | None:
-        settings_repo.acquire_system_settings_lock()
+        """Create one pending run while serializing admission across workers."""
+
+        if connection.features.has_select_for_update:
+            return self._create_pending_run_under_lock(
+                profile=profile,
+                requested_by=requested_by,
+                model_name=model_name,
+                model_type=model_type,
+                resolved_train_config=resolved_train_config,
+            )
+
+        # SQLite has no row-level SELECT FOR UPDATE. Local development and the
+        # contract suite still need deterministic same-process admission; formal
+        # production uses PostgreSQL and the persistent row lock below.
+        with _QLIB_TRAINING_RUN_PROCESS_LOCK:
+            return self._create_pending_run_under_lock(
+                profile=profile,
+                requested_by=requested_by,
+                model_name=model_name,
+                model_type=model_type,
+                resolved_train_config=resolved_train_config,
+            )
+
+    @transaction.atomic
+    def _create_pending_run_under_lock(
+        self,
+        *,
+        profile: Any,
+        requested_by: Any,
+        model_name: str,
+        model_type: str,
+        resolved_train_config: dict[str, Any],
+    ) -> QlibTrainingRunModel | None:
+        lock_row, _ = QlibTrainingRunLockModel._default_manager.get_or_create(
+            lock_key=QlibTrainingRunLockModel.GLOBAL_LOCK_KEY
+        )
+        if connection.features.has_select_for_update:
+            QlibTrainingRunLockModel._default_manager.select_for_update().get(
+                lock_key=lock_row.lock_key
+            )
         if self.has_active_run():
             return None
         return self.create_run(

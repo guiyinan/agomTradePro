@@ -24,7 +24,6 @@ class ConfigCenterSettingsRepository(Protocol):
         *,
         actor: str = "config-center",
     ) -> dict[str, Any]: ...
-    def acquire_system_settings_lock(self) -> Any: ...
     def get_decision_runtime_state(self) -> DecisionRuntimeState: ...
     def set_decision_runtime_state(
         self,
@@ -79,7 +78,6 @@ class QlibTrainingRunRepository(Protocol):
     def create_pending_run_if_idle(
         self,
         *,
-        settings_repo: ConfigCenterSettingsRepository,
         profile: Any,
         requested_by: Any,
         model_name: str,

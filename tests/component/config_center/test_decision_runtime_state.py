@@ -14,14 +14,16 @@ from apps.config_center.domain.entities import DecisionRuntimeStatus
 
 
 @pytest.mark.django_db
-def test_decision_runtime_defaults_to_active_without_creating_settings() -> None:
+def test_decision_runtime_missing_state_fails_closed_without_creating_settings() -> None:
     from apps.config_center.infrastructure.decision_runtime_models import DecisionRuntimeStateModel
     from apps.config_center.infrastructure.models import SystemSettingsModel
 
     state = GetDecisionRuntimeStateUseCase().execute()
 
-    assert state.status is DecisionRuntimeStatus.ACTIVE
-    assert state.must_not_use_for_decision is False
+    assert state.status is DecisionRuntimeStatus.BLOCKED
+    assert state.must_not_use_for_decision is True
+    assert state.block_reason_code == "decision_runtime_blocked"
+    assert state.reason == "决策运行状态尚未初始化。"
     assert SystemSettingsModel._default_manager.count() == 0
     assert DecisionRuntimeStateModel._default_manager.count() == 0
 
@@ -59,7 +61,7 @@ def test_decision_runtime_maintenance_persists_across_reads() -> None:
 
 
 @pytest.mark.django_db
-def test_decision_runtime_reads_legacy_singleton_before_state_row_exists() -> None:
+def test_decision_runtime_does_not_fallback_to_legacy_singleton() -> None:
     from apps.config_center.infrastructure.decision_runtime_models import DecisionRuntimeStateModel
     from apps.config_center.infrastructure.models import SystemSettingsModel
 
@@ -70,8 +72,8 @@ def test_decision_runtime_reads_legacy_singleton_before_state_row_exists() -> No
 
     state = GetDecisionRuntimeStateUseCase().execute()
 
-    assert state.status is DecisionRuntimeStatus.MAINTENANCE
-    assert state.reason == "legacy compatibility state"
+    assert state.status is DecisionRuntimeStatus.BLOCKED
+    assert state.reason == "决策运行状态尚未初始化。"
     assert DecisionRuntimeStateModel._default_manager.count() == 0
 
 
