@@ -110,6 +110,20 @@ def test_fast_feedback_installs_node_playwright_browser() -> None:
     assert install_position < test_position
 
 
+def test_postgres_current_data_contracts_run_with_migration_seed_evidence() -> None:
+    """Keep PostgreSQL current-data tests on the same seeded schema contract as production."""
+
+    workflow_text = (REPO_ROOT / ".github" / "workflows" / "nightly-tests.yml").read_text(
+        encoding="utf-8"
+    )
+    current_data_step = workflow_text.split(
+        "- name: Run current-data contract manifest on PostgreSQL", maxsplit=1
+    )[1].split("- name:", maxsplit=1)[0]
+
+    assert "python scripts/run_current_data_contract_tests.py" in current_data_step
+    assert "--pytest-arg=--no-migrations" not in current_data_step
+
+
 def test_fast_feedback_production_check_has_postgres_configuration() -> None:
     """Keep production checks aligned with the mandatory PostgreSQL policy."""
 

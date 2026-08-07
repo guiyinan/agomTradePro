@@ -475,7 +475,6 @@ jobs:
         run: |
           python scripts/run_current_data_contract_tests.py \
             --pytest-arg=--reuse-db \
-            --pytest-arg=--no-migrations \
             --pytest-arg=--disable-warnings \
             --pytest-arg=--junitxml=reports/quality/postgres/current-data.xml \
             --pytest-arg=--maxfail=1
