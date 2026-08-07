@@ -75,18 +75,6 @@ def get_system_settings() -> Any:
     return _interface_repo().get_system_settings()
 
 
-def has_system_settings_singleton() -> bool:
-    """Return whether the singleton settings row already exists."""
-
-    return _interface_repo().has_system_settings_singleton()
-
-
-def get_existing_system_settings() -> Any:
-    """Return the existing singleton settings row without creating one."""
-
-    return _interface_repo().get_existing_system_settings()
-
-
 def get_active_access_token(key: str) -> Any:
     """Return one active access token when available."""
 

@@ -102,11 +102,9 @@ def test_system_settings_repository_reads_asset_proxy_from_config_center(monkeyp
         "apps.account.infrastructure.repositories.get_runtime_asset_proxy_map",
         lambda: {"equity": "510300.SH"},
     )
-    monkeypatch.setattr(
-        "apps.account.infrastructure.repositories.SystemSettingsModel.get_runtime_asset_proxy_code",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(
-            AssertionError("legacy SystemSettings asset-proxy getter used")
-        ),
+    assert not hasattr(
+        repositories.SystemSettingsModel,
+        "get_runtime_asset_proxy_code",
     )
 
     repository = repositories.SystemSettingsRepository()

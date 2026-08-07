@@ -11,7 +11,6 @@ import hashlib
 import uuid
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -477,75 +476,9 @@ class SystemSettingsModel(models.Model):
         value = (self.asset_proxy_code_map or {}).get(asset_class, default)
         return value if isinstance(value, str) else default
 
-    def get_qlib_provider_uri(self) -> str:
-        default_uri = self._get_qlib_setting("provider_uri", "~/.qlib/qlib_data/cn_data")
-        if self.qlib_provider_uri:
-            configured_path = Path(self.qlib_provider_uri).expanduser()
-            if configured_path.exists():
-                return self.qlib_provider_uri
-            default_path = Path(default_uri).expanduser()
-            if default_path.exists():
-                return str(default_path)
-            return self.qlib_provider_uri
-        return str(default_uri)
-
-    def get_qlib_region(self) -> str:
-        if self.qlib_region:
-            return str(self.qlib_region)
-        return self._get_qlib_setting("region", "CN")
-
-    def get_qlib_model_path(self) -> str:
-        default_path = self._get_qlib_setting("model_path", "/models/qlib")
-        if self.qlib_model_path:
-            configured_path = Path(self.qlib_model_path).expanduser()
-            if configured_path.exists():
-                return self.qlib_model_path
-            fallback_path = Path(default_path).expanduser()
-            if fallback_path.exists():
-                return str(fallback_path)
-            return self.qlib_model_path
-        return str(default_path)
-
-    @staticmethod
-    def _get_qlib_setting(key: str, default: str) -> str:
-        """Return one string setting from the optional Qlib settings mapping."""
-
-        qlib_settings = getattr(settings, "QLIB_SETTINGS", {})
-        if not isinstance(qlib_settings, Mapping):
-            return default
-        value = qlib_settings.get(key, default)
-        return str(value) if value is not None else default
-
-    def is_qlib_configured(self) -> bool:
-        if not self.qlib_enabled:
-            return False
-        provider_uri = self.get_qlib_provider_uri()
-        if not provider_uri:
-            return False
-        return Path(provider_uri).expanduser().exists()
-
-    def get_runtime_qlib_config_payload(self) -> dict[str, object]:
-        return {
-            "enabled": self.qlib_enabled,
-            "provider_uri": self.get_qlib_provider_uri(),
-            "region": self.get_qlib_region(),
-            "model_path": self.get_qlib_model_path(),
-            "default_universe": self.qlib_default_universe or "csi300",
-            "default_feature_set_id": self.qlib_default_feature_set_id or "v1",
-            "default_label_id": self.qlib_default_label_id or "return_5d",
-            "train_queue_name": self.qlib_train_queue_name or "qlib_train",
-            "infer_queue_name": self.qlib_infer_queue_name or "qlib_infer",
-            "allow_auto_activate": bool(self.qlib_allow_auto_activate),
-            "is_configured": self.is_qlib_configured(),
-        }
-
     @classmethod
     def get_runtime_benchmark_code(cls, key: str, default: str = "") -> str:
         return cls.get_settings_for_read().get_benchmark_code(key, default)
-
-    @classmethod
-    def get_runtime_asset_proxy_code(cls, asset_class: str, default: str = "") -> str:
-        return cls.get_settings_for_read().get_asset_proxy_code(asset_class, default)
 
     @classmethod
     def get_runtime_market_visual_tokens(cls) -> dict[str, str]:
@@ -557,10 +490,6 @@ class SystemSettingsModel(models.Model):
         if not isinstance(raw_map, Mapping):
             return {}
         return {str(key): value for key, value in raw_map.items()}
-
-    @classmethod
-    def get_runtime_qlib_config(cls) -> dict[str, object]:
-        return cls.get_settings_for_read().get_runtime_qlib_config_payload()
 
     @classmethod
     def get_runtime_alpha_fixed_provider(cls) -> str:
@@ -847,7 +776,9 @@ class RuntimeConfigDefinitionModel(models.Model):
     key = models.CharField(max_length=180, unique=True, db_index=True)
     namespace = models.CharField(max_length=80, db_index=True)
     owner_app = models.CharField(max_length=100, db_index=True)
-    value_type = models.CharField(max_length=24, choices=[(item.value, item.value) for item in RuntimeValueType])
+    value_type = models.CharField(
+        max_length=24, choices=[(item.value, item.value) for item in RuntimeValueType]
+    )
     unit = models.CharField(max_length=40, blank=True)
     constraints = models.JSONField(default=dict, blank=True)
     criticality = models.CharField(

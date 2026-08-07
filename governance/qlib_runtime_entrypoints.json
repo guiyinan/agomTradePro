@@ -22,7 +22,6 @@
       "apps/config_center/application/config_summary_service.py",
       "apps/config_center/application/public.py",
       "apps/config_center/infrastructure/config_summary_repository.py",
-      "apps/config_center/infrastructure/models.py",
       "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py",
       "apps/terminal/application/tui_operator_services.py",
       "core/integration/runtime_settings.py"
@@ -377,33 +376,6 @@
       "source": "runtime_use_cases",
       "gate": "profile_activation_validation",
       "legacy_status": "blocked"
-    },
-    {
-      "id": "legacy.system_settings_qlib_getter",
-      "kind": "legacy_compatibility",
-      "file": "apps/config_center/infrastructure/models.py",
-      "symbol": "SystemSettingsModel.get_runtime_qlib_config",
-      "source": "SystemSettingsModel",
-      "gate": "compatibility_only",
-      "legacy_status": "retirement_pending"
-    },
-    {
-      "id": "legacy.account_system_settings_admin",
-      "kind": "legacy_compatibility",
-      "file": "apps/account/interface/admin.py",
-      "symbol": "SystemSettingsAdminForm",
-      "source": "compatibility_fields_excluded_from_form",
-      "gate": "typed_runtime_admin_guard",
-      "legacy_status": "retirement_pending"
-    },
-    {
-      "id": "legacy.settings_qlib_mapping",
-      "kind": "legacy_compatibility",
-      "file": "core/settings/base.py",
-      "symbol": "QLIB_SETTINGS",
-      "source": "environment/settings",
-      "gate": "bootstrap_only",
-      "legacy_status": "retirement_pending"
     },
     {
       "id": "legacy.script_train_qlib",

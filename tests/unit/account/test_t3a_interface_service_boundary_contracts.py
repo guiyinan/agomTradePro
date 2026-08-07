@@ -16,12 +16,6 @@ class _InterfaceRepository:
         self.calls: list[tuple[str, object]] = []
         self.token_enabled = True
 
-    def has_system_settings_singleton(self) -> bool:
-        return True
-
-    def get_existing_system_settings(self) -> object:
-        return SimpleNamespace(id=1)
-
     def provision_registered_user(self, **kwargs: object) -> None:
         self.calls.append(("provision", kwargs))
 
@@ -222,7 +216,7 @@ def test_account_settings_and_trading_cost_outcomes(
     assert account.calls[-1][0] == "cost"
 
 
-def test_singleton_registration_and_account_option_wrappers(
+def test_registration_and_account_option_wrappers(
     interface_repositories: tuple[_InterfaceRepository, _ClassificationRepository],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -239,8 +233,6 @@ def test_singleton_registration_and_account_option_wrappers(
         ),
     )
 
-    assert interface_services.has_system_settings_singleton() is True
-    assert interface_services.get_existing_system_settings().id == 1
     options = interface_services.list_investment_account_options(7)
     assert [option["value"] for option in options] == [1, 2]
     assert options[0]["label"] == "账户 1 · cash · #1"

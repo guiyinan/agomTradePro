@@ -556,7 +556,7 @@
       "fallback": "system_settings_compatibility",
       "migration_status": "consumer_cutover_in_progress",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
-      "consumers": ["apps/account/application/tasks.py::send_database_backup_email_task", "apps/account/interface/admin.py::SystemSettingsAdminForm"],
+      "consumers": ["apps/account/application/tasks.py::send_database_backup_email_task"],
       "tests": ["tests/unit/config_center/test_runtime_definition_reconcile.py::test_backup_delivery_definitions_are_typed"]
     },
     {
@@ -747,15 +747,13 @@
       "consumers": [
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.update_system_governance",
-        "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.register_user_with_account_scaffolding",
-        "apps/account/interface/admin.py::SYSTEM_SETTINGS_TYPED_RUNTIME_FIELDS"
+        "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.register_user_with_account_scaffolding"
       ],
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "bootstrap_command": "python manage.py initialize_runtime_definitions",
       "tests": [
         "tests/unit/config_center/test_runtime_definition_reconcile.py::test_account_runtime_definitions_are_bounded_and_typed",
-        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance",
-        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_admin_excludes_account_runtime_fields"
+        "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance"
       ]
     },
     {
@@ -833,8 +831,7 @@
       "migration_status": "consumer_cutover_in_progress",
       "consumers": [
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
-        "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.get_system_settings",
-        "apps/account/interface/admin.py::SYSTEM_SETTINGS_TYPED_RUNTIME_FIELDS"
+        "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.get_system_settings"
       ],
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "bootstrap_command": "python manage.py initialize_runtime_definitions",
@@ -854,8 +851,7 @@
       "migration_status": "consumer_cutover_in_progress",
       "consumers": [
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
-        "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.get_system_settings",
-        "apps/account/interface/admin.py::SYSTEM_SETTINGS_TYPED_RUNTIME_FIELDS"
+        "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.get_system_settings"
       ],
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "bootstrap_command": "python manage.py initialize_runtime_definitions",

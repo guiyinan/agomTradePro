@@ -45,10 +45,7 @@ def test_runtime_qlib_summary_prefers_typed_snapshot(monkeypatch) -> None:
         "apps.config_center.infrastructure.config_summary_repository.get_active_qlib_runtime_config",
         _typed_runtime,
     )
-    monkeypatch.setattr(
-        "apps.config_center.infrastructure.config_summary_repository.SystemSettingsModel.get_runtime_qlib_config",
-        lambda: (_ for _ in ()).throw(AssertionError("legacy SystemSettings path used")),
-    )
+    assert not hasattr(SystemSettingsModel, "get_runtime_qlib_config")
 
     result = DjangoConfigCenterSummaryRepository().get_runtime_qlib_config()
 
@@ -64,10 +61,7 @@ def test_runtime_qlib_summary_blocks_when_snapshot_missing(monkeypatch) -> None:
         "apps.config_center.infrastructure.config_summary_repository.get_active_qlib_runtime_config",
         lambda _environment: None,
     )
-    monkeypatch.setattr(
-        "apps.config_center.infrastructure.config_summary_repository.SystemSettingsModel.get_runtime_qlib_config",
-        lambda: (_ for _ in ()).throw(AssertionError("legacy SystemSettings path used")),
-    )
+    assert not hasattr(SystemSettingsModel, "get_runtime_qlib_config")
 
     assert DjangoConfigCenterSummaryRepository().get_runtime_qlib_config() == {
         "enabled": False,

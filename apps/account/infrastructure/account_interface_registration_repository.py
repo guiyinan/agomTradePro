@@ -77,16 +77,6 @@ class AccountInterfaceRegistrationRepositoryMixin:
             for row in queryset
         ]
 
-    def has_system_settings_singleton(self) -> bool:
-        """Return whether the singleton system settings row already exists."""
-
-        return SystemSettingsModel._default_manager.exists()
-
-    def get_existing_system_settings(self) -> Any:
-        """Return the existing singleton settings row without creating one."""
-
-        return SystemSettingsModel._default_manager.first()
-
     def get_active_access_token(self, key: str) -> UserAccessTokenModel | None:
         """Return one active access token with user/profile preloaded."""
 

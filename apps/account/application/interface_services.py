@@ -106,16 +106,6 @@ def get_system_settings() -> Any:
     return _mcp_access_services.get_system_settings()
 
 
-def has_system_settings_singleton() -> bool:
-    _sync_mcp_service_dependencies()
-    return _mcp_access_services.has_system_settings_singleton()
-
-
-def get_existing_system_settings() -> Any:
-    _sync_mcp_service_dependencies()
-    return _mcp_access_services.get_existing_system_settings()
-
-
 def get_active_access_token(key: str) -> Any:
     _sync_mcp_service_dependencies()
     return _mcp_access_services.get_active_access_token(key)

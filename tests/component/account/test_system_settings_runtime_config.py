@@ -1,7 +1,6 @@
 from unittest.mock import patch
 
 import pytest
-from django.conf import settings as django_settings
 from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
 
@@ -146,50 +145,3 @@ def test_get_market_visuals_uses_default_tokens_for_anonymous_auth_pages():
     assert context["convention"] == "cn_a_share"
     assert context["rise"] == "var(--color-error)"
     assert context["fall"] == "var(--color-success)"
-
-
-@pytest.mark.django_db
-def test_qlib_runtime_paths_fall_back_when_persisted_path_is_not_local(tmp_path):
-    provider_dir = tmp_path / "qlib" / "cn_data"
-    model_dir = tmp_path / "qlib" / "models"
-    provider_dir.mkdir(parents=True)
-    model_dir.mkdir(parents=True)
-
-    original_qlib_settings = dict(django_settings.QLIB_SETTINGS)
-    django_settings.QLIB_SETTINGS = {
-        **original_qlib_settings,
-        "provider_uri": str(provider_dir),
-        "model_path": str(model_dir),
-    }
-    try:
-        settings = SystemSettingsModel.get_settings()
-        settings.qlib_enabled = True
-        settings.qlib_provider_uri = r"Z:\missing\qlib\cn_data"
-        settings.qlib_model_path = r"Z:\missing\qlib\models"
-        settings.save(
-            update_fields=[
-                "qlib_enabled",
-                "qlib_provider_uri",
-                "qlib_model_path",
-                "updated_at",
-            ]
-        )
-
-        runtime_config = SystemSettingsModel.get_runtime_qlib_config()
-    finally:
-        django_settings.QLIB_SETTINGS = original_qlib_settings
-
-    assert runtime_config["provider_uri"] == str(provider_dir)
-    assert runtime_config["model_path"] == str(model_dir)
-    assert runtime_config["is_configured"] is True
-
-
-@pytest.mark.django_db
-def test_runtime_qlib_config_uses_unsaved_defaults_when_settings_are_missing():
-    SystemSettingsModel._default_manager.all().delete()
-
-    runtime_config = SystemSettingsModel.get_runtime_qlib_config()
-
-    assert runtime_config["enabled"] is False
-    assert runtime_config["default_universe"] == "csi300"
-    assert SystemSettingsModel._default_manager.count() == 0
