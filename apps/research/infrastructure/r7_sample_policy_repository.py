@@ -101,7 +101,7 @@ class DjangoR7SamplePolicyRepository:
         """Restore by identity first so header/hash tampering cannot hide."""
 
         self._require_pit_cutoff(as_of)
-        model = (
+        models = list(
             R7SamplePolicyModel._default_manager.using(self._using)
             .select_related("approval")
             .filter(
@@ -109,16 +109,24 @@ class DjangoR7SamplePolicyRepository:
                 | Q(approval__policy_id=policy_id, approval__policy_version=policy_version)
                 | Q(content_hash=expected_content_hash)
             )
-            .first()
         )
-        if model is None:
+        if not models:
             return None
-        record = self._restore(model)
-        if record.recorded_at > as_of:
+        records = tuple(self._restore(model) for model in models)
+        matches = tuple(
+            record
+            for record in records
+            if record.policy_id == policy_id
+            and record.policy_version == policy_version
+            and record.content_hash == expected_content_hash
+        )
+        if len(matches) > 1:
+            raise R7SamplePolicyCorruption(
+                "multiple R7 sample policies match one exact identity and content hash"
+            )
+        if not matches or matches[0].recorded_at > as_of:
             return None
-        if record.content_hash != expected_content_hash:
-            return None
-        return record
+        return matches[0]
 
     def get_active_record(
         self,

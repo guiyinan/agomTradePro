@@ -32,6 +32,7 @@ from apps.research.infrastructure.r7_sample_policy_repository import (
 )
 from apps.research.r7_sample_policy_composition import (
     DjangoR7SamplePolicyRuntime,
+    _build_django_r7_sample_policy_test_runtime,
     build_django_r7_sample_policy_runtime,
 )
 from tests.unit.research.r7_sample_policy_factories import (
@@ -149,7 +150,7 @@ def _runtime() -> RuntimeFixture:
     draft = make_draft()
     clock = FixedClock(RECORDED_AT)
     authorization = AuthorizationProvider(make_authorization(draft))
-    runtime = build_django_r7_sample_policy_runtime(
+    runtime = _build_django_r7_sample_policy_test_runtime(
         definition_provider=DefinitionProvider(draft),
         authorization_provider=DjangoR7SamplePolicyAuthorizationProvider(authorization),
         clock=clock,
@@ -166,6 +167,28 @@ def _command(fixture: RuntimeFixture) -> RegisterR7SamplePolicyCommand:
         authorization_version=item.authorization_version,
         as_of=RECORDED_AT,
     )
+
+
+@pytest.mark.django_db
+def test_production_runtime_stays_fail_closed_without_risk_center_owner_evidence() -> None:
+    draft = make_draft()
+    runtime = build_django_r7_sample_policy_runtime(
+        definition_provider=DefinitionProvider(draft),
+        clock=FixedClock(RECORDED_AT),
+    )
+    authorization = make_authorization(draft)
+    with pytest.raises(R7SamplePolicyUnavailable, match="Risk Center owner approval"):
+        runtime.register.execute(
+            RegisterR7SamplePolicyCommand(
+                policy_id=draft.policy_id,
+                policy_version=draft.policy_version,
+                authorization_id=authorization.authorization_id,
+                authorization_version=authorization.authorization_version,
+                as_of=RECORDED_AT,
+            )
+        )
+    assert R7SamplePolicyApprovalReceiptModel._default_manager.count() == 0
+    assert R7SamplePolicyModel._default_manager.count() == 0
 
 
 @pytest.mark.django_db
@@ -319,6 +342,46 @@ def test_raw_clock_header_tamper_is_not_hidden_by_pit_sql_filter(
         cursor.execute(
             f"UPDATE research_r7_sample_policy SET {column} = {expression} WHERE id = %s",
             [row.pk],
+        )
+    with pytest.raises(R7SamplePolicyCorruption):
+        fixture.runtime.repository.get_active_record(
+            scope=fixture.draft.scope,
+            as_of=ACTIVATED_AT,
+        )
+
+
+@pytest.mark.django_db
+def test_identity_and_scope_header_tamper_is_not_hidden_by_redundant_anchors() -> None:
+    fixture = _runtime()
+    record = fixture.runtime.register.execute(_command(fixture))
+    fixture.clock.value = ACTIVATED_AT
+    row = R7SamplePolicyModel._default_manager.get()
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE research_r7_sample_policy SET policy_id = %s WHERE id = %s",
+            ["r7-policy:tampered", row.pk],
+        )
+    with pytest.raises(R7SamplePolicyCorruption):
+        fixture.runtime.get_exact.execute(
+            GetExactR7SamplePolicyCommand(
+                policy_id=record.policy_id,
+                policy_version=record.policy_version,
+                expected_content_hash=record.content_hash,
+                as_of=ACTIVATED_AT,
+            )
+        )
+
+
+@pytest.mark.django_db
+def test_scope_header_tamper_is_not_hidden_by_redundant_anchors() -> None:
+    fixture = _runtime()
+    fixture.runtime.register.execute(_command(fixture))
+    fixture.clock.value = ACTIVATED_AT
+    row = R7SamplePolicyModel._default_manager.get()
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE research_r7_sample_policy SET scope_content_hash = %s WHERE id = %s",
+            ["b" * 64, row.pk],
         )
     with pytest.raises(R7SamplePolicyCorruption):
         fixture.runtime.repository.get_active_record(
