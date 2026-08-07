@@ -322,9 +322,8 @@ def activate_runtime_profile_patch_payload(
 def get_active_qlib_runtime_config(environment: str) -> dict[str, object] | None:
     """Resolve a complete Qlib runtime mapping from the active snapshot.
 
-    The typed snapshot is an opt-in cutover path.  A partial, stale or malformed
-    snapshot returns ``None`` so the owner can keep its explicitly documented
-    SystemSettings compatibility path.  No values are invented here.
+    A partial, stale or malformed snapshot returns ``None``. Qlib has no runtime
+    compatibility fallback, so callers must fail closed. No values are invented.
     """
 
     normalized_environment = str(environment or "").strip()

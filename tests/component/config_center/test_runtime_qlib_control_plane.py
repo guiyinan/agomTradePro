@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import inspect
+
 import pytest
 
 from apps.account.infrastructure.account_interface_repository import AccountInterfaceRepository
@@ -18,6 +20,15 @@ from apps.data_center.application.interface_services import (
     save_provider_settings_payload,
 )
 from apps.data_center.infrastructure.models import DataProviderSettingsModel
+
+
+def test_profile_bootstrap_does_not_reheat_legacy_qlib_fields() -> None:
+    """Later profile patches must never copy Qlib from SystemSettings again."""
+
+    source = inspect.getsource(ConfigCenterSettingsRepository._legacy_runtime_values)
+
+    assert "settings_obj.qlib_" not in source
+    assert '"alpha.qlib.' not in source
 
 
 @pytest.mark.django_db

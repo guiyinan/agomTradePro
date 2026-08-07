@@ -159,18 +159,6 @@ class ConfigCenterSettingsRepository:
             "account.user_agreement_content": str(settings_obj.user_agreement_content or ""),
             "account.risk_warning_content": str(settings_obj.risk_warning_content or ""),
             "account.notes": str(settings_obj.notes or ""),
-            "alpha.qlib.enabled": bool(settings_obj.qlib_enabled),
-            "alpha.qlib.provider_uri": str(settings_obj.qlib_provider_uri or ""),
-            "alpha.qlib.region": str(settings_obj.qlib_region or "CN"),
-            "alpha.qlib.model_path": str(settings_obj.qlib_model_path or ""),
-            "alpha.qlib.default_universe": str(settings_obj.qlib_default_universe or "csi300"),
-            "alpha.qlib.default_feature_set_id": str(
-                settings_obj.qlib_default_feature_set_id or "v1"
-            ),
-            "alpha.qlib.default_label_id": str(settings_obj.qlib_default_label_id or "return_5d"),
-            "alpha.qlib.train_queue_name": str(settings_obj.qlib_train_queue_name or "qlib_train"),
-            "alpha.qlib.infer_queue_name": str(settings_obj.qlib_infer_queue_name or "qlib_infer"),
-            "alpha.qlib.allow_auto_activate": bool(settings_obj.qlib_allow_auto_activate),
             "alpha.runtime.fixed_provider": str(settings_obj.alpha_fixed_provider or ""),
             "alpha.runtime.pool_mode": str(
                 settings_obj.alpha_pool_mode or SystemSettingsModel.ALPHA_POOL_MODE_STRICT_VALUATION
