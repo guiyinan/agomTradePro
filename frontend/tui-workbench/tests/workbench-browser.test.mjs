@@ -652,8 +652,12 @@ test("dashboard auto-loads passive reads and never auto-runs sensitive actions",
             }
         });
         const location = page.locator("[data-current-location]");
+        const adminReadResponse = page.waitForResponse((response) =>
+            response.url().includes("/actions/test.admin-read/run/"),
+        );
         await location.fill("screen:test.dashboard");
         await location.press("Enter");
+        await adminReadResponse;
         const marker = page.locator('[data-dashboard-panel="regime"] .q-marker');
         await marker.waitFor({ state: "visible" });
         assert.equal(await marker.getAttribute("style"), "left:25%;top:25%");
