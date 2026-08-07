@@ -11,6 +11,16 @@ from django.core.management.base import CommandError
 from apps.task_monitor.management.commands import backup_database
 
 
+@pytest.fixture(autouse=True)
+def _stub_healthy_backup_capacity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep command service contracts independent from Config Center storage."""
+    monkeypatch.setattr(
+        backup_database,
+        "require_backup_capacity",
+        lambda: {"state": "healthy", "reason": "within_active_policy"},
+    )
+
+
 def test_backup_database_command_reports_artifact_and_cleanup(monkeypatch) -> None:
     """Successful backups publish the exact artifact and retention cleanup count."""
     service = SimpleNamespace(

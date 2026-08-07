@@ -207,7 +207,9 @@ def test_study_identity_is_content_addressed_and_same_id_payload_replacement_fai
     assert original.study_id == original.calculated_study_id
     assert replacement.study_id == replacement.calculated_study_id
     assert replacement.study_id != original.study_id
-    with pytest.raises(TypeError):
+    # ``dataclasses.replace`` reports an init=False override as ValueError on
+    # Python 3.11 and TypeError on newer supported interpreters.
+    with pytest.raises((TypeError, ValueError)):
         replace(
             original,
             study_id=original.study_id,

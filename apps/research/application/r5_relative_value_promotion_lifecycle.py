@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Protocol, TypedDict
 
@@ -88,6 +88,15 @@ class _LifecycleEvidenceValues(TypedDict):
     event_recorded_at: datetime
     event_ref: R5RelativeValuePromotionRef
     event_content_hash: str
+
+
+class _SystemR5PromotionServerClock:
+    """Timezone-aware fallback for direct Application-layer construction."""
+
+    def now(self) -> datetime:
+        """Return the current UTC server timestamp."""
+
+        return datetime.now(UTC)
 
 
 @dataclass(frozen=True)
@@ -843,10 +852,10 @@ class GetActiveR5RelativeValuePromotion:
         portfolio_outcome_provider: ExactR5PortfolioOutcomeProvider,
         decision_authorization_provider: ExactR5RelativeValueDecisionAuthorizationProvider,
         repository: R5RelativeValuePromotionLifecycleRepository,
-        clock: R5PromotionServerClock,
+        clock: R5PromotionServerClock | None = None,
     ) -> None:
         self._repository = repository
-        self._clock = clock
+        self._clock = clock if clock is not None else _SystemR5PromotionServerClock()
         self._reader = _R5DecisionOwnerGraphReader(
             policy_provider=policy_provider,
             trial_provider=trial_provider,

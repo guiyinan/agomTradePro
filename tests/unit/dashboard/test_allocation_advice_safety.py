@@ -3,6 +3,7 @@
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 
@@ -123,7 +124,37 @@ def test_invested_value_cannot_exceed_total_assets() -> None:
     assert result is None
 
 
-def test_domain_position_is_adapted_to_strategy_contract() -> None:
+def test_domain_position_is_adapted_to_strategy_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def calculate_advice(**kwargs: object) -> SimpleNamespace:
+        positions = kwargs["current_positions"]
+        total_assets = kwargs["total_assets"]
+        assert isinstance(positions, list)
+        assert isinstance(total_assets, float)
+        assert total_assets == 1000.0
+        current_allocation = AllocationService._calculate_current_allocation(
+            positions,
+            total_assets,
+        )
+        return SimpleNamespace(
+            current_allocation=current_allocation,
+            target_allocation={},
+            allocation_diff={},
+            trade_actions=[],
+            summary="test",
+            expected_return=None,
+            expected_volatility=None,
+            sharpe_ratio=None,
+            regime="Recovery",
+        )
+
+    monkeypatch.setattr(
+        AllocationService,
+        "calculate_allocation_advice",
+        staticmethod(calculate_advice),
+    )
+
     result = _use_case()._generate_allocation_advice(
         current_regime="Recovery",
         policy_level="P0",

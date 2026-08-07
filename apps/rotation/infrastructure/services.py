@@ -257,7 +257,7 @@ class RotationIntegrationService:
     def _build_price_reliability(self, asset_codes: list[str]) -> dict[str, Any]:
         """Aggregate current price-read evidence for rotation responses."""
 
-        contracts = {code: self.price_service.get_last_read_contract(code) for code in asset_codes}
+        contracts = {code: self._read_price_reliability_contract(code) for code in asset_codes}
         blocked_assets = [
             code
             for code, contract in contracts.items()
@@ -271,6 +271,29 @@ class RotationIntegrationService:
             ),
             "blocked_assets": blocked_assets,
             "by_asset": contracts,
+        }
+
+    def _read_price_reliability_contract(self, asset_code: str) -> dict[str, object]:
+        """Read provider evidence, failing closed when the optional port is absent."""
+
+        reader = getattr(self.price_service, "get_last_read_contract", None)
+        if callable(reader):
+            try:
+                contract = reader(asset_code)
+            except Exception as exc:
+                logger.warning(
+                    "Rotation price reliability read failed for %s exception_type=%s",
+                    asset_code,
+                    type(exc).__name__,
+                )
+            else:
+                if isinstance(contract, dict) and contract:
+                    return dict(contract)
+        return {
+            "status": "blocked",
+            "freshness_status": "unverified",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "price_reliability_contract_unavailable",
         }
 
     def get_rotation_recommendation(
@@ -572,14 +595,14 @@ class RotationIntegrationService:
                     else 0
                 ),
                 "has_price_data": True,
-                "price_reliability": self.price_service.get_last_read_contract(asset_code),
+                "price_reliability": self._read_price_reliability_contract(asset_code),
             }
         else:
             price_info = {
                 "current_price": None,
                 "change_20d": None,
                 "has_price_data": False,
-                "price_reliability": self.price_service.get_last_read_contract(asset_code),
+                "price_reliability": self._read_price_reliability_contract(asset_code),
             }
 
         return {

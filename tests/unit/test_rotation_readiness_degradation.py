@@ -165,6 +165,26 @@ def test_generated_signal_is_returned_when_orm_config_is_missing(monkeypatch):
     assert payload["target_allocation"] == {"510300": 1.0}
 
 
+def test_rotation_price_reliability_fails_closed_when_provider_returns_none():
+    class NullContractPriceProvider:
+        def get_last_read_contract(self, asset_code):
+            del asset_code
+            return None
+
+    service = rotation_services.RotationIntegrationService(
+        price_service=NullContractPriceProvider(),
+    )
+
+    payload = service._build_price_reliability(["510300"])
+
+    assert payload["status"] == "blocked"
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["blocked_assets"] == ["510300"]
+    assert payload["by_asset"]["510300"]["blocked_reason"] == (
+        "price_reliability_contract_unavailable"
+    )
+
+
 def test_rotation_allocations_reject_non_numeric_weights():
     """Reject JSON values that would otherwise fail inside sum()."""
 

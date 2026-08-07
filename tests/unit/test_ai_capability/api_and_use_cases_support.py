@@ -2,30 +2,41 @@
 """API and use-case regression tests for AI capability routing."""
 
 from types import SimpleNamespace
-
 from unittest.mock import patch
 
 import pytest
-
 from django.contrib.auth.models import User
-
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.ai_capability.application.dtos import RouteRequestDTO
-
 from apps.ai_capability.application.use_cases import (
     CapabilityExecutionDispatcher,
     RouteMessageUseCase,
     SyncCapabilitiesUseCase,
 )
-
 from apps.ai_capability.infrastructure.models import CapabilityCatalogModel
-
+from apps.config_center.infrastructure.decision_runtime_models import (
+    DecisionRuntimeStateModel,
+)
 from apps.terminal.infrastructure.models import TerminalRuntimeSettingsORM
 
 
 @pytest.fixture
-def api_client():
+def api_client(db):
+    """Return an HTTP client with an explicit active decision-runtime gate."""
+
+    DecisionRuntimeStateModel._default_manager.update_or_create(
+        state_id=1,
+        defaults={
+            "status": "active",
+            "reason": "",
+            "changed_at": timezone.now(),
+            "changed_by": "test:ai-capability-api-client",
+            "release_ref": "test",
+            "expected_resume_at": None,
+        },
+    )
     return APIClient()
 
 

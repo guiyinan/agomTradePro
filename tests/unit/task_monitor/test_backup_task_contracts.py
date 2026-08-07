@@ -187,6 +187,7 @@ def test_postgresql_backup_is_custom_atomic_verified_and_single_copy(
     settings: object,
 ) -> None:
     database_settings = {
+        **settings.DATABASES["default"],  # type: ignore[attr-defined]
         "ENGINE": "django.db.backends.postgresql",
         "NAME": "agom",
         "USER": "agom",
@@ -194,7 +195,11 @@ def test_postgresql_backup_is_custom_atomic_verified_and_single_copy(
         "PORT": "5432",
         "PASSWORD": "secret",
     }
-    settings.DATABASES["default"] = database_settings  # type: ignore[attr-defined]
+    monkeypatch.setitem(
+        settings.DATABASES,  # type: ignore[attr-defined]
+        "default",
+        database_settings,
+    )
     output = tmp_path / "backups"
     output.mkdir()
     (output / "postgres-20260801.dump").write_bytes(b"old")
