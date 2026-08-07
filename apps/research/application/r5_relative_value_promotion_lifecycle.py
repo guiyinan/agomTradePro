@@ -27,6 +27,10 @@ from apps.research.application.r5_relative_value_promotion_decision import (
     R5RelativeValuePromotionEvidenceError,
     R5RelativeValuePromotionRef,
 )
+from apps.research.application.r5_relative_value_promotion_persistence import (
+    R5PromotionServerClock,
+    require_r5_promotion_pit_cutoff,
+)
 from apps.research.domain.r5_relative_value_promotion_decision import (
     R5RelativeValuePromotionDecision,
     R5RelativeValuePromotionDecisionOutcome,
@@ -839,8 +843,10 @@ class GetActiveR5RelativeValuePromotion:
         portfolio_outcome_provider: ExactR5PortfolioOutcomeProvider,
         decision_authorization_provider: ExactR5RelativeValueDecisionAuthorizationProvider,
         repository: R5RelativeValuePromotionLifecycleRepository,
+        clock: R5PromotionServerClock,
     ) -> None:
         self._repository = repository
+        self._clock = clock
         self._reader = _R5DecisionOwnerGraphReader(
             policy_provider=policy_provider,
             trial_provider=trial_provider,
@@ -860,6 +866,10 @@ class GetActiveR5RelativeValuePromotion:
 
         require_aware(as_of, "R5 lifecycle active as_of")
         try:
+            require_r5_promotion_pit_cutoff(
+                as_of,
+                server_now=self._clock.now(),
+            )
             with self._repository.atomic():
                 history = self._repository.load_lifecycle_stream(scope_ref)
                 ApplyR5RelativeValuePromotionLifecycle._verify_stream(
