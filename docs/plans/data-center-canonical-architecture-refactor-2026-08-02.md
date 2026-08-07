@@ -4766,3 +4766,13 @@ Git SHA / 镜像 / migration：
 - 入口治理收口：旧入口精确校验不再维护一份重复的 active script 硬编码排除表，而是从 `data_center_operational_entrypoints.json` 读取 `active_public` 运维脚本；因此恢复验证器只作为真实运维入口登记，不会因治理文本再次生成伪 dispatch edge。旧入口精确测试 4 passed，入口 stale-check 仍为 1182 项且无待审候选。
 - 最终复核：修复后的真实 PostgreSQL source/restore 全量比较为空差异；397 张表逐行有序 JSON SHA-256、Data Center migrations、稳定 schema SHA-256 与 326 个 sequence 状态全部一致。source fingerprint 约 382 秒、restore fingerprint 约 306 秒；入口清单重建仍为 1182 项且 `candidate-review=0`，专项 40 passed。
 - 明确边界：本地 dump 来自一次性 client 容器，尚未证明 `manage.py backup_database` owner 路径；dump 与随后 live-source snapshot 也未使用同一 exported snapshot。GitHub PostgreSQL job 实际绿灯、artifact 下载、VPS 生产规模 RTO、host-key pinning、真实 archive mount/key 与 writer quiescence 仍是生产切换/M9 的前置条件；本轮不部署。
+
+## 135. 2026-08-07：全入口最终收编与双版本 CI 收口
+
+- 入口边界根因：Alpha 价格覆盖命令同时消费 Data Center factory 与纯 Protocol；后者已拆到稳定的 `application.public_protocols`，但入口扫描器只承认 `application.public`，拆分大文件会让已治理消费者从清单中消失。扫描器现将两个模块都视为 canonical Application public boundary，并用精确测试固定 Protocol consumer；最终快照保持 1182 项，`active_public=617`、`adjacent_operational=281`、`compatibility=250`、`retired_blocked=34`、`candidate-review=0`。
+- 大文件与可诊断性：不再向 1118 个非空行的 `public.py` 追加 re-export，消费者直接使用稳定 Protocol 边界，文件净缩减且 size guard 通过。全仓 mypy debt guard 在计数增长时同时打印精确源码行，避免只凭 `type-arg/union-attr` 汇总猜修；对应单测 5 passed。
+- 类型环境根因：CI 自动解析到 `django-stubs 6.0.8` / `djangorestframework-stubs 3.17.1`，本地旧小版本未把 `UploadedFile` 声明为泛型，形成 Python 3.11 CI 独有错误。两项开发类型契约已在 `pyproject.toml` 精确锁定并同步生成 `requirements-dev.txt`；上传边界使用 `UploadedFile[bytes]`，同时通过 postponed annotations 避免 Django 运行时类不可下标。Django field choices 的显式 `None` 契约统一按空集合 fail closed。
+- 旧链测试纠偏：Alpha strict-valuation component fixture 从已退役的 Equity `ValuationModel` 切到 canonical `ValuationFactModel`；Tushare quote fake 接受当前显式 gateway 配置；System Settings Admin 测试改为断言已退役路由继续返回 404，不为陈旧测试重新注册 legacy Admin。
+- 本地证据：全仓生产 mypy 为 `0 errors in 0 files`；入口专项 17 passed，入口与 Tushare 完整性组合 32 passed，Strategy API/结构回归 36 passed，旧 Admin 退役回归 1 passed；module graph 为 208 edges、0 bidirectional、0 cycles，architecture delta 0 violations，changed-file size、Ruff、Black、isort 与 dependency projection 均通过。用户工作区的 R5 relative-value 测试改动未纳入任何提交。
+- GitHub 证据：提交 `37c9b6af` 的 Architecture Layer Guard `31185957181`、Security Scan `31185957135`、Consistency Check `31185957215`、CI Fast Feedback `31185957203` 全部成功；Fast Feedback 内 Python 3.11、Python 3.13、incremental quality gates、no-database TDD 均成功。
+- 明确边界：本节完成“静态发现入口全部有 owner/status/target、候选归零、CI 防回归”的验收，不把 250 个 compatibility seam 冒充物理删除，也不替代生产 writer quiescence、VPS 规模 RTO、archive mount/key、外部备份下载回执或 M9 destructive migration。本轮遵守用户指令不部署、不修改 VPS。
