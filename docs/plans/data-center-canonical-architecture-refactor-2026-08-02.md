@@ -106,7 +106,7 @@
 已落地：
 
 - 业务 App 不再直接 import `apps.data_center.infrastructure`；Alpha ETF、Realtime、Equity market/stock-info、Fund 入口统一经 Data Center Application Public Port，新增 architecture rule 防止回归。
-- D4/D5 Equity 读取改为只走 canonical FinancialFact/ValuationFact/PriceBar；旧 `FinancialDataModel`、`ValuationModel`、`StockDailyModel` 仅保留模型、历史迁移、冻结 Admin 和迁移期测试用途，新增 legacy-fact access guard 阻断业务新增读写。
+- D4/D5 Equity 读取改为只走 canonical FinancialFact/ValuationFact/PriceBar；旧 `FinancialDataModel`、`ValuationModel` 已退出 Admin，仅保留模型、历史迁移和迁移期测试用途；`StockDailyModel` 仍是冻结只读 Admin。legacy-fact access guard 阻断业务新增读写。
 - D6 Fund NAV 读取和写入移除旧 `FundNetValueModel` fallback/shadow mirror；旧 NAV Admin 设为只读，净值性能测试改用 canonical facts。
 - Provider health snapshot 补齐 `dataset_key`，Capability 与 Dataset Contract 有稳定映射；Retention 增加每日 dry-run preview beat schedule，仍需 active policy/archive/hold/StoragePressure gate 才可执行删除。
 - Sector membership 增加 canonical `list_current` port，Sector repository 优先使用 Data Center membership；Sentiment news repository provider 改走 Public Port。
@@ -4667,4 +4667,12 @@ Git SHA / 镜像 / migration：
 - 根因：architecture inventory 原先按行搜索 `MacroIndicator`、`CapitalFlowModel` 等裸字符串，把宏观 Domain dataclass、账户资本流水模型、类型标注与测试兼容名称都算作 legacy fact access，产生 143 条伪债务；该数字与模块限定的 legacy access guard 不一致。
 - 变更：inventory 改为读取 `data_center_legacy_access_contracts.json`，按具体 legacy module、导入 symbol、alias、相对导入和模块属性引用解析；保留 owner model/admin/migration 的显式 allowed path，不再以类名同名判定旧链访问。新增回归分别证明 Domain `MacroIndicator`/本地 `CapitalFlowModel` 不误报，absolute/relative legacy ORM import 必须命中。
 - 提交态清单：在提交 `a66ded94` 的隔离 clean worktree 中重建并复核，结果为 `legacy_fact_references=0`、Data Center internal 外部直连 0、Provider 外部直连 0、cross-App ORM 51、current-surface 3374、data task decorators 56；总入口仍为 548、candidate-review=0。主工作区并行 R5 文件没有混入治理基线。
-- 语义边界：这里的 0 表示“当前生产源码没有未允许的 legacy fact ORM import/reference”，不表示旧表、兼容 façade、126/128 个 compatibility 入口或 D4/D5 双读已物理删除；M9 仍必须等待真实备份恢复、生产零访问证据与明确授权。
+- 语义边界：这里的 0 表示“当前生产源码没有未允许的 legacy fact ORM import/reference”，不表示旧表、兼容 façade、128 个 compatibility 入口已物理删除；M9 仍必须等待真实备份恢复、生产零访问证据与明确授权。
+
+## 124. 2026-08-07：D4/D5 全消费者切读状态收口
+
+- 根因：生产源码已无 `FinancialDataModel`/`ValuationModel` 业务引用，Equity context/API、Alpha、Factor、Valuation、TUI 与 MCP/AI capability 均通过 canonical repository、published Public Port 或 Equity canonical API 间接消费；但 ownership manifest 仍标记 `dual_read_legacy_pending_cutover`，旧两张表又继续出现在只读 Admin，形成“运行已切、控制面仍宣称双读”的状态漂移。
+- 切读收口：D4 `equity.financial.fact` 与 D5 `equity.valuation.fact` 更新为 `canonical_read_with_legacy_audit`；旧财务/估值模型退出 Admin，不再提供人工读取入口。模型定义、历史迁移和测试 fixture 继续保留到 M9，以支持恢复与最终删表验证，不作为生产消费者。
+- Lineage 修复：Equity compatibility DTO 写 canonical fact 时不再把 source 硬编码为 `equity_legacy_repo`。真实 provider 原样保留；空、unknown 或 legacy 标签统一归属 `equity_application_port`，原标签写入 `extra.upstream_source`；naive fetched time 不进入 canonical fact，改用 aware 采集时间，并保留合法 source observation time。
+- 证据：新增 4 条 cutover 回归，覆盖 Admin 退役、D4/D5 canonical lineage、aware time 和 ownership 状态；两条 canonical context 关键回归证明 D4/D5 读取 canonical facts 且不会回落旧表。legacy fact access guard 继续要求生产业务访问为 0；基于当前提交主线加本批投影的隔离 inventory 为 548 entries/candidate 0、legacy fact 0、current surface 3378。
+- 明确未做：未生成破坏性删表 migration、未清空旧表、未执行生产 PostgreSQL 备份恢复或 M9；本批只完成消费者与人工入口退役，不部署、不 push。

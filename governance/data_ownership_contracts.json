@@ -71,7 +71,7 @@
       "business_owner": "equity",
       "acceptance_owner": "data-platform",
       "consumers": ["equity", "alpha", "factor", "valuation", "terminal", "mcp"],
-      "migration_status": "dual_read_legacy_pending_cutover",
+      "migration_status": "canonical_read_with_legacy_audit",
       "decision_critical": true,
       "contract_version": "1.0"
     },
@@ -83,7 +83,7 @@
       "business_owner": "valuation",
       "acceptance_owner": "data-platform",
       "consumers": ["equity", "alpha", "factor", "valuation", "terminal", "mcp"],
-      "migration_status": "dual_read_legacy_pending_cutover",
+      "migration_status": "canonical_read_with_legacy_audit",
       "decision_critical": true,
       "contract_version": "1.0"
     },

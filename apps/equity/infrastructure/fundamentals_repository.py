@@ -76,6 +76,18 @@ def _parse_fact_datetime(value: object) -> datetime | None:
     return parsed
 
 
+def _canonical_fact_source(raw_source: str) -> tuple[str, dict[str, object]]:
+    """Normalize compatibility DTO lineage without publishing a fake legacy owner."""
+
+    normalized = str(raw_source or "").strip()
+    if normalized and normalized.lower() != "unknown" and "legacy" not in normalized.lower():
+        return normalized, {}
+    extra: dict[str, object] = {}
+    if normalized:
+        extra["upstream_source"] = normalized
+    return "equity_application_port", extra
+
+
 if TYPE_CHECKING:
     from apps.data_center.application.on_demand import OnDemandDataCenterService
 
@@ -845,6 +857,8 @@ class StockFundamentalsRepositoryMixin:
             "4Q": FinancialPeriodType.ANNUAL,
         }
         period_type = period_type_map[report_type]
+        source, lineage_extra = _canonical_fact_source(financial.source)
+        fetched_at = _parse_fact_datetime(financial.fetched_at) or timezone.now()
 
         def build_fact(metric_code: str, value: float | None, unit: str) -> FinancialFact | None:
             if value is None:
@@ -856,8 +870,10 @@ class StockFundamentalsRepositoryMixin:
                 metric_code=metric_code,
                 value=value,
                 unit=unit,
-                source="equity_legacy_repo",
+                source=source,
                 report_date=financial.report_date,
+                fetched_at=fetched_at,
+                extra=dict(lineage_extra),
             )
 
         raw_facts = [
@@ -895,6 +911,8 @@ class StockFundamentalsRepositoryMixin:
         return [fact for fact in raw_facts if fact is not None]
 
     def _valuation_entity_to_dc_fact(self, valuation: ValuationMetrics) -> ValuationFact:
+        source, lineage_extra = _canonical_fact_source(valuation.source_provider)
+        fetched_at = _parse_fact_datetime(valuation.fetched_at) or timezone.now()
         return ValuationFact(
             asset_code=valuation.stock_code,
             val_date=valuation.trade_date,
@@ -904,8 +922,10 @@ class StockFundamentalsRepositoryMixin:
             market_cap=(float(valuation.total_mv) if valuation.total_mv is not None else None),
             float_market_cap=(float(valuation.circ_mv) if valuation.circ_mv is not None else None),
             dv_ratio=valuation.dividend_yield,
-            source=valuation.source_provider or "equity_legacy_repo",
-            fetched_at=valuation.fetched_at or timezone.now(),
+            source=source,
+            available_at=_parse_fact_datetime(valuation.source_updated_at),
+            fetched_at=fetched_at,
+            extra=lineage_extra,
         )
 
     def get_latest_financial_data(

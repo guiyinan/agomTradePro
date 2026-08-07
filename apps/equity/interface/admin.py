@@ -14,11 +14,9 @@ from apps.equity.application.repository_provider import (
     get_equity_scoring_weight_config_repository,
 )
 from apps.equity.models import (
-    FinancialDataModel,
     ScoringWeightConfigModel,
     StockDailyModel,
     StockInfoModel,
-    ValuationModel,
 )
 from shared.infrastructure.django_admin import TypedModelAdmin
 
@@ -51,12 +49,16 @@ class StockInfoAdmin(TypedModelAdmin[StockInfoModel]):
 
         return False
 
-    def has_change_permission(self, request: HttpRequest, obj: StockInfoModel | None = None) -> bool:
+    def has_change_permission(
+        self, request: HttpRequest, obj: StockInfoModel | None = None
+    ) -> bool:
         """Freeze the legacy stock-master projection against edits."""
 
         return False
 
-    def has_delete_permission(self, request: HttpRequest, obj: StockInfoModel | None = None) -> bool:
+    def has_delete_permission(
+        self, request: HttpRequest, obj: StockInfoModel | None = None
+    ) -> bool:
         """Freeze the legacy stock-master projection against deletes."""
 
         return False
@@ -98,12 +100,16 @@ class StockDailyAdmin(TypedModelAdmin[StockDailyModel]):
 
         return False
 
-    def has_change_permission(self, request: HttpRequest, obj: StockDailyModel | None = None) -> bool:
+    def has_change_permission(
+        self, request: HttpRequest, obj: StockDailyModel | None = None
+    ) -> bool:
         """Prevent edits to the retired daily-price projection."""
 
         return False
 
-    def has_delete_permission(self, request: HttpRequest, obj: StockDailyModel | None = None) -> bool:
+    def has_delete_permission(
+        self, request: HttpRequest, obj: StockDailyModel | None = None
+    ) -> bool:
         """Prevent deletes from the retired daily-price projection."""
 
         return False
@@ -115,120 +121,6 @@ class StockDailyAdmin(TypedModelAdmin[StockDailyModel]):
         if obj.open != 0:
             return round((obj.close - obj.open) / obj.open * 100, 2)
         return "-"
-
-
-@admin.register(FinancialDataModel)
-class FinancialDataAdmin(TypedModelAdmin[FinancialDataModel]):
-    """Admin interface for point-in-time financial facts."""
-
-    list_display = (
-        "stock_code",
-        "report_date",
-        "report_type",
-        "revenue",
-        "net_profit",
-        "roe",
-        "debt_ratio",
-        "revenue_growth",
-        "net_profit_growth",
-    )
-    list_filter = ("report_type", "report_date")
-    search_fields = ("stock_code",)
-    date_hierarchy = "report_date"
-    readonly_fields = ("created_at", "updated_at")
-    fieldsets = (
-        ("基本信息", {"fields": ("stock_code", "report_date", "report_type")}),
-        ("利润表", {"fields": ("revenue", "net_profit", "revenue_growth", "net_profit_growth")}),
-        ("资产负债表", {"fields": ("total_assets", "total_liabilities", "equity")}),
-        ("财务指标", {"fields": ("roe", "roa", "debt_ratio")}),
-        (
-            "元数据",
-            {"fields": ("publish_date", "created_at", "updated_at"), "classes": ("collapse",)},
-        ),
-    )
-
-    def has_add_permission(self, request: HttpRequest) -> bool:
-        """Prevent writes to the retired financial projection."""
-
-        return False
-
-    def has_change_permission(
-        self,
-        request: HttpRequest,
-        obj: FinancialDataModel | None = None,
-    ) -> bool:
-        """Prevent edits to the retired financial projection."""
-
-        return False
-
-    def has_delete_permission(
-        self,
-        request: HttpRequest,
-        obj: FinancialDataModel | None = None,
-    ) -> bool:
-        """Prevent deletes from the retired financial projection."""
-
-        return False
-
-
-@admin.register(ValuationModel)
-class ValuationAdmin(TypedModelAdmin[ValuationModel]):
-    """Admin interface for valuation facts."""
-
-    list_display = (
-        "stock_code",
-        "trade_date",
-        "pe_ttm",
-        "pb",
-        "total_mv_display",
-        "circ_mv_display",
-        "dividend_yield",
-    )
-    list_filter = ("trade_date",)
-    search_fields = ("stock_code",)
-    date_hierarchy = "trade_date"
-    readonly_fields = ("created_at",)
-    fieldsets = (
-        ("基本信息", {"fields": ("stock_code", "trade_date")}),
-        ("估值指标", {"fields": ("pe", "pe_ttm", "pb", "ps", "dividend_yield")}),
-        ("市值", {"fields": ("total_mv", "circ_mv")}),
-        ("时间戳", {"fields": ("created_at",), "classes": ("collapse",)}),
-    )
-
-    def has_add_permission(self, request: HttpRequest) -> bool:
-        """Prevent writes to the retired valuation projection."""
-
-        return False
-
-    def has_change_permission(self, request: HttpRequest, obj: ValuationModel | None = None) -> bool:
-        """Prevent edits to the retired valuation projection."""
-
-        return False
-
-    def has_delete_permission(self, request: HttpRequest, obj: ValuationModel | None = None) -> bool:
-        """Prevent deletes from the retired valuation projection."""
-
-        return False
-
-    @admin.display(description="总市值")
-    def total_mv_display(self, obj: ValuationModel) -> str:
-        """Format total market value stored in yuan."""
-
-        return self._format_market_value(obj.total_mv)
-
-    @admin.display(description="流通市值")
-    def circ_mv_display(self, obj: ValuationModel) -> str:
-        """Format circulating market value stored in yuan."""
-
-        return self._format_market_value(obj.circ_mv)
-
-    @staticmethod
-    def _format_market_value(value: Decimal) -> str:
-        """Format a yuan-denominated market value without changing its storage unit."""
-
-        if value >= Decimal("100000000000"):
-            return f"{value / Decimal('100000000'):.1f}亿"
-        return f"{value / Decimal('10000'):.0f}万"
 
 
 @admin.register(ScoringWeightConfigModel)

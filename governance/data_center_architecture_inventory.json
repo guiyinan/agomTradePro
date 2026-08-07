@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3374,
+    "current_surface_references": 3378,
     "data_write_task_decorators": 56,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 4,
@@ -7963,112 +7963,112 @@
       "text": "\"updated_at\": latest.created_at.date().isoformat(),"
     },
     {
-      "line": 155,
+      "line": 167,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"\"\"Return stock context, with an explicit gate for current consumers."
     },
     {
-      "line": 159,
+      "line": 171,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "or pass ``published_only=True`` so raw latest facts cannot masquerade as"
     },
     {
-      "line": 160,
+      "line": 172,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "current observations."
     },
     {
-      "line": 252,
+      "line": 264,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "latest = self._get_latest_financial(stock_code, published_only=published_only)"
     },
     {
-      "line": 253,
+      "line": 265,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "if latest is None:"
     },
     {
-      "line": 256,
+      "line": 268,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"report_date\": latest.report_date,"
     },
     {
-      "line": 257,
+      "line": 269,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"roe\": latest.roe,"
     },
     {
-      "line": 258,
+      "line": 270,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"debt_ratio\": latest.debt_ratio,"
     },
     {
-      "line": 259,
+      "line": 271,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"revenue_growth\": latest.revenue_growth,"
     },
     {
-      "line": 260,
+      "line": 272,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"net_profit_growth\": latest.net_profit_growth,"
     },
     {
-      "line": 269,
+      "line": 281,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "latest = self._get_latest_valuation(stock_code, published_only=published_only)"
     },
     {
-      "line": 270,
+      "line": 282,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "if latest is None:"
     },
     {
-      "line": 273,
+      "line": 285,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"trade_date\": latest.trade_date,"
     },
     {
-      "line": 274,
+      "line": 286,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"pe\": latest.pe,"
     },
     {
-      "line": 275,
+      "line": 287,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"pb\": latest.pb,"
     },
     {
-      "line": 276,
+      "line": 288,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"ps\": latest.ps,"
     },
     {
-      "line": 277,
+      "line": 289,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"dividend_yield\": latest.dividend_yield,"
     },
     {
-      "line": 310,
+      "line": 322,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 462,
+      "line": 474,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 534,
+      "line": 546,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 613,
+      "line": 625,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 917,
+      "line": 937,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "publication_key: str = \"current\","
     },
@@ -10208,6 +10208,16 @@
       "text": "\"\"\"Read one exact PIT-valid Portfolio owner record; never latest/current/list.\"\"\""
     },
     {
+      "line": 274,
+      "path": "apps/portfolio/application/r5_relative_value_outcome.py",
+      "text": "\"\"\"Exact Portfolio Application owner query; never latest/current/list.\"\"\""
+    },
+    {
+      "line": 397,
+      "path": "apps/portfolio/application/r5_relative_value_outcome.py",
+      "text": "\"\"\"Hash-bound PIT query without latest/current/list semantics.\"\"\""
+    },
+    {
       "line": 42,
       "path": "apps/portfolio/application/use_cases.py",
       "text": "current: PortfolioSnapshot,"
@@ -10486,6 +10496,16 @@
       "line": 43,
       "path": "apps/portfolio/infrastructure/r4_rolling_research_repository.py",
       "text": "\"\"\"Return the current server time.\"\"\""
+    },
+    {
+      "line": 41,
+      "path": "apps/portfolio/infrastructure/r5_relative_value_outcome_repository.py",
+      "text": "\"\"\"Return the current server timestamp.\"\"\""
+    },
+    {
+      "line": 229,
+      "path": "apps/portfolio/infrastructure/r5_relative_value_outcome_repository.py",
+      "text": "\"R5 outcome differs from its current exact owner graph\""
     },
     {
       "line": 90,
