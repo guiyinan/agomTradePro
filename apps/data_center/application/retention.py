@@ -110,6 +110,14 @@ class RetentionPlanRepositoryPort(Protocol):
 
     def save_member(self, plan_id: str, member: RetentionPlanMember) -> RetentionPlanMember: ...
 
+    def consume_member(
+        self,
+        plan_id: str,
+        member: RetentionPlanMember,
+        *,
+        now: datetime,
+    ) -> RetentionPlanMember: ...
+
     def finish(self, plan: RetentionPlan) -> RetentionPlan: ...
 
 
@@ -686,9 +694,9 @@ class EnforceRetentionPlanUseCase:
             if current is None:
                 raise AssertionError("retention current payload guard failed")
             try:
-                count = self._candidates.delete_if_matches(
-                    current,
-                    expected_record_digest=member.record_digest,
+                consumed = self._plans.consume_member(
+                    plan.plan_id,
+                    member,
                     now=moment,
                 )
             except Exception:
@@ -704,32 +712,11 @@ class EnforceRetentionPlanUseCase:
                     ),
                 )
                 continue
-            if count == 1:
+            if consumed.execution is RetentionMemberExecution.DELETED:
                 deleted += 1
                 bytes_deleted += member.size_bytes
-                self._plans.save_member(
-                    plan.plan_id,
-                    RetentionPlanMember(
-                        **{
-                            **member.__dict__,
-                            "execution": RetentionMemberExecution.DELETED,
-                            "execution_reason": "deleted",
-                            "deleted_at": moment,
-                        }
-                    ),
-                )
             else:
                 execution_blocked += 1
-                self._plans.save_member(
-                    plan.plan_id,
-                    RetentionPlanMember(
-                        **{
-                            **member.__dict__,
-                            "execution": RetentionMemberExecution.BLOCKED,
-                            "execution_reason": "raw_payload_changed_before_delete",
-                        }
-                    ),
-                )
         if deleted == plan.planned:
             status = RetentionPlanStatus.COMPLETED
             outcome = "success"

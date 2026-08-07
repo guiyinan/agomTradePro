@@ -4728,3 +4728,13 @@ Git SHA / 镜像 / migration：
 - 审计与 schema：计划 member 对 archive 使用 `PROTECT`，RawPayload 删除后仍保留证据；旧 `RetentionRunRepository` 从可覆盖 `update_or_create` 收紧为 create-or-identical。部署 schema gate 增加两张计划表和 `0064` marker。Celery manifest 为 plan/enforce 补齐 invalid、all-success、partial、zero-output/blocked、complete-failure 的精确测试节点。
 - 本地证据：Domain/任务专项 37 passed，ORM 控制面 8 passed；Celery contract 31 tasks/9 files，10 个生产文件增量 mypy 0，Ruff 与 `makemigrations --check` 通过。真实删除没有加入 Beat，本批未连接生产、未部署。
 - 仍需外部证据：正式启用定时 enforce 前，必须在 PostgreSQL job 验证两个 worker 并发 claim、policy/hold 与 enforce 竞争、事务异常恢复，并完成真实 archive mount/key 的 export→inspect→restore→plan→enforce 演练；这些不由 SQLite 单元证据替代。
+
+## 131. 2026-08-07：PostgreSQL 原子删除、迁移与隔离恢复 CI 取证
+
+- 再审计根因：首版 plan claim 能阻止两个 enforce worker 同时消费，却仍把 RawPayload 删除和 member evidence 写入放在两个事务；evidence 写失败会留下“数据已删、成员仍 pending”。普通 `select_for_update` 也锁不住当前不存在的 hold 行，无法阻止检查后并发 INSERT hold。
+- 原子 UoW：新增统一 transaction advisory lock 协议，policy activate、hold create/release 与 member consume 对 dataset/plan/raw/archive 资源按稳定顺序取相同锁。Infrastructure UoW 在一个事务内锁 plan/member/raw/policy/archive，重查 active policy、四级 hold、固定 archive DB evidence 与完整 record digest，随后同时 CAS 删除 raw 并写 `member=deleted`；任一步异常全部回滚。Application 不再拼接跨事务删除。
+- PostgreSQL 专项：新增 PG-only 双 worker claim、同 operation 并发建 plan、hold 先持锁再 enforce 三条真实并发测试；新增 `0063 -> 0064 -> reverse -> reapply` migration test，验证 plan/member unique、archive `PROTECT` 和 reverse/reapply。SQLite 明确 skip advisory-lock 测试，不冒充 PG 证据。
+- 恢复取证：nightly PostgreSQL 16 通过应用唯一 owner 生成 custom dump；新 verifier 先 `pg_restore --list`，再恢复到受控随机前缀的隔离库。source/restore 逐表按稳定 JSON 行流式 SHA-256，比对行数与内容；schema SHA-256 覆盖 columns/type/null/default、constraints、indexes、sequence 定义和 last value，并再次检查 canonical table/migration marker。证据记录 dump SHA/size/TOC、restore 秒数、验证秒数、总时长和清理结果，失败也原子落盘；密码不进入 argv。
+- CI 可下载证据：critical/current-data/Celery/retention/migration/concurrency 各自产出 JUnit，另保存 PostgreSQL/client version、migration plan 和 restore evidence JSON；artifact 不上传数据库 dump。入口图把 verifier 作为 active governance script 收编，更新为 990 entries、`active_public=562`、`candidate-review=0`。
+- 本地证据：Retention task 28 passed、verifier unit 7 passed、ORM/UoW 10 passed、migration forward/reverse 1 passed；PG concurrency 3 条在 SQLite 按设计 skip。Ruff、增量 mypy、YAML 解析通过。
+- 外部边界：以上仅完成可执行 CI 与证据产出定义；在 GitHub PostgreSQL job 实际绿灯并下载 artifact 前，不宣称 PG concurrency/restore DoD 已完成。它也不替代 VPS 生产规模 custom backup 下载、隔离恢复 RTO、host-key pinning、真实 archive key/mount 演练和 M9/M10。

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import F, Q
 
 from apps.data_center.domain.raw_landing import RawPayload, raw_payload_record_digest
@@ -16,7 +17,9 @@ from apps.data_center.domain.retention import (
     ArchiveRestoreAudit,
     ArchiveRestoreOutcome,
     ArchiveState,
+    RetentionMemberExecution,
     RetentionPlan,
+    RetentionPlanDecision,
     RetentionPlanMember,
     RetentionPlanStatus,
     RetentionPolicy,
@@ -25,7 +28,12 @@ from apps.data_center.domain.retention import (
 )
 
 from .archive_models import ArchiveMemberModel, ArchiveRestoreAuditModel
-from .models import ArchiveManifestModel, RetentionPolicyModel, StorageHoldModel
+from .models import (
+    ArchiveManifestModel,
+    RawPayloadModel,
+    RetentionPolicyModel,
+    StorageHoldModel,
+)
 from .retention_models import RetentionPlanMemberModel, RetentionPlanModel, RetentionRunModel
 
 
@@ -33,6 +41,20 @@ def _uuid(value: str) -> UUID:
     """Convert domain ID to UUID."""
 
     return UUID(value)
+
+
+def _acquire_resource_locks(resources: tuple[tuple[str, str], ...]) -> None:
+    """Serialize hold/policy changes and deletion across missing-row races on PostgreSQL."""
+
+    if connection.vendor != "postgresql":
+        return
+    keys = []
+    for resource_type, resource_key in sorted(set(resources)):
+        encoded = f"agom-retention-v1:{resource_type}:{resource_key}".encode()
+        keys.append(int.from_bytes(hashlib.sha256(encoded).digest()[:8], "big", signed=True))
+    with connection.cursor() as cursor:
+        for key in keys:
+            cursor.execute("SELECT pg_advisory_xact_lock(%s)", [key])
 
 
 class RetentionPolicyRepository:
@@ -59,6 +81,7 @@ class RetentionPolicyRepository:
     def activate(self, policy: RetentionPolicy) -> RetentionPolicy:
         """Activate one policy version and retire others for the dataset."""
 
+        _acquire_resource_locks((("dataset", policy.dataset_key),))
         RetentionPolicyModel._default_manager.filter(
             dataset_key=policy.dataset_key, active=True
         ).update(active=False)
@@ -162,9 +185,12 @@ class RetentionPlanRepository:
         )
         if not created:
             persisted = model.to_domain()
-            if persisted != plan or self._members(persisted.plan_id) != members:
+            if (
+                persisted.dataset_key != plan.dataset_key
+                or persisted.requested != plan.requested
+            ):
                 raise ValueError("retention_plan_operation_immutable_conflict")
-            return persisted, members
+            return persisted, self._members(persisted.plan_id)
         RetentionPlanMemberModel._default_manager.bulk_create(
             [
                 RetentionPlanMemberModel(
@@ -270,6 +296,127 @@ class RetentionPlanRepository:
         return model.to_domain()
 
     @transaction.atomic
+    def consume_member(
+        self,
+        plan_id: str,
+        member: RetentionPlanMember,
+        *,
+        now: datetime,
+    ) -> RetentionPlanMember:
+        """Atomically recheck database gates, delete raw bytes and persist evidence."""
+
+        plan_model = RetentionPlanModel._default_manager.select_for_update().get(
+            plan_id=_uuid(plan_id)
+        )
+        plan = plan_model.to_domain()
+        member_model = RetentionPlanMemberModel._default_manager.select_for_update().get(
+            plan_id=plan_model.plan_id,
+            payload_id=_uuid(member.payload_id),
+        )
+        current_member = member_model.to_domain()
+        if current_member.snapshot_fields() != member.snapshot_fields():
+            raise ValueError("retention_plan_member_immutable_conflict")
+        if current_member.execution is not RetentionMemberExecution.PENDING:
+            return current_member
+        if (
+            plan.status is not RetentionPlanStatus.ENFORCING
+            or current_member.decision is not RetentionPlanDecision.ELIGIBLE
+            or current_member.archive_id is None
+        ):
+            raise ValueError("retention_plan_member_not_consumable")
+        resources = (
+            ("dataset", plan.dataset_key),
+            ("retention_plan", plan.plan_id),
+            ("raw_payload", current_member.payload_id),
+            ("archive", current_member.archive_id),
+        )
+        _acquire_resource_locks(resources)
+
+        active_policy = (
+            RetentionPolicyModel._default_manager.select_for_update()
+            .filter(dataset_key=plan.dataset_key, active=True)
+            .order_by("-version")
+            .first()
+        )
+        if (
+            active_policy is None
+            or str(active_policy.policy_id) != plan.policy_id
+            or int(active_policy.version) != plan.policy_version
+        ):
+            return self._block_member(member_model, "retention_policy_changed_replan_required")
+        for resource_type, resource_key in resources:
+            if (
+                StorageHoldModel._default_manager.filter(
+                    resource_type=resource_type,
+                    resource_key=resource_key,
+                    released_at__isnull=True,
+                )
+                .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
+                .exists()
+            ):
+                return self._block_member(member_model, f"active_{resource_type}_hold")
+
+        raw_model = (
+            RawPayloadModel._default_manager.select_for_update()
+            .filter(payload_id=_uuid(current_member.payload_id))
+            .first()
+        )
+        if raw_model is None:
+            return self._block_member(member_model, "raw_payload_changed_before_delete")
+        raw_payload = raw_model.to_domain()
+        if raw_payload_record_digest(raw_payload) != current_member.record_digest or (
+            raw_payload.retention_until is not None and raw_payload.retention_until > now
+        ):
+            return self._block_member(member_model, "raw_payload_changed_before_delete")
+
+        archive_model = (
+            ArchiveManifestModel._default_manager.select_for_update()
+            .filter(
+                archive_id=_uuid(current_member.archive_id),
+                dataset_key=plan.dataset_key,
+                state=ArchiveState.VERIFIED.value,
+                restore_outcome=ArchiveRestoreOutcome.SUCCESS.value,
+                verified_at__isnull=False,
+                last_restored_at__isnull=False,
+                retention_until__gt=now,
+                coverage_started_at__lte=raw_payload.fetched_at,
+                coverage_ended_at__gte=raw_payload.fetched_at,
+            )
+            .filter(last_restored_at__gte=F("verified_at"))
+            .first()
+        )
+        if archive_model is None:
+            return self._block_member(member_model, "planned_archive_evidence_no_longer_valid")
+        exact_member = ArchiveMemberModel._default_manager.filter(
+            archive_id=archive_model.archive_id,
+            payload_id=_uuid(raw_payload.payload_id),
+            payload_hash=raw_payload.payload_hash,
+            record_digest=current_member.record_digest,
+        ).exists()
+        exact_count = ArchiveMemberModel._default_manager.filter(
+            archive_id=archive_model.archive_id
+        ).count()
+        if not exact_member or exact_count != int(archive_model.object_count):
+            return self._block_member(member_model, "planned_archive_evidence_no_longer_valid")
+
+        raw_model.delete()
+        member_model.execution = RetentionMemberExecution.DELETED.value
+        member_model.execution_reason = "deleted"
+        member_model.deleted_at = now
+        member_model.save(update_fields=["execution", "execution_reason", "deleted_at"])
+        return member_model.to_domain()
+
+    @staticmethod
+    def _block_member(model: RetentionPlanMemberModel, reason: str) -> RetentionPlanMember:
+        """Persist a fail-closed member outcome inside the active transaction."""
+
+        model.execution = RetentionMemberExecution.BLOCKED.value
+        model.execution_reason = reason
+        model.deleted_at = None
+        model.save(update_fields=["execution", "execution_reason", "deleted_at"])
+        return model.to_domain()
+
+    @transaction.atomic
     def finish(self, plan: RetentionPlan) -> RetentionPlan:
         """Persist the terminal summary for the currently claimed operation."""
 
@@ -322,9 +469,11 @@ class RetentionPlanRepository:
 class StorageHoldRepository:
     """Hold repository used by retention jobs before deletion."""
 
+    @transaction.atomic
     def save(self, hold: StorageHold) -> StorageHold:
         """Upsert one hold."""
 
+        _acquire_resource_locks(((hold.resource_type, hold.resource_key),))
         model, _ = StorageHoldModel._default_manager.update_or_create(
             hold_id=_uuid(hold.hold_id),
             defaults={

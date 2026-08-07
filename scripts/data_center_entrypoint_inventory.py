@@ -56,6 +56,7 @@ GOVERNANCE_SCRIPT_ENTRYPOINTS = frozenset(
     {
         "scripts/check_data_center_runtime_catalog.py",
         "scripts/measure_data_center_query_ports.py",
+        "scripts/verify_postgres_backup_restore.py",
     }
 )
 IGNORED_PATH_PARTS = frozenset(

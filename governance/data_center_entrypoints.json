@@ -18,18 +18,18 @@
       "rest_url": 66,
       "runtime_config_key": 45,
       "scheduler_writer": 16,
-      "script": 6,
+      "script": 7,
       "sdk": 46,
       "system_settings_compatibility": 11,
       "terminal_tui": 28
     },
     "by_status": {
-      "active_public": 561,
+      "active_public": 562,
       "adjacent_operational": 217,
       "candidate-review": 0,
       "compatibility": 211
     },
-    "total": 989
+    "total": 990
   },
   "entries": [
     {
@@ -6755,8 +6755,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:.github/workflows/nightly-tests.yml:initialize_data_center_catalog:line:394",
-      "locator": "line:394",
+      "id": "orchestration_entry:.github/workflows/nightly-tests.yml:initialize_data_center_catalog:line:406",
+      "locator": "line:406",
       "path": ".github/workflows/nightly-tests.yml",
       "status": "active_public",
       "symbol": "initialize_data_center_catalog",
@@ -9069,6 +9069,16 @@
       "locator": "",
       "path": "scripts/sync_akshare_data.py",
       "status": "compatibility",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "Data Center governance/measurement tooling",
+      "id": "script:scripts/verify_postgres_backup_restore.py:__main__:",
+      "locator": "",
+      "path": "scripts/verify_postgres_backup_restore.py",
+      "status": "active_public",
       "symbol": "__main__",
       "target": ""
     },

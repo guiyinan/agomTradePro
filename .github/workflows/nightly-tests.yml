@@ -383,8 +383,20 @@ jobs:
           pip install -r requirements-dev.txt
           pip install -e sdk/
 
+      - name: Record PostgreSQL runtime versions
+        run: |
+          mkdir -p reports/quality/postgres
+          {
+            python --version
+            psql --version
+            psql "$DATABASE_URL" --tuples-only --no-align --command="SELECT version();"
+          } > reports/quality/postgres/runtime-versions.txt
+
       - name: Apply full migration graph to empty PostgreSQL database
         run: python manage.py migrate --noinput
+
+      - name: Record applied migration plan
+        run: python manage.py showmigrations --plan > reports/quality/postgres/migration-plan.txt
 
       - name: Verify complete PostgreSQL migration graph
         run: python scripts/check_migration_graph.py
@@ -403,6 +415,20 @@ jobs:
             --activate
           python manage.py collect_storage_capacity_profile --environment nightly-ci
 
+      - name: Create application-owned custom PostgreSQL backup
+        run: |
+          mkdir -p reports/quality/postgres-backup-restore
+          python manage.py backup_database \
+            --output reports/quality/postgres-backup-restore \
+            --keep 1 \
+            --compress
+
+      - name: Restore backup in isolation and compare exact PostgreSQL state
+        run: |
+          python scripts/verify_postgres_backup_restore.py \
+            --dump-path reports/quality/postgres-backup-restore/postgres-current.dump \
+            --report-path reports/quality/postgres-backup-restore/evidence.json
+
       - name: Prepare pre-migrated PostgreSQL test database
         env:
           PGPASSWORD: critical-test-password
@@ -419,14 +445,19 @@ jobs:
           python -m pytest tests/critical/ -v \
             --reuse-db \
             --no-migrations \
+            --junitxml=reports/quality/postgres/critical.xml \
             --timeout=180 \
             --timeout-method=thread \
             --durations=20
 
       - name: Run PostgreSQL migration integrity tests
         run: |
-          python -m pytest tests/migrations/test_research_integrity_migrations.py -v \
+          python -m pytest \
+            tests/migrations/test_research_integrity_migrations.py \
+            tests/migrations/test_data_center_retention_plan_migration.py \
+            -v \
             --reuse-db \
+            --junitxml=reports/quality/postgres/research-migrations.xml \
             --timeout=600 \
             --timeout-method=thread \
             --durations=20
@@ -437,7 +468,8 @@ jobs:
             tests/unit/data_center/test_published_query_ports.py \
             tests/unit/data_center/test_reconciliation_and_query_budget.py \
             tests/unit/config_center/test_runtime_config_control_plane.py \
-            -q --reuse-db --no-migrations --timeout=180
+            -q --reuse-db --no-migrations --timeout=180 \
+            --junitxml=reports/quality/postgres/publication-runtime.xml
 
       - name: Run current-data contract manifest on PostgreSQL
         run: |
@@ -445,6 +477,7 @@ jobs:
             --pytest-arg=--reuse-db \
             --pytest-arg=--no-migrations \
             --pytest-arg=--disable-warnings \
+            --pytest-arg=--junitxml=reports/quality/postgres/current-data.xml \
             --pytest-arg=--maxfail=1
 
       - name: Run Celery task contract manifest on PostgreSQL
@@ -453,6 +486,7 @@ jobs:
             --pytest-arg=--reuse-db \
             --pytest-arg=--no-migrations \
             --pytest-arg=--disable-warnings \
+            --pytest-arg=--junitxml=reports/quality/postgres/celery-contracts.xml \
             --pytest-arg=--maxfail=1
 
       - name: Run backfill coverage and retention control-plane evidence on PostgreSQL
@@ -465,4 +499,23 @@ jobs:
             tests/unit/data_center/test_raw_landing.py \
             tests/unit/data_center/test_retention_control_plane.py \
             -q -k "diagnostic or backfill or retention or raw_landing" \
-            --reuse-db --no-migrations --timeout=240
+            --reuse-db --no-migrations --timeout=240 \
+            --junitxml=reports/quality/postgres/backfill-retention.xml
+
+      - name: Run PostgreSQL retention concurrency evidence
+        run: |
+          python -m pytest \
+            tests/component/data_center/test_retention_postgres_concurrency.py \
+            -q --reuse-db --no-migrations --timeout=120 \
+            --junitxml=reports/quality/postgres/retention-concurrency.xml
+
+      - name: Upload PostgreSQL backup and restore evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-postgres-backup-restore-evidence
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            reports/quality/postgres-backup-restore/evidence.json
+            reports/quality/postgres/

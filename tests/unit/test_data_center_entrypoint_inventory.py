@@ -121,6 +121,12 @@ def test_inventory_includes_internal_consumers_admin_and_config_compatibility(
         category == "management_command" and path == "core/management/commands/warmup_cache.py"
         for category, path, _symbol, _locator in entry_keys
     )
+    assert any(
+        entry["category"] == "script"
+        and entry["path"] == "scripts/verify_postgres_backup_restore.py"
+        and entry["status"] == "active_public"
+        for entry in entries
+    )
 
 
 def test_inventory_expands_command_edges_and_publishes_full_task_targets(

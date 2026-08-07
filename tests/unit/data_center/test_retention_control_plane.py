@@ -6,8 +6,12 @@ from uuid import uuid4
 import pytest
 
 from apps.data_center.application.retention import RetentionGuard
+from apps.data_center.domain.raw_landing import RawPayload, raw_payload_record_digest
 from apps.data_center.domain.retention import (
     ArchiveManifest,
+    ArchiveMember,
+    ArchiveRestoreAudit,
+    ArchiveRestoreOutcome,
     ArchiveState,
     RetentionMemberExecution,
     RetentionPlan,
@@ -20,9 +24,12 @@ from apps.data_center.domain.retention import (
     retention_plan_snapshot_digest,
 )
 from apps.data_center.infrastructure.models import ArchiveManifestModel
+from apps.data_center.infrastructure.raw_landing_repositories import RawLandingRepository
+from apps.data_center.infrastructure.retention_models import RetentionPlanMemberModel
 from apps.data_center.infrastructure.retention_repositories import (
     ArchiveManifestRepository,
     RetentionPlanRepository,
+    RetentionPolicyRepository,
     RetentionRunRepository,
     StorageHoldRepository,
 )
@@ -296,3 +303,153 @@ def test_retention_run_repository_rejects_mutating_existing_evidence() -> None:
 
     with pytest.raises(ValueError, match="immutable_conflict"):
         repository.save(RetentionRun(**{**run.__dict__, "reason": "changed"}))
+
+
+def _consumable_retention_plan() -> tuple[
+    RetentionPlanRepository,
+    RawLandingRepository,
+    RetentionPlan,
+    RetentionPlanMember,
+    RawPayload,
+]:
+    raw_repository = RawLandingRepository()
+    payload = RawPayload(
+        payload_id=str(uuid4()),
+        dataset_key="market.raw",
+        provider_name="fixture",
+        payload_hash=f"sha256:{uuid4().hex}",
+        schema_fingerprint="sha256:schema",
+        payload={"value": 1},
+        fetched_at=NOW - timedelta(days=31),
+        retention_until=NOW - timedelta(days=1),
+        payload_size_bytes=128,
+    )
+    raw_repository.save(payload)
+    policy = RetentionPolicy(
+        policy_id=str(uuid4()),
+        dataset_key=payload.dataset_key,
+        version=1,
+        retention_days=30,
+        active=True,
+    )
+    RetentionPolicyRepository().activate(policy)
+    archive_member = ArchiveMember(
+        payload_id=payload.payload_id,
+        payload_hash=payload.payload_hash,
+        record_digest=raw_payload_record_digest(payload),
+        schema_fingerprint=payload.schema_fingerprint,
+        fetched_at=payload.fetched_at,
+        size_bytes=payload.payload_size_bytes,
+    )
+    archive = ArchiveManifest(
+        archive_id=str(uuid4()),
+        dataset_key=payload.dataset_key,
+        object_count=1,
+        size_bytes=256,
+        location="archive/exact-retention.bin",
+        checksum="a" * 64,
+        state=ArchiveState.EXPORTED,
+        created_at=NOW - timedelta(days=1),
+        retention_until=NOW + timedelta(days=365),
+        contract_version="raw-payload-v1",
+        schema_version="raw-payload-v1",
+        encryption_algorithm="fernet",
+        encryption_key_ref="test-key",
+        encryption_key_version="v1",
+        coverage_started_at=payload.fetched_at,
+        coverage_ended_at=payload.fetched_at,
+    )
+    archive_repository = ArchiveManifestRepository()
+    archive_repository.save_export(archive, (archive_member,))
+    archive_repository.mark_verified(archive.archive_id, verified_at=NOW)
+    archive_repository.record_restore(
+        ArchiveRestoreAudit(
+            audit_id=str(uuid4()),
+            operation_key=f"restore-{uuid4()}",
+            archive_id=archive.archive_id,
+            outcome=ArchiveRestoreOutcome.SUCCESS,
+            observed_checksum=archive.checksum,
+            observed_object_count=1,
+            observed_size_bytes=256,
+            restored_object_count=1,
+            restored_bytes=256,
+            started_at=NOW,
+            finished_at=NOW,
+        )
+    )
+    member = RetentionPlanMember(
+        ordinal=0,
+        payload_id=payload.payload_id,
+        payload_hash=payload.payload_hash,
+        record_digest=raw_payload_record_digest(payload),
+        schema_fingerprint=payload.schema_fingerprint,
+        fetched_at=payload.fetched_at,
+        retention_until=payload.retention_until,
+        size_bytes=payload.payload_size_bytes,
+        decision=RetentionPlanDecision.ELIGIBLE,
+        archive_id=archive.archive_id,
+    )
+    cutoff = NOW - timedelta(days=policy.retention_days)
+    plan = RetentionPlan(
+        plan_id=str(uuid4()),
+        operation_id=f"plan-{uuid4()}",
+        dataset_key=payload.dataset_key,
+        policy_id=policy.policy_id,
+        policy_version=policy.version,
+        requested=1,
+        candidates=1,
+        planned=1,
+        held=0,
+        blocked=0,
+        bytes_planned=payload.payload_size_bytes,
+        cutoff=cutoff,
+        created_at=NOW,
+        expires_at=NOW + timedelta(hours=1),
+        snapshot_digest=retention_plan_snapshot_digest(
+            dataset_key=payload.dataset_key,
+            policy_id=policy.policy_id,
+            policy_version=policy.version,
+            cutoff=cutoff,
+            members=(member,),
+        ),
+        status=RetentionPlanStatus.READY,
+        outcome="success",
+    )
+    plan_repository = RetentionPlanRepository()
+    plan_repository.create(plan, (member,))
+    claimed, claimed_members, _ = plan_repository.claim(
+        plan.plan_id, operation_id="enforce-atomic", now=NOW
+    )
+    return plan_repository, raw_repository, claimed, claimed_members[0], payload
+
+
+@pytest.mark.django_db(transaction=True)
+def test_retention_member_delete_and_evidence_commit_in_one_transaction() -> None:
+    plans, raw_rows, plan, member, payload = _consumable_retention_plan()
+
+    consumed = plans.consume_member(plan.plan_id, member, now=NOW)
+
+    assert consumed.execution is RetentionMemberExecution.DELETED
+    assert raw_rows.get_by_id(payload.payload_id) is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_retention_member_evidence_failure_rolls_back_raw_delete(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plans, raw_rows, plan, member, payload = _consumable_retention_plan()
+    original_save = RetentionPlanMemberModel.save
+
+    def fail_deleted_evidence(
+        model: RetentionPlanMemberModel, *args: object, **kwargs: object
+    ) -> None:
+        if model.execution == RetentionMemberExecution.DELETED.value:
+            raise RuntimeError("evidence unavailable")
+        original_save(model, *args, **kwargs)
+
+    monkeypatch.setattr(RetentionPlanMemberModel, "save", fail_deleted_evidence)
+
+    with pytest.raises(RuntimeError, match="evidence unavailable"):
+        plans.consume_member(plan.plan_id, member, now=NOW)
+
+    assert raw_rows.get_by_id(payload.payload_id) == payload

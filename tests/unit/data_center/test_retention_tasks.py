@@ -19,6 +19,7 @@ from apps.data_center.domain.raw_landing import RawPayload
 from apps.data_center.domain.retention import (
     ArchiveManifest,
     ArchiveState,
+    RetentionMemberExecution,
     RetentionPlan,
     RetentionPlanMember,
     RetentionPlanStatus,
@@ -142,6 +143,7 @@ class _Runs:
 class _Plans:
     def __init__(self) -> None:
         self.by_operation: dict[str, tuple[RetentionPlan, tuple[RetentionPlanMember, ...]]] = {}
+        self.candidates: _Candidates | None = None
 
     def get_by_operation_id(
         self, operation_id: str
@@ -186,6 +188,41 @@ class _Plans:
         )
         self.by_operation[key] = (plan, updated)
         return member
+
+    def consume_member(
+        self,
+        plan_id: str,
+        member: RetentionPlanMember,
+        *,
+        now: datetime,
+    ) -> RetentionPlanMember:
+        if self.candidates is None:
+            raise RuntimeError("candidate repository missing")
+        current = self.candidates.get_by_id(member.payload_id)
+        if current is None:
+            blocked = replace(
+                member,
+                execution=RetentionMemberExecution.BLOCKED,
+                execution_reason="raw_payload_changed_before_delete",
+            )
+            return self.save_member(plan_id, blocked)
+        count = self.candidates.delete_if_matches(
+            current, expected_record_digest=member.record_digest, now=now
+        )
+        if count != 1:
+            blocked = replace(
+                member,
+                execution=RetentionMemberExecution.BLOCKED,
+                execution_reason="raw_payload_changed_before_delete",
+            )
+            return self.save_member(plan_id, blocked)
+        deleted = replace(
+            member,
+            execution=RetentionMemberExecution.DELETED,
+            execution_reason="deleted",
+            deleted_at=now,
+        )
+        return self.save_member(plan_id, deleted)
 
     def finish(self, plan: RetentionPlan) -> RetentionPlan:
         key, (_, members) = next(
@@ -265,6 +302,9 @@ def _patch_task_dependencies(
     runs,
     plans=None,
 ) -> None:  # type: ignore[no-untyped-def]
+    resolved_plans = plans or _Plans()
+    if isinstance(resolved_plans, _Plans):
+        resolved_plans.candidates = candidates
     monkeypatch.setattr(
         "apps.data_center.application.tasks.evaluate_storage_pressure",
         lambda **_kwargs: {"state": "healthy"},
@@ -286,7 +326,7 @@ def _patch_task_dependencies(
     )
     monkeypatch.setattr(
         "apps.data_center.application.tasks.get_retention_plan_repository",
-        lambda: plans or _Plans(),
+        lambda: resolved_plans,
     )
 
 
