@@ -8,16 +8,40 @@
       "ValuationModel",
       "StockDailyModel"
     ],
+    "apps.equity.models": [
+      "StockInfoModel",
+      "FinancialDataModel",
+      "ValuationModel",
+      "StockDailyModel"
+    ],
     "apps.fund.infrastructure.models": [
+      "FundNetValueModel"
+    ],
+    "apps.fund.models": [
       "FundNetValueModel"
     ],
     "apps.sector.infrastructure.models": [
       "SectorConstituentModel"
     ],
+    "apps.sector.models": [
+      "SectorConstituentModel"
+    ],
     "apps.macro.infrastructure.models": [
+      "MacroIndicator"
+    ],
+    "apps.macro.models": [
       "MacroIndicator"
     ]
   },
+  "legacy_tables": [
+    "equity_stock_info",
+    "equity_stock_daily",
+    "equity_financial_data",
+    "equity_valuation",
+    "fund_net_value",
+    "sector_constituent",
+    "macro_indicator"
+  ],
   "allowed_path_patterns": [
     "^apps/equity/models\\.py$",
     "^apps/equity/migrations/",

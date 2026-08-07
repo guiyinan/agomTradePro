@@ -56,7 +56,7 @@ from .interface_services import (
 from .market_thermometer_dates import resolve_market_thermometer_as_of_date
 from .query_services import list_active_stock_codes_for_backfill
 from .query_use_cases import latest_completed_cn_market_session
-from .retention import RetentionCleanupUseCase, VerifyArchiveManifestUseCase
+from .retention import RetentionCleanupUseCase
 
 logger = logging.getLogger(__name__)
 
@@ -822,12 +822,28 @@ def cleanup_expired_raw_payloads_task(
     limit: int = 100,
     dry_run: bool = True,
 ) -> dict[str, object]:
-    """Run the legacy raw cleanup entry point behind the canonical gates."""
+    """Keep the legacy task path as a non-mutating retention preview."""
+
+    if dry_run is False:
+        return {
+            "success": False,
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "operation": "cleanup",
+            "requested": limit if isinstance(limit, int) and not isinstance(limit, bool) else 0,
+            "candidates": 0,
+            "planned": 0,
+            "deleted": 0,
+            "held": 0,
+            "blocked": 0,
+            "bytes_planned": 0,
+            "bytes_deleted": 0,
+            "error": "legacy_cleanup_mutation_disabled_use_enforce",
+        }
 
     return _run_retention_pass(
         dataset_key=dataset_key,
         limit=limit,
-        dry_run=dry_run,
+        dry_run=True,
         operation="cleanup",
     )
 
@@ -860,7 +876,23 @@ def enforce_retention_task(
     dry_run: bool = True,
     confirm: bool = False,
 ) -> dict[str, object]:
-    """Execute a retention plan only after explicit non-dry-run confirmation."""
+    """Preview retention; block mutation until trusted archive restore exists."""
+
+    if dry_run is False and confirm is True:
+        return {
+            "success": False,
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "operation": "enforce",
+            "requested": limit if isinstance(limit, int) and not isinstance(limit, bool) else 0,
+            "candidates": 0,
+            "planned": 0,
+            "deleted": 0,
+            "held": 0,
+            "blocked": 0,
+            "bytes_planned": 0,
+            "bytes_deleted": 0,
+            "error": "trusted_archive_restore_gate_not_implemented",
+        }
 
     return _run_retention_pass(
         dataset_key=dataset_key,
@@ -927,22 +959,18 @@ def verify_archive_manifest_task(
             archive_id=archive_id,
             error="observed_size_bytes must be a non-negative integer",
         )
-    try:
-        result = VerifyArchiveManifestUseCase(get_archive_manifest_repository()).execute(
-            archive_id=archive_id.strip(),
-            observed_checksum=observed_checksum.strip(),
-            observed_object_count=observed_object_count,
-            observed_size_bytes=observed_size_bytes,
-        )
-    except ValueError as exc:
-        return _archive_task_failure(archive_id=archive_id, error=str(exc))
-    except Exception:
-        logger.exception("Archive manifest verification failed for archive=%s", archive_id.strip())
-        return _archive_task_failure(
-            archive_id=archive_id,
-            error="archive_manifest_verification_failed",
-        )
-    return result.to_dict()
+    return {
+        "success": False,
+        "outcome": TaskBusinessOutcome.BLOCKED.value,
+        "archive_id": archive_id.strip(),
+        "requested": 1,
+        "succeeded": 0,
+        "failed": 0,
+        "blocked": 1,
+        "object_count": observed_object_count,
+        "size_bytes": observed_size_bytes,
+        "reason": "caller_supplied_archive_evidence_not_trusted",
+    }
 
 
 @shared_task(  # type: ignore[misc]

@@ -2,27 +2,23 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from django.core.management.base import BaseCommand, CommandError, CommandParser
-
-from apps.data_center.application.interface_services import (
-    purge_all_quote_snapshots_for_rebuild,
-)
 
 CONFIRMATION = "DELETE_ALL_QUOTE_SNAPSHOTS"
 
 
 class Command(BaseCommand):
-    """Require an exact confirmation phrase before deleting quote snapshots."""
+    """Retain the old command name as a fail-closed compatibility tombstone."""
 
-    help = "Delete all quote snapshots after a verified production backup."
+    help = "Retired: quote snapshots cannot be purged outside lifecycle governance."
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--confirm", default="")
 
-    def handle(self, *args: object, **options: Any) -> None:
-        if str(options["confirm"] or "") != CONFIRMATION:
-            raise CommandError(f"Refusing purge; pass --confirm {CONFIRMATION}")
-        deleted_count = purge_all_quote_snapshots_for_rebuild()
-        self.stdout.write(self.style.SUCCESS(f"Deleted {deleted_count} quote snapshots."))
+    def handle(self, *args: object, **options: object) -> None:
+        """Refuse every invocation until a verified lifecycle purge port exists."""
+
+        del args, options
+        raise CommandError(
+            "Quote snapshot purge is retired: no verified archive/restore evidence port exists"
+        )

@@ -394,7 +394,6 @@ class QuoteSnapshotRepositoryProtocol(Protocol):
     def list_publication_candidates(
         self, quotes: Sequence[QuoteSnapshot]
     ) -> list[PublicationFactReference]: ...
-    def delete_all(self) -> int: ...
 
 
 @runtime_checkable

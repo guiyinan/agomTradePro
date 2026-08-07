@@ -1065,12 +1065,6 @@ def make_sync_quote_use_case() -> SyncQuoteUseCase:
     )
 
 
-def purge_all_quote_snapshots_for_rebuild() -> int:
-    """Delete all quote snapshots for a separately backed-up rebuild workflow."""
-
-    return QuoteSnapshotRepository().delete_all()
-
-
 def make_sync_fund_nav_use_case() -> SyncFundNavUseCase:
     """Build the fund NAV sync use case."""
 

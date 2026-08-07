@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from uuid import uuid4
 
+from apps.data_center.application.retention import RetentionCleanupUseCase
 from apps.data_center.application.tasks import (
     cleanup_expired_raw_payloads_task,
     enforce_retention_task,
@@ -196,20 +197,33 @@ def test_retention_task_blocks_without_active_policy(monkeypatch) -> None:  # ty
     assert runs.saved[0].outcome == "blocked"
 
 
-def test_retention_task_reports_all_success_after_verified_archive(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_legacy_cleanup_task_rejects_mutating_mode(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(
+        "apps.data_center.application.tasks.get_retention_policy_repository",
+        lambda: (_ for _ in ()).throw(AssertionError("repository must not be reached")),
+    )
+
+    result = cleanup_expired_raw_payloads_task(dataset_key="market.raw", limit=10, dry_run=False)
+
+    assert result["outcome"] == "blocked"
+    assert result["error"] == "legacy_cleanup_mutation_disabled_use_enforce"
+    assert result["deleted"] == 0
+
+
+def test_legacy_cleanup_task_returns_dry_run_preview(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     candidates = _Candidates([_payload()])
     runs = _Runs()
     _patch_task_dependencies(
         monkeypatch, _Policies(_policy()), _Holds(), _Archives(True), candidates, runs
     )
 
-    result = cleanup_expired_raw_payloads_task(dataset_key="market.raw", limit=10, dry_run=False)
+    result = cleanup_expired_raw_payloads_task(dataset_key="market.raw", limit=10)
 
-    assert result["outcome"] == "success"
-    assert result["deleted"] == 1
-    assert len(candidates.deleted) == 1
-    assert runs.saved[0].bytes_deleted == 128
-    assert runs.saved[0].dry_run is False
+    assert result["outcome"] == "noop"
+    assert result["planned"] == 1
+    assert result["deleted"] == 0
+    assert candidates.deleted == []
+    assert runs.saved[0].dry_run is True
 
 
 def test_retention_task_reports_partial_for_active_hold(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -224,7 +238,13 @@ def test_retention_task_reports_partial_for_active_hold(monkeypatch) -> None:  #
         _Runs(),
     )
 
-    result = cleanup_expired_raw_payloads_task(dataset_key="market.raw", limit=10, dry_run=False)
+    result = (
+        RetentionCleanupUseCase(
+            _Policies(_policy()), _Holds({payload.payload_id}), _Archives(True), candidates
+        )
+        .execute(dataset_key="market.raw", limit=10, dry_run=False)
+        .to_dict()
+    )
 
     assert result["outcome"] == "partial"
     assert result["held"] == 1
@@ -239,7 +259,11 @@ def test_retention_task_does_not_delete_before_row_retention_deadline(monkeypatc
         monkeypatch, _Policies(_policy()), _Holds(), _Archives(True), candidates, runs
     )
 
-    result = cleanup_expired_raw_payloads_task(dataset_key="market.raw", limit=10, dry_run=False)
+    result = (
+        RetentionCleanupUseCase(_Policies(_policy()), _Holds(), _Archives(True), candidates, runs)
+        .execute(dataset_key="market.raw", limit=10, dry_run=False)
+        .to_dict()
+    )
 
     assert result["outcome"] == "noop"
     assert result["deleted"] == 0
@@ -271,7 +295,11 @@ def test_retention_task_fails_closed_for_legacy_future_deadline_candidate(monkey
         monkeypatch, _Policies(_policy()), _Holds(), _Archives(True), candidates, runs
     )
 
-    result = cleanup_expired_raw_payloads_task(dataset_key="market.raw", limit=10, dry_run=False)
+    result = (
+        RetentionCleanupUseCase(_Policies(_policy()), _Holds(), _Archives(True), candidates, runs)
+        .execute(dataset_key="market.raw", limit=10, dry_run=False)
+        .to_dict()
+    )
 
     assert result["outcome"] == "blocked"
     assert result["reason"] == "retention_until_not_reached"
@@ -343,18 +371,13 @@ def test_enforce_retention_task_rejects_non_boolean_confirmation() -> None:
     assert result["error"] == "confirm must be a boolean"
 
 
-def test_enforce_retention_task_deletes_only_with_confirmation(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    candidates = _Candidates([_payload()])
-    _patch_task_dependencies(
-        monkeypatch, _Policies(_policy()), _Holds(), _Archives(True), candidates, _Runs()
-    )
-
+def test_enforce_retention_task_blocks_until_trusted_restore_gate() -> None:
     result = enforce_retention_task(dataset_key="market.raw", limit=10, dry_run=False, confirm=True)
 
-    assert result["outcome"] == "success"
+    assert result["outcome"] == "blocked"
     assert result["operation"] == "enforce"
-    assert result["deleted"] == 1
-    assert len(candidates.deleted) == 1
+    assert result["error"] == "trusted_archive_restore_gate_not_implemented"
+    assert result["deleted"] == 0
 
 
 def test_enforce_retention_task_requires_explicit_confirmation(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -387,7 +410,7 @@ def test_archive_verification_rejects_invalid_evidence_before_repository(monkeyp
     assert result["reason"] == "observed_object_count must be a non-negative integer"
 
 
-def test_archive_verification_marks_matching_manifest_verified(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_archive_verification_blocks_caller_supplied_evidence(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     repository = _VerifiableArchives(_archive_manifest())
     monkeypatch.setattr(
         "apps.data_center.application.tasks.get_archive_manifest_repository", lambda: repository
@@ -400,13 +423,12 @@ def test_archive_verification_marks_matching_manifest_verified(monkeypatch) -> N
         observed_size_bytes=256,
     )
 
-    assert result["outcome"] == "success"
-    assert result["reason"] == "archive_manifest_verified"
-    assert repository.marked is True
-    assert repository.manifest.state is ArchiveState.VERIFIED
+    assert result["outcome"] == "blocked"
+    assert result["reason"] == "caller_supplied_archive_evidence_not_trusted"
+    assert repository.marked is False
 
 
-def test_archive_verification_blocks_checksum_mismatch(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_archive_verification_does_not_compare_untrusted_checksum(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     repository = _VerifiableArchives(_archive_manifest())
     monkeypatch.setattr(
         "apps.data_center.application.tasks.get_archive_manifest_repository", lambda: repository
@@ -420,11 +442,11 @@ def test_archive_verification_blocks_checksum_mismatch(monkeypatch) -> None:  # 
     )
 
     assert result["outcome"] == "blocked"
-    assert result["reason"] == "archive_manifest_evidence_mismatch"
+    assert result["reason"] == "caller_supplied_archive_evidence_not_trusted"
     assert repository.marked is False
 
 
-def test_archive_verification_reports_repository_failure(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_archive_verification_does_not_reach_repository(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr(
         "apps.data_center.application.tasks.get_archive_manifest_repository",
         lambda: (_ for _ in ()).throw(RuntimeError("database unavailable")),
@@ -437,8 +459,8 @@ def test_archive_verification_reports_repository_failure(monkeypatch) -> None:  
         observed_size_bytes=256,
     )
 
-    assert result["outcome"] == "failed"
-    assert result["reason"] == "archive_manifest_verification_failed"
+    assert result["outcome"] == "blocked"
+    assert result["reason"] == "caller_supplied_archive_evidence_not_trusted"
 
 
 def _patch_storage_probe(monkeypatch, pressure: dict[str, object]) -> None:  # type: ignore[no-untyped-def]

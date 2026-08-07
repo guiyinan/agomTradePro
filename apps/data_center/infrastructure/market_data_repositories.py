@@ -269,12 +269,6 @@ class QuoteSnapshotRepository:
             )
         return references
 
-    def delete_all(self) -> int:
-        """Delete all quote snapshots for an explicitly gated production rebuild."""
-
-        deleted_count, _ = QuoteSnapshotModel.objects.all().delete()
-        return int(deleted_count)
-
 
 def _price_bar_payload_hash(row: PriceBarModel) -> str:
     """Return deterministic evidence for one persisted price bar."""
