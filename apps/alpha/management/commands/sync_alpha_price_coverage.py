@@ -9,10 +9,8 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.utils import timezone
 
 from apps.alpha.application.query_services import get_alpha_cache_earliest_trade_date
-from apps.data_center.application.public import (
-    AlphaPriceCoverageReportProtocol,
-    get_alpha_price_coverage_sync_service_port,
-)
+from apps.data_center.application.public import get_alpha_price_coverage_sync_service_port
+from apps.data_center.application.public_protocols import AlphaPriceCoverageReportProtocol
 
 
 class AlphaPriceCoverageSyncService:

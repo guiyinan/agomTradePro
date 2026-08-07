@@ -454,7 +454,7 @@ def _discover_workflow_steps() -> list[dict[str, object]]:
             tokens = _operational_tokens(block)
             if not tokens:
                 continue
-            step_name = match.group(1).strip().strip('"\'')
+            step_name = match.group(1).strip().strip("\"'")
             results.append(
                 _entry(
                     category="workflow_step",
@@ -485,7 +485,11 @@ def _discover_test_and_migration_evidence() -> list[dict[str, object]]:
     results: list[dict[str, object]] = []
     candidates: set[tuple[Path, str]] = set()
     for path in _evidence_files(ROOT / "tests", "*.py"):
-        category = "migration_evidence" if "migrations" in path.relative_to(ROOT).parts else "test_evidence"
+        category = (
+            "migration_evidence"
+            if "migrations" in path.relative_to(ROOT).parts
+            else "test_evidence"
+        )
         candidates.add((path, category))
     for path in _evidence_files(ROOT / "apps" / "data_center" / "migrations", "*.py"):
         candidates.add((path, "migration_evidence"))
@@ -534,7 +538,9 @@ def _discover_runbooks() -> list[dict[str, object]]:
     candidates: set[Path] = set()
     for relative_root in ("docs/operations", "docs/deployment"):
         candidates.update(_evidence_files(ROOT / relative_root, "*.md"))
-    canonical_plan = ROOT / "docs" / "plans" / "data-center-canonical-architecture-refactor-2026-08-02.md"
+    canonical_plan = (
+        ROOT / "docs" / "plans" / "data-center-canonical-architecture-refactor-2026-08-02.md"
+    )
     if canonical_plan.exists():
         candidates.add(canonical_plan)
     for path in sorted(candidates):
@@ -614,10 +620,7 @@ def _apply_operational_governance(
             entry
             for entry in entries
             if all(
-                any(
-                    fnmatch.fnmatchcase(str(entry.get(key, "")), pattern)
-                    for pattern in patterns
-                )
+                any(fnmatch.fnmatchcase(str(entry.get(key, "")), pattern) for pattern in patterns)
                 for key, patterns in selectors.items()
             )
         ]
@@ -950,17 +953,25 @@ def _discover_management_command_edges() -> list[dict[str, object]]:
 
 
 def _discover_application_consumers() -> list[dict[str, object]]:
-    """Enumerate every production import of the canonical Application Public Port."""
+    """Enumerate every production import of canonical Application public boundaries."""
 
-    module_name = "apps.data_center.application.public"
+    module_names = {
+        "apps.data_center.application.public",
+        "apps.data_center.application.public_protocols",
+    }
     results: list[dict[str, object]] = []
     for path in _production_python_files("apps", "core", "shared", "scripts", "sdk"):
         path_text = _relative(path)
         if path_text.startswith("apps/data_center/"):
             continue
         for node in ast.walk(_tree(path)):
-            if isinstance(node, ast.ImportFrom) and node.module == module_name:
+            if isinstance(node, ast.ImportFrom) and node.module in module_names:
                 for alias in node.names:
+                    evidence = (
+                        "canonical Data Center Application Public Port import"
+                        if node.module == "apps.data_center.application.public"
+                        else "canonical Data Center Application public protocol import"
+                    )
                     results.append(
                         _entry(
                             category="application_consumer",
@@ -968,21 +979,26 @@ def _discover_application_consumers() -> list[dict[str, object]]:
                             symbol=alias.name,
                             locator=f"line:{node.lineno}",
                             status="active_public",
-                            evidence="canonical Data Center Application Public Port import",
+                            evidence=evidence,
                         )
                     )
             elif isinstance(node, ast.Import):
                 for alias in node.names:
-                    if alias.name != module_name:
+                    if alias.name not in module_names:
                         continue
+                    evidence = (
+                        "canonical Data Center Application Public Port module import"
+                        if alias.name == "apps.data_center.application.public"
+                        else "canonical Data Center Application public protocol module import"
+                    )
                     results.append(
                         _entry(
                             category="application_consumer",
                             path=path_text,
-                            symbol=alias.asname or module_name,
+                            symbol=alias.asname or alias.name,
                             locator=f"line:{node.lineno}",
                             status="active_public",
-                            evidence="canonical Data Center Application Public Port module import",
+                            evidence=evidence,
                         )
                     )
     return results
@@ -2411,9 +2427,7 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
         celery = _load_json(ROOT / "governance" / "celery_task_contracts.json")
         current_data = _load_json(ROOT / "governance" / "current_data_contracts.json")
         runtime_config = _load_json(ROOT / "governance" / "runtime_config_contracts.json")
-        operational = _load_json(
-            ROOT / "governance" / "data_center_operational_entrypoints.json"
-        )
+        operational = _load_json(ROOT / "governance" / "data_center_operational_entrypoints.json")
         entries = (
             _discover_scripts(legacy)
             + _discover_management_commands()

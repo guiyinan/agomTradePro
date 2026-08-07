@@ -17,7 +17,6 @@ from apps.data_center.application.dtos import MacroSeriesResponse, SyncResult
 from apps.data_center.application.market_thermometer import CalculateMarketThermometerUseCase
 from apps.data_center.application.on_demand import OnDemandDataCenterService
 from apps.data_center.application.public_protocols import (
-    AlphaPriceCoverageReportProtocol,
     AlphaPriceCoverageSyncProtocol,
     MacroProjectionRepositoryProtocol,
 )
@@ -1341,7 +1340,6 @@ def get_publication_as_of(
 
 
 __all__ = [
-    "AlphaPriceCoverageReportProtocol",
     "MacroProjectionRepositoryProtocol",
     "backfill_asset_master_codes_port",
     "get_asset_repository_port",

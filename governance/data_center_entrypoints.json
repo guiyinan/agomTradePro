@@ -402,9 +402,9 @@
     },
     {
       "category": "application_consumer",
-      "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/alpha/management/commands/sync_alpha_price_coverage.py:AlphaPriceCoverageReportProtocol:line:12",
-      "locator": "line:12",
+      "evidence": "canonical Data Center Application public protocol import",
+      "id": "application_consumer:apps/alpha/management/commands/sync_alpha_price_coverage.py:AlphaPriceCoverageReportProtocol:line:13",
+      "locator": "line:13",
       "path": "apps/alpha/management/commands/sync_alpha_price_coverage.py",
       "status": "active_public",
       "symbol": "AlphaPriceCoverageReportProtocol",

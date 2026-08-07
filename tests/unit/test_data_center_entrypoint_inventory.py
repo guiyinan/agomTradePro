@@ -147,10 +147,7 @@ def test_inventory_classifies_known_operational_surfaces(
             "adjacent_operational",
         ),
     }
-    actual = {
-        (entry["category"], entry["path"], entry["status"])
-        for entry in entries
-    }
+    actual = {(entry["category"], entry["path"], entry["status"]) for entry in entries}
     assert expected <= actual
     assert any(
         entry["category"] == "workflow_step"
@@ -181,6 +178,12 @@ def test_inventory_includes_internal_consumers_admin_and_config_compatibility(
         category == "application_consumer"
         and path == "apps/equity/infrastructure/fundamentals_repository.py"
         for category, path, _symbol, _locator in entry_keys
+    )
+    assert any(
+        category == "application_consumer"
+        and path == "apps/alpha/management/commands/sync_alpha_price_coverage.py"
+        and symbol == "AlphaPriceCoverageReportProtocol"
+        for category, path, symbol, _locator in entry_keys
     )
     assert (
         "admin_surface",
@@ -481,11 +484,10 @@ def test_new_operational_surfaces_default_to_candidate_review(
             ]
         },
     )
-    assert next(
-        entry
-        for entry in entries
-        if entry["category"] == "operational_script"
-    )["status"] == "adjacent_operational"
+    assert (
+        next(entry for entry in entries if entry["category"] == "operational_script")["status"]
+        == "adjacent_operational"
+    )
     assert any(entry["status"] == "candidate-review" for entry in entries)
 
 
