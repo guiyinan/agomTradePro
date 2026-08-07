@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -11,6 +12,32 @@ from apps.config_center.infrastructure.models import (
     QlibTrainingRunModel,
     SystemSettingsModel,
 )
+from apps.config_center.infrastructure.repositories import ConfigCenterSettingsRepository
+
+
+def _activate_typed_qlib_runtime(
+    provider_dir: Path,
+    model_dir: Path,
+) -> dict[str, object]:
+    """Publish one complete typed Qlib runtime for Classic compatibility tests."""
+
+    return ConfigCenterSettingsRepository().update_runtime_config(
+        {
+            "enabled": True,
+            "provider_uri": str(provider_dir),
+            "region": "CN",
+            "model_root": str(model_dir),
+            "default_universe": "csi300",
+            "default_feature_set_id": "v1",
+            "default_label_id": "return_5d",
+            "train_queue_name": "qlib_train",
+            "infer_queue_name": "qlib_infer",
+            "allow_auto_activate": False,
+            "alpha_fixed_provider": "",
+            "alpha_pool_mode": "strict_valuation",
+        },
+        actor="pytest",
+    )
 
 
 @pytest.mark.django_db
@@ -47,10 +74,7 @@ def test_qlib_config_center_page_allows_staff_read(tmp_path):
     assert "Qlib 配置与训练中心" in content
     assert "立即触发训练" in content
     assert "当前 Classic 页面仅在兼容期内保留" in content
-    assert (
-        "/tui/?screen=system.qlib-center&amp;action=config_center.qlib_runtime"
-        in content
-    )
+    assert "/tui/?screen=system.qlib-center&amp;action=config_center.qlib_runtime" in content
 
 
 @pytest.mark.django_db
@@ -142,11 +166,13 @@ def test_qlib_config_center_page_updates_runtime_for_superuser(tmp_path):
     )
 
     assert response.status_code == 302
+    runtime_payload = ConfigCenterSettingsRepository().build_runtime_config_payload()
+    assert runtime_payload["enabled"] is True
+    assert runtime_payload["default_universe"] == "csi500"
+    assert runtime_payload["default_feature_set_id"] == "alpha158"
+    assert runtime_payload["default_label_id"] == "return_10d"
     settings_obj.refresh_from_db()
-    assert settings_obj.qlib_enabled is True
-    assert settings_obj.qlib_default_universe == "csi500"
-    assert settings_obj.qlib_default_feature_set_id == "alpha158"
-    assert settings_obj.qlib_default_label_id == "return_10d"
+    assert settings_obj.qlib_enabled is False
 
 
 @pytest.mark.django_db
@@ -162,18 +188,8 @@ def test_qlib_config_center_page_triggers_training_for_superuser(monkeypatch, tm
     provider_dir.mkdir(parents=True)
     model_dir.mkdir(parents=True)
 
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.qlib_enabled = True
-    settings_obj.qlib_provider_uri = str(provider_dir)
-    settings_obj.qlib_model_path = str(model_dir)
-    settings_obj.save(
-        update_fields=[
-            "qlib_enabled",
-            "qlib_provider_uri",
-            "qlib_model_path",
-            "updated_at",
-        ]
-    )
+    runtime_payload = _activate_typed_qlib_runtime(provider_dir, model_dir)
+    assert runtime_payload["enabled"] is True
 
     monkeypatch.setattr(
         "apps.config_center.application.use_cases.current_app.send_task",
