@@ -151,7 +151,7 @@ include = '\.pyi?$'
 profile = "black"
 line_length = 100
 skip_gitignore = true
-known_first_party = ["apps", "core", "shared"]
+known_first_party = ["agomtradepro", "agomtradepro_mcp", "apps", "core", "shared"]
 
 [tool.ruff]
 line-length = 100
@@ -172,6 +172,9 @@ ignore = [
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
 ]
+
+[tool.ruff.lint.isort]
+known-first-party = ["agomtradepro", "agomtradepro_mcp", "apps", "core", "shared"]
 
 # ── Existing debt: ignored for now, fix gradually ──────────────────────
 # These rules trigger on existing code. New code must still pass them.

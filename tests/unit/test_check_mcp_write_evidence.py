@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import pytest
+
 from agomtradepro_mcp.registry.manifest import CapabilityManifest
 
 
