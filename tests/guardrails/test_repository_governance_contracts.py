@@ -111,7 +111,7 @@ def test_fast_feedback_installs_node_playwright_browser() -> None:
 
 
 def test_postgres_current_data_contracts_run_with_migration_seed_evidence() -> None:
-    """Keep PostgreSQL current-data tests on the same seeded schema contract as production."""
+    """Recreate a migrated PostgreSQL test DB and preserve it for later evidence steps."""
 
     workflow_text = (REPO_ROOT / ".github" / "workflows" / "nightly-tests.yml").read_text(
         encoding="utf-8"
@@ -122,7 +122,7 @@ def test_postgres_current_data_contracts_run_with_migration_seed_evidence() -> N
 
     assert "python scripts/run_current_data_contract_tests.py" in current_data_step
     assert "--pytest-arg=--create-db" in current_data_step
-    assert "--pytest-arg=--reuse-db" not in current_data_step
+    assert "--pytest-arg=--reuse-db" in current_data_step
     assert "--pytest-arg=--no-migrations" not in current_data_step
 
 
