@@ -46,4 +46,10 @@ from apps.data_center.infrastructure.research_data_foundation_models import (
 from apps.data_center.infrastructure.research_data_foundation_models import (
     OperatingMetricDefinitionModel as OperatingMetricDefinitionModel,
 )
+from apps.data_center.infrastructure.retention_models import (
+    RetentionPlanMemberModel as RetentionPlanMemberModel,
+)
+from apps.data_center.infrastructure.retention_models import (
+    RetentionPlanModel as RetentionPlanModel,
+)
 from apps.data_center.infrastructure.retention_models import RetentionRunModel as RetentionRunModel

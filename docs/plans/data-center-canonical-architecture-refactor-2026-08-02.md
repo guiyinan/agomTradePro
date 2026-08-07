@@ -4718,3 +4718,13 @@ Git SHA / 镜像 / migration：
 - 跨入口图：REST 记录 callback/DRF typed action，SDK 记录 HTTP method/route 和 `AgomTradeProClient.data_center` 暴露，MCP 区分默认启用 core tools 与默认关闭 legacy tools，并验证 Data Center capability shard 确实存在于 `OWNER_MANIFEST_MODULES` 且 handler 已接线；TUI 校验 generated/published endpoint、method、intent、schema，并记录 screen→action→endpoint。
 - 最终机器快照：以两个精确提交组成的干净 detached worktree 重建为 989 entries，`active_public=561`、`adjacent_operational=217`、`compatibility=211`、`candidate-review=0`。其中 typed/普通 Celery task 122、dispatch edge 18、dynamic import edge 8、management command/edge 27/65、scheduler writer 16、REST 66、SDK 46、MCP 40、TUI 28；Decision Quote 同一 task 的四个独立 schedule 均被保留。共享工作区并行的 Market Structure/Research 未提交文件未混入基线。
 - 验证：入口清单完整专项 12 passed；重复 ID、unresolved dynamic import、typed decorator、管理命令包装、三 schedule 同 target、Admin 多模型、HTTP/SDK/MCP/TUI/runtime target 均有合成或现仓断言。`candidate-review=0` 表示所有静态发现入口已有明确状态和下一跳，不表示 212 个 compatibility seam 已物理删除，也不替代生产运行证据。
+
+## 130. 2026-08-07：Retention 精确计划成员与两阶段执行闭环
+
+- 根因：旧 `plan_retention_task` 只记录汇总 `RetentionRun`，执行端若开放会重新查询一次候选集；dry-run 与真实删除之间的 payload、policy、hold、archive 状态无法绑定，因而只能永久以 `retention_plan_member_gate_not_implemented` 阻断。
+- 精确计划：新增 immutable `RetentionPlan` / `RetentionPlanMember` Domain 契约与 `0064_retention_exact_plan_members`。计划按稳定 ordinal 冻结 payload ID/hash、完整 record digest、schema、源时间、row deadline、size、决策和唯一 archive ID，并用 canonical JSON SHA-256 覆盖全部不可变字段。计划头与成员在同一事务创建，`operation_id` 重试直接返回原快照，不重新扫描。
+- 单次认领：`enforce_retention_task` 不再接受 dataset/limit 重新塑形，只接受 `plan_run_id + operation_id + confirm=true`；Repository 对计划行 `select_for_update`，同一 operation 终态重放不二次删除，不同 operation 无法并发认领。到期、policy ID/version 漂移、snapshot digest 漂移均整批 fail closed。
+- 再验证与删除：执行只遍历计划时 `eligible` 的成员，计划时 held/blocked 后续即使条件改善也不会扩大；每条在删除前重新检查 dataset/plan/raw/archive 四级 hold、固定 archive ID 的数据库证据与当前冷字节、当前 RawPayload 完整 digest，再由 full-record CAS 删除。单项 drift 或 CAS 冲突记录 blocked，技术异常记录 failed，实际删除字节和计数单独持久化。
+- 审计与 schema：计划 member 对 archive 使用 `PROTECT`，RawPayload 删除后仍保留证据；旧 `RetentionRunRepository` 从可覆盖 `update_or_create` 收紧为 create-or-identical。部署 schema gate 增加两张计划表和 `0064` marker。Celery manifest 为 plan/enforce 补齐 invalid、all-success、partial、zero-output/blocked、complete-failure 的精确测试节点。
+- 本地证据：Domain/任务专项 37 passed，ORM 控制面 8 passed；Celery contract 31 tasks/9 files，10 个生产文件增量 mypy 0，Ruff 与 `makemigrations --check` 通过。真实删除没有加入 Beat，本批未连接生产、未部署。
+- 仍需外部证据：正式启用定时 enforce 前，必须在 PostgreSQL job 验证两个 worker 并发 claim、policy/hold 与 enforce 竞争、事务异常恢复，并完成真实 archive mount/key 的 export→inspect→restore→plan→enforce 演练；这些不由 SQLite 单元证据替代。

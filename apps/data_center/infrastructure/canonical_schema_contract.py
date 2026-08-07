@@ -25,12 +25,15 @@ CANONICAL_SCHEMA_TABLES: tuple[str, ...] = (
     "data_center_dataset_publication_policy",
     "data_center_reconciliation_evidence",
     "data_center_retention_run",
+    "data_center_retention_plan",
+    "data_center_retention_plan_member",
     "data_center_publication_rollback",
 )
 
 CANONICAL_SCHEMA_MIGRATIONS: tuple[str, ...] = (
     "0057_publicationrollbackmodel",
     "0063_archivemanifest_archive_restore_evidence",
+    "0064_retention_exact_plan_members",
 )
 
 

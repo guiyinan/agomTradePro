@@ -16,6 +16,9 @@ from apps.data_center.domain.retention import (
     ArchiveRestoreAudit,
     ArchiveRestoreOutcome,
     ArchiveState,
+    RetentionPlan,
+    RetentionPlanMember,
+    RetentionPlanStatus,
     RetentionPolicy,
     RetentionRun,
     StorageHold,
@@ -23,7 +26,7 @@ from apps.data_center.domain.retention import (
 
 from .archive_models import ArchiveMemberModel, ArchiveRestoreAuditModel
 from .models import ArchiveManifestModel, RetentionPolicyModel, StorageHoldModel
-from .retention_models import RetentionRunModel
+from .retention_models import RetentionPlanMemberModel, RetentionPlanModel, RetentionRunModel
 
 
 def _uuid(value: str) -> UUID:
@@ -78,26 +81,240 @@ class RetentionRunRepository:
     def save(self, run: RetentionRun) -> RetentionRun:
         """Persist one retention run idempotently by its run identifier."""
 
-        model, _ = RetentionRunModel._default_manager.update_or_create(
+        defaults = {
+            "dataset_key": run.dataset_key,
+            "policy_version": run.policy_version,
+            "dry_run": run.dry_run,
+            "outcome": run.outcome,
+            "requested": run.requested,
+            "candidates": run.candidates,
+            "planned": run.planned,
+            "deleted": run.deleted,
+            "held": run.held,
+            "blocked": run.blocked,
+            "bytes_planned": run.bytes_planned,
+            "bytes_deleted": run.bytes_deleted,
+            "cutoff": run.cutoff,
+            "started_at": run.started_at,
+            "finished_at": run.finished_at,
+            "reason": run.reason,
+        }
+        model, created = RetentionRunModel._default_manager.get_or_create(
             run_id=_uuid(run.run_id),
-            defaults={
-                "dataset_key": run.dataset_key,
-                "policy_version": run.policy_version,
-                "dry_run": run.dry_run,
-                "outcome": run.outcome,
-                "requested": run.requested,
-                "candidates": run.candidates,
-                "planned": run.planned,
-                "deleted": run.deleted,
-                "held": run.held,
-                "blocked": run.blocked,
-                "bytes_planned": run.bytes_planned,
-                "bytes_deleted": run.bytes_deleted,
-                "cutoff": run.cutoff,
-                "started_at": run.started_at,
-                "finished_at": run.finished_at,
-                "reason": run.reason,
-            },
+            defaults=defaults,
+        )
+        if not created and model.to_domain() != run:
+            raise ValueError("retention_run_immutable_conflict")
+        return model.to_domain()
+
+
+class RetentionPlanRepository:
+    """Create immutable plan snapshots and serialize their enforcement claims."""
+
+    @staticmethod
+    def _members(plan_id: str) -> tuple[RetentionPlanMember, ...]:
+        return tuple(
+            model.to_domain()
+            for model in RetentionPlanMemberModel._default_manager.filter(
+                plan_id=_uuid(plan_id)
+            ).order_by("ordinal")
+        )
+
+    def get_by_operation_id(
+        self, operation_id: str
+    ) -> tuple[RetentionPlan, tuple[RetentionPlanMember, ...]] | None:
+        """Return an idempotent plan snapshot without rescanning source rows."""
+
+        model = RetentionPlanModel._default_manager.filter(operation_id=operation_id).first()
+        if model is None:
+            return None
+        plan = model.to_domain()
+        return plan, self._members(plan.plan_id)
+
+    @transaction.atomic
+    def create(
+        self, plan: RetentionPlan, members: tuple[RetentionPlanMember, ...]
+    ) -> tuple[RetentionPlan, tuple[RetentionPlanMember, ...]]:
+        """Create the plan header and exact members in one transaction."""
+
+        defaults = {
+            "plan_id": _uuid(plan.plan_id),
+            "dataset_key": plan.dataset_key,
+            "policy_id": _uuid(plan.policy_id),
+            "policy_version": plan.policy_version,
+            "requested": plan.requested,
+            "candidates": plan.candidates,
+            "planned": plan.planned,
+            "held": plan.held,
+            "blocked": plan.blocked,
+            "bytes_planned": plan.bytes_planned,
+            "cutoff": plan.cutoff,
+            "created_at": plan.created_at,
+            "expires_at": plan.expires_at,
+            "snapshot_digest": plan.snapshot_digest,
+            "status": plan.status.value,
+            "outcome": plan.outcome,
+            "reason": plan.reason,
+        }
+        model, created = RetentionPlanModel._default_manager.get_or_create(
+            operation_id=plan.operation_id,
+            defaults=defaults,
+        )
+        if not created:
+            persisted = model.to_domain()
+            if persisted != plan or self._members(persisted.plan_id) != members:
+                raise ValueError("retention_plan_operation_immutable_conflict")
+            return persisted, members
+        RetentionPlanMemberModel._default_manager.bulk_create(
+            [
+                RetentionPlanMemberModel(
+                    plan_id=model.plan_id,
+                    ordinal=member.ordinal,
+                    payload_id=_uuid(member.payload_id),
+                    payload_hash=member.payload_hash,
+                    record_digest=member.record_digest,
+                    schema_fingerprint=member.schema_fingerprint,
+                    fetched_at=member.fetched_at,
+                    retention_until=member.retention_until,
+                    size_bytes=member.size_bytes,
+                    decision=member.decision.value,
+                    archive_id=_uuid(member.archive_id) if member.archive_id else None,
+                    execution=member.execution.value,
+                    execution_reason=member.execution_reason,
+                    deleted_at=member.deleted_at,
+                )
+                for member in members
+            ]
+        )
+        persisted_members = self._members(plan.plan_id)
+        if persisted_members != members:
+            raise ValueError("retention_plan_member_immutable_conflict")
+        return model.to_domain(), persisted_members
+
+    @transaction.atomic
+    def claim(
+        self,
+        plan_id: str,
+        *,
+        operation_id: str,
+        now: datetime,
+    ) -> tuple[RetentionPlan, tuple[RetentionPlanMember, ...], bool]:
+        """Atomically claim one plan; stable retries replay terminal evidence."""
+
+        model = RetentionPlanModel._default_manager.select_for_update().get(plan_id=_uuid(plan_id))
+        status = RetentionPlanStatus(model.status)
+        if now >= model.expires_at and status is RetentionPlanStatus.READY:
+            model.status = RetentionPlanStatus.EXPIRED.value
+            model.enforce_operation_id = operation_id
+            model.outcome = "blocked"
+            model.reason = "retention_plan_expired"
+            model.finished_at = now
+            model.save(
+                update_fields=[
+                    "status",
+                    "enforce_operation_id",
+                    "outcome",
+                    "reason",
+                    "finished_at",
+                ]
+            )
+            plan = model.to_domain()
+            return plan, self._members(plan_id), False
+        terminal = {
+            RetentionPlanStatus.COMPLETED,
+            RetentionPlanStatus.PARTIAL,
+            RetentionPlanStatus.FAILED,
+            RetentionPlanStatus.EXPIRED,
+        }
+        if status in terminal:
+            if model.enforce_operation_id == operation_id:
+                plan = model.to_domain()
+                return plan, self._members(plan_id), True
+            raise ValueError("retention_plan_already_completed")
+        if status is RetentionPlanStatus.BLOCKED and model.enforce_operation_id:
+            if model.enforce_operation_id == operation_id:
+                plan = model.to_domain()
+                return plan, self._members(plan_id), True
+            raise ValueError("retention_plan_already_completed")
+        if status in {RetentionPlanStatus.EMPTY, RetentionPlanStatus.BLOCKED}:
+            plan = model.to_domain()
+            return plan, self._members(plan_id), False
+        if status is RetentionPlanStatus.ENFORCING:
+            if model.enforce_operation_id != operation_id:
+                raise ValueError("retention_plan_already_claimed")
+        else:
+            model.status = RetentionPlanStatus.ENFORCING.value
+            model.enforce_operation_id = operation_id
+            model.outcome = ""
+            model.reason = ""
+            model.save(update_fields=["status", "enforce_operation_id", "outcome", "reason"])
+        plan = model.to_domain()
+        return plan, self._members(plan_id), False
+
+    @transaction.atomic
+    def save_member(self, plan_id: str, member: RetentionPlanMember) -> RetentionPlanMember:
+        """Advance only execution evidence while preserving snapshot identity."""
+
+        model = RetentionPlanMemberModel._default_manager.select_for_update().get(
+            plan_id=_uuid(plan_id), payload_id=_uuid(member.payload_id)
+        )
+        current = model.to_domain()
+        if current.snapshot_fields() != member.snapshot_fields():
+            raise ValueError("retention_plan_member_immutable_conflict")
+        if current.execution.value not in {"pending", member.execution.value}:
+            raise ValueError("retention_plan_member_execution_conflict")
+        model.execution = member.execution.value
+        model.execution_reason = member.execution_reason
+        model.deleted_at = member.deleted_at
+        model.save(update_fields=["execution", "execution_reason", "deleted_at"])
+        return model.to_domain()
+
+    @transaction.atomic
+    def finish(self, plan: RetentionPlan) -> RetentionPlan:
+        """Persist the terminal summary for the currently claimed operation."""
+
+        model = RetentionPlanModel._default_manager.select_for_update().get(
+            plan_id=_uuid(plan.plan_id)
+        )
+        current = model.to_domain()
+        immutable = (
+            "operation_id",
+            "dataset_key",
+            "policy_id",
+            "policy_version",
+            "requested",
+            "candidates",
+            "planned",
+            "held",
+            "blocked",
+            "bytes_planned",
+            "cutoff",
+            "created_at",
+            "expires_at",
+            "snapshot_digest",
+            "enforce_operation_id",
+        )
+        if any(getattr(current, field) != getattr(plan, field) for field in immutable):
+            raise ValueError("retention_plan_immutable_conflict")
+        model.status = plan.status.value
+        model.outcome = plan.outcome
+        model.deleted = plan.deleted
+        model.execution_blocked = plan.execution_blocked
+        model.failed = plan.failed
+        model.bytes_deleted = plan.bytes_deleted
+        model.finished_at = plan.finished_at
+        model.reason = plan.reason
+        model.save(
+            update_fields=[
+                "status",
+                "outcome",
+                "deleted",
+                "execution_blocked",
+                "failed",
+                "bytes_deleted",
+                "finished_at",
+                "reason",
+            ]
         )
         return model.to_domain()
 
@@ -385,6 +602,7 @@ class ArchiveManifestRepository:
 __all__ = [
     "ArchiveManifestRepository",
     "RetentionPolicyRepository",
+    "RetentionPlanRepository",
     "RetentionRunRepository",
     "StorageHoldRepository",
 ]

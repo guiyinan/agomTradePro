@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from celery import shared_task
 from django.core.cache import cache
@@ -19,6 +19,7 @@ from django.utils import timezone
 from apps.data_center.composition import (
     get_archive_coverage_gateway,
     get_raw_landing_repository,
+    get_retention_plan_repository,
     get_retention_policy_repository,
     get_retention_run_repository,
     get_storage_hold_repository,
@@ -57,7 +58,11 @@ from .interface_services import (
 from .market_thermometer_dates import resolve_market_thermometer_as_of_date
 from .query_services import list_active_stock_codes_for_backfill
 from .query_use_cases import latest_completed_cn_market_session
-from .retention import RetentionCleanupUseCase
+from .retention import (
+    CreateRetentionPlanUseCase,
+    EnforceRetentionPlanUseCase,
+    RetentionCleanupUseCase,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -704,6 +709,9 @@ def _retention_failure(
         "outcome": TaskBusinessOutcome.FAILED.value,
         "operation": operation,
         "requested": requested,
+        "succeeded": 0,
+        "failed": 1,
+        "stored": 0,
         "candidates": 0,
         "planned": 0,
         "deleted": 0,
@@ -854,15 +862,72 @@ def cleanup_expired_raw_payloads_task(
     time_limit=900,
     soft_time_limit=840,
 )
-def plan_retention_task(*, dataset_key: str, limit: int = 100) -> dict[str, object]:
-    """Persist a bounded retention dry-run plan without deleting anything."""
+def plan_retention_task(
+    *,
+    dataset_key: str,
+    limit: int = 100,
+    operation_id: str = "",
+    ttl_hours: int = 24,
+) -> dict[str, object]:
+    """Persist an immutable exact-member plan without deleting anything."""
 
-    return _run_retention_pass(
-        dataset_key=dataset_key,
-        limit=limit,
-        dry_run=True,
-        operation="plan",
-    )
+    if not isinstance(dataset_key, str) or not dataset_key.strip():
+        return _retention_failure(operation="plan", requested=0, error="dataset_key is required")
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 10_000:
+        return _retention_failure(
+            operation="plan", requested=0, error="limit must be between 1 and 10000"
+        )
+    if not isinstance(operation_id, str):
+        return _retention_failure(
+            operation="plan", requested=limit, error="operation_id must be a string"
+        )
+    if isinstance(ttl_hours, bool) or not isinstance(ttl_hours, int) or not 1 <= ttl_hours <= 168:
+        return _retention_failure(
+            operation="plan", requested=limit, error="ttl_hours must be between 1 and 168"
+        )
+    try:
+        disk = shutil.disk_usage(Path.cwd())
+        pressure = evaluate_storage_pressure(
+            used_bytes=int(disk.used), actual_capacity_bytes=int(disk.total)
+        )
+    except Exception:
+        logger.exception("Storage pressure evaluation failed before retention planning")
+        return _retention_failure(
+            operation="plan", requested=limit, error="storage_pressure_evaluation_failed"
+        )
+    if pressure.get("state") == "blocked":
+        return {
+            **_retention_failure(
+                operation="plan",
+                requested=limit,
+                error=str(pressure.get("reason") or "storage_budget_policy_missing_or_inactive"),
+            ),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "failed": 0,
+            "storage": pressure,
+        }
+    try:
+        result = CreateRetentionPlanUseCase(
+            get_retention_policy_repository(),
+            get_storage_hold_repository(),
+            get_archive_coverage_gateway(),
+            get_raw_landing_repository(),
+            get_retention_plan_repository(),
+        ).execute(
+            dataset_key=dataset_key.strip(),
+            limit=limit,
+            operation_id=operation_id.strip() or str(uuid4()),
+            ttl_hours=ttl_hours,
+        )
+    except Exception:
+        logger.exception("Retention plan creation failed for dataset=%s", dataset_key.strip())
+        return _retention_failure(
+            operation="plan", requested=limit, error="retention_plan_creation_failed"
+        )
+    payload = result.to_dict()
+    payload["operation"] = "plan"
+    payload["storage"] = pressure
+    return payload
 
 
 @shared_task(  # type: ignore[misc]
@@ -872,36 +937,60 @@ def plan_retention_task(*, dataset_key: str, limit: int = 100) -> dict[str, obje
 )
 def enforce_retention_task(
     *,
-    dataset_key: str,
-    limit: int = 100,
-    dry_run: bool = True,
+    plan_run_id: str = "",
+    operation_id: str = "",
     confirm: bool = False,
 ) -> dict[str, object]:
-    """Preview retention; keep deletion closed until exact plan members are persisted."""
+    """Consume only an exact persisted plan after explicit confirmation."""
 
-    if dry_run is False and confirm is True:
+    if not isinstance(confirm, bool):
+        return _retention_failure(
+            operation="enforce", requested=0, error="confirm must be a boolean"
+        )
+    if not confirm:
         return {
-            "success": False,
+            **_retention_failure(
+                operation="enforce", requested=0, error="explicit_confirmation_required"
+            ),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
-            "operation": "enforce",
-            "requested": limit if isinstance(limit, int) and not isinstance(limit, bool) else 0,
-            "candidates": 0,
-            "planned": 0,
-            "deleted": 0,
-            "held": 0,
-            "blocked": 0,
-            "bytes_planned": 0,
-            "bytes_deleted": 0,
-            "error": "retention_plan_member_gate_not_implemented",
+            "failed": 0,
         }
-
-    return _run_retention_pass(
-        dataset_key=dataset_key,
-        limit=limit,
-        dry_run=dry_run,
-        operation="enforce",
-        confirm=confirm,
-    )
+    if not isinstance(plan_run_id, str) or not plan_run_id.strip():
+        return _retention_failure(
+            operation="enforce", requested=0, error="retention_plan_run_id_required"
+        )
+    if not isinstance(operation_id, str) or not operation_id.strip():
+        return _retention_failure(
+            operation="enforce", requested=0, error="operation_id is required"
+        )
+    try:
+        result = EnforceRetentionPlanUseCase(
+            get_retention_policy_repository(),
+            get_storage_hold_repository(),
+            get_archive_coverage_gateway(),
+            get_raw_landing_repository(),
+            get_retention_plan_repository(),
+        ).execute(plan_id=plan_run_id.strip(), operation_id=operation_id.strip())
+    except ValueError as exc:
+        reason = str(exc)
+        if reason in {"retention_plan_already_claimed", "retention_plan_already_completed"}:
+            return {
+                **_retention_failure(operation="enforce", requested=0, error=reason),
+                "outcome": TaskBusinessOutcome.BLOCKED.value,
+                "failed": 0,
+            }
+        logger.exception("Retention plan validation failed for plan=%s", plan_run_id.strip())
+        return _retention_failure(
+            operation="enforce", requested=0, error="retention_plan_enforcement_failed"
+        )
+    except Exception:
+        logger.exception("Retention plan enforcement failed for plan=%s", plan_run_id.strip())
+        return _retention_failure(
+            operation="enforce", requested=0, error="retention_plan_enforcement_failed"
+        )
+    payload = result.to_dict()
+    payload["operation"] = "enforce"
+    return payload
 
 
 @shared_task(  # type: ignore[misc]

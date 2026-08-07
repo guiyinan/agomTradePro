@@ -60,6 +60,12 @@ class RawLandingRepository:
         model = RawPayloadModel._default_manager.filter(payload_hash=payload_hash).first()
         return model.to_domain() if model is not None else None
 
+    def get_by_id(self, payload_id: str) -> RawPayload | None:
+        """Return one raw payload by its immutable identifier."""
+
+        model = RawPayloadModel._default_manager.filter(payload_id=_uuid(payload_id)).first()
+        return model.to_domain() if model is not None else None
+
     def list_expired(
         self,
         dataset_key: str,

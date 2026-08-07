@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
@@ -22,6 +24,38 @@ class ArchiveRestoreOutcome(str, Enum):
 
     NOT_TESTED = "not_tested"
     SUCCESS = "success"
+    FAILED = "failed"
+
+
+class RetentionPlanStatus(str, Enum):
+    """Lifecycle of an immutable retention snapshot and its execution claim."""
+
+    READY = "ready"
+    EMPTY = "empty"
+    BLOCKED = "blocked"
+    ENFORCING = "enforcing"
+    COMPLETED = "completed"
+    PARTIAL = "partial"
+    FAILED = "failed"
+    EXPIRED = "expired"
+
+
+class RetentionPlanDecision(str, Enum):
+    """Planning-time decision for one exact raw payload snapshot."""
+
+    ELIGIBLE = "eligible"
+    HELD = "held"
+    RETENTION_BLOCKED = "retention_blocked"
+    ARCHIVE_BLOCKED = "archive_blocked"
+
+
+class RetentionMemberExecution(str, Enum):
+    """Execution evidence for a frozen plan member."""
+
+    PENDING = "pending"
+    SKIPPED = "skipped"
+    DELETED = "deleted"
+    BLOCKED = "blocked"
     FAILED = "failed"
 
 
@@ -349,6 +383,183 @@ class RetentionRun:
             _aware(self.cutoff, "RetentionRun.cutoff")
 
 
+@dataclass(frozen=True)
+class RetentionPlanMember:
+    """Exact immutable deletion candidate captured by one retention plan."""
+
+    ordinal: int
+    payload_id: str
+    payload_hash: str
+    record_digest: str
+    schema_fingerprint: str
+    fetched_at: datetime
+    retention_until: datetime | None
+    size_bytes: int
+    decision: RetentionPlanDecision
+    archive_id: str | None = None
+    execution: RetentionMemberExecution = RetentionMemberExecution.PENDING
+    execution_reason: str = ""
+    deleted_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if self.ordinal < 0:
+            raise ValueError("RetentionPlanMember.ordinal cannot be negative")
+        if not all(
+            value.strip()
+            for value in (
+                self.payload_id,
+                self.payload_hash,
+                self.record_digest,
+                self.schema_fingerprint,
+            )
+        ):
+            raise ValueError("RetentionPlanMember identifiers are required")
+        if self.size_bytes < 0:
+            raise ValueError("RetentionPlanMember.size_bytes cannot be negative")
+        _aware(self.fetched_at, "RetentionPlanMember.fetched_at")
+        if self.retention_until is not None:
+            _aware(self.retention_until, "RetentionPlanMember.retention_until")
+        if self.deleted_at is not None:
+            _aware(self.deleted_at, "RetentionPlanMember.deleted_at")
+        if self.decision is RetentionPlanDecision.ELIGIBLE:
+            if self.archive_id is None or not self.archive_id.strip():
+                raise ValueError("Eligible retention member requires exact archive evidence")
+        elif self.archive_id is not None:
+            raise ValueError("Ineligible retention member cannot carry archive evidence")
+        if self.execution is RetentionMemberExecution.DELETED and self.deleted_at is None:
+            raise ValueError("Deleted retention member requires deleted_at")
+        if self.execution is not RetentionMemberExecution.DELETED and self.deleted_at is not None:
+            raise ValueError("Only deleted retention members may carry deleted_at")
+
+    def snapshot_fields(self) -> dict[str, object]:
+        """Return immutable fields covered by the plan snapshot digest."""
+
+        return {
+            "ordinal": self.ordinal,
+            "payload_id": self.payload_id,
+            "payload_hash": self.payload_hash,
+            "record_digest": self.record_digest,
+            "schema_fingerprint": self.schema_fingerprint,
+            "fetched_at": self.fetched_at.isoformat(),
+            "retention_until": (
+                self.retention_until.isoformat() if self.retention_until is not None else None
+            ),
+            "size_bytes": self.size_bytes,
+            "decision": self.decision.value,
+            "archive_id": self.archive_id,
+        }
+
+
+def retention_plan_snapshot_digest(
+    *,
+    dataset_key: str,
+    policy_id: str,
+    policy_version: int,
+    cutoff: datetime,
+    members: tuple[RetentionPlanMember, ...],
+) -> str:
+    """Hash every immutable plan input in deterministic member order."""
+
+    _aware(cutoff, "retention plan cutoff")
+    payload = {
+        "dataset_key": dataset_key,
+        "policy_id": policy_id,
+        "policy_version": policy_version,
+        "cutoff": cutoff.isoformat(),
+        "members": [
+            member.snapshot_fields() for member in sorted(members, key=lambda m: m.ordinal)
+        ],
+    }
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True)
+class RetentionPlan:
+    """Persisted bounded snapshot that is the sole authority for deletion."""
+
+    plan_id: str
+    operation_id: str
+    dataset_key: str
+    policy_id: str
+    policy_version: int
+    requested: int
+    candidates: int
+    planned: int
+    held: int
+    blocked: int
+    bytes_planned: int
+    cutoff: datetime
+    created_at: datetime
+    expires_at: datetime
+    snapshot_digest: str
+    status: RetentionPlanStatus
+    enforce_operation_id: str = ""
+    outcome: str = ""
+    deleted: int = 0
+    execution_blocked: int = 0
+    failed: int = 0
+    bytes_deleted: int = 0
+    finished_at: datetime | None = None
+    reason: str = ""
+
+    def __post_init__(self) -> None:
+        if not all(
+            value.strip()
+            for value in (
+                self.plan_id,
+                self.operation_id,
+                self.dataset_key,
+                self.policy_id,
+                self.snapshot_digest,
+            )
+        ):
+            raise ValueError("RetentionPlan identifiers are required")
+        if self.policy_version < 1 or not 1 <= self.requested <= 10_000:
+            raise ValueError("RetentionPlan policy version/requested is invalid")
+        for name in (
+            "candidates",
+            "planned",
+            "held",
+            "blocked",
+            "bytes_planned",
+            "deleted",
+            "execution_blocked",
+            "failed",
+            "bytes_deleted",
+        ):
+            if getattr(self, name) < 0:
+                raise ValueError(f"RetentionPlan.{name} cannot be negative")
+        if self.candidates != self.planned + self.held + self.blocked:
+            raise ValueError("RetentionPlan candidate counts must partition exactly")
+        for name, value in (
+            ("cutoff", self.cutoff),
+            ("created_at", self.created_at),
+            ("expires_at", self.expires_at),
+        ):
+            _aware(value, f"RetentionPlan.{name}")
+        if self.expires_at <= self.created_at:
+            raise ValueError("RetentionPlan.expires_at must follow created_at")
+        if self.finished_at is not None:
+            _aware(self.finished_at, "RetentionPlan.finished_at")
+            if self.finished_at < self.created_at:
+                raise ValueError("RetentionPlan.finished_at cannot precede created_at")
+        if self.status is RetentionPlanStatus.READY and self.planned < 1:
+            raise ValueError("Ready retention plan requires eligible members")
+        if self.status is RetentionPlanStatus.EMPTY and self.candidates != 0:
+            raise ValueError("Empty retention plan cannot contain candidates")
+        if (
+            self.status is RetentionPlanStatus.BLOCKED
+            and not self.enforce_operation_id
+            and (self.candidates == 0 or self.planned != 0)
+        ):
+            raise ValueError(
+                "Planning-time blocked retention plan must contain no eligible members"
+            )
+        if self.deleted + self.execution_blocked + self.failed > self.planned:
+            raise ValueError("RetentionPlan execution counts exceed eligible members")
+
+
 __all__ = [
     "ArchiveArtifact",
     "ArchiveManifest",
@@ -356,7 +567,13 @@ __all__ = [
     "ArchiveRestoreAudit",
     "ArchiveRestoreOutcome",
     "ArchiveState",
+    "RetentionMemberExecution",
+    "RetentionPlan",
+    "RetentionPlanDecision",
+    "RetentionPlanMember",
+    "RetentionPlanStatus",
     "RetentionPolicy",
     "RetentionRun",
     "StorageHold",
+    "retention_plan_snapshot_digest",
 ]

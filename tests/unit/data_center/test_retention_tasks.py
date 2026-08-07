@@ -19,6 +19,9 @@ from apps.data_center.domain.raw_landing import RawPayload
 from apps.data_center.domain.retention import (
     ArchiveManifest,
     ArchiveState,
+    RetentionPlan,
+    RetentionPlanMember,
+    RetentionPlanStatus,
     RetentionPolicy,
     RetentionRun,
 )
@@ -51,6 +54,21 @@ class _Archives:
     def has_verified_for_payload(self, payload: RawPayload, *, now: datetime | None = None) -> bool:
         return self.ready
 
+    def verified_archive_id_for_payload(
+        self,
+        payload: RawPayload,
+        *,
+        now: datetime | None = None,
+        required_archive_id: str | None = None,
+    ) -> str | None:
+        del payload, now
+        archive_id = "11111111-1111-1111-1111-111111111111"
+        if not self.ready or (
+            required_archive_id is not None and required_archive_id != archive_id
+        ):
+            return None
+        return archive_id
+
 
 class _Candidates:
     def __init__(self, rows: list[RawPayload]) -> None:
@@ -73,6 +91,9 @@ class _Candidates:
             and (row.retention_until is None or now is None or row.retention_until <= now)
         ][:limit]
 
+    def get_by_id(self, payload_id: str) -> RawPayload | None:
+        return next((row for row in self.rows if row.payload_id == payload_id), None)
+
     def delete_if_matches(
         self,
         payload: RawPayload,
@@ -85,6 +106,30 @@ class _Candidates:
         return 1
 
 
+class _FailingCandidates(_Candidates):
+    def delete_if_matches(
+        self,
+        payload: RawPayload,
+        *,
+        expected_record_digest: str,
+        now: datetime,
+    ) -> int:
+        del payload, expected_record_digest, now
+        raise RuntimeError("delete unavailable")
+
+
+class _BrokenArchives(_Archives):
+    def verified_archive_id_for_payload(
+        self,
+        payload: RawPayload,
+        *,
+        now: datetime | None = None,
+        required_archive_id: str | None = None,
+    ) -> str | None:
+        del payload, now, required_archive_id
+        raise RuntimeError("archive unavailable")
+
+
 class _Runs:
     def __init__(self) -> None:
         self.saved: list[RetentionRun] = []
@@ -92,6 +137,62 @@ class _Runs:
     def save(self, run: RetentionRun) -> RetentionRun:
         self.saved.append(run)
         return run
+
+
+class _Plans:
+    def __init__(self) -> None:
+        self.by_operation: dict[str, tuple[RetentionPlan, tuple[RetentionPlanMember, ...]]] = {}
+
+    def get_by_operation_id(
+        self, operation_id: str
+    ) -> tuple[RetentionPlan, tuple[RetentionPlanMember, ...]] | None:
+        return self.by_operation.get(operation_id)
+
+    def create(
+        self, plan: RetentionPlan, members: tuple[RetentionPlanMember, ...]
+    ) -> tuple[RetentionPlan, tuple[RetentionPlanMember, ...]]:
+        self.by_operation[plan.operation_id] = (plan, members)
+        return plan, members
+
+    def claim(
+        self, plan_id: str, *, operation_id: str, now: datetime
+    ) -> tuple[RetentionPlan, tuple[RetentionPlanMember, ...], bool]:
+        del now
+        key, (plan, members) = next(
+            item for item in self.by_operation.items() if item[1][0].plan_id == plan_id
+        )
+        if plan.status in {
+            RetentionPlanStatus.COMPLETED,
+            RetentionPlanStatus.PARTIAL,
+            RetentionPlanStatus.FAILED,
+        }:
+            return plan, members, plan.enforce_operation_id == operation_id
+        claimed = replace(
+            plan,
+            status=RetentionPlanStatus.ENFORCING,
+            enforce_operation_id=operation_id,
+            outcome="",
+            reason="",
+        )
+        self.by_operation[key] = (claimed, members)
+        return claimed, members, False
+
+    def save_member(self, plan_id: str, member: RetentionPlanMember) -> RetentionPlanMember:
+        key, (plan, members) = next(
+            item for item in self.by_operation.items() if item[1][0].plan_id == plan_id
+        )
+        updated = tuple(
+            member if item.payload_id == member.payload_id else item for item in members
+        )
+        self.by_operation[key] = (plan, updated)
+        return member
+
+    def finish(self, plan: RetentionPlan) -> RetentionPlan:
+        key, (_, members) = next(
+            item for item in self.by_operation.items() if item[1][0].plan_id == plan.plan_id
+        )
+        self.by_operation[key] = (plan, members)
+        return plan
 
 
 class _VerifiableArchives:
@@ -162,6 +263,7 @@ def _patch_task_dependencies(
     archives,
     candidates,
     runs,
+    plans=None,
 ) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr(
         "apps.data_center.application.tasks.evaluate_storage_pressure",
@@ -181,6 +283,10 @@ def _patch_task_dependencies(
     )
     monkeypatch.setattr(
         "apps.data_center.application.tasks.get_retention_run_repository", lambda: runs
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.tasks.get_retention_plan_repository",
+        lambda: plans or _Plans(),
     )
 
 
@@ -338,19 +444,80 @@ def test_plan_retention_task_rejects_invalid_limit() -> None:
     assert result["operation"] == "plan"
 
 
-def test_plan_retention_task_is_always_dry_run(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_plan_retention_task_persists_exact_snapshot(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     candidates = _Candidates([_payload()])
+    plans = _Plans()
     _patch_task_dependencies(
-        monkeypatch, _Policies(_policy()), _Holds(), _Archives(True), candidates, _Runs()
+        monkeypatch,
+        _Policies(_policy()),
+        _Holds(),
+        _Archives(True),
+        candidates,
+        _Runs(),
+        plans,
     )
 
-    result = plan_retention_task(dataset_key="market.raw", limit=10)
+    result = plan_retention_task(dataset_key="market.raw", limit=10, operation_id="plan-1")
 
-    assert result["outcome"] == "noop"
+    assert result["outcome"] == "success"
     assert result["operation"] == "plan"
     assert result["planned"] == 1
-    assert result["deleted"] == 0
+    assert result["plan_run_id"]
+    assert result["candidate_digest"]
     assert candidates.deleted == []
+
+
+def test_plan_retention_task_reports_partial_exclusions(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    rows = [_payload(), _payload()]
+    _patch_task_dependencies(
+        monkeypatch,
+        _Policies(_policy()),
+        _Holds({rows[1].payload_id}),
+        _Archives(True),
+        _Candidates(rows),
+        _Runs(),
+        _Plans(),
+    )
+
+    result = plan_retention_task(dataset_key="market.raw", limit=10, operation_id="plan-partial")
+
+    assert result["outcome"] == "partial"
+    assert result["planned"] == 1
+    assert result["held"] == 1
+
+
+def test_plan_retention_task_reports_zero_output_as_noop(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    _patch_task_dependencies(
+        monkeypatch,
+        _Policies(_policy()),
+        _Holds(),
+        _Archives(True),
+        _Candidates([]),
+        _Runs(),
+        _Plans(),
+    )
+
+    result = plan_retention_task(dataset_key="market.raw", limit=10, operation_id="plan-empty")
+
+    assert result["outcome"] == "noop"
+    assert result["candidates"] == 0
+
+
+def test_plan_retention_task_reports_complete_failure(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    _patch_task_dependencies(
+        monkeypatch,
+        _Policies(_policy()),
+        _Holds(),
+        _BrokenArchives(True),
+        _Candidates([_payload()]),
+        _Runs(),
+        _Plans(),
+    )
+
+    result = plan_retention_task(dataset_key="market.raw", limit=10, operation_id="plan-failed")
+
+    assert result["outcome"] == "failed"
+    assert result["error"] == "retention_plan_creation_failed"
 
 
 def test_plan_retention_task_blocks_without_storage_policy(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -371,19 +538,126 @@ def test_plan_retention_task_blocks_without_storage_policy(monkeypatch) -> None:
 
 def test_enforce_retention_task_rejects_non_boolean_confirmation() -> None:
     result = enforce_retention_task(
-        dataset_key="market.raw", limit=10, dry_run=False, confirm=1  # type: ignore[arg-type]
+        plan_run_id="plan", operation_id="run", confirm=1  # type: ignore[arg-type]
     )
 
     assert result["outcome"] == "failed"
     assert result["error"] == "confirm must be a boolean"
 
 
-def test_enforce_retention_task_blocks_until_exact_plan_member_gate() -> None:
-    result = enforce_retention_task(dataset_key="market.raw", limit=10, dry_run=False, confirm=True)
+def test_enforce_retention_task_consumes_exact_plan_and_replays(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    candidates = _Candidates([_payload()])
+    plans = _Plans()
+    policy = _policy()
+    _patch_task_dependencies(
+        monkeypatch, _Policies(policy), _Holds(), _Archives(True), candidates, _Runs(), plans
+    )
+    planned = plan_retention_task(dataset_key="market.raw", limit=10, operation_id="plan-success")
+
+    result = enforce_retention_task(
+        plan_run_id=str(planned["plan_run_id"]), operation_id="enforce-success", confirm=True
+    )
+    replay = enforce_retention_task(
+        plan_run_id=str(planned["plan_run_id"]), operation_id="enforce-success", confirm=True
+    )
+
+    assert result["outcome"] == "success"
+    assert result["deleted"] == 1
+    assert replay["replayed"] is True
+    assert candidates.deleted == [candidates.rows[0].payload_id]
+
+
+def test_enforce_retention_task_reports_partial_drift(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    candidates = _Candidates([_payload(), _payload()])
+    plans = _Plans()
+    policy = _policy()
+    _patch_task_dependencies(
+        monkeypatch, _Policies(policy), _Holds(), _Archives(True), candidates, _Runs(), plans
+    )
+    planned = plan_retention_task(dataset_key="market.raw", limit=10, operation_id="plan-drift")
+    candidates.rows[1] = replace(candidates.rows[1], payload={"value": 2})
+
+    result = enforce_retention_task(
+        plan_run_id=str(planned["plan_run_id"]), operation_id="enforce-drift", confirm=True
+    )
+
+    assert result["outcome"] == "partial"
+    assert result["deleted"] == 1
+    assert result["blocked"] == 1
+
+
+def test_enforce_retention_task_blocks_policy_drift_without_delete(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    candidates = _Candidates([_payload()])
+    plans = _Plans()
+    policies = _Policies(_policy())
+    _patch_task_dependencies(
+        monkeypatch, policies, _Holds(), _Archives(True), candidates, _Runs(), plans
+    )
+    planned = plan_retention_task(
+        dataset_key="market.raw", limit=10, operation_id="plan-policy-drift"
+    )
+    policies.policy = _policy()
+
+    result = enforce_retention_task(
+        plan_run_id=str(planned["plan_run_id"]),
+        operation_id="enforce-policy-drift",
+        confirm=True,
+    )
 
     assert result["outcome"] == "blocked"
-    assert result["operation"] == "enforce"
-    assert result["error"] == "retention_plan_member_gate_not_implemented"
+    assert result["reason"] == "retention_policy_changed_replan_required"
+    assert candidates.deleted == []
+
+
+def test_enforce_retention_task_rechecks_hold_and_pinned_archive(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    candidates = _Candidates([_payload(), _payload()])
+    plans = _Plans()
+    holds = _Holds()
+    archives = _Archives(True)
+    _patch_task_dependencies(
+        monkeypatch, _Policies(_policy()), holds, archives, candidates, _Runs(), plans
+    )
+    planned = plan_retention_task(
+        dataset_key="market.raw", limit=10, operation_id="plan-gate-drift"
+    )
+    holds.held.add(candidates.rows[0].payload_id)
+    archives.ready = False
+
+    result = enforce_retention_task(
+        plan_run_id=str(planned["plan_run_id"]),
+        operation_id="enforce-gate-drift",
+        confirm=True,
+    )
+
+    assert result["outcome"] == "blocked"
+    assert result["blocked"] == 2
+    assert candidates.deleted == []
+
+
+def test_enforce_retention_task_reports_complete_failure(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    candidates = _FailingCandidates([_payload()])
+    plans = _Plans()
+    _patch_task_dependencies(
+        monkeypatch,
+        _Policies(_policy()),
+        _Holds(),
+        _Archives(True),
+        candidates,
+        _Runs(),
+        plans,
+    )
+    planned = plan_retention_task(
+        dataset_key="market.raw", limit=10, operation_id="plan-delete-failure"
+    )
+
+    result = enforce_retention_task(
+        plan_run_id=str(planned["plan_run_id"]),
+        operation_id="enforce-delete-failure",
+        confirm=True,
+    )
+
+    assert result["outcome"] == "failed"
+    assert result["failed"] == 1
     assert result["deleted"] == 0
 
 
@@ -393,7 +667,7 @@ def test_enforce_retention_task_requires_explicit_confirmation(monkeypatch) -> N
         monkeypatch, _Policies(_policy()), _Holds(), _Archives(True), candidates, _Runs()
     )
 
-    result = enforce_retention_task(dataset_key="market.raw", limit=10, dry_run=False)
+    result = enforce_retention_task(plan_run_id="plan", operation_id="run")
 
     assert result["outcome"] == "blocked"
     assert result["error"] == "explicit_confirmation_required"

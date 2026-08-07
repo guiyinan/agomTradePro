@@ -65,7 +65,20 @@ class ArchiveCoverageGateway:
     ) -> bool:
         """Re-read each candidate artifact at most once during a bounded pass."""
 
+        return self.verified_archive_id_for_payload(payload, now=now) is not None
+
+    def verified_archive_id_for_payload(
+        self,
+        payload: RawPayload,
+        *,
+        now: datetime | None = None,
+        required_archive_id: str | None = None,
+    ) -> str | None:
+        """Return an exact byte-backed archive ID, optionally pinned to one manifest."""
+
         for manifest in self._manifests.find_covering_manifests(payload, now=now):
+            if required_archive_id is not None and manifest.archive_id != required_archive_id:
+                continue
             cached = self._artifact_cache.get(manifest.archive_id)
             if cached is None:
                 try:
@@ -76,8 +89,8 @@ class ArchiveCoverageGateway:
                     cached = False
                 self._artifact_cache[manifest.archive_id] = cached
             if cached:
-                return True
-        return False
+                return manifest.archive_id
+        return None
 
 
 class ArchiveCapacityGuard:

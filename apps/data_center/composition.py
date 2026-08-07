@@ -80,6 +80,7 @@ from apps.data_center.infrastructure.research_data_foundation_repository import 
 )
 from apps.data_center.infrastructure.retention_repositories import (
     ArchiveManifestRepository,
+    RetentionPlanRepository,
     RetentionPolicyRepository,
     RetentionRunRepository,
     StorageHoldRepository,
@@ -130,6 +131,7 @@ __all__ = [
     "RSSGatewayError",
     "ResearchDataFoundationRepository",
     "RetentionPolicyRepository",
+    "RetentionPlanRepository",
     "RetentionRunRepository",
     "SectorMembershipRepository",
     "SchemaFingerprintRepository",
@@ -185,6 +187,7 @@ __all__ = [
     "get_raw_landing_repository",
     "get_raw_archive_store",
     "get_retention_policy_repository",
+    "get_retention_plan_repository",
     "get_retention_run_repository",
     "get_sector_membership_repository",
     "get_schema_fingerprint_repository",
@@ -344,6 +347,12 @@ def get_retention_policy_repository() -> RetentionPolicyRepository:
     """Return dataset retention policy repository."""
 
     return RetentionPolicyRepository()
+
+
+def get_retention_plan_repository() -> RetentionPlanRepository:
+    """Return the exact-member retention plan repository."""
+
+    return RetentionPlanRepository()
 
 
 def get_storage_hold_repository() -> StorageHoldRepository:

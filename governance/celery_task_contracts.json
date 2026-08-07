@@ -165,11 +165,23 @@
         },
         "all_success": {
           "test_file": "tests/unit/data_center/test_retention_tasks.py",
-          "test_function": "test_plan_retention_task_is_always_dry_run"
+          "test_function": "test_plan_retention_task_persists_exact_snapshot"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_plan_retention_task_reports_partial_exclusions"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_plan_retention_task_reports_zero_output_as_noop"
         },
         "blocked": {
           "test_file": "tests/unit/data_center/test_retention_tasks.py",
           "test_function": "test_plan_retention_task_blocks_without_storage_policy"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_plan_retention_task_reports_complete_failure"
         }
       }
     },
@@ -182,9 +194,21 @@
           "test_file": "tests/unit/data_center/test_retention_tasks.py",
           "test_function": "test_enforce_retention_task_rejects_non_boolean_confirmation"
         },
+        "all_success": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_enforce_retention_task_consumes_exact_plan_and_replays"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_enforce_retention_task_reports_partial_drift"
+        },
         "blocked": {
           "test_file": "tests/unit/data_center/test_retention_tasks.py",
           "test_function": "test_enforce_retention_task_requires_explicit_confirmation"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_enforce_retention_task_reports_complete_failure"
         }
       }
     },
