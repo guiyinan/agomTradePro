@@ -12,7 +12,7 @@
       "current_data_surface": 46,
       "dynamic_import_edge": 8,
       "management_command": 27,
-      "management_command_edge": 60,
+      "management_command_edge": 58,
       "mcp_tool": 40,
       "migration_evidence": 10,
       "operational_dispatch_edge": 61,
@@ -23,7 +23,7 @@
       "runbook": 6,
       "runtime_config_key": 45,
       "scheduler_writer": 16,
-      "script": 7,
+      "script": 5,
       "sdk": 46,
       "system_settings_compatibility": 10,
       "terminal_tui": 28,
@@ -31,13 +31,13 @@
       "workflow_step": 9
     },
     "by_status": {
-      "active_public": 617,
-      "adjacent_operational": 272,
+      "active_public": 618,
+      "adjacent_operational": 270,
       "candidate-review": 0,
-      "compatibility": 243,
+      "compatibility": 240,
       "retired_blocked": 0
     },
-    "total": 1132
+    "total": 1128
   },
   "entries": [
     {
@@ -493,8 +493,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/config_center/infrastructure/repositories.py:get_provider_settings_payload:line:42",
-      "locator": "line:42",
+      "id": "application_consumer:apps/config_center/infrastructure/repositories.py:get_provider_settings_payload:line:44",
+      "locator": "line:44",
       "path": "apps/config_center/infrastructure/repositories.py",
       "status": "active_public",
       "symbol": "get_provider_settings_payload",
@@ -6272,16 +6272,6 @@
     },
     {
       "category": "management_command_edge",
-      "evidence": "execute_from_command_line resolves to apps/macro/management/commands/sync_macro_data.py",
-      "id": "management_command_edge:scripts/debug/refresh_macro_data.py:sync_macro_data:line:25",
-      "locator": "line:25",
-      "path": "scripts/debug/refresh_macro_data.py",
-      "status": "adjacent_operational",
-      "symbol": "sync_macro_data",
-      "target": "apps/macro/management/commands/sync_macro_data.py"
-    },
-    {
-      "category": "management_command_edge",
       "evidence": "call_command resolves to apps/equity/management/commands/init_equity_config.py",
       "id": "management_command_edge:scripts/init_equity_config.py:init_equity_config:line:31",
       "locator": "line:31",
@@ -6316,16 +6306,6 @@
       "id": "management_command_edge:scripts/seed_historical.py:sync_macro_data:line:64",
       "locator": "line:64",
       "path": "scripts/seed_historical.py",
-      "status": "adjacent_operational",
-      "symbol": "sync_macro_data",
-      "target": "apps/macro/management/commands/sync_macro_data.py"
-    },
-    {
-      "category": "management_command_edge",
-      "evidence": "execute_from_command_line resolves to apps/macro/management/commands/sync_macro_data.py",
-      "id": "management_command_edge:scripts/sync_akshare_data.py:sync_macro_data:line:25",
-      "locator": "line:25",
-      "path": "scripts/sync_akshare_data.py",
       "status": "adjacent_operational",
       "symbol": "sync_macro_data",
       "target": "apps/macro/management/commands/sync_macro_data.py"
@@ -9842,11 +9822,11 @@
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=reliability; consumers=4; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:readiness.decision_maintenance:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=reliability; consumers=4; migration_status=separate_model_active",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:readiness.decision_maintenance:separate_model_active",
+      "locator": "separate_model_active",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "readiness.decision_maintenance",
       "target": ""
     },
@@ -10072,16 +10052,6 @@
     },
     {
       "category": "script",
-      "evidence": "governance/data_center_legacy_entrypoints.json",
-      "id": "script:scripts/debug/refresh_macro_data.py:__main__:",
-      "locator": "",
-      "path": "scripts/debug/refresh_macro_data.py",
-      "status": "compatibility",
-      "symbol": "__main__",
-      "target": ""
-    },
-    {
-      "category": "script",
       "evidence": "Data Center governance/measurement tooling",
       "id": "script:scripts/measure_data_center_query_ports.py:__main__:",
       "locator": "",
@@ -10106,16 +10076,6 @@
       "id": "script:scripts/seed_historical.py:__main__:",
       "locator": "",
       "path": "scripts/seed_historical.py",
-      "status": "compatibility",
-      "symbol": "__main__",
-      "target": ""
-    },
-    {
-      "category": "script",
-      "evidence": "governance/data_center_legacy_entrypoints.json",
-      "id": "script:scripts/sync_akshare_data.py:__main__:",
-      "locator": "",
-      "path": "scripts/sync_akshare_data.py",
       "status": "compatibility",
       "symbol": "__main__",
       "target": ""
@@ -10663,8 +10623,8 @@
     {
       "category": "system_settings_compatibility",
       "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/config_center/infrastructure/repositories.py:SystemSettingsModel:lines:36,132,133,143,172,271,272,275,277,278,279",
-      "locator": "lines:36,132,133,143,172,271,272,275,277,278,279",
+      "id": "system_settings_compatibility:apps/config_center/infrastructure/repositories.py:SystemSettingsModel:lines:37,136,137,147,176,275,276,279",
+      "locator": "lines:37,136,137,147,176,275,276,279",
       "path": "apps/config_center/infrastructure/repositories.py",
       "status": "compatibility",
       "symbol": "SystemSettingsModel",
@@ -11373,7 +11333,7 @@
   "source_contract_counts": {
     "celery_tasks": 31,
     "current_data_contracts": 46,
-    "legacy_entrypoints_and_wrappers": 4,
+    "legacy_entrypoints_and_wrappers": 2,
     "operational_governance_rules": 12,
     "runtime_config_keys": 45
   },

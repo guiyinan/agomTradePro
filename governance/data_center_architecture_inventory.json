@@ -4348,7 +4348,7 @@
       "text": "\"\"\"Return one value from the active typed profile for the current environment.\"\"\""
     },
     {
-      "line": 461,
+      "line": 457,
       "path": "apps/config_center/infrastructure/repositories.py",
       "text": "\"\"\"Atomically consume the current token and reject replay/expiry.\"\"\""
     },

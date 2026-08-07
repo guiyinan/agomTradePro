@@ -455,6 +455,7 @@ jobs:
           python -m pytest \
             tests/migrations/test_research_integrity_migrations.py \
             tests/migrations/test_data_center_retention_plan_migration.py \
+            tests/migrations/test_config_center_decision_state_materialization.py \
             -v \
             --reuse-db \
             --junitxml=reports/quality/postgres/research-migrations.xml \
@@ -502,10 +503,11 @@ jobs:
             --reuse-db --no-migrations --timeout=240 \
             --junitxml=reports/quality/postgres/backfill-retention.xml
 
-      - name: Run PostgreSQL retention concurrency evidence
+      - name: Run PostgreSQL retention and Qlib admission concurrency evidence
         run: |
           python -m pytest \
             tests/component/data_center/test_retention_postgres_concurrency.py \
+            tests/component/config_center/test_qlib_training_run_lock.py \
             -q --reuse-db --timeout=300 \
             --junitxml=reports/quality/postgres/retention-concurrency.xml
 
