@@ -89,7 +89,7 @@ class LiquidityPremiumBlockerCode(str, Enum):
     EVIDENCE_STALE = "fixed_income.liquidity.evidence.stale"
     MEASURE_MISSING = "fixed_income.liquidity.measure.missing"
     MEASURE_DUPLICATE = "fixed_income.liquidity.measure.duplicate"
-    SYNTHETIC_QUOTE_AGE = "fixed_income.liquidity.quote_age.synthetic"
+    QUOTE_AGE_UNVERIFIABLE = "fixed_income.liquidity.quote_age.unverifiable"
     UNIT_MISMATCH = "fixed_income.liquidity.unit.mismatch"
     SUBJECT_MISMATCH = "fixed_income.liquidity.subject.mismatch"
     CURRENCY_MISMATCH = "fixed_income.liquidity.currency.mismatch"

@@ -127,6 +127,7 @@ AgomTradePro/
 │   └── celery.py
 ├── apps/                     # 业务模块目录
 │   ├── macro/                # 宏观数据采集
+│   ├── macro_factor/         # 宏观因子研究与时点治理
 │   ├── regime/               # Regime 判定引擎
 │   ├── policy/               # 政策事件管理
 │   ├── signal/               # 投资信号管理
@@ -154,6 +155,7 @@ AgomTradePro/
 │   ├── decision_rhythm/      # 决策频率约束
 │   ├── valuation/            # 独立估值引擎（快照、价格带、质量/新鲜度规则）
 │   ├── factor/               # 因子管理
+│   ├── fixed_income/         # 固收研究与风险分析
 │   ├── rotation/             # 板块轮动
 │   ├── hedge/                # 对冲策略
 │   ├── events/               # 事件系统
