@@ -4776,3 +4776,13 @@ Git SHA / 镜像 / migration：
 - 本地证据：全仓生产 mypy 为 `0 errors in 0 files`；入口专项 17 passed，入口与 Tushare 完整性组合 32 passed，Strategy API/结构回归 36 passed，旧 Admin 退役回归 1 passed；module graph 为 208 edges、0 bidirectional、0 cycles，architecture delta 0 violations，changed-file size、Ruff、Black、isort 与 dependency projection 均通过。用户工作区的 R5 relative-value 测试改动未纳入任何提交。
 - GitHub 证据：提交 `37c9b6af` 的 Architecture Layer Guard `31185957181`、Security Scan `31185957135`、Consistency Check `31185957215`、CI Fast Feedback `31185957203` 全部成功；Fast Feedback 内 Python 3.11、Python 3.13、incremental quality gates、no-database TDD 均成功。
 - 明确边界：本节完成“静态发现入口全部有 owner/status/target、候选归零、CI 防回归”的验收，不把 250 个 compatibility seam 冒充物理删除，也不替代生产 writer quiescence、VPS 规模 RTO、archive mount/key、外部备份下载回执或 M9 destructive migration。本轮遵守用户指令不部署、不修改 VPS。
+
+## 136. 2026-08-07：退役入口物理清除与动态表名防回归
+
+- 根因：§135 虽已把 34 个危险入口标为 `retired_blocked`，标签本身不能阻止人工执行；旧 canary/rollback 脚本仍含真实操作代码，SQLite-only PowerShell 备份/恢复仍会被收进 VPS bundle。另有未登记的 `check_all_tables.py` 通过表名列表和 f-string 动态读取 `macro_indicator`，绕过了只识别字面 SQL 的旧 guard。
+- 物理退役：删除 11 个过时运维脚本、2 份传播旧部署/恢复命令的 runbook，并从 bundle 打包、验包与当前部署文档断开 PowerShell 旧备份/恢复入口；旧 canary 三件套整体删除，当前部署只保留 Docker/VPS 验证链。Fund/Sector migration package 的 `__init__.py` 中两份误复制 `Migration` 类清为空 package marker，防止伪入口继续干扰审计。
+- 配置死口：删除从未注册的 `SystemSettingsAdminForm/SystemSettingsModelAdmin` 及其独占 singleton presence seam；治理清单移除这些假消费者。删除无生产消费者的 `SystemSettingsModel` Qlib runtime getter、旧 `QLIB_SETTINGS` 和旧 asset-proxy class getter；Qlib 运行读取继续只经过 active typed Config Center snapshot，缺失时 fail closed。备份策略当前缺少可达的人机写入口被明确保留为后续产品缺口，不用死 Admin 伪装覆盖。
+- 动态访问门禁：legacy fact guard 新增 table-selector AST 检测，表名被放入 `*table*` 选择变量后再动态拼 SQL 也会命中；模型 owner 文件仍作为定义/迁移保留白名单。健康检查中仅作为响应 key 的 `macro_indicator` 不误报。两个已经引用被删除 Admin class 的陈旧测试改为断言旧模型未注册，恢复可收集、可执行状态。
+- 最终入口快照：共 1132 项，`active_public=617`、`adjacent_operational=272`、`compatibility=243`、`retired_blocked=0`、`candidate-review=0`。相对 §135 减少 50 项，来自真实文件、dispatch edge、runbook 与死兼容 symbol 删除，不是生命周期重分类。
+- 本地证据：入口/Config Center/Qlib/旧 Admin 定向回归 50 passed，动态表名门禁 7 passed，Fund/Sector 陈旧 Admin 包 16 passed；固定 TUI/Terminal/SDK/SSL 回归 287 passed，入口与部署/备份专项 37 passed。legacy fact access guard、legacy script guard、Qlib inventory、PowerShell parser、Shell syntax、JSON、Ruff/Black、8 个生产文件增量 mypy、architecture 0 violation、module cycle 0、governance 0 violation、Django check 与 `makemigrations --check` 均通过。
+- 明确边界：本批完成“所有可执行入口均已收编、已判退役入口不再可执行”的本地目标，但 7 张 retained legacy fact 表和 `SystemSettingsModel` 仍受数据物化、一致性、专用锁、备份恢复与 destructive migration preflight 约束。当前本地 Fund NAV 仍有 3 行新旧差异，且未做生产恢复取证；因此不生成删表 migration，不部署、不修改 VPS，也不把 243 个仍有消费者或外部兼容义务的入口冒充已删除。

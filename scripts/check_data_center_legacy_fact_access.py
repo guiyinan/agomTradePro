@@ -89,6 +89,33 @@ def _dotted_attribute(node: ast.AST) -> str | None:
     return ".".join(reversed(parts))
 
 
+def _legacy_table_selector_assignments(
+    tree: ast.AST,
+    legacy_tables: set[str],
+) -> list[tuple[int, str]]:
+    """Return legacy table literals assigned to table-selector variables."""
+
+    matches: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        target_names = {target.id.lower() for target in targets if isinstance(target, ast.Name)}
+        if not any("table" in name for name in target_names):
+            continue
+        value = node.value
+        if value is None:
+            continue
+        for child in ast.walk(value):
+            if (
+                isinstance(child, ast.Constant)
+                and isinstance(child.value, str)
+                and child.value in legacy_tables
+            ):
+                matches.append((child.lineno, child.value))
+    return matches
+
+
 def _raw_sql_violations(*, path: str, text: str, legacy_tables: list[str]) -> list[Violation]:
     violations: list[Violation] = []
     for table in legacy_tables:
@@ -123,10 +150,20 @@ def _scan_file(path: Path, contract: Contract) -> list[Violation]:
         module: set(symbols) for module, symbols in contract["legacy_modules"].items()
     }
     known_symbols = {symbol for symbols in symbols_by_module.values() for symbol in symbols}
+    legacy_tables = set(contract["legacy_tables"])
     imported_legacy_names: dict[str, str] = {}
     module_aliases: dict[str, str] = {}
     imported_modules: set[str] = set()
     violations: list[Violation] = []
+    violations.extend(
+        {
+            "path": relative,
+            "line": line,
+            "symbol": table,
+            "kind": "legacy_table_dynamic_reference",
+        }
+        for line, table in _legacy_table_selector_assignments(tree, legacy_tables)
+    )
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
             module = _resolved_import_from_module(node, relative)

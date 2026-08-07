@@ -61,6 +61,10 @@ def guard_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[ModuleT
             "sql = 'DELETE FROM equity_stock_daily WHERE bar_date < %s'\n",
             "legacy_table_sql_reference",
         ),
+        (
+            "tables = ['equity_stock_daily']\nsql = f'SELECT * FROM {tables[0]}'\n",
+            "legacy_table_dynamic_reference",
+        ),
     ],
 )
 def test_guard_detects_semantic_and_raw_sql_bypasses(
