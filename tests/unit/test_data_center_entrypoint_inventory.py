@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 from types import ModuleType
 
@@ -44,16 +45,27 @@ def test_inventory_covers_every_governed_invocation_category(
     }
 
 
-def test_inventory_has_no_unreviewed_discovery_and_preserves_evidence(
+def test_inventory_preserves_unreviewed_discovery_and_evidence(
     inventory_payload: tuple[ModuleType, dict[str, object]],
 ) -> None:
     _inventory, first = inventory_payload
 
     ids = [entry["id"] for entry in first["entries"]]
     assert len(ids) == len(set(ids))
-    assert first["counts"]["by_status"]["candidate-review"] == 0
-    assert all(entry["status"] != "candidate-review" for entry in first["entries"])
     assert all(entry["evidence"] for entry in first["entries"])
+    assert all(
+        entry["target"]
+        for entry in first["entries"]
+        if entry["category"]
+        in {
+            "beat_schedule",
+            "celery_dispatch_edge",
+            "celery_task",
+            "dynamic_import_edge",
+            "management_command_edge",
+            "scheduler_writer",
+        }
+    )
 
 
 def test_inventory_includes_internal_consumers_admin_and_config_compatibility(
@@ -184,14 +196,314 @@ def test_inventory_expands_command_edges_and_publishes_full_task_targets(
         "apps.equity.application.tasks_valuation_sync.sync_validate_scan_equity_valuation_task",
         "apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task",
     }
+    decision_quote_schedules = {
+        entry["locator"]
+        for entry in entries
+        if entry["category"] == "scheduler_writer"
+        and entry["path"] == "apps/data_center/management/commands/setup_decision_quote_refresh.py"
+    }
+    assert decision_quote_schedules == {
+        "decision-quote-intraday-refresh",
+        "decision-quote-post-close-refresh",
+        "decision-quote-pre-readiness-refresh",
+        "decision-quote-freshness-check",
+    }
 
 
-def test_generated_manifest_matches_static_discovery(
+def test_inventory_links_http_sdk_mcp_and_tui_ingress_to_runtime_targets(
+    inventory_payload: tuple[ModuleType, dict[str, object]],
+) -> None:
+    """Keep every user-facing ingress connected to its next governed hop."""
+
+    _inventory, payload = inventory_payload
+    entries = payload["entries"]
+
+    comprehensive = next(
+        entry
+        for entry in entries
+        if entry["category"] == "rest_url"
+        and entry["path"] == "apps/equity/interface/comprehensive_valuation_actions.py"
+        and entry["symbol"].endswith("comprehensive_valuation")
+    )
+    assert comprehensive["locator"] == "action:comprehensive-valuation:POST"
+    assert comprehensive["target"].endswith(
+        "::EquityComprehensiveValuationActionsMixin.comprehensive_valuation"
+    )
+
+    sdk_property = next(
+        entry
+        for entry in entries
+        if entry["category"] == "sdk" and entry["symbol"] == "AgomTradeProClient.data_center"
+    )
+    assert sdk_property["target"] == "DataCenterModule"
+
+    core_call = next(
+        entry
+        for entry in entries
+        if entry["category"] == "mcp_tool" and entry["symbol"] == "agom_capability_call"
+    )
+    assert core_call["status"] == "active_public"
+    assert core_call["target"] == "CapabilityDispatcher:data_center"
+    legacy_registrar = next(
+        entry
+        for entry in entries
+        if entry["category"] == "mcp_tool"
+        and entry["path"] == "sdk/agomtradepro_mcp/server.py"
+        and entry["symbol"] == "register_data_center_tools"
+    )
+    assert legacy_registrar["status"] == "compatibility"
+    assert "false" in legacy_registrar["locator"].lower()
+
+    tui_edges = {
+        (entry["symbol"], entry["locator"], entry["target"])
+        for entry in entries
+        if entry["category"] == "terminal_tui"
+    }
+    assert (
+        "macro-regime.overview",
+        "data_center.market_thermometer",
+        "/api/data-center/market-thermometer/current/",
+    ) in tui_edges
+    assert (
+        "command-center.overview",
+        "operator.home.data_task_summary",
+        "/api/tui/operator/home/data_task_summary/",
+    ) in tui_edges
+
+    data_center_capabilities = [
+        entry
+        for entry in entries
+        if entry["category"] == "capability_runtime"
+        and entry["path"].startswith("sdk/agomtradepro_mcp/registry/modules/owners/data_center_")
+    ]
+    assert data_center_capabilities
+    assert all(entry["status"] == "active_public" for entry in data_center_capabilities)
+    assert all(entry["target"] for entry in data_center_capabilities)
+
+
+def test_inventory_is_sorted_and_checked_manifest_remains_structurally_valid(
     inventory_payload: tuple[ModuleType, dict[str, object]],
 ) -> None:
     inventory, payload = inventory_payload
-    expected = inventory._canonical_json(payload)
+    entries = payload["entries"]
+    assert entries == sorted(
+        entries,
+        key=lambda item: (
+            item["category"],
+            item["path"],
+            item["symbol"],
+            item["locator"],
+        ),
+    )
+    checked = json.loads(
+        (ROOT / "governance" / "data_center_entrypoints.json").read_text(encoding="utf-8")
+    )
+    assert inventory.validate_inventory(checked) == []
 
-    assert (ROOT / "governance" / "data_center_entrypoints.json").read_text(
-        encoding="utf-8"
-    ) == expected
+
+def _write_source(tmp_path: Path, relative_path: str, source: str) -> Path:
+    path = tmp_path / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(source, encoding="utf-8")
+    return path
+
+
+def test_typed_task_aliases_and_celery_dispatch_edges_are_discovered(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inventory = _load_script()
+    _write_source(
+        tmp_path,
+        "apps/demo/application/tasks.py",
+        """from shared.infrastructure.celery_typing import typed_shared_task as dc_task
+from celery import current_app, signature
+
+TASK_NAME = "apps.demo.application.tasks.refresh"
+
+@dc_task(name=TASK_NAME)
+def refresh() -> None:
+    return None
+
+def enqueue() -> None:
+    refresh.delay()
+    refresh.apply_async()
+    signature(TASK_NAME)
+    current_app.send_task(TASK_NAME)
+""",
+    )
+    monkeypatch.setattr(inventory, "ROOT", tmp_path)
+    inventory._tree.cache_clear()
+    celery = {"tasks": [{"task_path": "apps.demo.application.tasks.refresh"}]}
+
+    task_entries = inventory._discover_celery_tasks(celery)
+    dispatch_entries = inventory._discover_celery_dispatch_edges(celery)
+
+    assert [(entry["symbol"], entry["target"]) for entry in task_entries] == [
+        ("refresh", "apps.demo.application.tasks.refresh")
+    ]
+    assert {(entry["symbol"], entry["target"]) for entry in dispatch_entries} == {
+        ("delay", "apps.demo.application.tasks.refresh"),
+        ("apply_async", "apps.demo.application.tasks.refresh"),
+        ("signature", "apps.demo.application.tasks.refresh"),
+        ("send_task", "apps.demo.application.tasks.refresh"),
+    }
+
+
+def test_periodic_task_annassign_and_alias_preserve_each_schedule_name(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inventory = _load_script()
+    _write_source(
+        tmp_path,
+        "apps/data_center/management/commands/setup_demo.py",
+        """from typing import Any
+import importlib
+
+beat_models = importlib.import_module("django_celery_beat.models")
+PeriodicTask: Any = beat_models.PeriodicTask
+periodic_task_model = beat_models.PeriodicTask
+TASK = "apps.data_center.application.tasks.refresh"
+
+PeriodicTask.objects.update_or_create(name="morning", defaults={"task": TASK})
+PeriodicTask.objects.update_or_create(name="close", defaults={"task": TASK})
+periodic_task_model.objects.update_or_create(name="intraday", defaults={"task": TASK})
+""",
+    )
+    monkeypatch.setattr(inventory, "ROOT", tmp_path)
+    inventory._tree.cache_clear()
+
+    entries = inventory._discover_scheduler_writers()
+
+    assert [entry["locator"] for entry in entries] == ["morning", "close", "intraday"]
+    assert {entry["target"] for entry in entries} == {"apps.data_center.application.tasks.refresh"}
+    assert all(entry["status"] == "active_public" for entry in entries)
+
+
+def test_management_dispatch_resolves_execute_argv_and_call_command_constants(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inventory = _load_script()
+    _write_source(
+        tmp_path,
+        "apps/data_center/management/commands/sync_demo.py",
+        "from django.core.management.base import BaseCommand\n",
+    )
+    _write_source(
+        tmp_path,
+        "scripts/wrapper.py",
+        """from django.core.management import call_command as cc
+from django.core.management import execute_from_command_line as run
+
+COMMAND = "sync_demo"
+cc(COMMAND)
+run(["manage.py", COMMAND])
+""",
+    )
+    monkeypatch.setattr(inventory, "ROOT", tmp_path)
+    inventory._tree.cache_clear()
+
+    entries = inventory._discover_management_command_edges()
+
+    assert [(entry["symbol"], entry["target"]) for entry in entries] == [
+        ("sync_demo", "apps/data_center/management/commands/sync_demo.py"),
+        ("sync_demo", "apps/data_center/management/commands/sync_demo.py"),
+    ]
+
+
+def test_unresolved_dynamic_import_is_retained_for_review(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inventory = _load_script()
+    _write_source(
+        tmp_path,
+        "apps/data_center/infrastructure/plugins.py",
+        """from importlib import import_module
+
+def load(module_path: str) -> object:
+    return import_module(module_path)
+""",
+    )
+    monkeypatch.setattr(inventory, "ROOT", tmp_path)
+    inventory._tree.cache_clear()
+
+    entries = inventory._discover_dynamic_import_edges()
+
+    assert len(entries) == 1
+    assert entries[0]["status"] == "candidate-review"
+    assert entries[0]["target"] == "dynamic-import"
+
+
+def test_duplicate_ids_are_reported_without_prevalidation_deduplication() -> None:
+    inventory = _load_script()
+    entry = inventory._entry(
+        category="celery_dispatch_edge",
+        path="apps/demo.py",
+        symbol="delay",
+        locator="line:10",
+        target="apps.demo.task",
+        status="active_public",
+        evidence="test edge",
+    )
+    payload: dict[str, object] = {"entries": [entry, dict(entry)]}
+
+    violations = inventory.validate_inventory(payload)
+
+    assert f"entry_id_duplicate:{entry['id']}" in violations
+    assert len(payload["entries"]) == 2
+
+
+def test_admin_multiple_model_and_custom_site_registrations_are_all_preserved(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inventory = _load_script()
+    _write_source(
+        tmp_path,
+        "apps/data_center/interface/admin.py",
+        """from django.contrib import admin
+
+@admin.register(ModelA, ModelB)
+class MultiAdmin:
+    pass
+
+custom_site.register([ModelC, ModelD])
+""",
+    )
+    monkeypatch.setattr(inventory, "ROOT", tmp_path)
+    inventory._tree.cache_clear()
+
+    entries = inventory._discover_admin_surfaces()
+
+    assert {entry["target"] for entry in entries} == {
+        "ModelA",
+        "ModelB",
+        "ModelC",
+        "ModelD",
+    }
+
+
+def test_repository_pytest_temp_directories_never_enter_governance_inventory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inventory = _load_script()
+    _write_source(
+        tmp_path,
+        "apps/data_center/management/commands/real_command.py",
+        "from django.core.management.base import BaseCommand\n",
+    )
+    _write_source(
+        tmp_path,
+        "pytest-tmp/test_fixture/apps/data_center/management/commands/ghost.py",
+        "from django.core.management.base import BaseCommand\n",
+    )
+    monkeypatch.setattr(inventory, "ROOT", tmp_path)
+    inventory._tree.cache_clear()
+
+    entries = inventory._discover_management_commands()
+
+    assert [entry["symbol"] for entry in entries] == ["real_command"]

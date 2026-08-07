@@ -4700,3 +4700,21 @@ Git SHA / 镜像 / migration：
 - 收编变更：新增 `management_command_edge` 类别，静态展开 `init_scheduler_defaults` 的 8 个受管 setup command，并枚举其他 direct/dynamic `call_command()`；Celery 默认名统一投影为完整 module dotted path；Beat、Celery task 与数据库 scheduler writer 均新增结构化 `target`。scheduler writer 识别范围扩展到所有 `apps.*.application.*` task path，消除 valuation `tasks_valuation_sync` 被误记为 dynamic 的问题。
 - 最终清单：857 个入口，其中二级命令边 60、scheduler writer target 12；`active_public=561`、`adjacent_operational=116`、`compatibility=180`、`candidate-review=0`。初始化兼容常量、`_run_command()` wrapper 与声明式 `init_steps[].command` 均已静态展开，不留 `dynamic-command` 占位。新增测试精确断言 8 个 scheduler setup edge、Celery 默认完整名、Retention Beat target 和 Equity valuation 三个数据库调度记录所引用的两个 canonical task。
 - 边界：该清单证明静态入口和二级 dispatch 已有归属与机器可读 target，不代表外部 archive restore、生产 PostgreSQL 运行证据、M9/M10 或部署完成；真实删除继续 fail closed。
+
+## 128. 2026-08-07：可信冷归档闭环落地并保持删除 fail-closed
+
+- 根因：旧 `verify_archive_manifest_task` 接受调用方提供的 checksum/count/size，数据库中任一 dataset 级 verified manifest 即可能被当作删除授权；RawPayload 又可被 upsert 改写，无法证明待删记录与已归档字节完全相同。
+- 可信链：新增加密 gzip JSONL 冷存储适配器，逐记录 Fernet 认证加密，写入 `.partial`、文件 fsync、原子 replace，POSIX 再执行目录 fsync；独立 inspect 与 staging restore 都完整重读、解密、重建 RawPayload，并验证 checksum、contract/schema、成员集合、完整记录摘要、覆盖区间、对象数和字节数。路径逃逸、symlink parent、错误密钥、截断工件、超大 header/record 均 fail closed。
+- 精确证据：新增 immutable `ArchiveMemberModel` 与 append-only `ArchiveRestoreAuditModel`；manifest 持久化 format/encryption/key version、coverage、retention、restore outcome。旧 caller-verified manifest 在 `0063` 数据迁移中降级为 exported/not-tested，不伪造恢复证据。RawPayload 写入改为 create-or-identical，删除改为 full-record digest + deadline 的事务 CAS。
+- 任务契约：新增 export、store-backed verify、带稳定 `operation_id` 的 staging restore 三个任务；重复成功校验不刷新 verified_at，失败 restore 的同 operation 重试不重复读坏工件，新 operation 可在修复后重试。Celery contract 为 31 tasks/9 files；原先把永久阻断测试登记成 `all_success` 的伪证据已删除。
+- 删除边界：只有未过期 archive、精确成员、当前冷字节复核、最近完整 restore success 且 restore 不早于 verify 时才形成单条 coverage。`enforce_retention_task` 在 RetentionPlanMember/plan_run_id 精确计划证据落地前继续以 `retention_plan_member_gate_not_implemented` 阻断，当前批次不会执行真实删除。
+- 验证：归档/Retention/Raw Landing/schema gate 定向包 63 passed；入口/任务专项另有 29 passed 与 ORM 精确覆盖 2 passed；15 个生产文件增量 mypy 0，Celery guard 与 `makemigrations --check` 通过。部署 schema gate 已要求 archive member、restore audit 和 `0063` marker。
+- 未完成：未配置生产 archive mount/key、未执行真实 PostgreSQL/VPS restore/RTO、未加入正式归档/恢复 Beat，也未完成 RetentionPlanMember、M9/M10 或部署。
+
+## 129. 2026-08-07：全入口从平面清单升级为可追踪调用图
+
+- 二次审计发现：§127 的 857 条清单仍漏掉 67 个 typed Celery task、任务 dispatch、`PeriodicTask` AnnAssign/别名、同 task 多 schedule、DRF action、MCP core registrar、SDK client 暴露、动态 loader 和 TUI screen→action 关系；legacy MCP 默认关闭却被误标 active。
+- 扫描器升级：支持 `typed_shared_task/_typed_shared_task/_celery_task` 及 alias，追踪 `.delay/.apply_async/.s/.si/signature/send_task`；解析 `call_command/execute_from_command_line` 常量、动态 import registry、Admin 多模型/custom site、数据库 Beat wrapper/default builder；重复 ID 在校验前不再被字典去重静默吞掉。
+- 跨入口图：REST 记录 callback/DRF typed action，SDK 记录 HTTP method/route 和 `AgomTradeProClient.data_center` 暴露，MCP 区分默认启用 core tools 与默认关闭 legacy tools，并验证 Data Center capability shard 确实存在于 `OWNER_MANIFEST_MODULES` 且 handler 已接线；TUI 校验 generated/published endpoint、method、intent、schema，并记录 screen→action→endpoint。
+- 最终机器快照：以两个精确提交组成的干净 detached worktree 重建为 989 entries，`active_public=561`、`adjacent_operational=217`、`compatibility=211`、`candidate-review=0`。其中 typed/普通 Celery task 122、dispatch edge 18、dynamic import edge 8、management command/edge 27/65、scheduler writer 16、REST 66、SDK 46、MCP 40、TUI 28；Decision Quote 同一 task 的四个独立 schedule 均被保留。共享工作区并行的 Market Structure/Research 未提交文件未混入基线。
+- 验证：入口清单完整专项 12 passed；重复 ID、unresolved dynamic import、typed decorator、管理命令包装、三 schedule 同 target、Admin 多模型、HTTP/SDK/MCP/TUI/runtime target 均有合成或现仓断言。`candidate-review=0` 表示所有静态发现入口已有明确状态和下一跳，不表示 212 个 compatibility seam 已物理删除，也不替代生产运行证据。

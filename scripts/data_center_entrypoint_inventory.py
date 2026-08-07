@@ -30,6 +30,7 @@ REQUIRED_CATEGORIES = frozenset(
         "management_command",
         "management_command_edge",
         "celery_task",
+        "celery_dispatch_edge",
         "beat_schedule",
         "current_data_surface",
         "rest_url",
@@ -42,6 +43,7 @@ REQUIRED_CATEGORIES = frozenset(
         "compatibility_facade",
         "runtime_config_key",
         "scheduler_writer",
+        "dynamic_import_edge",
         "system_settings_compatibility",
     }
 )
@@ -54,6 +56,18 @@ GOVERNANCE_SCRIPT_ENTRYPOINTS = frozenset(
     {
         "scripts/check_data_center_runtime_catalog.py",
         "scripts/measure_data_center_query_ports.py",
+    }
+)
+IGNORED_PATH_PARTS = frozenset(
+    {
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".venv",
+        "__pycache__",
+        "node_modules",
+        "pytest-tmp",
     }
 )
 
@@ -78,6 +92,42 @@ def _literal_string(node: ast.AST | None) -> str | None:
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
     return None
+
+
+def _resolved_string(node: ast.AST | None, constants: dict[str, str]) -> str | None:
+    """Resolve one literal or statically bound string name."""
+
+    literal = _literal_string(node)
+    if literal is not None:
+        return literal
+    if isinstance(node, ast.Name):
+        return constants.get(node.id)
+    return None
+
+
+def _imported_names(tree: ast.Module) -> dict[str, str]:
+    """Map local import names to their canonical dotted object names."""
+
+    imported: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            for alias in node.names:
+                imported[alias.asname or alias.name] = f"{node.module}.{alias.name}"
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                imported[alias.asname or alias.name.split(".", 1)[0]] = alias.name
+    return imported
+
+
+def _resolved_dotted_name(node: ast.AST, imported: dict[str, str]) -> str | None:
+    """Resolve a simple imported name/attribute expression to a dotted name."""
+
+    dotted = _dotted_attribute(node)
+    if dotted is None:
+        return None
+    head, separator, tail = dotted.partition(".")
+    canonical_head = imported.get(head, head)
+    return canonical_head + (separator + tail if separator else "")
 
 
 def _call_name(node: ast.Call) -> str:
@@ -123,7 +173,8 @@ def _production_python_files(*roots: str) -> Iterable[Path]:
         if not root.exists():
             continue
         for path in sorted(root.rglob("*.py")):
-            if any(part in {"migrations", "tests", "__pycache__"} for part in path.parts):
+            relative_parts = path.relative_to(ROOT).parts
+            if any(part in IGNORED_PATH_PARTS | {"migrations", "tests"} for part in relative_parts):
                 continue
             yield path
 
@@ -223,7 +274,7 @@ def _discover_management_commands() -> list[dict[str, object]]:
         path_parts = path.relative_to(ROOT).parts
         if "management" not in path_parts or "commands" not in path_parts:
             continue
-        if any(part in {".venv", "node_modules", "__pycache__"} for part in path.parts):
+        if any(part in IGNORED_PATH_PARTS for part in path.relative_to(ROOT).parts):
             continue
         if path.name == "__init__.py":
             continue
@@ -347,6 +398,33 @@ def _enclosing_loop_values(
     return ()
 
 
+def _management_dispatch_kind(node: ast.Call, imported: dict[str, str]) -> str:
+    """Return the supported Django management dispatch primitive for one call."""
+
+    resolved = _resolved_dotted_name(node.func, imported) or ""
+    if resolved.endswith(".call_command") or _call_name(node) in {
+        "call_command",
+        "_run_command",
+    }:
+        return "call_command"
+    if resolved.endswith(".execute_from_command_line") or _call_name(node) == (
+        "execute_from_command_line"
+    ):
+        return "execute_from_command_line"
+    return ""
+
+
+def _command_from_argv(
+    node: ast.AST | None,
+    constants: dict[str, str],
+) -> str | None:
+    """Resolve the command slot from a literal ``manage.py`` argv expression."""
+
+    if not isinstance(node, (ast.List, ast.Tuple)) or len(node.elts) < 2:
+        return None
+    return _resolved_string(node.elts[1], constants)
+
+
 def _discover_management_command_edges() -> list[dict[str, object]]:
     """Enumerate direct and statically expanded ``call_command`` edges."""
 
@@ -358,34 +436,51 @@ def _discover_management_command_edges() -> list[dict[str, object]]:
     results: list[dict[str, object]] = []
     for path in _production_python_files("apps", "core", "scripts"):
         tree = _tree(path)
+        imported = _imported_names(tree)
         collections = _module_string_collections(tree)
         constants = _module_string_constants(tree)
         planned_commands = _dictionary_command_values(tree)
         for node in ast.walk(tree):
-            if not isinstance(node, ast.Call) or _call_name(node) not in {
-                "call_command",
-                "_run_command",
-            }:
+            if not isinstance(node, ast.Call):
+                continue
+            dispatch_kind = _management_dispatch_kind(node, imported)
+            if not dispatch_kind:
                 continue
             targets: tuple[str, ...] = ()
-            if node.args:
-                literal = _literal_string(node.args[0])
+            if dispatch_kind == "execute_from_command_line":
+                target = _command_from_argv(node.args[0] if node.args else None, constants)
+                if target:
+                    targets = (target,)
+            else:
+                command_argument = (
+                    node.args[0]
+                    if node.args
+                    else next(
+                        (
+                            keyword.value
+                            for keyword in node.keywords
+                            if keyword.arg in {"command_name", "name"}
+                        ),
+                        None,
+                    )
+                )
+                literal = _resolved_string(command_argument, constants)
                 if literal is not None:
                     targets = (literal,)
-                elif isinstance(node.args[0], ast.Name):
+                elif isinstance(command_argument, ast.Name):
                     targets = (
-                        (constants[node.args[0].id],)
-                        if node.args[0].id in constants
+                        (constants[command_argument.id],)
+                        if command_argument.id in constants
                         else _enclosing_loop_values(
                             tree,
                             node,
-                            node.args[0].id,
+                            command_argument.id,
                             collections,
                         )
                     )
             if not targets:
                 if (
-                    _call_name(node) == "call_command"
+                    dispatch_kind == "call_command"
                     and _enclosing_function_name(tree, node) == "_run_command"
                 ):
                     continue
@@ -407,9 +502,9 @@ def _discover_management_command_edges() -> list[dict[str, object]]:
                         target=target_path or target,
                         status=status,
                         evidence=(
-                            f"call_command resolves to {target_path}"
+                            f"{dispatch_kind} resolves to {target_path}"
                             if target_path
-                            else "call_command target is external or runtime-selected"
+                            else f"{dispatch_kind} target is external or runtime-selected"
                         ),
                     )
                 )
@@ -455,23 +550,34 @@ def _discover_application_consumers() -> list[dict[str, object]]:
     return results
 
 
-def _admin_registration_target(decorator: ast.expr) -> str:
-    """Return the model symbol registered by one ``admin.register`` decorator."""
+def _admin_registration_targets(decorator: ast.expr) -> tuple[str, ...]:
+    """Return every model symbol registered by one Admin decorator."""
 
     if not isinstance(decorator, ast.Call) or not decorator.args:
-        return ""
+        return ()
     function = decorator.func
     if not isinstance(function, ast.Attribute) or function.attr != "register":
-        return ""
+        return ()
     dotted = _dotted_attribute(function.value)
-    if dotted not in {"admin", "admin.site", "site"}:
-        return ""
-    target = decorator.args[0]
-    if isinstance(target, ast.Name):
-        return target.id
-    if isinstance(target, ast.Attribute):
-        return ast.unparse(target)
-    return ""
+    if dotted not in {"admin", "admin.site", "site"} and not str(dotted).endswith("site"):
+        return ()
+    return tuple(
+        ast.unparse(target)
+        for target in decorator.args
+        if isinstance(target, (ast.Name, ast.Attribute))
+    )
+
+
+def _admin_call_targets(node: ast.Call) -> tuple[str, ...]:
+    """Return model expressions from imperative AdminSite registration."""
+
+    if not node.args:
+        return ()
+    first = node.args[0]
+    values = first.elts if isinstance(first, (ast.List, ast.Set, ast.Tuple)) else [first]
+    return tuple(
+        ast.unparse(value) for value in values if isinstance(value, (ast.Name, ast.Attribute))
+    )
 
 
 def _discover_admin_surfaces() -> list[dict[str, object]]:
@@ -502,9 +608,42 @@ def _discover_admin_surfaces() -> list[dict[str, object]]:
             if not isinstance(node, ast.ClassDef):
                 continue
             for decorator in node.decorator_list:
-                model = _admin_registration_target(decorator)
-                if not model:
-                    continue
+                for model in _admin_registration_targets(decorator):
+                    canonical_model = imported_aliases.get(model, model)
+                    if path_text.startswith(("apps/data_center/", "apps/config_center/")):
+                        status = "active_public"
+                    elif canonical_model == "SystemSettingsModel":
+                        status = "compatibility"
+                    elif canonical_model in legacy_models:
+                        status = "candidate-review"
+                    else:
+                        continue
+                    results.append(
+                        _entry(
+                            category="admin_surface",
+                            path=path_text,
+                            symbol=node.name,
+                            locator=canonical_model,
+                            target=canonical_model,
+                            status=status,
+                            evidence=(
+                                "Data/Config Center-owned Django Admin registration"
+                                if status == "active_public"
+                                else (
+                                    "legacy SystemSettings compatibility Admin"
+                                    if status == "compatibility"
+                                    else "legacy fact model Admin registration must be retired"
+                                )
+                            ),
+                        )
+                    )
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not node.args:
+                continue
+            dotted = _dotted_attribute(node.func) or ""
+            if not dotted.endswith(".register") or dotted == "admin.register":
+                continue
+            for model in _admin_call_targets(node):
                 canonical_model = imported_aliases.get(model, model)
                 if path_text.startswith(("apps/data_center/", "apps/config_center/")):
                     status = "active_public"
@@ -518,115 +657,270 @@ def _discover_admin_surfaces() -> list[dict[str, object]]:
                     _entry(
                         category="admin_surface",
                         path=path_text,
-                        symbol=node.name,
+                        symbol=dotted,
                         locator=canonical_model,
+                        target=canonical_model,
                         status=status,
-                        evidence=(
-                            "Data/Config Center-owned Django Admin registration"
-                            if status == "active_public"
-                            else (
-                                "legacy SystemSettings compatibility Admin"
-                                if status == "compatibility"
-                                else "legacy fact model Admin registration must be retired"
-                            )
-                        ),
+                        evidence="imperative Django Admin registration",
                     )
                 )
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Call) or not node.args:
-                continue
-            dotted = _dotted_attribute(node.func)
-            if dotted not in {"admin.site.register", "site.register"}:
-                continue
-            model = ast.unparse(node.args[0])
-            canonical_model = imported_aliases.get(model, model)
-            if path_text.startswith(("apps/data_center/", "apps/config_center/")):
-                status = "active_public"
-            elif canonical_model == "SystemSettingsModel":
-                status = "compatibility"
-            elif canonical_model in legacy_models:
-                status = "candidate-review"
-            else:
-                continue
-            results.append(
-                _entry(
-                    category="admin_surface",
-                    path=path_text,
-                    symbol="admin.site.register",
-                    locator=canonical_model,
-                    status=status,
-                    evidence="imperative Django Admin registration",
-                )
-            )
     return results
 
 
+def _assigned_names(node: ast.Assign | ast.AnnAssign) -> list[str]:
+    """Return simple names assigned by an Assign/AnnAssign node."""
+
+    targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+    return [target.id for target in targets if isinstance(target, ast.Name)]
+
+
+def _periodic_task_aliases(tree: ast.Module) -> set[str]:
+    """Resolve imported, annotated, and dynamically loaded PeriodicTask aliases."""
+
+    aliases: set[str] = set()
+    imported = _imported_names(tree)
+    for local_name, canonical in imported.items():
+        if canonical == "django_celery_beat.models.PeriodicTask":
+            aliases.add(local_name)
+    changed = True
+    while changed:
+        changed = False
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.Assign, ast.AnnAssign)) or node.value is None:
+                continue
+            assigned = _assigned_names(node)
+            if not assigned:
+                continue
+            value = node.value
+            is_periodic_model = isinstance(value, ast.Attribute) and value.attr == "PeriodicTask"
+            is_periodic_model = is_periodic_model or (
+                isinstance(value, ast.Name) and value.id in aliases
+            )
+            is_periodic_model = is_periodic_model or (
+                isinstance(value, ast.Call)
+                and _call_name(value) == "get_model"
+                and len(value.args) >= 2
+                and _literal_string(value.args[0]) == "django_celery_beat"
+                and _literal_string(value.args[1]) == "PeriodicTask"
+            )
+            if is_periodic_model:
+                before = len(aliases)
+                aliases.update(assigned)
+                changed = changed or len(aliases) != before
+    return aliases
+
+
+def _keyword_node(call: ast.Call, name: str) -> ast.AST | None:
+    return next((keyword.value for keyword in call.keywords if keyword.arg == name), None)
+
+
+def _dict_item_node(node: ast.AST | None, key: str) -> ast.AST | None:
+    if not isinstance(node, ast.Dict):
+        return None
+    for key_node, value_node in zip(node.keys, node.values, strict=True):
+        if _literal_string(key_node) == key:
+            return value_node
+    return None
+
+
+def _periodic_writer_call(node: ast.Call, aliases: set[str]) -> bool:
+    dotted = _dotted_attribute(node.func) or ""
+    return any(
+        dotted.startswith(f"{alias}.objects.") or dotted.startswith(f"{alias}._default_manager.")
+        for alias in aliases
+    ) and dotted.rsplit(".", 1)[-1] in {"create", "get_or_create", "update_or_create"}
+
+
+def _scheduler_entry(
+    *,
+    path_text: str,
+    schedule_name: str,
+    task_path: str,
+    line: int,
+) -> dict[str, object]:
+    owned_command = "/management/commands/" in f"/{path_text}"
+    return _entry(
+        category="scheduler_writer",
+        path=path_text,
+        symbol="PeriodicTask",
+        locator=schedule_name or f"dynamic-schedule@{line}",
+        target=task_path or "dynamic-task-path",
+        status=(
+            "active_public" if owned_command and schedule_name and task_path else "candidate-review"
+        ),
+        evidence=(
+            f"database-backed Beat schedule writer at line {line}"
+            if owned_command
+            else f"ad-hoc database-backed Beat writer at line {line} must delegate to a command"
+        ),
+    )
+
+
+def _enclosing_function(
+    tree: ast.Module,
+    target: ast.AST,
+) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+    """Return the smallest function that contains one AST node."""
+
+    candidates = [
+        node for node in _functions(tree) if any(child is target for child in ast.walk(node))
+    ]
+    return min(candidates, key=lambda node: len(tuple(ast.walk(node)))) if candidates else None
+
+
+def _defaults_builder_task(
+    tree: ast.Module,
+    defaults: ast.AST | None,
+    constants: dict[str, str],
+) -> str:
+    """Resolve a task path returned by a local defaults-builder function."""
+
+    if not isinstance(defaults, ast.Call):
+        return ""
+    builder_name = _call_name(defaults)
+    for function in _functions(tree):
+        if function.name != builder_name:
+            continue
+        for node in ast.walk(function):
+            if not isinstance(node, ast.Return):
+                continue
+            direct = _resolved_string(_dict_item_node(node.value, "task"), constants)
+            if direct:
+                return direct
+            if isinstance(node.value, ast.Name):
+                for assignment in ast.walk(function):
+                    if isinstance(assignment, ast.Assign) and any(
+                        isinstance(target, ast.Name) and target.id == node.value.id
+                        for target in assignment.targets
+                    ):
+                        resolved = _resolved_string(
+                            _dict_item_node(assignment.value, "task"), constants
+                        )
+                        if resolved:
+                            return resolved
+    return ""
+
+
+def _wrapper_schedule_names(
+    tree: ast.Module,
+    writer: ast.Call,
+    argument: ast.AST | None,
+    constants: dict[str, str],
+) -> tuple[tuple[str, int], ...]:
+    """Expand a local PeriodicTask helper invoked with static schedule names."""
+
+    if not isinstance(argument, ast.Name):
+        return ()
+    function = _enclosing_function(tree, writer)
+    function_arguments = (
+        (
+            *function.args.posonlyargs,
+            *function.args.args,
+            *function.args.kwonlyargs,
+        )
+        if function is not None
+        else ()
+    )
+    if function is None or argument.id not in {item.arg for item in function_arguments}:
+        return ()
+    results: list[tuple[str, int]] = []
+    for call in ast.walk(tree):
+        if not isinstance(call, ast.Call) or _call_name(call) != function.name:
+            continue
+        supplied = _keyword_node(call, argument.id)
+        value = _resolved_string(supplied, constants)
+        if value:
+            results.append((value, call.lineno))
+    return tuple(results)
+
+
 def _discover_scheduler_writers() -> list[dict[str, object]]:
-    """Enumerate every production writer of database-backed Beat schedules."""
+    """Enumerate each database-backed Beat schedule row and its task edge."""
 
     results: list[dict[str, object]] = []
     for path in _production_python_files("apps", "core", "scripts"):
         tree = _tree(path)
-        periodic_task_imported = any(
-            isinstance(node, ast.ImportFrom)
-            and node.module == "django_celery_beat.models"
-            and any(alias.name == "PeriodicTask" for alias in node.names)
-            for node in ast.walk(tree)
-        )
-        periodic_task_imported = periodic_task_imported or any(
-            isinstance(node, ast.Assign)
-            and any(
-                isinstance(target, ast.Name) and target.id == "PeriodicTask"
-                for target in node.targets
-            )
-            and isinstance(node.value, ast.Attribute)
-            and node.value.attr == "PeriodicTask"
-            for node in ast.walk(tree)
-        )
-        if not periodic_task_imported:
+        aliases = _periodic_task_aliases(tree)
+        if not aliases:
             continue
-        writes_periodic_task = any(
-            isinstance(node, ast.Call)
-            and (_dotted_attribute(node.func) or "").startswith(
-                ("PeriodicTask.objects.", "PeriodicTask._default_manager.")
-            )
-            and (_dotted_attribute(node.func) or "").rsplit(".", 1)[-1]
-            in {"bulk_create", "create", "delete", "get_or_create", "update", "update_or_create"}
-            for node in ast.walk(tree)
-        )
-        if not writes_periodic_task:
-            continue
+        constants = _module_string_constants(tree)
         path_text = _relative(path)
-        task_paths = sorted(
-            {
-                str(node.value)
-                for node in ast.walk(tree)
-                if isinstance(node, ast.Constant)
-                and isinstance(node.value, str)
-                and node.value.startswith("apps.")
-                and ".application." in node.value
-            }
-        )
-        if not task_paths:
-            task_paths = ["dynamic-task-path"]
-        for task_path in task_paths:
+        pending_objects: dict[str, tuple[str, int]] = {}
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.Assign, ast.AnnAssign)) or node.value is None:
+                continue
+            if not isinstance(node.value, ast.Call) or not _periodic_writer_call(
+                node.value, aliases
+            ):
+                continue
+            call = node.value
+            if (_dotted_attribute(call.func) or "").rsplit(".", 1)[-1] != "get_or_create":
+                continue
+            schedule_name = _resolved_string(_keyword_node(call, "name"), constants) or ""
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                object_target = (
+                    target.elts[0] if isinstance(target, (ast.Tuple, ast.List)) else target
+                )
+                if isinstance(object_target, ast.Name):
+                    pending_objects[object_target.id] = (schedule_name, call.lineno)
+
+        handled_get_or_create: set[int] = set()
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.Assign, ast.AnnAssign)) or node.value is None:
+                continue
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                if not (
+                    isinstance(target, ast.Attribute)
+                    and target.attr == "task"
+                    and isinstance(target.value, ast.Name)
+                    and target.value.id in pending_objects
+                ):
+                    continue
+                schedule_name, call_line = pending_objects[target.value.id]
+                task_path = _resolved_string(node.value, constants) or ""
+                results.append(
+                    _scheduler_entry(
+                        path_text=path_text,
+                        schedule_name=schedule_name,
+                        task_path=task_path,
+                        line=call_line,
+                    )
+                )
+                handled_get_or_create.add(call_line)
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not _periodic_writer_call(node, aliases):
+                continue
+            method = (_dotted_attribute(node.func) or "").rsplit(".", 1)[-1]
+            if method == "get_or_create" and node.lineno in handled_get_or_create:
+                continue
+            name_node = _keyword_node(node, "name")
+            schedule_name = _resolved_string(name_node, constants) or ""
+            defaults = _keyword_node(node, "defaults")
+            task_path = _resolved_string(
+                _dict_item_node(defaults, "task") or _keyword_node(node, "task"),
+                constants,
+            ) or _defaults_builder_task(tree, defaults, constants)
+            expanded_names = _wrapper_schedule_names(tree, node, name_node, constants)
+            if expanded_names:
+                results.extend(
+                    _scheduler_entry(
+                        path_text=path_text,
+                        schedule_name=expanded_name,
+                        task_path=task_path,
+                        line=call_line,
+                    )
+                    for expanded_name, call_line in expanded_names
+                )
+                continue
             results.append(
-                _entry(
-                    category="scheduler_writer",
-                    path=path_text,
-                    symbol="PeriodicTask",
-                    locator=task_path,
-                    target=task_path,
-                    status=(
-                        "active_public"
-                        if "/management/commands/" in f"/{path_text}"
-                        else "candidate-review"
-                    ),
-                    evidence=(
-                        "Django management command owns database-backed Beat schedule"
-                        if "/management/commands/" in f"/{path_text}"
-                        else "ad-hoc database-backed Beat writer must delegate to a command"
-                    ),
+                _scheduler_entry(
+                    path_text=path_text,
+                    schedule_name=schedule_name,
+                    task_path=task_path,
+                    line=node.lineno,
                 )
             )
     return results
@@ -670,6 +964,81 @@ def _discover_orchestration_entries() -> list[dict[str, object]]:
                         evidence="script/workflow delegates to a governed Django command",
                     )
                 )
+    return results
+
+
+def _discover_dynamic_import_edges() -> list[dict[str, object]]:
+    """Enumerate Data Center-owned and MCP-registry dynamic import edges."""
+
+    special_paths = {"sdk/agomtradepro_mcp/registry/loader.py"}
+    results: list[dict[str, object]] = []
+    for path in _production_python_files("apps", "core", "shared", "scripts", "sdk"):
+        path_text = _relative(path)
+        if not path_text.startswith("apps/data_center/") and path_text not in special_paths:
+            continue
+        tree = _tree(path)
+        imported = _imported_names(tree)
+        constants = _module_string_constants(tree)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            resolved_call = _resolved_dotted_name(node.func, imported) or ""
+            if resolved_call not in {
+                "importlib.import_module",
+                "django.utils.module_loading.import_string",
+                "__import__",
+            } and _call_name(node) not in {"import_module", "import_string", "__import__"}:
+                continue
+            target = _resolved_string(node.args[0] if node.args else None, constants) or ""
+            if path_text == "sdk/agomtradepro_mcp/registry/loader.py" and not target:
+                owner_index = (
+                    ROOT
+                    / "sdk"
+                    / "agomtradepro_mcp"
+                    / "registry"
+                    / "modules"
+                    / "owners"
+                    / "__init__.py"
+                )
+                registry_targets = sorted(
+                    value.value
+                    for value in ast.walk(_tree(owner_index))
+                    if isinstance(value, ast.Constant)
+                    and isinstance(value.value, str)
+                    and ".owners.data_center_" in value.value
+                )
+                results.extend(
+                    _entry(
+                        category="dynamic_import_edge",
+                        path=path_text,
+                        symbol=_call_name(node) or "dynamic_import",
+                        locator=f"line:{node.lineno}:{registry_target.rsplit('.', 1)[-1]}",
+                        target=registry_target,
+                        status="active_public",
+                        evidence="runtime import is bounded by OWNER_MANIFEST_MODULES",
+                    )
+                    for registry_target in registry_targets
+                )
+                continue
+            results.append(
+                _entry(
+                    category="dynamic_import_edge",
+                    path=path_text,
+                    symbol=_call_name(node) or "dynamic_import",
+                    locator=f"line:{node.lineno}",
+                    target=target or "dynamic-import",
+                    status=(
+                        "candidate-review"
+                        if not target
+                        else "active_public" if "data_center" in target else "adjacent_operational"
+                    ),
+                    evidence=(
+                        "runtime-selected import target requires explicit registry review"
+                        if not target
+                        else "statically resolved dynamic import target"
+                    ),
+                )
+            )
     return results
 
 
@@ -758,17 +1127,53 @@ def _discover_system_settings_compatibility() -> list[dict[str, object]]:
     return results
 
 
+CELERY_TASK_DECORATOR_NAMES = frozenset(
+    {
+        "shared_task",
+        "task",
+        "typed_shared_task",
+        "_typed_shared_task",
+        "_celery_task",
+    }
+)
+
+
+def _celery_decorator_names(tree: ast.Module) -> set[str]:
+    """Return supported Celery decorator names, including import aliases."""
+
+    names = set(CELERY_TASK_DECORATOR_NAMES)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        for alias in node.names:
+            if alias.name in CELERY_TASK_DECORATOR_NAMES:
+                names.add(alias.asname or alias.name)
+    return names
+
+
 def _decorator_task_name(
     node: ast.FunctionDef | ast.AsyncFunctionDef,
     *,
     module_path: str,
+    decorator_names: set[str],
 ) -> str:
     """Return Celery's explicit name or its default fully-qualified name."""
 
     for decorator in node.decorator_list:
         call = decorator if isinstance(decorator, ast.Call) else None
-        if call is None or _call_name(call) not in {"shared_task", "task"}:
+        decorator_name = (
+            _call_name(call)
+            if call is not None
+            else (
+                decorator.id
+                if isinstance(decorator, ast.Name)
+                else decorator.attr if isinstance(decorator, ast.Attribute) else ""
+            )
+        )
+        if decorator_name not in decorator_names:
             continue
+        if call is None:
+            return f"{module_path}.{node.name}"
         for keyword in call.keywords:
             if keyword.arg == "name":
                 return _literal_string(keyword.value) or f"{module_path}.{node.name}"
@@ -789,8 +1194,13 @@ def _discover_celery_tasks(celery: dict[str, Any]) -> list[dict[str, object]]:
         path_text = _relative(path)
         module_path = path_text.removesuffix(".py").replace("/", ".")
         tree = _tree(path)
+        decorator_names = _celery_decorator_names(tree)
         for node in _functions(tree):
-            task_name = _decorator_task_name(node, module_path=module_path)
+            task_name = _decorator_task_name(
+                node,
+                module_path=module_path,
+                decorator_names=decorator_names,
+            )
             if not task_name:
                 continue
             record = governed.get(task_name)
@@ -826,6 +1236,106 @@ def _discover_celery_tasks(celery: dict[str, Any]) -> list[dict[str, object]]:
                     status=status,
                     evidence=evidence,
                     target=task_name,
+                )
+            )
+    return results
+
+
+def _defined_celery_tasks() -> dict[str, str]:
+    """Return local function symbols mapped to their effective Celery task names."""
+
+    tasks: dict[str, str] = {}
+    for path in sorted((ROOT / "apps").glob("**/*.py")):
+        if "migrations" in path.parts or "tests" in path.parts:
+            continue
+        path_text = _relative(path)
+        module_path = path_text.removesuffix(".py").replace("/", ".")
+        tree = _tree(path)
+        decorator_names = _celery_decorator_names(tree)
+        for node in _functions(tree):
+            task_name = _decorator_task_name(
+                node,
+                module_path=module_path,
+                decorator_names=decorator_names,
+            )
+            if task_name:
+                tasks[f"{module_path}.{node.name}"] = task_name
+    return tasks
+
+
+def _resolve_task_receiver(
+    receiver: ast.AST,
+    *,
+    module_path: str,
+    imported: dict[str, str],
+    defined_tasks: dict[str, str],
+) -> str | None:
+    """Resolve a direct task function receiver to its effective Celery name."""
+
+    resolved = _resolved_dotted_name(receiver, imported)
+    if resolved is None:
+        return None
+    if "." not in resolved:
+        resolved = f"{module_path}.{resolved}"
+    return defined_tasks.get(resolved, resolved if resolved in defined_tasks.values() else None)
+
+
+def _discover_celery_dispatch_edges(celery: dict[str, Any]) -> list[dict[str, object]]:
+    """Enumerate statically resolvable Celery enqueue and canvas dispatch edges."""
+
+    governed = {
+        str(item.get("task_path"))
+        for item in celery.get("tasks", [])
+        if isinstance(item, dict) and item.get("task_path")
+    }
+    defined_tasks = _defined_celery_tasks()
+    results: list[dict[str, object]] = []
+    for path in _production_python_files("apps", "core", "shared", "scripts"):
+        path_text = _relative(path)
+        module_path = path_text.removesuffix(".py").replace("/", ".")
+        tree = _tree(path)
+        imported = _imported_names(tree)
+        constants = _module_string_constants(tree)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            call_name = _call_name(node)
+            target = ""
+            dispatch_kind = ""
+            if call_name in {"send_task", "signature"}:
+                dispatch_kind = call_name
+                target = _resolved_string(node.args[0] if node.args else None, constants) or ""
+            elif isinstance(node.func, ast.Attribute) and call_name in {
+                "delay",
+                "apply_async",
+                "s",
+                "si",
+            }:
+                dispatch_kind = call_name
+                target = (
+                    _resolve_task_receiver(
+                        node.func.value,
+                        module_path=module_path,
+                        imported=imported,
+                        defined_tasks=defined_tasks,
+                    )
+                    or ""
+                )
+            if not dispatch_kind or not target:
+                continue
+            results.append(
+                _entry(
+                    category="celery_dispatch_edge",
+                    path=path_text,
+                    symbol=dispatch_kind,
+                    locator=f"line:{node.lineno}",
+                    target=target,
+                    status="active_public" if target in governed else "adjacent_operational",
+                    evidence=(
+                        "dispatch target is registered in governance/celery_task_contracts.json"
+                        if target in governed
+                        else "statically resolved Celery task dispatch"
+                    ),
                 )
             )
     return results
@@ -925,10 +1435,16 @@ def _discover_current_data_surfaces(current_data: dict[str, Any]) -> list[dict[s
     return results
 
 
-def _path_calls(path: Path) -> list[tuple[str, str, int]]:
-    results: list[tuple[str, str, int]] = []
+def _path_calls(path: Path) -> list[tuple[str, str, str, int]]:
+    """Return literal Django URL patterns with their callback expressions."""
+
+    results: list[tuple[str, str, str, int]] = []
     for node in ast.walk(_tree(path)):
-        if not isinstance(node, ast.Call) or _call_name(node) != "path" or not node.args:
+        if (
+            not isinstance(node, ast.Call)
+            or _call_name(node) not in {"path", "re_path"}
+            or len(node.args) < 2
+        ):
             continue
         route = _literal_string(node.args[0])
         if route is None:
@@ -937,7 +1453,69 @@ def _path_calls(path: Path) -> list[tuple[str, str, int]]:
         for keyword in node.keywords:
             if keyword.arg == "name":
                 name = _literal_string(keyword.value) or ""
-        results.append((route, name, node.lineno))
+        results.append((route, name, ast.unparse(node.args[1]), node.lineno))
+    return results
+
+
+def _action_metadata(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> tuple[str, str] | None:
+    """Return DRF action URL path and methods for one decorated method."""
+
+    for decorator in node.decorator_list:
+        if not isinstance(decorator, ast.Call) or _call_name(decorator) not in {
+            "action",
+            "typed_action",
+        }:
+            continue
+        url_path = node.name.replace("_", "-")
+        methods = "GET"
+        for keyword in decorator.keywords:
+            if keyword.arg == "url_path":
+                url_path = _literal_string(keyword.value) or url_path
+            elif keyword.arg == "methods" and isinstance(
+                keyword.value, (ast.List, ast.Set, ast.Tuple)
+            ):
+                resolved = [
+                    str(value).upper()
+                    for item in keyword.value.elts
+                    if (value := _literal_string(item)) is not None
+                ]
+                if resolved:
+                    methods = ",".join(resolved)
+        return url_path, methods
+    return None
+
+
+def _discover_cross_app_drf_actions() -> list[dict[str, object]]:
+    """Keep cross-app HTTP consumers of Data Center visible as entrypoints."""
+
+    results: list[dict[str, object]] = []
+    for path in _production_python_files("apps"):
+        path_text = _relative(path)
+        if path_text.startswith("apps/data_center/"):
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        if "apps.data_center.application" not in text:
+            continue
+        tree = _tree(path)
+        for node in _functions(tree):
+            metadata = _action_metadata(node)
+            if metadata is None:
+                continue
+            url_path, methods = metadata
+            symbol = _function_symbol(node, tree)
+            results.append(
+                _entry(
+                    category="rest_url",
+                    path=path_text,
+                    symbol=symbol,
+                    locator=f"action:{url_path}:{methods}",
+                    target=f"{path_text}::{symbol}",
+                    status="adjacent_operational",
+                    evidence="cross-app DRF action consumes the canonical Data Center port",
+                )
+            )
     return results
 
 
@@ -948,24 +1526,27 @@ def _discover_rest_urls() -> list[dict[str, object]]:
         ROOT / "apps" / "data_center" / "interface" / "urls.py",
     )
     for path in owned_paths:
-        for route, name, line in _path_calls(path):
+        for route, name, callback, line in _path_calls(path):
             results.append(
                 _entry(
                     category="rest_url",
                     path=_relative(path),
                     symbol=name or f"path@{line}",
                     locator=route,
+                    target=callback,
                     status="active_public",
                     evidence="Data Center-owned URLconf",
                 )
             )
     for path in sorted(ROOT.glob("**/urls.py")):
-        if path in owned_paths or any(part in {".venv", "node_modules"} for part in path.parts):
+        if path in owned_paths or any(
+            part in IGNORED_PATH_PARTS for part in path.relative_to(ROOT).parts
+        ):
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
         if "data-center" not in text and "apps.data_center" not in text:
             continue
-        for route, name, line in _path_calls(path):
+        for route, name, callback, line in _path_calls(path):
             if "data-center" not in route:
                 continue
             results.append(
@@ -974,11 +1555,34 @@ def _discover_rest_urls() -> list[dict[str, object]]:
                     path=_relative(path),
                     symbol=name or f"mount@{line}",
                     locator=route,
+                    target=callback,
                     status="active_public",
                     evidence="project URL mount for Data Center",
                 )
             )
-    return results
+    return results + _discover_cross_app_drf_actions()
+
+
+def _sdk_http_target(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
+    """Resolve the first BaseModule HTTP call made by an SDK method."""
+
+    methods = {
+        "_get": "GET",
+        "_post": "POST",
+        "_put": "PUT",
+        "_patch": "PATCH",
+        "_delete": "DELETE",
+    }
+    for call in ast.walk(node):
+        if not isinstance(call, ast.Call) or not call.args:
+            continue
+        call_name = _call_name(call)
+        if call_name not in methods:
+            continue
+        literal = _literal_string(call.args[0])
+        route = literal if literal is not None else ast.unparse(call.args[0])
+        return f"{methods[call_name]} /api/data-center/{route.lstrip('/')}"
+    return "dynamic-sdk-http"
 
 
 def _discover_sdk() -> list[dict[str, object]]:
@@ -999,6 +1603,8 @@ def _discover_sdk() -> list[dict[str, object]]:
                     category="sdk",
                     path=_relative(owner),
                     symbol=f"DataCenterModule.{node.name}",
+                    locator=_sdk_http_target(node).split(" ", 1)[0],
+                    target=_sdk_http_target(node),
                     status="active_public",
                     evidence="canonical SDK DataCenterModule",
                 )
@@ -1012,15 +1618,37 @@ def _discover_sdk() -> list[dict[str, object]]:
             body_text = ast.unparse(node)
             if ".data_center" not in body_text:
                 continue
+            delegated = re.search(r"\.data_center\.([A-Za-z_][A-Za-z0-9_]*)", body_text)
             results.append(
                 _entry(
                     category="sdk",
                     path=_relative(path),
                     symbol=_function_symbol(node, tree),
+                    locator=f"line:{node.lineno}",
+                    target=(
+                        f"DataCenterModule.{delegated.group(1)}"
+                        if delegated
+                        else "DataCenterModule.dynamic"
+                    ),
                     status="compatibility",
                     evidence="SDK compatibility delegation to DataCenterModule",
                 )
             )
+    client_path = ROOT / "sdk" / "agomtradepro" / "client.py"
+    for node in _functions(_tree(client_path)):
+        if node.name != "data_center":
+            continue
+        results.append(
+            _entry(
+                category="sdk",
+                path=_relative(client_path),
+                symbol="AgomTradeProClient.data_center",
+                locator=f"line:{node.lineno}",
+                target="DataCenterModule",
+                status="active_public",
+                evidence="public SDK client property exposes the canonical Data Center module",
+            )
+        )
     return results
 
 
@@ -1040,16 +1668,59 @@ def _discover_mcp_tools() -> list[dict[str, object]]:
                     category="mcp_tool",
                     path=_relative(path),
                     symbol=node.name,
-                    status=(
-                        "active_public" if path.name == "data_center_tools.py" else "compatibility"
+                    locator=f"line:{node.lineno}",
+                    target=(
+                        "register_data_center_tools"
+                        if path.name == "data_center_tools.py"
+                        else "AgomTradeProClient.data_center"
                     ),
+                    status="compatibility",
                     evidence=(
-                        "Data Center-owned MCP tool registrar"
+                        "legacy Data Center tools are conditional on "
+                        "AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default"
                         if path.name == "data_center_tools.py"
                         else "cross-owner MCP compatibility tool"
                     ),
                 )
             )
+    core_path = root / "core_tools.py"
+    for node in _functions(_tree(core_path)):
+        if not node.name.startswith("agom_"):
+            continue
+        results.append(
+            _entry(
+                category="mcp_tool",
+                path=_relative(core_path),
+                symbol=node.name,
+                locator=f"line:{node.lineno}",
+                target="CapabilityDispatcher:data_center",
+                status="active_public",
+                evidence="default-enabled core MCP ingress can dispatch Data Center capabilities",
+            )
+        )
+    server_path = ROOT / "sdk" / "agomtradepro_mcp" / "server.py"
+    results.extend(
+        (
+            _entry(
+                category="mcp_tool",
+                path=_relative(server_path),
+                symbol="register_core_tools",
+                locator="AGOMTRADEPRO_MCP_ENABLE_CORE_TOOLS=true",
+                target="sdk/agomtradepro_mcp/tools/core_tools.py::register_core_tools",
+                status="active_public",
+                evidence="default-enabled MCP registrar edge",
+            ),
+            _entry(
+                category="mcp_tool",
+                path=_relative(server_path),
+                symbol="register_data_center_tools",
+                locator="AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false",
+                target="sdk/agomtradepro_mcp/tools/data_center_tools.py::register_data_center_tools",
+                status="compatibility",
+                evidence="default-disabled legacy MCP registrar edge",
+            ),
+        )
+    )
     return results
 
 
@@ -1061,8 +1732,37 @@ def _tui_actions(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
         and (
             str(item.get("endpoint", "")).startswith("/api/data-center")
             or str(item.get("key", "")).startswith(("data-center.", "data_center."))
+            or "data_task" in str(item.get("key", ""))
+            or "market_thermometer" in str(item.get("key", ""))
         )
     }
+
+
+def _tui_action_signature(item: dict[str, Any]) -> tuple[str, ...]:
+    """Return the user-visible dispatch contract that generated/published must share."""
+
+    return tuple(
+        str(item.get(key, ""))
+        for key in (
+            "endpoint",
+            "method",
+            "intent",
+            "request_schema_ref",
+            "response_schema_ref",
+        )
+    )
+
+
+def _nested_strings(value: object) -> set[str]:
+    """Collect exact string values from one JSON-compatible object."""
+
+    if isinstance(value, str):
+        return {value}
+    if isinstance(value, list):
+        return set().union(*(_nested_strings(item) for item in value), set())
+    if isinstance(value, dict):
+        return set().union(*(_nested_strings(item) for item in value.values()), set())
+    return set()
 
 
 def _discover_terminal_tui() -> list[dict[str, object]]:
@@ -1074,43 +1774,68 @@ def _discover_terminal_tui() -> list[dict[str, object]]:
     generated_actions = _tui_actions(generated)
     results: list[dict[str, object]] = []
     for key, item in sorted(generated_actions.items()):
-        is_published = key in published_actions
+        published_item = published_actions.get(key)
+        is_published = published_item is not None
+        contract_matches = is_published and _tui_action_signature(item) == _tui_action_signature(
+            published_item
+        )
+        endpoint = str(item.get("endpoint", ""))
         results.append(
             _entry(
                 category="terminal_tui",
                 path=_relative(generated_path),
                 symbol=key,
-                locator=str(item.get("endpoint", "")),
-                status="active_public" if is_published else "candidate-review",
+                locator=endpoint,
+                target=endpoint or "dynamic-tui-endpoint",
+                status="active_public" if contract_matches else "candidate-review",
                 evidence=(
-                    "published TUI operation graph"
-                    if is_published
-                    else "generated TUI action is not present in published graph"
+                    "published TUI operation graph with matching dispatch contract"
+                    if contract_matches
+                    else (
+                        "generated/published TUI dispatch contracts differ"
+                        if is_published
+                        else "generated TUI action is not present in published graph"
+                    )
                 ),
             )
         )
-    generated_screens = {
-        str(item.get("key"))
-        for item in generated.get("screens", [])
-        if isinstance(item, dict) and str(item.get("key")) == "api-library.data-center"
-    }
     published_screens = {
-        str(item.get("key"))
+        str(item.get("key")): item
         for item in published.get("screens", [])
-        if isinstance(item, dict) and str(item.get("key")) == "api-library.data-center"
+        if isinstance(item, dict) and str(item.get("key", ""))
     }
-    for key in sorted(generated_screens):
-        results.append(
-            _entry(
-                category="terminal_tui",
-                path=_relative(generated_path),
-                symbol=key,
-                status="active_public" if key in published_screens else "candidate-review",
-                evidence=(
-                    "published TUI screen" if key in published_screens else "unpublished TUI screen"
-                ),
+    for screen in generated.get("screens", []):
+        if not isinstance(screen, dict):
+            continue
+        screen_key = str(screen.get("key", ""))
+        action_refs = sorted(_nested_strings(screen) & set(generated_actions))
+        for action_key in action_refs:
+            action = generated_actions[action_key]
+            published_action = published_actions.get(action_key)
+            contract_matches = published_action is not None and _tui_action_signature(
+                action
+            ) == _tui_action_signature(published_action)
+            published_screen = published_screens.get(screen_key)
+            published_refs = (
+                _nested_strings(published_screen) if published_screen is not None else set()
             )
-        )
+            active = contract_matches and action_key in published_refs
+            endpoint = str(action.get("endpoint", ""))
+            results.append(
+                _entry(
+                    category="terminal_tui",
+                    path=_relative(generated_path),
+                    symbol=screen_key,
+                    locator=action_key,
+                    target=endpoint or "dynamic-tui-endpoint",
+                    status="active_public" if active else "candidate-review",
+                    evidence=(
+                        "published TUI screen-to-action dispatch edge"
+                        if active
+                        else "TUI screen/action edge is missing or differs in published graph"
+                    ),
+                )
+            )
     return results
 
 
@@ -1150,9 +1875,21 @@ def _discover_capability_runtime() -> list[dict[str, object]]:
         handler_path,
         {"LEGACY_TOOL_FALLBACKS", "GOVERNED_HANDLERS"},
     )
+    owner_index = (
+        ROOT / "sdk" / "agomtradepro_mcp" / "registry" / "modules" / "owners" / "__init__.py"
+    )
+    loaded_modules = {
+        node.value
+        for node in ast.walk(_tree(owner_index))
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and node.value.startswith("agomtradepro_mcp.registry.modules.owners.")
+    }
     results: list[dict[str, object]] = []
     capability_root = ROOT / "sdk" / "agomtradepro_mcp" / "registry" / "modules" / "owners"
     for path in sorted(capability_root.glob("data_center_*_capabilities.py")):
+        module_name = "agomtradepro_mcp.registry.modules.owners." + path.stem
+        loaded = module_name in loaded_modules
         for node in ast.walk(_tree(path)):
             if not isinstance(node, ast.Call) or _call_name(node) != "CapabilityManifest":
                 continue
@@ -1172,11 +1909,16 @@ def _discover_capability_runtime() -> list[dict[str, object]]:
                     path=_relative(path),
                     symbol=capability_key,
                     locator=executor_ref,
-                    status="active_public" if wired else "candidate-review",
+                    target=handlers.get(executor_ref, executor_ref),
+                    status="active_public" if wired and loaded else "candidate-review",
                     evidence=(
-                        f"runtime handler registry: {handlers[executor_ref]}"
-                        if wired
-                        else "capability executor is absent from Data Center handler registries"
+                        f"loaded owner shard and runtime handler registry: {handlers[executor_ref]}"
+                        if wired and loaded
+                        else (
+                            "capability owner shard is absent from OWNER_MANIFEST_MODULES"
+                            if not loaded
+                            else "capability executor is absent from Data Center handler registries"
+                        )
                     ),
                 )
             )
@@ -1225,6 +1967,7 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
     global ROOT
     previous_root = ROOT
     ROOT = repo_root
+    _tree.cache_clear()
     try:
         legacy = _load_json(ROOT / "governance" / "data_center_legacy_entrypoints.json")
         celery = _load_json(ROOT / "governance" / "celery_task_contracts.json")
@@ -1238,7 +1981,9 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
             + _discover_admin_surfaces()
             + _discover_scheduler_writers()
             + _discover_orchestration_entries()
+            + _discover_dynamic_import_edges()
             + _discover_celery_tasks(celery)
+            + _discover_celery_dispatch_edges(celery)
             + _discover_beat_schedule(celery)
             + _discover_current_data_surfaces(current_data)
             + _discover_rest_urls()
@@ -1252,9 +1997,8 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
         )
     finally:
         ROOT = previous_root
-    unique = {str(item["id"]): item for item in entries}
     ordered = sorted(
-        unique.values(),
+        entries,
         key=lambda item: (
             str(item["category"]),
             str(item["path"]),
@@ -1319,6 +2063,12 @@ def validate_inventory(payload: dict[str, object]) -> list[str]:
         ids.add(entry_id)
         category = str(item.get("category", ""))
         categories.add(category)
+        if category not in REQUIRED_CATEGORIES:
+            violations.append(f"entry_category_invalid:{entry_id}:{category}")
+        if not str(item.get("path", "")).strip():
+            violations.append(f"entry_path_missing:{entry_id}")
+        if not str(item.get("symbol", "")).strip():
+            violations.append(f"entry_symbol_missing:{entry_id}")
         status = str(item.get("status", ""))
         if status not in STATUSES:
             violations.append(f"entry_status_invalid:{entry_id}:{status}")
@@ -1328,9 +2078,17 @@ def validate_inventory(payload: dict[str, object]) -> list[str]:
             category
             in {
                 "beat_schedule",
+                "admin_surface",
+                "capability_runtime",
+                "celery_dispatch_edge",
                 "celery_task",
+                "dynamic_import_edge",
                 "management_command_edge",
+                "mcp_tool",
+                "rest_url",
                 "scheduler_writer",
+                "sdk",
+                "terminal_tui",
             }
             and not str(item.get("target", "")).strip()
         ):

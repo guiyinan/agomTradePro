@@ -5,29 +5,31 @@
       "application_consumer": 158,
       "beat_schedule": 57,
       "capability_runtime": 25,
-      "celery_task": 53,
+      "celery_dispatch_edge": 18,
+      "celery_task": 122,
       "compatibility_facade": 92,
       "current_data_surface": 46,
+      "dynamic_import_edge": 8,
       "management_command": 27,
-      "management_command_edge": 60,
-      "mcp_tool": 29,
+      "management_command_edge": 65,
+      "mcp_tool": 40,
       "orchestration_entry": 8,
       "public_port": 91,
-      "rest_url": 54,
+      "rest_url": 66,
       "runtime_config_key": 45,
-      "scheduler_writer": 12,
+      "scheduler_writer": 16,
       "script": 6,
-      "sdk": 45,
+      "sdk": 46,
       "system_settings_compatibility": 11,
-      "terminal_tui": 24
+      "terminal_tui": 28
     },
     "by_status": {
       "active_public": 561,
-      "adjacent_operational": 116,
+      "adjacent_operational": 217,
       "candidate-review": 0,
-      "compatibility": 180
+      "compatibility": 211
     },
-    "total": 857
+    "total": 989
   },
   "entries": [
     {
@@ -38,7 +40,7 @@
       "path": "apps/config_center/admin.py",
       "status": "active_public",
       "symbol": "AlphaUniverseConfigAdmin",
-      "target": ""
+      "target": "AlphaUniverseConfigModel"
     },
     {
       "category": "admin_surface",
@@ -48,7 +50,7 @@
       "path": "apps/config_center/admin.py",
       "status": "active_public",
       "symbol": "QlibTrainingProfileAdmin",
-      "target": ""
+      "target": "QlibTrainingProfileModel"
     },
     {
       "category": "admin_surface",
@@ -58,7 +60,7 @@
       "path": "apps/config_center/admin.py",
       "status": "active_public",
       "symbol": "QlibTrainingRunAdmin",
-      "target": ""
+      "target": "QlibTrainingRunModel"
     },
     {
       "category": "admin_surface",
@@ -68,7 +70,7 @@
       "path": "apps/data_center/interface/admin.py",
       "status": "active_public",
       "symbol": "DataOwnerRegistrationAdmin",
-      "target": ""
+      "target": "DataOwnerRegistrationModel"
     },
     {
       "category": "admin_surface",
@@ -78,7 +80,7 @@
       "path": "apps/data_center/interface/admin.py",
       "status": "active_public",
       "symbol": "DataProviderSettingsAdmin",
-      "target": ""
+      "target": "DataProviderSettingsModel"
     },
     {
       "category": "admin_surface",
@@ -88,7 +90,7 @@
       "path": "apps/data_center/interface/admin.py",
       "status": "active_public",
       "symbol": "DatasetContractAdmin",
-      "target": ""
+      "target": "DatasetContractModel"
     },
     {
       "category": "admin_surface",
@@ -98,7 +100,7 @@
       "path": "apps/data_center/interface/admin.py",
       "status": "active_public",
       "symbol": "DatasetProviderBindingAdmin",
-      "target": ""
+      "target": "DatasetProviderBindingModel"
     },
     {
       "category": "admin_surface",
@@ -108,7 +110,7 @@
       "path": "apps/data_center/interface/admin.py",
       "status": "active_public",
       "symbol": "DatasetPublicationPolicyAdmin",
-      "target": ""
+      "target": "DatasetPublicationPolicyModel"
     },
     {
       "category": "admin_surface",
@@ -118,7 +120,7 @@
       "path": "apps/data_center/interface/admin.py",
       "status": "active_public",
       "symbol": "IndicatorCatalogAdmin",
-      "target": ""
+      "target": "IndicatorCatalogModel"
     },
     {
       "category": "admin_surface",
@@ -128,7 +130,7 @@
       "path": "apps/data_center/interface/admin.py",
       "status": "active_public",
       "symbol": "IndicatorUnitRuleAdmin",
-      "target": ""
+      "target": "IndicatorUnitRuleModel"
     },
     {
       "category": "admin_surface",
@@ -138,7 +140,7 @@
       "path": "apps/data_center/interface/admin.py",
       "status": "active_public",
       "symbol": "ProductionCoverageUniverseConfigAdmin",
-      "target": ""
+      "target": "ProductionCoverageUniverseConfigModel"
     },
     {
       "category": "admin_surface",
@@ -148,7 +150,7 @@
       "path": "apps/data_center/interface/admin.py",
       "status": "active_public",
       "symbol": "ProviderConfigAdmin",
-      "target": ""
+      "target": "ProviderConfigModel"
     },
     {
       "category": "admin_surface",
@@ -158,7 +160,7 @@
       "path": "apps/data_center/interface/admin.py",
       "status": "active_public",
       "symbol": "PublisherCatalogAdmin",
-      "target": ""
+      "target": "PublisherCatalogModel"
     },
     {
       "category": "admin_surface",
@@ -168,7 +170,7 @@
       "path": "apps/data_center/interface/admin.py",
       "status": "active_public",
       "symbol": "ReconciliationEvidenceAdmin",
-      "target": ""
+      "target": "ReconciliationEvidenceModel"
     },
     {
       "category": "application_consumer",
@@ -2322,253 +2324,433 @@
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _fallback_data_center_get_capital_flows",
+      "evidence": "loaded owner shard and runtime handler registry: _fallback_data_center_get_capital_flows",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py:data_center.read.capital_flows:data_center_get_capital_flows",
       "locator": "data_center_get_capital_flows",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.read.capital_flows",
-      "target": ""
+      "target": "_fallback_data_center_get_capital_flows"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _fallback_data_center_list_indicators",
+      "evidence": "loaded owner shard and runtime handler registry: _fallback_data_center_list_indicators",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py:data_center.read.indicator_catalog:data_center_list_indicators",
       "locator": "data_center_list_indicators",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.read.indicator_catalog",
-      "target": ""
+      "target": "_fallback_data_center_list_indicators"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _fallback_data_center_get_indicator",
+      "evidence": "loaded owner shard and runtime handler registry: _fallback_data_center_get_indicator",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py:data_center.read.indicator_detail:data_center_get_indicator",
       "locator": "data_center_get_indicator",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.read.indicator_detail",
-      "target": ""
+      "target": "_fallback_data_center_get_indicator"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _fallback_data_center_get_indicator_unit_rule",
+      "evidence": "loaded owner shard and runtime handler registry: _fallback_data_center_get_indicator_unit_rule",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py:data_center.read.indicator_unit_rule_detail:data_center_get_indicator_unit_rule",
       "locator": "data_center_get_indicator_unit_rule",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.read.indicator_unit_rule_detail",
-      "target": ""
+      "target": "_fallback_data_center_get_indicator_unit_rule"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _fallback_data_center_list_indicator_unit_rules",
+      "evidence": "loaded owner shard and runtime handler registry: _fallback_data_center_list_indicator_unit_rules",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py:data_center.read.indicator_unit_rules:data_center_list_indicator_unit_rules",
       "locator": "data_center_list_indicator_unit_rules",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.read.indicator_unit_rules",
-      "target": ""
+      "target": "_fallback_data_center_list_indicator_unit_rules"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _fallback_data_center_get_quotes",
+      "evidence": "loaded owner shard and runtime handler registry: _fallback_data_center_get_quotes",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py:data_center.read.latest_quote:data_center_get_quotes",
       "locator": "data_center_get_quotes",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.read.latest_quote",
-      "target": ""
+      "target": "_fallback_data_center_get_quotes"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _fallback_data_center_get_macro_series",
+      "evidence": "loaded owner shard and runtime handler registry: _fallback_data_center_get_macro_series",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py:data_center.read.macro_series:data_center_get_macro_series",
       "locator": "data_center_get_macro_series",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.read.macro_series",
-      "target": ""
+      "target": "_fallback_data_center_get_macro_series"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _fallback_data_center_get_news",
+      "evidence": "loaded owner shard and runtime handler registry: _fallback_data_center_get_news",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py:data_center.read.news:data_center_get_news",
       "locator": "data_center_get_news",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.read.news",
-      "target": ""
+      "target": "_fallback_data_center_get_news"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _fallback_data_center_get_price_history",
+      "evidence": "loaded owner shard and runtime handler registry: _fallback_data_center_get_price_history",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py:data_center.read.price_history:data_center_get_price_history",
       "locator": "data_center_get_price_history",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.read.price_history",
-      "target": ""
+      "target": "_fallback_data_center_get_price_history"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _fallback_list_data_center_providers",
+      "evidence": "loaded owner shard and runtime handler registry: _fallback_list_data_center_providers",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py:data_center.read.provider_catalog:list_data_center_providers",
       "locator": "list_data_center_providers",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.read.provider_catalog",
-      "target": ""
+      "target": "_fallback_list_data_center_providers"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _fallback_get_data_center_provider_status",
+      "evidence": "loaded owner shard and runtime handler registry: _fallback_get_data_center_provider_status",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py:data_center.read.provider_status:get_data_center_provider_status",
       "locator": "get_data_center_provider_status",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.read.provider_status",
-      "target": ""
+      "target": "_fallback_get_data_center_provider_status"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _fallback_data_center_list_publishers",
+      "evidence": "loaded owner shard and runtime handler registry: _fallback_data_center_list_publishers",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py:data_center.read.publisher_catalog:data_center_list_publishers",
       "locator": "data_center_list_publishers",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.read.publisher_catalog",
-      "target": ""
+      "target": "_fallback_data_center_list_publishers"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _fallback_data_center_get_publisher",
+      "evidence": "loaded owner shard and runtime handler registry: _fallback_data_center_get_publisher",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py:data_center.read.publisher_detail:data_center_get_publisher",
       "locator": "data_center_get_publisher",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_read_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.read.publisher_detail",
-      "target": ""
+      "target": "_fallback_data_center_get_publisher"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _internal_handler_data_center_create_indicator",
+      "evidence": "loaded owner shard and runtime handler registry: _internal_handler_data_center_create_indicator",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py:data_center.create.indicator:data_center_create_indicator",
       "locator": "data_center_create_indicator",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.create.indicator",
-      "target": ""
+      "target": "_internal_handler_data_center_create_indicator"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _internal_handler_data_center_create_indicator_unit_rule",
+      "evidence": "loaded owner shard and runtime handler registry: _internal_handler_data_center_create_indicator_unit_rule",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py:data_center.create.indicator_unit_rule:data_center_create_indicator_unit_rule",
       "locator": "data_center_create_indicator_unit_rule",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.create.indicator_unit_rule",
-      "target": ""
+      "target": "_internal_handler_data_center_create_indicator_unit_rule"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _internal_handler_data_center_create_publisher",
+      "evidence": "loaded owner shard and runtime handler registry: _internal_handler_data_center_create_publisher",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py:data_center.create.publisher:data_center_create_publisher",
       "locator": "data_center_create_publisher",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.create.publisher",
-      "target": ""
+      "target": "_internal_handler_data_center_create_publisher"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _internal_handler_data_center_delete_indicator",
+      "evidence": "loaded owner shard and runtime handler registry: _internal_handler_data_center_delete_indicator",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py:data_center.delete.indicator:data_center_delete_indicator",
       "locator": "data_center_delete_indicator",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.delete.indicator",
-      "target": ""
+      "target": "_internal_handler_data_center_delete_indicator"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _internal_handler_data_center_delete_indicator_unit_rule",
+      "evidence": "loaded owner shard and runtime handler registry: _internal_handler_data_center_delete_indicator_unit_rule",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py:data_center.delete.indicator_unit_rule:data_center_delete_indicator_unit_rule",
       "locator": "data_center_delete_indicator_unit_rule",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.delete.indicator_unit_rule",
-      "target": ""
+      "target": "_internal_handler_data_center_delete_indicator_unit_rule"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _internal_handler_data_center_delete_publisher",
+      "evidence": "loaded owner shard and runtime handler registry: _internal_handler_data_center_delete_publisher",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py:data_center.delete.publisher:data_center_delete_publisher",
       "locator": "data_center_delete_publisher",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.delete.publisher",
-      "target": ""
+      "target": "_internal_handler_data_center_delete_publisher"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _internal_handler_data_center_repair_decision_reliability",
+      "evidence": "loaded owner shard and runtime handler registry: _internal_handler_data_center_repair_decision_reliability",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py:data_center.repair.decision_reliability:data_center_repair_decision_reliability",
       "locator": "data_center_repair_decision_reliability",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.repair.decision_reliability",
-      "target": ""
+      "target": "_internal_handler_data_center_repair_decision_reliability"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _internal_handler_data_center_run_provider_connection_test",
+      "evidence": "loaded owner shard and runtime handler registry: _internal_handler_data_center_run_provider_connection_test",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py:data_center.run.provider_connection_test:data_center_run_provider_connection_test",
       "locator": "data_center_run_provider_connection_test",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.run.provider_connection_test",
-      "target": ""
+      "target": "_internal_handler_data_center_run_provider_connection_test"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _internal_handler_data_center_start_sync_job",
+      "evidence": "loaded owner shard and runtime handler registry: _internal_handler_data_center_start_sync_job",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py:data_center.start.sync_job:data_center_start_sync_job",
       "locator": "data_center_start_sync_job",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.start.sync_job",
-      "target": ""
+      "target": "_internal_handler_data_center_start_sync_job"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _internal_handler_data_center_update_indicator",
+      "evidence": "loaded owner shard and runtime handler registry: _internal_handler_data_center_update_indicator",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py:data_center.update.indicator:data_center_update_indicator",
       "locator": "data_center_update_indicator",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.update.indicator",
-      "target": ""
+      "target": "_internal_handler_data_center_update_indicator"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _internal_handler_data_center_update_indicator_unit_rule",
+      "evidence": "loaded owner shard and runtime handler registry: _internal_handler_data_center_update_indicator_unit_rule",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py:data_center.update.indicator_unit_rule:data_center_update_indicator_unit_rule",
       "locator": "data_center_update_indicator_unit_rule",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.update.indicator_unit_rule",
-      "target": ""
+      "target": "_internal_handler_data_center_update_indicator_unit_rule"
     },
     {
       "category": "capability_runtime",
-      "evidence": "runtime handler registry: _internal_handler_data_center_update_publisher",
+      "evidence": "loaded owner shard and runtime handler registry: _internal_handler_data_center_update_publisher",
       "id": "capability_runtime:sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py:data_center.update.publisher:data_center_update_publisher",
       "locator": "data_center_update_publisher",
       "path": "sdk/agomtradepro_mcp/registry/modules/owners/data_center_write_capabilities.py",
       "status": "active_public",
       "symbol": "data_center.update.publisher",
-      "target": ""
+      "target": "_internal_handler_data_center_update_publisher"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/alpha/application/ops_use_cases.py:delay:line:122",
+      "locator": "line:122",
+      "path": "apps/alpha/application/ops_use_cases.py",
+      "status": "adjacent_operational",
+      "symbol": "delay",
+      "target": "apps.alpha.application.tasks.qlib_predict_scores"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/alpha/application/ops_use_cases.py:delay:line:199",
+      "locator": "line:199",
+      "path": "apps/alpha/application/ops_use_cases.py",
+      "status": "adjacent_operational",
+      "symbol": "delay",
+      "target": "apps.alpha.application.tasks.qlib_predict_scores"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/alpha/application/ops_use_cases.py:delay:line:267",
+      "locator": "line:267",
+      "path": "apps/alpha/application/ops_use_cases.py",
+      "status": "adjacent_operational",
+      "symbol": "delay",
+      "target": "alpha.qlib_daily_scoped_inference"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/alpha/application/ops_use_cases.py:delay:line:344",
+      "locator": "line:344",
+      "path": "apps/alpha/application/ops_use_cases.py",
+      "status": "adjacent_operational",
+      "symbol": "delay",
+      "target": "apps.alpha.application.tasks.qlib_refresh_runtime_data_task"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/alpha/application/ops_use_cases.py:delay:line:429",
+      "locator": "line:429",
+      "path": "apps/alpha/application/ops_use_cases.py",
+      "status": "adjacent_operational",
+      "symbol": "delay",
+      "target": "apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:1053",
+      "locator": "line:1053",
+      "path": "apps/alpha/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "delay",
+      "target": "apps.alpha.application.tasks.qlib_predict_scores"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:820",
+      "locator": "line:820",
+      "path": "apps/alpha/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "delay",
+      "target": "apps.alpha.application.tasks.qlib_predict_scores"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:885",
+      "locator": "line:885",
+      "path": "apps/alpha/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "delay",
+      "target": "apps.alpha.application.tasks.qlib_predict_scores"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/alpha/infrastructure/adapters/qlib_adapter.py:apply_async:line:641",
+      "locator": "line:641",
+      "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
+      "status": "adjacent_operational",
+      "symbol": "apply_async",
+      "target": "apps.alpha.application.tasks.qlib_predict_scores"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/alpha/management/commands/train_qlib_model.py:apply_async:line:108",
+      "locator": "line:108",
+      "path": "apps/alpha/management/commands/train_qlib_model.py",
+      "status": "adjacent_operational",
+      "symbol": "apply_async",
+      "target": "apps.alpha.application.tasks.qlib_train_model"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/dashboard/application/alpha_homepage_runtime.py:delay:line:236",
+      "locator": "line:236",
+      "path": "apps/dashboard/application/alpha_homepage_runtime.py",
+      "status": "adjacent_operational",
+      "symbol": "delay",
+      "target": "apps.alpha.application.tasks.qlib_predict_scores"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/dashboard/interface/alpha_stock_views.py:delay:line:243",
+      "locator": "line:243",
+      "path": "apps/dashboard/interface/alpha_stock_views.py",
+      "status": "adjacent_operational",
+      "symbol": "delay",
+      "target": "apps.alpha.application.tasks.qlib_predict_scores"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/dashboard/interface/alpha_stock_views.py:delay:line:305",
+      "locator": "line:305",
+      "path": "apps/dashboard/interface/alpha_stock_views.py",
+      "status": "adjacent_operational",
+      "symbol": "delay",
+      "target": "apps.alpha.application.tasks.qlib_predict_scores"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
+      "id": "celery_dispatch_edge:apps/macro/application/tasks.py:delay:line:419",
+      "locator": "line:419",
+      "path": "apps/macro/application/tasks.py",
+      "status": "active_public",
+      "symbol": "delay",
+      "target": "apps.macro.application.tasks.send_data_freshness_alert"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/policy/infrastructure/models.py:delay:line:712",
+      "locator": "line:712",
+      "path": "apps/policy/infrastructure/models.py",
+      "status": "adjacent_operational",
+      "symbol": "delay",
+      "target": "apps.policy.application.tasks.trigger_signal_reevaluation"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/regime/application/orchestration.py:s:line:611",
+      "locator": "line:611",
+      "path": "apps/regime/application/orchestration.py",
+      "status": "adjacent_operational",
+      "symbol": "s",
+      "target": "apps.regime.application.orchestration.calculate_regime_after_sync"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/regime/application/orchestration.py:s:line:614",
+      "locator": "line:614",
+      "path": "apps/regime/application/orchestration.py",
+      "status": "adjacent_operational",
+      "symbol": "s",
+      "target": "apps.regime.application.orchestration.notify_regime_change_after_calculation"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
+      "id": "celery_dispatch_edge:apps/regime/infrastructure/macro_sync_gateway.py:signature:line:21",
+      "locator": "line:21",
+      "path": "apps/regime/infrastructure/macro_sync_gateway.py",
+      "status": "active_public",
+      "symbol": "signature",
+      "target": "apps.macro.application.tasks.sync_macro_data"
     },
     {
       "category": "celery_task",
@@ -2622,6 +2804,286 @@
     },
     {
       "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/monitoring_tasks.py:calculate_ic_drift:alpha.monitor.calculate_ic_drift",
+      "locator": "alpha.monitor.calculate_ic_drift",
+      "path": "apps/alpha/application/monitoring_tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "calculate_ic_drift",
+      "target": "alpha.monitor.calculate_ic_drift"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/monitoring_tasks.py:calculate_ic_drift_legacy:apps.alpha.application.monitoring_tasks.calculate_ic_drift",
+      "locator": "apps.alpha.application.monitoring_tasks.calculate_ic_drift",
+      "path": "apps/alpha/application/monitoring_tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "calculate_ic_drift_legacy",
+      "target": "apps.alpha.application.monitoring_tasks.calculate_ic_drift"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/monitoring_tasks.py:check_queue_lag:alpha.monitor.check_queue_lag",
+      "locator": "alpha.monitor.check_queue_lag",
+      "path": "apps/alpha/application/monitoring_tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "check_queue_lag",
+      "target": "alpha.monitor.check_queue_lag"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/monitoring_tasks.py:check_queue_lag_legacy:apps.alpha.application.monitoring_tasks.check_queue_lag",
+      "locator": "apps.alpha.application.monitoring_tasks.check_queue_lag",
+      "path": "apps/alpha/application/monitoring_tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "check_queue_lag_legacy",
+      "target": "apps.alpha.application.monitoring_tasks.check_queue_lag"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/monitoring_tasks.py:cleanup_old_metrics:alpha.monitor.cleanup_old_metrics",
+      "locator": "alpha.monitor.cleanup_old_metrics",
+      "path": "apps/alpha/application/monitoring_tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "cleanup_old_metrics",
+      "target": "alpha.monitor.cleanup_old_metrics"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/monitoring_tasks.py:cleanup_old_metrics_legacy:apps.alpha.application.monitoring_tasks.cleanup_old_metrics",
+      "locator": "apps.alpha.application.monitoring_tasks.cleanup_old_metrics",
+      "path": "apps/alpha/application/monitoring_tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "cleanup_old_metrics_legacy",
+      "target": "apps.alpha.application.monitoring_tasks.cleanup_old_metrics"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/monitoring_tasks.py:evaluate_alerts:alpha.monitor.evaluate_alerts",
+      "locator": "alpha.monitor.evaluate_alerts",
+      "path": "apps/alpha/application/monitoring_tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "evaluate_alerts",
+      "target": "alpha.monitor.evaluate_alerts"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/monitoring_tasks.py:evaluate_alerts_legacy:apps.alpha.application.monitoring_tasks.evaluate_alerts",
+      "locator": "apps.alpha.application.monitoring_tasks.evaluate_alerts",
+      "path": "apps/alpha/application/monitoring_tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "evaluate_alerts_legacy",
+      "target": "apps.alpha.application.monitoring_tasks.evaluate_alerts"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/monitoring_tasks.py:generate_daily_report:alpha.monitor.generate_daily_report",
+      "locator": "alpha.monitor.generate_daily_report",
+      "path": "apps/alpha/application/monitoring_tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "generate_daily_report",
+      "target": "alpha.monitor.generate_daily_report"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/monitoring_tasks.py:generate_daily_report_legacy:apps.alpha.application.monitoring_tasks.generate_daily_report",
+      "locator": "apps.alpha.application.monitoring_tasks.generate_daily_report",
+      "path": "apps/alpha/application/monitoring_tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "generate_daily_report_legacy",
+      "target": "apps.alpha.application.monitoring_tasks.generate_daily_report"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/monitoring_tasks.py:update_provider_metrics:alpha.monitor.update_provider_metrics",
+      "locator": "alpha.monitor.update_provider_metrics",
+      "path": "apps/alpha/application/monitoring_tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "update_provider_metrics",
+      "target": "alpha.monitor.update_provider_metrics"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/monitoring_tasks.py:update_provider_metrics_legacy:apps.alpha.application.monitoring_tasks.update_provider_metrics",
+      "locator": "apps.alpha.application.monitoring_tasks.update_provider_metrics",
+      "path": "apps/alpha/application/monitoring_tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "update_provider_metrics_legacy",
+      "target": "apps.alpha.application.monitoring_tasks.update_provider_metrics"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/tasks.py:qlib_daily_inference:alpha.qlib_daily_inference",
+      "locator": "alpha.qlib_daily_inference",
+      "path": "apps/alpha/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "qlib_daily_inference",
+      "target": "alpha.qlib_daily_inference"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/tasks.py:qlib_daily_inference_alias:apps.alpha.application.tasks.qlib_daily_inference",
+      "locator": "apps.alpha.application.tasks.qlib_daily_inference",
+      "path": "apps/alpha/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "qlib_daily_inference_alias",
+      "target": "apps.alpha.application.tasks.qlib_daily_inference"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/tasks.py:qlib_daily_scoped_inference:alpha.qlib_daily_scoped_inference",
+      "locator": "alpha.qlib_daily_scoped_inference",
+      "path": "apps/alpha/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "qlib_daily_scoped_inference",
+      "target": "alpha.qlib_daily_scoped_inference"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/tasks.py:qlib_daily_scoped_inference_alias:apps.alpha.application.tasks.qlib_daily_scoped_inference",
+      "locator": "apps.alpha.application.tasks.qlib_daily_scoped_inference",
+      "path": "apps/alpha/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "qlib_daily_scoped_inference_alias",
+      "target": "apps.alpha.application.tasks.qlib_daily_scoped_inference"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/tasks.py:qlib_evaluate_model:apps.alpha.application.tasks.qlib_evaluate_model",
+      "locator": "apps.alpha.application.tasks.qlib_evaluate_model",
+      "path": "apps/alpha/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "qlib_evaluate_model",
+      "target": "apps.alpha.application.tasks.qlib_evaluate_model"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/tasks.py:qlib_predict_scores:apps.alpha.application.tasks.qlib_predict_scores",
+      "locator": "apps.alpha.application.tasks.qlib_predict_scores",
+      "path": "apps/alpha/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "qlib_predict_scores",
+      "target": "apps.alpha.application.tasks.qlib_predict_scores"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/tasks.py:qlib_refresh_cache:alpha.qlib_refresh_cache",
+      "locator": "alpha.qlib_refresh_cache",
+      "path": "apps/alpha/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "qlib_refresh_cache",
+      "target": "alpha.qlib_refresh_cache"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/tasks.py:qlib_refresh_cache_alias:apps.alpha.application.tasks.qlib_refresh_cache",
+      "locator": "apps.alpha.application.tasks.qlib_refresh_cache",
+      "path": "apps/alpha/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "qlib_refresh_cache_alias",
+      "target": "apps.alpha.application.tasks.qlib_refresh_cache"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/tasks.py:qlib_refresh_runtime_data_for_codes_task:apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task",
+      "locator": "apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task",
+      "path": "apps/alpha/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "qlib_refresh_runtime_data_for_codes_task",
+      "target": "apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/tasks.py:qlib_refresh_runtime_data_task:apps.alpha.application.tasks.qlib_refresh_runtime_data_task",
+      "locator": "apps.alpha.application.tasks.qlib_refresh_runtime_data_task",
+      "path": "apps/alpha/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "qlib_refresh_runtime_data_task",
+      "target": "apps.alpha.application.tasks.qlib_refresh_runtime_data_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/alpha/application/tasks.py:qlib_train_model:apps.alpha.application.tasks.qlib_train_model",
+      "locator": "apps.alpha.application.tasks.qlib_train_model",
+      "path": "apps/alpha/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "qlib_train_model",
+      "target": "apps.alpha.application.tasks.qlib_train_model"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/backtest/application/tasks.py:cleanup_old_backtests:backtest.cleanup_old_backtests",
+      "locator": "backtest.cleanup_old_backtests",
+      "path": "apps/backtest/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "cleanup_old_backtests",
+      "target": "backtest.cleanup_old_backtests"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/backtest/application/tasks.py:generate_backtest_report:backtest.generate_backtest_report",
+      "locator": "backtest.generate_backtest_report",
+      "path": "apps/backtest/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "generate_backtest_report",
+      "target": "backtest.generate_backtest_report"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/backtest/application/tasks.py:run_backtest_task:apps.backtest.application.tasks.run_backtest_task",
+      "locator": "apps.backtest.application.tasks.run_backtest_task",
+      "path": "apps/backtest/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "run_backtest_task",
+      "target": "apps.backtest.application.tasks.run_backtest_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/broker_execution/application/tasks.py:generate_broker_reconciliation_runs:broker_execution.generate_reconciliation_runs",
+      "locator": "broker_execution.generate_reconciliation_runs",
+      "path": "apps/broker_execution/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "generate_broker_reconciliation_runs",
+      "target": "broker_execution.generate_reconciliation_runs"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/broker_execution/application/tasks.py:run_broker_execution_maintenance:broker_execution.run_maintenance",
+      "locator": "broker_execution.run_maintenance",
+      "path": "apps/broker_execution/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "run_broker_execution_maintenance",
+      "target": "broker_execution.run_maintenance"
+    },
+    {
+      "category": "celery_task",
       "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/config_center/application/decision_readiness_guard_tasks.py:audit_decision_readiness_task:apps.config_center.application.decision_readiness_guard_tasks.audit_decision_readiness_task",
       "locator": "apps.config_center.application.decision_readiness_guard_tasks.audit_decision_readiness_task",
@@ -2639,6 +3101,46 @@
       "status": "active_public",
       "symbol": "collect_storage_capacity_profile_task",
       "target": "apps.config_center.application.tasks.collect_storage_capacity_profile_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/dashboard/application/tasks.py:generate_auto_advisor_weekly_reports_task:dashboard.generate_auto_advisor_weekly_reports",
+      "locator": "dashboard.generate_auto_advisor_weekly_reports",
+      "path": "apps/dashboard/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "generate_auto_advisor_weekly_reports_task",
+      "target": "dashboard.generate_auto_advisor_weekly_reports"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/data_center/application/archive_tasks.py:archive_raw_payloads_task:apps.data_center.application.archive_tasks.archive_raw_payloads_task",
+      "locator": "apps.data_center.application.archive_tasks.archive_raw_payloads_task",
+      "path": "apps/data_center/application/archive_tasks.py",
+      "status": "active_public",
+      "symbol": "archive_raw_payloads_task",
+      "target": "apps.data_center.application.archive_tasks.archive_raw_payloads_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/data_center/application/archive_tasks.py:audit_archive_restore_task:apps.data_center.application.archive_tasks.audit_archive_restore_task",
+      "locator": "apps.data_center.application.archive_tasks.audit_archive_restore_task",
+      "path": "apps/data_center/application/archive_tasks.py",
+      "status": "active_public",
+      "symbol": "audit_archive_restore_task",
+      "target": "apps.data_center.application.archive_tasks.audit_archive_restore_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/data_center/application/archive_tasks.py:verify_archive_manifest_task:apps.data_center.application.tasks.verify_archive_manifest_task",
+      "locator": "apps.data_center.application.tasks.verify_archive_manifest_task",
+      "path": "apps/data_center/application/archive_tasks.py",
+      "status": "active_public",
+      "symbol": "verify_archive_manifest_task",
+      "target": "apps.data_center.application.tasks.verify_archive_manifest_task"
     },
     {
       "category": "celery_task",
@@ -2703,22 +3205,22 @@
     {
       "category": "celery_task",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "celery_task:apps/data_center/application/tasks.py:verify_archive_manifest_task:apps.data_center.application.tasks.verify_archive_manifest_task",
-      "locator": "apps.data_center.application.tasks.verify_archive_manifest_task",
-      "path": "apps/data_center/application/tasks.py",
-      "status": "active_public",
-      "symbol": "verify_archive_manifest_task",
-      "target": "apps.data_center.application.tasks.verify_archive_manifest_task"
-    },
-    {
-      "category": "celery_task",
-      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/data_center/application/tasks.py:verify_storage_budget_task:apps.data_center.application.tasks.verify_storage_budget_task",
       "locator": "apps.data_center.application.tasks.verify_storage_budget_task",
       "path": "apps/data_center/application/tasks.py",
       "status": "active_public",
       "symbol": "verify_storage_budget_task",
       "target": "apps.data_center.application.tasks.verify_storage_budget_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/decision_rhythm/application/tasks.py:refresh_decision_workspace_snapshots:apps.decision_rhythm.application.tasks.refresh_decision_workspace_snapshots",
+      "locator": "apps.decision_rhythm.application.tasks.refresh_decision_workspace_snapshots",
+      "path": "apps/decision_rhythm/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "refresh_decision_workspace_snapshots",
+      "target": "apps.decision_rhythm.application.tasks.refresh_decision_workspace_snapshots"
     },
     {
       "category": "celery_task",
@@ -2799,6 +3301,76 @@
       "status": "compatibility",
       "symbol": "validate_equity_valuation_quality_task",
       "target": "apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/events/application/tasks.py:cleanup_old_events:events.cleanup_old_events",
+      "locator": "events.cleanup_old_events",
+      "path": "apps/events/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "cleanup_old_events",
+      "target": "events.cleanup_old_events"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/events/application/tasks.py:cleanup_old_snapshots:events.cleanup_old_snapshots",
+      "locator": "events.cleanup_old_snapshots",
+      "path": "apps/events/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "cleanup_old_snapshots",
+      "target": "events.cleanup_old_snapshots"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/events/application/tasks.py:collect_event_metrics:events.collect_event_metrics",
+      "locator": "events.collect_event_metrics",
+      "path": "apps/events/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "collect_event_metrics",
+      "target": "events.collect_event_metrics"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/events/application/tasks.py:event_bus_health_check:events.health_check",
+      "locator": "events.health_check",
+      "path": "apps/events/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "event_bus_health_check",
+      "target": "events.health_check"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/events/application/tasks.py:publish_batch_events_async:events.publish_batch_events_async",
+      "locator": "events.publish_batch_events_async",
+      "path": "apps/events/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "publish_batch_events_async",
+      "target": "events.publish_batch_events_async"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/events/application/tasks.py:publish_event_async:events.publish_event_async",
+      "locator": "events.publish_event_async",
+      "path": "apps/events/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "publish_event_async",
+      "target": "events.publish_event_async"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/events/application/tasks.py:replay_events_async:events.replay_events_async",
+      "locator": "events.replay_events_async",
+      "path": "apps/events/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "replay_events_async",
+      "target": "events.replay_events_async"
     },
     {
       "category": "celery_task",
@@ -3002,6 +3574,16 @@
     },
     {
       "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/pulse/application/tasks.py:calculate_weekly_pulse:pulse.calculate_weekly",
+      "locator": "pulse.calculate_weekly",
+      "path": "apps/pulse/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "calculate_weekly_pulse",
+      "target": "pulse.calculate_weekly"
+    },
+    {
+      "category": "celery_task",
       "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/realtime/application/tasks.py:poll_realtime_prices_task:apps.realtime.application.tasks.poll_realtime_prices_task",
       "locator": "apps.realtime.application.tasks.poll_realtime_prices_task",
@@ -3059,6 +3641,296 @@
       "status": "adjacent_operational",
       "symbol": "sync_macro_then_refresh_regime",
       "target": "apps.regime.application.orchestration.sync_macro_then_refresh_regime"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/regime/application/tasks.py:calculate_regime_task:apps.regime.application.tasks.calculate_regime_task",
+      "locator": "apps.regime.application.tasks.calculate_regime_task",
+      "path": "apps/regime/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "calculate_regime_task",
+      "target": "apps.regime.application.tasks.calculate_regime_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/regime/application/tasks.py:check_regime_health:apps.regime.application.tasks.check_regime_health",
+      "locator": "apps.regime.application.tasks.check_regime_health",
+      "path": "apps/regime/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "check_regime_health",
+      "target": "apps.regime.application.tasks.check_regime_health"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/regime/application/tasks.py:notify_regime_change:apps.regime.application.tasks.notify_regime_change",
+      "locator": "apps.regime.application.tasks.notify_regime_change",
+      "path": "apps/regime/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "notify_regime_change",
+      "target": "apps.regime.application.tasks.notify_regime_change"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/sector/application/tasks.py:analyze_sector_rotation:sector.analyze_rotation",
+      "locator": "sector.analyze_rotation",
+      "path": "apps/sector/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "analyze_sector_rotation",
+      "target": "sector.analyze_rotation"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/sector/application/tasks.py:update_daily_sector_data:sector.update_daily_data",
+      "locator": "sector.update_daily_data",
+      "path": "apps/sector/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "update_daily_sector_data",
+      "target": "sector.update_daily_data"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/sentiment/application/tasks.py:analyze_policy_event_sentiment:sentiment.analyze_policy_event",
+      "locator": "sentiment.analyze_policy_event",
+      "path": "apps/sentiment/application/tasks.py",
+      "status": "compatibility",
+      "symbol": "analyze_policy_event_sentiment",
+      "target": "sentiment.analyze_policy_event"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/sentiment/application/tasks.py:batch_analyze_texts:sentiment.batch_analyze_texts",
+      "locator": "sentiment.batch_analyze_texts",
+      "path": "apps/sentiment/application/tasks.py",
+      "status": "compatibility",
+      "symbol": "batch_analyze_texts",
+      "target": "sentiment.batch_analyze_texts"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/sentiment/application/tasks.py:calculate_daily_sentiment_index:sentiment.calculate_daily_sentiment_index",
+      "locator": "sentiment.calculate_daily_sentiment_index",
+      "path": "apps/sentiment/application/tasks.py",
+      "status": "compatibility",
+      "symbol": "calculate_daily_sentiment_index",
+      "target": "sentiment.calculate_daily_sentiment_index"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/sentiment/application/tasks.py:check_sentiment_data_freshness:sentiment.check_data_freshness",
+      "locator": "sentiment.check_data_freshness",
+      "path": "apps/sentiment/application/tasks.py",
+      "status": "compatibility",
+      "symbol": "check_sentiment_data_freshness",
+      "target": "sentiment.check_data_freshness"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/sentiment/application/tasks.py:refresh_current_sentiment_index:sentiment.refresh_current_sentiment_index",
+      "locator": "sentiment.refresh_current_sentiment_index",
+      "path": "apps/sentiment/application/tasks.py",
+      "status": "compatibility",
+      "symbol": "refresh_current_sentiment_index",
+      "target": "sentiment.refresh_current_sentiment_index"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/signal/application/tasks.py:check_all_signal_invalidations:signal.check_all_invalidations",
+      "locator": "signal.check_all_invalidations",
+      "path": "apps/signal/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "check_all_signal_invalidations",
+      "target": "signal.check_all_invalidations"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/signal/application/tasks.py:check_single_signal_invalidation:signal.check_single_invalidation",
+      "locator": "signal.check_single_invalidation",
+      "path": "apps/signal/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "check_single_signal_invalidation",
+      "target": "signal.check_single_invalidation"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/signal/application/tasks.py:cleanup_old_invalidated_signals:signal.cleanup_old_invalidated",
+      "locator": "signal.cleanup_old_invalidated",
+      "path": "apps/signal/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "cleanup_old_invalidated_signals",
+      "target": "signal.cleanup_old_invalidated"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/signal/application/tasks.py:send_daily_signal_summary:signal.daily_summary",
+      "locator": "signal.daily_summary",
+      "path": "apps/signal/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "send_daily_signal_summary",
+      "target": "signal.daily_summary"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:calculate_all_performance_task:simulated.calculate_all_performance",
+      "locator": "simulated.calculate_all_performance",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "calculate_all_performance_task",
+      "target": "simulated.calculate_all_performance"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:calculate_all_performance_task_alias:apps.simulated_trading.application.tasks.calculate_all_performance_task",
+      "locator": "apps.simulated_trading.application.tasks.calculate_all_performance_task",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "calculate_all_performance_task_alias",
+      "target": "apps.simulated_trading.application.tasks.calculate_all_performance_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:check_position_invalidation_task:simulated.check_position_invalidation",
+      "locator": "simulated.check_position_invalidation",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "check_position_invalidation_task",
+      "target": "simulated.check_position_invalidation"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:check_position_invalidation_task_alias:apps.simulated_trading.application.tasks.check_position_invalidation_task",
+      "locator": "apps.simulated_trading.application.tasks.check_position_invalidation_task",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "check_position_invalidation_task_alias",
+      "target": "apps.simulated_trading.application.tasks.check_position_invalidation_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:cleanup_inactive_accounts_task:simulated.cleanup_inactive_accounts",
+      "locator": "simulated.cleanup_inactive_accounts",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "cleanup_inactive_accounts_task",
+      "target": "simulated.cleanup_inactive_accounts"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:cleanup_inactive_accounts_task_alias:apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task",
+      "locator": "apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "cleanup_inactive_accounts_task_alias",
+      "target": "apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:daily_auto_trading_task:apps.simulated_trading.application.tasks.daily_auto_trading_task",
+      "locator": "apps.simulated_trading.application.tasks.daily_auto_trading_task",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "daily_auto_trading_task",
+      "target": "apps.simulated_trading.application.tasks.daily_auto_trading_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:daily_portfolio_inspection_task:simulated.daily_portfolio_inspection",
+      "locator": "simulated.daily_portfolio_inspection",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "daily_portfolio_inspection_task",
+      "target": "simulated.daily_portfolio_inspection"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:notify_invalidated_positions_task:simulated.notify_invalidated_positions",
+      "locator": "simulated.notify_invalidated_positions",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "notify_invalidated_positions_task",
+      "target": "simulated.notify_invalidated_positions"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:notify_invalidated_positions_task_alias:apps.simulated_trading.application.tasks.notify_invalidated_positions_task",
+      "locator": "apps.simulated_trading.application.tasks.notify_invalidated_positions_task",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "notify_invalidated_positions_task_alias",
+      "target": "apps.simulated_trading.application.tasks.notify_invalidated_positions_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:send_performance_summary_task:simulated.send_performance_summary",
+      "locator": "simulated.send_performance_summary",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "send_performance_summary_task",
+      "target": "simulated.send_performance_summary"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:send_performance_summary_task_alias:apps.simulated_trading.application.tasks.send_performance_summary_task",
+      "locator": "apps.simulated_trading.application.tasks.send_performance_summary_task",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "send_performance_summary_task_alias",
+      "target": "apps.simulated_trading.application.tasks.send_performance_summary_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:update_all_prices_after_close:apps.simulated_trading.application.tasks.update_all_prices_after_close",
+      "locator": "apps.simulated_trading.application.tasks.update_all_prices_after_close",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "update_all_prices_after_close",
+      "target": "apps.simulated_trading.application.tasks.update_all_prices_after_close"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:update_position_prices_task:simulated.update_position_prices",
+      "locator": "simulated.update_position_prices",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "update_position_prices_task",
+      "target": "simulated.update_position_prices"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "id": "celery_task:apps/simulated_trading/application/tasks.py:update_position_prices_task_alias:apps.simulated_trading.application.tasks.update_position_prices_task",
+      "locator": "apps.simulated_trading.application.tasks.update_position_prices_task",
+      "path": "apps/simulated_trading/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "update_position_prices_task_alias",
+      "target": "apps.simulated_trading.application.tasks.update_position_prices_task"
     },
     {
       "category": "celery_task",
@@ -4481,6 +5353,86 @@
       "target": ""
     },
     {
+      "category": "dynamic_import_edge",
+      "evidence": "statically resolved dynamic import target",
+      "id": "dynamic_import_edge:apps/data_center/application/interface_services.py:import_module:line:709",
+      "locator": "line:709",
+      "path": "apps/data_center/application/interface_services.py",
+      "status": "adjacent_operational",
+      "symbol": "import_module",
+      "target": "kombu.exceptions"
+    },
+    {
+      "category": "dynamic_import_edge",
+      "evidence": "statically resolved dynamic import target",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/gateways/qmt_gateway.py:import_module:line:268",
+      "locator": "line:268",
+      "path": "apps/data_center/infrastructure/gateways/qmt_gateway.py",
+      "status": "adjacent_operational",
+      "symbol": "import_module",
+      "target": "xtquant.xtdata"
+    },
+    {
+      "category": "dynamic_import_edge",
+      "evidence": "statically resolved dynamic import target",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/legacy_sdk_bridge.py:import_module:line:12",
+      "locator": "line:12",
+      "path": "apps/data_center/infrastructure/legacy_sdk_bridge.py",
+      "status": "adjacent_operational",
+      "symbol": "import_module",
+      "target": "akshare"
+    },
+    {
+      "category": "dynamic_import_edge",
+      "evidence": "statically resolved dynamic import target",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/rss_gateway.py:import_module:line:75",
+      "locator": "line:75",
+      "path": "apps/data_center/infrastructure/rss_gateway.py",
+      "status": "adjacent_operational",
+      "symbol": "import_module",
+      "target": "feedparser"
+    },
+    {
+      "category": "dynamic_import_edge",
+      "evidence": "statically resolved dynamic import target",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:25",
+      "locator": "line:25",
+      "path": "apps/data_center/infrastructure/tushare_client.py",
+      "status": "adjacent_operational",
+      "symbol": "import_module",
+      "target": "pandas"
+    },
+    {
+      "category": "dynamic_import_edge",
+      "evidence": "statically resolved dynamic import target",
+      "id": "dynamic_import_edge:apps/data_center/management/commands/setup_decision_quote_refresh.py:import_module:line:27",
+      "locator": "line:27",
+      "path": "apps/data_center/management/commands/setup_decision_quote_refresh.py",
+      "status": "adjacent_operational",
+      "symbol": "import_module",
+      "target": "django_celery_beat.models"
+    },
+    {
+      "category": "dynamic_import_edge",
+      "evidence": "runtime import is bounded by OWNER_MANIFEST_MODULES",
+      "id": "dynamic_import_edge:sdk/agomtradepro_mcp/registry/loader.py:import_module:line:38:data_center_read_capabilities",
+      "locator": "line:38:data_center_read_capabilities",
+      "path": "sdk/agomtradepro_mcp/registry/loader.py",
+      "status": "active_public",
+      "symbol": "import_module",
+      "target": "agomtradepro_mcp.registry.modules.owners.data_center_read_capabilities"
+    },
+    {
+      "category": "dynamic_import_edge",
+      "evidence": "runtime import is bounded by OWNER_MANIFEST_MODULES",
+      "id": "dynamic_import_edge:sdk/agomtradepro_mcp/registry/loader.py:import_module:line:38:data_center_write_capabilities",
+      "locator": "line:38:data_center_write_capabilities",
+      "path": "sdk/agomtradepro_mcp/registry/loader.py",
+      "status": "active_public",
+      "symbol": "import_module",
+      "target": "agomtradepro_mcp.registry.modules.owners.data_center_write_capabilities"
+    },
+    {
       "category": "management_command",
       "evidence": "cross-app command consumer of Data Center",
       "id": "management_command:apps/account/management/commands/bootstrap_cold_start.py:bootstrap_cold_start:",
@@ -5282,6 +6234,16 @@
     },
     {
       "category": "management_command_edge",
+      "evidence": "execute_from_command_line resolves to apps/macro/management/commands/sync_macro_data.py",
+      "id": "management_command_edge:scripts/debug/refresh_macro_data.py:sync_macro_data:line:25",
+      "locator": "line:25",
+      "path": "scripts/debug/refresh_macro_data.py",
+      "status": "adjacent_operational",
+      "symbol": "sync_macro_data",
+      "target": "apps/macro/management/commands/sync_macro_data.py"
+    },
+    {
+      "category": "management_command_edge",
       "evidence": "call_command resolves to apps/equity/management/commands/init_equity_config.py",
       "id": "management_command_edge:scripts/init_equity_config.py:init_equity_config:line:31",
       "locator": "line:31",
@@ -5351,294 +6313,444 @@
       "target": "dumpdata"
     },
     {
+      "category": "management_command_edge",
+      "evidence": "execute_from_command_line resolves to apps/backtest/management/commands/run_backtest.py",
+      "id": "management_command_edge:scripts/run_backtest.py:run_backtest:line:25",
+      "locator": "line:25",
+      "path": "scripts/run_backtest.py",
+      "status": "adjacent_operational",
+      "symbol": "run_backtest",
+      "target": "apps/backtest/management/commands/run_backtest.py"
+    },
+    {
+      "category": "management_command_edge",
+      "evidence": "execute_from_command_line resolves to apps/macro/management/commands/sync_macro_data.py",
+      "id": "management_command_edge:scripts/seed_historical.py:sync_macro_data:line:64",
+      "locator": "line:64",
+      "path": "scripts/seed_historical.py",
+      "status": "adjacent_operational",
+      "symbol": "sync_macro_data",
+      "target": "apps/macro/management/commands/sync_macro_data.py"
+    },
+    {
+      "category": "management_command_edge",
+      "evidence": "execute_from_command_line resolves to apps/macro/management/commands/sync_macro_data.py",
+      "id": "management_command_edge:scripts/sync_akshare_data.py:sync_macro_data:line:25",
+      "locator": "line:25",
+      "path": "scripts/sync_akshare_data.py",
+      "status": "adjacent_operational",
+      "symbol": "sync_macro_data",
+      "target": "apps/macro/management/commands/sync_macro_data.py"
+    },
+    {
+      "category": "management_command_edge",
+      "evidence": "execute_from_command_line resolves to apps/alpha/management/commands/train_qlib_model.py",
+      "id": "management_command_edge:scripts/train_qlib_model.py:train_qlib_model:line:29",
+      "locator": "line:29",
+      "path": "scripts/train_qlib_model.py",
+      "status": "adjacent_operational",
+      "symbol": "train_qlib_model",
+      "target": "apps/alpha/management/commands/train_qlib_model.py"
+    },
+    {
+      "category": "mcp_tool",
+      "evidence": "default-enabled MCP registrar edge",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/server.py:register_core_tools:AGOMTRADEPRO_MCP_ENABLE_CORE_TOOLS=true",
+      "locator": "AGOMTRADEPRO_MCP_ENABLE_CORE_TOOLS=true",
+      "path": "sdk/agomtradepro_mcp/server.py",
+      "status": "active_public",
+      "symbol": "register_core_tools",
+      "target": "sdk/agomtradepro_mcp/tools/core_tools.py::register_core_tools"
+    },
+    {
+      "category": "mcp_tool",
+      "evidence": "default-disabled legacy MCP registrar edge",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/server.py:register_data_center_tools:AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false",
+      "locator": "AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false",
+      "path": "sdk/agomtradepro_mcp/server.py",
+      "status": "compatibility",
+      "symbol": "register_data_center_tools",
+      "target": "sdk/agomtradepro_mcp/tools/data_center_tools.py::register_data_center_tools"
+    },
+    {
       "category": "mcp_tool",
       "evidence": "cross-owner MCP compatibility tool",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/config_center_tools.py:create_data_center_provider:",
-      "locator": "",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/config_center_tools.py:create_data_center_provider:line:209",
+      "locator": "line:209",
       "path": "sdk/agomtradepro_mcp/tools/config_center_tools.py",
       "status": "compatibility",
       "symbol": "create_data_center_provider",
-      "target": ""
+      "target": "AgomTradeProClient.data_center"
     },
     {
       "category": "mcp_tool",
       "evidence": "cross-owner MCP compatibility tool",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/config_center_tools.py:list_data_center_providers:",
-      "locator": "",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/config_center_tools.py:list_data_center_providers:line:203",
+      "locator": "line:203",
       "path": "sdk/agomtradepro_mcp/tools/config_center_tools.py",
       "status": "compatibility",
       "symbol": "list_data_center_providers",
-      "target": ""
+      "target": "AgomTradeProClient.data_center"
     },
     {
       "category": "mcp_tool",
       "evidence": "cross-owner MCP compatibility tool",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/config_center_tools.py:test_data_center_provider_connection:",
-      "locator": "",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/config_center_tools.py:test_data_center_provider_connection:line:279",
+      "locator": "line:279",
       "path": "sdk/agomtradepro_mcp/tools/config_center_tools.py",
       "status": "compatibility",
       "symbol": "test_data_center_provider_connection",
-      "target": ""
+      "target": "AgomTradeProClient.data_center"
     },
     {
       "category": "mcp_tool",
       "evidence": "cross-owner MCP compatibility tool",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/config_center_tools.py:update_data_center_provider:",
-      "locator": "",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/config_center_tools.py:update_data_center_provider:line:241",
+      "locator": "line:241",
       "path": "sdk/agomtradepro_mcp/tools/config_center_tools.py",
       "status": "compatibility",
       "symbol": "update_data_center_provider",
-      "target": ""
+      "target": "AgomTradeProClient.data_center"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_create_indicator:",
-      "locator": "",
-      "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
+      "evidence": "default-enabled core MCP ingress can dispatch Data Center capabilities",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/core_tools.py:agom_bootstrap:line:57",
+      "locator": "line:57",
+      "path": "sdk/agomtradepro_mcp/tools/core_tools.py",
       "status": "active_public",
+      "symbol": "agom_bootstrap",
+      "target": "CapabilityDispatcher:data_center"
+    },
+    {
+      "category": "mcp_tool",
+      "evidence": "default-enabled core MCP ingress can dispatch Data Center capabilities",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/core_tools.py:agom_capability_call:line:183",
+      "locator": "line:183",
+      "path": "sdk/agomtradepro_mcp/tools/core_tools.py",
+      "status": "active_public",
+      "symbol": "agom_capability_call",
+      "target": "CapabilityDispatcher:data_center"
+    },
+    {
+      "category": "mcp_tool",
+      "evidence": "default-enabled core MCP ingress can dispatch Data Center capabilities",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/core_tools.py:agom_capability_schema:line:162",
+      "locator": "line:162",
+      "path": "sdk/agomtradepro_mcp/tools/core_tools.py",
+      "status": "active_public",
+      "symbol": "agom_capability_schema",
+      "target": "CapabilityDispatcher:data_center"
+    },
+    {
+      "category": "mcp_tool",
+      "evidence": "default-enabled core MCP ingress can dispatch Data Center capabilities",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/core_tools.py:agom_capability_search:line:135",
+      "locator": "line:135",
+      "path": "sdk/agomtradepro_mcp/tools/core_tools.py",
+      "status": "active_public",
+      "symbol": "agom_capability_search",
+      "target": "CapabilityDispatcher:data_center"
+    },
+    {
+      "category": "mcp_tool",
+      "evidence": "default-enabled core MCP ingress can dispatch Data Center capabilities",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/core_tools.py:agom_confirmation_resume:line:196",
+      "locator": "line:196",
+      "path": "sdk/agomtradepro_mcp/tools/core_tools.py",
+      "status": "active_public",
+      "symbol": "agom_confirmation_resume",
+      "target": "CapabilityDispatcher:data_center"
+    },
+    {
+      "category": "mcp_tool",
+      "evidence": "default-enabled core MCP ingress can dispatch Data Center capabilities",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/core_tools.py:agom_get_agent_contract:line:97",
+      "locator": "line:97",
+      "path": "sdk/agomtradepro_mcp/tools/core_tools.py",
+      "status": "active_public",
+      "symbol": "agom_get_agent_contract",
+      "target": "CapabilityDispatcher:data_center"
+    },
+    {
+      "category": "mcp_tool",
+      "evidence": "default-enabled core MCP ingress can dispatch Data Center capabilities",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/core_tools.py:agom_get_workflow_playbook:line:108",
+      "locator": "line:108",
+      "path": "sdk/agomtradepro_mcp/tools/core_tools.py",
+      "status": "active_public",
+      "symbol": "agom_get_workflow_playbook",
+      "target": "CapabilityDispatcher:data_center"
+    },
+    {
+      "category": "mcp_tool",
+      "evidence": "default-enabled core MCP ingress can dispatch Data Center capabilities",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/core_tools.py:agom_workflow_start:line:207",
+      "locator": "line:207",
+      "path": "sdk/agomtradepro_mcp/tools/core_tools.py",
+      "status": "active_public",
+      "symbol": "agom_workflow_start",
+      "target": "CapabilityDispatcher:data_center"
+    },
+    {
+      "category": "mcp_tool",
+      "evidence": "default-enabled core MCP ingress can dispatch Data Center capabilities",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/core_tools.py:agom_workflow_status:line:250",
+      "locator": "line:250",
+      "path": "sdk/agomtradepro_mcp/tools/core_tools.py",
+      "status": "active_public",
+      "symbol": "agom_workflow_status",
+      "target": "CapabilityDispatcher:data_center"
+    },
+    {
+      "category": "mcp_tool",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_create_indicator:line:103",
+      "locator": "line:103",
+      "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
+      "status": "compatibility",
       "symbol": "data_center_create_indicator",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_create_indicator_unit_rule:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_create_indicator_unit_rule:line:180",
+      "locator": "line:180",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_create_indicator_unit_rule",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_create_publisher:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_create_publisher:line:30",
+      "locator": "line:30",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_create_publisher",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_delete_indicator:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_delete_indicator:line:159",
+      "locator": "line:159",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_delete_indicator",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_delete_indicator_unit_rule:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_delete_indicator_unit_rule:line:247",
+      "locator": "line:247",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_delete_indicator_unit_rule",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_delete_publisher:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_delete_publisher:line:91",
+      "locator": "line:91",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_delete_publisher",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_capital_flows:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_capital_flows:line:374",
+      "locator": "line:374",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_get_capital_flows",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_indicator:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_indicator:line:97",
+      "locator": "line:97",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_get_indicator",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_indicator_unit_rule:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_indicator_unit_rule:line:171",
+      "locator": "line:171",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_get_indicator_unit_rule",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_macro_series:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_macro_series:line:294",
+      "locator": "line:294",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_get_macro_series",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_news:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_news:line:410",
+      "locator": "line:410",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_get_news",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_price_history:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_price_history:line:274",
+      "locator": "line:274",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_get_price_history",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_publisher:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_publisher:line:24",
+      "locator": "line:24",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_get_publisher",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_quotes:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_get_quotes:line:256",
+      "locator": "line:256",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_get_quotes",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_list_indicator_unit_rules:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_list_indicator_unit_rules:line:165",
+      "locator": "line:165",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_list_indicator_unit_rules",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_list_indicators:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_list_indicators:line:12",
+      "locator": "line:12",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_list_indicators",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_list_publishers:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_list_publishers:line:18",
+      "locator": "line:18",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_list_publishers",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_repair_decision_data_reliability:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_repair_decision_data_reliability:line:354",
+      "locator": "line:354",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_repair_decision_data_reliability",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_sync_capital_flows:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_sync_capital_flows:line:394",
+      "locator": "line:394",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_sync_capital_flows",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_sync_macro:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_sync_macro:line:336",
+      "locator": "line:336",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_sync_macro",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_sync_news:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_sync_news:line:426",
+      "locator": "line:426",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_sync_news",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_update_indicator:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_update_indicator:line:129",
+      "locator": "line:129",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_update_indicator",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_update_indicator_unit_rule:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_update_indicator_unit_rule:line:210",
+      "locator": "line:210",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_update_indicator_unit_rule",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_update_publisher:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:data_center_update_publisher:line:58",
+      "locator": "line:58",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "data_center_update_publisher",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "mcp_tool",
-      "evidence": "Data Center-owned MCP tool registrar",
-      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:get_data_center_provider_status:",
-      "locator": "",
+      "evidence": "legacy Data Center tools are conditional on AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false by default",
+      "id": "mcp_tool:sdk/agomtradepro_mcp/tools/data_center_tools.py:get_data_center_provider_status:line:442",
+      "locator": "line:442",
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
-      "status": "active_public",
+      "status": "compatibility",
       "symbol": "get_data_center_provider_status",
-      "target": ""
+      "target": "register_data_center_tools"
     },
     {
       "category": "orchestration_entry",
@@ -6638,7 +7750,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-api-root",
-      "target": ""
+      "target": "DataCenterApiRootView.as_view()"
     },
     {
       "category": "rest_url",
@@ -6648,7 +7760,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-asset-resolve",
-      "target": ""
+      "target": "asset_resolve"
     },
     {
       "category": "rest_url",
@@ -6658,7 +7770,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-capital-flows",
-      "target": ""
+      "target": "capital_flows"
     },
     {
       "category": "rest_url",
@@ -6668,7 +7780,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-decision-reliability-repair",
-      "target": ""
+      "target": "repair_decision_reliability"
     },
     {
       "category": "rest_url",
@@ -6678,7 +7790,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-financials",
-      "target": ""
+      "target": "financials"
     },
     {
       "category": "rest_url",
@@ -6688,7 +7800,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-fund-nav",
-      "target": ""
+      "target": "fund_nav_series"
     },
     {
       "category": "rest_url",
@@ -6698,7 +7810,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-indicator-detail",
-      "target": ""
+      "target": "indicator_detail"
     },
     {
       "category": "rest_url",
@@ -6708,7 +7820,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-indicator-list",
-      "target": ""
+      "target": "indicator_list_create"
     },
     {
       "category": "rest_url",
@@ -6718,7 +7830,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-indicator-unit-rule-detail",
-      "target": ""
+      "target": "indicator_unit_rule_detail"
     },
     {
       "category": "rest_url",
@@ -6728,7 +7840,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-indicator-unit-rule-list",
-      "target": ""
+      "target": "indicator_unit_rule_list_create"
     },
     {
       "category": "rest_url",
@@ -6738,7 +7850,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-macro-series",
-      "target": ""
+      "target": "macro_series"
     },
     {
       "category": "rest_url",
@@ -6748,7 +7860,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-market-thermometer-calculate",
-      "target": ""
+      "target": "market_thermometer_calculate"
     },
     {
       "category": "rest_url",
@@ -6758,7 +7870,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-market-thermometer-config",
-      "target": ""
+      "target": "market_thermometer_config"
     },
     {
       "category": "rest_url",
@@ -6768,7 +7880,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-market-thermometer-current",
-      "target": ""
+      "target": "market_thermometer_current"
     },
     {
       "category": "rest_url",
@@ -6778,7 +7890,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-market-thermometer-history",
-      "target": ""
+      "target": "market_thermometer_history"
     },
     {
       "category": "rest_url",
@@ -6788,7 +7900,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-market-thermometer-import-investor-accounts",
-      "target": ""
+      "target": "market_thermometer_import_investor_accounts"
     },
     {
       "category": "rest_url",
@@ -6798,7 +7910,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-market-thermometer-me",
-      "target": ""
+      "target": "market_thermometer_me"
     },
     {
       "category": "rest_url",
@@ -6808,7 +7920,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-market-thermometer-sync-inputs",
-      "target": ""
+      "target": "market_thermometer_sync_inputs"
     },
     {
       "category": "rest_url",
@@ -6818,7 +7930,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-news",
-      "target": ""
+      "target": "news"
     },
     {
       "category": "rest_url",
@@ -6828,7 +7940,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-pit-manifest-detail",
-      "target": ""
+      "target": "pit_manifest_detail"
     },
     {
       "category": "rest_url",
@@ -6838,7 +7950,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-pit-manifest-list",
-      "target": ""
+      "target": "pit_manifest_list_create"
     },
     {
       "category": "rest_url",
@@ -6848,7 +7960,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-price-history",
-      "target": ""
+      "target": "price_history"
     },
     {
       "category": "rest_url",
@@ -6858,7 +7970,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-price-latest-quote",
-      "target": ""
+      "target": "price_latest_quote"
     },
     {
       "category": "rest_url",
@@ -6868,7 +7980,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-production-coverage-summary",
-      "target": ""
+      "target": "production_coverage_summary"
     },
     {
       "category": "rest_url",
@@ -6878,7 +7990,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-production-coverage-universe",
-      "target": ""
+      "target": "production_coverage_universe_config"
     },
     {
       "category": "rest_url",
@@ -6888,7 +8000,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-provider-detail",
-      "target": ""
+      "target": "provider_detail"
     },
     {
       "category": "rest_url",
@@ -6898,7 +8010,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-provider-list",
-      "target": ""
+      "target": "provider_list_create"
     },
     {
       "category": "rest_url",
@@ -6908,7 +8020,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-provider-status",
-      "target": ""
+      "target": "provider_status"
     },
     {
       "category": "rest_url",
@@ -6918,7 +8030,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-provider-test",
-      "target": ""
+      "target": "provider_test_connection"
     },
     {
       "category": "rest_url",
@@ -6928,7 +8040,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-publisher-detail",
-      "target": ""
+      "target": "publisher_detail"
     },
     {
       "category": "rest_url",
@@ -6938,7 +8050,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-publisher-list",
-      "target": ""
+      "target": "publisher_list_create"
     },
     {
       "category": "rest_url",
@@ -6948,7 +8060,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-sector-constituents",
-      "target": ""
+      "target": "sector_constituents"
     },
     {
       "category": "rest_url",
@@ -6958,7 +8070,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-settings",
-      "target": ""
+      "target": "provider_settings"
     },
     {
       "category": "rest_url",
@@ -6968,7 +8080,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-sync-capital-flows",
-      "target": ""
+      "target": "sync_capital_flows"
     },
     {
       "category": "rest_url",
@@ -6978,7 +8090,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-sync-financials",
-      "target": ""
+      "target": "sync_financials"
     },
     {
       "category": "rest_url",
@@ -6988,7 +8100,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-sync-fund-nav",
-      "target": ""
+      "target": "sync_fund_nav"
     },
     {
       "category": "rest_url",
@@ -6998,7 +8110,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-sync-macro",
-      "target": ""
+      "target": "sync_macro"
     },
     {
       "category": "rest_url",
@@ -7008,7 +8120,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-sync-news",
-      "target": ""
+      "target": "sync_news"
     },
     {
       "category": "rest_url",
@@ -7018,7 +8130,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-sync-prices",
-      "target": ""
+      "target": "sync_prices"
     },
     {
       "category": "rest_url",
@@ -7028,7 +8140,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-sync-quotes",
-      "target": ""
+      "target": "sync_quotes"
     },
     {
       "category": "rest_url",
@@ -7038,7 +8150,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-sync-sector-constituents",
-      "target": ""
+      "target": "sync_sector_constituents"
     },
     {
       "category": "rest_url",
@@ -7048,7 +8160,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-sync-valuations",
-      "target": ""
+      "target": "sync_valuations"
     },
     {
       "category": "rest_url",
@@ -7058,7 +8170,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-tui-governance",
-      "target": ""
+      "target": "MacroGovernanceTuiView.as_view()"
     },
     {
       "category": "rest_url",
@@ -7068,7 +8180,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-tui-market-thermometer-config",
-      "target": ""
+      "target": "MarketThermometerTuiConfigView.as_view()"
     },
     {
       "category": "rest_url",
@@ -7078,7 +8190,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-valuations",
-      "target": ""
+      "target": "valuations"
     },
     {
       "category": "rest_url",
@@ -7088,7 +8200,7 @@
       "path": "apps/data_center/interface/urls.py",
       "status": "active_public",
       "symbol": "dc-governance-page",
-      "target": ""
+      "target": "governance_page"
     },
     {
       "category": "rest_url",
@@ -7098,7 +8210,7 @@
       "path": "apps/data_center/interface/urls.py",
       "status": "active_public",
       "symbol": "dc-market-thermometer-page",
-      "target": ""
+      "target": "market_thermometer_page"
     },
     {
       "category": "rest_url",
@@ -7108,7 +8220,7 @@
       "path": "apps/data_center/interface/urls.py",
       "status": "active_public",
       "symbol": "dc-monitor-page",
-      "target": ""
+      "target": "monitor_page"
     },
     {
       "category": "rest_url",
@@ -7118,7 +8230,7 @@
       "path": "apps/data_center/interface/urls.py",
       "status": "active_public",
       "symbol": "dc-providers-page",
-      "target": ""
+      "target": "providers_page"
     },
     {
       "category": "rest_url",
@@ -7128,7 +8240,7 @@
       "path": "apps/data_center/interface/urls.py",
       "status": "active_public",
       "symbol": "dc-publishers-page",
-      "target": ""
+      "target": "publishers_page"
     },
     {
       "category": "rest_url",
@@ -7138,7 +8250,7 @@
       "path": "apps/data_center/interface/urls.py",
       "status": "active_public",
       "symbol": "dc-universe-page",
-      "target": ""
+      "target": "universe_page"
     },
     {
       "category": "rest_url",
@@ -7148,7 +8260,127 @@
       "path": "apps/data_center/interface/urls.py",
       "status": "active_public",
       "symbol": "path@18",
-      "target": ""
+      "target": "RedirectView.as_view(url='/data-center/governance/', permanent=False)"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "cross-app DRF action consumes the canonical Data Center port",
+      "id": "rest_url:apps/equity/interface/analysis_actions.py:EquityAnalysisActionsMixin.analyze_regime_correlation:action:regime-correlation/(?P<stock_code>[^/]+):GET",
+      "locator": "action:regime-correlation/(?P<stock_code>[^/]+):GET",
+      "path": "apps/equity/interface/analysis_actions.py",
+      "status": "adjacent_operational",
+      "symbol": "EquityAnalysisActionsMixin.analyze_regime_correlation",
+      "target": "apps/equity/interface/analysis_actions.py::EquityAnalysisActionsMixin.analyze_regime_correlation"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "cross-app DRF action consumes the canonical Data Center port",
+      "id": "rest_url:apps/equity/interface/analysis_actions.py:EquityAnalysisActionsMixin.analyze_valuation:action:valuation/(?P<stock_code>[^/]+):GET",
+      "locator": "action:valuation/(?P<stock_code>[^/]+):GET",
+      "path": "apps/equity/interface/analysis_actions.py",
+      "status": "adjacent_operational",
+      "symbol": "EquityAnalysisActionsMixin.analyze_valuation",
+      "target": "apps/equity/interface/analysis_actions.py::EquityAnalysisActionsMixin.analyze_valuation"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "cross-app DRF action consumes the canonical Data Center port",
+      "id": "rest_url:apps/equity/interface/analysis_actions.py:EquityAnalysisActionsMixin.calculate_dcf:action:dcf:POST",
+      "locator": "action:dcf:POST",
+      "path": "apps/equity/interface/analysis_actions.py",
+      "status": "adjacent_operational",
+      "symbol": "EquityAnalysisActionsMixin.calculate_dcf",
+      "target": "apps/equity/interface/analysis_actions.py::EquityAnalysisActionsMixin.calculate_dcf"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "cross-app DRF action consumes the canonical Data Center port",
+      "id": "rest_url:apps/equity/interface/analysis_actions.py:EquityAnalysisActionsMixin.screen_stocks:action:screen:POST",
+      "locator": "action:screen:POST",
+      "path": "apps/equity/interface/analysis_actions.py",
+      "status": "adjacent_operational",
+      "symbol": "EquityAnalysisActionsMixin.screen_stocks",
+      "target": "apps/equity/interface/analysis_actions.py::EquityAnalysisActionsMixin.screen_stocks"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "cross-app DRF action consumes the canonical Data Center port",
+      "id": "rest_url:apps/equity/interface/comprehensive_valuation_actions.py:EquityComprehensiveValuationActionsMixin.comprehensive_valuation:action:comprehensive-valuation:POST",
+      "locator": "action:comprehensive-valuation:POST",
+      "path": "apps/equity/interface/comprehensive_valuation_actions.py",
+      "status": "adjacent_operational",
+      "symbol": "EquityComprehensiveValuationActionsMixin.comprehensive_valuation",
+      "target": "apps/equity/interface/comprehensive_valuation_actions.py::EquityComprehensiveValuationActionsMixin.comprehensive_valuation"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "cross-app DRF action consumes the canonical Data Center port",
+      "id": "rest_url:apps/equity/interface/pool_actions.py:EquityPoolActionsMixin.get_pool:action:pool:GET",
+      "locator": "action:pool:GET",
+      "path": "apps/equity/interface/pool_actions.py",
+      "status": "adjacent_operational",
+      "symbol": "EquityPoolActionsMixin.get_pool",
+      "target": "apps/equity/interface/pool_actions.py::EquityPoolActionsMixin.get_pool"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "cross-app DRF action consumes the canonical Data Center port",
+      "id": "rest_url:apps/equity/interface/sdk_contract_actions.py:EquitySDKContractActionsMixin.financials:action:financials/(?P<stock_code>[^/]+):GET",
+      "locator": "action:financials/(?P<stock_code>[^/]+):GET",
+      "path": "apps/equity/interface/sdk_contract_actions.py",
+      "status": "adjacent_operational",
+      "symbol": "EquitySDKContractActionsMixin.financials",
+      "target": "apps/equity/interface/sdk_contract_actions.py::EquitySDKContractActionsMixin.financials"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "cross-app DRF action consumes the canonical Data Center port",
+      "id": "rest_url:apps/signal/interface/views.py:UnifiedSignalViewSet.by_asset:action:by-asset:GET",
+      "locator": "action:by-asset:GET",
+      "path": "apps/signal/interface/views.py",
+      "status": "adjacent_operational",
+      "symbol": "UnifiedSignalViewSet.by_asset",
+      "target": "apps/signal/interface/views.py::UnifiedSignalViewSet.by_asset"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "cross-app DRF action consumes the canonical Data Center port",
+      "id": "rest_url:apps/signal/interface/views.py:UnifiedSignalViewSet.collect:action:collect:POST",
+      "locator": "action:collect:POST",
+      "path": "apps/signal/interface/views.py",
+      "status": "adjacent_operational",
+      "symbol": "UnifiedSignalViewSet.collect",
+      "target": "apps/signal/interface/views.py::UnifiedSignalViewSet.collect"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "cross-app DRF action consumes the canonical Data Center port",
+      "id": "rest_url:apps/signal/interface/views.py:UnifiedSignalViewSet.execute:action:execute:POST",
+      "locator": "action:execute:POST",
+      "path": "apps/signal/interface/views.py",
+      "status": "adjacent_operational",
+      "symbol": "UnifiedSignalViewSet.execute",
+      "target": "apps/signal/interface/views.py::UnifiedSignalViewSet.execute"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "cross-app DRF action consumes the canonical Data Center port",
+      "id": "rest_url:apps/signal/interface/views.py:UnifiedSignalViewSet.pending:action:pending:GET",
+      "locator": "action:pending:GET",
+      "path": "apps/signal/interface/views.py",
+      "status": "adjacent_operational",
+      "symbol": "UnifiedSignalViewSet.pending",
+      "target": "apps/signal/interface/views.py::UnifiedSignalViewSet.pending"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "cross-app DRF action consumes the canonical Data Center port",
+      "id": "rest_url:apps/signal/interface/views.py:UnifiedSignalViewSet.summary:action:summary:GET",
+      "locator": "action:summary:GET",
+      "path": "apps/signal/interface/views.py",
+      "status": "adjacent_operational",
+      "symbol": "UnifiedSignalViewSet.summary",
+      "target": "apps/signal/interface/views.py::UnifiedSignalViewSet.summary"
     },
     {
       "category": "rest_url",
@@ -7158,7 +8390,7 @@
       "path": "core/urls.py",
       "status": "active_public",
       "symbol": "mount@548",
-      "target": ""
+      "target": "include(('apps.data_center.interface.urls', 'data_center'), namespace='data_center')"
     },
     {
       "category": "rest_url",
@@ -7168,7 +8400,7 @@
       "path": "core/urls.py",
       "status": "active_public",
       "symbol": "mount@555",
-      "target": ""
+      "target": "include(('apps.data_center.interface.api_urls', 'api_data_center'), namespace='api_data_center')"
     },
     {
       "category": "runtime_config_key",
@@ -7622,9 +8854,9 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "Django management command owns database-backed Beat schedule",
-      "id": "scheduler_writer:apps/account/management/commands/setup_account_risk_tasks.py:PeriodicTask:apps.account.application.tasks.check_stop_loss_and_take_profit_task",
-      "locator": "apps.account.application.tasks.check_stop_loss_and_take_profit_task",
+      "evidence": "database-backed Beat schedule writer at line 34",
+      "id": "scheduler_writer:apps/account/management/commands/setup_account_risk_tasks.py:PeriodicTask:account-check-stop-loss-take-profit-intraday",
+      "locator": "account-check-stop-loss-take-profit-intraday",
       "path": "apps/account/management/commands/setup_account_risk_tasks.py",
       "status": "active_public",
       "symbol": "PeriodicTask",
@@ -7632,9 +8864,59 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "Django management command owns database-backed Beat schedule",
-      "id": "scheduler_writer:apps/decision_rhythm/management/commands/setup_workspace_snapshot_refresh.py:PeriodicTask:apps.decision_rhythm.application.tasks.refresh_decision_workspace_snapshots",
-      "locator": "apps.decision_rhythm.application.tasks.refresh_decision_workspace_snapshots",
+      "evidence": "database-backed Beat schedule writer at line 108",
+      "id": "scheduler_writer:apps/dashboard/management/commands/setup_auto_advisor_weekly_report.py:PeriodicTask:dashboard-auto-advisor-weekly-report",
+      "locator": "dashboard-auto-advisor-weekly-report",
+      "path": "apps/dashboard/management/commands/setup_auto_advisor_weekly_report.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask",
+      "target": "dashboard.generate_auto_advisor_weekly_reports"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "database-backed Beat schedule writer at line 179",
+      "id": "scheduler_writer:apps/data_center/management/commands/setup_decision_quote_refresh.py:PeriodicTask:decision-quote-freshness-check",
+      "locator": "decision-quote-freshness-check",
+      "path": "apps/data_center/management/commands/setup_decision_quote_refresh.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask",
+      "target": "apps.data_center.application.tasks.refresh_decision_quote_snapshots_task"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "database-backed Beat schedule writer at line 158",
+      "id": "scheduler_writer:apps/data_center/management/commands/setup_decision_quote_refresh.py:PeriodicTask:decision-quote-intraday-refresh",
+      "locator": "decision-quote-intraday-refresh",
+      "path": "apps/data_center/management/commands/setup_decision_quote_refresh.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask",
+      "target": "apps.data_center.application.tasks.refresh_decision_quote_snapshots_task"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "database-backed Beat schedule writer at line 165",
+      "id": "scheduler_writer:apps/data_center/management/commands/setup_decision_quote_refresh.py:PeriodicTask:decision-quote-post-close-refresh",
+      "locator": "decision-quote-post-close-refresh",
+      "path": "apps/data_center/management/commands/setup_decision_quote_refresh.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask",
+      "target": "apps.data_center.application.tasks.refresh_decision_quote_snapshots_task"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "database-backed Beat schedule writer at line 172",
+      "id": "scheduler_writer:apps/data_center/management/commands/setup_decision_quote_refresh.py:PeriodicTask:decision-quote-pre-readiness-refresh",
+      "locator": "decision-quote-pre-readiness-refresh",
+      "path": "apps/data_center/management/commands/setup_decision_quote_refresh.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask",
+      "target": "apps.data_center.application.tasks.refresh_decision_quote_snapshots_task"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "database-backed Beat schedule writer at line 51",
+      "id": "scheduler_writer:apps/decision_rhythm/management/commands/setup_workspace_snapshot_refresh.py:PeriodicTask:decision-workspace-nightly-snapshot-refresh",
+      "locator": "decision-workspace-nightly-snapshot-refresh",
       "path": "apps/decision_rhythm/management/commands/setup_workspace_snapshot_refresh.py",
       "status": "active_public",
       "symbol": "PeriodicTask",
@@ -7642,9 +8924,9 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "Django management command owns database-backed Beat schedule",
-      "id": "scheduler_writer:apps/equity/management/commands/setup_equity_valuation_sync.py:PeriodicTask:apps.equity.application.tasks_valuation_sync.sync_validate_scan_equity_valuation_task",
-      "locator": "apps.equity.application.tasks_valuation_sync.sync_validate_scan_equity_valuation_task",
+      "evidence": "database-backed Beat schedule writer at line 56",
+      "id": "scheduler_writer:apps/equity/management/commands/setup_equity_valuation_sync.py:PeriodicTask:equity-valuation-daily-sync",
+      "locator": "equity-valuation-daily-sync",
       "path": "apps/equity/management/commands/setup_equity_valuation_sync.py",
       "status": "active_public",
       "symbol": "PeriodicTask",
@@ -7652,9 +8934,9 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "Django management command owns database-backed Beat schedule",
-      "id": "scheduler_writer:apps/equity/management/commands/setup_equity_valuation_sync.py:PeriodicTask:apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task",
-      "locator": "apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task",
+      "evidence": "database-backed Beat schedule writer at line 90",
+      "id": "scheduler_writer:apps/equity/management/commands/setup_equity_valuation_sync.py:PeriodicTask:equity-valuation-freshness-check",
+      "locator": "equity-valuation-freshness-check",
       "path": "apps/equity/management/commands/setup_equity_valuation_sync.py",
       "status": "active_public",
       "symbol": "PeriodicTask",
@@ -7662,9 +8944,19 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "Django management command owns database-backed Beat schedule",
-      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:apps.macro.application.tasks.check_data_freshness",
-      "locator": "apps.macro.application.tasks.check_data_freshness",
+      "evidence": "database-backed Beat schedule writer at line 75",
+      "id": "scheduler_writer:apps/equity/management/commands/setup_equity_valuation_sync.py:PeriodicTask:equity-valuation-quality-validate",
+      "locator": "equity-valuation-quality-validate",
+      "path": "apps/equity/management/commands/setup_equity_valuation_sync.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask",
+      "target": "apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "database-backed Beat schedule writer at line 125",
+      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:check-data-freshness",
+      "locator": "check-data-freshness",
       "path": "apps/macro/management/commands/setup_macro_daily_sync.py",
       "status": "active_public",
       "symbol": "PeriodicTask",
@@ -7672,59 +8964,9 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "Django management command owns database-backed Beat schedule",
-      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:apps.macro.application.tasks.generate_daily_regime_signal",
-      "locator": "apps.macro.application.tasks.generate_daily_regime_signal",
-      "path": "apps/macro/management/commands/setup_macro_daily_sync.py",
-      "status": "active_public",
-      "symbol": "PeriodicTask",
-      "target": "apps.macro.application.tasks.generate_daily_regime_signal"
-    },
-    {
-      "category": "scheduler_writer",
-      "evidence": "Django management command owns database-backed Beat schedule",
-      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:apps.macro.application.tasks.recalculate_regime_with_daily_signal",
-      "locator": "apps.macro.application.tasks.recalculate_regime_with_daily_signal",
-      "path": "apps/macro/management/commands/setup_macro_daily_sync.py",
-      "status": "active_public",
-      "symbol": "PeriodicTask",
-      "target": "apps.macro.application.tasks.recalculate_regime_with_daily_signal"
-    },
-    {
-      "category": "scheduler_writer",
-      "evidence": "Django management command owns database-backed Beat schedule",
-      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:apps.macro.application.tasks.sync_and_calculate_regime",
-      "locator": "apps.macro.application.tasks.sync_and_calculate_regime",
-      "path": "apps/macro/management/commands/setup_macro_daily_sync.py",
-      "status": "active_public",
-      "symbol": "PeriodicTask",
-      "target": "apps.macro.application.tasks.sync_and_calculate_regime"
-    },
-    {
-      "category": "scheduler_writer",
-      "evidence": "Django management command owns database-backed Beat schedule",
-      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:apps.regime.application.orchestration.generate_daily_regime_signal",
-      "locator": "apps.regime.application.orchestration.generate_daily_regime_signal",
-      "path": "apps/macro/management/commands/setup_macro_daily_sync.py",
-      "status": "active_public",
-      "symbol": "PeriodicTask",
-      "target": "apps.regime.application.orchestration.generate_daily_regime_signal"
-    },
-    {
-      "category": "scheduler_writer",
-      "evidence": "Django management command owns database-backed Beat schedule",
-      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:apps.regime.application.orchestration.recalculate_regime_with_daily_signal",
-      "locator": "apps.regime.application.orchestration.recalculate_regime_with_daily_signal",
-      "path": "apps/macro/management/commands/setup_macro_daily_sync.py",
-      "status": "active_public",
-      "symbol": "PeriodicTask",
-      "target": "apps.regime.application.orchestration.recalculate_regime_with_daily_signal"
-    },
-    {
-      "category": "scheduler_writer",
-      "evidence": "Django management command owns database-backed Beat schedule",
-      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:apps.regime.application.orchestration.sync_macro_then_refresh_regime",
-      "locator": "apps.regime.application.orchestration.sync_macro_then_refresh_regime",
+      "evidence": "database-backed Beat schedule writer at line 111",
+      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:daily-sync-and-calculate",
+      "locator": "daily-sync-and-calculate",
       "path": "apps/macro/management/commands/setup_macro_daily_sync.py",
       "status": "active_public",
       "symbol": "PeriodicTask",
@@ -7732,13 +8974,43 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "Django management command owns database-backed Beat schedule",
-      "id": "scheduler_writer:apps/operational_readiness/management/commands/setup_personal_readiness_daily.py:PeriodicTask:apps.operational_readiness.application.tasks.run_personal_readiness_daily_task",
-      "locator": "apps.operational_readiness.application.tasks.run_personal_readiness_daily_task",
+      "evidence": "database-backed Beat schedule writer at line 139",
+      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:high-frequency-generate-signal",
+      "locator": "high-frequency-generate-signal",
+      "path": "apps/macro/management/commands/setup_macro_daily_sync.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask",
+      "target": "apps.regime.application.orchestration.generate_daily_regime_signal"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "database-backed Beat schedule writer at line 153",
+      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:high-frequency-recalculate-regime",
+      "locator": "high-frequency-recalculate-regime",
+      "path": "apps/macro/management/commands/setup_macro_daily_sync.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask",
+      "target": "apps.regime.application.orchestration.recalculate_regime_with_daily_signal"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "database-backed Beat schedule writer at line 92",
+      "id": "scheduler_writer:apps/operational_readiness/management/commands/setup_personal_readiness_daily.py:PeriodicTask:personal-readiness-daily-evidence",
+      "locator": "personal-readiness-daily-evidence",
       "path": "apps/operational_readiness/management/commands/setup_personal_readiness_daily.py",
       "status": "active_public",
       "symbol": "PeriodicTask",
       "target": "apps.operational_readiness.application.tasks.run_personal_readiness_daily_task"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "database-backed Beat schedule writer at line 60",
+      "id": "scheduler_writer:apps/sentiment/management/commands/setup_sentiment_refresh.py:PeriodicTask:sentiment-refresh-current-index",
+      "locator": "sentiment-refresh-current-index",
+      "path": "apps/sentiment/management/commands/setup_sentiment_refresh.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask",
+      "target": "sentiment.refresh_current_sentiment_index"
     },
     {
       "category": "script",
@@ -7802,453 +9074,463 @@
     },
     {
       "category": "sdk",
+      "evidence": "public SDK client property exposes the canonical Data Center module",
+      "id": "sdk:sdk/agomtradepro/client.py:AgomTradeProClient.data_center:line:750",
+      "locator": "line:750",
+      "path": "sdk/agomtradepro/client.py",
+      "status": "active_public",
+      "symbol": "AgomTradeProClient.data_center",
+      "target": "DataCenterModule"
+    },
+    {
+      "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.create_indicator:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.create_indicator:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.create_indicator",
-      "target": ""
+      "target": "POST /api/data-center/indicators/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.create_indicator_unit_rule:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.create_indicator_unit_rule:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.create_indicator_unit_rule",
-      "target": ""
+      "target": "POST /api/data-center/f'indicators/{indicator_code}/unit-rules/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.create_provider:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.create_provider:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.create_provider",
-      "target": ""
+      "target": "POST /api/data-center/providers/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.create_publisher:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.create_publisher:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.create_publisher",
-      "target": ""
+      "target": "POST /api/data-center/publishers/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.delete_indicator:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.delete_indicator:DELETE",
+      "locator": "DELETE",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.delete_indicator",
-      "target": ""
+      "target": "DELETE /api/data-center/f'indicators/{indicator_code}/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.delete_indicator_unit_rule:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.delete_indicator_unit_rule:DELETE",
+      "locator": "DELETE",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.delete_indicator_unit_rule",
-      "target": ""
+      "target": "DELETE /api/data-center/f'indicators/{indicator_code}/unit-rules/{rule_id}/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.delete_provider:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.delete_provider:DELETE",
+      "locator": "DELETE",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.delete_provider",
-      "target": ""
+      "target": "DELETE /api/data-center/f'providers/{provider_id}/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.delete_publisher:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.delete_publisher:DELETE",
+      "locator": "DELETE",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.delete_publisher",
-      "target": ""
+      "target": "DELETE /api/data-center/f'publishers/{publisher_code}/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_capital_flows:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_capital_flows:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_capital_flows",
-      "target": ""
+      "target": "GET /api/data-center/capital-flows/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_financials:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_financials:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_financials",
-      "target": ""
+      "target": "GET /api/data-center/financials/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_fund_nav:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_fund_nav:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_fund_nav",
-      "target": ""
+      "target": "GET /api/data-center/funds/nav/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_indicator:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_indicator:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_indicator",
-      "target": ""
+      "target": "GET /api/data-center/f'indicators/{indicator_code}/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_indicator_unit_rule:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_indicator_unit_rule:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_indicator_unit_rule",
-      "target": ""
+      "target": "GET /api/data-center/f'indicators/{indicator_code}/unit-rules/{rule_id}/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_latest_quotes:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_latest_quotes:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_latest_quotes",
-      "target": ""
+      "target": "GET /api/data-center/prices/quotes/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_macro_series:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_macro_series:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_macro_series",
-      "target": ""
+      "target": "GET /api/data-center/macro/series/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_news:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_news:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_news",
-      "target": ""
+      "target": "GET /api/data-center/news/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_price_history:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_price_history:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_price_history",
-      "target": ""
+      "target": "GET /api/data-center/prices/history/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_provider:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_provider:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_provider",
-      "target": ""
+      "target": "GET /api/data-center/f'providers/{provider_id}/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_provider_status:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_provider_status:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_provider_status",
-      "target": ""
+      "target": "GET /api/data-center/providers/status/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_publisher:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_publisher:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_publisher",
-      "target": ""
+      "target": "GET /api/data-center/f'publishers/{publisher_code}/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_sector_constituents:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_sector_constituents:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_sector_constituents",
-      "target": ""
+      "target": "GET /api/data-center/sectors/constituents/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_settings:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_settings:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_settings",
-      "target": ""
+      "target": "GET /api/data-center/settings/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_valuations:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_valuations:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_valuations",
-      "target": ""
+      "target": "GET /api/data-center/valuations/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.list_indicator_unit_rules:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.list_indicator_unit_rules:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.list_indicator_unit_rules",
-      "target": ""
+      "target": "GET /api/data-center/f'indicators/{indicator_code}/unit-rules/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.list_indicators:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.list_indicators:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.list_indicators",
-      "target": ""
+      "target": "GET /api/data-center/indicators/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.list_providers:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.list_providers:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.list_providers",
-      "target": ""
+      "target": "GET /api/data-center/providers/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.list_publishers:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.list_publishers:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.list_publishers",
-      "target": ""
+      "target": "GET /api/data-center/publishers/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.repair_decision_data_reliability:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.repair_decision_data_reliability:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.repair_decision_data_reliability",
-      "target": ""
+      "target": "POST /api/data-center/decision-reliability/repair/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.resolve_asset:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.resolve_asset:GET",
+      "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.resolve_asset",
-      "target": ""
+      "target": "GET /api/data-center/assets/resolve/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_capital_flows:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_capital_flows:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.sync_capital_flows",
-      "target": ""
+      "target": "POST /api/data-center/sync/capital-flows/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_financials:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_financials:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.sync_financials",
-      "target": ""
+      "target": "POST /api/data-center/sync/financials/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_fund_nav:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_fund_nav:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.sync_fund_nav",
-      "target": ""
+      "target": "POST /api/data-center/sync/funds/nav/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_macro:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_macro:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.sync_macro",
-      "target": ""
+      "target": "POST /api/data-center/sync/macro/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_news:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_news:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.sync_news",
-      "target": ""
+      "target": "POST /api/data-center/sync/news/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_prices:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_prices:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.sync_prices",
-      "target": ""
+      "target": "POST /api/data-center/sync/prices/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_quotes:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_quotes:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.sync_quotes",
-      "target": ""
+      "target": "POST /api/data-center/sync/quotes/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_sector_constituents:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_sector_constituents:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.sync_sector_constituents",
-      "target": ""
+      "target": "POST /api/data-center/sync/sectors/constituents/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_valuations:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.sync_valuations:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.sync_valuations",
-      "target": ""
+      "target": "POST /api/data-center/sync/valuations/"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.test_provider_connection:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.test_provider_connection:POST",
+      "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.test_provider_connection",
-      "target": ""
+      "target": "POST /api/data-center/f'providers/{provider_id}/test/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.update_indicator:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.update_indicator:PATCH",
+      "locator": "PATCH",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.update_indicator",
-      "target": ""
+      "target": "PATCH /api/data-center/f'indicators/{indicator_code}/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.update_indicator_unit_rule:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.update_indicator_unit_rule:PATCH",
+      "locator": "PATCH",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.update_indicator_unit_rule",
-      "target": ""
+      "target": "PATCH /api/data-center/f'indicators/{indicator_code}/unit-rules/{rule_id}/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.update_provider:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.update_provider:PUT",
+      "locator": "PUT",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.update_provider",
-      "target": ""
+      "target": "PUT /api/data-center/f'providers/{provider_id}/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.update_publisher:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.update_publisher:PATCH",
+      "locator": "PATCH",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.update_publisher",
-      "target": ""
+      "target": "PATCH /api/data-center/f'publishers/{publisher_code}/'"
     },
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.update_settings:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.update_settings:PUT",
+      "locator": "PUT",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.update_settings",
-      "target": ""
+      "target": "PUT /api/data-center/settings/"
     },
     {
       "category": "sdk",
       "evidence": "SDK compatibility delegation to DataCenterModule",
-      "id": "sdk:sdk/agomtradepro/modules/realtime.py:RealtimeModule.get_price_history:",
-      "locator": "",
+      "id": "sdk:sdk/agomtradepro/modules/realtime.py:RealtimeModule.get_price_history:line:93",
+      "locator": "line:93",
       "path": "sdk/agomtradepro/modules/realtime.py",
       "status": "compatibility",
       "symbol": "RealtimeModule.get_price_history",
-      "target": ""
+      "target": "DataCenterModule.get_price_history"
     },
     {
       "category": "system_settings_compatibility",
@@ -8362,243 +9644,283 @@
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI screen",
-      "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:api-library.data-center:",
-      "locator": "",
+      "evidence": "published TUI screen-to-action dispatch edge",
+      "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:api-library.data-center:auto.api.get.api.data-center",
+      "locator": "auto.api.get.api.data-center",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "api-library.data-center",
-      "target": ""
+      "target": "/api/data-center/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI screen-to-action dispatch edge",
+      "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:api-library.data-center:auto.api.get.api.data-center.providers",
+      "locator": "auto.api.get.api.data-center.providers",
+      "path": "config/tui/generated/tui_operation_graph.generated.json",
+      "status": "active_public",
+      "symbol": "api-library.data-center",
+      "target": "/api/data-center/providers/"
+    },
+    {
+      "category": "terminal_tui",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center:/api/data-center/",
       "locator": "/api/data-center/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center",
-      "target": ""
+      "target": "/api/data-center/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.capital-flows:/api/data-center/capital-flows/",
       "locator": "/api/data-center/capital-flows/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.capital-flows",
-      "target": ""
+      "target": "/api/data-center/capital-flows/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.financials:/api/data-center/financials/",
       "locator": "/api/data-center/financials/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.financials",
-      "target": ""
+      "target": "/api/data-center/financials/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.funds.nav:/api/data-center/funds/nav/",
       "locator": "/api/data-center/funds/nav/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.funds.nav",
-      "target": ""
+      "target": "/api/data-center/funds/nav/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.indicators:/api/data-center/indicators/",
       "locator": "/api/data-center/indicators/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.indicators",
-      "target": ""
+      "target": "/api/data-center/indicators/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.macro.series:/api/data-center/macro/series/",
       "locator": "/api/data-center/macro/series/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.macro.series",
-      "target": ""
+      "target": "/api/data-center/macro/series/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.market-thermometer.history:/api/data-center/market-thermometer/history/",
       "locator": "/api/data-center/market-thermometer/history/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.market-thermometer.history",
-      "target": ""
+      "target": "/api/data-center/market-thermometer/history/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.market-thermometer.me:/api/data-center/market-thermometer/me/",
       "locator": "/api/data-center/market-thermometer/me/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.market-thermometer.me",
-      "target": ""
+      "target": "/api/data-center/market-thermometer/me/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.news:/api/data-center/news/",
       "locator": "/api/data-center/news/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.news",
-      "target": ""
+      "target": "/api/data-center/news/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.pit-manifests:/api/data-center/pit-manifests/",
       "locator": "/api/data-center/pit-manifests/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.pit-manifests",
-      "target": ""
+      "target": "/api/data-center/pit-manifests/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.prices.history:/api/data-center/prices/history/",
       "locator": "/api/data-center/prices/history/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.prices.history",
-      "target": ""
+      "target": "/api/data-center/prices/history/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.prices.quotes:/api/data-center/prices/quotes/",
       "locator": "/api/data-center/prices/quotes/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.prices.quotes",
-      "target": ""
+      "target": "/api/data-center/prices/quotes/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.providers:/api/data-center/providers/",
       "locator": "/api/data-center/providers/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.providers",
-      "target": ""
+      "target": "/api/data-center/providers/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.providers.status:/api/data-center/providers/status/",
       "locator": "/api/data-center/providers/status/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.providers.status",
-      "target": ""
+      "target": "/api/data-center/providers/status/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.publishers:/api/data-center/publishers/",
       "locator": "/api/data-center/publishers/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.publishers",
-      "target": ""
+      "target": "/api/data-center/publishers/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.sectors.constituents:/api/data-center/sectors/constituents/",
       "locator": "/api/data-center/sectors/constituents/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.sectors.constituents",
-      "target": ""
+      "target": "/api/data-center/sectors/constituents/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.valuations:/api/data-center/valuations/",
       "locator": "/api/data-center/valuations/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "auto.api.get.api.data-center.valuations",
-      "target": ""
+      "target": "/api/data-center/valuations/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI screen-to-action dispatch edge",
+      "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:command-center.overview:operator.home.data_task_summary",
+      "locator": "operator.home.data_task_summary",
+      "path": "config/tui/generated/tui_operation_graph.generated.json",
+      "status": "active_public",
+      "symbol": "command-center.overview",
+      "target": "/api/tui/operator/home/data_task_summary/"
+    },
+    {
+      "category": "terminal_tui",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:data_center.decision_reliability_repair:/api/data-center/decision-reliability/repair/",
       "locator": "/api/data-center/decision-reliability/repair/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "data_center.decision_reliability_repair",
-      "target": ""
+      "target": "/api/data-center/decision-reliability/repair/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:data_center.market_thermometer:/api/data-center/market-thermometer/current/",
       "locator": "/api/data-center/market-thermometer/current/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "data_center.market_thermometer",
-      "target": ""
+      "target": "/api/data-center/market-thermometer/current/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:data_center.market_thermometer_calculate:/api/data-center/market-thermometer/calculate/",
       "locator": "/api/data-center/market-thermometer/calculate/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "data_center.market_thermometer_calculate",
-      "target": ""
+      "target": "/api/data-center/market-thermometer/calculate/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:data_center.market_thermometer_sync_inputs:/api/data-center/market-thermometer/sync-inputs/",
       "locator": "/api/data-center/market-thermometer/sync-inputs/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "data_center.market_thermometer_sync_inputs",
-      "target": ""
+      "target": "/api/data-center/market-thermometer/sync-inputs/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:data_center.sync_quotes:/api/data-center/sync/quotes/",
       "locator": "/api/data-center/sync/quotes/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "data_center.sync_quotes",
-      "target": ""
+      "target": "/api/data-center/sync/quotes/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph",
+      "evidence": "published TUI screen-to-action dispatch edge",
+      "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:macro-regime.overview:data_center.market_thermometer",
+      "locator": "data_center.market_thermometer",
+      "path": "config/tui/generated/tui_operation_graph.generated.json",
+      "status": "active_public",
+      "symbol": "macro-regime.overview",
+      "target": "/api/data-center/market-thermometer/current/"
+    },
+    {
+      "category": "terminal_tui",
+      "evidence": "published TUI operation graph with matching dispatch contract",
+      "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:operator.home.data_task_summary:/api/tui/operator/home/data_task_summary/",
+      "locator": "/api/tui/operator/home/data_task_summary/",
+      "path": "config/tui/generated/tui_operation_graph.generated.json",
+      "status": "active_public",
+      "symbol": "operator.home.data_task_summary",
+      "target": "/api/tui/operator/home/data_task_summary/"
+    },
+    {
+      "category": "terminal_tui",
+      "evidence": "published TUI operation graph with matching dispatch contract",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:param.api.get.api.data-center.pit-manifests.str.manifest_id:/api/data-center/pit-manifests/<str:manifest_id>/",
       "locator": "/api/data-center/pit-manifests/<str:manifest_id>/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
       "status": "active_public",
       "symbol": "param.api.get.api.data-center.pit-manifests.str.manifest_id",
-      "target": ""
+      "target": "/api/data-center/pit-manifests/<str:manifest_id>/"
     }
   ],
   "owner": "data_center",
@@ -8610,7 +9932,7 @@
     "compatibility": "supported migration seam with a canonical Data Center replacement"
   },
   "source_contract_counts": {
-    "celery_tasks": 29,
+    "celery_tasks": 31,
     "current_data_contracts": 46,
     "legacy_entrypoints_and_wrappers": 4,
     "runtime_config_keys": 45
