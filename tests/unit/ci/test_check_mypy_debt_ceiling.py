@@ -7,6 +7,7 @@ from collections import Counter
 from scripts.check_mypy_debt_ceiling import (
     build_payload,
     find_count_changes,
+    find_increased_error_lines,
     parse_error_counts,
     validate_payload,
 )
@@ -35,6 +36,32 @@ def test_find_count_changes_rejects_transfers_between_files() -> None:
 
     assert increases == ["apps/b.py: type-arg increased from 1 to 2"]
     assert decreases == ["apps/a.py: no-untyped-def decreased from 2 to 1"]
+
+
+def test_find_increased_error_lines_reports_only_new_file_code_pairs() -> None:
+    output = "\n".join(
+        [
+            "apps/new.py:12: error: Missing type parameters for generic type 'dict'  [type-arg]",
+            "apps/new.py:18: error: Name 'x' is not defined  [name-defined]",
+            "apps/old.py:4: error: Existing error  [attr-defined]",
+        ]
+    )
+
+    diagnostics = find_increased_error_lines(
+        output,
+        {
+            "apps/new.py": {"name-defined": 1, "type-arg": 1},
+            "apps/old.py": {"attr-defined": 1},
+        },
+        {
+            "apps/new.py": {"name-defined": 1},
+            "apps/old.py": {"attr-defined": 1},
+        },
+    )
+
+    assert diagnostics == [
+        "apps/new.py:12: error: Missing type parameters for generic type 'dict'  [type-arg]"
+    ]
 
 
 def test_build_payload_is_exact_and_self_consistent() -> None:

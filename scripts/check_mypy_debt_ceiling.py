@@ -76,6 +76,31 @@ def find_count_changes(
     return increases, decreases
 
 
+def find_increased_error_lines(
+    output: str,
+    candidate: SerializedErrorCounts,
+    ceiling: SerializedErrorCounts,
+) -> list[str]:
+    """Return exact mypy diagnostics for file/code pairs above the ceiling."""
+
+    increased_keys = {
+        (path, code)
+        for path, code_counts in candidate.items()
+        for code, current in code_counts.items()
+        if current > int(ceiling.get(path, {}).get(code, 0))
+    }
+    diagnostics: list[str] = []
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+        match = ERROR_PATTERN.match(line)
+        if match is None:
+            continue
+        key = (match.group("path").replace("\\", "/"), match.group("code"))
+        if key in increased_keys:
+            diagnostics.append(line)
+    return diagnostics
+
+
 def build_payload(counts: ErrorCounts) -> dict[str, Any]:
     """Build the deterministic debt-baseline payload."""
 
@@ -213,6 +238,10 @@ def main() -> int:
         increases, _ = find_count_changes(candidate["modules"], reference["modules"])
         if increases:
             _print_items("Full mypy debt increased relative to the base ref:", increases)
+            _print_items(
+                "Exact increased mypy diagnostics:",
+                find_increased_error_lines(output, candidate["modules"], reference["modules"]),
+            )
             return 1
 
     if args.write_baseline:
@@ -241,6 +270,10 @@ def main() -> int:
     increases, decreases = find_count_changes(candidate["modules"], baseline["modules"])
     if increases:
         _print_items("Full mypy debt exceeded the checked-in ceiling:", increases)
+        _print_items(
+            "Exact increased mypy diagnostics:",
+            find_increased_error_lines(output, candidate["modules"], baseline["modules"]),
+        )
     if decreases:
         _print_items(
             "Full mypy debt decreased; refresh the checked-in baseline with " "--write-baseline:",
