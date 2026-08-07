@@ -4822,4 +4822,14 @@ Git SHA / 镜像 / migration：
 - 命令包装退役：`scripts/run_backtest.py` 只是 `manage.py run_backtest` 无损透传；`scripts/seed_historical.py` 的仓库内使用可由 `manage.py sync_macro_data --indicators ...` 完整表达，旧 `--check` 无消费者。在全仓源码、调度、打包、文档和测试迁移后删除两个 wrapper，legacy script guard 达到 `0 direct / 0 wrappers`。
 - 机器快照：确定性入口清单为 1120 项，`active_public=628`、`adjacent_operational=319`、`compatibility=173`、`candidate-review=0`、`retired_blocked=0`；相对 §139，12 个 compatibility 减少由 10 个 Qlib 键完成真实切断和 2 个 wrapper 物理删除组成，不是重新贴标。架构清单继续为 Data Center infrastructure 外部直连 0、Provider 外部直连 0、legacy fact 引用 0、module cycle 0。
 - 本地证据：Qlib migration/control-plane 8 passed，统一 migration/Qlib/backfill/wrapper/入口/架构包 49 passed；SystemSettings field contract、runtime config coverage、Qlib entrypoint、Celery task contract、current-data contract、Ruff/Black/isort、增量 mypy、全仓 mypy debt ceiling 与 governance consistency 通过。GitHub 标准 CI 和 Nightly 证据待本批提交后补验。
+
+## 141. 2026-08-08：全入口一次收编与 Nightly 隐藏结构债务清零
+
+- 入口总账再次从源码、HTTP/SDK/MCP/TUI、Celery/Beat、管理命令、脚本、运维证据和 current-data contract 全量重建；确定性快照仍为 1120 项：`active_public=628`、`adjacent_operational=319`、`compatibility=173`、`candidate-review=0`、`retired_blocked=0`。本批没有用重新贴标降低兼容数量；173 项均仍有真实消费者、外部契约或迁移义务。
+- Nightly 全量单测暴露 23 个失败，归并为测试选择映射、Repository/任务文件体积、R5 时钟构造、状态模型跨 Python 异常、备份测试数据库污染、Dashboard 适配、Rotation reliability port 和 Terminal/TUI 连锁阻断八类根因。所有失败均按根因修复，没有提高行数预算、放宽架构门禁或全局开放测试数据库。
+- 结构债务按 owner/facade 模式一次拆清：Data Center `macro_fact_repositories.py=449`、`market_data_repositories.py=4`、`fundamental_fact_repositories.py=5`、`market_breadth_repositories.py=270`；Equity fundamentals 为 656；AI capability use-cases 为 1139；Alpha tasks 为 1067。被首个断言短路遮住的 Market Data、Fundamental Fact 和 Market Breadth 超限也同步拆分，新增 owner 全部纳入结构预算与 current-data marker 真源。
+- 运行契约修复包括：R5 active reader 缺省使用 timezone-aware UTC server clock；Rotation 对缺失、异常、空 reliability contract 统一 fail closed，但不再吞掉已经生成的业务信号；Dashboard 适配测试隔离数据库策略依赖；Python 3.11/后续版本均验证 content-addressed identity 不可覆盖；备份测试用局部 capacity stub 和可回滚 settings 修改，终止 `DATABASES` 污染导致的 `ATOMIC_REQUESTS` 连锁失败。
+- 额外消除一处测试顺序债务：AI Capability HTTP client 显式建立 active decision-runtime gate，因此独立运行不再依赖前序测试偶然改变运行状态；生产迁移和中间件仍保持 fail closed。
+- 本地证据：Nightly 精确/结构包 70 passed，跨 Data Center/Equity/AI/Alpha 扩大包 139 passed，全量 `tests/unit` 为 8952 passed；24 个变更生产文件增量 mypy 0，全仓 mypy debt 0；current-data 46 surfaces、Celery 31 tasks、Qlib 44 entries、Django check/migration check、Ruff/Black/isort、architecture delta、module cycle、changed-file size 与 governance consistency 全部通过。
+- 边界：本批完成本地入口枚举、owner 收编、结构债务和 Nightly 单测债务清零；不部署、不连接或修改 VPS，不把 173 个 compatibility seam 冒充已退役，也不执行 retained legacy table 的 destructive migration。GitHub 标准 CI 与 Nightly 将在提交推送后补充远端证据。
 - 仍保留的边界：Account/Alpha/Market/Backup 26 个键、Provider 3 个键和 10 个 SystemSettings 直接文件仍有真实运行兼容读；4 个 Equity alias、Retention preview task 需生产 Beat/queue 零引用证据，legacy MCP/SDK 需外部版本窗。本批不部署、不连接 VPS、不执行生产物化或 destructive migration。

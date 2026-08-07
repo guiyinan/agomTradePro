@@ -5062,7 +5062,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=14",
+      "evidence": "governed current-data contract; source_files=17",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_writer_atomicity:Canonical publication writer and member snapshot commit",
       "locator": "Canonical publication writer and member snapshot commit",
       "path": "governance/current_data_contracts.json",
