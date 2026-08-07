@@ -838,35 +838,47 @@ def _internal_handler_risk_center_stress_scenario_write(
 
 
 def _internal_handler_risk_center_stress_scenario_propose_revision(
+    preview_only: bool = False,
     **kwargs: Any,
 ) -> dict[str, Any]:
     """Preview or create a persistent scenario revision proposal."""
 
-    return _internal_handler_risk_center_stress_scenario_write("propose", **kwargs)
+    return _internal_handler_risk_center_stress_scenario_write(
+        "propose", preview_only=preview_only, **kwargs
+    )
 
 
 def _internal_handler_risk_center_stress_scenario_activate_revision(
+    preview_only: bool = False,
     **kwargs: Any,
 ) -> dict[str, Any]:
     """Preview or activate a human-approved scenario revision."""
 
-    return _internal_handler_risk_center_stress_scenario_write("activate", **kwargs)
+    return _internal_handler_risk_center_stress_scenario_write(
+        "activate", preview_only=preview_only, **kwargs
+    )
 
 
 def _internal_handler_risk_center_stress_scenario_rollback_revision(
+    preview_only: bool = False,
     **kwargs: Any,
 ) -> dict[str, Any]:
     """Preview or create-and-activate a rollback revision."""
 
-    return _internal_handler_risk_center_stress_scenario_write("rollback", **kwargs)
+    return _internal_handler_risk_center_stress_scenario_write(
+        "rollback", preview_only=preview_only, **kwargs
+    )
 
 
 def _internal_handler_risk_center_stress_scenario_retire(
+    preview_only: bool = False,
     **kwargs: Any,
 ) -> dict[str, Any]:
     """Preview or retire a scenario through a replacement revision."""
 
-    return _internal_handler_risk_center_stress_scenario_write("retire", **kwargs)
+    return _internal_handler_risk_center_stress_scenario_write(
+        "retire", preview_only=preview_only, **kwargs
+    )
 
 
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {

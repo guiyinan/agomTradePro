@@ -1,11 +1,11 @@
 {
-  "version": "2026-08-07.v209",
+  "version": "2026-08-07.v210",
   "mcp_tool_count": 377,
   "mcp_governance": {
     "default_top_level_tool_count": 9,
     "governed_manifest_count": 339,
-    "governed_read_capability_count": 208,
-    "governed_write_like_capability_count": 131,
+    "governed_read_capability_count": 204,
+    "governed_write_like_capability_count": 135,
     "catalog_candidate_count": 707,
     "legacy_capability_count": 368,
     "replacement_link_count": 335,

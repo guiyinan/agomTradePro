@@ -363,6 +363,7 @@ MANIFESTS.extend(
             executor_kind="internal_handler",
             executor_ref="risk_center_stress_scenario_list",
             tags=("risk_center", "stress_scenario", "versioned", "read"),
+            audit_tags=("risk_center:stress_scenario:read", "mcp:native"),
             input_schema={
                 "type": "object",
                 "properties": {"include_inactive": {"type": "boolean"}},
@@ -384,6 +385,7 @@ MANIFESTS.extend(
             executor_kind="internal_handler",
             executor_ref="risk_center_stress_scenario_read",
             tags=("risk_center", "stress_scenario", "revision", "read"),
+            audit_tags=("risk_center:stress_scenario:read", "mcp:native"),
             input_schema={
                 "type": "object",
                 "properties": {"scenario_key": {"type": "string", "minLength": 1}},
@@ -401,6 +403,7 @@ MANIFESTS.extend(
             executor_kind="internal_handler",
             executor_ref="risk_center_stress_scenario_compare",
             tags=("risk_center", "stress_scenario", "diff", "read"),
+            audit_tags=("risk_center:stress_scenario:read", "mcp:native"),
             input_schema={
                 "type": "object",
                 "properties": {
@@ -429,6 +432,7 @@ MANIFESTS.extend(
             executor_kind="internal_handler",
             executor_ref="risk_center_stress_scenario_validate_revision",
             tags=("risk_center", "stress_scenario", "validate", "read"),
+            audit_tags=("risk_center:stress_scenario:read", "mcp:native"),
             input_schema={
                 "type": "object",
                 "properties": {"payload": {"type": "object"}},
@@ -449,7 +453,11 @@ MANIFESTS.extend(
             executor_kind="internal_handler",
             executor_ref="risk_center_stress_scenario_preview_revision",
             tags=("risk_center", "stress_scenario", "preview", "read"),
-            audit_tags=("risk_center:stress_scenario:preview", "mcp:read"),
+            audit_tags=(
+                "risk_center:stress_scenario:preview",
+                "mcp:read",
+                "mcp:native",
+            ),
             input_schema={
                 "type": "object",
                 "properties": {"payload": {"type": "object"}},

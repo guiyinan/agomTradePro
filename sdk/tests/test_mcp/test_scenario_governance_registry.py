@@ -36,7 +36,74 @@ def test_scenario_preview_declares_synced_audit_tags() -> None:
     assert manifest.audit_tags == (
         "risk_center:stress_scenario:preview",
         "mcp:read",
+        "mcp:native",
     )
+
+
+def test_agom_capability_call_reads_scenario_family_in_core_only_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cover all native scenario reads through INTERNAL_GOVERNED_HANDLERS."""
+
+    import agomtradepro_mcp.server as server_module
+
+    class _RiskCenter:
+        @staticmethod
+        def list_scenarios(include_inactive: bool = False) -> list[dict[str, object]]:
+            return [{"scenario_key": "tail-risk", "active": not include_inactive}]
+
+        @staticmethod
+        def get_scenario(scenario_key: str) -> dict[str, object]:
+            return {
+                "scenario_key": scenario_key,
+                "revisions": [
+                    {"version": 1, "shock": "-10"},
+                    {"version": 2, "shock": "-15"},
+                ],
+            }
+
+        @staticmethod
+        def validate_scenario_revision(payload: dict[str, object]) -> dict[str, object]:
+            return {"status": "valid", **payload}
+
+        @staticmethod
+        def preview_scenario_revision(payload: dict[str, object]) -> dict[str, object]:
+            return {"status": "previewed", **payload}
+
+    monkeypatch.setattr(
+        "agomtradepro.AgomTradeProClient",
+        lambda: SimpleNamespace(risk_center=_RiskCenter()),
+    )
+    assert "risk_center_stress_scenario_list" in server_module.INTERNAL_GOVERNED_HANDLERS
+    agom_capability_call = server_module.CORE_DISPATCHER.call
+    results = [
+        agom_capability_call(
+            capability_key="risk_center.stress_scenario.list",
+            arguments={},
+        ),
+        agom_capability_call(
+            capability_key="risk_center.stress_scenario.read",
+            arguments={"scenario_key": "tail-risk"},
+        ),
+        agom_capability_call(
+            capability_key="risk_center.stress_scenario.compare",
+            arguments={
+                "scenario_key": "tail-risk",
+                "left_version": 1,
+                "right_version": 2,
+            },
+        ),
+        agom_capability_call(
+            capability_key="risk_center.stress_scenario.validate_revision",
+            arguments={"payload": {"scenario_key": "tail-risk"}},
+        ),
+        agom_capability_call(
+            capability_key="risk_center.stress_scenario.preview_revision",
+            arguments={"payload": {"scenario_key": "tail-risk"}},
+        ),
+    ]
+
+    assert all(result["status"] == "completed" for result in results)
 
 
 @pytest.mark.parametrize(
@@ -64,6 +131,8 @@ def test_scenario_writes_require_preview_confirmation_and_persistent_idempotency
     assert manifest.required_roles == roles
     assert "preview_id" in manifest.input_schema["required"]
     assert "correlation_id" in manifest.input_schema["required"]
+    assert "mcp:write" in manifest.audit_tags
+    assert "mcp:native" in manifest.audit_tags
 
 
 def test_proposal_handler_preserves_backend_preview_and_idempotency_evidence(

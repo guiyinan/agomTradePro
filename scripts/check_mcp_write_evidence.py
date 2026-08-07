@@ -112,6 +112,9 @@ def _extract_action_token(capability_key: str) -> str:
 
 def is_write_like_manifest(manifest) -> bool:
     """Return True when a manifest looks like a write/side-effect capability."""
+
+    if "mcp:write" in manifest.audit_tags or "write" in manifest.tags:
+        return True
     action = _extract_action_token(manifest.capability_key)
     if action in WRITE_ACTIONS:
         return True

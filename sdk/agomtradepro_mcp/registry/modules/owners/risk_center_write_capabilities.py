@@ -321,7 +321,11 @@ def _scenario_write_manifest(
         confirmation_commit_arguments={"preview_only": False},
         idempotency="required",
         required_roles=required_roles,
-        audit_tags=(f"risk_center:stress_scenario:{operation}", "mcp:write"),
+        audit_tags=(
+            f"risk_center:stress_scenario:{operation}",
+            "mcp:write",
+            "mcp:native",
+        ),
     )
 
 
