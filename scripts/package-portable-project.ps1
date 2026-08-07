@@ -242,7 +242,6 @@ $excludeFilePaths = @(
     (Join-Path $projectRoot 'scripts\deploy-bundle-to-vps.py'),
     (Join-Path $projectRoot 'scripts\deploy-on-vps.ps1'),
     (Join-Path $projectRoot 'scripts\deploy-on-vps.sh'),
-    (Join-Path $projectRoot 'scripts\deploy-one-click.sh'),
     (Join-Path $projectRoot 'scripts\inject-sqlite-into-bundle.ps1'),
     (Join-Path $projectRoot 'scripts\package-for-vps-aggressive.ps1'),
     (Join-Path $projectRoot 'scripts\package-for-vps.ps1'),

@@ -20,7 +20,6 @@ from apps.data_center.composition import (
     get_indicator_unit_rule_repository,
     get_macro_fact_cache_warmup_repository,
     get_macro_fact_repository,
-    get_market_thermometer_snapshot_repository,
     get_news_repository,
     get_price_bar_repository,
     get_provider_config_repository,
@@ -1050,13 +1049,6 @@ def list_latest_published_macro_indicator_payloads(limit: int = 50) -> list[dict
                 payload[key] = published[key]
         payloads.append(payload)
     return payloads
-
-
-def get_latest_market_thermometer_snapshot_payload() -> dict[str, Any] | None:
-    """Return the latest market thermometer snapshot as a JSON-safe payload."""
-
-    snapshot = get_market_thermometer_snapshot_repository().get_latest()
-    return snapshot.to_dict() if snapshot is not None else None
 
 
 def fetch_close_price_series(

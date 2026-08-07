@@ -1,9 +1,9 @@
 {
   "counts": {
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3416,
+    "current_surface_references": 3415,
     "data_write_task_decorators": 58,
-    "direct_data_center_imports_outside_data_center": 2,
+    "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 4,
     "legacy_fact_references": 0,
     "provider_imports_outside_data_center": 0,
@@ -5503,139 +5503,134 @@
       "text": "\"summary\": article.summary,"
     },
     {
-      "line": 43,
+      "line": 42,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return data-center summary counts for operational diagnostics.\"\"\""
     },
     {
-      "line": 123,
+      "line": 122,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest canonical quote payloads, preserving source observation time.\"\"\""
     },
     {
-      "line": 150,
+      "line": 149,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a current macro value only when its Publication gate passes.\"\"\""
     },
     {
-      "line": 220,
+      "line": 219,
       "path": "apps/data_center/application/query_services.py",
       "text": "This explicit current-data port prevents a non-empty, unpublished, or"
     },
     {
-      "line": 255,
+      "line": 254,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 260,
+      "line": 259,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read fund NAV facts only from the selected current publication members.\"\"\""
     },
     {
-      "line": 388,
+      "line": 387,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a freshness-validated gate for one current publication.\"\"\""
     },
     {
-      "line": 488,
+      "line": 487,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Parse a publication knowledge boundary for current-row upper bounds.\"\"\""
     },
     {
-      "line": 512,
+      "line": 511,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Limit a current-data query to the publication's knowledge boundary.\"\"\""
     },
     {
-      "line": 524,
+      "line": 523,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 550,
+      "line": 549,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 586,
+      "line": 585,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 590,
+      "line": 589,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read quote snapshots only from the selected current publication members.\"\"\""
     },
     {
-      "line": 626,
+      "line": 625,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 628,
+      "line": 627,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read financial facts only after the current financial publication gate.\"\"\""
     },
     {
-      "line": 655,
+      "line": 654,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 657,
+      "line": 656,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read valuation facts only after the current valuation publication gate.\"\"\""
     },
     {
-      "line": 684,
+      "line": 683,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 711,
+      "line": 710,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 756,
+      "line": 755,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 850,
+      "line": 849,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 908,
+      "line": 907,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read current market breadth only after every component is published."
     },
     {
-      "line": 998,
+      "line": 997,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 1011,
+      "line": 1010,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return only fresh, member-bound macro values for current consumers."
     },
     {
-      "line": 1013,
+      "line": 1012,
       "path": "apps/data_center/application/query_services.py",
       "text": "The cache-warmup helper above intentionally reads the latest canonical fact"
     },
     {
-      "line": 1014,
+      "line": 1013,
       "path": "apps/data_center/application/query_services.py",
       "text": "for deployment warming and maintenance.  Current/ops consumers must not"
-    },
-    {
-      "line": 1056,
-      "path": "apps/data_center/application/query_services.py",
-      "text": "\"\"\"Return the latest market thermometer snapshot as a JSON-safe payload.\"\"\""
     },
     {
       "line": 48,
@@ -5733,22 +5728,22 @@
       "text": "raise AssertionError(\"retention current payload guard failed\")"
     },
     {
-      "line": 144,
+      "line": 146,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 539,
+      "line": 541,
       "path": "apps/data_center/application/tasks.py",
       "text": "error_message=\"latest completed China market session is unavailable\","
     },
     {
-      "line": 545,
+      "line": 547,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"error\": \"latest completed China market session is unavailable\","
     },
     {
-      "line": 1002,
+      "line": 1004,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Check current filesystem pressure before another mutating batch.\"\"\""
     },
@@ -6965,7 +6960,7 @@
     {
       "line": 481,
       "path": "apps/data_center/interface/api_views.py",
-      "text": "current = load_provider_settings_payload()"
+      "text": "current = get_provider_settings_payload()"
     },
     {
       "line": 484,
@@ -17400,37 +17395,37 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 268,
+      "line": 270,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 300,
+      "line": 302,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 382,
+      "line": 384,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 823,
+      "line": 825,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 860,
+      "line": 862,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 933,
+      "line": 935,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 996,
+      "line": 998,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
@@ -17640,18 +17635,7 @@
       "text": "@shared_task"
     }
   ],
-  "direct_data_center_imports_outside_data_center": [
-    {
-      "import": "apps.data_center.infrastructure.market_structure_publication",
-      "line": 11,
-      "path": "apps/research/r2_market_structure_promotion_composition.py"
-    },
-    {
-      "import": "apps.data_center.infrastructure.market_structure_repository",
-      "line": 14,
-      "path": "apps/research/r2_market_structure_promotion_composition.py"
-    }
-  ],
+  "direct_data_center_imports_outside_data_center": [],
   "external_http_imports_for_review": [
     {
       "import": "requests",

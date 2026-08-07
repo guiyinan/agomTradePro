@@ -711,9 +711,12 @@ def _discover_management_commands() -> list[dict[str, object]]:
         if not owned and "apps.data_center" not in text:
             continue
         internal = "apps.data_center.infrastructure" in text
+        canonical_consumer = "apps.data_center.application.public" in text
         status = "active_public" if owned else "compatibility"
         if not owned and internal:
             status = "candidate-review"
+        elif not owned and canonical_consumer:
+            status = "adjacent_operational"
         results.append(
             _entry(
                 category="management_command",
@@ -723,7 +726,11 @@ def _discover_management_commands() -> list[dict[str, object]]:
                 evidence=(
                     "Data Center-owned Django command"
                     if owned
-                    else "cross-app command consumer of Data Center"
+                    else (
+                        "cross-app command uses the canonical Data Center public port"
+                        if canonical_consumer
+                        else "cross-app command consumer of Data Center"
+                    )
                 ),
             )
         )
@@ -1649,12 +1656,12 @@ def _discover_celery_tasks(celery: dict[str, Any]) -> list[dict[str, object]]:
                     None,
                 )
             owned = path_text.startswith(("apps/data_center/", "apps/config_center/"))
-            if record is not None:
-                status = "active_public" if owned else "compatibility"
-                evidence = "governance/celery_task_contracts.json"
-            elif path_text == "apps/equity/application/tasks.py" and node.name.endswith("_alias"):
+            if path_text == "apps/equity/application/tasks.py" and node.name.endswith("_alias"):
                 status = "compatibility"
                 evidence = "Celery compatibility alias delegates to a governed equity task"
+            elif record is not None:
+                status = "active_public" if owned else "adjacent_operational"
+                evidence = "governance/celery_task_contracts.json"
             elif path_text.startswith(("apps/macro/", "apps/realtime/")):
                 status = "candidate-review"
                 evidence = "Data acquisition task lacks Celery task-contract registration"

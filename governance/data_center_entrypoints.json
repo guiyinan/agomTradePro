@@ -3,20 +3,20 @@
     "by_category": {
       "admin_surface": 14,
       "agent_skill": 3,
-      "application_consumer": 158,
+      "application_consumer": 157,
       "beat_schedule": 57,
       "capability_runtime": 25,
       "celery_dispatch_edge": 18,
       "celery_task": 122,
-      "compatibility_facade": 92,
+      "compatibility_facade": 91,
       "current_data_surface": 46,
       "dynamic_import_edge": 8,
-      "management_command": 27,
+      "management_command": 26,
       "management_command_edge": 58,
       "mcp_tool": 40,
-      "migration_evidence": 10,
-      "operational_dispatch_edge": 61,
-      "operational_script": 29,
+      "migration_evidence": 11,
+      "operational_dispatch_edge": 60,
+      "operational_script": 28,
       "orchestration_entry": 8,
       "public_port": 91,
       "rest_url": 66,
@@ -32,12 +32,12 @@
     },
     "by_status": {
       "active_public": 618,
-      "adjacent_operational": 270,
+      "adjacent_operational": 321,
       "candidate-review": 0,
-      "compatibility": 240,
+      "compatibility": 185,
       "retired_blocked": 0
     },
-    "total": 1128
+    "total": 1124
   },
   "entries": [
     {
@@ -828,16 +828,6 @@
       "path": "apps/equity/interface/sdk_contract_actions.py",
       "status": "active_public",
       "symbol": "get_published_financial_facts",
-      "target": ""
-    },
-    {
-      "category": "application_consumer",
-      "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/equity/management/commands/sync_equity_financial.py:list_active_stock_codes:line:9",
-      "locator": "line:9",
-      "path": "apps/equity/management/commands/sync_equity_financial.py",
-      "status": "active_public",
-      "symbol": "list_active_stock_codes",
       "target": ""
     },
     {
@@ -3306,7 +3296,7 @@
       "id": "celery_task:apps/equity/application/tasks_valuation_sync.py:sync_equity_valuation_task:apps.equity.application.tasks_valuation_sync.sync_equity_valuation_task",
       "locator": "apps.equity.application.tasks_valuation_sync.sync_equity_valuation_task",
       "path": "apps/equity/application/tasks_valuation_sync.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "sync_equity_valuation_task",
       "target": "apps.equity.application.tasks_valuation_sync.sync_equity_valuation_task"
     },
@@ -3316,7 +3306,7 @@
       "id": "celery_task:apps/equity/application/tasks_valuation_sync.py:sync_financial_data_task:apps.equity.application.tasks_valuation_sync.sync_financial_data_task",
       "locator": "apps.equity.application.tasks_valuation_sync.sync_financial_data_task",
       "path": "apps/equity/application/tasks_valuation_sync.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "sync_financial_data_task",
       "target": "apps.equity.application.tasks_valuation_sync.sync_financial_data_task"
     },
@@ -3326,7 +3316,7 @@
       "id": "celery_task:apps/equity/application/tasks_valuation_sync.py:sync_validate_scan_equity_valuation_task:apps.equity.application.tasks_valuation_sync.sync_validate_scan_equity_valuation_task",
       "locator": "apps.equity.application.tasks_valuation_sync.sync_validate_scan_equity_valuation_task",
       "path": "apps/equity/application/tasks_valuation_sync.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "sync_validate_scan_equity_valuation_task",
       "target": "apps.equity.application.tasks_valuation_sync.sync_validate_scan_equity_valuation_task"
     },
@@ -3336,7 +3326,7 @@
       "id": "celery_task:apps/equity/application/tasks_valuation_sync.py:validate_equity_valuation_quality_task:apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task",
       "locator": "apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task",
       "path": "apps/equity/application/tasks_valuation_sync.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "validate_equity_valuation_quality_task",
       "target": "apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task"
     },
@@ -3416,7 +3406,7 @@
       "id": "celery_task:apps/macro/application/tasks.py:auto_sync_due_macro_indicators:apps.macro.application.tasks.auto_sync_due_macro_indicators",
       "locator": "apps.macro.application.tasks.auto_sync_due_macro_indicators",
       "path": "apps/macro/application/tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "auto_sync_due_macro_indicators",
       "target": "apps.macro.application.tasks.auto_sync_due_macro_indicators"
     },
@@ -3426,7 +3416,7 @@
       "id": "celery_task:apps/macro/application/tasks.py:check_data_freshness:apps.macro.application.tasks.check_data_freshness",
       "locator": "apps.macro.application.tasks.check_data_freshness",
       "path": "apps/macro/application/tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "check_data_freshness",
       "target": "apps.macro.application.tasks.check_data_freshness"
     },
@@ -3436,7 +3426,7 @@
       "id": "celery_task:apps/macro/application/tasks.py:cleanup_old_data:apps.macro.application.tasks.cleanup_old_data",
       "locator": "apps.macro.application.tasks.cleanup_old_data",
       "path": "apps/macro/application/tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "cleanup_old_data",
       "target": "apps.macro.application.tasks.cleanup_old_data"
     },
@@ -3446,7 +3436,7 @@
       "id": "celery_task:apps/macro/application/tasks.py:send_data_freshness_alert:apps.macro.application.tasks.send_data_freshness_alert",
       "locator": "apps.macro.application.tasks.send_data_freshness_alert",
       "path": "apps/macro/application/tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "send_data_freshness_alert",
       "target": "apps.macro.application.tasks.send_data_freshness_alert"
     },
@@ -3456,7 +3446,7 @@
       "id": "celery_task:apps/macro/application/tasks.py:sync_high_frequency_bonds:apps.macro.application.tasks.sync_high_frequency_bonds",
       "locator": "apps.macro.application.tasks.sync_high_frequency_bonds",
       "path": "apps/macro/application/tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "sync_high_frequency_bonds",
       "target": "apps.macro.application.tasks.sync_high_frequency_bonds"
     },
@@ -3466,7 +3456,7 @@
       "id": "celery_task:apps/macro/application/tasks.py:sync_high_frequency_commodities:apps.macro.application.tasks.sync_high_frequency_commodities",
       "locator": "apps.macro.application.tasks.sync_high_frequency_commodities",
       "path": "apps/macro/application/tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "sync_high_frequency_commodities",
       "target": "apps.macro.application.tasks.sync_high_frequency_commodities"
     },
@@ -3476,7 +3466,7 @@
       "id": "celery_task:apps/macro/application/tasks.py:sync_macro_data:apps.macro.application.tasks.sync_macro_data",
       "locator": "apps.macro.application.tasks.sync_macro_data",
       "path": "apps/macro/application/tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "sync_macro_data",
       "target": "apps.macro.application.tasks.sync_macro_data"
     },
@@ -3626,7 +3616,7 @@
       "id": "celery_task:apps/realtime/application/tasks.py:poll_realtime_prices_task:apps.realtime.application.tasks.poll_realtime_prices_task",
       "locator": "apps.realtime.application.tasks.poll_realtime_prices_task",
       "path": "apps/realtime/application/tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "poll_realtime_prices_task",
       "target": "apps.realtime.application.tasks.poll_realtime_prices_task"
     },
@@ -3736,7 +3726,7 @@
       "id": "celery_task:apps/sentiment/application/tasks.py:analyze_policy_event_sentiment:sentiment.analyze_policy_event",
       "locator": "sentiment.analyze_policy_event",
       "path": "apps/sentiment/application/tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "analyze_policy_event_sentiment",
       "target": "sentiment.analyze_policy_event"
     },
@@ -3746,7 +3736,7 @@
       "id": "celery_task:apps/sentiment/application/tasks.py:batch_analyze_texts:sentiment.batch_analyze_texts",
       "locator": "sentiment.batch_analyze_texts",
       "path": "apps/sentiment/application/tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "batch_analyze_texts",
       "target": "sentiment.batch_analyze_texts"
     },
@@ -3756,7 +3746,7 @@
       "id": "celery_task:apps/sentiment/application/tasks.py:calculate_daily_sentiment_index:sentiment.calculate_daily_sentiment_index",
       "locator": "sentiment.calculate_daily_sentiment_index",
       "path": "apps/sentiment/application/tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "calculate_daily_sentiment_index",
       "target": "sentiment.calculate_daily_sentiment_index"
     },
@@ -3766,7 +3756,7 @@
       "id": "celery_task:apps/sentiment/application/tasks.py:check_sentiment_data_freshness:sentiment.check_data_freshness",
       "locator": "sentiment.check_data_freshness",
       "path": "apps/sentiment/application/tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "check_sentiment_data_freshness",
       "target": "sentiment.check_data_freshness"
     },
@@ -3776,7 +3766,7 @@
       "id": "celery_task:apps/sentiment/application/tasks.py:refresh_current_sentiment_index:sentiment.refresh_current_sentiment_index",
       "locator": "sentiment.refresh_current_sentiment_index",
       "path": "apps/sentiment/application/tasks.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "refresh_current_sentiment_index",
       "target": "sentiment.refresh_current_sentiment_index"
     },
@@ -4653,16 +4643,6 @@
     {
       "category": "compatibility_facade",
       "evidence": "registered legacy Application facade pending consumer cutover",
-      "id": "compatibility_facade:apps/data_center/application/query_services.py:get_latest_market_thermometer_snapshot_payload:",
-      "locator": "",
-      "path": "apps/data_center/application/query_services.py",
-      "status": "compatibility",
-      "symbol": "get_latest_market_thermometer_snapshot_payload",
-      "target": ""
-    },
-    {
-      "category": "compatibility_facade",
-      "evidence": "registered legacy Application facade pending consumer cutover",
       "id": "compatibility_facade:apps/data_center/application/query_services.py:get_macro_indicator_metadata:",
       "locator": "",
       "path": "apps/data_center/application/query_services.py",
@@ -5472,41 +5452,41 @@
     },
     {
       "category": "management_command",
-      "evidence": "cross-app command consumer of Data Center",
+      "evidence": "cross-app command uses the canonical Data Center public port",
       "id": "management_command:apps/account/management/commands/bootstrap_cold_start.py:bootstrap_cold_start:",
       "locator": "",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "bootstrap_cold_start",
       "target": ""
     },
     {
       "category": "management_command",
-      "evidence": "cross-app command consumer of Data Center",
+      "evidence": "cross-app command uses the canonical Data Center public port",
       "id": "management_command:apps/account/management/commands/bootstrap_mcp_cold_start.py:bootstrap_mcp_cold_start:",
       "locator": "",
       "path": "apps/account/management/commands/bootstrap_mcp_cold_start.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "bootstrap_mcp_cold_start",
       "target": ""
     },
     {
       "category": "management_command",
-      "evidence": "cross-app command consumer of Data Center",
+      "evidence": "cross-app command uses the canonical Data Center public port",
       "id": "management_command:apps/alpha/management/commands/sync_alpha_price_coverage.py:sync_alpha_price_coverage:",
       "locator": "",
       "path": "apps/alpha/management/commands/sync_alpha_price_coverage.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "sync_alpha_price_coverage",
       "target": ""
     },
     {
       "category": "management_command",
-      "evidence": "cross-app command consumer of Data Center",
+      "evidence": "cross-app command uses the canonical Data Center public port",
       "id": "management_command:apps/audit/management/commands/validate_high_frequency_indicators.py:validate_high_frequency_indicators:",
       "locator": "",
       "path": "apps/audit/management/commands/validate_high_frequency_indicators.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "validate_high_frequency_indicators",
       "target": ""
     },
@@ -5682,31 +5662,21 @@
     },
     {
       "category": "management_command",
-      "evidence": "cross-app command consumer of Data Center",
-      "id": "management_command:apps/equity/management/commands/sync_equity_financial.py:sync_equity_financial:",
-      "locator": "",
-      "path": "apps/equity/management/commands/sync_equity_financial.py",
-      "status": "compatibility",
-      "symbol": "sync_equity_financial",
-      "target": ""
-    },
-    {
-      "category": "management_command",
-      "evidence": "cross-app command consumer of Data Center",
+      "evidence": "cross-app command uses the canonical Data Center public port",
       "id": "management_command:apps/macro/management/commands/migrate_usd_data.py:migrate_usd_data:",
       "locator": "",
       "path": "apps/macro/management/commands/migrate_usd_data.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "migrate_usd_data",
       "target": ""
     },
     {
       "category": "management_command",
-      "evidence": "cross-app command consumer of Data Center",
+      "evidence": "cross-app command uses the canonical Data Center public port",
       "id": "management_command:apps/macro/management/commands/sync_macro_data.py:sync_macro_data:",
       "locator": "",
       "path": "apps/macro/management/commands/sync_macro_data.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "sync_macro_data",
       "target": ""
     },
@@ -5722,21 +5692,21 @@
     },
     {
       "category": "management_command",
-      "evidence": "cross-app command consumer of Data Center",
+      "evidence": "cross-app command uses the canonical Data Center public port",
       "id": "management_command:core/management/commands/test_data_connections.py:test_data_connections:",
       "locator": "",
       "path": "core/management/commands/test_data_connections.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "test_data_connections",
       "target": ""
     },
     {
       "category": "management_command",
-      "evidence": "cross-app command consumer of Data Center",
+      "evidence": "cross-app command uses the canonical Data Center public port",
       "id": "management_command:core/management/commands/warmup_cache.py:warmup_cache:",
       "locator": "",
       "path": "core/management/commands/warmup_cache.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "warmup_cache",
       "target": ""
     },
@@ -6813,6 +6783,16 @@
     {
       "category": "migration_evidence",
       "evidence": "executable Data Center archive/retention schema evidence",
+      "id": "migration_evidence:apps/data_center/migrations/0066_make_retention_digest_widening_reversible.py:0066_make_retention_digest_widening_reversible:",
+      "locator": "",
+      "path": "apps/data_center/migrations/0066_make_retention_digest_widening_reversible.py",
+      "status": "active_public",
+      "symbol": "0066_make_retention_digest_widening_reversible",
+      "target": ""
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "executable Data Center archive/retention schema evidence",
       "id": "migration_evidence:tests/migrations/test_data_center_retention_plan_migration.py:test_data_center_retention_plan_migration:",
       "locator": "",
       "path": "tests/migrations/test_data_center_retention_plan_migration.py",
@@ -6962,11 +6942,11 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/deploy-bundle-to-vps.py:deploy-on-vps.sh:token:deploy-on-vps.sh",
       "locator": "token:deploy-on-vps.sh",
       "path": "scripts/deploy-bundle-to-vps.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "deploy-on-vps.sh",
       "target": "scripts/deploy-on-vps.sh"
     },
@@ -6992,33 +6972,23 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/deploy-on-vps.sh:deploy-on-vps.sh:token:deploy-on-vps.sh",
       "locator": "token:deploy-on-vps.sh",
       "path": "scripts/deploy-on-vps.sh",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "deploy-on-vps.sh",
       "target": "scripts/deploy-on-vps.sh"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/deploy-on-vps.sh:manage.py migrate:token:manage.py migrate",
       "locator": "token:manage.py migrate",
       "path": "scripts/deploy-on-vps.sh",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "manage.py migrate",
       "target": "django:migrate"
-    },
-    {
-      "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
-      "id": "operational_dispatch_edge:scripts/deploy-one-click.sh:deploy-on-vps.sh:token:deploy-on-vps.sh",
-      "locator": "token:deploy-on-vps.sh",
-      "path": "scripts/deploy-one-click.sh",
-      "status": "compatibility",
-      "symbol": "deploy-on-vps.sh",
-      "target": "scripts/deploy-on-vps.sh"
     },
     {
       "category": "operational_dispatch_edge",
@@ -7082,131 +7052,131 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/migrate-to-postgres.ps1:manage.py migrate:token:manage.py migrate",
       "locator": "token:manage.py migrate",
       "path": "scripts/migrate-to-postgres.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "manage.py migrate",
       "target": "django:migrate"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/migrate-to-postgres.ps1:migrate-to-postgres.ps1:token:migrate-to-postgres.ps1",
       "locator": "token:migrate-to-postgres.ps1",
       "path": "scripts/migrate-to-postgres.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "migrate-to-postgres.ps1",
       "target": "scripts/migrate-to-postgres.ps1"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/migrate-vps-sqlite-to-postgres.sh:createdb:token:createdb",
       "locator": "token:createdb",
       "path": "scripts/migrate-vps-sqlite-to-postgres.sh",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "createdb",
       "target": "postgres:createdb"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/migrate-vps-sqlite-to-postgres.sh:dropdb:token:dropdb",
       "locator": "token:dropdb",
       "path": "scripts/migrate-vps-sqlite-to-postgres.sh",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "dropdb",
       "target": "postgres:dropdb"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/migrate-vps-sqlite-to-postgres.sh:manage.py migrate:token:manage.py migrate",
       "locator": "token:manage.py migrate",
       "path": "scripts/migrate-vps-sqlite-to-postgres.sh",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "manage.py migrate",
       "target": "django:migrate"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/migrate-vps-sqlite-to-postgres.sh:migrate-vps-sqlite-to-postgres.sh:token:migrate-vps-sqlite-to-postgres.sh",
       "locator": "token:migrate-vps-sqlite-to-postgres.sh",
       "path": "scripts/migrate-vps-sqlite-to-postgres.sh",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "migrate-vps-sqlite-to-postgres.sh",
       "target": "scripts/migrate-vps-sqlite-to-postgres.sh"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/package-for-vps.ps1:deploy-on-vps.sh:token:deploy-on-vps.sh",
       "locator": "token:deploy-on-vps.sh",
       "path": "scripts/package-for-vps.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "deploy-on-vps.sh",
       "target": "scripts/deploy-on-vps.sh"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/package-for-vps.ps1:vps-backup.sh:token:vps-backup.sh",
       "locator": "token:vps-backup.sh",
       "path": "scripts/package-for-vps.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "vps-backup.sh",
       "target": "scripts/vps-backup.sh"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/package-for-vps.ps1:vps-restore.sh:token:vps-restore.sh",
       "locator": "token:vps-restore.sh",
       "path": "scripts/package-for-vps.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "vps-restore.sh",
       "target": "scripts/vps-restore.sh"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/package-portable-project.ps1:deploy-on-vps.sh:token:deploy-on-vps.sh",
       "locator": "token:deploy-on-vps.sh",
       "path": "scripts/package-portable-project.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "deploy-on-vps.sh",
       "target": "scripts/deploy-on-vps.sh"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/package-portable-project.ps1:remote_build_deploy_vps.py:token:remote_build_deploy_vps.py",
       "locator": "token:remote_build_deploy_vps.py",
       "path": "scripts/package-portable-project.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "remote_build_deploy_vps.py",
       "target": "scripts/remote_build_deploy_vps.py"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/package-portable-project.ps1:vps-backup.sh:token:vps-backup.sh",
       "locator": "token:vps-backup.sh",
       "path": "scripts/package-portable-project.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "vps-backup.sh",
       "target": "scripts/vps-backup.sh"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/package-portable-project.ps1:vps-restore.sh:token:vps-restore.sh",
       "locator": "token:vps-restore.sh",
       "path": "scripts/package-portable-project.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "vps-restore.sh",
       "target": "scripts/vps-restore.sh"
     },
@@ -7292,31 +7262,31 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/verify-vps-bundle.ps1:deploy-on-vps.sh:token:deploy-on-vps.sh",
       "locator": "token:deploy-on-vps.sh",
       "path": "scripts/verify-vps-bundle.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "deploy-on-vps.sh",
       "target": "scripts/deploy-on-vps.sh"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/verify-vps-bundle.ps1:vps-backup.sh:token:vps-backup.sh",
       "locator": "token:vps-backup.sh",
       "path": "scripts/verify-vps-bundle.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "vps-backup.sh",
       "target": "scripts/vps-backup.sh"
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/verify-vps-bundle.ps1:vps-restore.sh:token:vps-restore.sh",
       "locator": "token:vps-restore.sh",
       "path": "scripts/verify-vps-bundle.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "vps-restore.sh",
       "target": "scripts/vps-restore.sh"
     },
@@ -7492,11 +7462,11 @@
     },
     {
       "category": "operational_script",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_script:scripts/deploy-bundle-to-vps.py:__main__:",
       "locator": "",
       "path": "scripts/deploy-bundle-to-vps.py",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "__main__",
       "target": "scripts/deploy-on-vps.sh"
     },
@@ -7512,23 +7482,13 @@
     },
     {
       "category": "operational_script",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_script:scripts/deploy-on-vps.sh:__main__:",
       "locator": "",
       "path": "scripts/deploy-on-vps.sh",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "__main__",
       "target": "scripts/deploy-on-vps.sh,django:migrate"
-    },
-    {
-      "category": "operational_script",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
-      "id": "operational_script:scripts/deploy-one-click.sh:__main__:",
-      "locator": "",
-      "path": "scripts/deploy-one-click.sh",
-      "status": "compatibility",
-      "symbol": "__main__",
-      "target": "scripts/deploy-on-vps.sh"
     },
     {
       "category": "operational_script",
@@ -7582,41 +7542,41 @@
     },
     {
       "category": "operational_script",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_script:scripts/migrate-to-postgres.ps1:__main__:",
       "locator": "",
       "path": "scripts/migrate-to-postgres.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "__main__",
       "target": "django:migrate,scripts/migrate-to-postgres.ps1"
     },
     {
       "category": "operational_script",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_script:scripts/migrate-vps-sqlite-to-postgres.sh:__main__:",
       "locator": "",
       "path": "scripts/migrate-vps-sqlite-to-postgres.sh",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "__main__",
       "target": "postgres:createdb,postgres:dropdb,django:migrate,scripts/migrate-vps-sqlite-to-postgres.sh"
     },
     {
       "category": "operational_script",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_script:scripts/package-for-vps.ps1:__main__:",
       "locator": "",
       "path": "scripts/package-for-vps.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "__main__",
       "target": "scripts/deploy-on-vps.sh,scripts/vps-backup.sh,scripts/vps-restore.sh"
     },
     {
       "category": "operational_script",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_script:scripts/package-portable-project.ps1:__main__:",
       "locator": "",
       "path": "scripts/package-portable-project.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "__main__",
       "target": "scripts/deploy-on-vps.sh,scripts/remote_build_deploy_vps.py,scripts/vps-backup.sh,scripts/vps-restore.sh"
     },
@@ -7662,11 +7622,11 @@
     },
     {
       "category": "operational_script",
-      "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_script:scripts/verify-vps-bundle.ps1:__main__:",
       "locator": "",
       "path": "scripts/verify-vps-bundle.ps1",
-      "status": "compatibility",
+      "status": "adjacent_operational",
       "symbol": "__main__",
       "target": "scripts/deploy-on-vps.sh,scripts/vps-backup.sh,scripts/vps-restore.sh"
     },
@@ -7723,8 +7683,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:.github/workflows/nightly-tests.yml:initialize_data_center_catalog:line:406",
-      "locator": "line:406",
+      "id": "orchestration_entry:.github/workflows/nightly-tests.yml:initialize_data_center_catalog:line:405",
+      "locator": "line:405",
       "path": ".github/workflows/nightly-tests.yml",
       "status": "active_public",
       "symbol": "initialize_data_center_catalog",

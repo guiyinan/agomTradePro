@@ -10,12 +10,10 @@ from types import SimpleNamespace
 import pytest
 from django.core.management.base import CommandError
 
-from apps.data_center.domain.entities import FinancialFact
 from apps.equity.management.commands import (
     init_equity_config,
     init_scoring_weights,
     setup_equity_valuation_sync,
-    sync_equity_financial,
     sync_equity_valuation,
     validate_equity_valuation_quality,
 )
@@ -150,82 +148,6 @@ def test_scoring_weight_command_covers_cancel_skip_create_and_error(monkeypatch)
 
     monkeypatch.setattr("builtins.input", lambda prompt: "y")
     assert command.confirm("continue") is True
-
-
-def test_financial_sync_command_handles_empty_success_and_provider_error(monkeypatch) -> None:
-    """Financial sync rejects an empty universe and isolates per-stock provider failures."""
-
-    monkeypatch.setattr(sync_equity_financial, "list_active_stock_codes", lambda: [])
-    with pytest.raises(CommandError, match="没有找到"):
-        sync_equity_financial.Command(stdout=StringIO()).handle(
-            stock_codes=None,
-            periods=4,
-            source="akshare",
-        )
-
-    monkeypatch.setattr(
-        sync_equity_financial,
-        "list_active_stock_codes",
-        lambda: ["000001.SZ", "600000.SH"],
-    )
-    saved: list[FinancialFact] = []
-
-    class _FinancialRepository:
-        def bulk_upsert(self, facts: list[FinancialFact]) -> int:
-            saved.extend(facts)
-            return len(facts)
-
-    monkeypatch.setattr(
-        sync_equity_financial,
-        "get_financial_fact_repository",
-        lambda: _FinancialRepository(),
-    )
-    record = SimpleNamespace(
-        stock_code="000001.SZ",
-        report_date=date(2026, 6, 30),
-        report_type="quarterly",
-        revenue=1,
-        net_profit=1,
-        revenue_growth=1,
-        net_profit_growth=1,
-        total_assets=1,
-        total_liabilities=1,
-        equity=1,
-        roe=1,
-        roa=1,
-        debt_ratio=1,
-    )
-
-    class _Gateway:
-        def fetch(self, stock_code: str, periods: int):
-            if stock_code.startswith("600"):
-                raise RuntimeError("provider offline")
-            return SimpleNamespace(source_provider="akshare", records=[record])
-
-    monkeypatch.setattr(sync_equity_financial, "AKShareFinancialGateway", _Gateway)
-    output = StringIO()
-    errors = StringIO()
-    sync_equity_financial.Command(stdout=output, stderr=errors).handle(
-        stock_codes=["000001.SZ", "600000.SH"],
-        periods=4,
-        source="akshare",
-    )
-    assert len(saved) == 10
-    assert {fact.metric_code for fact in saved} == {
-        "revenue",
-        "net_profit",
-        "revenue_growth",
-        "net_profit_growth",
-        "total_assets",
-        "total_liabilities",
-        "equity",
-        "roe",
-        "roa",
-        "debt_ratio",
-    }
-    assert "10 records, 1 errors" in output.getvalue()
-    assert "provider offline" not in errors.getvalue()
-    assert "RuntimeError" in errors.getvalue()
 
 
 def test_valuation_sync_and_quality_commands_map_success_and_failure(monkeypatch) -> None:

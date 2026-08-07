@@ -48,9 +48,16 @@
         "scripts/docker-dev.bat",
         "scripts/register-macro-daily-sync-task.ps1",
         "scripts/remote_build_deploy_vps.py",
+        "scripts/deploy-bundle-to-vps.py",
+        "scripts/deploy-on-vps.sh",
         "scripts/deploy-vps.ps1",
         "scripts/deploy_vps_verify.py",
+        "scripts/migrate-to-postgres.ps1",
+        "scripts/migrate-vps-sqlite-to-postgres.sh",
+        "scripts/package-for-vps.ps1",
+        "scripts/package-portable-project.ps1",
         "scripts/start-dev.ps1",
+        "scripts/verify-vps-bundle.ps1",
         "scripts/vps-backup.sh",
         "scripts/vps-restore.sh",
         "start.bat",
@@ -65,15 +72,7 @@
       ],
       "evidence": "supported only as a compatibility deployment or one-time migration wrapper",
       "path": [
-        "scripts/deploy-bundle-to-vps.py",
-        "scripts/deploy-on-vps.sh",
-        "scripts/deploy-one-click.sh",
-        "scripts/migrate-to-postgres.ps1",
-        "scripts/migrate-vps-sqlite-to-postgres.sh",
-        "scripts/package-for-vps.ps1",
-        "scripts/package-portable-project.ps1",
-        "scripts/remote-build-deploy-vps.ps1",
-        "scripts/verify-vps-bundle.ps1"
+        "scripts/remote-build-deploy-vps.ps1"
       ],
       "status": "compatibility"
     },
@@ -100,6 +99,7 @@
         "apps/data_center/migrations/0063_archivemanifest_archive_restore_evidence.py",
         "apps/data_center/migrations/0064_retention_exact_plan_members.py",
         "apps/data_center/migrations/0065_widen_retention_member_digests.py",
+        "apps/data_center/migrations/0066_make_retention_digest_widening_reversible.py",
         "tests/migrations/test_data_center_retention_plan_migration.py"
       ],
       "status": "active_public"

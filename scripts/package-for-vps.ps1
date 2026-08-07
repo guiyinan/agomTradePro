@@ -559,7 +559,6 @@ Copy-Item scripts/deploy-on-vps.ps1 (Join-Path $scriptsDir "deploy-on-vps.ps1") 
 Copy-Item scripts/vps-backup.sh (Join-Path $scriptsDir "vps-backup.sh") -Force
 Copy-Item scripts/vps-restore.sh (Join-Path $scriptsDir "vps-restore.sh") -Force
 Copy-Item scripts/verify-vps-bundle.ps1 (Join-Path $scriptsDir "verify-vps-bundle.ps1") -Force
-Copy-Item scripts/deploy-one-click.sh (Join-Path $scriptsDir "deploy-one-click.sh") -Force
 Copy-Item scripts/shared/common.sh (Join-Path $scriptsDir "common.sh") -Force
 Copy-Item scripts/shared/common.ps1 (Join-Path $scriptsDir "common.ps1") -Force
 
@@ -568,7 +567,6 @@ Convert-ToLf -Path (Join-Path $dockerDir "entrypoint.prod.sh")
 Convert-ToLf -Path (Join-Path $scriptsDir "deploy-on-vps.sh")
 Convert-ToLf -Path (Join-Path $scriptsDir "vps-backup.sh")
 Convert-ToLf -Path (Join-Path $scriptsDir "vps-restore.sh")
-Convert-ToLf -Path (Join-Path $scriptsDir "deploy-one-click.sh")
 Convert-ToLf -Path (Join-Path $scriptsDir "common.sh")
 
 $manifest = [ordered]@{
