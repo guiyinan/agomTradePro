@@ -51,7 +51,7 @@ def test_backup_policy_update_uses_config_center_secret_owner() -> None:
 
 @pytest.mark.django_db(transaction=True)
 @override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="backup-cutover-test-key")
-def test_account_repository_preserves_config_center_owned_backup_secrets() -> None:
+def test_account_repository_reads_config_center_secrets_without_creating_legacy_row() -> None:
     update_backup_delivery_settings(
         {
             "backup_enabled": True,
@@ -72,9 +72,7 @@ def test_account_repository_preserves_config_center_owned_backup_secrets() -> No
     )
 
     projected = SystemSettingsRepository().get_settings()
-    persisted = SystemSettingsModel._default_manager.get(pk=1)
-    assert persisted.backup_password_encrypted == ""
-    assert persisted.backup_smtp_password_encrypted == ""
+    assert not SystemSettingsModel._default_manager.filter(pk=1).exists()
 
     assert projected.is_backup_due() is True
     assert projected.get_backup_password() == "archive-secret"

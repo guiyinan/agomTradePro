@@ -722,9 +722,11 @@ class SystemSettingsRepository:
     """系统设置仓储。"""
 
     def get_settings(self) -> SystemSettingsModel:
-        """返回系统设置模型实例。"""
+        """Return the typed backup projection without creating the legacy singleton."""
 
-        get_settings = cast(Callable[[], SystemSettingsModel], SystemSettingsModel.get_settings)
+        get_settings = cast(
+            Callable[[], SystemSettingsModel], SystemSettingsModel.get_settings_for_read
+        )
         return get_backup_delivery_settings(base_settings=get_settings())
 
     def get_runtime_asset_proxy_code(self, asset_class: str, default: str = "") -> str:

@@ -1,28 +1,1582 @@
 {
   "counts": {
     "by_category": {
+      "admin_surface": 14,
+      "application_consumer": 158,
       "beat_schedule": 57,
       "capability_runtime": 25,
       "celery_task": 53,
-      "compatibility_facade": 93,
+      "compatibility_facade": 92,
       "current_data_surface": 46,
-      "management_command": 25,
+      "management_command": 27,
       "mcp_tool": 29,
+      "orchestration_entry": 8,
       "public_port": 91,
       "rest_url": 54,
+      "runtime_config_key": 45,
+      "scheduler_writer": 8,
       "script": 6,
       "sdk": 45,
+      "system_settings_compatibility": 11,
       "terminal_tui": 24
     },
     "by_status": {
-      "active_public": 356,
+      "active_public": 549,
       "adjacent_operational": 64,
       "candidate-review": 0,
-      "compatibility": 128
+      "compatibility": 180
     },
-    "total": 548
+    "total": 793
   },
   "entries": [
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/config_center/admin.py:AlphaUniverseConfigAdmin:AlphaUniverseConfigModel",
+      "locator": "AlphaUniverseConfigModel",
+      "path": "apps/config_center/admin.py",
+      "status": "active_public",
+      "symbol": "AlphaUniverseConfigAdmin"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/config_center/admin.py:QlibTrainingProfileAdmin:QlibTrainingProfileModel",
+      "locator": "QlibTrainingProfileModel",
+      "path": "apps/config_center/admin.py",
+      "status": "active_public",
+      "symbol": "QlibTrainingProfileAdmin"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/config_center/admin.py:QlibTrainingRunAdmin:QlibTrainingRunModel",
+      "locator": "QlibTrainingRunModel",
+      "path": "apps/config_center/admin.py",
+      "status": "active_public",
+      "symbol": "QlibTrainingRunAdmin"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/data_center/interface/admin.py:DataOwnerRegistrationAdmin:DataOwnerRegistrationModel",
+      "locator": "DataOwnerRegistrationModel",
+      "path": "apps/data_center/interface/admin.py",
+      "status": "active_public",
+      "symbol": "DataOwnerRegistrationAdmin"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/data_center/interface/admin.py:DataProviderSettingsAdmin:DataProviderSettingsModel",
+      "locator": "DataProviderSettingsModel",
+      "path": "apps/data_center/interface/admin.py",
+      "status": "active_public",
+      "symbol": "DataProviderSettingsAdmin"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/data_center/interface/admin.py:DatasetContractAdmin:DatasetContractModel",
+      "locator": "DatasetContractModel",
+      "path": "apps/data_center/interface/admin.py",
+      "status": "active_public",
+      "symbol": "DatasetContractAdmin"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/data_center/interface/admin.py:DatasetProviderBindingAdmin:DatasetProviderBindingModel",
+      "locator": "DatasetProviderBindingModel",
+      "path": "apps/data_center/interface/admin.py",
+      "status": "active_public",
+      "symbol": "DatasetProviderBindingAdmin"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/data_center/interface/admin.py:DatasetPublicationPolicyAdmin:DatasetPublicationPolicyModel",
+      "locator": "DatasetPublicationPolicyModel",
+      "path": "apps/data_center/interface/admin.py",
+      "status": "active_public",
+      "symbol": "DatasetPublicationPolicyAdmin"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/data_center/interface/admin.py:IndicatorCatalogAdmin:IndicatorCatalogModel",
+      "locator": "IndicatorCatalogModel",
+      "path": "apps/data_center/interface/admin.py",
+      "status": "active_public",
+      "symbol": "IndicatorCatalogAdmin"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/data_center/interface/admin.py:IndicatorUnitRuleAdmin:IndicatorUnitRuleModel",
+      "locator": "IndicatorUnitRuleModel",
+      "path": "apps/data_center/interface/admin.py",
+      "status": "active_public",
+      "symbol": "IndicatorUnitRuleAdmin"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/data_center/interface/admin.py:ProductionCoverageUniverseConfigAdmin:ProductionCoverageUniverseConfigModel",
+      "locator": "ProductionCoverageUniverseConfigModel",
+      "path": "apps/data_center/interface/admin.py",
+      "status": "active_public",
+      "symbol": "ProductionCoverageUniverseConfigAdmin"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/data_center/interface/admin.py:ProviderConfigAdmin:ProviderConfigModel",
+      "locator": "ProviderConfigModel",
+      "path": "apps/data_center/interface/admin.py",
+      "status": "active_public",
+      "symbol": "ProviderConfigAdmin"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/data_center/interface/admin.py:PublisherCatalogAdmin:PublisherCatalogModel",
+      "locator": "PublisherCatalogModel",
+      "path": "apps/data_center/interface/admin.py",
+      "status": "active_public",
+      "symbol": "PublisherCatalogAdmin"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/data_center/interface/admin.py:ReconciliationEvidenceAdmin:ReconciliationEvidenceModel",
+      "locator": "ReconciliationEvidenceModel",
+      "path": "apps/data_center/interface/admin.py",
+      "status": "active_public",
+      "symbol": "ReconciliationEvidenceAdmin"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/account/application/use_cases.py:get_market_thermometer_payload:line:42",
+      "locator": "line:42",
+      "path": "apps/account/application/use_cases.py",
+      "status": "active_public",
+      "symbol": "get_market_thermometer_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/account/infrastructure/config_summary_repository.py:get_macro_runtime_metadata:line:17",
+      "locator": "line:17",
+      "path": "apps/account/infrastructure/config_summary_repository.py",
+      "status": "active_public",
+      "symbol": "get_macro_runtime_metadata"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/account/management/commands/bootstrap_cold_start.py:get_asset_repository_port:line:21",
+      "locator": "line:21",
+      "path": "apps/account/management/commands/bootstrap_cold_start.py",
+      "status": "active_public",
+      "symbol": "get_asset_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/account/management/commands/bootstrap_cold_start.py:get_macro_fact_series:line:21",
+      "locator": "line:21",
+      "path": "apps/account/management/commands/bootstrap_cold_start.py",
+      "status": "active_public",
+      "symbol": "get_macro_fact_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/account/management/commands/bootstrap_mcp_cold_start.py:get_asset_repository_port:line:12",
+      "locator": "line:12",
+      "path": "apps/account/management/commands/bootstrap_mcp_cold_start.py",
+      "status": "active_public",
+      "symbol": "get_asset_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/account/management/commands/bootstrap_mcp_cold_start.py:get_macro_fact_series:line:12",
+      "locator": "line:12",
+      "path": "apps/account/management/commands/bootstrap_mcp_cold_start.py",
+      "status": "active_public",
+      "symbol": "get_macro_fact_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/account/management/commands/bootstrap_mcp_cold_start.py:save_macro_facts:line:12",
+      "locator": "line:12",
+      "path": "apps/account/management/commands/bootstrap_mcp_cold_start.py",
+      "status": "active_public",
+      "symbol": "save_macro_facts"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/agent_runtime/infrastructure/context_snapshot_repository.py:list_latest_published_macro_values:line:234",
+      "locator": "line:234",
+      "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
+      "status": "active_public",
+      "symbol": "list_latest_published_macro_values"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/alpha/application/ai_filter.py:get_current_market_thermometer_payload:line:16",
+      "locator": "line:16",
+      "path": "apps/alpha/application/ai_filter.py",
+      "status": "active_public",
+      "symbol": "get_current_market_thermometer_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/alpha/infrastructure/adapters/etf_adapter.py:get_akshare_module_port:line:24",
+      "locator": "line:24",
+      "path": "apps/alpha/infrastructure/adapters/etf_adapter.py",
+      "status": "active_public",
+      "symbol": "get_akshare_module_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/alpha/infrastructure/adapters/simple_adapter.py:get_financial_facts:line:21",
+      "locator": "line:21",
+      "path": "apps/alpha/infrastructure/adapters/simple_adapter.py",
+      "status": "active_public",
+      "symbol": "get_financial_facts"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/alpha/infrastructure/adapters/simple_adapter.py:get_published_quote_payloads:line:21",
+      "locator": "line:21",
+      "path": "apps/alpha/infrastructure/adapters/simple_adapter.py",
+      "status": "active_public",
+      "symbol": "get_published_quote_payloads"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/alpha/infrastructure/adapters/simple_adapter.py:get_valuation_facts:line:21",
+      "locator": "line:21",
+      "path": "apps/alpha/infrastructure/adapters/simple_adapter.py",
+      "status": "active_public",
+      "symbol": "get_valuation_facts"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/alpha/infrastructure/adapters/simple_adapter.py:list_active_stock_codes:line:21",
+      "locator": "line:21",
+      "path": "apps/alpha/infrastructure/adapters/simple_adapter.py",
+      "status": "active_public",
+      "symbol": "list_active_stock_codes"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/alpha/infrastructure/adapters/simple_adapter.py:list_valuation_covered_codes:line:21",
+      "locator": "line:21",
+      "path": "apps/alpha/infrastructure/adapters/simple_adapter.py",
+      "status": "active_public",
+      "symbol": "list_valuation_covered_codes"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/alpha/infrastructure/qlib_builder.py:get_tushare_client:line:18",
+      "locator": "line:18",
+      "path": "apps/alpha/infrastructure/qlib_builder.py",
+      "status": "active_public",
+      "symbol": "get_tushare_client"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/alpha/infrastructure/repositories.py:list_active_stock_codes:line:11",
+      "locator": "line:11",
+      "path": "apps/alpha/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "list_active_stock_codes"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/alpha/infrastructure/repositories.py:list_price_covered_codes:line:11",
+      "locator": "line:11",
+      "path": "apps/alpha/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "list_price_covered_codes"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/alpha/infrastructure/repositories.py:list_valuation_covered_codes:line:11",
+      "locator": "line:11",
+      "path": "apps/alpha/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "list_valuation_covered_codes"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/alpha/management/commands/sync_alpha_price_coverage.py:AlphaPriceCoverageReportProtocol:line:12",
+      "locator": "line:12",
+      "path": "apps/alpha/management/commands/sync_alpha_price_coverage.py",
+      "status": "active_public",
+      "symbol": "AlphaPriceCoverageReportProtocol"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/alpha/management/commands/sync_alpha_price_coverage.py:get_alpha_price_coverage_sync_service_port:line:12",
+      "locator": "line:12",
+      "path": "apps/alpha/management/commands/sync_alpha_price_coverage.py",
+      "status": "active_public",
+      "symbol": "get_alpha_price_coverage_sync_service_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/alpha_trigger/application/page_query_service.py:list_published_macro_indicator_summaries:line:214",
+      "locator": "line:214",
+      "path": "apps/alpha_trigger/application/page_query_service.py",
+      "status": "active_public",
+      "symbol": "list_published_macro_indicator_summaries"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/audit/infrastructure/indicator_repositories.py:get_macro_fact_series:line:18",
+      "locator": "line:18",
+      "path": "apps/audit/infrastructure/indicator_repositories.py",
+      "status": "active_public",
+      "symbol": "get_macro_fact_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/audit/management/commands/validate_high_frequency_indicators.py:get_macro_fact_series:line:16",
+      "locator": "line:16",
+      "path": "apps/audit/management/commands/validate_high_frequency_indicators.py",
+      "status": "active_public",
+      "symbol": "get_macro_fact_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/audit/management/commands/validate_high_frequency_indicators.py:get_macro_runtime_metadata:line:16",
+      "locator": "line:16",
+      "path": "apps/audit/management/commands/validate_high_frequency_indicators.py",
+      "status": "active_public",
+      "symbol": "get_macro_runtime_metadata"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/backtest/infrastructure/adapters/composite_price_adapter.py:get_price_bar_repository_port:line:314",
+      "locator": "line:314",
+      "path": "apps/backtest/infrastructure/adapters/composite_price_adapter.py",
+      "status": "active_public",
+      "symbol": "get_price_bar_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/backtest/infrastructure/adapters/tushare_price_adapter.py:get_price_bar_repository_port:line:48",
+      "locator": "line:48",
+      "path": "apps/backtest/infrastructure/adapters/tushare_price_adapter.py",
+      "status": "active_public",
+      "symbol": "get_price_bar_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/broker_execution/application/use_cases.py:get_published_latest_quote_payload:line:103",
+      "locator": "line:103",
+      "path": "apps/broker_execution/application/use_cases.py",
+      "status": "active_public",
+      "symbol": "get_published_latest_quote_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/config_center/infrastructure/repositories.py:get_provider_settings_payload:line:42",
+      "locator": "line:42",
+      "path": "apps/config_center/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_provider_settings_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/dashboard/application/integration_gateways.py:get_published_macro_fact_series:line:314",
+      "locator": "line:314",
+      "path": "apps/dashboard/application/integration_gateways.py",
+      "status": "active_public",
+      "symbol": "get_published_macro_fact_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/dashboard/application/integration_gateways.py:get_published_quote_payloads:line:58",
+      "locator": "line:58",
+      "path": "apps/dashboard/application/integration_gateways.py",
+      "status": "active_public",
+      "symbol": "get_published_quote_payloads"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/dashboard/application/integration_gateways.py:resolve_asset_payload:line:53",
+      "locator": "line:53",
+      "path": "apps/dashboard/application/integration_gateways.py",
+      "status": "active_public",
+      "symbol": "resolve_asset_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/dashboard/infrastructure/repositories.py:update_asset_display_name:line:24",
+      "locator": "line:24",
+      "path": "apps/dashboard/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "update_asset_display_name"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/decision_rhythm/application/advisor_providers.py:get_decision_data_readiness_payload:line:156",
+      "locator": "line:156",
+      "path": "apps/decision_rhythm/application/advisor_providers.py",
+      "status": "active_public",
+      "symbol": "get_decision_data_readiness_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/decision_rhythm/application/advisor_providers.py:resolve_asset_payload:line:209",
+      "locator": "line:209",
+      "path": "apps/decision_rhythm/application/advisor_providers.py",
+      "status": "active_public",
+      "symbol": "resolve_asset_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/decision_rhythm/infrastructure/feature_providers.py:get_published_quote_payloads:line:20",
+      "locator": "line:20",
+      "path": "apps/decision_rhythm/infrastructure/feature_providers.py",
+      "status": "active_public",
+      "symbol": "get_published_quote_payloads"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/application/query_services.py:get_published_financial_facts:line:9",
+      "locator": "line:9",
+      "path": "apps/equity/application/query_services.py",
+      "status": "active_public",
+      "symbol": "get_published_financial_facts"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/application/query_services.py:get_published_price_bar_series:line:9",
+      "locator": "line:9",
+      "path": "apps/equity/application/query_services.py",
+      "status": "active_public",
+      "symbol": "get_published_price_bar_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/application/query_services.py:get_published_valuation_facts:line:9",
+      "locator": "line:9",
+      "path": "apps/equity/application/query_services.py",
+      "status": "active_public",
+      "symbol": "get_published_valuation_facts"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/application/tasks_valuation_sync.py:get_active_provider_id_by_source:line:10",
+      "locator": "line:10",
+      "path": "apps/equity/application/tasks_valuation_sync.py",
+      "status": "active_public",
+      "symbol": "get_active_provider_id_by_source"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/application/tasks_valuation_sync.py:make_sync_financial_use_case:line:10",
+      "locator": "line:10",
+      "path": "apps/equity/application/tasks_valuation_sync.py",
+      "status": "active_public",
+      "symbol": "make_sync_financial_use_case"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/application/use_cases_valuation_sync.py:get_active_provider_selection_by_source:line:11",
+      "locator": "line:11",
+      "path": "apps/equity/application/use_cases_valuation_sync.py",
+      "status": "active_public",
+      "symbol": "get_active_provider_selection_by_source"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/application/use_cases_valuation_sync.py:make_sync_valuation_use_case:line:11",
+      "locator": "line:11",
+      "path": "apps/equity/application/use_cases_valuation_sync.py",
+      "status": "active_public",
+      "symbol": "make_sync_valuation_use_case"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/adapters.py:get_akshare_module_port:line:18",
+      "locator": "line:18",
+      "path": "apps/equity/infrastructure/adapters.py",
+      "status": "active_public",
+      "symbol": "get_akshare_module_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/adapters.py:get_asset_repository_port:line:18",
+      "locator": "line:18",
+      "path": "apps/equity/infrastructure/adapters.py",
+      "status": "active_public",
+      "symbol": "get_asset_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/adapters.py:get_price_bar_repository_port:line:18",
+      "locator": "line:18",
+      "path": "apps/equity/infrastructure/adapters.py",
+      "status": "active_public",
+      "symbol": "get_price_bar_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/asset_master_queries.py:get_asset_repository_port:line:7",
+      "locator": "line:7",
+      "path": "apps/equity/infrastructure/asset_master_queries.py",
+      "status": "active_public",
+      "symbol": "get_asset_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/asset_repository.py:get_asset_repository_port:line:11",
+      "locator": "line:11",
+      "path": "apps/equity/infrastructure/asset_repository.py",
+      "status": "active_public",
+      "symbol": "get_asset_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/fundamentals_repository.py:get_published_financial_facts:line:19",
+      "locator": "line:19",
+      "path": "apps/equity/infrastructure/fundamentals_repository.py",
+      "status": "active_public",
+      "symbol": "get_published_financial_facts"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/fundamentals_repository.py:get_published_price_bar_series:line:19",
+      "locator": "line:19",
+      "path": "apps/equity/infrastructure/fundamentals_repository.py",
+      "status": "active_public",
+      "symbol": "get_published_price_bar_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/fundamentals_repository.py:get_published_valuation_facts:line:19",
+      "locator": "line:19",
+      "path": "apps/equity/infrastructure/fundamentals_repository.py",
+      "status": "active_public",
+      "symbol": "get_published_valuation_facts"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/intraday_repository.py:get_published_quote_series:line:22",
+      "locator": "line:22",
+      "path": "apps/equity/infrastructure/intraday_repository.py",
+      "status": "active_public",
+      "symbol": "get_published_quote_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/market_data_repository.py:get_published_price_bar_series:line:17",
+      "locator": "line:17",
+      "path": "apps/equity/infrastructure/market_data_repository.py",
+      "status": "active_public",
+      "symbol": "get_published_price_bar_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/repositories.py:make_on_demand_data_center_service:line:8",
+      "locator": "line:8",
+      "path": "apps/equity/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "make_on_demand_data_center_service"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/stock_info_repository.py:backfill_asset_master_codes_port:line:15",
+      "locator": "line:15",
+      "path": "apps/equity/infrastructure/stock_info_repository.py",
+      "status": "active_public",
+      "symbol": "backfill_asset_master_codes_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/stock_info_repository.py:list_price_covered_codes:line:15",
+      "locator": "line:15",
+      "path": "apps/equity/infrastructure/stock_info_repository.py",
+      "status": "active_public",
+      "symbol": "list_price_covered_codes"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/stock_repository.py:make_on_demand_data_center_service:line:17",
+      "locator": "line:17",
+      "path": "apps/equity/infrastructure/stock_repository.py",
+      "status": "active_public",
+      "symbol": "make_on_demand_data_center_service"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/interface/analysis_actions.py:get_decision_publication_gate:line:15",
+      "locator": "line:15",
+      "path": "apps/equity/interface/analysis_actions.py",
+      "status": "active_public",
+      "symbol": "get_decision_publication_gate"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/interface/comprehensive_valuation_actions.py:get_decision_publication_gate:line:15",
+      "locator": "line:15",
+      "path": "apps/equity/interface/comprehensive_valuation_actions.py",
+      "status": "active_public",
+      "symbol": "get_decision_publication_gate"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/interface/pool_actions.py:get_decision_publication_gate:line:20",
+      "locator": "line:20",
+      "path": "apps/equity/interface/pool_actions.py",
+      "status": "active_public",
+      "symbol": "get_decision_publication_gate"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/interface/sdk_contract_actions.py:get_decision_publication_gate:line:11",
+      "locator": "line:11",
+      "path": "apps/equity/interface/sdk_contract_actions.py",
+      "status": "active_public",
+      "symbol": "get_decision_publication_gate"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/interface/sdk_contract_actions.py:get_published_financial_facts:line:11",
+      "locator": "line:11",
+      "path": "apps/equity/interface/sdk_contract_actions.py",
+      "status": "active_public",
+      "symbol": "get_published_financial_facts"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/management/commands/sync_equity_financial.py:list_active_stock_codes:line:9",
+      "locator": "line:9",
+      "path": "apps/equity/management/commands/sync_equity_financial.py",
+      "status": "active_public",
+      "symbol": "list_active_stock_codes"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/factor/infrastructure/adapters/__init__.py:get_financial_facts:line:15",
+      "locator": "line:15",
+      "path": "apps/factor/infrastructure/adapters/__init__.py",
+      "status": "active_public",
+      "symbol": "get_financial_facts"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/factor/infrastructure/adapters/__init__.py:get_valuation_facts:line:15",
+      "locator": "line:15",
+      "path": "apps/factor/infrastructure/adapters/__init__.py",
+      "status": "active_public",
+      "symbol": "get_valuation_facts"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/factor/infrastructure/repositories.py:get_asset_repository_port:line:13",
+      "locator": "line:13",
+      "path": "apps/factor/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_asset_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/factor/infrastructure/services.py:get_asset_repository_port:line:12",
+      "locator": "line:12",
+      "path": "apps/factor/infrastructure/services.py",
+      "status": "active_public",
+      "symbol": "get_asset_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/filter/infrastructure/repositories.py:get_macro_fact_series:line:15",
+      "locator": "line:15",
+      "path": "apps/filter/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_macro_fact_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/filter/infrastructure/repositories.py:get_macro_runtime_metadata:line:15",
+      "locator": "line:15",
+      "path": "apps/filter/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_macro_runtime_metadata"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/fund/application/interface_services.py:get_published_fund_nav_series:line:12",
+      "locator": "line:12",
+      "path": "apps/fund/application/interface_services.py",
+      "status": "active_public",
+      "symbol": "get_published_fund_nav_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/fund/infrastructure/adapters/akshare_fund_adapter.py:get_fund_nav_repository_port:line:14",
+      "locator": "line:14",
+      "path": "apps/fund/infrastructure/adapters/akshare_fund_adapter.py",
+      "status": "active_public",
+      "symbol": "get_fund_nav_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/fund/infrastructure/adapters/tushare_fund_adapter.py:get_tushare_client:line:14",
+      "locator": "line:14",
+      "path": "apps/fund/infrastructure/adapters/tushare_fund_adapter.py",
+      "status": "active_public",
+      "symbol": "get_tushare_client"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/fund/infrastructure/repositories.py:build_provider_registry_port:line:19",
+      "locator": "line:19",
+      "path": "apps/fund/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "build_provider_registry_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/fund/infrastructure/repositories.py:get_fund_nav_repository_port:line:19",
+      "locator": "line:19",
+      "path": "apps/fund/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_fund_nav_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/fund/infrastructure/repositories.py:get_provider_config_repository_port:line:19",
+      "locator": "line:19",
+      "path": "apps/fund/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_provider_config_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/fund/infrastructure/repositories.py:get_published_fund_nav_series:line:19",
+      "locator": "line:19",
+      "path": "apps/fund/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_published_fund_nav_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/fund/infrastructure/repositories.py:get_raw_audit_repository_port:line:19",
+      "locator": "line:19",
+      "path": "apps/fund/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_raw_audit_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/fund/infrastructure/repositories.py:sync_fund_nav_from_active_provider:line:19",
+      "locator": "line:19",
+      "path": "apps/fund/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "sync_fund_nav_from_active_provider"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/hedge/infrastructure/adapters/__init__.py:get_price_bar_repository_port:line:13",
+      "locator": "line:13",
+      "path": "apps/hedge/infrastructure/adapters/__init__.py",
+      "status": "active_public",
+      "symbol": "get_price_bar_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/application/interface_services.py:get_active_provider_id_by_source:line:10",
+      "locator": "line:10",
+      "path": "apps/macro/application/interface_services.py",
+      "status": "active_public",
+      "symbol": "get_active_provider_id_by_source"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/application/interface_services.py:get_current_publication_freshness_gate:line:10",
+      "locator": "line:10",
+      "path": "apps/macro/application/interface_services.py",
+      "status": "active_public",
+      "symbol": "get_current_publication_freshness_gate"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/application/interface_services.py:get_macro_runtime_metadata:line:10",
+      "locator": "line:10",
+      "path": "apps/macro/application/interface_services.py",
+      "status": "active_public",
+      "symbol": "get_macro_runtime_metadata"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/application/interface_services.py:get_market_thermometer_payload:line:10",
+      "locator": "line:10",
+      "path": "apps/macro/application/interface_services.py",
+      "status": "active_public",
+      "symbol": "get_market_thermometer_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/application/interface_services.py:get_publication_member_fact_pks:line:10",
+      "locator": "line:10",
+      "path": "apps/macro/application/interface_services.py",
+      "status": "active_public",
+      "symbol": "get_publication_member_fact_pks"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/application/interface_services.py:get_published_macro_series_response:line:10",
+      "locator": "line:10",
+      "path": "apps/macro/application/interface_services.py",
+      "status": "active_public",
+      "symbol": "get_published_macro_series_response"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/application/interface_services.py:list_latest_published_macro_values:line:10",
+      "locator": "line:10",
+      "path": "apps/macro/application/interface_services.py",
+      "status": "active_public",
+      "symbol": "list_latest_published_macro_values"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/application/interface_services.py:load_macro_governance_payload:line:10",
+      "locator": "line:10",
+      "path": "apps/macro/application/interface_services.py",
+      "status": "active_public",
+      "symbol": "load_macro_governance_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/application/interface_services.py:make_calculate_market_thermometer_use_case:line:10",
+      "locator": "line:10",
+      "path": "apps/macro/application/interface_services.py",
+      "status": "active_public",
+      "symbol": "make_calculate_market_thermometer_use_case"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/application/interface_services.py:make_query_macro_series_use_case:line:10",
+      "locator": "line:10",
+      "path": "apps/macro/application/interface_services.py",
+      "status": "active_public",
+      "symbol": "make_query_macro_series_use_case"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/application/tasks.py:get_active_provider_id_by_source:line:22",
+      "locator": "line:22",
+      "path": "apps/macro/application/tasks.py",
+      "status": "active_public",
+      "symbol": "get_active_provider_id_by_source"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/application/tasks.py:make_query_macro_series_use_case:line:22",
+      "locator": "line:22",
+      "path": "apps/macro/application/tasks.py",
+      "status": "active_public",
+      "symbol": "make_query_macro_series_use_case"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/application/tasks.py:make_sync_macro_use_case:line:22",
+      "locator": "line:22",
+      "path": "apps/macro/application/tasks.py",
+      "status": "active_public",
+      "symbol": "make_sync_macro_use_case"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/application/use_cases.py:make_sync_macro_batch_use_case:line:427",
+      "locator": "line:427",
+      "path": "apps/macro/application/use_cases.py",
+      "status": "active_public",
+      "symbol": "make_sync_macro_batch_use_case"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/composition.py:get_published_macro_series_response:line:6",
+      "locator": "line:6",
+      "path": "apps/macro/composition.py",
+      "status": "active_public",
+      "symbol": "get_published_macro_series_response"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/infrastructure/data_center_fact_repository.py:MacroProjectionRepositoryProtocol:line:14",
+      "locator": "line:14",
+      "path": "apps/macro/infrastructure/data_center_fact_repository.py",
+      "status": "active_public",
+      "symbol": "MacroProjectionRepositoryProtocol"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/infrastructure/data_center_fact_repository.py:get_macro_projection_repository_port:line:14",
+      "locator": "line:14",
+      "path": "apps/macro/infrastructure/data_center_fact_repository.py",
+      "status": "active_public",
+      "symbol": "get_macro_projection_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/management/commands/migrate_usd_data.py:list_macro_facts_by_original_unit:line:16",
+      "locator": "line:16",
+      "path": "apps/macro/management/commands/migrate_usd_data.py",
+      "status": "active_public",
+      "symbol": "list_macro_facts_by_original_unit"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/management/commands/migrate_usd_data.py:save_macro_facts:line:16",
+      "locator": "line:16",
+      "path": "apps/macro/management/commands/migrate_usd_data.py",
+      "status": "active_public",
+      "symbol": "save_macro_facts"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/macro/management/commands/sync_macro_data.py:list_macro_indicator_codes:line:8",
+      "locator": "line:8",
+      "path": "apps/macro/management/commands/sync_macro_data.py",
+      "status": "active_public",
+      "symbol": "list_macro_indicator_codes"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/policy/infrastructure/adapters/feedparser_adapter.py:fetch_rss_news_feed:line:10",
+      "locator": "line:10",
+      "path": "apps/policy/infrastructure/adapters/feedparser_adapter.py",
+      "status": "active_public",
+      "symbol": "fetch_rss_news_feed"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/policy/infrastructure/adapters/news_adapter.py:fetch_rss_news_feed:line:16",
+      "locator": "line:16",
+      "path": "apps/policy/infrastructure/adapters/news_adapter.py",
+      "status": "active_public",
+      "symbol": "fetch_rss_news_feed"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/policy/infrastructure/adapters/news_adapter.py:probe_rss_news_feed:line:16",
+      "locator": "line:16",
+      "path": "apps/policy/infrastructure/adapters/news_adapter.py",
+      "status": "active_public",
+      "symbol": "probe_rss_news_feed"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/pulse/application/use_cases.py:make_decision_repair_use_case:line:9",
+      "locator": "line:9",
+      "path": "apps/pulse/application/use_cases.py",
+      "status": "active_public",
+      "symbol": "make_decision_repair_use_case"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/pulse/infrastructure/data_provider.py:get_macro_indicator_catalog:line:16",
+      "locator": "line:16",
+      "path": "apps/pulse/infrastructure/data_provider.py",
+      "status": "active_public",
+      "symbol": "get_macro_indicator_catalog"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/pulse/infrastructure/data_provider.py:get_published_macro_fact_series:line:16",
+      "locator": "line:16",
+      "path": "apps/pulse/infrastructure/data_provider.py",
+      "status": "active_public",
+      "symbol": "get_published_macro_fact_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/pulse/infrastructure/data_provider.py:get_published_price_bar_series:line:16",
+      "locator": "line:16",
+      "path": "apps/pulse/infrastructure/data_provider.py",
+      "status": "active_public",
+      "symbol": "get_published_price_bar_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/pulse/infrastructure/data_provider.py:get_published_quote_payloads:line:16",
+      "locator": "line:16",
+      "path": "apps/pulse/infrastructure/data_provider.py",
+      "status": "active_public",
+      "symbol": "get_published_quote_payloads"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/pulse/infrastructure/data_provider.py:is_direct_macro_input_allowed:line:16",
+      "locator": "line:16",
+      "path": "apps/pulse/infrastructure/data_provider.py",
+      "status": "active_public",
+      "symbol": "is_direct_macro_input_allowed"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/realtime/application/market_summary_queries.py:get_market_breadth_snapshot:line:7",
+      "locator": "line:7",
+      "path": "apps/realtime/application/market_summary_queries.py",
+      "status": "active_public",
+      "symbol": "get_market_breadth_snapshot"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/realtime/infrastructure/repositories.py:get_akshare_eastmoney_gateway_port:line:27",
+      "locator": "line:27",
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_akshare_eastmoney_gateway_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/realtime/infrastructure/repositories.py:get_akshare_module_port:line:27",
+      "locator": "line:27",
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_akshare_module_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/realtime/infrastructure/repositories.py:get_price_bar_repository_port:line:27",
+      "locator": "line:27",
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_price_bar_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/realtime/infrastructure/repositories.py:get_published_price_bar_series:line:27",
+      "locator": "line:27",
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_published_price_bar_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/realtime/infrastructure/repositories.py:get_published_quote_payloads:line:27",
+      "locator": "line:27",
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_published_quote_payloads"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/realtime/infrastructure/repositories.py:get_quote_snapshot_repository_port:line:27",
+      "locator": "line:27",
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_quote_snapshot_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/regime/application/interface_services.py:get_active_provider_id_by_source:line:13",
+      "locator": "line:13",
+      "path": "apps/regime/application/interface_services.py",
+      "status": "active_public",
+      "symbol": "get_active_provider_id_by_source"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/regime/infrastructure/macro_data_provider.py:get_macro_fact_series:line:20",
+      "locator": "line:20",
+      "path": "apps/regime/infrastructure/macro_data_provider.py",
+      "status": "active_public",
+      "symbol": "get_macro_fact_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/regime/infrastructure/macro_data_provider.py:get_macro_indicator_catalog:line:20",
+      "locator": "line:20",
+      "path": "apps/regime/infrastructure/macro_data_provider.py",
+      "status": "active_public",
+      "symbol": "get_macro_indicator_catalog"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/regime/infrastructure/macro_data_provider.py:get_published_macro_fact_series:line:20",
+      "locator": "line:20",
+      "path": "apps/regime/infrastructure/macro_data_provider.py",
+      "status": "active_public",
+      "symbol": "get_published_macro_fact_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/regime/infrastructure/macro_data_provider.py:is_direct_macro_input_allowed:line:20",
+      "locator": "line:20",
+      "path": "apps/regime/infrastructure/macro_data_provider.py",
+      "status": "active_public",
+      "symbol": "is_direct_macro_input_allowed"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/regime/infrastructure/macro_data_provider.py:list_macro_indicator_codes:line:20",
+      "locator": "line:20",
+      "path": "apps/regime/infrastructure/macro_data_provider.py",
+      "status": "active_public",
+      "symbol": "list_macro_indicator_codes"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/regime/infrastructure/macro_source_config_gateway.py:list_active_data_sources:line:8",
+      "locator": "line:8",
+      "path": "apps/regime/infrastructure/macro_source_config_gateway.py",
+      "status": "active_public",
+      "symbol": "list_active_data_sources"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/risk_center/infrastructure/scenario_market_data_provider.py:get_published_price_bar_series:line:10",
+      "locator": "line:10",
+      "path": "apps/risk_center/infrastructure/scenario_market_data_provider.py",
+      "status": "active_public",
+      "symbol": "get_published_price_bar_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/sector/infrastructure/adapters/akshare_sector_adapter.py:get_sector_membership_repository_port:line:14",
+      "locator": "line:14",
+      "path": "apps/sector/infrastructure/adapters/akshare_sector_adapter.py",
+      "status": "active_public",
+      "symbol": "get_sector_membership_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/sector/infrastructure/adapters/tushare_sector_adapter.py:get_sector_membership_repository_port:line:12",
+      "locator": "line:12",
+      "path": "apps/sector/infrastructure/adapters/tushare_sector_adapter.py",
+      "status": "active_public",
+      "symbol": "get_sector_membership_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/sector/infrastructure/repositories.py:get_current_publication:line:15",
+      "locator": "line:15",
+      "path": "apps/sector/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_current_publication"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/sector/infrastructure/repositories.py:get_publication_member_fact_pks:line:15",
+      "locator": "line:15",
+      "path": "apps/sector/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_publication_member_fact_pks"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/sector/infrastructure/repositories.py:get_sector_membership_repository_port:line:15",
+      "locator": "line:15",
+      "path": "apps/sector/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "get_sector_membership_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/sentiment/application/repository_provider.py:get_news_repository_port:line:9",
+      "locator": "line:9",
+      "path": "apps/sentiment/application/repository_provider.py",
+      "status": "active_public",
+      "symbol": "get_news_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/sentiment/application/repository_provider.py:get_published_market_news:line:9",
+      "locator": "line:9",
+      "path": "apps/sentiment/application/repository_provider.py",
+      "status": "active_public",
+      "symbol": "get_published_market_news"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/sentiment/application/tasks.py:sync_market_news_for_sentiment:line:239",
+      "locator": "line:239",
+      "path": "apps/sentiment/application/tasks.py",
+      "status": "active_public",
+      "symbol": "sync_market_news_for_sentiment"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/setup_wizard/infrastructure/repositories.py:list_active_data_sources:line:296",
+      "locator": "line:296",
+      "path": "apps/setup_wizard/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "list_active_data_sources"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/setup_wizard/infrastructure/repositories.py:save_data_source_configuration:line:274",
+      "locator": "line:274",
+      "path": "apps/setup_wizard/infrastructure/repositories.py",
+      "status": "active_public",
+      "symbol": "save_data_source_configuration"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/signal/application/invalidation_checker.py:get_published_macro_fact_series:line:19",
+      "locator": "line:19",
+      "path": "apps/signal/application/invalidation_checker.py",
+      "status": "active_public",
+      "symbol": "get_published_macro_fact_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/signal/application/query_services.py:list_published_macro_indicator_summaries:line:12",
+      "locator": "line:12",
+      "path": "apps/signal/application/query_services.py",
+      "status": "active_public",
+      "symbol": "list_published_macro_indicator_summaries"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/signal/interface/views.py:list_published_macro_indicator_summaries:line:21",
+      "locator": "line:21",
+      "path": "apps/signal/interface/views.py",
+      "status": "active_public",
+      "symbol": "list_published_macro_indicator_summaries"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/simulated_trading/application/position_invalidation_checker.py:get_published_macro_fact_series:line:15",
+      "locator": "line:15",
+      "path": "apps/simulated_trading/application/position_invalidation_checker.py",
+      "status": "active_public",
+      "symbol": "get_published_macro_fact_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/simulated_trading/infrastructure/performance_repositories.py:get_price_bar_repository_port:line:343",
+      "locator": "line:343",
+      "path": "apps/simulated_trading/infrastructure/performance_repositories.py",
+      "status": "active_public",
+      "symbol": "get_price_bar_repository_port"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/strategy/infrastructure/providers.py:get_macro_indicator_value:line:13",
+      "locator": "line:13",
+      "path": "apps/strategy/infrastructure/providers.py",
+      "status": "active_public",
+      "symbol": "get_macro_indicator_value"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/strategy/infrastructure/providers.py:list_latest_published_macro_values:line:13",
+      "locator": "line:13",
+      "path": "apps/strategy/infrastructure/providers.py",
+      "status": "active_public",
+      "symbol": "list_latest_published_macro_values"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_active_stock_fact_coverage_payload:line:33",
+      "locator": "line:33",
+      "path": "apps/terminal/application/tui_operator_services.py",
+      "status": "active_public",
+      "symbol": "get_active_stock_fact_coverage_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_decision_data_readiness_payload:line:33",
+      "locator": "line:33",
+      "path": "apps/terminal/application/tui_operator_services.py",
+      "status": "active_public",
+      "symbol": "get_decision_data_readiness_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_market_thermometer_payload:line:33",
+      "locator": "line:33",
+      "path": "apps/terminal/application/tui_operator_services.py",
+      "status": "active_public",
+      "symbol": "get_market_thermometer_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/valuation/infrastructure/providers.py:get_published_valuation_facts:line:15",
+      "locator": "line:15",
+      "path": "apps/valuation/infrastructure/providers.py",
+      "status": "active_public",
+      "symbol": "get_published_valuation_facts"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:core/health_checks.py:get_active_stock_fact_coverage_payload:line:247",
+      "locator": "line:247",
+      "path": "core/health_checks.py",
+      "status": "active_public",
+      "symbol": "get_active_stock_fact_coverage_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:core/health_checks.py:get_decision_data_readiness_payload:line:201",
+      "locator": "line:201",
+      "path": "core/health_checks.py",
+      "status": "active_public",
+      "symbol": "get_decision_data_readiness_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:core/health_checks.py:get_decision_provider_capability_health_payload:line:273",
+      "locator": "line:273",
+      "path": "core/health_checks.py",
+      "status": "active_public",
+      "symbol": "get_decision_provider_capability_health_payload"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:core/integration/price_history.py:fetch_close_price_series:line:9",
+      "locator": "line:9",
+      "path": "core/integration/price_history.py",
+      "status": "active_public",
+      "symbol": "fetch_close_price_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:core/integration/price_history.py:fetch_close_prices:line:12",
+      "locator": "line:12",
+      "path": "core/integration/price_history.py",
+      "status": "active_public",
+      "symbol": "fetch_close_prices"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:core/integration/price_history.py:get_published_price_bar_series:line:13",
+      "locator": "line:13",
+      "path": "core/integration/price_history.py",
+      "status": "active_public",
+      "symbol": "get_published_price_bar_series"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:core/management/commands/test_data_connections.py:get_data_center_diagnostic_summary:line:241",
+      "locator": "line:241",
+      "path": "core/management/commands/test_data_connections.py",
+      "status": "active_public",
+      "symbol": "get_data_center_diagnostic_summary"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:core/management/commands/test_data_connections.py:get_data_center_diagnostic_summary:line:96",
+      "locator": "line:96",
+      "path": "core/management/commands/test_data_connections.py",
+      "status": "active_public",
+      "symbol": "get_data_center_diagnostic_summary"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:core/management/commands/test_data_connections.py:macro_fact_exists_on_or_before:line:576",
+      "locator": "line:576",
+      "path": "core/management/commands/test_data_connections.py",
+      "status": "active_public",
+      "symbol": "macro_fact_exists_on_or_before"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:core/management/commands/warmup_cache.py:list_latest_macro_values:line:138",
+      "locator": "line:138",
+      "path": "core/management/commands/warmup_cache.py",
+      "status": "active_public",
+      "symbol": "list_latest_macro_values"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:scripts/check_data_center_runtime_catalog.py:list_active_data_owner_registrations:line:40",
+      "locator": "line:40",
+      "path": "scripts/check_data_center_runtime_catalog.py",
+      "status": "active_public",
+      "symbol": "list_active_data_owner_registrations"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:scripts/check_data_center_runtime_catalog.py:list_active_dataset_contracts:line:40",
+      "locator": "line:40",
+      "path": "scripts/check_data_center_runtime_catalog.py",
+      "status": "active_public",
+      "symbol": "list_active_dataset_contracts"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:scripts/check_data_center_runtime_catalog.py:list_active_provider_bindings:line:40",
+      "locator": "line:40",
+      "path": "scripts/check_data_center_runtime_catalog.py",
+      "status": "active_public",
+      "symbol": "list_active_provider_bindings"
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:scripts/check_data_center_runtime_catalog.py:list_active_publication_policies:line:40",
+      "locator": "line:40",
+      "path": "scripts/check_data_center_runtime_catalog.py",
+      "status": "active_public",
+      "symbol": "list_active_publication_policies"
+    },
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
@@ -1664,15 +3218,6 @@
     {
       "category": "compatibility_facade",
       "evidence": "registered legacy Application facade pending consumer cutover",
-      "id": "compatibility_facade:apps/data_center/application/interface_services.py:purge_all_quote_snapshots_for_rebuild:",
-      "locator": "",
-      "path": "apps/data_center/application/interface_services.py",
-      "status": "compatibility",
-      "symbol": "purge_all_quote_snapshots_for_rebuild"
-    },
-    {
-      "category": "compatibility_facade",
-      "evidence": "registered legacy Application facade pending consumer cutover",
       "id": "compatibility_facade:apps/data_center/application/interface_services.py:queue_alpha_score_prediction:",
       "locator": "",
       "path": "apps/data_center/application/interface_services.py",
@@ -2715,6 +4260,24 @@
       "symbol": "inspect_personal_readiness_evidence"
     },
     {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:core/management/commands/test_data_connections.py:test_data_connections:",
+      "locator": "",
+      "path": "core/management/commands/test_data_connections.py",
+      "status": "compatibility",
+      "symbol": "test_data_connections"
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:core/management/commands/warmup_cache.py:warmup_cache:",
+      "locator": "",
+      "path": "core/management/commands/warmup_cache.py",
+      "status": "compatibility",
+      "symbol": "warmup_cache"
+    },
+    {
       "category": "mcp_tool",
       "evidence": "cross-owner MCP compatibility tool",
       "id": "mcp_tool:sdk/agomtradepro_mcp/tools/config_center_tools.py:create_data_center_provider:",
@@ -2974,6 +4537,78 @@
       "path": "sdk/agomtradepro_mcp/tools/data_center_tools.py",
       "status": "active_public",
       "symbol": "get_data_center_provider_status"
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:.github/workflows/nightly-tests.yml:initialize_data_center_catalog:line:394",
+      "locator": "line:394",
+      "path": ".github/workflows/nightly-tests.yml",
+      "status": "active_public",
+      "symbol": "initialize_data_center_catalog"
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/check-personal-readiness-monitor.ps1:import_investor_accounts:line:428",
+      "locator": "line:428",
+      "path": "scripts/check-personal-readiness-monitor.ps1",
+      "status": "active_public",
+      "symbol": "import_investor_accounts"
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/deploy-on-vps.sh:verify_canonical_schema:line:432",
+      "locator": "line:432",
+      "path": "scripts/deploy-on-vps.sh",
+      "status": "active_public",
+      "symbol": "verify_canonical_schema"
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/deploy_vps_verify.py:verify_canonical_schema:line:411",
+      "locator": "line:411",
+      "path": "scripts/deploy_vps_verify.py",
+      "status": "active_public",
+      "symbol": "verify_canonical_schema"
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:1546",
+      "locator": "line:1546",
+      "path": "scripts/remote_build_deploy_vps.py",
+      "status": "active_public",
+      "symbol": "init_macro_indicator_governance"
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:1546",
+      "locator": "line:1546",
+      "path": "scripts/remote_build_deploy_vps.py",
+      "status": "active_public",
+      "symbol": "normalize_macro_fact_units"
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:1497",
+      "locator": "line:1497",
+      "path": "scripts/remote_build_deploy_vps.py",
+      "status": "active_public",
+      "symbol": "verify_canonical_schema"
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/setup_celery_beat.py:init_scheduler_defaults:line:16",
+      "locator": "line:16",
+      "path": "scripts/setup_celery_beat.py",
+      "status": "active_public",
+      "symbol": "init_scheduler_defaults"
     },
     {
       "category": "public_port",
@@ -4281,6 +5916,483 @@
       "symbol": "mount@555"
     },
     {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=4; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.allow_token_plaintext_view:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "account.allow_token_plaintext_view"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=2; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.auto_approve_first_admin:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "account.auto_approve_first_admin"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=4; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.default_mcp_enabled:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "account.default_mcp_enabled"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=2; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.notes:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "account.notes"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=4; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.require_user_approval:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "account.require_user_approval"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=3; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.risk_warning_content:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "account.risk_warning_content"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=3; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.user_agreement_content:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "account.user_agreement_content"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=alpha; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.qlib.allow_auto_activate:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "alpha.qlib.allow_auto_activate"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=alpha; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.qlib.default_feature_set_id:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "alpha.qlib.default_feature_set_id"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=alpha; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.qlib.default_label_id:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "alpha.qlib.default_label_id"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=alpha; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.qlib.default_universe:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "alpha.qlib.default_universe"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=alpha; consumers=10; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.qlib.enabled:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "alpha.qlib.enabled"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=alpha; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.qlib.infer_queue_name:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "alpha.qlib.infer_queue_name"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=alpha; consumers=3; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.qlib.model_path:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "alpha.qlib.model_path"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=alpha; consumers=10; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.qlib.provider_uri:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "alpha.qlib.provider_uri"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=alpha; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.qlib.region:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "alpha.qlib.region"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=alpha; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.qlib.train_queue_name:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "alpha.qlib.train_queue_name"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=alpha; consumers=2; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.runtime.fixed_provider:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "alpha.runtime.fixed_provider"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=alpha; consumers=3; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.runtime.pool_mode:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "alpha.runtime.pool_mode"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.app_base_url:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "backup.app_base_url"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=config_center; consumers=3; migration_status=config_center_secret_owner_with_legacy_migration",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.archive_password:config_center_secret_owner_with_legacy_migration",
+      "locator": "config_center_secret_owner_with_legacy_migration",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "backup.archive_password"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=2; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.enabled:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "backup.enabled"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.interval_days:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "backup.interval_days"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=2; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.link_ttl_days:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "backup.link_ttl_days"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.mail_from_email:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "backup.mail_from_email"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.password_hint:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "backup.password_hint"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=2; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.recipient_email:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "backup.recipient_email"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_host:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "backup.smtp_host"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=config_center; consumers=3; migration_status=config_center_secret_owner_with_legacy_migration",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_password:config_center_secret_owner_with_legacy_migration",
+      "locator": "config_center_secret_owner_with_legacy_migration",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "backup.smtp_password"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_port:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "backup.smtp_port"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_use_ssl:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "backup.smtp_use_ssl"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_use_tls:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "backup.smtp_use_tls"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_username:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "backup.smtp_username"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=config_center; consumers=3; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.market.asset_proxy_code_map:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "config_center.market.asset_proxy_code_map"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=config_center; consumers=3; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.market.benchmark_code_map:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "config_center.market.benchmark_code_map"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=config_center; consumers=3; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.market.color_convention:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "config_center.market.color_convention"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=data-platform; consumers=4; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:data_center.provider.default_source:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "data_center.provider.default_source"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=data-platform; consumers=3; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:data_center.provider.enable_failover:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "data_center.provider.enable_failover"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=data-platform; consumers=3; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:data_center.provider.failover_tolerance:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "data_center.provider.failover_tolerance"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=reliability; consumers=4; migration_status=consumer_cutover_in_progress",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:readiness.decision_maintenance:consumer_cutover_in_progress",
+      "locator": "consumer_cutover_in_progress",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "compatibility",
+      "symbol": "readiness.decision_maintenance"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=config_center; consumers=4; migration_status=separate_model_active",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:storage.capacity.configured_bytes:separate_model_active",
+      "locator": "separate_model_active",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "active_public",
+      "symbol": "storage.capacity.configured_bytes"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=config_center; consumers=4; migration_status=separate_model_active",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:storage.critical_ratio:separate_model_active",
+      "locator": "separate_model_active",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "active_public",
+      "symbol": "storage.critical_ratio"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=config_center; consumers=2; migration_status=separate_model_active",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:storage.emergency_reserve_ratio:separate_model_active",
+      "locator": "separate_model_active",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "active_public",
+      "symbol": "storage.emergency_reserve_ratio"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=config_center; consumers=2; migration_status=separate_model_active",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:storage.warning_ratio:separate_model_active",
+      "locator": "separate_model_active",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "active_public",
+      "symbol": "storage.warning_ratio"
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=task_monitor; consumers=6; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:task_monitor.retention_days:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "active_public",
+      "symbol": "task_monitor.retention_days"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "Django management command owns database-backed Beat schedule",
+      "id": "scheduler_writer:apps/account/management/commands/setup_account_risk_tasks.py:PeriodicTask:apps.account.application.tasks.check_stop_loss_and_take_profit_task",
+      "locator": "apps.account.application.tasks.check_stop_loss_and_take_profit_task",
+      "path": "apps/account/management/commands/setup_account_risk_tasks.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "Django management command owns database-backed Beat schedule",
+      "id": "scheduler_writer:apps/decision_rhythm/management/commands/setup_workspace_snapshot_refresh.py:PeriodicTask:apps.decision_rhythm.application.tasks.refresh_decision_workspace_snapshots",
+      "locator": "apps.decision_rhythm.application.tasks.refresh_decision_workspace_snapshots",
+      "path": "apps/decision_rhythm/management/commands/setup_workspace_snapshot_refresh.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "Django management command owns database-backed Beat schedule",
+      "id": "scheduler_writer:apps/equity/management/commands/setup_equity_valuation_sync.py:PeriodicTask:dynamic-task-path",
+      "locator": "dynamic-task-path",
+      "path": "apps/equity/management/commands/setup_equity_valuation_sync.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "Django management command owns database-backed Beat schedule",
+      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:apps.macro.application.tasks.check_data_freshness",
+      "locator": "apps.macro.application.tasks.check_data_freshness",
+      "path": "apps/macro/management/commands/setup_macro_daily_sync.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "Django management command owns database-backed Beat schedule",
+      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:apps.macro.application.tasks.generate_daily_regime_signal",
+      "locator": "apps.macro.application.tasks.generate_daily_regime_signal",
+      "path": "apps/macro/management/commands/setup_macro_daily_sync.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "Django management command owns database-backed Beat schedule",
+      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:apps.macro.application.tasks.recalculate_regime_with_daily_signal",
+      "locator": "apps.macro.application.tasks.recalculate_regime_with_daily_signal",
+      "path": "apps/macro/management/commands/setup_macro_daily_sync.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "Django management command owns database-backed Beat schedule",
+      "id": "scheduler_writer:apps/macro/management/commands/setup_macro_daily_sync.py:PeriodicTask:apps.macro.application.tasks.sync_and_calculate_regime",
+      "locator": "apps.macro.application.tasks.sync_and_calculate_regime",
+      "path": "apps/macro/management/commands/setup_macro_daily_sync.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "Django management command owns database-backed Beat schedule",
+      "id": "scheduler_writer:apps/operational_readiness/management/commands/setup_personal_readiness_daily.py:PeriodicTask:apps.operational_readiness.application.tasks.run_personal_readiness_daily_task",
+      "locator": "apps.operational_readiness.application.tasks.run_personal_readiness_daily_task",
+      "path": "apps/operational_readiness/management/commands/setup_personal_readiness_daily.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask"
+    },
+    {
       "category": "script",
       "evidence": "Data Center governance/measurement tooling",
       "id": "script:scripts/check_data_center_runtime_catalog.py:__main__:",
@@ -4740,6 +6852,105 @@
       "symbol": "RealtimeModule.get_price_history"
     },
     {
+      "category": "system_settings_compatibility",
+      "evidence": "explicit legacy singleton reference pending M9 field retirement",
+      "id": "system_settings_compatibility:apps/account/infrastructure/account_interface_administration_repository.py:SystemSettingsModel:lines:19,50,51,138,198,214,406,418,419,443,445,456",
+      "locator": "lines:19,50,51,138,198,214,406,418,419,443,445,456",
+      "path": "apps/account/infrastructure/account_interface_administration_repository.py",
+      "status": "compatibility",
+      "symbol": "SystemSettingsModel"
+    },
+    {
+      "category": "system_settings_compatibility",
+      "evidence": "explicit legacy singleton reference pending M9 field retirement",
+      "id": "system_settings_compatibility:apps/account/infrastructure/account_interface_registration_repository.py:SystemSettingsModel:lines:20,47,50,83,88,175,257,305",
+      "locator": "lines:20,47,50,83,88,175,257,305",
+      "path": "apps/account/infrastructure/account_interface_registration_repository.py",
+      "status": "compatibility",
+      "symbol": "SystemSettingsModel"
+    },
+    {
+      "category": "system_settings_compatibility",
+      "evidence": "explicit legacy singleton reference pending M9 field retirement",
+      "id": "system_settings_compatibility:apps/account/infrastructure/backup_delivery_projection.py:SystemSettingsModel:lines:7,38,64,65,72,103",
+      "locator": "lines:7,38,64,65,72,103",
+      "path": "apps/account/infrastructure/backup_delivery_projection.py",
+      "status": "compatibility",
+      "symbol": "SystemSettingsModel"
+    },
+    {
+      "category": "system_settings_compatibility",
+      "evidence": "explicit legacy singleton reference pending M9 field retirement",
+      "id": "system_settings_compatibility:apps/account/infrastructure/backup_service.py:SystemSettingsModel:lines:27,60,71,150,172",
+      "locator": "lines:27,60,71,150,172",
+      "path": "apps/account/infrastructure/backup_service.py",
+      "status": "compatibility",
+      "symbol": "SystemSettingsModel"
+    },
+    {
+      "category": "system_settings_compatibility",
+      "evidence": "explicit legacy singleton reference pending M9 field retirement",
+      "id": "system_settings_compatibility:apps/account/infrastructure/models.py:SystemSettingsModel:lines:7",
+      "locator": "lines:7",
+      "path": "apps/account/infrastructure/models.py",
+      "status": "compatibility",
+      "symbol": "SystemSettingsModel"
+    },
+    {
+      "category": "system_settings_compatibility",
+      "evidence": "explicit legacy singleton reference pending M9 field retirement",
+      "id": "system_settings_compatibility:apps/account/infrastructure/repositories.py:SystemSettingsModel:lines:59,724,728",
+      "locator": "lines:59,724,728",
+      "path": "apps/account/infrastructure/repositories.py",
+      "status": "compatibility",
+      "symbol": "SystemSettingsModel"
+    },
+    {
+      "category": "system_settings_compatibility",
+      "evidence": "explicit legacy singleton reference pending M9 field retirement",
+      "id": "system_settings_compatibility:apps/account/interface/admin.py:SystemSettingsModel:lines:48,84,95,110,157,187,501,511,522,573",
+      "locator": "lines:48,84,95,110,157,187,501,511,522,573",
+      "path": "apps/account/interface/admin.py",
+      "status": "compatibility",
+      "symbol": "SystemSettingsModel"
+    },
+    {
+      "category": "system_settings_compatibility",
+      "evidence": "explicit legacy singleton reference pending M9 field retirement",
+      "id": "system_settings_compatibility:apps/config_center/infrastructure/config_summary_repository.py:SystemSettingsModel:lines:14,70,121,163,169,179,190",
+      "locator": "lines:14,70,121,163,169,179,190",
+      "path": "apps/config_center/infrastructure/config_summary_repository.py",
+      "status": "compatibility",
+      "symbol": "SystemSettingsModel"
+    },
+    {
+      "category": "system_settings_compatibility",
+      "evidence": "explicit legacy singleton reference pending M9 field retirement",
+      "id": "system_settings_compatibility:apps/config_center/infrastructure/repositories.py:SystemSettingsModel:lines:36,132,133,143,172,271,272,275,277,278,279",
+      "locator": "lines:36,132,133,143,172,271,272,275,277,278,279",
+      "path": "apps/config_center/infrastructure/repositories.py",
+      "status": "compatibility",
+      "symbol": "SystemSettingsModel"
+    },
+    {
+      "category": "system_settings_compatibility",
+      "evidence": "explicit legacy singleton reference pending M9 field retirement",
+      "id": "system_settings_compatibility:apps/config_center/management/commands/migrate_backup_delivery_secrets.py:SystemSettingsModel:lines:18,36",
+      "locator": "lines:18,36",
+      "path": "apps/config_center/management/commands/migrate_backup_delivery_secrets.py",
+      "status": "compatibility",
+      "symbol": "SystemSettingsModel"
+    },
+    {
+      "category": "system_settings_compatibility",
+      "evidence": "explicit legacy singleton reference pending M9 field retirement",
+      "id": "system_settings_compatibility:core/encryption_readiness.py:SystemSettingsModel:lines:14,25",
+      "locator": "lines:14,25",
+      "path": "core/encryption_readiness.py",
+      "status": "compatibility",
+      "symbol": "SystemSettingsModel"
+    },
+    {
       "category": "terminal_tui",
       "evidence": "published TUI screen",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:api-library.data-center:",
@@ -4957,7 +7168,7 @@
     }
   ],
   "owner": "data_center",
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "semantics": {
     "active_public": "explicitly governed canonical external or cross-app port",
     "adjacent_operational": "enumerated app-owned operation outside the Data Center owner contract",
@@ -4967,12 +7178,14 @@
   "source_contract_counts": {
     "celery_tasks": 29,
     "current_data_contracts": 46,
-    "legacy_entrypoints_and_wrappers": 4
+    "legacy_entrypoints_and_wrappers": 4,
+    "runtime_config_keys": 45
   },
   "source_contracts": [
     "governance/celery_task_contracts.json",
     "governance/current_data_contracts.json",
     "governance/data_center_legacy_entrypoints.json",
+    "governance/runtime_config_contracts.json",
     "config/tui/generated/tui_operation_graph.generated.json",
     "config/tui/published/tui_operation_graph.published.json"
   ]

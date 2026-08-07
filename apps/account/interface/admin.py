@@ -498,9 +498,8 @@ class TakeProfitConfigModelAdmin(TypedModelAdmin[TakeProfitConfigModel]):
         return f"+{obj.take_profit_pct:.2%}"
 
 
-@admin.register(SystemSettingsModel)
 class SystemSettingsModelAdmin(TypedModelAdmin[SystemSettingsModel]):
-    """系统配置管理（单例模式）"""
+    """Unregistered compatibility class retained for migration-only tests."""
 
     form = SystemSettingsAdminForm
 

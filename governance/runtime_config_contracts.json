@@ -521,33 +521,6 @@
       ]
     },
     {
-      "config_key": "data_center.storage.active_policy",
-      "namespace": "storage",
-      "owner": "operations",
-      "type": "string",
-      "current_source": "config_center",
-      "fallback": "blocked",
-      "migration_status": "registered"
-    },
-    {
-      "config_key": "data_center.sync.batch_size",
-      "namespace": "data_center",
-      "owner": "data-platform",
-      "type": "integer",
-      "current_source": "config_center",
-      "fallback": "none",
-      "migration_status": "registered"
-    },
-    {
-      "config_key": "data_center.sync.max_concurrency",
-      "namespace": "data_center",
-      "owner": "data-platform",
-      "type": "integer",
-      "current_source": "config_center",
-      "fallback": "none",
-      "migration_status": "registered"
-    },
-    {
       "config_key": "task_monitor.retention_days",
       "namespace": "task_monitor",
       "owner": "task_monitor",
@@ -555,7 +528,7 @@
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
       "fallback": "blocked",
-      "migration_status": "consumer_cutover_in_progress",
+      "migration_status": "canonical_only_fail_closed",
       "consumers": [
         "apps/task_monitor/infrastructure/backup_service.py::DatabaseBackupService._resolve_keep_days",
         "apps/task_monitor/application/tasks.py::backup_database_task",
@@ -938,36 +911,60 @@
       "namespace": "storage",
       "owner": "config_center",
       "type": "bytes",
-      "current_source": "config_center_runtime_profile",
+      "current_source": "config_center_storage_budget_policy",
       "fallback": "blocked",
-      "migration_status": "model-backed"
+      "migration_status": "separate_model_active",
+      "definition_source": "apps/config_center/infrastructure/models.py::StorageBudgetPolicyModel",
+      "consumers": [
+        "apps/config_center/application/storage_budget.py::StoragePressureGuard",
+        "apps/config_center/application/public.py::collect_and_record_storage_capacity_profile",
+        "apps/data_center/application/tasks.py::_run_retention_pass",
+        "apps/task_monitor/application/backup_capacity.py::require_backup_capacity"
+      ]
     },
     {
       "config_key": "storage.warning_ratio",
       "namespace": "storage",
       "owner": "config_center",
       "type": "percentage",
-      "current_source": "config_center_runtime_profile",
+      "current_source": "config_center_storage_budget_policy",
       "fallback": "blocked",
-      "migration_status": "model-backed"
+      "migration_status": "separate_model_active",
+      "definition_source": "apps/config_center/infrastructure/models.py::StorageBudgetPolicyModel",
+      "consumers": [
+        "apps/config_center/application/storage_budget.py::StoragePressureGuard",
+        "apps/config_center/application/public.py::collect_and_record_storage_capacity_profile"
+      ]
     },
     {
       "config_key": "storage.critical_ratio",
       "namespace": "storage",
       "owner": "config_center",
       "type": "percentage",
-      "current_source": "config_center_runtime_profile",
+      "current_source": "config_center_storage_budget_policy",
       "fallback": "blocked",
-      "migration_status": "model-backed"
+      "migration_status": "separate_model_active",
+      "definition_source": "apps/config_center/infrastructure/models.py::StorageBudgetPolicyModel",
+      "consumers": [
+        "apps/config_center/application/storage_budget.py::StoragePressureGuard",
+        "apps/config_center/application/public.py::collect_and_record_storage_capacity_profile",
+        "apps/data_center/application/tasks.py::_run_retention_pass",
+        "apps/task_monitor/application/backup_capacity.py::require_backup_capacity"
+      ]
     },
     {
       "config_key": "storage.emergency_reserve_ratio",
       "namespace": "storage",
       "owner": "config_center",
       "type": "percentage",
-      "current_source": "config_center_runtime_profile",
+      "current_source": "config_center_storage_budget_policy",
       "fallback": "blocked",
-      "migration_status": "model-backed"
+      "migration_status": "separate_model_active",
+      "definition_source": "apps/config_center/infrastructure/models.py::StorageBudgetPolicyModel",
+      "consumers": [
+        "apps/config_center/application/storage_budget.py::StoragePressureGuard",
+        "apps/task_monitor/application/backup_capacity.py::require_backup_capacity"
+      ]
     }
   ]
 }

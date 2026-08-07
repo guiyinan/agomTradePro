@@ -4684,3 +4684,12 @@ Git SHA / 镜像 / migration：
 - 状态收口：D0 asset master、D1 price bar、D2 fund NAV、D3 macro、D4 financial、D5 valuation、D6 membership 统一为 `canonical_read_with_legacy_audit`；D1 quote 继续使用 reliability-guard 状态；没有旧事实投影的 D7 news、D8 capital flow 与 D9 publisher 明确为 `canonical_only`。
 - 证据：Admin 回归枚举六个 retained legacy model 并断言均未注册；ownership 回归枚举所有 D0-D9 状态；legacy fact access guard 继续为 0。该状态只宣告消费者与人工入口切换完成，不等于生产旧表已经删除。
 - 明确未做：不生成 destructive migration、不清空生产旧表、不执行 VPS 部署；M9 仍由真实 custom backup→restore、零访问证据和明确生产授权控制。
+
+## 126. 2026-08-07：消费者、配置、调度与脚本入口全量收编
+
+- 清单根因：§118 的 548 条清单覆盖外部调用面和 Public Port 定义，但没有冻结谁在调用 Public Port，也没有纳入 Django Admin、Runtime Config key、`SystemSettingsModel` 兼容引用、数据库 Beat writer 和非 Python 编排入口；因此不能作为“全量消费者已收编”的机器证据。
+- 清单扩展：`data_center_entrypoint_inventory.py` 增加 canonical Application consumer、Admin、Runtime Config、SystemSettings compatibility、scheduler writer 与 script/workflow orchestration 六类扫描；management command 改为仓库级发现，Admin 改为全仓语义扫描，旧模型重新注册会进入 `candidate-review`。最终清单为 793 条：158 个 consumer import、45 个 runtime key、14 个 Admin、8 个数据库调度写入口、8 个编排入口，`candidate-review=0`。
+- 旧脚本退役：删除 7 个直接查询旧 `macro_indicator` 的 debug 脚本、3 个已失效的 USD 迁移 Python 脚本和 1 个直接写旧表的 SQL；`setup_celery_beat.py` 改为 `init_scheduler_defaults` 薄 wrapper，不再直接写 `PeriodicTask` 或引用不存在的 task。legacy fact guard 扩展到 `scripts/sdk`、re-export、relative/module alias、dynamic model/import 和 Python/SQL/Shell/PowerShell/Batch/YAML raw SQL，旧表脚本以后无法绕过 CI。
+- 破坏性入口收口：legacy `cleanup_expired_raw_payloads_task(dry_run=False)` 改为阻断；`enforce_retention_task` 在可信 archive reader + staging restore gate 落地前拒绝真实删除；caller-supplied checksum/count/size 不再能把 archive manifest 标记 verified；quote snapshot 全量 purge 命令保留名称但永久 fail-closed，并删除其 Application/Repository `delete_all` 旁路。
+- Config Center 入口修复：注销 `SystemSettingsModel` Django Admin，避免 `ModelForm.save(commit=False)` 绕过 typed profile；备份邮件读取改用 `get_settings_for_read()`，不再因一次读创建旧 singleton。删除 3 个没有 definition/consumer 的幽灵 runtime key，`task_monitor.retention_days` 标记为 Config Center-only fail-closed，storage 四项更正为独立 `StorageBudgetPolicyModel` 真源并登记实际消费者。
+- 验证：扩展后的入口/legacy/retention/purge/Admin 定向包 39 passed；legacy access guard 和 Celery task contract 均通过。该批只关闭漏网入口和危险删除旁路，不把 archive export/reader/staging restore、真实 PostgreSQL 恢复、生产观察窗口、M9/M10 或部署冒充为已完成。

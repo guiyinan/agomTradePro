@@ -12,8 +12,10 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import re
 from collections import Counter
 from collections.abc import Iterable
+from functools import cache, lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +24,8 @@ DEFAULT_OUTPUT = ROOT / "governance" / "data_center_entrypoints.json"
 STATUSES = frozenset({"active_public", "compatibility", "adjacent_operational", "candidate-review"})
 REQUIRED_CATEGORIES = frozenset(
     {
+        "admin_surface",
+        "application_consumer",
         "script",
         "management_command",
         "celery_task",
@@ -30,10 +34,14 @@ REQUIRED_CATEGORIES = frozenset(
         "rest_url",
         "sdk",
         "mcp_tool",
+        "orchestration_entry",
         "terminal_tui",
         "capability_runtime",
         "public_port",
         "compatibility_facade",
+        "runtime_config_key",
+        "scheduler_writer",
+        "system_settings_compatibility",
     }
 )
 COMPATIBILITY_FACADES = (
@@ -60,6 +68,7 @@ def _load_json(path: Path) -> dict[str, Any]:
     return payload
 
 
+@cache
 def _tree(path: Path) -> ast.Module:
     return ast.parse(path.read_text(encoding="utf-8"), filename=_relative(path))
 
@@ -78,6 +87,20 @@ def _call_name(node: ast.Call) -> str:
     return ""
 
 
+def _dotted_attribute(node: ast.AST) -> str | None:
+    """Return a dotted name for a simple Name/Attribute expression."""
+
+    parts: list[str] = []
+    current = node
+    while isinstance(current, ast.Attribute):
+        parts.append(current.attr)
+        current = current.value
+    if not isinstance(current, ast.Name):
+        return None
+    parts.append(current.id)
+    return ".".join(reversed(parts))
+
+
 def _function_symbol(node: ast.FunctionDef | ast.AsyncFunctionDef, tree: ast.Module) -> str:
     for parent in ast.walk(tree):
         if isinstance(parent, ast.ClassDef) and node in parent.body:
@@ -89,6 +112,19 @@ def _functions(tree: ast.Module) -> Iterable[ast.FunctionDef | ast.AsyncFunction
     return (
         node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
     )
+
+
+def _production_python_files(*roots: str) -> Iterable[Path]:
+    """Yield production Python files below the requested repository roots."""
+
+    for root_name in roots:
+        root = ROOT / root_name
+        if not root.exists():
+            continue
+        for path in sorted(root.rglob("*.py")):
+            if any(part in {"migrations", "tests", "__pycache__"} for part in path.parts):
+                continue
+            yield path
 
 
 def _entry(
@@ -180,7 +216,12 @@ def _discover_scripts(legacy: dict[str, Any]) -> list[dict[str, object]]:
 
 def _discover_management_commands() -> list[dict[str, object]]:
     results: list[dict[str, object]] = []
-    for path in sorted((ROOT / "apps").glob("*/management/commands/*.py")):
+    for path in sorted(ROOT.rglob("*.py")):
+        path_parts = path.relative_to(ROOT).parts
+        if "management" not in path_parts or "commands" not in path_parts:
+            continue
+        if any(part in {".venv", "node_modules", "__pycache__"} for part in path.parts):
+            continue
         if path.name == "__init__.py":
             continue
         path_text = _relative(path)
@@ -203,6 +244,347 @@ def _discover_management_commands() -> list[dict[str, object]]:
                     if owned
                     else "cross-app command consumer of Data Center"
                 ),
+            )
+        )
+    return results
+
+
+def _discover_application_consumers() -> list[dict[str, object]]:
+    """Enumerate every production import of the canonical Application Public Port."""
+
+    module_name = "apps.data_center.application.public"
+    results: list[dict[str, object]] = []
+    for path in _production_python_files("apps", "core", "shared", "scripts", "sdk"):
+        path_text = _relative(path)
+        if path_text.startswith("apps/data_center/"):
+            continue
+        for node in ast.walk(_tree(path)):
+            if isinstance(node, ast.ImportFrom) and node.module == module_name:
+                for alias in node.names:
+                    results.append(
+                        _entry(
+                            category="application_consumer",
+                            path=path_text,
+                            symbol=alias.name,
+                            locator=f"line:{node.lineno}",
+                            status="active_public",
+                            evidence="canonical Data Center Application Public Port import",
+                        )
+                    )
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name != module_name:
+                        continue
+                    results.append(
+                        _entry(
+                            category="application_consumer",
+                            path=path_text,
+                            symbol=alias.asname or module_name,
+                            locator=f"line:{node.lineno}",
+                            status="active_public",
+                            evidence="canonical Data Center Application Public Port module import",
+                        )
+                    )
+    return results
+
+
+def _admin_registration_target(decorator: ast.expr) -> str:
+    """Return the model symbol registered by one ``admin.register`` decorator."""
+
+    if not isinstance(decorator, ast.Call) or not decorator.args:
+        return ""
+    function = decorator.func
+    if not isinstance(function, ast.Attribute) or function.attr != "register":
+        return ""
+    dotted = _dotted_attribute(function.value)
+    if dotted not in {"admin", "admin.site", "site"}:
+        return ""
+    target = decorator.args[0]
+    if isinstance(target, ast.Name):
+        return target.id
+    if isinstance(target, ast.Attribute):
+        return ast.unparse(target)
+    return ""
+
+
+def _discover_admin_surfaces() -> list[dict[str, object]]:
+    """Enumerate human-operated Data/Config Center Django Admin surfaces."""
+
+    legacy_models = {
+        "StockInfoModel",
+        "StockDailyModel",
+        "FinancialDataModel",
+        "ValuationModel",
+        "FundNetValueModel",
+        "SectorConstituentModel",
+        "MacroIndicator",
+    }
+    results: list[dict[str, object]] = []
+    for path in _production_python_files("apps", "core"):
+        if path.name != "admin.py":
+            continue
+        path_text = _relative(path)
+        tree = _tree(path)
+        imported_aliases = {
+            alias.asname or alias.name: alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+            for alias in node.names
+        }
+        for node in tree.body:
+            if not isinstance(node, ast.ClassDef):
+                continue
+            for decorator in node.decorator_list:
+                model = _admin_registration_target(decorator)
+                if not model:
+                    continue
+                canonical_model = imported_aliases.get(model, model)
+                if path_text.startswith(("apps/data_center/", "apps/config_center/")):
+                    status = "active_public"
+                elif canonical_model == "SystemSettingsModel":
+                    status = "compatibility"
+                elif canonical_model in legacy_models:
+                    status = "candidate-review"
+                else:
+                    continue
+                results.append(
+                    _entry(
+                        category="admin_surface",
+                        path=path_text,
+                        symbol=node.name,
+                        locator=canonical_model,
+                        status=status,
+                        evidence=(
+                            "Data/Config Center-owned Django Admin registration"
+                            if status == "active_public"
+                            else (
+                                "legacy SystemSettings compatibility Admin"
+                                if status == "compatibility"
+                                else "legacy fact model Admin registration must be retired"
+                            )
+                        ),
+                    )
+                )
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not node.args:
+                continue
+            dotted = _dotted_attribute(node.func)
+            if dotted not in {"admin.site.register", "site.register"}:
+                continue
+            model = ast.unparse(node.args[0])
+            canonical_model = imported_aliases.get(model, model)
+            if path_text.startswith(("apps/data_center/", "apps/config_center/")):
+                status = "active_public"
+            elif canonical_model == "SystemSettingsModel":
+                status = "compatibility"
+            elif canonical_model in legacy_models:
+                status = "candidate-review"
+            else:
+                continue
+            results.append(
+                _entry(
+                    category="admin_surface",
+                    path=path_text,
+                    symbol="admin.site.register",
+                    locator=canonical_model,
+                    status=status,
+                    evidence="imperative Django Admin registration",
+                )
+            )
+    return results
+
+
+def _discover_scheduler_writers() -> list[dict[str, object]]:
+    """Enumerate every production writer of database-backed Beat schedules."""
+
+    results: list[dict[str, object]] = []
+    for path in _production_python_files("apps", "core", "scripts"):
+        tree = _tree(path)
+        periodic_task_imported = any(
+            isinstance(node, ast.ImportFrom)
+            and node.module == "django_celery_beat.models"
+            and any(alias.name == "PeriodicTask" for alias in node.names)
+            for node in ast.walk(tree)
+        )
+        periodic_task_imported = periodic_task_imported or any(
+            isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "PeriodicTask"
+                for target in node.targets
+            )
+            and isinstance(node.value, ast.Attribute)
+            and node.value.attr == "PeriodicTask"
+            for node in ast.walk(tree)
+        )
+        if not periodic_task_imported:
+            continue
+        writes_periodic_task = any(
+            isinstance(node, ast.Call)
+            and (_dotted_attribute(node.func) or "").startswith(
+                ("PeriodicTask.objects.", "PeriodicTask._default_manager.")
+            )
+            and (_dotted_attribute(node.func) or "").rsplit(".", 1)[-1]
+            in {"bulk_create", "create", "delete", "get_or_create", "update", "update_or_create"}
+            for node in ast.walk(tree)
+        )
+        if not writes_periodic_task:
+            continue
+        path_text = _relative(path)
+        task_paths = sorted(
+            {
+                str(node.value)
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and node.value.startswith("apps.")
+                and ".tasks." in node.value
+            }
+        )
+        if not task_paths:
+            task_paths = ["dynamic-task-path"]
+        for task_path in task_paths:
+            results.append(
+                _entry(
+                    category="scheduler_writer",
+                    path=path_text,
+                    symbol="PeriodicTask",
+                    locator=task_path,
+                    status=(
+                        "active_public"
+                        if "/management/commands/" in f"/{path_text}"
+                        else "candidate-review"
+                    ),
+                    evidence=(
+                        "Django management command owns database-backed Beat schedule"
+                        if "/management/commands/" in f"/{path_text}"
+                        else "ad-hoc database-backed Beat writer must delegate to a command"
+                    ),
+                )
+            )
+    return results
+
+
+def _discover_orchestration_entries() -> list[dict[str, object]]:
+    """Enumerate scripts/workflows that invoke governed management commands."""
+
+    data_center_commands = {
+        path.stem
+        for path in (ROOT / "apps" / "data_center" / "management" / "commands").glob("*.py")
+        if path.name != "__init__.py"
+    }
+    governed_commands = data_center_commands | {"init_scheduler_defaults"}
+    command_pattern = re.compile(
+        r"manage\.py(?:[\"'`,\]()\s]+)([A-Za-z][A-Za-z0-9_]*)",
+        re.IGNORECASE,
+    )
+    extensions = {".py", ".sh", ".ps1", ".bat", ".yml", ".yaml"}
+    roots = (ROOT / "scripts", ROOT / "docker", ROOT / ".github")
+    results: list[dict[str, object]] = []
+    for source_root in roots:
+        if not source_root.exists():
+            continue
+        for path in sorted(source_root.rglob("*")):
+            if not path.is_file() or path.suffix.lower() not in extensions:
+                continue
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            for match in command_pattern.finditer(text):
+                command = match.group(1)
+                if command not in governed_commands:
+                    continue
+                line = text.count("\n", 0, match.start()) + 1
+                results.append(
+                    _entry(
+                        category="orchestration_entry",
+                        path=_relative(path),
+                        symbol=command,
+                        locator=f"line:{line}",
+                        status="active_public",
+                        evidence="script/workflow delegates to a governed Django command",
+                    )
+                )
+    return results
+
+
+def _discover_runtime_config_keys(runtime_config: dict[str, Any]) -> list[dict[str, object]]:
+    """Publish every governed runtime key and its migration lifecycle."""
+
+    active_states = {
+        "canonical_only_fail_closed",
+        "model-backed",
+        "registered",
+        "separate_model_active",
+    }
+    compatibility_states = {
+        "consumer_cutover_in_progress",
+        "config_center_secret_owner_with_legacy_migration",
+    }
+    results: list[dict[str, object]] = []
+    for item in runtime_config.get("definitions", []):
+        if not isinstance(item, dict):
+            continue
+        config_key = str(item.get("config_key") or "").strip()
+        migration_status = str(item.get("migration_status") or "").strip()
+        if not config_key:
+            continue
+        consumers = item.get("consumers")
+        consumer_count = len(consumers) if isinstance(consumers, list) else 0
+        if migration_status in active_states and consumer_count > 0:
+            status = "active_public"
+        elif migration_status in compatibility_states:
+            status = "compatibility"
+        else:
+            status = "candidate-review"
+        results.append(
+            _entry(
+                category="runtime_config_key",
+                path="governance/runtime_config_contracts.json",
+                symbol=config_key,
+                locator=migration_status,
+                status=status,
+                evidence=(
+                    f"runtime owner={item.get('owner')}; consumers={consumer_count}; "
+                    f"migration_status={migration_status or 'missing'}"
+                ),
+            )
+        )
+    return results
+
+
+def _references_system_settings(tree: ast.Module) -> tuple[int, ...]:
+    """Return exact source lines that import or reference ``SystemSettingsModel``."""
+
+    lines: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id == "SystemSettingsModel":
+            lines.add(node.lineno)
+        elif isinstance(node, ast.ImportFrom):
+            if any(alias.name == "SystemSettingsModel" for alias in node.names):
+                lines.add(node.lineno)
+        elif isinstance(node, ast.Attribute) and node.attr == "SystemSettingsModel":
+            lines.add(node.lineno)
+    return tuple(sorted(lines))
+
+
+def _discover_system_settings_compatibility() -> list[dict[str, object]]:
+    """Enumerate all remaining production references to the legacy singleton."""
+
+    owner_path = "apps/config_center/infrastructure/models.py"
+    results: list[dict[str, object]] = []
+    for path in _production_python_files("apps", "core", "shared", "scripts"):
+        path_text = _relative(path)
+        if path_text == owner_path:
+            continue
+        lines = _references_system_settings(_tree(path))
+        if not lines:
+            continue
+        results.append(
+            _entry(
+                category="system_settings_compatibility",
+                path=path_text,
+                symbol="SystemSettingsModel",
+                locator="lines:" + ",".join(str(line) for line in lines),
+                status="compatibility",
+                evidence="explicit legacy singleton reference pending M9 field retirement",
             )
         )
     return results
@@ -670,9 +1052,14 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
         legacy = _load_json(ROOT / "governance" / "data_center_legacy_entrypoints.json")
         celery = _load_json(ROOT / "governance" / "celery_task_contracts.json")
         current_data = _load_json(ROOT / "governance" / "current_data_contracts.json")
+        runtime_config = _load_json(ROOT / "governance" / "runtime_config_contracts.json")
         entries = (
             _discover_scripts(legacy)
             + _discover_management_commands()
+            + _discover_application_consumers()
+            + _discover_admin_surfaces()
+            + _discover_scheduler_writers()
+            + _discover_orchestration_entries()
             + _discover_celery_tasks(celery)
             + _discover_beat_schedule(celery)
             + _discover_current_data_surfaces(current_data)
@@ -682,6 +1069,8 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
             + _discover_terminal_tui()
             + _discover_capability_runtime()
             + _discover_ports_and_facades()
+            + _discover_runtime_config_keys(runtime_config)
+            + _discover_system_settings_compatibility()
         )
     finally:
         ROOT = previous_root
@@ -696,10 +1085,10 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
         ),
     )
     category_counts = Counter(str(item["category"]) for item in ordered)
-    status_counts = Counter({status: 0 for status in STATUSES})
+    status_counts = Counter(dict.fromkeys(STATUSES, 0))
     status_counts.update(str(item["status"]) for item in ordered)
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "owner": "data_center",
         "semantics": {
             "active_public": "explicitly governed canonical external or cross-app port",
@@ -711,6 +1100,7 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
             "governance/celery_task_contracts.json",
             "governance/current_data_contracts.json",
             "governance/data_center_legacy_entrypoints.json",
+            "governance/runtime_config_contracts.json",
             "config/tui/generated/tui_operation_graph.generated.json",
             "config/tui/published/tui_operation_graph.published.json",
         ],
@@ -719,6 +1109,7 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
             "current_data_contracts": len(current_data.get("contracts", [])),
             "legacy_entrypoints_and_wrappers": len(legacy.get("entrypoints", []))
             + len(legacy.get("wrappers", [])),
+            "runtime_config_keys": len(runtime_config.get("definitions", [])),
         },
         "entries": ordered,
         "counts": {

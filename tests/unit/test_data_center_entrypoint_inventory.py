@@ -56,6 +56,62 @@ def test_inventory_has_no_unreviewed_discovery_and_preserves_evidence(
     assert all(entry["evidence"] for entry in first["entries"])
 
 
+def test_inventory_includes_internal_consumers_admin_and_config_compatibility(
+    inventory_payload: tuple[ModuleType, dict[str, object]],
+) -> None:
+    """Prevent the unified inventory from regressing to external routes only."""
+
+    _inventory, payload = inventory_payload
+    entries = payload["entries"]
+    entry_keys = {
+        (
+            entry["category"],
+            entry["path"],
+            entry["symbol"],
+            entry["locator"],
+        )
+        for entry in entries
+    }
+
+    assert any(
+        category == "application_consumer"
+        and path == "apps/equity/infrastructure/fundamentals_repository.py"
+        for category, path, _symbol, _locator in entry_keys
+    )
+    assert (
+        "admin_surface",
+        "apps/data_center/interface/admin.py",
+        "ProviderConfigAdmin",
+        "ProviderConfigModel",
+    ) in entry_keys
+    assert (
+        "runtime_config_key",
+        "governance/runtime_config_contracts.json",
+        "data_center.provider.failover_tolerance",
+        "consumer_cutover_in_progress",
+    ) in entry_keys
+    assert any(
+        category == "system_settings_compatibility" and path == "core/encryption_readiness.py"
+        for category, path, _symbol, _locator in entry_keys
+    )
+    assert any(
+        category == "scheduler_writer"
+        and path == "apps/macro/management/commands/setup_macro_daily_sync.py"
+        for category, path, _symbol, _locator in entry_keys
+    )
+    assert (
+        "orchestration_entry",
+        "scripts/setup_celery_beat.py",
+        "init_scheduler_defaults",
+        "line:16",
+    ) in entry_keys
+    assert any(
+        category == "management_command"
+        and path == "core/management/commands/warmup_cache.py"
+        for category, path, _symbol, _locator in entry_keys
+    )
+
+
 def test_generated_manifest_matches_static_discovery(
     inventory_payload: tuple[ModuleType, dict[str, object]],
 ) -> None:
