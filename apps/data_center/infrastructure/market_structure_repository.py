@@ -592,5 +592,22 @@ class MarketStructureResearchRepository:
         ).first()
         return model.to_domain() if model is not None else None
 
+    def get_evidence_at(
+        self,
+        *,
+        evidence_key: str,
+        evidence_version: int,
+        as_of_time: datetime,
+    ) -> ImmutableMarketStructureEvidence | None:
+        """Return one exact evidence version only after its server receipt."""
+
+        _require_aware(as_of_time, "as_of_time")
+        model = MarketStructureResearchEvidenceModel._default_manager.filter(
+            evidence_key=evidence_key,
+            evidence_version=evidence_version,
+            created_at__lte=as_of_time,
+        ).first()
+        return model.to_domain() if model is not None else None
+
 
 __all__ = ["MarketStructureResearchRepository"]

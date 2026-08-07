@@ -5,6 +5,9 @@ from apps.data_center.application.market_structure import (
     ReadMarketStructureEvidence,
     RunMarketStructureResearch,
 )
+from apps.data_center.infrastructure.market_structure_publication import (
+    DjangoMarketStructurePublicationGate,
+)
 from apps.data_center.infrastructure.market_structure_repository import (
     MarketStructureResearchRepository,
 )
@@ -19,7 +22,10 @@ def make_market_structure_governance_facade() -> MarketStructureGovernanceFacade
 def make_market_structure_research_runner() -> RunMarketStructureResearch:
     """Build the fail-closed R2 research runner."""
 
-    return RunMarketStructureResearch(MarketStructureResearchRepository())
+    return RunMarketStructureResearch(
+        MarketStructureResearchRepository(),
+        DjangoMarketStructurePublicationGate(),
+    )
 
 
 def make_market_structure_evidence_reader() -> ReadMarketStructureEvidence:

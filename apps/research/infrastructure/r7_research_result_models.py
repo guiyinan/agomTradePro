@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable, Iterator, Mapping
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import NoReturn, TypeVar
+from typing import NoReturn, TypeVar, cast
 
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.base import ModelBase
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
 
 from apps.research.infrastructure.r7_sample_policy_models import R7SamplePolicyModel
 from shared.infrastructure.django_append_only import AppendOnlyManager, AppendOnlyQuerySet
@@ -84,6 +86,69 @@ class R7ResearchResultQuerySet(AppendOnlyQuerySet[_ModelT]):
         unique_fields: Collection[str] | None = None,
     ) -> NoReturn:
         raise ValidationError("R7 research results require exact repository appends.")
+
+    def _update(self, values: object) -> NoReturn:
+        """Reject Django's private SQL update entry point."""
+
+        raise ValidationError("R7 research result evidence cannot be updated.")
+
+    def _raw_delete(self, using: str | None) -> NoReturn:
+        """Reject Django's private fast-delete entry point."""
+
+        raise ValidationError("R7 research result evidence cannot be deleted.")
+
+    def _insert(
+        self,
+        objs: Iterable[_ModelT],
+        fields: Iterable[object],
+        returning_fields: Iterable[object] | None = None,
+        raw: bool = False,
+        using: str | None = None,
+        on_conflict: object | None = None,
+        update_fields: Iterable[object] | None = None,
+        unique_fields: Iterable[object] | None = None,
+    ) -> list[tuple[object, ...]]:
+        """Allow only the exact claimed insert used by ``Model.save()``."""
+
+        items = list(objs)
+        if (
+            not items
+            or raw
+            or on_conflict is not None
+            or update_fields is not None
+            or unique_fields is not None
+            or (using is not None and using != self.db)
+        ):
+            raise ValidationError("R7 research result private insert is forbidden.")
+        for item in items:
+            _require_r7_research_result_insert_claim(item)
+        insert = cast(
+            Callable[..., list[tuple[object, ...]]],
+            getattr(super(), "_insert"),  # noqa: B009 - private Django typed boundary
+        )
+        return insert(
+            items,
+            fields,
+            returning_fields=returning_fields,
+            raw=False,
+            using=using,
+            on_conflict=None,
+            update_fields=None,
+            unique_fields=None,
+        )
+
+    def _batched_insert(
+        self,
+        objs: list[_ModelT],
+        fields: list[object],
+        batch_size: int | None,
+        on_conflict: object | None = None,
+        update_fields: Iterable[object] | None = None,
+        unique_fields: Iterable[object] | None = None,
+    ) -> NoReturn:
+        """Reject the private bulk-insert path even when called directly."""
+
+        raise ValidationError("R7 research result private bulk insert is forbidden.")
 
 
 class R7ResearchResultManager(AppendOnlyManager[_ModelT]):
@@ -207,16 +272,7 @@ class R7ResearchResultModel(models.Model):
         )
 
     def _require_claim(self) -> None:
-        claim = _ACTIVE_R7_RESULT_CLAIM.get()
-        if (
-            claim is None
-            or claim.token is not _ACTIVE_R7_RESULT_UOW.get()
-            or any(
-                getattr(self, field_name) != expected
-                for field_name, expected in claim.expected_values
-            )
-        ):
-            raise ValidationError("R7 research result requires an exact insert claim.")
+        _require_r7_research_result_insert_claim(self)
 
     def delete(
         self,
@@ -224,6 +280,32 @@ class R7ResearchResultModel(models.Model):
         keep_parents: bool = False,
     ) -> tuple[int, dict[str, int]]:
         raise ValidationError("R7 research result evidence cannot be deleted.")
+
+
+def _require_r7_research_result_insert_claim(model: models.Model) -> None:
+    claim = _ACTIVE_R7_RESULT_CLAIM.get()
+    if (
+        claim is None
+        or claim.token is not _ACTIVE_R7_RESULT_UOW.get()
+        or any(
+            getattr(model, field_name) != expected for field_name, expected in claim.expected_values
+        )
+    ):
+        raise ValidationError("R7 research result requires an exact insert claim.")
+
+
+@receiver(pre_delete, sender=R7ResearchResultModel, weak=False)
+def _reject_r7_research_result_collector_delete(
+    *,
+    sender: type[models.Model],
+    instance: models.Model,
+    using: str,
+    origin: object | None,
+    **kwargs: object,
+) -> NoReturn:
+    """Reject Django Collector and cascade deletion paths."""
+
+    raise ValidationError("R7 research result evidence cannot be deleted.")
 
 
 __all__ = ["R7ResearchResultModel"]

@@ -12,14 +12,18 @@ import pytest
 
 from apps.data_center.application.market_structure import RunMarketStructureResearch
 from apps.data_center.domain.market_structure import (
+    MARKET_STRUCTURE_CALENDAR_DATASET,
+    MARKET_STRUCTURE_TAXONOMY_DATASET,
     EmpiricalPercentileMethod,
     ImmutableMarketStructureEvidence,
     InvestorActorDefinition,
     MarketStructureAggregationPolicy,
+    MarketStructureGovernanceArtifactKind,
     MarketStructureMeasureConcept,
     MarketStructureObservation,
     MarketStructurePeriodCalendar,
     MarketStructurePeriodCalendarRef,
+    MarketStructurePublicationAttestation,
     MarketStructureResearchRequest,
     MarketStructureResearchStatus,
     MarketStructureSeriesDefinition,
@@ -41,6 +45,7 @@ PERIODS = (
 )
 HASH_A = "a" * 64
 HASH_B = "b" * 64
+HASH_C = "c" * 64
 
 
 def _actor(actor_code: str) -> InvestorActorDefinition:
@@ -111,6 +116,51 @@ def _calendar() -> MarketStructurePeriodCalendar:
         available_at=AS_OF,
         periods=PERIODS,
     )
+
+
+def _publication_attestation(
+    *,
+    kind: MarketStructureGovernanceArtifactKind,
+    natural_key: str,
+    artifact_hash: str,
+    observed_at: datetime,
+    member_id: str,
+) -> MarketStructurePublicationAttestation:
+    taxonomy = kind is not MarketStructureGovernanceArtifactKind.PERIOD_CALENDAR
+    return MarketStructurePublicationAttestation.create(
+        artifact_kind=kind,
+        dataset_key=(
+            MARKET_STRUCTURE_TAXONOMY_DATASET if taxonomy else MARKET_STRUCTURE_CALENDAR_DATASET
+        ),
+        publication_key=(
+            "taxonomy:TEST_TAXONOMY:v1" if taxonomy else "calendar:TEST_MONTHLY_CALENDAR:v1"
+        ),
+        publication_id=("taxonomy-publication" if taxonomy else "calendar-publication"),
+        publication_hash=(HASH_C if taxonomy else HASH_B),
+        publication_as_of=observed_at,
+        published_at=observed_at,
+        member_id=member_id,
+        member_natural_key=natural_key,
+        fact_table="test_governance",
+        fact_pk=member_id,
+        artifact_hash=artifact_hash,
+        member_observed_at=observed_at,
+    )
+
+
+def test_publication_attestation_rejects_semantically_ignored_fields() -> None:
+    attestation = _publication_attestation(
+        kind=MarketStructureGovernanceArtifactKind.PERIOD_CALENDAR,
+        natural_key="calendar:TEST_MONTHLY_CALENDAR:v1",
+        artifact_hash=_calendar().calendar_hash,
+        observed_at=AS_OF,
+        member_id="calendar-member",
+    )
+    payload = attestation.to_payload()
+    payload["unsupported"] = "would-be-ignored"
+
+    with pytest.raises(ValueError, match="unsupported fields"):
+        MarketStructurePublicationAttestation.from_payload(payload)
 
 
 def _request() -> MarketStructureResearchRequest:
@@ -416,6 +466,35 @@ def test_evidence_hash_seals_inputs_outputs_and_version() -> None:
         actor_definitions=(_actor("A"), _actor("B")),
         series_definitions=(first, second),
         source_evidence=tuple(item.evidence for item in observations),
+        governance_publications=(
+            _publication_attestation(
+                kind=MarketStructureGovernanceArtifactKind.PERIOD_CALENDAR,
+                natural_key="calendar:TEST_MONTHLY_CALENDAR:v1",
+                artifact_hash=_calendar().calendar_hash,
+                observed_at=AS_OF,
+                member_id="calendar-member",
+            ),
+            *(
+                _publication_attestation(
+                    kind=MarketStructureGovernanceArtifactKind.ACTOR,
+                    natural_key=f"actor:TEST_TAXONOMY:v1:{actor.actor_code}",
+                    artifact_hash=actor.definition_hash,
+                    observed_at=actor.available_at,
+                    member_id=f"actor-{actor.actor_code}",
+                )
+                for actor in (_actor("A"), _actor("B"))
+            ),
+            *(
+                _publication_attestation(
+                    kind=MarketStructureGovernanceArtifactKind.SERIES,
+                    natural_key=f"series:{series.series_code}:v1",
+                    artifact_hash=series.definition_hash,
+                    observed_at=series.available_at,
+                    member_id=f"series-{series.actor_code}",
+                )
+                for series in (first, second)
+            ),
+        ),
     )
 
     assert evidence.status is MarketStructureResearchStatus.AVAILABLE
@@ -444,11 +523,13 @@ class _Gateway:
         observations: tuple[MarketStructureObservation, ...],
         membership_assets: tuple[str, ...] = ("TEST.ASSET",),
         period_calendar: MarketStructurePeriodCalendar | None = None,
+        publications_enabled: bool = True,
     ) -> None:
         self._definitions = {(item.series_code, item.series_version): item for item in definitions}
         self._observations = observations
         self._membership_assets = membership_assets
         self._period_calendar = period_calendar or _calendar()
+        self._publications_enabled = publications_enabled
         self.membership_calls: list[tuple[datetime, datetime]] = []
         self.saved: ImmutableMarketStructureEvidence | None = None
 
@@ -559,6 +640,70 @@ class _Gateway:
     ) -> ImmutableMarketStructureEvidence | None:
         return self.saved
 
+    def get_evidence_at(
+        self,
+        *,
+        evidence_key: str,
+        evidence_version: int,
+        as_of_time: datetime,
+    ) -> ImmutableMarketStructureEvidence | None:
+        del evidence_key, evidence_version, as_of_time
+        return self.saved
+
+    def attest_actor(
+        self,
+        definition: InvestorActorDefinition,
+        *,
+        as_of_time: datetime,
+    ) -> MarketStructurePublicationAttestation | None:
+        del as_of_time
+        if not self._publications_enabled:
+            return None
+        return _publication_attestation(
+            kind=MarketStructureGovernanceArtifactKind.ACTOR,
+            natural_key=(
+                f"actor:{definition.taxonomy_code}:v{definition.taxonomy_version}:"
+                f"{definition.actor_code}"
+            ),
+            artifact_hash=definition.definition_hash,
+            observed_at=definition.available_at,
+            member_id=f"actor-{definition.actor_code}",
+        )
+
+    def attest_series(
+        self,
+        definition: MarketStructureSeriesDefinition,
+        *,
+        as_of_time: datetime,
+    ) -> MarketStructurePublicationAttestation | None:
+        del as_of_time
+        if not self._publications_enabled:
+            return None
+        return _publication_attestation(
+            kind=MarketStructureGovernanceArtifactKind.SERIES,
+            natural_key=f"series:{definition.series_code}:v{definition.series_version}",
+            artifact_hash=definition.definition_hash,
+            observed_at=definition.available_at,
+            member_id=f"series-{definition.actor_code}",
+        )
+
+    def attest_period_calendar(
+        self,
+        calendar: MarketStructurePeriodCalendar,
+        *,
+        as_of_time: datetime,
+    ) -> MarketStructurePublicationAttestation | None:
+        del as_of_time
+        if not self._publications_enabled:
+            return None
+        return _publication_attestation(
+            kind=MarketStructureGovernanceArtifactKind.PERIOD_CALENDAR,
+            natural_key=f"calendar:{calendar.calendar_code}:v{calendar.calendar_version}",
+            artifact_hash=calendar.calendar_hash,
+            observed_at=calendar.available_at,
+            member_id="calendar-member",
+        )
+
 
 def test_application_resolves_membership_at_each_historical_observation_clock() -> None:
     first = _series("A")
@@ -566,7 +711,7 @@ def test_application_resolves_membership_at_each_historical_observation_clock() 
     observations = _complete_observations(first, second)
     gateway = _Gateway((first, second), observations)
 
-    evidence = RunMarketStructureResearch(gateway).execute(_request())
+    evidence = RunMarketStructureResearch(gateway, gateway).execute(_request())
 
     assert evidence.status is MarketStructureResearchStatus.AVAILABLE
     assert {call[0] for call in gateway.membership_calls} == set(PERIODS)
@@ -585,7 +730,7 @@ def test_application_blocks_and_seals_partial_membership_coverage() -> None:
         membership_assets=("EXTRA.ASSET", "TEST.ASSET"),
     )
 
-    evidence = RunMarketStructureResearch(gateway).execute(_request())
+    evidence = RunMarketStructureResearch(gateway, gateway).execute(_request())
 
     assert evidence.status is MarketStructureResearchStatus.BLOCKED
     payload = cast(dict[str, object], json.loads(evidence.payload_json))
@@ -607,7 +752,7 @@ def test_application_calendar_exposes_and_blocks_whole_period_all_missing() -> N
     )
     gateway = _Gateway((first, second), observations)
 
-    evidence = RunMarketStructureResearch(gateway).execute(_request())
+    evidence = RunMarketStructureResearch(gateway, gateway).execute(_request())
 
     assert evidence.status is MarketStructureResearchStatus.BLOCKED
     payload = cast(dict[str, object], json.loads(evidence.payload_json))
@@ -632,10 +777,29 @@ def test_application_rejects_definition_not_publicly_available_at_request_time()
     second = _series("B")
     gateway = _Gateway((first, second), _complete_observations(first, second))
 
-    evidence = RunMarketStructureResearch(gateway).execute(_request())
+    evidence = RunMarketStructureResearch(gateway, gateway).execute(_request())
 
     assert evidence.status is MarketStructureResearchStatus.BLOCKED
     assert (
         "series_definition_unavailable:SERIES_A"
         in json.loads(evidence.payload_json)["output"]["blocked_reasons"]
     )
+
+
+def test_application_rejects_unpublished_taxonomy_and_calendar() -> None:
+    first = _series("A")
+    second = _series("B")
+    gateway = _Gateway(
+        (first, second),
+        _complete_observations(first, second),
+        publications_enabled=False,
+    )
+
+    evidence = RunMarketStructureResearch(gateway, gateway).execute(_request())
+
+    assert evidence.status is MarketStructureResearchStatus.BLOCKED
+    blockers = json.loads(evidence.payload_json)["output"]["blocked_reasons"]
+    assert any(reason.startswith("period_calendar_unpublished:") for reason in blockers)
+    assert "series_definition_unpublished:SERIES_A" in blockers
+    assert "series_definition_unpublished:SERIES_B" in blockers
+    assert evidence.governance_publications == ()

@@ -242,6 +242,8 @@ python scripts/verify_architecture.py --include-audit --format text
 
 2026-08-06 R1 精确 baseline/Promotion 续批验证：Domain/Application `80 passed`；Equity unit/component 合计 `99 passed`、migration `2 passed`；Research 拆分后 unit/component/migration 为 `48 / 24 / 3 passed`（unit+component 合计 `72 passed`）。相关生产文件增量 mypy 0 regression，Ruff、Black、isort、Equity/Research migration drift、Django system check、架构、业务配置和治理门禁均通过；Luna Max 最终只读复核无 P0/P1。以上仍不替代真实 owner approval、Publication、trial、approved decision 或 Valuation 消费授权。
 
+2026-08-07 R2 Publication/Promotion 软件续批：Data Center taxonomy actor/series 与 period-calendar 已接入 Canonical Publication/member 精确 attestation，Research `0009` 已落地 policy/decision/PROMOTE-RETIRE-ROLLBACK append-only ledger、ID-only shared-UoW 与 PIT active replay。unit `24 passed`、Data Center component `6 passed`、Research component `2 passed`、migration `2 passed`；真实 taxonomy/calendar Publication、两个市场周期 coverage manifest 与 owner policy/authorization 仍缺，R2 继续 `blocked`。
+
 ## 9. 回滚
 
 - Contract 回滚：移除 R1/R2 requirement 注册和对应测试，不修改任何事实、Publication、PIT manifest 或研究历史。

@@ -147,17 +147,19 @@ verified 证据必须来自合同指定 owner、包含非空引用、timezone-aw
 - [x] 注册完整 `macro_factor` App、不可变外部研究结果和 append-only repository；
 - [x] 固定 current/forward output role、目标、候选/入选资产、split/embargo、BIC/显著性/经济含义、成本和退役合同；
 - [x] 实现逐 outer fold 的 historical-mean 与预注册 fixed-universe FMP 基准，使用与外部 final fit 一致的 train+validation 窗口；
-- 注册 Experiment 和完整 trial family；不得先挑最佳结果再补登记。
+- [x] 固化 selection 前完整 trial family、exact artifact/regime report 绑定与确定性 family hash；真实 Research owner trial 仍须由 canonical provider 提供，不得先挑最佳结果再补登记。
 
 ### M3：R3 模型研究与样本外晋级
 
 - [x] 实现 nested temporal-CV plan 与 typed external runner envelope；每个 outer fold 独立保存 inner scores/alpha/coefficients/weights，显式 final fold 才绑定最终模型；
 - [x] 保存可回读 canonical artifact bytes、dated current/forward outputs、PIT fact/manifest、benchmark/FMP/cost/split/code/dependency/parameter identity；
 - [x] 实现 walk-forward、purge/embargo、available-at/revision 防泄漏门禁和 append-only retirement hash chain；
-- regime 分段、真实样本外比较与 exact Promotion attestation 仍待真实证据；
-- PromotionDecision 未 approved 时只能 exploratory，不能发布 current。
+- [x] 实现 exact OOS prediction 全覆盖的 regime 分段复算、trial/Promotion artifact 绑定和 monitoring 读取合同；真实 Regime/OOS/Promotion owner evidence 仍待形成；
+- [x] exact output 读取只接受 artifact/output ID+hash 和统一 PIT cutoff；PromotionDecision 未 approved、已过期、退役或监控不完整时稳定阻断，成功投影仍不发布 current。
 
 2026-08-05 R3 runner 续批：上述无数据可开发的软件合同已实现。Input row 逐项绑定 Data Center fact version/content hash/effective/available time，并精确核对 manifest selected versions；TemporalSplitSpec 与每个 inner/outer window 和 row identity 一致。Artifact 原始 bytes/media/length/producer、逐 fold selection、baseline/FMP、dated outputs 和 retirement owner attestation 均可回读复算，`macro_factor.0002_reproducible_run_ledger` 只建立空 append-only schema，不 seed、不回填 0001。所有结果仍固定 `research_only / must_not_use_for_decision / must_not_execute`；真实 vintage、代理价格、benchmark/cost、OOS trial 和 Research exact Promotion binding 尚未形成，因此 R3 保持 `blocked`。
+
+2026-08-07 R3 governed read 续批：新增 Domain/Application exact contract，从 canonical external artifact bytes 重放完整 OOS prediction identity，以 Regime owner 的 actual/assignment 双时间证据现场重算分段 MSE/MAE/R²；Research trial family 必须在最早 outer-fold selection 前预注册，并逐项绑定 artifact/source/external/PIT/dataset/split/plan/regime hash，family 与 Promotion authorization 均使用确定性内容哈希。读取命令只收 exact artifact/output identity 与 `as_of`，依次动态重读 Regime report、trial、PromotionDecision、既有 append-only lifecycle 和 retirement-policy owner 的原始 monitoring facts；监控规则按阈值/连续窗口现场复算，缺项、篡改、到期、退役或触发失效规则均 fail closed，且不得自动退役。成功结果只是 production-facing 的 research read projection，固定 `publishes_current=false / decision_authorized=false / execution_authorized=false / must_not_use_for_decision / must_not_execute`。本批无 ORM/migration、无 concrete Regime/Research/monitoring provider、无 API/TUI/Celery/current/组合/执行接线；fixture 只证明软件合同，真实宏观 vintage、代理资产、Regime assignment、OOS trial、owner authorization 和 approved PromotionDecision 仍缺，因此 R3 继续 `blocked`。
 
 ### M4：R4 Portfolio canonical inputs
 

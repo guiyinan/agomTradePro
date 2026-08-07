@@ -47,6 +47,18 @@ class MarketStructureResearchStatus(str, Enum):
     BLOCKED = "blocked"
 
 
+class MarketStructureGovernanceArtifactKind(str, Enum):
+    """Governance artifacts that require a canonical Publication gate."""
+
+    ACTOR = "actor"
+    SERIES = "series"
+    PERIOD_CALENDAR = "period_calendar"
+
+
+MARKET_STRUCTURE_TAXONOMY_DATASET = "research.market_structure_taxonomy.v1"
+MARKET_STRUCTURE_CALENDAR_DATASET = "research.market_structure_calendar.v1"
+
+
 MEASURE_KIND_BY_CONCEPT: dict[
     MarketStructureMeasureConcept,
     InvestorFlowMeasureKind,
@@ -154,6 +166,227 @@ class VersionedEvidenceReference:
             "dataset": self.dataset,
             "version_id": self.version_id,
         }
+
+
+@dataclass(frozen=True)
+class MarketStructurePublicationAttestation:
+    """Exact canonical Publication/member proof for one governance artifact."""
+
+    artifact_kind: MarketStructureGovernanceArtifactKind
+    dataset_key: str
+    publication_key: str
+    publication_id: str
+    publication_hash: str
+    publication_as_of: datetime
+    published_at: datetime
+    member_id: str
+    member_natural_key: str
+    fact_table: str
+    fact_pk: str
+    artifact_hash: str
+    member_observed_at: datetime
+    attestation_hash: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.artifact_kind, MarketStructureGovernanceArtifactKind):
+            raise ValueError("market-structure publication artifact_kind is invalid")
+        for value, field_name, maximum in (
+            (self.dataset_key, "dataset_key", 128),
+            (self.publication_key, "publication_key", 200),
+            (self.publication_id, "publication_id", 100),
+            (self.member_id, "member_id", 100),
+            (self.member_natural_key, "member_natural_key", 300),
+            (self.fact_table, "fact_table", 128),
+            (self.fact_pk, "fact_pk", 100),
+        ):
+            _require_token(
+                value,
+                f"MarketStructurePublicationAttestation.{field_name}",
+                maximum=maximum,
+            )
+        expected_dataset = (
+            MARKET_STRUCTURE_CALENDAR_DATASET
+            if self.artifact_kind is MarketStructureGovernanceArtifactKind.PERIOD_CALENDAR
+            else MARKET_STRUCTURE_TAXONOMY_DATASET
+        )
+        if self.dataset_key != expected_dataset:
+            raise ValueError("market-structure publication dataset/artifact mismatch")
+        for value, field_name in (
+            (self.publication_hash, "publication_hash"),
+            (self.artifact_hash, "artifact_hash"),
+            (self.attestation_hash, "attestation_hash"),
+        ):
+            _require_sha256(
+                value,
+                f"MarketStructurePublicationAttestation.{field_name}",
+            )
+        _require_aware(
+            self.publication_as_of,
+            "MarketStructurePublicationAttestation.publication_as_of",
+        )
+        _require_aware(
+            self.published_at,
+            "MarketStructurePublicationAttestation.published_at",
+        )
+        _require_aware(
+            self.member_observed_at,
+            "MarketStructurePublicationAttestation.member_observed_at",
+        )
+        if self.publication_as_of > self.published_at:
+            raise ValueError("market-structure publication as_of exceeds published_at")
+        if self.member_observed_at > self.publication_as_of:
+            raise ValueError("market-structure publication member exceeds as_of")
+        if self.attestation_hash != market_structure_publication_attestation_hash(self):
+            raise ValueError("market-structure publication attestation hash mismatch")
+
+    def to_payload(self) -> dict[str, object]:
+        """Return the complete canonical publication proof."""
+
+        return {
+            "artifact_hash": self.artifact_hash.lower(),
+            "artifact_kind": self.artifact_kind.value,
+            "attestation_hash": self.attestation_hash.lower(),
+            "dataset_key": self.dataset_key,
+            "fact_pk": self.fact_pk,
+            "fact_table": self.fact_table,
+            "member_id": self.member_id,
+            "member_natural_key": self.member_natural_key,
+            "member_observed_at": _utc_iso(self.member_observed_at),
+            "publication_as_of": _utc_iso(self.publication_as_of),
+            "publication_hash": self.publication_hash.lower(),
+            "publication_id": self.publication_id,
+            "publication_key": self.publication_key,
+            "published_at": _utc_iso(self.published_at),
+        }
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        artifact_kind: MarketStructureGovernanceArtifactKind,
+        dataset_key: str,
+        publication_key: str,
+        publication_id: str,
+        publication_hash: str,
+        publication_as_of: datetime,
+        published_at: datetime,
+        member_id: str,
+        member_natural_key: str,
+        fact_table: str,
+        fact_pk: str,
+        artifact_hash: str,
+        member_observed_at: datetime,
+    ) -> MarketStructurePublicationAttestation:
+        """Create a hash-sealed attestation from authoritative Publication rows."""
+
+        values: dict[str, object] = {
+            "artifact_hash": artifact_hash.lower(),
+            "artifact_kind": artifact_kind.value,
+            "dataset_key": dataset_key,
+            "fact_pk": fact_pk,
+            "fact_table": fact_table,
+            "member_id": member_id,
+            "member_natural_key": member_natural_key,
+            "member_observed_at": _utc_iso(member_observed_at),
+            "publication_as_of": _utc_iso(publication_as_of),
+            "publication_hash": publication_hash.lower(),
+            "publication_id": publication_id,
+            "publication_key": publication_key,
+            "published_at": _utc_iso(published_at),
+        }
+        return cls(
+            artifact_kind=artifact_kind,
+            dataset_key=dataset_key,
+            publication_key=publication_key,
+            publication_id=publication_id,
+            publication_hash=publication_hash,
+            publication_as_of=publication_as_of,
+            published_at=published_at,
+            member_id=member_id,
+            member_natural_key=member_natural_key,
+            fact_table=fact_table,
+            fact_pk=fact_pk,
+            artifact_hash=artifact_hash,
+            member_observed_at=member_observed_at,
+            attestation_hash=_canonical_hash(values),
+        )
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: dict[str, object],
+    ) -> MarketStructurePublicationAttestation:
+        """Strictly restore one attestation from canonical evidence JSON."""
+
+        expected_fields = {
+            "artifact_hash",
+            "artifact_kind",
+            "attestation_hash",
+            "dataset_key",
+            "fact_pk",
+            "fact_table",
+            "member_id",
+            "member_natural_key",
+            "member_observed_at",
+            "publication_as_of",
+            "publication_hash",
+            "publication_id",
+            "publication_key",
+            "published_at",
+        }
+        if set(payload) != expected_fields:
+            raise ValueError("market-structure publication attestation contains unsupported fields")
+
+        def required_text(name: str) -> str:
+            value = payload.get(name)
+            if not isinstance(value, str):
+                raise ValueError(f"market-structure publication {name} is invalid")
+            return value
+
+        try:
+            artifact_kind = MarketStructureGovernanceArtifactKind(required_text("artifact_kind"))
+            return cls(
+                artifact_kind=artifact_kind,
+                dataset_key=required_text("dataset_key"),
+                publication_key=required_text("publication_key"),
+                publication_id=required_text("publication_id"),
+                publication_hash=required_text("publication_hash"),
+                publication_as_of=datetime.fromisoformat(required_text("publication_as_of")),
+                published_at=datetime.fromisoformat(required_text("published_at")),
+                member_id=required_text("member_id"),
+                member_natural_key=required_text("member_natural_key"),
+                fact_table=required_text("fact_table"),
+                fact_pk=required_text("fact_pk"),
+                artifact_hash=required_text("artifact_hash"),
+                member_observed_at=datetime.fromisoformat(required_text("member_observed_at")),
+                attestation_hash=required_text("attestation_hash"),
+            )
+        except ValueError as error:
+            raise ValueError("market-structure publication attestation is invalid") from error
+
+
+def market_structure_publication_attestation_hash(
+    attestation: MarketStructurePublicationAttestation,
+) -> str:
+    """Seal a Publication identity, member identity, clocks and artifact hash."""
+
+    return _canonical_hash(
+        {
+            "artifact_hash": attestation.artifact_hash.lower(),
+            "artifact_kind": attestation.artifact_kind.value,
+            "dataset_key": attestation.dataset_key,
+            "fact_pk": attestation.fact_pk,
+            "fact_table": attestation.fact_table,
+            "member_id": attestation.member_id,
+            "member_natural_key": attestation.member_natural_key,
+            "member_observed_at": _utc_iso(attestation.member_observed_at),
+            "publication_as_of": _utc_iso(attestation.publication_as_of),
+            "publication_hash": attestation.publication_hash.lower(),
+            "publication_id": attestation.publication_id,
+            "publication_key": attestation.publication_key,
+            "published_at": _utc_iso(attestation.published_at),
+        }
+    )
 
 
 @dataclass(frozen=True)
@@ -1284,6 +1517,27 @@ class ImmutableMarketStructureEvidence:
         output_payload = payload.get("output")
         if not isinstance(input_payload, dict) or not isinstance(output_payload, dict):
             raise ValueError("payload_json must contain input and output objects")
+        raw_publications = input_payload.get("governance_publications")
+        if not isinstance(raw_publications, list):
+            raise ValueError("market-structure governance publications must be a list")
+        publications: list[MarketStructurePublicationAttestation] = []
+        for raw_publication in raw_publications:
+            if not isinstance(raw_publication, dict):
+                raise ValueError("market-structure governance publication is invalid")
+            publication = MarketStructurePublicationAttestation.from_payload(
+                cast(dict[str, object], raw_publication)
+            )
+            if (
+                publication.published_at > self.as_of_time
+                or publication.publication_as_of > self.as_of_time
+            ):
+                raise ValueError("market-structure governance publication is from the future")
+            publications.append(publication)
+        publication_identities = {
+            (item.artifact_kind, item.member_natural_key) for item in publications
+        }
+        if len(publication_identities) != len(publications):
+            raise ValueError("market-structure governance publications contain duplicates")
         if _canonical_hash(input_payload) != self.input_hash:
             raise ValueError("market-structure input_hash mismatch")
         embedded_source_evidence = input_payload.get("source_evidence")
@@ -1319,6 +1573,78 @@ class ImmutableMarketStructureEvidence:
             raise ValueError("market-structure evidence_hash mismatch")
         if self.status is MarketStructureResearchStatus.AVAILABLE and not self.source_evidence:
             raise ValueError("available market-structure evidence requires source versions")
+        if self.status is MarketStructureResearchStatus.AVAILABLE:
+            artifact_kinds = {item.artifact_kind for item in publications}
+            if artifact_kinds != {
+                MarketStructureGovernanceArtifactKind.ACTOR,
+                MarketStructureGovernanceArtifactKind.SERIES,
+                MarketStructureGovernanceArtifactKind.PERIOD_CALENDAR,
+            }:
+                raise ValueError(
+                    "available market-structure evidence requires published taxonomy and calendar"
+                )
+            calendar_payload = input_payload.get("period_calendar")
+            actor_payloads = input_payload.get("actor_definitions")
+            series_payloads = input_payload.get("series_definitions")
+            if (
+                not isinstance(calendar_payload, dict)
+                or not isinstance(actor_payloads, list)
+                or not isinstance(series_payloads, list)
+            ):
+                raise ValueError("available market-structure governance payload is incomplete")
+            embedded_hashes = {
+                (
+                    MarketStructureGovernanceArtifactKind.PERIOD_CALENDAR,
+                    calendar_payload.get("calendar_hash"),
+                ),
+                *(
+                    (
+                        MarketStructureGovernanceArtifactKind.ACTOR,
+                        item.get("definition_hash"),
+                    )
+                    for item in actor_payloads
+                    if isinstance(item, dict)
+                ),
+                *(
+                    (
+                        MarketStructureGovernanceArtifactKind.SERIES,
+                        item.get("definition_hash"),
+                    )
+                    for item in series_payloads
+                    if isinstance(item, dict)
+                ),
+            }
+            attested_hashes = {(item.artifact_kind, item.artifact_hash) for item in publications}
+            if embedded_hashes != attested_hashes:
+                raise ValueError(
+                    "market-structure governance publications do not cover exact artifacts"
+                )
+
+    @property
+    def governance_publications(
+        self,
+    ) -> tuple[MarketStructurePublicationAttestation, ...]:
+        """Restore the exact Publication proofs sealed into this evidence."""
+
+        parsed = json.loads(self.payload_json)
+        if not isinstance(parsed, dict):
+            raise ValueError("payload_json must encode an object")
+        input_payload = parsed.get("input")
+        if not isinstance(input_payload, dict):
+            raise ValueError("payload_json must contain an input object")
+        raw_publications = input_payload.get("governance_publications")
+        if not isinstance(raw_publications, list):
+            raise ValueError("market-structure governance publications must be a list")
+        restored: list[MarketStructurePublicationAttestation] = []
+        for raw_publication in raw_publications:
+            if not isinstance(raw_publication, dict):
+                raise ValueError("market-structure governance publication is invalid")
+            restored.append(
+                MarketStructurePublicationAttestation.from_payload(
+                    cast(dict[str, object], raw_publication)
+                )
+            )
+        return tuple(restored)
 
 
 def market_structure_evidence_hash(
@@ -1362,6 +1688,7 @@ def build_market_structure_evidence(
     actor_definitions: tuple[InvestorActorDefinition, ...],
     series_definitions: tuple[MarketStructureSeriesDefinition, ...],
     source_evidence: tuple[VersionedEvidenceReference, ...],
+    governance_publications: tuple[MarketStructurePublicationAttestation, ...],
 ) -> ImmutableMarketStructureEvidence:
     """Build a canonical immutable evidence record for an R2 run."""
 
@@ -1386,6 +1713,13 @@ def build_market_structure_evidence(
                     item.taxonomy_version,
                     item.actor_code,
                 ),
+            )
+        ],
+        "governance_publications": [
+            item.to_payload()
+            for item in sorted(
+                governance_publications,
+                key=lambda item: (item.artifact_kind.value, item.member_natural_key),
             )
         ],
         "period_calendar": (
@@ -1458,11 +1792,15 @@ __all__ = [
     "EmpiricalPercentileMethod",
     "ImmutableMarketStructureEvidence",
     "InvestorActorDefinition",
+    "MARKET_STRUCTURE_CALENDAR_DATASET",
+    "MARKET_STRUCTURE_TAXONOMY_DATASET",
     "MarketStructureAggregationPolicy",
+    "MarketStructureGovernanceArtifactKind",
     "MarketStructureMeasureConcept",
     "MarketStructureObservation",
     "MarketStructurePeriodCalendar",
     "MarketStructurePeriodCalendarRef",
+    "MarketStructurePublicationAttestation",
     "MarketStructureResearchRequest",
     "MarketStructureResearchStatus",
     "MarketStructureSeriesDefinition",
@@ -1474,5 +1812,6 @@ __all__ = [
     "aggregate_market_structure",
     "build_market_structure_evidence",
     "market_structure_evidence_hash",
+    "market_structure_publication_attestation_hash",
     "validate_series_against_flow_definition",
 ]

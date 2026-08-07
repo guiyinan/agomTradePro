@@ -11,6 +11,7 @@ from apps.data_center.domain.market_structure import (
     MarketStructureObservation,
     MarketStructurePeriodCalendar,
     MarketStructurePeriodCalendarRef,
+    MarketStructurePublicationAttestation,
     MarketStructureResearchRequest,
     MarketStructureSeriesDefinition,
     MarketStructureSeriesRef,
@@ -104,6 +105,43 @@ class MarketStructureResearchGateway(Protocol):
     ) -> ImmutableMarketStructureEvidence | None:
         """Return one exact immutable research evidence version."""
 
+    def get_evidence_at(
+        self,
+        *,
+        evidence_key: str,
+        evidence_version: int,
+        as_of_time: datetime,
+    ) -> ImmutableMarketStructureEvidence | None:
+        """Return one exact evidence version known by a PIT cutoff."""
+
+
+class MarketStructurePublicationGate(Protocol):
+    """Canonical Publication boundary for R2 governance artifacts."""
+
+    def attest_actor(
+        self,
+        definition: InvestorActorDefinition,
+        *,
+        as_of_time: datetime,
+    ) -> MarketStructurePublicationAttestation | None:
+        """Return exact taxonomy member proof or fail closed."""
+
+    def attest_series(
+        self,
+        definition: MarketStructureSeriesDefinition,
+        *,
+        as_of_time: datetime,
+    ) -> MarketStructurePublicationAttestation | None:
+        """Return exact series member proof or fail closed."""
+
+    def attest_period_calendar(
+        self,
+        calendar: MarketStructurePeriodCalendar,
+        *,
+        as_of_time: datetime,
+    ) -> MarketStructurePublicationAttestation | None:
+        """Return exact expected-period calendar proof or fail closed."""
+
 
 class MarketStructureGovernanceFacade:
     """Application entry point for actor and research-series governance."""
@@ -139,8 +177,13 @@ class MarketStructureGovernanceFacade:
 class RunMarketStructureResearch:
     """Resolve PIT inputs, aggregate descriptively and persist sealed evidence."""
 
-    def __init__(self, gateway: MarketStructureResearchGateway) -> None:
+    def __init__(
+        self,
+        gateway: MarketStructureResearchGateway,
+        publication_gate: MarketStructurePublicationGate,
+    ) -> None:
         self._gateway = gateway
+        self._publication_gate = publication_gate
 
     def execute(
         self,
@@ -153,6 +196,7 @@ class RunMarketStructureResearch:
         observations: list[MarketStructureObservation] = []
         included_observations: list[MarketStructureObservation] = []
         source_evidence: list[VersionedEvidenceReference] = []
+        governance_publications: list[MarketStructurePublicationAttestation] = []
         blockers: set[str] = set()
         period_calendar = self._gateway.get_period_calendar(
             request.period_calendar,
@@ -164,6 +208,24 @@ class RunMarketStructureResearch:
                 f"{request.period_calendar.calendar_code}:"
                 f"v{request.period_calendar.calendar_version}"
             )
+        else:
+            try:
+                calendar_publication = self._publication_gate.attest_period_calendar(
+                    period_calendar,
+                    as_of_time=request.as_of_time,
+                )
+            except ValueError:
+                calendar_publication = None
+                blockers.add("period_calendar_publication_invalid")
+            if calendar_publication is None:
+                blockers.add(
+                    "period_calendar_unpublished:"
+                    f"{request.period_calendar.calendar_code}:"
+                    f"v{request.period_calendar.calendar_version}"
+                )
+                period_calendar = None
+            else:
+                governance_publications.append(calendar_publication)
         expected_periods = period_calendar.periods if period_calendar is not None else ()
 
         for reference in request.series:
@@ -191,7 +253,17 @@ class RunMarketStructureResearch:
             ):
                 blockers.add(f"series_definition_unavailable:{definition.series_code}")
                 continue
-            definitions.append(definition)
+            try:
+                series_publication = self._publication_gate.attest_series(
+                    definition,
+                    as_of_time=request.as_of_time,
+                )
+            except ValueError:
+                blockers.add(f"series_publication_invalid:{definition.series_code}")
+                continue
+            if series_publication is None:
+                blockers.add(f"series_definition_unpublished:{definition.series_code}")
+                continue
             actor = self._gateway.get_actor_definition(
                 taxonomy_code=definition.taxonomy_code,
                 taxonomy_version=definition.taxonomy_version,
@@ -200,6 +272,7 @@ class RunMarketStructureResearch:
             )
             if actor is None:
                 blockers.add(f"actor_definition_missing:{definition.actor_code}")
+                continue
             elif (
                 not actor.is_active
                 or actor.effective_at > request.as_of_time
@@ -208,8 +281,28 @@ class RunMarketStructureResearch:
                 or (actor.expires_at is not None and actor.expires_at <= request.as_of_time)
             ):
                 blockers.add(f"actor_definition_unavailable:{definition.actor_code}")
+                continue
             else:
+                try:
+                    actor_publication = self._publication_gate.attest_actor(
+                        actor,
+                        as_of_time=request.as_of_time,
+                    )
+                except ValueError:
+                    blockers.add(f"actor_publication_invalid:{definition.actor_code}")
+                    continue
+                if actor_publication is None:
+                    blockers.add(f"actor_definition_unpublished:{definition.actor_code}")
+                    continue
+                if (
+                    actor_publication.publication_id != series_publication.publication_id
+                    or actor_publication.publication_hash != series_publication.publication_hash
+                ):
+                    blockers.add(f"taxonomy_publication_snapshot_mismatch:{definition.series_code}")
+                    continue
+                definitions.append(definition)
                 actor_definitions.append(actor)
+                governance_publications.extend((actor_publication, series_publication))
             try:
                 series_observations = self._gateway.list_series_observations(
                     definition,
@@ -304,6 +397,9 @@ class RunMarketStructureResearch:
             actor_definitions=tuple(actor_definitions),
             series_definitions=tuple(definitions),
             source_evidence=tuple(source_evidence),
+            governance_publications=tuple(
+                {item.attestation_hash: item for item in governance_publications}.values()
+            ),
         )
         return self._gateway.add_evidence(evidence)
 
@@ -327,9 +423,25 @@ class ReadMarketStructureEvidence:
             evidence_version=evidence_version,
         )
 
+    def execute_at(
+        self,
+        *,
+        evidence_key: str,
+        evidence_version: int,
+        as_of_time: datetime,
+    ) -> ImmutableMarketStructureEvidence | None:
+        """Return one exact immutable version only if known at the cutoff."""
+
+        return self._gateway.get_evidence_at(
+            evidence_key=evidence_key,
+            evidence_version=evidence_version,
+            as_of_time=as_of_time,
+        )
+
 
 __all__ = [
     "MarketStructureGovernanceFacade",
+    "MarketStructurePublicationGate",
     "MarketStructureResearchGateway",
     "ReadMarketStructureEvidence",
     "RunMarketStructureResearch",

@@ -10,7 +10,8 @@ from unittest.mock import patch
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, connection
+from django.db import IntegrityError, connection, transaction
+from django.db.models.deletion import Collector
 
 from apps.research.application.r7_research_result_persistence import (
     GetExactR7ResearchResultCommand,
@@ -267,6 +268,21 @@ def test_direct_bulk_base_related_update_and_delete_paths_are_rejected() -> None
             result_version="r7-result.v1",
             defaults={"sample_policy": row.sample_policy, **values},
         )
+    private_queryset = R7ResearchResultModel._base_manager.filter(pk=row.pk)
+    with pytest.raises(ValidationError, match="cannot be deleted"):
+        private_queryset._raw_delete("default")
+    with pytest.raises(ValidationError, match="cannot be updated"):
+        private_queryset._update([])
+    with pytest.raises(ValidationError, match="private insert"):
+        private_queryset._insert([], [])
+    with pytest.raises(ValidationError, match="private bulk insert"):
+        private_queryset._batched_insert([], [], 1)
+    collector = Collector(using="default")
+    collector.collect([row])
+    with pytest.raises(ValidationError, match="cannot be deleted"):
+        with transaction.atomic():
+            collector.delete()
+    assert R7ResearchResultModel._default_manager.count() == 1
 
 
 @pytest.mark.django_db

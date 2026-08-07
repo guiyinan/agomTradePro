@@ -180,6 +180,11 @@ from apps.research.infrastructure.r1_forecast_promotion_models import (  # noqa:
     R1PromotionLifecycleEventBundleModel,
     R1PromotionLifecycleReceiptModel,
 )
+from apps.research.infrastructure.r2_market_structure_promotion_models import (  # noqa: E402,F401
+    R2MarketStructurePromotionDecisionModel,
+    R2MarketStructurePromotionLifecycleEventModel,
+    R2MarketStructurePromotionPolicyModel,
+)
 from apps.research.infrastructure.r4_promotion_models import (  # noqa: E402,F401
     R4PromotionDecisionBundleModel,
     R4PromotionDecisionReceiptModel,
@@ -194,14 +199,24 @@ from apps.research.infrastructure.r5_relative_value_promotion_models import (  #
     R5PromotionLifecycleAuthorizationModel,
     R5PromotionLifecycleEventModel,
 )
-from apps.research.infrastructure.r7_sample_policy_models import (  # noqa: E402,F401
-    R7SamplePolicyApprovalReceiptModel,
-    R7SamplePolicyModel,
+from apps.research.infrastructure.r7_research_result_lifecycle_models import (  # noqa: E402,F401
+    R7ResearchResultAuditSnapshotModel,
+    R7ResultLifecycleAuthorizationModel,
+    R7ResultLifecycleEventModel,
 )
 from apps.research.infrastructure.r7_research_result_models import (  # noqa: E402,F401
     R7ResearchResultModel,
 )
+from apps.research.infrastructure.r7_sample_policy_models import (  # noqa: E402,F401
+    R7SamplePolicyApprovalReceiptModel,
+    R7SamplePolicyModel,
+)
 from apps.research.infrastructure.scenario_review_reminder_models import (  # noqa: E402,F401
     ScenarioReviewReminderEventModel,
     ScenarioReviewReminderModel,
+)
+from apps.research.infrastructure.state_model_qualification_models import (  # noqa: E402,F401
+    R6QualificationAssessmentModel,
+    R6QualificationLifecycleAuthorizationModel,
+    R6QualificationLifecycleEventModel,
 )

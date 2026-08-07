@@ -60,6 +60,8 @@ S1 通过后另建计划与分支：
 
 2026-08-07 qualification 续批进一步实现：content-addressed comparative study 与 OOS 前预注册 family/split/embargo；transition accuracy、log loss、calibration、duration、decision loss、complexity、label stability 七指标同窗比较；政策反应系数的 target/lag/sign/CI/p-value/magnitude 与回归诊断。Application 命令只接受 study ID/time，并精确重读 candidate、baseline、S2 attestation、derived metric bundle、preregistration 和 policy。S2 attestation 必须用完整 PIT manifest、独立 artifact attestation 与 threshold payload 重放原 gate，不能包装裸 `ACCEPTED`；成功也只表示可送人工 Promotion review，不生成 decision 或替换 Regime。真实 S1/PIT/OOS 证据、持久化、monitoring/retirement/Promotion 仍未完成。
 
+2026-08-07 qualification persistence/lifecycle 续批：新增 schema-only `research.0008` assessment、lifecycle authorization、lifecycle event 三本 append-only ledger；ID-only exact PIT 注册/读取/审计分页与 PROMOTE/RETIRE 终态生命周期均在 shared-UoW 内动态重读 assessment 和 owner authorization。该能力仍固定 `research_only`，不替换 Regime、不产生决策或执行；新增 persistence/lifecycle 回归 `14 passed`。真实 S1/PIT/OOS、stable label、owner authorization、monitoring 原始事实和 approved Promotion 仍缺，因此 R6 继续 `blocked`。
+
 ## 5. 非目标
 
 - 不从当前 Regime 分数反推“模型概率”；

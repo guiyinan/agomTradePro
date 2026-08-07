@@ -175,6 +175,12 @@ Owner：`data_center`，独立 plan/分支。
 2026-08-07 R5 Promotion Phase B2b 完成 Research 五张 append-only ledger 与 `research.0006` migration。Artifact、decision receipt/bundle、lifecycle receipt/event 均由 shared-UoW/server-clock/ID-only closure 写入，fixed_income 与 Portfolio owner graph exact reread；future PIT、raw selector hiding、stream fork、append-only、race/rollback 均 fail closed。修复后 component `4 passed`、codec+migration `6 passed`；真实 approved trial、OOS outcome、owner authorization、Publication 与外部对账仍缺，R5 继续 `blocked`。
 2026-08-07 R7 result persistence 完成 Research evidence graph、input receipt/result 两层 ledger 与 `research.0007` migration。Calibration、历史类比、路径 assessment 只从 shared-UoW exact owner evidence 现场重算；结果固定 research-only，禁止训练、发布概率、决策和执行。Unit/component/migration `4/7/3 passed`；真实 owner evidence、forecast/outcome history、Risk Center approved source 与 Promotion/lifecycle 仍缺，R7 继续 `blocked`。
 
+2026-08-07 R2 Publication/Promotion 续批完成 Data Center taxonomy/calendar Canonical Publication/member gate 与 Research `0009` policy/decision/PROMOTE-RETIRE-ROLLBACK ledger。R2 unit `24 passed`、Data Center component `6 passed`、Research component `2 passed`、migration `2 passed`；无 seed/current/consumer/execution 接线，真实 Publication、两个市场周期和 owner authorization 仍缺，R2 继续 `blocked`。
+2026-08-07 R6 qualification persistence/lifecycle 续批完成 schema-only `research.0008` assessment/authorization/event ledger、ID-only exact PIT/audit pagination 与终态 PROMOTE/RETIRE。新增 persistence/lifecycle 回归 `14 passed`；不替换 Regime、不产生决策/执行，真实 shortfall/PIT/OOS/stable label/owner authorization/monitoring/Promotion 仍缺，R6 继续 `blocked`。
+2026-08-07 R3 governed read 续批完成 exact regime/OOS/trial/Promotion/monitoring 重放与现场复算；governed-read `10 passed`，runner/ledger regression `36 passed`；不发布 current，真实 vintage/代理资产/assignment/OOS/owner Promotion 仍缺，R3 继续 `blocked`。
+
+2026-08-07 R7 result lifecycle 续批完成 `research.0010` Research-owner authorization/event/audit-snapshot 三本 append-only ledger、ID-only exact PIT apply、终态 retirement 与物化 snapshot manifest 审计分页。Audit 首屏锁定完整 PIT result graph，并在 manifest hash/restore 中封存 `result_persisted_at`；Promotion 仅表示内部研究记录晋级，始终禁止概率发布、决策和执行。Raw header/payload/FK substitution、hash-chain、ORM private shortcut、Collector 删除、race/rollback、签名 cursor 篡改/跨快照均 fail closed。新增 unit/component/migration `11/8/2 passed`，另有 `1 skipped` 的 PostgreSQL 双连接并发测试；既有 result + lifecycle 七文件回归 `35 passed, 1 skipped`。真实 owner authorization、forecast/outcome 历史和合格研究证据仍缺，R7 继续 `blocked`。
+
 ### R6-S0：简单基准缺口取证
 
 Owner：`regime` + `research`。

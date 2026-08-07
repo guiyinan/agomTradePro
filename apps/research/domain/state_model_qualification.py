@@ -23,6 +23,7 @@ from apps.research.domain.state_model_qualification_evaluation import (
     StateModelQualificationAssessment,
     evaluate_state_model_qualification,
     missing_state_model_qualification_assessment,
+    restore_state_model_qualification_assessment,
 )
 
 __all__ = [
@@ -46,4 +47,5 @@ __all__ = [
     "attest_advanced_state_model_assessment",
     "evaluate_state_model_qualification",
     "missing_state_model_qualification_assessment",
+    "restore_state_model_qualification_assessment",
 ]

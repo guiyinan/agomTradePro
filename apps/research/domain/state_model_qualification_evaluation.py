@@ -207,6 +207,71 @@ def _mint_state_model_qualification_assessment(
     return instance
 
 
+def restore_state_model_qualification_assessment(
+    *,
+    status: StateModelQualificationStatus,
+    study_id: str,
+    candidate_id: str | None,
+    candidate_version: str | None,
+    study_hash: str | None,
+    preregistration_hash: str | None,
+    baseline_shortfall_report_hash: str | None,
+    candidate_evidence_hash: str | None,
+    advanced_assessment_hash: str | None,
+    pit_manifest_canonical_hash: str | None,
+    artifact_attestation_hash: str | None,
+    advanced_threshold_hash: str | None,
+    derived_metric_bundle_hash: str | None,
+    policy_hash: str | None,
+    assessed_at: datetime,
+    metric_results: tuple[ComparativeMetricResult, ...],
+    blockers: tuple[StateModelQualificationBlockerCode, ...],
+    may_request_promotion_review: bool,
+    promotion_decision_present: bool,
+    research_only: bool,
+    must_not_use_for_decision: bool,
+    must_not_replace_regime: bool,
+    content_hash: str,
+) -> StateModelQualificationAssessment:
+    """Restore one persisted assessment after its canonical payload is decoded.
+
+    The normal public constructor intentionally cannot mint assessments.  Persistence
+    needs a narrow, domain-owned restore boundary so it can replay the exact sealed
+    value and run the same invariant checks before exposing it to Application code.
+    """
+
+    instance = object.__new__(StateModelQualificationAssessment)
+    values: tuple[tuple[str, object], ...] = (
+        ("status", status),
+        ("study_id", study_id),
+        ("candidate_id", candidate_id),
+        ("candidate_version", candidate_version),
+        ("study_hash", study_hash),
+        ("preregistration_hash", preregistration_hash),
+        ("baseline_shortfall_report_hash", baseline_shortfall_report_hash),
+        ("candidate_evidence_hash", candidate_evidence_hash),
+        ("advanced_assessment_hash", advanced_assessment_hash),
+        ("pit_manifest_canonical_hash", pit_manifest_canonical_hash),
+        ("artifact_attestation_hash", artifact_attestation_hash),
+        ("advanced_threshold_hash", advanced_threshold_hash),
+        ("derived_metric_bundle_hash", derived_metric_bundle_hash),
+        ("policy_hash", policy_hash),
+        ("assessed_at", assessed_at),
+        ("metric_results", metric_results),
+        ("blockers", blockers),
+        ("may_request_promotion_review", may_request_promotion_review),
+        ("promotion_decision_present", promotion_decision_present),
+        ("research_only", research_only),
+        ("must_not_use_for_decision", must_not_use_for_decision),
+        ("must_not_replace_regime", must_not_replace_regime),
+        ("content_hash", content_hash),
+    )
+    for name, value in values:
+        object.__setattr__(instance, name, value)
+    instance.__post_init__()
+    return instance
+
+
 def _candidate_metric_values(
     candidate: AdvancedStateModelCandidateEvidence,
 ) -> dict[str, Decimal]:

@@ -7,6 +7,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import cast
+from uuid import NAMESPACE_URL, uuid5
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -17,10 +18,20 @@ from apps.data_center.application.market_structure import (
     MarketStructureGovernanceFacade,
     RunMarketStructureResearch,
 )
+from apps.data_center.application.publication_utils import publication_hash
 from apps.data_center.application.research_data_foundation import (
     ResearchDataFoundationFacade,
 )
+from apps.data_center.domain.control_plane import (
+    CanonicalPublication,
+    CoverageSnapshot,
+    PublicationFactReference,
+    PublicationMember,
+    PublicationState,
+)
 from apps.data_center.domain.market_structure import (
+    MARKET_STRUCTURE_CALENDAR_DATASET,
+    MARKET_STRUCTURE_TAXONOMY_DATASET,
     EmpiricalPercentileMethod,
     InvestorActorDefinition,
     MarketStructureAggregationPolicy,
@@ -40,11 +51,22 @@ from apps.data_center.domain.research_data_foundation import (
     InvestorFlowObservation,
     PITAssetGroupMembership,
 )
+from apps.data_center.infrastructure.control_plane_repositories import (
+    CanonicalPublicationRepository,
+)
 from apps.data_center.infrastructure.market_structure_models import (
     InvestorActorDefinitionModel,
     MarketStructurePeriodCalendarModel,
     MarketStructureResearchEvidenceModel,
     MarketStructureSeriesDefinitionModel,
+)
+from apps.data_center.infrastructure.market_structure_publication import (
+    DjangoMarketStructurePublicationGate,
+    market_structure_actor_member_key,
+    market_structure_calendar_member_key,
+    market_structure_calendar_publication_key,
+    market_structure_series_member_key,
+    market_structure_taxonomy_publication_key,
 )
 from apps.data_center.infrastructure.market_structure_repository import (
     MarketStructureResearchRepository,
@@ -190,6 +212,8 @@ def _request(*, evidence_key: str = "TEST_MARKET_STRUCTURE") -> MarketStructureR
 def _prepare_governance_and_membership(
     foundation: ResearchDataFoundationFacade,
     governance: MarketStructureGovernanceFacade,
+    *,
+    publish_governance: bool = True,
 ) -> None:
     AssetMasterModel._default_manager.bulk_create(
         [
@@ -249,6 +273,121 @@ def _prepare_governance_and_membership(
         governance.register_actor(_actor(actor_code))
         foundation.register_investor_flow(_flow_definition(actor_code, is_proxy=is_proxy))
         governance.register_series(_series(actor_code, is_proxy=is_proxy))
+    if publish_governance:
+        _publish_governance()
+
+
+def _publish_governance() -> None:
+    repository = CanonicalPublicationRepository()
+    taxonomy_references: list[PublicationFactReference] = []
+    for model in InvestorActorDefinitionModel._default_manager.order_by("actor_code"):
+        definition = model.to_domain()
+        taxonomy_references.append(
+            PublicationFactReference(
+                natural_key=market_structure_actor_member_key(definition),
+                source=definition.source,
+                source_record_id=definition.definition_hash,
+                fact_table=InvestorActorDefinitionModel._meta.db_table,
+                fact_pk=str(model.pk),
+                observed_at=definition.available_at,
+                raw_payload_hash=definition.definition_hash,
+            )
+        )
+    for model in MarketStructureSeriesDefinitionModel._default_manager.order_by("series_code"):
+        definition = model.to_domain()
+        taxonomy_references.append(
+            PublicationFactReference(
+                natural_key=market_structure_series_member_key(definition),
+                source=definition.source,
+                source_record_id=definition.definition_hash,
+                fact_table=MarketStructureSeriesDefinitionModel._meta.db_table,
+                fact_pk=str(model.pk),
+                observed_at=definition.available_at,
+                raw_payload_hash=definition.definition_hash,
+            )
+        )
+    _publish_references(
+        repository=repository,
+        dataset_key=MARKET_STRUCTURE_TAXONOMY_DATASET,
+        publication_key=market_structure_taxonomy_publication_key("TEST_TAXONOMY", 1),
+        references=tuple(sorted(taxonomy_references, key=lambda item: item.natural_key)),
+        as_of=GROUP_EFFECTIVE,
+    )
+    calendar_model = MarketStructurePeriodCalendarModel._default_manager.get()
+    calendar = calendar_model.to_domain()
+    _publish_references(
+        repository=repository,
+        dataset_key=MARKET_STRUCTURE_CALENDAR_DATASET,
+        publication_key=market_structure_calendar_publication_key(
+            calendar.calendar_code,
+            calendar.calendar_version,
+        ),
+        references=(
+            PublicationFactReference(
+                natural_key=market_structure_calendar_member_key(calendar),
+                source=calendar.source,
+                source_record_id=calendar.calendar_hash,
+                fact_table=MarketStructurePeriodCalendarModel._meta.db_table,
+                fact_pk=str(calendar_model.pk),
+                observed_at=calendar.available_at,
+                raw_payload_hash=calendar.calendar_hash,
+            ),
+        ),
+        as_of=AS_OF,
+    )
+
+
+def _publish_references(
+    *,
+    repository: CanonicalPublicationRepository,
+    dataset_key: str,
+    publication_key: str,
+    references: tuple[PublicationFactReference, ...],
+    as_of: datetime,
+) -> None:
+    digest = publication_hash(references)
+    publication_id = str(uuid5(NAMESPACE_URL, f"r2:{dataset_key}:{publication_key}:{digest}"))
+    members = tuple(
+        PublicationMember(
+            member_id=str(uuid5(NAMESPACE_URL, f"{publication_id}:{item.natural_key}")),
+            publication_id=publication_id,
+            dataset_key=dataset_key,
+            natural_key=item.natural_key,
+            source=item.source,
+            source_record_id=item.source_record_id,
+            fact_table=item.fact_table,
+            fact_pk=item.fact_pk,
+            observed_at=item.observed_at,
+            raw_payload_hash=item.raw_payload_hash,
+            quality_status=item.quality_status,
+            revision_number=item.revision_number,
+        )
+        for item in references
+    )
+    coverage = CoverageSnapshot(
+        coverage_id=str(uuid5(NAMESPACE_URL, f"coverage:{publication_id}")),
+        publication_id=publication_id,
+        requested_count=len(members),
+        eligible_count=len(members),
+        selected_count=len(members),
+        generated_at=as_of,
+    )
+    repository.publish_with_members(
+        CanonicalPublication(
+            publication_id=publication_id,
+            dataset_key=dataset_key,
+            publication_key=publication_key,
+            policy_version="r2-test-publication.v1",
+            state=PublicationState.PUBLISHED,
+            selected_source="r2_governance",
+            publication_hash=digest,
+            coverage=coverage,
+            member_count=len(members),
+            as_of=as_of,
+            published_at=as_of,
+        ),
+        members,
+    )
 
 
 def _record_observations(
@@ -304,7 +443,10 @@ def test_repository_run_uses_historical_membership_and_persists_immutable_eviden
     with pytest.raises(ValueError, match="conflicting immutable content"):
         governance.register_period_calendar(replace(_calendar(), source="other_governance"))
 
-    evidence = RunMarketStructureResearch(market_repository).execute(_request())
+    evidence = RunMarketStructureResearch(
+        market_repository,
+        DjangoMarketStructurePublicationGate(),
+    ).execute(_request())
 
     assert evidence.status is MarketStructureResearchStatus.AVAILABLE
     assert evidence.research_only is True
@@ -435,9 +577,10 @@ def test_no_flow_data_persists_blocked_research_only_evidence_without_conclusion
     governance = MarketStructureGovernanceFacade(market_repository)
     _prepare_governance_and_membership(foundation, governance)
 
-    evidence = RunMarketStructureResearch(market_repository).execute(
-        _request(evidence_key="TEST_NO_DATA")
-    )
+    evidence = RunMarketStructureResearch(
+        market_repository,
+        DjangoMarketStructurePublicationGate(),
+    ).execute(_request(evidence_key="TEST_NO_DATA"))
 
     assert evidence.status is MarketStructureResearchStatus.BLOCKED
     payload = cast(dict[str, object], json.loads(evidence.payload_json))
@@ -467,9 +610,10 @@ def test_repository_calendar_makes_whole_period_all_missing_visible() -> None:
     _prepare_governance_and_membership(foundation, governance)
     _record_observations(foundation, excluded_period=PERIODS[1])
 
-    evidence = RunMarketStructureResearch(market_repository).execute(
-        _request(evidence_key="TEST_WHOLE_PERIOD_MISSING")
-    )
+    evidence = RunMarketStructureResearch(
+        market_repository,
+        DjangoMarketStructurePublicationGate(),
+    ).execute(_request(evidence_key="TEST_WHOLE_PERIOD_MISSING"))
 
     assert evidence.status is MarketStructureResearchStatus.BLOCKED
     output = cast(dict[str, object], json.loads(evidence.payload_json)["output"])

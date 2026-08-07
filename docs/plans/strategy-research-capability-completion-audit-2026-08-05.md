@@ -227,4 +227,12 @@ R5 Promotion B2b 已完成 Research `0006` 五张 append-only ledger：artifact�
 
 R7 result persistence 已完成 Research `0007` evidence graph、input receipt/result 两层 append-only ledger；calibration、历史类比、路径 assessment 只从 exact owner evidence 现场重算，结果固定 research-only。Unit/component/migration `4/7/3 passed`；真实 owner evidence、forecast/outcome history、Risk Center approved source 与 Promotion/lifecycle 仍缺。
 
+2026-08-07 R2 Publication/Promotion 软件续批完成 Data Center taxonomy actor/series、period-calendar 的 Canonical Publication/member 精确门禁与 attestation，以及 Research `0009` policy/decision/PROMOTE-RETIRE-ROLLBACK 三本 append-only ledger。R2 unit `24 passed`、Data Center component `6 passed`、Research component `2 passed`、migration `2 passed`；PIT active replay 动态重读 Publication、policy、decision authorization 与 lifecycle authorization，无 seed/current/consumer/execution 接线。真实 taxonomy/calendar Publication、两个市场周期和 owner policy/authorization 仍缺，R2 继续 `blocked`。
+
+2026-08-07 R3 governed read 软件续批完成 Regime assignment、OOS segment、pre-registered trial family、Promotion authorization 与 monitoring raw-fact 的 exact PIT 重放/复算；governed-read `10 passed`，连同 runner/ledger regression `36 passed`。读取结果固定 research-only，不能发布 current、产生决策或执行；真实宏观 vintage、代理资产、Regime assignment、OOS trial、owner authorization 和 approved Promotion 仍缺，R3 继续 `blocked`。
+
+2026-08-07 R6 qualification persistence/lifecycle 软件续批完成 schema-only `research.0008` assessment/authorization/event 三本 append-only ledger、ID-only exact PIT 注册/读取/审计分页及 PROMOTE/RETIRE 终态生命周期；新增 persistence/lifecycle 回归 `14 passed`。真实 shortfall、PIT/OOS、stable label、owner authorization、monitoring 和 approved Promotion 仍缺，R6 继续 `blocked`。
+
+2026-08-07 R7 result lifecycle 续批完成 `research.0010` Research-owner authorization/event/audit-snapshot 三本 append-only ledger、ID-only exact PIT apply、终态 retirement 与物化 snapshot manifest 审计分页。Audit 通过完整 result-row 锁边界串行化正常 lifecycle append，并把 `result_persisted_at` 纳入 manifest hash/restore；Promotion 只晋级内部研究记录，不发布模型概率、不产生决策、不执行。Header/payload/FK/hash-chain、ORM private shortcut、Collector 删除、race/rollback、签名 cursor 篡改/跨快照均 fail closed。新增 unit/component/migration `11/8/2 passed`，另有 `1 skipped` 的 PostgreSQL 双连接并发测试；既有 result + lifecycle 七文件回归 `35 passed, 1 skipped`，7 个生产文件增量 mypy 0 regression。真实 owner authorization、forecast/outcome 历史和合格研究证据仍缺，R7 继续 `blocked`。
+
 完成路线图仍需为上表每项取得代码、迁移/台账、研究证据、运行时行为和 Promotion/回滚的直接证明；“测试全绿”只证明已覆盖合同，不替代真实数据和样本外结果。
