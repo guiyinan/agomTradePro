@@ -55,7 +55,6 @@ jobs:
           python scripts/run_current_data_contract_tests.py \
             --pytest-arg=-q \
             --pytest-arg=--reuse-db \
-            --pytest-arg=--no-migrations \
             --pytest-arg=--timeout=300
 
       - name: Run registered Celery task contract nodeids

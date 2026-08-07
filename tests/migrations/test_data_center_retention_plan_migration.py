@@ -26,10 +26,10 @@ def test_retention_plan_migration_forward_reverse_and_reapply() -> None:
         with pytest.raises(LookupError):
             old_apps.get_model("data_center", "RetentionPlanModel")
 
-        executor.migrate([("data_center", "0065_widen_retention_member_digests")])
+        executor.migrate([("data_center", "0066_make_retention_digest_widening_reversible")])
         executor = MigrationExecutor(connection)
         new_apps = executor.loader.project_state(
-            [("data_center", "0065_widen_retention_member_digests")]
+            [("data_center", "0066_make_retention_digest_widening_reversible")]
         ).apps
         Archive = new_apps.get_model("data_center", "ArchiveManifestModel")
         Plan = new_apps.get_model("data_center", "RetentionPlanModel")
@@ -113,10 +113,10 @@ def test_retention_plan_migration_forward_reverse_and_reapply() -> None:
         with pytest.raises(LookupError):
             reversed_apps.get_model("data_center", "RetentionPlanModel")
 
-        executor.migrate([("data_center", "0065_widen_retention_member_digests")])
+        executor.migrate([("data_center", "0066_make_retention_digest_widening_reversible")])
         executor = MigrationExecutor(connection)
         reapplied_apps = executor.loader.project_state(
-            [("data_center", "0065_widen_retention_member_digests")]
+            [("data_center", "0066_make_retention_digest_widening_reversible")]
         ).apps
         assert reapplied_apps.get_model("data_center", "RetentionPlanModel") is not None
     finally:

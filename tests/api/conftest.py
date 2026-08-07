@@ -8,6 +8,24 @@ from django.contrib.auth.models import AbstractBaseUser
 from rest_framework.test import APIClient
 
 
+@pytest.fixture(autouse=True)
+def active_decision_runtime(db: object) -> None:
+    """Run API contracts under an explicitly admitted decision runtime."""
+
+    from apps.config_center.infrastructure.decision_runtime_models import (
+        DecisionRuntimeStateModel,
+    )
+
+    DecisionRuntimeStateModel._default_manager.update_or_create(
+        pk=1,
+        defaults={
+            "status": "active",
+            "reason": "",
+            "changed_by": "pytest:api-contract",
+        },
+    )
+
+
 @pytest.fixture
 def api_client() -> APIClient:
     """Return an unauthenticated DRF client for permission contracts."""
