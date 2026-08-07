@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, cast
+
+from django.conf import settings
 
 from apps.data_center.application.control_plane import RollbackCanonicalPublicationUseCase
 from apps.data_center.application.pit_use_cases import (
@@ -18,6 +21,11 @@ from apps.data_center.domain.entities import (
     ProviderConfig,
 )
 from apps.data_center.domain.protocols import ProviderConfigRepositoryProtocol
+from apps.data_center.infrastructure.archive_repositories import (
+    ArchiveCandidateRepository,
+    ArchiveCapacityGuard,
+    ArchiveCoverageGateway,
+)
 from apps.data_center.infrastructure.cache_warmup_queries import (
     MacroFactCacheWarmupRepository,
 )
@@ -38,6 +46,7 @@ from apps.data_center.infrastructure.diagnostic_queries import DataCenterDiagnos
 from apps.data_center.infrastructure.macro_projection_repository import MacroProjectionRepository
 from apps.data_center.infrastructure.pit_repository import PITManifestRepository
 from apps.data_center.infrastructure.provider_registry import ProviderRegistry
+from apps.data_center.infrastructure.raw_archive_store import FilesystemRawArchiveStore
 from apps.data_center.infrastructure.raw_landing_repositories import (
     RawLandingRepository,
     SchemaFingerprintRepository,
@@ -84,6 +93,9 @@ from apps.data_center.infrastructure.rss_gateway import (
 __all__ = [
     "AssetRepository",
     "ArchiveManifestRepository",
+    "ArchiveCandidateRepository",
+    "ArchiveCapacityGuard",
+    "ArchiveCoverageGateway",
     "CapitalFlowRepository",
     "CanonicalPublicationRepository",
     "DataCenterDiagnosticRepository",
@@ -138,6 +150,9 @@ __all__ = [
     "get_akshare_eastmoney_gateway",
     "get_asset_repository",
     "get_archive_manifest_repository",
+    "get_archive_candidate_repository",
+    "get_archive_capacity_guard",
+    "get_archive_coverage_gateway",
     "get_canonical_publication_repository",
     "get_rollback_canonical_publication_use_case",
     "get_capital_flow_repository",
@@ -168,6 +183,7 @@ __all__ = [
     "get_raw_audit_repository",
     "get_reconciliation_evidence_repository",
     "get_raw_landing_repository",
+    "get_raw_archive_store",
     "get_retention_policy_repository",
     "get_retention_run_repository",
     "get_sector_membership_repository",
@@ -346,6 +362,51 @@ def get_archive_manifest_repository() -> ArchiveManifestRepository:
     """Return archive manifest repository."""
 
     return ArchiveManifestRepository()
+
+
+def _configured_archive_root() -> Path:
+    configured = str(getattr(settings, "DATA_CENTER_ARCHIVE_ROOT", "") or "").strip()
+    if not configured:
+        raise RuntimeError("data_center_archive_root_not_configured")
+    return Path(configured)
+
+
+def get_raw_archive_store() -> FilesystemRawArchiveStore:
+    """Return the configured cold archive store or fail closed."""
+
+    encryption_key = str(getattr(settings, "DATA_CENTER_ARCHIVE_ENCRYPTION_KEY", "") or "").strip()
+    encryption_key_version = str(
+        getattr(settings, "DATA_CENTER_ARCHIVE_ENCRYPTION_KEY_VERSION", "") or ""
+    ).strip()
+    if not encryption_key or not encryption_key_version:
+        raise RuntimeError("data_center_archive_encryption_not_configured")
+    return FilesystemRawArchiveStore(
+        _configured_archive_root(),
+        encryption_key=encryption_key.encode("ascii"),
+        encryption_key_ref="env:DATA_CENTER_ARCHIVE_ENCRYPTION_KEY",
+        encryption_key_version=encryption_key_version,
+    )
+
+
+def get_archive_candidate_repository() -> ArchiveCandidateRepository:
+    """Return the unarchived RawPayload candidate reader."""
+
+    return ArchiveCandidateRepository()
+
+
+def get_archive_capacity_guard() -> ArchiveCapacityGuard:
+    """Return the Config Center-backed projected archive capacity gate."""
+
+    return ArchiveCapacityGuard(_configured_archive_root())
+
+
+def get_archive_coverage_gateway() -> ArchiveCoverageGateway:
+    """Return the exact DB-and-byte retention deletion gate."""
+
+    return ArchiveCoverageGateway(
+        get_archive_manifest_repository(),
+        get_raw_archive_store(),
+    )
 
 
 def get_reconciliation_evidence_repository() -> ReconciliationEvidenceRepository:

@@ -7,10 +7,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Protocol
 from uuid import uuid4
 
-from apps.data_center.domain.raw_landing import RawPayload
+from apps.data_center.domain.raw_landing import RawPayload, raw_payload_record_digest
 from apps.data_center.domain.retention import (
-    ArchiveManifest,
-    ArchiveState,
     RetentionPolicy,
     RetentionRun,
     StorageHold,
@@ -37,19 +35,14 @@ class StorageHoldRepositoryPort(Protocol):
     ) -> bool: ...
 
 
-class ArchiveManifestRepositoryPort(Protocol):
-    """Persistence port for archive evidence."""
+class ArchiveCoveragePort(Protocol):
+    """Current byte-backed exact archive coverage used by deletion."""
 
-    def save(self, manifest: ArchiveManifest) -> ArchiveManifest: ...
-
-    def get(self, archive_id: str) -> ArchiveManifest | None: ...
-
-    def mark_verified(
-        self, archive_id: str, *, verified_at: datetime | None = None
-    ) -> ArchiveManifest: ...
-
-    def has_verified_for_dataset(
-        self, dataset_key: str, *, now: datetime | None = None
+    def has_verified_for_payload(
+        self,
+        payload: RawPayload,
+        *,
+        now: datetime | None = None,
     ) -> bool: ...
 
 
@@ -65,7 +58,13 @@ class RetentionCandidateRepositoryPort(Protocol):
         now: datetime | None = None,
     ) -> list[RawPayload]: ...
 
-    def delete(self, payload_id: str) -> int: ...
+    def delete_if_matches(
+        self,
+        payload: RawPayload,
+        *,
+        expected_record_digest: str,
+        now: datetime,
+    ) -> int: ...
 
 
 class RetentionRunRepositoryPort(Protocol):
@@ -113,117 +112,6 @@ class RetentionCleanupResult:
         }
 
 
-@dataclass(frozen=True)
-class ArchiveVerificationResult:
-    """Auditable result of comparing one archive manifest with its artifact."""
-
-    outcome: str
-    archive_id: str
-    object_count: int
-    size_bytes: int
-    reason: str = ""
-    verified_at: datetime | None = None
-
-    def to_dict(self) -> dict[str, object]:
-        """Return the stable task contract payload."""
-
-        return {
-            "outcome": self.outcome,
-            "success": self.outcome in {"success", "noop"},
-            "archive_id": self.archive_id,
-            "requested": 1,
-            "succeeded": 1 if self.outcome in {"success", "noop"} else 0,
-            "failed": 1 if self.outcome == "failed" else 0,
-            "blocked": 1 if self.outcome == "blocked" else 0,
-            "object_count": self.object_count,
-            "size_bytes": self.size_bytes,
-            "reason": self.reason,
-            "verified_at": self.verified_at.isoformat() if self.verified_at else None,
-        }
-
-
-class VerifyArchiveManifestUseCase:
-    """Verify immutable archive evidence before it can gate raw deletion."""
-
-    def __init__(self, manifests: ArchiveManifestRepositoryPort) -> None:
-        self._manifests = manifests
-
-    def execute(
-        self,
-        *,
-        archive_id: str,
-        observed_checksum: str,
-        observed_object_count: int,
-        observed_size_bytes: int,
-        verified_at: datetime | None = None,
-    ) -> ArchiveVerificationResult:
-        """Compare caller-supplied artifact evidence and mark it verified.
-
-        The use case intentionally accepts only explicit artifact evidence.  It
-        never treats a non-empty manifest checksum as proof that the external
-        object was read, and it never changes state when any evidence differs.
-        """
-
-        if not isinstance(archive_id, str) or not archive_id.strip():
-            raise ValueError("archive_id is required")
-        if not isinstance(observed_checksum, str) or not observed_checksum.strip():
-            raise ValueError("observed_checksum is required")
-        if (
-            isinstance(observed_object_count, bool)
-            or not isinstance(observed_object_count, int)
-            or observed_object_count < 0
-        ):
-            raise ValueError("observed_object_count must be a non-negative integer")
-        if (
-            isinstance(observed_size_bytes, bool)
-            or not isinstance(observed_size_bytes, int)
-            or observed_size_bytes < 0
-        ):
-            raise ValueError("observed_size_bytes must be a non-negative integer")
-        moment = verified_at or datetime.now(UTC)
-        if moment.tzinfo is None or moment.utcoffset() is None:
-            raise ValueError("verified_at must be timezone-aware")
-
-        manifest = self._manifests.get(archive_id.strip())
-        if manifest is None:
-            return ArchiveVerificationResult(
-                outcome="blocked",
-                archive_id=archive_id.strip(),
-                object_count=observed_object_count,
-                size_bytes=observed_size_bytes,
-                reason="archive_manifest_missing",
-            )
-        if manifest.state in {ArchiveState.FAILED, ArchiveState.DELETED}:
-            return ArchiveVerificationResult(
-                outcome="blocked",
-                archive_id=manifest.archive_id,
-                object_count=observed_object_count,
-                size_bytes=observed_size_bytes,
-                reason="archive_manifest_state_not_verifiable",
-            )
-        if (
-            observed_checksum.strip() != manifest.checksum
-            or observed_object_count != manifest.object_count
-            or observed_size_bytes != manifest.size_bytes
-        ):
-            return ArchiveVerificationResult(
-                outcome="blocked",
-                archive_id=manifest.archive_id,
-                object_count=observed_object_count,
-                size_bytes=observed_size_bytes,
-                reason="archive_manifest_evidence_mismatch",
-            )
-        verified = self._manifests.mark_verified(archive_id, verified_at=moment)
-        return ArchiveVerificationResult(
-            outcome="success",
-            archive_id=verified.archive_id,
-            object_count=verified.object_count,
-            size_bytes=verified.size_bytes,
-            reason="archive_manifest_verified",
-            verified_at=verified.verified_at,
-        )
-
-
 class RetentionGuard:
     """Decide whether a resource may be deleted under active policy/holds."""
 
@@ -245,7 +133,7 @@ class RetentionCleanupUseCase:
         self,
         policies: RetentionPolicyRepositoryPort,
         holds: StorageHoldRepositoryPort,
-        archives: ArchiveManifestRepositoryPort,
+        archives: ArchiveCoveragePort,
         candidates: RetentionCandidateRepositoryPort,
         runs: RetentionRunRepositoryPort | None = None,
     ) -> None:
@@ -345,7 +233,6 @@ class RetentionCleanupUseCase:
             )
             self._record_run(result, dry_run=dry_run, started_at=moment, finished_at=moment)
             return result
-        archive_ready = self._archives.has_verified_for_dataset(dataset_key, now=moment)
         planned = 0
         deleted = 0
         held = 0
@@ -353,6 +240,7 @@ class RetentionCleanupUseCase:
         bytes_planned = 0
         bytes_deleted = 0
         retention_blocked = 0
+        delete_conflicts = 0
         for row in rows:
             payload_size = int(row.payload_size_bytes)
             if not self._guard.can_delete("raw_payload", row.payload_id, now=moment):
@@ -366,18 +254,28 @@ class RetentionCleanupUseCase:
                 blocked += 1
                 retention_blocked += 1
                 continue
-            if not archive_ready:
+            if not self._archives.has_verified_for_payload(row, now=moment):
                 blocked += 1
                 continue
             if dry_run:
                 planned += 1
                 bytes_planned += payload_size
             else:
-                deleted_count = self._candidates.delete(row.payload_id)
+                deleted_count = self._candidates.delete_if_matches(
+                    row,
+                    expected_record_digest=raw_payload_record_digest(row),
+                    now=moment,
+                )
                 deleted += deleted_count
                 if deleted_count > 0:
                     bytes_deleted += payload_size
-        if retention_blocked and deleted == 0 and planned == 0 and held == 0:
+                else:
+                    blocked += 1
+                    delete_conflicts += 1
+        if delete_conflicts and deleted == 0 and planned == 0 and held == 0:
+            outcome = "blocked"
+            reason = "raw_payload_changed_before_delete"
+        elif retention_blocked and deleted == 0 and planned == 0 and held == 0:
             outcome = "blocked"
             reason = "retention_until_not_reached"
         elif blocked and deleted == 0 and planned == 0:
@@ -412,8 +310,7 @@ class RetentionCleanupUseCase:
 
 
 __all__ = [
-    "ArchiveManifestRepositoryPort",
-    "ArchiveVerificationResult",
+    "ArchiveCoveragePort",
     "RetentionCandidateRepositoryPort",
     "RetentionCleanupResult",
     "RetentionCleanupUseCase",
@@ -421,5 +318,4 @@ __all__ = [
     "RetentionPolicyRepositoryPort",
     "RetentionRunRepositoryPort",
     "StorageHoldRepositoryPort",
-    "VerifyArchiveManifestUseCase",
 ]

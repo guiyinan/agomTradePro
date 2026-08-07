@@ -8,7 +8,11 @@ from uuid import UUID
 from django.db import transaction
 from django.db.models import Q
 
-from apps.data_center.domain.raw_landing import RawPayload, SchemaFingerprint
+from apps.data_center.domain.raw_landing import (
+    RawPayload,
+    SchemaFingerprint,
+    raw_payload_record_digest,
+)
 
 from .models import RawPayloadModel, SchemaFingerprintModel
 
@@ -24,27 +28,30 @@ class RawLandingRepository:
 
     @transaction.atomic
     def save(self, payload: RawPayload) -> RawPayload:
-        """Persist a redacted payload idempotently by content hash."""
+        """Create immutable raw bytes or return an exactly identical retry."""
 
-        model, _ = RawPayloadModel._default_manager.update_or_create(
+        defaults = {
+            "payload_id": _uuid(payload.payload_id),
+            "dataset_key": payload.dataset_key,
+            "provider_name": payload.provider_name,
+            "schema_fingerprint": payload.schema_fingerprint,
+            "payload": payload.payload,
+            "request_params": payload.request_params,
+            "run_id": _uuid(payload.run_id) if payload.run_id else None,
+            "batch_id": _uuid(payload.batch_id) if payload.batch_id else None,
+            "content_type": payload.content_type,
+            "parser_version": payload.parser_version,
+            "redacted": payload.redacted,
+            "payload_size_bytes": payload.payload_size_bytes,
+            "fetched_at": payload.fetched_at,
+            "retention_until": payload.retention_until,
+        }
+        model, created = RawPayloadModel._default_manager.get_or_create(
             payload_hash=payload.payload_hash,
-            defaults={
-                "payload_id": _uuid(payload.payload_id),
-                "dataset_key": payload.dataset_key,
-                "provider_name": payload.provider_name,
-                "schema_fingerprint": payload.schema_fingerprint,
-                "payload": payload.payload,
-                "request_params": payload.request_params,
-                "run_id": _uuid(payload.run_id) if payload.run_id else None,
-                "batch_id": _uuid(payload.batch_id) if payload.batch_id else None,
-                "content_type": payload.content_type,
-                "parser_version": payload.parser_version,
-                "redacted": payload.redacted,
-                "payload_size_bytes": payload.payload_size_bytes,
-                "fetched_at": payload.fetched_at,
-                "retention_until": payload.retention_until,
-            },
+            defaults=defaults,
         )
+        if not created and model.to_domain() != payload:
+            raise ValueError("raw_payload_immutable_conflict")
         return model.to_domain()
 
     def get_by_hash(self, payload_hash: str) -> RawPayload | None:
@@ -84,12 +91,33 @@ class RawLandingRepository:
         )
         return [model.to_domain() for model in models]
 
-    def delete(self, payload_id: str) -> int:
-        """Delete one payload by immutable ID and return the affected row count."""
+    @transaction.atomic
+    def delete_if_matches(
+        self,
+        payload: RawPayload,
+        *,
+        expected_record_digest: str,
+        now: datetime,
+    ) -> int:
+        """CAS-delete one unchanged payload whose row deadline is still elapsed."""
 
-        deleted, _details = RawPayloadModel._default_manager.filter(
-            payload_id=_uuid(payload_id)
-        ).delete()
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("now must be timezone-aware")
+        model = (
+            RawPayloadModel._default_manager.select_for_update()
+            .filter(payload_id=_uuid(payload.payload_id))
+            .first()
+        )
+        if model is None:
+            return 0
+        current = model.to_domain()
+        if (
+            current.dataset_key != payload.dataset_key
+            or raw_payload_record_digest(current) != expected_record_digest
+            or (current.retention_until is not None and current.retention_until > now)
+        ):
+            return 0
+        deleted, _details = model.delete()
         return int(deleted)
 
 

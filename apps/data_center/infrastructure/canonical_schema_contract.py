@@ -15,6 +15,8 @@ CANONICAL_SCHEMA_TABLES: tuple[str, ...] = (
     "data_center_raw_payload",
     "data_center_schema_fingerprint",
     "data_center_archive_manifest",
+    "data_center_archive_member",
+    "data_center_archive_restore_audit",
     "data_center_retention_policy",
     "data_center_storage_hold",
     "data_center_data_owner_registration",
@@ -26,7 +28,10 @@ CANONICAL_SCHEMA_TABLES: tuple[str, ...] = (
     "data_center_publication_rollback",
 )
 
-CANONICAL_SCHEMA_MIGRATIONS: tuple[str, ...] = ("0057_publicationrollbackmodel",)
+CANONICAL_SCHEMA_MIGRATIONS: tuple[str, ...] = (
+    "0057_publicationrollbackmodel",
+    "0063_archivemanifest_archive_restore_evidence",
+)
 
 
 def build_canonical_schema_report(

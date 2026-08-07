@@ -17,7 +17,7 @@ from django.core.cache import cache
 from django.utils import timezone
 
 from apps.data_center.composition import (
-    get_archive_manifest_repository,
+    get_archive_coverage_gateway,
     get_raw_landing_repository,
     get_retention_policy_repository,
     get_retention_run_repository,
@@ -37,6 +37,7 @@ from core.integration.config_center_runtime import evaluate_storage_pressure
 from shared.domain.task_outcomes import TaskBusinessOutcome
 from shared.infrastructure.operational_alert_registry import record_operational_alert
 
+from .archive_tasks import verify_archive_manifest_task  # noqa: F401
 from .dtos import (
     SyncFinancialRequest,
     SyncPriceRequest,
@@ -794,7 +795,7 @@ def _run_retention_pass(
         result = RetentionCleanupUseCase(
             get_retention_policy_repository(),
             get_storage_hold_repository(),
-            get_archive_manifest_repository(),
+            get_archive_coverage_gateway(),
             get_raw_landing_repository(),
             get_retention_run_repository(),
         ).execute(dataset_key=dataset_key.strip(), limit=limit, dry_run=dry_run)
@@ -876,7 +877,7 @@ def enforce_retention_task(
     dry_run: bool = True,
     confirm: bool = False,
 ) -> dict[str, object]:
-    """Preview retention; block mutation until trusted archive restore exists."""
+    """Preview retention; keep deletion closed until exact plan members are persisted."""
 
     if dry_run is False and confirm is True:
         return {
@@ -891,7 +892,7 @@ def enforce_retention_task(
             "blocked": 0,
             "bytes_planned": 0,
             "bytes_deleted": 0,
-            "error": "trusted_archive_restore_gate_not_implemented",
+            "error": "retention_plan_member_gate_not_implemented",
         }
 
     return _run_retention_pass(
@@ -901,76 +902,6 @@ def enforce_retention_task(
         operation="enforce",
         confirm=confirm,
     )
-
-
-def _archive_task_failure(*, archive_id: object, error: str) -> dict[str, object]:
-    """Build a stable failed archive verification payload."""
-
-    return {
-        "success": False,
-        "outcome": TaskBusinessOutcome.FAILED.value,
-        "archive_id": archive_id.strip() if isinstance(archive_id, str) else "",
-        "requested": 1,
-        "succeeded": 0,
-        "failed": 1,
-        "blocked": 0,
-        "object_count": 0,
-        "size_bytes": 0,
-        "reason": error,
-    }
-
-
-@shared_task(  # type: ignore[misc]
-    name="apps.data_center.application.tasks.verify_archive_manifest_task",
-    time_limit=900,
-    soft_time_limit=840,
-)
-def verify_archive_manifest_task(
-    *,
-    archive_id: str,
-    observed_checksum: str,
-    observed_object_count: int,
-    observed_size_bytes: int,
-) -> dict[str, object]:
-    """Verify external archive evidence before retention may delete raw data."""
-
-    if not isinstance(archive_id, str) or not archive_id.strip():
-        return _archive_task_failure(archive_id=archive_id, error="archive_id is required")
-    if not isinstance(observed_checksum, str) or not observed_checksum.strip():
-        return _archive_task_failure(
-            archive_id=archive_id,
-            error="observed_checksum is required",
-        )
-    if (
-        isinstance(observed_object_count, bool)
-        or not isinstance(observed_object_count, int)
-        or observed_object_count < 0
-    ):
-        return _archive_task_failure(
-            archive_id=archive_id,
-            error="observed_object_count must be a non-negative integer",
-        )
-    if (
-        isinstance(observed_size_bytes, bool)
-        or not isinstance(observed_size_bytes, int)
-        or observed_size_bytes < 0
-    ):
-        return _archive_task_failure(
-            archive_id=archive_id,
-            error="observed_size_bytes must be a non-negative integer",
-        )
-    return {
-        "success": False,
-        "outcome": TaskBusinessOutcome.BLOCKED.value,
-        "archive_id": archive_id.strip(),
-        "requested": 1,
-        "succeeded": 0,
-        "failed": 0,
-        "blocked": 1,
-        "object_count": observed_object_count,
-        "size_bytes": observed_size_bytes,
-        "reason": "caller_supplied_archive_evidence_not_trusted",
-    }
 
 
 @shared_task(  # type: ignore[misc]

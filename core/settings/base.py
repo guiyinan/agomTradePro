@@ -46,6 +46,18 @@ TUI_ACTION_MAX_CONCURRENCY = env.int("TUI_ACTION_MAX_CONCURRENCY", default=4)
 # Set via environment variable: AGOMTRADEPRO_ENCRYPTION_KEY
 AGOMTRADEPRO_ENCRYPTION_KEY = env("AGOMTRADEPRO_ENCRYPTION_KEY", default="")
 DATABASE_URL = env("DATABASE_URL", default="")
+# Mounted cold-storage root for governed Data Center archives.  Empty is an
+# intentional fail-closed state; production must configure a path outside the
+# PostgreSQL/VPS hot-data volume before archive tasks can run.
+DATA_CENTER_ARCHIVE_ROOT = env("DATA_CENTER_ARCHIVE_ROOT", default="")
+DATA_CENTER_ARCHIVE_ENCRYPTION_KEY = env(
+    "DATA_CENTER_ARCHIVE_ENCRYPTION_KEY",
+    default="",
+)
+DATA_CENTER_ARCHIVE_ENCRYPTION_KEY_VERSION = env(
+    "DATA_CENTER_ARCHIVE_ENCRYPTION_KEY_VERSION",
+    default="",
+)
 _SHOW_ENCRYPTION_KEY_WARNING = env.bool(
     "AGOMTRADEPRO_SHOW_ENCRYPTION_KEY_WARNING",
     default=True,

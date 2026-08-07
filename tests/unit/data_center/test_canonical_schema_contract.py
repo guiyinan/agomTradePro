@@ -11,6 +11,9 @@ def test_canonical_schema_report_is_complete_for_required_tables_and_migrations(
     report = build_canonical_schema_report(CANONICAL_SCHEMA_TABLES, CANONICAL_SCHEMA_MIGRATIONS)
 
     assert report == {"missing_tables": [], "missing_migrations": []}
+    assert "data_center_archive_member" in CANONICAL_SCHEMA_TABLES
+    assert "data_center_archive_restore_audit" in CANONICAL_SCHEMA_TABLES
+    assert "0063_archivemanifest_archive_restore_evidence" in CANONICAL_SCHEMA_MIGRATIONS
 
 
 def test_canonical_schema_report_lists_missing_items_in_stable_order() -> None:

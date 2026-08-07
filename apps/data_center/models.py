@@ -1,5 +1,11 @@
 """Data center models re-export."""
 
+from apps.data_center.infrastructure.archive_models import (  # noqa: F401
+    ArchiveMemberModel as ArchiveMemberModel,
+)
+from apps.data_center.infrastructure.archive_models import (
+    ArchiveRestoreAuditModel as ArchiveRestoreAuditModel,
+)
 from apps.data_center.infrastructure.catalog_models import (  # noqa: F401
     DataOwnerRegistrationModel as DataOwnerRegistrationModel,
 )

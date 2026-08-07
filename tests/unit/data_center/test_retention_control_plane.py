@@ -29,7 +29,8 @@ def test_retention_policy_and_verified_archive_invariants() -> None:
         dataset_key="equity.daily",
         version=1,
         retention_days=7,
-        archive_after_days=30,
+        archive_after_days=3,
+        archive_retention_days=30,
         active=True,
     )
     assert policy.active

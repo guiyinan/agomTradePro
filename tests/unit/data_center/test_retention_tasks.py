@@ -48,7 +48,7 @@ class _Archives:
     def __init__(self, ready: bool) -> None:
         self.ready = ready
 
-    def has_verified_for_dataset(self, dataset_key: str, *, now: datetime | None = None) -> bool:
+    def has_verified_for_payload(self, payload: RawPayload, *, now: datetime | None = None) -> bool:
         return self.ready
 
 
@@ -73,8 +73,15 @@ class _Candidates:
             and (row.retention_until is None or now is None or row.retention_until <= now)
         ][:limit]
 
-    def delete(self, payload_id: str) -> int:
-        self.deleted.append(payload_id)
+    def delete_if_matches(
+        self,
+        payload: RawPayload,
+        *,
+        expected_record_digest: str,
+        now: datetime,
+    ) -> int:
+        del expected_record_digest, now
+        self.deleted.append(payload.payload_id)
         return 1
 
 
@@ -167,7 +174,7 @@ def _patch_task_dependencies(
         "apps.data_center.application.tasks.get_storage_hold_repository", lambda: holds
     )
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.get_archive_manifest_repository", lambda: archives
+        "apps.data_center.application.tasks.get_archive_coverage_gateway", lambda: archives
     )
     monkeypatch.setattr(
         "apps.data_center.application.tasks.get_raw_landing_repository", lambda: candidates
@@ -371,12 +378,12 @@ def test_enforce_retention_task_rejects_non_boolean_confirmation() -> None:
     assert result["error"] == "confirm must be a boolean"
 
 
-def test_enforce_retention_task_blocks_until_trusted_restore_gate() -> None:
+def test_enforce_retention_task_blocks_until_exact_plan_member_gate() -> None:
     result = enforce_retention_task(dataset_key="market.raw", limit=10, dry_run=False, confirm=True)
 
     assert result["outcome"] == "blocked"
     assert result["operation"] == "enforce"
-    assert result["error"] == "trusted_archive_restore_gate_not_implemented"
+    assert result["error"] == "retention_plan_member_gate_not_implemented"
     assert result["deleted"] == 0
 
 
@@ -393,74 +400,32 @@ def test_enforce_retention_task_requires_explicit_confirmation(monkeypatch) -> N
     assert candidates.deleted == []
 
 
-def test_archive_verification_rejects_invalid_evidence_before_repository(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_archive_verification_rejects_invalid_archive_id_before_repository(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.get_archive_manifest_repository",
+        "apps.data_center.application.archive_tasks.get_archive_manifest_repository",
         lambda: (_ for _ in ()).throw(AssertionError("repository must not be reached")),
     )
 
-    result = verify_archive_manifest_task(
-        archive_id="archive-1",
-        observed_checksum="sha256:archive",
-        observed_object_count=True,  # type: ignore[arg-type]
-        observed_size_bytes=256,
-    )
+    result = verify_archive_manifest_task(archive_id="")
 
     assert result["outcome"] == "failed"
-    assert result["reason"] == "observed_object_count must be a non-negative integer"
+    assert result["reason"] == "archive_id is required"
 
 
-def test_archive_verification_blocks_caller_supplied_evidence(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    repository = _VerifiableArchives(_archive_manifest())
+def test_archive_verification_blocks_without_configured_cold_store(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.get_archive_manifest_repository", lambda: repository
+        "apps.data_center.application.archive_tasks.get_archive_manifest_repository",
+        lambda: _VerifiableArchives(_archive_manifest()),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.archive_tasks.get_raw_archive_store",
+        lambda: (_ for _ in ()).throw(RuntimeError("data_center_archive_root_not_configured")),
     )
 
-    result = verify_archive_manifest_task(
-        archive_id=repository.manifest.archive_id,
-        observed_checksum="sha256:archive",
-        observed_object_count=2,
-        observed_size_bytes=256,
-    )
+    result = verify_archive_manifest_task(archive_id=str(uuid4()))
 
     assert result["outcome"] == "blocked"
-    assert result["reason"] == "caller_supplied_archive_evidence_not_trusted"
-    assert repository.marked is False
-
-
-def test_archive_verification_does_not_compare_untrusted_checksum(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    repository = _VerifiableArchives(_archive_manifest())
-    monkeypatch.setattr(
-        "apps.data_center.application.tasks.get_archive_manifest_repository", lambda: repository
-    )
-
-    result = verify_archive_manifest_task(
-        archive_id=repository.manifest.archive_id,
-        observed_checksum="sha256:tampered",
-        observed_object_count=2,
-        observed_size_bytes=256,
-    )
-
-    assert result["outcome"] == "blocked"
-    assert result["reason"] == "caller_supplied_archive_evidence_not_trusted"
-    assert repository.marked is False
-
-
-def test_archive_verification_does_not_reach_repository(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    monkeypatch.setattr(
-        "apps.data_center.application.tasks.get_archive_manifest_repository",
-        lambda: (_ for _ in ()).throw(RuntimeError("database unavailable")),
-    )
-
-    result = verify_archive_manifest_task(
-        archive_id="archive-1",
-        observed_checksum="sha256:archive",
-        observed_object_count=2,
-        observed_size_bytes=256,
-    )
-
-    assert result["outcome"] == "blocked"
-    assert result["reason"] == "caller_supplied_archive_evidence_not_trusted"
+    assert result["reason"] == "data_center_archive_root_not_configured"
 
 
 def _patch_storage_probe(monkeypatch, pressure: dict[str, object]) -> None:  # type: ignore[no-untyped-def]

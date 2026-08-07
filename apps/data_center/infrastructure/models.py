@@ -39,6 +39,7 @@ from apps.data_center.domain.entities import (
 from apps.data_center.domain.raw_landing import RawPayload, SchemaFingerprint
 from apps.data_center.domain.retention import (
     ArchiveManifest,
+    ArchiveRestoreOutcome,
     ArchiveState,
     RetentionPolicy,
     StorageHold,
@@ -1538,6 +1539,7 @@ class RetentionPolicyModel(models.Model):
     version = models.PositiveIntegerField()
     retention_days = models.PositiveIntegerField()
     archive_after_days = models.PositiveIntegerField(null=True, blank=True)
+    archive_retention_days = models.PositiveIntegerField(null=True, blank=True)
     priority = models.CharField(max_length=20, default="normal")
     active = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1547,6 +1549,11 @@ class RetentionPolicyModel(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["dataset_key", "version"], name="dc_retention_dataset_version_unique"
+            ),
+            models.UniqueConstraint(
+                fields=["dataset_key"],
+                condition=models.Q(active=True),
+                name="dc_retention_one_active_per_dataset",
             ),
         ]
         indexes = [models.Index(fields=["dataset_key", "active"])]
@@ -1560,6 +1567,7 @@ class RetentionPolicyModel(models.Model):
             version=self.version,
             retention_days=self.retention_days,
             archive_after_days=self.archive_after_days,
+            archive_retention_days=self.archive_retention_days,
             priority=self.priority,
             active=self.active,
         )
@@ -1616,11 +1624,62 @@ class ArchiveManifestModel(models.Model):
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     verified_at = models.DateTimeField(null=True, blank=True)
     retention_until = models.DateTimeField(null=True, blank=True, db_index=True)
+    contract_version = models.CharField(max_length=40, blank=True)
+    schema_version = models.CharField(max_length=40, blank=True)
+    format_version = models.CharField(
+        max_length=80,
+        default="raw-payload-fernet-jsonl-gzip-v1",
+    )
+    encryption_algorithm = models.CharField(max_length=40, blank=True)
+    encryption_key_ref = models.CharField(max_length=160, blank=True)
+    encryption_key_version = models.CharField(max_length=80, blank=True)
+    coverage_started_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    coverage_ended_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    restore_outcome = models.CharField(
+        max_length=20,
+        choices=[(item.value, item.value) for item in ArchiveRestoreOutcome],
+        default=ArchiveRestoreOutcome.NOT_TESTED.value,
+        db_index=True,
+    )
+    last_restored_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = "data_center_archive_manifest"
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["dataset_key", "state", "created_at"])]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(coverage_started_at__isnull=True, coverage_ended_at__isnull=True)
+                    | models.Q(
+                        coverage_started_at__isnull=False,
+                        coverage_ended_at__isnull=False,
+                    )
+                ),
+                name="dc_archive_coverage_pair",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(coverage_started_at__isnull=True)
+                    | models.Q(coverage_ended_at__gte=models.F("coverage_started_at"))
+                ),
+                name="dc_archive_coverage_order",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(state=ArchiveState.VERIFIED.value)
+                    | models.Q(verified_at__isnull=False)
+                ),
+                name="dc_archive_verified_at_required",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(restore_outcome=ArchiveRestoreOutcome.SUCCESS.value)
+                    | models.Q(last_restored_at__isnull=False)
+                ),
+                name="dc_archive_restore_time_required",
+            ),
+        ]
 
     def to_domain(self) -> ArchiveManifest:
         """Convert the archive evidence row to a domain manifest."""
@@ -1636,6 +1695,16 @@ class ArchiveManifestModel(models.Model):
             created_at=self.created_at,
             verified_at=self.verified_at,
             retention_until=self.retention_until,
+            contract_version=self.contract_version,
+            schema_version=self.schema_version,
+            format_version=self.format_version,
+            encryption_algorithm=self.encryption_algorithm,
+            encryption_key_ref=self.encryption_key_ref,
+            encryption_key_version=self.encryption_key_version,
+            coverage_started_at=self.coverage_started_at,
+            coverage_ended_at=self.coverage_ended_at,
+            restore_outcome=ArchiveRestoreOutcome(self.restore_outcome),
+            last_restored_at=self.last_restored_at,
         )
 
 

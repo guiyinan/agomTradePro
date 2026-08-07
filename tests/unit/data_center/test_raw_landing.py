@@ -1,11 +1,16 @@
 """Raw landing redaction and schema fingerprint tests."""
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 
-from apps.data_center.domain.raw_landing import RawPayload, SchemaFingerprint
+from apps.data_center.domain.raw_landing import (
+    RawPayload,
+    SchemaFingerprint,
+    raw_payload_record_digest,
+)
 from apps.data_center.infrastructure.raw_landing_repositories import RawLandingRepository
 
 NOW = datetime(2026, 8, 2, 5, 0, tzinfo=UTC)
@@ -83,3 +88,40 @@ def test_raw_landing_retention_candidates_respect_row_deadline() -> None:
     )
 
     assert [row.payload_id for row in rows] == [eligible.payload_id]
+
+
+@pytest.mark.django_db
+def test_raw_landing_is_immutable_and_delete_uses_full_record_cas() -> None:
+    repository = RawLandingRepository()
+    payload = RawPayload(
+        payload_id=str(uuid4()),
+        dataset_key="market.raw",
+        provider_name="fixture",
+        payload_hash=f"sha256:{uuid4().hex}",
+        schema_fingerprint="sha256:schema",
+        payload={"value": 1},
+        fetched_at=NOW - timedelta(days=31),
+        retention_until=NOW - timedelta(days=1),
+    )
+
+    assert repository.save(payload) == payload
+    assert repository.save(payload) == payload
+    with pytest.raises(ValueError, match="raw_payload_immutable_conflict"):
+        repository.save(replace(payload, payload={"value": 2}))
+
+    assert (
+        repository.delete_if_matches(
+            payload,
+            expected_record_digest="sha256:stale-plan",
+            now=NOW,
+        )
+        == 0
+    )
+    assert (
+        repository.delete_if_matches(
+            payload,
+            expected_record_digest=raw_payload_record_digest(payload),
+            now=NOW,
+        )
+        == 1
+    )

@@ -7,16 +7,21 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import F, Q
 
+from apps.data_center.domain.raw_landing import RawPayload, raw_payload_record_digest
 from apps.data_center.domain.retention import (
     ArchiveManifest,
+    ArchiveMember,
+    ArchiveRestoreAudit,
+    ArchiveRestoreOutcome,
     ArchiveState,
     RetentionPolicy,
     RetentionRun,
     StorageHold,
 )
 
+from .archive_models import ArchiveMemberModel, ArchiveRestoreAuditModel
 from .models import ArchiveManifestModel, RetentionPolicyModel, StorageHoldModel
 from .retention_models import RetentionRunModel
 
@@ -40,6 +45,7 @@ class RetentionPolicyRepository:
                 "version": policy.version,
                 "retention_days": policy.retention_days,
                 "archive_after_days": policy.archive_after_days,
+                "archive_retention_days": policy.archive_retention_days,
                 "priority": policy.priority,
                 "active": policy.active,
             },
@@ -137,29 +143,115 @@ class ArchiveManifestRepository:
     """Verified archive manifest repository."""
 
     def save(self, manifest: ArchiveManifest) -> ArchiveManifest:
-        """Upsert one archive manifest by immutable ID."""
+        """Create one immutable manifest or return an identical retry."""
 
-        model, _ = ArchiveManifestModel._default_manager.update_or_create(
+        defaults = {
+            "dataset_key": manifest.dataset_key,
+            "object_count": manifest.object_count,
+            "size_bytes": manifest.size_bytes,
+            "location": manifest.location,
+            "checksum": manifest.checksum,
+            "state": manifest.state.value,
+            "created_at": manifest.created_at,
+            "verified_at": manifest.verified_at,
+            "retention_until": manifest.retention_until,
+            "contract_version": manifest.contract_version,
+            "schema_version": manifest.schema_version,
+            "format_version": manifest.format_version,
+            "encryption_algorithm": manifest.encryption_algorithm,
+            "encryption_key_ref": manifest.encryption_key_ref,
+            "encryption_key_version": manifest.encryption_key_version,
+            "coverage_started_at": manifest.coverage_started_at,
+            "coverage_ended_at": manifest.coverage_ended_at,
+            "restore_outcome": manifest.restore_outcome.value,
+            "last_restored_at": manifest.last_restored_at,
+        }
+        model, created = ArchiveManifestModel._default_manager.get_or_create(
             archive_id=_uuid(manifest.archive_id),
-            defaults={
-                "dataset_key": manifest.dataset_key,
-                "object_count": manifest.object_count,
-                "size_bytes": manifest.size_bytes,
-                "location": manifest.location,
-                "checksum": manifest.checksum,
-                "state": manifest.state.value,
-                "created_at": manifest.created_at,
-                "verified_at": manifest.verified_at,
-                "retention_until": manifest.retention_until,
-            },
+            defaults=defaults,
         )
+        if not created:
+            immutable_fields = (
+                "dataset_key",
+                "object_count",
+                "size_bytes",
+                "location",
+                "checksum",
+                "created_at",
+                "contract_version",
+                "schema_version",
+                "format_version",
+                "encryption_algorithm",
+                "encryption_key_ref",
+                "encryption_key_version",
+                "coverage_started_at",
+                "coverage_ended_at",
+                "retention_until",
+            )
+            if any(getattr(model, field) != defaults[field] for field in immutable_fields):
+                raise ValueError("archive_manifest_immutable_conflict")
         return model.to_domain()
+
+    @transaction.atomic
+    def save_export(
+        self,
+        manifest: ArchiveManifest,
+        members: tuple[ArchiveMember, ...],
+    ) -> ArchiveManifest:
+        """Persist one exported manifest and its exact member coverage atomically."""
+
+        if manifest.state is not ArchiveState.EXPORTED:
+            raise ValueError("archive_manifest_export_state_required")
+        if not members or len(members) != manifest.object_count:
+            raise ValueError("archive_manifest_member_count_mismatch")
+        saved = self.save(manifest)
+        archive_uuid = _uuid(saved.archive_id)
+        existing = tuple(
+            model.to_domain()
+            for model in ArchiveMemberModel._default_manager.filter(
+                archive_id=archive_uuid
+            ).order_by("fetched_at", "payload_id")
+        )
+        ordered = tuple(sorted(members, key=lambda item: (item.fetched_at, item.payload_id)))
+        if existing:
+            if existing != ordered:
+                raise ValueError("archive_manifest_member_immutable_conflict")
+            return saved
+        ArchiveMemberModel._default_manager.bulk_create(
+            [
+                ArchiveMemberModel(
+                    archive_id=archive_uuid,
+                    payload_id=_uuid(member.payload_id),
+                    payload_hash=member.payload_hash,
+                    record_digest=member.record_digest,
+                    schema_fingerprint=member.schema_fingerprint,
+                    fetched_at=member.fetched_at,
+                    size_bytes=member.size_bytes,
+                )
+                for member in ordered
+            ],
+            ignore_conflicts=True,
+        )
+        persisted = self.list_members(saved.archive_id)
+        if persisted != ordered:
+            raise ValueError("archive_manifest_member_immutable_conflict")
+        return saved
 
     def get(self, archive_id: str) -> ArchiveManifest | None:
         """Return one archive manifest for explicit external verification."""
 
         model = ArchiveManifestModel._default_manager.filter(archive_id=_uuid(archive_id)).first()
         return model.to_domain() if model is not None else None
+
+    def list_members(self, archive_id: str) -> tuple[ArchiveMember, ...]:
+        """Return exact archive coverage in deterministic artifact order."""
+
+        return tuple(
+            model.to_domain()
+            for model in ArchiveMemberModel._default_manager.filter(
+                archive_id=_uuid(archive_id)
+            ).order_by("fetched_at", "payload_id")
+        )
 
     def mark_verified(
         self, archive_id: str, *, verified_at: datetime | None = None
@@ -179,7 +271,6 @@ class ArchiveManifestRepository:
         if not str(model.checksum).strip():
             raise ValueError("archive_manifest_checksum_missing")
         if model.state not in {
-            ArchiveState.PLANNED.value,
             ArchiveState.EXPORTED.value,
             ArchiveState.VERIFIED.value,
         }:
@@ -189,19 +280,106 @@ class ArchiveManifestRepository:
         model.save(update_fields=["state", "verified_at"])
         return model.to_domain()
 
-    def has_verified_for_dataset(self, dataset_key: str, *, now: datetime | None = None) -> bool:
-        """Return whether a currently retained verified archive covers a dataset."""
+    @transaction.atomic
+    def record_restore(self, audit: ArchiveRestoreAudit) -> ArchiveManifest:
+        """Append restore evidence and make the latest result the deletion gate."""
+
+        archive_uuid = _uuid(audit.archive_id)
+        manifest = ArchiveManifestModel._default_manager.select_for_update().get(
+            archive_id=archive_uuid
+        )
+        if manifest.state != ArchiveState.VERIFIED.value:
+            raise ValueError("archive_manifest_not_verified")
+        if manifest.verified_at is None:
+            raise ValueError("archive_manifest_verified_at_missing")
+        if audit.finished_at < manifest.verified_at:
+            raise ValueError("archive_restore_precedes_verification")
+        if audit.outcome is ArchiveRestoreOutcome.SUCCESS and (
+            audit.observed_checksum != manifest.checksum
+            or audit.observed_object_count != int(manifest.object_count)
+            or audit.observed_size_bytes != int(manifest.size_bytes)
+        ):
+            raise ValueError("archive_restore_evidence_mismatch")
+        defaults = {
+            "audit_id": _uuid(audit.audit_id),
+            "archive_id": archive_uuid,
+            "outcome": audit.outcome.value,
+            "observed_checksum": audit.observed_checksum,
+            "observed_object_count": audit.observed_object_count,
+            "observed_size_bytes": audit.observed_size_bytes,
+            "restored_object_count": audit.restored_object_count,
+            "restored_bytes": audit.restored_bytes,
+            "started_at": audit.started_at,
+            "finished_at": audit.finished_at,
+            "reason": audit.reason,
+        }
+        model, created = ArchiveRestoreAuditModel._default_manager.get_or_create(
+            operation_key=audit.operation_key,
+            defaults=defaults,
+        )
+        if not created and model.to_domain() != audit:
+            raise ValueError("archive_restore_operation_immutable_conflict")
+        if manifest.last_restored_at is None or audit.finished_at >= manifest.last_restored_at:
+            manifest.restore_outcome = audit.outcome.value
+            manifest.last_restored_at = audit.finished_at
+            manifest.save(update_fields=["restore_outcome", "last_restored_at"])
+        return manifest.to_domain()
+
+    def get_restore_audit(self, operation_key: str) -> ArchiveRestoreAudit | None:
+        """Return one idempotent restore operation evidence row."""
+
+        model = ArchiveRestoreAuditModel._default_manager.filter(
+            operation_key=operation_key
+        ).first()
+        return model.to_domain() if model is not None else None
+
+    def find_covering_manifests(
+        self,
+        payload: RawPayload,
+        *,
+        now: datetime | None = None,
+    ) -> tuple[ArchiveManifest, ...]:
+        """Return restored manifests claiming exact coverage for one payload."""
 
         moment = now or datetime.now(UTC)
-        return (
+        rows = (
             ArchiveManifestModel._default_manager.filter(
-                dataset_key=dataset_key,
+                dataset_key=payload.dataset_key,
                 state=ArchiveState.VERIFIED.value,
+                restore_outcome=ArchiveRestoreOutcome.SUCCESS.value,
                 verified_at__isnull=False,
+                last_restored_at__isnull=False,
+                members__payload_id=_uuid(payload.payload_id),
+                members__payload_hash=payload.payload_hash,
+                members__record_digest=raw_payload_record_digest(payload),
+                coverage_started_at__isnull=False,
+                coverage_ended_at__isnull=False,
+                coverage_started_at__lte=payload.fetched_at,
+                coverage_ended_at__gte=payload.fetched_at,
+                verified_at__lte=moment,
+                last_restored_at__lte=moment,
             )
-            .filter(Q(retention_until__isnull=True) | Q(retention_until__gt=moment))
-            .exists()
+            .filter(retention_until__isnull=False, retention_until__gt=moment)
+            .filter(last_restored_at__gte=F("verified_at"))
+            .order_by("-last_restored_at", "-created_at")
+            .distinct()
         )
+        return tuple(
+            row.to_domain()
+            for row in rows
+            if ArchiveMemberModel._default_manager.filter(archive_id=row.archive_id).count()
+            == int(row.object_count)
+        )
+
+    def has_verified_for_payload(
+        self,
+        payload: RawPayload,
+        *,
+        now: datetime | None = None,
+    ) -> bool:
+        """Return the database evidence gate; byte recheck belongs to the gateway."""
+
+        return bool(self.find_covering_manifests(payload, now=now))
 
 
 __all__ = [

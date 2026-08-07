@@ -2,6 +2,7 @@
   "schema_version": 1,
   "governed_source_files": [
     "apps/config_center/application/tasks.py",
+    "apps/data_center/application/archive_tasks.py",
     "apps/data_center/application/tasks.py",
     "apps/equity/application/tasks_valuation_sync.py",
     "apps/config_center/application/decision_readiness_guard_tasks.py",
@@ -181,10 +182,6 @@
           "test_file": "tests/unit/data_center/test_retention_tasks.py",
           "test_function": "test_enforce_retention_task_rejects_non_boolean_confirmation"
         },
-        "all_success": {
-          "test_file": "tests/unit/data_center/test_retention_tasks.py",
-          "test_function": "test_enforce_retention_task_blocks_until_trusted_restore_gate"
-        },
         "blocked": {
           "test_file": "tests/unit/data_center/test_retention_tasks.py",
           "test_function": "test_enforce_retention_task_requires_explicit_confirmation"
@@ -192,25 +189,79 @@
       }
     },
     {
-      "task_path": "apps.data_center.application.tasks.verify_archive_manifest_task",
-      "source_file": "apps/data_center/application/tasks.py",
+      "task_path": "apps.data_center.application.archive_tasks.archive_raw_payloads_task",
+      "source_file": "apps/data_center/application/archive_tasks.py",
       "criticality": "data_mutation_critical",
       "required_cases": {
         "invalid_input": {
-          "test_file": "tests/unit/data_center/test_retention_tasks.py",
-          "test_function": "test_archive_verification_rejects_invalid_evidence_before_repository"
+          "test_file": "tests/unit/data_center/test_archive_tasks.py",
+          "test_function": "test_archive_raw_payloads_task_rejects_invalid_input_before_dependencies"
         },
         "all_success": {
-          "test_file": "tests/unit/data_center/test_retention_tasks.py",
-          "test_function": "test_archive_verification_blocks_caller_supplied_evidence"
+          "test_file": "tests/unit/data_center/test_archive_tasks.py",
+          "test_function": "test_archive_raw_payloads_task_reports_real_success"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/data_center/test_archive_tasks.py",
+          "test_function": "test_archive_raw_payloads_task_reports_zero_output_as_noop"
         },
         "blocked": {
-          "test_file": "tests/unit/data_center/test_retention_tasks.py",
-          "test_function": "test_archive_verification_does_not_compare_untrusted_checksum"
+          "test_file": "tests/unit/data_center/test_archive_tasks.py",
+          "test_function": "test_archive_raw_payloads_task_blocks_when_cold_store_is_unconfigured"
         },
         "complete_failure": {
-          "test_file": "tests/unit/data_center/test_retention_tasks.py",
-          "test_function": "test_archive_verification_does_not_reach_repository"
+          "test_file": "tests/unit/data_center/test_archive_tasks.py",
+          "test_function": "test_archive_raw_payloads_task_reports_complete_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.data_center.application.tasks.verify_archive_manifest_task",
+      "source_file": "apps/data_center/application/archive_tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/data_center/test_archive_tasks.py",
+          "test_function": "test_verify_archive_manifest_task_rejects_invalid_input"
+        },
+        "all_success": {
+          "test_file": "tests/unit/data_center/test_archive_tasks.py",
+          "test_function": "test_verify_archive_manifest_task_reports_store_backed_success"
+        },
+        "blocked": {
+          "test_file": "tests/unit/data_center/test_archive_tasks.py",
+          "test_function": "test_verify_archive_manifest_task_blocks_without_cold_store"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/data_center/test_archive_tasks.py",
+          "test_function": "test_verify_archive_manifest_task_reports_complete_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.data_center.application.archive_tasks.audit_archive_restore_task",
+      "source_file": "apps/data_center/application/archive_tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/data_center/test_archive_tasks.py",
+          "test_function": "test_audit_archive_restore_task_requires_stable_operation_id"
+        },
+        "all_success": {
+          "test_file": "tests/unit/data_center/test_archive_tasks.py",
+          "test_function": "test_audit_archive_restore_task_reports_real_success"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/data_center/test_archive_tasks.py",
+          "test_function": "test_audit_archive_restore_task_reports_idempotent_noop"
+        },
+        "blocked": {
+          "test_file": "tests/unit/data_center/test_archive_tasks.py",
+          "test_function": "test_audit_archive_restore_task_blocks_without_cold_store"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/data_center/test_archive_tasks.py",
+          "test_function": "test_audit_archive_restore_task_reports_complete_failure"
         }
       }
     },

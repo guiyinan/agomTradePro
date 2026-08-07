@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -53,6 +55,38 @@ class RawPayload:
             raise ValueError("RawPayload must be redacted before persistence")
 
 
+def raw_payload_record_digest(payload: RawPayload) -> str:
+    """Hash every immutable RawPayload field used by archive/delete CAS gates."""
+
+    material = {
+        "payload_id": payload.payload_id,
+        "dataset_key": payload.dataset_key,
+        "provider_name": payload.provider_name,
+        "payload_hash": payload.payload_hash,
+        "schema_fingerprint": payload.schema_fingerprint,
+        "payload": payload.payload,
+        "fetched_at": payload.fetched_at.isoformat(),
+        "request_params": payload.request_params,
+        "run_id": payload.run_id,
+        "batch_id": payload.batch_id,
+        "content_type": payload.content_type,
+        "parser_version": payload.parser_version,
+        "redacted": payload.redacted,
+        "payload_size_bytes": payload.payload_size_bytes,
+        "retention_until": (
+            payload.retention_until.isoformat() if payload.retention_until is not None else None
+        ),
+    }
+    encoded = json.dumps(
+        material,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
+
+
 @dataclass(frozen=True)
 class SchemaFingerprint:
     """Observed schema signature for one dataset/provider combination."""
@@ -67,7 +101,11 @@ class SchemaFingerprint:
     sample_count: int = 1
 
     def __post_init__(self) -> None:
-        if not self.fingerprint.strip() or not self.dataset_key.strip() or not self.provider_name.strip():
+        if (
+            not self.fingerprint.strip()
+            or not self.dataset_key.strip()
+            or not self.provider_name.strip()
+        ):
             raise ValueError("SchemaFingerprint identifiers are required")
         _aware(self.first_seen_at, "SchemaFingerprint.first_seen_at")
         _aware(self.last_seen_at, "SchemaFingerprint.last_seen_at")
@@ -77,4 +115,4 @@ class SchemaFingerprint:
             raise ValueError("SchemaFingerprint.sample_count must be positive")
 
 
-__all__ = ["RawPayload", "SchemaFingerprint"]
+__all__ = ["RawPayload", "SchemaFingerprint", "raw_payload_record_digest"]
