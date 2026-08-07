@@ -3,16 +3,5 @@
   "owner": "data_center",
   "retirement_gate": "M9 after production zero-access observation and verified backup/restore",
   "entrypoints": [],
-  "wrappers": [
-    {
-      "path": "scripts/run_backtest.py",
-      "replacement": "python manage.py run_backtest",
-      "status": "compatibility_wrapper"
-    },
-    {
-      "path": "scripts/seed_historical.py",
-      "replacement": "python manage.py sync_macro_data",
-      "status": "compatibility_wrapper"
-    }
-  ]
+  "wrappers": []
 }

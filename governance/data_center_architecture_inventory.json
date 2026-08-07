@@ -4323,7 +4323,7 @@
       "text": "\"\"\"Read the latest resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 563,
+      "line": 562,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Return the latest capacity observation without a fallback.\"\"\""
     },
@@ -4348,7 +4348,7 @@
       "text": "\"\"\"Return one value from the active typed profile for the current environment.\"\"\""
     },
     {
-      "line": 457,
+      "line": 445,
       "path": "apps/config_center/infrastructure/repositories.py",
       "text": "\"\"\"Atomically consume the current token and reject replay/expiry.\"\"\""
     },
@@ -4811,6 +4811,16 @@
       "line": 125,
       "path": "apps/data_center/application/control_plane.py",
       "text": "\"\"\"Apply a publication policy before exposing selected facts as current.\"\"\""
+    },
+    {
+      "line": 157,
+      "path": "apps/data_center/application/core_data_backfill.py",
+      "text": "error_message=\"latest completed China market session is unavailable\","
+    },
+    {
+      "line": 163,
+      "path": "apps/data_center/application/core_data_backfill.py",
+      "text": "\"error\": \"latest completed China market session is unavailable\","
     },
     {
       "line": 1,
@@ -5728,22 +5738,12 @@
       "text": "raise AssertionError(\"retention current payload guard failed\")"
     },
     {
-      "line": 146,
+      "line": 144,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 541,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "error_message=\"latest completed China market session is unavailable\","
-    },
-    {
-      "line": 547,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "\"error\": \"latest completed China market session is unavailable\","
-    },
-    {
-      "line": 1004,
+      "line": 778,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Check current filesystem pressure before another mutating batch.\"\"\""
     },
@@ -17395,37 +17395,37 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 270,
+      "line": 268,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 302,
+      "line": 300,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 384,
+      "line": 382,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 825,
+      "line": 599,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 862,
+      "line": 636,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 935,
+      "line": 709,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 998,
+      "line": 772,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },

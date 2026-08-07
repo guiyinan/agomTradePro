@@ -370,8 +370,6 @@ AgomTradePro/
 ├── templates/                   # 全局模板
 │
 ├── scripts/                     # 脚本文件
-│   ├── run_backtest.py          #   运行回测
-│   ├── validate_backtest.py     #   验证回测结果
 │   └── migrate_portfolio_to_investment_account.py  # ⭐ 数据迁移脚本
 │
 ├── tests/                       # 测试文件
@@ -827,14 +825,11 @@ agomtradepro/Scripts/python -m pytest tests/unit/test_regime_services.py
 agomtradepro/Scripts/python -m pytest --cov=apps
 ```
 
-### 9.4 回测脚本
+### 9.4 回测命令
 
 ```bash
 # 运行回测
-agomtradepro/Scripts/python scripts/run_backtest.py --start 2020-01-01 --end 2024-12-31
-
-# 验证回测结果
-agomtradepro/Scripts/python scripts/validate_backtest.py --compare --report report.html
+agomtradepro/Scripts/python manage.py run_backtest --start 2020-01-01 --end 2024-12-31
 ```
 
 ### 9.5 代码质量检查

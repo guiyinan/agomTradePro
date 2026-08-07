@@ -18,53 +18,17 @@ def _load(name: str, relative_path: str) -> ModuleType:
     return module
 
 
-@pytest.mark.parametrize(
-    ("module_name", "relative_path", "expected_command"),
-    [
-        ("run_backtest_wrapper", "scripts/run_backtest.py", "run_backtest"),
-    ],
-)
-def test_simple_legacy_scripts_route_to_canonical_management_commands(
-    monkeypatch,
-    module_name: str,
-    relative_path: str,
-    expected_command: str,
-) -> None:
-    module = _load(module_name, relative_path)
-    captured: list[list[str]] = []
-    monkeypatch.setattr(
-        "django.core.management.execute_from_command_line",
-        lambda arguments: captured.append(list(arguments)),
-    )
-
-    module.main(["--list"])
-
-    assert captured[0][1] == expected_command
-    assert captured[0][-1] == "--list"
+def test_run_backtest_compatibility_wrapper_is_deleted() -> None:
+    assert not (ROOT / "scripts/run_backtest.py").exists()
 
 
-def test_seed_historical_translates_legacy_selectors_without_data_access(monkeypatch) -> None:
-    module = _load("seed_historical_wrapper", "scripts/seed_historical.py")
-    captured: list[list[str]] = []
-    monkeypatch.setattr(
-        "django.core.management.execute_from_command_line",
-        lambda arguments: captured.append(list(arguments)),
-    )
-
-    module.main(["--all", "--start", "2020-01-01", "--end", "2024-12-31"])
-
-    arguments = captured[0]
-    assert arguments[1] == "sync_macro_data"
-    assert "--indicators" in arguments
-    assert all(code in arguments for code in ("CN_PMI", "CN_CPI", "CN_PPI", "CN_M2"))
-    assert "--all" not in arguments
+def test_seed_historical_compatibility_wrapper_is_deleted() -> None:
+    assert not (ROOT / "scripts/seed_historical.py").exists()
 
 
-def test_seed_historical_rejects_retired_check_mode() -> None:
-    module = _load("seed_historical_check_tombstone", "scripts/seed_historical.py")
-
-    with pytest.raises(SystemExit, match="test_data_connections"):
-        module.main(["--check"])
+def test_retired_wrappers_have_canonical_management_commands() -> None:
+    assert (ROOT / "apps/backtest/management/commands/run_backtest.py").is_file()
+    assert (ROOT / "apps/macro/management/commands/sync_macro_data.py").is_file()
 
 
 def test_synthetic_backtest_validator_is_fail_closed() -> None:

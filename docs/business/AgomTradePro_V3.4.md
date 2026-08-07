@@ -1096,10 +1096,13 @@ AgomTradePro/
 │   │   │       ├── tushare_adapter.py
 │   │   │       ├── akshare_adapter.py
 │   │   │       └── fred_adapter.py
-│   │   └── interface/
-│   │       ├── views.py
-│   │       ├── serializers.py
-│   │       └── admin.py
+│   │   ├── interface/
+│   │   │   ├── views.py
+│   │   │   ├── serializers.py
+│   │   │   └── admin.py
+│   │   └── management/
+│   │       └── commands/
+│   │           └── sync_macro_data.py  # 导入历史宏观数据
 │   │
 │   ├── regime/                   # Regime 判定引擎 App
 │   │   ├── domain/
@@ -1166,10 +1169,6 @@ AgomTradePro/
 │   │   └── cache.py              # Redis 缓存封装
 │   └── config/
 │       └── secrets.py            # 统一密钥管理（见下方说明）
-│
-├── scripts/
-│   ├── init_db.py                # 初始化数据库
-│   └── seed_historical.py        # 导入历史数据
 │
 └── tests/
     ├── unit/
