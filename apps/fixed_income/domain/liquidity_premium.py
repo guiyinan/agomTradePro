@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 
 from apps.fixed_income.domain.evidence import (
     EvidenceRole,
@@ -18,7 +18,7 @@ from apps.fixed_income.domain.evidence import (
 )
 
 
-class LiquidityMeasureRole(str, Enum):
+class LiquidityMeasureRole(StrEnum):
     """Exact market, decomposition, and distinct cost evidence roles."""
 
     BID_ASK_BP = "bid_ask_bp"
@@ -60,27 +60,27 @@ _SIGNED_MEASURE_ROLES = {
 }
 
 
-class MarketSpreadSemantics(str, Enum):
+class MarketSpreadSemantics(StrEnum):
     """Whether market spread contains liquidity compensation."""
 
     INCLUDES_LIQUIDITY_PREMIUM = "includes_liquidity_premium"
     EXCLUDES_LIQUIDITY_PREMIUM = "excludes_liquidity_premium"
 
 
-class LiquidityCostBasis(str, Enum):
+class LiquidityCostBasis(StrEnum):
     """Versioned basis for the cost ledger."""
 
     GROSS_TRADED_NOTIONAL = "gross_traded_notional"
 
 
-class LiquidityPremiumStatus(str, Enum):
+class LiquidityPremiumStatus(StrEnum):
     """Availability state for one research-only decomposition."""
 
     AVAILABLE = "available"
     BLOCKED = "blocked"
 
 
-class LiquidityPremiumBlockerCode(str, Enum):
+class LiquidityPremiumBlockerCode(StrEnum):
     """Stable fail-closed decomposition, freshness, and cost reasons."""
 
     INPUT_HASH_MISMATCH = "fixed_income.liquidity.input.hash_mismatch"
