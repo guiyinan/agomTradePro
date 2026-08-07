@@ -28,6 +28,7 @@ REQUIRED_CATEGORIES = frozenset(
         "application_consumer",
         "script",
         "management_command",
+        "management_command_edge",
         "celery_task",
         "beat_schedule",
         "current_data_surface",
@@ -135,6 +136,7 @@ def _entry(
     status: str,
     evidence: str,
     locator: str = "",
+    target: str = "",
 ) -> dict[str, object]:
     if status not in STATUSES:
         raise ValueError(f"unsupported entrypoint status: {status}")
@@ -144,6 +146,7 @@ def _entry(
         "path": path,
         "symbol": symbol,
         "locator": locator,
+        "target": target,
         "status": status,
         "evidence": evidence,
     }
@@ -246,6 +249,170 @@ def _discover_management_commands() -> list[dict[str, object]]:
                 ),
             )
         )
+    return results
+
+
+def _module_string_collections(tree: ast.Module) -> dict[str, tuple[str, ...]]:
+    """Return module-level string collections used by orchestration loops."""
+
+    collections: dict[str, tuple[str, ...]] = {}
+    for node in tree.body:
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        value = node.value
+        if not isinstance(value, (ast.List, ast.Set, ast.Tuple)):
+            continue
+        items = tuple(
+            literal for item in value.elts if (literal := _literal_string(item)) is not None
+        )
+        if len(items) != len(value.elts):
+            continue
+        for target in targets:
+            if isinstance(target, ast.Name):
+                collections[target.id] = items
+    return collections
+
+
+def _module_string_constants(tree: ast.Module) -> dict[str, str]:
+    """Return module-level scalar strings used by compatibility delegates."""
+
+    constants: dict[str, str] = {}
+    for node in tree.body:
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        value = _literal_string(node.value)
+        if value is None:
+            continue
+        for target in targets:
+            if isinstance(target, ast.Name):
+                constants[target.id] = value
+    return constants
+
+
+def _dictionary_command_values(tree: ast.Module) -> tuple[str, ...]:
+    """Return literal ``command`` values from declarative orchestration plans."""
+
+    values: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Dict):
+            continue
+        for key, value in zip(node.keys, node.values, strict=True):
+            if _literal_string(key) != "command":
+                continue
+            literal = _literal_string(value)
+            if literal is not None:
+                values.add(literal)
+    return tuple(sorted(values))
+
+
+def _enclosing_function_name(tree: ast.Module, call: ast.Call) -> str:
+    """Return the nearest function containing ``call`` for wrapper detection."""
+
+    candidates = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and any(child is call for child in ast.walk(node))
+    ]
+    if not candidates:
+        return ""
+    return min(candidates, key=lambda node: len(tuple(ast.walk(node)))).name
+
+
+def _enclosing_loop_values(
+    tree: ast.Module,
+    call: ast.Call,
+    argument_name: str,
+    collections: dict[str, tuple[str, ...]],
+) -> tuple[str, ...]:
+    """Resolve a call argument populated by a surrounding static ``for`` loop."""
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.For):
+            continue
+        if not isinstance(node.target, ast.Name) or node.target.id != argument_name:
+            continue
+        if not any(child is call for child in ast.walk(node)):
+            continue
+        if isinstance(node.iter, ast.Name):
+            return collections.get(node.iter.id, ())
+        if isinstance(node.iter, (ast.List, ast.Set, ast.Tuple)):
+            values = tuple(
+                literal for item in node.iter.elts if (literal := _literal_string(item)) is not None
+            )
+            if len(values) == len(node.iter.elts):
+                return values
+    return ()
+
+
+def _discover_management_command_edges() -> list[dict[str, object]]:
+    """Enumerate direct and statically expanded ``call_command`` edges."""
+
+    command_paths = {
+        path.stem: _relative(path)
+        for path in _production_python_files("apps", "core")
+        if "/management/commands/" in f"/{_relative(path)}" and path.name != "__init__.py"
+    }
+    results: list[dict[str, object]] = []
+    for path in _production_python_files("apps", "core", "scripts"):
+        tree = _tree(path)
+        collections = _module_string_collections(tree)
+        constants = _module_string_constants(tree)
+        planned_commands = _dictionary_command_values(tree)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or _call_name(node) not in {
+                "call_command",
+                "_run_command",
+            }:
+                continue
+            targets: tuple[str, ...] = ()
+            if node.args:
+                literal = _literal_string(node.args[0])
+                if literal is not None:
+                    targets = (literal,)
+                elif isinstance(node.args[0], ast.Name):
+                    targets = (
+                        (constants[node.args[0].id],)
+                        if node.args[0].id in constants
+                        else _enclosing_loop_values(
+                            tree,
+                            node,
+                            node.args[0].id,
+                            collections,
+                        )
+                    )
+            if not targets:
+                if (
+                    _call_name(node) == "call_command"
+                    and _enclosing_function_name(tree, node) == "_run_command"
+                ):
+                    continue
+                targets = planned_commands or ("dynamic-command",)
+            for target in targets:
+                target_path = command_paths.get(target, "")
+                status = (
+                    "active_public"
+                    if target_path.startswith("apps/data_center/")
+                    or target == "init_scheduler_defaults"
+                    else "adjacent_operational"
+                )
+                results.append(
+                    _entry(
+                        category="management_command_edge",
+                        path=_relative(path),
+                        symbol=target,
+                        locator=f"line:{node.lineno}",
+                        target=target_path or target,
+                        status=status,
+                        evidence=(
+                            f"call_command resolves to {target_path}"
+                            if target_path
+                            else "call_command target is external or runtime-selected"
+                        ),
+                    )
+                )
     return results
 
 
@@ -437,7 +604,7 @@ def _discover_scheduler_writers() -> list[dict[str, object]]:
                 if isinstance(node, ast.Constant)
                 and isinstance(node.value, str)
                 and node.value.startswith("apps.")
-                and ".tasks." in node.value
+                and ".application." in node.value
             }
         )
         if not task_paths:
@@ -449,6 +616,7 @@ def _discover_scheduler_writers() -> list[dict[str, object]]:
                     path=path_text,
                     symbol="PeriodicTask",
                     locator=task_path,
+                    target=task_path,
                     status=(
                         "active_public"
                         if "/management/commands/" in f"/{path_text}"
@@ -590,15 +758,21 @@ def _discover_system_settings_compatibility() -> list[dict[str, object]]:
     return results
 
 
-def _decorator_task_name(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
+def _decorator_task_name(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    *,
+    module_path: str,
+) -> str:
+    """Return Celery's explicit name or its default fully-qualified name."""
+
     for decorator in node.decorator_list:
         call = decorator if isinstance(decorator, ast.Call) else None
         if call is None or _call_name(call) not in {"shared_task", "task"}:
             continue
         for keyword in call.keywords:
             if keyword.arg == "name":
-                return _literal_string(keyword.value) or node.name
-        return node.name
+                return _literal_string(keyword.value) or f"{module_path}.{node.name}"
+        return f"{module_path}.{node.name}"
     return ""
 
 
@@ -613,9 +787,10 @@ def _discover_celery_tasks(celery: dict[str, Any]) -> list[dict[str, object]]:
         if "migrations" in path.parts or "tests" in path.parts:
             continue
         path_text = _relative(path)
+        module_path = path_text.removesuffix(".py").replace("/", ".")
         tree = _tree(path)
         for node in _functions(tree):
-            task_name = _decorator_task_name(node)
+            task_name = _decorator_task_name(node, module_path=module_path)
             if not task_name:
                 continue
             record = governed.get(task_name)
@@ -650,6 +825,7 @@ def _discover_celery_tasks(celery: dict[str, Any]) -> list[dict[str, object]]:
                     locator=task_name,
                     status=status,
                     evidence=evidence,
+                    target=task_name,
                 )
             )
     return results
@@ -693,6 +869,7 @@ def _discover_beat_schedule(celery: dict[str, Any]) -> list[dict[str, object]]:
                 path=_relative(path),
                 symbol=task_path.rsplit(".", 1)[-1],
                 locator=schedule_key,
+                target=task_path,
                 status=(
                     "active_public"
                     if task_path in governed
@@ -1056,6 +1233,7 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
         entries = (
             _discover_scripts(legacy)
             + _discover_management_commands()
+            + _discover_management_command_edges()
             + _discover_application_consumers()
             + _discover_admin_surfaces()
             + _discover_scheduler_writers()
@@ -1146,6 +1324,17 @@ def validate_inventory(payload: dict[str, object]) -> list[str]:
             violations.append(f"entry_status_invalid:{entry_id}:{status}")
         if not str(item.get("evidence", "")).strip():
             violations.append(f"entry_evidence_missing:{entry_id}")
+        if (
+            category
+            in {
+                "beat_schedule",
+                "celery_task",
+                "management_command_edge",
+                "scheduler_writer",
+            }
+            and not str(item.get("target", "")).strip()
+        ):
+            violations.append(f"entry_target_missing:{entry_id}")
     for category in sorted(REQUIRED_CATEGORIES - categories):
         violations.append(f"required_category_empty:{category}")
     return sorted(violations)

@@ -106,10 +106,84 @@ def test_inventory_includes_internal_consumers_admin_and_config_compatibility(
         "line:16",
     ) in entry_keys
     assert any(
-        category == "management_command"
-        and path == "core/management/commands/warmup_cache.py"
+        category == "management_command" and path == "core/management/commands/warmup_cache.py"
         for category, path, _symbol, _locator in entry_keys
     )
+
+
+def test_inventory_expands_command_edges_and_publishes_full_task_targets(
+    inventory_payload: tuple[ModuleType, dict[str, object]],
+) -> None:
+    """Keep second-order command and scheduler dispatch machine-verifiable."""
+
+    _inventory, payload = inventory_payload
+    entries = payload["entries"]
+    scheduler_commands = {
+        "setup_macro_daily_sync",
+        "setup_equity_valuation_sync",
+        "setup_decision_quote_refresh",
+        "setup_workspace_snapshot_refresh",
+        "setup_account_risk_tasks",
+        "setup_auto_advisor_weekly_report",
+        "setup_personal_readiness_daily",
+        "setup_sentiment_refresh",
+    }
+    expanded = {
+        entry["symbol"]
+        for entry in entries
+        if entry["category"] == "management_command_edge"
+        and entry["path"] == "apps/task_monitor/management/commands/init_scheduler_defaults.py"
+    }
+    assert expanded == scheduler_commands
+    assert all(
+        entry["symbol"] != "dynamic-command"
+        for entry in entries
+        if entry["category"] == "management_command_edge"
+    )
+    bootstrap_edges = {
+        entry["symbol"]
+        for entry in entries
+        if entry["category"] == "management_command_edge"
+        and entry["path"] == "apps/account/management/commands/bootstrap_cold_start.py"
+    }
+    assert {
+        "init_scheduler_defaults",
+        "repair_decision_data_reliability",
+        "sync_macro_data",
+    } <= bootstrap_edges
+
+    cleanup_task = next(
+        entry
+        for entry in entries
+        if entry["category"] == "celery_task"
+        and entry["path"] == "apps/task_monitor/application/tasks.py"
+        and entry["symbol"] == "cleanup_old_task_records"
+    )
+    assert cleanup_task["locator"] == (
+        "apps.task_monitor.application.tasks.cleanup_old_task_records"
+    )
+    assert cleanup_task["target"] == cleanup_task["locator"]
+
+    retention_schedule = next(
+        entry
+        for entry in entries
+        if entry["category"] == "beat_schedule"
+        and entry["locator"] == "data-center-retention-preview-asset-master"
+    )
+    assert retention_schedule["target"] == (
+        "apps.data_center.application.tasks.plan_retention_task"
+    )
+
+    valuation_writer_targets = {
+        entry["target"]
+        for entry in entries
+        if entry["category"] == "scheduler_writer"
+        and entry["path"] == "apps/equity/management/commands/setup_equity_valuation_sync.py"
+    }
+    assert valuation_writer_targets == {
+        "apps.equity.application.tasks_valuation_sync.sync_validate_scan_equity_valuation_task",
+        "apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task",
+    }
 
 
 def test_generated_manifest_matches_static_discovery(

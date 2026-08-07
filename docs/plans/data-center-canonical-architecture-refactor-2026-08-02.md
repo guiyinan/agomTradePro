@@ -4693,3 +4693,10 @@ Git SHA / 镜像 / migration：
 - 破坏性入口收口：legacy `cleanup_expired_raw_payloads_task(dry_run=False)` 改为阻断；`enforce_retention_task` 在可信 archive reader + staging restore gate 落地前拒绝真实删除；caller-supplied checksum/count/size 不再能把 archive manifest 标记 verified；quote snapshot 全量 purge 命令保留名称但永久 fail-closed，并删除其 Application/Repository `delete_all` 旁路。
 - Config Center 入口修复：注销 `SystemSettingsModel` Django Admin，避免 `ModelForm.save(commit=False)` 绕过 typed profile；备份邮件读取改用 `get_settings_for_read()`，不再因一次读创建旧 singleton。删除 3 个没有 definition/consumer 的幽灵 runtime key，`task_monitor.retention_days` 标记为 Config Center-only fail-closed，storage 四项更正为独立 `StorageBudgetPolicyModel` 真源并登记实际消费者。
 - 验证：扩展后的入口/legacy/retention/purge/Admin 定向包 39 passed；legacy access guard 和 Celery task contract 均通过。该批只关闭漏网入口和危险删除旁路，不把 archive export/reader/staging restore、真实 PostgreSQL 恢复、生产观察窗口、M9/M10 或部署冒充为已完成。
+
+## 127. 2026-08-07：二级命令边与调度 target 结构化收编
+
+- 补漏根因：入口清单虽已列出 management command、Celery task、Beat 和数据库调度 writer，但未显式展开 `call_command()` 二级调用边；未声明 `name=` 的 Celery task 又只记录短函数名，Beat target 只存在于说明文本，机器无法完成 target 引用完整性核对。
+- 收编变更：新增 `management_command_edge` 类别，静态展开 `init_scheduler_defaults` 的 8 个受管 setup command，并枚举其他 direct/dynamic `call_command()`；Celery 默认名统一投影为完整 module dotted path；Beat、Celery task 与数据库 scheduler writer 均新增结构化 `target`。scheduler writer 识别范围扩展到所有 `apps.*.application.*` task path，消除 valuation `tasks_valuation_sync` 被误记为 dynamic 的问题。
+- 最终清单：857 个入口，其中二级命令边 60、scheduler writer target 12；`active_public=561`、`adjacent_operational=116`、`compatibility=180`、`candidate-review=0`。初始化兼容常量、`_run_command()` wrapper 与声明式 `init_steps[].command` 均已静态展开，不留 `dynamic-command` 占位。新增测试精确断言 8 个 scheduler setup edge、Celery 默认完整名、Retention Beat target 和 Equity valuation 三个数据库调度记录所引用的两个 canonical task。
+- 边界：该清单证明静态入口和二级 dispatch 已有归属与机器可读 target，不代表外部 archive restore、生产 PostgreSQL 运行证据、M9/M10 或部署完成；真实删除继续 fail closed。
