@@ -187,6 +187,10 @@ from apps.research.infrastructure.r4_promotion_models import (  # noqa: E402,F40
     R4PromotionLifecycleEventModel,
     R4PromotionPolicyModel,
 )
+from apps.research.infrastructure.r7_sample_policy_models import (  # noqa: E402,F401
+    R7SamplePolicyApprovalReceiptModel,
+    R7SamplePolicyModel,
+)
 from apps.research.infrastructure.scenario_review_reminder_models import (  # noqa: E402,F401
     ScenarioReviewReminderEventModel,
     ScenarioReviewReminderModel,
