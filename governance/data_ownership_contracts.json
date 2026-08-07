@@ -47,7 +47,7 @@
       "business_owner": "fund",
       "acceptance_owner": "data-platform",
       "consumers": ["fund", "asset_analysis", "backtest"],
-      "migration_status": "canonical_query_port_available",
+      "migration_status": "canonical_read_with_legacy_audit",
       "decision_critical": true,
       "contract_version": "1.0"
     },
@@ -59,7 +59,7 @@
       "business_owner": "macro",
       "acceptance_owner": "data-platform",
       "consumers": ["macro", "regime", "pulse", "policy", "agent_runtime", "market_thermometer"],
-      "migration_status": "canonical_query_port_available",
+      "migration_status": "canonical_read_with_legacy_audit",
       "decision_critical": true,
       "contract_version": "1.0"
     },
@@ -95,7 +95,7 @@
       "business_owner": "sector",
       "acceptance_owner": "data-platform",
       "consumers": ["sector", "rotation", "hedge", "alpha"],
-      "migration_status": "canonical_query_port_available",
+      "migration_status": "canonical_read_with_legacy_audit",
       "decision_critical": false,
       "contract_version": "1.0"
     },
@@ -107,7 +107,7 @@
       "business_owner": "sentiment",
       "acceptance_owner": "data-platform",
       "consumers": ["sentiment", "events", "equity", "terminal", "mcp"],
-      "migration_status": "canonical_query_port_available",
+      "migration_status": "canonical_only",
       "decision_critical": false,
       "contract_version": "1.0"
     },
@@ -119,7 +119,7 @@
       "business_owner": "realtime",
       "acceptance_owner": "data-platform",
       "consumers": ["realtime", "rotation", "hedge", "equity", "terminal", "mcp"],
-      "migration_status": "canonical_query_port_available",
+      "migration_status": "canonical_only",
       "decision_critical": false,
       "contract_version": "1.0"
     },

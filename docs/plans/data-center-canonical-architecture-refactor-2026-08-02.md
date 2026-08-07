@@ -4676,3 +4676,11 @@ Git SHA / 镜像 / migration：
 - Lineage 修复：Equity compatibility DTO 写 canonical fact 时不再把 source 硬编码为 `equity_legacy_repo`。真实 provider 原样保留；空、unknown 或 legacy 标签统一归属 `equity_application_port`，原标签写入 `extra.upstream_source`；naive fetched time 不进入 canonical fact，改用 aware 采集时间，并保留合法 source observation time。
 - 证据：新增 4 条 cutover 回归，覆盖 Admin 退役、D4/D5 canonical lineage、aware time 和 ownership 状态；两条 canonical context 关键回归证明 D4/D5 读取 canonical facts 且不会回落旧表。legacy fact access guard 继续要求生产业务访问为 0；基于当前提交主线加本批投影的隔离 inventory 为 548 entries/candidate 0、legacy fact 0、current surface 3378。
 - 明确未做：未生成破坏性删表 migration、未清空旧表、未执行生产 PostgreSQL 备份恢复或 M9；本批只完成消费者与人工入口退役，不部署、不 push。
+
+## 125. 2026-08-07：D0-D9 旧事实人工入口一次退役
+
+- 根因：语义扫描已证明业务源码不再读取 D0/D1/D2/D3/D4/D5/D6 旧 ORM，D7 新闻、D8 资金流和 D9 发布目录本身只有 canonical fact；但 Fund NAV、Sector membership、Stock master/price 旧模型仍注册在 Admin，D2/D3/D6-D8 ownership 状态仍停留在“query port available”，控制面没有表达全消费者已经切读。
+- Admin 退役：`StockInfoModel`、`StockDailyModel`、`FinancialDataModel`、`ValuationModel`、`FundNetValueModel`、`SectorConstituentModel` 全部退出 Admin。legacy access contract 同步移除 equity/fund/sector Admin 白名单，后续重新导入会被 guard 直接阻断。旧模型定义、迁移和测试 fixture 仍保留到 M9。
+- 状态收口：D0 asset master、D1 price bar、D2 fund NAV、D3 macro、D4 financial、D5 valuation、D6 membership 统一为 `canonical_read_with_legacy_audit`；D1 quote 继续使用 reliability-guard 状态；没有旧事实投影的 D7 news、D8 capital flow 与 D9 publisher 明确为 `canonical_only`。
+- 证据：Admin 回归枚举六个 retained legacy model 并断言均未注册；ownership 回归枚举所有 D0-D9 状态；legacy fact access guard 继续为 0。该状态只宣告消费者与人工入口切换完成，不等于生产旧表已经删除。
+- 明确未做：不生成 destructive migration、不清空生产旧表、不执行 VPS 部署；M9 仍由真实 custom backup→restore、零访问证据和明确生产授权控制。

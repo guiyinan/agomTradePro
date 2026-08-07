@@ -13,16 +13,32 @@ from apps.equity.domain.entities import FinancialData, ValuationMetrics
 from apps.equity.infrastructure.fundamentals_repository import (
     StockFundamentalsRepositoryMixin,
 )
-from apps.equity.infrastructure.models import FinancialDataModel, ValuationModel
+from apps.equity.infrastructure.models import (
+    FinancialDataModel,
+    StockDailyModel,
+    StockInfoModel,
+    ValuationModel,
+)
+from apps.fund.infrastructure.models import FundNetValueModel
+from apps.sector.infrastructure.models import SectorConstituentModel
 
 
-def test_legacy_d4_d5_models_are_not_exposed_as_admin_entrypoints() -> None:
-    """Retained M9 schemas must no longer appear as operational Admin reads."""
+def test_legacy_fact_models_are_not_exposed_as_admin_entrypoints() -> None:
+    """All retained pre-M9 fact schemas must be absent from operational Admin."""
 
     import apps.equity.interface.admin  # noqa: F401
+    import apps.fund.interface.admin  # noqa: F401
+    import apps.sector.interface.admin  # noqa: F401
 
-    assert admin.site.is_registered(FinancialDataModel) is False
-    assert admin.site.is_registered(ValuationModel) is False
+    for model in (
+        StockInfoModel,
+        StockDailyModel,
+        FinancialDataModel,
+        ValuationModel,
+        FundNetValueModel,
+        SectorConstituentModel,
+    ):
+        assert admin.site.is_registered(model) is False
 
 
 def test_compatibility_financial_dto_writes_canonical_lineage() -> None:
@@ -84,8 +100,8 @@ def test_unknown_valuation_dto_writes_canonical_lineage_and_aware_time() -> None
     assert fact.fetched_at.utcoffset() is not None
 
 
-def test_d4_d5_ownership_declares_canonical_read_with_legacy_schema_audit() -> None:
-    """Machine ownership state must match the already completed consumer cutover."""
+def test_all_dataset_ownership_states_match_completed_consumer_cutover() -> None:
+    """Machine ownership state must distinguish retained schemas from canonical-only."""
 
     root = Path(__file__).resolve().parents[3]
     payload = json.loads(
@@ -93,5 +109,19 @@ def test_d4_d5_ownership_declares_canonical_read_with_legacy_schema_audit() -> N
     )
     statuses = {item["dataset_key"]: item["migration_status"] for item in payload["datasets"]}
 
-    assert statuses["equity.financial.fact"] == "canonical_read_with_legacy_audit"
-    assert statuses["equity.valuation.fact"] == "canonical_read_with_legacy_audit"
+    for dataset_key in (
+        "asset.master",
+        "equity.price.bar",
+        "fund.nav",
+        "macro.fact",
+        "equity.financial.fact",
+        "equity.valuation.fact",
+        "sector.membership",
+    ):
+        assert statuses[dataset_key] == "canonical_read_with_legacy_audit"
+    for dataset_key in (
+        "market.news",
+        "market.capital_flow",
+        "reference.publisher",
+    ):
+        assert statuses[dataset_key] == "canonical_only"

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
-
 from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
@@ -15,112 +13,8 @@ from apps.equity.application.repository_provider import (
 )
 from apps.equity.models import (
     ScoringWeightConfigModel,
-    StockDailyModel,
-    StockInfoModel,
 )
 from shared.infrastructure.django_admin import TypedModelAdmin
-
-
-@admin.register(StockInfoModel)
-class StockInfoAdmin(TypedModelAdmin[StockInfoModel]):
-    """Admin interface for stock master data."""
-
-    list_display = (
-        "stock_code",
-        "name",
-        "sector",
-        "market",
-        "list_date",
-        "is_active",
-        "created_at",
-    )
-    list_filter = ("market", "sector", "is_active")
-    search_fields = ("stock_code", "name", "sector")
-    date_hierarchy = "list_date"
-    readonly_fields = ("created_at", "updated_at")
-    fieldsets = (
-        ("基本信息", {"fields": ("stock_code", "name", "sector", "market", "list_date")}),
-        ("状态", {"fields": ("is_active",)}),
-        ("时间戳", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
-    )
-
-    def has_add_permission(self, request: HttpRequest) -> bool:
-        """Freeze the legacy stock-master projection against new writes."""
-
-        return False
-
-    def has_change_permission(
-        self, request: HttpRequest, obj: StockInfoModel | None = None
-    ) -> bool:
-        """Freeze the legacy stock-master projection against edits."""
-
-        return False
-
-    def has_delete_permission(
-        self, request: HttpRequest, obj: StockInfoModel | None = None
-    ) -> bool:
-        """Freeze the legacy stock-master projection against deletes."""
-
-        return False
-
-
-@admin.register(StockDailyModel)
-class StockDailyAdmin(TypedModelAdmin[StockDailyModel]):
-    """Admin interface for daily stock facts."""
-
-    list_display = (
-        "stock_code",
-        "trade_date",
-        "close",
-        "volume",
-        "amount",
-        "turnover_rate",
-        "change_pct_calculated",
-    )
-    list_filter = ("trade_date",)
-    search_fields = ("stock_code",)
-    date_hierarchy = "trade_date"
-    readonly_fields = ("created_at",)
-    fieldsets = (
-        ("基本信息", {"fields": ("stock_code", "trade_date")}),
-        ("价格数据", {"fields": ("open", "high", "low", "close")}),
-        ("成交数据", {"fields": ("volume", "amount", "turnover_rate")}),
-        (
-            "技术指标",
-            {
-                "fields": ("ma5", "ma20", "ma60", "macd", "macd_signal", "macd_hist", "rsi"),
-                "classes": ("collapse",),
-            },
-        ),
-        ("时间戳", {"fields": ("created_at",), "classes": ("collapse",)}),
-    )
-
-    def has_add_permission(self, request: HttpRequest) -> bool:
-        """Prevent writes to the retired daily-price projection."""
-
-        return False
-
-    def has_change_permission(
-        self, request: HttpRequest, obj: StockDailyModel | None = None
-    ) -> bool:
-        """Prevent edits to the retired daily-price projection."""
-
-        return False
-
-    def has_delete_permission(
-        self, request: HttpRequest, obj: StockDailyModel | None = None
-    ) -> bool:
-        """Prevent deletes from the retired daily-price projection."""
-
-        return False
-
-    @admin.display(description="涨跌幅(%)")
-    def change_pct_calculated(self, obj: StockDailyModel) -> Decimal | str:
-        """Return the open-to-close percentage when the open price is non-zero."""
-
-        if obj.open != 0:
-            return round((obj.close - obj.open) / obj.open * 100, 2)
-        return "-"
 
 
 @admin.register(ScoringWeightConfigModel)

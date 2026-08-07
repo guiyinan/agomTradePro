@@ -6,7 +6,6 @@ from django.contrib import admin
 from django.http import HttpRequest
 
 from apps.sector.models import (
-    SectorConstituentModel,
     SectorIndexModel,
     SectorInfoModel,
     SectorPreferenceConfigModel,
@@ -87,53 +86,6 @@ class SectorIndexAdmin(TypedModelAdmin[SectorIndexModel]):
         self,
         request: HttpRequest,
         obj: SectorIndexModel | None = None,
-    ) -> bool:
-        del request, obj
-        return False
-
-
-@admin.register(SectorConstituentModel)
-class SectorConstituentAdmin(TypedModelAdmin[SectorConstituentModel]):
-    """Admin interface for SectorConstituent"""
-
-    list_display = ["sector_code", "stock_code", "enter_date", "exit_date", "is_current"]
-    list_filter = ["is_current", "enter_date"]
-    search_fields = ["sector_code", "stock_code"]
-    date_hierarchy = "enter_date"
-    readonly_fields = [
-        "sector_code",
-        "stock_code",
-        "enter_date",
-        "exit_date",
-        "is_current",
-        "created_at",
-    ]
-
-    fieldsets = (
-        ("关系信息", {"fields": ("sector_code", "stock_code")}),
-        ("时间信息", {"fields": ("enter_date", "exit_date")}),
-        ("状态", {"fields": ("is_current",)}),
-        ("时间戳", {"fields": ("created_at",), "classes": ("collapse",)}),
-    )
-
-    def has_add_permission(self, request: HttpRequest) -> bool:
-        """Keep provider-generated membership evidence out of manual Admin writes."""
-
-        del request
-        return False
-
-    def has_change_permission(
-        self,
-        request: HttpRequest,
-        obj: SectorConstituentModel | None = None,
-    ) -> bool:
-        del request, obj
-        return False
-
-    def has_delete_permission(
-        self,
-        request: HttpRequest,
-        obj: SectorConstituentModel | None = None,
     ) -> bool:
         del request, obj
         return False

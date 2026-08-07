@@ -19,13 +19,13 @@
     ]
   },
   "allowed_path_patterns": [
-    "^apps/equity/(?:models\\.py|interface/admin\\.py)$",
+    "^apps/equity/models\\.py$",
     "^apps/equity/migrations/",
     "^apps/equity/tests/",
-    "^apps/sector/(?:models\\.py|interface/admin\\.py)$",
+    "^apps/sector/models\\.py$",
     "^apps/sector/migrations/",
     "^apps/sector/tests/",
-    "^apps/fund/(?:models\\.py|interface/admin\\.py)$",
+    "^apps/fund/models\\.py$",
     "^apps/fund/migrations/",
     "^apps/macro/(?:models\\.py|infrastructure/models\\.py)$",
     "^apps/macro/migrations/",

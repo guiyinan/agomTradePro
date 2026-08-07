@@ -3,13 +3,11 @@ Django Admin configuration for Fund Module.
 """
 
 from django.contrib import admin
-from django.http import HttpRequest
 
 from apps.fund.models import (
     FundHoldingModel,
     FundInfoModel,
     FundManagerModel,
-    FundNetValueModel,
     FundPerformanceModel,
     FundSectorAllocationModel,
 )
@@ -78,46 +76,6 @@ class FundManagerAdmin(TypedModelAdmin[FundManagerModel]):
         ("状态", {"fields": ("is_current",)}),
         ("时间戳", {"fields": ("created_at",), "classes": ("collapse",)}),
     )
-
-
-@admin.register(FundNetValueModel)
-class FundNetValueAdmin(TypedModelAdmin[FundNetValueModel]):
-    """Admin interface for FundNetValue"""
-
-    list_display = ["fund_code", "nav_date", "unit_nav", "accum_nav", "daily_return"]
-    list_filter = ["nav_date"]
-    search_fields = ["fund_code"]
-    date_hierarchy = "nav_date"
-    readonly_fields = ["created_at"]
-
-    fieldsets = (
-        ("基本信息", {"fields": ("fund_code", "nav_date")}),
-        ("净值数据", {"fields": ("unit_nav", "accum_nav", "daily_return")}),
-        ("时间戳", {"fields": ("created_at",), "classes": ("collapse",)}),
-    )
-
-    def has_add_permission(self, request: HttpRequest) -> bool:
-        """Freeze the legacy NAV projection after D6 canonical cutover."""
-
-        return False
-
-    def has_change_permission(
-        self,
-        request: HttpRequest,
-        obj: FundNetValueModel | None = None,
-    ) -> bool:
-        """Prevent edits to the legacy NAV projection."""
-
-        return False
-
-    def has_delete_permission(
-        self,
-        request: HttpRequest,
-        obj: FundNetValueModel | None = None,
-    ) -> bool:
-        """Prevent deletes from the legacy NAV projection."""
-
-        return False
 
 
 @admin.register(FundHoldingModel)
