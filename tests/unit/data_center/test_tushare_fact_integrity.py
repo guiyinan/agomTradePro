@@ -120,6 +120,9 @@ def test_macro_adapter_skips_nonfinite_provider_points(monkeypatch) -> None:
 
 def test_quote_adapter_isolates_bad_prices_and_optional_amounts(monkeypatch) -> None:
     class FakeGateway:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
         def get_quote_snapshots(self, _asset_codes: list[str]) -> list[SimpleNamespace]:
             return [
                 SimpleNamespace(
