@@ -111,6 +111,10 @@ def test_macro_repository_adapter_and_regime_use_case_run_on_data_center() -> No
             "default_unit": "指数",
             "default_period_type": "M",
             "category": "growth",
+            "extra": {
+                "governance_sync_source_type": "tushare",
+                "regime_input_policy": "direct_allowed",
+            },
         },
     )
     IndicatorCatalogModel.objects.update_or_create(
@@ -121,6 +125,10 @@ def test_macro_repository_adapter_and_regime_use_case_run_on_data_center() -> No
             "default_unit": "%",
             "default_period_type": "M",
             "category": "inflation",
+            "extra": {
+                "governance_sync_source_type": "tushare",
+                "regime_input_policy": "direct_allowed",
+            },
         },
     )
 

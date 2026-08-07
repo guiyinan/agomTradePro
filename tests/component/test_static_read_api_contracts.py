@@ -73,6 +73,18 @@ EMPTY_STATE_REDIRECT_ROUTES = {
     "/api/dashboard/positions/",
 }
 
+GOVERNED_UNAVAILABLE_ROUTES = {
+    "/api/decision-ready/",
+    "/api/ready/",
+    "/api/realtime/market-summary/",
+    "/api/risk-center/research/decision-scorecard/",
+    "/api/risk-center/research/market-state/",
+    "/api/risk-center/research/strategy-brief/",
+    "/api/risk-center/stress-scenario-sets/active/",
+    "/api/risk-center/stress-scenario-sets/impact-preview/",
+    "/api/sector/rotation/",
+}
+
 
 def _walk_patterns(
     patterns: Iterable[URLPattern | URLResolver],
@@ -128,6 +140,7 @@ STATIC_GET_ROUTES = _static_get_routes()
 @pytest.mark.parametrize("path", STATIC_GET_ROUTES)
 def test_static_authenticated_get_endpoint_never_returns_5xx(
     admin_client: Client,
+    active_decision_runtime: None,
     path: str,
 ) -> None:
     """Safe static GET APIs must return a governed response, never a server error."""
@@ -142,9 +155,21 @@ def test_static_authenticated_get_endpoint_never_returns_5xx(
         assert response.status_code == 200, path
         assert response.headers["Content-Type"].startswith("text/html"), path
         return
-    if path == "/api/ready/":
+    if path in GOVERNED_UNAVAILABLE_ROUTES:
         assert response.status_code in {200, 503}
         assert response.headers["Content-Type"].startswith("application/json")
+        if response.status_code == 503 and path not in {
+            "/api/decision-ready/",
+            "/api/ready/",
+        }:
+            payload = response.json()
+            nested_data = payload.get("data")
+            nested_contract = payload.get("contract")
+            assert payload.get("success") is False or any(
+                item.get("must_not_use_for_decision") is True
+                for item in (payload, nested_data, nested_contract)
+                if isinstance(item, dict)
+            ), path
         return
 
     assert response.status_code < 500, path

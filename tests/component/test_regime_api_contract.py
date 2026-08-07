@@ -5,7 +5,8 @@ from rest_framework.test import APIClient
 
 
 @pytest.fixture
-def api_client():
+def api_client(active_decision_runtime):
+    del active_decision_runtime
     user = User.objects.create_user(username="testuser", password="password")
     client = APIClient()
     client.force_authenticate(user=user)

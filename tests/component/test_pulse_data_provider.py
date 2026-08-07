@@ -3,6 +3,11 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from apps.data_center.application.public import (
+    get_latest_quote_payloads,
+    get_macro_fact_series,
+    get_price_bar_series,
+)
 from apps.data_center.infrastructure.models import (
     MacroFactModel,
     PriceBarModel,
@@ -18,6 +23,79 @@ from apps.sentiment.application.pulse_facade import (
     SentimentPulsePoint,
     SentimentPulseSeriesResult,
 )
+
+
+def _approved_historical_payload(
+    rows: list[dict[str, object]],
+) -> dict[str, object]:
+    """Wrap canonical historical rows as an explicitly approved test read."""
+
+    return {
+        "rows": rows,
+        "freshness_status": "historical_test_approved",
+        "must_not_use_for_decision": not rows,
+        "blocked_reason": "" if rows else "canonical_historical_rows_missing",
+    }
+
+
+@pytest.fixture(autouse=True)
+def _use_approved_canonical_historical_ports(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep component fixtures canonical without weakening production gates."""
+
+    def read_macro(
+        indicator_code: str,
+        *,
+        start: date | None = None,
+        end: date | None = None,
+        limit: int = 500,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _approved_historical_payload(
+            get_macro_fact_series(
+                indicator_code,
+                start=start,
+                end=end,
+                limit=limit,
+            )
+        )
+
+    def read_prices(
+        asset_code: str,
+        *,
+        start: date | None = None,
+        end: date | None = None,
+        limit: int = 500,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _approved_historical_payload(
+            get_price_bar_series(
+                asset_code,
+                start=start,
+                end=end,
+                limit=limit,
+            )
+        )
+
+    def read_quotes(
+        asset_codes: list[str],
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _approved_historical_payload(get_latest_quote_payloads(asset_codes))
+
+    monkeypatch.setattr(
+        "apps.pulse.infrastructure.data_provider.get_published_macro_fact_series",
+        read_macro,
+    )
+    monkeypatch.setattr(
+        "apps.pulse.infrastructure.data_provider.get_published_price_bar_series",
+        read_prices,
+    )
+    monkeypatch.setattr(
+        "apps.pulse.infrastructure.data_provider.get_published_quote_payloads",
+        read_quotes,
+    )
 
 
 @pytest.fixture(autouse=True)

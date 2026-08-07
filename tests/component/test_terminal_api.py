@@ -16,7 +16,8 @@ from core.exceptions import MissingConfigError
 
 
 @pytest.fixture
-def api_client():
+def api_client(active_decision_runtime):
+    del active_decision_runtime
     return APIClient()
 
 

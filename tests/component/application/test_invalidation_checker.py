@@ -330,7 +330,11 @@ class TestInvalidationCheckServiceIntegration:
         )
 
     @pytest.mark.django_db
-    def test_default_macro_repository_reads_data_center(self, invalidation_rule):
+    def test_default_macro_repository_reads_data_center(
+        self,
+        invalidation_rule,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
         MacroFactModel.objects.create(
             indicator_code="CN_PMI_MANUFACTURING",
             reporting_period=datetime(2025, 2, 1).date(),
@@ -338,6 +342,26 @@ class TestInvalidationCheckServiceIntegration:
             unit="指数",
             source="tushare",
             published_at=datetime(2025, 2, 3).date(),
+        )
+        from apps.data_center.application.public import get_macro_fact_series
+
+        def read_approved_historical_macro(
+            indicator_code: str,
+            *,
+            limit: int = 500,
+            **_kwargs: object,
+        ) -> dict[str, object]:
+            rows = get_macro_fact_series(indicator_code, limit=limit)
+            return {
+                "rows": rows,
+                "freshness_status": "historical_test_approved",
+                "must_not_use_for_decision": not rows,
+                "blocked_reason": "" if rows else "canonical_historical_rows_missing",
+            }
+
+        monkeypatch.setattr(
+            "apps.signal.application.invalidation_checker.get_published_macro_fact_series",
+            read_approved_historical_macro,
         )
 
         service = InvalidationCheckService()
