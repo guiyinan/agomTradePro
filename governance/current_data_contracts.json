@@ -1748,6 +1748,7 @@
       "id": "data_center.publication_only_d4_d5",
       "surface": "Current financial and valuation reads use Data Center publication-only ports",
       "source_files": [
+        "apps/data_center/domain/market_time.py",
         "apps/data_center/application/query_services.py",
         "apps/data_center/application/public.py",
         "apps/equity/application/use_cases.py",
@@ -1761,9 +1762,15 @@
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py"
       ],
       "required_markers": {
+        "apps/data_center/domain/market_time.py": [
+          "def cn_market_date_from_observation(",
+          "raise ValueError(\"observation timestamp must be timezone-aware\")"
+        ],
         "apps/data_center/application/query_services.py": [
           "def query_published_financial_facts(",
           "def query_published_valuation_facts(",
+          "def _publication_as_of_date(",
+          "cn_market_date_from_observation(as_of)",
           "equity.financial.fact",
           "equity.valuation.fact",
           "def _publication_member_fact_pks(",
@@ -1853,6 +1860,16 @@
         ]
       },
       "required_tests": [
+        {
+          "case": "publication_as_of_uses_cn_market_calendar_across_utc_midnight",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_publication_as_of_date_uses_china_market_calendar_across_utc_midnight"
+        },
+        {
+          "case": "cn_market_date_projection_rejects_naive_timestamp",
+          "test_file": "tests/unit/data_center/test_market_time.py",
+          "test_function": "test_cn_market_date_projection_rejects_naive_timestamp"
+        },
         {
           "case": "financial_valuation_publication_evidence",
           "test_file": "tests/unit/data_center/test_published_query_ports.py",
@@ -2417,6 +2434,7 @@
       "id": "data_center.publication_writer_atomicity",
       "surface": "Canonical publication writer and member snapshot commit",
       "source_files": [
+        "apps/data_center/domain/market_time.py",
         "apps/data_center/application/control_plane.py",
         "apps/data_center/infrastructure/control_plane_repositories.py",
         "apps/data_center/application/macro_publication.py",
@@ -2436,6 +2454,11 @@
         "apps/data_center/infrastructure/quote_snapshot_repository.py"
       ],
       "required_markers": {
+        "apps/data_center/domain/market_time.py": [
+          "CN_MARKET_TIMEZONE = timezone(timedelta(hours=8))",
+          "def cn_market_date_start_utc(",
+          ".astimezone(UTC)"
+        ],
         "apps/data_center/application/control_plane.py": [
           "def publish_with_members(",
           "Publication member_count must match selected coverage count",
@@ -2492,9 +2515,9 @@
         ],
         "apps/data_center/infrastructure/market_breadth_repositories.py": [
           "def list_publication_candidates(",
-          "observed_at=datetime.combine(row.flow_date, time.min, tzinfo=UTC)",
+          "observed_at=cn_market_date_start_utc(row.flow_date)",
           "row.raw_payload_hash",
-          "observed_at=datetime.combine(row.effective_date, time.min, tzinfo=UTC)",
+          "observed_at=cn_market_date_start_utc(row.effective_date)",
           "row.raw_payload_hash or _sector_membership_payload_hash(row)"
         ],
         "apps/data_center/infrastructure/financial_fact_repository.py": [
@@ -2506,18 +2529,18 @@
         ],
         "apps/data_center/infrastructure/fund_nav_repository.py": [
           "def list_publication_candidates(",
-          "observed_at=datetime.combine(row.nav_date, time.min, tzinfo=UTC)",
+          "observed_at=cn_market_date_start_utc(row.nav_date)",
           "row.raw_payload_hash or _fund_nav_payload_hash(row)"
         ],
         "apps/data_center/infrastructure/valuation_fact_repository.py": [
           "def list_publication_candidates(",
-          "observed_at=datetime.combine(row.val_date, time.min, tzinfo=UTC)",
+          "observed_at=cn_market_date_start_utc(row.val_date)",
           "available_at_unverified",
           "valuation available_at cannot be in the future"
         ],
         "apps/data_center/infrastructure/macro_fact_storage_repository.py": [
           "def list_publication_candidates(",
-          "observed_at=datetime.combine(row.published_at, time.min, tzinfo=UTC)",
+          "observed_at=cn_market_date_start_utc(row.published_at)",
           "row.raw_payload_hash or _macro_payload_hash(row)"
         ],
         "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
@@ -2528,7 +2551,7 @@
         ],
         "apps/data_center/infrastructure/price_bar_repository.py": [
           "def list_publication_candidates(",
-          "observed_at = datetime.combine(row.bar_date, time.min, tzinfo=UTC)",
+          "observed_at = cn_market_date_start_utc(row.bar_date)",
           "row.raw_payload_hash or _price_bar_payload_hash(row)"
         ],
         "apps/data_center/infrastructure/quote_snapshot_repository.py": [
@@ -2538,6 +2561,11 @@
         ]
       },
       "required_tests": [
+        {
+          "case": "cn_market_date_start_maps_local_midnight_to_previous_utc_day",
+          "test_file": "tests/unit/data_center/test_market_time.py",
+          "test_function": "test_cn_market_date_start_maps_local_midnight_to_previous_utc_day"
+        },
         {
           "case": "duplicate_members_rejected",
           "test_file": "tests/unit/data_center/test_control_plane.py",

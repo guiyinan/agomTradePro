@@ -5528,177 +5528,177 @@
       "text": "\"summary\": article.summary,"
     },
     {
-      "line": 42,
+      "line": 43,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return data-center summary counts for operational diagnostics.\"\"\""
     },
     {
-      "line": 122,
+      "line": 123,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest canonical quote payloads, preserving source observation time.\"\"\""
     },
     {
-      "line": 149,
+      "line": 150,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a current macro value only when its Publication gate passes.\"\"\""
     },
     {
-      "line": 219,
+      "line": 220,
       "path": "apps/data_center/application/query_services.py",
       "text": "This explicit current-data port prevents a non-empty, unpublished, or"
     },
     {
-      "line": 254,
+      "line": 255,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 259,
+      "line": 260,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read fund NAV facts only from the selected current publication members.\"\"\""
     },
     {
-      "line": 387,
+      "line": 388,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a freshness-validated gate for one current publication.\"\"\""
     },
     {
-      "line": 487,
+      "line": 488,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Parse a publication knowledge boundary for current-row upper bounds.\"\"\""
     },
     {
-      "line": 511,
+      "line": 512,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Limit a current-data query to the publication's knowledge boundary.\"\"\""
     },
     {
-      "line": 523,
+      "line": 524,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 549,
+      "line": 550,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 585,
+      "line": 586,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 589,
+      "line": 590,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read quote snapshots only from the selected current publication members.\"\"\""
     },
     {
-      "line": 625,
+      "line": 626,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 627,
+      "line": 628,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read financial facts only after the current financial publication gate.\"\"\""
     },
     {
-      "line": 654,
+      "line": 655,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 656,
+      "line": 657,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read valuation facts only after the current valuation publication gate.\"\"\""
     },
     {
-      "line": 683,
+      "line": 684,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 710,
+      "line": 711,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 755,
+      "line": 756,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 849,
+      "line": 850,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 907,
+      "line": 908,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read current market breadth only after every component is published."
     },
     {
-      "line": 997,
+      "line": 998,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 1010,
+      "line": 1011,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return only fresh, member-bound macro values for current consumers."
     },
     {
-      "line": 1012,
+      "line": 1013,
       "path": "apps/data_center/application/query_services.py",
       "text": "The cache-warmup helper above intentionally reads the latest canonical fact"
     },
     {
-      "line": 1013,
+      "line": 1014,
       "path": "apps/data_center/application/query_services.py",
       "text": "for deployment warming and maintenance.  Current/ops consumers must not"
     },
     {
-      "line": 48,
+      "line": 49,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "\"\"\"Return the latest weekday before ``target_date``.\"\"\""
     },
     {
-      "line": 57,
+      "line": 58,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "\"\"\"Return the latest completed A-share quote session for non-live periods.\"\"\""
     },
     {
-      "line": 78,
+      "line": 79,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "\"\"\"Return whether a daily observation is safe for a latest-price fallback.\"\"\""
     },
     {
-      "line": 92,
+      "line": 93,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "current = observed_at + timedelta(days=1)"
     },
     {
-      "line": 94,
+      "line": 95,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "while current <= target_date:"
     },
     {
-      "line": 95,
+      "line": 96,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "if current.weekday() < 5:"
     },
     {
-      "line": 97,
+      "line": 98,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "current += timedelta(days=1)"
     },
     {
-      "line": 292,
+      "line": 293,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "latest = data_points[0]"
     },
     {
-      "line": 293,
+      "line": 294,
       "path": "apps/data_center/application/query_use_cases.py",
       "text": "if latest.is_stale:"
     },
@@ -6498,7 +6498,7 @@
       "text": "status=str(summary[\"status\"]),"
     },
     {
-      "line": 56,
+      "line": 57,
       "path": "apps/data_center/infrastructure/fund_nav_repository.py",
       "text": "value = FundNavFactModel._default_manager.aggregate(latest=Max(\"nav_date\"))[\"latest\"]"
     },
@@ -6693,7 +6693,7 @@
       "text": "\"summary\": {"
     },
     {
-      "line": 168,
+      "line": 169,
       "path": "apps/data_center/infrastructure/macro_fact_storage_repository.py",
       "text": "\"\"\"Return the selected fact for the latest reporting period.\"\"\""
     },
@@ -6783,7 +6783,7 @@
       "text": "\"\"\"Resolve the SHIBOR 1-week tenor column from current or legacy casing.\"\"\""
     },
     {
-      "line": 228,
+      "line": 229,
       "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
       "text": "an old flow into a current observation."
     },
@@ -6938,7 +6938,7 @@
       "text": "\"\"\"Return SSE MDATE query months, allowing current-year publication lag.\"\"\""
     },
     {
-      "line": 73,
+      "line": 74,
       "path": "apps/data_center/infrastructure/valuation_fact_repository.py",
       "text": "value = ValuationFactModel._default_manager.aggregate(latest=Max(\"val_date\"))[\"latest\"]"
     },
