@@ -22,6 +22,22 @@ def admin_client(db):
     return client
 
 
+@pytest.fixture
+def active_decision_runtime(db):
+    from apps.config_center.infrastructure.decision_runtime_models import (
+        DecisionRuntimeStateModel,
+    )
+
+    DecisionRuntimeStateModel._default_manager.update_or_create(
+        pk=1,
+        defaults={
+            "status": "active",
+            "reason": "",
+            "changed_by": "pytest:e2e-equity-screen",
+        },
+    )
+
+
 @pytest.mark.django_db
 def test_dashboard_alpha_stocks_json_endpoint_returns_contract(authenticated_client, monkeypatch):
     from apps.dashboard.interface import alpha_stock_views, views
@@ -109,7 +125,12 @@ def test_dashboard_alpha_section_links_to_full_ranking(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_equity_screen_api_returns_displayable_items(authenticated_client, monkeypatch):
+def test_equity_screen_api_returns_displayable_items(
+    authenticated_client,
+    active_decision_runtime,
+    monkeypatch,
+):
+    del active_decision_runtime
     from apps.equity.application import use_cases
 
     monkeypatch.setattr(
@@ -140,7 +161,7 @@ def test_equity_screen_api_returns_displayable_items(authenticated_client, monke
 
     response = authenticated_client.post(
         "/api/equity/screen/",
-        data={"regime": "Recovery", "max_count": 10},
+        data={"regime": "Recovery", "max_count": 10, "mode": "historical"},
         content_type="application/json",
     )
 
@@ -164,7 +185,7 @@ def test_equity_detail_page_uses_single_percentile_chart(authenticated_client):
     assert "valuation-chart-shell" in content
     assert "sortedRows = [...result.data].sort" in content
     assert "sortedNews = [...result.data].sort" in content
-    assert 'fetchJsonOrThrowCompat(`/api/equity/regime-correlation/${stockCode}/`)' in content
+    assert "fetchJsonOrThrowCompat(`/api/equity/regime-correlation/${stockCode}/`)" in content
     assert "loadRegimeCorrelation();" in content
     assert "fetchJsonOrThrowCompat('/api/pulse/current/')" in content
     assert "loadPulseContext();" in content
@@ -190,29 +211,43 @@ def test_system_settings_page_contains_market_color_switch(admin_client):
 
 @pytest.mark.django_db
 def test_system_settings_page_saves_market_color_convention(admin_client):
-    from apps.account.infrastructure.models import SystemSettingsModel
+    from apps.config_center.application.public import get_system_governance_settings
 
-    settings = SystemSettingsModel.get_settings()
+    settings = get_system_governance_settings()
 
     response = admin_client.post(
         "/account/admin/settings/",
         data={
-            **({"require_user_approval": "on"} if settings.require_user_approval else {}),
-            **({"auto_approve_first_admin": "on"} if settings.auto_approve_first_admin else {}),
-            **({"default_mcp_enabled": "on"} if settings.default_mcp_enabled else {}),
-            **({"allow_token_plaintext_view": "on"} if settings.allow_token_plaintext_view else {}),
+            **({"require_user_approval": "on"} if settings["require_user_approval"] else {}),
+            **({"auto_approve_first_admin": "on"} if settings["auto_approve_first_admin"] else {}),
+            **({"default_mcp_enabled": "on"} if settings["default_mcp_enabled"] else {}),
+            **(
+                {"allow_token_plaintext_view": "on"}
+                if settings["allow_token_plaintext_view"]
+                else {}
+            ),
             "market_color_convention": "us_market",
-            "user_agreement_content": settings.user_agreement_content,
-            "risk_warning_content": settings.risk_warning_content,
-            "notes": settings.notes,
-            "benchmark_code_map": "{}" if not settings.benchmark_code_map else json.dumps(settings.benchmark_code_map, ensure_ascii=False),
-            "asset_proxy_code_map": "{}" if not settings.asset_proxy_code_map else json.dumps(settings.asset_proxy_code_map, ensure_ascii=False),
+            "user_agreement_content": settings["user_agreement_content"],
+            "risk_warning_content": settings["risk_warning_content"],
+            "notes": settings["notes"],
+            "benchmark_code_map": json.dumps(
+                settings["benchmark_code_map"] or {}, ensure_ascii=False
+            ),
+            "asset_proxy_code_map": json.dumps(
+                settings["asset_proxy_code_map"] or {}, ensure_ascii=False
+            ),
         },
     )
 
     assert response.status_code == 302
-    settings.refresh_from_db()
-    assert settings.market_color_convention == "us_market"
+    saved_settings = get_system_governance_settings()
+    assert saved_settings["market_color_convention"] == "us_market"
+
+    rendered = admin_client.get("/account/admin/settings/")
+    assert rendered.status_code == 200
+    assert '<option value="us_market" selected>美股绿涨红跌</option>' in rendered.content.decode(
+        "utf-8"
+    )
 
 
 @pytest.mark.django_db
@@ -246,4 +281,6 @@ def test_market_visual_tokens_are_used_in_frontend_styles():
 
     for path in target_files:
         content = path.read_text(encoding="utf-8")
-        assert any(token in content for token in expected_tokens), f"{path} should use market visual tokens"
+        assert any(
+            token in content for token in expected_tokens
+        ), f"{path} should use market visual tokens"

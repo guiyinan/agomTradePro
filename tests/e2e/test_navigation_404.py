@@ -19,6 +19,24 @@ from apps.decision_rhythm.infrastructure.models import (
 User = get_user_model()
 
 
+@pytest.fixture
+def active_decision_runtime(db: object) -> None:
+    """Explicitly admit decision-facing requests for this E2E contract."""
+
+    from apps.config_center.infrastructure.decision_runtime_models import (
+        DecisionRuntimeStateModel,
+    )
+
+    DecisionRuntimeStateModel._default_manager.update_or_create(
+        pk=1,
+        defaults={
+            "status": "active",
+            "reason": "",
+            "changed_by": "pytest:e2e-navigation-contract",
+        },
+    )
+
+
 def _assert_expected_status(response, expected_statuses, message: str) -> None:
     assert (
         response.status_code in expected_statuses
@@ -346,8 +364,9 @@ class TestAPIEndpointsNo404:
         _assert_expected_status(response, {200}, "API health check should be available")
         assert response["Content-Type"].startswith("application/json")
 
-    def test_api_regime_current_no_404(self, api_client):
+    def test_api_regime_current_no_404(self, api_client, active_decision_runtime):
         """Regime 当前状态 API 应要求认证或返回成功。"""
+        del active_decision_runtime
         response = api_client.get("/api/regime/current/")
         _assert_expected_status(
             response,
