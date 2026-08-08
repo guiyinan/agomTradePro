@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
 import pytest
 
@@ -15,6 +16,7 @@ from apps.fixed_income.domain.curve_relative_value import (
     CurveCashFundingEvidence,
     CurveLegRole,
     CurveLegSide,
+    CurveLiquidityResultSeal,
     CurveRelativeValueAssessment,
     CurveRelativeValueBlockerCode,
     CurveRelativeValueEvidence,
@@ -30,6 +32,7 @@ from apps.fixed_income.domain.curve_relative_value import (
     KeyRateAnalytics,
     KeyRateNeutralityTolerance,
     LiquidityCapacityEvidence,
+    SignedKeyRateExposure,
     evaluate_curve_relative_value,
 )
 from apps.fixed_income.domain.entities import CurveKind
@@ -42,6 +45,7 @@ from apps.fixed_income.domain.liquidity_premium import (
     LiquidityPremiumEvidence,
     LiquidityPremiumPolicy,
     LiquidityPremiumRule,
+    LiquidityPremiumStatus,
     MarketSpreadSemantics,
 )
 
@@ -876,3 +880,162 @@ def test_curve_cost_cannot_diverge_from_consumed_liquidity_seal() -> None:
                 result.gross_carry_cash + result.gross_roll_down_cash - total_cost
             ),
         )
+
+
+def test_curve_result_value_objects_reject_invalid_boundaries() -> None:
+    result = _evaluate_curve(_evidence())
+    exposure = result.key_rate_exposures[0]
+    with pytest.raises(ValueError, match=r"\+1bp P&L"):
+        replace(exposure, plus_one_bp_pnl=exposure.plus_one_bp_pnl + Decimal("1"))
+
+    seal = result.liquidity_result_seals[0]
+    invalid: Any = "invalid"
+    mutations: tuple[tuple[dict[str, object], str], ...] = (
+        ({"status": invalid}, "status is invalid"),
+        ({"applied_cost_bp": Decimal("-1")}, "cannot be negative"),
+        ({"blocker_codes": ("z", "a")}, "must be canonical"),
+        ({"blocker_codes": ("blocked",)}, "cannot have blockers"),
+    )
+    for kwargs, message in mutations:
+        with pytest.raises(ValueError, match=message):
+            replace(seal, **kwargs)
+
+    blocked_seal = CurveLiquidityResultSeal(
+        subject_id=seal.subject_id,
+        evaluated_at=seal.evaluated_at,
+        input_hash=seal.input_hash,
+        output_hash=seal.output_hash,
+        policy_hash=seal.policy_hash,
+        status=LiquidityPremiumStatus.BLOCKED,
+        applied_cost_bp=seal.applied_cost_bp,
+        blocker_codes=("blocked",),
+    )
+    assert blocked_seal.blocker_codes == ("blocked",)
+
+
+def test_curve_leg_assessment_rejects_tampered_risk_cash_and_capacity() -> None:
+    result = _evaluate_curve(_evidence())
+    long_leg = next(item for item in result.leg_assessments if item.side is CurveLegSide.LONG)
+    short_leg = next(item for item in result.leg_assessments if item.side is CurveLegSide.SHORT)
+    invalid: Any = "invalid"
+    mutations: tuple[tuple[object, dict[str, object], str], ...] = (
+        (long_leg, {"side": invalid}, "enums are invalid"),
+        (long_leg, {"notional": Decimal("0")}, "invalid raw values"),
+        (long_leg, {"long_key_rate_analytics": ()}, "key-rate universe is invalid"),
+        (long_leg, {"long_dv01": long_leg.long_dv01 + Decimal("1")}, "DV01 identity"),
+        (
+            long_leg,
+            {"long_convexity": long_leg.long_convexity + Decimal("1")},
+            "convexity identity",
+        ),
+        (
+            long_leg,
+            {"dirty_market_value": long_leg.dirty_market_value + Decimal("1")},
+            "dirty market value",
+        ),
+        (
+            long_leg,
+            {"signed_trade_cash": long_leg.signed_trade_cash + Decimal("1")},
+            "signed cash",
+        ),
+        (
+            long_leg,
+            {"signed_dv01": long_leg.signed_dv01 + Decimal("1")},
+            "signed risk/carry",
+        ),
+        (short_leg, {"borrow_cost_bp": None}, "requires borrow cost"),
+        (long_leg, {"borrow_cost_bp": Decimal("1")}, "cannot carry borrow cost"),
+        (
+            long_leg,
+            {"gross_cost_cash": long_leg.gross_cost_cash + Decimal("1")},
+            "gross cost",
+        ),
+        (
+            long_leg,
+            {"capacity_limit": long_leg.capacity_limit + Decimal("1")},
+            "capacity is not owner-derived",
+        ),
+        (
+            long_leg,
+            {"liquidity_limit": long_leg.liquidity_limit + Decimal("1")},
+            "effective trade limit",
+        ),
+    )
+    for leg, kwargs, message in mutations:
+        with pytest.raises(ValueError, match=message):
+            replace(leg, **kwargs)
+
+
+def test_curve_assessment_rejects_tampered_policy_portfolio_and_seals() -> None:
+    result = _evaluate_curve(_evidence())
+    first_seal = result.liquidity_result_seals[0]
+    first_leg = result.leg_assessments[0]
+    first_exposure = result.key_rate_exposures[0]
+    mutations: tuple[tuple[dict[str, object], str], ...] = (
+        ({"curve_policy_hash": "0" * 64}, "composite policy hash"),
+        ({"research_only": False}, "must remain research-only"),
+        ({"requested_leg_ids": tuple(reversed(result.requested_leg_ids))}, "leg ids"),
+        (
+            {"requested_liquidity_subjects": tuple(reversed(result.requested_liquidity_subjects))},
+            "liquidity subjects",
+        ),
+        ({"liquidity_result_seals": result.liquidity_result_seals[:-1]}, "exactly cover"),
+        (
+            {
+                "liquidity_result_seals": (
+                    replace(
+                        first_seal, evaluated_at=first_seal.evaluated_at + timedelta(seconds=1)
+                    ),
+                    *result.liquidity_result_seals[1:],
+                )
+            },
+            "curve cutoff",
+        ),
+        (
+            {
+                "liquidity_result_seals": (
+                    replace(first_seal, applied_cost_bp=first_seal.applied_cost_bp + Decimal("1")),
+                    *result.liquidity_result_seals[1:],
+                )
+            },
+            "leg costs",
+        ),
+        (
+            {"leg_assessments": result.leg_assessments + (first_leg,)},
+            "assessed leg ids",
+        ),
+        ({"allowed_curve_pairs": tuple(reversed(result.allowed_curve_pairs))}, "curve pairs"),
+        (
+            {"allowed_instrument_kinds": ("z", "a")},
+            "instrument kinds must be canonical",
+        ),
+        ({"required_key_rate_tenors": result.required_key_rate_tenors[:-1]}, "policy universe"),
+        ({"policy_max_participation": Decimal("0")}, "capacity/risk/horizon"),
+        ({"signed_dv01": result.signed_dv01 + Decimal("1")}, "risk totals"),
+        ({"plus_one_bp_pnl": result.plus_one_bp_pnl + Decimal("1")}, r"\+1bp P&L"),
+        ({"trade_cash": result.trade_cash + Decimal("1")}, "trade cash"),
+        ({"gross_carry_cash": result.gross_carry_cash + Decimal("1")}, "carry/roll-down"),
+        (
+            {
+                "key_rate_exposures": (
+                    SignedKeyRateExposure(
+                        tenor=first_exposure.tenor,
+                        signed_dv01=first_exposure.signed_dv01 + Decimal("1"),
+                        signed_convexity=first_exposure.signed_convexity,
+                        plus_one_bp_pnl=-(first_exposure.signed_dv01 + Decimal("1")),
+                    ),
+                    *result.key_rate_exposures[1:],
+                )
+            },
+            "key-rate vector",
+        ),
+        ({"total_cost_cash": result.total_cost_cash + Decimal("1")}, "cost is not recomputable"),
+        (
+            {"net_relative_value_cash": result.net_relative_value_cash + Decimal("1")},
+            "net relative value",
+        ),
+        ({"output_hash": "0" * 64}, "output hash mismatch"),
+    )
+    for kwargs, message in mutations:
+        with pytest.raises(ValueError, match=message):
+            replace(result, **kwargs)

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+
+import pytest
 
 from apps.fixed_income.domain.evidence import EvidenceRole, ExactEvidence, canonical_hash
 from apps.fixed_income.domain.rating_migration import (
@@ -266,3 +269,177 @@ def test_missing_member_stays_explicit_and_count_identity_never_relaxes() -> Non
         )
         == result.expected_count
     )
+
+
+def test_rating_taxonomy_and_cohort_reject_incomplete_owner_contracts() -> None:
+    taxonomy = _taxonomy()
+    for mutation, match in (
+        ({"ordered_live_grades": ()}, "ordered live grades"),
+        ({"ordered_live_grades": ("AAA", "AAA")}, "unique"),
+        ({"ordered_live_grades": ("CENSORED",)}, "reserved"),
+        ({"evidence": replace(taxonomy.evidence, subject_id="other")}, "must match"),
+    ):
+        with pytest.raises(ValueError, match=match):
+            replace(taxonomy, **mutation)
+
+    cohort = _cohort()
+    for mutation, match in (
+        ({"horizon_ends_at": cohort.formation_at}, "horizon"),
+        ({"expected_member_ids": ()}, "expected members"),
+        ({"expected_member_ids": ("bond-b", "bond-a")}, "canonical"),
+        ({"expected_member_ids": ("bond-a", "bond-a")}, "canonical"),
+        ({"evidence": replace(cohort.evidence, subject_id="other")}, "must match"),
+    ):
+        with pytest.raises(ValueError, match=match):
+            replace(cohort, **mutation)
+
+
+def test_rating_member_transition_rejects_ambiguous_terminal_states() -> None:
+    policy = _policy()
+    transition = _transition(
+        "bond-a",
+        "AAA",
+        RatingTerminalKind.LIVE_GRADE,
+        "AA",
+        policy,
+    )
+    for mutation, match in (
+        ({"terminal_kind": "live"}, "terminal kind"),
+        (
+            {"origin_available_at": transition.origin_observed_at - timedelta(seconds=1)},
+            "origin availability",
+        ),
+        (
+            {"selection_available_at": transition.selection_observed_at - timedelta(seconds=1)},
+            "selection availability",
+        ),
+        ({"destination_label": None}, "destination label"),
+        ({"outcome_observed_at": None}, "outcome clocks"),
+        (
+            {"outcome_available_at": transition.outcome_observed_at - timedelta(seconds=1)},
+            "outcome availability",
+        ),
+        ({"censored_at": transition.outcome_observed_at}, "also be censored"),
+        (
+            {"origin_publication": replace(transition.origin_publication, subject_id="other")},
+            "origin rating",
+        ),
+        (
+            {
+                "terminal_publication": replace(
+                    transition.terminal_publication,
+                    curve_role="wrong",
+                )
+            },
+            "terminal selection clocks",
+        ),
+        ({"origin_record_hash": "0" * 64}, "origin record hash"),
+        ({"terminal_record_hash": "0" * 64}, "terminal record hash"),
+    ):
+        with pytest.raises(ValueError, match=match):
+            replace(transition, **mutation)
+
+    censored = replace(
+        transition,
+        terminal_kind=RatingTerminalKind.CENSORED,
+        destination_label=None,
+        outcome_observed_at=None,
+        outcome_available_at=None,
+        censored_at=transition.outcome_observed_at,
+    )
+    with pytest.raises(ValueError, match="censor clock"):
+        replace(censored, censored_at=None)
+    with pytest.raises(ValueError, match="cannot carry terminal outcome"):
+        replace(censored, destination_label="AA")
+
+    missing = replace(censored, terminal_kind=RatingTerminalKind.MISSING, censored_at=None)
+    with pytest.raises(ValueError, match="cannot carry synthesized"):
+        replace(missing, censored_at=transition.outcome_observed_at)
+
+
+def test_rating_policy_and_input_evidence_fail_closed() -> None:
+    policy = _policy()
+    for mutation, match in (
+        ({"horizon_days": 0}, "horizon"),
+        ({"outcome_availability_grace_seconds": -1}, "horizon"),
+        ({"minimum_cohort_size": 0}, "cohort size"),
+        ({"minimum_terminal_coverage_ratio": Decimal("0")}, "coverage"),
+        ({"denominator_convention": "survivors"}, "full origin"),
+        ({"censoring_convention": "drop"}, "denominator bucket"),
+        ({"terminal_selection": "latest"}, "selection semantics"),
+        ({"evidence": replace(policy.evidence, subject_id="other")}, "must match"),
+    ):
+        with pytest.raises(ValueError, match=match):
+            replace(policy, **mutation)
+
+    transition_a = _transition("bond-a", "AAA", RatingTerminalKind.LIVE_GRADE, "AA", policy)
+    transition_b = _transition("bond-b", "BBB", RatingTerminalKind.DEFAULT, "DEFAULT", policy)
+    evidence = _evidence((transition_a, transition_b))
+    with pytest.raises(ValueError, match="canonical"):
+        replace(evidence, transitions=(transition_b, transition_a))
+    with pytest.raises(ValueError, match="attest"):
+        replace(
+            evidence,
+            source=replace(evidence.source, upstream_hashes=()),
+        )
+
+
+def test_rating_assessment_rejects_tampered_counts_status_and_hash() -> None:
+    policy = _policy()
+    result = evaluate_rating_migration(
+        _evidence(
+            (
+                _transition("bond-a", "AAA", RatingTerminalKind.LIVE_GRADE, "AA", policy),
+                _transition("bond-b", "BBB", RatingTerminalKind.DEFAULT, "DEFAULT", policy),
+            )
+        ),
+        policy=policy,
+        evaluated_at=_EVALUATED_AT,
+    )
+    for mutation, match in (
+        ({"expected_count": -1}, "cannot be negative"),
+        ({"live_terminal_count": 0}, "buckets"),
+        ({"terminal_coverage_ratio": Decimal("0.5")}, "recomputable"),
+        ({"missing_evidence_member_ids": ("z", "a")}, "canonical"),
+        ({"status": RatingMigrationStatus.BLOCKED}, "requires blockers"),
+        ({"output_hash": "0" * 64}, "hash mismatch"),
+    ):
+        with pytest.raises(ValueError, match=match):
+            replace(result, **mutation)
+
+
+def test_rating_evaluator_surfaces_semantic_and_cutoff_blockers() -> None:
+    policy = _policy()
+    base = _transition(
+        "bond-a",
+        "AAA",
+        RatingTerminalKind.LIVE_GRADE,
+        "AA",
+        policy,
+    )
+    semantic_mismatch = replace(
+        base,
+        taxonomy_id="other-taxonomy",
+        origin_grade="UNKNOWN",
+        terminal_publication=replace(
+            base.terminal_publication,
+            upstream_hashes=(),
+        ),
+    )
+    evidence = _evidence((semantic_mismatch,))
+    result = evaluate_rating_migration(
+        evidence,
+        policy=replace(policy, minimum_cohort_size=3),
+        evaluated_at=_HORIZON,
+        expected_input_hash="0" * 64,
+    )
+    codes = {blocker.code for blocker in result.blockers}
+    assert {
+        RatingMigrationBlockerCode.INPUT_HASH_MISMATCH,
+        RatingMigrationBlockerCode.COHORT_INCOMPLETE,
+        RatingMigrationBlockerCode.COHORT_TOO_SMALL,
+        RatingMigrationBlockerCode.COHORT_MEMBER_MISSING,
+        RatingMigrationBlockerCode.TERMINAL_SELECTION_MISMATCH,
+        RatingMigrationBlockerCode.TAXONOMY_MISMATCH,
+        RatingMigrationBlockerCode.TAXONOMY_GRADE_UNKNOWN,
+    } <= codes

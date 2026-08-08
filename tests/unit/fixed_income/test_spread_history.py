@@ -299,3 +299,158 @@ def test_canonical_evidence_rejects_uppercase_hashes_and_mutable_payloads() -> N
         canonical_hash(["mutable", "list"])
     with pytest.raises(TypeError, match="string keys"):
         canonical_hash({1: "non-string"})
+
+
+def test_calendar_and_observation_contracts_reject_ambiguous_inputs() -> None:
+    calendar = _calendar()
+    first, second = calendar.periods
+    with pytest.raises(ValueError, match="must follow"):
+        replace(first, ends_at=first.starts_at)
+    with pytest.raises(ValueError, match="cannot precede"):
+        replace(first, expected_release_at=first.ends_at - timedelta(seconds=1))
+    with pytest.raises(ValueError, match="requires periods"):
+        replace(calendar, periods=())
+    with pytest.raises(ValueError, match="cannot repeat"):
+        replace(calendar, periods=(first, first))
+    with pytest.raises(ValueError, match="ordered"):
+        replace(calendar, periods=(second, first))
+    overlapping = replace(second, starts_at=first.ends_at - timedelta(days=1))
+    with pytest.raises(ValueError, match="overlap"):
+        replace(calendar, periods=(first, overlapping))
+    with pytest.raises(ValueError, match="attest"):
+        replace(calendar, evidence=replace(calendar.evidence, content_hash="0" * 64))
+
+    observed = _observation("2026-01-31", "10")
+    for mutation, match in (
+        ({"revision_number": -1}, "cannot be negative"),
+        ({"state": "observed"}, "state is invalid"),
+        ({"value_bp": None}, "requires a value"),
+        ({"available_at": observed.observed_at - timedelta(seconds=1)}, "cannot precede"),
+        ({"publication": replace(observed.publication, subject_id="other")}, "subject"),
+        ({"publication": replace(observed.publication, version="other")}, "locator"),
+        ({"publication": replace(observed.publication, currency="USD")}, "currency"),
+        ({"publication": replace(observed.publication, curve_role="wrong")}, "curve_role"),
+        ({"record_hash": "0" * 64}, "bound by publication"),
+    ):
+        with pytest.raises(ValueError, match=match):
+            replace(observed, **mutation)
+    missing = _observation(
+        "2026-01-31",
+        "0",
+        state=SpreadObservationState.MISSING,
+    )
+    with pytest.raises(ValueError, match="cannot carry a value"):
+        replace(missing, value_bp=Decimal("1"))
+
+
+def test_spread_policy_and_evidence_reject_invalid_semantics() -> None:
+    policy = _policy()
+    for mutation, match in (
+        ({"lookback_ends_at": policy.lookback_starts_at}, "end must follow"),
+        ({"minimum_observation_count": 0}, "positive"),
+        ({"minimum_coverage_ratio": Decimal("0")}, "coverage_ratio"),
+        ({"tie_convention": "mid"}, "tie_convention"),
+        ({"target_sample_convention": "included"}, "remain separate"),
+        ({"revision_selection": "first"}, "revision_selection"),
+        ({"maximum_release_lag_seconds": -1}, "cannot be negative"),
+        ({"evidence": replace(policy.evidence, subject_id="other")}, "mismatch"),
+    ):
+        with pytest.raises(ValueError, match=match):
+            replace(policy, **mutation)
+
+    first = _observation("2026-01-31", "10")
+    second = _observation("2026-02-28", "20")
+    evidence = _evidence((first, second))
+    with pytest.raises(ValueError, match="canonical order"):
+        replace(evidence, reference_observations=(second, first))
+    with pytest.raises(ValueError, match="attest"):
+        replace(evidence, source=replace(evidence.source, upstream_hashes=()))
+    with pytest.raises(ValueError, match="raw manifest"):
+        replace(evidence, source=replace(evidence.source, content_hash="0" * 64))
+
+
+def test_spread_assessment_rejects_tampered_statistics_and_status() -> None:
+    result = evaluate_spread_percentile(
+        _evidence(
+            (
+                _observation("2026-01-31", "10"),
+                _observation("2026-02-28", "20"),
+            )
+        ),
+        policy=_policy(),
+        calendar=_calendar(),
+        evaluated_at=_EVALUATED_AT,
+    )
+    for mutation, match in (
+        (
+            {
+                "reference_count": 1,
+                "coverage_numerator": 1,
+                "coverage_ratio": Decimal("0.5"),
+                "selected_observations": result.selected_observations[:1],
+            },
+            "sum to reference_count",
+        ),
+        ({"coverage_numerator": 1}, "coverage numerator"),
+        ({"percentile": Decimal("2")}, "percentile"),
+        ({"less_count": 0, "equal_count": 2}, "not recomputable"),
+        ({"status": SpreadAssessmentStatus.BLOCKED}, "requires blockers"),
+        ({"output_hash": "0" * 64}, "hash mismatch"),
+    ):
+        with pytest.raises(ValueError, match=match):
+            replace(result, **mutation)
+
+
+@pytest.mark.parametrize(
+    ("tie_convention", "expected"),
+    (
+        (SpreadTieConvention.STRICT_LESS, Decimal("0.5")),
+        (SpreadTieConvention.WEAK_LESS_EQUAL, Decimal("1")),
+    ),
+)
+def test_spread_evaluator_covers_alternate_tie_conventions(
+    tie_convention: SpreadTieConvention,
+    expected: Decimal,
+) -> None:
+    result = evaluate_spread_percentile(
+        _evidence(
+            (
+                _observation("2026-01-31", "10"),
+                _observation("2026-02-28", "20"),
+            )
+        ),
+        policy=replace(_policy(), tie_convention=tie_convention),
+        calendar=_calendar(),
+        evaluated_at=_EVALUATED_AT,
+    )
+    assert result.percentile == expected
+
+
+def test_spread_evaluator_reports_estimation_release_and_sample_blockers() -> None:
+    estimated = _observation(
+        "2026-01-31",
+        "10",
+        state=SpreadObservationState.ESTIMATED,
+    )
+    late = _observation(
+        "2026-02-28",
+        "20",
+        available_at=datetime(2026, 3, 10, tzinfo=UTC),
+    )
+    outside = _observation("2025-12-31", "5")
+    result = evaluate_spread_percentile(
+        _evidence((outside, estimated, late)),
+        policy=_policy(),
+        calendar=_calendar(),
+        evaluated_at=_EVALUATED_AT,
+        expected_input_hash="0" * 64,
+    )
+    codes = _codes(result)
+    assert {
+        SpreadBlockerCode.INPUT_HASH_MISMATCH,
+        SpreadBlockerCode.PERIOD_OUTSIDE_CALENDAR,
+        SpreadBlockerCode.ESTIMATED_NOT_ALLOWED,
+        SpreadBlockerCode.RELEASE_LAG_EXCEEDED,
+        SpreadBlockerCode.MINIMUM_SAMPLE_NOT_MET,
+        SpreadBlockerCode.COVERAGE_INSUFFICIENT,
+    } <= codes
