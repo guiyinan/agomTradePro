@@ -5,7 +5,7 @@ Equity 模块集成测试（通用资产分析框架）
 """
 
 from dataclasses import replace
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -24,27 +24,21 @@ from apps.equity.domain.entities import (
     StockInfo,
     ValuationMetrics,
 )
-from apps.equity.infrastructure.models import StockInfoModel
 from apps.equity.infrastructure.repositories import DjangoEquityAssetRepository
+from tests.integration.support.canonical_publications import publish_canonical_rows
 
 
 @pytest.fixture
 def sample_stock_data(db):
     """创建测试股票数据"""
-    stock = StockInfoModel.objects.create(
-        stock_code="000001",
-        name="平安银行",
-        sector="银行",
-        market="SZ",
-        list_date=date(1991, 4, 3),
-        is_active=True,
-    )
-    _seed_canonical_stock(
+    stock, valuations, financials, prices = _seed_canonical_stock(
         code="000001.SZ",
         name="平安银行",
         exchange="SZSE",
+        list_date=date(1991, 4, 3),
         pe=8.5,
     )
+    _publish_canonical_stock_facts(valuations, financials, prices)
     return stock
 
 
@@ -53,21 +47,29 @@ def _seed_canonical_stock(
     code: str,
     name: str,
     exchange: str,
+    list_date: date,
     pe: float,
-) -> None:
+) -> tuple[
+    AssetMasterModel,
+    list[ValuationFactModel],
+    list[FinancialFactModel],
+    list[PriceBarModel],
+]:
     """Create one canonical asset and its D4/D5/D1 facts for integration tests."""
 
     period_end = date.today() - timedelta(days=30)
-    AssetMasterModel.objects.create(
+    asset = AssetMasterModel.objects.create(
         code=code,
         name=name,
         short_name=name,
         asset_type="stock",
         exchange=exchange,
         is_active=True,
+        list_date=list_date,
         sector="银行",
     )
-    ValuationFactModel.objects.create(
+    observed_at = datetime.now(UTC)
+    valuation = ValuationFactModel.objects.create(
         asset_code=code,
         val_date=date.today(),
         pe_ttm=pe,
@@ -77,7 +79,9 @@ def _seed_canonical_stock(
         float_market_cap=Decimal("150000000000"),
         dv_ratio=Decimal("5.5"),
         source="dc-test",
+        available_at=observed_at,
     )
+    financials: list[FinancialFactModel] = []
     for metric_code, value, unit in (
         ("revenue", Decimal("100000000000"), "元"),
         ("net_profit", Decimal("50000000000"), "元"),
@@ -90,17 +94,20 @@ def _seed_canonical_stock(
         ("roa", Decimal("1.5"), "%"),
         ("debt_ratio", Decimal("90.0"), "%"),
     ):
-        FinancialFactModel.objects.create(
-            asset_code=code,
-            period_end=period_end,
-            period_type="annual",
-            metric_code=metric_code,
-            value=value,
-            unit=unit,
-            source="dc-test",
-            report_date=period_end,
+        financials.append(
+            FinancialFactModel.objects.create(
+                asset_code=code,
+                period_end=period_end,
+                period_type="annual",
+                metric_code=metric_code,
+                value=value,
+                unit=unit,
+                source="dc-test",
+                report_date=period_end,
+                available_at=observed_at,
+            )
         )
-    PriceBarModel.objects.create(
+    price = PriceBarModel.objects.create(
         asset_code=code,
         bar_date=date.today(),
         freq="1d",
@@ -113,31 +120,58 @@ def _seed_canonical_stock(
         amount=Decimal("12300000"),
         source="dc-test",
     )
+    return asset, [valuation], financials, [price]
+
+
+def _publish_canonical_stock_facts(
+    valuations: list[ValuationFactModel],
+    financials: list[FinancialFactModel],
+    prices: list[PriceBarModel],
+) -> None:
+    """Expose exact D5/D4/D1 rows through their canonical current gates."""
+
+    publish_canonical_rows(
+        dataset_key="equity.valuation.fact",
+        publication_key="current",
+        fact_table="data_center_valuation_fact",
+        rows=valuations,
+    )
+    publish_canonical_rows(
+        dataset_key="equity.financial.fact",
+        publication_key="current",
+        fact_table="data_center_financial_fact",
+        rows=financials,
+    )
+    publish_canonical_rows(
+        dataset_key="equity.price.bar",
+        publication_key="current",
+        fact_table="data_center_price_bar",
+        rows=prices,
+    )
 
 
 @pytest.fixture
 def sample_stocks_data(db):
     """创建多个测试股票"""
-    stock1 = StockInfoModel.objects.create(
-        stock_code="000001",
+    stock1, valuations1, financials1, prices1 = _seed_canonical_stock(
+        code="000001.SZ",
         name="平安银行",
-        sector="银行",
-        market="SZ",
+        exchange="SZSE",
         list_date=date(1991, 4, 3),
-        is_active=True,
+        pe=8.5,
     )
-
-    stock2 = StockInfoModel.objects.create(
-        stock_code="600000",
+    stock2, valuations2, financials2, prices2 = _seed_canonical_stock(
+        code="600000.SH",
         name="浦发银行",
-        sector="银行",
-        market="SH",
+        exchange="SSE",
         list_date=date(1999, 11, 10),
-        is_active=True,
+        pe=9.0,
     )
-
-    _seed_canonical_stock(code="000001.SZ", name="平安银行", exchange="SZSE", pe=8.5)
-    _seed_canonical_stock(code="600000.SH", name="浦发银行", exchange="SSE", pe=9.0)
+    _publish_canonical_stock_facts(
+        valuations1 + valuations2,
+        financials1 + financials2,
+        prices1 + prices2,
+    )
 
     return [stock1, stock2]
 

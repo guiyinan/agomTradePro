@@ -4,7 +4,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from apps.equity.infrastructure.models import StockInfoModel
+from apps.data_center.infrastructure.models import AssetMasterModel
 from apps.factor.infrastructure.models import (
     FactorPortfolioConfigModel,
     FactorPortfolioHoldingModel,
@@ -110,11 +110,13 @@ def test_factor_calculate_page_fills_missing_stock_name_from_equity_master_data(
     client = Client()
     client.force_login(user)
 
-    StockInfoModel._default_manager.create(
-        stock_code="000888.SZ",
+    AssetMasterModel._default_manager.create(
+        code="000888.SZ",
         name="真实股票名",
+        short_name="真实股票名",
+        asset_type="stock",
+        exchange="SZSE",
         sector="真实行业",
-        market="SZ",
         list_date=date(2020, 1, 1),
         is_active=True,
     )

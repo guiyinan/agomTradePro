@@ -5,6 +5,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 
+from apps.data_center.infrastructure.catalog_models import DatasetPublicationPolicyModel
 from apps.data_center.infrastructure.models import (
     FinancialFactModel,
     FundNavFactModel,
@@ -14,6 +15,22 @@ from apps.data_center.infrastructure.models import (
     RawAuditModel,
     ValuationFactModel,
 )
+
+
+def _seed_publication_policy(dataset_key: str, required_evidence: list[str]) -> None:
+    """Register the real publication gate used by sync endpoints."""
+
+    DatasetPublicationPolicyModel.objects.create(
+        dataset_key=dataset_key,
+        contract_version="integration-test",
+        schema_version="1.0",
+        minimum_coverage_ratio=1.0,
+        allow_partial=False,
+        conflict_action="block",
+        required_evidence=required_evidence,
+        retention_days=30,
+        active=True,
+    )
 
 
 @pytest.fixture
@@ -105,6 +122,8 @@ class _StubProvider:
                 value=51.2,
                 unit="指数",
                 source="stub-provider",
+                revision_number=1,
+                published_at=date(2025, 3, 2),
             )
         ]
 
@@ -147,6 +166,9 @@ class _StubRegistry:
 
 @pytest.mark.django_db
 def test_sync_macro_endpoint_persists_fact_and_raw_audit(admin_client, mocker):
+    _seed_publication_policy(
+        "macro.fact", ["source", "observed_at", "published_at", "payload_hash"]
+    )
     provider = ProviderConfigModel.objects.create(
         name="stub-provider",
         source_type="tushare",
@@ -179,6 +201,9 @@ def test_sync_macro_endpoint_persists_fact_and_raw_audit(admin_client, mocker):
 
 @pytest.mark.django_db
 def test_sync_quotes_endpoint_persists_snapshot_and_raw_audit(admin_client, mocker):
+    _seed_publication_policy(
+        "equity.quote.snapshot", ["source", "observed_at", "fetched_at", "payload_hash"]
+    )
     provider = ProviderConfigModel.objects.create(
         name="stub-provider",
         source_type="tushare",
@@ -203,6 +228,7 @@ def test_sync_quotes_endpoint_persists_snapshot_and_raw_audit(admin_client, mock
 
 @pytest.mark.django_db
 def test_sync_fund_nav_endpoint_persists_fact_and_raw_audit(admin_client, mocker):
+    _seed_publication_policy("fund.nav", ["source", "observed_at", "payload_hash"])
     provider = ProviderConfigModel.objects.create(
         name="stub-provider",
         source_type="tushare",

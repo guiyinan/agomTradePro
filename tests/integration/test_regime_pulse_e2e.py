@@ -18,6 +18,8 @@ from apps.regime.domain.entities import (
     WatchIndicator,
 )
 
+pytestmark = pytest.mark.usefixtures("active_decision_runtime")
+
 
 def _response_text(response) -> str:
     return response.content.decode("utf-8")
@@ -179,7 +181,7 @@ def test_regime_pulse_phase1_endpoints_and_dashboard_partials(monkeypatch):
         "信号待跟进",
         "attention-card__count",
         "attention-item__title",
-        "hx-get=\"/api/dashboard/attention-items/\"",
+        'hx-get="/api/dashboard/attention-items/"',
     )
 
     status_html = html_client.get("/api/dashboard/regime-status/", HTTP_HX_REQUEST="true")
@@ -192,7 +194,7 @@ def test_regime_pulse_phase1_endpoints_and_dashboard_partials(monkeypatch):
         "脉搏:",
         "风险预算",
         "转折预警",
-        "hx-get=\"/api/dashboard/regime-status/\"",
+        'hx-get="/api/dashboard/regime-status/"',
     )
     assert "加载中..." not in status_content
 

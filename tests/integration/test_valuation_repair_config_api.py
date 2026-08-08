@@ -11,6 +11,8 @@ from apps.equity.application.use_cases_valuation_repair import (
 from apps.equity.domain.entities_valuation_repair import ValuationRepairConfig
 from apps.equity.infrastructure.models import ValuationRepairConfigModel
 
+pytestmark = pytest.mark.usefixtures("active_decision_runtime")
+
 
 @pytest.fixture
 def staff_client(db):

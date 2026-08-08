@@ -18,6 +18,7 @@ from django.test import Client, TestCase
 
 from apps.account.infrastructure.models import AccountProfileModel
 from apps.asset_analysis.infrastructure.models import AssetPoolEntry, AssetScoreCache
+from apps.data_center.infrastructure.models import MacroFactModel
 from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 from apps.regime.infrastructure.models import RegimeLog
@@ -31,6 +32,7 @@ from apps.strategy.infrastructure.models import (
     StrategyExecutionLogModel,
     StrategyModel,
 )
+from tests.integration.support.canonical_publications import publish_canonical_rows
 from tests.integration.support.macro_rules import seed_indicator_rule
 
 
@@ -72,6 +74,7 @@ class TestStrategyExecuteFlow(TestCase):
 
     def _setup_test_data(self):
         """设置测试数据（宏观、Regime、资产评分）"""
+        observation_date = date.today()
         # 创建宏观数据
         seed_indicator_rule(
             code="CN_PMI_MANUFACTURING",
@@ -85,15 +88,27 @@ class TestStrategyExecuteFlow(TestCase):
                 value=50.8,
                 unit="指数",
                 original_unit="指数",
-                reporting_period=date(2024, 1, 31),
+                reporting_period=observation_date,
                 period_type=PeriodType.MONTH,
+                published_at=observation_date,
                 source="test",
             )
+        )
+        macro_fact = MacroFactModel._default_manager.get(
+            indicator_code="CN_PMI_MANUFACTURING",
+            reporting_period=observation_date,
+            source="test",
+        )
+        publish_canonical_rows(
+            dataset_key="macro.fact",
+            publication_key="CN_PMI_MANUFACTURING",
+            fact_table="data_center_macro_fact",
+            rows=[macro_fact],
         )
 
         # 创建 Regime 状态
         RegimeLog.objects.create(
-            observed_at="2024-01-31",
+            observed_at=observation_date,
             dominant_regime="Overheat",
             confidence=0.85,
             growth_momentum_z=1.5,

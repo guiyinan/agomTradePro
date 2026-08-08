@@ -11,12 +11,40 @@ from datetime import date, timedelta
 
 import pytest
 
+from apps.data_center.infrastructure.models import MacroFactModel
 from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 from apps.regime.application.use_cases import CalculateRegimeRequest, CalculateRegimeUseCase
 from apps.regime.domain.entities import RegimeSnapshot
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from shared.infrastructure.alert_service import AlertLevel, ConsoleAlertChannel
+from tests.integration.support.canonical_publications import publish_canonical_rows
+from tests.integration.support.macro_rules import seed_indicator_rule
+
+
+@pytest.fixture(autouse=True)
+def _seed_regime_macro_contracts(db: object) -> None:
+    """Select the explicit test source and canonical units for regime inputs."""
+
+    seed_indicator_rule(code="CN_PMI", original_unit="指数")
+    seed_indicator_rule(code="CN_CPI_NATIONAL_YOY", original_unit="%")
+
+
+def _publish_regime_macro_rows() -> None:
+    """Publish the exact macro rows consumed by the decision-facing workflow."""
+
+    for indicator_code in ("CN_PMI", "CN_CPI_NATIONAL_YOY"):
+        rows = list(
+            MacroFactModel.objects.filter(indicator_code=indicator_code).order_by(
+                "reporting_period", "revision_number", "id"
+            )
+        )
+        publish_canonical_rows(
+            dataset_key="macro.fact",
+            publication_key=indicator_code,
+            fact_table="data_center_macro_fact",
+            rows=rows,
+        )
 
 
 @pytest.mark.django_db
@@ -73,6 +101,8 @@ class TestRegimeCalculationWorkflow:
                     source="test",
                 )
             )
+
+        _publish_regime_macro_rows()
 
         # 2. 执行 Regime 计算
         regime_repo = DjangoRegimeRepository()
@@ -175,6 +205,8 @@ class TestRegimeCalculationWorkflow:
                     source="test",
                 )
             )
+
+        _publish_regime_macro_rows()
 
         # 2. 计算 Regime
         use_case = CalculateRegimeUseCase(repository=macro_repo, regime_repository=regime_repo)
@@ -284,6 +316,8 @@ class TestRegimeCalculationWorkflow:
                     source="test",
                 )
             )
+
+        _publish_regime_macro_rows()
 
         # 4. 计算新 Regime
         use_case = CalculateRegimeUseCase(repository=macro_repo, regime_repository=regime_repo)
@@ -460,6 +494,8 @@ class TestRegimeCalculationWorkflow:
                 )
             )
 
+        _publish_regime_macro_rows()
+
         # 使用 PIT 模式计算
         # 设置 as_of_date 为倒数第二个月份的发布日期之前
         # 此时最后一个月份的数据应该不可见
@@ -523,6 +559,8 @@ class TestRegimeCalculationWorkflow:
                     source="test",
                 )
             )
+
+        _publish_regime_macro_rows()
 
         # 批量计算（最后 12 个月）
         use_case = CalculateRegimeUseCase(repository=macro_repo, regime_repository=regime_repo)
