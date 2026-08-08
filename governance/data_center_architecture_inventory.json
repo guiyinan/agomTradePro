@@ -177,17 +177,17 @@
     },
     {
       "import": "apps.alpha_trigger.infrastructure.models",
-      "line": 7,
+      "line": 8,
       "path": "apps/dashboard/tests/test_alpha_queries.py"
     },
     {
-      "import": "apps.equity.infrastructure.models",
-      "line": 15,
+      "import": "apps.data_center.infrastructure.models",
+      "line": 16,
       "path": "apps/dashboard/tests/test_alpha_queries.py"
     },
     {
       "import": "apps.rotation.infrastructure.models",
-      "line": 16,
+      "line": 17,
       "path": "apps/dashboard/tests/test_alpha_queries.py"
     },
     {
