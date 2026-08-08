@@ -390,6 +390,13 @@ def test_quarantine_coverage_and_publication_reject_invalid_state() -> None:
     ):
         with pytest.raises(ValueError):
             replace(quarantine, **overrides)
+    resolved_quarantine = replace(
+        quarantine,
+        resolution=QuarantineResolution.ACCEPTED,
+        resolved_at=NOW + timedelta(seconds=1),
+        resolved_by="reviewer",
+    )
+    assert resolved_quarantine.resolved_at > resolved_quarantine.quarantined_at
 
     coverage = CoverageSnapshot("coverage-1", "publication-1", 2, 2, 1, generated_at=NOW)
     assert coverage.coverage_ratio == 0.5
