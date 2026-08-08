@@ -27,17 +27,17 @@
       "sdk": 46,
       "system_settings_compatibility": 10,
       "terminal_tui": 28,
-      "test_evidence": 30,
+      "test_evidence": 31,
       "workflow_step": 9
     },
     "by_status": {
-      "active_public": 628,
+      "active_public": 629,
       "adjacent_operational": 319,
       "candidate-review": 0,
       "compatibility": 173,
       "retired_blocked": 0
     },
-    "total": 1120
+    "total": 1121
   },
   "entries": [
     {
@@ -10958,6 +10958,16 @@
       "path": "tests/unit/config_center/test_runtime_config_control_plane.py",
       "status": "active_public",
       "symbol": "test_runtime_config_control_plane",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/config_center/test_runtime_config_domain_contracts.py:test_runtime_config_domain_contracts:",
+      "locator": "",
+      "path": "tests/unit/config_center/test_runtime_config_domain_contracts.py",
+      "status": "active_public",
+      "symbol": "test_runtime_config_domain_contracts",
       "target": ""
     },
     {

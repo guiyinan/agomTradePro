@@ -124,6 +124,7 @@
         "tests/unit/data_center/test_retention_plan_domain.py",
         "tests/unit/data_center/test_retention_tasks.py",
         "tests/unit/config_center/test_capacity_observations.py",
+        "tests/unit/config_center/test_runtime_config_domain_contracts.py",
         "tests/unit/config_center/test_runtime_config_control_plane.py",
         "tests/unit/core/test_cross_app_read_ports.py",
         "tests/unit/task_monitor/test_backup_command_contracts.py",
