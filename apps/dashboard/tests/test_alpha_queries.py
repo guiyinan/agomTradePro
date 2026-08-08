@@ -2,6 +2,7 @@ from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pytest
+from django.core.cache import cache
 
 from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult
 from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
@@ -12,7 +13,7 @@ from apps.dashboard.application.queries import (
     DecisionPlaneQuery,
 )
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
-from apps.equity.infrastructure.models import StockInfoModel
+from apps.data_center.infrastructure.models import AssetMasterModel
 from apps.rotation.infrastructure.models import AssetClassModel
 from apps.task_monitor.application.repository_provider import get_task_record_repository
 from apps.task_monitor.domain.entities import TaskStatus
@@ -1612,14 +1613,17 @@ def test_dashboard_ai_insights_default_to_local_rules(monkeypatch):
 
 
 @pytest.mark.django_db
-def test_resolve_security_names_matches_stock_info_without_exchange_suffix():
-    StockInfoModel.objects.create(
-        stock_code="000001",
+def test_resolve_security_names_matches_canonical_asset_without_exchange_suffix():
+    AssetMasterModel.objects.create(
+        code="000001.SZ",
         name="平安银行",
+        short_name="平安银行",
+        asset_type="stock",
+        exchange="SZSE",
         sector="银行",
-        market="SZ",
         list_date=date(1991, 4, 3),
     )
+    cache.clear()
 
     query = AlphaVisualizationQuery()
 
@@ -1731,20 +1735,25 @@ def test_decision_plane_query_does_not_invent_quota_when_snapshot_is_invalid(mon
 
 @pytest.mark.django_db
 def test_decision_plane_query_skips_manual_override_candidates():
-    StockInfoModel.objects.create(
-        stock_code="000001.SZ",
+    AssetMasterModel.objects.create(
+        code="000001.SZ",
         name="平安银行",
+        short_name="平安银行",
+        asset_type="stock",
+        exchange="SZSE",
         sector="银行",
-        market="SZ",
         list_date=date(1991, 4, 3),
     )
-    StockInfoModel.objects.create(
-        stock_code="600519.SH",
+    AssetMasterModel.objects.create(
+        code="600519.SH",
         name="贵州茅台",
+        short_name="贵州茅台",
+        asset_type="stock",
+        exchange="SSE",
         sector="食品饮料",
-        market="SH",
         list_date=date(2001, 8, 27),
     )
+    cache.clear()
 
     AlphaTriggerModel.objects.create(
         trigger_id="trigger-auto-1",
