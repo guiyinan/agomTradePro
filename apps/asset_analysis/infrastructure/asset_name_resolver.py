@@ -14,7 +14,6 @@ from typing import Any, TypedDict
 
 from django.core.cache import cache
 
-from apps.data_center.application.public import get_asset_repository_port
 from core.integration.asset_analysis_market_registry import (
     get_asset_analysis_market_registry,
 )
@@ -153,22 +152,19 @@ class AssetNameResolver:
         return result.get(normalized_code, normalized_code)
 
     def resolve_canonical_asset_names(self, codes: list[str]) -> dict[str, str]:
-        """Resolve names strictly from the canonical Data Center asset master."""
+        """Resolve names through the registry's canonical, no-hydration provider."""
 
         requested_codes = _normalize_codes(list(codes))
         if not requested_codes:
             return {}
-
-        repository = get_asset_repository_port()
-        resolved: dict[str, str] = {}
-        for requested_code in requested_codes:
-            asset = repository.get_by_code(requested_code)
-            if asset is None or not asset.is_active:
-                continue
-            name = str(asset.short_name or asset.name or "").strip()
-            if name and len(name) <= 512:
-                resolved[requested_code] = name
-        return resolved
+        try:
+            return _resolve_names("canonical_asset", set(requested_codes))
+        except Exception as exc:
+            logger.warning(
+                "Failed to resolve canonical asset names: %s",
+                type(exc).__name__,
+            )
+            return {}
 
     def _resolve_stocks(self, codes: set[str]) -> dict[str, str]:
         """Resolve names from stock master data."""

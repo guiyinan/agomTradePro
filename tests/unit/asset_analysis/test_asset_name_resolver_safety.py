@@ -12,15 +12,18 @@ from apps.asset_analysis.infrastructure.asset_name_resolver import (
     resolve_asset_names,
     resolve_asset_names_read_only,
 )
+from apps.data_center import composition as data_center_composition
 from apps.equity.infrastructure.stock_repository import DjangoStockRepository
 
 
 class _Registry:
-    def __init__(self, resolver: object) -> None:
+    def __init__(self, resolver: object, *, expected_source: str | None = None) -> None:
         self._resolver = resolver
+        self._expected_source = expected_source
 
     def get_name_resolver(self, source_name: str) -> object:
-        del source_name
+        if self._expected_source is not None:
+            assert source_name == self._expected_source
         return self._resolver
 
 
@@ -106,13 +109,14 @@ def test_populated_cache_records_exact_normalized_scope() -> None:
 
 
 def test_read_only_miss_is_canonical_only_without_cache_or_backfill() -> None:
-    canonical_repository = _AssetRepository()
-
     with (
         patch.object(
             asset_name_resolver,
-            "get_asset_repository_port",
-            return_value=canonical_repository,
+            "get_asset_analysis_market_registry",
+            return_value=_Registry(
+                lambda codes: {},
+                expected_source="canonical_asset",
+            ),
         ),
         patch.object(asset_name_resolver.cache, "get") as cache_get,
         patch(
@@ -127,24 +131,48 @@ def test_read_only_miss_is_canonical_only_without_cache_or_backfill() -> None:
 
 
 def test_read_only_canonical_hit_returns_asset_master_name() -> None:
+    with patch.object(
+        asset_name_resolver,
+        "get_asset_analysis_market_registry",
+        return_value=_Registry(
+            lambda codes: {"000001.SZ": "平安银行"},
+            expected_source="canonical_asset",
+        ),
+    ):
+        result = resolve_asset_names_read_only(["000001.SZ"])
+
+    assert result == {"000001.SZ": "平安银行"}
+
+
+def test_data_center_canonical_resolver_reads_all_asset_types_without_hydration() -> None:
     canonical_repository = _AssetRepository(
         {
             "000001.SZ": SimpleNamespace(
                 is_active=True,
                 short_name="平安银行",
                 name="平安银行股份有限公司",
-            )
+            ),
+            "510300.SH": SimpleNamespace(
+                is_active=True,
+                short_name="沪深300ETF",
+                name="华泰柏瑞沪深300ETF",
+            ),
         }
     )
 
     with patch.object(
-        asset_name_resolver,
-        "get_asset_repository_port",
+        data_center_composition,
+        "get_asset_repository",
         return_value=canonical_repository,
     ):
-        result = resolve_asset_names_read_only(["000001.SZ"])
+        result = data_center_composition.resolve_canonical_asset_names(
+            ["000001.SZ", "510300.SH", "MISSING.OF"]
+        )
 
-    assert result == {"000001.SZ": "平安银行"}
+    assert result == {
+        "000001.SZ": "平安银行",
+        "510300.SH": "沪深300ETF",
+    }
 
 
 def test_normal_equity_resolver_retains_explicit_backfill_on_miss() -> None:

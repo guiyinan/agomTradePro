@@ -255,6 +255,24 @@ def get_asset_repository() -> AssetRepository:
     return AssetRepository()
 
 
+def resolve_canonical_asset_names(codes: list[str]) -> dict[str, str]:
+    """Resolve display names from canonical AssetMaster rows without hydration."""
+
+    repository = get_asset_repository()
+    resolved: dict[str, str] = {}
+    for raw_code in codes:
+        code = str(raw_code or "").strip().upper()
+        if not code or code in resolved:
+            continue
+        asset = repository.get_by_code(code)
+        if asset is None or not asset.is_active:
+            continue
+        name = str(asset.short_name or asset.name or "").strip()
+        if name:
+            resolved[code] = name
+    return resolved
+
+
 def get_capital_flow_repository() -> CapitalFlowRepository:
     return CapitalFlowRepository()
 

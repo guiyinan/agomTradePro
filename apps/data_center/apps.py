@@ -18,15 +18,23 @@ class DataCenterConfig(AppConfig):
             ResearchDataFoundationFacade,
             configure_research_data_foundation_facade,
         )
+        from apps.data_center.composition import resolve_canonical_asset_names
         from apps.data_center.infrastructure.config_summary_repository import (
             DjangoDataCenterConfigSummaryRepository,
         )
         from apps.data_center.infrastructure.research_data_foundation_repository import (
             ResearchDataFoundationRepository,
         )
+        from core.integration.asset_analysis_market_registry import (
+            get_asset_analysis_market_registry,
+        )
         from core.integration.data_center_readiness import configure_data_center_read_port
 
         configure_data_center_read_port(build_data_center_read_facade())
+        get_asset_analysis_market_registry().register_name_resolver(
+            "canonical_asset",
+            resolve_canonical_asset_names,
+        )
 
         configure_data_center_config_summary_repository(DjangoDataCenterConfigSummaryRepository())
         configure_research_data_foundation_facade(
