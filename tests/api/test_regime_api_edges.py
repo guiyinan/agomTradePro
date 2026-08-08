@@ -441,7 +441,12 @@ def test_regime_calculate_is_strict_persisted_only_pure_compute(authenticated_cl
 
 
 @pytest.mark.django_db
-def test_regime_current_exposes_latest_macro_values_and_directions(authenticated_client):
+def test_regime_current_exposes_latest_macro_values_and_directions(
+    authenticated_client,
+    monkeypatch,
+):
+    import apps.regime.infrastructure.macro_data_provider as macro_data_provider
+
     as_of_date = date.today()
     for code, name, unit in (
         ("CN_PMI", "采购经理指数", "指数"),
@@ -473,6 +478,20 @@ def test_regime_current_exposes_latest_macro_values_and_directions(authenticated
             source="akshare",
             published_at=reporting_period,
         )
+
+    def approved_publication(indicator_code, **kwargs):
+        kwargs.pop("publication_key", None)
+        return {
+            "rows": macro_data_provider.get_macro_fact_series(indicator_code, **kwargs),
+            "must_not_use_for_decision": False,
+            "blocked_reason": "",
+        }
+
+    monkeypatch.setattr(
+        macro_data_provider,
+        "get_published_macro_fact_series",
+        approved_publication,
+    )
 
     response = authenticated_client.get("/api/regime/current/")
 

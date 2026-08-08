@@ -153,7 +153,7 @@ def test_factor_top_stocks_is_pure_compute_without_price_cache_writes(
 ):
     from datetime import date
 
-    from apps.equity.infrastructure.models import StockInfoModel
+    from apps.data_center.infrastructure.models import AssetMasterModel
     from apps.factor.infrastructure.models import (
         FactorDefinitionModel,
         FactorExposureModel,
@@ -176,11 +176,13 @@ def test_factor_top_stocks_is_pure_compute_without_price_cache_writes(
         ("600000.SH", "浦发银行"),
         ("000001.SZ", "平安银行"),
     ):
-        StockInfoModel._default_manager.create(
-            stock_code=stock_code,
+        AssetMasterModel._default_manager.create(
+            code=stock_code,
             name=name,
+            short_name=name,
+            asset_type="stock",
+            exchange="SSE" if stock_code.endswith(".SH") else "SZSE",
             sector="银行",
-            market="SH" if stock_code.endswith(".SH") else "SZ",
             list_date=date(2000, 1, 1),
             is_active=True,
         )
@@ -207,7 +209,7 @@ def test_factor_top_stocks_is_pure_compute_without_price_cache_writes(
         FactorExposureModel,
         FactorPortfolioConfigModel,
         FactorPortfolioHoldingModel,
-        StockInfoModel,
+        AssetMasterModel,
     )
     before_counts = {
         model._meta.label_lower: model._default_manager.count() for model in tracked_models
@@ -294,7 +296,7 @@ def test_factor_explain_stock_is_pure_compute_without_price_cache_writes(
 ):
     from datetime import date
 
-    from apps.equity.infrastructure.models import StockInfoModel
+    from apps.data_center.infrastructure.models import AssetMasterModel
     from apps.factor.infrastructure.models import (
         FactorDefinitionModel,
         FactorExposureModel,
@@ -313,11 +315,13 @@ def test_factor_explain_stock_is_pure_compute_without_price_cache_writes(
         direction="positive",
         is_active=True,
     )
-    StockInfoModel._default_manager.create(
-        stock_code="600000.SH",
+    AssetMasterModel._default_manager.create(
+        code="600000.SH",
         name="浦发银行",
+        short_name="浦发银行",
+        asset_type="stock",
+        exchange="SSE",
         sector="银行",
-        market="SH",
         list_date=date(2000, 1, 1),
         is_active=True,
     )
@@ -342,7 +346,7 @@ def test_factor_explain_stock_is_pure_compute_without_price_cache_writes(
         FactorExposureModel,
         FactorPortfolioConfigModel,
         FactorPortfolioHoldingModel,
-        StockInfoModel,
+        AssetMasterModel,
     )
     before_counts = {
         model._meta.label_lower: model._default_manager.count() for model in tracked_models
