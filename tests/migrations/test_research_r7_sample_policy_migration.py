@@ -13,15 +13,15 @@ from django.db.migrations.executor import MigrationExecutor
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGACY_MIGRATION_HASHES = {
-    "0001_initial.py": "DB08A538BFB775DC9426BE92DC45B6493E1EA4977EAEF630CB7DBCFE69A3BF7E",
+    "0001_initial.py": "2A72A176E015B98F915DF2D9FEDEACF131DBC435E306AC1DE7D035AC8CCAD617",
     "0002_scenario_review_reminder_ledger.py": (
-        "8935AC8B606212A6633A59B017664ECBC9AF7C041AB8D56A7E5C689BE7A96F11"
+        "2E99BF9F17901ACB31873935C81E039A32DA34493929939FF4CBC89AFFB6E70D"
     ),
     "0003_r1_forecast_promotion_ledgers.py": (
-        "B3959F3FA477F930E5AD7D5B27DEBD3198F22F5D585AEFE12BE3DD4F6BC2BAED"
+        "8855F9DE31EE930967EDBECC1F46B924D78EA46297C57F6D1294CCC46F8357A7"
     ),
     "0004_r4_promotion_ledgers.py": (
-        "3342DC2F8A56CD51D5C51013BB07F98B5D70352792B7D596896BA2C4C5C49EB3"
+        "B99038B51404025E3D798A5DCDBC7C566D3AE12B039241470B45F63FF3155516"
     ),
 }
 R7_TABLES = {
@@ -34,11 +34,16 @@ def _rows(model: Any) -> list[dict[str, object]]:
     return list(model.objects.order_by(model._meta.pk.name).values())
 
 
+def _canonical_migration_digest(path: Path) -> str:
+    """Hash repository text independently of checkout line-ending policy."""
+
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest().upper()
+
+
 def test_legacy_research_migration_bytes_are_unchanged() -> None:
     migration_root = REPO_ROOT / "apps" / "research" / "migrations"
     for file_name, expected in LEGACY_MIGRATION_HASHES.items():
-        digest = hashlib.sha256((migration_root / file_name).read_bytes()).hexdigest().upper()
-        assert digest == expected
+        assert _canonical_migration_digest(migration_root / file_name) == expected
 
 
 def test_0005_is_schema_only_and_depends_only_on_research_0004() -> None:

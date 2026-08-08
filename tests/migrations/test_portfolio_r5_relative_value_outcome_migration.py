@@ -15,12 +15,12 @@ from django.db.migrations.executor import MigrationExecutor
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _HISTORICAL_MIGRATION_HASHES = {
-    "0001_transfer_transition_plan_state.py": "9b50edf3ef393fbb9a0015e0dd030af86d3e2da2a1d900c3f47ab1f4863feb2f",
-    "0002_transition_plan_evidence.py": "2ce6312bbb0124453709c7bac08681d797f2052dc14f33e989b4423736102ca0",
-    "0003_transfer_order_intent_state.py": "5d79e790827963817714586fe7fb1b071b473ebc6eb8f90c0a6ffa5162a27e48",
-    "0004_portfolio_planning_policy.py": "f3f5c10ae67ca271fbba7edbffe3e23e3eb2f5069672dcd05e1ff45463cc3923",
+    "0001_transfer_transition_plan_state.py": "43d966c6baa44d5a208e855937842c2600649d1f98bc129245c2be6fc412482f",
+    "0002_transition_plan_evidence.py": "ae6074bab9e58f8bb897599ea5a5181793715c0cae879684ce684b7f6c18ffb2",
+    "0003_transfer_order_intent_state.py": "8d42166ff63f8a82a03c0f4046b9dc06dc21af7441227a5e69590ebde2cd2e24",
+    "0004_portfolio_planning_policy.py": "08c0cacce2c470fd5fe1626ae9aa62f6e4e5b31c2ecee852aa7c310ea68e791c",
     "0005_canonical_portfolio_snapshot_and_feedback.py": "9fa28a8aabdda971e39b8982ca371499da412b297a9db292e46bcf3477e86f7b",
-    "0006_governed_optimization_research_ledger.py": "de49cf6ff30b195005ab1e8c76177fadb969254499623a2fe12be49063ca0957",
+    "0006_governed_optimization_research_ledger.py": "7149107ea28ada80b5d5cb7f307126001bb68e3f45688e67544c0bf7cb39d775",
     "0007_r4_rolling_research_ledger.py": "7679b54ee8ee231ed5f877afc4856700906cf0f3040fee2516dde4e47111bd4e",
 }
 
@@ -29,10 +29,16 @@ def _rows(model: Any) -> list[dict[str, object]]:
     return list(model.objects.order_by(model._meta.pk.name).values())
 
 
+def _canonical_migration_digest(path: Path) -> str:
+    """Hash repository text independently of checkout line-ending policy."""
+
+    return sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
 def test_0008_is_create_only_and_preserves_historical_migration_bytes() -> None:
     migration_directory = _REPOSITORY_ROOT / "apps" / "portfolio" / "migrations"
     for filename, expected_hash in _HISTORICAL_MIGRATION_HASHES.items():
-        assert sha256((migration_directory / filename).read_bytes()).hexdigest() == expected_hash
+        assert _canonical_migration_digest(migration_directory / filename) == expected_hash
 
     migration = importlib.import_module(
         "apps.portfolio.migrations.0008_r5_relative_value_outcome_ledger"
