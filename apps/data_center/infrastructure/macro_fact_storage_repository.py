@@ -122,6 +122,30 @@ class MacroFactRepository:
             self._from_model(candidate.model) for candidate in reversed(selection.facts[-limit:])
         ]
 
+    def get_by_code_and_date(
+        self,
+        indicator_code: str,
+        observed_at: date,
+        revision_number: int | None = None,
+    ) -> MacroFact | None:
+        """Return one governed fact, preserving an explicitly requested revision."""
+
+        queryset = MacroFactModel.objects.filter(
+            indicator_code=indicator_code,
+            reporting_period=observed_at,
+        )
+        if revision_number is not None:
+            queryset = queryset.filter(revision_number=revision_number)
+        models = list(queryset.order_by("revision_number", "id"))
+        catalog = IndicatorCatalogModel.objects.filter(code=indicator_code).only("extra").first()
+        selection = select_macro_fact_series(
+            [_MacroFactModelCandidate.from_model(model) for model in models],
+            preferred_source=configured_macro_source(catalog.extra if catalog else {}),
+        )
+        if not selection.is_consistent or not selection.facts:
+            return None
+        return self._from_model(selection.facts[-1].model)
+
     def list_by_original_unit(
         self,
         original_unit: str,

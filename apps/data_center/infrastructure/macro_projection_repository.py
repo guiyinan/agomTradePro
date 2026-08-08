@@ -163,13 +163,25 @@ class MacroProjectionRepository:
         selected = [fact for fact in facts if source is None or fact.source == source]
         return sorted(selected, key=lambda fact: (fact.reporting_period, fact.revision_number))
 
+    def get_by_code_and_date(
+        self,
+        code: str,
+        observed_at: date,
+        revision_number: int | None = None,
+    ) -> MacroFact | None:
+        """Read one governed observation without collapsing an explicit revision."""
+
+        return self._facts.get_by_code_and_date(code, observed_at, revision_number)
+
     def get_latest_observation_date(self, code: str, as_of_date: date | None = None) -> date | None:
         """Return latest governed observation date."""
 
         series = self.get_series(code, end_date=as_of_date, use_pit=as_of_date is not None)
         return series[-1].reporting_period if series else None
 
-    def get_latest_observation(self, code: str, before_date: date | None = None) -> MacroFact | None:
+    def get_latest_observation(
+        self, code: str, before_date: date | None = None
+    ) -> MacroFact | None:
         """Return latest governed fact before an optional boundary."""
 
         series = self.get_series(code, end_date=before_date)
@@ -192,9 +204,15 @@ class MacroProjectionRepository:
             queryset = queryset.filter(reporting_period__gte=start_date)
         if end_date:
             queryset = queryset.filter(reporting_period__lte=end_date)
-        return list(queryset.values_list("reporting_period", flat=True).distinct().order_by("reporting_period"))
+        return list(
+            queryset.values_list("reporting_period", flat=True)
+            .distinct()
+            .order_by("reporting_period")
+        )
 
-    def delete_indicator(self, code: str, observed_at: date, revision_number: int | None = None) -> bool:
+    def delete_indicator(
+        self, code: str, observed_at: date, revision_number: int | None = None
+    ) -> bool:
         """Delete facts for one governed natural-key scope."""
 
         queryset = MacroFactModel._default_manager.filter(
@@ -258,7 +276,9 @@ class MacroProjectionRepository:
             "matched_rule_id": rule.get("id"),
             "source_type": source,
             "period_type": period_type,
-            "publication_lag_days": max((published_at - reporting_period).days, 0) if published_at else 0,
+            "publication_lag_days": (
+                max((published_at - reporting_period).days, 0) if published_at else 0
+            ),
         }
         model = MacroFactModel._default_manager.create(
             indicator_code=code,
@@ -286,7 +306,13 @@ class MacroProjectionRepository:
         model = MacroFactModel._default_manager.filter(id=record_id).first()
         if model is None:
             return None
-        for field_name in ("indicator_code", "source", "reporting_period", "published_at", "revision_number"):
+        for field_name in (
+            "indicator_code",
+            "source",
+            "reporting_period",
+            "published_at",
+            "revision_number",
+        ):
             if field_name in updates:
                 setattr(model, field_name, updates[field_name])
         if "value" in updates:
@@ -337,7 +363,9 @@ class MacroProjectionRepository:
             .order_by("-record_count", "source")
         ]
         return {
-            "total_indicators": MacroFactModel._default_manager.values("indicator_code").distinct().count(),
+            "total_indicators": MacroFactModel._default_manager.values("indicator_code")
+            .distinct()
+            .count(),
             "total_records": aggregate["total_records"] or 0,
             "latest_date": aggregate["latest"],
             "sources": sources,
@@ -371,12 +399,22 @@ class MacroProjectionRepository:
             for model in MacroFactModel._default_manager.order_by("-fetched_at")[:limit]
         ]
 
-    def get_indicator_unit_config(self, indicator_code: str, source: str | None = None) -> dict[str, Any] | None:
+    def get_indicator_unit_config(
+        self, indicator_code: str, source: str | None = None
+    ) -> dict[str, Any] | None:
         """Return one active unit rule."""
 
         return _unit_rule(indicator_code, source=source)
 
-    def _rows(self, *, code: str | None = None, code_filter: str = "", source_filter: str = "", start_date: date | None = None, end_date: date | None = None) -> list[dict[str, Any]]:
+    def _rows(
+        self,
+        *,
+        code: str | None = None,
+        code_filter: str = "",
+        source_filter: str = "",
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[dict[str, Any]]:
         queryset = MacroFactModel._default_manager.all()
         if code:
             queryset = queryset.filter(indicator_code=code)
@@ -393,7 +431,11 @@ class MacroProjectionRepository:
     def list_distinct_codes(self) -> list[str]:
         """Return distinct canonical indicator codes."""
 
-        return list(MacroFactModel._default_manager.values_list("indicator_code", flat=True).distinct().order_by("indicator_code"))
+        return list(
+            MacroFactModel._default_manager.values_list("indicator_code", flat=True)
+            .distinct()
+            .order_by("indicator_code")
+        )
 
     def get_storage_summary(self) -> dict[str, Any]:
         """Return canonical macro storage bounds."""
@@ -432,25 +474,64 @@ class MacroProjectionRepository:
             .order_by("-count", "source")
         ]
 
-    def get_indicator_rows(self, *, code: str, start_date: date | None = None, end_date: date | None = None, limit: int | None = None, ascending: bool = True) -> list[dict[str, Any]]:
+    def get_indicator_rows(
+        self,
+        *,
+        code: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        limit: int | None = None,
+        ascending: bool = True,
+    ) -> list[dict[str, Any]]:
         """Return serialized rows for one indicator."""
 
         rows = self._rows(code=code, start_date=start_date, end_date=end_date)
-        rows.sort(key=lambda row: (row["reporting_period"], row["revision_number"]), reverse=not ascending)
+        rows.sort(
+            key=lambda row: (row["reporting_period"], row["revision_number"]), reverse=not ascending
+        )
         return rows[:limit] if limit is not None else rows
 
-    def count_table_rows(self, *, code_filter: str = "", source_filter: str = "", period_type_filter: str = "", start_date: date | None = None, end_date: date | None = None) -> int:
+    def count_table_rows(
+        self,
+        *,
+        code_filter: str = "",
+        source_filter: str = "",
+        period_type_filter: str = "",
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> int:
         """Count rows matching table filters."""
 
-        rows = self._rows(code_filter=code_filter, source_filter=source_filter, start_date=start_date, end_date=end_date)
+        rows = self._rows(
+            code_filter=code_filter,
+            source_filter=source_filter,
+            start_date=start_date,
+            end_date=end_date,
+        )
         if period_type_filter:
             rows = [row for row in rows if row["period_type"] == period_type_filter]
         return len(rows)
 
-    def get_table_rows(self, *, code_filter: str = "", source_filter: str = "", period_type_filter: str = "", start_date: date | None = None, end_date: date | None = None, sort_field: str = "-reporting_period", offset: int = 0, limit: int = 50) -> list[dict[str, Any]]:
+    def get_table_rows(
+        self,
+        *,
+        code_filter: str = "",
+        source_filter: str = "",
+        period_type_filter: str = "",
+        start_date: date | None = None,
+        end_date: date | None = None,
+        sort_field: str = "-reporting_period",
+        offset: int = 0,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
         """Return a bounded filtered table projection."""
 
-        rows = self._rows(code_filter=code_filter, source_filter=source_filter, start_date=start_date, end_date=end_date)
+        rows = self._rows(
+            code_filter=code_filter,
+            source_filter=source_filter,
+            start_date=start_date,
+            end_date=end_date,
+        )
         if period_type_filter:
             rows = [row for row in rows if row["period_type"] == period_type_filter]
         reverse = sort_field.startswith("-")
@@ -477,12 +558,19 @@ class MacroProjectionRepository:
             "min_value": float(stats["min_value"]) if stats["min_value"] is not None else None,
         }
 
-    def get_indicator_history(self, code: str, *, start_date: date, end_date: date, limit: int) -> list[dict[str, Any]]:
+    def get_indicator_history(
+        self, code: str, *, start_date: date, end_date: date, limit: int
+    ) -> list[dict[str, Any]]:
         """Return compact history records for one indicator."""
 
-        rows = self.get_indicator_rows(code=code, start_date=start_date, end_date=end_date, limit=limit, ascending=False)
+        rows = self.get_indicator_rows(
+            code=code, start_date=start_date, end_date=end_date, limit=limit, ascending=False
+        )
         return [
-            {key: row[key] for key in ("value", "unit", "original_unit", "reporting_period", "period_type")}
+            {
+                key: row[key]
+                for key in ("value", "unit", "original_unit", "reporting_period", "period_type")
+            }
             for row in rows
         ]
 

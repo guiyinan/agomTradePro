@@ -6693,7 +6693,7 @@
       "text": "\"summary\": {"
     },
     {
-      "line": 144,
+      "line": 168,
       "path": "apps/data_center/infrastructure/macro_fact_storage_repository.py",
       "text": "\"\"\"Return the selected fact for the latest reporting period.\"\"\""
     },
@@ -6713,52 +6713,52 @@
       "text": "\"\"\"Persist a validated canonical batch and return latest rows.\"\"\""
     },
     {
-      "line": 167,
+      "line": 177,
       "path": "apps/data_center/infrastructure/macro_projection_repository.py",
       "text": "\"\"\"Return latest governed observation date.\"\"\""
     },
     {
-      "line": 173,
+      "line": 185,
       "path": "apps/data_center/infrastructure/macro_projection_repository.py",
       "text": "\"\"\"Return latest governed fact before an optional boundary.\"\"\""
     },
     {
-      "line": 323,
+      "line": 349,
       "path": "apps/data_center/infrastructure/macro_projection_repository.py",
       "text": "latest=Max(\"reporting_period\"),"
     },
     {
-      "line": 342,
+      "line": 370,
       "path": "apps/data_center/infrastructure/macro_projection_repository.py",
       "text": "\"latest_date\": aggregate[\"latest\"],"
     },
     {
-      "line": 416,
+      "line": 458,
       "path": "apps/data_center/infrastructure/macro_projection_repository.py",
       "text": "\"\"\"Return per-indicator row counts and latest dates.\"\"\""
     },
     {
-      "line": 419,
+      "line": 461,
       "path": "apps/data_center/infrastructure/macro_projection_repository.py",
       "text": "{\"code\": row[\"indicator_code\"], \"count\": row[\"count\"], \"latest\": row[\"latest\"]}"
     },
     {
-      "line": 421,
+      "line": 463,
       "path": "apps/data_center/infrastructure/macro_projection_repository.py",
       "text": ".annotate(count=Count(\"id\"), latest=Max(\"reporting_period\"))"
     },
     {
-      "line": 490,
+      "line": 578,
       "path": "apps/data_center/infrastructure/macro_projection_repository.py",
       "text": "\"\"\"Return latest values for each requested code.\"\"\""
     },
     {
-      "line": 493,
+      "line": 581,
       "path": "apps/data_center/infrastructure/macro_projection_repository.py",
       "text": "{\"code\": code, \"value\": latest[\"value\"]}"
     },
     {
-      "line": 495,
+      "line": 583,
       "path": "apps/data_center/infrastructure/macro_projection_repository.py",
       "text": "if (latest := self.get_latest_indicator(code)) is not None"
     },
@@ -8983,17 +8983,17 @@
       "text": "\"Latest Macro data lookup failed; indicator=%s; exception_type=%s\","
     },
     {
-      "line": 322,
+      "line": 319,
       "path": "apps/macro/infrastructure/data_center_fact_repository.py",
       "text": "\"\"\"Return canonical macro storage summary.\"\"\""
     },
     {
-      "line": 352,
+      "line": 349,
       "path": "apps/macro/infrastructure/data_center_fact_repository.py",
       "text": "\"\"\"Return latest serialized indicator row.\"\"\""
     },
     {
-      "line": 367,
+      "line": 364,
       "path": "apps/macro/infrastructure/data_center_fact_repository.py",
       "text": "\"\"\"Return latest values for a bounded code list.\"\"\""
     },

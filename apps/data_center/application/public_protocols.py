@@ -42,6 +42,13 @@ class MacroProjectionRepositoryProtocol(Protocol):
         source: str | None = None,
     ) -> list[MacroFact]: ...
 
+    def get_by_code_and_date(
+        self,
+        code: str,
+        observed_at: date,
+        revision_number: int | None = None,
+    ) -> MacroFact | None: ...
+
     def get_latest_observation_date(
         self,
         code: str,

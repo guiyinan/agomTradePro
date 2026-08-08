@@ -119,11 +119,8 @@ class DataCenterMacroRepository:
     ) -> MacroIndicator | None:
         """Read one canonical observation by natural key."""
 
-        facts = _repository().get_series(code, end_date=observed_at)
-        candidates = [fact for fact in facts if fact.reporting_period == observed_at]
-        if revision_number is not None:
-            candidates = [fact for fact in candidates if fact.revision_number == revision_number]
-        return _to_indicator(candidates[-1]) if candidates else None
+        fact = _repository().get_by_code_and_date(code, observed_at, revision_number)
+        return _to_indicator(fact) if fact is not None else None
 
     def get_series(
         self,
