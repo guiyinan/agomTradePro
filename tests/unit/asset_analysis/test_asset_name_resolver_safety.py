@@ -1,6 +1,7 @@
 """Safety coverage for the cross-module asset display-name resolver."""
 
 import logging
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -11,6 +12,7 @@ from apps.asset_analysis.infrastructure.asset_name_resolver import (
     resolve_asset_names,
     resolve_asset_names_read_only,
 )
+from apps.equity.infrastructure.stock_repository import DjangoStockRepository
 
 
 class _Registry:
@@ -20,6 +22,16 @@ class _Registry:
     def get_name_resolver(self, source_name: str) -> object:
         del source_name
         return self._resolver
+
+
+class _AssetRepository:
+    """Minimal mutable canonical repository used by name-resolution tests."""
+
+    def __init__(self, assets: dict[str, object] | None = None) -> None:
+        self.assets = dict(assets or {})
+
+    def get_by_code(self, code: str) -> object | None:
+        return self.assets.get(code)
 
 
 def test_provider_results_are_normalized_bounded_and_request_scoped() -> None:
@@ -67,9 +79,9 @@ def test_corrupt_or_wrong_scope_cache_payload_is_never_trusted() -> None:
                 return_value=fresh,
             ) as resolver,
         ):
-            assert resolve_asset_names_read_only(["000001.SZ"]) == fresh
+            assert resolve_asset_names(["000001.SZ"]) == fresh
         resolver.assert_called_once_with(["000001.SZ"])
-        cache_set.assert_not_called()
+        cache_set.assert_called_once()
 
 
 def test_populated_cache_records_exact_normalized_scope() -> None:
@@ -91,6 +103,72 @@ def test_populated_cache_records_exact_normalized_scope() -> None:
         "scope": ["000001.SZ"],
         "names": {"000001.SZ": "平安银行"},
     }
+
+
+def test_read_only_miss_is_canonical_only_without_cache_or_backfill() -> None:
+    canonical_repository = _AssetRepository()
+
+    with (
+        patch.object(
+            asset_name_resolver,
+            "get_asset_repository_port",
+            return_value=canonical_repository,
+        ),
+        patch.object(asset_name_resolver.cache, "get") as cache_get,
+        patch(
+            "apps.equity.infrastructure.stock_info_repository." "backfill_asset_master_codes_port"
+        ) as backfill,
+    ):
+        result = resolve_asset_names_read_only(["000001.SZ"])
+
+    assert result == {}
+    cache_get.assert_not_called()
+    backfill.assert_not_called()
+
+
+def test_read_only_canonical_hit_returns_asset_master_name() -> None:
+    canonical_repository = _AssetRepository(
+        {
+            "000001.SZ": SimpleNamespace(
+                is_active=True,
+                short_name="平安银行",
+                name="平安银行股份有限公司",
+            )
+        }
+    )
+
+    with patch.object(
+        asset_name_resolver,
+        "get_asset_repository_port",
+        return_value=canonical_repository,
+    ):
+        result = resolve_asset_names_read_only(["000001.SZ"])
+
+    assert result == {"000001.SZ": "平安银行"}
+
+
+def test_normal_equity_resolver_retains_explicit_backfill_on_miss() -> None:
+    canonical_repository = _AssetRepository()
+    repository = object.__new__(DjangoStockRepository)
+    repository._dc_asset_repo = canonical_repository
+
+    def _hydrate(codes: list[str], *, include_remote: bool) -> None:
+        assert "000001.SZ" in codes
+        assert include_remote is True
+        canonical_repository.assets["000001.SZ"] = SimpleNamespace(
+            is_active=True,
+            short_name="平安银行",
+            name="平安银行股份有限公司",
+        )
+
+    with patch(
+        "apps.equity.infrastructure.stock_info_repository.backfill_asset_master_codes_port",
+        side_effect=_hydrate,
+    ) as backfill:
+        result = repository.resolve_stock_names(["000001.SZ"])
+
+    assert result == {"000001.SZ": "平安银行"}
+    backfill.assert_called_once()
 
 
 def test_provider_exception_log_does_not_include_sensitive_detail(

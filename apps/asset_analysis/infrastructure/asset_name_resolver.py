@@ -14,6 +14,7 @@ from typing import Any, TypedDict
 
 from django.core.cache import cache
 
+from apps.data_center.application.public import get_asset_repository_port
 from core.integration.asset_analysis_market_registry import (
     get_asset_analysis_market_registry,
 )
@@ -151,6 +152,24 @@ class AssetNameResolver:
         result = self.resolve_asset_names([normalized_code])
         return result.get(normalized_code, normalized_code)
 
+    def resolve_canonical_asset_names(self, codes: list[str]) -> dict[str, str]:
+        """Resolve names strictly from the canonical Data Center asset master."""
+
+        requested_codes = _normalize_codes(list(codes))
+        if not requested_codes:
+            return {}
+
+        repository = get_asset_repository_port()
+        resolved: dict[str, str] = {}
+        for requested_code in requested_codes:
+            asset = repository.get_by_code(requested_code)
+            if asset is None or not asset.is_active:
+                continue
+            name = str(asset.short_name or asset.name or "").strip()
+            if name and len(name) <= 512:
+                resolved[requested_code] = name
+        return resolved
+
     def _resolve_stocks(self, codes: set[str]) -> dict[str, str]:
         """Resolve names from stock master data."""
         if not codes:
@@ -251,6 +270,7 @@ def _resolve_asset_names_with_cache_policy(
     codes: list[str],
     *,
     populate_cache: bool,
+    canonical_only: bool = False,
 ) -> dict[str, str]:
     """Resolve asset names while controlling whether cache misses may write."""
 
@@ -259,6 +279,10 @@ def _resolve_asset_names_with_cache_policy(
         return {}
     normalized_scope = sorted(normalized_codes)
     code_set = set(normalized_scope)
+
+    resolver = AssetNameResolver()
+    if canonical_only:
+        return resolver.resolve_canonical_asset_names(normalized_scope)
 
     cache_key = _build_cache_key(normalized_scope)
 
@@ -271,7 +295,6 @@ def _resolve_asset_names_with_cache_policy(
     except Exception as exc:
         logger.warning("Asset name cache get failed: %s", type(exc).__name__)
 
-    resolver = AssetNameResolver()
     result = resolver.resolve_asset_names(list(code_set))
 
     if populate_cache:
@@ -303,9 +326,13 @@ def resolve_asset_names(codes: list[str]) -> dict[str, str]:
 
 
 def resolve_asset_names_read_only(codes: list[str]) -> dict[str, str]:
-    """Resolve asset names without mutating the shared cache."""
+    """Resolve names from canonical master data without cache, network, or writes."""
 
-    return _resolve_asset_names_with_cache_policy(codes, populate_cache=False)
+    return _resolve_asset_names_with_cache_policy(
+        codes,
+        populate_cache=False,
+        canonical_only=True,
+    )
 
 
 def resolve_asset_name(code: str) -> str:
