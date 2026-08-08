@@ -147,7 +147,7 @@ def test_macro_repository_candidate_preserves_published_at_and_evidence() -> Non
     assert references[0].fact_pk == str(row.pk)
     assert references[0].source_record_id == "macro-1"
     assert references[0].raw_payload_hash == "b" * 64
-    assert references[0].observed_at == datetime(2026, 7, 31, tzinfo=UTC)
+    assert references[0].observed_at == datetime(2026, 7, 30, 16, tzinfo=UTC)
     assert str(missing.pk) not in {reference.fact_pk for reference in references}
 
 

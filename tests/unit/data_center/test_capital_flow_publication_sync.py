@@ -149,5 +149,5 @@ def test_capital_flow_repository_candidate_preserves_flow_date_observation() -> 
     assert references[0].fact_pk == str(row.pk)
     assert references[0].source_record_id == "flow-1"
     assert references[0].raw_payload_hash == "c" * 64
-    assert references[0].observed_at == datetime(2026, 8, 3, tzinfo=UTC)
+    assert references[0].observed_at == datetime(2026, 8, 2, 16, tzinfo=UTC)
     assert references[0].observed_at != row.fetched_at

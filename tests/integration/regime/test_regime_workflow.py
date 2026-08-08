@@ -43,6 +43,7 @@ def _publish_regime_macro_rows() -> None:
             dataset_key="macro.fact",
             publication_key=indicator_code,
             fact_table="data_center_macro_fact",
+            observation_field="published_at",
             rows=rows,
         )
 

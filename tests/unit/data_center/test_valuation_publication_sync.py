@@ -152,7 +152,7 @@ def test_valuation_repository_candidate_preserves_val_date_and_evidence() -> Non
     assert references[0].fact_pk == str(row.pk)
     assert references[0].source_record_id == "valuation-1"
     assert references[0].raw_payload_hash == "b" * 64
-    assert references[0].observed_at == datetime.combine(VAL_DATE, datetime.min.time(), tzinfo=UTC)
+    assert references[0].observed_at == datetime(2026, 8, 2, 16, tzinfo=UTC)
     assert references[0].observed_at != row.fetched_at
     assert references[0].quality_status == "available_at_unverified"
 

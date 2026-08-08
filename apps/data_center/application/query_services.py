@@ -29,6 +29,7 @@ from apps.data_center.composition import (
 )
 from apps.data_center.domain.entities import CapitalFlowFact
 from apps.data_center.domain.enums import AssetType, MarketExchange
+from apps.data_center.domain.market_time import cn_market_date_from_observation
 
 A_SHARE_BEHAVIOR_INDICATORS: dict[str, str] = {
     "up_count": "CN_A_ADVANCE_COUNT",
@@ -501,10 +502,10 @@ def _publication_as_of_datetime(gate: dict[str, object]) -> datetime | None:
 
 
 def _publication_as_of_date(gate: dict[str, object]) -> date | None:
-    """Return the date portion of a publication knowledge boundary."""
+    """Return the China-market date of a publication knowledge boundary."""
 
     as_of = _publication_as_of_datetime(gate)
-    return as_of.date() if as_of is not None else None
+    return cn_market_date_from_observation(as_of) if as_of is not None else None
 
 
 def _bounded_end_date(requested: date | None, publication_as_of: date | None) -> date | None:

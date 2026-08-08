@@ -140,5 +140,5 @@ def test_fund_nav_repository_candidate_preserves_nav_date_observation() -> None:
     assert references[0].fact_pk == str(row.pk)
     assert references[0].source_record_id == "nav-1"
     assert references[0].raw_payload_hash == "e" * 64
-    assert references[0].observed_at == datetime(2026, 8, 3, tzinfo=UTC)
+    assert references[0].observed_at == datetime(2026, 8, 2, 16, tzinfo=UTC)
     assert references[0].observed_at != row.fetched_at

@@ -5,12 +5,13 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Sequence
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime
 
 from django.db.models import Max
 
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import ValuationFact
+from apps.data_center.domain.market_time import cn_market_date_start_utc
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
 from apps.data_center.infrastructure.models import ValuationFactModel
 
@@ -168,7 +169,7 @@ class ValuationFactRepository:
                     source_record_id=row.source_record_id or natural_key,
                     fact_table="data_center_valuation_fact",
                     fact_pk=fact_pk,
-                    observed_at=datetime.combine(row.val_date, time.min, tzinfo=UTC),
+                    observed_at=cn_market_date_start_utc(row.val_date),
                     raw_payload_hash=row.raw_payload_hash or _valuation_payload_hash(row),
                     quality_status=(
                         row.quality_status

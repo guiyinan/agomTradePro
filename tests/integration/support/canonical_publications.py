@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime
 from uuid import uuid4
 
 from django.db import models
 
+from apps.data_center.domain.market_time import cn_market_date_start_utc
 from apps.data_center.infrastructure.catalog_models import DatasetContractModel
 from apps.data_center.infrastructure.publication_models import (
     CanonicalPublicationModel,
@@ -20,13 +21,16 @@ def publish_canonical_rows(
     dataset_key: str,
     publication_key: str,
     fact_table: str,
+    observation_field: str,
     rows: Sequence[models.Model],
 ) -> None:
     """Publish exact canonical facts without rewriting source observation times."""
 
     if not rows:
         raise ValueError("rows must be non-empty")
-    observed_rows = [(row, _source_observed_at(row)) for row in rows]
+    observed_rows = [
+        (row, _source_observed_at(row, observation_field=observation_field)) for row in rows
+    ]
     publication_as_of = max(observed_at for _, observed_at in observed_rows)
     published_at = datetime.now(UTC)
 
@@ -95,25 +99,16 @@ def publish_canonical_rows(
     )
 
 
-def _source_observed_at(row: models.Model) -> datetime:
-    """Return a fact's own observation boundary as an aware datetime."""
+def _source_observed_at(row: models.Model, *, observation_field: str) -> datetime:
+    """Return the explicitly declared source observation boundary for one fact."""
 
-    for field_name in (
-        "observed_at",
-        "snapshot_at",
-        "available_at",
-        "published_at",
-        "bar_date",
-        "val_date",
-        "reporting_period",
-        "as_of",
-        "period_end",
-    ):
-        value = getattr(row, field_name, None)
-        if isinstance(value, datetime):
-            if value.tzinfo is None or value.utcoffset() is None:
-                raise ValueError(f"{field_name} must be timezone-aware")
-            return value
-        if isinstance(value, date):
-            return datetime.combine(value, time.min, tzinfo=UTC)
-    raise ValueError(f"{row.__class__.__name__} has no supported source observation field")
+    value = getattr(row, observation_field, None)
+    if isinstance(value, datetime):
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError(f"{observation_field} must be timezone-aware")
+        return value
+    if isinstance(value, date):
+        return cn_market_date_start_utc(value)
+    raise ValueError(
+        f"{row.__class__.__name__}.{observation_field} has no supported observation value"
+    )

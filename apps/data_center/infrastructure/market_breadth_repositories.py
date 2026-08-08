@@ -5,12 +5,13 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Sequence
-from datetime import UTC, date, datetime, time
+from datetime import date
 
 from django.db.models import Q
 
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import CapitalFlowFact, SectorMembershipFact
+from apps.data_center.domain.market_time import cn_market_date_start_utc
 from apps.data_center.infrastructure._market_breadth_helpers import (
     validate_date_range as _validate_date_range,
 )
@@ -131,7 +132,7 @@ class SectorMembershipRepository:
                     source_record_id=row.source_record_id or natural_key,
                     fact_table="data_center_sector_membership",
                     fact_pk=fact_pk,
-                    observed_at=datetime.combine(row.effective_date, time.min, tzinfo=UTC),
+                    observed_at=cn_market_date_start_utc(row.effective_date),
                     raw_payload_hash=row.raw_payload_hash or _sector_membership_payload_hash(row),
                     quality_status=row.quality_status,
                     revision_number=row.revision_number,
@@ -253,7 +254,7 @@ class CapitalFlowRepository:
                     source_record_id=row.source_record_id or natural_key,
                     fact_table="data_center_capital_flow_fact",
                     fact_pk=fact_pk,
-                    observed_at=datetime.combine(row.flow_date, time.min, tzinfo=UTC),
+                    observed_at=cn_market_date_start_utc(row.flow_date),
                     raw_payload_hash=payload_hash,
                     quality_status=row.quality_status,
                     revision_number=row.revision_number,

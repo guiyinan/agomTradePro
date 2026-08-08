@@ -584,6 +584,14 @@ def test_published_rows_are_bounded_by_publication_as_of(monkeypatch) -> None:
     }
 
 
+def test_publication_as_of_date_uses_china_market_calendar_across_utc_midnight() -> None:
+    """UTC evening must not truncate the following China-market fact date."""
+
+    assert query_services._publication_as_of_date(
+        {"as_of": datetime(2026, 8, 8, 16, 30, tzinfo=UTC).isoformat()}
+    ) == date(2026, 8, 9)
+
+
 def test_published_quotes_reject_snapshots_after_publication_as_of(monkeypatch) -> None:
     """A quote newer than the selected publication cannot leak into its current read."""
 

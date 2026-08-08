@@ -103,6 +103,7 @@ class TestStrategyExecuteFlow(TestCase):
             dataset_key="macro.fact",
             publication_key="CN_PMI_MANUFACTURING",
             fact_table="data_center_macro_fact",
+            observation_field="published_at",
             rows=[macro_fact],
         )
 

@@ -5,12 +5,13 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Sequence
-from datetime import UTC, date, datetime, time
+from datetime import date
 
 from django.db.models import Max
 
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import FundNavFact
+from apps.data_center.domain.market_time import cn_market_date_start_utc
 from apps.data_center.infrastructure.models import FundNavFactModel
 
 
@@ -102,7 +103,7 @@ class FundNavRepository:
                     source_record_id=row.source_record_id or natural_key,
                     fact_table="data_center_fund_nav_fact",
                     fact_pk=fact_pk,
-                    observed_at=datetime.combine(row.nav_date, time.min, tzinfo=UTC),
+                    observed_at=cn_market_date_start_utc(row.nav_date),
                     raw_payload_hash=row.raw_payload_hash or _fund_nav_payload_hash(row),
                     quality_status=row.quality_status,
                     revision_number=row.revision_number,

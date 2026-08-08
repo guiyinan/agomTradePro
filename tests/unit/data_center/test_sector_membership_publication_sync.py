@@ -119,6 +119,6 @@ def test_sector_repository_candidate_preserves_effective_date_observation() -> N
     refs = SectorMembershipRepository().list_publication_candidates([_fact("000001.SZ")])
 
     assert refs[0].fact_pk == str(row.pk)
-    assert refs[0].observed_at == datetime(2026, 8, 3, tzinfo=UTC)
+    assert refs[0].observed_at == datetime(2026, 8, 2, 16, tzinfo=UTC)
     assert refs[0].observed_at != row.fetched_at
     assert refs[0].raw_payload_hash == "b" * 64

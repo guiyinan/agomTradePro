@@ -134,18 +134,21 @@ def _publish_canonical_stock_facts(
         dataset_key="equity.valuation.fact",
         publication_key="current",
         fact_table="data_center_valuation_fact",
+        observation_field="val_date",
         rows=valuations,
     )
     publish_canonical_rows(
         dataset_key="equity.financial.fact",
         publication_key="current",
         fact_table="data_center_financial_fact",
+        observation_field="available_at",
         rows=financials,
     )
     publish_canonical_rows(
         dataset_key="equity.price.bar",
         publication_key="current",
         fact_table="data_center_price_bar",
+        observation_field="bar_date",
         rows=prices,
     )
 

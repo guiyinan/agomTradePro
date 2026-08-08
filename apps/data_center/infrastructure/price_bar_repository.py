@@ -5,11 +5,12 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Sequence
-from datetime import UTC, date, datetime, time
+from datetime import date
 
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import PriceAdjustment
+from apps.data_center.domain.market_time import cn_market_date_start_utc
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
 from apps.data_center.infrastructure.models import PriceBarModel
 
@@ -132,7 +133,7 @@ class PriceBarRepository:
                 f"{row.asset_code}:{row.bar_date.isoformat()}:{row.freq}:"
                 f"{row.adjustment}:{row.source}"
             )
-            observed_at = datetime.combine(row.bar_date, time.min, tzinfo=UTC)
+            observed_at = cn_market_date_start_utc(row.bar_date)
             references.append(
                 PublicationFactReference(
                     natural_key=natural_key,

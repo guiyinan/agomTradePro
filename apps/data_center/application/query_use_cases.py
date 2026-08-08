@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 
 from apps.data_center.application.dtos import (
@@ -14,6 +14,7 @@ from apps.data_center.application.dtos import (
     QuoteResponse,
     ResolveAssetRequest,
 )
+from apps.data_center.domain.market_time import CN_MARKET_TIMEZONE
 from apps.data_center.domain.protocols import (
     AssetRepositoryProtocol,
     IndicatorCatalogRepositoryProtocol,
@@ -38,7 +39,7 @@ from .quote_provenance import normalize_quote_fetch_provenance
 if TYPE_CHECKING:
     from apps.data_center.domain.entities import ProviderHealthSnapshot
 
-CN_MARKET_TZ = timezone(timedelta(hours=8))
+CN_MARKET_TZ = CN_MARKET_TIMEZONE
 CN_MARKET_OPEN = time(9, 30)
 CN_MARKET_CLOSE = time(15, 0)
 DEFAULT_LATEST_QUOTE_MAX_AGE_HOURS = 4.0

@@ -6,13 +6,14 @@ import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time
+from datetime import date, datetime
 
 from django.db.models import Q
 
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.enums import DataQualityStatus
+from apps.data_center.domain.market_time import cn_market_date_start_utc
 from apps.data_center.infrastructure.macro_fact_selection import (
     configured_macro_source,
     select_macro_fact_series,
@@ -254,7 +255,7 @@ class MacroFactRepository:
                     source_record_id=row.source_record_id or natural_key,
                     fact_table="data_center_macro_fact",
                     fact_pk=fact_pk,
-                    observed_at=datetime.combine(row.published_at, time.min, tzinfo=UTC),
+                    observed_at=cn_market_date_start_utc(row.published_at),
                     raw_payload_hash=row.raw_payload_hash or _macro_payload_hash(row),
                     quality_status=row.quality_status,
                     revision_number=row.revision_number,
