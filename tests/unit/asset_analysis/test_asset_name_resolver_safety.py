@@ -143,8 +143,6 @@ def test_read_only_canonical_hit_returns_asset_master_name() -> None:
 
     assert result == {"000001.SZ": "平安银行"}
 
-
-def test_data_center_canonical_resolver_reads_all_asset_types_without_hydration() -> None:
     canonical_repository = _AssetRepository(
         {
             "000001.SZ": SimpleNamespace(

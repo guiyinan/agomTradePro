@@ -4,15 +4,19 @@
 测试 API 端点的 Content-Type 和状态码。
 """
 
+from datetime import date
+
 import pytest
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.test import Client
 
+from apps.data_center.infrastructure.models import AssetMasterModel
 from apps.decision_rhythm.infrastructure.models import (
     DecisionModelParamConfigModel,
     UnifiedRecommendationModel,
 )
-from apps.equity.infrastructure.models import StockInfoModel, ValuationRepairTrackingModel
+from apps.equity.infrastructure.models import ValuationRepairTrackingModel
 
 
 @pytest.fixture
@@ -40,7 +44,9 @@ class TestUnifiedRecommendationsAPI:
 
     def test_recommendations_list_empty(self, authenticated_client):
         """测试推荐列表为空"""
-        response = authenticated_client.get("/api/decision/workspace/recommendations/?account_id=account_001")
+        response = authenticated_client.get(
+            "/api/decision/workspace/recommendations/?account_id=account_001"
+        )
 
         assert response.status_code == 200
         assert response["Content-Type"] == "application/json"
@@ -53,14 +59,19 @@ class TestUnifiedRecommendationsAPI:
     def test_recommendations_list_with_data(self, authenticated_client):
         """测试推荐列表有数据"""
         # 创建测试数据
-        StockInfoModel.objects.create(
-            stock_code="000001.SZ",
-            name="平安银行",
-            sector="银行",
-            market="SZ",
-            list_date="2000-01-01",
-            is_active=True,
+        AssetMasterModel._default_manager.update_or_create(
+            code="000001.SZ",
+            defaults={
+                "name": "平安银行",
+                "short_name": "平安银行",
+                "asset_type": "stock",
+                "exchange": "SZSE",
+                "sector": "银行",
+                "list_date": date(2000, 1, 1),
+                "is_active": True,
+            },
         )
+        cache.clear()
         UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_001",
             account_id="account_001",
@@ -70,7 +81,9 @@ class TestUnifiedRecommendationsAPI:
             confidence=0.85,
         )
 
-        response = authenticated_client.get("/api/decision/workspace/recommendations/?account_id=account_001")
+        response = authenticated_client.get(
+            "/api/decision/workspace/recommendations/?account_id=account_001"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -91,7 +104,9 @@ class TestUnifiedRecommendationsAPI:
             user_action="IGNORED",
         )
 
-        response = authenticated_client.get("/api/decision/workspace/recommendations/?account_id=account_001")
+        response = authenticated_client.get(
+            "/api/decision/workspace/recommendations/?account_id=account_001"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -159,7 +174,9 @@ class TestUnifiedRecommendationsAPI:
             is_active=True,
         )
 
-        response = authenticated_client.get("/api/decision/workspace/recommendations/?account_id=account_001")
+        response = authenticated_client.get(
+            "/api/decision/workspace/recommendations/?account_id=account_001"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -169,7 +186,9 @@ class TestUnifiedRecommendationsAPI:
         assert rec["valuation_repair"]["signal"] == "in_progress"
         assert rec["valuation_repair"]["estimated_days_to_target"] == 120
 
-    def test_recommendations_list_returns_null_when_no_valuation_repair_snapshot(self, authenticated_client):
+    def test_recommendations_list_returns_null_when_no_valuation_repair_snapshot(
+        self, authenticated_client
+    ):
         """测试没有估值修复快照时返回 null"""
         UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_valuation_002",
@@ -180,7 +199,9 @@ class TestUnifiedRecommendationsAPI:
             confidence=0.92,
         )
 
-        response = authenticated_client.get("/api/decision/workspace/recommendations/?account_id=account_001")
+        response = authenticated_client.get(
+            "/api/decision/workspace/recommendations/?account_id=account_001"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -208,7 +229,9 @@ class TestUnifiedRecommendationsAPI:
             status="CONFLICT",
         )
 
-        response = authenticated_client.get("/api/decision/workspace/recommendations/?account_id=account_001")
+        response = authenticated_client.get(
+            "/api/decision/workspace/recommendations/?account_id=account_001"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -227,7 +250,9 @@ class TestUnifiedRecommendationsAPI:
                 composite_score=0.8 - i * 0.01,
             )
 
-        response = authenticated_client.get("/api/decision/workspace/recommendations/?account_id=account_001&page=2&page_size=10")
+        response = authenticated_client.get(
+            "/api/decision/workspace/recommendations/?account_id=account_001&page=2&page_size=10"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -315,7 +340,9 @@ class TestConflictsAPI:
 
     def test_conflicts_list_empty(self, authenticated_client):
         """测试冲突列表为空"""
-        response = authenticated_client.get("/api/decision/workspace/conflicts/?account_id=account_001")
+        response = authenticated_client.get(
+            "/api/decision/workspace/conflicts/?account_id=account_001"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -340,7 +367,9 @@ class TestConflictsAPI:
             status="CONFLICT",
         )
 
-        response = authenticated_client.get("/api/decision/workspace/conflicts/?account_id=account_001")
+        response = authenticated_client.get(
+            "/api/decision/workspace/conflicts/?account_id=account_001"
+        )
 
         assert response.status_code == 200
         data = response.json()
