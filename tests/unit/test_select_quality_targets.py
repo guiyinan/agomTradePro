@@ -78,7 +78,5 @@ def test_select_domain_coverage_targets_normalizes_packages() -> None:
     ]
 
     assert select_domain_coverage_targets(changed_files) == [
-        "apps.account.domain.entities",
-        "apps.account.domain.services",
-        "apps.account.domain.subpkg",
+        "apps.account.domain",
     ]

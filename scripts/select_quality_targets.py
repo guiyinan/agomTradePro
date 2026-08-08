@@ -74,7 +74,7 @@ def select_typecheck_targets(changed_files: list[str]) -> list[str]:
 
 
 def select_domain_coverage_targets(changed_files: list[str]) -> list[str]:
-    """Return changed domain module paths suitable for pytest-cov flags."""
+    """Return changed app Domain packages suitable for isolated coverage gates."""
 
     targets: set[str] = set()
     for path in changed_files:
@@ -82,10 +82,9 @@ def select_domain_coverage_targets(changed_files: list[str]) -> list[str]:
             continue
         if not path.startswith("apps/") or "/domain/" not in path or "/tests/" in path:
             continue
-        module_path = path[:-3].replace("/", ".")
-        if module_path.endswith(".__init__"):
-            module_path = module_path[: -len(".__init__")]
-        targets.add(module_path)
+        parts = path.split("/")
+        if len(parts) >= 3:
+            targets.add(f"apps.{parts[1]}.domain")
     return sorted(targets)
 
 

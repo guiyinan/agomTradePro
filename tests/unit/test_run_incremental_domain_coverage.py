@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import importlib.util
+from configparser import ConfigParser
 from pathlib import Path
 from types import ModuleType
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "run_incremental_domain_coverage.py"
+COVERAGE_CONFIG = ROOT / "config" / "coverage" / "incremental-domain.coveragerc"
 
 
 def _load_script() -> ModuleType:
@@ -49,11 +51,39 @@ def test_domain_coverage_command_keeps_threshold_and_exact_modules(tmp_path: Pat
     (tmp_path / "tests/unit/domain").mkdir(parents=True)
 
     command = runner.build_pytest_command(
-        ["apps.fixed_income.domain.liquidity_premium"],
-        fail_under=70,
+        "apps.fixed_income.domain",
+        fail_under=90,
         root=tmp_path,
     )
 
-    assert "--cov-fail-under=70" in command
-    assert "--cov=apps.fixed_income.domain.liquidity_premium" in command
+    assert "--cov-fail-under=90" in command
+    assert "--cov-config=config/coverage/incremental-domain.coveragerc" in command
+    assert "--cov=apps.fixed_income.domain" in command
     assert command.count("tests/unit/domain") == 1
+
+
+def test_domain_coverage_commands_isolate_each_app(tmp_path: Path) -> None:
+    """One app's high coverage must not hide another app's regression."""
+
+    runner = _load_script()
+    (tmp_path / "tests/unit/domain").mkdir(parents=True)
+
+    commands = runner.build_pytest_commands(
+        ["apps.equity.domain", "apps.data_center.domain", "apps.equity.domain"],
+        fail_under=90,
+        root=tmp_path,
+    )
+
+    assert [command[-1] for command in commands] == [
+        "--cov=apps.data_center.domain",
+        "--cov=apps.equity.domain",
+    ]
+
+
+def test_incremental_config_does_not_inherit_repository_wide_sources() -> None:
+    """Unrelated imported apps must not dilute one changed app's coverage."""
+
+    config = ConfigParser()
+    assert config.read(COVERAGE_CONFIG, encoding="utf-8") == [str(COVERAGE_CONFIG)]
+    assert not config.has_option("run", "source")
+    assert not config.getboolean("run", "branch", fallback=False)

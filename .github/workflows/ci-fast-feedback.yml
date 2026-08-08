@@ -308,7 +308,7 @@ jobs:
         if: steps.targets.outputs.domain-coverage-count != '0'
         run: |
           python scripts/run_incremental_domain_coverage.py \
-            --fail-under 70 \
+            --fail-under 90 \
             ${{ steps.targets.outputs.domain-coverage-targets }}
 
   fast-feedback:

@@ -1,5 +1,10 @@
 #!/usr/bin/env python
-"""Run changed Domain coverage against shared and app-owned unit tests."""
+"""Run per-app Domain line coverage against shared and app-owned unit tests.
+
+The repository-wide Nightly ratchet separately enforces each app's historical
+branch floor.  This fast gate intentionally uses a source-free coverage config
+so imports from neighbouring apps cannot dilute or inflate the changed app.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +14,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+INCREMENTAL_COVERAGE_CONFIG = "config/coverage/incremental-domain.coveragerc"
 
 
 def select_domain_test_targets(
@@ -30,14 +36,14 @@ def select_domain_test_targets(
 
 
 def build_pytest_command(
-    modules: list[str],
+    module: str,
     *,
     fail_under: int,
     root: Path = ROOT,
 ) -> list[str]:
-    """Build the deterministic pytest-cov command for changed Domain modules."""
+    """Build one deterministic pytest-cov command for an app Domain package."""
 
-    test_targets = select_domain_test_targets(modules, root=root)
+    test_targets = select_domain_test_targets([module], root=root)
     if not test_targets:
         raise ValueError("no Domain test targets are available")
     command = [
@@ -49,11 +55,26 @@ def build_pytest_command(
         "--tb=short",
         "-o",
         "addopts=",
+        f"--cov-config={INCREMENTAL_COVERAGE_CONFIG}",
         f"--cov-fail-under={fail_under}",
         "--cov-report=term-missing",
     ]
-    command.extend(f"--cov={module}" for module in modules)
+    command.append(f"--cov={module}")
     return command
+
+
+def build_pytest_commands(
+    modules: list[str],
+    *,
+    fail_under: int,
+    root: Path = ROOT,
+) -> list[list[str]]:
+    """Build isolated commands so one well-tested app cannot hide another app."""
+
+    return [
+        build_pytest_command(module, fail_under=fail_under, root=root)
+        for module in sorted(set(modules))
+    ]
 
 
 def main() -> int:
@@ -61,13 +82,16 @@ def main() -> int:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("modules", nargs="+", help="Changed Domain module import paths.")
-    parser.add_argument("--fail-under", type=int, default=70)
+    parser.add_argument("--fail-under", type=int, default=90)
     args = parser.parse_args()
 
-    command = build_pytest_command(args.modules, fail_under=args.fail_under)
-    print("Running incremental Domain coverage gate:", flush=True)
-    print(" ".join(command), flush=True)
-    return subprocess.run(command, cwd=ROOT, check=False).returncode
+    for command in build_pytest_commands(args.modules, fail_under=args.fail_under):
+        print("Running incremental Domain coverage gate:", flush=True)
+        print(" ".join(command), flush=True)
+        result = subprocess.run(command, cwd=ROOT, check=False)
+        if result.returncode:
+            return result.returncode
+    return 0
 
 
 if __name__ == "__main__":
