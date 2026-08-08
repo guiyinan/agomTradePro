@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 from django.apps import apps
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import Client
 from django.utils import timezone
 
@@ -16,7 +17,7 @@ UnifiedRecommendationModel = apps.get_model("decision_rhythm", "UnifiedRecommend
 SimulatedAccountModel = apps.get_model("simulated_trading", "SimulatedAccountModel")
 PositionModel = apps.get_model("simulated_trading", "PositionModel")
 PulseLog = apps.get_model("pulse", "PulseLog")
-StockInfoModel = apps.get_model("equity", "StockInfoModel")
+AssetMasterModel = apps.get_model("data_center", "AssetMasterModel")
 
 
 def _create_workspace_quota(quota_id: str) -> None:
@@ -56,15 +57,23 @@ def _create_feature_snapshot(snapshot_id: str, security_code: str) -> Any:
     )
 
 
-def _create_stock_info(security_code: str, security_name: str) -> None:
-    StockInfoModel.objects.create(
-        stock_code=security_code,
-        name=security_name,
-        sector="银行",
-        market="SH",
-        list_date=timezone.now().date(),
-        is_active=True,
+def _create_asset_master(security_code: str, security_name: str) -> None:
+    exchange = {"SH": "SSE", "SZ": "SZSE", "BJ": "BSE"}.get(security_code.rsplit(".", 1)[-1])
+    if exchange is None:
+        raise ValueError(f"unsupported canonical security code: {security_code}")
+    AssetMasterModel.objects.update_or_create(
+        code=security_code,
+        defaults={
+            "name": security_name,
+            "short_name": security_name,
+            "asset_type": "stock",
+            "exchange": exchange,
+            "sector": "银行",
+            "list_date": timezone.now().date(),
+            "is_active": True,
+        },
     )
+    cache.clear()
 
 
 def _create_recommendation(
@@ -111,19 +120,19 @@ def test_transition_plan_generate_update_and_preview_flow():
 
     _create_workspace_quota("plan_api_quota")
     account = _create_simulated_account(user, "Plan API Account")
-    snapshot = _create_feature_snapshot("plan_api_snapshot", "000001.SH")
-    _create_stock_info("000001.SH", "平安银行")
+    snapshot = _create_feature_snapshot("plan_api_snapshot", "000001.SZ")
+    _create_asset_master("000001.SZ", "平安银行")
     recommendation = _create_recommendation(
         recommendation_id="plan_api_rec",
         account_id=str(account.id),
-        security_code="000001.SH",
+        security_code="000001.SZ",
         feature_snapshot=snapshot,
         user_action=UserDecisionAction.ADOPTED.value,
     )
 
     PositionModel.objects.create(
         account=account,
-        asset_code="000001.SH",
+        asset_code="000001.SZ",
         asset_name="Ping An Bank",
         asset_type="equity",
         quantity=Decimal("100"),
@@ -150,7 +159,7 @@ def test_transition_plan_generate_update_and_preview_flow():
         == recommendation.recommendation_id
     )
     assert generate_payload["can_enter_approval"] is False
-    assert generate_payload["current_positions"][0]["asset_code"] == "000001.SH"
+    assert generate_payload["current_positions"][0]["asset_code"] == "000001.SZ"
     assert generate_payload["current_positions"][0]["security_name"] == "Ping An Bank"
     assert str(generate_payload["current_positions"][0]["market_value"]) == "1100.00"
     assert generate_payload["target_positions"][0]["security_name"] == "平安银行"
@@ -167,16 +176,14 @@ def test_transition_plan_generate_update_and_preview_flow():
     }
     assert generate_payload["orders"][0]["data_asof"]
 
-    detail_response = client.get(
-        f"/api/decision/workspace/plans/{generate_payload['plan_id']}/"
-    )
+    detail_response = client.get(f"/api/decision/workspace/plans/{generate_payload['plan_id']}/")
     assert detail_response.status_code == 200
     assert detail_response["Content-Type"].startswith("application/json")
     detail_payload = detail_response.json()
     assert detail_payload["success"] is True
     assert detail_payload["data"]["plan_id"] == generate_payload["plan_id"]
     assert detail_payload["data"]["account_id"] == str(account.id)
-    assert detail_payload["data"]["orders"][0]["security_code"] == "000001.SH"
+    assert detail_payload["data"]["orders"][0]["security_code"] == "000001.SZ"
 
     update_response = client.post(
         f"/api/decision/workspace/plans/{generate_payload['plan_id']}/update/",
@@ -184,7 +191,7 @@ def test_transition_plan_generate_update_and_preview_flow():
             "orders": [
                 {
                     "source_recommendation_id": recommendation.recommendation_id,
-                    "security_code": "000001.SH",
+                    "security_code": "000001.SZ",
                     "execution_price": "10.50",
                     "take_profit_price": "13.65",
                     "stop_loss_price": "9.45",
@@ -244,15 +251,15 @@ def test_transition_plan_generate_with_explicit_recommendation_ids_requires_adop
     _create_workspace_quota("plan_selected_quota")
     account = _create_simulated_account(user, "Plan Selected Account")
 
-    adopted_snapshot = _create_feature_snapshot("plan_selected_snapshot_1", "000001.SH")
+    adopted_snapshot = _create_feature_snapshot("plan_selected_snapshot_1", "000001.SZ")
     selected_snapshot = _create_feature_snapshot("plan_selected_snapshot_2", "600519.SH")
-    _create_stock_info("000001.SH", "平安银行")
-    _create_stock_info("600519.SH", "贵州茅台")
+    _create_asset_master("000001.SZ", "平安银行")
+    _create_asset_master("600519.SH", "贵州茅台")
 
     _create_recommendation(
         recommendation_id="plan_selected_default_rec",
         account_id=str(account.id),
-        security_code="000001.SH",
+        security_code="000001.SZ",
         feature_snapshot=adopted_snapshot,
         user_action=UserDecisionAction.ADOPTED.value,
     )
@@ -286,12 +293,12 @@ def test_execution_preview_without_create_request_does_not_persist_approval():
 
     _create_workspace_quota("plan_preview_only_quota")
     account = _create_simulated_account(user, "Plan Preview Only Account")
-    snapshot = _create_feature_snapshot("plan_preview_only_snapshot", "000001.SH")
-    _create_stock_info("000001.SH", "平安银行")
+    snapshot = _create_feature_snapshot("plan_preview_only_snapshot", "000001.SZ")
+    _create_asset_master("000001.SZ", "平安银行")
     recommendation = _create_recommendation(
         recommendation_id="plan_preview_only_rec",
         account_id=str(account.id),
-        security_code="000001.SH",
+        security_code="000001.SZ",
         feature_snapshot=snapshot,
         user_action=UserDecisionAction.ADOPTED.value,
     )
@@ -337,7 +344,7 @@ def test_invalidation_template_and_ai_draft_endpoints(monkeypatch):
     template_response = client.post(
         "/api/decision/workspace/invalidation/template/",
         data={
-            "security_code": "000001.SH",
+            "security_code": "000001.SZ",
             "side": "BUY",
             "rationale": "依赖宏观修复持续和脉搏维持强势",
         },
@@ -385,7 +392,7 @@ def test_invalidation_template_and_ai_draft_endpoints(monkeypatch):
     ai_response = client.post(
         "/api/decision/workspace/invalidation/ai-draft/",
         data={
-            "security_code": "000001.SH",
+            "security_code": "000001.SZ",
             "side": "BUY",
             "rationale": "依赖宏观修复持续和脉搏维持强势",
             "user_prompt": "把 Pulse 和 Regime 都写进去",
@@ -420,7 +427,7 @@ def test_invalidation_template_ignores_unreliable_pulse(monkeypatch):
     template_response = client.post(
         "/api/decision/workspace/invalidation/template/",
         data={
-            "security_code": "000001.SH",
+            "security_code": "000001.SZ",
             "side": "BUY",
             "rationale": "测试不可靠 pulse 不应进入模板",
         },
