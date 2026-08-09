@@ -1784,7 +1784,7 @@ def _discover_celery_dispatch_edges(celery: dict[str, Any]) -> list[dict[str, ob
 
 
 def _discover_beat_schedule(celery: dict[str, Any]) -> list[dict[str, object]]:
-    path = ROOT / "core" / "settings" / "base.py"
+    path = ROOT / "core" / "settings" / "celery_schedule.py"
     governed = {
         str(item.get("task_path"))
         for item in celery.get("tasks", [])
@@ -2367,13 +2367,25 @@ def _discover_capability_runtime() -> list[dict[str, object]]:
     return results
 
 
-def _top_level_public_functions(path: Path) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
-    return [
-        node
-        for node in _tree(path).body
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and not node.name.startswith("_")
-    ]
+def _top_level_public_callable_names(path: Path) -> list[str]:
+    """Return declared and bound public callables exposed by a facade module."""
+
+    names: list[str] = []
+    for node in _tree(path).body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if not node.name.startswith("_"):
+                names.append(node.name)
+            continue
+        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Call):
+            continue
+        if not _call_name(node.value).startswith("_bind_"):
+            continue
+        names.extend(
+            target.id
+            for target in node.targets
+            if isinstance(target, ast.Name) and not target.id.startswith("_")
+        )
+    return names
 
 
 def _discover_ports_and_facades() -> list[dict[str, object]]:
@@ -2382,20 +2394,20 @@ def _discover_ports_and_facades() -> list[dict[str, object]]:
         _entry(
             category="public_port",
             path=_relative(public_path),
-            symbol=node.name,
+            symbol=name,
             status="active_public",
             evidence="canonical Data Center Application public port",
         )
-        for node in _top_level_public_functions(public_path)
+        for name in _top_level_public_callable_names(public_path)
     ]
     for path_text in COMPATIBILITY_FACADES:
         path = ROOT / path_text
-        for node in _top_level_public_functions(path):
+        for name in _top_level_public_callable_names(path):
             results.append(
                 _entry(
                     category="compatibility_facade",
                     path=path_text,
-                    symbol=node.name,
+                    symbol=name,
                     status="compatibility",
                     evidence="registered legacy Application facade pending consumer cutover",
                 )

@@ -12,142 +12,52 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from math import isfinite
-from typing import Protocol, TypeAlias, cast
+from typing import TypeAlias, cast
 
 from apps.account.application.config_summary_service import (
-    get_account_config_summary_service,
+    get_account_config_summary_service as get_account_config_summary_service,
+)
+from apps.equity.application.regime_correlation_use_cases import (
+    AnalyzeRegimeCorrelationRequest as AnalyzeRegimeCorrelationRequest,
+)
+from apps.equity.application.regime_correlation_use_cases import (
+    AnalyzeRegimeCorrelationResponse as AnalyzeRegimeCorrelationResponse,
+)
+from apps.equity.application.regime_correlation_use_cases import (
+    AnalyzeRegimeCorrelationUseCase as AnalyzeRegimeCorrelationUseCase,
+)
+from apps.equity.application.regime_correlation_use_cases import (
+    RegimePerformance as RegimePerformance,
 )
 from apps.equity.application.repository_provider import (
-    get_equity_market_data_repository,
+    get_equity_market_data_repository as get_equity_market_data_repository,
+)
+from apps.equity.application.repository_provider import (
     get_equity_scoring_weight_config_repository,
     get_stock_screening_rule,
 )
-from apps.equity.domain.entities import (
-    FinancialData,
-    IntradayPricePoint,
-    ScoringWeightConfig,
-    StockInfo,
-    TechnicalBar,
-    ValuationMetrics,
+from apps.equity.application.use_case_protocols import (
+    EquityStockReadRepositoryProtocol as EquityStockReadRepositoryProtocol,
 )
-from apps.equity.domain.ports import MarketDataPort
+from apps.equity.application.use_case_protocols import (
+    RegimeHistoryRepositoryProtocol as RegimeHistoryRepositoryProtocol,
+)
+from apps.equity.application.use_case_protocols import (
+    ScoringWeightConfigRepositoryProtocol as ScoringWeightConfigRepositoryProtocol,
+)
+from apps.equity.application.use_case_runtime import (
+    RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS,
+)
+from apps.equity.application.use_case_runtime import (
+    get_runtime_benchmark_code as get_runtime_benchmark_code,
+)
 from apps.equity.domain.rules import StockScreeningRule
 from apps.equity.domain.services import StockScreener
 from apps.equity.domain.services_technical import TechnicalChartService
-from apps.regime.domain.entities import RegimeSnapshot
-from core.exceptions import ConfigurationError, DataFetchError, DataValidationError
 
 logger = logging.getLogger(__name__)
 
 EquityPayload: TypeAlias = dict[str, object]
-
-
-class EquityStockReadRepositoryProtocol(Protocol):
-    """Read contract used by equity analysis application use cases."""
-
-    def get_stock_info(self, stock_code: str) -> StockInfo | None: ...
-
-    def get_all_stocks_with_fundamentals(
-        self,
-        as_of_date: date | None = None,
-    ) -> list[tuple[StockInfo, FinancialData, ValuationMetrics]]: ...
-
-    def get_technical_bars(
-        self,
-        stock_code: str,
-        start_date: date,
-        end_date: date,
-        *,
-        hydrate: bool = False,
-        published_only: bool = False,
-        publication_key: str = "current",
-    ) -> list[TechnicalBar]: ...
-
-    def get_intraday_points(self, stock_code: str) -> list[IntradayPricePoint]: ...
-
-    def get_last_intraday_source(self) -> str | None: ...
-
-    def get_valuation_history(
-        self,
-        stock_code: str,
-        start_date: date,
-        end_date: date,
-        *,
-        hydrate: bool = False,
-        published_only: bool = False,
-        publication_key: str = "current",
-    ) -> list[ValuationMetrics]: ...
-
-    def get_latest_financial_data(
-        self,
-        stock_code: str,
-        *,
-        hydrate: bool = False,
-        published_only: bool = True,
-        publication_key: str = "current",
-    ) -> FinancialData | None: ...
-
-    def get_daily_prices(
-        self,
-        stock_code: str,
-        start_date: date,
-        end_date: date,
-        *,
-        hydrate: bool = False,
-        published_only: bool = False,
-        publication_key: str = "current",
-    ) -> list[tuple[date, Decimal]]: ...
-
-    def calculate_daily_returns(
-        self,
-        stock_code: str,
-        start_date: date,
-        end_date: date,
-        *,
-        hydrate: bool = False,
-        published_only: bool = False,
-        publication_key: str = "current",
-    ) -> dict[date, float]: ...
-
-
-class RegimeHistoryRepositoryProtocol(Protocol):
-    """Historical regime snapshots required by correlation analysis."""
-
-    def get_snapshots_in_range(
-        self,
-        start_date: date,
-        end_date: date,
-    ) -> list[RegimeSnapshot]: ...
-
-
-class ScoringWeightConfigRepositoryProtocol(Protocol):
-    """Read contract for the active database-backed scoring weights."""
-
-    def get_active_config(self) -> ScoringWeightConfig: ...
-
-
-RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS = (
-    ArithmeticError,
-    AttributeError,
-    ConnectionError,
-    ImportError,
-    LookupError,
-    OSError,
-    RuntimeError,
-    TimeoutError,
-    TypeError,
-    ValueError,
-    DataFetchError,
-    DataValidationError,
-    ConfigurationError,
-)
-
-
-def get_runtime_benchmark_code(key: str, default: str = "") -> str:
-    """Return a runtime benchmark code through the account-owned config service."""
-
-    value = get_account_config_summary_service().get_runtime_benchmark_code(key, default)
-    return str(value or default)
 
 
 def _custom_float(payload: EquityPayload, key: str, default: float) -> float:
@@ -1035,257 +945,6 @@ class CalculateDCFUseCase:
                 upside=None,
                 error=str(e),
             )
-
-
-# ============================================================================
-# Regime 相关性分析
-# ============================================================================
-
-
-@dataclass
-class AnalyzeRegimeCorrelationRequest:
-    """Regime 相关性分析请求"""
-
-    stock_code: str
-    lookback_days: int = 1260  # 回看天数（默认 5 年，约 1260 个交易日）
-
-
-@dataclass
-class RegimePerformance:
-    """单个 Regime 的表现"""
-
-    regime: str
-    avg_return: float
-    beta: float | None
-    sample_days: int
-
-
-@dataclass
-class AnalyzeRegimeCorrelationResponse:
-    """Regime 相关性分析响应"""
-
-    success: bool
-    stock_code: str
-    stock_name: str
-    regime_performance: dict[str, RegimePerformance]
-    best_regime: str
-    worst_regime: str
-    error: str | None = None
-
-
-class AnalyzeRegimeCorrelationUseCase:
-    """Regime 相关性分析用例"""
-
-    def __init__(
-        self,
-        stock_repository: EquityStockReadRepositoryProtocol,
-        regime_repository: RegimeHistoryRepositoryProtocol,
-    ) -> None:
-        """
-        初始化用例
-
-        Args:
-            stock_repository: 股票数据仓储
-            regime_repository: Regime 数据仓储
-        """
-        self.stock_repo = stock_repository
-        self.regime_repo = regime_repository
-
-    def execute(self, request: AnalyzeRegimeCorrelationRequest) -> AnalyzeRegimeCorrelationResponse:
-        """
-        执行 Regime 相关性分析
-
-        流程：
-        1. 获取股票基本信息
-        2. 获取历史收益率数据
-        3. 获取 Regime 历史数据
-        4. 获取市场指数收益率（用于计算 Beta）
-        5. 调用 Domain 层的分析逻辑
-        6. 返回结果
-        """
-        try:
-            from datetime import timedelta
-
-            from apps.equity.domain.services import RegimeCorrelationAnalyzer
-
-            # 1. 获取股票基本信息
-            stock_info = self.stock_repo.get_stock_info(request.stock_code)
-            if not stock_info:
-                raise ValueError(f"未找到股票 {request.stock_code}")
-
-            # 2. 获取历史收益率
-            end_date = date.today()
-            start_date = end_date - timedelta(days=request.lookback_days)
-
-            stock_returns = self.stock_repo.calculate_daily_returns(
-                request.stock_code,
-                start_date,
-                end_date,
-                hydrate=True,
-            )
-
-            if not stock_returns:
-                raise ValueError(
-                    f"未找到股票 {request.stock_code} 的价格数据，请先同步日线数据或检查 Tushare/AKShare 数据源"
-                )
-
-            # 3. 获取 Regime 历史（从 Regime 模块）
-            regime_history = self._get_regime_history(start_date, end_date)
-
-            # 4. 获取市场收益率（使用沪深 300）
-            market_returns = self._get_market_returns(start_date, end_date)
-
-            # 5. 调用 Domain 层分析
-            analyzer = RegimeCorrelationAnalyzer()
-
-            # 计算各 Regime 下的平均收益
-            avg_returns = analyzer.calculate_regime_correlation(stock_returns, regime_history)
-
-            # 计算各 Regime 下的 Beta
-            regime_betas = analyzer.calculate_regime_beta(
-                stock_returns, market_returns, regime_history
-            )
-
-            # 6. 构造响应
-            regime_performance: dict[str, RegimePerformance] = {}
-            for regime in ["Recovery", "Overheat", "Stagflation", "Deflation"]:
-                # 计算样本天数
-                sample_days = sum(1 for r in regime_history.values() if r == regime)
-
-                regime_performance[regime] = RegimePerformance(
-                    regime=regime,
-                    avg_return=avg_returns.get(regime, 0.0),
-                    beta=regime_betas.get(regime, 1.0),
-                    sample_days=sample_days,
-                )
-
-            # 找出最佳和最差 Regime
-            sorted_by_return = sorted(
-                regime_performance.items(), key=lambda x: x[1].avg_return, reverse=True
-            )
-            best_regime = sorted_by_return[0][0] if sorted_by_return else "Recovery"
-            worst_regime = sorted_by_return[-1][0] if sorted_by_return else "Deflation"
-
-            return AnalyzeRegimeCorrelationResponse(
-                success=True,
-                stock_code=request.stock_code,
-                stock_name=stock_info.name,
-                regime_performance=regime_performance,
-                best_regime=best_regime,
-                worst_regime=worst_regime,
-            )
-
-        except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as e:
-            logger.warning("AnalyzeRegimeCorrelationUseCase.execute failed: %s", e)
-            return AnalyzeRegimeCorrelationResponse(
-                success=False,
-                stock_code=request.stock_code,
-                stock_name="",
-                regime_performance={},
-                best_regime="",
-                worst_regime="",
-                error=str(e),
-            )
-
-    def _get_regime_history(self, start_date: date, end_date: date) -> dict[date, str]:
-        """
-        获取 Regime 历史数据
-
-        从 regime 模块获取指定日期范围内的 Regime 快照，
-        将其转换为按日期索引的字典。
-
-        Args:
-            start_date: 起始日期
-            end_date: 结束日期
-
-        Returns:
-            {日期: Regime 名称}
-        """
-        try:
-            snapshots = self.regime_repo.get_snapshots_in_range(start_date, end_date)
-
-            # 将快照列表转换为日期字典
-            regime_history: dict[date, str] = {}
-            for snapshot in snapshots:
-                regime_history[snapshot.observed_at] = snapshot.dominant_regime
-
-            # 对于缺失的日期，使用前一个有效日期的 Regime
-            return self._fill_missing_dates(regime_history, start_date, end_date)
-
-        except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as exc:
-            # 如果获取失败，返回空字典
-            # Domain 层的 RegimeCorrelationAnalyzer 会处理空数据情况
-            logger.warning("AnalyzeRegimeCorrelationUseCase._get_regime_history degraded: %s", exc)
-            return {}
-
-    def _get_market_returns(self, start_date: date, end_date: date) -> dict[date, float]:
-        """
-        获取市场指数收益率
-
-        使用数据库配置的市场基准。
-
-        Args:
-            start_date: 起始日期
-            end_date: 结束日期
-
-        Returns:
-            {日期: 收益率}
-        """
-        try:
-            market_adapter = cast(
-                MarketDataPort,
-                get_equity_market_data_repository(),
-            )
-            benchmark_code = get_runtime_benchmark_code("equity_market_benchmark")
-            if not benchmark_code:
-                return {}
-            returns = market_adapter.get_index_daily_returns(
-                index_code=benchmark_code,
-                start_date=start_date,
-                end_date=end_date,
-            )
-            return dict(returns)
-
-        except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as exc:
-            # 如果获取失败，返回空字典
-            logger.warning("AnalyzeRegimeCorrelationUseCase._get_market_returns degraded: %s", exc)
-            return {}
-
-    def _fill_missing_dates(
-        self, regime_history: dict[date, str], start_date: date, end_date: date
-    ) -> dict[date, str]:
-        """
-        填充缺失的日期
-
-        Regime 数据通常不会每天都有，使用前一个有效日期的值填充。
-
-        Args:
-            regime_history: 原始 Regime 历史（可能有日期缺失）
-            start_date: 起始日期
-            end_date: 结束日期
-
-        Returns:
-            填充后的完整日期字典
-        """
-        from datetime import timedelta
-
-        result: dict[date, str] = {}
-        if not regime_history:
-            return result
-        current = start_date
-        last_regime: str | None = None
-
-        while current <= end_date:
-            # 如果当前日期有数据，使用当前日期的数据
-            if current in regime_history:
-                result[current] = regime_history[current]
-                last_regime = regime_history[current]
-            elif last_regime is not None:
-                result[current] = last_regime
-
-            current += timedelta(days=1)
-
-        return result
 
 
 # ============================================================================

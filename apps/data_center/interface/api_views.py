@@ -20,7 +20,7 @@ No business logic here — only HTTP plumbing + delegation to use cases.
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any
 
 from rest_framework import status
@@ -33,33 +33,19 @@ from apps.data_center.application.dtos import (
     CreateIndicatorCatalogRequest,
     CreateIndicatorUnitRuleRequest,
     CreatePublisherCatalogRequest,
-    DecisionReliabilityRepairRequest,
     LatestQuoteRequest,
     MacroSeriesRequest,
     PriceHistoryRequest,
     ResolveAssetRequest,
-    SyncCapitalFlowRequest,
-    SyncFinancialRequest,
-    SyncFundNavRequest,
-    SyncMacroRequest,
-    SyncNewsRequest,
-    SyncPriceRequest,
-    SyncQuoteRequest,
-    SyncSectorMembershipRequest,
-    SyncValuationRequest,
     UpdateIndicatorCatalogRequest,
     UpdateIndicatorUnitRuleRequest,
     UpdatePublisherCatalogRequest,
 )
 from apps.data_center.application.interface_services import (
     fetch_latest_realtime_prices,
-    load_market_thermometer_override_payload,
     load_production_coverage_universe_config_payload,
-    make_import_investor_accounts_use_case,
     make_manage_indicator_catalog_use_case,
     make_manage_indicator_unit_rule_use_case,
-    make_manage_market_thermometer_config_use_case,
-    make_manage_market_thermometer_user_override_use_case,
     make_manage_publisher_catalog_use_case,
     make_query_capital_flows_use_case,
     make_query_financials_use_case,
@@ -71,76 +57,59 @@ from apps.data_center.application.interface_services import (
     make_query_valuations_use_case,
     make_resolve_asset_use_case,
     make_run_provider_connection_test_use_case,
-    make_sync_capital_flow_use_case,
-    make_sync_fund_nav_use_case,
-    make_sync_market_thermometer_inputs_use_case,
-    make_sync_news_use_case,
-    make_sync_price_use_case,
-    make_sync_quote_use_case,
-    make_sync_sector_membership_use_case,
     save_production_coverage_universe_config_payload,
     save_provider_settings_payload,
 )
-from apps.data_center.application.pit_use_cases import BuildPITManifestRequest
 from apps.data_center.application.public import (
     get_active_stock_fact_coverage_payload,
     get_current_publication,
     get_current_publication_freshness_gate,
-    get_market_thermometer_payload,
     get_provider_settings_payload,
     get_publication_member_fact_pks,
-    make_calculate_market_thermometer_use_case,
     make_decision_repair_use_case,
     make_query_macro_series_use_case,
-    make_sync_financial_use_case,
-    make_sync_macro_use_case,
-    make_sync_valuation_use_case,
 )
 from apps.data_center.application.use_cases import (
     QueryLatestQuoteUseCase,
     RepairDecisionDataReliabilityUseCase,
 )
-from apps.data_center.composition import (
-    make_build_pit_manifest_use_case,
-    make_query_pit_manifest_use_case,
-)
-from apps.data_center.domain.pit import KnowledgeScope
 from apps.data_center.interface import provider_api_views as _provider_api_views
-from apps.data_center.interface.auth_helpers import _authenticated_user_id
-from apps.data_center.interface.pit_serializers import (
-    BuildPITManifestSerializer,
-    serialize_pit_manifest,
-)
 from apps.data_center.interface.query_params import (
     _parse_bool_param,
     _parse_positive_float_param,
-    _parse_positive_int_param,
 )
 from apps.data_center.interface.serializers import (
     CapitalFlowQuerySerializer,
     ConnectionTestResultSerializer,
     DataProviderSettingsSerializer,
-    DecisionReliabilityRepairRequestSerializer,
     IndicatorCatalogSerializer,
     IndicatorUnitRuleSerializer,
-    MarketThermometerConfigSerializer,
-    MarketThermometerImportSerializer,
-    MarketThermometerUserOverrideSerializer,
     ProductionCoverageUniverseConfigSerializer,
     PublisherCatalogSerializer,
-    SyncCapitalFlowRequestSerializer,
-    SyncFinancialRequestSerializer,
-    SyncFundNavRequestSerializer,
-    SyncMacroRequestSerializer,
-    SyncNewsRequestSerializer,
-    SyncPriceRequestSerializer,
-    SyncQuoteRequestSerializer,
-    SyncSectorMembershipRequestSerializer,
-    SyncValuationRequestSerializer,
 )
 from apps.data_center.provider_runtime import get_registry
-from shared.request_payload import request_data_mapping
 
+from .api_views_operations import market_thermometer_calculate as market_thermometer_calculate
+from .api_views_operations import market_thermometer_config as market_thermometer_config
+from .api_views_operations import market_thermometer_current as market_thermometer_current
+from .api_views_operations import market_thermometer_history as market_thermometer_history
+from .api_views_operations import (
+    market_thermometer_import_investor_accounts as market_thermometer_import_investor_accounts,
+)
+from .api_views_operations import market_thermometer_me as market_thermometer_me
+from .api_views_operations import market_thermometer_sync_inputs as market_thermometer_sync_inputs
+from .api_views_operations import pit_manifest_detail as pit_manifest_detail
+from .api_views_operations import pit_manifest_list_create as pit_manifest_list_create
+from .api_views_operations import repair_decision_reliability as repair_decision_reliability
+from .api_views_operations import sync_capital_flows as sync_capital_flows
+from .api_views_operations import sync_financials as sync_financials
+from .api_views_operations import sync_fund_nav as sync_fund_nav
+from .api_views_operations import sync_macro as sync_macro
+from .api_views_operations import sync_news as sync_news
+from .api_views_operations import sync_prices as sync_prices
+from .api_views_operations import sync_quotes as sync_quotes
+from .api_views_operations import sync_sector_constituents as sync_sector_constituents
+from .api_views_operations import sync_valuations as sync_valuations
 from .publication_guards import (
     apply_published_gate_with_members,
 )
@@ -1113,269 +1082,3 @@ def capital_flows(request: Request) -> Response:
         payload["publication_id"] = publication["publication_id"]
         payload["publication"] = publication
     return Response(payload)
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def market_thermometer_current(request: Request) -> Response:
-    """Return the latest market-thermometer payload."""
-
-    try:
-        use_personal_thresholds = _parse_bool_param(
-            request.query_params.get("use_personal_thresholds"),
-            field_name="use_personal_thresholds",
-            default=True,
-        )
-    except ValueError as exc:
-        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-    payload = get_market_thermometer_payload(
-        user_id=_authenticated_user_id(request),
-        use_personal_thresholds=use_personal_thresholds,
-    )
-    return Response(payload)
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def market_thermometer_history(request: Request) -> Response:
-    """Return recent market-thermometer snapshots."""
-
-    try:
-        days = _parse_positive_int_param(
-            request.query_params.get("days"),
-            field_name="days",
-            default=90,
-        )
-    except ValueError as exc:
-        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-    data = make_calculate_market_thermometer_use_case().list_history(days=days)
-    return Response({"results": data})
-
-
-@api_view(["GET", "PUT", "PATCH"])
-@permission_classes([IsAdminUser])
-def market_thermometer_config(request: Request) -> Response:
-    """Return or update global market-thermometer config."""
-
-    use_case = make_manage_market_thermometer_config_use_case()
-    if request.method == "GET":
-        return Response(use_case.get().to_dict())
-
-    serializer = MarketThermometerConfigSerializer(data=request.data, partial=True)
-    serializer.is_valid(raise_exception=True)
-    updated = use_case.update(**serializer.validated_data)
-    return Response(updated.to_dict())
-
-
-@api_view(["GET", "PUT", "PATCH", "DELETE"])
-@permission_classes([IsAuthenticated])
-def market_thermometer_me(request: Request) -> Response:
-    """Return or update current user's threshold override."""
-
-    user_id = _authenticated_user_id(request)
-    use_case = make_manage_market_thermometer_user_override_use_case()
-    if request.method == "GET":
-        return Response(load_market_thermometer_override_payload(user_id=user_id))
-
-    if request.method == "DELETE":
-        use_case.delete(user_id)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    serializer = MarketThermometerUserOverrideSerializer(data=request.data, partial=True)
-    serializer.is_valid(raise_exception=True)
-    use_case.upsert(user_id=user_id, **serializer.validated_data)
-    return Response(load_market_thermometer_override_payload(user_id=user_id))
-
-
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def market_thermometer_calculate(request: Request) -> Response:
-    """Trigger a manual market-thermometer recalculation."""
-
-    raw_date = str(request_data_mapping(request).get("as_of_date") or "").strip()
-    as_of_date = date.fromisoformat(raw_date) if raw_date else None
-    snapshot = make_calculate_market_thermometer_use_case().execute(as_of_date=as_of_date)
-    return Response(snapshot.to_dict())
-
-
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def market_thermometer_sync_inputs(request: Request) -> Response:
-    """Trigger input synchronization for the market thermometer."""
-
-    raw_date = str(request_data_mapping(request).get("as_of_date") or "").strip()
-    as_of_date = date.fromisoformat(raw_date) if raw_date else None
-    payload = make_sync_market_thermometer_inputs_use_case().execute(as_of_date=as_of_date)
-    return Response(payload)
-
-
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def market_thermometer_import_investor_accounts(request: Request) -> Response:
-    """Import investor-account CSV text into canonical MacroFact storage."""
-
-    serializer = MarketThermometerImportSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    csv_text = ""
-    upload = request.FILES.get("file")
-    if upload is not None:
-        csv_text = upload.read().decode("utf-8-sig")
-    else:
-        csv_text = serializer.validated_data.get("csv_text", "")
-
-    if not str(csv_text or "").strip():
-        return Response(
-            {"detail": "csv_text or file is required."}, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    result = make_import_investor_accounts_use_case().execute(
-        csv_text,
-        dry_run=bool(serializer.validated_data.get("dry_run", False)),
-        value_unit=str(serializer.validated_data.get("value_unit") or "户"),
-    )
-    if bool(serializer.validated_data.get("fail_on_warning", False)) and result.get("warnings"):
-        return Response(result, status=status.HTTP_400_BAD_REQUEST)
-    status_code = status.HTTP_200_OK if result.get("dry_run") else status.HTTP_201_CREATED
-    return Response(result, status=status_code)
-
-
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def repair_decision_reliability(request: Request) -> Response:
-    """Repair macro/quote/Pulse/Alpha inputs and return readiness status."""
-    serializer = DecisionReliabilityRepairRequestSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    req = DecisionReliabilityRepairRequest(**serializer.validated_data)
-    report = _make_decision_repair_use_case(request.user).execute(req)
-    payload = report.to_dict()
-    status_code = (
-        status.HTTP_409_CONFLICT
-        if req.strict and payload["must_not_use_for_decision"]
-        else status.HTTP_200_OK
-    )
-    return Response(payload, status=status_code)
-
-
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def sync_macro(request: Request) -> Response:
-    serializer = SyncMacroRequestSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    req = SyncMacroRequest(**serializer.validated_data)
-    result = make_sync_macro_use_case().execute(req)
-    return Response(result.to_dict())
-
-
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def sync_prices(request: Request) -> Response:
-    serializer = SyncPriceRequestSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    req = SyncPriceRequest(**serializer.validated_data)
-    result = make_sync_price_use_case().execute(req)
-    return Response(result.to_dict())
-
-
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def sync_quotes(request: Request) -> Response:
-    serializer = SyncQuoteRequestSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    req = SyncQuoteRequest(**serializer.validated_data)
-    result = make_sync_quote_use_case().execute(req)
-    return Response(result.to_dict())
-
-
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def sync_fund_nav(request: Request) -> Response:
-    serializer = SyncFundNavRequestSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    req = SyncFundNavRequest(**serializer.validated_data)
-    result = make_sync_fund_nav_use_case().execute(req)
-    return Response(result.to_dict())
-
-
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def sync_financials(request: Request) -> Response:
-    serializer = SyncFinancialRequestSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    req = SyncFinancialRequest(**serializer.validated_data)
-    result = make_sync_financial_use_case().execute(req)
-    return Response(result.to_dict())
-
-
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def sync_valuations(request: Request) -> Response:
-    serializer = SyncValuationRequestSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    req = SyncValuationRequest(**serializer.validated_data)
-    result = make_sync_valuation_use_case().execute(req)
-    return Response(result.to_dict())
-
-
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def sync_sector_constituents(request: Request) -> Response:
-    serializer = SyncSectorMembershipRequestSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    req = SyncSectorMembershipRequest(**serializer.validated_data)
-    result = make_sync_sector_membership_use_case().execute(req)
-    return Response(result.to_dict())
-
-
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def sync_news(request: Request) -> Response:
-    serializer = SyncNewsRequestSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    req = SyncNewsRequest(**serializer.validated_data)
-    result = make_sync_news_use_case().execute(req)
-    return Response(result.to_dict())
-
-
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def sync_capital_flows(request: Request) -> Response:
-    serializer = SyncCapitalFlowRequestSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    req = SyncCapitalFlowRequest(**serializer.validated_data)
-    result = make_sync_capital_flow_use_case().execute(req)
-    return Response(result.to_dict())
-
-
-@api_view(["GET", "POST"])
-@permission_classes([IsAuthenticated])
-def pit_manifest_list_create(request: Request) -> Response:
-    """List PIT manifests or freeze a new evidence set."""
-
-    if request.method == "GET":
-        limit = int(request.query_params.get("limit", 100))
-        manifests = make_query_pit_manifest_use_case().list_recent(limit)
-        return Response({"results": [serialize_pit_manifest(item) for item in manifests]})
-    serializer = BuildPITManifestSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    data = serializer.validated_data
-    manifest = make_build_pit_manifest_use_case().execute(
-        BuildPITManifestRequest(
-            as_of_time=data["as_of_time"],
-            knowledge_scope=KnowledgeScope(data["knowledge_scope"]),
-            calendar_version=data["calendar_version"],
-            query_spec=data["query_spec"],
-            required_keys=data["required_keys"],
-        )
-    )
-    return Response(serialize_pit_manifest(manifest), status=status.HTTP_201_CREATED)
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def pit_manifest_detail(request: Request, manifest_id: str) -> Response:
-    """Return one immutable PIT manifest."""
-
-    manifest = make_query_pit_manifest_use_case().get(manifest_id)
-    if manifest is None:
-        return Response({"detail": "Manifest not found."}, status=status.HTTP_404_NOT_FOUND)
-    return Response(serialize_pit_manifest(manifest))

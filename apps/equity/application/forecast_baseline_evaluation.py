@@ -9,6 +9,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Protocol
 
+from apps.equity.application.forecast_baseline_materialize_contracts import _require_aware
 from apps.equity.domain.forecast_baseline import (
     ActualFactObservation,
     BaselinePITSelectedVersion,
@@ -27,7 +28,6 @@ from .forecast_baseline_materialize import (
     ForecastBaselineSpecRepository,
     ManifestSelectedVersionEvidence,
     VersionRef,
-    _require_aware,
     _selected_versions_from_evidence,
 )
 

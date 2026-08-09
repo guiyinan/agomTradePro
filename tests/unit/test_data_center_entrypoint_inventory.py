@@ -84,6 +84,22 @@ def test_operational_inventory_has_no_unreviewed_repository_entrypoints(
     assert payload["counts"]["by_status"]["candidate-review"] == 0
 
 
+def test_inventory_keeps_bound_public_and_compatibility_ports_visible(
+    inventory_payload: tuple[ModuleType, dict[str, object]],
+) -> None:
+    """Facade splitting must not silently remove bound callables from governance."""
+
+    _inventory, payload = inventory_payload
+    entries = payload["entries"]
+    public_symbols = {entry["symbol"] for entry in entries if entry["category"] == "public_port"}
+    compatibility_symbols = {
+        entry["symbol"] for entry in entries if entry["category"] == "compatibility_facade"
+    }
+
+    assert "get_published_valuation_facts" in public_symbols
+    assert "make_sync_quote_use_case" in compatibility_symbols
+
+
 def test_operational_lifecycles_correct_legacy_and_adjacent_tasks(
     inventory_payload: tuple[ModuleType, dict[str, object]],
 ) -> None:

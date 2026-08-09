@@ -564,7 +564,7 @@
       "consumers": [
         "apps/task_monitor/infrastructure/backup_service.py::DatabaseBackupService._resolve_keep_days",
         "apps/task_monitor/application/tasks.py::backup_database_task",
-        "core/settings/base.py::CELERY_BEAT_SCHEDULE.database-daily-backup",
+        "core/settings/celery_schedule.py::CELERY_BEAT_SCHEDULE.database-daily-backup",
         "apps/task_monitor/management/commands/backup_database.py::Command.handle",
         "core/integration/runtime_settings.py::get_runtime_config_value",
         "apps/config_center/infrastructure/config_summary_repository.py::DjangoConfigCenterSummaryRepository.get_runtime_config_value"
