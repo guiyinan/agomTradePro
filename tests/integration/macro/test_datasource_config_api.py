@@ -258,7 +258,7 @@ def test_tushare_transport_field_is_rejected_for_other_providers(admin_client):
 
 
 @pytest.mark.django_db
-def test_config_center_snapshot_exposes_data_center_provider_summary(admin_client):
+def test_config_center_snapshot_blocks_provider_summary_without_typed_runtime(admin_client):
     ProviderConfigModel.objects.create(
         name="Tushare Proxy",
         source_type="tushare",
@@ -278,7 +278,10 @@ def test_config_center_snapshot_exposes_data_center_provider_summary(admin_clien
     }
     summary = items["data_center_providers"]["summary"]
     assert summary["custom_http_url_count"] == 1
-    assert summary["default_source"] == "akshare"
+    assert summary["default_source"] is None
+    assert summary["runtime_status"] == "blocked"
+    assert summary["must_not_use_for_decision"] is True
+    assert summary["blocked_reason"] == "provider_runtime_default_source_missing"
 
 
 @pytest.mark.django_db

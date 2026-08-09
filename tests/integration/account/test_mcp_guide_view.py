@@ -3,13 +3,14 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
+from django.utils import timezone
 
 from apps.account.infrastructure.models import (
     AccountProfileModel,
-    SystemSettingsModel,
     UserAccessTokenModel,
 )
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+from tests.support.runtime_config import configure_account_runtime
 
 
 def _ensure_account_profile(user) -> None:
@@ -34,9 +35,7 @@ def test_mcp_guide_view_renders_connection_contract():
         password="testpass123",
     )
     _ensure_account_profile(user)
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.allow_token_plaintext_view = True
-    settings_obj.save()
+    configure_account_runtime(allow_token_plaintext_view=True)
 
     account = SimulatedAccountModel.objects.create(
         user=user,
@@ -47,7 +46,7 @@ def test_mcp_guide_view_renders_connection_contract():
         current_market_value=Decimal("25000.00"),
         total_value=Decimal("105000.00"),
         total_return=5.0,
-        start_date=settings_obj.created_at.date(),
+        start_date=timezone.localdate(),
     )
     _, raw_key = UserAccessTokenModel.create_token(
         user=user,
@@ -64,7 +63,7 @@ def test_mcp_guide_view_renders_connection_contract():
     content = response.content.decode("utf-8")
     assert "MCP 接入说明" in content
     assert "此经典页面已进入兼容期" in content
-    assert '/tui/?screen=capability-router.self-service' in content
+    assert "/tui/?screen=capability-router.self-service" in content
     assert raw_key in content
     assert "Authorization: Token" in content
     assert "只读 Token" in content
@@ -113,9 +112,7 @@ def test_mcp_guide_reports_encryption_key_mismatch_instead_of_policy_shutdown():
         password="testpass123",
     )
     _ensure_account_profile(user)
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.allow_token_plaintext_view = True
-    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    configure_account_runtime(allow_token_plaintext_view=True)
     token, _ = UserAccessTokenModel.create_token(
         user=user,
         name="legacy-mismatch",

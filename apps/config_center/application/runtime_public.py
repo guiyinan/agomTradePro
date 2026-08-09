@@ -41,9 +41,12 @@ _QLIB_RUNTIME_FIELDS: tuple[tuple[str, str, type[object]], ...] = (
     ("allow_auto_activate", "alpha.qlib.allow_auto_activate", bool),
 )
 
-_DOMAIN_RUNTIME_FIELDS: tuple[tuple[str, str, type[object]], ...] = (
+_ALPHA_RUNTIME_FIELDS: tuple[tuple[str, str, type[object]], ...] = (
     ("alpha_fixed_provider", "alpha.runtime.fixed_provider", str),
     ("alpha_pool_mode", "alpha.runtime.pool_mode", str),
+)
+
+_MARKET_RUNTIME_FIELDS: tuple[tuple[str, str, type[object]], ...] = (
     ("market_color_convention", "config_center.market.color_convention", str),
     ("benchmark_code_map", "config_center.market.benchmark_code_map", dict),
     ("asset_proxy_code_map", "config_center.market.asset_proxy_code_map", dict),
@@ -352,13 +355,29 @@ def get_active_qlib_runtime_config(environment: str) -> dict[str, object] | None
 def get_active_domain_runtime_config(environment: str) -> dict[str, object] | None:
     """Resolve typed Alpha/market runtime values from one active snapshot.
 
-    The projection is intentionally all-or-nothing: a partial snapshot returns
-    ``None`` so the owning repository can apply its explicitly documented
-    compatibility policy rather than mixing values from two configuration
-    sources.
+    This compatibility aggregate remains all-or-nothing, but both owner groups
+    are resolved independently first. New consumers should use the narrower
+    Alpha or market projection so an incomplete sibling group cannot hide a
+    complete canonical group.
     """
 
-    return _get_typed_runtime_projection(environment, _DOMAIN_RUNTIME_FIELDS)
+    alpha = get_active_alpha_runtime_config(environment)
+    market = get_active_market_runtime_config(environment)
+    if alpha is None or market is None:
+        return None
+    return {**alpha, **market}
+
+
+def get_active_alpha_runtime_config(environment: str) -> dict[str, object] | None:
+    """Resolve the complete canonical Alpha runtime group or fail closed."""
+
+    return _get_typed_runtime_projection(environment, _ALPHA_RUNTIME_FIELDS)
+
+
+def get_active_market_runtime_config(environment: str) -> dict[str, object] | None:
+    """Resolve the complete canonical market mapping group or fail closed."""
+
+    return _get_typed_runtime_projection(environment, _MARKET_RUNTIME_FIELDS)
 
 
 def get_active_account_runtime_config(environment: str) -> dict[str, object] | None:
@@ -574,6 +593,8 @@ __all__ = [
     "get_active_runtime_value",
     "get_active_runtime_secret_ref",
     "get_active_domain_runtime_config",
+    "get_active_alpha_runtime_config",
+    "get_active_market_runtime_config",
     "get_active_account_runtime_config",
     "get_active_backup_delivery_config",
     "get_active_qlib_runtime_config",

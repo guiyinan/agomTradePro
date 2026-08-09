@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from apps.data_center.application import interface_services
-from apps.data_center.domain.entities import DataProviderSettings, ProviderConfig
+from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.infrastructure import config_summary_repository
 
 
@@ -54,25 +54,25 @@ def test_dynamic_runtime_wrappers_fail_closed(
 def test_provider_settings_save_returns_persisted_projection(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    saved = DataProviderSettings(
-        default_source="akshare",
-        enable_failover=True,
-        failover_tolerance=0.01,
-    )
-    monkeypatch.setattr(
-        interface_services,
-        "DataProviderSettingsRepository",
-        lambda: SimpleNamespace(
-            load_for_read=lambda: saved,
-        ),
-    )
+    active_values: dict[str, object] = {}
     runtime_patches: list[dict[str, object]] = []
+
+    def _activate(**kwargs: object) -> dict[str, int]:
+        patch = dict(kwargs["patch"])
+        runtime_patches.append(patch)
+        active_values.update(patch)
+        return {"profile_version": 1}
+
     monkeypatch.setattr(
         interface_services,
         "activate_runtime_profile_patch",
-        lambda **kwargs: runtime_patches.append(dict(kwargs["patch"])) or {"profile_version": 1},
+        _activate,
     )
-    monkeypatch.setattr(interface_services, "get_active_runtime_value", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        interface_services,
+        "get_active_runtime_value",
+        lambda *, definition_key, environment: active_values.get(definition_key),
+    )
     payload = interface_services.save_provider_settings_payload(
         default_source="akshare",
         enable_failover=True,
@@ -82,6 +82,10 @@ def test_provider_settings_save_returns_persisted_projection(
         "default_source": "akshare",
         "enable_failover": True,
         "failover_tolerance": 0.01,
+        "status": "active",
+        "source": "config_center_runtime_profile",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
     }
     assert runtime_patches == [
         {
@@ -95,17 +99,6 @@ def test_provider_settings_save_returns_persisted_projection(
 def test_provider_settings_payload_prefers_typed_default_source(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        interface_services,
-        "DataProviderSettingsRepository",
-        lambda: SimpleNamespace(
-            load_for_read=lambda: DataProviderSettings(
-                default_source="akshare",
-                enable_failover=True,
-                failover_tolerance=0.01,
-            )
-        ),
-    )
     values = {
         "data_center.provider.default_source": "tushare",
         "data_center.provider.enable_failover": False,
@@ -121,6 +114,54 @@ def test_provider_settings_payload_prefers_typed_default_source(
         "default_source": "tushare",
         "enable_failover": False,
         "failover_tolerance": 0.025,
+        "status": "active",
+        "source": "config_center_runtime_profile",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
+    }
+
+
+@pytest.mark.parametrize(
+    ("values", "reason"),
+    [
+        ({}, "provider_runtime_default_source_missing"),
+        (
+            {
+                "data_center.provider.default_source": "legacy",
+                "data_center.provider.enable_failover": True,
+                "data_center.provider.failover_tolerance": 0.01,
+            },
+            "provider_runtime_default_source_invalid",
+        ),
+        (
+            {
+                "data_center.provider.default_source": "akshare",
+                "data_center.provider.enable_failover": "true",
+                "data_center.provider.failover_tolerance": 0.01,
+            },
+            "provider_runtime_failover_enabled_invalid",
+        ),
+    ],
+)
+def test_provider_settings_payload_fails_closed_without_complete_typed_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+    values: dict[str, object],
+    reason: str,
+) -> None:
+    monkeypatch.setattr(
+        interface_services,
+        "get_active_runtime_value",
+        lambda *, definition_key, environment: values.get(definition_key),
+    )
+
+    assert interface_services.load_provider_settings_payload() == {
+        "default_source": None,
+        "enable_failover": None,
+        "failover_tolerance": None,
+        "status": "blocked",
+        "source": "config_center_runtime_profile",
+        "must_not_use_for_decision": True,
+        "blocked_reason": reason,
     }
 
 
@@ -129,17 +170,6 @@ def test_provider_summary_prefers_typed_provider_runtime(monkeypatch: pytest.Mon
         def values(self, *_fields: str) -> list[dict[str, object]]:
             return []
 
-    monkeypatch.setattr(
-        config_summary_repository,
-        "DataProviderSettingsModel",
-        SimpleNamespace(
-            load_for_read=lambda: SimpleNamespace(
-                default_source="akshare",
-                enable_failover=True,
-                failover_tolerance=0.01,
-            )
-        ),
-    )
     monkeypatch.setattr(
         config_summary_repository,
         "ProviderConfigModel",
@@ -174,7 +204,40 @@ def test_provider_summary_prefers_typed_provider_runtime(monkeypatch: pytest.Mon
         "failover_tolerance": 0.025,
         "custom_http_url_count": 0,
         "missing_api_key_count": 0,
+        "runtime_status": "active",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
     }
+
+
+def test_provider_summary_fails_closed_when_typed_runtime_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _Rows:
+        def values(self, *_fields: str) -> list[dict[str, object]]:
+            return []
+
+    monkeypatch.setattr(
+        config_summary_repository,
+        "ProviderConfigModel",
+        SimpleNamespace(_default_manager=SimpleNamespace(all=lambda: _Rows())),
+    )
+    monkeypatch.setattr(
+        config_summary_repository,
+        "_resolve_default_source",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("provider_runtime_default_source_missing")
+        ),
+    )
+
+    summary = (
+        config_summary_repository.DjangoDataCenterConfigSummaryRepository().get_provider_summary()
+    )
+
+    assert summary["status"] == "blocked"
+    assert summary["summary"]["default_source"] is None
+    assert summary["summary"]["must_not_use_for_decision"] is True
+    assert summary["summary"]["blocked_reason"] == "provider_runtime_default_source_missing"
 
 
 def test_scope_quote_sync_handles_empty_missing_failure_and_success(

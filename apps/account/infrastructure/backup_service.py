@@ -24,7 +24,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.account.infrastructure.backup_delivery_projection import get_backup_delivery_settings
-from apps.account.infrastructure.models import SystemSettingsModel
+from apps.account.infrastructure.system_settings_projection import SystemSettingsProjection
 from apps.config_center.application.public import record_backup_download_token
 
 DOWNLOAD_TOKEN_SALT = "account-db-backup-download"
@@ -57,8 +57,7 @@ class BackupPackageDescription(TypedDict):
 
 def build_backup_download_url(token: str) -> str:
     path = reverse("admin-db-backup-download", kwargs={"token": token})
-    legacy_settings = SystemSettingsModel.get_settings_for_read()
-    config = get_backup_delivery_settings(base_settings=legacy_settings)
+    config = get_backup_delivery_settings()
     base_url = (config.backup_app_base_url or getattr(settings, "APP_BASE_URL", "")).rstrip("/")
     if base_url:
         return f"{base_url}{path}"
@@ -68,7 +67,7 @@ def build_backup_download_url(token: str) -> str:
     return f"{scheme}://{host}{path}"
 
 
-def generate_download_token(config: SystemSettingsModel) -> str:
+def generate_download_token(config: SystemSettingsProjection) -> str:
     if (
         isinstance(config.backup_link_ttl_days, bool)
         or not isinstance(config.backup_link_ttl_days, int)
@@ -147,7 +146,7 @@ def validate_download_token(
     }
 
 
-def generate_backup_archive(config: SystemSettingsModel) -> GeneratedBackup:
+def generate_backup_archive(config: SystemSettingsProjection) -> GeneratedBackup:
     raw_backup = _build_raw_backup_bytes()
     compressed = gzip.compress(raw_backup, compresslevel=6)
     encrypted = _encrypt_backup_bytes(compressed, config.get_backup_password())
@@ -169,7 +168,7 @@ def describe_backup_package() -> BackupPackageDescription:
     }
 
 
-def get_backup_email_connection(config: SystemSettingsModel) -> BaseEmailBackend:
+def get_backup_email_connection(config: SystemSettingsProjection) -> BaseEmailBackend:
     return cast(
         BaseEmailBackend,
         get_connection(

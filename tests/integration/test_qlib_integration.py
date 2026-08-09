@@ -901,21 +901,7 @@ class TestQlibEndToEnd:
         monkeypatch,
     ):
         """测试完整的预测流程（使用模拟依赖与测试库软开关）"""
-        from apps.account.infrastructure.models import SystemSettingsModel
         from apps.alpha.application.tasks import _execute_qlib_prediction
-
-        settings_obj = SystemSettingsModel.get_settings()
-        settings_obj.qlib_enabled = True
-        settings_obj.qlib_provider_uri = str((tmp_path / "qlib_data").resolve())
-        settings_obj.qlib_model_path = str((tmp_path / "models").resolve())
-        settings_obj.save(
-            update_fields=[
-                "qlib_enabled",
-                "qlib_provider_uri",
-                "qlib_model_path",
-                "updated_at",
-            ]
-        )
 
         qlib_config = {
             "enabled": True,

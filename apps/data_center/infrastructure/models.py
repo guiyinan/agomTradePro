@@ -26,7 +26,6 @@ from apps.data_center.domain.control_plane import (
     SyncRunStatus,
 )
 from apps.data_center.domain.entities import (
-    DataProviderSettings,
     MarketThermometerComponentScore,
     MarketThermometerConfig,
     MarketThermometerSnapshot,
@@ -212,8 +211,6 @@ class DataProviderSettingsModel(models.Model):
         ("failover", "自动容错（AKShare → Tushare）"),
     ]
 
-    _SINGLETON_PK = 1
-
     default_source = models.CharField(
         max_length=20,
         choices=DEFAULT_SOURCE_CHOICES,
@@ -239,34 +236,6 @@ class DataProviderSettingsModel(models.Model):
 
     def __str__(self) -> str:
         return f"Default source: {self.get_default_source_display()}"
-
-    def save(self, *args: Any, **kwargs: Any) -> None:
-        """Enforce singleton — always use pk=1."""
-        self.pk = self._SINGLETON_PK
-        super().save(*args, **kwargs)
-
-    @classmethod
-    def load_for_read(cls) -> "DataProviderSettingsModel":
-        """Return persisted settings or an unsaved in-memory default."""
-
-        obj = cls.objects.filter(pk=cls._SINGLETON_PK).first()
-        if obj is not None:
-            return obj
-        return cls(
-            pk=cls._SINGLETON_PK,
-            default_source="akshare",
-            enable_failover=True,
-            failover_tolerance=0.01,
-        )
-
-    def to_domain(self) -> DataProviderSettings:
-        """Convert to domain DataProviderSettings value object."""
-
-        return DataProviderSettings(
-            default_source=self.default_source,
-            enable_failover=self.enable_failover,
-            failover_tolerance=self.failover_tolerance,
-        )
 
 
 class ProductionCoverageUniverseConfigModel(models.Model):

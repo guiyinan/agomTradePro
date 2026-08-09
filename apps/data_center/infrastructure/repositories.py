@@ -38,7 +38,6 @@ from apps.data_center.infrastructure.market_thermometer_repositories import (
 from apps.data_center.infrastructure.news_repository import NewsRepository
 from apps.data_center.infrastructure.price_bar_repository import PriceBarRepository
 from apps.data_center.infrastructure.provider_state_repositories import (
-    DataProviderSettingsRepository,
     ProductionCoverageUniverseConfigRepository,
     ProviderConfigRepository,
     RawAuditRepository,
@@ -53,7 +52,6 @@ __all__ = [
     "AssetRepository",
     "DataOwnerRegistryRepository",
     "CapitalFlowRepository",
-    "DataProviderSettingsRepository",
     "DatasetContractRepository",
     "FinancialFactRepository",
     "FundNavRepository",

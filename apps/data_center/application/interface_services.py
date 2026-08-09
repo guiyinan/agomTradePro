@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import math
 import os
 from collections.abc import Callable, Mapping, Sequence
 from datetime import date
@@ -21,7 +22,6 @@ from apps.data_center.composition import (
     AssetRepository,
     CanonicalPublicationRepository,
     CapitalFlowRepository,
-    DataProviderSettingsRepository,
     FinancialFactRepository,
     FundNavRepository,
     IndicatorCatalogRepository,
@@ -360,41 +360,71 @@ def make_run_provider_connection_test_use_case() -> RunProviderConnectionTestUse
 
 
 def load_provider_settings_payload() -> dict[str, Any]:
-    """Return the global provider settings as a response payload."""
+    """Return complete typed provider settings or an explicit blocked payload."""
 
-    settings = DataProviderSettingsRepository().load_for_read()
     module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
     environment = "production" if module.endswith(".production") else "development"
-    runtime_default_source = get_active_runtime_value(
-        environment=environment,
-        definition_key="data_center.provider.default_source",
-    )
-    default_source = (
-        runtime_default_source
-        if isinstance(runtime_default_source, str)
-        and runtime_default_source in DataProviderSettings.SOURCE_CHOICES
-        else settings.default_source
-    )
-    runtime_enabled = get_active_runtime_value(
-        environment=environment,
-        definition_key="data_center.provider.enable_failover",
-    )
-    runtime_tolerance = get_active_runtime_value(
-        environment=environment,
-        definition_key="data_center.provider.failover_tolerance",
-    )
-    enable_failover = (
-        runtime_enabled if isinstance(runtime_enabled, bool) else settings.enable_failover
-    )
-    failover_tolerance = (
-        float(runtime_tolerance)
-        if isinstance(runtime_tolerance, (int, float)) and not isinstance(runtime_tolerance, bool)
-        else settings.failover_tolerance
-    )
+    try:
+        default_source = get_active_runtime_value(
+            environment=environment,
+            definition_key="data_center.provider.default_source",
+        )
+        if default_source is None:
+            raise RuntimeError("provider_runtime_default_source_missing")
+        if (
+            not isinstance(default_source, str)
+            or default_source not in DataProviderSettings.SOURCE_CHOICES
+        ):
+            raise RuntimeError("provider_runtime_default_source_invalid")
+
+        enable_failover = get_active_runtime_value(
+            environment=environment,
+            definition_key="data_center.provider.enable_failover",
+        )
+        if enable_failover is None:
+            raise RuntimeError("provider_runtime_failover_enabled_missing")
+        if not isinstance(enable_failover, bool):
+            raise RuntimeError("provider_runtime_failover_enabled_invalid")
+
+        runtime_tolerance = get_active_runtime_value(
+            environment=environment,
+            definition_key="data_center.provider.failover_tolerance",
+        )
+        if runtime_tolerance is None:
+            raise RuntimeError("provider_runtime_failover_tolerance_missing")
+        if isinstance(runtime_tolerance, bool) or not isinstance(runtime_tolerance, (int, float)):
+            raise RuntimeError("provider_runtime_failover_tolerance_invalid")
+        failover_tolerance = float(runtime_tolerance)
+        if not math.isfinite(failover_tolerance) or not 0.0 <= failover_tolerance <= 1.0:
+            raise RuntimeError("provider_runtime_failover_tolerance_invalid")
+    except RuntimeError as exc:
+        return {
+            "default_source": None,
+            "enable_failover": None,
+            "failover_tolerance": None,
+            "status": "blocked",
+            "source": "config_center_runtime_profile",
+            "must_not_use_for_decision": True,
+            "blocked_reason": str(exc) or "provider_runtime_config_unavailable",
+        }
+    except Exception:
+        return {
+            "default_source": None,
+            "enable_failover": None,
+            "failover_tolerance": None,
+            "status": "blocked",
+            "source": "config_center_runtime_profile",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "provider_runtime_snapshot_unavailable",
+        }
     return {
         "default_source": default_source,
         "enable_failover": enable_failover,
         "failover_tolerance": failover_tolerance,
+        "status": "active",
+        "source": "config_center_runtime_profile",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
     }
 
 
@@ -449,12 +479,6 @@ def get_decision_provider_capability_health_payload() -> dict[str, Any]:
             "" if not blocked_capabilities else "decision_provider_capabilities_unhealthy"
         ),
     }
-
-
-def can_create_provider_settings() -> bool:
-    """Return whether the singleton provider-settings row can be created."""
-
-    return not DataProviderSettingsRepository().has_settings()
 
 
 def save_provider_settings_payload(

@@ -8,7 +8,6 @@ from django.test import RequestFactory
 
 from apps.data_center.interface import admin as data_center_admin
 from apps.data_center.models import (
-    DataProviderSettingsModel,
     ProductionCoverageUniverseConfigModel,
     ProviderConfigModel,
 )
@@ -117,55 +116,29 @@ def test_admin_rejects_unified_tushare_transport_without_service_address():
     assert form.errors["http_url"] == ["统一中继连接必须填写服务地址。"]
 
 
-@pytest.mark.parametrize(
-    ("admin_class", "model", "singleton_check"),
-    [
-        (
-            data_center_admin.DataProviderSettingsAdmin,
-            DataProviderSettingsModel,
-            "provider_settings",
-        ),
-        (
-            data_center_admin.ProductionCoverageUniverseConfigAdmin,
-            ProductionCoverageUniverseConfigModel,
-            "coverage_universe",
-        ),
-    ],
-)
 def test_singleton_add_permission_rejects_staff_without_model_permission(
     monkeypatch,
-    admin_class,
-    model,
-    singleton_check,
 ):
     """Singleton availability must never bypass Django's model permission."""
 
-    if singleton_check == "provider_settings":
-        availability = Mock(return_value=True)
-        monkeypatch.setattr(data_center_admin, "can_create_provider_settings", availability)
-    else:
-        availability = Mock(return_value=False)
-        monkeypatch.setattr(model.objects, "exists", availability)
+    availability = Mock(return_value=False)
+    monkeypatch.setattr(ProductionCoverageUniverseConfigModel.objects, "exists", availability)
 
-    model_admin = admin_class(model, AdminSite())
+    model_admin = data_center_admin.ProductionCoverageUniverseConfigAdmin(
+        ProductionCoverageUniverseConfigModel,
+        AdminSite(),
+    )
 
     assert model_admin.has_add_permission(_admin_request(has_permission=False)) is False
     availability.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    ("admin_class", "model"),
-    [
-        (data_center_admin.DataProviderSettingsAdmin, DataProviderSettingsModel),
-        (
-            data_center_admin.ProductionCoverageUniverseConfigAdmin,
-            ProductionCoverageUniverseConfigModel,
-        ),
-    ],
-)
-def test_singleton_admin_never_allows_delete(admin_class, model):
+def test_singleton_admin_never_allows_delete():
     """Critical global singleton rows remain non-deletable in Admin."""
 
-    model_admin = admin_class(model, AdminSite())
+    model_admin = data_center_admin.ProductionCoverageUniverseConfigAdmin(
+        ProductionCoverageUniverseConfigModel,
+        AdminSite(),
+    )
 
     assert model_admin.has_delete_permission(_admin_request(has_permission=True)) is False

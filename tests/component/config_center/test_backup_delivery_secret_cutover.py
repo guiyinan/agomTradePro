@@ -16,14 +16,36 @@ from apps.config_center.domain.backup_delivery import (
     BACKUP_SMTP_PASSWORD_SECRET_REF,
 )
 from apps.config_center.models import ConfigCenterSecretModel, SystemSettingsModel
+from apps.data_center.application.interface_services import save_provider_settings_payload
+
+
+def _configure_provider_runtime() -> None:
+    save_provider_settings_payload(
+        default_source="akshare",
+        enable_failover=True,
+        failover_tolerance=0.01,
+        actor="component-test-bootstrap",
+    )
 
 
 @pytest.mark.django_db(transaction=True)
 @override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="backup-cutover-test-key")
 def test_backup_policy_update_uses_config_center_secret_owner() -> None:
+    _configure_provider_runtime()
     update_backup_delivery_settings(
         {
             "backup_enabled": False,
+            "backup_email": "operator@example.com",
+            "backup_app_base_url": "https://example.com",
+            "backup_mail_from_email": "backup@example.com",
+            "backup_smtp_host": "smtp.example.com",
+            "backup_smtp_port": 465,
+            "backup_smtp_username": "backup-user",
+            "backup_smtp_use_tls": False,
+            "backup_smtp_use_ssl": True,
+            "backup_interval_days": 7,
+            "backup_link_ttl_days": 2,
+            "backup_password_hint": "component test",
             "backup_archive_password": "archive-secret",
             "backup_smtp_password": "smtp-secret",
         },
@@ -52,6 +74,7 @@ def test_backup_policy_update_uses_config_center_secret_owner() -> None:
 @pytest.mark.django_db(transaction=True)
 @override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="backup-cutover-test-key")
 def test_account_repository_reads_config_center_secrets_without_creating_legacy_row() -> None:
+    _configure_provider_runtime()
     update_backup_delivery_settings(
         {
             "backup_enabled": True,
@@ -65,6 +88,7 @@ def test_account_repository_reads_config_center_secrets_without_creating_legacy_
             "backup_smtp_use_ssl": True,
             "backup_interval_days": 7,
             "backup_link_ttl_days": 2,
+            "backup_password_hint": "component test",
             "backup_archive_password": "archive-secret",
             "backup_smtp_password": "smtp-secret",
         },

@@ -16,10 +16,7 @@ from apps.data_center.application.pit_use_cases import (
 from apps.data_center.application.research_data_foundation import (
     ResearchDataFoundationFacade,
 )
-from apps.data_center.domain.entities import (
-    DataProviderSettings,
-    ProviderConfig,
-)
+from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.domain.protocols import ProviderConfigRepositoryProtocol
 from apps.data_center.infrastructure.archive_repositories import (
     ArchiveCandidateRepository,
@@ -54,7 +51,6 @@ from apps.data_center.infrastructure.raw_landing_repositories import (
 from apps.data_center.infrastructure.repositories import (
     AssetRepository,
     CapitalFlowRepository,
-    DataProviderSettingsRepository,
     FinancialFactRepository,
     FundNavRepository,
     IndicatorCatalogRepository,
@@ -101,7 +97,6 @@ __all__ = [
     "CanonicalPublicationRepository",
     "DataCenterDiagnosticRepository",
     "DataOwnerRegistryRepository",
-    "DataProviderSettingsRepository",
     "DatasetContractRepository",
     "FinancialFactRepository",
     "FundNavRepository",
@@ -160,7 +155,6 @@ __all__ = [
     "get_capital_flow_repository",
     "get_data_center_diagnostic_repository",
     "get_data_owner_registry_repository",
-    "get_data_provider_settings_repository",
     "get_dataset_contract_repository",
     "get_financial_fact_repository",
     "get_fund_nav_repository",
@@ -197,7 +191,6 @@ __all__ = [
     "get_storage_hold_repository",
     "get_valuation_fact_repository",
     "list_active_provider_configs",
-    "load_data_provider_settings",
     "make_build_pit_manifest_use_case",
     "make_manifest_bound_pit_data_view",
     "make_query_pit_manifest_use_case",
@@ -229,12 +222,6 @@ def get_data_center_diagnostic_repository() -> DataCenterDiagnosticRepository:
     """Return the data-center diagnostic query repository."""
 
     return DataCenterDiagnosticRepository()
-
-
-def get_data_provider_settings_repository() -> DataProviderSettingsRepository:
-    """Return the default data-provider settings repository."""
-
-    return DataProviderSettingsRepository()
 
 
 def get_production_coverage_universe_config_repository() -> (
@@ -600,12 +587,6 @@ def refresh_provider_registry() -> ProviderRegistry:
     from apps.data_center.provider_runtime import refresh_registry
 
     return refresh_registry()
-
-
-def load_data_provider_settings() -> DataProviderSettings:
-    """Read the provider compatibility projection without creating its singleton row."""
-
-    return get_data_provider_settings_repository().load_for_read()
 
 
 def list_active_provider_configs() -> list[ProviderConfig]:

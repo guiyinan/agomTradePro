@@ -18,9 +18,9 @@ from apps.account.infrastructure.backup_service import (
 )
 from apps.account.infrastructure.models import (
     AccountProfileModel,
-    SystemSettingsModel,
     UserAccessTokenModel,
 )
+from apps.account.infrastructure.system_settings_projection import SystemSettingsProjection
 from apps.config_center.application.public import (
     consume_backup_download_token,
     get_runtime_market_visual_tokens,
@@ -47,11 +47,12 @@ class AccountInterfaceAdministrationRepositoryMixin:
     @classmethod
     def _account_settings_projection(
         cls,
-        base_settings: SystemSettingsModel | None = None,
-    ) -> tuple[SystemSettingsModel, dict[str, Any]]:
+        base_settings: SystemSettingsProjection | None = None,
+    ) -> tuple[SystemSettingsProjection, dict[str, Any]]:
         """Return the compatibility model overlaid with the typed account profile."""
 
-        system_settings = get_backup_delivery_settings(base_settings=base_settings)
+        compatibility_shape = base_settings or SystemSettingsProjection()
+        system_settings = get_backup_delivery_settings(base_settings=compatibility_shape)
         governance = get_system_governance_settings()
         for field_name in cls._ACCOUNT_RUNTIME_FIELDS:
             if field_name in governance:
@@ -135,8 +136,7 @@ class AccountInterfaceAdministrationRepositoryMixin:
             )
         profiles = profiles.order_by("-created_at")
 
-        legacy_settings = SystemSettingsModel.get_settings_for_read()
-        system_settings, _governance = self._account_settings_projection(legacy_settings)
+        system_settings, _governance = self._account_settings_projection()
         return {
             "profiles": profiles,
             "system_settings": system_settings,
@@ -195,8 +195,7 @@ class AccountInterfaceAdministrationRepositoryMixin:
                 }
             )
 
-        legacy_settings = SystemSettingsModel.get_settings_for_read()
-        system_settings, _governance = self._account_settings_projection(legacy_settings)
+        system_settings, _governance = self._account_settings_projection()
         return {
             "rows": rows,
             "search_query": search_query,
@@ -211,7 +210,6 @@ class AccountInterfaceAdministrationRepositoryMixin:
     def toggle_user_mcp(self, target_user_id: int) -> dict[str, Any]:
         """Toggle MCP access for a user."""
 
-        legacy_settings = SystemSettingsModel.get_settings_for_read()
         target_user = User._default_manager.select_related("account_profile").get(id=target_user_id)
         profile = target_user.account_profile
         profile.mcp_enabled = not profile.mcp_enabled
@@ -228,9 +226,7 @@ class AccountInterfaceAdministrationRepositoryMixin:
             "username": target_user.username,
             "mcp_enabled": profile.mcp_enabled,
             "default_mcp_enabled": bool(
-                get_system_governance_settings().get(
-                    "default_mcp_enabled", legacy_settings.default_mcp_enabled
-                )
+                get_system_governance_settings().get("default_mcp_enabled", False)
             ),
         }
 
@@ -403,8 +399,7 @@ class AccountInterfaceAdministrationRepositoryMixin:
     def build_system_settings_context(self) -> dict[str, Any]:
         """Build the system settings page context."""
 
-        legacy_settings = SystemSettingsModel.get_settings_for_read()
-        system_settings, governance = self._account_settings_projection(legacy_settings)
+        system_settings, governance = self._account_settings_projection()
         for field_name in (
             "market_color_convention",
             "alpha_pool_mode",
@@ -415,8 +410,8 @@ class AccountInterfaceAdministrationRepositoryMixin:
                 setattr(system_settings, field_name, governance[field_name])
         return {
             "system_settings": system_settings,
-            "market_color_choices": SystemSettingsModel.MARKET_COLOR_CONVENTION_CHOICES,
-            "alpha_pool_mode_choices": SystemSettingsModel.ALPHA_POOL_MODE_CHOICES,
+            "market_color_choices": SystemSettingsProjection.MARKET_COLOR_CONVENTION_CHOICES,
+            "alpha_pool_mode_choices": SystemSettingsProjection.ALPHA_POOL_MODE_CHOICES,
             "market_visuals": get_runtime_market_visual_tokens(),
             "benchmark_code_map_json": json.dumps(
                 governance.get("benchmark_code_map") or {},
@@ -440,9 +435,11 @@ class AccountInterfaceAdministrationRepositoryMixin:
 
         current_governance = get_system_governance_settings()
         market_color_choices = {
-            key for key, _ in SystemSettingsModel.MARKET_COLOR_CONVENTION_CHOICES
+            key for key, _ in SystemSettingsProjection.MARKET_COLOR_CONVENTION_CHOICES
         }
-        alpha_pool_mode_choices = {key for key, _ in SystemSettingsModel.ALPHA_POOL_MODE_CHOICES}
+        alpha_pool_mode_choices = {
+            key for key, _ in SystemSettingsProjection.ALPHA_POOL_MODE_CHOICES
+        }
 
         benchmark_code_map = json.loads(data.get("benchmark_code_map", "{}") or "{}")
         asset_proxy_code_map = json.loads(data.get("asset_proxy_code_map", "{}") or "{}")
@@ -453,7 +450,7 @@ class AccountInterfaceAdministrationRepositoryMixin:
         alpha_pool_mode = data.get(
             "alpha_pool_mode",
             current_governance.get(
-                "alpha_pool_mode", SystemSettingsModel.ALPHA_POOL_MODE_STRICT_VALUATION
+                "alpha_pool_mode", SystemSettingsProjection.ALPHA_POOL_MODE_STRICT_VALUATION
             ),
         )
 
@@ -488,7 +485,7 @@ class AccountInterfaceAdministrationRepositoryMixin:
         """Atomically consume one current backup token and generate its archive."""
 
         with transaction.atomic():
-            config = get_backup_delivery_settings()
+            config = get_backup_delivery_settings(base_settings=SystemSettingsProjection())
             max_age_seconds = max(config.backup_link_ttl_days, 1) * 86400
 
             try:

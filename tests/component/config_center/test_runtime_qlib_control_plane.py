@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import inspect
-
 import pytest
 
 from apps.account.infrastructure.account_interface_repository import AccountInterfaceRepository
@@ -23,12 +21,10 @@ from apps.data_center.infrastructure.models import DataProviderSettingsModel
 
 
 def test_profile_bootstrap_does_not_reheat_legacy_qlib_fields() -> None:
-    """Later profile patches must never copy Qlib from SystemSettings again."""
+    """Later profile patches have no legacy bootstrap surface."""
 
-    source = inspect.getsource(ConfigCenterSettingsRepository._legacy_runtime_values)
-
-    assert "settings_obj.qlib_" not in source
-    assert '"alpha.qlib.' not in source
+    assert not hasattr(ConfigCenterSettingsRepository, "_legacy_runtime_values")
+    assert not hasattr(ConfigCenterSettingsRepository, "_legacy_runtime_secret_refs")
 
 
 @pytest.mark.django_db
@@ -86,31 +82,31 @@ def test_runtime_qlib_summary_blocks_when_snapshot_missing(monkeypatch) -> None:
 
 @pytest.mark.django_db
 def test_domain_runtime_summary_prefers_complete_typed_snapshot(monkeypatch) -> None:
-    typed = {
+    alpha = {
         "alpha_fixed_provider": "qlib",
         "alpha_pool_mode": "market",
+    }
+    market = {
         "market_color_convention": "us_market",
         "benchmark_code_map": {"equity_market_benchmark": "000300.SH"},
         "asset_proxy_code_map": {"A_SHARE_GROWTH": "000300.SH"},
     }
     monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "core.settings.production")
     monkeypatch.setattr(
-        "apps.config_center.infrastructure.config_summary_repository.get_active_domain_runtime_config",
-        lambda environment: typed,
+        "apps.config_center.infrastructure.config_summary_repository.get_active_alpha_runtime_config",
+        lambda environment: alpha,
     )
-    for method_name in (
-        "get_runtime_market_visual_tokens",
-        "get_runtime_alpha_fixed_provider",
-        "get_runtime_alpha_pool_mode",
-        "get_runtime_benchmark_code",
-        "get_runtime_asset_proxy_map",
-    ):
-        monkeypatch.setattr(
-            f"apps.config_center.infrastructure.config_summary_repository.SystemSettingsModel.{method_name}",
-            lambda *args, _method_name=method_name, **kwargs: (_ for _ in ()).throw(
-                AssertionError(f"legacy SystemSettings path used: {_method_name}")
-            ),
-        )
+    monkeypatch.setattr(
+        "apps.config_center.infrastructure.config_summary_repository.get_active_market_runtime_config",
+        lambda environment: market,
+    )
+    monkeypatch.setattr(
+        "apps.config_center.infrastructure.config_summary_repository.get_active_account_runtime_config",
+        lambda environment: {
+            "default_mcp_enabled": False,
+            "allow_token_plaintext_view": False,
+        },
+    )
 
     repository = DjangoConfigCenterSummaryRepository()
     assert repository.get_runtime_alpha_fixed_provider() == "qlib"
@@ -119,22 +115,6 @@ def test_domain_runtime_summary_prefers_complete_typed_snapshot(monkeypatch) -> 
     assert repository.get_runtime_asset_proxy_map() == {"A_SHARE_GROWTH": "000300.SH"}
     assert repository.get_runtime_market_visual_tokens()["convention"] == "us_market"
 
-    class _LegacySettings:
-        default_mcp_enabled = False
-        allow_token_plaintext_view = False
-        market_color_convention = "cn_a_share"
-        benchmark_code_map = {"legacy": "000001.SH"}
-        asset_proxy_code_map = {"legacy": "510050.SH"}
-        updated_at = None
-
-        @staticmethod
-        def get_market_visual_tokens():
-            return {"label": "A股红涨绿跌"}
-
-    monkeypatch.setattr(
-        "apps.config_center.infrastructure.config_summary_repository.SystemSettingsModel.get_settings_for_read",
-        lambda: _LegacySettings(),
-    )
     monkeypatch.setattr(
         repository,
         "get_runtime_qlib_config",
@@ -158,6 +138,12 @@ def test_qlib_runtime_update_activates_typed_profile_without_legacy_write(tmp_pa
     settings_obj = SystemSettingsModel.get_settings()
     settings_obj.qlib_enabled = False
     settings_obj.save(update_fields=["qlib_enabled", "updated_at"])
+    save_provider_settings_payload(
+        default_source="akshare",
+        enable_failover=True,
+        failover_tolerance=0.01,
+        actor="pytest-bootstrap",
+    )
 
     payload = ConfigCenterSettingsRepository().update_runtime_config(
         {
@@ -250,6 +236,16 @@ def test_account_system_settings_update_uses_typed_market_governance() -> None:
             "asset_proxy_code_map",
             "updated_at",
         ]
+    )
+    save_provider_settings_payload(
+        default_source="akshare",
+        enable_failover=True,
+        failover_tolerance=0.01,
+        actor="pytest-bootstrap",
+    )
+    ConfigCenterSettingsRepository().update_runtime_config(
+        {"alpha_fixed_provider": "cache"},
+        actor="pytest-bootstrap",
     )
 
     AccountInterfaceRepository().update_system_settings_from_mapping(

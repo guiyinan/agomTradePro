@@ -12,9 +12,10 @@ from django.db import OperationalError
 from django.utils import timezone
 
 import apps.terminal.application.tui_workbench as tui_workbench_module
-from apps.account.infrastructure.models import SystemSettingsModel
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.alpha.infrastructure.models import QlibModelRegistryModel
+from apps.config_center.infrastructure.repositories import ConfigCenterSettingsRepository
+from apps.data_center.application.interface_services import save_provider_settings_payload
 from apps.share.infrastructure.models import ShareLinkModel, ShareSnapshotModel
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 from apps.terminal.application.tui_errors import TuiActionBusyError
@@ -3129,17 +3130,28 @@ def test_tui_admin_config_center_runtime_action_handles_active_model_without_upd
         provider_dir.mkdir(parents=True)
         model_dir.mkdir(parents=True)
 
-        settings_obj = SystemSettingsModel.get_settings()
-        settings_obj.qlib_enabled = True
-        settings_obj.qlib_provider_uri = str(provider_dir)
-        settings_obj.qlib_model_path = str(model_dir)
-        settings_obj.save(
-            update_fields=[
-                "qlib_enabled",
-                "qlib_provider_uri",
-                "qlib_model_path",
-                "updated_at",
-            ]
+        save_provider_settings_payload(
+            default_source="akshare",
+            enable_failover=True,
+            failover_tolerance=0.01,
+            actor="tui-test-bootstrap",
+        )
+        ConfigCenterSettingsRepository().update_runtime_config(
+            {
+                "enabled": True,
+                "provider_uri": str(provider_dir),
+                "region": "CN",
+                "model_root": str(model_dir),
+                "default_universe": "csi300",
+                "default_feature_set_id": "v1",
+                "default_label_id": "return_5d",
+                "train_queue_name": "qlib_train",
+                "infer_queue_name": "qlib_infer",
+                "allow_auto_activate": False,
+                "alpha_fixed_provider": "",
+                "alpha_pool_mode": "strict_valuation",
+            },
+            actor="tui-test-bootstrap",
         )
 
         active_model = QlibModelRegistryModel.objects.create(

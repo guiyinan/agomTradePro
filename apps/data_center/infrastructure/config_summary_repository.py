@@ -10,7 +10,7 @@ from .macro_sources.failover_adapter import (
     _resolve_failover_enabled,
     _resolve_failover_tolerance,
 )
-from .models import DataProviderSettingsModel, ProviderConfigModel
+from .models import ProviderConfigModel
 from .provider_credentials import ProviderCredentialStore
 
 
@@ -20,21 +20,20 @@ class DjangoDataCenterConfigSummaryRepository:
     def get_provider_summary(self) -> dict[str, Any]:
         """Return provider configuration summary."""
 
-        provider_settings = DataProviderSettingsModel.load_for_read()
         module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
         environment = "production" if module.endswith(".production") else "development"
-        default_source = _resolve_default_source(
-            provider_settings.default_source,
-            environment=environment,
-        )
-        enable_failover = _resolve_failover_enabled(
-            provider_settings.enable_failover,
-            environment=environment,
-        )
-        failover_tolerance = _resolve_failover_tolerance(
-            provider_settings.failover_tolerance,
-            environment=environment,
-        )
+        runtime_status = "active"
+        blocked_reason = ""
+        try:
+            default_source: str | None = _resolve_default_source(environment=environment)
+            enable_failover: bool | None = _resolve_failover_enabled(environment=environment)
+            failover_tolerance: float | None = _resolve_failover_tolerance(environment=environment)
+        except RuntimeError as exc:
+            default_source = None
+            enable_failover = None
+            failover_tolerance = None
+            runtime_status = "blocked"
+            blocked_reason = str(exc) or "provider_runtime_config_unavailable"
         provider_rows = list(
             ProviderConfigModel._default_manager.all().values(
                 "id",
@@ -66,8 +65,8 @@ class DjangoDataCenterConfigSummaryRepository:
             if str(row.get("source_type") or "") in requires_key_types
             and not bool(row.get("has_api_key"))
         )
-        status = "configured"
-        if active_rows and missing_key_count > 0:
+        status = "blocked" if runtime_status == "blocked" else "configured"
+        if runtime_status == "active" and active_rows and missing_key_count > 0:
             status = "attention"
         custom_http_url_count = sum(
             1
@@ -87,6 +86,9 @@ class DjangoDataCenterConfigSummaryRepository:
                     "failover_tolerance": failover_tolerance,
                     "custom_http_url_count": 0,
                     "missing_api_key_count": 0,
+                    "runtime_status": runtime_status,
+                    "must_not_use_for_decision": runtime_status == "blocked",
+                    "blocked_reason": blocked_reason,
                 },
             }
 
@@ -101,6 +103,9 @@ class DjangoDataCenterConfigSummaryRepository:
                 "failover_tolerance": failover_tolerance,
                 "missing_api_key_count": missing_key_count,
                 "custom_http_url_count": custom_http_url_count,
+                "runtime_status": runtime_status,
+                "must_not_use_for_decision": runtime_status == "blocked",
+                "blocked_reason": blocked_reason,
             },
         }
 

@@ -7,10 +7,12 @@ from django.test import Client
 from apps.account.infrastructure.models import (
     AccountProfileModel,
     DocumentationModel,
-    SystemSettingsModel,
     UserAccessTokenModel,
 )
+from apps.config_center.infrastructure.repositories import ConfigCenterSettingsRepository
+from apps.data_center.application.interface_services import save_provider_settings_payload
 from apps.data_center.infrastructure.models import ProviderConfigModel
+from tests.support.runtime_config import configure_account_runtime
 
 
 def _ensure_account_profile(user: User) -> None:
@@ -193,6 +195,12 @@ def test_config_center_snapshot_treats_data_center_provider_config_as_configured
         is_active=True,
         priority=1,
     )
+    save_provider_settings_payload(
+        default_source="akshare",
+        enable_failover=True,
+        failover_tolerance=0.01,
+        actor="config-center-integration-test",
+    )
 
     response = staff_client.get("/api/system/config-center/")
 
@@ -374,9 +382,7 @@ def test_token_management_page_shows_recoverable_tokens_and_mobile_card_labels(
     superuser_client,
 ):
     user = User.objects.get(username="config_admin")
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.allow_token_plaintext_view = True
-    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    configure_account_runtime(allow_token_plaintext_view=True)
     _, raw_key = UserAccessTokenModel.create_token(
         user=user,
         name="classic-visible-token",
@@ -411,6 +417,12 @@ def test_system_governance_settings_api_is_admin_only_and_updates_allowlist(
 ):
     forbidden = normal_client.get("/api/system/config-center/settings/")
     assert forbidden.status_code == 403
+
+    configure_account_runtime()
+    ConfigCenterSettingsRepository().update_runtime_config(
+        {"alpha_fixed_provider": "cache"},
+        actor="config-center-integration-test",
+    )
 
     current = staff_client.get("/api/system/config-center/settings/")
     assert current.status_code == 200

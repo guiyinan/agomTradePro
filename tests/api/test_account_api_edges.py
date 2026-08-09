@@ -18,14 +18,15 @@ from apps.account.infrastructure.models import (
     PortfolioModel,
     PortfolioObserverGrantModel,
     PositionModel,
-    SystemSettingsModel,
     TransactionModel,
     UserAccessTokenModel,
 )
+from tests.support.runtime_config import configure_account_runtime
 
 
 @pytest.fixture
 def auth_user(db):
+    configure_account_runtime()
     user = get_user_model().objects.create_user(
         username="account_api_user",
         password="testpass123",
@@ -39,6 +40,7 @@ def auth_user(db):
             "approval_status": "approved",
             "user_agreement_accepted": True,
             "risk_warning_acknowledged": True,
+            "mcp_enabled": True,
         },
     )
     return user
@@ -46,6 +48,7 @@ def auth_user(db):
 
 @pytest.fixture
 def admin_user(db):
+    configure_account_runtime()
     user = get_user_model().objects.create_superuser(
         username="account_api_admin",
         password="testpass123",
@@ -60,6 +63,7 @@ def admin_user(db):
             "user_agreement_accepted": True,
             "risk_warning_acknowledged": True,
             "rbac_role": "admin",
+            "mcp_enabled": True,
         },
     )
     return user
@@ -276,9 +280,7 @@ def test_account_tui_volatility_returns_explicit_empty_state(
 
 @pytest.mark.django_db
 def test_account_mcp_self_contract(authenticated_client, auth_user):
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.allow_token_plaintext_view = True
-    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    configure_account_runtime(allow_token_plaintext_view=True)
     UserAccessTokenModel.create_token(
         user=auth_user,
         name="sdk-token",
@@ -313,9 +315,7 @@ def test_account_mcp_self_uses_configured_https_origin_instead_of_request_ip(
 ):
     settings.APP_BASE_URL = "https://demo.agomtrade.pro/"
     settings.ALLOWED_HOSTS = [*settings.ALLOWED_HOSTS, "62.171.144.39"]
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.allow_token_plaintext_view = True
-    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    configure_account_runtime(allow_token_plaintext_view=True)
     UserAccessTokenModel.create_token(
         user=auth_user,
         name="canonical-https-token",
@@ -459,9 +459,7 @@ def test_account_mcp_self_exposes_one_canonical_access_package(
     authenticated_client,
     auth_user,
 ):
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.allow_token_plaintext_view = True
-    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    configure_account_runtime(allow_token_plaintext_view=True)
     UserAccessTokenModel.create_token(
         user=auth_user,
         name="recommended-token",
@@ -495,9 +493,7 @@ def test_account_mcp_self_prefers_a_recoverable_token_over_a_newer_legacy_previe
     authenticated_client,
     auth_user,
 ):
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.allow_token_plaintext_view = True
-    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    configure_account_runtime(allow_token_plaintext_view=True)
     recoverable_token, recoverable_key = UserAccessTokenModel.create_token(
         user=auth_user,
         name="recoverable-token",
@@ -525,9 +521,7 @@ def test_account_mcp_self_prefers_a_recoverable_token_over_a_newer_legacy_previe
 
 @pytest.mark.django_db
 def test_account_mcp_self_marks_loopback_access_as_same_machine_only(auth_user):
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.allow_token_plaintext_view = True
-    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    configure_account_runtime(allow_token_plaintext_view=True)
     UserAccessTokenModel.create_token(
         user=auth_user,
         name="local-token",
@@ -547,9 +541,7 @@ def test_account_mcp_self_marks_loopback_access_as_same_machine_only(auth_user):
 
 @pytest.mark.django_db
 def test_account_mcp_self_blocks_remote_http_access_package(auth_user):
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.allow_token_plaintext_view = True
-    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    configure_account_runtime(allow_token_plaintext_view=True)
     UserAccessTokenModel.create_token(
         user=auth_user,
         name="remote-http-token",
@@ -600,9 +592,7 @@ def test_account_mcp_self_uses_bounded_state_machine(auth_user):
     )
     assert unavailable["self_service_state"] == "unavailable"
 
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.allow_token_plaintext_view = False
-    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    configure_account_runtime(allow_token_plaintext_view=False)
     unavailable_without_plaintext = account_interface_services.build_self_mcp_api_payload(
         auth_user.id,
         base_url="https://example.test",
@@ -616,9 +606,7 @@ def test_account_mcp_self_uses_bounded_state_machine(auth_user):
 
 @pytest.mark.django_db
 def test_account_mcp_self_reports_encryption_key_mismatch(auth_user):
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.allow_token_plaintext_view = True
-    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    configure_account_runtime(allow_token_plaintext_view=True)
     token, _ = UserAccessTokenModel.create_token(
         user=auth_user,
         name="mismatched-token",

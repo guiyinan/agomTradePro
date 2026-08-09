@@ -102,10 +102,7 @@ def test_system_settings_repository_reads_asset_proxy_from_config_center(monkeyp
         "apps.account.infrastructure.repositories.get_runtime_asset_proxy_map",
         lambda: {"equity": "510300.SH"},
     )
-    assert not hasattr(
-        repositories.SystemSettingsModel,
-        "get_runtime_asset_proxy_code",
-    )
+    assert not hasattr(repositories, "SystemSettingsModel")
 
     repository = repositories.SystemSettingsRepository()
 

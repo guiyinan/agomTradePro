@@ -64,9 +64,6 @@ def test_repository_legacy_exports_resolve_to_owner_modules() -> None:
     expected_owners = {
         "AssetRepository": "apps.data_center.infrastructure.catalog_repositories",
         "CapitalFlowRepository": "apps.data_center.infrastructure.market_breadth_repositories",
-        "DataProviderSettingsRepository": (
-            "apps.data_center.infrastructure.provider_state_repositories"
-        ),
         "DataOwnerRegistryRepository": (
             "apps.data_center.infrastructure.catalog_runtime_repositories"
         ),
@@ -116,6 +113,7 @@ def test_repository_legacy_exports_resolve_to_owner_modules() -> None:
     for export_name, owner_module_name in expected_owners.items():
         owner_module = import_module(owner_module_name)
         assert getattr(repositories, export_name) is getattr(owner_module, export_name)
+    assert not hasattr(repositories, "DataProviderSettingsRepository")
 
 
 def test_repository_modules_stay_bounded_and_one_way() -> None:

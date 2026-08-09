@@ -7,11 +7,11 @@ from typing import Any
 
 from apps.config_center.application.runtime_public import (
     get_active_account_runtime_config,
-    get_active_domain_runtime_config,
+    get_active_alpha_runtime_config,
+    get_active_market_runtime_config,
     get_active_qlib_runtime_config,
     get_active_runtime_value,
 )
-from apps.config_center.infrastructure.models import SystemSettingsModel
 from core.integration.data_center_readiness import get_macro_runtime_metadata
 
 
@@ -29,10 +29,15 @@ class DjangoConfigCenterSummaryRepository:
     def _build_runtime_macro_metadata_map() -> dict[str, dict[str, Any]]:
         return get_macro_runtime_metadata()
 
-    def _get_typed_domain_runtime_config(self) -> dict[str, object] | None:
-        """Return the complete typed Alpha/market projection when available."""
+    def _get_typed_alpha_runtime_config(self) -> dict[str, object] | None:
+        """Return the complete canonical Alpha projection when available."""
 
-        return get_active_domain_runtime_config(self._runtime_environment())
+        return get_active_alpha_runtime_config(self._runtime_environment())
+
+    def _get_typed_market_runtime_config(self) -> dict[str, object] | None:
+        """Return the complete canonical market projection when available."""
+
+        return get_active_market_runtime_config(self._runtime_environment())
 
     @staticmethod
     def _market_visual_tokens(convention: str) -> dict[str, str]:
@@ -67,32 +72,31 @@ class DjangoConfigCenterSummaryRepository:
         return dict(palettes.get(convention, palettes["cn_a_share"]))
 
     def get_system_settings_summary(self) -> dict[str, Any]:
-        settings_obj = SystemSettingsModel.get_settings_for_read()
         runtime_qlib = self.get_runtime_qlib_config()
-        typed_domain = self._get_typed_domain_runtime_config()
+        typed_market = self._get_typed_market_runtime_config()
         typed_account = get_active_account_runtime_config(self._runtime_environment())
-        default_mcp_enabled = (
-            typed_account["default_mcp_enabled"]
-            if typed_account is not None
-            else settings_obj.default_mcp_enabled
+        default_mcp_enabled = bool(
+            typed_account["default_mcp_enabled"] if typed_account is not None else False
         )
-        allow_token_plaintext_view = (
-            typed_account["allow_token_plaintext_view"]
-            if typed_account is not None
-            else settings_obj.allow_token_plaintext_view
+        allow_token_plaintext_view = bool(
+            typed_account["allow_token_plaintext_view"] if typed_account is not None else False
         )
-        if typed_domain is not None:
-            market_convention = str(typed_domain["market_color_convention"])
+        if typed_market is not None:
+            market_convention = str(typed_market["market_color_convention"])
             market_tokens = self._market_visual_tokens(market_convention)
-            benchmark_map = typed_domain["benchmark_code_map"]
-            asset_proxy_map = typed_domain["asset_proxy_code_map"]
+            benchmark_map = typed_market["benchmark_code_map"]
+            asset_proxy_map = typed_market["asset_proxy_code_map"]
         else:
-            market_convention = settings_obj.market_color_convention
-            market_tokens = settings_obj.get_market_visual_tokens()
-            benchmark_map = settings_obj.benchmark_code_map or {}
-            asset_proxy_map = settings_obj.asset_proxy_code_map or {}
+            market_convention = ""
+            market_tokens = self._market_visual_tokens("cn_a_share")
+            benchmark_map = {}
+            asset_proxy_map = {}
         return {
-            "status": "configured",
+            "status": (
+                "configured"
+                if typed_account is not None and typed_market is not None
+                else "blocked"
+            ),
             "summary": {
                 "default_mcp_enabled": default_mcp_enabled,
                 "allow_token_plaintext_view": allow_token_plaintext_view,
@@ -104,21 +108,17 @@ class DjangoConfigCenterSummaryRepository:
                 ),
                 "qlib_enabled": runtime_qlib["enabled"],
                 "qlib_configured": runtime_qlib["is_configured"],
-                "updated_at": (
-                    settings_obj.updated_at.isoformat()
-                    if getattr(settings_obj, "updated_at", None)
-                    else None
-                ),
+                "updated_at": None,
             },
         }
 
     def get_runtime_market_visual_tokens(self) -> dict[str, str]:
         """Return the configured market visual token mapping."""
 
-        typed = self._get_typed_domain_runtime_config()
+        typed = self._get_typed_market_runtime_config()
         if typed is not None:
             return self._market_visual_tokens(str(typed["market_color_convention"]))
-        return SystemSettingsModel.get_runtime_market_visual_tokens()
+        return self._market_visual_tokens("cn_a_share")
 
     def get_runtime_macro_index_metadata_map(self) -> dict[str, dict[str, Any]]:
         return self._build_runtime_macro_metadata_map()
@@ -138,10 +138,9 @@ class DjangoConfigCenterSummaryRepository:
     def get_runtime_qlib_config(self) -> dict[str, Any]:
         """Return typed Qlib runtime config, blocking when its snapshot is absent.
 
-        SystemSettingsModel still exposes a migration-only compatibility method,
-        but runtime consumers must never silently fall back to it.  A missing or
-        stale Config Center snapshot therefore becomes an explicit disabled and
-        decision-unsafe payload.
+        Runtime consumers must never silently fall back to the retired
+        singleton. A missing or stale Config Center snapshot therefore becomes
+        an explicit disabled and decision-unsafe payload.
         """
 
         typed_runtime = get_active_qlib_runtime_config(self._runtime_environment())
@@ -157,38 +156,34 @@ class DjangoConfigCenterSummaryRepository:
         }
 
     def get_runtime_alpha_fixed_provider(self) -> str:
-        typed = self._get_typed_domain_runtime_config()
+        typed = self._get_typed_alpha_runtime_config()
         if typed is not None:
             return str(typed["alpha_fixed_provider"])
-        return SystemSettingsModel.get_runtime_alpha_fixed_provider()
+        return ""
 
     def get_runtime_alpha_pool_mode(self, default_mode: str = "") -> str:
-        typed = self._get_typed_domain_runtime_config()
+        typed = self._get_typed_alpha_runtime_config()
         if typed is not None:
             return str(typed["alpha_pool_mode"])
-        mode = SystemSettingsModel.get_runtime_alpha_pool_mode()
-        return mode or default_mode
+        return default_mode
 
     def get_runtime_benchmark_code(self, key: str, default: str = "") -> str:
-        typed = self._get_typed_domain_runtime_config()
+        typed = self._get_typed_market_runtime_config()
         if typed is not None:
             value = typed["benchmark_code_map"]
             if isinstance(value, dict) and isinstance(value.get(key), str):
                 return str(value[key])
             return default
-        return SystemSettingsModel.get_runtime_benchmark_code(key, default)
+        return default
 
     def get_runtime_asset_proxy_map(self) -> dict[str, str]:
-        typed = self._get_typed_domain_runtime_config()
+        typed = self._get_typed_market_runtime_config()
         if typed is not None:
             value = typed["asset_proxy_code_map"]
             if isinstance(value, dict):
                 return {key: str(item) for key, item in value.items() if isinstance(item, str)}
             return {}
-        return {
-            key: str(value)
-            for key, value in SystemSettingsModel.get_runtime_asset_proxy_map().items()
-        }
+        return {}
 
     def get_runtime_config_value(self, definition_key: str) -> object | None:
         """Return one value from the active typed profile for the current environment."""

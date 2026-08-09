@@ -13,6 +13,7 @@ from apps.config_center.infrastructure.models import (
     SystemSettingsModel,
 )
 from apps.config_center.infrastructure.repositories import ConfigCenterSettingsRepository
+from apps.data_center.application.interface_services import save_provider_settings_payload
 
 
 def _activate_typed_qlib_runtime(
@@ -21,6 +22,12 @@ def _activate_typed_qlib_runtime(
 ) -> dict[str, object]:
     """Publish one complete typed Qlib runtime for Classic compatibility tests."""
 
+    save_provider_settings_payload(
+        default_source="akshare",
+        enable_failover=True,
+        failover_tolerance=0.01,
+        actor="pytest",
+    )
     return ConfigCenterSettingsRepository().update_runtime_config(
         {
             "enabled": True,
@@ -51,19 +58,6 @@ def test_qlib_config_center_page_allows_staff_read(tmp_path):
     model_dir = tmp_path / "qlib" / "models"
     provider_dir.mkdir(parents=True)
     model_dir.mkdir(parents=True)
-
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.qlib_enabled = True
-    settings_obj.qlib_provider_uri = str(provider_dir)
-    settings_obj.qlib_model_path = str(model_dir)
-    settings_obj.save(
-        update_fields=[
-            "qlib_enabled",
-            "qlib_provider_uri",
-            "qlib_model_path",
-            "updated_at",
-        ]
-    )
 
     client = Client()
     client.force_login(user)
@@ -143,6 +137,12 @@ def test_qlib_config_center_page_updates_runtime_for_superuser(tmp_path):
     settings_obj.qlib_provider_uri = str(provider_dir)
     settings_obj.qlib_model_path = str(model_dir)
     settings_obj.save(update_fields=["qlib_provider_uri", "qlib_model_path", "updated_at"])
+    save_provider_settings_payload(
+        default_source="akshare",
+        enable_failover=True,
+        failover_tolerance=0.01,
+        actor="pytest",
+    )
 
     client = Client()
     client.force_login(user)

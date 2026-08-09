@@ -19,8 +19,8 @@ OWNER_MODULES = (
     "apps.account.infrastructure.trading_config_models",
     "apps.account.infrastructure.documentation_models",
 )
-# Models re-exported by the facade but owned by another app.
-EXTERNAL_REEXPORTS = {"SystemSettingsModel": "config_center"}
+# Cross-app model re-exports are forbidden after the Config Center cutover.
+EXTERNAL_REEXPORTS: dict[str, str] = {}
 
 
 def _imports_module(source: str, module_name: str) -> bool:
@@ -58,10 +58,10 @@ def test_account_model_legacy_exports_resolve_to_owner_modules() -> None:
 
 
 def test_account_model_external_reexports_stay_stable() -> None:
-    """Keep cross-app re-exports resolving to their owning app registry."""
-    for export_name, app_label in EXTERNAL_REEXPORTS.items():
-        exported_model = getattr(models, export_name)
-        assert apps.get_model(app_label, export_name) is exported_model
+    """Keep the account ORM facade free of cross-app owner aliases."""
+
+    assert EXTERNAL_REEXPORTS == {}
+    assert not hasattr(models, "SystemSettingsModel")
 
 
 def test_account_model_modules_stay_bounded_and_one_way() -> None:

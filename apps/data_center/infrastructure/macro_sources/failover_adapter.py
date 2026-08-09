@@ -27,11 +27,10 @@ RUNTIME_DEFAULT_SOURCE_KEY = "data_center.provider.default_source"
 
 
 def _resolve_default_source(
-    persisted_source: str,
     *,
     environment: str,
 ) -> str:
-    """Prefer the typed Config Center source while retaining an explicit owner fallback."""
+    """Return the typed default provider or fail closed."""
 
     try:
         raw_value = config_center_runtime.get_active_runtime_value(
@@ -39,40 +38,21 @@ def _resolve_default_source(
             definition_key=RUNTIME_DEFAULT_SOURCE_KEY,
         )
     except Exception as exc:
-        logger.warning(
-            "Config Center default provider unavailable; using owner setting " "(error_type=%s)",
-            type(exc).__name__,
-        )
-        raw_value = None
+        raise RuntimeError("provider_runtime_default_source_unavailable") from exc
 
     if isinstance(raw_value, str) and raw_value in DataProviderSettings.SOURCE_CHOICES:
         logger.info("Using Config Center default provider for environment %s", environment)
         return raw_value
-
-    if raw_value is not None:
-        logger.error(
-            "Invalid Config Center default provider; using owner setting " "(value_type=%s)",
-            type(raw_value).__name__,
-        )
-    if persisted_source in DataProviderSettings.SOURCE_CHOICES:
-        return persisted_source
-    logger.error("Invalid owner default provider; using akshare compatibility value")
-    return "akshare"
+    if raw_value is None:
+        raise RuntimeError("provider_runtime_default_source_missing")
+    raise RuntimeError("provider_runtime_default_source_invalid")
 
 
 def _resolve_failover_tolerance(
-    persisted_tolerance: float,
     *,
     environment: str,
 ) -> float:
-    """Prefer the active Config Center snapshot for provider consistency checks.
-
-    ``DataProviderSettings`` remains a short-lived compatibility source while
-    existing profiles are migrated.  It is deliberately passed in by the
-    caller; this helper never invents a module-level tolerance when the runtime
-    profile is absent.  Malformed runtime values also fall back to the already
-    validated owner setting and are logged for remediation.
-    """
+    """Return typed failover tolerance without a singleton/default fallback."""
 
     try:
         raw_value = config_center_runtime.get_active_runtime_value(
@@ -80,44 +60,30 @@ def _resolve_failover_tolerance(
             definition_key=RUNTIME_FAILOVER_TOLERANCE_KEY,
         )
     except Exception as exc:
-        logger.warning(
-            "Config Center failover tolerance unavailable; using owner setting " "(error_type=%s)",
-            type(exc).__name__,
-        )
-        return float(persisted_tolerance)
+        raise RuntimeError("provider_runtime_failover_tolerance_unavailable") from exc
 
     if raw_value is None:
-        logger.info(
-            "Config Center failover tolerance is not active for environment %s; "
-            "using owner compatibility setting",
-            environment,
-        )
-        return float(persisted_tolerance)
+        raise RuntimeError("provider_runtime_failover_tolerance_missing")
 
     try:
         if isinstance(raw_value, bool):
             raise ValueError("boolean is not a numeric tolerance")
-        if not isinstance(raw_value, (int, float, str)):
+        if not isinstance(raw_value, (int, float)):
             raise ValueError("runtime value is not a numeric scalar")
         resolved = float(raw_value)
         if not math.isfinite(resolved) or not 0.0 <= resolved <= 1.0:
             raise ValueError("tolerance must be finite and between 0 and 1")
     except (TypeError, ValueError) as exc:
-        logger.error(
-            "Invalid Config Center failover tolerance; using owner setting " "(error=%s)",
-            str(exc),
-        )
-        return float(persisted_tolerance)
+        raise RuntimeError("provider_runtime_failover_tolerance_invalid") from exc
     logger.info("Using Config Center failover tolerance for environment %s", environment)
     return resolved
 
 
 def _resolve_failover_enabled(
-    persisted_enabled: bool,
     *,
     environment: str,
 ) -> bool:
-    """Prefer Config Center's typed failover switch with an explicit owner fallback."""
+    """Return the typed failover switch or fail closed."""
 
     try:
         raw_value = config_center_runtime.get_active_runtime_value(
@@ -125,25 +91,12 @@ def _resolve_failover_enabled(
             definition_key=RUNTIME_FAILOVER_ENABLED_KEY,
         )
     except Exception as exc:
-        logger.warning(
-            "Config Center failover switch unavailable; using owner setting " "(error_type=%s)",
-            type(exc).__name__,
-        )
-        return bool(persisted_enabled)
+        raise RuntimeError("provider_runtime_failover_enabled_unavailable") from exc
 
     if raw_value is None:
-        logger.info(
-            "Config Center failover switch is not active for environment %s; "
-            "using owner compatibility setting",
-            environment,
-        )
-        return bool(persisted_enabled)
+        raise RuntimeError("provider_runtime_failover_enabled_missing")
     if not isinstance(raw_value, bool):
-        logger.error(
-            "Invalid Config Center failover switch; using owner setting " "(value_type=%s)",
-            type(raw_value).__name__,
-        )
-        return bool(persisted_enabled)
+        raise RuntimeError("provider_runtime_failover_enabled_invalid")
     logger.info("Using Config Center failover switch for environment %s", environment)
     return raw_value
 
@@ -448,54 +401,30 @@ def create_default_adapter(
     from .akshare_adapter import AKShareAdapter
     from .tushare_adapter import TushareAdapter
 
-    # 尝试从数据库加载设置
+    # Provider runtime policy is canonical-only. Missing configuration blocks
+    # adapter construction instead of silently selecting a source/tolerance.
     try:
         import django
         from django.conf import settings
 
-        if settings.configured:
-            django.setup()
-            from apps.data_center.composition import (
-                load_data_provider_settings,
-            )
-
-            settings_obj = load_data_provider_settings()
-
-            runtime_environment = (
-                "production" if not bool(getattr(settings, "DEBUG", True)) else "development"
-            )
-            default_source = _resolve_default_source(
-                settings_obj.default_source,
-                environment=runtime_environment,
-            )
-            enable_failover = _resolve_failover_enabled(
-                settings_obj.enable_failover,
-                environment=runtime_environment,
-            )
-            tolerance = _resolve_failover_tolerance(
-                settings_obj.failover_tolerance,
-                environment=runtime_environment,
-            )
-
-            logger.info(
-                f"从数据库加载数据源设置: default={default_source}, "
-                f"failover={enable_failover}, tolerance={tolerance}"
-            )
-        else:
-            # Django 未配置，使用默认值
-            default_source = "akshare"
-            enable_failover = True
-            tolerance = 0.01
-            logger.warning("Django 未配置，使用默认数据源设置")
-    except Exception as exc:
-        # 数据库未初始化或其他错误，使用默认值
-        default_source = "akshare"
-        enable_failover = True
-        tolerance = 0.01
-        logger.warning(
-            "无法从数据库读取设置，使用默认值 (error_type=%s)",
-            type(exc).__name__,
+        if not settings.configured:
+            raise RuntimeError("provider_runtime_django_not_configured")
+        django.setup()
+        runtime_environment = (
+            "production" if not bool(getattr(settings, "DEBUG", True)) else "development"
         )
+        default_source = _resolve_default_source(environment=runtime_environment)
+        enable_failover = _resolve_failover_enabled(environment=runtime_environment)
+        tolerance = _resolve_failover_tolerance(environment=runtime_environment)
+        logger.info(
+            "Loaded typed provider runtime: default=%s, failover=%s, tolerance=%s",
+            default_source,
+            enable_failover,
+            tolerance,
+        )
+    except Exception as exc:
+        reason = str(exc) or "provider_runtime_config_unavailable"
+        raise DataSourceUnavailableError(reason) from exc
 
     # 初始化适配器
     akshare_adapter: MacroAdapterProtocol | None = None

@@ -163,6 +163,45 @@ def test_active_domain_runtime_config_requires_complete_typed_snapshot(monkeypat
     assert runtime_public.get_active_domain_runtime_config("development") is None
 
 
+def test_active_alpha_and_market_runtime_projections_are_independently_complete(
+    monkeypatch,
+) -> None:
+    """A missing market key must not erase a complete canonical Alpha profile."""
+
+    values: dict[str, object] = {
+        "alpha.runtime.fixed_provider": "qlib",
+        "alpha.runtime.pool_mode": "market",
+        "config_center.market.color_convention": "us_market",
+        "config_center.market.benchmark_code_map": {"equity": "000300.SH"},
+        "config_center.market.asset_proxy_code_map": {"growth": "510300.SH"},
+    }
+    monkeypatch.setattr(
+        runtime_public,
+        "get_active_runtime_value",
+        lambda *, environment, definition_key: (
+            values.get(definition_key) if environment == "development" else None
+        ),
+    )
+
+    assert runtime_public.get_active_alpha_runtime_config("development") == {
+        "alpha_fixed_provider": "qlib",
+        "alpha_pool_mode": "market",
+    }
+    assert runtime_public.get_active_market_runtime_config("development") == {
+        "market_color_convention": "us_market",
+        "benchmark_code_map": {"equity": "000300.SH"},
+        "asset_proxy_code_map": {"growth": "510300.SH"},
+    }
+
+    values.pop("config_center.market.asset_proxy_code_map")
+    assert runtime_public.get_active_alpha_runtime_config("development") == {
+        "alpha_fixed_provider": "qlib",
+        "alpha_pool_mode": "market",
+    }
+    assert runtime_public.get_active_market_runtime_config("development") is None
+    assert runtime_public.get_active_domain_runtime_config("development") is None
+
+
 def test_active_backup_delivery_config_requires_policy_and_secret_refs(monkeypatch) -> None:
     values: dict[str, object] = {
         "backup.enabled": True,

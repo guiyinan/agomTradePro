@@ -44,11 +44,6 @@ def test_read_only_token_can_read_qlib_runtime(tmp_path):
     model_dir = tmp_path / "qlib" / "models"
     provider_dir.mkdir(parents=True)
     model_dir.mkdir(parents=True)
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.qlib_provider_uri = str(provider_dir)
-    settings_obj.qlib_model_path = str(model_dir)
-    settings_obj.save(update_fields=["qlib_provider_uri", "qlib_model_path", "updated_at"])
-
     client = APIClient()
     _authorize(client, raw_key)
     response = client.get("/api/system/config-center/qlib/runtime/")

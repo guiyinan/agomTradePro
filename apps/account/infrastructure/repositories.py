@@ -1,11 +1,11 @@
 """Compatibility exports plus focused transaction, risk, and settings repositories."""
 
 import logging
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, cast
+from typing import Any
 
 from django.db import transaction
 from django.db.utils import OperationalError, ProgrammingError
@@ -55,8 +55,8 @@ from apps.account.infrastructure.portfolio_repository import (
     PortfolioRepository as PortfolioRepository,
 )
 from apps.account.infrastructure.position_repository import PositionRepository as PositionRepository
+from apps.account.infrastructure.system_settings_projection import SystemSettingsProjection
 from apps.config_center.application.public import get_runtime_asset_proxy_map
-from apps.config_center.infrastructure.models import SystemSettingsModel
 
 logger = logging.getLogger(__name__)
 
@@ -721,13 +721,10 @@ class TransactionCostConfigRepository:
 class SystemSettingsRepository:
     """系统设置仓储。"""
 
-    def get_settings(self) -> SystemSettingsModel:
-        """Return the typed backup projection without creating the legacy singleton."""
+    def get_settings(self) -> SystemSettingsProjection:
+        """Return the canonical backup projection without a singleton fallback."""
 
-        get_settings = cast(
-            Callable[[], SystemSettingsModel], SystemSettingsModel.get_settings_for_read
-        )
-        return get_backup_delivery_settings(base_settings=get_settings())
+        return get_backup_delivery_settings()
 
     def get_runtime_asset_proxy_code(self, asset_class: str, default: str = "") -> str:
         """获取运行时资产代理代码。"""

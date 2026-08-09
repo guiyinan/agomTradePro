@@ -42,12 +42,12 @@ def test_backup_state_writes_new_owner_only() -> None:
 
 
 @pytest.mark.django_db(transaction=True)
-def test_backup_state_falls_back_to_legacy_before_first_write() -> None:
+def test_backup_state_does_not_fall_back_to_legacy_before_first_write() -> None:
     settings_obj = SystemSettingsModel.get_settings()
     settings_obj.backup_download_token_digest = "legacy-digest"
     settings_obj.save(update_fields=["backup_download_token_digest", "updated_at"])
 
     state = ConfigCenterSettingsRepository().get_backup_delivery_state()
 
-    assert state.download_token_digest == "legacy-digest"
+    assert state.download_token_digest == ""
     assert not BackupDeliveryStateModel._default_manager.filter(pk=1).exists()

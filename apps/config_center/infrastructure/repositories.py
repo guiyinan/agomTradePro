@@ -18,8 +18,9 @@ from apps.config_center.application.public import config_secret_present, persist
 from apps.config_center.application.runtime_public import (
     activate_runtime_profile_patch,
     get_active_account_runtime_config,
+    get_active_alpha_runtime_config,
     get_active_backup_delivery_config,
-    get_active_domain_runtime_config,
+    get_active_market_runtime_config,
     get_active_qlib_runtime_config,
 )
 from apps.config_center.domain.backup_delivery import (
@@ -39,9 +40,7 @@ from apps.config_center.infrastructure.models import (
     QlibTrainingProfileModel,
     QlibTrainingRunLockModel,
     QlibTrainingRunModel,
-    SystemSettingsModel,
 )
-from apps.data_center.application.public import get_provider_settings_payload
 
 _QLIB_TRAINING_RUN_PROCESS_LOCK = RLock()
 
@@ -128,13 +127,6 @@ class ConfigCenterSettingsRepository:
         "backup_archive_password_ref": "backup.archive_password",
         "backup_smtp_password_ref": "backup.smtp_password",
     }
-    LEGACY_BACKUP_SECRET_REF_MAP = {
-        "backup.archive_password": "system_settings.backup_password_encrypted",
-        "backup.smtp_password": "system_settings.backup_smtp_password_encrypted",
-    }
-
-    def get_system_settings(self) -> SystemSettingsModel:
-        return SystemSettingsModel.get_settings()
 
     @staticmethod
     def _runtime_environment() -> str:
@@ -142,63 +134,6 @@ class ConfigCenterSettingsRepository:
 
         module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
         return "production" if module.endswith(".production") else "development"
-
-    @staticmethod
-    def _legacy_runtime_values(settings_obj: SystemSettingsModel) -> dict[str, object]:
-        """Build explicit one-time compatibility values for profile bootstrap."""
-
-        provider = get_provider_settings_payload()
-        return {
-            "data_center.provider.default_source": str(provider.get("default_source") or "akshare"),
-            "data_center.provider.failover_tolerance": provider.get("failover_tolerance"),
-            "data_center.provider.enable_failover": provider.get("enable_failover"),
-            "account.require_user_approval": bool(settings_obj.require_user_approval),
-            "account.auto_approve_first_admin": bool(settings_obj.auto_approve_first_admin),
-            "account.default_mcp_enabled": bool(settings_obj.default_mcp_enabled),
-            "account.allow_token_plaintext_view": bool(settings_obj.allow_token_plaintext_view),
-            "account.user_agreement_content": str(settings_obj.user_agreement_content or ""),
-            "account.risk_warning_content": str(settings_obj.risk_warning_content or ""),
-            "account.notes": str(settings_obj.notes or ""),
-            "alpha.runtime.fixed_provider": str(settings_obj.alpha_fixed_provider or ""),
-            "alpha.runtime.pool_mode": str(
-                settings_obj.alpha_pool_mode or SystemSettingsModel.ALPHA_POOL_MODE_STRICT_VALUATION
-            ),
-            "config_center.market.color_convention": str(
-                settings_obj.market_color_convention or "cn_a_share"
-            ),
-            "config_center.market.benchmark_code_map": dict(settings_obj.benchmark_code_map or {}),
-            "config_center.market.asset_proxy_code_map": dict(
-                settings_obj.asset_proxy_code_map or {}
-            ),
-            "backup.enabled": bool(settings_obj.backup_enabled),
-            "backup.recipient_email": str(settings_obj.backup_email or ""),
-            "backup.app_base_url": str(settings_obj.backup_app_base_url or ""),
-            "backup.mail_from_email": str(settings_obj.backup_mail_from_email or ""),
-            "backup.smtp_host": str(settings_obj.backup_smtp_host or ""),
-            "backup.smtp_port": int(settings_obj.backup_smtp_port or 587),
-            "backup.smtp_username": str(settings_obj.backup_smtp_username or ""),
-            "backup.smtp_use_tls": bool(settings_obj.backup_smtp_use_tls),
-            "backup.smtp_use_ssl": bool(settings_obj.backup_smtp_use_ssl),
-            "backup.interval_days": int(settings_obj.backup_interval_days or 7),
-            "backup.link_ttl_days": int(settings_obj.backup_link_ttl_days or 3),
-            "backup.password_hint": str(settings_obj.backup_password_hint or ""),
-        }
-
-    @staticmethod
-    def _legacy_runtime_secret_refs() -> dict[str, str]:
-        """Return new secret refs when migrated, else explicit legacy refs."""
-
-        return {
-            definition_key: (
-                new_ref
-                if ConfigCenterSettingsRepository._config_secret_present(new_ref)
-                else ConfigCenterSettingsRepository.LEGACY_BACKUP_SECRET_REF_MAP[definition_key]
-            )
-            for definition_key, new_ref in (
-                ("backup.archive_password", BACKUP_ARCHIVE_PASSWORD_SECRET_REF),
-                ("backup.smtp_password", BACKUP_SMTP_PASSWORD_SECRET_REF),
-            )
-        }
 
     @staticmethod
     def _config_secret_present(secret_ref: str) -> bool:
@@ -212,28 +147,31 @@ class ConfigCenterSettingsRepository:
     def build_backup_delivery_payload(self) -> dict[str, Any]:
         """Return typed backup policy plus isolated delivery state.
 
-        During migration, the two secret refs resolve to the encrypted legacy
-        columns inside the account-owned compatibility row.  No plaintext is
-        placed in the runtime profile or in this payload.
+        Missing or partial typed configuration is published as blocked. No
+        singleton value is used to fill the gap at runtime.
         """
 
-        settings_obj = self.get_system_settings_for_read()
         try:
             typed = get_active_backup_delivery_config(self._runtime_environment())
         except RuntimeError:
             typed = None
         payload: dict[str, Any] = {
-            field_name: getattr(settings_obj, field_name)
-            for field_name in self.BACKUP_RUNTIME_FIELD_MAP
+            "backup_enabled": False,
+            "backup_email": "",
+            "backup_app_base_url": "",
+            "backup_mail_from_email": "",
+            "backup_smtp_host": "",
+            "backup_smtp_port": 0,
+            "backup_smtp_username": "",
+            "backup_smtp_use_tls": False,
+            "backup_smtp_use_ssl": False,
+            "backup_interval_days": 0,
+            "backup_link_ttl_days": 0,
+            "backup_password_hint": "",
+            "backup_archive_password_ref": "",
+            "backup_smtp_password_ref": "",
         }
-        legacy_refs = self._legacy_runtime_secret_refs()
-        payload.update(
-            {
-                "backup_archive_password_ref": legacy_refs["backup.archive_password"],
-                "backup_smtp_password_ref": legacy_refs["backup.smtp_password"],
-            }
-        )
-        source = "system_settings_compatibility"
+        source = "blocked"
         if typed is not None:
             payload.update(
                 {field_name: typed[field_name] for field_name in self.BACKUP_RUNTIME_FIELD_MAP}
@@ -254,17 +192,16 @@ class ConfigCenterSettingsRepository:
                 "state_source": (
                     "config_center_backup_delivery_state"
                     if BackupDeliveryStateModel._default_manager.filter(pk=1).exists()
-                    else "system_settings_compatibility"
+                    else "blocked"
+                ),
+                "status": "active" if typed is not None else "blocked",
+                "must_not_use_for_decision": typed is None,
+                "blocked_reason": (
+                    "" if typed is not None else "runtime_config_snapshot_unavailable"
                 ),
             }
         )
         return payload
-
-    def get_system_settings_for_read(self) -> SystemSettingsModel:
-        settings_obj = SystemSettingsModel._default_manager.filter(pk=1).first()
-        if settings_obj is not None:
-            return settings_obj
-        return SystemSettingsModel(pk=1)
 
     def get_decision_runtime_state(self) -> DecisionRuntimeState:
         """Return the persisted global decision gate and fail closed if absent."""
@@ -346,7 +283,7 @@ class ConfigCenterSettingsRepository:
         return self.get_decision_runtime_state()
 
     def get_backup_delivery_state(self) -> BackupDeliveryState:
-        """Read new backup delivery state, falling back to legacy columns once."""
+        """Read canonical backup delivery state or an empty fail-closed state."""
 
         state_model = BackupDeliveryStateModel._default_manager.filter(pk=1).first()
         if state_model is not None:
@@ -356,13 +293,7 @@ class ConfigCenterSettingsRepository:
                 download_token_expires_at=state_model.download_token_expires_at,
                 download_token_consumed_at=state_model.download_token_consumed_at,
             )
-        settings_obj = self.get_system_settings_for_read()
-        return BackupDeliveryState(
-            last_sent_at=settings_obj.backup_last_sent_at,
-            download_token_digest=settings_obj.backup_download_token_digest,
-            download_token_expires_at=settings_obj.backup_download_token_expires_at,
-            download_token_consumed_at=settings_obj.backup_download_consumed_at,
-        )
+        return BackupDeliveryState()
 
     @staticmethod
     def _backup_state_defaults(state: BackupDeliveryState) -> dict[str, object]:
@@ -374,21 +305,14 @@ class ConfigCenterSettingsRepository:
         }
 
     def _ensure_backup_delivery_state_locked(self) -> BackupDeliveryStateModel:
-        """Create the new state row from legacy state while holding a DB lock."""
+        """Create an empty canonical state row while holding a DB lock."""
 
         state_model = (
             BackupDeliveryStateModel._default_manager.select_for_update().filter(pk=1).first()
         )
         if state_model is not None:
             return state_model
-        legacy = self.get_system_settings_for_read()
-        state_model = BackupDeliveryStateModel._default_manager.create(
-            pk=1,
-            last_sent_at=legacy.backup_last_sent_at,
-            download_token_digest=legacy.backup_download_token_digest,
-            download_token_expires_at=legacy.backup_download_token_expires_at,
-            download_token_consumed_at=legacy.backup_download_consumed_at,
-        )
+        state_model = BackupDeliveryStateModel._default_manager.create(pk=1)
         return state_model
 
     def set_backup_delivery_state(self, state: BackupDeliveryState) -> BackupDeliveryState:
@@ -461,7 +385,7 @@ class ConfigCenterSettingsRepository:
     def build_runtime_config_payload(self) -> dict[str, Any]:
         environment = self._runtime_environment()
         typed_runtime = get_active_qlib_runtime_config(environment)
-        typed_domain = get_active_domain_runtime_config(environment)
+        typed_alpha = get_active_alpha_runtime_config(environment)
         runtime = dict(typed_runtime or {})
         qlib_model_registry_model = django_apps.get_model("alpha", "QlibModelRegistryModel")
         active_model = qlib_model_registry_model._default_manager.filter(is_active=True).first()
@@ -504,9 +428,9 @@ class ConfigCenterSettingsRepository:
             "infer_queue_name": runtime.get("infer_queue_name", ""),
             "allow_auto_activate": bool(runtime.get("allow_auto_activate")),
             "alpha_fixed_provider": (
-                typed_domain.get("alpha_fixed_provider", "") if typed_domain else ""
+                typed_alpha.get("alpha_fixed_provider", "") if typed_alpha else ""
             ),
-            "alpha_pool_mode": (typed_domain.get("alpha_pool_mode", "") if typed_domain else ""),
+            "alpha_pool_mode": (typed_alpha.get("alpha_pool_mode", "") if typed_alpha else ""),
             "status": "active" if typed_runtime is not None else "blocked",
             "source": "config_center_runtime_profile",
             "must_not_use_for_decision": typed_runtime is None,
@@ -540,7 +464,6 @@ class ConfigCenterSettingsRepository:
         *,
         actor: str = "config-center",
     ) -> dict[str, Any]:
-        settings_obj = self.get_system_settings_for_read()
         patch: dict[str, object] = {}
         for request_key, definition_key in self.RUNTIME_DEFINITION_MAP.items():
             if request_key not in data:
@@ -550,8 +473,6 @@ class ConfigCenterSettingsRepository:
             activate_runtime_profile_patch(
                 environment=self._runtime_environment(),
                 patch=patch,
-                bootstrap_values=self._legacy_runtime_values(settings_obj),
-                bootstrap_secret_refs=self._legacy_runtime_secret_refs(),
                 actor=str(actor or "config-center"),
                 reason="Qlib/Alpha runtime configuration updated",
             )
@@ -560,31 +481,46 @@ class ConfigCenterSettingsRepository:
     def build_system_governance_payload(self) -> dict[str, Any]:
         """Return the administrator-facing global settings contract."""
 
-        settings_obj = self.get_system_settings_for_read()
-        typed = get_active_domain_runtime_config(self._runtime_environment())
-        typed_account = get_active_account_runtime_config(self._runtime_environment())
-        payload = {
-            field_name: getattr(settings_obj, field_name)
-            for field_name in self.SYSTEM_GOVERNANCE_FIELDS
+        environment = self._runtime_environment()
+        typed_account = get_active_account_runtime_config(environment)
+        typed_alpha = get_active_alpha_runtime_config(environment)
+        typed_market = get_active_market_runtime_config(environment)
+        payload: dict[str, Any] = {
+            "require_user_approval": True,
+            "auto_approve_first_admin": False,
+            "default_mcp_enabled": False,
+            "allow_token_plaintext_view": False,
+            "user_agreement_content": "",
+            "risk_warning_content": "",
+            "notes": "",
+            "market_color_convention": "cn_a_share",
+            "alpha_pool_mode": "",
+            "benchmark_code_map": {},
+            "asset_proxy_code_map": {},
         }
         if typed_account is not None:
             payload.update(typed_account)
-        if typed is not None:
+        if typed_alpha is not None:
+            payload["alpha_pool_mode"] = typed_alpha["alpha_pool_mode"]
+        if typed_market is not None:
             payload.update(
                 {
-                    "market_color_convention": typed["market_color_convention"],
-                    "alpha_pool_mode": typed["alpha_pool_mode"],
-                    "benchmark_code_map": typed["benchmark_code_map"],
-                    "asset_proxy_code_map": typed["asset_proxy_code_map"],
+                    "market_color_convention": typed_market["market_color_convention"],
+                    "benchmark_code_map": typed_market["benchmark_code_map"],
+                    "asset_proxy_code_map": typed_market["asset_proxy_code_map"],
                 }
             )
         convention = str(payload.get("market_color_convention") or "cn_a_share")
+        configured = all(item is not None for item in (typed_account, typed_alpha, typed_market))
         payload.update(
             {
                 "market_color_label": (
                     "美股绿涨红跌" if convention == "us_market" else "A股红涨绿跌"
                 ),
-                "updated_at": settings_obj.updated_at,
+                "updated_at": None,
+                "status": "active" if configured else "blocked",
+                "must_not_use_for_decision": not configured,
+                "blocked_reason": ("" if configured else "runtime_config_snapshot_unavailable"),
             }
         )
         return payload
@@ -597,8 +533,6 @@ class ConfigCenterSettingsRepository:
     ) -> dict[str, Any]:
         """Persist the explicit global-settings allowlist and return refreshed state."""
 
-        settings_obj = self.get_system_settings_for_read()
-        update_fields: list[str] = []
         runtime_patch: dict[str, object] = {}
         runtime_field_map = {
             "require_user_approval": "account.require_user_approval",
@@ -618,22 +552,10 @@ class ConfigCenterSettingsRepository:
                 continue
             if field_name in runtime_field_map:
                 runtime_patch[runtime_field_map[field_name]] = data[field_name]
-                continue
-            setattr(settings_obj, field_name, data[field_name])
-            update_fields.append(field_name)
-        if update_fields:
-            persisted_settings = self.get_system_settings()
-            for field_name in update_fields:
-                setattr(persisted_settings, field_name, data[field_name])
-            persisted_settings.full_clean()
-            update_fields.append("updated_at")
-            persisted_settings.save(update_fields=update_fields)
         if runtime_patch:
             activate_runtime_profile_patch(
                 environment=self._runtime_environment(),
                 patch=runtime_patch,
-                bootstrap_values=self._legacy_runtime_values(settings_obj),
-                bootstrap_secret_refs=self._legacy_runtime_secret_refs(),
                 actor=str(actor or "config-center"),
                 reason="Global runtime governance configuration updated",
             )
@@ -651,7 +573,6 @@ class ConfigCenterSettingsRepository:
         profile stores only its stable ``secret_ref`` values.
         """
 
-        settings_obj = self.get_system_settings_for_read()
         patch: dict[str, object] = {}
         secret_ref_patch: dict[str, str] = {}
         for field_name, definition_key in self.BACKUP_RUNTIME_FIELD_MAP.items():
@@ -679,8 +600,6 @@ class ConfigCenterSettingsRepository:
             environment=self._runtime_environment(),
             patch=patch,
             secret_ref_patch=secret_ref_patch,
-            bootstrap_values=self._legacy_runtime_values(settings_obj),
-            bootstrap_secret_refs=self._legacy_runtime_secret_refs(),
             actor=str(actor or "config-center"),
             reason="Backup delivery policy updated",
         )

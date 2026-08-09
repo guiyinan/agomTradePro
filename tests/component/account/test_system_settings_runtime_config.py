@@ -4,7 +4,6 @@ import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
 
-from apps.account.infrastructure.models import SystemSettingsModel
 from apps.data_center.infrastructure.models import IndicatorCatalogModel, IndicatorUnitRuleModel
 from apps.macro.application.indicator_service import IndicatorService, IndicatorUnitRuleService
 from core.application.config_center import get_system_settings_summary
@@ -16,11 +15,13 @@ from core.integration.runtime_settings import (
 
 
 @pytest.mark.django_db
-def test_system_settings_runtime_market_config_defaults():
-    settings = SystemSettingsModel.get_settings()
+def test_missing_market_runtime_config_fails_closed():
+    payload = get_system_settings_summary()
+    summary = payload["summary"]
 
-    assert settings.get_benchmark_code("equity_default_index") == "000300.SH"
-    assert settings.get_asset_proxy_code("a_share_growth") == "000300.SH"
+    assert summary["benchmark_map_size"] == 0
+    assert summary["asset_proxy_map_size"] == 0
+    assert payload["status"] == "blocked"
 
 
 @pytest.mark.django_db
@@ -97,12 +98,10 @@ def test_macro_runtime_metadata_exposes_schedule_and_period_override_fields():
 
 
 @pytest.mark.django_db
-def test_system_settings_runtime_market_visual_tokens_default_to_a_share():
-    settings = SystemSettingsModel.get_settings()
+def test_missing_market_runtime_uses_safe_a_share_visual_tokens():
+    tokens = get_market_visuals(request=None)["market_visuals"]
 
-    tokens = settings.get_market_visual_tokens()
-
-    assert settings.market_color_convention == "cn_a_share"
+    assert tokens["convention"] == "cn_a_share"
     assert tokens["rise"] == "var(--color-error)"
     assert tokens["fall"] == "var(--color-success)"
     assert tokens["rise_soft"] == "var(--color-error-light)"
@@ -112,21 +111,32 @@ def test_system_settings_runtime_market_visual_tokens_default_to_a_share():
 
 
 @pytest.mark.django_db
-def test_system_settings_runtime_market_visual_tokens_support_us_convention():
-    settings = SystemSettingsModel.get_settings()
-    settings.market_color_convention = "us_market"
-    settings.save(update_fields=["market_color_convention", "updated_at"])
+def test_runtime_market_visual_tokens_support_canonical_us_convention(monkeypatch):
+    monkeypatch.setattr(
+        "apps.config_center.infrastructure.config_summary_repository.get_active_market_runtime_config",
+        lambda environment: {
+            "market_color_convention": "us_market",
+            "benchmark_code_map": {},
+            "asset_proxy_code_map": {},
+        },
+    )
+    monkeypatch.setattr(
+        "apps.config_center.infrastructure.config_summary_repository.get_active_account_runtime_config",
+        lambda environment: {
+            "default_mcp_enabled": False,
+            "allow_token_plaintext_view": False,
+        },
+    )
 
-    tokens = SystemSettingsModel.get_runtime_market_visual_tokens()
     summary = get_system_settings_summary()["summary"]
     context = get_market_visuals(request=None)["market_visuals"]
 
-    assert tokens["rise"] == "var(--color-success)"
-    assert tokens["fall"] == "var(--color-error)"
-    assert tokens["rise_strong"] == "var(--color-success-dark)"
-    assert tokens["fall_strong"] == "var(--color-error-dark)"
     assert summary["market_color_convention"] == "us_market"
     assert summary["market_color_label"] == "美股绿涨红跌"
+    assert context["rise"] == "var(--color-success)"
+    assert context["fall"] == "var(--color-error)"
+    assert context["rise_strong"] == "var(--color-success-dark)"
+    assert context["fall_strong"] == "var(--color-error-dark)"
     assert context["convention"] == "us_market"
 
 

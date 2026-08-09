@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from apps.account.infrastructure.models import SystemSettingsModel
+from apps.account.infrastructure.system_settings_projection import SystemSettingsProjection
 from apps.config_center.application.public import (
     get_backup_delivery_runtime_payload,
     resolve_config_secret,
@@ -30,46 +30,41 @@ _BACKUP_STATE_FIELDS: tuple[str, ...] = (
     "backup_download_token_expires_at",
     "backup_download_consumed_at",
 )
-_LEGACY_ARCHIVE_PASSWORD_REF = "system_settings.backup_password_encrypted"
-_LEGACY_SMTP_PASSWORD_REF = "system_settings.backup_smtp_password_encrypted"
 
 
 def _project_secret(
-    settings_obj: SystemSettingsModel,
+    settings_obj: SystemSettingsProjection,
     *,
     secret_ref: object,
-    legacy_ref: str,
-    encrypted_field: str,
-    setter_name: str,
+    attach_name: str,
 ) -> None:
     """Resolve a Config Center ref into an ephemeral compatibility projection."""
 
     normalized_ref = str(secret_ref or "").strip()
-    if not normalized_ref or normalized_ref == legacy_ref:
+    if not normalized_ref:
         return
-    setattr(settings_obj, encrypted_field, "")
     try:
         plaintext = resolve_config_secret(normalized_ref)
         if plaintext:
-            setter = getattr(settings_obj, setter_name)
-            setter(plaintext)
+            attach = getattr(settings_obj, attach_name)
+            attach(plaintext)
     except (AttributeError, RuntimeError, TypeError, ValueError):
         # A missing deployment key must remain a blocked, empty projection;
         # never re-open the legacy column as a silent bypass.
-        setattr(settings_obj, encrypted_field, "")
+        return
 
 
 def get_backup_delivery_settings(
     *,
-    base_settings: SystemSettingsModel | None = None,
-) -> SystemSettingsModel:
+    base_settings: SystemSettingsProjection | None = None,
+) -> SystemSettingsProjection:
     """Return a legacy-shaped read model backed by the typed policy/state.
 
     The old model remains a compatibility shape for backup infrastructure.  It
     is never used as the owner once a typed profile/state row is available.
     """
 
-    settings_obj = base_settings or SystemSettingsModel.get_settings_for_read()
+    settings_obj = base_settings or SystemSettingsProjection()
     try:
         payload = get_backup_delivery_runtime_payload()
     except RuntimeError:
@@ -80,16 +75,12 @@ def get_backup_delivery_settings(
     _project_secret(
         settings_obj,
         secret_ref=payload.get("backup_archive_password_ref"),
-        legacy_ref=_LEGACY_ARCHIVE_PASSWORD_REF,
-        encrypted_field="backup_password_encrypted",
-        setter_name="set_backup_password",
+        attach_name="attach_backup_password",
     )
     _project_secret(
         settings_obj,
         secret_ref=payload.get("backup_smtp_password_ref"),
-        legacy_ref=_LEGACY_SMTP_PASSWORD_REF,
-        encrypted_field="backup_smtp_password_encrypted",
-        setter_name="set_backup_smtp_password",
+        attach_name="attach_backup_smtp_password",
     )
     return settings_obj
 
@@ -100,14 +91,12 @@ def get_backup_delivery_payload() -> dict[str, Any]:
     try:
         return get_backup_delivery_runtime_payload()
     except RuntimeError:
-        settings_obj = SystemSettingsModel.get_settings_for_read()
         return {
-            **{
-                field_name: getattr(settings_obj, field_name)
-                for field_name in _BACKUP_POLICY_FIELDS + _BACKUP_STATE_FIELDS
-            },
-            "policy_source": "system_settings_compatibility",
-            "state_source": "system_settings_compatibility",
+            "status": "blocked",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "runtime_config_snapshot_unavailable",
+            "policy_source": "blocked",
+            "state_source": "blocked",
         }
 
 

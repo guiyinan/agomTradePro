@@ -22,7 +22,6 @@ from apps.data_center.domain.entities import (
     AssetMaster,
     CapitalFlowFact,
     ConnectionTestResult,
-    DataProviderSettings,
     FinancialFact,
     FundNavFact,
     IndicatorCatalog,
@@ -65,13 +64,6 @@ class ProviderConfigRepositoryProtocol(Protocol):
     ) -> str: ...
     def delete(self, provider_id: int) -> None: ...
     def get_active_by_type(self, source_type: str) -> list[ProviderConfig]: ...
-
-
-@runtime_checkable
-class DataProviderSettingsRepositoryProtocol(Protocol):
-    """Read contract for the legacy provider-settings compatibility projection."""
-
-    def load_for_read(self) -> DataProviderSettings: ...
 
 
 @runtime_checkable

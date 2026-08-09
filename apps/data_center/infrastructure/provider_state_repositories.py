@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 from apps.data_center.domain.entities import (
-    DataProviderSettings,
     ProductionCoverageUniverseConfig,
     ProviderConfig,
     RawAudit,
 )
 from apps.data_center.infrastructure.models import (
-    DataProviderSettingsModel,
     ProductionCoverageUniverseConfigModel,
     ProviderConfigModel,
     RawAuditModel,
@@ -143,20 +141,6 @@ class ProviderConfigRepository:
 
     def delete(self, provider_id: int) -> None:
         ProviderConfigModel.objects.filter(pk=provider_id).delete()
-
-
-class DataProviderSettingsRepository:
-    """Persists and retrieves global provider settings (singleton)."""
-
-    def has_settings(self) -> bool:
-        """Return whether the singleton settings row already exists."""
-
-        return DataProviderSettingsModel.objects.exists()
-
-    def load_for_read(self) -> DataProviderSettings:
-        """Return provider settings without creating the compatibility row."""
-
-        return DataProviderSettingsModel.load_for_read().to_domain()
 
 
 class ProductionCoverageUniverseConfigRepository:

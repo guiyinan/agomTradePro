@@ -4,8 +4,6 @@ Model implementations live in focused owner modules. This module remains the
 stable import and patch surface used by repositories, tests, and integrations.
 """
 
-from apps.config_center.infrastructure.models import SystemSettingsModel  # noqa: F401
-
 from .classification_models import (
     AssetCategoryModel,
     AssetMetadataModel,
@@ -55,7 +53,6 @@ __all__ = [
     "PositionSignalLogModel",
     "StopLossConfigModel",
     "StopLossTriggerModel",
-    "SystemSettingsModel",
     "TakeProfitConfigModel",
     "TradingCostConfigModel",
     "TransactionCostConfigModel",

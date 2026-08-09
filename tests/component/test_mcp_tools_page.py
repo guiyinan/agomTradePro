@@ -2,9 +2,10 @@
 from django.contrib.auth.models import User
 from django.test import Client
 
-from apps.account.infrastructure.models import SystemSettingsModel, UserAccessTokenModel
+from apps.account.infrastructure.models import UserAccessTokenModel
 from apps.ai_capability.application.interface_services import toggle_mcp_tool_flag
 from apps.ai_capability.infrastructure.models import CapabilityCatalogModel
+from tests.support.runtime_config import configure_account_runtime
 
 
 @pytest.fixture
@@ -127,9 +128,7 @@ def test_capability_gateway_page_points_admin_to_semantic_governance(
 def test_capability_gateway_page_includes_copy_ready_agent_prompt_with_visible_token(
     client, regular_user
 ):
-    settings_obj = SystemSettingsModel.get_settings()
-    settings_obj.allow_token_plaintext_view = True
-    settings_obj.save(update_fields=["allow_token_plaintext_view"])
+    configure_account_runtime(allow_token_plaintext_view=True)
     _, raw_key = UserAccessTokenModel.create_token(
         user=regular_user,
         name="gateway-codex",

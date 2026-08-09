@@ -82,7 +82,7 @@ def test_runtime_failover_tolerance_is_preferred(monkeypatch) -> None:
         ),
     )
 
-    assert _resolve_failover_tolerance(0.01, environment="production") == pytest.approx(0.025)
+    assert _resolve_failover_tolerance(environment="production") == pytest.approx(0.025)
 
 
 def test_runtime_default_source_is_preferred(monkeypatch) -> None:
@@ -96,19 +96,20 @@ def test_runtime_default_source_is_preferred(monkeypatch) -> None:
         ),
     )
 
-    assert _resolve_default_source("akshare", environment="production") == "tushare"
+    assert _resolve_default_source(environment="production") == "tushare"
 
 
-def test_runtime_default_source_keeps_owner_compatibility_on_invalid_value(monkeypatch) -> None:
+def test_runtime_default_source_fails_closed_on_invalid_value(monkeypatch) -> None:
     monkeypatch.setattr(
         "core.integration.config_center_runtime.get_active_runtime_value",
         lambda **_: "legacy",
     )
 
-    assert _resolve_default_source("akshare", environment="development") == "akshare"
+    with pytest.raises(RuntimeError, match="provider_runtime_default_source_invalid"):
+        _resolve_default_source(environment="development")
 
 
-def test_runtime_failover_tolerance_keeps_owner_compatibility_on_missing_profile(
+def test_runtime_failover_tolerance_fails_closed_on_missing_profile(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
@@ -116,7 +117,8 @@ def test_runtime_failover_tolerance_keeps_owner_compatibility_on_missing_profile
         lambda **_: None,
     )
 
-    assert _resolve_failover_tolerance(0.01, environment="development") == pytest.approx(0.01)
+    with pytest.raises(RuntimeError, match="provider_runtime_failover_tolerance_missing"):
+        _resolve_failover_tolerance(environment="development")
 
 
 def test_runtime_failover_switch_is_preferred(monkeypatch) -> None:
@@ -130,10 +132,10 @@ def test_runtime_failover_switch_is_preferred(monkeypatch) -> None:
         ),
     )
 
-    assert _resolve_failover_enabled(False, environment="production") is True
+    assert _resolve_failover_enabled(environment="production") is True
 
 
-def test_runtime_failover_switch_keeps_owner_compatibility_on_invalid_value(
+def test_runtime_failover_switch_fails_closed_on_invalid_value(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
@@ -141,8 +143,23 @@ def test_runtime_failover_switch_keeps_owner_compatibility_on_invalid_value(
         lambda **_: "true",
     )
 
-    assert _resolve_failover_enabled(True, environment="development") is True
-    assert _resolve_failover_enabled(False, environment="development") is False
+    with pytest.raises(RuntimeError, match="provider_runtime_failover_enabled_invalid"):
+        _resolve_failover_enabled(environment="development")
+
+
+def test_runtime_provider_read_error_fails_closed_without_default(
+    monkeypatch,
+) -> None:
+    def _raise(**_kwargs):
+        raise OSError("database unavailable")
+
+    monkeypatch.setattr(
+        "core.integration.config_center_runtime.get_active_runtime_value",
+        _raise,
+    )
+
+    with pytest.raises(RuntimeError, match="provider_runtime_default_source_unavailable"):
+        _resolve_default_source(environment="production")
 
 
 def test_primary_data_is_retained_when_backup_disagrees(caplog) -> None:
