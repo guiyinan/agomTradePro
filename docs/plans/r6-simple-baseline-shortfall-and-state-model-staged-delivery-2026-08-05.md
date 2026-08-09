@@ -66,7 +66,9 @@ S1 通过后另建计划与分支：
 
 2026-08-09 monitoring Phase B：Research `0011` 已建立 observation/assessment 两张 schema-only append-only ledger，无 seed/backfill。ID-only registration 在同一 UoW 精确重读 active qualification、policy、完整连续 period calendar 与 raw facts并现场复算；owner `recorded_at` 与 server-clock `ledger_recorded_at` 分离，后者进入 row-header seal与 PIT/cursor replay。Strict codec、first-winner/fork/rollback、future cutoff、raw header/clock tamper及常规 ORM/Collector mutation均 fail closed；Domain/Application/codec/repository 合并 targeted `81 passed`，最终 malformed owner hash 补强后相关组合 `73 passed`，独立复核 P0/P1/P2 为 0。
 
-下一项无数据工作是 canonical owner adapters、数据库权限/trigger/密钥签名纵深，以及真正 activation/`stack[-2]` rollback 的独立阶段；这些都不得在真实 monitoring facts、owner authorization 与 approved Promotion 缺失时接入 consumer。现有 PROMOTE/RETIRE lifecycle 仍只管理内部 qualification 档案，本批不自动 RETIRE、不替换 Regime、不发布 current/decision/execution。
+2026-08-09 activation Phase A：新增与 qualification lifecycle 分离的纯 Domain/Application activation stream。ACTIVATE 必须动态重读 exact qualification、健康且新鲜的 monitoring、approved Promotion 和 owner authorization；Authorization 封存 exact previous-event hash，签发/记录时点严格晚于当前 head。Existing winner 只有在完整 canonical prefix 重放、前驱和授权全部一致时才可幂等返回；RETIRE 清空当前栈，ROLLBACK 只能回到 `stack[-2]`。构造后 UoW identity 漂移、orphan/fork/future winner、projection 自证和 owner 异常均 fail closed。该阶段无 ORM/migration/composition/consumer，固定禁止替换 Regime、发布 current、产生决策或执行。
+
+下一项无数据工作是 activation Phase B append-only persistence、strict codec、server-clock/shared-UoW、exact PIT/audit、canonical owner adapters，以及数据库权限/签名纵深。Phase B 还应显式验证全 stream 事件时钟单调并补可离线复验的 projection seal；在真实 monitoring facts、owner authorization 与 approved Promotion 缺失时不得接入 consumer。
 
 ## 5. 非目标
 

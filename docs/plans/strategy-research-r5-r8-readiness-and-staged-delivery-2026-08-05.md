@@ -244,6 +244,8 @@ Owner：`portfolio` + `broker_execution`，在 R3/R4/R5 晋级前可独立建设
 
 2026-08-09 input receipt Phase B：Portfolio `0009` 新增独立 append-only canonical receipt，完整保存 13 类 typed payload、13 个 owner binding、universe/snapshot/PIT graph 与 R3/R4/R5 Promotion。Registration command 仅含 input-set identity，在同一 UoW 从 authoritative Protocol 逐项重读；新 result v2 将 receipt ID/hash/schema 纳入 canonical hash，legacy null 仅显式 research read。计算后再次重读 receipt 与三项 Promotion，race 使用 nested savepoint exact-winner replay；production runtime 不暴露 repository/writer。Unit/component/migration 为 `25 / 18 / 4 passed`，独立复核 P0/P1 为 0。真实 owner providers 未接入，因此安全 registration façade不在 production runtime 暴露、运行仍 blocked；nullable FK 仅为历史兼容，无 seed/backfill。
 
+2026-08-09 receipt DB integrity：Portfolio `0010` schema-only 约束将合法 result shape 精确枚举为 `v1 + NULL receipt` 或 `v2 + receipt`，并限制 receipt 为 canonical v1；unknown/blank/alias 版本不能形成可读污染。`0009` reverse guard 在 evidence 查询前取得 PostgreSQL 表级排他锁或 SQLite writer reservation；有 v2/receipt evidence 时逆迁稳定拒绝并保全 recorder、result 与 receipt。非法历史行应用 `0010` 时整次迁移原子回滚，不做数据清洗。真实双连接后端 contention 测试留作上线前 P2；真实 owner/provider 门禁仍保持 blocked。
+
 - 第一版离线 research-only；
 - 明确等权和现有配置基准；
 - 输入绑定 PIT manifest、portfolio snapshot、scenario set、factor covariance 和 constraint version；

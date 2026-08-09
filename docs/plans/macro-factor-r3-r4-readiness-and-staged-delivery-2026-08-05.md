@@ -8,6 +8,8 @@
 
 > 2026-08-09 concrete fitting 续批：新增 sklearn 标准化/Lasso 与 OLS refit Infrastructure adapter。每个 inner fold 独立选择预登记 alpha，outer OOS 不进入选择或 final fit；标准化参数、intercept、系数、权重、显著性、BIC、调整 R²、benchmark/cost/version/hash 均进入 canonical artifact。Application 仍先验证 exact PIT manifest/dataset/spec，composition 缺任一 owner/config/repository 时显式 blocked 且零写入。合成 PIT 测试只证明算法与防泄漏合同，不替代真实宏观 vintage、代理资产、连续期货、成本、Regime/OOS trial 或 Promotion。
 
+> 2026-08-09 inference chronology 续批：PIT design rows 继续只服务训练、选择与历史 OOS 评估；dated publication 改为要求独立、无 label/value 的 manifest-selected inference row。Authoritative manifest full seal 封存 calendar owner 与 exact period member；版本化 freshness policy 对 manifest/inference age 设置封存上限，validity 不得越过任一 expiry。Inference proxy facts、target-calendar period、manifest cutoff 与 request hash 精确绑定，FORWARD period 必须晚于 knowledge/production cutoff，CURRENT period 不得晚于 cutoff；concrete runner 的 final fit 只预测该行，external runner 使用独立重建副本，返回后按未传出的基线现场重验。Trusted Application clock、provider/malformed-object 边界和逐 fact cutoff 均 fail closed。真实 inference Publication/calendar owner、PIT 数据、trial 与 Promotion 未形成，门禁不变。
+
 ## 1. 启动决策
 
 R3 与 R4 当前均不允许进入模型实现：
