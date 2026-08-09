@@ -1,6 +1,5 @@
 """Fail-closed Application tests for the R3 external-evidence boundary."""
 
-from dataclasses import replace
 from datetime import UTC, datetime
 
 from apps.macro_factor.application.use_cases import (
@@ -112,12 +111,23 @@ def test_missing_external_calculation_fails_closed() -> None:
 
 
 def test_unverified_or_incomplete_manifest_fails_closed() -> None:
-    manifest_coverage = complete_manifest().coverage_ratio / 2
-    manifest = replace(
-        complete_manifest(),
+    complete = complete_manifest()
+    manifest_coverage = complete.coverage_ratio / 2
+    manifest = PITManifestEvidence.create(
+        manifest_id=complete.manifest_id,
+        manifest_hash=complete.manifest_hash,
+        as_of_time=complete.as_of_time,
+        knowledge_scope=complete.knowledge_scope,
+        calendar_id=complete.calendar_id,
+        calendar_version=complete.calendar_version,
+        calendar_hash=complete.calendar_hash,
+        inference_periods=complete.inference_periods,
+        slices=complete.slices,
         is_verified=False,
         coverage_ratio=manifest_coverage,
         missing_count=1,
+        estimated_count=complete.estimated_count,
+        unknown_count=complete.unknown_count,
     )
     assert manifest_coverage < 1
     repository = _Repository()
@@ -136,9 +146,22 @@ def test_unverified_or_incomplete_manifest_fails_closed() -> None:
 
 def test_manifest_hash_mismatch_and_future_evidence_fail_closed() -> None:
     result = with_manifest_hash(complete_result(), "8" * 64)
-    future_manifest = replace(
-        complete_manifest(),
+    complete = complete_manifest()
+    future_manifest = PITManifestEvidence.create(
+        manifest_id=complete.manifest_id,
+        manifest_hash=complete.manifest_hash,
         as_of_time=datetime(2026, 7, 4, 9, tzinfo=UTC),
+        knowledge_scope=complete.knowledge_scope,
+        calendar_id=complete.calendar_id,
+        calendar_version=complete.calendar_version,
+        calendar_hash=complete.calendar_hash,
+        inference_periods=complete.inference_periods,
+        slices=complete.slices,
+        coverage_ratio=complete.coverage_ratio,
+        missing_count=complete.missing_count,
+        estimated_count=complete.estimated_count,
+        unknown_count=complete.unknown_count,
+        is_verified=complete.is_verified,
     )
     repository = _Repository()
     assessment = AssessExternalMacroFactorResearch(

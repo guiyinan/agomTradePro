@@ -14,6 +14,10 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 
+from apps.macro_factor.domain.pit_manifest_calendar import (
+    PITInferenceCalendarPeriodEvidence,
+)
+
 
 def _require_text(value: str, field_name: str, *, maximum: int = 255) -> None:
     if not value.strip():
@@ -271,124 +275,6 @@ class PITDatasetSlice:
             business_key=self.business_key,
             version_ids=self.version_ids,
             selected_versions=tuple(item.validated_copy() for item in self.selected_versions),
-        )
-
-
-@dataclass(frozen=True)
-class PITInferenceCalendarPeriodEvidence:
-    """Exact owner-issued inference-period member sealed by a PIT manifest."""
-
-    calendar_id: str
-    calendar_version: str
-    calendar_hash: str
-    period_id: str
-    period_start: date
-    period_end: date
-    content_hash: str
-
-    @classmethod
-    def create(
-        cls,
-        *,
-        calendar_id: str,
-        calendar_version: str,
-        calendar_hash: str,
-        period_id: str,
-        period_start: date,
-        period_end: date,
-    ) -> PITInferenceCalendarPeriodEvidence:
-        """Create one exact calendar-owner member with a live content seal."""
-
-        payload = cls._payload(
-            calendar_id=calendar_id,
-            calendar_version=calendar_version,
-            calendar_hash=calendar_hash,
-            period_id=period_id,
-            period_start=period_start,
-            period_end=period_end,
-        )
-        return cls(
-            calendar_id=calendar_id,
-            calendar_version=calendar_version,
-            calendar_hash=calendar_hash,
-            period_id=period_id,
-            period_start=period_start,
-            period_end=period_end,
-            content_hash=_hash_payload(payload),
-        )
-
-    @staticmethod
-    def _payload(
-        *,
-        calendar_id: str,
-        calendar_version: str,
-        calendar_hash: str,
-        period_id: str,
-        period_start: date,
-        period_end: date,
-    ) -> dict[str, object]:
-        return {
-            "calendar_id": calendar_id,
-            "calendar_version": calendar_version,
-            "calendar_hash": calendar_hash,
-            "period_id": period_id,
-            "period_start": period_start.isoformat(),
-            "period_end": period_end.isoformat(),
-        }
-
-    def __post_init__(self) -> None:
-        _require_token(self.calendar_id, "PITInferenceCalendarPeriodEvidence.calendar_id")
-        _require_token(
-            self.calendar_version,
-            "PITInferenceCalendarPeriodEvidence.calendar_version",
-        )
-        _require_sha256(
-            self.calendar_hash,
-            "PITInferenceCalendarPeriodEvidence.calendar_hash",
-        )
-        _require_token(self.period_id, "PITInferenceCalendarPeriodEvidence.period_id")
-        if self.period_start > self.period_end:
-            raise ValueError("PIT inference calendar period is invalid")
-        _require_sha256(self.content_hash, "PITInferenceCalendarPeriodEvidence.content_hash")
-        expected = _hash_payload(
-            self._payload(
-                calendar_id=self.calendar_id,
-                calendar_version=self.calendar_version,
-                calendar_hash=self.calendar_hash,
-                period_id=self.period_id,
-                period_start=self.period_start,
-                period_end=self.period_end,
-            )
-        )
-        if self.content_hash.lower() != expected:
-            raise ValueError("PIT inference calendar member hash does not match content")
-
-    def canonical_payload(self) -> dict[str, object]:
-        """Return the exact owner and period membership evidence."""
-
-        return {
-            **self._payload(
-                calendar_id=self.calendar_id,
-                calendar_version=self.calendar_version,
-                calendar_hash=self.calendar_hash,
-                period_id=self.period_id,
-                period_start=self.period_start,
-                period_end=self.period_end,
-            ),
-            "content_hash": self.content_hash,
-        }
-
-    def validated_copy(self) -> PITInferenceCalendarPeriodEvidence:
-        """Reconstruct the owner member and verify its seal live."""
-
-        return PITInferenceCalendarPeriodEvidence(
-            calendar_id=self.calendar_id,
-            calendar_version=self.calendar_version,
-            calendar_hash=self.calendar_hash,
-            period_id=self.period_id,
-            period_start=self.period_start,
-            period_end=self.period_end,
-            content_hash=self.content_hash,
         )
 
 
