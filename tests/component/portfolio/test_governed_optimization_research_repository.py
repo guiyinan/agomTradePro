@@ -10,7 +10,12 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection, transaction
 from django.db.models.deletion import Collector
 
-from apps.portfolio.application.governed_optimization import GovernedOptimizationRunBundle
+from apps.portfolio.application.governed_optimization import (
+    AppendGovernedOptimizationLifecycleEventCommand,
+    AppendGovernedOptimizationLifecycleEventUseCase,
+    GovernedOptimizationRunBundle,
+    GovernedOptimizationUnavailable,
+)
 from apps.portfolio.domain._optimization_canonical import hash_components
 from apps.portfolio.domain.governed_input_set import ExactPromotionAttestation
 from apps.portfolio.domain.optimization_input_receipt import (
@@ -44,6 +49,7 @@ from apps.portfolio.infrastructure.optimization_research_models import (
 )
 from apps.portfolio.infrastructure.optimization_research_repository import (
     DjangoGovernedOptimizationResearchRepository,
+    _DjangoGovernedOptimizationLifecycleStore,
     _insert_values,
 )
 from tests.unit.portfolio.test_governed_optimization_inputs import _input_set
@@ -58,11 +64,17 @@ INPUT_RECEIPT = GovernedOptimizationInputReceipt.record(
 
 
 class _Clock:
+    def __init__(self, value: datetime = NOW) -> None:
+        self.value = value
+
     def now(self) -> datetime:
-        return NOW
+        return self.value
 
 
-def _repository() -> DjangoGovernedOptimizationResearchRepository:
+def _repository(
+    *,
+    clock: _Clock | None = None,
+) -> DjangoGovernedOptimizationResearchRepository:
     unit_of_work = DjangoGovernedOptimizationUnitOfWork()
     receipts = DjangoGovernedOptimizationInputReceiptRepository(
         unit_of_work=unit_of_work,
@@ -73,6 +85,7 @@ def _repository() -> DjangoGovernedOptimizationResearchRepository:
     return DjangoGovernedOptimizationResearchRepository(
         unit_of_work=unit_of_work,
         receipt_provider=receipts,
+        clock=clock or _Clock(),
     )
 
 
@@ -161,7 +174,8 @@ def test_same_run_identity_with_different_evidence_is_rejected() -> None:
 
 @pytest.mark.django_db
 def test_exact_r8_promotion_and_owner_attested_retirement_extend_chain() -> None:
-    repository = _repository()
+    clock = _Clock(NOW + timedelta(hours=1))
+    repository = _repository(clock=clock)
     bundle = _bundle()
     repository.append_bundle(bundle)
     promotion = ExactPromotionAttestation.create(
@@ -175,16 +189,6 @@ def test_exact_r8_promotion_and_owner_attested_retirement_extend_chain() -> None
         approved_at=NOW + timedelta(hours=1),
         valid_until=LATER,
     )
-    promoted = create_optimization_lifecycle_event(
-        result=bundle.result,
-        previous_events=repository.list_lifecycle_events(bundle.result.result_id),
-        event_type=OptimizationLifecycleEventType.PROMOTION_ATTESTED,
-        occurred_at=NOW + timedelta(hours=1),
-        recorded_at=NOW + timedelta(hours=1),
-        reason_codes=("research_promotion_approved",),
-        promotion_attestation=promotion,
-    )
-    repository.append_lifecycle_event(promoted)
     reasons = ("methodology_retired",)
     owner = OptimizationLifecycleOwnerAttestation.create(
         attestation_id="owner-attestation:r8:retire:v1",
@@ -195,20 +199,205 @@ def test_exact_r8_promotion_and_owner_attested_retirement_extend_chain() -> None
         reason_hash=hash_components("optimization-lifecycle-reasons.v1", *reasons),
         issued_at=NOW + timedelta(hours=2),
     )
-    retired = create_optimization_lifecycle_event(
-        result=bundle.result,
-        previous_events=repository.list_lifecycle_events(bundle.result.result_id),
-        event_type=OptimizationLifecycleEventType.RETIRED,
-        occurred_at=NOW + timedelta(hours=2),
-        recorded_at=NOW + timedelta(hours=2),
-        reason_codes=reasons,
-        owner_attestation=owner,
+
+    class _PromotionProvider:
+        @property
+        def unit_of_work_key(self) -> str:
+            return repository.unit_of_work_key
+
+        def get_exact(
+            self,
+            *,
+            capability_key: str,
+            decision_id: str,
+            evaluated_at: datetime,
+        ) -> ExactPromotionAttestation | None:
+            if (
+                capability_key == "r8"
+                and decision_id == promotion.decision_id
+                and promotion.approved_at <= evaluated_at < promotion.valid_until
+            ):
+                return promotion
+            return None
+
+    class _OwnerProvider:
+        @property
+        def unit_of_work_key(self) -> str:
+            return repository.unit_of_work_key
+
+        def get_exact(
+            self,
+            *,
+            attestation_id: str,
+            result_id: str,
+            result_hash: str,
+            event_type: OptimizationLifecycleEventType,
+            evaluated_at: datetime,
+        ) -> OptimizationLifecycleOwnerAttestation | None:
+            if (
+                attestation_id == owner.attestation_id
+                and result_id == owner.result_id
+                and result_hash == owner.result_hash
+                and event_type is owner.event_type
+                and owner.issued_at <= evaluated_at
+            ):
+                return owner
+            return None
+
+    use_case = AppendGovernedOptimizationLifecycleEventUseCase(
+        promotion_provider=_PromotionProvider(),
+        owner_authorization_provider=_OwnerProvider(),
+        repository=_DjangoGovernedOptimizationLifecycleStore(repository),
     )
-    repository.append_lifecycle_event(retired)
+    use_case.execute(
+        AppendGovernedOptimizationLifecycleEventCommand(
+            result_id=bundle.result.result_id,
+            event_type=OptimizationLifecycleEventType.PROMOTION_ATTESTED,
+            authorization_id=promotion.decision_id,
+            reason_codes=("research_promotion_approved",),
+        )
+    )
+    clock.value = NOW + timedelta(hours=2)
+    use_case.execute(
+        AppendGovernedOptimizationLifecycleEventCommand(
+            result_id=bundle.result.result_id,
+            event_type=OptimizationLifecycleEventType.RETIRED,
+            authorization_id=owner.attestation_id,
+            reason_codes=reasons,
+        )
+    )
 
     events = repository.list_lifecycle_events(bundle.result.result_id)
     assert [item.sequence for item in events] == [1, 2, 3]
     assert derive_optimization_lifecycle_state(events).value == "retired"
+
+
+@pytest.mark.django_db
+def test_lifecycle_owner_retired_between_reads_and_direct_append_are_zero_write() -> None:
+    clock = _Clock(NOW + timedelta(hours=1))
+    repository = _repository(clock=clock)
+    bundle = _bundle()
+    repository.append_bundle(bundle)
+    reasons = ("methodology_retired",)
+    owner = OptimizationLifecycleOwnerAttestation.create(
+        attestation_id="owner-attestation:r8:retire-between",
+        owner="portfolio",
+        result_id=bundle.result.result_id,
+        result_hash=bundle.result.content_hash,
+        event_type=OptimizationLifecycleEventType.RETIRED,
+        reason_hash=hash_components("optimization-lifecycle-reasons.v1", *reasons),
+        issued_at=NOW,
+    )
+
+    class _NoPromotionProvider:
+        @property
+        def unit_of_work_key(self) -> str:
+            return repository.unit_of_work_key
+
+        def get_exact(
+            self,
+            *,
+            capability_key: str,
+            decision_id: str,
+            evaluated_at: datetime,
+        ) -> None:
+            del capability_key, decision_id, evaluated_at
+            return None
+
+    class _OneShotOwnerProvider:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        @property
+        def unit_of_work_key(self) -> str:
+            return repository.unit_of_work_key
+
+        def get_exact(
+            self,
+            *,
+            attestation_id: str,
+            result_id: str,
+            result_hash: str,
+            event_type: OptimizationLifecycleEventType,
+            evaluated_at: datetime,
+        ) -> OptimizationLifecycleOwnerAttestation | None:
+            del evaluated_at
+            self.calls += 1
+            if self.calls > 1:
+                return None
+            if (
+                attestation_id == owner.attestation_id
+                and result_id == owner.result_id
+                and result_hash == owner.result_hash
+                and event_type is owner.event_type
+            ):
+                return owner
+            return None
+
+    owner_provider = _OneShotOwnerProvider()
+    use_case = AppendGovernedOptimizationLifecycleEventUseCase(
+        promotion_provider=_NoPromotionProvider(),
+        owner_authorization_provider=owner_provider,
+        repository=_DjangoGovernedOptimizationLifecycleStore(repository),
+    )
+    with pytest.raises(GovernedOptimizationUnavailable, match="authorization is unavailable"):
+        use_case.execute(
+            AppendGovernedOptimizationLifecycleEventCommand(
+                result_id=bundle.result.result_id,
+                event_type=OptimizationLifecycleEventType.RETIRED,
+                authorization_id=owner.attestation_id,
+                reason_codes=reasons,
+            )
+        )
+
+    assert owner_provider.calls == 2
+    assert repository.list_lifecycle_events(bundle.result.result_id) == (bundle.lifecycle_root,)
+    assert not hasattr(repository, "append_lifecycle_event")
+    with pytest.raises(ValidationError, match="append capability is invalid"):
+        repository._append_lifecycle_event(
+            bundle.lifecycle_root,
+            claim_token=object(),
+        )
+    assert OptimizationResearchLifecycleEventModel._default_manager.count() == 1
+
+
+@pytest.mark.django_db
+def test_existing_lifecycle_winner_replays_and_verifies_the_complete_stream() -> None:
+    repository = _repository()
+    bundle = _bundle()
+    repository.append_bundle(bundle)
+    promotion = ExactPromotionAttestation.create(
+        capability_key="r8",
+        artifact_id=bundle.result.result_id,
+        artifact_version=bundle.result.result_version,
+        artifact_content_hash=bundle.result.content_hash,
+        decision_id="promotion:r8:replay",
+        decision_content_hash="4" * 64,
+        owner="research",
+        approved_at=NOW + timedelta(hours=1),
+        valid_until=LATER,
+    )
+    event = create_optimization_lifecycle_event(
+        result=bundle.result,
+        previous_events=(bundle.lifecycle_root,),
+        event_type=OptimizationLifecycleEventType.PROMOTION_ATTESTED,
+        occurred_at=NOW + timedelta(hours=1),
+        recorded_at=NOW + timedelta(hours=1),
+        reason_codes=("research_promotion_approved",),
+        promotion_attestation=promotion,
+    )
+    store = _DjangoGovernedOptimizationLifecycleStore(repository)
+    assert store.append_lifecycle_event(event) == event
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE portfolio_optimization_lifecycle_event "
+            "SET content_hash = %s WHERE result_id = %s AND sequence = 1",
+            ["0" * 64, bundle.result.result_id],
+        )
+
+    with pytest.raises(ValueError, match="invalid optimization lifecycle event"):
+        store.append_lifecycle_event(event)
 
 
 @pytest.mark.django_db

@@ -10,6 +10,7 @@ from decimal import Decimal
 import pytest
 
 from apps.portfolio.application.governed_optimization import (
+    AppendGovernedOptimizationLifecycleEventCommand,
     AssembleGovernedOptimizationCommand,
     AssembleGovernedOptimizationProblemUseCase,
     GovernedOptimizationRunBundle,
@@ -84,6 +85,7 @@ from apps.portfolio.domain.macro_factor_risk import (
 from apps.portfolio.domain.optimization_input_receipt import (
     GovernedOptimizationInputReceipt,
 )
+from apps.portfolio.domain.optimization_lifecycle import OptimizationLifecycleEventType
 from apps.portfolio.domain.optimizer_inputs import OptimizationInputKind
 from apps.portfolio.infrastructure.deterministic_optimizer import (
     DeterministicConstrainedSearchAdapter,
@@ -1022,6 +1024,12 @@ def test_production_registration_is_id_only_unavailable_and_zero_write() -> None
     assert not any(
         isinstance(item, RegisterGovernedOptimizationInputReceiptUseCase) for item in runtime_graph
     )
+    assert not any(
+        isinstance(item, RunGovernedOptimizationResearchUseCase) for item in runtime_graph
+    )
+    assert type(runtime.run).__slots__ == ()
+    assert not hasattr(runtime.run, "__dict__")
+    assert runtime.run.execute.__func__.__closure__ is None
 
     with pytest.raises(
         GovernedOptimizationUnavailable,
@@ -1073,6 +1081,28 @@ def test_production_composition_is_constructable_but_unavailable_before_any_writ
             run_key="r8-production-unavailable",
             run_version="v1",
         )
+
+    with pytest.raises(
+        GovernedOptimizationUnavailable,
+        match="lifecycle owner authorization is unavailable",
+    ):
+        runtime.append_lifecycle.execute(
+            AppendGovernedOptimizationLifecycleEventCommand(
+                result_id="governed_optimization_result:production-missing",
+                event_type=OptimizationLifecycleEventType.RETIRED,
+                authorization_id="portfolio-authorization:production-missing",
+                reason_codes=("owner_retired",),
+            )
+        )
+
+    assert type(runtime.append_lifecycle).__slots__ == ()
+    assert not hasattr(runtime.append_lifecycle, "__dict__")
+    for private_surface in ("repository", "store", "token", "_repository", "_token"):
+        assert not hasattr(runtime.append_lifecycle, private_surface)
+
+    assert GovernedOptimizationInputReceiptModel._default_manager.count() == 0
+    assert GovernedOptimizationResearchResultModel._default_manager.count() == 0
+    assert OptimizationResearchLifecycleEventModel._default_manager.count() == 0
 
 
 def test_nested_market_and_drawdown_rows_cannot_cross_the_pit_cutoff() -> None:

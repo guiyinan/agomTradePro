@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from apps.portfolio.domain._optimization_canonical import (
     hash_components,
@@ -20,7 +20,7 @@ from apps.portfolio.domain.optimization_research_result import (
 )
 
 
-class OptimizationLifecycleEventType(str, Enum):
+class OptimizationLifecycleEventType(StrEnum):
     """Append-only result lifecycle events."""
 
     RECORDED = "recorded"
@@ -29,7 +29,7 @@ class OptimizationLifecycleEventType(str, Enum):
     ROLLED_BACK = "rolled_back"
 
 
-class OptimizationLifecycleState(str, Enum):
+class OptimizationLifecycleState(StrEnum):
     """State derived exclusively from the event chain."""
 
     RESEARCH = "research"
@@ -221,7 +221,7 @@ class OptimizationResearchLifecycleEvent:
                 or owner.result_hash != self.result_hash
                 or owner.event_type is not self.event_type
                 or owner.reason_hash != reason_hash
-                or not self.occurred_at <= owner.issued_at <= self.recorded_at
+                or not owner.issued_at <= self.occurred_at <= self.recorded_at
             ):
                 raise ValueError("lifecycle owner attestation does not match the event")
         elif self.event_type is not OptimizationLifecycleEventType.RECORDED:

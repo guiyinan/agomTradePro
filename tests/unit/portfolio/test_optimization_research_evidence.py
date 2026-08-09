@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -9,7 +10,9 @@ from decimal import Decimal
 import pytest
 
 from apps.portfolio.application.governed_optimization import (
+    AppendGovernedOptimizationLifecycleEventCommand,
     AppendGovernedOptimizationLifecycleEventUseCase,
+    GovernedOptimizationLifecycleConflict,
     GovernedOptimizationUnavailable,
 )
 from apps.portfolio.domain._optimization_canonical import hash_components
@@ -189,6 +192,10 @@ class _ExactOwnerAuthorizationProvider:
     ) -> None:
         self._records = {item.attestation_id: item for item in attestations}
 
+    @property
+    def unit_of_work_key(self) -> str:
+        return "test:lifecycle"
+
     def get_exact(
         self,
         *,
@@ -210,14 +217,44 @@ class _ExactOwnerAuthorizationProvider:
 
 
 class _LifecycleRepository:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        result: GovernedOptimizationResearchResult,
+        now: datetime,
+    ) -> None:
+        self.result = result
+        self.now = now
+        self.events = [create_optimization_lifecycle_root(result)]
         self.appended: list[OptimizationResearchLifecycleEvent] = []
+
+    @property
+    def unit_of_work_key(self) -> str:
+        return "test:lifecycle"
+
+    def atomic(self):  # type: ignore[no-untyped-def]
+        return nullcontext()
+
+    def server_now(self) -> datetime:
+        return self.now
+
+    def get_result(self, result_id: str) -> GovernedOptimizationResearchResult | None:
+        return self.result if self.result.result_id == result_id else None
+
+    def list_lifecycle_events(
+        self,
+        result_id: str,
+    ) -> tuple[OptimizationResearchLifecycleEvent, ...]:
+        if result_id != self.result.result_id:
+            return ()
+        return tuple(self.events)
 
     def append_lifecycle_event(
         self,
         event: OptimizationResearchLifecycleEvent,
     ) -> OptimizationResearchLifecycleEvent:
         self.appended.append(event)
+        self.events.append(event)
         return event
 
 
@@ -446,7 +483,6 @@ def test_lifecycle_clocks_are_monotonic_on_create_and_restored_chains() -> None:
 
 def test_lifecycle_application_requires_exact_authoritative_providers() -> None:
     result = _result()
-    root = create_optimization_lifecycle_root(result)
     promotion = _promotion(result)
     reasons = ("methodology_retired",)
     owner = OptimizationLifecycleOwnerAttestation.create(
@@ -458,7 +494,7 @@ def test_lifecycle_application_requires_exact_authoritative_providers() -> None:
         reason_hash=hash_components("optimization-lifecycle-reasons.v1", *reasons),
         issued_at=NOW + timedelta(hours=2),
     )
-    repository = _LifecycleRepository()
+    repository = _LifecycleRepository(result=result, now=NOW + timedelta(hours=1))
     use_case = AppendGovernedOptimizationLifecycleEventUseCase(
         promotion_provider=_ExactPromotionProvider((promotion,)),
         owner_authorization_provider=_ExactOwnerAuthorizationProvider((owner,)),
@@ -466,24 +502,25 @@ def test_lifecycle_application_requires_exact_authoritative_providers() -> None:
     )
 
     promoted = use_case.execute(
-        result=result,
-        previous_events=(root,),
-        event_type=OptimizationLifecycleEventType.PROMOTION_ATTESTED,
-        occurred_at=NOW + timedelta(hours=1),
-        recorded_at=NOW + timedelta(hours=1),
-        reason_codes=("research_promotion_approved",),
-        promotion_attestation=promotion,
+        AppendGovernedOptimizationLifecycleEventCommand(
+            result_id=result.result_id,
+            event_type=OptimizationLifecycleEventType.PROMOTION_ATTESTED,
+            authorization_id=promotion.decision_id,
+            reason_codes=("research_promotion_approved",),
+        )
     )
+    repository.now = NOW + timedelta(hours=2)
     retired = use_case.execute(
-        result=result,
-        previous_events=(root,),
-        event_type=OptimizationLifecycleEventType.RETIRED,
-        occurred_at=NOW + timedelta(hours=2),
-        recorded_at=NOW + timedelta(hours=2),
-        reason_codes=reasons,
-        owner_attestation=owner,
+        AppendGovernedOptimizationLifecycleEventCommand(
+            result_id=result.result_id,
+            event_type=OptimizationLifecycleEventType.RETIRED,
+            authorization_id=owner.attestation_id,
+            reason_codes=reasons,
+        )
     )
     assert repository.appended == [promoted, retired]
+    assert promoted.recorded_at == NOW + timedelta(hours=1)
+    assert retired.recorded_at == NOW + timedelta(hours=2)
 
     fabricated_promotion = ExactPromotionAttestation.create(
         capability_key="r8",
@@ -501,14 +538,134 @@ def test_lifecycle_application_requires_exact_authoritative_providers() -> None:
         match="Promotion authorization is unavailable",
     ):
         use_case.execute(
-            result=result,
-            previous_events=(root,),
-            event_type=OptimizationLifecycleEventType.PROMOTION_ATTESTED,
-            occurred_at=NOW + timedelta(hours=1),
-            recorded_at=NOW + timedelta(hours=1),
-            reason_codes=("research_promotion_approved",),
-            promotion_attestation=fabricated_promotion,
+            AppendGovernedOptimizationLifecycleEventCommand(
+                result_id=result.result_id,
+                event_type=OptimizationLifecycleEventType.PROMOTION_ATTESTED,
+                authorization_id=fabricated_promotion.decision_id,
+                reason_codes=("research_promotion_approved",),
+            )
         )
+
+
+def test_lifecycle_application_revalidates_command_and_owner_before_zero_write() -> None:
+    result = _result()
+    reasons = ("methodology_retired",)
+    owner = OptimizationLifecycleOwnerAttestation.create(
+        attestation_id="owner-attestation:r8:one-shot",
+        owner="portfolio",
+        result_id=result.result_id,
+        result_hash=result.content_hash,
+        event_type=OptimizationLifecycleEventType.RETIRED,
+        reason_hash=hash_components("optimization-lifecycle-reasons.v1", *reasons),
+        issued_at=NOW,
+    )
+
+    class _OneShotOwnerProvider(_ExactOwnerAuthorizationProvider):
+        def __init__(self) -> None:
+            super().__init__((owner,))
+            self.calls = 0
+
+        def get_exact(self, **kwargs):  # type: ignore[no-untyped-def]
+            self.calls += 1
+            if self.calls > 1:
+                return None
+            return super().get_exact(**kwargs)
+
+    provider = _OneShotOwnerProvider()
+    repository = _LifecycleRepository(result=result, now=NOW + timedelta(hours=1))
+    use_case = AppendGovernedOptimizationLifecycleEventUseCase(
+        promotion_provider=_ExactPromotionProvider(()),
+        owner_authorization_provider=provider,
+        repository=repository,
+    )
+    command = AppendGovernedOptimizationLifecycleEventCommand(
+        result_id=result.result_id,
+        event_type=OptimizationLifecycleEventType.RETIRED,
+        authorization_id=owner.attestation_id,
+        reason_codes=reasons,
+    )
+
+    with pytest.raises(GovernedOptimizationUnavailable, match="authorization is unavailable"):
+        use_case.execute(command)
+
+    assert provider.calls == 2
+    assert repository.appended == []
+
+    object.__setattr__(command, "result_id", object())
+    with pytest.raises(GovernedOptimizationUnavailable, match="command is invalid"):
+        use_case.execute(command)
+    assert repository.appended == []
+
+
+def test_lifecycle_application_blocks_future_owner_and_stream_fork() -> None:
+    result = _result()
+    reasons = ("methodology_retired",)
+    future_owner = OptimizationLifecycleOwnerAttestation.create(
+        attestation_id="owner-attestation:r8:future",
+        owner="portfolio",
+        result_id=result.result_id,
+        result_hash=result.content_hash,
+        event_type=OptimizationLifecycleEventType.RETIRED,
+        reason_hash=hash_components("optimization-lifecycle-reasons.v1", *reasons),
+        issued_at=NOW + timedelta(hours=2),
+    )
+    repository = _LifecycleRepository(result=result, now=NOW + timedelta(hours=1))
+    use_case = AppendGovernedOptimizationLifecycleEventUseCase(
+        promotion_provider=_ExactPromotionProvider(()),
+        owner_authorization_provider=_ExactOwnerAuthorizationProvider((future_owner,)),
+        repository=repository,
+    )
+    command = AppendGovernedOptimizationLifecycleEventCommand(
+        result_id=result.result_id,
+        event_type=OptimizationLifecycleEventType.RETIRED,
+        authorization_id=future_owner.attestation_id,
+        reason_codes=reasons,
+    )
+
+    with pytest.raises(GovernedOptimizationUnavailable, match="future Portfolio"):
+        use_case.execute(command)
+    assert repository.appended == []
+
+    owner = OptimizationLifecycleOwnerAttestation.create(
+        attestation_id=future_owner.attestation_id,
+        owner="portfolio",
+        result_id=result.result_id,
+        result_hash=result.content_hash,
+        event_type=OptimizationLifecycleEventType.RETIRED,
+        reason_hash=future_owner.reason_hash,
+        issued_at=NOW,
+    )
+
+    class _ForkingRepository(_LifecycleRepository):
+        def __init__(self) -> None:
+            super().__init__(result=result, now=NOW + timedelta(hours=1))
+            self.stream_reads = 0
+
+        def list_lifecycle_events(
+            self,
+            result_id: str,
+        ) -> tuple[OptimizationResearchLifecycleEvent, ...]:
+            self.stream_reads += 1
+            if self.stream_reads > 1:
+                return ()
+            return super().list_lifecycle_events(result_id)
+
+    forking_repository = _ForkingRepository()
+    forking_use_case = AppendGovernedOptimizationLifecycleEventUseCase(
+        promotion_provider=_ExactPromotionProvider(()),
+        owner_authorization_provider=_ExactOwnerAuthorizationProvider((owner,)),
+        repository=forking_repository,
+    )
+    with pytest.raises(GovernedOptimizationLifecycleConflict, match="changed before append"):
+        forking_use_case.execute(
+            AppendGovernedOptimizationLifecycleEventCommand(
+                result_id=result.result_id,
+                event_type=OptimizationLifecycleEventType.RETIRED,
+                authorization_id=owner.attestation_id,
+                reason_codes=reasons,
+            )
+        )
+    assert forking_repository.appended == []
 
     fabricated_owner = OptimizationLifecycleOwnerAttestation.create(
         attestation_id="owner-attestation:r8:retire:fabricated",
@@ -524,11 +681,199 @@ def test_lifecycle_application_requires_exact_authoritative_providers() -> None:
         match="lifecycle authorization is unavailable",
     ):
         use_case.execute(
-            result=result,
-            previous_events=(root,),
-            event_type=OptimizationLifecycleEventType.RETIRED,
-            occurred_at=NOW + timedelta(hours=2),
-            recorded_at=NOW + timedelta(hours=2),
-            reason_codes=reasons,
-            owner_attestation=fabricated_owner,
+            AppendGovernedOptimizationLifecycleEventCommand(
+                result_id=result.result_id,
+                event_type=OptimizationLifecycleEventType.RETIRED,
+                authorization_id=fabricated_owner.attestation_id,
+                reason_codes=reasons,
+            )
         )
+
+
+def test_lifecycle_application_rejects_substituted_authorization_selectors() -> None:
+    result = _result()
+    promotion = _promotion(result)
+    reasons = ("owner_retired",)
+    owner = OptimizationLifecycleOwnerAttestation.create(
+        attestation_id="owner-attestation:r8:returned",
+        owner="portfolio",
+        result_id=result.result_id,
+        result_hash=result.content_hash,
+        event_type=OptimizationLifecycleEventType.RETIRED,
+        reason_hash=hash_components("optimization-lifecycle-reasons.v1", *reasons),
+        issued_at=NOW,
+    )
+
+    class _SubstitutingPromotionProvider(_ExactPromotionProvider):
+        def get_exact(self, **kwargs):  # type: ignore[no-untyped-def]
+            del kwargs
+            return promotion
+
+    class _SubstitutingOwnerProvider(_ExactOwnerAuthorizationProvider):
+        def get_exact(self, **kwargs):  # type: ignore[no-untyped-def]
+            del kwargs
+            return owner
+
+    promotion_repository = _LifecycleRepository(
+        result=result,
+        now=NOW + timedelta(hours=1),
+    )
+    promotion_use_case = AppendGovernedOptimizationLifecycleEventUseCase(
+        promotion_provider=_SubstitutingPromotionProvider(()),
+        owner_authorization_provider=_ExactOwnerAuthorizationProvider(()),
+        repository=promotion_repository,
+    )
+    with pytest.raises(GovernedOptimizationUnavailable, match="does not match selector"):
+        promotion_use_case.execute(
+            AppendGovernedOptimizationLifecycleEventCommand(
+                result_id=result.result_id,
+                event_type=OptimizationLifecycleEventType.PROMOTION_ATTESTED,
+                authorization_id="promotion:r8:requested",
+                reason_codes=("research_promotion_approved",),
+            )
+        )
+    assert promotion_repository.appended == []
+
+    owner_repository = _LifecycleRepository(
+        result=result,
+        now=NOW + timedelta(hours=1),
+    )
+    owner_use_case = AppendGovernedOptimizationLifecycleEventUseCase(
+        promotion_provider=_ExactPromotionProvider(()),
+        owner_authorization_provider=_SubstitutingOwnerProvider(()),
+        repository=owner_repository,
+    )
+    with pytest.raises(GovernedOptimizationUnavailable, match="does not match selector"):
+        owner_use_case.execute(
+            AppendGovernedOptimizationLifecycleEventCommand(
+                result_id=result.result_id,
+                event_type=OptimizationLifecycleEventType.RETIRED,
+                authorization_id="owner-attestation:r8:requested",
+                reason_codes=reasons,
+            )
+        )
+    assert owner_repository.appended == []
+
+
+def test_lifecycle_application_rechecks_uow_after_authorization_reread() -> None:
+    result = _result()
+    reasons = ("owner_retired",)
+    owner = OptimizationLifecycleOwnerAttestation.create(
+        attestation_id="owner-attestation:r8:uow-drift",
+        owner="portfolio",
+        result_id=result.result_id,
+        result_hash=result.content_hash,
+        event_type=OptimizationLifecycleEventType.RETIRED,
+        reason_hash=hash_components("optimization-lifecycle-reasons.v1", *reasons),
+        issued_at=NOW,
+    )
+
+    class _DriftingOwnerProvider(_ExactOwnerAuthorizationProvider):
+        def __init__(self) -> None:
+            super().__init__((owner,))
+            self.key = "test:lifecycle"
+            self.calls = 0
+
+        @property
+        def unit_of_work_key(self) -> str:
+            return self.key
+
+        def get_exact(self, **kwargs):  # type: ignore[no-untyped-def]
+            self.calls += 1
+            candidate = super().get_exact(**kwargs)
+            if self.calls == 2:
+                self.key = "test:lifecycle:substituted"
+            return candidate
+
+    repository = _LifecycleRepository(result=result, now=NOW + timedelta(hours=1))
+    provider = _DriftingOwnerProvider()
+    use_case = AppendGovernedOptimizationLifecycleEventUseCase(
+        promotion_provider=_ExactPromotionProvider(()),
+        owner_authorization_provider=provider,
+        repository=repository,
+    )
+    with pytest.raises(GovernedOptimizationUnavailable, match="share one unit of work"):
+        use_case.execute(
+            AppendGovernedOptimizationLifecycleEventCommand(
+                result_id=result.result_id,
+                event_type=OptimizationLifecycleEventType.RETIRED,
+                authorization_id=owner.attestation_id,
+                reason_codes=reasons,
+            )
+        )
+    assert provider.calls == 2
+    assert repository.appended == []
+
+
+def test_lifecycle_application_normalizes_boundary_failures_and_writes_nothing() -> None:
+    result = _result()
+    repository = _LifecycleRepository(result=result, now=NOW + timedelta(hours=1))
+
+    class _RaisingPromotionProvider(_ExactPromotionProvider):
+        def get_exact(self, **kwargs):  # type: ignore[no-untyped-def]
+            del kwargs
+            raise RuntimeError("owner backend failed")
+
+    promotion_use_case = AppendGovernedOptimizationLifecycleEventUseCase(
+        promotion_provider=_RaisingPromotionProvider(()),
+        owner_authorization_provider=_ExactOwnerAuthorizationProvider(()),
+        repository=repository,
+    )
+    with pytest.raises(
+        GovernedOptimizationUnavailable, match="Promotion authorization is unavailable"
+    ):
+        promotion_use_case.execute(
+            AppendGovernedOptimizationLifecycleEventCommand(
+                result_id=result.result_id,
+                event_type=OptimizationLifecycleEventType.PROMOTION_ATTESTED,
+                authorization_id="promotion:r8:backend-failure",
+                reason_codes=("research_promotion_approved",),
+            )
+        )
+    assert repository.appended == []
+
+    class _RaisingClockRepository(_LifecycleRepository):
+        def server_now(self) -> datetime:
+            raise RuntimeError("clock backend failed")
+
+    clock_repository = _RaisingClockRepository(result=result, now=NOW)
+    clock_use_case = AppendGovernedOptimizationLifecycleEventUseCase(
+        promotion_provider=_ExactPromotionProvider(()),
+        owner_authorization_provider=_ExactOwnerAuthorizationProvider(()),
+        repository=clock_repository,
+    )
+    with pytest.raises(GovernedOptimizationUnavailable, match="server clock is unavailable"):
+        clock_use_case.execute(
+            AppendGovernedOptimizationLifecycleEventCommand(
+                result_id=result.result_id,
+                event_type=OptimizationLifecycleEventType.PROMOTION_ATTESTED,
+                authorization_id="promotion:r8:clock-failure",
+                reason_codes=("research_promotion_approved",),
+            )
+        )
+    assert clock_repository.appended == []
+
+    class _RaisingStreamRepository(_LifecycleRepository):
+        def list_lifecycle_events(
+            self,
+            result_id: str,
+        ) -> tuple[OptimizationResearchLifecycleEvent, ...]:
+            del result_id
+            raise RuntimeError("repository backend failed")
+
+    stream_repository = _RaisingStreamRepository(result=result, now=NOW)
+    stream_use_case = AppendGovernedOptimizationLifecycleEventUseCase(
+        promotion_provider=_ExactPromotionProvider(()),
+        owner_authorization_provider=_ExactOwnerAuthorizationProvider(()),
+        repository=stream_repository,
+    )
+    with pytest.raises(GovernedOptimizationLifecycleConflict, match="repository is unavailable"):
+        stream_use_case.execute(
+            AppendGovernedOptimizationLifecycleEventCommand(
+                result_id=result.result_id,
+                event_type=OptimizationLifecycleEventType.PROMOTION_ATTESTED,
+                authorization_id="promotion:r8:repository-failure",
+                reason_codes=("research_promotion_approved",),
+            )
+        )
+    assert stream_repository.appended == []

@@ -8,6 +8,15 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Protocol, TypeAlias, TypeVar, cast
 
+from apps.portfolio.application.governed_optimization_lifecycle import (
+    AppendGovernedOptimizationLifecycleEventCommand,
+    AppendGovernedOptimizationLifecycleEventUseCase,
+    ExactPortfolioLifecycleAuthorizationProvider,
+    ExactPromotionProvider,
+    GovernedOptimizationLifecycleConflict,
+    GovernedOptimizationLifecycleRepository,
+    GovernedOptimizationUnavailable,
+)
 from apps.portfolio.domain._optimization_canonical import (
     hash_components,
     require_aware,
@@ -40,7 +49,6 @@ from apps.portfolio.domain.current_baseline import (
     build_current_configuration_baseline,
 )
 from apps.portfolio.domain.governed_input_set import (
-    ExactPromotionAttestation,
     GovernedOptimizationInputSet,
     GovernedOptimizationPayload,
     OwnerBoundPayloadEvidence,
@@ -71,10 +79,7 @@ from apps.portfolio.domain.optimization_input_receipt import (
     GovernedOptimizationInputReceipt,
 )
 from apps.portfolio.domain.optimization_lifecycle import (
-    OptimizationLifecycleEventType,
-    OptimizationLifecycleOwnerAttestation,
     OptimizationResearchLifecycleEvent,
-    create_optimization_lifecycle_event,
     create_optimization_lifecycle_root,
 )
 from apps.portfolio.domain.optimization_research_result import (
@@ -85,10 +90,6 @@ from apps.portfolio.domain.optimizer_inputs import (
     PromotionReference,
 )
 from apps.portfolio.domain.path_drawdown import DrawdownRiskBudgetPayload
-
-
-class GovernedOptimizationUnavailable(ValueError):
-    """Authoritative R8 input or authorization evidence is unavailable."""
 
 
 class GovernedOptimizationInputReceiptProvider(Protocol):
@@ -221,23 +222,6 @@ class GovernedOptimizationRegistrationClock(Protocol):
 
     def now(self) -> datetime:
         """Return one timezone-aware server time."""
-
-
-class ExactPromotionProvider(Protocol):
-    """Research-owned Application port for exact active Promotion evidence."""
-
-    @property
-    def unit_of_work_key(self) -> str:
-        """Return the exact transaction/lock identity used by this provider."""
-
-    def get_exact(
-        self,
-        *,
-        capability_key: str,
-        decision_id: str,
-        evaluated_at: datetime,
-    ) -> ExactPromotionAttestation | None:
-        """Return the exact Research decision, including retirement state."""
 
 
 @dataclass(frozen=True)
@@ -716,107 +700,6 @@ class GovernedOptimizationLedgerRepository(Protocol):
         """Append atomically and return an exact idempotent replay."""
 
 
-class GovernedOptimizationLifecycleRepository(Protocol):
-    """Append-only persistence port; it is not an authorization source."""
-
-    def append_lifecycle_event(
-        self,
-        event: OptimizationResearchLifecycleEvent,
-    ) -> OptimizationResearchLifecycleEvent:
-        """Append an already-authorized exact lifecycle event."""
-
-
-class ExactPortfolioLifecycleAuthorizationProvider(Protocol):
-    """Portfolio-owned exact authorization lookup for terminal events."""
-
-    def get_exact(
-        self,
-        *,
-        attestation_id: str,
-        result_id: str,
-        result_hash: str,
-        event_type: OptimizationLifecycleEventType,
-        evaluated_at: datetime,
-    ) -> OptimizationLifecycleOwnerAttestation | None:
-        """Return one exact active owner authorization, or no evidence."""
-
-
-class AppendGovernedOptimizationLifecycleEventUseCase:
-    """Authorize an exact lifecycle transition before append-only persistence."""
-
-    def __init__(
-        self,
-        *,
-        promotion_provider: ExactPromotionProvider,
-        owner_authorization_provider: ExactPortfolioLifecycleAuthorizationProvider,
-        repository: GovernedOptimizationLifecycleRepository,
-    ) -> None:
-        self._promotion_provider = promotion_provider
-        self._owner_authorization_provider = owner_authorization_provider
-        self._repository = repository
-
-    def execute(
-        self,
-        *,
-        result: GovernedOptimizationResearchResult,
-        previous_events: tuple[OptimizationResearchLifecycleEvent, ...],
-        event_type: OptimizationLifecycleEventType,
-        occurred_at: datetime,
-        recorded_at: datetime,
-        reason_codes: tuple[str, ...],
-        promotion_attestation: ExactPromotionAttestation | None = None,
-        owner_attestation: OptimizationLifecycleOwnerAttestation | None = None,
-    ) -> OptimizationResearchLifecycleEvent:
-        """Re-read the canonical authorization, build the event, and append it."""
-
-        if event_type is OptimizationLifecycleEventType.PROMOTION_ATTESTED:
-            if promotion_attestation is None or owner_attestation is not None:
-                raise ValueError("promotion lifecycle transition requires exact Research evidence")
-            trusted_promotion = self._promotion_provider.get_exact(
-                capability_key="r8",
-                decision_id=promotion_attestation.decision_id,
-                evaluated_at=occurred_at,
-            )
-            if trusted_promotion is None:
-                raise GovernedOptimizationUnavailable(
-                    "Research Promotion authorization is unavailable"
-                )
-            if trusted_promotion != promotion_attestation:
-                raise ValueError("Research Promotion authorization is not authoritative")
-        elif event_type in {
-            OptimizationLifecycleEventType.RETIRED,
-            OptimizationLifecycleEventType.ROLLED_BACK,
-        }:
-            if owner_attestation is None or promotion_attestation is not None:
-                raise ValueError("terminal lifecycle transition requires exact Portfolio evidence")
-            trusted_owner = self._owner_authorization_provider.get_exact(
-                attestation_id=owner_attestation.attestation_id,
-                result_id=result.result_id,
-                result_hash=result.content_hash,
-                event_type=event_type,
-                evaluated_at=recorded_at,
-            )
-            if trusted_owner is None:
-                raise GovernedOptimizationUnavailable(
-                    "Portfolio lifecycle authorization is unavailable"
-                )
-            if trusted_owner != owner_attestation:
-                raise ValueError("Portfolio lifecycle authorization is not authoritative")
-        else:
-            raise ValueError("lifecycle append use case only accepts governed transitions")
-        event = create_optimization_lifecycle_event(
-            result=result,
-            previous_events=previous_events,
-            event_type=event_type,
-            occurred_at=occurred_at,
-            recorded_at=recorded_at,
-            reason_codes=reason_codes,
-            promotion_attestation=promotion_attestation,
-            owner_attestation=owner_attestation,
-        )
-        return self._repository.append_lifecycle_event(event)
-
-
 class RunGovernedOptimizationResearchUseCase:
     """Assemble, assess, compare and persist without execution side effects."""
 
@@ -1166,6 +1049,7 @@ def _assembly_hash_values(
 
 
 __all__ = [
+    "AppendGovernedOptimizationLifecycleEventCommand",
     "AssembleGovernedOptimizationCommand",
     "AssembleGovernedOptimizationProblemUseCase",
     "AppendGovernedOptimizationLifecycleEventUseCase",
@@ -1179,6 +1063,7 @@ __all__ = [
     "GovernedOptimizationAssembly",
     "GovernedOptimizationEngineProtocol",
     "GovernedOptimizationLedgerRepository",
+    "GovernedOptimizationLifecycleConflict",
     "GovernedOptimizationLifecycleRepository",
     "GovernedOptimizationInputSetProvider",
     "GovernedOptimizationInputReceiptProvider",

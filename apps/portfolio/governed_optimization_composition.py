@@ -6,19 +6,16 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from apps.portfolio.application.governed_optimization import (
-    AppendGovernedOptimizationLifecycleEventUseCase,
+    AppendGovernedOptimizationLifecycleEventCommand,
+    AssembleGovernedOptimizationCommand,
     AssembleGovernedOptimizationProblemUseCase,
-    ExactPortfolioLifecycleAuthorizationProvider,
     ExactPromotionProvider,
+    GovernedOptimizationRunBundle,
     GovernedOptimizationUnavailable,
     RegisterGovernedOptimizationInputReceiptCommand,
     RunGovernedOptimizationResearchUseCase,
 )
 from apps.portfolio.domain.governed_input_set import ExactPromotionAttestation
-from apps.portfolio.domain.optimization_lifecycle import (
-    OptimizationLifecycleEventType,
-    OptimizationLifecycleOwnerAttestation,
-)
 from apps.portfolio.infrastructure.deterministic_optimizer import (
     DeterministicConstrainedSearchAdapter,
 )
@@ -55,23 +52,6 @@ class _UnavailableExactPromotionProvider:
         return None
 
 
-class _UnavailablePortfolioLifecycleAuthorizationProvider:
-    """Deny terminal lifecycle events until Portfolio owns an exact authorization port."""
-
-    def get_exact(
-        self,
-        *,
-        attestation_id: str,
-        result_id: str,
-        result_hash: str,
-        event_type: OptimizationLifecycleEventType,
-        evaluated_at: datetime,
-    ) -> OptimizationLifecycleOwnerAttestation | None:
-        """Never synthesize retirement or rollback authorization."""
-
-        return None
-
-
 class UnavailableGovernedOptimizationInputReceiptRegistrationFacade:
     """Expose an inert ID-only registration boundary until owner ports exist."""
 
@@ -98,19 +78,84 @@ class UnavailableGovernedOptimizationInputReceiptRegistrationFacade:
         )
 
 
+class UnavailableGovernedOptimizationLifecycleFacade:
+    """Expose no lifecycle capability until exact owner providers are composed."""
+
+    __slots__ = ()
+
+    def execute(
+        self,
+        command: AppendGovernedOptimizationLifecycleEventCommand,
+    ) -> None:
+        """Revalidate the ID-only command and fail before any result or stream read."""
+
+        try:
+            if type(command) is not AppendGovernedOptimizationLifecycleEventCommand:
+                raise TypeError("lifecycle command has an unexpected type")
+            AppendGovernedOptimizationLifecycleEventCommand.__post_init__(command)
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise GovernedOptimizationUnavailable("R8 lifecycle command is invalid") from exc
+        raise GovernedOptimizationUnavailable(
+            "canonical R8 lifecycle owner authorization is unavailable"
+        )
+
+
+class DjangoGovernedOptimizationRunFacade:
+    """Create production run capabilities only inside one stateless call boundary."""
+
+    __slots__ = ()
+
+    def execute(
+        self,
+        *,
+        command: AssembleGovernedOptimizationCommand,
+        run_key: str,
+        run_version: str,
+    ) -> GovernedOptimizationRunBundle:
+        """Run through a call-local composition and normalize boundary failures."""
+
+        try:
+            return _execute_django_governed_optimization_research(
+                command=command,
+                run_key=run_key,
+                run_version=run_version,
+            )
+        except GovernedOptimizationUnavailable:
+            raise
+        except Exception as exc:
+            raise GovernedOptimizationUnavailable(
+                "canonical governed optimization production runtime is unavailable"
+            ) from exc
+
+
 @dataclass(frozen=True)
 class DjangoGovernedOptimizationResearchRuntime:
     """Constructable R8 runtime whose missing owner sources fail before writes."""
 
     register_input_receipt: UnavailableGovernedOptimizationInputReceiptRegistrationFacade
-    run: RunGovernedOptimizationResearchUseCase
-    append_lifecycle: AppendGovernedOptimizationLifecycleEventUseCase
+    run: DjangoGovernedOptimizationRunFacade
+    append_lifecycle: UnavailableGovernedOptimizationLifecycleFacade
 
 
 def build_django_governed_optimization_research_runtime() -> (
     DjangoGovernedOptimizationResearchRuntime
 ):
     """Build the production runtime without fixture/default owner evidence."""
+
+    return DjangoGovernedOptimizationResearchRuntime(
+        register_input_receipt=UnavailableGovernedOptimizationInputReceiptRegistrationFacade(),
+        run=DjangoGovernedOptimizationRunFacade(),
+        append_lifecycle=UnavailableGovernedOptimizationLifecycleFacade(),
+    )
+
+
+def _execute_django_governed_optimization_research(
+    *,
+    command: AssembleGovernedOptimizationCommand,
+    run_key: str,
+    run_version: str,
+) -> GovernedOptimizationRunBundle:
+    """Construct and discard every database/write capability within one call."""
 
     unit_of_work = DjangoGovernedOptimizationUnitOfWork()
     input_receipt_provider = DjangoGovernedOptimizationInputReceiptRepository(
@@ -123,32 +168,27 @@ def build_django_governed_optimization_research_runtime() -> (
     promotion_provider: ExactPromotionProvider = _UnavailableExactPromotionProvider(
         unit_of_work_key=unit_of_work.unit_of_work_key
     )
-    lifecycle_authorization_provider: ExactPortfolioLifecycleAuthorizationProvider = (
-        _UnavailablePortfolioLifecycleAuthorizationProvider()
-    )
     assembler = AssembleGovernedOptimizationProblemUseCase(
         input_set_provider=input_receipt_provider,
         promotion_provider=promotion_provider,
     )
-    return DjangoGovernedOptimizationResearchRuntime(
-        register_input_receipt=UnavailableGovernedOptimizationInputReceiptRegistrationFacade(),
-        run=RunGovernedOptimizationResearchUseCase(
-            assembler=assembler,
-            engine=DeterministicConstrainedSearchAdapter(),
-            repository=repository,
-            input_receipt_provider=input_receipt_provider,
-            promotion_provider=promotion_provider,
-        ),
-        append_lifecycle=AppendGovernedOptimizationLifecycleEventUseCase(
-            promotion_provider=promotion_provider,
-            owner_authorization_provider=lifecycle_authorization_provider,
-            repository=repository,
-        ),
+    return RunGovernedOptimizationResearchUseCase(
+        assembler=assembler,
+        engine=DeterministicConstrainedSearchAdapter(),
+        repository=repository,
+        input_receipt_provider=input_receipt_provider,
+        promotion_provider=promotion_provider,
+    ).execute(
+        command=command,
+        run_key=run_key,
+        run_version=run_version,
     )
 
 
 __all__ = [
     "DjangoGovernedOptimizationResearchRuntime",
+    "DjangoGovernedOptimizationRunFacade",
     "UnavailableGovernedOptimizationInputReceiptRegistrationFacade",
+    "UnavailableGovernedOptimizationLifecycleFacade",
     "build_django_governed_optimization_research_runtime",
 ]

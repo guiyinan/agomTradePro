@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from contextlib import AbstractContextManager
+from datetime import datetime
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
 from apps.portfolio.application.governed_optimization import GovernedOptimizationRunBundle
+from apps.portfolio.domain._optimization_canonical import require_aware
 from apps.portfolio.domain.optimization_lifecycle import (
     OptimizationResearchLifecycleEvent,
     derive_optimization_lifecycle_state,
@@ -18,7 +20,9 @@ from apps.portfolio.domain.optimization_research_result import (
 
 from .optimization_input_receipt_repository import (
     DjangoGovernedOptimizationInputReceiptRepository,
+    DjangoGovernedOptimizationReceiptClock,
     DjangoGovernedOptimizationUnitOfWork,
+    GovernedOptimizationReceiptClock,
 )
 from .optimization_research_codec import (
     lifecycle_model,
@@ -42,6 +46,7 @@ class DjangoGovernedOptimizationResearchRepository:
         *,
         unit_of_work: DjangoGovernedOptimizationUnitOfWork | None = None,
         receipt_provider: DjangoGovernedOptimizationInputReceiptRepository | None = None,
+        clock: GovernedOptimizationReceiptClock | None = None,
         using: str = "default",
     ) -> None:
         self._uow = unit_of_work or DjangoGovernedOptimizationUnitOfWork(using=using)
@@ -55,6 +60,7 @@ class DjangoGovernedOptimizationResearchRepository:
         )
         if self._receipt_provider.unit_of_work_key != self.unit_of_work_key:
             raise ValueError("result and input receipt repositories must share one unit of work")
+        self._clock = clock or DjangoGovernedOptimizationReceiptClock()
 
     @property
     def unit_of_work_key(self) -> str:
@@ -66,6 +72,13 @@ class DjangoGovernedOptimizationResearchRepository:
         """Open the shared receipt-read/result-write transaction."""
 
         return self._uow.atomic()
+
+    def server_now(self) -> datetime:
+        """Return and validate the repository-owned server clock."""
+
+        value = self._clock.now()
+        require_aware(value, "governed optimization lifecycle server clock")
+        return value
 
     def append_bundle(
         self,
@@ -233,25 +246,27 @@ class DjangoGovernedOptimizationResearchRepository:
                 raise ValueError("lifecycle chain result hash mismatch")
         return events
 
-    def append_lifecycle_event(
+    def _append_lifecycle_event(
         self,
         event: OptimizationResearchLifecycleEvent,
+        *,
+        claim_token: object,
     ) -> OptimizationResearchLifecycleEvent:
         """Append one exact chain link with sequence-level concurrency control."""
 
+        if claim_token is not self._uow._insert_claim_token():
+            raise ValidationError("governed optimization lifecycle append capability is invalid")
         if not self._uow.is_active():
             with self.atomic():
-                return self.append_lifecycle_event(event)
-        existing = (
-            OptimizationResearchLifecycleEventModel._default_manager.using(self._uow.using)
-            .filter(event_id=event.event_id)
-            .first()
-        )
-        if existing is not None:
-            if lifecycle_to_domain(existing) != event:
-                raise ValueError("lifecycle event identity conflicts with different evidence")
-            return event
+                return self._append_lifecycle_event(event, claim_token=claim_token)
         try:
+            if (
+                OptimizationResearchLifecycleEventModel._default_manager.using(self._uow.using)
+                .filter(event_id=event.event_id)
+                .exists()
+            ):
+                self._verify_exact_lifecycle_winner(event)
+                return event
             with transaction.atomic(using=self._uow.using):
                 result_row = (
                     GovernedOptimizationResearchResultModel._default_manager.using(self._uow.using)
@@ -283,19 +298,38 @@ class DjangoGovernedOptimizationResearchRepository:
                 ):
                     row.save(force_insert=True, using=self._uow.using)
         except IntegrityError as exc:
-            winner = (
-                OptimizationResearchLifecycleEventModel._default_manager.using(self._uow.using)
-                .filter(
-                    result_id=event.result_id,
-                    sequence=event.sequence,
-                )
-                .first()
-            )
-            if winner is None or lifecycle_to_domain(winner) != event:
+            try:
+                self._verify_exact_lifecycle_winner(event)
+            except (ValidationError, ValueError):
                 raise ValueError("invalid optimization lifecycle event") from exc
         except (ValidationError, ValueError) as exc:
             raise ValueError("invalid optimization lifecycle event") from exc
         return event
+
+    def _verify_exact_lifecycle_winner(
+        self,
+        event: OptimizationResearchLifecycleEvent,
+    ) -> None:
+        """Lock the result, replay the full stream, and compare both winner identities."""
+
+        with transaction.atomic(using=self._uow.using):
+            result_row = (
+                GovernedOptimizationResearchResultModel._default_manager.using(self._uow.using)
+                .select_related("input_receipt")
+                .select_for_update()
+                .filter(result_id=event.result_id)
+                .first()
+            )
+            if result_row is None:
+                raise ValueError("governed optimization result is missing")
+            result = result_to_domain(result_row)
+            if result.content_hash != event.result_hash:
+                raise ValueError("lifecycle event result hash mismatch")
+            chain = self.list_lifecycle_events(event.result_id)
+            event_id_winners = tuple(item for item in chain if item.event_id == event.event_id)
+            sequence_winners = tuple(item for item in chain if item.sequence == event.sequence)
+            if event_id_winners != (event,) or sequence_winners != (event,):
+                raise ValueError("lifecycle winner differs from idempotent replay")
 
     def _verify_exact_bundle(
         self,
@@ -314,6 +348,59 @@ class DjangoGovernedOptimizationResearchRepository:
         )
         if roots != (bundle.lifecycle_root,):
             raise ValueError("persisted lifecycle root differs from idempotent replay")
+
+
+class _DjangoGovernedOptimizationLifecycleStore:
+    """Composition-private lifecycle capability over the public read repository."""
+
+    __slots__ = ("__claim_token", "__repository")
+
+    def __init__(self, repository: DjangoGovernedOptimizationResearchRepository) -> None:
+        self.__repository = repository
+        self.__claim_token = repository._uow._insert_claim_token()
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact transaction identity shared with owner providers."""
+
+        return self.__repository.unit_of_work_key
+
+    def atomic(self) -> AbstractContextManager[None]:
+        """Open the exact owner-read/result-read/lifecycle-write transaction."""
+
+        return self.__repository.atomic()
+
+    def server_now(self) -> datetime:
+        """Return the repository-owned server clock."""
+
+        return self.__repository.server_now()
+
+    def get_result(
+        self,
+        result_id: str,
+    ) -> GovernedOptimizationResearchResult | None:
+        """Read one exact non-legacy result."""
+
+        return self.__repository.get_result(result_id)
+
+    def list_lifecycle_events(
+        self,
+        result_id: str,
+    ) -> tuple[OptimizationResearchLifecycleEvent, ...]:
+        """Read and verify the complete lifecycle stream."""
+
+        return self.__repository.list_lifecycle_events(result_id)
+
+    def append_lifecycle_event(
+        self,
+        event: OptimizationResearchLifecycleEvent,
+    ) -> OptimizationResearchLifecycleEvent:
+        """Append through the private insert capability only."""
+
+        return self.__repository._append_lifecycle_event(
+            event,
+            claim_token=self.__claim_token,
+        )
 
 
 def _insert_values(
