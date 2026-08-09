@@ -26,6 +26,7 @@ from apps.portfolio.domain.optimization_research_result import (
 )
 
 from .optimization_research_models import (
+    GovernedOptimizationInputReceiptModel,
     GovernedOptimizationResearchResultModel,
     OptimizationResearchLifecycleEventModel,
 )
@@ -33,12 +34,22 @@ from .optimization_research_models import (
 
 def result_model(
     result: GovernedOptimizationResearchResult,
+    input_receipt: GovernedOptimizationInputReceiptModel,
 ) -> GovernedOptimizationResearchResultModel:
     """Build an unsaved immutable result row."""
 
+    if (
+        result.input_receipt_id != input_receipt.receipt_id
+        or result.input_receipt_hash != input_receipt.content_hash
+        or result.input_receipt_schema_version != input_receipt.receipt_version
+        or result.input_set_id != input_receipt.input_set_id
+        or result.input_set_hash != input_receipt.input_set_hash
+    ):
+        raise ValueError("optimization result receipt relation differs from canonical anchors")
     candidates = [_candidate_payload(item) for item in result.candidates]
     blockers = [list(item) for item in result.problem_blockers]
     return GovernedOptimizationResearchResultModel(
+        input_receipt=input_receipt,
         result_id=result.result_id,
         result_version=result.result_version,
         run_key=result.run_key,
@@ -66,9 +77,32 @@ def result_model(
 
 def result_to_domain(
     row: GovernedOptimizationResearchResultModel,
+    *,
+    allow_legacy: bool = False,
 ) -> GovernedOptimizationResearchResult:
     """Restore and integrity-check one result row and its canonical payload."""
 
+    if row.input_receipt_id is None:
+        if not allow_legacy:
+            raise ValueError("legacy optimization result requires explicit research-only read")
+        if row.result_version != "governed-optimization-result.v1":
+            raise ValueError("new optimization result has a null input receipt relation")
+        receipt_id: str | None = None
+        receipt_hash: str | None = None
+        receipt_schema_version: str | None = None
+    else:
+        if allow_legacy:
+            raise ValueError("legacy optimization result cannot alias an input receipt")
+        if row.result_version != "governed-optimization-result.v2":
+            raise ValueError("legacy optimization result cannot alias an input receipt")
+        receipt = row.input_receipt
+        if receipt is None:
+            raise ValueError("new optimization result has a null input receipt relation")
+        if receipt.input_set_id != row.input_set_id or receipt.input_set_hash != row.input_set_hash:
+            raise ValueError("optimization result receipt relation is substituted")
+        receipt_id = receipt.receipt_id
+        receipt_hash = receipt.content_hash
+        receipt_schema_version = receipt.receipt_version
     raw_candidates = _list(row.candidates, "result candidates")
     candidates = tuple(_candidate_from_payload(_dict(item, "candidate")) for item in raw_candidates)
     raw_blockers = _list(row.problem_blockers, "problem blockers")
@@ -89,6 +123,9 @@ def result_to_domain(
         problem_hash=row.problem_hash,
         input_set_id=row.input_set_id,
         input_set_hash=row.input_set_hash,
+        input_receipt_id=receipt_id,
+        input_receipt_hash=receipt_hash,
+        input_receipt_schema_version=receipt_schema_version,
         status=GovernedOptimizationResultStatus(row.status),
         candidates=candidates,
         selected_candidate=(
@@ -281,7 +318,7 @@ def _blocker_from_payload(payload: dict[str, Any]) -> CandidateBlockerEvidence:
 
 
 def _result_payload(result: GovernedOptimizationResearchResult) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "schema_version": result.result_version,
         "result_id": result.result_id,
         "run_key": result.run_key,
@@ -304,6 +341,15 @@ def _result_payload(result: GovernedOptimizationResearchResult) -> dict[str, obj
         "must_not_execute": result.must_not_execute,
         "must_not_use_for_decision": result.must_not_use_for_decision,
     }
+    if result.result_version == "governed-optimization-result.v2":
+        payload.update(
+            {
+                "input_receipt_id": result.input_receipt_id,
+                "input_receipt_hash": result.input_receipt_hash,
+                "input_receipt_schema_version": result.input_receipt_schema_version,
+            }
+        )
+    return payload
 
 
 def _promotion_payload(attestation: ExactPromotionAttestation) -> dict[str, object]:

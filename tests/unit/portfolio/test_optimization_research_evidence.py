@@ -24,6 +24,7 @@ from apps.portfolio.domain.constrained_optimization_contracts import (
     SolverConvergenceStatus,
 )
 from apps.portfolio.domain.governed_input_set import ExactPromotionAttestation
+from apps.portfolio.domain.optimization_input_receipt import RECEIPT_VERSION
 from apps.portfolio.domain.optimization_lifecycle import (
     OptimizationLifecycleEventType,
     OptimizationLifecycleOwnerAttestation,
@@ -133,6 +134,9 @@ def _result(
         problem_hash="2" * 64,
         input_set_id="input-set:r8:v1",
         input_set_hash="3" * 64,
+        input_receipt_id="4" * 64,
+        input_receipt_hash="5" * 64,
+        input_receipt_schema_version=RECEIPT_VERSION,
         candidate_evaluations=_all_evaluations(current_eligible=current_eligible),
         problem_blockers=(),
         evaluated_at=NOW,
@@ -162,6 +166,10 @@ def _promotion(
 class _ExactPromotionProvider:
     def __init__(self, promotions: tuple[ExactPromotionAttestation, ...]) -> None:
         self._records = {(item.capability_key, item.decision_id): item for item in promotions}
+
+    @property
+    def unit_of_work_key(self) -> str:
+        return "test:lifecycle"
 
     def get_exact(
         self,
@@ -225,6 +233,17 @@ def test_current_configuration_participates_in_selection_and_completeness() -> N
     assert blocked.selected_candidate is None
 
 
+def test_result_hash_binds_independent_receipt_identity_hash_and_schema() -> None:
+    result = _result()
+
+    with pytest.raises(ValueError, match="content hash mismatch"):
+        replace(result, input_receipt_hash="0" * 64)
+    with pytest.raises(ValueError, match="content hash mismatch"):
+        replace(result, input_receipt_id="0" * 64)
+    with pytest.raises(ValueError, match="receipt schema is unsupported"):
+        replace(result, input_receipt_schema_version="fixture.v1")
+
+
 def test_rehashed_status_and_selection_tampering_still_fail_restore() -> None:
     result = _result()
     blocked_hash = governed_result_hash_values(
@@ -236,6 +255,9 @@ def test_rehashed_status_and_selection_tampering_still_fail_restore() -> None:
         problem_hash=result.problem_hash,
         input_set_id=result.input_set_id,
         input_set_hash=result.input_set_hash,
+        input_receipt_id=result.input_receipt_id,
+        input_receipt_hash=result.input_receipt_hash,
+        input_receipt_schema_version=result.input_receipt_schema_version,
         status=GovernedOptimizationResultStatus.BLOCKED,
         candidates=result.candidates,
         selected_candidate=None,
@@ -261,6 +283,9 @@ def test_rehashed_status_and_selection_tampering_still_fail_restore() -> None:
         problem_hash=result.problem_hash,
         input_set_id=result.input_set_id,
         input_set_hash=result.input_set_hash,
+        input_receipt_id=result.input_receipt_id,
+        input_receipt_hash=result.input_receipt_hash,
+        input_receipt_schema_version=result.input_receipt_schema_version,
         status=result.status,
         candidates=result.candidates,
         selected_candidate=wrong_selection,

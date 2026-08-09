@@ -9,6 +9,7 @@ from apps.portfolio.infrastructure.canonical_snapshot_models import (
     PortfolioExecutionFeedbackModel,
 )
 from apps.portfolio.infrastructure.optimization_research_models import (
+    GovernedOptimizationInputReceiptModel,
     GovernedOptimizationResearchResultModel,
     OptimizationResearchLifecycleEventModel,
 )
@@ -29,6 +30,7 @@ __all__ = [
     "PortfolioExecutionFeedbackModel",
     "PortfolioPlanningPolicyModel",
     "PortfolioTransitionPlanModel",
+    "GovernedOptimizationInputReceiptModel",
     "GovernedOptimizationResearchResultModel",
     "OptimizationResearchLifecycleEventModel",
     "R4RollingResearchReceiptModel",

@@ -27,6 +27,7 @@ from apps.portfolio.domain.constrained_optimization_contracts import (
     CandidateKind,
     SolverConvergenceStatus,
 )
+from apps.portfolio.domain.optimization_input_receipt import RECEIPT_VERSION
 
 EVIDENCE_WEIGHT_SUM_TOLERANCE = Decimal("0.000001")
 
@@ -299,6 +300,9 @@ class GovernedOptimizationResearchResult:
     problem_hash: str
     input_set_id: str
     input_set_hash: str
+    input_receipt_id: str | None
+    input_receipt_hash: str | None
+    input_receipt_schema_version: str | None
     status: GovernedOptimizationResultStatus
     candidates: tuple[GovernedCandidateEvidence, ...]
     selected_candidate: CandidateKind | None
@@ -321,6 +325,9 @@ class GovernedOptimizationResearchResult:
         problem_hash: str,
         input_set_id: str,
         input_set_hash: str,
+        input_receipt_id: str,
+        input_receipt_hash: str,
+        input_receipt_schema_version: str,
         candidate_evaluations: tuple[CandidateEvaluation, ...],
         problem_blockers: tuple[tuple[str, str], ...],
         evaluated_at: datetime,
@@ -336,7 +343,7 @@ class GovernedOptimizationResearchResult:
         )
         status, selected = _derive_result_outcome(candidates, problem_blockers)
         digest = governed_result_hash_values(
-            result_version="governed-optimization-result.v1",
+            result_version="governed-optimization-result.v2",
             run_key=run_key,
             run_version=run_version,
             assembly_hash=assembly_hash,
@@ -344,6 +351,9 @@ class GovernedOptimizationResearchResult:
             problem_hash=problem_hash,
             input_set_id=input_set_id,
             input_set_hash=input_set_hash,
+            input_receipt_id=input_receipt_id,
+            input_receipt_hash=input_receipt_hash,
+            input_receipt_schema_version=input_receipt_schema_version,
             status=status,
             candidates=candidates,
             selected_candidate=selected,
@@ -353,7 +363,7 @@ class GovernedOptimizationResearchResult:
         )
         return cls(
             result_id=f"governed_optimization_result:{digest[:24]}",
-            result_version="governed-optimization-result.v1",
+            result_version="governed-optimization-result.v2",
             run_key=run_key,
             run_version=run_version,
             assembly_hash=assembly_hash,
@@ -361,6 +371,9 @@ class GovernedOptimizationResearchResult:
             problem_hash=problem_hash,
             input_set_id=input_set_id,
             input_set_hash=input_set_hash,
+            input_receipt_id=input_receipt_id,
+            input_receipt_hash=input_receipt_hash,
+            input_receipt_schema_version=input_receipt_schema_version,
             status=status,
             candidates=candidates,
             selected_candidate=selected,
@@ -392,6 +405,29 @@ class GovernedOptimizationResearchResult:
             ("content_hash", self.content_hash),
         ):
             require_sha256(value, field_name)
+        if self.result_version == "governed-optimization-result.v2":
+            if (
+                self.input_receipt_id is None
+                or self.input_receipt_hash is None
+                or self.input_receipt_schema_version is None
+            ):
+                raise ValueError("v2 optimization result requires an independent input receipt")
+            require_sha256(self.input_receipt_id, "input_receipt_id")
+            require_sha256(self.input_receipt_hash, "input_receipt_hash")
+            if self.input_receipt_schema_version != RECEIPT_VERSION:
+                raise ValueError("optimization result input receipt schema is unsupported")
+        elif self.result_version == "governed-optimization-result.v1":
+            if any(
+                item is not None
+                for item in (
+                    self.input_receipt_id,
+                    self.input_receipt_hash,
+                    self.input_receipt_schema_version,
+                )
+            ):
+                raise ValueError("legacy optimization result cannot claim an input receipt")
+        else:
+            raise ValueError("optimization result version is unsupported")
         require_aware(self.evaluated_at, "result evaluated_at")
         require_aware(self.valid_until, "result valid_until")
         if self.valid_until <= self.evaluated_at:
@@ -456,6 +492,9 @@ def governed_result_hash(result: GovernedOptimizationResearchResult) -> str:
         problem_hash=result.problem_hash,
         input_set_id=result.input_set_id,
         input_set_hash=result.input_set_hash,
+        input_receipt_id=result.input_receipt_id,
+        input_receipt_hash=result.input_receipt_hash,
+        input_receipt_schema_version=result.input_receipt_schema_version,
         status=result.status,
         candidates=result.candidates,
         selected_candidate=result.selected_candidate,
@@ -475,6 +514,9 @@ def governed_result_hash_values(
     problem_hash: str,
     input_set_id: str,
     input_set_hash: str,
+    input_receipt_id: str | None,
+    input_receipt_hash: str | None,
+    input_receipt_schema_version: str | None,
     status: GovernedOptimizationResultStatus,
     candidates: tuple[GovernedCandidateEvidence, ...],
     selected_candidate: CandidateKind | None,
@@ -484,6 +526,21 @@ def governed_result_hash_values(
 ) -> str:
     """Hash lineage, candidates, blockers, status and validity window."""
 
+    receipt_parts: tuple[str, ...] = ()
+    if result_version == "governed-optimization-result.v2":
+        if (
+            input_receipt_id is None
+            or input_receipt_hash is None
+            or input_receipt_schema_version is None
+        ):
+            raise ValueError("v2 optimization result hash requires receipt anchors")
+        receipt_parts = (
+            input_receipt_id,
+            input_receipt_hash,
+            input_receipt_schema_version,
+        )
+    elif result_version != "governed-optimization-result.v1":
+        raise ValueError("optimization result version is unsupported")
     return hash_components(
         result_version,
         run_key,
@@ -493,6 +550,7 @@ def governed_result_hash_values(
         problem_hash,
         input_set_id,
         input_set_hash,
+        *receipt_parts,
         status.value,
         *(f"{item.candidate_kind.value}|{item.content_hash}" for item in candidates),
         selected_candidate.value if selected_candidate is not None else "",

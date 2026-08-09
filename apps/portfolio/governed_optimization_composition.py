@@ -10,13 +10,9 @@ from apps.portfolio.application.governed_optimization import (
     AssembleGovernedOptimizationProblemUseCase,
     ExactPortfolioLifecycleAuthorizationProvider,
     ExactPromotionProvider,
-    GovernedOptimizationInputSetProvider,
     RunGovernedOptimizationResearchUseCase,
 )
-from apps.portfolio.domain.governed_input_set import (
-    ExactPromotionAttestation,
-    GovernedOptimizationInputSet,
-)
+from apps.portfolio.domain.governed_input_set import ExactPromotionAttestation
 from apps.portfolio.domain.optimization_lifecycle import (
     OptimizationLifecycleEventType,
     OptimizationLifecycleOwnerAttestation,
@@ -24,27 +20,26 @@ from apps.portfolio.domain.optimization_lifecycle import (
 from apps.portfolio.infrastructure.deterministic_optimizer import (
     DeterministicConstrainedSearchAdapter,
 )
+from apps.portfolio.infrastructure.optimization_input_receipt_repository import (
+    DjangoGovernedOptimizationInputReceiptRepository,
+    DjangoGovernedOptimizationUnitOfWork,
+)
 from apps.portfolio.infrastructure.optimization_research_repository import (
     DjangoGovernedOptimizationResearchRepository,
 )
 
 
-class _UnavailableGovernedOptimizationInputSetProvider:
-    """Deny R8 runs until Portfolio owns a persisted exact input-set query."""
-
-    def get_exact(
-        self,
-        *,
-        input_set_id: str,
-        evaluated_at: datetime,
-    ) -> GovernedOptimizationInputSet | None:
-        """Never infer a canonical input set from result rows or caller payloads."""
-
-        return None
-
-
 class _UnavailableExactPromotionProvider:
     """Deny R8 promotion claims until Research exposes an exact owner port."""
+
+    def __init__(self, *, unit_of_work_key: str) -> None:
+        self._unit_of_work_key = unit_of_work_key
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Share the exact run UoW without exposing any evidence source."""
+
+        return self._unit_of_work_key
 
     def get_exact(
         self,
@@ -81,7 +76,6 @@ class DjangoGovernedOptimizationResearchRuntime:
 
     run: RunGovernedOptimizationResearchUseCase
     append_lifecycle: AppendGovernedOptimizationLifecycleEventUseCase
-    repository: DjangoGovernedOptimizationResearchRepository
 
 
 def build_django_governed_optimization_research_runtime() -> (
@@ -89,16 +83,22 @@ def build_django_governed_optimization_research_runtime() -> (
 ):
     """Build the production runtime without fixture/default owner evidence."""
 
-    repository = DjangoGovernedOptimizationResearchRepository()
-    promotion_provider: ExactPromotionProvider = _UnavailableExactPromotionProvider()
-    input_set_provider: GovernedOptimizationInputSetProvider = (
-        _UnavailableGovernedOptimizationInputSetProvider()
+    unit_of_work = DjangoGovernedOptimizationUnitOfWork()
+    input_receipt_provider = DjangoGovernedOptimizationInputReceiptRepository(
+        unit_of_work=unit_of_work
+    )
+    repository = DjangoGovernedOptimizationResearchRepository(
+        unit_of_work=unit_of_work,
+        receipt_provider=input_receipt_provider,
+    )
+    promotion_provider: ExactPromotionProvider = _UnavailableExactPromotionProvider(
+        unit_of_work_key=unit_of_work.unit_of_work_key
     )
     lifecycle_authorization_provider: ExactPortfolioLifecycleAuthorizationProvider = (
         _UnavailablePortfolioLifecycleAuthorizationProvider()
     )
     assembler = AssembleGovernedOptimizationProblemUseCase(
-        input_set_provider=input_set_provider,
+        input_set_provider=input_receipt_provider,
         promotion_provider=promotion_provider,
     )
     return DjangoGovernedOptimizationResearchRuntime(
@@ -106,13 +106,14 @@ def build_django_governed_optimization_research_runtime() -> (
             assembler=assembler,
             engine=DeterministicConstrainedSearchAdapter(),
             repository=repository,
+            input_receipt_provider=input_receipt_provider,
+            promotion_provider=promotion_provider,
         ),
         append_lifecycle=AppendGovernedOptimizationLifecycleEventUseCase(
             promotion_provider=promotion_provider,
             owner_authorization_provider=lifecycle_authorization_provider,
             repository=repository,
         ),
-        repository=repository,
     )
 
 

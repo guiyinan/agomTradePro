@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Protocol, TypeVar, cast
+from typing import Protocol, TypeAlias, TypeVar, cast
 
 from apps.portfolio.domain._optimization_canonical import (
     hash_components,
@@ -42,6 +43,7 @@ from apps.portfolio.domain.governed_input_set import (
     ExactPromotionAttestation,
     GovernedOptimizationInputSet,
     GovernedOptimizationPayload,
+    OwnerBoundPayloadEvidence,
     exact_promotion_attestation_hash,
     governed_input_set_hash,
 )
@@ -58,11 +60,16 @@ from apps.portfolio.domain.input_payloads import (
     TransactionCostPayload,
     TurnoverLimitPayload,
 )
+from apps.portfolio.domain.investable_universe import InvestableUniverseSnapshot
 from apps.portfolio.domain.macro_factor_risk import (
     FactorCovarianceVersion,
     MacroExposureVersion,
 )
 from apps.portfolio.domain.market_constraints import TradingConstraintsPayload
+from apps.portfolio.domain.optimization_input_receipt import (
+    RECEIPT_VERSION,
+    GovernedOptimizationInputReceipt,
+)
 from apps.portfolio.domain.optimization_lifecycle import (
     OptimizationLifecycleEventType,
     OptimizationLifecycleOwnerAttestation,
@@ -84,20 +91,144 @@ class GovernedOptimizationUnavailable(ValueError):
     """Authoritative R8 input or authorization evidence is unavailable."""
 
 
-class GovernedOptimizationInputSetProvider(Protocol):
-    """Authoritative Application port for one exact governed input set."""
+class GovernedOptimizationInputReceiptProvider(Protocol):
+    """Authoritative ID-only port for one independently persisted input receipt."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the database transaction identity used for the exact PIT read."""
 
     def get_exact(
         self,
         *,
         input_set_id: str,
         evaluated_at: datetime,
+    ) -> GovernedOptimizationInputReceipt | None:
+        """Return the canonical receipt known and active at the supplied time."""
+
+
+GovernedOptimizationInputSetProvider: TypeAlias = GovernedOptimizationInputReceiptProvider
+
+
+class CanonicalGovernedOptimizationInputSetProvider(Protocol):
+    """Portfolio Application port for an exact persisted input-set identity."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact transaction/lock identity used by this provider."""
+
+    def get_exact(
+        self,
+        *,
+        input_set_id: str,
+        input_set_version: str,
+        evaluated_at: datetime,
     ) -> GovernedOptimizationInputSet | None:
-        """Return the canonical set active at the supplied decision time."""
+        """Return the owner-persisted input-set aggregate by identity only."""
+
+
+@dataclass(frozen=True)
+class CanonicalGovernedOptimizationOwnerGraph:
+    """Independent authoritative projection of all 13 payload-owner bindings."""
+
+    payloads: tuple[GovernedOptimizationPayload, ...]
+    owner_bindings: tuple[OwnerBoundPayloadEvidence, ...]
+
+    def __post_init__(self) -> None:
+        """Require complete, unique and canonically ordered owner graph members."""
+
+        payload_kinds = tuple(item.kind for item in self.payloads)
+        binding_kinds = tuple(item.kind for item in self.owner_bindings)
+        expected = tuple(sorted(OptimizationInputKind, key=lambda item: item.value))
+        if payload_kinds != expected or binding_kinds != expected:
+            raise ValueError("canonical owner graph requires ordered exact 13-input membership")
+
+
+class ExactGovernedOptimizationOwnerGraphProvider(Protocol):
+    """Exact provider for the 13 canonical payload owners and PIT evidence."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact transaction/lock identity used by this provider."""
+
+    def get_exact(
+        self,
+        *,
+        input_set_id: str,
+        input_set_version: str,
+        evaluated_at: datetime,
+    ) -> CanonicalGovernedOptimizationOwnerGraph | None:
+        """Return the complete owner graph, never a caller-supplied partial graph."""
+
+
+class ExactInvestableUniverseProvider(Protocol):
+    """Portfolio-owned exact Published universe lookup."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact transaction/lock identity used by this provider."""
+
+    def get_exact(
+        self,
+        *,
+        universe_id: str,
+        universe_version: str,
+        evaluated_at: datetime,
+    ) -> InvestableUniverseSnapshot | None:
+        """Return one exact active Published membership snapshot."""
+
+
+class ExactCanonicalPortfolioSnapshotProvider(Protocol):
+    """Portfolio-owned exact canonical snapshot lookup."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact transaction/lock identity used by this provider."""
+
+    def get_exact(
+        self,
+        *,
+        snapshot_id: str,
+        evaluated_at: datetime,
+    ) -> CanonicalPortfolioSnapshot | None:
+        """Return one exact source-as-of canonical portfolio snapshot."""
+
+
+class GovernedOptimizationReceiptRegistrationBoundary(Protocol):
+    """Composition-private shared transaction boundary for receipt registration."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact transaction/lock identity."""
+
+    def atomic(self) -> AbstractContextManager[None]:
+        """Open the shared registration transaction."""
+
+
+class GovernedOptimizationReceiptWriter(Protocol):
+    """Non-exported closure contract for one already-verified canonical graph."""
+
+    def __call__(
+        self,
+        input_set: GovernedOptimizationInputSet,
+        server_recorded_at: datetime,
+    ) -> GovernedOptimizationInputReceipt:
+        """Persist the already-authoritatively-reconstructed input set."""
+
+
+class GovernedOptimizationRegistrationClock(Protocol):
+    """Server clock used for every provider read and the receipt seal."""
+
+    def now(self) -> datetime:
+        """Return one timezone-aware server time."""
 
 
 class ExactPromotionProvider(Protocol):
     """Research-owned Application port for exact active Promotion evidence."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact transaction/lock identity used by this provider."""
 
     def get_exact(
         self,
@@ -107,6 +238,131 @@ class ExactPromotionProvider(Protocol):
         evaluated_at: datetime,
     ) -> ExactPromotionAttestation | None:
         """Return the exact Research decision, including retirement state."""
+
+
+@dataclass(frozen=True)
+class RegisterGovernedOptimizationInputReceiptCommand:
+    """ID-only request; callers cannot submit any evidentiary graph object."""
+
+    input_set_id: str
+    input_set_version: str
+
+    def __post_init__(self) -> None:
+        """Validate only stable lookup identity."""
+
+        require_token(self.input_set_id, "input_set_id")
+        require_token(self.input_set_version, "input_set_version")
+
+
+class RegisterGovernedOptimizationInputReceiptUseCase:
+    """Reconstruct a receipt exclusively from exact canonical owner providers."""
+
+    def __init__(
+        self,
+        *,
+        transaction_boundary: GovernedOptimizationReceiptRegistrationBoundary,
+        writer: GovernedOptimizationReceiptWriter,
+        input_set_provider: CanonicalGovernedOptimizationInputSetProvider,
+        owner_graph_provider: ExactGovernedOptimizationOwnerGraphProvider,
+        universe_provider: ExactInvestableUniverseProvider,
+        snapshot_provider: ExactCanonicalPortfolioSnapshotProvider,
+        promotion_provider: ExactPromotionProvider,
+        clock: GovernedOptimizationRegistrationClock,
+    ) -> None:
+        self._transaction_boundary = transaction_boundary
+        self._writer = writer
+        self._input_set_provider = input_set_provider
+        self._owner_graph_provider = owner_graph_provider
+        self._universe_provider = universe_provider
+        self._snapshot_provider = snapshot_provider
+        self._promotion_provider = promotion_provider
+        self._clock = clock
+
+    def execute(
+        self,
+        command: RegisterGovernedOptimizationInputReceiptCommand,
+    ) -> GovernedOptimizationInputReceipt:
+        """Read, compare and store the complete graph in one server-clocked UoW."""
+
+        expected_key = self._transaction_boundary.unit_of_work_key
+        provider_keys = (
+            self._input_set_provider.unit_of_work_key,
+            self._owner_graph_provider.unit_of_work_key,
+            self._universe_provider.unit_of_work_key,
+            self._snapshot_provider.unit_of_work_key,
+            self._promotion_provider.unit_of_work_key,
+        )
+        if any(item != expected_key for item in provider_keys):
+            raise GovernedOptimizationUnavailable(
+                "receipt registration providers do not share one locked unit of work"
+            )
+        with self._transaction_boundary.atomic():
+            recorded_at = self._clock.now()
+            require_aware(recorded_at, "receipt registration server clock")
+            input_set = self._input_set_provider.get_exact(
+                input_set_id=command.input_set_id,
+                input_set_version=command.input_set_version,
+                evaluated_at=recorded_at,
+            )
+            if input_set is None:
+                raise GovernedOptimizationUnavailable(
+                    "canonical governed optimization input set is unavailable"
+                )
+            if (
+                input_set.input_set_id != command.input_set_id
+                or input_set.input_set_version != command.input_set_version
+                or input_set.content_hash != governed_input_set_hash(input_set)
+            ):
+                raise ValueError("canonical governed optimization input set is substituted")
+            if not input_set.created_at <= recorded_at < input_set.valid_until:
+                raise GovernedOptimizationUnavailable(
+                    "canonical governed optimization input set is not current"
+                )
+            owner_graph = self._owner_graph_provider.get_exact(
+                input_set_id=input_set.input_set_id,
+                input_set_version=input_set.input_set_version,
+                evaluated_at=recorded_at,
+            )
+            if owner_graph is None:
+                raise GovernedOptimizationUnavailable(
+                    "canonical governed optimization owner graph is unavailable"
+                )
+            if (
+                owner_graph.payloads != input_set.payloads
+                or owner_graph.owner_bindings != input_set.owner_bindings
+            ):
+                raise ValueError("canonical governed optimization owner graph is substituted")
+            universe = self._universe_provider.get_exact(
+                universe_id=input_set.universe.universe_id,
+                universe_version=input_set.universe.version,
+                evaluated_at=recorded_at,
+            )
+            if universe is None:
+                raise GovernedOptimizationUnavailable(
+                    "canonical governed optimization universe is unavailable"
+                )
+            if universe != input_set.universe:
+                raise ValueError("canonical governed optimization universe is substituted")
+            snapshot = self._snapshot_provider.get_exact(
+                snapshot_id=input_set.portfolio_snapshot_id,
+                evaluated_at=recorded_at,
+            )
+            if snapshot is None:
+                raise GovernedOptimizationUnavailable(
+                    "canonical governed optimization snapshot is unavailable"
+                )
+            if (
+                snapshot.snapshot_id != input_set.portfolio_snapshot_id
+                or snapshot.content_hash != input_set.portfolio_snapshot_hash
+                or snapshot.as_of > recorded_at
+            ):
+                raise ValueError("canonical governed optimization snapshot is substituted")
+            _validate_exact_promotions(
+                input_set=input_set,
+                provider=self._promotion_provider,
+                evaluated_at=recorded_at,
+            )
+            return self._writer(input_set, recorded_at)
 
 
 @dataclass(frozen=True)
@@ -147,6 +403,8 @@ class GovernedOptimizationAssembly:
     """Trusted numerical problem plus its unmodified current configuration."""
 
     assembly_version: str
+    input_receipt_id: str
+    input_receipt_hash: str
     input_set_id: str
     input_set_hash: str
     problem: OptimizationProblem
@@ -161,6 +419,8 @@ class GovernedOptimizationAssembly:
         """Recompute the assembly seal and preserve research-only status."""
 
         require_token(self.assembly_version, "assembly_version")
+        require_sha256(self.input_receipt_id, "input_receipt_id")
+        require_sha256(self.input_receipt_hash, "input_receipt_hash")
         require_token(self.input_set_id, "input_set_id")
         require_sha256(self.input_set_hash, "input_set_hash")
         require_aware(self.assembled_at, "assembled_at")
@@ -198,12 +458,13 @@ class AssembleGovernedOptimizationProblemUseCase:
     ) -> GovernedOptimizationAssembly:
         """Assemble a problem or fail closed on any lineage/numerical mismatch."""
 
-        input_set = self._input_set_provider.get_exact(
+        receipt = self._input_set_provider.get_exact(
             input_set_id=command.input_set_id,
             evaluated_at=command.created_at,
         )
-        if input_set is None:
-            raise GovernedOptimizationUnavailable("canonical governed input set is unavailable")
+        if receipt is None:
+            raise GovernedOptimizationUnavailable("canonical governed input receipt is unavailable")
+        input_set = receipt.input_set
         if input_set.input_set_id != command.input_set_id:
             raise ValueError("canonical governed input set identity mismatch")
         _validate_exact_promotions(
@@ -380,6 +641,8 @@ class AssembleGovernedOptimizationProblemUseCase:
             governed_input_set=input_set,
         )
         content_hash = _assembly_hash_values(
+            input_receipt_id=receipt.receipt_id,
+            input_receipt_hash=receipt.content_hash,
             input_set_id=input_set.input_set_id,
             input_set_hash=input_set.content_hash,
             problem_hash=problem.content_hash,
@@ -387,7 +650,9 @@ class AssembleGovernedOptimizationProblemUseCase:
             assembled_at=command.created_at,
         )
         return GovernedOptimizationAssembly(
-            assembly_version="governed-optimization-assembly.v1",
+            assembly_version="governed-optimization-assembly.v2",
+            input_receipt_id=receipt.receipt_id,
+            input_receipt_hash=receipt.content_hash,
             input_set_id=input_set.input_set_id,
             input_set_hash=input_set.content_hash,
             problem=problem,
@@ -436,6 +701,13 @@ class GovernedOptimizationRunBundle:
 
 class GovernedOptimizationLedgerRepository(Protocol):
     """Append-only persistence boundary for one result/root bundle."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the database transaction identity used for receipt/result writes."""
+
+    def atomic(self) -> AbstractContextManager[None]:
+        """Open the shared receipt-read/result-write unit of work."""
 
     def append_bundle(
         self,
@@ -554,10 +826,14 @@ class RunGovernedOptimizationResearchUseCase:
         assembler: AssembleGovernedOptimizationProblemUseCase,
         engine: GovernedOptimizationEngineProtocol,
         repository: GovernedOptimizationLedgerRepository,
+        input_receipt_provider: GovernedOptimizationInputReceiptProvider,
+        promotion_provider: ExactPromotionProvider,
     ) -> None:
         self._assembler = assembler
         self._engine = engine
         self._repository = repository
+        self._input_receipt_provider = input_receipt_provider
+        self._promotion_provider = promotion_provider
 
     def execute(
         self,
@@ -567,6 +843,30 @@ class RunGovernedOptimizationResearchUseCase:
         run_version: str,
     ) -> GovernedOptimizationRunBundle:
         """Run only after every exact input has assembled successfully."""
+
+        if not (
+            self._repository.unit_of_work_key
+            == self._input_receipt_provider.unit_of_work_key
+            == self._promotion_provider.unit_of_work_key
+        ):
+            raise GovernedOptimizationUnavailable(
+                "receipt, Promotion and result providers do not share one locked unit of work"
+            )
+        with self._repository.atomic():
+            return self._execute_inside_unit_of_work(
+                command=command,
+                run_key=run_key,
+                run_version=run_version,
+            )
+
+    def _execute_inside_unit_of_work(
+        self,
+        *,
+        command: AssembleGovernedOptimizationCommand,
+        run_key: str,
+        run_version: str,
+    ) -> GovernedOptimizationRunBundle:
+        """Re-read the receipt immediately before the atomic result append."""
 
         assembly = self._assembler.execute(command)
         assessment = assess_optimization_problem(
@@ -607,6 +907,9 @@ class RunGovernedOptimizationResearchUseCase:
             problem_hash=assembly.problem.content_hash,
             input_set_id=assembly.input_set_id,
             input_set_hash=assembly.input_set_hash,
+            input_receipt_id=assembly.input_receipt_id,
+            input_receipt_hash=assembly.input_receipt_hash,
+            input_receipt_schema_version=RECEIPT_VERSION,
             candidate_evaluations=evaluations,
             problem_blockers=blockers,
             evaluated_at=command.created_at,
@@ -615,6 +918,26 @@ class RunGovernedOptimizationResearchUseCase:
         bundle = GovernedOptimizationRunBundle(
             result=result,
             lifecycle_root=create_optimization_lifecycle_root(result),
+        )
+        trusted_receipt = self._input_receipt_provider.get_exact(
+            input_set_id=command.input_set_id,
+            evaluated_at=command.created_at,
+        )
+        if trusted_receipt is None:
+            raise GovernedOptimizationUnavailable(
+                "canonical governed input receipt disappeared before result persistence"
+            )
+        if (
+            trusted_receipt.receipt_id != assembly.input_receipt_id
+            or trusted_receipt.content_hash != assembly.input_receipt_hash
+            or trusted_receipt.input_set != assembly.problem.governed_input_set
+            or trusted_receipt.input_set.content_hash != assembly.input_set_hash
+        ):
+            raise ValueError("canonical governed input receipt changed before result persistence")
+        _validate_exact_promotions(
+            input_set=trusted_receipt.input_set,
+            provider=self._promotion_provider,
+            evaluated_at=command.created_at,
         )
         return self._repository.append_bundle(bundle)
 
@@ -807,6 +1130,8 @@ def governed_optimization_assembly_hash(
     """Recompute the trusted assembly digest."""
 
     return _assembly_hash_values(
+        input_receipt_id=assembly.input_receipt_id,
+        input_receipt_hash=assembly.input_receipt_hash,
         input_set_id=assembly.input_set_id,
         input_set_hash=assembly.input_set_hash,
         problem_hash=assembly.problem.content_hash,
@@ -817,6 +1142,8 @@ def governed_optimization_assembly_hash(
 
 def _assembly_hash_values(
     *,
+    input_receipt_id: str,
+    input_receipt_hash: str,
     input_set_id: str,
     input_set_hash: str,
     problem_hash: str,
@@ -824,7 +1151,9 @@ def _assembly_hash_values(
     assembled_at: datetime,
 ) -> str:
     return hash_components(
-        "governed-optimization-assembly.v1",
+        "governed-optimization-assembly.v2",
+        input_receipt_id,
+        input_receipt_hash,
         input_set_id,
         input_set_hash,
         problem_hash,
@@ -840,6 +1169,11 @@ __all__ = [
     "AssembleGovernedOptimizationCommand",
     "AssembleGovernedOptimizationProblemUseCase",
     "AppendGovernedOptimizationLifecycleEventUseCase",
+    "CanonicalGovernedOptimizationInputSetProvider",
+    "CanonicalGovernedOptimizationOwnerGraph",
+    "ExactCanonicalPortfolioSnapshotProvider",
+    "ExactGovernedOptimizationOwnerGraphProvider",
+    "ExactInvestableUniverseProvider",
     "ExactPromotionProvider",
     "ExactPortfolioLifecycleAuthorizationProvider",
     "GovernedOptimizationAssembly",
@@ -847,8 +1181,12 @@ __all__ = [
     "GovernedOptimizationLedgerRepository",
     "GovernedOptimizationLifecycleRepository",
     "GovernedOptimizationInputSetProvider",
+    "GovernedOptimizationInputReceiptProvider",
+    "GovernedOptimizationRegistrationClock",
     "GovernedOptimizationRunBundle",
     "GovernedOptimizationUnavailable",
+    "RegisterGovernedOptimizationInputReceiptCommand",
+    "RegisterGovernedOptimizationInputReceiptUseCase",
     "RunGovernedOptimizationResearchUseCase",
     "governed_optimization_assembly_hash",
 ]
