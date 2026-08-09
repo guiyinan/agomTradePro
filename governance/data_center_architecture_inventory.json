@@ -9108,17 +9108,17 @@
       "text": "if event.previous_event_hash != latest.content_hash:"
     },
     {
-      "line": 654,
+      "line": 655,
       "path": "apps/macro_factor/infrastructure/sklearn_nested_cv_runner.py",
       "text": "current = {item.asset_code: item.factor_weight for item in fold.coefficients}"
     },
     {
-      "line": 658,
+      "line": 659,
       "path": "apps/macro_factor/infrastructure/sklearn_nested_cv_runner.py",
       "text": "abs(current.get(code, Decimal(\"0\")) - previous.get(code, Decimal(\"0\")))"
     },
     {
-      "line": 665,
+      "line": 666,
       "path": "apps/macro_factor/infrastructure/sklearn_nested_cv_runner.py",
       "text": "previous = current"
     },
