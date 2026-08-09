@@ -355,6 +355,10 @@ class GovernedOptimizationInputReceiptModel(OptimizationAppendOnlyModel):
                 ),
                 name="pf_opt_receipt_safety_ck",
             ),
+            models.CheckConstraint(
+                condition=models.Q(receipt_version="governed-optimization-input-receipt.v1"),
+                name="pf_opt_receipt_version_ck",
+            ),
         ]
         indexes = [
             models.Index(
@@ -421,6 +425,19 @@ class GovernedOptimizationResearchResultModel(OptimizationAppendOnlyModel):
                     must_not_use_for_decision=True,
                 ),
                 name="pf_opt_result_research_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        result_version="governed-optimization-result.v2",
+                        input_receipt__isnull=False,
+                    )
+                    | models.Q(
+                        result_version="governed-optimization-result.v1",
+                        input_receipt__isnull=True,
+                    )
+                ),
+                name="pf_opt_result_receipt_ver_ck",
             ),
         ]
         indexes = [

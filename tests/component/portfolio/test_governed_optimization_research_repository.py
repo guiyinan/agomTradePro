@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import connection
+from django.db import IntegrityError, connection, transaction
 from django.db.models.deletion import Collector
 
 from apps.portfolio.application.governed_optimization import GovernedOptimizationRunBundle
@@ -395,37 +395,34 @@ def test_valid_legacy_null_result_requires_explicit_research_read_only() -> None
 
 
 @pytest.mark.django_db
-def test_null_or_legacy_alias_receipt_relation_is_corruption_on_normal_reads() -> None:
+def test_database_rejects_null_v2_and_legacy_receipt_alias() -> None:
+    """The nullable compatibility column cannot admit an unsafe version/FK shape."""
+
     repository = _repository()
     bundle = _bundle()
     repository.append_bundle(bundle)
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "UPDATE portfolio_governed_optimization_result "
-            "SET input_receipt_id = NULL WHERE result_id = %s",
-            [bundle.result.result_id],
-        )
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE portfolio_governed_optimization_result "
+                    "SET input_receipt_id = NULL WHERE result_id = %s",
+                    [bundle.result.result_id],
+                )
 
-    with pytest.raises(ValueError, match="explicit research-only read"):
-        repository.get_result(bundle.result.result_id)
-    with pytest.raises(ValueError, match="null input receipt"):
-        repository.get_legacy_research_result(bundle.result.result_id)
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE portfolio_governed_optimization_result "
+                    "SET result_version = %s WHERE result_id = %s",
+                    [
+                        "governed-optimization-result.v1",
+                        bundle.result.result_id,
+                    ],
+                )
 
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "UPDATE portfolio_governed_optimization_result "
-            "SET input_receipt_id = %s, result_version = %s WHERE result_id = %s",
-            [
-                INPUT_RECEIPT.receipt_id,
-                "governed-optimization-result.v1",
-                bundle.result.result_id,
-            ],
-        )
-
-    with pytest.raises(ValueError, match="legacy optimization result cannot alias"):
-        repository.get_result(bundle.result.result_id)
-    with pytest.raises(ValueError, match="legacy optimization result cannot alias"):
-        repository.get_legacy_research_result(bundle.result.result_id)
+    assert repository.get_result(bundle.result.result_id) == bundle.result
 
 
 def test_lifecycle_and_result_tamper_are_rejected_in_memory() -> None:
