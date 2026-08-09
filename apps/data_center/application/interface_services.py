@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import math
 import os
 from collections.abc import Callable, Mapping, Sequence
@@ -47,6 +48,7 @@ from apps.data_center.domain.protocols import (
     MacroFactRepositoryProtocol,
     ProviderRegistryProtocol,
 )
+from apps.task_monitor.application.tracking import record_pending_task
 from core.integration.config_center_runtime import (
     activate_runtime_profile_patch,
     get_active_runtime_value,
@@ -200,6 +202,85 @@ def queue_alpha_score_prediction(
             scope_payload=scope_payload,
         ),
     )
+
+
+def _build_alpha_refresher(
+    user: Any,
+) -> Callable[[date, int | None], dict[str, Any]]:
+    """Build the whitelisted Qlib command orchestration entrypoint."""
+
+    def _refresh(target_date: date, portfolio_id: int | None) -> dict[str, Any]:
+        if portfolio_id is None:
+            return {"status": "skipped", "message": "portfolio_id is required"}
+
+        from django.core.management import CommandError, call_command
+
+        try:
+            call_command(
+                "build_qlib_data",
+                check_only=True,
+                target_date=target_date.isoformat(),
+                verbosity=0,
+            )
+        except CommandError:
+            call_command(
+                "build_qlib_data",
+                target_date=target_date.isoformat(),
+                universes="csi300,csi500,sse50,csi1000",
+                lookback_days=400,
+                verbosity=0,
+            )
+        resolved = resolve_portfolio_alpha_scope(
+            user_id=user.id,
+            portfolio_id=portfolio_id,
+            trade_date=target_date,
+        )
+        quote_sync_result = _sync_scope_quotes(
+            list(getattr(resolved.scope, "instrument_codes", ()) or ())
+        )
+        kombu_exceptions = importlib.import_module("kombu.exceptions")
+        KombuOperationalError = cast(
+            type[Exception],
+            kombu_exceptions.OperationalError,
+        )
+
+        try:
+            task = queue_alpha_score_prediction(
+                universe_id=resolved.scope.universe_id,
+                trade_date=target_date,
+                scope_payload=resolved.scope.to_dict(),
+            )
+            record_pending_task(
+                task_id=task.id,
+                task_name="apps.alpha.application.tasks.qlib_predict_scores",
+                args=(resolved.scope.universe_id, target_date.isoformat(), 30),
+                kwargs={"scope_payload": resolved.scope.to_dict()},
+            )
+        except (KombuOperationalError, ConnectionError, OSError, TimeoutError) as exc:
+            return {
+                "status": "queue_failed",
+                "scope_hash": resolved.scope.scope_hash,
+                "universe_id": resolved.scope.universe_id,
+                "task_id": "",
+                "qlib_result": {
+                    "message": "Scoped Alpha inference queue is unavailable.",
+                    "error_message": str(exc),
+                },
+                "quote_sync": quote_sync_result,
+            }
+        return {
+            "status": "queued",
+            "scope_hash": resolved.scope.scope_hash,
+            "universe_id": resolved.scope.universe_id,
+            "task_id": getattr(task, "id", ""),
+            "qlib_result": {
+                "message": "Scoped Alpha inference queued.",
+                "task_id": getattr(task, "id", ""),
+            },
+            "quote_sync": quote_sync_result,
+        }
+
+    return _refresh
 
 
 def run_alpha_score_prediction_now(
@@ -750,7 +831,7 @@ _build_pulse_refresher = _bind_decision_sync(
     "_build_pulse_refresher", _decision_sync._build_pulse_refresher
 )
 _build_alpha_refresher = _bind_decision_sync(
-    "_build_alpha_refresher", _decision_sync._build_alpha_refresher
+    "_build_alpha_refresher", _build_alpha_refresher
 )
 _sync_scope_quotes = _bind_decision_sync("_sync_scope_quotes", _decision_sync._sync_scope_quotes)
 _build_skipped_latest_market_thermometer_payload = _bind_decision_sync(

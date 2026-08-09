@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from enum import Enum
+from enum import Enum, StrEnum
 
 _BASIS_POINT = Decimal("0.0001")
 
@@ -69,7 +69,7 @@ def _sha256_payload(payload: object) -> str:
     ).hexdigest()
 
 
-class PublicationRole(str, Enum):
+class PublicationRole(StrEnum):
     """Required canonical evidence roles for every portfolio position."""
 
     POSITION_VALUATION = "position_valuation"
@@ -86,7 +86,7 @@ _PUBLICATION_ROLE_OWNER: dict[PublicationRole, str] = {
 }
 
 
-class RateShockKind(str, Enum):
+class RateShockKind(StrEnum):
     """Shape label for a fully injected key-rate shock vector."""
 
     PARALLEL = "parallel"
@@ -95,14 +95,14 @@ class RateShockKind(str, Enum):
     FLATTENING = "flattening"
 
 
-class PortfolioRiskStatus(str, Enum):
+class PortfolioRiskStatus(StrEnum):
     """Fail-closed status of one research portfolio assessment."""
 
     AVAILABLE = "available"
     BLOCKED = "blocked"
 
 
-class PortfolioRiskBlockerCode(str, Enum):
+class PortfolioRiskBlockerCode(StrEnum):
     """Stable R5 portfolio-risk failure and budget reason codes."""
 
     CANONICAL_BUNDLE_MISSING = "fixed_income.portfolio_risk.bundle.missing"

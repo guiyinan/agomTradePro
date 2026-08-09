@@ -7,32 +7,32 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 
 from apps.equity.domain.forecast_baseline import ForecastBaselineTrialResult
 
 
-class R1PromotionPolicyStatus(str, Enum):
+class R1PromotionPolicyStatus(StrEnum):
     """Owner-controlled policy availability."""
 
     ACTIVE = "active"
 
 
-class R1PromotionTrialState(str, Enum):
+class R1PromotionTrialState(StrEnum):
     """Typed state derived exclusively from an Equity trial result."""
 
     ELIGIBLE_FOR_PROMOTION = "eligible_for_promotion"
     NOT_ELIGIBLE = "not_eligible"
 
 
-class R1PromotionDecisionOutcome(str, Enum):
+class R1PromotionDecisionOutcome(StrEnum):
     """Automatically derived Research decision outcome."""
 
     APPROVED = "approved"
     REJECTED = "rejected"
 
 
-class R1PromotionGateCode(str, Enum):
+class R1PromotionGateCode(StrEnum):
     """Typed Research gates evaluated over one complete Equity trial."""
 
     REQUIRED_TRIAL_STATE = "required_trial_state"

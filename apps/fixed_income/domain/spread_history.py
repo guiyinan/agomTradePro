@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 
 from apps.fixed_income.domain.evidence import (
     EvidenceRole,
@@ -18,7 +18,7 @@ from apps.fixed_income.domain.evidence import (
 )
 
 
-class SpreadObservationState(str, Enum):
+class SpreadObservationState(StrEnum):
     """Quality state of one versioned spread observation."""
 
     OBSERVED = "observed"
@@ -26,7 +26,7 @@ class SpreadObservationState(str, Enum):
     MISSING = "missing"
 
 
-class SpreadTieConvention(str, Enum):
+class SpreadTieConvention(StrEnum):
     """Versioned percentile tie convention."""
 
     MID_RANK = "mid_rank"
@@ -34,26 +34,26 @@ class SpreadTieConvention(str, Enum):
     WEAK_LESS_EQUAL = "weak_less_equal"
 
 
-class TargetSampleConvention(str, Enum):
+class TargetSampleConvention(StrEnum):
     """Whether the target/current point participates in the reference sample."""
 
     EXCLUDED = "excluded"
 
 
-class RevisionSelection(str, Enum):
+class RevisionSelection(StrEnum):
     """PIT revision selection rule for a calendar period."""
 
     LATEST_AVAILABLE_AT_CUTOFF = "latest_available_at_cutoff"
 
 
-class SpreadAssessmentStatus(str, Enum):
+class SpreadAssessmentStatus(StrEnum):
     """Availability state for one research-only percentile assessment."""
 
     AVAILABLE = "available"
     BLOCKED = "blocked"
 
 
-class SpreadBlockerCode(str, Enum):
+class SpreadBlockerCode(StrEnum):
     """Stable fail-closed reasons for historical spread percentiles."""
 
     INPUT_HASH_MISMATCH = "fixed_income.spread.input.hash_mismatch"

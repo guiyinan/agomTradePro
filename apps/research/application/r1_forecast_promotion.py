@@ -7,7 +7,7 @@ import json
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Protocol
 
 from apps.equity.domain.forecast_baseline import ForecastBaselineTrialResult
@@ -78,7 +78,7 @@ class R1PromotionScopeRef:
         _require_token(self.scope_id, "R1 promotion lifecycle scope_id")
 
 
-class R1PromotionLifecycleAction(str, Enum):
+class R1PromotionLifecycleAction(StrEnum):
     """Application command vocabulary mapped explicitly to Domain events."""
 
     PROMOTE = "promote"

@@ -6,7 +6,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 
 from apps.fixed_income.domain.evidence import (
     EvidenceRole,
@@ -23,7 +23,7 @@ _MISSING_LABEL = "MISSING"
 _UNRESOLVED_ORIGIN = "UNRESOLVED_ORIGIN"
 
 
-class RatingTerminalKind(str, Enum):
+class RatingTerminalKind(StrEnum):
     """Mutually exclusive terminal state for one origin-cohort member."""
 
     LIVE_GRADE = "live_grade"
@@ -33,32 +33,32 @@ class RatingTerminalKind(str, Enum):
     MISSING = "missing"
 
 
-class RatingDenominatorConvention(str, Enum):
+class RatingDenominatorConvention(StrEnum):
     """Explicit transition-row denominator convention."""
 
     ORIGIN_COHORT_ALL = "origin_cohort_all"
 
 
-class RatingCensoringConvention(str, Enum):
+class RatingCensoringConvention(StrEnum):
     """Explicit handling of right-censored cohort members."""
 
     RETAIN_AS_BUCKET = "retain_as_bucket"
 
 
-class RatingTerminalSelection(str, Enum):
+class RatingTerminalSelection(StrEnum):
     """Versioned terminal-event selection semantics."""
 
     EARLIEST_EVENT_DEFAULT_PRECEDENCE = "earliest_event_default_precedence"
 
 
-class RatingMigrationStatus(str, Enum):
+class RatingMigrationStatus(StrEnum):
     """Availability state of one research-only transition matrix."""
 
     AVAILABLE = "available"
     BLOCKED = "blocked"
 
 
-class RatingMigrationBlockerCode(str, Enum):
+class RatingMigrationBlockerCode(StrEnum):
     """Stable fail-closed reasons for rating migration evidence."""
 
     INPUT_HASH_MISMATCH = "fixed_income.rating.input.hash_mismatch"

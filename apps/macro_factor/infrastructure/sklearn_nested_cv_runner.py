@@ -453,7 +453,7 @@ class SklearnNestedCVLassoRunner:
             1.0,
             float(np.mean(np.square(target))),
         )
-        if n_iter <= 0 or n_iter >= self._config.max_iterations:
+        if n_iter < 0 or n_iter > self._config.max_iterations:
             raise ValueError("Lasso exhausted or reported an invalid iteration budget")
         if not np.isfinite(dual_gap) or abs(dual_gap) > dual_gap_limit:
             raise ValueError("Lasso dual-gap convergence evidence is invalid")

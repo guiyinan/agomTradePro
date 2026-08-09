@@ -6,7 +6,7 @@ import hashlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 
 from apps.portfolio.domain.macro_factor_risk import (
     MacroRiskCandidateInput,
@@ -105,13 +105,13 @@ def _temporal_split_hash(split: TemporalSplitSpec) -> str:
     )
 
 
-class R4CostTreatment(str, Enum):
+class R4CostTreatment(StrEnum):
     """Explicit cost semantics for the no-data research slice."""
 
     REPORT_SEPARATELY_FROM_GROSS_RETURN = "report_separately_from_gross_return"
 
 
-class R4RollingBlockerCode(str, Enum):
+class R4RollingBlockerCode(StrEnum):
     """Stable fail-closed reasons for one rolling R4 study."""
 
     R3_PROMOTION_INVALID = "r3_promotion_invalid"

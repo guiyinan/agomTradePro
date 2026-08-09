@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import importlib
 from collections.abc import Callable
 from datetime import date
-from typing import Any, cast
+from typing import Any
 
 from apps.data_center.application.dtos import (
     LatestQuoteRequest,
@@ -31,11 +30,11 @@ from apps.data_center.composition import (
     build_provider_registry_for_repo,
 )
 from apps.data_center.domain.enums import DataCapability
-from apps.task_monitor.application.tracking import record_pending_task
 from core.exceptions import DataFetchError
 
 from .current_valuation_sync import SyncCurrentValuationBatchUseCase
 from .interface_services import (
+    _build_alpha_refresher,
     _get_provider_registry,
     _json_object,
     _make_indicator_catalog_repo,
@@ -44,9 +43,7 @@ from .interface_services import (
     _make_provider_repo,
     _make_raw_audit_repo,
     make_calculate_market_thermometer_use_case,
-    queue_alpha_score_prediction,
     refresh_pulse_snapshot,
-    resolve_portfolio_alpha_scope,
 )
 from .macro_publication import PublishMacroBatchUseCase
 from .publication_sync import (
@@ -79,83 +76,6 @@ from .use_cases import (
 def _build_pulse_refresher() -> Callable[[date], Any]:
     def _refresh(target_date: date) -> Any:
         return refresh_pulse_snapshot(target_date=target_date)
-
-    return _refresh
-
-
-def _build_alpha_refresher(
-    user: Any,
-) -> Callable[[date, int | None], dict[str, Any]]:
-    def _refresh(target_date: date, portfolio_id: int | None) -> dict[str, Any]:
-        if portfolio_id is None:
-            return {"status": "skipped", "message": "portfolio_id is required"}
-
-        from django.core.management import CommandError, call_command
-
-        try:
-            call_command(
-                "build_qlib_data",
-                check_only=True,
-                target_date=target_date.isoformat(),
-                verbosity=0,
-            )
-        except CommandError:
-            call_command(
-                "build_qlib_data",
-                target_date=target_date.isoformat(),
-                universes="csi300,csi500,sse50,csi1000",
-                lookback_days=400,
-                verbosity=0,
-            )
-        resolved = resolve_portfolio_alpha_scope(
-            user_id=user.id,
-            portfolio_id=portfolio_id,
-            trade_date=target_date,
-        )
-        quote_sync_result = _sync_scope_quotes(
-            list(getattr(resolved.scope, "instrument_codes", ()) or ())
-        )
-        kombu_exceptions = importlib.import_module("kombu.exceptions")
-        KombuOperationalError = cast(
-            type[Exception],
-            kombu_exceptions.OperationalError,
-        )
-
-        try:
-            task = queue_alpha_score_prediction(
-                universe_id=resolved.scope.universe_id,
-                trade_date=target_date,
-                scope_payload=resolved.scope.to_dict(),
-            )
-            record_pending_task(
-                task_id=task.id,
-                task_name="apps.alpha.application.tasks.qlib_predict_scores",
-                args=(resolved.scope.universe_id, target_date.isoformat(), 30),
-                kwargs={"scope_payload": resolved.scope.to_dict()},
-            )
-        except (KombuOperationalError, ConnectionError, OSError, TimeoutError) as exc:
-            return {
-                "status": "queue_failed",
-                "scope_hash": resolved.scope.scope_hash,
-                "universe_id": resolved.scope.universe_id,
-                "task_id": "",
-                "qlib_result": {
-                    "message": "Scoped Alpha inference queue is unavailable.",
-                    "error_message": str(exc),
-                },
-                "quote_sync": quote_sync_result,
-            }
-        return {
-            "status": "queued",
-            "scope_hash": resolved.scope.scope_hash,
-            "universe_id": resolved.scope.universe_id,
-            "task_id": getattr(task, "id", ""),
-            "qlib_result": {
-                "message": "Scoped Alpha inference queued.",
-                "task_id": getattr(task, "id", ""),
-            },
-            "quote_sync": quote_sync_result,
-        }
 
     return _refresh
 

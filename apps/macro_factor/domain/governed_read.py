@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from enum import Enum
+from enum import StrEnum
 from typing import cast
 
 from ._runner_support import (
@@ -508,7 +508,7 @@ def validate_trial_binding(
         raise ValueError("R3 trial does not cover its preregistered Regime count")
 
 
-class R3PromotionOutcome(str, Enum):
+class R3PromotionOutcome(StrEnum):
     """Research-owned decision outcome for one exact trial."""
 
     APPROVED = "approved"
@@ -892,7 +892,7 @@ class R3MonitoringEvidence:
         )
 
 
-class R3MonitoringStatus(str, Enum):
+class R3MonitoringStatus(StrEnum):
     """Derived monitoring status; no state automatically retires a run."""
 
     HEALTHY = "healthy"

@@ -14,10 +14,10 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 
 
-class ForecastScenario(str, Enum):
+class ForecastScenario(StrEnum):
     """Required scenario set for an operating forecast draft."""
 
     BASE = "base"
@@ -25,7 +25,7 @@ class ForecastScenario(str, Enum):
     BEAR = "bear"
 
 
-class DriverInputKind(str, Enum):
+class DriverInputKind(StrEnum):
     """Mutually exclusive provenance of one driver value."""
 
     OBSERVED_FACT = "observed_fact"
@@ -33,7 +33,7 @@ class DriverInputKind(str, Enum):
     MODEL_INFERENCE = "model_inference"
 
 
-class ExpressionOperator(str, Enum):
+class ExpressionOperator(StrEnum):
     """Finite operators accepted by the safe expression evaluator."""
 
     IDENTITY = "identity"
@@ -43,14 +43,14 @@ class ExpressionOperator(str, Enum):
     DIVIDE = "divide"
 
 
-class ValueReferenceKind(str, Enum):
+class ValueReferenceKind(StrEnum):
     """Allowed sources for an expression operand."""
 
     DRIVER = "driver"
     NODE = "node"
 
 
-class FinancialStage(str, Enum):
+class FinancialStage(StrEnum):
     """Required operating-model dependency stages."""
 
     REVENUE = "revenue"
@@ -61,7 +61,7 @@ class FinancialStage(str, Enum):
     CASH_FLOW = "cash_flow"
 
 
-class TemplateLifecycle(str, Enum):
+class TemplateLifecycle(StrEnum):
     """Immutable lifecycle state of one template version."""
 
     ACTIVE = "active"
@@ -69,7 +69,7 @@ class TemplateLifecycle(str, Enum):
     RETIRED = "retired"
 
 
-class TemplateRunStatus(str, Enum):
+class TemplateRunStatus(StrEnum):
     """Availability of a research-only template run."""
 
     AVAILABLE = "available"

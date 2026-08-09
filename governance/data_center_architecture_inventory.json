@@ -4868,62 +4868,62 @@
       "text": "\"\"\"Result of one current-valuation batch sync.\"\"\""
     },
     {
-      "line": 140,
+      "line": 142,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Refresh the latest pulse snapshot through the owning pulse use case.\"\"\""
     },
     {
-      "line": 146,
+      "line": 148,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Fetch latest realtime prices through the owning realtime use case.\"\"\""
     },
     {
-      "line": 534,
+      "line": 615,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Build the latest quote query use case.\"\"\""
     },
     {
-      "line": 540,
+      "line": 621,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Fetch real-time prices from the realtime app fallback service.\"\"\""
     },
     {
-      "line": 642,
+      "line": 723,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Return the latest market-thermometer payload for UI/API consumers.\"\"\""
     },
     {
-      "line": 178,
+      "line": 98,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
     {
-      "line": 324,
+      "line": 244,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "latest = MarketThermometerSnapshotRepository().get_latest()"
     },
     {
-      "line": 325,
+      "line": 245,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "if latest is None:"
     },
     {
-      "line": 329,
+      "line": 249,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "latest_observed_at = latest.observed_at.isoformat()"
     },
     {
-      "line": 331,
+      "line": 251,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "latest_is_blocked = latest.must_not_use_for_decision"
     },
     {
-      "line": 335,
+      "line": 255,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "skipped_payload = latest.to_dict()"
     },
     {
-      "line": 552,
+      "line": 472,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "\"\"\"Build the current valuation batch sync use case.\"\"\""
     },
