@@ -6,6 +6,7 @@ import warnings
 from dataclasses import dataclass
 from decimal import Decimal
 from importlib.metadata import version as package_version
+from typing import TypeAlias
 
 import numpy as np
 import statsmodels.api as sm  # type: ignore[import-untyped]
@@ -48,7 +49,7 @@ from apps.macro_factor.domain.reproducible_runner import (
     VersionedResearchContract,
 )
 
-FloatArray = NDArray[np.float64]
+FloatArray: TypeAlias = NDArray[np.float64]
 IMPLEMENTATION_ID = "agom.macro-factor.sklearn-nested-cv-lasso.v1"
 
 
@@ -471,7 +472,7 @@ class SklearnNestedCVLassoRunner:
 
     def _score(self, actual: FloatArray, predicted: FloatArray, metric: str) -> Decimal:
         if metric == "validation_mean_squared_error":
-            return _decimal(np.mean(np.square(actual - predicted)))
+            return _decimal(float(np.mean(np.square(actual - predicted))))
         return _decimal(self._correlation(actual, predicted))
 
     @staticmethod
