@@ -830,9 +830,7 @@ make_sync_capital_flow_use_case = _bind_decision_sync(
 _build_pulse_refresher = _bind_decision_sync(
     "_build_pulse_refresher", _decision_sync._build_pulse_refresher
 )
-_build_alpha_refresher = _bind_decision_sync(
-    "_build_alpha_refresher", _build_alpha_refresher
-)
+_build_alpha_refresher = _bind_decision_sync("_build_alpha_refresher", _build_alpha_refresher)
 _sync_scope_quotes = _bind_decision_sync("_sync_scope_quotes", _decision_sync._sync_scope_quotes)
 _build_skipped_latest_market_thermometer_payload = _bind_decision_sync(
     "_build_skipped_latest_market_thermometer_payload",
