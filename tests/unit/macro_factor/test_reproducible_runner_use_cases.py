@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 
@@ -28,6 +29,8 @@ from apps.macro_factor.domain.reproducible_runner import (
     PITResearchDataset,
     ReproducibleMacroFactorRunArtifact,
     ReproducibleMacroFactorRunBundle,
+    VersionedResearchContract,
+    calculate_temporal_split_hash,
 )
 from tests.unit.macro_factor.factories import complete_manifest
 from tests.unit.macro_factor.runner_factories import (
@@ -55,6 +58,21 @@ class _ManifestProvider:
     def get_manifest(self, manifest_id: str):  # type: ignore[no-untyped-def]
         assert manifest_id == "pit-r3-growth-v1"
         return self.value
+
+
+class _SpecProvider:
+    def __init__(self, value: object | None) -> None:
+        self.value = value
+        self.calls: list[tuple[str, int]] = []
+
+    def get_spec(self, *, spec_id: str, spec_version: int):  # type: ignore[no-untyped-def]
+        self.calls.append((spec_id, spec_version))
+        return self.value
+
+
+class _FailingSpecProvider:
+    def get_spec(self, *, spec_id: str, spec_version: int) -> object:
+        raise RuntimeError(f"spec provider failed for {spec_id}:{spec_version}")
 
 
 class _DatasetProvider:
@@ -207,12 +225,16 @@ class _Repository:
         return event
 
 
-def _command() -> RunReproducibleMacroFactorCommand:
-    spec = runner_spec()
+def _command(
+    spec: MacroFactorRunnerSpec | None = None,
+) -> RunReproducibleMacroFactorCommand:
+    expected_spec = spec or runner_spec()
     manifest = complete_manifest()
-    freshness = spec.input_knowledge_freshness_policy
+    freshness = expected_spec.input_knowledge_freshness_policy
     return RunReproducibleMacroFactorCommand(
-        spec=spec,
+        expected_spec_id=expected_spec.run_key,
+        expected_spec_version=expected_spec.run_version,
+        expected_spec_hash=expected_spec.content_hash,
         expected_manifest_id="pit-r3-growth-v1",
         expected_manifest_hash="a" * 64,
         expected_manifest_content_hash=manifest.content_hash,
@@ -224,10 +246,152 @@ def _command() -> RunReproducibleMacroFactorCommand:
     )
 
 
+def test_command_cannot_carry_caller_selected_runner_semantics() -> None:
+    command = _command()
+
+    assert "spec" not in RunReproducibleMacroFactorCommand.__dataclass_fields__
+    assert command.expected_spec_id == "growth-fmp-research"
+    assert command.expected_spec_version == 1
+    assert command.expected_spec_hash == runner_spec().content_hash
+
+
+def _semantic_substitution(kind: str) -> MacroFactorRunnerSpec:
+    original = runner_spec()
+    if kind == "benchmark":
+        return replace(
+            original,
+            historical_mean_benchmark=VersionedResearchContract(
+                "caller-benchmark-v99",
+                "d" * 64,
+            ),
+        )
+    if kind == "cost":
+        return replace(
+            original,
+            cost_model=VersionedResearchContract("caller-cost-v99", "e" * 64),
+        )
+    if kind == "split":
+        split = replace(
+            original.temporal_split,
+            embargo_days=original.temporal_split.embargo_days - 1,
+        )
+        return replace(
+            original,
+            temporal_split=split,
+            split_contract=VersionedResearchContract(
+                original.split_contract.version,
+                calculate_temporal_split_hash(split),
+            ),
+        )
+    if kind == "alpha":
+        return replace(
+            original,
+            plan=replace(
+                original.plan,
+                alpha_grid=(Decimal("0.02"), Decimal("0.2"), Decimal("2")),
+            ),
+        )
+    if kind == "freshness":
+        return replace(
+            original,
+            input_knowledge_freshness_policy=InputKnowledgeFreshnessPolicy.create(
+                policy_version="caller-freshness-v99",
+                max_manifest_age_seconds=60 * 24 * 60 * 60,
+                max_inference_age_seconds=60 * 24 * 60 * 60,
+                maximum_allowed_age_seconds=90 * 24 * 60 * 60,
+            ),
+        )
+    raise AssertionError(f"unsupported substitution: {kind}")
+
+
+@pytest.mark.parametrize("kind", ("benchmark", "cost", "split", "alpha", "freshness"))
+def test_same_spec_identity_with_substituted_semantics_is_rejected_before_runner(
+    kind: str,
+) -> None:
+    expected = runner_spec()
+    substituted = _semantic_substitution(kind)
+    assert substituted.run_key == expected.run_key
+    assert substituted.run_version == expected.run_version
+    assert substituted.content_hash != expected.content_hash
+    provider = _SpecProvider(substituted)
+    repository = _Repository()
+    runner = _ExternalRunner(external_runner_artifact())
+
+    assessment = RunReproducibleMacroFactor(
+        spec_provider=provider,
+        manifest_provider=_ManifestProvider(complete_manifest()),
+        dataset_provider=_DatasetProvider(runner_dataset()),
+        external_runner=runner,
+        repository=repository,
+    ).execute(_command(expected))
+
+    assert provider.calls == [(expected.run_key, expected.run_version)]
+    assert assessment.blocked_reasons == (MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID,)
+    assert runner.requests == []
+    assert repository.bundle is None
+
+
+@pytest.mark.parametrize(
+    "provider",
+    (_SpecProvider(None), _SpecProvider(object()), _FailingSpecProvider()),
+)
+def test_missing_failed_or_malformed_spec_owner_is_stably_blocked(
+    provider: object,
+) -> None:
+    repository = _Repository()
+    runner = _ExternalRunner(external_runner_artifact())
+
+    assessment = RunReproducibleMacroFactor(
+        spec_provider=provider,  # type: ignore[arg-type]
+        manifest_provider=_ManifestProvider(complete_manifest()),
+        dataset_provider=_DatasetProvider(runner_dataset()),
+        external_runner=runner,
+        repository=repository,
+    ).execute(_command())
+
+    assert assessment.blocked_reasons == (MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID,)
+    assert runner.requests == []
+    assert repository.bundle is None
+
+
+def test_future_or_post_selection_owner_spec_is_rejected_before_runner() -> None:
+    expected = runner_spec()
+    future = replace(expected, calculated_at=datetime(2030, 1, 1, tzinfo=UTC))
+    late = runner_spec()
+    object.__setattr__(
+        late,
+        "registered_at",
+        min(fold.selection_as_of for fold in late.plan.outer_folds),
+    )
+    runner = _ExternalRunner(external_runner_artifact())
+
+    for owner_spec, command in ((future, _command(future)), (late, _command(expected))):
+        repository = _Repository()
+        assessment = RunReproducibleMacroFactor(
+            spec_provider=_SpecProvider(owner_spec),
+            manifest_provider=_ManifestProvider(complete_manifest()),
+            dataset_provider=_DatasetProvider(runner_dataset()),
+            external_runner=runner,
+            repository=repository,
+            clock=_Clock(datetime(2026, 8, 9, tzinfo=UTC)),
+        ).execute(command)
+
+        assert assessment.blocked_reasons == (MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID,)
+        assert runner.requests == []
+        assert repository.bundle is None
+
+    with pytest.raises(ValueError, match="registered before nested-CV selection"):
+        replace(
+            expected,
+            registered_at=min(fold.selection_as_of for fold in expected.plan.outer_folds),
+        )
+
+
 def test_use_case_runs_typed_external_executor_and_persists_research_bundle() -> None:
     repository = _Repository()
     runner = _ExternalRunner(external_runner_artifact())
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(runner_spec()),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=runner,
@@ -275,6 +439,7 @@ def test_same_manifest_identity_with_replaced_calendar_member_is_rejected() -> N
     runner = _ExternalRunner(external_runner_artifact())
 
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(runner_spec()),
         manifest_provider=_ManifestProvider(replacement),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=runner,
@@ -297,9 +462,10 @@ def test_freshness_governance_cap_and_live_policy_seal_are_required() -> None:
             maximum_allowed_age_seconds=100 * 366 * 24 * 60 * 60,
         )
 
+    spec = runner_spec()
     command = _command()
     object.__setattr__(
-        command.spec.input_knowledge_freshness_policy,
+        spec.input_knowledge_freshness_policy,
         "max_manifest_age_seconds",
         200 * 366 * 24 * 60 * 60,
     )
@@ -307,6 +473,7 @@ def test_freshness_governance_cap_and_live_policy_seal_are_required() -> None:
     runner = _ExternalRunner(external_runner_artifact())
 
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(spec),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=runner,
@@ -355,6 +522,7 @@ def test_command_live_validation_rejects_comparison_overriding_integer_subclass(
     runner = _ExternalRunner(external_runner_artifact())
 
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(runner_spec()),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=runner,
@@ -368,11 +536,13 @@ def test_command_live_validation_rejects_comparison_overriding_integer_subclass(
 
 def test_application_rejects_same_code_spec_semantic_mutation_before_runner() -> None:
     command = _command()
-    object.__setattr__(command.spec.target, "unit", "percent")
+    spec = runner_spec()
+    object.__setattr__(spec.target, "unit", "percent")
     repository = _Repository()
     runner = _ExternalRunner(external_runner_artifact())
 
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(spec),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=runner,
@@ -391,14 +561,16 @@ def test_application_rejects_non_exact_spec_integers_before_runner(
     invalid_value: object,
 ) -> None:
     command = _command()
+    spec = runner_spec()
     if field_name == "horizon_periods":
-        object.__setattr__(command.spec.target, field_name, invalid_value)
+        object.__setattr__(spec.target, field_name, invalid_value)
     else:
-        object.__setattr__(command.spec, field_name, invalid_value)
+        object.__setattr__(spec, field_name, invalid_value)
     repository = _Repository()
     runner = _ExternalRunner(external_runner_artifact())
 
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(spec),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=runner,
@@ -412,12 +584,14 @@ def test_application_rejects_non_exact_spec_integers_before_runner(
 
 def test_external_runner_receives_isolated_copies_and_mutation_prevents_write() -> None:
     source_dataset = runner_dataset()
+    source_spec = runner_spec()
     command = _command()
     source_dataset_hash = source_dataset.content_hash
-    source_policy_hash = command.spec.input_knowledge_freshness_policy.content_hash
+    source_policy_hash = source_spec.input_knowledge_freshness_policy.content_hash
     repository = _Repository()
 
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(source_spec),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(source_dataset),
         external_runner=_MutatingExternalRunner(external_runner_artifact()),
@@ -426,7 +600,7 @@ def test_external_runner_receives_isolated_copies_and_mutation_prevents_write() 
 
     assert assessment.blocked_reasons == (MacroFactorRunnerBlockerCode.EXTERNAL_ARTIFACT_INVALID,)
     assert source_dataset.content_hash == source_dataset_hash
-    assert command.spec.input_knowledge_freshness_policy.content_hash == source_policy_hash
+    assert source_spec.input_knowledge_freshness_policy.content_hash == source_policy_hash
     assert repository.bundle is None
 
 
@@ -454,6 +628,7 @@ def test_missing_manifest_dataset_or_runner_fails_closed_without_writes() -> Non
     for manifest_provider, dataset_provider, runner, expected in cases:
         repository = _Repository()
         assessment = RunReproducibleMacroFactor(
+            spec_provider=_SpecProvider(runner_spec()),
             manifest_provider=manifest_provider,
             dataset_provider=dataset_provider,
             external_runner=runner,
@@ -469,6 +644,7 @@ def test_legacy_external_runner_signature_is_blocked_without_writes() -> None:
     repository = _Repository()
 
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(runner_spec()),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=_LegacyExternalRunner(),  # type: ignore[arg-type]
@@ -483,7 +659,7 @@ def test_legacy_external_runner_signature_is_blocked_without_writes() -> None:
 
 def test_future_evaluation_plan_is_blocked_before_numerical_execution_or_write() -> None:
     command = _command()
-    spec = command.spec
+    spec = runner_spec()
     future_fold = replace(
         spec.plan.outer_folds[-1],
         evaluation_as_of=spec.calculated_at + timedelta(seconds=1),
@@ -500,6 +676,7 @@ def test_future_evaluation_plan_is_blocked_before_numerical_execution_or_write()
     runner = _ExternalRunner(external_runner_artifact())
 
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(spec),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=runner,
@@ -512,9 +689,10 @@ def test_future_evaluation_plan_is_blocked_before_numerical_execution_or_write()
     assert repository.bundle is None
 
     manifest = complete_manifest()
-    trusted_now = command.spec.calculated_at + timedelta(hours=1)
+    trusted_now = runner_spec().calculated_at + timedelta(hours=1)
     object.__setattr__(manifest, "as_of_time", trusted_now + timedelta(microseconds=1))
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(runner_spec()),
         manifest_provider=_ManifestProvider(manifest),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=runner,
@@ -529,14 +707,16 @@ def test_future_evaluation_plan_is_blocked_before_numerical_execution_or_write()
 
 def test_trusted_clock_rejects_future_calculation_and_owner_evidence() -> None:
     command = _command()
+    spec = runner_spec()
     repository = _Repository()
     runner = _ExternalRunner(external_runner_artifact())
     use_case = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(spec),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=runner,
         repository=repository,
-        clock=_Clock(command.spec.calculated_at - timedelta(microseconds=1)),
+        clock=_Clock(spec.calculated_at - timedelta(microseconds=1)),
     )
 
     assessment = use_case.execute(command)
@@ -551,6 +731,7 @@ def test_missing_label_free_inference_row_is_blocked_before_runner_or_write() ->
     runner = _ExternalRunner(external_runner_artifact())
 
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(runner_spec()),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(replace(runner_dataset(), inference_row=None)),
         external_runner=runner,
@@ -580,6 +761,7 @@ def test_provider_failures_and_malformed_owner_objects_are_stably_blocked(
     runner = _ExternalRunner(external_runner_artifact())
 
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(runner_spec()),
         manifest_provider=manifest_provider,  # type: ignore[arg-type]
         dataset_provider=dataset_provider,  # type: ignore[arg-type]
         external_runner=runner,
@@ -596,6 +778,9 @@ def test_provider_failures_and_malformed_owner_objects_are_stably_blocked(
 @pytest.mark.parametrize(
     ("field", "value"),
     (
+        ("expected_spec_id", object()),
+        ("expected_spec_version", WideInt(1)),
+        ("expected_spec_hash", "z" * 64),
         ("expected_manifest_id", object()),
         ("expected_manifest_hash", object()),
         ("expected_manifest_hash", "z" * 64),
@@ -611,6 +796,7 @@ def test_command_identity_is_revalidated_live_before_any_provider_or_runner_call
     runner = _ExternalRunner(external_runner_artifact())
 
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(runner_spec()),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=runner,
@@ -627,6 +813,7 @@ def test_malformed_external_artifact_is_stably_blocked_without_a_write() -> None
     repository = _Repository()
 
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(runner_spec()),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=_MalformedExternalRunner(),  # type: ignore[arg-type]
@@ -644,6 +831,7 @@ def test_external_artifact_is_resealed_live_before_output_persistence() -> None:
     object.__setattr__(artifact.dated_outputs[0], "value", artifact.dated_outputs[0].value + 1)
 
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(runner_spec()),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=_ExternalRunner(artifact),
@@ -670,6 +858,7 @@ def test_external_runner_request_mismatch_is_blocked_not_persisted() -> None:
     )
     repository = _Repository()
     assessment = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(runner_spec()),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=_ExternalRunner(mismatched),
@@ -684,6 +873,7 @@ def test_external_runner_request_mismatch_is_blocked_not_persisted() -> None:
 def test_retirement_appends_event_without_mutating_run_or_source_result() -> None:
     repository = _Repository()
     recorded = RunReproducibleMacroFactor(
+        spec_provider=_SpecProvider(runner_spec()),
         manifest_provider=_ManifestProvider(complete_manifest()),
         dataset_provider=_DatasetProvider(runner_dataset()),
         external_runner=_ExternalRunner(external_runner_artifact()),

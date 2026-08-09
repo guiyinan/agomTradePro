@@ -10,6 +10,7 @@ from importlib.metadata import version as package_version
 import pytest
 
 from apps.macro_factor.application.reproducible_runner import (
+    MacroFactorRunnerBlockerCode,
     MacroFactorRunnerStatus,
     RunReproducibleMacroFactorCommand,
 )
@@ -357,6 +358,7 @@ def _synthetic_case() -> tuple[
             parameter_hash="6" * 64,
         ),
         random_seed=1729,
+        registered_at=_at(observations[0], days=-1),
         calculated_at=manifest_as_of + timedelta(days=1),
     )
     config = SklearnNestedCVFittingConfig(
@@ -388,6 +390,22 @@ class _ManifestProvider:
         if self.manifest is None or self.manifest.manifest_id != manifest_id:
             return None
         return self.manifest
+
+
+class _SpecProvider:
+    def __init__(self, spec: MacroFactorRunnerSpec | None) -> None:
+        self.spec = spec
+
+    def get_spec(
+        self,
+        *,
+        spec_id: str,
+        spec_version: int,
+    ) -> MacroFactorRunnerSpec | None:
+        value = self.spec
+        if value is None or value.run_key != spec_id or value.run_version != spec_version:
+            return None
+        return value
 
 
 class _DatasetProvider:
@@ -812,12 +830,15 @@ def test_concrete_composition_records_only_with_complete_providers() -> None:
     repository = _Repository()
     runtime = build_concrete_lasso_runner_runtime(
         config=config,
+        spec_provider=_SpecProvider(spec),
         manifest_provider=_ManifestProvider(manifest),
         dataset_provider=_DatasetProvider(dataset),
         repository=repository,
     )
     command = RunReproducibleMacroFactorCommand(
-        spec=spec,
+        expected_spec_id=spec.run_key,
+        expected_spec_version=spec.run_version,
+        expected_spec_hash=spec.content_hash,
         expected_manifest_id=manifest.manifest_id,
         expected_manifest_hash=manifest.manifest_hash,
         expected_manifest_content_hash=manifest.content_hash,
@@ -846,9 +867,21 @@ def test_concrete_composition_records_only_with_complete_providers() -> None:
     unavailable_repository = _Repository()
     unavailable = build_concrete_lasso_runner_runtime(
         config=config,
+        spec_provider=_SpecProvider(spec),
         manifest_provider=None,
         dataset_provider=_DatasetProvider(dataset),
         repository=unavailable_repository,
     ).run.execute(command)
     assert unavailable.status is MacroFactorRunnerStatus.BLOCKED
+    assert unavailable_repository.bundle is None
+
+    missing_spec_owner = build_concrete_lasso_runner_runtime(
+        config=config,
+        spec_provider=None,
+        manifest_provider=_ManifestProvider(manifest),
+        dataset_provider=_DatasetProvider(dataset),
+        repository=unavailable_repository,
+    ).run.execute(command)
+    assert missing_spec_owner.status is MacroFactorRunnerStatus.BLOCKED
+    assert missing_spec_owner.blocked_reasons == (MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID,)
     assert unavailable_repository.bundle is None

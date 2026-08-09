@@ -60,6 +60,18 @@ class MacroFactorRunnerManifestProvider(Protocol):
         """Return exact immutable PIT evidence or ``None``."""
 
 
+class MacroFactorRunnerSpecProvider(Protocol):
+    """Read one preregistered runner specification by owner identity."""
+
+    def get_spec(
+        self,
+        *,
+        spec_id: str,
+        spec_version: int,
+    ) -> MacroFactorRunnerSpec | None:
+        """Return the exact authoritative spec body or ``None``."""
+
+
 class MacroFactorRunnerDatasetProvider(Protocol):
     """Build in-memory design rows from a manifest-bound Data Center view."""
 
@@ -131,9 +143,11 @@ class MacroFactorRunLedgerRepository(Protocol):
 
 @dataclass(frozen=True)
 class RunReproducibleMacroFactorCommand:
-    """Exact runner spec and expected canonical manifest identity."""
+    """Identity-only selector for authoritative runner and PIT contracts."""
 
-    spec: MacroFactorRunnerSpec
+    expected_spec_id: str
+    expected_spec_version: int
+    expected_spec_hash: str
     expected_manifest_id: str
     expected_manifest_hash: str
     expected_manifest_content_hash: str
@@ -144,6 +158,10 @@ class RunReproducibleMacroFactorCommand:
     expected_maximum_allowed_age_seconds: int
 
     def __post_init__(self) -> None:
+        if not isinstance(self.expected_spec_id, str) or not self.expected_spec_id.strip():
+            raise ValueError("expected_spec_id cannot be blank")
+        if type(self.expected_spec_version) is not int or self.expected_spec_version <= 0:
+            raise ValueError("expected_spec_version must be a positive integer")
         if not isinstance(self.expected_manifest_id, str) or not self.expected_manifest_id.strip():
             raise ValueError("expected_manifest_id cannot be blank")
         if (
@@ -156,6 +174,7 @@ class RunReproducibleMacroFactorCommand:
         ):
             raise ValueError("expected_manifest_hash must be a sha256 digest")
         for digest, name in (
+            (self.expected_spec_hash, "expected_spec_hash"),
             (self.expected_manifest_content_hash, "expected_manifest_content_hash"),
             (
                 self.expected_input_freshness_policy_hash,
@@ -186,21 +205,6 @@ class RunReproducibleMacroFactorCommand:
         ):
             if type(age_seconds) is not int or age_seconds <= 0:
                 raise ValueError(f"{name} must be a positive integer")
-        spec = self.spec.validated_copy()
-        freshness = spec.input_knowledge_freshness_policy.validated_copy()
-        if (
-            spec.expected_manifest_content_hash.lower()
-            != self.expected_manifest_content_hash.lower()
-        ):
-            raise ValueError("command manifest content seal does not match runner spec")
-        if (
-            freshness.policy_version != self.expected_input_freshness_policy_version
-            or freshness.content_hash.lower() != self.expected_input_freshness_policy_hash.lower()
-            or freshness.max_manifest_age_seconds != self.expected_max_manifest_age_seconds
-            or freshness.max_inference_age_seconds != self.expected_max_inference_age_seconds
-            or freshness.maximum_allowed_age_seconds != self.expected_maximum_allowed_age_seconds
-        ):
-            raise ValueError("command freshness policy does not match runner spec")
 
 
 @dataclass(frozen=True)
@@ -244,12 +248,14 @@ class RunReproducibleMacroFactor:
     def __init__(
         self,
         *,
+        spec_provider: MacroFactorRunnerSpecProvider,
         manifest_provider: MacroFactorRunnerManifestProvider,
         dataset_provider: MacroFactorRunnerDatasetProvider,
         external_runner: TypedExternalMacroFactorRunner,
         repository: MacroFactorRunLedgerRepository,
         clock: MacroFactorRunnerClock | None = None,
     ) -> None:
+        self._spec_provider = spec_provider
         self._manifest_provider = manifest_provider
         self._dataset_provider = dataset_provider
         self._external_runner = external_runner
@@ -271,11 +277,47 @@ class RunReproducibleMacroFactor:
                 or trusted_now.utcoffset() is None
             ):
                 raise ValueError("macro-factor trusted clock must be timezone-aware")
-            spec = deepcopy(command.spec).validated_copy()
-            if spec.calculated_at > trusted_now:
-                raise ValueError("macro-factor calculated_at cannot be in the future")
         except Exception:
             logger.exception("macro-factor trusted run input validation failed")
+            return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
+        try:
+            spec_value = self._spec_provider.get_spec(
+                spec_id=command.expected_spec_id,
+                spec_version=command.expected_spec_version,
+            )
+        except Exception:
+            logger.exception("macro-factor runner spec provider failed")
+            return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
+        if spec_value is None or type(spec_value) is not MacroFactorRunnerSpec:
+            return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
+        try:
+            spec = deepcopy(spec_value).validated_copy()
+            freshness = spec.input_knowledge_freshness_policy.validated_copy()
+            if (
+                spec.run_key != command.expected_spec_id
+                or spec.run_version != command.expected_spec_version
+                or spec.content_hash.lower() != command.expected_spec_hash.lower()
+            ):
+                raise ValueError("authoritative runner spec identity was replaced")
+            if (
+                spec.expected_manifest_content_hash.lower()
+                != command.expected_manifest_content_hash.lower()
+            ):
+                raise ValueError("command manifest content seal does not match runner spec")
+            if (
+                freshness.policy_version != command.expected_input_freshness_policy_version
+                or freshness.content_hash.lower()
+                != command.expected_input_freshness_policy_hash.lower()
+                or freshness.max_manifest_age_seconds != command.expected_max_manifest_age_seconds
+                or freshness.max_inference_age_seconds != command.expected_max_inference_age_seconds
+                or freshness.maximum_allowed_age_seconds
+                != command.expected_maximum_allowed_age_seconds
+            ):
+                raise ValueError("command freshness policy does not match runner spec")
+            if spec.registered_at > trusted_now or spec.calculated_at > trusted_now:
+                raise ValueError("macro-factor runner spec cannot be from the future")
+        except Exception:
+            logger.exception("macro-factor authoritative runner spec validation failed")
             return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
         try:
             manifest_value = self._manifest_provider.get_manifest(command.expected_manifest_id)
@@ -460,6 +502,7 @@ __all__ = [
     "MacroFactorRunnerClock",
     "MacroFactorRunnerDatasetProvider",
     "MacroFactorRunnerManifestProvider",
+    "MacroFactorRunnerSpecProvider",
     "MacroFactorRunnerStatus",
     "RetireReproducibleMacroFactorRun",
     "RetireReproducibleMacroFactorRunCommand",

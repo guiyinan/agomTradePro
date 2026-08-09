@@ -200,6 +200,7 @@ class MacroFactorRunnerSpec:
     output_validity_policy: ResearchOutputValidityPolicy
     reproducibility: ReproducibilityEvidence
     random_seed: int
+    registered_at: datetime
     calculated_at: datetime
     content_hash: str = field(init=False)
 
@@ -211,6 +212,7 @@ class MacroFactorRunnerSpec:
             self.expected_manifest_content_hash,
             "MacroFactorRunnerSpec.expected_manifest_content_hash",
         )
+        require_aware(self.registered_at, "MacroFactorRunnerSpec.registered_at")
         require_aware(self.calculated_at, "MacroFactorRunnerSpec.calculated_at")
         _validated_target(self.target)
         tuple(_validated_candidate(item) for item in self.candidates)
@@ -245,6 +247,9 @@ class MacroFactorRunnerSpec:
                 "MacroFactorRunnerSpec.calculated_at cannot precede fold selection or "
                 "evaluation evidence"
             )
+        earliest_selection = min(fold.selection_as_of for fold in self.plan.outer_folds)
+        if self.registered_at >= earliest_selection:
+            raise ValueError("MacroFactorRunnerSpec must be registered before nested-CV selection")
         if type(self.random_seed) is not int or self.random_seed < 0:
             raise ValueError(
                 "MacroFactorRunnerSpec.random_seed must be an integer and cannot be negative"
@@ -351,6 +356,7 @@ class MacroFactorRunnerSpec:
                 "parameter_hash": self.reproducibility.parameter_hash.lower(),
             },
             "random_seed": self.random_seed,
+            "registered_at": utc_text(self.registered_at),
             "calculated_at": utc_text(self.calculated_at),
         }
 
@@ -400,6 +406,7 @@ class MacroFactorRunnerSpec:
                 parameter_hash=self.reproducibility.parameter_hash,
             ),
             random_seed=self.random_seed,
+            registered_at=self.registered_at,
             calculated_at=self.calculated_at,
         )
         if self.content_hash.lower() != validated.content_hash.lower():

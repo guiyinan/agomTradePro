@@ -8,6 +8,7 @@ from apps.macro_factor.application.reproducible_runner import (
     MacroFactorRunLedgerRepository,
     MacroFactorRunnerDatasetProvider,
     MacroFactorRunnerManifestProvider,
+    MacroFactorRunnerSpecProvider,
     RunReproducibleMacroFactor,
 )
 from apps.macro_factor.domain.entities import PITManifestEvidence
@@ -36,6 +37,18 @@ class ConcreteLassoRunnerRuntime:
 class _UnavailableManifestProvider:
     def get_manifest(self, manifest_id: str) -> PITManifestEvidence | None:
         """Return no manifest when composition is incomplete."""
+
+        return None
+
+
+class _UnavailableSpecProvider:
+    def get_spec(
+        self,
+        *,
+        spec_id: str,
+        spec_version: int,
+    ) -> MacroFactorRunnerSpec | None:
+        """Return no spec when no authoritative owner was composed."""
 
         return None
 
@@ -104,31 +117,28 @@ class _UnavailableRepository:
 def build_concrete_lasso_runner_runtime(
     *,
     config: SklearnNestedCVFittingConfig | None,
+    spec_provider: MacroFactorRunnerSpecProvider | None,
     manifest_provider: MacroFactorRunnerManifestProvider | None,
     dataset_provider: MacroFactorRunnerDatasetProvider | None,
     repository: MacroFactorRunLedgerRepository | None,
 ) -> ConcreteLassoRunnerRuntime:
     """Compose the concrete adapter only when every required owner is present."""
 
-    if (
-        config is None
-        or manifest_provider is None
-        or dataset_provider is None
-        or repository is None
-    ):
-        use_case = RunReproducibleMacroFactor(
-            manifest_provider=_UnavailableManifestProvider(),
-            dataset_provider=_UnavailableDatasetProvider(),
-            external_runner=_UnavailableExternalRunner(),
-            repository=_UnavailableRepository(),
-        )
-    else:
-        use_case = RunReproducibleMacroFactor(
-            manifest_provider=manifest_provider,
-            dataset_provider=dataset_provider,
-            external_runner=SklearnNestedCVLassoRunner(config),
-            repository=repository,
-        )
+    use_case = RunReproducibleMacroFactor(
+        spec_provider=(spec_provider if spec_provider is not None else _UnavailableSpecProvider()),
+        manifest_provider=(
+            manifest_provider if manifest_provider is not None else _UnavailableManifestProvider()
+        ),
+        dataset_provider=(
+            dataset_provider if dataset_provider is not None else _UnavailableDatasetProvider()
+        ),
+        external_runner=(
+            SklearnNestedCVLassoRunner(config)
+            if config is not None
+            else _UnavailableExternalRunner()
+        ),
+        repository=repository if repository is not None else _UnavailableRepository(),
+    )
     return ConcreteLassoRunnerRuntime(run=use_case)
 
 

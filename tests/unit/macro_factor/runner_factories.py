@@ -251,6 +251,7 @@ def runner_spec() -> MacroFactorRunnerSpec:
             parameter_hash="c" * 64,
         ),
         random_seed=1729,
+        registered_at=datetime(2014, 12, 31, tzinfo=UTC),
         calculated_at=datetime(2026, 7, 2, 10, tzinfo=UTC),
     )
 
