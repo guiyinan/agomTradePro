@@ -80,6 +80,10 @@ from apps.portfolio.domain.optimizer_inputs import (
 from apps.portfolio.domain.path_drawdown import DrawdownRiskBudgetPayload
 
 
+class GovernedOptimizationUnavailable(ValueError):
+    """Authoritative R8 input or authorization evidence is unavailable."""
+
+
 class GovernedOptimizationInputSetProvider(Protocol):
     """Authoritative Application port for one exact governed input set."""
 
@@ -198,8 +202,10 @@ class AssembleGovernedOptimizationProblemUseCase:
             input_set_id=command.input_set_id,
             evaluated_at=command.created_at,
         )
-        if input_set is None or input_set.input_set_id != command.input_set_id:
-            raise ValueError("canonical governed input set is unavailable")
+        if input_set is None:
+            raise GovernedOptimizationUnavailable("canonical governed input set is unavailable")
+        if input_set.input_set_id != command.input_set_id:
+            raise ValueError("canonical governed input set identity mismatch")
         _validate_exact_promotions(
             input_set=input_set,
             provider=self._promotion_provider,
@@ -499,7 +505,11 @@ class AppendGovernedOptimizationLifecycleEventUseCase:
                 decision_id=promotion_attestation.decision_id,
                 evaluated_at=occurred_at,
             )
-            if trusted_promotion is None or trusted_promotion != promotion_attestation:
+            if trusted_promotion is None:
+                raise GovernedOptimizationUnavailable(
+                    "Research Promotion authorization is unavailable"
+                )
+            if trusted_promotion != promotion_attestation:
                 raise ValueError("Research Promotion authorization is not authoritative")
         elif event_type in {
             OptimizationLifecycleEventType.RETIRED,
@@ -514,7 +524,11 @@ class AppendGovernedOptimizationLifecycleEventUseCase:
                 event_type=event_type,
                 evaluated_at=recorded_at,
             )
-            if trusted_owner is None or trusted_owner != owner_attestation:
+            if trusted_owner is None:
+                raise GovernedOptimizationUnavailable(
+                    "Portfolio lifecycle authorization is unavailable"
+                )
+            if trusted_owner != owner_attestation:
                 raise ValueError("Portfolio lifecycle authorization is not authoritative")
         else:
             raise ValueError("lifecycle append use case only accepts governed transitions")
@@ -700,8 +714,12 @@ def _validate_exact_promotions(
             decision_id=claimed.decision_id,
             evaluated_at=evaluated_at,
         )
-        if trusted is None or trusted != claimed:
-            raise ValueError("exact Research promotion evidence is unavailable")
+        if trusted is None:
+            raise GovernedOptimizationUnavailable(
+                "exact Research promotion evidence is unavailable"
+            )
+        if trusted != claimed:
+            raise ValueError("exact Research promotion evidence is substituted")
         if trusted.attestation_hash != exact_promotion_attestation_hash(trusted):
             raise ValueError("exact Research promotion evidence hash mismatch")
         if (
@@ -830,6 +848,7 @@ __all__ = [
     "GovernedOptimizationLifecycleRepository",
     "GovernedOptimizationInputSetProvider",
     "GovernedOptimizationRunBundle",
+    "GovernedOptimizationUnavailable",
     "RunGovernedOptimizationResearchUseCase",
     "governed_optimization_assembly_hash",
 ]

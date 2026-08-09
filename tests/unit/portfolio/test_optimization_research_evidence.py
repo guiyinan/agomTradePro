@@ -10,6 +10,7 @@ import pytest
 
 from apps.portfolio.application.governed_optimization import (
     AppendGovernedOptimizationLifecycleEventUseCase,
+    GovernedOptimizationUnavailable,
 )
 from apps.portfolio.domain._optimization_canonical import hash_components
 from apps.portfolio.domain.constrained_optimization import (
@@ -470,7 +471,10 @@ def test_lifecycle_application_requires_exact_authoritative_providers() -> None:
         approved_at=NOW + timedelta(hours=1),
         valid_until=LATER,
     )
-    with pytest.raises(ValueError, match="Promotion authorization is not authoritative"):
+    with pytest.raises(
+        GovernedOptimizationUnavailable,
+        match="Promotion authorization is unavailable",
+    ):
         use_case.execute(
             result=result,
             previous_events=(root,),
@@ -490,7 +494,10 @@ def test_lifecycle_application_requires_exact_authoritative_providers() -> None:
         reason_hash=hash_components("optimization-lifecycle-reasons.v1", *reasons),
         issued_at=NOW + timedelta(hours=2),
     )
-    with pytest.raises(ValueError, match="lifecycle authorization is not authoritative"):
+    with pytest.raises(
+        GovernedOptimizationUnavailable,
+        match="lifecycle authorization is unavailable",
+    ):
         use_case.execute(
             result=result,
             previous_events=(root,),

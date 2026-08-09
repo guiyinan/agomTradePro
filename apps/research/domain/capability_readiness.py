@@ -243,7 +243,7 @@ _REQUIREMENT_OWNERS: dict[ReadinessRequirement, str] = {
     ReadinessRequirement.R5_PROMOTED_FIXED_INCOME_VERSION: "research",
     ReadinessRequirement.EXECUTION_FEEDBACK_RECONCILED: "broker_execution",
     ReadinessRequirement.OPTIMIZER_INPUT_CONTRACT: "portfolio",
-    ReadinessRequirement.OPTIMIZER_BASELINE_FAIL_CLOSED_POLICY: "research",
+    ReadinessRequirement.OPTIMIZER_BASELINE_FAIL_CLOSED_POLICY: "portfolio",
 }
 
 

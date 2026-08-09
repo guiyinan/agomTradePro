@@ -231,6 +231,13 @@ def test_r8_requires_all_upstream_promoted_versions() -> None:
     assert {item.requirement for item in report.blockers} == promoted_versions
 
 
+def test_r8_snapshot_is_live_portfolio_evidence_while_baseline_policy_is_portfolio_code() -> None:
+    assert requirement_owner(ReadinessRequirement.PORTFOLIO_CANONICAL_SNAPSHOT) == "portfolio"
+    assert (
+        requirement_owner(ReadinessRequirement.OPTIMIZER_BASELINE_FAIL_CLOSED_POLICY) == "portfolio"
+    )
+
+
 @pytest.mark.parametrize(
     ("evidence", "message"),
     [

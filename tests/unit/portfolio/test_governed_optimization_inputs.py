@@ -5,13 +5,18 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 
 from apps.portfolio.application.governed_optimization import (
     AssembleGovernedOptimizationCommand,
     AssembleGovernedOptimizationProblemUseCase,
+    GovernedOptimizationRunBundle,
+    GovernedOptimizationUnavailable,
+    RunGovernedOptimizationResearchUseCase,
 )
+from apps.portfolio.composition import make_governed_optimization_research_runtime
 from apps.portfolio.domain.canonical_snapshots import (
     CanonicalPortfolioSnapshot,
     CanonicalPosition,
@@ -75,6 +80,9 @@ from apps.portfolio.domain.macro_factor_risk import (
     MacroFactorBeta,
 )
 from apps.portfolio.domain.optimizer_inputs import OptimizationInputKind
+from apps.portfolio.infrastructure.deterministic_optimizer import (
+    DeterministicConstrainedSearchAdapter,
+)
 
 NOW = datetime(2026, 8, 5, 9, tzinfo=UTC)
 LATER = NOW + timedelta(days=30)
@@ -455,6 +463,92 @@ class _PromotionProvider:
         return self._promotions.get((capability_key, decision_id))
 
 
+class _RunRepository:
+    def __init__(self) -> None:
+        self.bundles: list[GovernedOptimizationRunBundle] = []
+
+    def append_bundle(
+        self,
+        bundle: GovernedOptimizationRunBundle,
+    ) -> GovernedOptimizationRunBundle:
+        self.bundles.append(bundle)
+        return bundle
+
+
+def _command(input_set: GovernedOptimizationInputSet) -> AssembleGovernedOptimizationCommand:
+    exposures = tuple(
+        AssetMacroExposure(
+            asset_code=code,
+            betas=(
+                MacroFactorBeta(
+                    factor_code="growth",
+                    beta=Decimal("0.20"),
+                    confidence_low=Decimal("0.10"),
+                    confidence_high=Decimal("0.30"),
+                ),
+            ),
+            residual_variance=Decimal("0.01"),
+            r_squared=Decimal("0.60"),
+            stability_score=Decimal("0.80"),
+        )
+        for code in ("A.SH", "B.FUND", "C.BOND", "D.COM")
+    )
+    return AssembleGovernedOptimizationCommand(
+        problem_id="problem:governed:v1",
+        problem_version="problem.v2",
+        decision_snapshot_id="decision:snapshot:v1",
+        canonical_snapshot=_snapshot(),
+        input_set_id=input_set.input_set_id,
+        objective=OptimizationObjective(
+            objective_version="objective.v1",
+            expected_return_weight=Decimal("1"),
+            variance_penalty=Decimal("1"),
+            transaction_cost_penalty=Decimal("1"),
+        ),
+        validation_policy=OptimizationValidationPolicy(
+            policy_version="validation.v1",
+            activated_at=NOW,
+            valid_until=LATER,
+            weight_tolerance=Decimal("0.000001"),
+            covariance_symmetry_tolerance=Decimal("0.000001"),
+            covariance_psd_tolerance=Decimal("0.000001"),
+            solver_max_iterations=10,
+            solver_initial_step=Decimal("0.05"),
+            solver_minimum_step=Decimal("0.001"),
+            risk_parity_max_iterations=10,
+            risk_parity_tolerance=Decimal("0.01"),
+        ),
+        macro_exposure_version=MacroExposureVersion(
+            version_id="artifact:r4:v1",
+            promoted_factor_version="r3.v1",
+            promotion_decision_id="promotion:r4:v1",
+            pit_manifest_id="pit:optimizer-inputs:v1",
+            code_version="code.v1",
+            parameter_version="parameter.v1",
+            observed_at=NOW,
+            valid_until=LATER,
+            exposures=exposures,
+        ),
+        macro_factor_covariance=FactorCovarianceVersion(
+            version_id="macro-covariance:v1",
+            factor_codes=("growth",),
+            values=((Decimal("0.03"),),),
+            pit_manifest_id="pit:optimizer-inputs:v1",
+            estimator_version="estimator.v1",
+            observed_at=NOW,
+            valid_until=LATER,
+        ),
+        macro_risk_budget=MacroRiskBudget.create(
+            budget_version="macro-budget.v1",
+            maximum_factor_variance=Decimal("1"),
+            target_contribution_shares=(("growth", Decimal("1")),),
+            maximum_target_deviation=Decimal("1"),
+        ),
+        created_at=NOW,
+        valid_until=LATER,
+    )
+
+
 def test_published_universe_retains_held_sell_only_asset_and_builds_current_baseline() -> None:
     universe = _universe()
     baseline = build_current_configuration_baseline(
@@ -594,77 +688,7 @@ def test_governed_input_set_rejects_fake_owner_and_missing_exact_promotion_linea
 
 def test_trusted_assembler_rebuilds_solver_problem_from_all_typed_payloads() -> None:
     input_set = _input_set()
-    exposures = tuple(
-        AssetMacroExposure(
-            asset_code=code,
-            betas=(
-                MacroFactorBeta(
-                    factor_code="growth",
-                    beta=Decimal("0.20"),
-                    confidence_low=Decimal("0.10"),
-                    confidence_high=Decimal("0.30"),
-                ),
-            ),
-            residual_variance=Decimal("0.01"),
-            r_squared=Decimal("0.60"),
-            stability_score=Decimal("0.80"),
-        )
-        for code in ("A.SH", "B.FUND", "C.BOND", "D.COM")
-    )
-    command = AssembleGovernedOptimizationCommand(
-        problem_id="problem:governed:v1",
-        problem_version="problem.v2",
-        decision_snapshot_id="decision:snapshot:v1",
-        canonical_snapshot=_snapshot(),
-        input_set_id=input_set.input_set_id,
-        objective=OptimizationObjective(
-            objective_version="objective.v1",
-            expected_return_weight=Decimal("1"),
-            variance_penalty=Decimal("1"),
-            transaction_cost_penalty=Decimal("1"),
-        ),
-        validation_policy=OptimizationValidationPolicy(
-            policy_version="validation.v1",
-            activated_at=NOW,
-            valid_until=LATER,
-            weight_tolerance=Decimal("0.000001"),
-            covariance_symmetry_tolerance=Decimal("0.000001"),
-            covariance_psd_tolerance=Decimal("0.000001"),
-            solver_max_iterations=10,
-            solver_initial_step=Decimal("0.05"),
-            solver_minimum_step=Decimal("0.001"),
-            risk_parity_max_iterations=10,
-            risk_parity_tolerance=Decimal("0.01"),
-        ),
-        macro_exposure_version=MacroExposureVersion(
-            version_id="artifact:r4:v1",
-            promoted_factor_version="r3.v1",
-            promotion_decision_id="promotion:r4:v1",
-            pit_manifest_id="pit:optimizer-inputs:v1",
-            code_version="code.v1",
-            parameter_version="parameter.v1",
-            observed_at=NOW,
-            valid_until=LATER,
-            exposures=exposures,
-        ),
-        macro_factor_covariance=FactorCovarianceVersion(
-            version_id="macro-covariance:v1",
-            factor_codes=("growth",),
-            values=((Decimal("0.03"),),),
-            pit_manifest_id="pit:optimizer-inputs:v1",
-            estimator_version="estimator.v1",
-            observed_at=NOW,
-            valid_until=LATER,
-        ),
-        macro_risk_budget=MacroRiskBudget.create(
-            budget_version="macro-budget.v1",
-            maximum_factor_variance=Decimal("1"),
-            target_contribution_shares=(("growth", Decimal("1")),),
-            maximum_target_deviation=Decimal("1"),
-        ),
-        created_at=NOW,
-        valid_until=LATER,
-    )
+    command = _command(input_set)
     assembly = AssembleGovernedOptimizationProblemUseCase(
         input_set_provider=_InputSetProvider(input_set),
         promotion_provider=_PromotionProvider(input_set.promotions),
@@ -750,6 +774,48 @@ def test_trusted_assembler_rebuilds_solver_problem_from_all_typed_payloads() -> 
                 ),
             )
         )
+
+
+def test_governed_run_compares_all_four_candidates_and_stays_research_only() -> None:
+    input_set = _input_set()
+    repository = _RunRepository()
+    use_case = RunGovernedOptimizationResearchUseCase(
+        assembler=AssembleGovernedOptimizationProblemUseCase(
+            input_set_provider=_InputSetProvider(input_set),
+            promotion_provider=_PromotionProvider(input_set.promotions),
+        ),
+        engine=DeterministicConstrainedSearchAdapter(),
+        repository=repository,
+    )
+
+    bundle = use_case.execute(
+        command=_command(input_set),
+        run_key="r8-governed-run",
+        run_version="v1",
+    )
+
+    assert repository.bundles == [bundle]
+    assert {item.candidate_kind for item in bundle.result.candidates} == set(CandidateKind)
+    assert bundle.result.research_only is True
+    assert bundle.result.must_not_execute is True
+    assert bundle.result.must_not_use_for_decision is True
+
+
+def test_production_composition_is_constructable_but_unavailable_before_any_write() -> None:
+    runtime = make_governed_optimization_research_runtime()
+
+    with patch.object(runtime.repository, "append_bundle") as append_bundle:
+        with pytest.raises(
+            GovernedOptimizationUnavailable,
+            match="canonical governed input set is unavailable",
+        ):
+            runtime.run.execute(
+                command=_command(_input_set()),
+                run_key="r8-production-unavailable",
+                run_version="v1",
+            )
+
+    append_bundle.assert_not_called()
 
 
 def test_nested_market_and_drawdown_rows_cannot_cross_the_pit_cutoff() -> None:

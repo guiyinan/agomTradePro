@@ -9,6 +9,10 @@ from apps.portfolio.application.use_cases import (
     SubmitApprovedPlanUseCase,
     ValidateTransitionPlanUseCase,
 )
+from apps.portfolio.governed_optimization_composition import (
+    DjangoGovernedOptimizationResearchRuntime,
+    build_django_governed_optimization_research_runtime,
+)
 from apps.portfolio.infrastructure.canonical_snapshot_repositories import (
     DjangoCanonicalPortfolioSnapshotRepository,
 )
@@ -42,6 +46,12 @@ def make_canonical_portfolio_snapshot_query_service() -> CanonicalPortfolioSnaps
     """Compose the only supported cross-App snapshot read surface."""
 
     return CanonicalPortfolioSnapshotQueryService(DjangoCanonicalPortfolioSnapshotRepository())
+
+
+def make_governed_optimization_research_runtime() -> DjangoGovernedOptimizationResearchRuntime:
+    """Compose R8 while keeping unavailable owner evidence fail closed."""
+
+    return build_django_governed_optimization_research_runtime()
 
 
 def get_transition_plan(plan_id: str):  # type: ignore[no-untyped-def]

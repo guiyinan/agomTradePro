@@ -14,13 +14,18 @@ from apps.research.domain.capability_readiness import (
 )
 
 NOW = datetime(2026, 8, 5, 12, tzinfo=UTC)
+R8_ATTESTATION_TIME = datetime(2026, 8, 9, 12, tzinfo=UTC)
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
-def _states(capability: ResearchCapability) -> dict[ReadinessRequirement, ReadinessState]:
+def _states(
+    capability: ResearchCapability,
+    *,
+    evaluated_at: datetime = NOW,
+) -> dict[ReadinessRequirement, ReadinessState]:
     report = make_evaluate_capability_readiness().execute(
         capability=capability,
-        evaluated_at=NOW,
+        evaluated_at=evaluated_at,
     )
     assert report.decision is ReadinessDecision.BLOCKED
     return {item.requirement: item.state for item in report.evidence}
@@ -62,15 +67,21 @@ def test_r5_runtime_attests_research_only_scope_without_inventing_data() -> None
     assert states[ReadinessRequirement.DURATION_CONVEXITY_RECONCILED] is ReadinessState.UNVERIFIED
 
 
-def test_r8_runtime_attests_input_mechanisms_without_inventing_versions() -> None:
-    states = _states(ResearchCapability.MULTI_ASSET_OPTIMIZATION)
+def test_r8_runtime_attests_optimizer_mechanisms_without_inventing_live_evidence() -> None:
+    states = _states(
+        ResearchCapability.MULTI_ASSET_OPTIMIZATION,
+        evaluated_at=R8_ATTESTATION_TIME,
+    )
 
     assert states[ReadinessRequirement.PORTFOLIO_PLANNING_CONSTRAINTS] is (ReadinessState.VERIFIED)
     assert states[ReadinessRequirement.RISK_CENTER_SCENARIO_INPUT] is (ReadinessState.VERIFIED)
-    assert states[ReadinessRequirement.PORTFOLIO_CANONICAL_SNAPSHOT] is (ReadinessState.VERIFIED)
+    assert states[ReadinessRequirement.PORTFOLIO_CANONICAL_SNAPSHOT] is (ReadinessState.UNVERIFIED)
     assert states[ReadinessRequirement.R3_PROMOTED_FACTOR_VERSION] is (ReadinessState.UNVERIFIED)
     assert states[ReadinessRequirement.EXECUTION_FEEDBACK_RECONCILED] is (ReadinessState.MISSING)
     assert states[ReadinessRequirement.OPTIMIZER_INPUT_CONTRACT] is ReadinessState.VERIFIED
+    assert states[ReadinessRequirement.OPTIMIZER_BASELINE_FAIL_CLOSED_POLICY] is (
+        ReadinessState.VERIFIED
+    )
 
 
 def test_runtime_verified_evidence_is_time_bounded_and_auditable() -> None:
