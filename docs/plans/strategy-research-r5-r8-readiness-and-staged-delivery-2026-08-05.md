@@ -5,6 +5,8 @@
 > 实施边界：本阶段只交付启动门禁、证据清单和后续最小纵切，不训练模型、不生成概率、不构造债券事实、不运行优化器、不触发真实交易
 > 数据边界：以下数据库证据来自 2026-08-05 对本地 `db.sqlite3` 的只读审计，不代表生产环境状态；生产启动仍须重新取证
 
+> 2026-08-09 R8 lifecycle 事务治理续批：lifecycle 写入口改为 ID-only；result、stream、Research Promotion 与 Portfolio authorization 在同一 UoW 内双次精确重读，event 使用 repository trusted server clock。Selector substitution、authorization retire-between、UoW 漂移、fork/race 和 provider/repository 异常均在 append 前稳定阻断；existing winner 必须锁 result 并完整重放 stream。Production runtime 仅暴露无状态 façade，公开对象图不保留 repository/store/token。真实 owner providers 与 post-promotion optimization monitoring 尚未形成，R8 保持 `blocked`。
+
 ## 1. 本阶段结论
 
 R5—R8 都具有部分基础代码，但没有一项同时满足备忘中的数据、研究和生产证据条件。因此本阶段不把任何能力标记为已启动：

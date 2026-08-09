@@ -12,6 +12,10 @@
 
 > 2026-08-09 runner contract integrity 续批：`MacroFactorRunnerSpec` 以全字段 canonical `content_hash` 封存 target/candidate、split、benchmark、cost、reproducibility、freshness 与 validity；execution request 同时携带完整 typed definitions 与 `spec_hash`，sklearn adapter 在拟合前重建并精确比对 request/dataset/spec。Manifest factory 聚合前重验 calendar member 与 slice seal；所有版本、期间、样本数、seed、age、iteration 与 artifact length 使用 exact built-in `int`，float/bool/int subclass 和同 code 语义替换均拒绝。Temporal-CV contracts 与 runner spec 拆成独立纯 Domain 模块，Macro Factor unit `133 passed`。软件合同闭合不替代真实 owner manifest、PIT 数据、trial 或 Promotion，R3 仍 `blocked`。
 
+> 2026-08-09 authoritative spec 续批：`RunReproducibleMacroFactorCommand` 只携 spec ID/version/hash 与 manifest/freshness identity，完整 spec 必须由注入的 `MacroFactorRunnerSpecProvider` 精确重读。`registered_at` 进入 spec seal并严格早于首个 nested-CV selection；owner 缺失、异常、同 ID 语义替换、未来或迟注册均返回 `RUN_INPUT_INVALID`，runner 与 ledger 零调用。现有通用 Research Registry 不能无损表达完整 runner spec，production composition 因此保持 unavailable，而不是构造伪 owner adapter。Macro Factor unit `146 passed`；真实 registry persistence、PIT 数据、trial 与 Promotion 仍未形成。
+
+> 2026-08-09 R4 monitoring Phase A：新增版本化 11 指标 policy、canonical period calendar、Portfolio-owned raw fact seal 与 assessment；连续 breach、任一完整期间 label/data drift、fresh/future/missing/substitution 均 fail closed，输出限定为 `HEALTHY / BREACHED / RETIREMENT_REVIEW_REQUIRED / BLOCKED`。Application command 仅携 policy/active-decision identity 与 as-of，六个 owner provider 必须共享同一 UoW；`automatic_retirement` 固定为 false。该批无 ORM/migration/composition，不接 current、consumer 或 execution；真实 owner facts 与晋级版本仍缺，R4 保持 `blocked`。
+
 ## 1. 启动决策
 
 R3 与 R4 当前均不允许进入模型实现：
