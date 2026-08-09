@@ -1,7 +1,7 @@
 {
   "counts": {
-    "cross_app_orm_imports": 51,
-    "current_surface_references": 3420,
+    "cross_app_orm_imports": 49,
+    "current_surface_references": 3432,
     "data_write_task_decorators": 58,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 4,
@@ -11,19 +11,9 @@
   },
   "cross_app_orm_imports": [
     {
-      "import": "apps.config_center.infrastructure.models",
-      "line": 7,
-      "path": "apps/account/infrastructure/models.py"
-    },
-    {
       "import": "apps.signal.infrastructure.models",
       "line": 29,
       "path": "apps/account/infrastructure/position_repository.py"
-    },
-    {
-      "import": "apps.config_center.infrastructure.models",
-      "line": 59,
-      "path": "apps/account/infrastructure/repositories.py"
     },
     {
       "import": "apps.fund.infrastructure.models",
@@ -678,7 +668,7 @@
       "text": "return max(0.0, (peak - current) / peak)"
     },
     {
-      "line": 488,
+      "line": 485,
       "path": "apps/account/infrastructure/account_interface_administration_repository.py",
       "text": "\"\"\"Atomically consume one current backup token and generate its archive.\"\"\""
     },
@@ -698,12 +688,12 @@
       "text": "\"\"\"Return positions and summary statistics for the owner's active portfolio.\"\"\""
     },
     {
-      "line": 346,
+      "line": 343,
       "path": "apps/account/infrastructure/account_interface_registration_repository.py",
       "text": "dashboard_summary_endpoint = f\"{normalized_base_url}/api/dashboard/v1/summary/\""
     },
     {
-      "line": 378,
+      "line": 375,
       "path": "apps/account/infrastructure/account_interface_registration_repository.py",
       "text": "\"summary = client.dashboard.get_summary()\","
     },
@@ -858,14 +848,24 @@
       "text": "trade_date.isoformat() if trade_date is not None else \"latest\","
     },
     {
-      "line": 810,
+      "line": 807,
       "path": "apps/account/infrastructure/repositories.py",
       "text": "current = self._get_active_model()"
     },
     {
-      "line": 816,
+      "line": 813,
       "path": "apps/account/infrastructure/repositories.py",
       "text": "payload[\"version\"] = (current.version + 1) if current is not None else 1"
+    },
+    {
+      "line": 85,
+      "path": "apps/account/infrastructure/system_settings_projection.py",
+      "text": "current = now or datetime.now(UTC)"
+    },
+    {
+      "line": 88,
+      "path": "apps/account/infrastructure/system_settings_projection.py",
+      "text": "return bool((current - self.backup_last_sent_at).days >= self.backup_interval_days)"
     },
     {
       "line": 206,
@@ -4333,12 +4333,12 @@
       "text": "\"\"\"Return the latest immutable resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 94,
+      "line": 97,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Read the latest resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 562,
+      "line": 581,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Return the latest capacity observation without a fallback.\"\"\""
     },
@@ -4353,17 +4353,17 @@
       "text": "\"\"\"ORM-backed config-center summary repository.\"\"\""
     },
     {
-      "line": 96,
+      "line": 100,
       "path": "apps/config_center/infrastructure/config_summary_repository.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 194,
+      "line": 189,
       "path": "apps/config_center/infrastructure/config_summary_repository.py",
       "text": "\"\"\"Return one value from the active typed profile for the current environment.\"\"\""
     },
     {
-      "line": 445,
+      "line": 369,
       "path": "apps/config_center/infrastructure/repositories.py",
       "text": "\"\"\"Atomically consume the current token and reject replay/expiry.\"\"\""
     },
@@ -4873,52 +4873,52 @@
       "text": "\"\"\"Fetch latest realtime prices through the owning realtime use case.\"\"\""
     },
     {
-      "line": 544,
+      "line": 568,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Build the latest quote query use case.\"\"\""
     },
     {
-      "line": 550,
+      "line": 574,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Fetch real-time prices from the realtime app fallback service.\"\"\""
     },
     {
-      "line": 652,
+      "line": 676,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Return the latest market-thermometer payload for UI/API consumers.\"\"\""
     },
     {
-      "line": 769,
+      "line": 793,
       "path": "apps/data_center/application/interface_services.py",
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
     {
-      "line": 915,
+      "line": 939,
       "path": "apps/data_center/application/interface_services.py",
       "text": "latest = MarketThermometerSnapshotRepository().get_latest()"
     },
     {
-      "line": 916,
+      "line": 940,
       "path": "apps/data_center/application/interface_services.py",
       "text": "if latest is None:"
     },
     {
-      "line": 920,
+      "line": 944,
       "path": "apps/data_center/application/interface_services.py",
       "text": "latest_observed_at = latest.observed_at.isoformat()"
     },
     {
-      "line": 922,
+      "line": 946,
       "path": "apps/data_center/application/interface_services.py",
       "text": "latest_is_blocked = latest.must_not_use_for_decision"
     },
     {
-      "line": 926,
+      "line": 950,
       "path": "apps/data_center/application/interface_services.py",
       "text": "skipped_payload = latest.to_dict()"
     },
     {
-      "line": 1141,
+      "line": 1165,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Build the current valuation batch sync use case.\"\"\""
     },
@@ -5818,7 +5818,7 @@
       "text": "\"summary\": self.summary,"
     },
     {
-      "line": 150,
+      "line": 142,
       "path": "apps/data_center/domain/protocols.py",
       "text": "\"\"\"Optional provider capability for one-request current valuation batches.\"\"\""
     },
@@ -5943,12 +5943,12 @@
       "text": "\"\"\"Return provider configuration summary.\"\"\""
     },
     {
-      "line": 81,
+      "line": 80,
       "path": "apps/data_center/infrastructure/config_summary_repository.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 95,
+      "line": 97,
       "path": "apps/data_center/infrastructure/config_summary_repository.py",
       "text": "\"summary\": {"
     },
@@ -6763,17 +6763,17 @@
       "text": "if (latest := self.get_latest_indicator(code)) is not None"
     },
     {
-      "line": 421,
+      "line": 374,
       "path": "apps/data_center/infrastructure/macro_sources/failover_adapter.py",
       "text": "current = seen.get(key)"
     },
     {
-      "line": 422,
+      "line": 375,
       "path": "apps/data_center/infrastructure/macro_sources/failover_adapter.py",
       "text": "if current is None or (point.published_at or date.min) > ("
     },
     {
-      "line": 423,
+      "line": 376,
       "path": "apps/data_center/infrastructure/macro_sources/failover_adapter.py",
       "text": "current.published_at or date.min"
     },
@@ -6798,7 +6798,7 @@
       "text": "\"\"\"Resolve historical members without substituting the current component set.\"\"\""
     },
     {
-      "line": 1079,
+      "line": 1048,
       "path": "apps/data_center/infrastructure/models.py",
       "text": "summary = models.TextField(blank=True)"
     },
@@ -9068,17 +9068,17 @@
       "text": "if all(_comparison_holds(rule.operator, item.value, rule.threshold) for item in latest):"
     },
     {
-      "line": 90,
+      "line": 159,
       "path": "apps/macro_factor/domain/runner_inputs.py",
       "text": "raise ValueError(\"row available_at must equal latest proxy fact availability\")"
     },
     {
-      "line": 122,
+      "line": 127,
       "path": "apps/macro_factor/domain/temporal_plan.py",
       "text": "raise ValueError(\"current-state availability requires horizon_periods=0\")"
     },
     {
-      "line": 127,
+      "line": 132,
       "path": "apps/macro_factor/domain/temporal_plan.py",
       "text": "raise ValueError(\"current-state normalized horizon must be zero\")"
     },
@@ -9106,6 +9106,21 @@
       "line": 350,
       "path": "apps/macro_factor/infrastructure/run_ledger_repository.py",
       "text": "if event.previous_event_hash != latest.content_hash:"
+    },
+    {
+      "line": 654,
+      "path": "apps/macro_factor/infrastructure/sklearn_nested_cv_runner.py",
+      "text": "current = {item.asset_code: item.factor_weight for item in fold.coefficients}"
+    },
+    {
+      "line": 658,
+      "path": "apps/macro_factor/infrastructure/sklearn_nested_cv_runner.py",
+      "text": "abs(current.get(code, Decimal(\"0\")) - previous.get(code, Decimal(\"0\")))"
+    },
+    {
+      "line": 665,
+      "path": "apps/macro_factor/infrastructure/sklearn_nested_cv_runner.py",
+      "text": "previous = current"
     },
     {
       "line": 1,
@@ -10293,42 +10308,42 @@
       "text": "\"\"\"Return the latest eligible source observation at a fixed cutoff.\"\"\""
     },
     {
-      "line": 143,
+      "line": 147,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "\"\"\"Trusted numerical problem plus its unmodified current configuration.\"\"\""
     },
     {
-      "line": 171,
+      "line": 175,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "raise ValueError(\"current configuration snapshot mismatch\")"
     },
     {
-      "line": 253,
+      "line": 259,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "current = build_current_configuration_baseline("
     },
     {
-      "line": 287,
+      "line": 293,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "current_by_asset = dict(zip(current.asset_codes, current.weights, strict=True))"
     },
     {
-      "line": 380,
+      "line": 386,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "current_configuration_hash=current.content_hash,"
     },
     {
-      "line": 388,
+      "line": 394,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "current_configuration=current,"
     },
     {
-      "line": 569,
+      "line": 583,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "raise ValueError(\"engine current baseline rewrites the canonical configuration\")"
     },
     {
-      "line": 684,
+      "line": 698,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "raise ValueError(\"macro numerical evidence is not current\")"
     },
@@ -12608,6 +12623,11 @@
       "text": "\"\"\"Return evidence without recomputing it from revised current data.\"\"\""
     },
     {
+      "line": 165,
+      "path": "apps/research/application/state_model_monitoring.py",
+      "text": "\"\"\"Evaluate exact evidence without lifecycle, current, or execution side effects.\"\"\""
+    },
+    {
       "line": 130,
       "path": "apps/research/application/state_model_qualification_persistence.py",
       "text": "\"\"\"Return a bounded deterministic page without latest/current fallback.\"\"\""
@@ -12816,6 +12836,36 @@
       "line": 353,
       "path": "apps/research/domain/state_model_baseline.py",
       "text": "\"\"\"Prove shortfall only from complete, current, specification-bound evidence.\"\"\""
+    },
+    {
+      "line": 4,
+      "path": "apps/research/domain/state_model_monitoring.py",
+      "text": "It never retires a qualification, replaces Regime, publishes current state, or"
+    },
+    {
+      "line": 267,
+      "path": "apps/research/domain/state_model_monitoring.py",
+      "text": "current.period_start < previous.period_end"
+    },
+    {
+      "line": 268,
+      "path": "apps/research/domain/state_model_monitoring.py",
+      "text": "for previous, current in zip(ordered, ordered[1:], strict=False)"
+    },
+    {
+      "line": 639,
+      "path": "apps/research/domain/state_model_monitoring.py",
+      "text": "\"\"\"Recomputed latest threshold state and trailing breach count.\"\"\""
+    },
+    {
+      "line": 860,
+      "path": "apps/research/domain/state_model_monitoring.py",
+      "text": "current.period_start < previous.period_end"
+    },
+    {
+      "line": 861,
+      "path": "apps/research/domain/state_model_monitoring.py",
+      "text": "for previous, current in zip(ordered, ordered[1:], strict=False)"
     },
     {
       "line": 6,

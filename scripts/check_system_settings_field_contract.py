@@ -17,7 +17,18 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 MODEL_PATH = ROOT / "apps" / "config_center" / "infrastructure" / "models.py"
 CONTRACT_PATH = ROOT / "governance" / "runtime_config_contracts.json"
-REPLACEMENT_REQUIRED_LIFECYCLES = {"compatibility", "active_compatibility", "state_compatibility"}
+REPLACEMENT_REQUIRED_LIFECYCLES = {
+    "compatibility",
+    "active_compatibility",
+    "materialized_legacy_source",
+    "state_compatibility",
+}
+COMPATIBILITY_LIFECYCLES = {
+    "compatibility",
+    "active_compatibility",
+    "state_compatibility",
+}
+MATERIALIZED_LIFECYCLE = "materialized_legacy_source"
 
 
 def discover_system_settings_fields(model_path: Path = MODEL_PATH) -> tuple[str, ...]:
@@ -82,8 +93,26 @@ def validate_system_settings_contract(
         replacement = group.get("replacement")
         if lifecycle in REPLACEMENT_REQUIRED_LIFECYCLES and not str(replacement or "").strip():
             raise ValueError(f"field group {name} requires a replacement decision")
+        if lifecycle == MATERIALIZED_LIFECYCLE:
+            migration_path = str(group.get("materialization_migration") or "").strip()
+            if not migration_path:
+                raise ValueError(f"field group {name} requires a materialization migration")
+            migration = (ROOT / migration_path).resolve()
+            if (
+                not migration.is_relative_to(ROOT.resolve())
+                or "migrations" not in migration.parts
+                or migration.suffix != ".py"
+            ):
+                raise ValueError(
+                    f"field group {name} has an invalid materialization migration path"
+                )
+            if not migration.is_file():
+                raise ValueError(
+                    f"field group {name} materialization migration does not exist: "
+                    f"{migration_path}"
+                )
         lifecycle_values.add(lifecycle)
-        if lifecycle in REPLACEMENT_REQUIRED_LIFECYCLES:
+        if lifecycle in COMPATIBILITY_LIFECYCLES:
             compatibility_count += len(fields)
         for field in fields:
             field_name = str(field).strip()

@@ -36,7 +36,10 @@ def test_inventory_covers_every_governed_invocation_category(
     inventory, payload = inventory_payload
 
     assert inventory.validate_inventory(payload) == []
-    assert set(payload["counts"]["by_category"]) == inventory.REQUIRED_CATEGORIES
+    assert set(payload["counts"]["by_category"]) == (
+        inventory.REQUIRED_CATEGORIES - inventory.OPTIONAL_EMPTY_CATEGORIES
+    )
+    assert payload["counts"]["by_category"].get("system_settings_compatibility", 0) == 0
     assert set(payload["counts"]["by_status"]) == {
         "active_public",
         "adjacent_operational",
@@ -187,11 +190,11 @@ def test_inventory_includes_internal_consumers_admin_and_config_compatibility(
         "runtime_config_key",
         "governance/runtime_config_contracts.json",
         "data_center.provider.failover_tolerance",
-        "consumer_cutover_in_progress",
+        "canonical_only_fail_closed",
     ) in entry_keys
-    assert any(
-        category == "system_settings_compatibility" and path == "core/encryption_readiness.py"
-        for category, path, _symbol, _locator in entry_keys
+    assert not any(
+        category == "system_settings_compatibility"
+        for category, _path, _symbol, _locator in entry_keys
     )
     assert any(
         category == "scheduler_writer"

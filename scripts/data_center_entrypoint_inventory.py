@@ -63,6 +63,7 @@ REQUIRED_CATEGORIES = frozenset(
         "agent_skill",
     }
 )
+OPTIONAL_EMPTY_CATEGORIES = frozenset({"system_settings_compatibility"})
 COMPATIBILITY_FACADES = (
     "apps/data_center/application/interface_services.py",
     "apps/data_center/application/query_services.py",
@@ -2547,7 +2548,7 @@ def validate_inventory(payload: dict[str, object]) -> list[str]:
             and not str(item.get("target", "")).strip()
         ):
             violations.append(f"entry_target_missing:{entry_id}")
-    for category in sorted(REQUIRED_CATEGORIES - categories):
+    for category in sorted(REQUIRED_CATEGORIES - OPTIONAL_EMPTY_CATEGORIES - categories):
         violations.append(f"required_category_empty:{category}")
     return sorted(violations)
 

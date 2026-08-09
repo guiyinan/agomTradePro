@@ -16,8 +16,9 @@
       {
         "name": "account_access_and_content",
         "owner": "account",
-        "lifecycle": "compatibility",
+        "lifecycle": "materialized_legacy_source",
         "replacement": "config_center.runtime_profile.account_access_and_content",
+        "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
         "fields": [
           "require_user_approval",
           "auto_approve_first_admin",
@@ -31,8 +32,9 @@
       {
         "name": "market_mapping_and_visuals",
         "owner": "config_center",
-        "lifecycle": "compatibility",
+        "lifecycle": "materialized_legacy_source",
         "replacement": "config_center.runtime_profile.market_and_asset_mapping",
+        "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
         "fields": [
           "market_color_convention",
           "benchmark_code_map",
@@ -42,8 +44,9 @@
       {
         "name": "decision_runtime_state",
         "owner": "reliability",
-        "lifecycle": "state_compatibility",
+        "lifecycle": "materialized_legacy_source",
         "replacement": "config_center.decision_runtime_state",
+        "materialization_migration": "apps/config_center/migrations/0013_materialize_decision_runtime_state.py",
         "fields": [
           "decision_runtime_status",
           "decision_runtime_reason",
@@ -56,8 +59,9 @@
       {
         "name": "backup_delivery",
         "owner": "config_center",
-        "lifecycle": "compatibility",
+        "lifecycle": "materialized_legacy_source",
         "replacement": "config_center.runtime_profile.backup_delivery_and_secret_owner",
+        "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
         "fields": [
           "backup_email",
           "backup_app_base_url",
@@ -84,6 +88,7 @@
         "owner": "alpha",
         "lifecycle": "materialized_legacy_source",
         "replacement": "config_center.runtime_profile.qlib",
+        "materialization_migration": "apps/config_center/migrations/0014_materialize_qlib_runtime_profile.py",
         "fields": [
           "qlib_enabled",
           "qlib_provider_uri",
@@ -100,8 +105,9 @@
       {
         "name": "alpha_runtime",
         "owner": "alpha",
-        "lifecycle": "active_compatibility",
+        "lifecycle": "materialized_legacy_source",
         "replacement": "config_center.runtime_profile.alpha",
+        "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
         "fields": ["alpha_fixed_provider", "alpha_pool_mode"]
       },
       {
@@ -144,8 +150,10 @@
       "type": "decimal",
       "criticality": "critical",
       "current_source": "config_center_runtime_profile",
-      "fallback": "data_center_provider_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/data_center/infrastructure/macro_sources/failover_adapter.py::_resolve_failover_tolerance",
         "apps/data_center/infrastructure/config_summary_repository.py::DjangoDataCenterConfigSummaryRepository.get_provider_summary",
@@ -160,7 +168,7 @@
         "tests/unit/config_center/test_runtime_definition_reconcile.py::test_active_profile_passes_reconciled_definition_validation",
         "tests/unit/config_center/test_runtime_definition_reconcile.py::test_active_profile_reports_missing_critical_definition",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_provider_settings_update_uses_typed_failover_values",
-        "tests/unit/data_center/test_data_provider_settings_admin_runtime_cutover.py::test_data_provider_settings_admin_excludes_typed_failover_fields",
+        "tests/unit/data_center/test_data_provider_settings_admin_runtime_cutover.py::test_data_provider_settings_admin_is_unregistered",
         "tests/unit/data_center/test_t3a_interface_service_edges.py::test_provider_summary_prefers_typed_provider_runtime"
       ]
     },
@@ -171,8 +179,10 @@
       "type": "boolean",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "data_center_provider_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/data_center/infrastructure/macro_sources/failover_adapter.py::_resolve_failover_enabled",
         "apps/data_center/infrastructure/config_summary_repository.py::DjangoDataCenterConfigSummaryRepository.get_provider_summary",
@@ -182,10 +192,10 @@
       "bootstrap_command": "python manage.py initialize_runtime_definitions",
       "tests": [
         "tests/unit/data_center/test_macro_failover_adapter.py::test_runtime_failover_switch_is_preferred",
-        "tests/unit/data_center/test_macro_failover_adapter.py::test_runtime_failover_switch_keeps_owner_compatibility_on_invalid_value",
+        "tests/unit/data_center/test_macro_failover_adapter.py::test_runtime_failover_switch_fails_closed_on_invalid_value",
         "tests/unit/config_center/test_runtime_definition_reconcile.py::test_runtime_definition_reconcile_is_idempotent",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_provider_settings_update_uses_typed_failover_values",
-        "tests/unit/data_center/test_data_provider_settings_admin_runtime_cutover.py::test_data_provider_settings_admin_excludes_typed_failover_fields",
+        "tests/unit/data_center/test_data_provider_settings_admin_runtime_cutover.py::test_data_provider_settings_admin_is_unregistered",
         "tests/unit/data_center/test_t3a_interface_service_edges.py::test_provider_summary_prefers_typed_provider_runtime"
       ]
     },
@@ -197,8 +207,10 @@
       "choices": ["akshare", "tushare", "failover"],
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "data_center_provider_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/data_center/application/interface_services.py::load_provider_settings_payload",
         "apps/data_center/application/interface_services.py::save_provider_settings_payload",
@@ -210,11 +222,11 @@
       "tests": [
         "tests/unit/config_center/test_runtime_definition_reconcile.py::test_provider_default_source_is_typed_enum_definition",
         "tests/unit/data_center/test_macro_failover_adapter.py::test_runtime_default_source_is_preferred",
-        "tests/unit/data_center/test_macro_failover_adapter.py::test_runtime_default_source_keeps_owner_compatibility_on_invalid_value",
+        "tests/unit/data_center/test_macro_failover_adapter.py::test_runtime_default_source_fails_closed_on_invalid_value",
         "tests/unit/data_center/test_t3a_interface_service_edges.py::test_provider_settings_save_returns_persisted_projection",
         "tests/unit/data_center/test_t3a_interface_service_edges.py::test_provider_settings_payload_prefers_typed_default_source",
         "tests/unit/data_center/test_t3a_interface_service_edges.py::test_provider_summary_prefers_typed_provider_runtime",
-        "tests/unit/data_center/test_data_provider_settings_admin_runtime_cutover.py::test_data_provider_settings_admin_form_excludes_typed_failover_fields"
+        "tests/unit/data_center/test_data_provider_settings_admin_runtime_cutover.py::test_data_provider_settings_admin_is_unregistered"
       ]
     },
     {
@@ -229,7 +241,7 @@
       "materialization_migration": "apps/config_center/migrations/0014_materialize_qlib_runtime_profile.py",
       "consumers": [
         "core/integration/runtime_settings.py::get_runtime_qlib_config",
-        "apps/alpha/infrastructure/qlib_runtime_init.py::_get_qlib_runtime_config",
+        "apps/alpha/infrastructure/qlib_runtime_init.py::_get_runtime_qlib_config",
         "apps/alpha/application/repository_provider.py::require_usable_qlib_runtime",
         "apps/alpha/infrastructure/qlib_runtime_init.py::_require_usable_qlib_runtime",
         "apps/alpha/infrastructure/qlib_runtime_init.py::_initialize_qlib_runtime",
@@ -264,7 +276,7 @@
       "materialization_migration": "apps/config_center/migrations/0014_materialize_qlib_runtime_profile.py",
       "consumers": [
         "core/integration/runtime_settings.py::get_runtime_qlib_config",
-        "apps/alpha/infrastructure/qlib_runtime_init.py::_get_qlib_runtime_config",
+        "apps/alpha/infrastructure/qlib_runtime_init.py::_get_runtime_qlib_config",
         "apps/alpha/infrastructure/qlib_runtime_init.py::_get_qlib_data_latest_date_for_provider",
         "apps/alpha/infrastructure/qlib_runtime_init.py::_initialize_qlib_runtime",
         "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py::_load_qlib_trading_calendar",
@@ -424,8 +436,10 @@
       "owner": "alpha",
       "type": "enum",
       "current_source": "config_center_runtime_profile",
-      "fallback": "SystemSettingsModel compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/alpha/application/services.py::_get_runtime_alpha_fixed_provider",
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.update_runtime_config"
@@ -436,7 +450,7 @@
         "tests/unit/config_center/test_runtime_public.py::test_active_domain_runtime_config_requires_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_qlib_runtime_update_activates_typed_profile_without_legacy_write",
-        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_admin_form_excludes_typed_runtime_fields"
+        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_legacy_singleton_is_not_registered_in_admin"
       ]
     },
     {
@@ -445,8 +459,10 @@
       "owner": "alpha",
       "type": "enum",
       "current_source": "config_center_runtime_profile",
-      "fallback": "SystemSettingsModel compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/alpha/infrastructure/repositories.py::AlphaPoolDataRepository.resolve_pool_mode",
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.update_runtime_config",
@@ -459,7 +475,7 @@
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_qlib_runtime_update_activates_typed_profile_without_legacy_write",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance",
-        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_admin_form_excludes_typed_runtime_fields"
+        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_legacy_singleton_is_not_registered_in_admin"
       ]
     },
     {
@@ -468,8 +484,10 @@
       "owner": "config_center",
       "type": "enum",
       "current_source": "config_center_runtime_profile",
-      "fallback": "SystemSettingsModel compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/account/infrastructure/config_summary_repository.py::get_runtime_market_visual_tokens",
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.update_system_governance",
@@ -481,7 +499,7 @@
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_qlib_runtime_update_activates_typed_profile_without_legacy_write",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance",
-        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_admin_form_excludes_typed_runtime_fields"
+        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_legacy_singleton_is_not_registered_in_admin"
       ]
     },
     {
@@ -490,8 +508,10 @@
       "owner": "config_center",
       "type": "typed_json",
       "current_source": "config_center_runtime_profile",
-      "fallback": "SystemSettingsModel compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/equity/application/use_cases.py::get_runtime_benchmark_code",
         "apps/factor/infrastructure/adapters/__init__.py::get_runtime_benchmark_code",
@@ -503,7 +523,7 @@
         "tests/unit/config_center/test_runtime_public.py::test_active_domain_runtime_config_requires_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_qlib_runtime_update_activates_typed_profile_without_legacy_write",
-        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_admin_form_excludes_typed_runtime_fields",
+        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_legacy_singleton_is_not_registered_in_admin",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance"
       ]
     },
@@ -513,8 +533,10 @@
       "owner": "config_center",
       "type": "typed_json",
       "current_source": "config_center_runtime_profile",
-      "fallback": "SystemSettingsModel compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/backtest/infrastructure/adapters/base.py::get_runtime_asset_proxy_map",
         "apps/account/infrastructure/repositories.py::SystemSettingsRepository.get_runtime_asset_proxy_code",
@@ -526,7 +548,7 @@
         "tests/unit/config_center/test_runtime_public.py::test_active_domain_runtime_config_requires_complete_typed_snapshot",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_domain_runtime_summary_prefers_complete_typed_snapshot",
         "tests/unit/account/test_account_repository_structure.py::test_system_settings_repository_reads_asset_proxy_from_config_center",
-        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_admin_form_excludes_typed_runtime_fields",
+        "tests/unit/account/test_system_settings_admin_runtime_cutover.py::test_system_settings_legacy_singleton_is_not_registered_in_admin",
         "tests/component/config_center/test_runtime_qlib_control_plane.py::test_account_system_settings_update_uses_typed_market_governance"
       ]
     },
@@ -563,8 +585,10 @@
       "type": "boolean",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "consumers": ["apps/account/application/tasks.py::send_database_backup_email_task"],
       "tests": ["tests/unit/config_center/test_runtime_definition_reconcile.py::test_backup_delivery_definitions_are_typed"]
@@ -576,8 +600,10 @@
       "type": "string",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "consumers": ["apps/account/application/tasks.py::send_database_backup_email_task", "apps/account/infrastructure/backup_service.py::generate_download_token"],
       "tests": ["tests/component/account/test_db_backup_email.py::test_backup_email_task_sends_download_link"]
@@ -589,8 +615,10 @@
       "type": "string",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "consumers": ["apps/account/infrastructure/backup_service.py::build_backup_download_url"],
       "tests": ["tests/component/account/test_db_backup_email.py::test_backup_email_task_sends_download_link"]
@@ -602,8 +630,10 @@
       "type": "string",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "consumers": ["apps/account/application/tasks.py::send_database_backup_email_task"],
       "tests": ["tests/component/account/test_db_backup_email.py::test_backup_email_task_sends_download_link"]
@@ -615,8 +645,10 @@
       "type": "string",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "consumers": ["apps/account/infrastructure/backup_service.py::get_backup_email_connection"],
       "tests": ["tests/component/account/test_db_backup_email.py::test_backup_email_connection_uses_runtime_admin_config"]
@@ -629,8 +661,10 @@
       "constraint": {"minimum": 1, "maximum": 65535},
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "consumers": ["apps/account/infrastructure/backup_service.py::get_backup_email_connection"],
       "tests": ["tests/unit/config_center/test_runtime_definition_reconcile.py::test_backup_delivery_definitions_are_typed"]
@@ -642,8 +676,10 @@
       "type": "string",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "consumers": ["apps/account/infrastructure/backup_service.py::get_backup_email_connection"],
       "tests": ["tests/component/account/test_db_backup_email.py::test_backup_email_connection_uses_runtime_admin_config"]
@@ -655,8 +691,10 @@
       "type": "boolean",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "consumers": ["apps/account/infrastructure/backup_service.py::get_backup_email_connection"],
       "tests": ["tests/component/account/test_db_backup_email.py::test_backup_email_connection_uses_runtime_admin_config"]
@@ -668,8 +706,10 @@
       "type": "boolean",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "consumers": ["apps/account/infrastructure/backup_service.py::get_backup_email_connection"],
       "tests": ["tests/component/account/test_db_backup_email.py::test_backup_email_connection_uses_runtime_admin_config"]
@@ -682,8 +722,10 @@
       "constraint": {"minimum": 1, "maximum": 3650},
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "consumers": ["apps/account/application/tasks.py::send_database_backup_email_task"],
       "tests": ["tests/unit/account/test_t3a_documentation_view_and_task_contracts.py::test_backup_email_task_handles_not_due_and_sent"]
@@ -696,8 +738,10 @@
       "constraint": {"minimum": 1, "maximum": 3650},
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "consumers": ["apps/account/infrastructure/backup_service.py::generate_download_token", "apps/account/infrastructure/account_interface_administration_repository.py::build_backup_download_payload"],
       "tests": ["tests/component/account/test_db_backup_email.py::test_persisted_backup_link_expiry_is_enforced"]
@@ -709,8 +753,10 @@
       "type": "string",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "consumers": ["apps/account/application/tasks.py::send_database_backup_email_task"],
       "tests": ["tests/unit/account/test_t3a_documentation_view_and_task_contracts.py::test_backup_email_task_handles_not_due_and_sent"]
@@ -723,8 +769,10 @@
       "secret": true,
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "config_center_secret_owner_with_legacy_migration",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "secret_ref_policy": "config_center.backup.archive_password; legacy system_settings.backup_password_encrypted only for explicit migration",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "consumers": ["apps/config_center/infrastructure/secret_store.py::ConfigCenterSecretStore", "apps/account/infrastructure/backup_service.py::generate_backup_archive", "core/encryption_readiness.py::collect_encryption_readiness"],
@@ -738,8 +786,10 @@
       "secret": true,
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "config_center_secret_owner_with_legacy_migration",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "secret_ref_policy": "config_center.backup.smtp_password; legacy system_settings.backup_smtp_password_encrypted only for explicit migration",
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "consumers": ["apps/config_center/infrastructure/secret_store.py::ConfigCenterSecretStore", "apps/account/infrastructure/backup_service.py::get_backup_email_connection", "core/encryption_readiness.py::collect_encryption_readiness"],
@@ -752,8 +802,10 @@
       "type": "boolean",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.update_system_governance",
@@ -773,8 +825,10 @@
       "type": "boolean",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
         "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.register_user_with_account_scaffolding"
@@ -793,8 +847,10 @@
       "type": "boolean",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
         "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.provision_registered_user",
@@ -815,8 +871,10 @@
       "type": "boolean",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
         "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.build_mcp_guide_context",
@@ -837,8 +895,10 @@
       "type": "string",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
         "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.get_system_settings"
@@ -857,8 +917,10 @@
       "type": "string",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
         "apps/account/infrastructure/account_interface_registration_repository.py::AccountInterfaceRegistrationRepositoryMixin.get_system_settings"
@@ -877,8 +939,10 @@
       "type": "string",
       "criticality": "normal",
       "current_source": "config_center_runtime_profile",
-      "fallback": "system_settings_compatibility",
-      "migration_status": "consumer_cutover_in_progress",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": true,
+      "materialization_migration": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py",
       "consumers": [
         "apps/config_center/infrastructure/repositories.py::ConfigCenterSettingsRepository.build_system_governance_payload",
         "apps/account/infrastructure/account_interface_administration_repository.py::AccountInterfaceAdministrationRepositoryMixin.update_system_settings_from_mapping"

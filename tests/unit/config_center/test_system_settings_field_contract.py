@@ -14,7 +14,7 @@ def test_system_settings_field_contract_covers_every_declared_field() -> None:
     report = audit_system_settings_contract()
 
     assert report["field_count"] == 48
-    assert report["compatibility_field_count"] == 36
+    assert report["compatibility_field_count"] == 0
     assert report["group_count"] == 7
 
 
@@ -42,4 +42,30 @@ def test_compatibility_group_requires_explicit_replacement() -> None:
     contract["field_groups"][0]["replacement"] = None
 
     with pytest.raises(ValueError, match="requires a replacement decision"):
+        validate_system_settings_contract(fields, contract)
+
+
+def test_materialized_group_requires_explicit_migration() -> None:
+    fields = discover_system_settings_fields()
+    contract = load_system_settings_contract()
+    qlib_group = next(
+        group for group in contract["field_groups"] if group["name"] == "qlib_runtime"
+    )
+    qlib_group.pop("materialization_migration", None)
+
+    with pytest.raises(ValueError, match="requires a materialization migration"):
+        validate_system_settings_contract(fields, contract)
+
+
+def test_materialized_group_rejects_missing_migration_file() -> None:
+    fields = discover_system_settings_fields()
+    contract = load_system_settings_contract()
+    qlib_group = next(
+        group for group in contract["field_groups"] if group["name"] == "qlib_runtime"
+    )
+    qlib_group["materialization_migration"] = (
+        "apps/config_center/migrations/9999_missing_materialization.py"
+    )
+
+    with pytest.raises(ValueError, match="materialization migration does not exist"):
         validate_system_settings_contract(fields, contract)

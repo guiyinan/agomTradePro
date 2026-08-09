@@ -455,6 +455,8 @@ jobs:
             tests/migrations/test_research_integrity_migrations.py \
             tests/migrations/test_data_center_retention_plan_migration.py \
             tests/migrations/test_config_center_decision_state_materialization.py \
+            tests/migrations/test_config_center_qlib_runtime_materialization.py \
+            tests/migrations/test_config_center_runtime_retirement_materialization.py \
             -v \
             --reuse-db \
             --junitxml=reports/quality/postgres/research-migrations.xml \
