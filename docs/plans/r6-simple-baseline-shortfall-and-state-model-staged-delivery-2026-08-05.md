@@ -1,6 +1,6 @@
 # R6 简单基准不足证据与高级状态模型分阶段计划（2026-08-05）
 
-> 状态：S0/S2、qualification evidence/persistence/lifecycle 与 monitoring Phase A 纯合同已实现；真实 S1、monitoring 持久化/owner 接线、真实监控事实和 approved Promotion 仍 `blocked`
+> 状态：S0/S2、qualification evidence/persistence/lifecycle、monitoring Phase A+B 与 activation Phase A+B 已实现；真实 S1、canonical owner 接线、真实监控事实和 approved Promotion 仍 `blocked`
 > 来源：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md) R6
 > 边界：不在仓库内训练 Markov/HMM/贝叶斯/政策反应模型；只验证外部 artifact、状态概率/转移/OOS/政策目标证据，且永不替换现有 Regime/Pulse。
 
@@ -68,7 +68,9 @@ S1 通过后另建计划与分支：
 
 2026-08-09 activation Phase A：新增与 qualification lifecycle 分离的纯 Domain/Application activation stream。ACTIVATE 必须动态重读 exact qualification、健康且新鲜的 monitoring、approved Promotion 和 owner authorization；Authorization 封存 exact previous-event hash，签发/记录时点严格晚于当前 head。Existing winner 只有在完整 canonical prefix 重放、前驱和授权全部一致时才可幂等返回；RETIRE 清空当前栈，ROLLBACK 只能回到 `stack[-2]`。构造后 UoW identity 漂移、orphan/fork/future winner、projection 自证和 owner 异常均 fail closed。该阶段无 ORM/migration/composition/consumer，固定禁止替换 Regime、发布 current、产生决策或执行。
 
-下一项无数据工作是 activation Phase B append-only persistence、strict codec、server-clock/shared-UoW、exact PIT/audit、canonical owner adapters，以及数据库权限/签名纵深。Phase B 还应显式验证全 stream 事件时钟单调并补可离线复验的 projection seal；在真实 monitoring facts、owner authorization 与 approved Promotion 缺失时不得接入 consumer。
+2026-08-09 activation Phase B：Research `0012` 新增 authorization、event、stream commit anchor 与 immutable audit snapshot 四张 schema-only ledger，零 seed/backfill。Strict codec 现场重放完整 stream、双时钟单调、authorization↔event↔commit 三方集合/row seal、projection content seal 与 exact `stack[-2]`；写入使用追加阶段 trusted server clock 作为 knowledge cutoff，scope identity 与 scope hash 分别建立 sequence 唯一约束。审计分页使用签名 cursor 与物化 snapshot，首屏后 backdated append 不进入后页；单侧 orphan、成对尾删、缺失 commit、FK alias、header/payload、私有 ORM/Collector、race/fork/rollback 与 limit 类型绕过均 fail closed。Production mutation/audit façade保持无状态 inert，公开对象图不持有 store/token；仅 exact read 使用只读 repository。Targeted unit/component/migration-contract `42 passed`，独立空 SQLite 实迁移成功且四表 `0/0/0/0`；真实 PostgreSQL 并发、DB 权限/外部签名锚仍是上线前纵深。
+
+下一项依赖是 canonical qualification/monitoring/Promotion/authorization owner adapters 与真实证据，随后才能做 consumer/current 激活验收；在这些证据缺失时生产 mutation 保持 unavailable，不接 Regime、决策或执行。
 
 ## 5. 非目标
 

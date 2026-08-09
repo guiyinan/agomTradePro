@@ -41,6 +41,9 @@
 30. 完成 R3 inference chronology：训练/OOS 与发布 inference 分离，独立 label-free inference row、target calendar、exact manifest cutoff 和 trusted clock 进入 canonical request/artifact；不把历史 OOS 伪装为 fresh output。
 31. 完成 R6 activation Phase A：exact qualification/monitoring/Promotion/authorization 动态重读后记录 internal ACTIVATE/RETIRE/ROLLBACK，rollback 仅允许 `stack[-2]`；无 persistence/consumer 接线。
 32. 完成 R8 receipt DB integrity：Portfolio `0010` 精确约束 v1/v2/receipt shape，`0009` 安全逆迁守卫在检查前阻断并发写；无 seed/backfill。
+33. 完成 R3 runner contract integrity：完整 spec/request typed semantics、manifest nested seals 与 exact built-in integer domain 进入 canonical replay，runner 无法用同 code 替换定义或引用漂移。
+34. 完成 R6 activation Phase B：Research `0012` authorization/event/stream-commit/audit-snapshot ledger、trusted server-ledger cutoff、三方 stream completeness/projection replay、signed immutable audit 与 scope 双唯一序列；生产 mutation 保持 inert。
+35. 完成 R8 无状态 production registration façade：runtime 对象图不保存任何真实 writer/UoW/provider/clock，owner provider 缺失时零写 blocked。
 
 ## 2. 启动状态矩阵
 
@@ -48,12 +51,12 @@
 |---|---|---|---|
 | R1 行业经营驱动与盈利预测 | `blocked` | 已有版本化行业模板、Sector→Equity 持久 bridge、三情景六阶段/cash-flow seal、owner-approval-enforced baseline contract、完整配对 trial 和 Research exact Promotion/lifecycle；仍需 QW-7 反馈、连续 PIT 事实、Production Publication、真实 owner approval/trial/approved decision，且未接 Valuation | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
 | R2 市场结构与投资者资金流 | `blocked` | 已有 taxonomy/measure/proxy/PIT membership、版本化 calendar/coverage、Publication/Promotion，以及两周期 explanatory trial/monitoring 纯合同；仍需获批定义、真实 calendar、两个周期真实 PIT 覆盖、owner authorization、Audit outcome 与 concrete providers | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
-| R3 高频宏观因子与 nowcast | `blocked` | 已有 exact PIT runner、concrete sklearn Lasso/OLS、逐 fold baseline/FMP/nested-CV、独立 label-free inference/target calendar、canonical artifact bytes、dated outputs、governed read 和 retirement lifecycle；仍需真实 inference Publication/calendar、宏观 vintage/代理资产 PIT、benchmark/cost、Regime/OOS trial、owner policy 与 exact Promotion | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
+| R3 高频宏观因子与 nowcast | `blocked` | 已有 exact PIT runner、concrete sklearn Lasso/OLS、逐 fold baseline/FMP/nested-CV、独立 label-free inference/target calendar、完整 spec/request/manifest canonical seal、dated outputs、governed read 和 retirement lifecycle；仍需真实 inference Publication/calendar、宏观 vintage/代理资产 PIT、benchmark/cost、Regime/OOS trial、owner policy 与 exact Promotion | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
 | R4 宏观敞口与风险平价 | `blocked` | 已有 rolling/Regime/三方法同窗、Portfolio ledger/query、covariance diagnostics、Research 五表 ledger、scope/policy/trial/decision/lifecycle/active provider 与 concrete composition；仍需真实 R3 晋级、canonical inputs、owner authorization、OOS trial 和下游 active consumption 验收 | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
 | R5 固收相对价值与久期 | `blocked` | 已有定价/久期/曲线/信用、PIT 分位、评级迁移、流动性分解、signed curve portfolio/capacity、fixed_income/Portfolio/Research append-only owner ledgers、exact query/cross-owner UoW 及 Promotion/retire/rollback；仍需真实 Publication、PIT/OOS 历史、券级事实、容量/借券、owner authorization、外部对账和下游验收 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
-| R6 高级状态模型 | `blocked` | 已有简单基准不足、高级证据、qualification/lifecycle ledger、monitoring Phase A+B persistence 及 activation/`stack[-2]` rollback Phase A；仍需 activation persistence、真实不足/PIT/OOS/稳定标签/政策目标、canonical owner adapters、owner authorization 与真实 Promotion | [R6](r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md) |
+| R6 高级状态模型 | `blocked` | 已有简单基准不足、高级证据、qualification/lifecycle ledger、monitoring Phase A+B persistence 及 activation/`stack[-2]` rollback Phase A+B ledger；仍需真实不足/PIT/OOS/稳定标签/政策目标、canonical owner adapters、owner authorization、真实 Promotion 与生产 consumer 验收 | [R6](r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md) |
 | R7 情景概率校准 | `blocked` | 已有 source-separated Brier/分箱、PIT 类比、逐期路径证据、reminder/sample-policy/result/lifecycle append-only ledger 与审计 snapshot；仍需完整 outcome 历史、真实 Risk Center owner source/approved policy、真实合格 result/authorization 和生产接线 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
-| R8 多资产优化 | `blocked` | 已有 canonical snapshot/反馈 schema、13 类 typed 输入、四候选比较、独立 input receipt、exact DB version/receipt constraints、result/lifecycle 与 fail-closed composition；仍缺真实 owner provider接线、Portfolio snapshot、broker reconciliation、约束校准及 R3/R4/R5 晋级版本 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
+| R8 多资产优化 | `blocked` | 已有 canonical snapshot/反馈 schema、13 类 typed 输入、四候选比较、独立 input receipt、exact DB version/receipt constraints、result/lifecycle、fail-closed composition 与无状态 inert registration façade；仍缺真实 owner provider接线、Portfolio snapshot、broker reconciliation、约束校准及 R3/R4/R5 晋级版本 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
 
 ## 3. 可执行启动门
 
@@ -166,6 +169,8 @@ python scripts/verify_architecture.py
 2026-08-07 R3 governed read 验证：exact regime assignment/OOS segment/trial family/Promotion/monitoring 重放与复算已落地；governed-read `10 passed`，runner/ledger regression `36 passed`。结果固定 research-only，真实宏观 vintage、代理资产、Regime assignment、OOS trial 和 owner Promotion 仍缺，R3 仍 blocked。
 2026-08-07 R6 qualification persistence/lifecycle 验证：schema-only `research.0008` assessment/authorization/event ledger、ID-only exact PIT/audit pagination 与 PROMOTE/RETIRE 终态生命周期已落地；新增 persistence/lifecycle 回归 `14 passed`。无 Regime replacement、decision 或 execution 接线；真实 shortfall/PIT/OOS/stable label/owner authorization/monitoring/Promotion 仍缺，R6 仍 blocked。
 2026-08-07 R7 result lifecycle 验证：Research `0010` exact authorization/event/audit-snapshot ledger、ID-only PIT apply、terminal retirement 与物化 snapshot manifest 审计分页已落地。Audit 锁定完整 result graph 后物化并封存 `result_persisted_at`；Promotion 只表示内部研究记录晋级，禁止概率发布、决策和执行。Header/payload/FK/hash-chain、ORM private shortcut、Collector 删除、race/rollback、签名 cursor 篡改/跨快照均 fail closed。新增 unit/component/migration `11/8/2 passed`，另有 `1 skipped` 的 PostgreSQL 双连接并发测试；既有 result + lifecycle 七文件回归 `35 passed, 1 skipped`。真实 owner authorization、forecast/outcome 历史和合格研究证据仍缺，R7 仍 blocked。
+
+2026-08-09 R3/R6/R8 无数据收口验证：R3 Macro Factor unit最终 `133 passed`，完整 spec/request/manifest seal、exact-int 边界与 Domain 模块拆分通过；R6 activation Phase B targeted `42 passed`，独立空 SQLite 实迁移 `research.0012` 成功且四 ledger `0/0/0/0`；R8 inert registration façade定点 `2 passed` 且对象图无 writer/UoW/provider/clock。相关增量 mypy 0 regression，Ruff/Black/isort、large-file governance 与 migration drift 通过。真实 owner/data/Publication/PIT/trial/Promotion/对账仍未形成，三项继续 `blocked`；R6/R8 的真实 PostgreSQL 并发为上线前未验证项。
 
 完整路线图审计后的 R4/R5 增量批次另行复验 fixed-income 全部 unit/component 与 R4 macro-risk，共 `49 passed`；增量 mypy/ruff/black、Django check、架构边界（2148 files / 0 violations）、业务配置硬编码和 43 个 current-data surface 均通过。
 

@@ -10,6 +10,8 @@
 
 > 2026-08-09 inference chronology 续批：PIT design rows 继续只服务训练、选择与历史 OOS 评估；dated publication 改为要求独立、无 label/value 的 manifest-selected inference row。Authoritative manifest full seal 封存 calendar owner 与 exact period member；版本化 freshness policy 对 manifest/inference age 设置封存上限，validity 不得越过任一 expiry。Inference proxy facts、target-calendar period、manifest cutoff 与 request hash 精确绑定，FORWARD period 必须晚于 knowledge/production cutoff，CURRENT period 不得晚于 cutoff；concrete runner 的 final fit 只预测该行，external runner 使用独立重建副本，返回后按未传出的基线现场重验。Trusted Application clock、provider/malformed-object 边界和逐 fact cutoff 均 fail closed。真实 inference Publication/calendar owner、PIT 数据、trial 与 Promotion 未形成，门禁不变。
 
+> 2026-08-09 runner contract integrity 续批：`MacroFactorRunnerSpec` 以全字段 canonical `content_hash` 封存 target/candidate、split、benchmark、cost、reproducibility、freshness 与 validity；execution request 同时携带完整 typed definitions 与 `spec_hash`，sklearn adapter 在拟合前重建并精确比对 request/dataset/spec。Manifest factory 聚合前重验 calendar member 与 slice seal；所有版本、期间、样本数、seed、age、iteration 与 artifact length 使用 exact built-in `int`，float/bool/int subclass 和同 code 语义替换均拒绝。Temporal-CV contracts 与 runner spec 拆成独立纯 Domain 模块，Macro Factor unit `133 passed`。软件合同闭合不替代真实 owner manifest、PIT 数据、trial 或 Promotion，R3 仍 `blocked`。
+
 ## 1. 启动决策
 
 R3 与 R4 当前均不允许进入模型实现：

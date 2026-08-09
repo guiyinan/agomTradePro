@@ -246,6 +246,8 @@ Owner：`portfolio` + `broker_execution`，在 R3/R4/R5 晋级前可独立建设
 
 2026-08-09 receipt DB integrity：Portfolio `0010` schema-only 约束将合法 result shape 精确枚举为 `v1 + NULL receipt` 或 `v2 + receipt`，并限制 receipt 为 canonical v1；unknown/blank/alias 版本不能形成可读污染。`0009` reverse guard 在 evidence 查询前取得 PostgreSQL 表级排他锁或 SQLite writer reservation；有 v2/receipt evidence 时逆迁稳定拒绝并保全 recorder、result 与 receipt。非法历史行应用 `0010` 时整次迁移原子回滚，不做数据清洗。真实双连接后端 contention 测试留作上线前 P2；真实 owner/provider 门禁仍保持 blocked。
 
+2026-08-09 production registration façade：Portfolio runtime 暴露无状态 ID-only registration façade，但不保存或闭包捕获 registration use case、writer、UoW、provider 或 clock；合法命令与被私有篡改的命令都在任何写能力可达前稳定 `GovernedOptimizationUnavailable`，receipt/result/lifecycle 保持零写。真实 canonical input-set、13-owner graph、universe、snapshot 与 R3/R4/R5 Promotion provider 接入前，不开放生产注册能力，R8 总门禁不变。
+
 - 第一版离线 research-only；
 - 明确等权和现有配置基准；
 - 输入绑定 PIT manifest、portfolio snapshot、scenario set、factor covariance 和 constraint version；
