@@ -117,6 +117,114 @@ def test_request_binds_freshness_policy_and_limits_output_to_knowledge_expiry() 
         )
 
 
+def test_request_seals_complete_same_code_target_and_candidate_semantics() -> None:
+    spec = runner_spec()
+    request = build_execution_request(spec, runner_dataset(), complete_manifest())
+
+    assert request.spec_hash == spec.content_hash
+    assert request.target_definition == spec.target
+    assert request.candidate_definitions == spec.candidates
+    assert request.canonical_payload["target"] == {
+        "target_code": spec.target.target_code,
+        "family": spec.target.family.value,
+        "output_role": spec.target.output_role.value,
+        "dataset_key": spec.target.dataset_key,
+        "business_key": spec.target.business_key,
+        "unit": spec.target.unit,
+        "frequency": spec.target.frequency,
+        "transformation_version": spec.target.transformation_version,
+        "horizon_periods": spec.target.horizon_periods,
+        "horizon_unit": spec.target.horizon_unit,
+    }
+    assert request.canonical_payload["candidates"] == [
+        {
+            "asset_code": candidate.asset_code,
+            "dataset_key": candidate.dataset_key,
+            "business_key": candidate.business_key,
+            "kind": candidate.kind.value,
+            "frequency": candidate.frequency,
+            "transformation_version": candidate.transformation_version,
+            "continuous_roll_policy_version": candidate.continuous_roll_policy_version,
+        }
+        for candidate in spec.candidates
+    ]
+
+    same_code_target = replace(
+        spec,
+        target=replace(
+            spec.target,
+            unit="percent",
+            frequency="quarterly",
+            transformation_version="qoq-standardization-v3",
+        ),
+    )
+    same_code_candidate = replace(
+        spec,
+        candidates=(
+            replace(
+                spec.candidates[0],
+                frequency="weekly",
+                transformation_version="weekly-return-v3",
+            ),
+            spec.candidates[1],
+        ),
+    )
+
+    assert same_code_target.target.target_code == spec.target.target_code
+    assert same_code_candidate.candidates[0].asset_code == spec.candidates[0].asset_code
+    assert same_code_target.content_hash != spec.content_hash
+    assert same_code_candidate.content_hash != spec.content_hash
+    assert (
+        build_execution_request(
+            same_code_target, runner_dataset(), complete_manifest()
+        ).content_hash
+        != request.content_hash
+    )
+    assert (
+        build_execution_request(
+            same_code_candidate,
+            runner_dataset(),
+            complete_manifest(),
+        ).content_hash
+        != request.content_hash
+    )
+
+
+@pytest.mark.parametrize("nested_kind", ("calendar_member", "dataset_slice"))
+def test_manifest_factory_live_validates_nested_owner_evidence(nested_kind: str) -> None:
+    manifest = complete_manifest()
+    if nested_kind == "calendar_member":
+        object.__setattr__(
+            manifest.inference_periods[0],
+            "period_end",
+            manifest.inference_periods[0].period_end + timedelta(days=1),
+        )
+    else:
+        object.__setattr__(
+            manifest.slices[0].selected_versions[0],
+            "version_id",
+            999_999,
+        )
+
+    with pytest.raises(ValueError, match="hash|selected versions"):
+        PITManifestEvidence.create(
+            manifest_id=manifest.manifest_id,
+            manifest_hash=manifest.manifest_hash,
+            as_of_time=manifest.as_of_time,
+            knowledge_scope=manifest.knowledge_scope,
+            calendar_id=manifest.calendar_id,
+            calendar_version=manifest.calendar_version,
+            calendar_hash=manifest.calendar_hash,
+            inference_periods=manifest.inference_periods,
+            slices=manifest.slices,
+            coverage_ratio=manifest.coverage_ratio,
+            missing_count=manifest.missing_count,
+            estimated_count=manifest.estimated_count,
+            unknown_count=manifest.unknown_count,
+            is_verified=manifest.is_verified,
+        )
+
+
 def test_outer_folds_select_independently_and_only_explicit_final_fold_binds_result() -> None:
     artifact = external_runner_artifact()
     first = artifact.fold_selections[0]

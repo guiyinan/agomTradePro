@@ -48,7 +48,7 @@ def _require_sha256(value: str, field_name: str) -> None:
 
 
 def _require_positive_int(value: int, field_name: str) -> None:
-    if isinstance(value, bool) or value <= 0:
+    if type(value) is not int or value <= 0:
         raise ValueError(f"{field_name} must be a positive integer")
 
 
@@ -169,8 +169,10 @@ class MacroTargetDefinition:
             "horizon_unit",
         ):
             _require_token(str(getattr(self, name)), f"MacroTargetDefinition.{name}")
-        if isinstance(self.horizon_periods, bool) or self.horizon_periods < 0:
-            raise ValueError("MacroTargetDefinition.horizon_periods cannot be negative")
+        if type(self.horizon_periods) is not int or self.horizon_periods < 0:
+            raise ValueError(
+                "MacroTargetDefinition.horizon_periods must be an integer and cannot be negative"
+            )
         if self.output_role is FactorOutputRole.CURRENT_STATE and self.horizon_periods != 0:
             raise ValueError("current-state targets require horizon_periods=0")
         if self.output_role is FactorOutputRole.FORWARD_EXPECTATION and self.horizon_periods == 0:
@@ -319,6 +321,8 @@ class PITManifestEvidence:
     ) -> PITManifestEvidence:
         """Create an owner projection whose complete evidence graph is sealed."""
 
+        validated_inference_periods = tuple(item.validated_copy() for item in inference_periods)
+        validated_slices = tuple(item.validated_copy() for item in slices)
         payload = cls._payload(
             manifest_id=manifest_id,
             manifest_hash=manifest_hash,
@@ -327,8 +331,8 @@ class PITManifestEvidence:
             calendar_id=calendar_id,
             calendar_version=calendar_version,
             calendar_hash=calendar_hash,
-            inference_periods=inference_periods,
-            slices=slices,
+            inference_periods=validated_inference_periods,
+            slices=validated_slices,
             coverage_ratio=coverage_ratio,
             missing_count=missing_count,
             estimated_count=estimated_count,
@@ -343,8 +347,8 @@ class PITManifestEvidence:
             calendar_id=calendar_id,
             calendar_version=calendar_version,
             calendar_hash=calendar_hash,
-            inference_periods=inference_periods,
-            slices=slices,
+            inference_periods=validated_inference_periods,
+            slices=validated_slices,
             coverage_ratio=coverage_ratio,
             missing_count=missing_count,
             estimated_count=estimated_count,
@@ -436,8 +440,10 @@ class PITManifestEvidence:
             raise ValueError("PITManifestEvidence.coverage_ratio must be between zero and one")
         for name in ("missing_count", "estimated_count", "unknown_count"):
             value = getattr(self, name)
-            if isinstance(value, bool) or value < 0:
-                raise ValueError(f"PITManifestEvidence.{name} cannot be negative")
+            if type(value) is not int or value < 0:
+                raise ValueError(
+                    f"PITManifestEvidence.{name} must be an integer and cannot be negative"
+                )
         if not isinstance(self.is_verified, bool):
             raise ValueError("PITManifestEvidence.is_verified must be a boolean")
         identities = tuple((item.dataset_key, item.business_key) for item in self.slices)
@@ -633,7 +639,12 @@ class ExternalLassoSelectionEvidence:
             raise ValueError("external estimator must be lasso")
         if self.validation_method != "nested_cv":
             raise ValueError("Lasso validation_method must be nested_cv")
-        if self.inner_fold_count < 2 or self.outer_fold_count < 2:
+        if (
+            type(self.inner_fold_count) is not int
+            or type(self.outer_fold_count) is not int
+            or self.inner_fold_count < 2
+            or self.outer_fold_count < 2
+        ):
             raise ValueError("nested CV requires at least two inner and outer folds")
         if not self.alpha_grid:
             raise ValueError("Lasso alpha_grid cannot be empty")

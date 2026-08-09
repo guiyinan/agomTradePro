@@ -66,9 +66,9 @@ class ResearchOutputValidityPolicy:
 
     def __post_init__(self) -> None:
         require_token(self.policy_version, "ResearchOutputValidityPolicy.policy_version")
-        if isinstance(self.valid_for_seconds, bool) or self.valid_for_seconds <= 0:
+        if type(self.valid_for_seconds) is not int or self.valid_for_seconds <= 0:
             raise ValueError("valid_for_seconds must be a positive integer")
-        if isinstance(self.maximum_valid_for_seconds, bool) or self.maximum_valid_for_seconds <= 0:
+        if type(self.maximum_valid_for_seconds) is not int or self.maximum_valid_for_seconds <= 0:
             raise ValueError("maximum_valid_for_seconds must be a positive integer")
         if self.valid_for_seconds > self.maximum_valid_for_seconds:
             raise ValueError("validity duration exceeds its preregistered governance maximum")

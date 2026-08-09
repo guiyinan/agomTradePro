@@ -288,7 +288,12 @@ class ExternalConcreteFitEvidence:
             "ols_bic",
         ):
             require_finite(getattr(self, field_name), f"ExternalConcreteFitEvidence.{field_name}")
-        if self.ols_sample_count <= 0 or self.ols_rank <= 0:
+        if (
+            type(self.ols_sample_count) is not int
+            or type(self.ols_rank) is not int
+            or self.ols_sample_count <= 0
+            or self.ols_rank <= 0
+        ):
             raise ValueError("OLS diagnostics require positive sample count and rank")
         if self.ols_rank > self.ols_sample_count:
             raise ValueError("OLS diagnostic rank cannot exceed sample count")
@@ -742,13 +747,13 @@ class ReproducibleMacroFactorRunArtifact:
             (self.parameter_version, "parameter_version"),
         ):
             require_token(token_value, f"RunArtifact.{token_name}")
-        if isinstance(self.random_seed, bool) or self.random_seed < 0:
-            raise ValueError("RunArtifact.random_seed cannot be negative")
+        if type(self.random_seed) is not int or self.random_seed < 0:
+            raise ValueError("RunArtifact.random_seed must be an integer and cannot be negative")
         require_text(self.external_producer_ref, "RunArtifact.external_producer_ref", maximum=500)
         if self.external_artifact_media_type != MACRO_FACTOR_EXTERNAL_ARTIFACT_MEDIA_TYPE:
             raise ValueError("RunArtifact.external_artifact_media_type is invalid")
         if (
-            isinstance(self.external_artifact_content_length, bool)
+            type(self.external_artifact_content_length) is not int
             or self.external_artifact_content_length <= 0
             or self.external_artifact_content_length != len(self.external_artifact_bytes)
         ):

@@ -325,6 +325,7 @@ class RunReproducibleMacroFactor:
             logger.exception("macro-factor runner inputs failed live validation")
             return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
         baseline_request_hash = request.content_hash
+        baseline_spec_hash = spec.content_hash
         baseline_dataset_hash = dataset.content_hash
         baseline_manifest_content_hash = manifest.content_hash
         baseline_freshness_hash = spec.input_knowledge_freshness_policy.content_hash
@@ -360,6 +361,7 @@ class RunReproducibleMacroFactor:
             )
             if (
                 revalidated_request.content_hash != baseline_request_hash
+                or revalidated_spec.content_hash != baseline_spec_hash
                 or revalidated_dataset.content_hash != baseline_dataset_hash
                 or revalidated_manifest.content_hash != baseline_manifest_content_hash
                 or revalidated_spec.input_knowledge_freshness_policy.content_hash
@@ -368,6 +370,7 @@ class RunReproducibleMacroFactor:
                 or runner_dataset != runner_dataset_snapshot
                 or runner_request != runner_request_snapshot
                 or runner_request.content_hash != baseline_request_hash
+                or runner_spec.content_hash != baseline_spec_hash
                 or rebuilt_runner_request.content_hash != baseline_request_hash
             ):
                 raise ValueError("external runner input graph changed during execution")

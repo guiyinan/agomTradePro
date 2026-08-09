@@ -146,7 +146,7 @@ class RetirementOwnerAttestation:
             raise ValueError("retirement owner attestation hash mismatch")
 
 
-class MacroFactorLifecycleEventType(str, Enum):
+class MacroFactorLifecycleEventType(str, Enum):  # noqa: UP042 -- preserve string semantics
     """Append-only lifecycle event types for one run artifact."""
 
     RECORDED = "recorded"
@@ -242,7 +242,11 @@ class MacroFactorLifecycleEvent:
                 issued_at,
                 "MacroFactorLifecycleEvent.owner_attestation_issued_at",
             )
-            if self.owner_attestation_content_length != len(self.owner_attestation_bytes or b""):
+            if (
+                type(self.owner_attestation_content_length) is not int
+                or self.owner_attestation_content_length <= 0
+                or self.owner_attestation_content_length != len(self.owner_attestation_bytes or b"")
+            ):
                 raise ValueError("lifecycle owner attestation content length mismatch")
             RetirementOwnerAttestation(
                 attestation_id=self.owner_attestation_id or "",
@@ -436,7 +440,7 @@ def append_retirement_event(
     )
 
 
-class MacroFactorOutputResearchStatus(str, Enum):
+class MacroFactorOutputResearchStatus(str, Enum):  # noqa: UP042 -- preserve string semantics
     """Research-read status; every state remains decision/execution blocked."""
 
     AVAILABLE_FOR_RESEARCH = "available_for_research"

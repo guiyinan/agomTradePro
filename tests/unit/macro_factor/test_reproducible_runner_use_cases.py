@@ -366,6 +366,50 @@ def test_command_live_validation_rejects_comparison_overriding_integer_subclass(
     assert repository.bundle is None
 
 
+def test_application_rejects_same_code_spec_semantic_mutation_before_runner() -> None:
+    command = _command()
+    object.__setattr__(command.spec.target, "unit", "percent")
+    repository = _Repository()
+    runner = _ExternalRunner(external_runner_artifact())
+
+    assessment = RunReproducibleMacroFactor(
+        manifest_provider=_ManifestProvider(complete_manifest()),
+        dataset_provider=_DatasetProvider(runner_dataset()),
+        external_runner=runner,
+        repository=repository,
+    ).execute(command)
+
+    assert assessment.blocked_reasons == (MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID,)
+    assert runner.requests == []
+    assert repository.bundle is None
+
+
+@pytest.mark.parametrize("invalid_value", (1.5, WideInt(1)))
+@pytest.mark.parametrize("field_name", ("run_version", "random_seed", "horizon_periods"))
+def test_application_rejects_non_exact_spec_integers_before_runner(
+    field_name: str,
+    invalid_value: object,
+) -> None:
+    command = _command()
+    if field_name == "horizon_periods":
+        object.__setattr__(command.spec.target, field_name, invalid_value)
+    else:
+        object.__setattr__(command.spec, field_name, invalid_value)
+    repository = _Repository()
+    runner = _ExternalRunner(external_runner_artifact())
+
+    assessment = RunReproducibleMacroFactor(
+        manifest_provider=_ManifestProvider(complete_manifest()),
+        dataset_provider=_DatasetProvider(runner_dataset()),
+        external_runner=runner,
+        repository=repository,
+    ).execute(command)
+
+    assert assessment.blocked_reasons == (MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID,)
+    assert runner.requests == []
+    assert repository.bundle is None
+
+
 def test_external_runner_receives_isolated_copies_and_mutation_prevents_write() -> None:
     source_dataset = runner_dataset()
     command = _command()

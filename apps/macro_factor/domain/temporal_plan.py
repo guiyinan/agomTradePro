@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
@@ -13,7 +13,9 @@ from apps.macro_factor.domain.entities import (
     PITManifestEvidence,
     ProxyAssetDefinition,
     ReproducibilityEvidence,
+    SampleWindow,
     TemporalSplitSpec,
+    WalkForwardFold,
 )
 
 from ._runner_support import (
@@ -26,7 +28,7 @@ from ._runner_support import (
     require_token,
     utc_text,
 )
-from .baselines import FixedFMPDefinition
+from .baselines import FixedFMPDefinition, FixedFMPWeight
 from .runner_inputs import (
     InferenceTargetCalendarPeriod,
     InputKnowledgeFreshnessPolicy,
@@ -123,12 +125,16 @@ class TargetAvailabilityPolicy:
         if not isinstance(self.output_role, FactorOutputRole):
             raise ValueError("TargetAvailabilityPolicy.output_role is invalid")
         require_token(self.horizon_unit, "TargetAvailabilityPolicy.horizon_unit")
-        if isinstance(self.horizon_periods, bool) or self.horizon_periods < 0:
-            raise ValueError("TargetAvailabilityPolicy.horizon_periods cannot be negative")
+        if type(self.horizon_periods) is not int or self.horizon_periods < 0:
+            raise ValueError(
+                "TargetAvailabilityPolicy.horizon_periods must be an integer and cannot be negative"
+            )
         if self.output_role is FactorOutputRole.CURRENT_STATE and self.horizon_periods != 0:
             raise ValueError("current-state availability requires horizon_periods=0")
         if self.output_role is FactorOutputRole.FORWARD_EXPECTATION and self.horizon_periods == 0:
             raise ValueError("forward availability requires a positive horizon")
+        if type(self.normalized_horizon_days) is not int:
+            raise ValueError("normalized_horizon_days must be an integer")
         if self.output_role is FactorOutputRole.CURRENT_STATE:
             if self.normalized_horizon_days != 0:
                 raise ValueError("current-state normalized horizon must be zero")
@@ -138,10 +144,16 @@ class TargetAvailabilityPolicy:
                 "TargetAvailabilityPolicy.normalized_horizon_days",
             )
         if (
-            isinstance(self.label_availability_lag_days, bool)
+            type(self.label_availability_lag_days) is not int
             or self.label_availability_lag_days < 0
         ):
-            raise ValueError("label_availability_lag_days cannot be negative")
+            raise ValueError(
+                "label_availability_lag_days must be an integer and cannot be negative"
+            )
+        if type(self.purge_days) is not int or self.purge_days < 0:
+            raise ValueError("purge_days must be a non-negative integer")
+        if type(self.embargo_days) is not int or self.embargo_days < 0:
+            raise ValueError("embargo_days must be a non-negative integer")
         required_gap = max(self.normalized_horizon_days, self.label_availability_lag_days)
         if self.purge_days < required_gap:
             raise ValueError("purge_days must cover target horizon and label availability")
@@ -366,6 +378,117 @@ class NestedTemporalCVPlan:
         )
 
 
+def _target_payload(target: MacroTargetDefinition) -> dict[str, object]:
+    return {
+        "target_code": target.target_code,
+        "family": target.family.value,
+        "output_role": target.output_role.value,
+        "dataset_key": target.dataset_key,
+        "business_key": target.business_key,
+        "unit": target.unit,
+        "frequency": target.frequency,
+        "transformation_version": target.transformation_version,
+        "horizon_periods": target.horizon_periods,
+        "horizon_unit": target.horizon_unit,
+    }
+
+
+def _candidate_payload(candidate: ProxyAssetDefinition) -> dict[str, object]:
+    return {
+        "asset_code": candidate.asset_code,
+        "dataset_key": candidate.dataset_key,
+        "business_key": candidate.business_key,
+        "kind": candidate.kind.value,
+        "frequency": candidate.frequency,
+        "transformation_version": candidate.transformation_version,
+        "continuous_roll_policy_version": candidate.continuous_roll_policy_version,
+    }
+
+
+def _window_payload(window: SampleWindow) -> dict[str, str]:
+    return {"start": window.start.isoformat(), "end": window.end.isoformat()}
+
+
+def _temporal_split_payload(split: TemporalSplitSpec) -> dict[str, object]:
+    return {
+        "policy_version": split.policy_version,
+        "training": _window_payload(split.training),
+        "validation": _window_payload(split.validation),
+        "out_of_sample": _window_payload(split.out_of_sample),
+        "walk_forward_folds": [
+            {
+                "fold_id": fold.fold_id,
+                "training": _window_payload(fold.training),
+                "validation": _window_payload(fold.validation),
+                "out_of_sample": _window_payload(fold.out_of_sample),
+            }
+            for fold in split.walk_forward_folds
+        ],
+        "embargo_days": split.embargo_days,
+    }
+
+
+def _validated_target(target: MacroTargetDefinition) -> MacroTargetDefinition:
+    return MacroTargetDefinition(
+        target_code=target.target_code,
+        family=target.family,
+        output_role=target.output_role,
+        dataset_key=target.dataset_key,
+        business_key=target.business_key,
+        unit=target.unit,
+        frequency=target.frequency,
+        transformation_version=target.transformation_version,
+        horizon_periods=target.horizon_periods,
+        horizon_unit=target.horizon_unit,
+    )
+
+
+def _validated_candidate(candidate: ProxyAssetDefinition) -> ProxyAssetDefinition:
+    return ProxyAssetDefinition(
+        asset_code=candidate.asset_code,
+        dataset_key=candidate.dataset_key,
+        business_key=candidate.business_key,
+        kind=candidate.kind,
+        frequency=candidate.frequency,
+        transformation_version=candidate.transformation_version,
+        continuous_roll_policy_version=candidate.continuous_roll_policy_version,
+    )
+
+
+def _validated_temporal_split(split: TemporalSplitSpec) -> TemporalSplitSpec:
+    return TemporalSplitSpec(
+        policy_version=split.policy_version,
+        training=SampleWindow(split.training.start, split.training.end),
+        validation=SampleWindow(split.validation.start, split.validation.end),
+        out_of_sample=SampleWindow(split.out_of_sample.start, split.out_of_sample.end),
+        walk_forward_folds=tuple(
+            WalkForwardFold(
+                fold_id=fold.fold_id,
+                training=SampleWindow(fold.training.start, fold.training.end),
+                validation=SampleWindow(fold.validation.start, fold.validation.end),
+                out_of_sample=SampleWindow(
+                    fold.out_of_sample.start,
+                    fold.out_of_sample.end,
+                ),
+            )
+            for fold in split.walk_forward_folds
+        ),
+        embargo_days=split.embargo_days,
+    )
+
+
+def _validated_fixed_fmp(fixed_fmp: FixedFMPDefinition) -> FixedFMPDefinition:
+    return FixedFMPDefinition(
+        benchmark_version=fixed_fmp.benchmark_version,
+        intercept=fixed_fmp.intercept,
+        weights=tuple(
+            FixedFMPWeight(asset_code=item.asset_code, weight=item.weight)
+            for item in fixed_fmp.weights
+        ),
+        content_hash=fixed_fmp.content_hash,
+    )
+
+
 @dataclass(frozen=True)
 class MacroFactorRunnerSpec:
     """Complete immutable governance input for one external runner call.
@@ -394,6 +517,7 @@ class MacroFactorRunnerSpec:
     reproducibility: ReproducibilityEvidence
     random_seed: int
     calculated_at: datetime
+    content_hash: str = field(init=False)
 
     def __post_init__(self) -> None:
         require_token(self.run_key, "MacroFactorRunnerSpec.run_key")
@@ -404,9 +528,31 @@ class MacroFactorRunnerSpec:
             "MacroFactorRunnerSpec.expected_manifest_content_hash",
         )
         require_aware(self.calculated_at, "MacroFactorRunnerSpec.calculated_at")
+        _validated_target(self.target)
+        tuple(_validated_candidate(item) for item in self.candidates)
         self.inference_target_period.validated_copy()
         self.input_knowledge_freshness_policy.validated_copy()
+        self.plan.validated_copy()
+        _validated_temporal_split(self.temporal_split)
+        VersionedResearchContract(
+            self.historical_mean_benchmark.version,
+            self.historical_mean_benchmark.content_hash,
+        )
+        _validated_fixed_fmp(self.fixed_fmp)
+        for contract in (
+            self.cost_model,
+            self.split_contract,
+            self.selection_protocol,
+            self.metrics_protocol,
+        ):
+            VersionedResearchContract(contract.version, contract.content_hash)
         self.output_validity_policy.validated_copy()
+        ReproducibilityEvidence(
+            code_version=self.reproducibility.code_version,
+            dependency_lock_hash=self.reproducibility.dependency_lock_hash,
+            parameter_version=self.reproducibility.parameter_version,
+            parameter_hash=self.reproducibility.parameter_hash,
+        )
         if any(
             fold.selection_as_of > self.calculated_at or fold.evaluation_as_of > self.calculated_at
             for fold in self.plan.outer_folds
@@ -415,8 +561,10 @@ class MacroFactorRunnerSpec:
                 "MacroFactorRunnerSpec.calculated_at cannot precede fold selection or "
                 "evaluation evidence"
             )
-        if isinstance(self.random_seed, bool) or self.random_seed < 0:
-            raise ValueError("MacroFactorRunnerSpec.random_seed cannot be negative")
+        if type(self.random_seed) is not int or self.random_seed < 0:
+            raise ValueError(
+                "MacroFactorRunnerSpec.random_seed must be an integer and cannot be negative"
+            )
         if not self.candidates:
             raise ValueError("MacroFactorRunnerSpec.candidates cannot be empty")
         candidate_codes = tuple(item.asset_code for item in self.candidates)
@@ -446,34 +594,133 @@ class MacroFactorRunnerSpec:
             item.fold_id for item in self.temporal_split.walk_forward_folds
         ):
             raise ValueError("nested plan must cover every typed walk-forward fold exactly")
+        object.__setattr__(self, "content_hash", hash_payload(self.canonical_payload))
+
+    @property
+    def canonical_payload(self) -> dict[str, object]:
+        """Return the complete preregistered runner specification."""
+
+        return {
+            "schema": "macro-factor-runner-spec.v1",
+            "run_key": self.run_key,
+            "run_version": self.run_version,
+            "factor_version": self.factor_version,
+            "expected_manifest_content_hash": self.expected_manifest_content_hash.lower(),
+            "target": _target_payload(self.target),
+            "inference_target_period": self.inference_target_period.canonical_payload(),
+            "input_knowledge_freshness_policy": {
+                **self.input_knowledge_freshness_policy.canonical_payload(),
+                "content_hash": self.input_knowledge_freshness_policy.content_hash.lower(),
+            },
+            "candidates": [_candidate_payload(item) for item in self.candidates],
+            "plan": {
+                **self.plan.canonical_payload,
+                "content_hash": self.plan.content_hash,
+            },
+            "temporal_split": {
+                **_temporal_split_payload(self.temporal_split),
+                "content_hash": calculate_temporal_split_hash(self.temporal_split),
+            },
+            "historical_mean_benchmark": {
+                "version": self.historical_mean_benchmark.version,
+                "content_hash": self.historical_mean_benchmark.content_hash.lower(),
+            },
+            "fixed_fmp": {
+                "benchmark_version": self.fixed_fmp.benchmark_version,
+                "intercept": decimal_text(self.fixed_fmp.intercept),
+                "weights": [
+                    {
+                        "asset_code": item.asset_code,
+                        "weight": decimal_text(item.weight),
+                    }
+                    for item in sorted(
+                        self.fixed_fmp.weights,
+                        key=lambda value: value.asset_code,
+                    )
+                ],
+                "content_hash": self.fixed_fmp.content_hash.lower(),
+            },
+            "cost_model": {
+                "version": self.cost_model.version,
+                "content_hash": self.cost_model.content_hash.lower(),
+            },
+            "split_contract": {
+                "version": self.split_contract.version,
+                "content_hash": self.split_contract.content_hash.lower(),
+            },
+            "selection_protocol": {
+                "version": self.selection_protocol.version,
+                "content_hash": self.selection_protocol.content_hash.lower(),
+            },
+            "metrics_protocol": {
+                "version": self.metrics_protocol.version,
+                "content_hash": self.metrics_protocol.content_hash.lower(),
+            },
+            "output_validity_policy": {
+                **self.output_validity_policy.canonical_payload(),
+                "content_hash": self.output_validity_policy.content_hash.lower(),
+            },
+            "reproducibility": {
+                "code_version": self.reproducibility.code_version,
+                "dependency_lock_hash": self.reproducibility.dependency_lock_hash.lower(),
+                "parameter_version": self.reproducibility.parameter_version,
+                "parameter_hash": self.reproducibility.parameter_hash.lower(),
+            },
+            "random_seed": self.random_seed,
+            "calculated_at": utc_text(self.calculated_at),
+        }
 
     def validated_copy(self) -> MacroFactorRunnerSpec:
         """Reconstruct mutable-at-runtime nested policies before orchestration."""
 
-        return MacroFactorRunnerSpec(
+        require_sha256(self.content_hash, "MacroFactorRunnerSpec.content_hash")
+        validated = MacroFactorRunnerSpec(
             run_key=self.run_key,
             run_version=self.run_version,
             factor_version=self.factor_version,
             expected_manifest_content_hash=self.expected_manifest_content_hash,
-            target=self.target,
+            target=_validated_target(self.target),
             inference_target_period=self.inference_target_period.validated_copy(),
             input_knowledge_freshness_policy=(
                 self.input_knowledge_freshness_policy.validated_copy()
             ),
-            candidates=self.candidates,
+            candidates=tuple(_validated_candidate(item) for item in self.candidates),
             plan=self.plan.validated_copy(),
-            temporal_split=self.temporal_split,
-            historical_mean_benchmark=self.historical_mean_benchmark,
-            fixed_fmp=self.fixed_fmp,
-            cost_model=self.cost_model,
-            split_contract=self.split_contract,
-            selection_protocol=self.selection_protocol,
-            metrics_protocol=self.metrics_protocol,
+            temporal_split=_validated_temporal_split(self.temporal_split),
+            historical_mean_benchmark=VersionedResearchContract(
+                self.historical_mean_benchmark.version,
+                self.historical_mean_benchmark.content_hash,
+            ),
+            fixed_fmp=_validated_fixed_fmp(self.fixed_fmp),
+            cost_model=VersionedResearchContract(
+                self.cost_model.version,
+                self.cost_model.content_hash,
+            ),
+            split_contract=VersionedResearchContract(
+                self.split_contract.version,
+                self.split_contract.content_hash,
+            ),
+            selection_protocol=VersionedResearchContract(
+                self.selection_protocol.version,
+                self.selection_protocol.content_hash,
+            ),
+            metrics_protocol=VersionedResearchContract(
+                self.metrics_protocol.version,
+                self.metrics_protocol.content_hash,
+            ),
             output_validity_policy=self.output_validity_policy.validated_copy(),
-            reproducibility=self.reproducibility,
+            reproducibility=ReproducibilityEvidence(
+                code_version=self.reproducibility.code_version,
+                dependency_lock_hash=self.reproducibility.dependency_lock_hash,
+                parameter_version=self.reproducibility.parameter_version,
+                parameter_hash=self.reproducibility.parameter_hash,
+            ),
             random_seed=self.random_seed,
             calculated_at=self.calculated_at,
         )
+        if self.content_hash.lower() != validated.content_hash.lower():
+            raise ValueError("MacroFactorRunnerSpec.content_hash does not match content")
+        return validated
 
 
 @dataclass(frozen=True)
@@ -483,6 +730,22 @@ class InnerFoldBinding:
     fold_id: str
     training_row_ids: tuple[str, ...]
     validation_row_ids: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        require_token(self.fold_id, "InnerFoldBinding.fold_id")
+        _validate_row_ids(self.training_row_ids, "InnerFoldBinding.training_row_ids")
+        _validate_row_ids(self.validation_row_ids, "InnerFoldBinding.validation_row_ids")
+        if set(self.training_row_ids) & set(self.validation_row_ids):
+            raise ValueError("inner fold training and validation rows must be disjoint")
+
+    def validated_copy(self) -> InnerFoldBinding:
+        """Rebuild one external-request inner-fold binding live."""
+
+        return InnerFoldBinding(
+            fold_id=self.fold_id,
+            training_row_ids=self.training_row_ids,
+            validation_row_ids=self.validation_row_ids,
+        )
 
 
 @dataclass(frozen=True)
@@ -499,6 +762,35 @@ class ExecutionFoldBinding:
     selection_as_of: datetime
     evaluation_as_of: datetime
     design_hash: str
+
+    def __post_init__(self) -> None:
+        require_token(self.fold_id, "ExecutionFoldBinding.fold_id")
+        require_token(self.manifest_id, "ExecutionFoldBinding.manifest_id")
+        require_sha256(self.manifest_hash, "ExecutionFoldBinding.manifest_hash")
+        for values, label in (
+            (self.outer_training_row_ids, "ExecutionFoldBinding.outer_training_row_ids"),
+            (self.outer_validation_row_ids, "ExecutionFoldBinding.outer_validation_row_ids"),
+            (self.outer_oos_row_ids, "ExecutionFoldBinding.outer_oos_row_ids"),
+        ):
+            _validate_row_ids(values, label)
+        row_sets = (
+            set(self.outer_training_row_ids),
+            set(self.outer_validation_row_ids),
+            set(self.outer_oos_row_ids),
+        )
+        if any(row_sets[left] & row_sets[right] for left, right in ((0, 1), (0, 2), (1, 2))):
+            raise ValueError("outer fold row partitions must be disjoint")
+        if not self.inner_folds:
+            raise ValueError("ExecutionFoldBinding.inner_folds cannot be empty")
+        inner_ids = tuple(item.fold_id for item in self.inner_folds)
+        if len(inner_ids) != len(set(inner_ids)):
+            raise ValueError("execution inner-fold identities must be unique")
+        tuple(item.validated_copy() for item in self.inner_folds)
+        require_aware(self.selection_as_of, "ExecutionFoldBinding.selection_as_of")
+        require_aware(self.evaluation_as_of, "ExecutionFoldBinding.evaluation_as_of")
+        if self.selection_as_of > self.evaluation_as_of:
+            raise ValueError("fold selection cannot follow evaluation")
+        require_sha256(self.design_hash, "ExecutionFoldBinding.design_hash")
 
     def canonical_payload(self) -> dict[str, object]:
         """Return stable fold request content."""
@@ -523,6 +815,22 @@ class ExecutionFoldBinding:
             "design_hash": self.design_hash,
         }
 
+    def validated_copy(self) -> ExecutionFoldBinding:
+        """Rebuild one complete external-request fold binding live."""
+
+        return ExecutionFoldBinding(
+            fold_id=self.fold_id,
+            manifest_id=self.manifest_id,
+            manifest_hash=self.manifest_hash,
+            outer_training_row_ids=self.outer_training_row_ids,
+            outer_validation_row_ids=self.outer_validation_row_ids,
+            outer_oos_row_ids=self.outer_oos_row_ids,
+            inner_folds=tuple(item.validated_copy() for item in self.inner_folds),
+            selection_as_of=self.selection_as_of,
+            evaluation_as_of=self.evaluation_as_of,
+            design_hash=self.design_hash,
+        )
+
 
 @dataclass(frozen=True)
 class NestedCVExecutionRequest:
@@ -531,6 +839,9 @@ class NestedCVExecutionRequest:
     run_key: str
     run_version: int
     factor_version: str
+    spec_hash: str
+    target_definition: MacroTargetDefinition
+    candidate_definitions: tuple[ProxyAssetDefinition, ...]
     target_code: str
     candidate_asset_codes: tuple[str, ...]
     pit_manifest_id: str
@@ -583,6 +894,142 @@ class NestedCVExecutionRequest:
     final_fold_id: str
     folds: tuple[ExecutionFoldBinding, ...]
 
+    def __post_init__(self) -> None:
+        for token_value, label in (
+            (self.run_key, "NestedCVExecutionRequest.run_key"),
+            (self.factor_version, "NestedCVExecutionRequest.factor_version"),
+            (self.target_code, "NestedCVExecutionRequest.target_code"),
+            (self.pit_manifest_id, "NestedCVExecutionRequest.pit_manifest_id"),
+            (self.inference_row_id, "NestedCVExecutionRequest.inference_row_id"),
+            (
+                self.inference_target_period_id,
+                "NestedCVExecutionRequest.inference_target_period_id",
+            ),
+            (
+                self.inference_target_calendar_id,
+                "NestedCVExecutionRequest.inference_target_calendar_id",
+            ),
+            (
+                self.inference_target_calendar_version,
+                "NestedCVExecutionRequest.inference_target_calendar_version",
+            ),
+            (self.plan_version, "NestedCVExecutionRequest.plan_version"),
+            (self.benchmark_version, "NestedCVExecutionRequest.benchmark_version"),
+            (self.fixed_fmp_version, "NestedCVExecutionRequest.fixed_fmp_version"),
+            (self.cost_model_version, "NestedCVExecutionRequest.cost_model_version"),
+            (self.split_contract_version, "NestedCVExecutionRequest.split_contract_version"),
+            (
+                self.selection_protocol_version,
+                "NestedCVExecutionRequest.selection_protocol_version",
+            ),
+            (self.metrics_protocol_version, "NestedCVExecutionRequest.metrics_protocol_version"),
+            (
+                self.output_validity_policy_version,
+                "NestedCVExecutionRequest.output_validity_policy_version",
+            ),
+            (
+                self.input_freshness_policy_version,
+                "NestedCVExecutionRequest.input_freshness_policy_version",
+            ),
+            (self.timing_policy_version, "NestedCVExecutionRequest.timing_policy_version"),
+            (self.code_version, "NestedCVExecutionRequest.code_version"),
+            (self.parameter_version, "NestedCVExecutionRequest.parameter_version"),
+            (self.optimization_metric, "NestedCVExecutionRequest.optimization_metric"),
+            (self.final_fold_id, "NestedCVExecutionRequest.final_fold_id"),
+        ):
+            require_token(token_value, label)
+        require_positive(self.run_version, "NestedCVExecutionRequest.run_version")
+        for digest_value, label in (
+            (self.spec_hash, "NestedCVExecutionRequest.spec_hash"),
+            (self.pit_manifest_hash, "NestedCVExecutionRequest.pit_manifest_hash"),
+            (
+                self.pit_manifest_content_hash,
+                "NestedCVExecutionRequest.pit_manifest_content_hash",
+            ),
+            (self.dataset_hash, "NestedCVExecutionRequest.dataset_hash"),
+            (self.inference_row_hash, "NestedCVExecutionRequest.inference_row_hash"),
+            (
+                self.inference_target_calendar_hash,
+                "NestedCVExecutionRequest.inference_target_calendar_hash",
+            ),
+            (
+                self.inference_target_period_hash,
+                "NestedCVExecutionRequest.inference_target_period_hash",
+            ),
+            (self.plan_hash, "NestedCVExecutionRequest.plan_hash"),
+            (self.benchmark_hash, "NestedCVExecutionRequest.benchmark_hash"),
+            (self.fixed_fmp_hash, "NestedCVExecutionRequest.fixed_fmp_hash"),
+            (self.cost_model_hash, "NestedCVExecutionRequest.cost_model_hash"),
+            (self.split_contract_hash, "NestedCVExecutionRequest.split_contract_hash"),
+            (
+                self.selection_protocol_hash,
+                "NestedCVExecutionRequest.selection_protocol_hash",
+            ),
+            (self.metrics_protocol_hash, "NestedCVExecutionRequest.metrics_protocol_hash"),
+            (
+                self.output_validity_policy_hash,
+                "NestedCVExecutionRequest.output_validity_policy_hash",
+            ),
+            (
+                self.input_freshness_policy_hash,
+                "NestedCVExecutionRequest.input_freshness_policy_hash",
+            ),
+            (self.timing_policy_hash, "NestedCVExecutionRequest.timing_policy_hash"),
+            (self.dependency_lock_hash, "NestedCVExecutionRequest.dependency_lock_hash"),
+            (self.parameter_hash, "NestedCVExecutionRequest.parameter_hash"),
+        ):
+            require_sha256(digest_value, label)
+        validated_target = _validated_target(self.target_definition)
+        validated_candidates = tuple(
+            _validated_candidate(item) for item in self.candidate_definitions
+        )
+        if validated_target.target_code != self.target_code:
+            raise ValueError("request target definition and target_code differ")
+        expected_candidates = tuple(item.asset_code for item in validated_candidates)
+        if not expected_candidates or expected_candidates != self.candidate_asset_codes:
+            raise ValueError("request candidate definitions and identities differ")
+        if len(expected_candidates) != len(set(expected_candidates)):
+            raise ValueError("request candidate identities must be unique")
+        for integer_value, label in (
+            (self.output_valid_for_seconds, "output_valid_for_seconds"),
+            (self.output_maximum_valid_for_seconds, "output_maximum_valid_for_seconds"),
+            (self.max_manifest_age_seconds, "max_manifest_age_seconds"),
+            (self.max_inference_age_seconds, "max_inference_age_seconds"),
+            (
+                self.maximum_allowed_input_age_seconds,
+                "maximum_allowed_input_age_seconds",
+            ),
+        ):
+            require_positive(integer_value, f"NestedCVExecutionRequest.{label}")
+        if self.output_valid_for_seconds > self.output_maximum_valid_for_seconds:
+            raise ValueError("request validity exceeds its governance maximum")
+        if type(self.random_seed) is not int or self.random_seed < 0:
+            raise ValueError("NestedCVExecutionRequest.random_seed must be a non-negative integer")
+        for datetime_value, label in (
+            (self.manifest_fresh_until, "manifest_fresh_until"),
+            (self.inference_fresh_until, "inference_fresh_until"),
+            (self.calculated_at, "calculated_at"),
+        ):
+            require_aware(datetime_value, f"NestedCVExecutionRequest.{label}")
+        if not self.alpha_grid:
+            raise ValueError("NestedCVExecutionRequest.alpha_grid cannot be empty")
+        for alpha in self.alpha_grid:
+            require_finite(alpha, "NestedCVExecutionRequest.alpha")
+            if alpha <= 0:
+                raise ValueError("NestedCVExecutionRequest.alpha must be positive")
+        if len(self.alpha_grid) != len(set(self.alpha_grid)):
+            raise ValueError("NestedCVExecutionRequest.alpha_grid must be unique")
+        if not isinstance(self.optimization_direction, OptimizationDirection):
+            raise ValueError("NestedCVExecutionRequest.optimization_direction is invalid")
+        if not self.folds:
+            raise ValueError("NestedCVExecutionRequest.folds cannot be empty")
+        validated_folds = tuple(item.validated_copy() for item in self.folds)
+        fold_ids = tuple(item.fold_id for item in validated_folds)
+        if len(fold_ids) != len(set(fold_ids)):
+            raise ValueError("request fold identities must be unique")
+        if self.final_fold_id not in fold_ids:
+            raise ValueError("request final_fold_id is absent")
+
     @property
     def canonical_payload(self) -> dict[str, object]:
         """Return the full request manifest consumed by the external runner."""
@@ -591,6 +1038,9 @@ class NestedCVExecutionRequest:
             "run_key": self.run_key,
             "run_version": self.run_version,
             "factor_version": self.factor_version,
+            "spec_hash": self.spec_hash,
+            "target": _target_payload(self.target_definition),
+            "candidates": [_candidate_payload(item) for item in self.candidate_definitions],
             "target_code": self.target_code,
             "candidate_asset_codes": list(self.candidate_asset_codes),
             "pit_manifest_id": self.pit_manifest_id,
@@ -665,6 +1115,71 @@ class NestedCVExecutionRequest:
         """Return the exact external-runner request hash."""
 
         return hash_payload(self.canonical_payload)
+
+    def validated_copy(self) -> NestedCVExecutionRequest:
+        """Rebuild the complete request before numerical execution."""
+
+        return NestedCVExecutionRequest(
+            run_key=self.run_key,
+            run_version=self.run_version,
+            factor_version=self.factor_version,
+            spec_hash=self.spec_hash,
+            target_definition=_validated_target(self.target_definition),
+            candidate_definitions=tuple(
+                _validated_candidate(item) for item in self.candidate_definitions
+            ),
+            target_code=self.target_code,
+            candidate_asset_codes=self.candidate_asset_codes,
+            pit_manifest_id=self.pit_manifest_id,
+            pit_manifest_hash=self.pit_manifest_hash,
+            pit_manifest_content_hash=self.pit_manifest_content_hash,
+            dataset_hash=self.dataset_hash,
+            inference_row_id=self.inference_row_id,
+            inference_row_hash=self.inference_row_hash,
+            inference_target_period_id=self.inference_target_period_id,
+            inference_target_calendar_id=self.inference_target_calendar_id,
+            inference_target_calendar_version=self.inference_target_calendar_version,
+            inference_target_calendar_hash=self.inference_target_calendar_hash,
+            inference_target_period_hash=self.inference_target_period_hash,
+            plan_version=self.plan_version,
+            plan_hash=self.plan_hash,
+            benchmark_version=self.benchmark_version,
+            benchmark_hash=self.benchmark_hash,
+            fixed_fmp_version=self.fixed_fmp_version,
+            fixed_fmp_hash=self.fixed_fmp_hash,
+            cost_model_version=self.cost_model_version,
+            cost_model_hash=self.cost_model_hash,
+            split_contract_version=self.split_contract_version,
+            split_contract_hash=self.split_contract_hash,
+            selection_protocol_version=self.selection_protocol_version,
+            selection_protocol_hash=self.selection_protocol_hash,
+            metrics_protocol_version=self.metrics_protocol_version,
+            metrics_protocol_hash=self.metrics_protocol_hash,
+            output_validity_policy_version=self.output_validity_policy_version,
+            output_validity_policy_hash=self.output_validity_policy_hash,
+            output_valid_for_seconds=self.output_valid_for_seconds,
+            output_maximum_valid_for_seconds=self.output_maximum_valid_for_seconds,
+            input_freshness_policy_version=self.input_freshness_policy_version,
+            input_freshness_policy_hash=self.input_freshness_policy_hash,
+            max_manifest_age_seconds=self.max_manifest_age_seconds,
+            max_inference_age_seconds=self.max_inference_age_seconds,
+            maximum_allowed_input_age_seconds=self.maximum_allowed_input_age_seconds,
+            manifest_fresh_until=self.manifest_fresh_until,
+            inference_fresh_until=self.inference_fresh_until,
+            timing_policy_version=self.timing_policy_version,
+            timing_policy_hash=self.timing_policy_hash,
+            code_version=self.code_version,
+            dependency_lock_hash=self.dependency_lock_hash,
+            parameter_version=self.parameter_version,
+            parameter_hash=self.parameter_hash,
+            random_seed=self.random_seed,
+            calculated_at=self.calculated_at,
+            alpha_grid=self.alpha_grid,
+            optimization_metric=self.optimization_metric,
+            optimization_direction=self.optimization_direction,
+            final_fold_id=self.final_fold_id,
+            folds=tuple(item.validated_copy() for item in self.folds),
+        )
 
 
 def calculate_temporal_split_hash(split: TemporalSplitSpec) -> str:
@@ -1045,6 +1560,9 @@ def build_execution_request(
         run_key=spec.run_key,
         run_version=spec.run_version,
         factor_version=spec.factor_version,
+        spec_hash=spec.content_hash,
+        target_definition=spec.target,
+        candidate_definitions=spec.candidates,
         target_code=spec.target.target_code,
         candidate_asset_codes=tuple(item.asset_code for item in spec.candidates),
         pit_manifest_id=dataset.manifest_id,

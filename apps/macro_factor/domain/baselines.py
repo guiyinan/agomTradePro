@@ -96,7 +96,7 @@ class DeterministicErrorMetrics:
     r_squared: Decimal | None
 
     def __post_init__(self) -> None:
-        if isinstance(self.sample_count, bool) or self.sample_count <= 0:
+        if type(self.sample_count) is not int or self.sample_count <= 0:
             raise ValueError("DeterministicErrorMetrics.sample_count must be positive")
         require_finite(
             self.mean_squared_error,

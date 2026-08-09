@@ -489,6 +489,49 @@ def test_concrete_lasso_is_deterministic_and_seals_fit_diagnostics() -> None:
     assert first.result.must_not_use_for_decision is True
 
 
+@pytest.mark.parametrize("replacement_kind", ("target", "candidate"))
+def test_concrete_runner_rejects_same_code_spec_semantic_substitution(
+    replacement_kind: str,
+) -> None:
+    manifest, dataset, spec, config = _synthetic_case()
+    request = build_execution_request(spec, dataset, manifest)
+    if replacement_kind == "target":
+        substituted = replace(
+            spec,
+            target=replace(
+                spec.target,
+                unit="percent",
+                frequency="quarterly",
+                transformation_version="qoq-standardization-v3",
+            ),
+        )
+    else:
+        substituted = replace(
+            spec,
+            candidates=(
+                replace(
+                    spec.candidates[0],
+                    frequency="weekly",
+                    transformation_version="weekly-return-v3",
+                ),
+                spec.candidates[1],
+            ),
+        )
+
+    assert substituted.target.target_code == spec.target.target_code
+    assert tuple(item.asset_code for item in substituted.candidates) == tuple(
+        item.asset_code for item in spec.candidates
+    )
+    assert (
+        SklearnNestedCVLassoRunner(config).execute(
+            request=request,
+            dataset=dataset,
+            spec=substituted,
+        )
+        is None
+    )
+
+
 def test_runtime_identity_and_output_validity_cannot_be_spoofed_by_caller() -> None:
     manifest, dataset, spec, config = _synthetic_case()
     object.__setattr__(config, "producer_ref", "vendor://spoofed")
@@ -588,6 +631,75 @@ def test_non_converged_lasso_cannot_publish_an_artifact() -> None:
     assert (
         SklearnNestedCVLassoRunner(hostile).execute(
             request=build_execution_request(spec, dataset, manifest),
+            dataset=dataset,
+            spec=spec,
+        )
+        is None
+    )
+
+
+class _ComparisonOverridingInt(int):
+    """Integer subtype that must not cross an exact built-in-int boundary."""
+
+    def __le__(self, other: object) -> bool:
+        return False
+
+    def __lt__(self, other: object) -> bool:
+        return False
+
+
+@pytest.mark.parametrize("invalid_value", (1.5, _ComparisonOverridingInt(1)))
+@pytest.mark.parametrize(
+    "field_name",
+    (
+        "run_version",
+        "output_valid_for_seconds",
+        "output_maximum_valid_for_seconds",
+        "max_manifest_age_seconds",
+        "max_inference_age_seconds",
+        "maximum_allowed_input_age_seconds",
+        "random_seed",
+    ),
+)
+def test_execution_request_rejects_non_exact_integer_fields(
+    field_name: str,
+    invalid_value: object,
+) -> None:
+    manifest, dataset, spec, _config = _synthetic_case()
+    request = build_execution_request(spec, dataset, manifest)
+
+    with pytest.raises(ValueError, match="integer"):
+        replace(request, **{field_name: invalid_value})
+
+
+@pytest.mark.parametrize("invalid_value", (1.5, _ComparisonOverridingInt(1)))
+def test_nested_domain_integer_fields_reject_float_and_int_subclass(
+    invalid_value: object,
+) -> None:
+    manifest, _dataset, spec, _config = _synthetic_case()
+
+    with pytest.raises(ValueError, match="integer"):
+        replace(spec, run_version=invalid_value)
+    with pytest.raises(ValueError, match="integer"):
+        replace(spec, random_seed=invalid_value)
+    with pytest.raises(ValueError, match="integer"):
+        replace(spec.target, horizon_periods=invalid_value)
+    with pytest.raises(ValueError, match="integer"):
+        replace(spec.plan.timing, normalized_horizon_days=invalid_value)
+    with pytest.raises(ValueError, match="integer"):
+        replace(spec.temporal_split, embargo_days=invalid_value)
+    with pytest.raises(ValueError, match="integer"):
+        replace(manifest, missing_count=invalid_value)
+
+
+def test_concrete_runner_live_revalidates_request_integer_after_object_setattr() -> None:
+    manifest, dataset, spec, config = _synthetic_case()
+    request = build_execution_request(spec, dataset, manifest)
+    object.__setattr__(request, "max_manifest_age_seconds", _ComparisonOverridingInt(1))
+
+    assert (
+        SklearnNestedCVLassoRunner(config).execute(
+            request=request,
             dataset=dataset,
             spec=spec,
         )

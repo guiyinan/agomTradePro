@@ -88,7 +88,7 @@ class SklearnNestedCVFittingConfig:
                 raise ValueError(f"{label} must be a finite non-negative Decimal")
         if self.tolerance == 0 or self.zero_tolerance == 0:
             raise ValueError("numerical tolerances must be positive")
-        if isinstance(self.max_iterations, bool) or self.max_iterations <= 0:
+        if type(self.max_iterations) is not int or self.max_iterations <= 0:
             raise ValueError("max_iterations must be positive")
 
 
@@ -141,7 +141,14 @@ class SklearnNestedCVLassoRunner:
 
         try:
             return self._execute(request=request, dataset=dataset, spec=spec)
-        except (ArithmeticError, TypeError, ValueError, np.linalg.LinAlgError):
+        except (
+            ArithmeticError,
+            AttributeError,
+            KeyError,
+            TypeError,
+            ValueError,
+            np.linalg.LinAlgError,
+        ):
             return None
 
     def _execute(
@@ -151,6 +158,9 @@ class SklearnNestedCVLassoRunner:
         dataset: PITResearchDataset,
         spec: MacroFactorRunnerSpec,
     ) -> ExternalNestedCVArtifact:
+        request = request.validated_copy()
+        dataset = dataset.validated_copy()
+        spec = spec.validated_copy()
         validity_policy = self._validate_bindings(
             request=request,
             dataset=dataset,
@@ -352,9 +362,20 @@ class SklearnNestedCVLassoRunner:
         spec: MacroFactorRunnerSpec,
     ) -> ResearchOutputValidityPolicy:
         validity_policy = spec.output_validity_policy.validated_copy()
+        if (
+            request.run_key != spec.run_key
+            or request.run_version != spec.run_version
+            or request.factor_version != spec.factor_version
+            or request.spec_hash.lower() != spec.content_hash.lower()
+        ):
+            raise ValueError("request run/spec identity mismatch")
         if any(not alpha.is_finite() or alpha <= 0 for alpha in request.alpha_grid):
             raise ValueError("alpha family must contain finite positive values")
-        if request.alpha_grid != spec.plan.alpha_grid:
+        if (
+            request.alpha_grid != spec.plan.alpha_grid
+            or request.optimization_metric != spec.plan.optimization_metric
+            or request.optimization_direction is not spec.plan.optimization_direction
+        ):
             raise ValueError("request alpha family drifted from preregistration")
         if request.dataset_hash != dataset.content_hash:
             raise ValueError("request does not bind the exact PIT dataset")
@@ -381,13 +402,15 @@ class SklearnNestedCVLassoRunner:
         ):
             raise ValueError("request inference-row binding mismatch")
         if (
-            request.target_code != spec.target.target_code
+            request.target_definition != spec.target
+            or request.target_code != spec.target.target_code
             or request.target_code != dataset.target_code
         ):
             raise ValueError("target binding mismatch")
         expected_candidates = tuple(item.asset_code for item in spec.candidates)
         if (
-            request.candidate_asset_codes != expected_candidates
+            request.candidate_definitions != spec.candidates
+            or request.candidate_asset_codes != expected_candidates
             or dataset.candidate_asset_codes != expected_candidates
         ):
             raise ValueError("candidate universe/order mismatch")
@@ -406,11 +429,129 @@ class SklearnNestedCVLassoRunner:
         )
         if any(configured != governed for configured, governed in exact_contracts):
             raise ValueError("concrete runner contract identity mismatch")
+        request_contracts = (
+            (
+                request.benchmark_version,
+                request.benchmark_hash.lower(),
+                spec.historical_mean_benchmark.version,
+                spec.historical_mean_benchmark.content_hash.lower(),
+            ),
+            (
+                request.fixed_fmp_version,
+                request.fixed_fmp_hash.lower(),
+                spec.fixed_fmp.benchmark_version,
+                spec.fixed_fmp.content_hash.lower(),
+            ),
+            (
+                request.cost_model_version,
+                request.cost_model_hash.lower(),
+                spec.cost_model.version,
+                spec.cost_model.content_hash.lower(),
+            ),
+            (
+                request.split_contract_version,
+                request.split_contract_hash.lower(),
+                spec.split_contract.version,
+                spec.split_contract.content_hash.lower(),
+            ),
+            (
+                request.selection_protocol_version,
+                request.selection_protocol_hash.lower(),
+                spec.selection_protocol.version,
+                spec.selection_protocol.content_hash.lower(),
+            ),
+            (
+                request.metrics_protocol_version,
+                request.metrics_protocol_hash.lower(),
+                spec.metrics_protocol.version,
+                spec.metrics_protocol.content_hash.lower(),
+            ),
+        )
+        if any(
+            request_version != governed_version or request_hash != governed_hash
+            for request_version, request_hash, governed_version, governed_hash in request_contracts
+        ):
+            raise ValueError("request governed contract identity mismatch")
         if (
             request.plan_hash != spec.plan.content_hash
             or request.plan_version != spec.plan.policy_version
+            or request.timing_policy_version != spec.plan.timing.policy_version
+            or request.timing_policy_hash.lower() != spec.plan.timing.content_hash.lower()
+            or request.final_fold_id != spec.plan.final_fold_id
         ):
             raise ValueError("request plan binding mismatch")
+        if (
+            request.code_version != spec.reproducibility.code_version
+            or request.dependency_lock_hash.lower()
+            != spec.reproducibility.dependency_lock_hash.lower()
+            or request.parameter_version != spec.reproducibility.parameter_version
+            or request.parameter_hash.lower() != spec.reproducibility.parameter_hash.lower()
+            or request.random_seed != spec.random_seed
+            or request.calculated_at != spec.calculated_at
+        ):
+            raise ValueError("request reproducibility binding mismatch")
+        expected_outer_folds = spec.plan.outer_folds
+        if tuple(item.fold_id for item in request.folds) != tuple(
+            item.fold_id for item in expected_outer_folds
+        ):
+            raise ValueError("request fold order/identity mismatch")
+        rows_by_id = dataset.rows_by_id
+        for binding, governed_fold in zip(request.folds, expected_outer_folds, strict=True):
+            expected_inner = governed_fold.inner_folds
+            if (
+                binding.manifest_id != dataset.manifest_id
+                or binding.manifest_hash.lower() != dataset.manifest_hash.lower()
+                or binding.outer_training_row_ids != governed_fold.training_row_ids
+                or binding.outer_validation_row_ids != governed_fold.validation_row_ids
+                or binding.outer_oos_row_ids != governed_fold.out_of_sample_row_ids
+                or binding.selection_as_of != governed_fold.selection_as_of
+                or binding.evaluation_as_of != governed_fold.evaluation_as_of
+                or tuple(item.fold_id for item in binding.inner_folds)
+                != tuple(item.fold_id for item in expected_inner)
+                or any(
+                    request_inner.training_row_ids != governed_inner.training_row_ids
+                    or request_inner.validation_row_ids != governed_inner.validation_row_ids
+                    for request_inner, governed_inner in zip(
+                        binding.inner_folds,
+                        expected_inner,
+                        strict=True,
+                    )
+                )
+            ):
+                raise ValueError("request fold binding mismatch")
+            design_row_ids = (
+                *binding.outer_training_row_ids,
+                *binding.outer_validation_row_ids,
+                *binding.outer_oos_row_ids,
+            )
+            try:
+                design_rows = {
+                    row_id: rows_by_id[row_id].canonical_payload() for row_id in design_row_ids
+                }
+            except KeyError as exc:
+                raise ValueError("request fold references an unknown dataset row") from exc
+            expected_design_hash = hash_payload(
+                {
+                    "manifest_id": dataset.manifest_id,
+                    "manifest_hash": dataset.manifest_hash,
+                    "manifest_content_hash": dataset.manifest_content_hash,
+                    "fold_id": binding.fold_id,
+                    "training_row_ids": list(binding.outer_training_row_ids),
+                    "validation_row_ids": list(binding.outer_validation_row_ids),
+                    "out_of_sample_row_ids": list(binding.outer_oos_row_ids),
+                    "inner_folds": [
+                        {
+                            "fold_id": item.fold_id,
+                            "training_row_ids": list(item.training_row_ids),
+                            "validation_row_ids": list(item.validation_row_ids),
+                        }
+                        for item in binding.inner_folds
+                    ],
+                    "rows": [design_rows[key] for key in sorted(design_rows)],
+                }
+            )
+            if binding.design_hash.lower() != expected_design_hash.lower():
+                raise ValueError("request fold design seal mismatch")
         if request.optimization_metric == "validation_mean_squared_error":
             expected_direction = OptimizationDirection.MINIMIZE
         elif request.optimization_metric == "validation_information_coefficient":
