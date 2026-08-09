@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from apps.research.domain.state_model_qualification_contracts import _canonical_hash
 from apps.research.domain.state_model_qualification_lifecycle import R6QualificationRef
@@ -75,7 +75,7 @@ def _require_qualification_ref(value: object, field_name: str) -> R6Qualificatio
     return value
 
 
-class R6ActivationAction(str, Enum):
+class R6ActivationAction(StrEnum):
     """Manual actions for the separate activation stack."""
 
     ACTIVATE = "activate"
@@ -83,14 +83,14 @@ class R6ActivationAction(str, Enum):
     ROLLBACK = "rollback"
 
 
-class R6ActivationApprovalOutcome(str, Enum):
+class R6ActivationApprovalOutcome(StrEnum):
     """Canonical Research owner outcome for an activation review."""
 
     APPROVED = "approved"
     REJECTED = "rejected"
 
 
-class R6MonitoringActivationStatus(str, Enum):
+class R6MonitoringActivationStatus(StrEnum):
     """Monitoring states admitted at the activation owner boundary."""
 
     HEALTHY = "healthy"
@@ -911,6 +911,7 @@ def derive_r6_activation_state(
     scope_ref = events[0].scope_ref
     stack: list[R6ActivationApprovalRef] = []
     previous_hash: str | None = None
+    previous_recorded_at: datetime | None = None
     authorization_refs: set[tuple[str, str]] = set()
     for expected_sequence, event in enumerate(events, start=1):
         if not isinstance(event, R6ActivationEvent):
@@ -922,6 +923,10 @@ def derive_r6_activation_state(
             raise ValueError("R6 activation event sequence is discontinuous")
         if event.recorded_at > evaluated_at:
             raise ValueError("R6 activation lifecycle contains future evidence")
+        if previous_recorded_at is not None and (
+            event.occurred_at <= previous_recorded_at or event.recorded_at <= previous_recorded_at
+        ):
+            raise ValueError("R6 activation lifecycle clocks are not strictly monotonic")
         if event.previous_event_hash != previous_hash:
             raise ValueError("R6 activation lifecycle hash chain is broken")
         authorization_ref = (event.authorization_id, event.authorization_version)
@@ -941,6 +946,7 @@ def derive_r6_activation_state(
         else:
             stack.pop()
         previous_hash = event.content_hash
+        previous_recorded_at = event.recorded_at
     if previous_hash is None:  # pragma: no cover - guarded by non-empty events
         raise ValueError("R6 activation lifecycle has no head")
     return R6ActivationState(

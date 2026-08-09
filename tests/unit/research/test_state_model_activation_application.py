@@ -16,6 +16,7 @@ from apps.research.application.state_model_activation import (
     R6ActivationCorruption,
     R6ActivationUnavailable,
     R6ActiveStateModelProjection,
+    R6PersistedActivationEvent,
 )
 from apps.research.application.state_model_monitoring import ActiveR6QualificationEvidence
 from apps.research.domain.state_model_activation import (
@@ -166,7 +167,7 @@ class MemoryRepository:
         self,
         *,
         authorization_ref: R6ActivationAuthorizationRef,
-    ) -> R6ActivationEvent | None:
+    ) -> R6PersistedActivationEvent | None:
         """Return the unique event for one authorization identity."""
 
         matches = [
@@ -180,11 +181,22 @@ class MemoryRepository:
             )
         ]
         assert len(matches) <= 1
-        return matches[0] if matches else None
+        if not matches:
+            return None
+        record = object.__new__(R6PersistedActivationEvent)
+        object.__setattr__(record, "event", matches[0])
+        object.__setattr__(record, "ledger_recorded_at", matches[0].recorded_at)
+        return record
 
-    def append_event(self, event: R6ActivationEvent) -> R6ActivationEvent:
+    def append_event(
+        self,
+        *,
+        authorization: R6ActivationAuthorization,
+        event: R6ActivationEvent,
+    ) -> R6ActivationEvent:
         """Append one immutable event."""
 
+        assert event.authorization_hash == authorization.content_hash
         self.streams.setdefault(event.scope_ref, []).append(event)
         return event
 
@@ -802,7 +814,12 @@ def test_owner_overflow_and_repository_failure_are_normalized_and_rolled_back(
         authorizations=(authorization,),
     )
 
-    def append_then_fail(event: R6ActivationEvent) -> R6ActivationEvent:
+    def append_then_fail(
+        *,
+        authorization: R6ActivationAuthorization,
+        event: R6ActivationEvent,
+    ) -> R6ActivationEvent:
+        assert event.authorization_hash == authorization.content_hash
         repository.streams.setdefault(event.scope_ref, []).append(event)
         raise RuntimeError("simulated repository failure")
 

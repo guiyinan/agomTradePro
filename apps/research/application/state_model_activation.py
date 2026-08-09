@@ -2,15 +2,16 @@
 
 The use cases expose an auditable activation control-plane state only.  They do
 not publish a current model, replace Regime, authorize a decision, or execute.
-Concrete canonical owner adapters and persistence are intentionally absent from
-this Phase A slice, so production composition remains unavailable.
+Phase B provides append-only persistence behind these ports.  Concrete
+canonical owner adapters remain unavailable, so production mutation surfaces
+stay inert and no consumer is connected.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Protocol, TypeVar
 
@@ -34,6 +35,7 @@ from apps.research.domain.state_model_activation import (
     validate_r6_activation_authorization,
     validate_r6_monitoring_activation_evidence,
 )
+from apps.research.domain.state_model_qualification_contracts import _canonical_hash
 from apps.research.domain.state_model_qualification_lifecycle import R6QualificationRef
 
 _T = TypeVar("_T")
@@ -132,8 +134,27 @@ class R6ActivationAuthorizationProvider(Protocol):
         """Return one exact manual transition authorization."""
 
 
+@dataclass(frozen=True)
+class R6PersistedActivationEvent:
+    """One restored event plus its sealed Research ledger-known clock."""
+
+    event: R6ActivationEvent
+    ledger_recorded_at: datetime
+
+    def __post_init__(self) -> None:
+        if type(self.event) is not R6ActivationEvent:
+            raise ValueError("R6 persisted activation event type is invalid")
+        self.event.__post_init__()
+        _require_aware(
+            self.ledger_recorded_at,
+            "R6 persisted activation event ledger_recorded_at",
+        )
+        if self.event.recorded_at > self.ledger_recorded_at:
+            raise ValueError("R6 persisted activation event predates its ledger clock")
+
+
 class R6ActivationRepository(Protocol):
-    """Append-only stream boundary for a later persistence phase."""
+    """Append-only stream boundary implemented by Phase B persistence."""
 
     @property
     def unit_of_work_key(self) -> str:
@@ -154,11 +175,16 @@ class R6ActivationRepository(Protocol):
         self,
         *,
         authorization_ref: R6ActivationAuthorizationRef,
-    ) -> R6ActivationEvent | None:
+    ) -> R6PersistedActivationEvent | None:
         """Return the immutable winner for one authorization identity."""
 
-    def append_event(self, event: R6ActivationEvent) -> R6ActivationEvent:
-        """Append or exact-replay one canonical event."""
+    def append_event(
+        self,
+        *,
+        authorization: R6ActivationAuthorization,
+        event: R6ActivationEvent,
+    ) -> R6ActivationEvent:
+        """Atomically append an exact authorization/event pair or replay its winner."""
 
 
 def _provider_uow_key(provider: _UnitOfWorkProvider, label: str) -> str:
@@ -279,6 +305,7 @@ class R6ActiveStateModelProjection:
     must_not_replace_regime: bool = True
     must_not_publish_current: bool = True
     must_not_execute: bool = True
+    content_hash: str = field(init=False)
 
     def __init__(
         self,
@@ -305,6 +332,11 @@ class R6ActiveStateModelProjection:
             ("must_not_execute", True),
         ):
             object.__setattr__(self, name, value)
+        object.__setattr__(
+            self,
+            "content_hash",
+            _canonical_hash(self, excluded_fields=frozenset({"content_hash"})),
+        )
         self.__post_init__()
 
     def __post_init__(self) -> None:
@@ -352,6 +384,14 @@ class R6ActiveStateModelProjection:
             or any(character not in "0123456789abcdef" for character in self.head_event_hash)
         ):
             raise ValueError("R6 active projection head hash is invalid")
+        if (
+            not isinstance(self.content_hash, str)
+            or len(self.content_hash) != 64
+            or any(character not in "0123456789abcdef" for character in self.content_hash)
+            or self.content_hash
+            != _canonical_hash(self, excluded_fields=frozenset({"content_hash"}))
+        ):
+            raise ValueError("R6 active projection content seal is invalid")
 
 
 def _validate_active_qualification(
@@ -590,15 +630,16 @@ def _replay_existing_winner(
     repository: R6ActivationRepository,
     existing: R6ActivationEvent,
     authorization: R6ActivationAuthorization,
+    ledger_recorded_at: datetime,
 ) -> R6ActivationEvent:
     """Require an idempotency winner to be the exact canonical prefix head."""
 
     history = _load_stream(
         repository,
         scope_ref=authorization.scope_ref,
-        as_of=existing.recorded_at,
+        as_of=ledger_recorded_at,
     )
-    state = _derive_state(history, as_of=existing.recorded_at)
+    state = _derive_state(history, as_of=ledger_recorded_at)
     if (
         state is None
         or not history
@@ -668,26 +709,25 @@ class ApplyR6Activation:
                 self._uow_providers,
                 expected_key=self._expected_uow_key,
             )
-            existing = _repository_call(
+            existing_record = _repository_call(
                 "authorization winner read",
                 lambda: self._repository.get_by_authorization(
                     authorization_ref=command.authorization_ref,
                 ),
             )
-            if existing is None:
+            if existing_record is None:
+                existing = None
                 owner_as_of = now
             else:
                 try:
-                    if type(existing) is not R6ActivationEvent:
-                        raise ValueError("winner type differs")
-                    existing.__post_init__()
-                    owner_as_of = _require_aware(
-                        existing.recorded_at,
-                        "R6 activation winner recorded_at",
-                    )
+                    if type(existing_record) is not R6PersistedActivationEvent:
+                        raise ValueError("winner record type differs")
+                    existing_record.__post_init__()
+                    existing = existing_record.event
+                    owner_as_of = existing.recorded_at
                 except Exception as error:
                     raise R6ActivationCorruption("R6 activation winner is malformed") from error
-                if owner_as_of > now:
+                if existing_record.ledger_recorded_at > now:
                     raise R6ActivationCorruption("R6 activation winner contains future evidence")
             authorization = _owner_call(
                 "authorization",
@@ -714,13 +754,19 @@ class ApplyR6Activation:
                 raise R6ActivationUnavailable(
                     "R6 activation authorization was substituted or is inactive"
                 )
-            if existing is not None:
+            if existing_record is not None:
+                existing = existing_record.event
                 if not _event_matches_authorization(existing, authorization):
                     raise R6ActivationConflict("R6 activation authorization winner differs")
+                _require_expected_uow(
+                    self._uow_providers,
+                    expected_key=self._expected_uow_key,
+                )
                 return _replay_existing_winner(
                     repository=self._repository,
                     existing=existing,
                     authorization=authorization,
+                    ledger_recorded_at=existing_record.ledger_recorded_at,
                 )
             history = _load_stream(
                 self._repository,
@@ -789,9 +835,16 @@ class ApplyR6Activation:
                 )
             except Exception as error:
                 raise R6ActivationUnavailable("R6 activation transition is invalid") from error
+            _require_expected_uow(
+                self._uow_providers,
+                expected_key=self._expected_uow_key,
+            )
             winner = _repository_call(
                 "event append",
-                lambda: self._repository.append_event(event),
+                lambda: self._repository.append_event(
+                    authorization=authorization,
+                    event=event,
+                ),
             )
             try:
                 if type(winner) is not R6ActivationEvent:
@@ -810,6 +863,7 @@ class ApplyR6Activation:
                     repository=self._repository,
                     existing=winner,
                     authorization=authorization,
+                    ledger_recorded_at=now,
                 )
             return winner
 
@@ -885,6 +939,10 @@ class GetActiveR6StateModel:
                     qualification_provider=self._qualification_provider,
                     monitoring_provider=self._monitoring_provider,
                 )
+                _require_expected_uow(
+                    self._uow_providers,
+                    expected_key=self._expected_uow_key,
+                )
                 return _mint_active_projection(
                     state=state,
                     scope_ref=scope_ref,
@@ -912,4 +970,5 @@ __all__ = [
     "R6ActivationRepository",
     "R6ActivationUnavailable",
     "R6ActiveStateModelProjection",
+    "R6PersistedActivationEvent",
 ]
