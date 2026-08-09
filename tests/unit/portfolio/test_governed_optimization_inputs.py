@@ -14,6 +14,8 @@ from apps.portfolio.application.governed_optimization import (
     AssembleGovernedOptimizationProblemUseCase,
     GovernedOptimizationRunBundle,
     GovernedOptimizationUnavailable,
+    RegisterGovernedOptimizationInputReceiptCommand,
+    RegisterGovernedOptimizationInputReceiptUseCase,
     RunGovernedOptimizationResearchUseCase,
 )
 from apps.portfolio.composition import make_governed_optimization_research_runtime
@@ -85,6 +87,11 @@ from apps.portfolio.domain.optimization_input_receipt import (
 from apps.portfolio.domain.optimizer_inputs import OptimizationInputKind
 from apps.portfolio.infrastructure.deterministic_optimizer import (
     DeterministicConstrainedSearchAdapter,
+)
+from apps.portfolio.infrastructure.optimization_research_models import (
+    GovernedOptimizationInputReceiptModel,
+    GovernedOptimizationResearchResultModel,
+    OptimizationResearchLifecycleEventModel,
 )
 
 NOW = datetime(2026, 8, 5, 9, tzinfo=UTC)
@@ -960,6 +967,96 @@ def test_governed_run_rereads_promotions_after_calculation_and_blocks_retirement
         )
 
     assert repository.bundles == []
+
+
+@pytest.mark.django_db
+def test_production_registration_is_id_only_unavailable_and_zero_write() -> None:
+    runtime = make_governed_optimization_research_runtime()
+    facade = runtime.register_input_receipt
+
+    for private_surface in (
+        "repository",
+        "writer",
+        "token",
+        "unit_of_work",
+        "_writer",
+        "_token",
+    ):
+        assert not hasattr(facade, private_surface)
+
+    assert type(facade).__slots__ == ()
+    assert not hasattr(facade, "__dict__")
+    assert facade.execute.__func__.__closure__ is None
+
+    pending: list[object] = [runtime]
+    visited: set[int] = set()
+    runtime_graph: list[object] = []
+    while pending:
+        current = pending.pop()
+        if id(current) in visited:
+            continue
+        visited.add(id(current))
+        runtime_graph.append(current)
+        if isinstance(current, dict):
+            pending.extend(current.keys())
+            pending.extend(current.values())
+            continue
+        if isinstance(current, (list, tuple, set, frozenset)):
+            pending.extend(current)
+            continue
+        state = getattr(current, "__dict__", None)
+        if isinstance(state, dict):
+            pending.extend(state.values())
+        for owner in type(current).__mro__:
+            slot_names = owner.__dict__.get("__slots__", ())
+            if isinstance(slot_names, str):
+                slot_names = (slot_names,)
+            for slot_name in slot_names:
+                if slot_name in {"__dict__", "__weakref__"}:
+                    continue
+                try:
+                    pending.append(object.__getattribute__(current, slot_name))
+                except AttributeError:
+                    continue
+
+    assert not any(
+        isinstance(item, RegisterGovernedOptimizationInputReceiptUseCase) for item in runtime_graph
+    )
+
+    with pytest.raises(
+        GovernedOptimizationUnavailable,
+        match="canonical governed optimization input receipt registration is unavailable",
+    ):
+        facade.execute(
+            RegisterGovernedOptimizationInputReceiptCommand(
+                input_set_id="optimizer-input-set:production-missing",
+                input_set_version="governed-optimizer-input-set.v1",
+            )
+        )
+
+    assert GovernedOptimizationInputReceiptModel._default_manager.count() == 0
+    assert GovernedOptimizationResearchResultModel._default_manager.count() == 0
+    assert OptimizationResearchLifecycleEventModel._default_manager.count() == 0
+
+
+@pytest.mark.django_db
+def test_production_registration_revalidates_malformed_command_and_remains_zero_write() -> None:
+    runtime = make_governed_optimization_research_runtime()
+    command = RegisterGovernedOptimizationInputReceiptCommand(
+        input_set_id="optimizer-input-set:mutated",
+        input_set_version="governed-optimizer-input-set.v1",
+    )
+    object.__setattr__(command, "input_set_id", object())
+
+    with pytest.raises(
+        GovernedOptimizationUnavailable,
+        match="registration command is invalid",
+    ):
+        runtime.register_input_receipt.execute(command)
+
+    assert GovernedOptimizationInputReceiptModel._default_manager.count() == 0
+    assert GovernedOptimizationResearchResultModel._default_manager.count() == 0
+    assert OptimizationResearchLifecycleEventModel._default_manager.count() == 0
 
 
 @pytest.mark.django_db

@@ -10,6 +10,8 @@ from apps.portfolio.application.governed_optimization import (
     AssembleGovernedOptimizationProblemUseCase,
     ExactPortfolioLifecycleAuthorizationProvider,
     ExactPromotionProvider,
+    GovernedOptimizationUnavailable,
+    RegisterGovernedOptimizationInputReceiptCommand,
     RunGovernedOptimizationResearchUseCase,
 )
 from apps.portfolio.domain.governed_input_set import ExactPromotionAttestation
@@ -70,10 +72,37 @@ class _UnavailablePortfolioLifecycleAuthorizationProvider:
         return None
 
 
+class UnavailableGovernedOptimizationInputReceiptRegistrationFacade:
+    """Expose an inert ID-only registration boundary until owner ports exist."""
+
+    __slots__ = ()
+
+    def execute(
+        self,
+        command: RegisterGovernedOptimizationInputReceiptCommand,
+    ) -> None:
+        """Revalidate lookup identity and fail closed without holding capabilities."""
+
+        try:
+            if type(command) is not RegisterGovernedOptimizationInputReceiptCommand:
+                raise TypeError("registration command has an unexpected type")
+            if type(command.input_set_id) is not str or type(command.input_set_version) is not str:
+                raise TypeError("registration identity must use exact strings")
+            RegisterGovernedOptimizationInputReceiptCommand.__post_init__(command)
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise GovernedOptimizationUnavailable(
+                "governed optimization input receipt registration command is invalid"
+            ) from exc
+        raise GovernedOptimizationUnavailable(
+            "canonical governed optimization input receipt registration is unavailable"
+        )
+
+
 @dataclass(frozen=True)
 class DjangoGovernedOptimizationResearchRuntime:
     """Constructable R8 runtime whose missing owner sources fail before writes."""
 
+    register_input_receipt: UnavailableGovernedOptimizationInputReceiptRegistrationFacade
     run: RunGovernedOptimizationResearchUseCase
     append_lifecycle: AppendGovernedOptimizationLifecycleEventUseCase
 
@@ -102,6 +131,7 @@ def build_django_governed_optimization_research_runtime() -> (
         promotion_provider=promotion_provider,
     )
     return DjangoGovernedOptimizationResearchRuntime(
+        register_input_receipt=UnavailableGovernedOptimizationInputReceiptRegistrationFacade(),
         run=RunGovernedOptimizationResearchUseCase(
             assembler=assembler,
             engine=DeterministicConstrainedSearchAdapter(),
@@ -119,5 +149,6 @@ def build_django_governed_optimization_research_runtime() -> (
 
 __all__ = [
     "DjangoGovernedOptimizationResearchRuntime",
+    "UnavailableGovernedOptimizationInputReceiptRegistrationFacade",
     "build_django_governed_optimization_research_runtime",
 ]
