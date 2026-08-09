@@ -215,6 +215,10 @@ from apps.research.infrastructure.scenario_review_reminder_models import (  # no
     ScenarioReviewReminderEventModel,
     ScenarioReviewReminderModel,
 )
+from apps.research.infrastructure.state_model_monitoring_models import (  # noqa: E402,F401
+    R6MonitoringAssessmentModel,
+    R6MonitoringObservationModel,
+)
 from apps.research.infrastructure.state_model_qualification_models import (  # noqa: E402,F401
     R6QualificationAssessmentModel,
     R6QualificationLifecycleAuthorizationModel,

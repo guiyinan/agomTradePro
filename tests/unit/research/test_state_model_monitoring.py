@@ -13,12 +13,14 @@ from apps.research.domain.state_model_monitoring import (
     R6MonitoringBlockerCode,
     R6MonitoringMetricKey,
     R6MonitoringMetricObservation,
+    R6MonitoringPeriodCalendar,
     R6MonitoringPolicy,
     evaluate_r6_monitoring,
 )
 from tests.unit.research.state_model_monitoring_factories import (
     NOW,
     QUALIFICATION_REF,
+    active_qualification,
     healthy_metric_values,
     observation,
     period_calendar,
@@ -31,18 +33,74 @@ def _evaluate(
     *,
     monitoring_policy: R6MonitoringPolicy,
     observations,
+    monitoring_calendar: R6MonitoringPeriodCalendar | None = None,
 ):
+    qualification = active_qualification()
     return evaluate_r6_monitoring(
         qualification_ref=QUALIFICATION_REF,
         qualification_content_hash=QUALIFICATION_REF.assessment_hash,
+        qualification_assessed_at=qualification.assessed_at,
+        qualification_known_at=qualification.known_at,
         requested_policy_id=monitoring_policy.policy_id,
         requested_policy_version=monitoring_policy.policy_version,
         expected_policy_hash=monitoring_policy.content_hash,
         policy=monitoring_policy,
-        period_calendar=period_calendar(),
+        period_calendar=monitoring_calendar or period_calendar(),
         observations=tuple(observations),
         evaluated_at=NOW,
     )
+
+
+def test_period_calendar_manifest_covers_its_full_validity_without_gaps() -> None:
+    """A self-consistent hash cannot bless gaps or an early final cutoff."""
+
+    canonical = period_calendar()
+    with pytest.raises(ValueError, match="contiguous"):
+        replace(
+            canonical,
+            entries=canonical.entries[:10] + canonical.entries[11:],
+        )
+    with pytest.raises(ValueError, match="full validity"):
+        replace(canonical, entries=canonical.entries[:-1])
+
+
+def test_calendar_forward_horizon_must_cover_the_policy_active_window() -> None:
+    """A shorter but internally contiguous manifest cannot end policy monitoring early."""
+
+    canonical = period_calendar()
+    truncated = replace(
+        canonical,
+        valid_until=canonical.entries[-2].period_end,
+        entries=canonical.entries[:-1],
+    )
+    monitoring_policy = replace(
+        policy(),
+        expected_period_calendar_hash=truncated.content_hash,
+    )
+
+    assessment = _evaluate(
+        monitoring_policy=monitoring_policy,
+        monitoring_calendar=truncated,
+        observations=(),
+    )
+
+    assert assessment.status is R6MonitoringAssessmentStatus.BLOCKED
+    assert R6MonitoringBlockerCode.PERIOD_CALENDAR_HORIZON_INSUFFICIENT in (assessment.blockers)
+
+
+def test_policy_recording_cannot_predate_exact_active_qualification_knowledge() -> None:
+    """The policy owner clock must follow both qualification assessment and knowledge."""
+
+    qualification = active_qualification()
+    monitoring_policy = replace(
+        policy(),
+        recorded_at=qualification.known_at - timedelta(microseconds=1),
+    )
+
+    assessment = _evaluate(monitoring_policy=monitoring_policy, observations=())
+
+    assert assessment.status is R6MonitoringAssessmentStatus.BLOCKED
+    assert R6MonitoringBlockerCode.POLICY_QUALIFICATION_CAUSALITY_INVALID in (assessment.blockers)
 
 
 def test_policy_requires_every_threshold_to_be_injected() -> None:
@@ -67,6 +125,7 @@ def test_policy_requires_every_threshold_to_be_injected() -> None:
             expected_period_calendar_version="v1",
             expected_period_calendar_hash=monitoring_calendar.content_hash,
             expected_evidence_ref_prefix="research://r6/monitoring/",
+            recorded_at=NOW - timedelta(days=2),
             active_from=NOW - timedelta(days=1),
             active_until=NOW + timedelta(days=1),
         )
@@ -92,6 +151,79 @@ def test_healthy_raw_facts_remain_internal_and_non_executable() -> None:
     assert assessment.must_not_replace_regime is True
     assert assessment.must_not_publish_current is True
     assert assessment.must_not_execute is True
+
+
+def test_reversed_observation_order_is_fail_closed() -> None:
+    """Owner ordering is contractual and cannot be silently rewritten."""
+
+    monitoring_policy = policy()
+    first = observation(sequence=1, monitoring_policy=monitoring_policy)
+    second = observation(sequence=2, monitoring_policy=monitoring_policy)
+
+    assessment = _evaluate(
+        monitoring_policy=monitoring_policy,
+        observations=(second, first),
+    )
+
+    assert assessment.status is R6MonitoringAssessmentStatus.BLOCKED
+    assert R6MonitoringBlockerCode.OBSERVATION_PERIOD_ORDER_INVALID in assessment.blockers
+
+
+def test_missing_middle_calendar_member_is_fail_closed() -> None:
+    """An older extra period cannot replace a missing member in the selected range."""
+
+    monitoring_policy = policy(
+        minimum_observation_count=3,
+        maximum_observation_age_seconds=3 * 24 * 60 * 60,
+    )
+    assessment = _evaluate(
+        monitoring_policy=monitoring_policy,
+        observations=(
+            observation(sequence=-1, monitoring_policy=monitoring_policy),
+            observation(sequence=0, monitoring_policy=monitoring_policy),
+            observation(sequence=2, monitoring_policy=monitoring_policy),
+        ),
+    )
+
+    assert assessment.status is R6MonitoringAssessmentStatus.BLOCKED
+    assert R6MonitoringBlockerCode.OBSERVATION_PERIOD_COVERAGE_INCOMPLETE in assessment.blockers
+
+
+def test_unfinished_calendar_window_is_fail_closed() -> None:
+    """A canonical period is unusable until its exact window has completed."""
+
+    monitoring_policy = policy(minimum_observation_count=1)
+    start = NOW.replace(hour=0, minute=0, second=0, microsecond=0)
+    fact = observation(
+        sequence=3,
+        monitoring_policy=monitoring_policy,
+        period_start=start,
+        period_end=start + timedelta(days=1),
+        observed_at=NOW - timedelta(microseconds=1),
+        available_at=NOW,
+        recorded_at=NOW,
+    )
+
+    assessment = _evaluate(monitoring_policy=monitoring_policy, observations=(fact,))
+
+    assert assessment.status is R6MonitoringAssessmentStatus.BLOCKED
+    assert R6MonitoringBlockerCode.OBSERVATION_PERIOD_INCOMPLETE in assessment.blockers
+
+
+def test_policy_owner_recorded_after_cutoff_is_fail_closed() -> None:
+    """An otherwise sealed policy cannot be used before its owner knowledge clock."""
+
+    monitoring_policy = replace(
+        policy(),
+        recorded_at=NOW + timedelta(hours=1),
+        active_from=NOW + timedelta(hours=2),
+        active_until=NOW + timedelta(days=1),
+    )
+
+    assessment = _evaluate(monitoring_policy=monitoring_policy, observations=())
+
+    assert assessment.status is R6MonitoringAssessmentStatus.BLOCKED
+    assert R6MonitoringBlockerCode.POLICY_FROM_FUTURE in assessment.blockers
 
 
 def test_single_latest_threshold_breach_does_not_request_retirement_review() -> None:
