@@ -27,7 +27,12 @@ from ._runner_support import (
     utc_text,
 )
 from .baselines import FixedFMPDefinition
-from .runner_inputs import PITResearchDataset, PITResearchRow, VersionedResearchContract
+from .runner_inputs import (
+    PITResearchDataset,
+    PITResearchRow,
+    ResearchOutputValidityPolicy,
+    VersionedResearchContract,
+)
 
 
 @dataclass(frozen=True)
@@ -310,7 +315,11 @@ class NestedTemporalCVPlan:
 
 @dataclass(frozen=True)
 class MacroFactorRunnerSpec:
-    """Complete immutable governance input for one external runner call."""
+    """Complete immutable governance input for one external runner call.
+
+    The required validity policy is an in-memory research contract; introducing
+    it does not add or migrate an ORM persistence schema.
+    """
 
     run_key: str
     run_version: int
@@ -325,6 +334,7 @@ class MacroFactorRunnerSpec:
     split_contract: VersionedResearchContract
     selection_protocol: VersionedResearchContract
     metrics_protocol: VersionedResearchContract
+    output_validity_policy: ResearchOutputValidityPolicy
     reproducibility: ReproducibilityEvidence
     random_seed: int
     calculated_at: datetime
@@ -334,6 +344,7 @@ class MacroFactorRunnerSpec:
         require_positive(self.run_version, "MacroFactorRunnerSpec.run_version")
         require_token(self.factor_version, "MacroFactorRunnerSpec.factor_version")
         require_aware(self.calculated_at, "MacroFactorRunnerSpec.calculated_at")
+        self.output_validity_policy.validated_copy()
         if isinstance(self.random_seed, bool) or self.random_seed < 0:
             raise ValueError("MacroFactorRunnerSpec.random_seed cannot be negative")
         if not self.candidates:
@@ -441,6 +452,10 @@ class NestedCVExecutionRequest:
     selection_protocol_hash: str
     metrics_protocol_version: str
     metrics_protocol_hash: str
+    output_validity_policy_version: str
+    output_validity_policy_hash: str
+    output_valid_for_seconds: int
+    output_maximum_valid_for_seconds: int
     timing_policy_version: str
     timing_policy_hash: str
     code_version: str
@@ -484,6 +499,12 @@ class NestedCVExecutionRequest:
             "metrics_protocol": {
                 "version": self.metrics_protocol_version,
                 "hash": self.metrics_protocol_hash,
+            },
+            "output_validity_policy": {
+                "version": self.output_validity_policy_version,
+                "hash": self.output_validity_policy_hash,
+                "valid_for_seconds": self.output_valid_for_seconds,
+                "maximum_valid_for_seconds": self.output_maximum_valid_for_seconds,
             },
             "timing_policy": {
                 "version": self.timing_policy_version,
@@ -636,6 +657,7 @@ def build_execution_request(
 ) -> NestedCVExecutionRequest:
     """Build and validate a nested-CV request from manifest-bound in-memory rows."""
 
+    validity_policy = spec.output_validity_policy.validated_copy()
     _validate_manifest_scope(spec, dataset, manifest)
     rows_by_id = dataset.rows_by_id
     bindings: list[ExecutionFoldBinding] = []
@@ -772,6 +794,10 @@ def build_execution_request(
         selection_protocol_hash=spec.selection_protocol.content_hash,
         metrics_protocol_version=spec.metrics_protocol.version,
         metrics_protocol_hash=spec.metrics_protocol.content_hash,
+        output_validity_policy_version=validity_policy.policy_version,
+        output_validity_policy_hash=validity_policy.content_hash,
+        output_valid_for_seconds=validity_policy.valid_for_seconds,
+        output_maximum_valid_for_seconds=validity_policy.maximum_valid_for_seconds,
         timing_policy_version=spec.plan.timing.policy_version,
         timing_policy_hash=spec.plan.timing.content_hash,
         code_version=spec.reproducibility.code_version,

@@ -384,10 +384,11 @@ class TemporalSplitSpec:
 
 @dataclass(frozen=True)
 class ExternalLassoSelectionEvidence:
-    """Externally computed nested-CV Lasso selection evidence.
+    """Typed nested-CV Lasso selection evidence from an explicit compute boundary.
 
-    The only accepted origin is ``external_precomputed``.  This App validates
-    the artifact and never fits, tunes or fabricates a Lasso model.
+    Legacy imported evidence uses ``external_precomputed``; the in-repository
+    Infrastructure adapter uses ``infrastructure_concrete_fit``. Domain only
+    validates either artifact and never imports a numerical implementation.
     """
 
     evidence_id: str
@@ -409,8 +410,11 @@ class ExternalLassoSelectionEvidence:
         _require_token(self.evidence_id, "ExternalLassoSelectionEvidence.evidence_id")
         _require_text(self.producer_ref, "ExternalLassoSelectionEvidence.producer_ref")
         _require_aware(self.produced_at, "ExternalLassoSelectionEvidence.produced_at")
-        if self.computation_origin != "external_precomputed":
-            raise ValueError("Lasso evidence must be external_precomputed")
+        if self.computation_origin not in {
+            "external_precomputed",
+            "infrastructure_concrete_fit",
+        }:
+            raise ValueError("Lasso evidence computation_origin is unsupported")
         if self.estimator != "lasso":
             raise ValueError("external estimator must be lasso")
         if self.validation_method != "nested_cv":

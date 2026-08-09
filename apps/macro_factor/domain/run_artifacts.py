@@ -23,6 +23,7 @@ from ._runner_support import (
 )
 from .baselines import FoldBenchmarkResult
 from .dated_outputs import ExternalDatedFactorOutput
+from .runner_inputs import ResearchOutputValidityPolicy
 
 MACRO_FACTOR_EXTERNAL_ARTIFACT_MEDIA_TYPE = "application/vnd.agom.macro-factor.nested-cv+json"
 
@@ -108,6 +109,246 @@ class ExternalProxyCoefficient:
 
 
 @dataclass(frozen=True)
+class ExternalFeatureStandardization:
+    """One final-fit feature mean and scale produced without OOS leakage."""
+
+    asset_code: str
+    mean: Decimal
+    scale: Decimal
+
+    def __post_init__(self) -> None:
+        require_token(self.asset_code, "ExternalFeatureStandardization.asset_code")
+        require_finite(self.mean, "ExternalFeatureStandardization.mean")
+        require_finite(self.scale, "ExternalFeatureStandardization.scale")
+        if self.scale <= 0:
+            raise ValueError("feature standardization scale must be positive")
+
+    def canonical_payload(self) -> dict[str, str]:
+        """Return canonical final-fit standardization evidence."""
+
+        return {
+            "asset_code": self.asset_code,
+            "mean": decimal_text(self.mean),
+            "scale": decimal_text(self.scale),
+        }
+
+
+@dataclass(frozen=True)
+class ExternalOLSCoefficientDiagnostic:
+    """One selected feature's OLS-refit coefficient and significance evidence."""
+
+    asset_code: str
+    coefficient: Decimal
+    standard_error: Decimal
+    t_statistic: Decimal
+    p_value: Decimal
+
+    def __post_init__(self) -> None:
+        require_token(self.asset_code, "ExternalOLSCoefficientDiagnostic.asset_code")
+        for field_name in ("coefficient", "standard_error", "t_statistic", "p_value"):
+            require_finite(
+                getattr(self, field_name),
+                f"ExternalOLSCoefficientDiagnostic.{field_name}",
+            )
+        if self.standard_error < 0:
+            raise ValueError("OLS coefficient standard_error cannot be negative")
+        if not Decimal("0") <= self.p_value <= Decimal("1"):
+            raise ValueError("OLS coefficient p_value must be within [0, 1]")
+
+    def canonical_payload(self) -> dict[str, str]:
+        """Return canonical OLS coefficient diagnostics."""
+
+        return {
+            "asset_code": self.asset_code,
+            "coefficient": decimal_text(self.coefficient),
+            "standard_error": decimal_text(self.standard_error),
+            "t_statistic": decimal_text(self.t_statistic),
+            "p_value": decimal_text(self.p_value),
+        }
+
+
+@dataclass(frozen=True)
+class ExternalConcreteFitEvidence:
+    """Concrete standardized Lasso and OLS-refit diagnostics sealed in artifact bytes."""
+
+    estimator_version: str
+    standardization_version: str
+    lasso_intercept: Decimal
+    standardization: tuple[ExternalFeatureStandardization, ...]
+    ols_sample_count: int
+    ols_rank: int
+    ols_intercept: Decimal
+    ols_intercept_standard_error: Decimal
+    ols_intercept_p_value: Decimal
+    ols_adjusted_r_squared: Decimal
+    ols_bic: Decimal
+    ols_coefficients: tuple[ExternalOLSCoefficientDiagnostic, ...]
+    evidence_hash: str
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        estimator_version: str,
+        standardization_version: str,
+        lasso_intercept: Decimal,
+        standardization: tuple[ExternalFeatureStandardization, ...],
+        ols_sample_count: int,
+        ols_rank: int,
+        ols_intercept: Decimal,
+        ols_intercept_standard_error: Decimal,
+        ols_intercept_p_value: Decimal,
+        ols_adjusted_r_squared: Decimal,
+        ols_bic: Decimal,
+        ols_coefficients: tuple[ExternalOLSCoefficientDiagnostic, ...],
+    ) -> ExternalConcreteFitEvidence:
+        """Create content-addressed concrete-fit evidence."""
+
+        payload = cls._payload(
+            estimator_version=estimator_version,
+            standardization_version=standardization_version,
+            lasso_intercept=lasso_intercept,
+            standardization=standardization,
+            ols_sample_count=ols_sample_count,
+            ols_rank=ols_rank,
+            ols_intercept=ols_intercept,
+            ols_intercept_standard_error=ols_intercept_standard_error,
+            ols_intercept_p_value=ols_intercept_p_value,
+            ols_adjusted_r_squared=ols_adjusted_r_squared,
+            ols_bic=ols_bic,
+            ols_coefficients=ols_coefficients,
+        )
+        return cls(
+            estimator_version=estimator_version,
+            standardization_version=standardization_version,
+            lasso_intercept=lasso_intercept,
+            standardization=standardization,
+            ols_sample_count=ols_sample_count,
+            ols_rank=ols_rank,
+            ols_intercept=ols_intercept,
+            ols_intercept_standard_error=ols_intercept_standard_error,
+            ols_intercept_p_value=ols_intercept_p_value,
+            ols_adjusted_r_squared=ols_adjusted_r_squared,
+            ols_bic=ols_bic,
+            ols_coefficients=ols_coefficients,
+            evidence_hash=hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest(),
+        )
+
+    @staticmethod
+    def _payload(
+        *,
+        estimator_version: str,
+        standardization_version: str,
+        lasso_intercept: Decimal,
+        standardization: tuple[ExternalFeatureStandardization, ...],
+        ols_sample_count: int,
+        ols_rank: int,
+        ols_intercept: Decimal,
+        ols_intercept_standard_error: Decimal,
+        ols_intercept_p_value: Decimal,
+        ols_adjusted_r_squared: Decimal,
+        ols_bic: Decimal,
+        ols_coefficients: tuple[ExternalOLSCoefficientDiagnostic, ...],
+    ) -> dict[str, object]:
+        return {
+            "estimator_version": estimator_version,
+            "standardization_version": standardization_version,
+            "lasso_intercept": decimal_text(lasso_intercept),
+            "standardization": [
+                item.canonical_payload()
+                for item in sorted(standardization, key=lambda value: value.asset_code)
+            ],
+            "ols_refit": {
+                "sample_count": ols_sample_count,
+                "rank": ols_rank,
+                "intercept": decimal_text(ols_intercept),
+                "intercept_standard_error": decimal_text(ols_intercept_standard_error),
+                "intercept_p_value": decimal_text(ols_intercept_p_value),
+                "adjusted_r_squared": decimal_text(ols_adjusted_r_squared),
+                "bic": decimal_text(ols_bic),
+                "coefficients": [
+                    item.canonical_payload()
+                    for item in sorted(ols_coefficients, key=lambda value: value.asset_code)
+                ],
+            },
+        }
+
+    def __post_init__(self) -> None:
+        require_token(self.estimator_version, "ExternalConcreteFitEvidence.estimator_version")
+        require_token(
+            self.standardization_version,
+            "ExternalConcreteFitEvidence.standardization_version",
+        )
+        for field_name in (
+            "lasso_intercept",
+            "ols_intercept",
+            "ols_intercept_standard_error",
+            "ols_intercept_p_value",
+            "ols_adjusted_r_squared",
+            "ols_bic",
+        ):
+            require_finite(getattr(self, field_name), f"ExternalConcreteFitEvidence.{field_name}")
+        if self.ols_sample_count <= 0 or self.ols_rank <= 0:
+            raise ValueError("OLS diagnostics require positive sample count and rank")
+        if self.ols_rank > self.ols_sample_count:
+            raise ValueError("OLS diagnostic rank cannot exceed sample count")
+        if self.ols_intercept_standard_error < 0:
+            raise ValueError("OLS intercept standard error cannot be negative")
+        if not Decimal("0") <= self.ols_intercept_p_value <= Decimal("1"):
+            raise ValueError("OLS intercept p_value must be within [0, 1]")
+        standardization_codes = tuple(item.asset_code for item in self.standardization)
+        diagnostic_codes = tuple(item.asset_code for item in self.ols_coefficients)
+        if not standardization_codes or len(standardization_codes) != len(
+            set(standardization_codes)
+        ):
+            raise ValueError("concrete fit requires unique feature standardization evidence")
+        if not diagnostic_codes or len(diagnostic_codes) != len(set(diagnostic_codes)):
+            raise ValueError("concrete fit requires unique OLS coefficient diagnostics")
+        require_sha256(self.evidence_hash, "ExternalConcreteFitEvidence.evidence_hash")
+        expected = hashlib.sha256(
+            canonical_json(
+                self._payload(
+                    estimator_version=self.estimator_version,
+                    standardization_version=self.standardization_version,
+                    lasso_intercept=self.lasso_intercept,
+                    standardization=self.standardization,
+                    ols_sample_count=self.ols_sample_count,
+                    ols_rank=self.ols_rank,
+                    ols_intercept=self.ols_intercept,
+                    ols_intercept_standard_error=self.ols_intercept_standard_error,
+                    ols_intercept_p_value=self.ols_intercept_p_value,
+                    ols_adjusted_r_squared=self.ols_adjusted_r_squared,
+                    ols_bic=self.ols_bic,
+                    ols_coefficients=self.ols_coefficients,
+                )
+            ).encode("utf-8")
+        ).hexdigest()
+        if self.evidence_hash.lower() != expected:
+            raise ValueError("concrete fit evidence hash does not match diagnostics")
+
+    def canonical_payload(self) -> dict[str, object]:
+        """Return concrete fit payload plus its exact evidence hash."""
+
+        return {
+            **self._payload(
+                estimator_version=self.estimator_version,
+                standardization_version=self.standardization_version,
+                lasso_intercept=self.lasso_intercept,
+                standardization=self.standardization,
+                ols_sample_count=self.ols_sample_count,
+                ols_rank=self.ols_rank,
+                ols_intercept=self.ols_intercept,
+                ols_intercept_standard_error=self.ols_intercept_standard_error,
+                ols_intercept_p_value=self.ols_intercept_p_value,
+                ols_adjusted_r_squared=self.ols_adjusted_r_squared,
+                ols_bic=self.ols_bic,
+                ols_coefficients=self.ols_coefficients,
+            ),
+            "evidence_hash": self.evidence_hash,
+        }
+
+
+@dataclass(frozen=True)
 class ExternalOuterFoldSelectionEvidence:
     """Complete inner selection and final-fit lineage for one outer fold."""
 
@@ -119,6 +360,7 @@ class ExternalOuterFoldSelectionEvidence:
     final_fit_as_of: datetime
     coefficients: tuple[ExternalProxyCoefficient, ...]
     final_fit_lineage_hash: str
+    concrete_fit: ExternalConcreteFitEvidence | None = None
 
     @classmethod
     def create(
@@ -131,6 +373,7 @@ class ExternalOuterFoldSelectionEvidence:
         final_fit_row_ids: tuple[str, ...],
         final_fit_as_of: datetime,
         coefficients: tuple[ExternalProxyCoefficient, ...],
+        concrete_fit: ExternalConcreteFitEvidence | None = None,
     ) -> ExternalOuterFoldSelectionEvidence:
         """Build external fold evidence with its complete lineage hash."""
 
@@ -142,6 +385,7 @@ class ExternalOuterFoldSelectionEvidence:
             final_fit_row_ids=final_fit_row_ids,
             final_fit_as_of=final_fit_as_of,
             coefficients=coefficients,
+            concrete_fit=concrete_fit,
         )
         return cls(
             fold_id=fold_id,
@@ -154,6 +398,7 @@ class ExternalOuterFoldSelectionEvidence:
             final_fit_lineage_hash=hashlib.sha256(
                 canonical_json(lineage).encode("utf-8")
             ).hexdigest(),
+            concrete_fit=concrete_fit,
         )
 
     @staticmethod
@@ -166,8 +411,9 @@ class ExternalOuterFoldSelectionEvidence:
         final_fit_row_ids: tuple[str, ...],
         final_fit_as_of: datetime,
         coefficients: tuple[ExternalProxyCoefficient, ...],
+        concrete_fit: ExternalConcreteFitEvidence | None = None,
     ) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "fold_id": fold_id,
             "request_design_hash": request_design_hash,
             "selected_alpha": decimal_text(selected_alpha),
@@ -182,6 +428,9 @@ class ExternalOuterFoldSelectionEvidence:
                 for item in sorted(coefficients, key=lambda value: value.asset_code)
             ],
         }
+        if concrete_fit is not None:
+            payload["concrete_fit"] = concrete_fit.canonical_payload()
+        return payload
 
     def __post_init__(self) -> None:
         require_token(self.fold_id, "ExternalOuterFoldSelectionEvidence.fold_id")
@@ -207,6 +456,16 @@ class ExternalOuterFoldSelectionEvidence:
         coefficient_codes = tuple(item.asset_code for item in self.coefficients)
         if len(coefficient_codes) != len(set(coefficient_codes)):
             raise ValueError("outer-fold coefficient identities must be unique")
+        if self.concrete_fit is not None:
+            standardization_codes = {item.asset_code for item in self.concrete_fit.standardization}
+            if standardization_codes != set(coefficient_codes):
+                raise ValueError("concrete fit standardization must cover every candidate")
+            selected_codes = {
+                item.asset_code for item in self.coefficients if item.lasso_coefficient != 0
+            }
+            diagnostic_codes = {item.asset_code for item in self.concrete_fit.ols_coefficients}
+            if diagnostic_codes != selected_codes:
+                raise ValueError("OLS diagnostics must cover every selected candidate")
         require_sha256(
             self.final_fit_lineage_hash,
             "ExternalOuterFoldSelectionEvidence.final_fit_lineage_hash",
@@ -221,6 +480,7 @@ class ExternalOuterFoldSelectionEvidence:
                     final_fit_row_ids=self.final_fit_row_ids,
                     final_fit_as_of=self.final_fit_as_of,
                     coefficients=self.coefficients,
+                    concrete_fit=self.concrete_fit,
                 )
             ).encode("utf-8")
         ).hexdigest()
@@ -239,6 +499,7 @@ class ExternalOuterFoldSelectionEvidence:
                 final_fit_row_ids=self.final_fit_row_ids,
                 final_fit_as_of=self.final_fit_as_of,
                 coefficients=self.coefficients,
+                concrete_fit=self.concrete_fit,
             ),
             "final_fit_lineage_hash": self.final_fit_lineage_hash,
         }
@@ -258,6 +519,7 @@ class ExternalNestedCVArtifact:
     dated_outputs: tuple[ExternalDatedFactorOutput, ...]
     artifact_bytes: bytes
     artifact_hash: str
+    validity_policy: ResearchOutputValidityPolicy | None = None
     media_type: str = MACRO_FACTOR_EXTERNAL_ARTIFACT_MEDIA_TYPE
 
     @classmethod
@@ -272,9 +534,13 @@ class ExternalNestedCVArtifact:
         fold_selections: tuple[ExternalOuterFoldSelectionEvidence, ...],
         predictions: tuple[ExternalFoldPrediction, ...],
         dated_outputs: tuple[ExternalDatedFactorOutput, ...],
+        validity_policy: ResearchOutputValidityPolicy | None = None,
     ) -> ExternalNestedCVArtifact:
         """Create the exact canonical JSON bytes an external adapter must return."""
 
+        sealed_validity_policy = (
+            validity_policy.validated_copy() if validity_policy is not None else None
+        )
         payload = cls._payload(
             evidence_id=evidence_id,
             producer_ref=producer_ref,
@@ -284,6 +550,7 @@ class ExternalNestedCVArtifact:
             fold_selections=fold_selections,
             predictions=predictions,
             dated_outputs=dated_outputs,
+            validity_policy=sealed_validity_policy,
         )
         artifact_bytes = canonical_json(payload).encode("utf-8")
         return cls(
@@ -297,6 +564,7 @@ class ExternalNestedCVArtifact:
             dated_outputs=dated_outputs,
             artifact_bytes=artifact_bytes,
             artifact_hash=hashlib.sha256(artifact_bytes).hexdigest(),
+            validity_policy=sealed_validity_policy,
         )
 
     @staticmethod
@@ -310,8 +578,9 @@ class ExternalNestedCVArtifact:
         fold_selections: tuple[ExternalOuterFoldSelectionEvidence, ...],
         predictions: tuple[ExternalFoldPrediction, ...],
         dated_outputs: tuple[ExternalDatedFactorOutput, ...],
+        validity_policy: ResearchOutputValidityPolicy | None = None,
     ) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "evidence_id": evidence_id,
             "producer_ref": producer_ref,
             "produced_at": utc_text(produced_at),
@@ -343,6 +612,12 @@ class ExternalNestedCVArtifact:
                 )
             ],
         }
+        if validity_policy is not None:
+            payload["output_validity_policy"] = {
+                **validity_policy.canonical_payload(),
+                "content_hash": validity_policy.content_hash,
+            }
+        return payload
 
     def __post_init__(self) -> None:
         require_token(self.evidence_id, "ExternalNestedCVArtifact.evidence_id")
@@ -369,6 +644,13 @@ class ExternalNestedCVArtifact:
         )
         if not self.dated_outputs or len(output_keys) != len(set(output_keys)):
             raise ValueError("external dated-output identities must be non-empty and unique")
+        sealed_validity_policy = (
+            self.validity_policy.validated_copy() if self.validity_policy is not None else None
+        )
+        if sealed_validity_policy is not None:
+            expected_valid_until = sealed_validity_policy.valid_until(self.produced_at)
+            if any(item.valid_until != expected_valid_until for item in self.dated_outputs):
+                raise ValueError("dated output validity does not match its exact policy")
         expected_bytes = canonical_json(
             self._payload(
                 evidence_id=self.evidence_id,
@@ -379,6 +661,7 @@ class ExternalNestedCVArtifact:
                 fold_selections=self.fold_selections,
                 predictions=self.predictions,
                 dated_outputs=self.dated_outputs,
+                validity_policy=sealed_validity_policy,
             )
         ).encode("utf-8")
         if self.artifact_bytes != expected_bytes:
@@ -587,9 +870,12 @@ class ReproducibleMacroFactorRunArtifact:
 
 __all__ = [
     "ExternalAlphaScore",
+    "ExternalConcreteFitEvidence",
+    "ExternalFeatureStandardization",
     "ExternalFoldPrediction",
     "ExternalInnerFoldScore",
     "ExternalNestedCVArtifact",
+    "ExternalOLSCoefficientDiagnostic",
     "ExternalOuterFoldSelectionEvidence",
     "ExternalProxyCoefficient",
     "MACRO_FACTOR_EXTERNAL_ARTIFACT_MEDIA_TYPE",

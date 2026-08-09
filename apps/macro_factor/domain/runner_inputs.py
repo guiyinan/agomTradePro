@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from apps.macro_factor.domain.entities import PITSelectedFactVersion
@@ -29,6 +29,75 @@ class VersionedResearchContract:
     def __post_init__(self) -> None:
         require_token(self.version, "VersionedResearchContract.version")
         require_sha256(self.content_hash, "VersionedResearchContract.content_hash")
+
+
+@dataclass(frozen=True)
+class ResearchOutputValidityPolicy:
+    """Content-addressed policy used to derive research-output validity exactly."""
+
+    policy_version: str
+    valid_for_seconds: int
+    maximum_valid_for_seconds: int
+    content_hash: str
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        policy_version: str,
+        valid_for_seconds: int,
+        maximum_valid_for_seconds: int,
+    ) -> ResearchOutputValidityPolicy:
+        """Create an exact version/hash binding for a fixed validity duration."""
+
+        payload = {
+            "policy_version": policy_version,
+            "valid_for_seconds": valid_for_seconds,
+            "maximum_valid_for_seconds": maximum_valid_for_seconds,
+        }
+        return cls(
+            policy_version=policy_version,
+            valid_for_seconds=valid_for_seconds,
+            maximum_valid_for_seconds=maximum_valid_for_seconds,
+            content_hash=hash_payload(payload),
+        )
+
+    def __post_init__(self) -> None:
+        require_token(self.policy_version, "ResearchOutputValidityPolicy.policy_version")
+        if isinstance(self.valid_for_seconds, bool) or self.valid_for_seconds <= 0:
+            raise ValueError("valid_for_seconds must be a positive integer")
+        if isinstance(self.maximum_valid_for_seconds, bool) or self.maximum_valid_for_seconds <= 0:
+            raise ValueError("maximum_valid_for_seconds must be a positive integer")
+        if self.valid_for_seconds > self.maximum_valid_for_seconds:
+            raise ValueError("validity duration exceeds its preregistered governance maximum")
+        require_sha256(self.content_hash, "ResearchOutputValidityPolicy.content_hash")
+        if self.content_hash.lower() != hash_payload(self.canonical_payload()):
+            raise ValueError("output validity policy hash does not match content")
+
+    def canonical_payload(self) -> dict[str, object]:
+        """Return the exact governed validity content."""
+
+        return {
+            "policy_version": self.policy_version,
+            "valid_for_seconds": self.valid_for_seconds,
+            "maximum_valid_for_seconds": self.maximum_valid_for_seconds,
+        }
+
+    def validated_copy(self) -> ResearchOutputValidityPolicy:
+        """Reconstruct the policy so post-construction mutation cannot bypass its seal."""
+
+        return ResearchOutputValidityPolicy(
+            policy_version=self.policy_version,
+            valid_for_seconds=self.valid_for_seconds,
+            maximum_valid_for_seconds=self.maximum_valid_for_seconds,
+            content_hash=self.content_hash,
+        )
+
+    def valid_until(self, produced_at: datetime) -> datetime:
+        """Derive validity from the governed duration and aware production time."""
+
+        require_aware(produced_at, "ResearchOutputValidityPolicy.produced_at")
+        return produced_at + timedelta(seconds=self.valid_for_seconds)
 
 
 @dataclass(frozen=True)
@@ -195,5 +264,6 @@ __all__ = [
     "PITResearchDataset",
     "PITResearchRow",
     "ProxyObservation",
+    "ResearchOutputValidityPolicy",
     "VersionedResearchContract",
 ]

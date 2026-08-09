@@ -31,6 +31,7 @@ from apps.macro_factor.domain.reproducible_runner import (
     PITResearchRow,
     ProxyObservation,
     ReproducibleMacroFactorRunArtifact,
+    ResearchOutputValidityPolicy,
     RetirementOwnerAttestation,
     TargetAvailabilityPolicy,
     VersionedResearchContract,
@@ -193,6 +194,11 @@ def runner_spec() -> MacroFactorRunnerSpec:
         ),
         selection_protocol=VersionedResearchContract("external-nested-lasso-v1", "4" * 64),
         metrics_protocol=VersionedResearchContract("macro-factor-metrics-v1", "5" * 64),
+        output_validity_policy=ResearchOutputValidityPolicy.create(
+            policy_version="macro-factor-output-validity-v1",
+            valid_for_seconds=8 * 24 * 60 * 60,
+            maximum_valid_for_seconds=30 * 24 * 60 * 60,
+        ),
         reproducibility=ReproducibilityEvidence(
             code_version="git:0123456789abcdef",
             dependency_lock_hash="b" * 64,
@@ -272,6 +278,7 @@ def external_runner_artifact() -> ExternalNestedCVArtifact:
                 unit="index",
             ),
         ),
+        validity_policy=spec.output_validity_policy,
     )
 
 

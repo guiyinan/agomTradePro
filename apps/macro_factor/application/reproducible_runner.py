@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -25,6 +26,8 @@ from apps.macro_factor.domain.reproducible_runner import (
     build_execution_request,
     build_reproducible_run,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class MacroFactorRunnerStatus(str, Enum):
@@ -71,13 +74,16 @@ class MacroFactorRunnerDatasetProvider(Protocol):
 
 
 class TypedExternalMacroFactorRunner(Protocol):
-    """External model boundary; this App exposes no fitting implementation."""
+    """Numerical model boundary implemented only outside Domain/Application."""
 
     def execute(
         self,
+        *,
         request: NestedCVExecutionRequest,
+        dataset: PITResearchDataset,
+        spec: MacroFactorRunnerSpec,
     ) -> ExternalNestedCVArtifact | None:
-        """Return canonical typed artifact bytes or ``None`` when unavailable."""
+        """Fit against the already validated PIT design or fail closed."""
 
 
 class MacroFactorRunLedgerRepository(Protocol):
@@ -203,7 +209,15 @@ class RunReproducibleMacroFactor:
             request = build_execution_request(command.spec, dataset, manifest)
         except ValueError:
             return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
-        external = self._external_runner.execute(request)
+        try:
+            external = self._external_runner.execute(
+                request=request,
+                dataset=dataset,
+                spec=command.spec,
+            )
+        except Exception:
+            logger.exception("macro-factor external runner boundary failed")
+            return _blocked(MacroFactorRunnerBlockerCode.EXTERNAL_RUNNER_UNAVAILABLE)
         if external is None:
             return _blocked(MacroFactorRunnerBlockerCode.EXTERNAL_RUNNER_UNAVAILABLE)
         try:

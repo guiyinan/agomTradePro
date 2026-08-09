@@ -41,6 +41,9 @@ def _validate_external_result_identity(
     external: ExternalNestedCVArtifact,
 ) -> None:
     result = external.result
+    validity_policy = spec.output_validity_policy.validated_copy()
+    if external.validity_policy != validity_policy:
+        raise ValueError("external output-validity policy does not match runner spec")
     if result.factor_version != spec.factor_version:
         raise ValueError("external factor version does not match runner spec")
     if result.target != spec.target or result.candidates != spec.candidates:

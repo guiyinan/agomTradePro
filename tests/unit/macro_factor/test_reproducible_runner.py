@@ -103,6 +103,7 @@ def test_outer_folds_select_independently_and_only_explicit_final_fold_binds_res
         fold_selections=(independent_first, *artifact.fold_selections[1:]),
         predictions=artifact.predictions,
         dated_outputs=artifact.dated_outputs,
+        validity_policy=artifact.validity_policy,
     )
 
     bundle = build_reproducible_run(
@@ -279,6 +280,7 @@ def test_external_selection_requires_complete_alpha_grid_and_exact_final_fit() -
         fold_selections=(incomplete_first, *artifact.fold_selections[1:]),
         predictions=artifact.predictions,
         dated_outputs=artifact.dated_outputs,
+        validity_policy=artifact.validity_policy,
     )
     with pytest.raises(ValueError, match="exact alpha grid"):
         build_reproducible_run(
@@ -303,6 +305,7 @@ def test_external_selection_requires_complete_alpha_grid_and_exact_final_fit() -
         fold_selections=(wrong_fit_first, *artifact.fold_selections[1:]),
         predictions=artifact.predictions,
         dated_outputs=artifact.dated_outputs,
+        validity_policy=artifact.validity_policy,
     )
     with pytest.raises(ValueError, match=r"exact train\+validation rows"):
         build_reproducible_run(
@@ -322,6 +325,7 @@ def test_external_artifact_requires_exact_canonical_bytes_and_request_hash() -> 
             fold_selections=artifact.fold_selections,
             predictions=artifact.predictions,
             dated_outputs=artifact.dated_outputs,
+            validity_policy=artifact.validity_policy,
             artifact_bytes=artifact.artifact_bytes + b" ",
             artifact_hash=artifact.artifact_hash,
         )

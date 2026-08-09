@@ -14,6 +14,7 @@ from apps.macro_factor.domain.entities import RetirementEvidence
 from apps.macro_factor.domain.reproducible_runner import (
     ExternalNestedCVArtifact,
     MacroFactorLifecycleEvent,
+    MacroFactorRunnerSpec,
     NestedCVExecutionRequest,
     PITResearchDataset,
     ReproducibleMacroFactorRunArtifact,
@@ -63,10 +64,23 @@ class _ExternalRunner:
 
     def execute(
         self,
+        *,
         request: NestedCVExecutionRequest,
+        dataset: PITResearchDataset,
+        spec: MacroFactorRunnerSpec,
     ) -> ExternalNestedCVArtifact | None:
         self.requests.append(request)
         return self.value
+
+
+class _LegacyExternalRunner:
+    """Pre-Protocol-change adapter that only accepts the historical request."""
+
+    def execute(
+        self,
+        request: NestedCVExecutionRequest,
+    ) -> ExternalNestedCVArtifact | None:
+        return external_runner_artifact()
 
 
 class _Repository:
@@ -166,6 +180,22 @@ def test_missing_manifest_dataset_or_runner_fails_closed_without_writes() -> Non
         assert repository.bundle is None
 
 
+def test_legacy_external_runner_signature_is_blocked_without_writes() -> None:
+    repository = _Repository()
+
+    assessment = RunReproducibleMacroFactor(
+        manifest_provider=_ManifestProvider(complete_manifest()),
+        dataset_provider=_DatasetProvider(runner_dataset()),
+        external_runner=_LegacyExternalRunner(),  # type: ignore[arg-type]
+        repository=repository,
+    ).execute(_command())
+
+    assert assessment.status is MacroFactorRunnerStatus.BLOCKED
+    assert assessment.blocked_reasons == (MacroFactorRunnerBlockerCode.EXTERNAL_RUNNER_UNAVAILABLE,)
+    assert assessment.bundle is None
+    assert repository.bundle is None
+
+
 def test_external_runner_request_mismatch_is_blocked_not_persisted() -> None:
     artifact = external_runner_artifact()
     mismatched = ExternalNestedCVArtifact.create(
@@ -177,6 +207,7 @@ def test_external_runner_request_mismatch_is_blocked_not_persisted() -> None:
         fold_selections=artifact.fold_selections,
         predictions=artifact.predictions,
         dated_outputs=artifact.dated_outputs,
+        validity_policy=artifact.validity_policy,
     )
     repository = _Repository()
     assessment = RunReproducibleMacroFactor(

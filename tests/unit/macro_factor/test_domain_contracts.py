@@ -85,10 +85,16 @@ def test_temporal_split_rejects_missing_embargo_between_samples() -> None:
         )
 
 
-def test_only_external_precomputed_nested_cv_lasso_evidence_is_accepted() -> None:
+def test_only_governed_compute_origins_and_nested_cv_lasso_are_accepted() -> None:
     result = complete_result()
 
-    with pytest.raises(ValueError, match="external_precomputed"):
+    concrete = replace(
+        result.selection,
+        computation_origin="infrastructure_concrete_fit",
+    )
+    assert concrete.computation_origin == "infrastructure_concrete_fit"
+
+    with pytest.raises(ValueError, match="computation_origin"):
         replace(
             result.selection,
             computation_origin="internal_training",
