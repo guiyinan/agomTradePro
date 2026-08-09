@@ -244,6 +244,8 @@ python scripts/verify_architecture.py --include-audit --format text
 
 2026-08-07 R2 Publication/Promotion 软件续批：Data Center taxonomy actor/series 与 period-calendar 已接入 Canonical Publication/member 精确 attestation，Research `0009` 已落地 policy/decision/PROMOTE-RETIRE-ROLLBACK append-only ledger、ID-only shared-UoW 与 PIT active replay。unit `24 passed`、Data Center component `6 passed`、Research component `2 passed`、migration `2 passed`；真实 taxonomy/calendar Publication、两个市场周期 coverage manifest 与 owner policy/authorization 仍缺，R2 继续 `blocked`。
 
+2026-08-09 R2 两周期 trial/monitoring Phase A：新增纯 Domain/Application 的预注册解释力 trial 与 monitoring 合同。Policy 精确封存 taxonomy/calendar Publication projection、canonical series×period manifest、恰好两个完整且不重叠的市场周期、selection cutoff、指标/阈值、Holm-v1 与 invalidation；Audit outcome 与 monitoring facts 只能通过 ID-only exact provider 重读，coverage/denominator、adjusted p-value、stability 与 `delta_r2` 均现场派生。所有结果固定 descriptive/research-only，并强制禁止 predictive signal/current/decision/execution；targeted `31 passed`，独立复核 P0/P1/P2 均为 0。真实两周期数据、Publication、Audit outcome 与生产 provider 尚未形成，因此 readiness 不变。
+
 ## 9. 回滚
 
 - Contract 回滚：移除 R1/R2 requirement 注册和对应测试，不修改任何事实、Publication、PIT manifest 或研究历史。

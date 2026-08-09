@@ -242,6 +242,8 @@ Owner：`portfolio` + `broker_execution`，在 R3/R4/R5 晋级前可独立建设
 
 2026-08-09 readiness/composition P1 收口：治理清单不再用 `CanonicalPortfolioSnapshot` class/repository 证明真实 `portfolio_canonical_snapshot`，运行时该 requirement 在没有 owner evidence 时保持 `unverified`；`optimizer_baseline_fail_closed_policy` 改由 Portfolio owner 以四候选/完整阻断测试签署机制 evidence。新增 production composition 组装 deterministic engine、append-only repository 和 lifecycle use case，但 canonical input-set、Research exact Promotion 与 Portfolio lifecycle authorization 均使用显式 unavailable provider；缺证据时在任何 result/lifecycle 写入前失败。独立 input receipt/concrete owner provider 继续作为后续 P1，真实 snapshot、晋级和 broker reconciliation 总门不变。
 
+2026-08-09 input receipt Phase B：Portfolio `0009` 新增独立 append-only canonical receipt，完整保存 13 类 typed payload、13 个 owner binding、universe/snapshot/PIT graph 与 R3/R4/R5 Promotion。Registration command 仅含 input-set identity，在同一 UoW 从 authoritative Protocol 逐项重读；新 result v2 将 receipt ID/hash/schema 纳入 canonical hash，legacy null 仅显式 research read。计算后再次重读 receipt 与三项 Promotion，race 使用 nested savepoint exact-winner replay；production runtime 不暴露 repository/writer。Unit/component/migration 为 `25 / 18 / 4 passed`，独立复核 P0/P1 为 0。真实 owner providers 未接入，因此安全 registration façade不在 production runtime 暴露、运行仍 blocked；nullable FK 仅为历史兼容，无 seed/backfill。
+
 - 第一版离线 research-only；
 - 明确等权和现有配置基准；
 - 输入绑定 PIT manifest、portfolio snapshot、scenario set、factor covariance 和 constraint version；
