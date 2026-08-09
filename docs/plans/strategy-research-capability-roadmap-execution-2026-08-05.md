@@ -24,7 +24,7 @@
 13. 继续完成 R1 Sector→Equity 持久证据桥接、cash-flow/六阶段/template-run seal、通用 driver PIT 绑定与 legacy dual-read；完成 R2 版本化 expected-period calendar、series×period 完整 coverage 和整期全缺门禁。两项均保持 research-only/blocked，不使用 seed 或代理数据解除门禁。
 14. 完成 R7 Research-owned append-only reminder ledger/internal outbox，精确绑定 forecast/revision/policy 与逐期 path evidence，并实现 deterministic due/ack/escalate/expiry；只允许内部人工 pull/ACK，明确禁止外发、自动审批与执行。
 15. 完成 R3 exact-PIT historical-mean/FMP、nested temporal-CV runner、canonical artifact bytes、dated current/forward output ledger 和 append-only retirement lifecycle。所有产物继续三重 decision-blocked，不接 current、组合或执行链。
-16. 完成 R8 13 类 typed 数值输入、current baseline、可投资 universe、四市场约束、path drawdown、四候选可复算比较及 append-only result/Promotion/retirement/rollback lifecycle；canonical provider 重读、Decimal/UTC hash 和无法证明的数量约束均 fail closed，未接 transition plan 或执行链。
+16. 完成 R8 13 类 typed 数值输入、current baseline、可投资 universe、四市场约束、path drawdown、四候选可复算比较及 append-only result/Promotion/retirement/rollback lifecycle；canonical provider 重读、Decimal/UTC hash 和无法证明的数量约束均 fail closed，未接 transition plan 或执行链。`portfolio.0006` 实际只持久化 result/lifecycle，独立 input receipt 尚未建立。
 17. 完成 R1 owner-approval-enforced baseline spec、forecast/baseline/actual manifest 精确封存、完整 period×metric 配对 trial，以及 Research 专用 exact Promotion/retirement/rollback lifecycle；所有消费均从 canonical provider 重读，未用 fixture 解锁 Valuation。
 18. 完成 R4 typed rolling/Regime exposure、等权/资产风险平价/宏观因子风险平价同窗 OOS 比较与 authoritative R3 attestation provider contract；所有形成时点和派生结果 fail closed、可复算，未新增持久化、晋级或生产消费入口。
 19. 完成 R4 Portfolio-owned append-only receipt/result ledger、canonical typed replay、server-clock/UoW 写保护、covariance condition/rank/coverage diagnostics 和 exact PIT Application query；未实现 Research R4 Promotion/lifecycle 或下游激活。
@@ -34,19 +34,20 @@
 23. 完成 R5 relative-value Phase B1：fixed_income 两表 append-only receipt/result ledger、strict codec、server clock、完整历史 evidence clock graph、跨 owner shared UoW、closure-bound ID-only writer 与 exact PIT query；未新增 Research Promotion/lifecycle/consumer/current/execution。
 24. 完成 R6 qualification evidence：content-addressed study、S2 exact gate replay、独立 derived metric bundle、七指标同窗比较、政策反应系数/诊断与 ID-only authoritative qualification；仅允许送人工晋级复核，未新增 persistence/Promotion/current/Regime 接线。
 25. 完成 R5 Promotion Phase A：content-addressed scope/policy/trial/decision/lifecycle、FI+Portfolio OOS owner seals、shared-UoW ID-only decision/event、PROMOTE/RETIRE/ROLLBACK stack 与 PIT active 动态重验；append-only Research persistence/concrete providers 留给 Phase B。
+26. 完成 R8 readiness false-positive 与 production composition 收口：真实 `portfolio_canonical_snapshot` 不再由 class/repository 机制 attested，四候选 fail-closed policy 归 Portfolio owner；composition 可构造，但 canonical input-set、Research Promotion 与 Portfolio lifecycle owner source 缺失时显式 unavailable 且零写入。独立 input receipt/provider 继续列为软件 P1。
 
 ## 2. 启动状态矩阵
 
 | 能力 | 决策 | 解除阻断所需的核心证据 | 独立阶段计划 |
 |---|---|---|---|
 | R1 行业经营驱动与盈利预测 | `blocked` | 已有版本化行业模板、Sector→Equity 持久 bridge、三情景六阶段/cash-flow seal、owner-approval-enforced baseline contract、完整配对 trial 和 Research exact Promotion/lifecycle；仍需 QW-7 反馈、连续 PIT 事实、Production Publication、真实 owner approval/trial/approved decision，且未接 Valuation | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
-| R2 市场结构与投资者资金流 | `blocked` | 已有 taxonomy/measure/proxy/PIT membership、版本化 expected-period calendar、完整 coverage 和整期全缺阻断；仍需批准定义、真实 calendar、两个周期真实 PIT 覆盖和 Publication 证据 | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
-| R3 高频宏观因子与 nowcast | `blocked` | 已有 exact PIT runner、逐 fold baseline/FMP/nested-CV、canonical artifact bytes、dated outputs 和 retirement lifecycle；仍需宏观 vintage/代理资产 PIT、真实 benchmark/cost、regime/OOS trial 和 exact Promotion | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
+| R2 市场结构与投资者资金流 | `blocked` | 已有 taxonomy/measure/proxy/PIT membership、版本化 expected-period calendar、完整 coverage、taxonomy/calendar Publication exact gate 与 Research Promotion lifecycle；仍需获批定义、真实 calendar、两个周期真实 PIT 覆盖、owner authorization 和 Audit 解释力证据 | [R1/R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
+| R3 高频宏观因子与 nowcast | `blocked` | 已有 exact PIT runner、concrete sklearn Lasso/OLS、逐 fold baseline/FMP/nested-CV、canonical artifact bytes、dated outputs、governed read 和 retirement lifecycle；仍需宏观 vintage/代理资产 PIT、真实 benchmark/cost、Regime/OOS trial、owner policy 与 exact Promotion | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
 | R4 宏观敞口与风险平价 | `blocked` | 已有 rolling/Regime/三方法同窗、Portfolio ledger/query、covariance diagnostics、Research 五表 ledger、scope/policy/trial/decision/lifecycle/active provider 与 concrete composition；仍需真实 R3 晋级、canonical inputs、owner authorization、OOS trial 和下游 active consumption 验收 | [R3/R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md) |
-| R5 固收相对价值与久期 | `blocked` | 已有定价/久期/曲线/信用、PIT 分位、评级迁移、流动性分解、signed curve portfolio/capacity、fixed_income append-only persistence/exact query/cross-owner UoW，以及 Research Promotion/lifecycle Phase A；仍需 Research append-only persistence/concrete providers，以及真实 Publication、PIT/OOS 历史、券级事实、容量/借券、owner authorization 和外部对账 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
-| R6 高级状态模型 | `blocked` | 已有简单基准不足取证器、外部高级状态证据验证、七指标同窗 qualification 与政策反应诊断；仍需真实不足证据、PIT/OOS 输入、稳定标签/政策目标、qualification persistence、监控/退役和晋级 | [R6](r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md) |
-| R7 情景概率校准 | `blocked` | 已有 source-separated Brier/分箱、PIT 类比、typed 逐期路径证据和 internal-only reminder lifecycle；仍需完整 outcome 历史、获批样本政策、结果持久化与研究晋级 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
-| R8 多资产优化 | `blocked` | 已有 canonical snapshot/反馈台账、13 类 typed 输入、current/universe/四市场/path 约束、四候选比较及 append-only lifecycle；仍需真实 Portfolio snapshot、broker reconciliation、约束校准及 R3/R4/R5 晋级版本 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
+| R5 固收相对价值与久期 | `blocked` | 已有定价/久期/曲线/信用、PIT 分位、评级迁移、流动性分解、signed curve portfolio/capacity、fixed_income/Portfolio/Research append-only owner ledgers、exact query/cross-owner UoW 及 Promotion/retire/rollback；仍需真实 Publication、PIT/OOS 历史、券级事实、容量/借券、owner authorization、外部对账和下游验收 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
+| R6 高级状态模型 | `blocked` | 已有简单基准不足取证、外部高级状态证据、七指标 qualification/政策反应诊断、assessment/lifecycle ledger 及 raw-fact monitoring Phase A；仍需真实不足/PIT/OOS/稳定标签/政策目标、monitoring persistence/canonical adapters、owner authorization、真实 Promotion 与 activation/rollback | [R6](r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md) |
+| R7 情景概率校准 | `blocked` | 已有 source-separated Brier/分箱、PIT 类比、逐期路径证据、reminder/sample-policy/result/lifecycle append-only ledger 与审计 snapshot；仍需完整 outcome 历史、真实 Risk Center owner source/approved policy、真实合格 result/authorization 和生产接线 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
+| R8 多资产优化 | `blocked` | 已有 canonical snapshot/反馈 schema、13 类 typed 输入、current/universe/四市场/path 约束、四候选比较、append-only result/lifecycle 与 fail-closed production composition；仍缺独立 canonical input receipt/provider、真实 Portfolio snapshot、broker reconciliation、约束校准及 R3/R4/R5 晋级版本 | [R5—R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
 
 ## 3. 可执行启动门
 
@@ -78,7 +79,7 @@ Application 只依赖 owner evidence provider Protocol，不读取其他 App ORM
 | `research` | `experiment_registry`、`multiple_test_family`、`promotion_decision`、`split_and_embargo_policy` | 通用研究完整性机制；不代表 R1/R3/R4/R5 等已有 approved trial |
 | `risk_center` | `governed_scenario_versions`、`subjective_model_probability_separation`、`risk_center_scenario_input` | 版本、概率来源分栏和只读矩阵输入契约；不代表已有校准样本 |
 | `signal` | `append_only_forecast_ledger`、`scenario_version_ledger_binding` | append-only writer、scenario revision/set 绑定与不可变性测试；不代表已有完整 outcome 历史 |
-| `portfolio` | `portfolio_planning_constraints`、`portfolio_canonical_snapshot`、`optimizer_input_contract` | transition planning、不可变 snapshot 和 research-only 输入门禁；不代表真实组合样本、上游晋级或优化算法已完成 |
+| `portfolio` | `portfolio_planning_constraints`、`optimizer_input_contract`、`optimizer_baseline_fail_closed_policy` | transition planning、research-only 输入门禁和四候选 fail-closed 比较机制；`portfolio_canonical_snapshot` 是真实 owner 数据条件，不再因 class/repository 存在而 attested，也不代表真实组合样本、上游晋级或执行反馈已形成 |
 | `fixed_income` | `fixed_income_research_only_scope` | 固收结果强制研究专用且禁止决策/执行；不代表目标曲线、信用数据或久期凸性外部对账已完成 |
 | `regime` | `simple_regime_baseline` | 简单四象限基准与测试；不代表高级状态模型具有增量价值 |
 

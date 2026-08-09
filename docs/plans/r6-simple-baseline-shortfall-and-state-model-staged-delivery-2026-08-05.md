@@ -1,6 +1,6 @@
 # R6 简单基准不足证据与高级状态模型分阶段计划（2026-08-05）
 
-> 状态：S0 基准不足评估、S2 外部高级状态证据验证与 qualification evidence 均已实现；真实 S1 证据、持久化/监控和 PromotionDecision 仍 `blocked`
+> 状态：S0/S2、qualification evidence/persistence/lifecycle 与 monitoring Phase A 纯合同已实现；真实 S1、monitoring 持久化/owner 接线、真实监控事实和 approved Promotion 仍 `blocked`
 > 来源：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md) R6
 > 边界：不在仓库内训练 Markov/HMM/贝叶斯/政策反应模型；只验证外部 artifact、状态概率/转移/OOS/政策目标证据，且永不替换现有 Regime/Pulse。
 
@@ -62,6 +62,10 @@ S1 通过后另建计划与分支：
 
 2026-08-07 qualification persistence/lifecycle 续批：新增 schema-only `research.0008` assessment、lifecycle authorization、lifecycle event 三本 append-only ledger；ID-only exact PIT 注册/读取/审计分页与 PROMOTE/RETIRE 终态生命周期均在 shared-UoW 内动态重读 assessment 和 owner authorization。该能力仍固定 `research_only`，不替换 Regime、不产生决策或执行；新增 persistence/lifecycle 回归 `14 passed`。真实 S1/PIT/OOS、stable label、owner authorization、monitoring 原始事实和 approved Promotion 仍缺，因此 R6 继续 `blocked`。
 
+2026-08-09 monitoring Phase A：新增纯 Domain/Application 监控合同。版本化 policy 必须显式注入 transition accuracy、log loss、calibration error、duration MAE、decision loss、label stability 及政策反应 adjusted R²、残差自相关、异方差、参数稳定性和 condition number 的全部单位、方向、阈值与连续 breach 次数；不存在代码默认。11 类 raw metric 按数学语义拒绝越界值（比例/p-value `[0,1]`，loss/error/MAE 非负，adjusted R² 不得大于 1，condition number 不得小于 1）。Policy 另精确绑定 owner-recorded period calendar manifest 的 owner/ID/version/content hash；manifest 封存全部 canonical start/end/period ID 成员并现场重算 seal。Raw observation 封存 `period_start/period_end`，要求 `start < end` 且 `observed_at` 落在半开窗口内；评估除拒绝重复/重叠窗口外，还要求每个窗口逐值命中 exact manifest member，因此自行派生两个相邻 1µs 窗口也会 blocked。Application 命令只接受 qualification ref、policy ID/version、expected policy hash 与 as-of，通过 Protocol 精确重读 active qualification、policy、period calendar 和 raw facts 后现场复算；calendar 缺失、同 ID/version 替换、未来记录或私有篡改均 fail closed。Domain 重算全部 content seal，并把 policy 约束的 source owner、PIT manifest ID/hash、period calendar 与 evidence namespace 逐项绑定；metrics 作为语义集合按 metric key canonical 封存。输出仅为 `healthy / breached / retirement_review_required / blocked`，连续 breach 或 label drift 只能请求人工退役复核，固定禁止自动 RETIRE、Regime replacement、current、decision 和 execution。Phase A targeted unit 回归 `46 passed`。
+
+下一项无数据 P1 是 Research-owned monitoring observation/assessment append-only ledger、strict codec、server-clock/shared-UoW/private mutation guards、exact PIT query 与 canonical owner adapters；在该阶段落地和真实 owner facts 到位前，不得把 Phase A 对象当作持久或生产监控证据。现有 PROMOTE/RETIRE lifecycle 只管理内部 qualification 档案，所有 consumer 必须稳定 blocked；真正模型 activation 与 `stack[-2]` rollback 另建阶段，不在本批扩展。
+
 ## 5. 非目标
 
 - 不从当前 Regime 分数反推“模型概率”；
@@ -79,4 +83,4 @@ python scripts/check_mypy_regression.py apps/research/domain/state_model_baselin
 python scripts/verify_architecture.py
 ```
 
-S0/S2/qualification 仅新增纯 Domain/Application 合约和测试，无 ORM、迁移、训练任务或运行时接线。回滚不会修改现有 Regime、Policy、Pulse 或决策结果。
+Monitoring Phase A 仅新增纯 Domain/Application 合约和测试，无 ORM、迁移、训练任务或运行时接线。既有 qualification persistence/lifecycle 仍只保存内部研究档案；本批回滚不会修改现有 Regime、Policy、Pulse 或决策结果。

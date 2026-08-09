@@ -112,13 +112,13 @@ R5 不得用单点宏观收益率拼接伪曲线，不得用 ETF 久期标签代
 |---|---|---|---|
 | `portfolio_planning_constraints` | `verified` | Portfolio Domain 已覆盖 A 股、基金、债券和商品 typed rule，并在 weight-only 层无法证明数量/结算/保证金约束时稳定阻断 | — |
 | `risk_center_scenario_input` | `verified` | Risk Center 已有情景影响及运行证据契约 | — |
-| `portfolio_canonical_snapshot` | `missing` | Portfolio 已有 canonical snapshot repository/provider，但本地没有可解除门禁的真实 Portfolio-owned snapshot | `r8_portfolio_canonical_snapshot_missing` |
+| `portfolio_canonical_snapshot` | `unverified` | Portfolio 仅有 canonical snapshot class/repository 机制；机制存在不能替代目标环境中可由 owner 精确回读的真实 Portfolio-owned snapshot，因此 governance manifest 不再为该数据条件签署 `verified` | `r8_portfolio_canonical_snapshot_unverified` |
 | `r3_promoted_factor_version` | `missing` | 无 approved R3 PromotionDecision | `r8_r3_not_promoted` |
 | `r4_promoted_macro_risk_version` | `missing` | R4 依赖 R3，当前无可晋级的宏观风险暴露/协方差 | `r8_r4_not_promoted` |
 | `r5_promoted_fixed_income_version` | `missing` | R5 数据门未通过 | `r8_r5_not_promoted` |
 | `execution_feedback_reconciled` | `missing` | 本地无 broker snapshot/fill/reconciliation 样本可估计滑点、拒单和约束偏差 | `r8_execution_feedback_missing` |
 | `optimizer_input_contract` | `verified` | Portfolio Domain/Application 已实现 13 类 typed payload、canonical owner、PIT/有效期、current/universe/path hash 和 R3/R4/R5 exact Promotion provider 校验；缺项、过期、冲突均 fail closed | — |
-| `optimizer_baseline_fail_closed_policy` | `verified` | current、等权、资产风险平价、local-search 四候选必须完整可复算；不可行、矩阵异常、无法证明的市场数量约束和比较不完整均稳定 blocked | — |
+| `optimizer_baseline_fail_closed_policy` | `verified` | canonical owner 为 Portfolio；current、等权、资产风险平价、local-search 四候选必须完整可复算，不可行、矩阵异常、无法证明的市场数量约束和比较不完整均稳定 blocked。该机制 attestation 不证明任何真实 snapshot、Promotion 或执行反馈存在 | — |
 
 R8 不得先实现一个只接受收益/协方差的展示型优化器，再让 Portfolio 或 Broker Execution 修补不可交易结果。
 
@@ -238,7 +238,9 @@ Owner：`portfolio` + `broker_execution`，在 R3/R4/R5 晋级前可独立建设
 
 2026-08-05 已完成 O1 输入边界及受约束研究求解纵切：`OptimizerInputContract`、owner-attested evidence、promotion reference、canonical numerical problem、约束验证、等权/资产风险平价基准和 deterministic local search。Application 必须先通过现有 readiness gate，并逐项比对 snapshot、universe、所有 input hash、execution feedback 与 R3/R4/R5 promotion；非 PSD、不可行、过期或比较不完整均 blocked。求解器只报告 local stationary/iteration limit，明确禁止 global optimum 声明，全部输出固定 `must_not_execute=true`。
 
-2026-08-06 O1/O2 无数据续批完成 13 类 typed 数值 payload、版本化 current baseline、Portfolio-owned 可投资 universe、四市场 `available_at` 规则、逐期 path drawdown、四候选完整性/argmin/守恒重算，以及 append-only input/result/lifecycle ledger。完整 problem/result/event graph 使用 Decimal/UTC canonical hash；Promotion 必须由 Research exact provider 重读，retirement/rollback 必须由 Portfolio owner authorization provider 重读。无法在 weight 层证明手数、T+1、基金结算、债券应计或商品保证金时稳定返回 blocker，不把近似权重当作可执行结果。`portfolio.0006` 为 schema-only、零 seed；该实现不注册 API/TUI/Celery/订单或 transition plan，真实证据门仍保持 `blocked`。
+2026-08-06 O1/O2 无数据续批完成 13 类 typed 数值 payload、版本化 current baseline、Portfolio-owned 可投资 universe、四市场 `available_at` 规则、逐期 path drawdown、四候选完整性/argmin/守恒重算，以及 append-only result/lifecycle ledger。完整 problem/result/event graph 使用 Decimal/UTC canonical hash；Promotion 必须由 Research exact provider 重读，retirement/rollback 必须由 Portfolio owner authorization provider 重读。无法在 weight 层证明手数、T+1、基金结算、债券应计或商品保证金时稳定返回 blocker，不把近似权重当作可执行结果。`portfolio.0006` 为 schema-only、零 seed，只创建 result/lifecycle 两表；input set 虽封入 result evidence graph，但独立 canonical input receipt/provider 尚未建立。该实现不注册 API/TUI/Celery/订单或 transition plan，真实证据门仍保持 `blocked`。
+
+2026-08-09 readiness/composition P1 收口：治理清单不再用 `CanonicalPortfolioSnapshot` class/repository 证明真实 `portfolio_canonical_snapshot`，运行时该 requirement 在没有 owner evidence 时保持 `unverified`；`optimizer_baseline_fail_closed_policy` 改由 Portfolio owner 以四候选/完整阻断测试签署机制 evidence。新增 production composition 组装 deterministic engine、append-only repository 和 lifecycle use case，但 canonical input-set、Research exact Promotion 与 Portfolio lifecycle authorization 均使用显式 unavailable provider；缺证据时在任何 result/lifecycle 写入前失败。独立 input receipt/concrete owner provider 继续作为后续 P1，真实 snapshot、晋级和 broker reconciliation 总门不变。
 
 - 第一版离线 research-only；
 - 明确等权和现有配置基准；
