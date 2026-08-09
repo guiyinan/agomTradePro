@@ -19,6 +19,7 @@ from apps.macro_factor.domain.entities import (
     MacroTargetDefinition,
     MacroTargetFamily,
     PITDatasetSlice,
+    PITInferenceCalendarPeriodEvidence,
     PITManifestEvidence,
     PITSelectedFactVersion,
     ProxyAssetDefinition,
@@ -31,12 +32,15 @@ from apps.macro_factor.domain.entities import (
 from apps.macro_factor.domain.reproducible_runner import (
     FixedFMPDefinition,
     FixedFMPWeight,
+    InferenceTargetCalendarPeriod,
     InnerTemporalFoldPlan,
+    InputKnowledgeFreshnessPolicy,
     MacroFactorLifecycleEvent,
     MacroFactorRunnerSpec,
     NestedTemporalCVPlan,
     OptimizationDirection,
     OuterTemporalFoldPlan,
+    PITInferenceRow,
     PITResearchDataset,
     PITResearchRow,
     ProxyObservation,
@@ -125,12 +129,34 @@ def _synthetic_case() -> tuple[
         ),
     )
     manifest_as_of = _at(observations[-1], days=10)
-    manifest = PITManifestEvidence(
+    calendar_id = "synthetic-calendar"
+    calendar_version = "synthetic-calendar-v1"
+    calendar_hash = "d" * 64
+    target_period = InferenceTargetCalendarPeriod.create(
+        calendar_id=calendar_id,
+        period_id="synthetic-forward-period-v1",
+        calendar_version=calendar_version,
+        calendar_hash=calendar_hash,
+        period_start=manifest_as_of.date() + timedelta(days=2),
+        period_end=manifest_as_of.date() + timedelta(days=6),
+    )
+    manifest_period = PITInferenceCalendarPeriodEvidence.create(
+        calendar_id=calendar_id,
+        calendar_version=calendar_version,
+        calendar_hash=calendar_hash,
+        period_id=target_period.period_id,
+        period_start=target_period.period_start,
+        period_end=target_period.period_end,
+    )
+    manifest = PITManifestEvidence.create(
         manifest_id="pit-synthetic-r3-v1",
         manifest_hash="a" * 64,
         as_of_time=manifest_as_of,
         knowledge_scope="public",
-        calendar_version="synthetic-calendar-v1",
+        calendar_id=calendar_id,
+        calendar_version=calendar_version,
+        calendar_hash=calendar_hash,
+        inference_periods=(manifest_period,),
         slices=(
             PITDatasetSlice(
                 target.dataset_key,
@@ -158,7 +184,7 @@ def _synthetic_case() -> tuple[
         is_verified=True,
     )
     rows: list[PITResearchRow] = []
-    for index, observed_on in enumerate(observations):
+    for index, observed_on in enumerate(observations[:-1]):
         first = Decimal(index) / Decimal("10")
         second = Decimal((index % 7) - 3) / Decimal("5") + Decimal(index) / Decimal("100")
         noise = Decimal((index % 3) - 1) / Decimal("100")
@@ -182,10 +208,33 @@ def _synthetic_case() -> tuple[
     dataset = PITResearchDataset(
         manifest_id=manifest.manifest_id,
         manifest_hash=manifest.manifest_hash,
+        manifest_content_hash=manifest.content_hash,
         manifest_as_of=manifest.as_of_time,
         target_code=target.target_code,
         candidate_asset_codes=tuple(item.asset_code for item in candidates),
         rows=tuple(rows),
+        inference_row=PITInferenceRow(
+            row_id="synthetic-inference-row",
+            observation_date=observations[-1],
+            available_at=max(
+                first_proxy_versions[-1].available_at,
+                second_proxy_versions[-1].available_at,
+            ),
+            target_period=target_period,
+            proxies=(
+                ProxyObservation(
+                    "PROXY_A",
+                    Decimal(len(observations) - 1) / Decimal("10"),
+                    first_proxy_versions[-1],
+                ),
+                ProxyObservation(
+                    "PROXY_B",
+                    Decimal(((len(observations) - 1) % 7) - 3) / Decimal("5")
+                    + Decimal(len(observations) - 1) / Decimal("100"),
+                    second_proxy_versions[-1],
+                ),
+            ),
+        ),
     )
 
     def row_ids(start: int, stop: int) -> tuple[str, ...]:
@@ -265,11 +314,21 @@ def _synthetic_case() -> tuple[
         plan.policy_version,
         calculate_temporal_split_hash(split),
     )
+    inference_row = dataset.inference_row
+    assert inference_row is not None
     spec = MacroFactorRunnerSpec(
         run_key="synthetic-concrete-lasso",
         run_version=1,
         factor_version="synthetic-growth-factor-v1",
+        expected_manifest_content_hash=manifest.content_hash,
         target=target,
+        inference_target_period=inference_row.target_period,
+        input_knowledge_freshness_policy=InputKnowledgeFreshnessPolicy.create(
+            policy_version="synthetic-input-freshness-v1",
+            max_manifest_age_seconds=60 * 24 * 60 * 60,
+            max_inference_age_seconds=60 * 24 * 60 * 60,
+            maximum_allowed_age_seconds=90 * 24 * 60 * 60,
+        ),
         candidates=candidates,
         plan=plan,
         temporal_split=split,
@@ -414,6 +473,18 @@ def test_concrete_lasso_is_deterministic_and_seals_fit_diagnostics() -> None:
     assert b'"concrete_fit"' in first.artifact_bytes
     assert first.validity_policy == spec.output_validity_policy
     assert spec.output_validity_policy.content_hash.encode() in first.artifact_bytes
+    assert all(item.knowledge_as_of == dataset.manifest_as_of for item in first.dated_outputs)
+    assert dataset.inference_row is not None
+    assert first.dated_outputs[0].observation_date == dataset.inference_row.observation_date
+    assert first.dated_outputs[0].target_period_start == (
+        dataset.inference_row.target_period.period_start
+    )
+    final_oos_ids = next(
+        fold.out_of_sample_row_ids
+        for fold in spec.plan.outer_folds
+        if fold.fold_id == spec.plan.final_fold_id
+    )
+    assert dataset.inference_row.row_id not in final_oos_ids
     assert first.result.research_only is True
     assert first.result.must_not_use_for_decision is True
 
@@ -637,6 +708,20 @@ def test_concrete_composition_records_only_with_complete_providers() -> None:
         spec=spec,
         expected_manifest_id=manifest.manifest_id,
         expected_manifest_hash=manifest.manifest_hash,
+        expected_manifest_content_hash=manifest.content_hash,
+        expected_input_freshness_policy_version=(
+            spec.input_knowledge_freshness_policy.policy_version
+        ),
+        expected_input_freshness_policy_hash=(spec.input_knowledge_freshness_policy.content_hash),
+        expected_max_manifest_age_seconds=(
+            spec.input_knowledge_freshness_policy.max_manifest_age_seconds
+        ),
+        expected_max_inference_age_seconds=(
+            spec.input_knowledge_freshness_policy.max_inference_age_seconds
+        ),
+        expected_maximum_allowed_age_seconds=(
+            spec.input_knowledge_freshness_policy.maximum_allowed_age_seconds
+        ),
     )
 
     assessment = runtime.run.execute(command)

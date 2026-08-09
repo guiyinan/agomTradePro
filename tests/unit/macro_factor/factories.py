@@ -20,6 +20,7 @@ from apps.macro_factor.domain.entities import (
     MacroTargetFamily,
     ModelEvaluationEvidence,
     PITDatasetSlice,
+    PITInferenceCalendarPeriodEvidence,
     PITManifestEvidence,
     PITSelectedFactVersion,
     ProxyAssetDefinition,
@@ -78,15 +79,47 @@ def complete_manifest() -> PITManifestEvidence:
         return tuple(versions)
 
     target_versions = selected_versions(101, "1", target=True)
-    etf_versions = selected_versions(201, "2", target=False)
-    future_versions = selected_versions(301, "3", target=False)
+    inference_effective_at = datetime(2026, 6, 30, 15, tzinfo=UTC)
+    etf_versions = (
+        *selected_versions(201, "2", target=False),
+        PITSelectedFactVersion(
+            version_id=208,
+            content_hash="2" * 64,
+            effective_at=inference_effective_at,
+            available_at=inference_effective_at,
+        ),
+    )
+    future_versions = (
+        *selected_versions(301, "3", target=False),
+        PITSelectedFactVersion(
+            version_id=308,
+            content_hash="3" * 64,
+            effective_at=inference_effective_at,
+            available_at=inference_effective_at,
+        ),
+    )
 
-    return PITManifestEvidence(
+    calendar_id = "cn-trading-calendar"
+    calendar_version = "cn-trading-calendar-v3"
+    calendar_hash = "d" * 64
+    inference_period = PITInferenceCalendarPeriodEvidence.create(
+        calendar_id=calendar_id,
+        calendar_version=calendar_version,
+        calendar_hash=calendar_hash,
+        period_id="cn-month:2026-08",
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+    )
+
+    return PITManifestEvidence.create(
         manifest_id="pit-r3-growth-v1",
         manifest_hash="a" * 64,
         as_of_time=datetime(2026, 6, 30, 16, tzinfo=UTC),
         knowledge_scope="public",
-        calendar_version="cn-trading-calendar-v3",
+        calendar_id=calendar_id,
+        calendar_version=calendar_version,
+        calendar_hash=calendar_hash,
+        inference_periods=(inference_period,),
         slices=(
             PITDatasetSlice(
                 "macro.vintage",

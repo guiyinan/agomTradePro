@@ -28,6 +28,8 @@ from ._runner_support import (
 )
 from .baselines import FixedFMPDefinition
 from .runner_inputs import (
+    InferenceTargetCalendarPeriod,
+    InputKnowledgeFreshnessPolicy,
     PITResearchDataset,
     PITResearchRow,
     ResearchOutputValidityPolicy,
@@ -162,6 +164,22 @@ class TargetAvailabilityPolicy:
         if self.content_hash.lower() != expected:
             raise ValueError("TargetAvailabilityPolicy.content_hash does not match content")
 
+    def validated_copy(self) -> TargetAvailabilityPolicy:
+        """Reconstruct the policy so its horizon, gaps, and seal are checked live."""
+
+        return TargetAvailabilityPolicy(
+            policy_version=self.policy_version,
+            target_code=self.target_code,
+            output_role=self.output_role,
+            horizon_periods=self.horizon_periods,
+            horizon_unit=self.horizon_unit,
+            normalized_horizon_days=self.normalized_horizon_days,
+            label_availability_lag_days=self.label_availability_lag_days,
+            purge_days=self.purge_days,
+            embargo_days=self.embargo_days,
+            content_hash=self.content_hash,
+        )
+
 
 def _validate_row_ids(values: tuple[str, ...], label: str) -> None:
     if not values:
@@ -186,6 +204,15 @@ class InnerTemporalFoldPlan:
         _validate_row_ids(self.validation_row_ids, "inner validation")
         if set(self.training_row_ids) & set(self.validation_row_ids):
             raise ValueError("inner training and validation rows must be disjoint")
+
+    def validated_copy(self) -> InnerTemporalFoldPlan:
+        """Reconstruct an inner fold before numerical selection."""
+
+        return InnerTemporalFoldPlan(
+            fold_id=self.fold_id,
+            training_row_ids=self.training_row_ids,
+            validation_row_ids=self.validation_row_ids,
+        )
 
 
 @dataclass(frozen=True)
@@ -226,8 +253,21 @@ class OuterTemporalFoldPlan:
                     raise ValueError("outer out-of-sample rows cannot enter inner selection")
                 raise ValueError("inner folds must be contained in outer training rows")
 
+    def validated_copy(self) -> OuterTemporalFoldPlan:
+        """Reconstruct membership and chronology for one complete outer fold."""
 
-class OptimizationDirection(str, Enum):
+        return OuterTemporalFoldPlan(
+            fold_id=self.fold_id,
+            training_row_ids=self.training_row_ids,
+            validation_row_ids=self.validation_row_ids,
+            out_of_sample_row_ids=self.out_of_sample_row_ids,
+            selection_as_of=self.selection_as_of,
+            evaluation_as_of=self.evaluation_as_of,
+            inner_folds=tuple(item.validated_copy() for item in self.inner_folds),
+        )
+
+
+class OptimizationDirection(str, Enum):  # noqa: UP042 -- preserve legacy string semantics
     """Governed direction for deterministic inner-score selection."""
 
     MAXIMIZE = "maximize"
@@ -312,6 +352,19 @@ class NestedTemporalCVPlan:
 
         return hash_payload(self.canonical_payload)
 
+    def validated_copy(self) -> NestedTemporalCVPlan:
+        """Reconstruct timing and every fold before an execution request."""
+
+        return NestedTemporalCVPlan(
+            policy_version=self.policy_version,
+            timing=self.timing.validated_copy(),
+            alpha_grid=self.alpha_grid,
+            optimization_metric=self.optimization_metric,
+            optimization_direction=self.optimization_direction,
+            outer_folds=tuple(item.validated_copy() for item in self.outer_folds),
+            final_fold_id=self.final_fold_id,
+        )
+
 
 @dataclass(frozen=True)
 class MacroFactorRunnerSpec:
@@ -324,7 +377,10 @@ class MacroFactorRunnerSpec:
     run_key: str
     run_version: int
     factor_version: str
+    expected_manifest_content_hash: str
     target: MacroTargetDefinition
+    inference_target_period: InferenceTargetCalendarPeriod
+    input_knowledge_freshness_policy: InputKnowledgeFreshnessPolicy
     candidates: tuple[ProxyAssetDefinition, ...]
     plan: NestedTemporalCVPlan
     temporal_split: TemporalSplitSpec
@@ -343,8 +399,22 @@ class MacroFactorRunnerSpec:
         require_token(self.run_key, "MacroFactorRunnerSpec.run_key")
         require_positive(self.run_version, "MacroFactorRunnerSpec.run_version")
         require_token(self.factor_version, "MacroFactorRunnerSpec.factor_version")
+        require_sha256(
+            self.expected_manifest_content_hash,
+            "MacroFactorRunnerSpec.expected_manifest_content_hash",
+        )
         require_aware(self.calculated_at, "MacroFactorRunnerSpec.calculated_at")
+        self.inference_target_period.validated_copy()
+        self.input_knowledge_freshness_policy.validated_copy()
         self.output_validity_policy.validated_copy()
+        if any(
+            fold.selection_as_of > self.calculated_at or fold.evaluation_as_of > self.calculated_at
+            for fold in self.plan.outer_folds
+        ):
+            raise ValueError(
+                "MacroFactorRunnerSpec.calculated_at cannot precede fold selection or "
+                "evaluation evidence"
+            )
         if isinstance(self.random_seed, bool) or self.random_seed < 0:
             raise ValueError("MacroFactorRunnerSpec.random_seed cannot be negative")
         if not self.candidates:
@@ -376,6 +446,34 @@ class MacroFactorRunnerSpec:
             item.fold_id for item in self.temporal_split.walk_forward_folds
         ):
             raise ValueError("nested plan must cover every typed walk-forward fold exactly")
+
+    def validated_copy(self) -> MacroFactorRunnerSpec:
+        """Reconstruct mutable-at-runtime nested policies before orchestration."""
+
+        return MacroFactorRunnerSpec(
+            run_key=self.run_key,
+            run_version=self.run_version,
+            factor_version=self.factor_version,
+            expected_manifest_content_hash=self.expected_manifest_content_hash,
+            target=self.target,
+            inference_target_period=self.inference_target_period.validated_copy(),
+            input_knowledge_freshness_policy=(
+                self.input_knowledge_freshness_policy.validated_copy()
+            ),
+            candidates=self.candidates,
+            plan=self.plan.validated_copy(),
+            temporal_split=self.temporal_split,
+            historical_mean_benchmark=self.historical_mean_benchmark,
+            fixed_fmp=self.fixed_fmp,
+            cost_model=self.cost_model,
+            split_contract=self.split_contract,
+            selection_protocol=self.selection_protocol,
+            metrics_protocol=self.metrics_protocol,
+            output_validity_policy=self.output_validity_policy.validated_copy(),
+            reproducibility=self.reproducibility,
+            random_seed=self.random_seed,
+            calculated_at=self.calculated_at,
+        )
 
 
 @dataclass(frozen=True)
@@ -437,7 +535,15 @@ class NestedCVExecutionRequest:
     candidate_asset_codes: tuple[str, ...]
     pit_manifest_id: str
     pit_manifest_hash: str
+    pit_manifest_content_hash: str
     dataset_hash: str
+    inference_row_id: str
+    inference_row_hash: str
+    inference_target_period_id: str
+    inference_target_calendar_id: str
+    inference_target_calendar_version: str
+    inference_target_calendar_hash: str
+    inference_target_period_hash: str
     plan_version: str
     plan_hash: str
     benchmark_version: str
@@ -456,6 +562,13 @@ class NestedCVExecutionRequest:
     output_validity_policy_hash: str
     output_valid_for_seconds: int
     output_maximum_valid_for_seconds: int
+    input_freshness_policy_version: str
+    input_freshness_policy_hash: str
+    max_manifest_age_seconds: int
+    max_inference_age_seconds: int
+    maximum_allowed_input_age_seconds: int
+    manifest_fresh_until: datetime
+    inference_fresh_until: datetime
     timing_policy_version: str
     timing_policy_hash: str
     code_version: str
@@ -482,7 +595,17 @@ class NestedCVExecutionRequest:
             "candidate_asset_codes": list(self.candidate_asset_codes),
             "pit_manifest_id": self.pit_manifest_id,
             "pit_manifest_hash": self.pit_manifest_hash,
+            "pit_manifest_content_hash": self.pit_manifest_content_hash,
             "dataset_hash": self.dataset_hash,
+            "inference": {
+                "row_id": self.inference_row_id,
+                "row_hash": self.inference_row_hash,
+                "target_period_id": self.inference_target_period_id,
+                "target_calendar_id": self.inference_target_calendar_id,
+                "target_calendar_version": self.inference_target_calendar_version,
+                "target_calendar_hash": self.inference_target_calendar_hash,
+                "target_period_hash": self.inference_target_period_hash,
+            },
             "plan_version": self.plan_version,
             "plan_hash": self.plan_hash,
             "benchmark": {"version": self.benchmark_version, "hash": self.benchmark_hash},
@@ -505,6 +628,15 @@ class NestedCVExecutionRequest:
                 "hash": self.output_validity_policy_hash,
                 "valid_for_seconds": self.output_valid_for_seconds,
                 "maximum_valid_for_seconds": self.output_maximum_valid_for_seconds,
+            },
+            "input_knowledge_freshness_policy": {
+                "version": self.input_freshness_policy_version,
+                "hash": self.input_freshness_policy_hash,
+                "max_manifest_age_seconds": self.max_manifest_age_seconds,
+                "max_inference_age_seconds": self.max_inference_age_seconds,
+                "maximum_allowed_age_seconds": self.maximum_allowed_input_age_seconds,
+                "manifest_fresh_until": utc_text(self.manifest_fresh_until),
+                "inference_fresh_until": utc_text(self.inference_fresh_until),
             },
             "timing_policy": {
                 "version": self.timing_policy_version,
@@ -572,7 +704,9 @@ def _validate_manifest_scope(
     if (
         dataset.manifest_id != manifest.manifest_id
         or dataset.manifest_hash.lower() != manifest.manifest_hash.lower()
+        or dataset.manifest_content_hash.lower() != manifest.content_hash.lower()
         or dataset.manifest_as_of != manifest.as_of_time
+        or spec.expected_manifest_content_hash.lower() != manifest.content_hash.lower()
     ):
         raise ValueError("dataset does not match the exact PIT manifest")
     if not manifest.is_complete:
@@ -594,6 +728,11 @@ def _validate_manifest_scope(
     seen_target_versions: set[int] = set()
     seen_proxy_versions: dict[str, set[int]] = {item.asset_code: set() for item in spec.candidates}
     for row in dataset.rows:
+        if (
+            row.available_at > dataset.manifest_as_of
+            or row.label_available_at > dataset.manifest_as_of
+        ):
+            raise ValueError("PIT design row exceeds manifest knowledge time")
         target_selected = target_slice.selected_by_id.get(row.target_fact_version.version_id)
         if target_selected != row.target_fact_version:
             raise ValueError(
@@ -614,6 +753,72 @@ def _validate_manifest_scope(
             if observation.fact_version.version_id in seen:
                 raise ValueError("PIT proxy fact version cannot be reused across design rows")
             seen.add(observation.fact_version.version_id)
+    inference = dataset.inference_row
+    if inference is None:
+        raise ValueError("one label-free inference row is required")
+    for observation in inference.proxies:
+        candidate = candidates_by_code[observation.asset_code]
+        selected_slice = slices[(candidate.dataset_key, candidate.business_key)]
+        selected = selected_slice.selected_by_id.get(observation.fact_version.version_id)
+        if selected != observation.fact_version:
+            raise ValueError("inference proxy fact is not an exact manifest-selected version")
+        if observation.fact_version.version_id in seen_proxy_versions[observation.asset_code]:
+            raise ValueError("inference proxy fact cannot alias a design-row fact version")
+        if observation.fact_version.available_at > dataset.manifest_as_of:
+            raise ValueError("inference proxy fact exceeds manifest knowledge time")
+
+
+def _validate_inference_calendar_member(
+    *,
+    target_period: InferenceTargetCalendarPeriod,
+    manifest: PITManifestEvidence,
+) -> None:
+    """Require the inference period to equal one owner-sealed manifest member."""
+
+    members = tuple(
+        item for item in manifest.inference_periods if item.period_id == target_period.period_id
+    )
+    if len(members) != 1:
+        raise ValueError("inference target period is not a unique PIT manifest member")
+    member = members[0]
+    if (
+        target_period.calendar_id != manifest.calendar_id
+        or target_period.calendar_version != manifest.calendar_version
+        or target_period.calendar_hash.lower() != manifest.calendar_hash.lower()
+        or member.calendar_id != target_period.calendar_id
+        or member.calendar_version != target_period.calendar_version
+        or member.calendar_hash.lower() != target_period.calendar_hash.lower()
+        or member.period_start != target_period.period_start
+        or member.period_end != target_period.period_end
+        or member.content_hash.lower() != target_period.content_hash.lower()
+    ):
+        raise ValueError("inference target period does not equal its PIT manifest member")
+
+
+def _validate_run_chronology(
+    spec: MacroFactorRunnerSpec,
+    dataset: PITResearchDataset,
+    manifest: PITManifestEvidence,
+) -> None:
+    """Revalidate every owner/run clock immediately before numerical execution."""
+
+    if manifest.as_of_time > spec.calculated_at:
+        raise ValueError("PIT manifest cannot be known after runner calculated_at")
+    if dataset.manifest_as_of > spec.calculated_at:
+        raise ValueError("PIT dataset cannot be known after runner calculated_at")
+    if any(
+        fold.selection_as_of > spec.calculated_at or fold.evaluation_as_of > spec.calculated_at
+        for fold in spec.plan.outer_folds
+    ):
+        raise ValueError(
+            "runner calculated_at cannot precede fold selection or evaluation evidence"
+        )
+    if any(
+        version.available_at > manifest.as_of_time
+        for dataset_slice in manifest.slices
+        for version in dataset_slice.selected_versions
+    ):
+        raise ValueError("PIT manifest contains a future selected fact version")
 
 
 def _rows_for(
@@ -650,6 +855,22 @@ def _validate_rows_in_window(
         raise ValueError(f"{label} rows fall outside typed temporal split window")
 
 
+def _validate_fact_cutoff(
+    rows: tuple[PITResearchRow, ...],
+    *,
+    cutoff: datetime,
+    label: str,
+) -> None:
+    """Check every target and proxy fact clock, not only cached row summaries."""
+
+    if any(
+        row.target_fact_version.available_at > cutoff
+        or any(item.fact_version.available_at > cutoff for item in row.proxies)
+        for row in rows
+    ):
+        raise ValueError(f"{label} contains a fact unavailable at its cutoff")
+
+
 def build_execution_request(
     spec: MacroFactorRunnerSpec,
     dataset: PITResearchDataset,
@@ -657,8 +878,41 @@ def build_execution_request(
 ) -> NestedCVExecutionRequest:
     """Build and validate a nested-CV request from manifest-bound in-memory rows."""
 
+    spec = spec.validated_copy()
+    dataset = dataset.validated_copy()
+    manifest = manifest.validated_copy()
     validity_policy = spec.output_validity_policy.validated_copy()
+    _validate_run_chronology(spec, dataset, manifest)
     _validate_manifest_scope(spec, dataset, manifest)
+    inference = dataset.inference_row
+    if inference is None:
+        raise ValueError("one label-free inference row is required")
+    target_period = inference.target_period
+    if target_period != spec.inference_target_period:
+        raise ValueError("inference target period does not match preregistered runner spec")
+    _validate_inference_calendar_member(target_period=target_period, manifest=manifest)
+    freshness_policy = spec.input_knowledge_freshness_policy.validated_copy()
+    manifest_fresh_until = freshness_policy.manifest_expires_at(manifest.as_of_time)
+    inference_fresh_until = freshness_policy.inference_expires_at(inference.available_at)
+    if spec.calculated_at > manifest_fresh_until:
+        raise ValueError("PIT manifest knowledge is stale at calculated_at")
+    if spec.calculated_at > inference_fresh_until:
+        raise ValueError("PIT inference knowledge is stale at calculated_at")
+    output_valid_until = validity_policy.valid_until(spec.calculated_at)
+    if output_valid_until > manifest_fresh_until:
+        raise ValueError("output validity exceeds PIT manifest freshness")
+    if output_valid_until > inference_fresh_until:
+        raise ValueError("output validity exceeds PIT inference freshness")
+    knowledge_date = dataset.manifest_as_of.date()
+    produced_date = spec.calculated_at.date()
+    if spec.target.output_role is FactorOutputRole.FORWARD_EXPECTATION:
+        if (
+            target_period.period_start <= knowledge_date
+            or target_period.period_start <= produced_date
+        ):
+            raise ValueError("forward inference target period must follow knowledge and production")
+    elif target_period.period_end > knowledge_date or target_period.period_end > produced_date:
+        raise ValueError("current-state inference target period exceeds its knowledge cutoff")
     rows_by_id = dataset.rows_by_id
     bindings: list[ExecutionFoldBinding] = []
     minimum_gap = max(spec.plan.timing.purge_days, spec.plan.timing.embargo_days)
@@ -696,6 +950,11 @@ def build_execution_request(
             for row in (*training, *outer_validation)
         ):
             raise ValueError(f"fold {outer.fold_id} final-fit row exceeds selection cutoff")
+        _validate_fact_cutoff(
+            (*training, *outer_validation),
+            cutoff=outer.selection_as_of,
+            label=f"fold {outer.fold_id} final fit",
+        )
         if outer.selection_as_of.date() >= min(row.observation_date for row in out_of_sample):
             raise ValueError(f"fold {outer.fold_id} outer OOS begins before selection cutoff")
         if any(
@@ -704,6 +963,11 @@ def build_execution_request(
             for row in out_of_sample
         ):
             raise ValueError(f"fold {outer.fold_id} OOS row exceeds evaluation cutoff")
+        _validate_fact_cutoff(
+            out_of_sample,
+            cutoff=outer.evaluation_as_of,
+            label=f"fold {outer.fold_id} OOS",
+        )
         _validate_gap(
             training,
             outer_validation,
@@ -726,6 +990,11 @@ def build_execution_request(
                 for row in (*inner_training, *validation)
             ):
                 raise ValueError(f"inner fold {inner.fold_id} row exceeds selection cutoff")
+            _validate_fact_cutoff(
+                (*inner_training, *validation),
+                cutoff=outer.selection_as_of,
+                label=f"inner fold {inner.fold_id}",
+            )
             _validate_gap(inner_training, validation, minimum_gap, f"inner fold {inner.fold_id}")
             inner_bindings.append(
                 InnerFoldBinding(
@@ -742,6 +1011,7 @@ def build_execution_request(
             {
                 "manifest_id": dataset.manifest_id,
                 "manifest_hash": dataset.manifest_hash,
+                "manifest_content_hash": dataset.manifest_content_hash,
                 "fold_id": outer.fold_id,
                 "training_row_ids": list(outer.training_row_ids),
                 "validation_row_ids": list(outer.validation_row_ids),
@@ -779,7 +1049,15 @@ def build_execution_request(
         candidate_asset_codes=tuple(item.asset_code for item in spec.candidates),
         pit_manifest_id=dataset.manifest_id,
         pit_manifest_hash=dataset.manifest_hash,
+        pit_manifest_content_hash=dataset.manifest_content_hash,
         dataset_hash=dataset.content_hash,
+        inference_row_id=inference.row_id,
+        inference_row_hash=hash_payload(inference.canonical_payload()),
+        inference_target_period_id=target_period.period_id,
+        inference_target_calendar_id=target_period.calendar_id,
+        inference_target_calendar_version=target_period.calendar_version,
+        inference_target_calendar_hash=target_period.calendar_hash,
+        inference_target_period_hash=target_period.content_hash,
         plan_version=spec.plan.policy_version,
         plan_hash=spec.plan.content_hash,
         benchmark_version=spec.historical_mean_benchmark.version,
@@ -798,6 +1076,13 @@ def build_execution_request(
         output_validity_policy_hash=validity_policy.content_hash,
         output_valid_for_seconds=validity_policy.valid_for_seconds,
         output_maximum_valid_for_seconds=validity_policy.maximum_valid_for_seconds,
+        input_freshness_policy_version=freshness_policy.policy_version,
+        input_freshness_policy_hash=freshness_policy.content_hash,
+        max_manifest_age_seconds=freshness_policy.max_manifest_age_seconds,
+        max_inference_age_seconds=freshness_policy.max_inference_age_seconds,
+        maximum_allowed_input_age_seconds=(freshness_policy.maximum_allowed_age_seconds),
+        manifest_fresh_until=manifest_fresh_until,
+        inference_fresh_until=inference_fresh_until,
         timing_policy_version=spec.plan.timing.policy_version,
         timing_policy_hash=spec.plan.timing.content_hash,
         code_version=spec.reproducibility.code_version,

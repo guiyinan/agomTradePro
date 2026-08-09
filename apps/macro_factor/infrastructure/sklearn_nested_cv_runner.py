@@ -104,6 +104,7 @@ class _ModelFit:
 @dataclass(frozen=True)
 class _FoldCalculation:
     selection: ExternalOuterFoldSelectionEvidence
+    final_fit: _ModelFit
     oos_predictions: tuple[ExternalFoldPrediction, ...]
     train_actual: FloatArray
     train_predicted: FloatArray
@@ -299,28 +300,34 @@ class SklearnNestedCVLassoRunner:
         predictions = tuple(
             prediction for item in calculations for prediction in item.oos_predictions
         )
-        latest_prediction = max(
-            final.oos_predictions,
-            key=lambda item: rows[item.row_id].observation_date,
+        inference = dataset.inference_row
+        if inference is None:
+            raise ValueError("one label-free inference row is required")
+        inference_features = np.asarray(
+            [
+                [
+                    float(inference.proxy_value(asset_code))
+                    for asset_code in request.candidate_asset_codes
+                ]
+            ],
+            dtype=np.float64,
         )
-        latest_row = rows[latest_prediction.row_id]
+        inference_value = _decimal(
+            np.asarray(
+                final.final_fit.model.predict(final.final_fit.scaler.transform(inference_features)),
+                dtype=np.float64,
+            )[0]
+        )
         dated_output = ExternalDatedFactorOutput(
             output_role=spec.target.output_role,
-            observation_date=latest_row.observation_date,
-            target_period_start=latest_row.target_period_start,
-            target_period_end=latest_row.target_period_end,
+            observation_date=inference.observation_date,
+            target_period_start=inference.target_period.period_start,
+            target_period_end=inference.target_period.period_end,
             horizon_periods=spec.target.horizon_periods,
             horizon_unit=spec.target.horizon_unit,
-            knowledge_as_of=max(
-                latest_row.available_at,
-                next(
-                    item.selection.final_fit_as_of
-                    for item in calculations
-                    if item.selection.fold_id == request.final_fold_id
-                ),
-            ),
+            knowledge_as_of=dataset.manifest_as_of,
             valid_until=validity_policy.valid_until(spec.calculated_at),
-            value=latest_prediction.predicted_value,
+            value=inference_value,
             unit=spec.target.unit,
         )
         return ExternalNestedCVArtifact.create(
@@ -351,6 +358,28 @@ class SklearnNestedCVLassoRunner:
             raise ValueError("request alpha family drifted from preregistration")
         if request.dataset_hash != dataset.content_hash:
             raise ValueError("request does not bind the exact PIT dataset")
+        if (
+            request.pit_manifest_id != dataset.manifest_id
+            or request.pit_manifest_hash.lower() != dataset.manifest_hash.lower()
+            or request.pit_manifest_content_hash.lower() != dataset.manifest_content_hash.lower()
+            or request.pit_manifest_content_hash.lower()
+            != spec.expected_manifest_content_hash.lower()
+        ):
+            raise ValueError("request does not bind the exact PIT manifest projection")
+        inference = dataset.inference_row
+        if inference is None:
+            raise ValueError("one label-free inference row is required")
+        if (
+            request.inference_row_id != inference.row_id
+            or request.inference_row_hash != hash_payload(inference.canonical_payload())
+            or request.inference_target_period_id != inference.target_period.period_id
+            or request.inference_target_calendar_id != inference.target_period.calendar_id
+            or request.inference_target_calendar_version != inference.target_period.calendar_version
+            or request.inference_target_calendar_hash.lower()
+            != inference.target_period.calendar_hash.lower()
+            or request.inference_target_period_hash != inference.target_period.content_hash
+        ):
+            raise ValueError("request inference-row binding mismatch")
         if (
             request.target_code != spec.target.target_code
             or request.target_code != dataset.target_code
@@ -397,6 +426,28 @@ class SklearnNestedCVLassoRunner:
             or request.output_maximum_valid_for_seconds != validity_policy.maximum_valid_for_seconds
         ):
             raise ValueError("request output-validity policy binding mismatch")
+        freshness_policy = spec.input_knowledge_freshness_policy.validated_copy()
+        manifest_fresh_until = freshness_policy.manifest_expires_at(dataset.manifest_as_of)
+        inference_fresh_until = freshness_policy.inference_expires_at(inference.available_at)
+        if (
+            request.input_freshness_policy_version != freshness_policy.policy_version
+            or request.input_freshness_policy_hash.lower() != freshness_policy.content_hash.lower()
+            or request.max_manifest_age_seconds != freshness_policy.max_manifest_age_seconds
+            or request.max_inference_age_seconds != freshness_policy.max_inference_age_seconds
+            or request.maximum_allowed_input_age_seconds
+            != freshness_policy.maximum_allowed_age_seconds
+            or request.manifest_fresh_until != manifest_fresh_until
+            or request.inference_fresh_until != inference_fresh_until
+        ):
+            raise ValueError("request input-freshness policy binding mismatch")
+        output_valid_until = validity_policy.valid_until(spec.calculated_at)
+        if (
+            spec.calculated_at > manifest_fresh_until
+            or spec.calculated_at > inference_fresh_until
+            or output_valid_until > manifest_fresh_until
+            or output_valid_until > inference_fresh_until
+        ):
+            raise ValueError("concrete fit knowledge is stale for its publication interval")
         return validity_policy
 
     @staticmethod
@@ -406,6 +457,10 @@ class SklearnNestedCVLassoRunner:
                 not proxy.value.is_finite() for proxy in row.proxies
             ):
                 raise ValueError("PIT design contains a non-finite value")
+        if dataset.inference_row is None or any(
+            not proxy.value.is_finite() for proxy in dataset.inference_row.proxies
+        ):
+            raise ValueError("PIT inference row contains a non-finite value")
 
     @staticmethod
     def _arrays(
@@ -447,14 +502,15 @@ class SklearnNestedCVLassoRunner:
             except ConvergenceWarning as exc:
                 raise ValueError("Lasso failed to converge") from exc
         n_iter = int(model.n_iter_)
-        dual_gap = float(model.dual_gap_)
-        dual_gap_limit = float(self._config.tolerance) * max(
+        raw_dual_gap = float(model.dual_gap_)
+        numerical_scale = max(
             1.0,
             float(np.mean(np.square(target))),
         )
-        if n_iter <= 0 or n_iter >= self._config.max_iterations:
-            raise ValueError("Lasso exhausted or reported an invalid iteration budget")
-        if not np.isfinite(dual_gap) or abs(dual_gap) > dual_gap_limit:
+        roundoff_floor = -float(np.finfo(np.float64).eps) * numerical_scale
+        if n_iter < 0 or n_iter > self._config.max_iterations:
+            raise ValueError("Lasso reported an invalid iteration budget")
+        if not np.isfinite(raw_dual_gap) or raw_dual_gap < roundoff_floor:
             raise ValueError("Lasso dual-gap convergence evidence is invalid")
         coefficients = np.asarray(model.coef_, dtype=np.float64)
         coefficients[np.abs(coefficients) <= float(self._config.zero_tolerance)] = 0.0
@@ -569,6 +625,7 @@ class SklearnNestedCVLassoRunner:
         )
         return _FoldCalculation(
             selection=selection,
+            final_fit=final_fit,
             oos_predictions=tuple(
                 ExternalFoldPrediction(
                     fold_id=fold.fold_id,

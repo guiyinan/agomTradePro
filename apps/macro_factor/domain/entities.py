@@ -53,7 +53,16 @@ def _decimal_text(value: Decimal) -> str:
     return "0" if normalized == 0 else format(normalized, "f")
 
 
-class MacroTargetFamily(str, Enum):
+def _utc_text(value: datetime) -> str:
+    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _hash_payload(payload: dict[str, object]) -> str:
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+class MacroTargetFamily(str, Enum):  # noqa: UP042 -- preserve legacy string semantics
     """Economic family of one governed macro target."""
 
     GROWTH = "growth"
@@ -64,14 +73,14 @@ class MacroTargetFamily(str, Enum):
     FX = "fx"
 
 
-class FactorOutputRole(str, Enum):
+class FactorOutputRole(str, Enum):  # noqa: UP042 -- preserve legacy string semantics
     """Temporal meaning of one macro-factor output."""
 
     CURRENT_STATE = "current_state"
     FORWARD_EXPECTATION = "forward_expectation"
 
 
-class ProxyAssetKind(str, Enum):
+class ProxyAssetKind(str, Enum):  # noqa: UP042 -- preserve legacy string semantics
     """Semantics of a candidate high-frequency proxy asset."""
 
     SPOT = "spot"
@@ -82,7 +91,7 @@ class ProxyAssetKind(str, Enum):
     OTHER = "other"
 
 
-class SampleSegment(str, Enum):
+class SampleSegment(str, Enum):  # noqa: UP042 -- preserve legacy string semantics
     """Required model-evaluation sample partitions."""
 
     IN_SAMPLE = "in_sample"
@@ -90,7 +99,7 @@ class SampleSegment(str, Enum):
     OUT_OF_SAMPLE = "out_of_sample"
 
 
-class ComparisonOperator(str, Enum):
+class ComparisonOperator(str, Enum):  # noqa: UP042 -- preserve legacy string semantics
     """Operator used by a versioned invalidation rule."""
 
     LT = "lt"
@@ -99,21 +108,21 @@ class ComparisonOperator(str, Enum):
     GTE = "gte"
 
 
-class FactorLifecycleStatus(str, Enum):
+class FactorLifecycleStatus(str, Enum):  # noqa: UP042 -- preserve legacy string semantics
     """Allowed lifecycle states before any production promotion capability."""
 
     RESEARCH_ONLY = "research_only"
     RETIRED = "retired"
 
 
-class MacroFactorAssessmentStatus(str, Enum):
+class MacroFactorAssessmentStatus(str, Enum):  # noqa: UP042 -- preserve legacy string semantics
     """Outcome of validating one external R3 result."""
 
     ACCEPTED = "accepted"
     BLOCKED = "blocked"
 
 
-class MacroFactorBlockerCode(str, Enum):
+class MacroFactorBlockerCode(str, Enum):  # noqa: UP042 -- preserve legacy string semantics
     """Stable fail-closed reasons emitted by the R3 evidence gate."""
 
     EXTERNAL_RESULT_MISSING = "external_result_missing"
@@ -211,6 +220,16 @@ class PITSelectedFactVersion:
         if self.available_at < self.effective_at:
             raise ValueError("PIT selected fact cannot be available before effective time")
 
+    def validated_copy(self) -> PITSelectedFactVersion:
+        """Reconstruct this owner projection so every field is checked live."""
+
+        return PITSelectedFactVersion(
+            version_id=self.version_id,
+            content_hash=self.content_hash,
+            effective_at=self.effective_at,
+            available_at=self.available_at,
+        )
+
 
 @dataclass(frozen=True)
 class PITDatasetSlice:
@@ -244,6 +263,134 @@ class PITDatasetSlice:
 
         return {item.version_id: item for item in self.selected_versions}
 
+    def validated_copy(self) -> PITDatasetSlice:
+        """Reconstruct the slice and every selected fact version live."""
+
+        return PITDatasetSlice(
+            dataset_key=self.dataset_key,
+            business_key=self.business_key,
+            version_ids=self.version_ids,
+            selected_versions=tuple(item.validated_copy() for item in self.selected_versions),
+        )
+
+
+@dataclass(frozen=True)
+class PITInferenceCalendarPeriodEvidence:
+    """Exact owner-issued inference-period member sealed by a PIT manifest."""
+
+    calendar_id: str
+    calendar_version: str
+    calendar_hash: str
+    period_id: str
+    period_start: date
+    period_end: date
+    content_hash: str
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        calendar_id: str,
+        calendar_version: str,
+        calendar_hash: str,
+        period_id: str,
+        period_start: date,
+        period_end: date,
+    ) -> PITInferenceCalendarPeriodEvidence:
+        """Create one exact calendar-owner member with a live content seal."""
+
+        payload = cls._payload(
+            calendar_id=calendar_id,
+            calendar_version=calendar_version,
+            calendar_hash=calendar_hash,
+            period_id=period_id,
+            period_start=period_start,
+            period_end=period_end,
+        )
+        return cls(
+            calendar_id=calendar_id,
+            calendar_version=calendar_version,
+            calendar_hash=calendar_hash,
+            period_id=period_id,
+            period_start=period_start,
+            period_end=period_end,
+            content_hash=_hash_payload(payload),
+        )
+
+    @staticmethod
+    def _payload(
+        *,
+        calendar_id: str,
+        calendar_version: str,
+        calendar_hash: str,
+        period_id: str,
+        period_start: date,
+        period_end: date,
+    ) -> dict[str, object]:
+        return {
+            "calendar_id": calendar_id,
+            "calendar_version": calendar_version,
+            "calendar_hash": calendar_hash,
+            "period_id": period_id,
+            "period_start": period_start.isoformat(),
+            "period_end": period_end.isoformat(),
+        }
+
+    def __post_init__(self) -> None:
+        _require_token(self.calendar_id, "PITInferenceCalendarPeriodEvidence.calendar_id")
+        _require_token(
+            self.calendar_version,
+            "PITInferenceCalendarPeriodEvidence.calendar_version",
+        )
+        _require_sha256(
+            self.calendar_hash,
+            "PITInferenceCalendarPeriodEvidence.calendar_hash",
+        )
+        _require_token(self.period_id, "PITInferenceCalendarPeriodEvidence.period_id")
+        if self.period_start > self.period_end:
+            raise ValueError("PIT inference calendar period is invalid")
+        _require_sha256(self.content_hash, "PITInferenceCalendarPeriodEvidence.content_hash")
+        expected = _hash_payload(
+            self._payload(
+                calendar_id=self.calendar_id,
+                calendar_version=self.calendar_version,
+                calendar_hash=self.calendar_hash,
+                period_id=self.period_id,
+                period_start=self.period_start,
+                period_end=self.period_end,
+            )
+        )
+        if self.content_hash.lower() != expected:
+            raise ValueError("PIT inference calendar member hash does not match content")
+
+    def canonical_payload(self) -> dict[str, object]:
+        """Return the exact owner and period membership evidence."""
+
+        return {
+            **self._payload(
+                calendar_id=self.calendar_id,
+                calendar_version=self.calendar_version,
+                calendar_hash=self.calendar_hash,
+                period_id=self.period_id,
+                period_start=self.period_start,
+                period_end=self.period_end,
+            ),
+            "content_hash": self.content_hash,
+        }
+
+    def validated_copy(self) -> PITInferenceCalendarPeriodEvidence:
+        """Reconstruct the owner member and verify its seal live."""
+
+        return PITInferenceCalendarPeriodEvidence(
+            calendar_id=self.calendar_id,
+            calendar_version=self.calendar_version,
+            calendar_hash=self.calendar_hash,
+            period_id=self.period_id,
+            period_start=self.period_start,
+            period_end=self.period_end,
+            content_hash=self.content_hash,
+        )
+
 
 @dataclass(frozen=True)
 class PITManifestEvidence:
@@ -253,20 +400,151 @@ class PITManifestEvidence:
     manifest_hash: str
     as_of_time: datetime
     knowledge_scope: str
+    calendar_id: str
     calendar_version: str
+    calendar_hash: str
+    inference_periods: tuple[PITInferenceCalendarPeriodEvidence, ...]
     slices: tuple[PITDatasetSlice, ...]
     coverage_ratio: Decimal
     missing_count: int
     estimated_count: int
     unknown_count: int
     is_verified: bool
+    content_hash: str
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        manifest_id: str,
+        manifest_hash: str,
+        as_of_time: datetime,
+        knowledge_scope: str,
+        calendar_id: str,
+        calendar_version: str,
+        calendar_hash: str,
+        inference_periods: tuple[PITInferenceCalendarPeriodEvidence, ...],
+        slices: tuple[PITDatasetSlice, ...],
+        coverage_ratio: Decimal,
+        missing_count: int,
+        estimated_count: int,
+        unknown_count: int,
+        is_verified: bool,
+    ) -> PITManifestEvidence:
+        """Create an owner projection whose complete evidence graph is sealed."""
+
+        payload = cls._payload(
+            manifest_id=manifest_id,
+            manifest_hash=manifest_hash,
+            as_of_time=as_of_time,
+            knowledge_scope=knowledge_scope,
+            calendar_id=calendar_id,
+            calendar_version=calendar_version,
+            calendar_hash=calendar_hash,
+            inference_periods=inference_periods,
+            slices=slices,
+            coverage_ratio=coverage_ratio,
+            missing_count=missing_count,
+            estimated_count=estimated_count,
+            unknown_count=unknown_count,
+            is_verified=is_verified,
+        )
+        return cls(
+            manifest_id=manifest_id,
+            manifest_hash=manifest_hash,
+            as_of_time=as_of_time,
+            knowledge_scope=knowledge_scope,
+            calendar_id=calendar_id,
+            calendar_version=calendar_version,
+            calendar_hash=calendar_hash,
+            inference_periods=inference_periods,
+            slices=slices,
+            coverage_ratio=coverage_ratio,
+            missing_count=missing_count,
+            estimated_count=estimated_count,
+            unknown_count=unknown_count,
+            is_verified=is_verified,
+            content_hash=_hash_payload(payload),
+        )
+
+    @staticmethod
+    def _payload(
+        *,
+        manifest_id: str,
+        manifest_hash: str,
+        as_of_time: datetime,
+        knowledge_scope: str,
+        calendar_id: str,
+        calendar_version: str,
+        calendar_hash: str,
+        inference_periods: tuple[PITInferenceCalendarPeriodEvidence, ...],
+        slices: tuple[PITDatasetSlice, ...],
+        coverage_ratio: Decimal,
+        missing_count: int,
+        estimated_count: int,
+        unknown_count: int,
+        is_verified: bool,
+    ) -> dict[str, object]:
+        return {
+            "manifest_id": manifest_id,
+            "manifest_hash": manifest_hash,
+            "as_of_time": _utc_text(as_of_time),
+            "knowledge_scope": knowledge_scope,
+            "calendar": {
+                "id": calendar_id,
+                "version": calendar_version,
+                "hash": calendar_hash,
+                "inference_periods": [
+                    item.canonical_payload()
+                    for item in sorted(inference_periods, key=lambda value: value.period_id)
+                ],
+            },
+            "slices": [
+                {
+                    "dataset_key": item.dataset_key,
+                    "business_key": item.business_key,
+                    "version_ids": list(item.version_ids),
+                    "selected_versions": [
+                        {
+                            "version_id": version.version_id,
+                            "content_hash": version.content_hash,
+                            "effective_at": _utc_text(version.effective_at),
+                            "available_at": _utc_text(version.available_at),
+                        }
+                        for version in item.selected_versions
+                    ],
+                }
+                for item in sorted(
+                    slices, key=lambda value: (value.dataset_key, value.business_key)
+                )
+            ],
+            "coverage_ratio": _decimal_text(coverage_ratio),
+            "missing_count": missing_count,
+            "estimated_count": estimated_count,
+            "unknown_count": unknown_count,
+            "is_verified": is_verified,
+        }
 
     def __post_init__(self) -> None:
         _require_token(self.manifest_id, "PITManifestEvidence.manifest_id")
         _require_sha256(self.manifest_hash, "PITManifestEvidence.manifest_hash")
         _require_aware(self.as_of_time, "PITManifestEvidence.as_of_time")
         _require_token(self.knowledge_scope, "PITManifestEvidence.knowledge_scope")
+        _require_token(self.calendar_id, "PITManifestEvidence.calendar_id")
         _require_token(self.calendar_version, "PITManifestEvidence.calendar_version")
+        _require_sha256(self.calendar_hash, "PITManifestEvidence.calendar_hash")
+        if not self.inference_periods:
+            raise ValueError("PITManifestEvidence.inference_periods cannot be empty")
+        period_ids = tuple(item.period_id for item in self.inference_periods)
+        if len(period_ids) != len(set(period_ids)):
+            raise ValueError("PIT manifest inference-period identities must be unique")
+        if any(
+            item.calendar_id != self.calendar_id
+            or item.calendar_version != self.calendar_version
+            or item.calendar_hash.lower() != self.calendar_hash.lower()
+            for item in self.inference_periods
+        ):
+            raise ValueError("PIT manifest calendar members must match their owner identity")
         _require_finite(self.coverage_ratio, "PITManifestEvidence.coverage_ratio")
         if not Decimal("0") <= self.coverage_ratio <= Decimal("1"):
             raise ValueError("PITManifestEvidence.coverage_ratio must be between zero and one")
@@ -279,6 +557,35 @@ class PITManifestEvidence:
         identities = tuple((item.dataset_key, item.business_key) for item in self.slices)
         if len(identities) != len(set(identities)):
             raise ValueError("PIT manifest slices must have unique dataset/business identities")
+        if any(
+            version.available_at > self.as_of_time
+            for dataset_slice in self.slices
+            for version in dataset_slice.selected_versions
+        ):
+            raise ValueError(
+                "PIT manifest cannot select a fact version unavailable at its as_of_time"
+            )
+        _require_sha256(self.content_hash, "PITManifestEvidence.content_hash")
+        expected = _hash_payload(
+            self._payload(
+                manifest_id=self.manifest_id,
+                manifest_hash=self.manifest_hash,
+                as_of_time=self.as_of_time,
+                knowledge_scope=self.knowledge_scope,
+                calendar_id=self.calendar_id,
+                calendar_version=self.calendar_version,
+                calendar_hash=self.calendar_hash,
+                inference_periods=self.inference_periods,
+                slices=self.slices,
+                coverage_ratio=self.coverage_ratio,
+                missing_count=self.missing_count,
+                estimated_count=self.estimated_count,
+                unknown_count=self.unknown_count,
+                is_verified=self.is_verified,
+            )
+        )
+        if self.content_hash.lower() != expected:
+            raise ValueError("PIT manifest evidence hash does not match content")
 
     @property
     def is_complete(self) -> bool:
@@ -298,6 +605,27 @@ class PITManifestEvidence:
         """Return immutable dataset/business identities sealed by the manifest."""
 
         return frozenset((item.dataset_key, item.business_key) for item in self.slices)
+
+    def validated_copy(self) -> PITManifestEvidence:
+        """Reconstruct the complete owner projection before a runner call."""
+
+        return PITManifestEvidence(
+            manifest_id=self.manifest_id,
+            manifest_hash=self.manifest_hash,
+            as_of_time=self.as_of_time,
+            knowledge_scope=self.knowledge_scope,
+            calendar_id=self.calendar_id,
+            calendar_version=self.calendar_version,
+            calendar_hash=self.calendar_hash,
+            inference_periods=tuple(item.validated_copy() for item in self.inference_periods),
+            slices=tuple(item.validated_copy() for item in self.slices),
+            coverage_ratio=self.coverage_ratio,
+            missing_count=self.missing_count,
+            estimated_count=self.estimated_count,
+            unknown_count=self.unknown_count,
+            is_verified=self.is_verified,
+            content_hash=self.content_hash,
+        )
 
 
 @dataclass(frozen=True)
@@ -1057,6 +1385,7 @@ __all__ = [
     "MacroTargetFamily",
     "ModelEvaluationEvidence",
     "PITDatasetSlice",
+    "PITInferenceCalendarPeriodEvidence",
     "PITSelectedFactVersion",
     "PITManifestEvidence",
     "ProxyAssetDefinition",
