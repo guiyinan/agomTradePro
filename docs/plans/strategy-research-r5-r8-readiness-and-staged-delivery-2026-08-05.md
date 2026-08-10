@@ -9,6 +9,10 @@
 
 > 2026-08-10 R8 monitoring Phase A：新增 content-addressed policy、canonical period calendar、11 项 Portfolio/Broker owner metric payload与四态 assessment。Policy 精确绑定 optimization scope、active result、receipt、R8 lifecycle Promotion及 R3/R4/R5 Promotion；Application command 仅含 policy identity/as-of，并在 shared UoW 内按 policy target 双次精确重读 owner graph。连续 breach、历史 label/data drift只输出人工 retirement review，固定 `automatic_retirement=false` 且禁止 current/decision/execution。该批无 ORM/migration/composition或 lifecycle mutation；真实执行反馈与 owner providers仍缺，R8 继续 `blocked`。
 
+> 2026-08-10 R5 monitoring Phase A：新增独立 Portfolio monitoring raw projection而不复用既有 outcome；七项指标由封存分子/分母现场派生，owner role、known/recorded/valid clocks、benchmark/calendar/active decision/FI/cost/liquidity/label/schema identities全部进入 policy与fact seal。Application只接收policy identity/as-of并在shared UoW内双读。输出仅为healthy/breached/manual retirement review/blocked，禁止current/decision/execution与自动retirement；无ORM/persistence/composition，真实Publication、owner facts和Promotion仍缺。
+
+> 2026-08-10 R8 monitoring Phase B：Portfolio `0011` 创建 observation、assessment、audit snapshot 三张 append-only schema-only ledger，zero seed。Observation 使用 assessment-scoped persisted hash并另存 Domain raw hash，允许相同 raw facts跨policy复用；existing winner在取得新ledger clock前完整重放，跨时钟重试幂等。Production composition固定server clock且不公开store/token；exact PIT、immutable signed audit、outer rollback/fork、完整Django mutation guard与0011正反迁移均验证。真实owner providers仍未接入，门禁保持`blocked`。
+
 ## 1. 本阶段结论
 
 R5—R8 都具有部分基础代码，但没有一项同时满足备忘中的数据、研究和生产证据条件。因此本阶段不把任何能力标记为已启动：

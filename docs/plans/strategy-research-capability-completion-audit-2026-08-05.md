@@ -11,7 +11,7 @@
 - 未发现当前代码可越过 research-only/readiness 直接影响生产决策或执行的 P0。
 - 真实数据、Publication、PIT 样本、历史 outcome、外部对账和 PromotionDecision 仍是外部阻断。
 - 同时确认多项纯软件能力仍可在无真实数据时开发，因此不得再使用“R1—R8 无数据基础全部完成”的口径。
-- 最新续批关闭 R3 caller-supplied runner spec、R4 post-promotion monitoring Phase A+B、R8 lifecycle 非原子写入与 R8 post-promotion monitoring Phase A 软件 P1；独立交叉复核在修复后均未发现遗留 P0/P1。
+- 最新续批关闭 R3 caller-supplied runner spec、R4 post-promotion monitoring Phase A+B、R5 post-promotion monitoring Phase A、R8 lifecycle 非原子写入与 R8 post-promotion monitoring Phase A+B 软件 P1；独立交叉复核在修复后均未发现遗留 P0/P1。
 
 ## 2. 逐能力剩余开发项
 
@@ -21,10 +21,10 @@
 | R2 | actor/series 双时间、proxy/measure semantics、PIT membership、描述性证据、版本化 expected-period calendar、完整 coverage、Publication exact gate/Promotion lifecycle，以及两周期 explanatory trial/monitoring 纯合同 | persistence/concrete owner providers 留作后续；不得把合成 trial 或描述性 evidence 当预测信号 | 获批 taxonomy/calendar、owner authorization、两个市场周期、Production Publication 与真实 Audit outcome |
 | R3 | 独立 App、exact PIT fact/manifest、historical-mean/FMP、concrete sklearn Lasso/OLS、nested temporal-CV、完整 spec/request canonical seal、authoritative spec identity/provider gate、独立 label-free inference row/target calendar、dated ledger、governed read 与 retirement lifecycle | 完整 spec 的 Research-owned persistence adapter、canonical Data Center/Regime owner adapters、真实 inference Publication/calendar、trial/monitoring composition；不得用 synthetic PIT attested ready | 宏观 vintage、代理资产/连续期货、真实 cost/benchmark、Regime/OOS trial、owner authorization 与 Promotion |
 | R4 | beta/CI/R²/残差、PSD、风险贡献、typed rolling/regime、三基准同窗 OOS、Portfolio result ledger/query、covariance diagnostics、Research stable scope/policy/trial/decision、五表 append-only ledger、lifecycle/active provider、concrete composition，以及 post-promotion monitoring Phase A+B 三表持久化 | canonical monitoring owner composition；下游 active consumer 接线须等待真实 Promotion 并另行验收 | R3 晋级版本、真实 exposure/covariance/constraint snapshot、Regime PIT assignment、owner authorization、monitoring facts 和历史样本 |
-| R5 | 单券定价/久期/凸性/carry/roll-down、相对价值/组合风险、fixed_income/Portfolio/Research append-only owner ledgers、cross-owner UoW 与 Promotion/retire/rollback | 下游 active consumer/monitoring 只能在真实 Promotion 后另验；当前无数据软件队列无新增阻断 P1 | 两条曲线、信用估值、Bond Master/CashFlow/Calendar Publication、PIT/OOS、容量/借券、authorization 与外部对账 |
+| R5 | 单券定价/久期/凸性/carry/roll-down、相对价值/组合风险、fixed_income/Portfolio/Research append-only owner ledgers、cross-owner UoW、Promotion/retire/rollback与post-promotion monitoring Phase A | monitoring persistence/concrete owner composition；下游 active consumer仍须等待真实Promotion后另验 | 两条曲线、信用估值、Bond Master/CashFlow/Calendar Publication、PIT/OOS、容量/借券、authorization、monitoring facts与外部对账 |
 | R6 | 简单基准不足、高级 artifact gate、七指标 qualification/政策反应诊断、assessment/lifecycle ledger、monitoring persistence，以及 activation/RETIRE/`stack[-2]` rollback Phase A+B 四本 ledger | canonical owner adapters、真实 PostgreSQL 并发与 DB-level permission/signature depth；不得提前接 consumer | 真实 shortfall、PIT/OOS、稳定标签、政策目标、monitoring facts、owner authorization 与 Promotion |
 | R7 | 概率分栏、Brier/分箱、PIT 类比/路径、reminder/sample-policy/result/lifecycle ledger、物化审计 snapshot | production Risk Center owner adapter 及真实 owner evidence；不在 fixture 上接 probability/current/consumer | 完整预测—复核—兑现历史、获批 sample policy、PIT 路径样本、owner authorization 与合格 result |
-| R8 | canonical snapshot、execution feedback、13 类 typed 输入、current baseline、可投资 universe、四市场约束、path drawdown、四候选比较、独立 canonical input receipt、exact result/receipt DB version constraint、ID-only shared-UoW/server-clock lifecycle、post-promotion monitoring Phase A、fail-closed composition 与无状态 production façades | monitoring persistence/concrete owner composition及真实 Research/Portfolio provider接线；上线前补双后端并发迁移证据 | broker reconciliation、R3/R4/R5 晋级、真实 Portfolio snapshot、成本/容量/市场约束校准 |
+| R8 | canonical snapshot、execution feedback、13 类 typed 输入、current baseline、可投资 universe、四市场约束、path drawdown、四候选比较、独立 canonical input receipt、exact result/receipt DB version constraint、ID-only shared-UoW/server-clock lifecycle、post-promotion monitoring Phase A+B、fail-closed composition 与无状态 production façades | canonical monitoring owner composition及真实 Research/Portfolio provider接线；上线前补 PostgreSQL并发证据 | broker reconciliation、R3/R4/R5 晋级、真实 Portfolio snapshot、成本/容量/市场约束校准 |
 
 ## 3. 本批完成项
 
