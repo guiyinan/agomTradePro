@@ -205,6 +205,8 @@ verified 证据必须来自合同指定 owner、包含非空引用、timezone-aw
 
 2026-08-06 Promotion Phase B 已完成五表 append-only persistence、schema-only `0004`、strict typed restore、server-clock policy registration、private UoW/insert claim、concrete repository/providers/composition 与持久 PIT replay。Portfolio 只通过 Application exact query 注入；decision/lifecycle receipt 与 child 同事务，first-miss race 只重放完整一致 winner，stream fork、异证据、raw tamper 和所有 ORM mutation shortcut fail closed。Phase A + codec `38 passed`、component `13 passed`、migration `4 passed`，Luna Max 最终复核 P0/P1 为 0。仍未接组合预览或下游 active consumer；真实 R3 Promotion、canonical input、owner authorization 与 OOS trial 缺失，R4 继续 `blocked`。
 
+2026-08-10 R3 production authority 与 exact-ledger 收口：public concrete runner builder 只接受数据库别名，run mutation façade无状态且不保存spec/manifest/dataset provider、clock、writer或token；可注入成功链仅保留在非导出test factory。三类read统一恢复完整source/artifact/output/lifecycle graph。`macro_factor.0003`新增每个lifecycle prefix的cumulative commit及独立per-artifact latest head，root/RETIRE在同事务内推进，读取时精确比较count、latest event/commit hash与stream hash；output、artifact、event、commit及配对tail截断均fail closed。独立SQLite正反迁移zero-seed、攻击节点与静态门禁均通过，Luna Max终核P0/P1=0。真实definition provider、Publication、PIT数据、trial、Promotion与consumer仍缺，R3保持`blocked`。
+
 ## 6. 明确非目标
 
 - 本阶段不添加 sklearn/statsmodels/cvxpy 依赖；

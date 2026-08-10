@@ -70,6 +70,8 @@ S1 通过后另建计划与分支：
 
 2026-08-09 activation Phase B：Research `0012` 新增 authorization、event、stream commit anchor 与 immutable audit snapshot 四张 schema-only ledger，零 seed/backfill。Strict codec 现场重放完整 stream、双时钟单调、authorization↔event↔commit 三方集合/row seal、projection content seal 与 exact `stack[-2]`；写入使用追加阶段 trusted server clock 作为 knowledge cutoff，scope identity 与 scope hash 分别建立 sequence 唯一约束。审计分页使用签名 cursor 与物化 snapshot，首屏后 backdated append 不进入后页；单侧 orphan、成对尾删、缺失 commit、FK alias、header/payload、私有 ORM/Collector、race/fork/rollback 与 limit 类型绕过均 fail closed。Production mutation/audit façade保持无状态 inert，公开对象图不持有 store/token；仅 exact read 使用只读 repository。Targeted unit/component/migration-contract `42 passed`，独立空 SQLite 实迁移成功且四表 `0/0/0/0`；真实 PostgreSQL 并发、DB 权限/外部签名锚仍是上线前纵深。
 
+2026-08-10 monitoring production authority 收口：公开 builder 只接受数据库别名，register façade为无状态 unavailable对象，不再允许caller注入qualification/policy/calendar/raw-fact provider或clock；成功写链只存在于非导出的test factory。Exact read/audit仅持read repository，不把store/token递归暴露到runtime对象图。相关repository回归`12 passed`、公开capability节点`2 passed`，独立复核未见P0/P1；真实canonical owner adapters、Promotion/authorization与monitoring facts仍缺，R6保持`blocked`。
+
 下一项依赖是 canonical qualification/monitoring/Promotion/authorization owner adapters 与真实证据，随后才能做 consumer/current 激活验收；在这些证据缺失时生产 mutation 保持 unavailable，不接 Regime、决策或执行。
 
 ## 5. 非目标

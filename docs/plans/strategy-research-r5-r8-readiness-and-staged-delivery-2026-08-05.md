@@ -18,6 +18,8 @@
 > 2026-08-10 R7 production façade：sample-policy、result、lifecycle 三个公开 builder 均收紧为仅接受 `using`，mutation façade不持有 provider/clock/writer/store/token；可注入写路径降为非导出的 test factory。Production 缺真实 owner 时稳定 unavailable/zero-write，read/audit保留 capability-minimal query。R7 monitoring 与 family rollback仍是后续软件项，真实 outcome/policy/authorization仍缺，门禁保持`blocked`。
 
 > 2026-08-10 R7 monitoring Phase A：新增 Domain-only post-promotion monitoring。完整 lifecycle stream 的 exact head/count、最终 PROMOTED 状态与 result ref 必须重放一致；prediction 仅取 active result 中严格早于目标 period 的 subjective/model projection，realization 必须来自独立 Forecast Ledger owner record，并逐 member 封存 observation identity/version/hash、horizon 与 knowledge clocks。Canonical calendar 强制首尾和逐期连续、评价 period 必须为 exact member；subjective/model coverage 与 Brier 分开派生。缺 calibration、analogy 或 path evidence 时保持 `BLOCKED`，固定 research-only/manual-review，禁止 probability/current/decision/execution。真实 owner provider、Application/persistence 与 family rollback仍未形成，R7 继续 `blocked`。
+> 2026-08-10 R7 monitoring Phase B：Research `0017` 新增 assessment、assessment-scoped observation 与 immutable audit snapshot 三本 schema-only ledger。Application/persistence 在 shared UoW 中重复重放完整 result/lifecycle head attestation、calendar、Forecast Ledger realization 与 assessment graph；repository 提供 exact PIT、first-winner/fork 和 signed audit，production register/audit 保持无状态 unavailable。Unit/component/migration 为 `21/2/3 passed`，独立终核 P0/P1=0；真实 owner provider、policy 与 outcome 历史仍缺，R7 继续 `blocked`。
+> 2026-08-10 R7 family rollback Phase A：新增独立 family v2 lifecycle，要求本地 result lifecycle authoritative head/count/stream attestation，PROMOTE/RETIRE/ROLLBACK 在 append 前最终重读 authorization 与完整 owner graph；rollback 只允许 exact `stack[-2]`，A→B→A 重复入栈被拒绝。Focused 与既有 lifecycle 回归 `20 passed`，独立终核 P0/P1=0。该批无 ORM/migration/composition，不改变既有 terminal RETIRE；真实 family owner、authorization 与 persistence 仍缺。
 
 ## 1. 本阶段结论
 
@@ -27,7 +29,7 @@ R5—R8 都具有部分基础代码，但没有一项同时满足备忘中的数
 |---|---|---|---|
 | R5 固定收益相对价值与久期 | 宏观指标目录中有部分国债、信用收益率和资金利率代码；Data Center 已有 Publication 门禁；QW-5 可显式阻断 | 无两条已发布可靠曲线、无券级主数据/现金流/交易日历、无信用估值 Publication、无久期/凸性对账 | `blocked` |
 | R6 高级状态模型 | Regime V2、PMI/CPI、Pulse 和简单转折规则可作为基准 | 未证明简单基准不足；无 PIT 训练证据、稳定标签协议、样本外转移准确率或政策反应函数基准 | `blocked` |
-| R7 情景概率校准 | 情景版本、Signal Forecast Ledger、revision/set UUID 绑定、主观/模型概率分栏、显式 realization row score，以及 post-promotion monitoring Phase A 已实现 | 无完整预测—复核—兑现样本，也没有经批准的 calibration sample policy、真实 monitoring owner provider 或 family rollback | `blocked` |
+| R7 情景概率校准 | 情景版本、Signal Forecast Ledger、revision/set UUID 绑定、主观/模型概率分栏、显式 realization row score、post-promotion monitoring Phase A+B 与独立 family `stack[-2]` rollback合同已实现 | 无完整预测—复核—兑现样本，也没有经批准的 calibration sample policy、真实 monitoring owner provider、family owner/authorization 或 rollback persistence | `blocked` |
 | R8 多资产优化 | Portfolio 有目标组合、过渡计划、部分交易约束和 research-only 优化输入合约；Broker Execution 有成交/对账模型；Risk Center 有情景损失 | 无 Portfolio-owned canonical snapshot 持久真源；R3/R4/R5 未晋级；无真实执行反馈样本；尚未实现或运行优化器 | `blocked` |
 
 `blocked` 是 fail-closed 业务状态，不等于代码缺陷，也不能通过页面、默认数据或 LLM 推断解除。
