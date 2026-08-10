@@ -185,6 +185,9 @@ from apps.research.infrastructure.r2_market_structure_promotion_models import ( 
     R2MarketStructurePromotionLifecycleEventModel,
     R2MarketStructurePromotionPolicyModel,
 )
+from apps.research.infrastructure.r3_macro_factor_runner_spec_models import (  # noqa: E402,F401
+    R3MacroFactorRunnerSpecModel,
+)
 from apps.research.infrastructure.r4_promotion_models import (  # noqa: E402,F401
     R4PromotionDecisionBundleModel,
     R4PromotionDecisionReceiptModel,
