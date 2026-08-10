@@ -13,6 +13,10 @@
 
 > 2026-08-10 R8 monitoring Phase B：Portfolio `0011` 创建 observation、assessment、audit snapshot 三张 append-only schema-only ledger，zero seed。Observation 使用 assessment-scoped persisted hash并另存 Domain raw hash，允许相同 raw facts跨policy复用；existing winner在取得新ledger clock前完整重放，跨时钟重试幂等。Production composition固定server clock且不公开store/token；exact PIT、immutable signed audit、outer rollback/fork、完整Django mutation guard与0011正反迁移均验证。真实owner providers仍未接入，门禁保持`blocked`。
 
+> 2026-08-10 R5 monitoring Phase B：Research `0014` 创建 assessment-scoped observation、assessment、audit snapshot 三张 append-only schema-only ledger，zero seed。Writer 在 shared UoW 内重读并复算完整 Phase A owner graph；existing winner 在新 server clock 前严格恢复，时钟前进、回退或异常均不改变原 ledger time。Exact PIT、签名跨页 snapshot、IntegrityError winner/fork、outer rollback、完整 ORM/Collector guard及 0014 forward/reverse/reforward 已验证。Production register/audit保持无状态 unavailable，不接 current/consumer/execution，真实 owner providers仍缺，R5 保持`blocked`。
+
+> 2026-08-10 R7 production façade：sample-policy、result、lifecycle 三个公开 builder 均收紧为仅接受 `using`，mutation façade不持有 provider/clock/writer/store/token；可注入写路径降为非导出的 test factory。Production 缺真实 owner 时稳定 unavailable/zero-write，read/audit保留 capability-minimal query。R7 monitoring 与 family rollback仍是后续软件项，真实 outcome/policy/authorization仍缺，门禁保持`blocked`。
+
 ## 1. 本阶段结论
 
 R5—R8 都具有部分基础代码，但没有一项同时满足备忘中的数据、研究和生产证据条件。因此本阶段不把任何能力标记为已启动：
