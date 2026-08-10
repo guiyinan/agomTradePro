@@ -161,6 +161,18 @@ class R5MonitoringOwnerGraph:
     portfolio_facts: tuple[R5PostPromotionMonitoringFact, ...]
 
 
+@dataclass(frozen=True)
+class R5MonitoringEvaluationEvidence:
+    """Complete exact owner graph plus its locally recomputed assessment."""
+
+    policy: R5MonitoringPolicy | None
+    active_lifecycle: R5MonitoringActiveLifecycle | None
+    calendar: R5MonitoringCalendar | None
+    fixed_income: R5MonitoringFixedIncomeEvidence | None
+    portfolio_facts: tuple[R5PostPromotionMonitoringFact, ...]
+    assessment: R5PostPromotionMonitoringAssessment
+
+
 class EvaluateR5PostPromotionMonitoring:
     """Reread every owner twice and recompute one research-only assessment."""
 
@@ -192,11 +204,26 @@ class EvaluateR5PostPromotionMonitoring:
             raise R5PostPromotionMonitoringUnavailable("R5 monitoring owners use different UoWs")
         self._expected_uow_key = keys[0]
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the live shared owner transaction identity."""
+
+        self._require_unchanged_uow()
+        return self._expected_uow_key
+
     def execute(
         self,
         command: EvaluateR5PostPromotionMonitoringCommand,
     ) -> R5PostPromotionMonitoringAssessment:
-        """Validate the command and trusted cutoff, then double-read all owners."""
+        """Return only the research assessment, with no persistence side effect."""
+
+        return self.execute_evidence(command).assessment
+
+    def execute_evidence(
+        self,
+        command: EvaluateR5PostPromotionMonitoringCommand,
+    ) -> R5MonitoringEvaluationEvidence:
+        """Validate, double-read, and return the complete recomputable graph."""
 
         try:
             if type(command) is not EvaluateR5PostPromotionMonitoringCommand:
@@ -234,7 +261,14 @@ class EvaluateR5PostPromotionMonitoring:
                     raise R5PostPromotionMonitoringUnavailable(
                         "R5 monitoring assessment changed during evaluation"
                     )
-                return second_assessment
+                return R5MonitoringEvaluationEvidence(
+                    policy=second.policy,
+                    active_lifecycle=second.active_lifecycle,
+                    calendar=second.calendar,
+                    fixed_income=second.fixed_income,
+                    portfolio_facts=second.portfolio_facts,
+                    assessment=second_assessment,
+                )
         except R5PostPromotionMonitoringUnavailable:
             raise
         except Exception as error:
@@ -421,6 +455,7 @@ __all__ = [
     "R5MonitoringCalendarProvider",
     "R5MonitoringClock",
     "R5MonitoringFixedIncomeProvider",
+    "R5MonitoringEvaluationEvidence",
     "R5MonitoringOwnerGraph",
     "R5MonitoringPolicyProvider",
     "R5MonitoringPortfolioFactProvider",
