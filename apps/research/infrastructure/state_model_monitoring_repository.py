@@ -118,19 +118,16 @@ def _require_exact_model_values(
 
 
 class DjangoR6MonitoringRepository:
-    """Public exact PIT/audit repository without any append method."""
+    """Public exact PIT repository without any write or live-audit capability."""
 
-    __slots__ = ("_clock", "_token", "_using")
+    __slots__ = ("_using",)
 
     def __init__(
         self,
         *,
         using: str = "default",
-        clock: R6MonitoringClock | None = None,
     ) -> None:
         self._using = using
-        self._clock = clock or DjangoR6MonitoringClock()
-        self._token = object()
 
     @property
     def unit_of_work_key(self) -> str:
@@ -139,19 +136,14 @@ class DjangoR6MonitoringRepository:
         return f"django:{self._using}"
 
     def atomic(self) -> AbstractContextManager[None]:
-        """Enter the repository transaction/capability scope."""
+        """Enter a read transaction without activating append capability."""
 
-        return self._atomic()
-
-    @contextmanager
-    def _atomic(self) -> Iterator[None]:
-        with transaction.atomic(using=self._using), _activate_r6_monitoring_uow(self._token):
-            yield
+        return transaction.atomic(using=self._using)
 
     def server_now(self) -> datetime:
         """Return the validated authoritative server clock."""
 
-        return _aware_utc(self._clock.now(), "R6 monitoring server clock")
+        return _aware_utc(DjangoR6MonitoringClock().now(), "R6 monitoring server clock")
 
     def get_exact(
         self,
@@ -197,7 +189,18 @@ class DjangoR6MonitoringRepository:
         cursor: str | None,
         limit: int,
     ) -> R6MonitoringAuditPage:
-        """Return one deterministic PIT audit page."""
+        """Reject live-ledger audit from the public read capability."""
+
+        raise R6MonitoringPersistenceUnavailable("R6 monitoring production audit is unavailable")
+
+    def _list_audit(
+        self,
+        *,
+        as_of: datetime,
+        cursor: str | None,
+        limit: int,
+    ) -> R6MonitoringAuditPage:
+        """Return one deterministic PIT audit page for the private test store."""
 
         if isinstance(limit, bool) or limit < 1 or limit > 200:
             raise ValueError("R6 monitoring audit limit must be between 1 and 200")
@@ -384,6 +387,44 @@ class DjangoR6MonitoringRepository:
 
 class _DjangoR6MonitoringStore(DjangoR6MonitoringRepository):
     """Private append capability retained by the composition root."""
+
+    __slots__ = ("_clock", "_token")
+
+    def __init__(
+        self,
+        *,
+        using: str = "default",
+        clock: R6MonitoringClock | None = None,
+    ) -> None:
+        super().__init__(using=using)
+        self._clock = clock or DjangoR6MonitoringClock()
+        self._token = object()
+
+    def atomic(self) -> AbstractContextManager[None]:
+        """Enter the private append transaction/capability scope."""
+
+        return self._atomic()
+
+    @contextmanager
+    def _atomic(self) -> Iterator[None]:
+        with transaction.atomic(using=self._using), _activate_r6_monitoring_uow(self._token):
+            yield
+
+    def server_now(self) -> datetime:
+        """Return the private store's injected authoritative clock."""
+
+        return _aware_utc(self._clock.now(), "R6 monitoring server clock")
+
+    def list_audit(
+        self,
+        *,
+        as_of: datetime,
+        cursor: str | None,
+        limit: int,
+    ) -> R6MonitoringAuditPage:
+        """Return the private deterministic audit projection used by tests."""
+
+        return self._list_audit(as_of=as_of, cursor=cursor, limit=limit)
 
     def append_bundle(
         self,

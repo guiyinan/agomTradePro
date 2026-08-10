@@ -276,13 +276,40 @@ class UnavailableR6MonitoringRegisterFacade:
         )
 
 
+class UnavailableR6MonitoringAuditFacade:
+    """State-free production audit surface until immutable snapshots are available."""
+
+    __slots__ = ()
+
+    def execute(
+        self,
+        *,
+        as_of: datetime,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> object:
+        """Validate the request shape, then reject without retaining a live repository."""
+
+        if (
+            type(as_of) is not datetime
+            or as_of.tzinfo is None
+            or as_of.utcoffset() is None
+            or (cursor is not None and type(cursor) is not str)
+            or type(limit) is not int
+            or limit < 1
+            or limit > 200
+        ):
+            raise R6MonitoringPersistenceUnavailable("R6 monitoring audit request is invalid")
+        raise R6MonitoringPersistenceUnavailable("R6 monitoring production audit is unavailable")
+
+
 @dataclass(frozen=True, slots=True)
 class DjangoR6MonitoringRuntime:
     """Read-safe runtime with an inert public registration surface."""
 
     register: UnavailableR6MonitoringRegisterFacade
     get_exact: GetExactR6MonitoringAssessment
-    audit: AuditR6MonitoringAssessments
+    audit: UnavailableR6MonitoringAuditFacade
 
 
 @dataclass(frozen=True, slots=True)
@@ -300,14 +327,11 @@ def build_django_r6_monitoring_runtime(
 ) -> DjangoR6MonitoringRuntime:
     """Build exact reads plus a state-free unavailable mutation facade."""
 
-    repository = DjangoR6MonitoringRepository(
-        using=using,
-        clock=DjangoR6MonitoringClock(),
-    )
+    repository = DjangoR6MonitoringRepository(using=using)
     return DjangoR6MonitoringRuntime(
         register=UnavailableR6MonitoringRegisterFacade(),
         get_exact=GetExactR6MonitoringAssessment(repository),
-        audit=AuditR6MonitoringAssessments(repository),
+        audit=UnavailableR6MonitoringAuditFacade(),
     )
 
 
@@ -332,7 +356,6 @@ def _build_django_r6_monitoring_runtime_for_test(
             "canonical R6 monitoring owner providers are unavailable"
         )
     authoritative_clock = clock or DjangoR6MonitoringClock()
-    repository = DjangoR6MonitoringRepository(using=using, clock=authoritative_clock)
     store = _DjangoR6MonitoringStore(using=using, clock=authoritative_clock)
     owner_sources = (
         active_qualification_provider,
@@ -356,13 +379,14 @@ def _build_django_r6_monitoring_runtime_for_test(
     writer = _MonitoringWriter(store=store, evaluator=evaluator)
     return _DjangoR6MonitoringTestRuntime(
         register=RegisterR6MonitoringAssessment(_RegistrationClosure(store=store, writer=writer)),
-        get_exact=GetExactR6MonitoringAssessment(repository),
-        audit=AuditR6MonitoringAssessments(repository),
+        get_exact=GetExactR6MonitoringAssessment(store),
+        audit=AuditR6MonitoringAssessments(store),
     )
 
 
 __all__ = [
     "DjangoR6MonitoringRuntime",
+    "UnavailableR6MonitoringAuditFacade",
     "UnavailableR6MonitoringRegisterFacade",
     "build_django_r6_monitoring_runtime",
 ]
