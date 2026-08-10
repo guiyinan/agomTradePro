@@ -552,3 +552,13 @@ def test_application_blocks_owner_drift_and_normalizes_clock_failure() -> None:
     clock_use_case._clock = _Clock(AS_OF - timedelta(seconds=1))  # type: ignore[attr-defined]
     with pytest.raises(GovernedOptimizationMonitoringUnavailable, match="future.*as_of"):
         clock_use_case.execute(clock_command)
+
+
+def test_application_rejects_whitespace_uow_key_before_owner_reads() -> None:
+    use_case, command, raw_provider = _application()
+    raw_provider.key = "   "
+
+    with pytest.raises(GovernedOptimizationMonitoringUnavailable, match="UoW identity"):
+        use_case.execute(command)
+
+    assert raw_provider.calls == 0

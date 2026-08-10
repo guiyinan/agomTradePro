@@ -197,6 +197,21 @@ class _MonitoringOwnerGraph:
     observations: tuple[OptimizationMonitoringPeriodObservation, ...]
 
 
+@dataclass(frozen=True)
+class GovernedOptimizationMonitoringEvaluationEvidence:
+    """Complete owner reread graph plus its locally recomputed assessment."""
+
+    active_result: ActiveGovernedOptimizationResultEvidence | None
+    receipt: GovernedOptimizationInputReceipt | None
+    upstream_promotions: tuple[ExactPromotionAttestation, ...]
+    policy: GovernedOptimizationMonitoringPolicy | None
+    calendar: GovernedOptimizationMonitoringCalendar | None
+    portfolio_evidence: tuple[OptimizationMonitoringSourceEvidence, ...]
+    broker_evidence: tuple[OptimizationMonitoringSourceEvidence, ...]
+    observations: tuple[OptimizationMonitoringPeriodObservation, ...]
+    assessment: GovernedOptimizationMonitoringAssessment
+
+
 class EvaluateGovernedOptimizationMonitoring:
     """Reread every exact owner twice and return a research-only assessment."""
 
@@ -242,11 +257,26 @@ class EvaluateGovernedOptimizationMonitoring:
             )
         self._expected_uow_key = next(iter(keys))
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact owner-read transaction identity."""
+
+        self._require_unchanged_uow()
+        return self._expected_uow_key
+
     def execute(
         self,
         command: EvaluateGovernedOptimizationMonitoringCommand,
     ) -> GovernedOptimizationMonitoringAssessment:
         """Evaluate without lifecycle, transition, current, or execution side effects."""
+
+        return self.execute_evidence(command).assessment
+
+    def execute_evidence(
+        self,
+        command: EvaluateGovernedOptimizationMonitoringCommand,
+    ) -> GovernedOptimizationMonitoringEvaluationEvidence:
+        """Return the exact double-read owner graph and derived assessment."""
 
         try:
             if type(command) is not EvaluateGovernedOptimizationMonitoringCommand:
@@ -295,7 +325,17 @@ class EvaluateGovernedOptimizationMonitoring:
                         calendar=second.calendar,
                         observations=second.observations,
                     )
-                return assessment
+                return GovernedOptimizationMonitoringEvaluationEvidence(
+                    active_result=second.active_result,
+                    receipt=second.receipt,
+                    upstream_promotions=second.upstream_promotions,
+                    policy=second.policy,
+                    calendar=second.calendar,
+                    portfolio_evidence=second.portfolio_evidence,
+                    broker_evidence=second.broker_evidence,
+                    observations=second.observations,
+                    assessment=assessment,
+                )
         except GovernedOptimizationMonitoringUnavailable:
             raise
         except Exception as exc:
@@ -467,7 +507,7 @@ class EvaluateGovernedOptimizationMonitoring:
 
 def _provider_uow_key(provider: _UnitOfWorkBound) -> str:
     key = provider.unit_of_work_key
-    if type(key) is not str or not key:
+    if type(key) is not str or not key.strip():
         raise ValueError("R8 monitoring provider UoW key is invalid")
     return key
 
@@ -477,6 +517,7 @@ __all__ = [
     "EvaluateGovernedOptimizationMonitoring",
     "EvaluateGovernedOptimizationMonitoringCommand",
     "GovernedOptimizationMonitoringClock",
+    "GovernedOptimizationMonitoringEvaluationEvidence",
     "GovernedOptimizationMonitoringUnavailable",
     "GovernedOptimizationMonitoringUnitOfWork",
     "OptimizationInputReceiptProvider",

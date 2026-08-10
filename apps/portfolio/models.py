@@ -3,6 +3,9 @@
 from apps.portfolio.infrastructure.models import (
     CanonicalPortfolioSnapshotModel,
     GovernedOptimizationInputReceiptModel,
+    GovernedOptimizationMonitoringAssessmentModel,
+    GovernedOptimizationMonitoringAuditSnapshotModel,
+    GovernedOptimizationMonitoringObservationModel,
     OrderIntentModel,
     PortfolioExecutionFeedbackModel,
     PortfolioPlanningPolicyModel,
@@ -13,6 +16,9 @@ from apps.portfolio.infrastructure.models import (
 __all__ = [
     "CanonicalPortfolioSnapshotModel",
     "GovernedOptimizationInputReceiptModel",
+    "GovernedOptimizationMonitoringObservationModel",
+    "GovernedOptimizationMonitoringAssessmentModel",
+    "GovernedOptimizationMonitoringAuditSnapshotModel",
     "OrderIntentModel",
     "PortfolioExecutionFeedbackModel",
     "PortfolioPlanningPolicyModel",

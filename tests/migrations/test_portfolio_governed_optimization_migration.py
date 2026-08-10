@@ -616,3 +616,91 @@ def test_0010_invalid_receipt_version_failure_is_atomic() -> None:
         Receipt0009.objects.all().delete()
     finally:
         MigrationExecutor(connection).migrate(leaf_nodes)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_0011_monitoring_ledgers_are_schema_only_reversible_and_match_models() -> None:
+    """0011 creates only its three constrained empty ledgers and reverses cleanly."""
+
+    executor = MigrationExecutor(connection)
+    leaf_nodes = executor.loader.graph.leaf_nodes()
+    migration_0010 = [("portfolio", "0010_governed_optimization_receipt_constraint")]
+    migration_0011 = [("portfolio", "0011_governed_optimization_monitoring_ledgers")]
+    table_names = {
+        "portfolio_governed_optimization_monitoring_observation",
+        "portfolio_governed_optimization_monitoring_assessment",
+        "portfolio_governed_optimization_monitoring_audit_snapshot",
+    }
+    try:
+        executor.migrate(migration_0010)
+        with connection.cursor() as cursor:
+            assert table_names.isdisjoint(connection.introspection.table_names(cursor))
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(migration_0011)
+        apps_0011 = executor.loader.project_state(migration_0011).apps
+        historical_models = (
+            apps_0011.get_model(
+                "portfolio",
+                "GovernedOptimizationMonitoringObservationModel",
+            ),
+            apps_0011.get_model(
+                "portfolio",
+                "GovernedOptimizationMonitoringAssessmentModel",
+            ),
+            apps_0011.get_model(
+                "portfolio",
+                "GovernedOptimizationMonitoringAuditSnapshotModel",
+            ),
+        )
+        assert all(
+            model._default_manager.using(connection.alias).count() == 0
+            for model in historical_models
+        )
+        with connection.cursor() as cursor:
+            assert table_names.issubset(connection.introspection.table_names(cursor))
+            observation_constraints = connection.introspection.get_constraints(
+                cursor,
+                "portfolio_governed_optimization_monitoring_observation",
+            )
+        assert observation_constraints["pf_opt_mon_obs_period_uq"]["unique"] is True
+        assert observation_constraints["pf_opt_mon_obs_period_uq"]["columns"] == [
+            "assessment_id",
+            "period_id",
+        ]
+        assert "pf_opt_mon_obs_ident_uq" not in observation_constraints
+        historical_observation = historical_models[0]
+        assert historical_observation._meta.get_field("content_hash").unique is False
+        assert historical_observation._meta.get_field("domain_observation_hash").max_length == 64
+
+        from apps.portfolio.infrastructure.governed_optimization_monitoring_models import (
+            GovernedOptimizationMonitoringAssessmentModel,
+            GovernedOptimizationMonitoringAuditSnapshotModel,
+            GovernedOptimizationMonitoringObservationModel,
+        )
+
+        live_models = (
+            GovernedOptimizationMonitoringObservationModel,
+            GovernedOptimizationMonitoringAssessmentModel,
+            GovernedOptimizationMonitoringAuditSnapshotModel,
+        )
+        assert [
+            {constraint.name for constraint in model._meta.constraints}
+            for model in historical_models
+        ] == [{constraint.name for constraint in model._meta.constraints} for model in live_models]
+
+        MigrationExecutor(connection).migrate(migration_0010)
+        with connection.cursor() as cursor:
+            assert table_names.isdisjoint(connection.introspection.table_names(cursor))
+
+        MigrationExecutor(connection).migrate(migration_0011)
+        apps_reforward = MigrationExecutor(connection).loader.project_state(migration_0011).apps
+        assert all(
+            apps_reforward.get_model("portfolio", model._meta.object_name)
+            ._default_manager.using(connection.alias)
+            .count()
+            == 0
+            for model in historical_models
+        )
+    finally:
+        MigrationExecutor(connection).migrate(leaf_nodes)

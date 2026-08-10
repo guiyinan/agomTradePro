@@ -8,6 +8,11 @@ from apps.portfolio.infrastructure.canonical_snapshot_models import (
     CanonicalPortfolioSnapshotModel,
     PortfolioExecutionFeedbackModel,
 )
+from apps.portfolio.infrastructure.governed_optimization_monitoring_models import (
+    GovernedOptimizationMonitoringAssessmentModel,
+    GovernedOptimizationMonitoringAuditSnapshotModel,
+    GovernedOptimizationMonitoringObservationModel,
+)
 from apps.portfolio.infrastructure.optimization_research_models import (
     GovernedOptimizationInputReceiptModel,
     GovernedOptimizationResearchResultModel,
@@ -33,6 +38,9 @@ __all__ = [
     "GovernedOptimizationInputReceiptModel",
     "GovernedOptimizationResearchResultModel",
     "OptimizationResearchLifecycleEventModel",
+    "GovernedOptimizationMonitoringObservationModel",
+    "GovernedOptimizationMonitoringAssessmentModel",
+    "GovernedOptimizationMonitoringAuditSnapshotModel",
     "R4RollingResearchReceiptModel",
     "R4RollingResearchResultModel",
     "PortfolioR5RelativeValueOutcomeModel",
