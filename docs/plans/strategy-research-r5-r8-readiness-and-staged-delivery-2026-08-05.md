@@ -7,6 +7,8 @@
 
 > 2026-08-09 R8 lifecycle 事务治理续批：lifecycle 写入口改为 ID-only；result、stream、Research Promotion 与 Portfolio authorization 在同一 UoW 内双次精确重读，event 使用 repository trusted server clock。Selector substitution、authorization retire-between、UoW 漂移、fork/race 和 provider/repository 异常均在 append 前稳定阻断；existing winner 必须锁 result 并完整重放 stream。Production runtime 仅暴露无状态 façade，公开对象图不保留 repository/store/token。真实 owner providers 与 post-promotion optimization monitoring 尚未形成，R8 保持 `blocked`。
 
+> 2026-08-10 R8 monitoring Phase A：新增 content-addressed policy、canonical period calendar、11 项 Portfolio/Broker owner metric payload与四态 assessment。Policy 精确绑定 optimization scope、active result、receipt、R8 lifecycle Promotion及 R3/R4/R5 Promotion；Application command 仅含 policy identity/as-of，并在 shared UoW 内按 policy target 双次精确重读 owner graph。连续 breach、历史 label/data drift只输出人工 retirement review，固定 `automatic_retirement=false` 且禁止 current/decision/execution。该批无 ORM/migration/composition或 lifecycle mutation；真实执行反馈与 owner providers仍缺，R8 继续 `blocked`。
+
 ## 1. 本阶段结论
 
 R5—R8 都具有部分基础代码，但没有一项同时满足备忘中的数据、研究和生产证据条件。因此本阶段不把任何能力标记为已启动：

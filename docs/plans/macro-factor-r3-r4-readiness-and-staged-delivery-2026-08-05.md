@@ -16,6 +16,8 @@
 
 > 2026-08-09 R4 monitoring Phase A：新增版本化 11 指标 policy、canonical period calendar、Portfolio-owned raw fact seal 与 assessment；连续 breach、任一完整期间 label/data drift、fresh/future/missing/substitution 均 fail closed，输出限定为 `HEALTHY / BREACHED / RETIREMENT_REVIEW_REQUIRED / BLOCKED`。Application command 仅携 policy/active-decision identity 与 as-of，六个 owner provider 必须共享同一 UoW；`automatic_retirement` 固定为 false。该批无 ORM/migration/composition，不接 current、consumer 或 execution；真实 owner facts 与晋级版本仍缺，R4 保持 `blocked`。
 
+> 2026-08-10 R4 monitoring Phase B：Research `0013` 建立 observation、assessment、audit snapshot 三张 append-only schema-only ledger，无 seed/backfill。Strict codec 对 Phase A 完整 owner graph、raw facts 与 assessment 逐层重建；writer 在同 DB UoW 内动态重读六个 provider、现场 evaluate，并用第二次 trusted server clock 写 sealed ledger clock。Exact PIT 先按 server knowledge cutoff 过滤，audit 物化 immutable snapshot 并使用独立 salt 的确定性签名 cursor；first-winner、fork/rollback、payload/header/FK tamper 与 Django mutation paths 均 fail closed。Production owner sources仍 unavailable，且不自动 RETIRE、不接 current/consumer/execution，R4 继续 `blocked`。
+
 ## 1. 启动决策
 
 R3 与 R4 当前均不允许进入模型实现：
