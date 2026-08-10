@@ -1,6 +1,7 @@
 # R3/R4 宏观因子与宏观风险平价启动门禁及分阶段实施计划
 
 > 2026-08-10 R3 authoritative runner-spec persistence：Research `0015` 建立完整 spec append-only ledger与strict codec；ID-only writer在shared UoW内执行owner双读、trusted server clock、动态UoW复核和exact winner replay，ledger knowledge time严格早于首次selection。Production缺真实definition provider时保持无状态unavailable，不接manifest/dataset/run/current/Promotion；R3总门禁不变。
+> 2026-08-10 R3 governed-read事务收口：读取command现场重验，trusted clock、Regime/trial/Promotion/lifecycle/monitoring五类reader与repository统一使用动态exact shared-UoW和单atomic；完整owner graph在返回前双读比较，clock/provider/ledger/malformed异常统一为稳定blocker且零projection。该收口不新增owner adapter或current/consumer，真实Regime、trial、Promotion与monitoring证据仍缺，R3保持`blocked`。
 
 > 状态：**R3 concrete research fitting 与 R4 候选风险验证已实现；真实 PIT、owner policy、晋级版本和 canonical 组合输入仍 Blocked**
 > 建立日期：2026-08-05

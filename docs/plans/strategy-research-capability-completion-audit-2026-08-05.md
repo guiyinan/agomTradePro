@@ -11,7 +11,7 @@
 - 未发现当前代码可越过 research-only/readiness 直接影响生产决策或执行的 P0。
 - 真实数据、Publication、PIT 样本、历史 outcome、外部对账和 PromotionDecision 仍是外部阻断。
 - 同时确认多项纯软件能力仍可在无真实数据时开发，因此不得再使用“R1—R8 无数据基础全部完成”的口径。
-- 最新续批关闭 R2 explanatory trial/monitoring persistence、R3 caller-supplied runner spec及其Research-owned persistence、R3/R6 production authority surface、R3 exact-ledger尾部完整性、R4/R5/R8 post-promotion monitoring Phase A+B、R8 lifecycle 非原子写入，以及 R7 production composition、post-promotion monitoring Phase A+B 与 family rollback 软件 P1；独立交叉复核在修复后均未发现遗留 P0/P1。
+- 最新续批关闭 R2 explanatory trial/monitoring persistence、R3 caller-supplied runner spec及其Research-owned persistence、R3/R6 production authority surface、R3 exact-ledger尾部完整性与 governed-read 事务边界、R4/R5/R8 post-promotion monitoring Phase A+B、R8 lifecycle 非原子写入，以及 R7 production composition、post-promotion monitoring Phase A+B 与 family rollback Phase A+B persistence 软件 P1；独立交叉复核在修复后均未发现遗留 P0/P1。
 
 ## 2. 逐能力剩余开发项
 
@@ -23,7 +23,7 @@
 | R4 | beta/CI/R²/残差、PSD、风险贡献、typed rolling/regime、三基准同窗 OOS、Portfolio result ledger/query、covariance diagnostics、Research stable scope/policy/trial/decision、五表 append-only ledger、lifecycle/active provider、concrete composition，以及 post-promotion monitoring Phase A+B 三表持久化 | canonical monitoring owner composition；下游 active consumer 接线须等待真实 Promotion 并另行验收 | R3 晋级版本、真实 exposure/covariance/constraint snapshot、Regime PIT assignment、owner authorization、monitoring facts 和历史样本 |
 | R5 | 单券定价/久期/凸性/carry/roll-down、相对价值/组合风险、fixed_income/Portfolio/Research append-only owner ledgers、cross-owner UoW、Promotion/retire/rollback与post-promotion monitoring Phase A+B persistence | canonical monitoring owner composition；下游 active consumer仍须等待真实Promotion后另验 | 两条曲线、信用估值、Bond Master/CashFlow/Calendar Publication、PIT/OOS、容量/借券、authorization、monitoring facts与外部对账 |
 | R6 | 简单基准不足、高级 artifact gate、七指标 qualification/政策反应诊断、assessment/lifecycle ledger、monitoring persistence，以及 activation/RETIRE/`stack[-2]` rollback Phase A+B 四本 ledger | canonical owner adapters、真实 PostgreSQL 并发与 DB-level permission/signature depth；production monitoring mutation保持无状态unavailable，不得提前接 consumer | 真实 shortfall、PIT/OOS、稳定标签、政策目标、monitoring facts、owner authorization 与 Promotion |
-| R7 | 概率分栏、Brier/分箱、PIT 类比/路径、reminder/sample-policy/result/lifecycle ledger、物化审计 snapshot、无状态 production façade、post-promotion monitoring Phase A+B及独立family `stack[-2]` rollback合同 | production Risk Center/Forecast Ledger owner adapter与family persistence；不在 fixture 上接 probability/current/consumer | 完整预测—复核—兑现历史、获批 sample policy、PIT 路径样本、family/owner authorization 与合格 result |
+| R7 | 概率分栏、Brier/分箱、PIT 类比/路径、reminder/sample-policy/result/lifecycle ledger、物化审计 snapshot、无状态 production façade、post-promotion monitoring Phase A+B及独立family `stack[-2]` rollback Phase A+B ledger | production Risk Center/Forecast Ledger/family owner adapter；不在 fixture 上接 probability/current/consumer | 完整预测—复核—兑现历史、获批 sample policy、PIT 路径样本、family/owner authorization 与合格 result |
 | R8 | canonical snapshot、execution feedback、13 类 typed 输入、current baseline、可投资 universe、四市场约束、path drawdown、四候选比较、独立 canonical input receipt、exact result/receipt DB version constraint、ID-only shared-UoW/server-clock lifecycle、post-promotion monitoring Phase A+B、fail-closed composition 与无状态 production façades | canonical monitoring owner composition及真实 Research/Portfolio provider接线；上线前补 PostgreSQL并发证据 | broker reconciliation、R3/R4/R5 晋级、真实 Portfolio snapshot、成本/容量/市场约束校准 |
 
 ## 3. 本批完成项
@@ -254,6 +254,8 @@ R7 result persistence 已完成 Research `0007` evidence graph、input receipt/r
 2026-08-10 R7 production composition 收口将 sample-policy、result、lifecycle public builder 改为仅接受数据库别名的无状态 façade；mutation surface不保存 provider/clock/writer/store/token，可注入成功链只存在于非导出 component factory。主代理 focused `13 passed`，独立普通复核高/中问题为 0。该批不实现 post-promotion monitoring或family rollback，也不接概率/current/decision/execution；真实 Risk Center owner、outcome历史和授权仍缺，R7 继续 `blocked`。
 
 2026-08-10 R7 monitoring Phase B 与 family rollback 收口：Research `0017` 三本schema-only ledger完成shared-UoW全图重放、assessment-scoped observations、exact PIT与signed audit；独立family v2 lifecycle完成head/count/stream attestation、append前最终authorization/owner重读与exact `stack[-2]` rollback。主代理验证`21/2/3 passed`及family `20 passed`，两组独立终核P0/P1=0。真实Forecast Ledger、policy、family owner/authorization与outcome历史仍缺，R7继续`blocked`。
+
+2026-08-10 R3 governed-read 与 R7 family Phase B 收口：R3 五类 owner reader、trusted clock 与 repository 统一纳入动态 shared-UoW/单 atomic，完整 evidence graph 双读且异常稳定阻断。Research `0018` 新增 family authorization receipt、event、stream commit、audit snapshot 四本schema-only ledger；重试按已封存 ledger cutoff恢复，读取同时验证 canonical result 与本地 authorization↔event 图。Focused unit/component为`17/3 passed`，七个R7生产文件增量mypy为0 regression，Ruff/Black/isort、migration drift与governance均通过。真实owner、authorization、outcome和consumer仍缺，R3/R7保持`blocked`。
 
 2026-08-10 R3/R6 authority与R3 ledger完整性收口：R3/R6 public mutation builder只接受数据库别名，无状态façade不保存provider/clock/writer/store/token。R3完整read统一重放source/artifact/output/lifecycle，`macro_factor.0003`以cumulative commit和独立per-artifact latest head封存count与latest event/commit/stream hash；单侧或配对tail截断均fail closed。独立SQLite forward/reverse/reforward为zero-seed，Luna Max终核P0/P1=0。真实owner、Publication、PIT/trial、Promotion与consumer仍缺，R3/R6继续`blocked`。
 
