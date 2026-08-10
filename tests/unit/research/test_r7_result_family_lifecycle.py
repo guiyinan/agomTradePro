@@ -16,6 +16,7 @@ from apps.research.application.r7_result_family_lifecycle import (
     ApplyR7FamilyLifecycleCommand,
     R7FamilyAuthorizationRef,
     R7FamilyLifecycleUnavailable,
+    R7FamilyOwnerSourceGraph,
     R7FamilyResultIdRef,
     R7ResultFamilyRef,
 )
@@ -579,8 +580,14 @@ class _FamilyRepository:
         *,
         authorization: R7FamilyLifecycleAuthorization,
         event: R7FamilyLifecycleEvent,
+        subject_source: R7FamilyOwnerSourceGraph,
+        rollback_target_source: R7FamilyOwnerSourceGraph | None,
     ) -> R7FamilyLifecycleEvent:
         assert event.authorization == authorization
+        assert subject_source.evidence == event.subject_evidence
+        assert (
+            None if rollback_target_source is None else rollback_target_source.evidence
+        ) == event.rollback_target_evidence
         self.append_calls += 1
         self.stream.append(event)
         return event

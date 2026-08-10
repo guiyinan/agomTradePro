@@ -119,6 +119,52 @@ class ApplyR7FamilyLifecycleCommand:
         _require_aware(self.as_of, "R7 family command as_of")
 
 
+@dataclass(frozen=True)
+class R7FamilyOwnerSourceGraph:
+    """Complete authoritative sources used to derive one owner projection."""
+
+    result: PersistedR7ResearchResult
+    local_lifecycle_stream: tuple[R7ResultLifecycleEvent, ...]
+    local_lifecycle_attestation: R7LocalLifecycleStreamAttestation
+    evaluated_at: datetime
+    evidence: R7FamilyResultOwnerEvidence
+
+    @classmethod
+    def from_owner_graph(
+        cls,
+        *,
+        result: PersistedR7ResearchResult,
+        local_lifecycle_stream: tuple[R7ResultLifecycleEvent, ...],
+        local_lifecycle_attestation: R7LocalLifecycleStreamAttestation,
+        evaluated_at: datetime,
+    ) -> R7FamilyOwnerSourceGraph:
+        """Rebuild, validate, and retain the source graph for persistence."""
+
+        evidence = R7FamilyResultOwnerEvidence.from_owner_graph(
+            result=result,
+            complete_local_lifecycle_stream=local_lifecycle_stream,
+            local_lifecycle_attestation=local_lifecycle_attestation,
+            evaluated_at=evaluated_at,
+        )
+        return cls(
+            result=result,
+            local_lifecycle_stream=local_lifecycle_stream,
+            local_lifecycle_attestation=local_lifecycle_attestation,
+            evaluated_at=evaluated_at,
+            evidence=evidence,
+        )
+
+    def __post_init__(self) -> None:
+        rebuilt = R7FamilyResultOwnerEvidence.from_owner_graph(
+            result=self.result,
+            complete_local_lifecycle_stream=self.local_lifecycle_stream,
+            local_lifecycle_attestation=self.local_lifecycle_attestation,
+            evaluated_at=self.evaluated_at,
+        )
+        if rebuilt != self.evidence:
+            raise ValueError("R7 family owner source graph differs from its evidence")
+
+
 class _UnitOfWorkProvider(Protocol):
     @property
     def unit_of_work_key(self) -> str:
@@ -218,6 +264,8 @@ class R7FamilyLifecycleRepository(Protocol):
         *,
         authorization: R7FamilyLifecycleAuthorization,
         event: R7FamilyLifecycleEvent,
+        subject_source: R7FamilyOwnerSourceGraph,
+        rollback_target_source: R7FamilyOwnerSourceGraph | None,
     ) -> R7FamilyLifecycleEvent:
         """Append one exact pair or return its exact first winner."""
 
@@ -316,11 +364,7 @@ class ApplyR7FamilyLifecycle:
         self._require_expected_uow()
         with _atomic(self._repository):
             self._require_expected_uow()
-            now = self._server_now()
-            if command.as_of > now:
-                raise R7FamilyLifecycleUnavailable("future R7 family cutoff is unavailable")
             authorization = self._load_authorization(command, as_of=command.as_of)
-            stream = self._load_family_stream(command.family_ref, now)
             existing = _repository_call(
                 "idempotent lookup",
                 lambda: self._repository.get_by_authorization(
@@ -328,16 +372,20 @@ class ApplyR7FamilyLifecycle:
                 ),
             )
             if existing is not None:
-                self._validate_existing(existing, authorization, stream)
+                self._validate_existing(existing, authorization, command)
                 self._require_expected_uow()
                 return existing
+            now = self._server_now()
+            if command.as_of > now:
+                raise R7FamilyLifecycleUnavailable("future R7 family cutoff is unavailable")
+            stream = self._load_family_stream(command.family_ref, now)
             if not authorization.is_active_at(now):
                 raise R7FamilyLifecycleUnavailable("R7 family authorization is inactive")
-            subject = self._load_owner_evidence(
+            subject_source = self._load_owner_evidence(
                 command.subject_ref,
                 as_of=authorization.issued_at,
             )
-            target = (
+            target_source = (
                 None
                 if command.rollback_target_ref is None
                 else self._load_owner_evidence(
@@ -345,22 +393,28 @@ class ApplyR7FamilyLifecycle:
                     as_of=authorization.issued_at,
                 )
             )
+            subject = subject_source.evidence
+            target = None if target_source is None else target_source.evidence
             self._validate_owner_graph(command, authorization, subject, target)
             self._require_expected_uow()
             event_now = self._server_now()
             if event_now < now:
                 raise R7FamilyLifecycleUnavailable("R7 family server clock moved backwards")
-            current_subject = self._load_owner_evidence(
+            current_subject_source = self._load_owner_evidence(
                 command.subject_ref,
                 as_of=event_now,
             )
-            current_target = (
+            current_target_source = (
                 None
                 if command.rollback_target_ref is None
                 else self._load_owner_evidence(
                     command.rollback_target_ref,
                     as_of=event_now,
                 )
+            )
+            current_subject = current_subject_source.evidence
+            current_target = (
+                None if current_target_source is None else current_target_source.evidence
             )
             self._validate_current_owner_state(
                 command,
@@ -386,11 +440,11 @@ class ApplyR7FamilyLifecycle:
             final_authorization = self._load_authorization(command, as_of=event_now)
             if final_authorization != authorization:
                 raise R7FamilyLifecycleUnavailable("R7 family authorization changed before append")
-            final_subject = self._load_owner_evidence(
+            final_subject_source = self._load_owner_evidence(
                 command.subject_ref,
                 as_of=event_now,
             )
-            final_target = (
+            final_target_source = (
                 None
                 if command.rollback_target_ref is None
                 else self._load_owner_evidence(
@@ -398,6 +452,8 @@ class ApplyR7FamilyLifecycle:
                     as_of=event_now,
                 )
             )
+            final_subject = final_subject_source.evidence
+            final_target = None if final_target_source is None else final_target_source.evidence
             self._validate_owner_graph(
                 command,
                 final_authorization,
@@ -431,6 +487,8 @@ class ApplyR7FamilyLifecycle:
                 lambda: self._repository.append(
                     authorization=authorization,
                     event=event,
+                    subject_source=subject_source,
+                    rollback_target_source=target_source,
                 ),
             )
             self._validate_winner(winner, event)
@@ -510,7 +568,7 @@ class ApplyR7FamilyLifecycle:
         result_ref: R7FamilyResultIdRef,
         *,
         as_of: datetime,
-    ) -> R7FamilyResultOwnerEvidence:
+    ) -> R7FamilyOwnerSourceGraph:
         result = _owner_call(
             "result",
             lambda: self._result_provider.get_exact(
@@ -544,9 +602,9 @@ class ApplyR7FamilyLifecycle:
                 raise TypeError("local stream type differs")
             if type(attestation) is not R7LocalLifecycleStreamAttestation:
                 raise TypeError("local lifecycle attestation type differs")
-            return R7FamilyResultOwnerEvidence.from_owner_graph(
+            return R7FamilyOwnerSourceGraph.from_owner_graph(
                 result=result,
-                complete_local_lifecycle_stream=local_stream,
+                local_lifecycle_stream=local_stream,
                 local_lifecycle_attestation=attestation,
                 evaluated_at=as_of,
             )
@@ -661,13 +719,17 @@ class ApplyR7FamilyLifecycle:
     def _validate_existing(
         existing: object,
         authorization: R7FamilyLifecycleAuthorization,
-        stream: tuple[R7FamilyLifecycleEvent, ...],
+        command: ApplyR7FamilyLifecycleCommand,
     ) -> None:
         try:
             if type(existing) is not R7FamilyLifecycleEvent:
                 raise TypeError("event type differs")
             existing.validate_live()
-            if existing not in stream or existing.authorization != authorization:
+            if (
+                _family_ref(existing.family) != command.family_ref
+                or existing.authorization != authorization
+                or command.as_of > existing.recorded_at
+            ):
                 raise ValueError("winner is not canonical")
         except Exception as error:
             raise R7FamilyLifecycleCorruption("R7 family idempotent winner is invalid") from error
@@ -736,6 +798,7 @@ __all__ = [
     "R7FamilyLifecycleCorruption",
     "R7FamilyLifecycleRepository",
     "R7FamilyLifecycleUnavailable",
+    "R7FamilyOwnerSourceGraph",
     "R7FamilyResultIdRef",
     "R7ResultFamilyRef",
 ]
