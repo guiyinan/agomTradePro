@@ -193,57 +193,6 @@ class DjangoR6MonitoringRepository:
 
         raise R6MonitoringPersistenceUnavailable("R6 monitoring production audit is unavailable")
 
-    def _list_audit(
-        self,
-        *,
-        as_of: datetime,
-        cursor: str | None,
-        limit: int,
-    ) -> R6MonitoringAuditPage:
-        """Return one deterministic PIT audit page for the private test store."""
-
-        if isinstance(limit, bool) or limit < 1 or limit > 200:
-            raise ValueError("R6 monitoring audit limit must be between 1 and 200")
-        self._require_pit_cutoff(as_of)
-        cursor_value = _decode_cursor(cursor, as_of=as_of)
-        query = R6MonitoringAssessmentModel._default_manager.using(self._using).filter(
-            ledger_recorded_at__lte=as_of
-        )
-        if cursor_value is not None:
-            cursor_at, cursor_id = cursor_value
-            query = query.filter(
-                Q(ledger_recorded_at__gt=cursor_at)
-                | Q(ledger_recorded_at=cursor_at, assessment_id__gt=cursor_id)
-            )
-        models = list(query.order_by("ledger_recorded_at", "assessment_id")[: limit + 1])
-        entries: list[R6MonitoringAuditEntry] = []
-        for model in models[:limit]:
-            bundle = self._restore_bundle(model)
-            assessment = bundle.assessment
-            entries.append(
-                R6MonitoringAuditEntry(
-                    assessment_ref=bundle.assessment_ref,
-                    qualification_ref=assessment.qualification_ref,
-                    policy_id=assessment.requested_policy_id,
-                    policy_version=assessment.requested_policy_version,
-                    evaluated_at=assessment.evaluated_at,
-                    recorded_at=bundle.recorded_at,
-                    status=assessment.status,
-                    observation_count=len(bundle.observations),
-                    blockers=tuple(item.value for item in assessment.blockers),
-                    retirement_review_required=assessment.retirement_review_required,
-                )
-            )
-        next_cursor = None
-        if len(models) > limit:
-            last = entries[-1]
-            next_cursor = _encode_cursor(
-                as_of=as_of,
-                recorded_at=last.recorded_at,
-                assessment_id=last.assessment_ref.assessment_id,
-            )
-        return R6MonitoringAuditPage(tuple(entries), next_cursor)
-
     def _require_pit_cutoff(self, as_of: datetime) -> None:
         if as_of.tzinfo is None or as_of.utcoffset() is None:
             raise R6MonitoringPersistenceUnavailable("R6 monitoring as_of must be timezone-aware")
@@ -424,7 +373,47 @@ class _DjangoR6MonitoringStore(DjangoR6MonitoringRepository):
     ) -> R6MonitoringAuditPage:
         """Return the private deterministic audit projection used by tests."""
 
-        return self._list_audit(as_of=as_of, cursor=cursor, limit=limit)
+        if isinstance(limit, bool) or limit < 1 or limit > 200:
+            raise ValueError("R6 monitoring audit limit must be between 1 and 200")
+        self._require_pit_cutoff(as_of)
+        cursor_value = _decode_cursor(cursor, as_of=as_of)
+        query = R6MonitoringAssessmentModel._default_manager.using(self._using).filter(
+            ledger_recorded_at__lte=as_of
+        )
+        if cursor_value is not None:
+            cursor_at, cursor_id = cursor_value
+            query = query.filter(
+                Q(ledger_recorded_at__gt=cursor_at)
+                | Q(ledger_recorded_at=cursor_at, assessment_id__gt=cursor_id)
+            )
+        models = list(query.order_by("ledger_recorded_at", "assessment_id")[: limit + 1])
+        entries: list[R6MonitoringAuditEntry] = []
+        for model in models[:limit]:
+            bundle = self._restore_bundle(model)
+            assessment = bundle.assessment
+            entries.append(
+                R6MonitoringAuditEntry(
+                    assessment_ref=bundle.assessment_ref,
+                    qualification_ref=assessment.qualification_ref,
+                    policy_id=assessment.requested_policy_id,
+                    policy_version=assessment.requested_policy_version,
+                    evaluated_at=assessment.evaluated_at,
+                    recorded_at=bundle.recorded_at,
+                    status=assessment.status,
+                    observation_count=len(bundle.observations),
+                    blockers=tuple(item.value for item in assessment.blockers),
+                    retirement_review_required=assessment.retirement_review_required,
+                )
+            )
+        next_cursor = None
+        if len(models) > limit:
+            last = entries[-1]
+            next_cursor = _encode_cursor(
+                as_of=as_of,
+                recorded_at=last.recorded_at,
+                assessment_id=last.assessment_ref.assessment_id,
+            )
+        return R6MonitoringAuditPage(tuple(entries), next_cursor)
 
     def append_bundle(
         self,

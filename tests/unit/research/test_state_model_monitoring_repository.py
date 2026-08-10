@@ -468,6 +468,7 @@ def test_public_monitoring_runtime_is_inert_and_retains_only_exact_reads() -> No
     assert type(read_repository).__slots__ == ("_using",)
     assert not hasattr(read_repository, "_token")
     assert not hasattr(read_repository, "_clock")
+    assert not hasattr(read_repository, "_list_audit")
     with pytest.raises(R6MonitoringPersistenceUnavailable, match="unavailable"):
         runtime.register.execute(command)
     with pytest.raises(R6MonitoringPersistenceUnavailable, match="invalid"):
