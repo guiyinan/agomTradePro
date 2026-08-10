@@ -10,6 +10,43 @@ from django.db.models import ProtectedError
 
 
 @pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_0003_creates_reversible_zero_seed_lifecycle_stream_commit_ledger() -> None:
+    executor = MigrationExecutor(connection)
+    leaf_nodes = executor.loader.graph.leaf_nodes()
+    try:
+        executor.migrate([("macro_factor", "0002_reproducible_run_ledger")])
+        executor = MigrationExecutor(connection)
+        executor.migrate([("macro_factor", "0003_lifecycle_stream_commit_anchor")])
+        apps = executor.loader.project_state(
+            [("macro_factor", "0003_lifecycle_stream_commit_anchor")]
+        ).apps
+        Commit = apps.get_model("macro_factor", "MacroFactorLifecycleStreamCommitModel")
+        Head = apps.get_model("macro_factor", "MacroFactorLifecycleStreamHeadModel")
+
+        assert Commit._default_manager.count() == 0
+        assert Head._default_manager.count() == 0
+        assert "macro_factor_lifecycle_stream_commit" in connection.introspection.table_names()
+        assert "macro_factor_lifecycle_stream_head" in connection.introspection.table_names()
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([("macro_factor", "0002_reproducible_run_ledger")])
+        assert "macro_factor_lifecycle_stream_commit" not in connection.introspection.table_names()
+        assert "macro_factor_lifecycle_stream_head" not in connection.introspection.table_names()
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([("macro_factor", "0003_lifecycle_stream_commit_anchor")])
+        apps = executor.loader.project_state(
+            [("macro_factor", "0003_lifecycle_stream_commit_anchor")]
+        ).apps
+        Commit = apps.get_model("macro_factor", "MacroFactorLifecycleStreamCommitModel")
+        Head = apps.get_model("macro_factor", "MacroFactorLifecycleStreamHeadModel")
+        assert Commit._default_manager.count() == 0
+        assert Head._default_manager.count() == 0
+    finally:
+        MigrationExecutor(connection).migrate(leaf_nodes)
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_0002_preserves_legacy_and_creates_empty_fail_closed_protected_ledger() -> None:
     executor = MigrationExecutor(connection)
     leaf_nodes = executor.loader.graph.leaf_nodes()

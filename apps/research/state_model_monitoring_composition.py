@@ -252,9 +252,42 @@ class _RegistrationClosure:
             return self._writer.register(command)
 
 
-@dataclass(frozen=True)
+class UnavailableR6MonitoringRegisterFacade:
+    """State-free production mutation surface while canonical owners are absent."""
+
+    __slots__ = ()
+
+    def execute(
+        self,
+        command: RegisterR6MonitoringAssessmentCommand,
+    ) -> R6MonitoringPersistedAssessment:
+        """Validate the ID-only command, then reject without constructing a writer."""
+
+        try:
+            if type(command) is not RegisterR6MonitoringAssessmentCommand:
+                raise TypeError("R6 monitoring registration command type differs")
+            RegisterR6MonitoringAssessmentCommand.__post_init__(command)
+        except (AttributeError, TypeError, ValueError) as error:
+            raise R6MonitoringPersistenceUnavailable(
+                "R6 monitoring registration command is invalid"
+            ) from error
+        raise R6MonitoringPersistenceUnavailable(
+            "canonical R6 monitoring owner providers are unavailable"
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class DjangoR6MonitoringRuntime:
-    """Research-only write/read/audit facades; no consumer is exposed."""
+    """Read-safe runtime with an inert public registration surface."""
+
+    register: UnavailableR6MonitoringRegisterFacade
+    get_exact: GetExactR6MonitoringAssessment
+    audit: AuditR6MonitoringAssessments
+
+
+@dataclass(frozen=True, slots=True)
+class _DjangoR6MonitoringTestRuntime:
+    """Private injectable runtime used only by persistence component tests."""
 
     register: RegisterR6MonitoringAssessment
     get_exact: GetExactR6MonitoringAssessment
@@ -263,14 +296,31 @@ class DjangoR6MonitoringRuntime:
 
 def build_django_r6_monitoring_runtime(
     *,
+    using: str = "default",
+) -> DjangoR6MonitoringRuntime:
+    """Build exact reads plus a state-free unavailable mutation facade."""
+
+    repository = DjangoR6MonitoringRepository(
+        using=using,
+        clock=DjangoR6MonitoringClock(),
+    )
+    return DjangoR6MonitoringRuntime(
+        register=UnavailableR6MonitoringRegisterFacade(),
+        get_exact=GetExactR6MonitoringAssessment(repository),
+        audit=AuditR6MonitoringAssessments(repository),
+    )
+
+
+def _build_django_r6_monitoring_runtime_for_test(
+    *,
     active_qualification_provider: ActiveR6QualificationProvider | None,
     policy_provider: R6MonitoringPolicyProvider | None,
     period_calendar_provider: R6MonitoringPeriodCalendarProvider | None,
     raw_fact_provider: R6MonitoringRawFactProvider | None,
     using: str = "default",
     clock: R6MonitoringClock | None = None,
-) -> DjangoR6MonitoringRuntime:
-    """Build Phase B only when every canonical owner provider is supplied."""
+) -> _DjangoR6MonitoringTestRuntime:
+    """Build the injectable Phase B graph for isolated persistence tests."""
 
     if (
         active_qualification_provider is None
@@ -304,7 +354,7 @@ def build_django_r6_monitoring_runtime(
         clock=authoritative_clock,
     )
     writer = _MonitoringWriter(store=store, evaluator=evaluator)
-    return DjangoR6MonitoringRuntime(
+    return _DjangoR6MonitoringTestRuntime(
         register=RegisterR6MonitoringAssessment(_RegistrationClosure(store=store, writer=writer)),
         get_exact=GetExactR6MonitoringAssessment(repository),
         audit=AuditR6MonitoringAssessments(repository),
@@ -313,5 +363,6 @@ def build_django_r6_monitoring_runtime(
 
 __all__ = [
     "DjangoR6MonitoringRuntime",
+    "UnavailableR6MonitoringRegisterFacade",
     "build_django_r6_monitoring_runtime",
 ]

@@ -8,6 +8,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import connection
 
+from apps.macro_factor.composition import build_concrete_lasso_runner_runtime
 from apps.macro_factor.domain.entities import RetirementEvidence
 from apps.macro_factor.domain.lifecycle import append_retirement_event
 from apps.macro_factor.domain.runner_service import build_reproducible_run
@@ -15,10 +16,13 @@ from apps.macro_factor.infrastructure.models import MacroFactorResearchResultMod
 from apps.macro_factor.infrastructure.run_ledger_models import (
     MacroFactorDatedOutputModel,
     MacroFactorLifecycleEventModel,
+    MacroFactorLifecycleStreamCommitModel,
+    MacroFactorLifecycleStreamHeadModel,
     MacroFactorRunArtifactModel,
 )
 from apps.macro_factor.infrastructure.run_ledger_repository import (
     DjangoMacroFactorRunLedgerRepository,
+    MacroFactorRunLedgerCorruption,
 )
 from tests.unit.macro_factor.factories import complete_manifest
 from tests.unit.macro_factor.runner_factories import (
@@ -56,6 +60,230 @@ def test_repository_round_trips_source_run_outputs_and_root_event() -> None:
     assert MacroFactorRunArtifactModel._default_manager.count() == 1
     assert MacroFactorDatedOutputModel._default_manager.count() == 1
     assert MacroFactorLifecycleEventModel._default_manager.count() == 1
+    assert MacroFactorLifecycleStreamCommitModel._default_manager.count() == 1
+
+
+def test_public_runtime_preserves_exact_read_only_ledger_capability() -> None:
+    """Inert production run composition still exposes integrity-checked reads."""
+
+    writer = DjangoMacroFactorRunLedgerRepository()
+    bundle = _bundle()
+    writer.append_bundle(bundle)
+    runtime = build_concrete_lasso_runner_runtime()
+
+    assert runtime.ledger.get_artifact(bundle.artifact.artifact_id) == bundle.artifact
+    assert runtime.ledger.list_outputs(bundle.artifact.artifact_id) == bundle.outputs
+    assert runtime.ledger.list_lifecycle_events(bundle.artifact.artifact_id) == (
+        bundle.lifecycle_events
+    )
+    assert not hasattr(runtime.ledger, "append_bundle")
+    assert not hasattr(runtime.ledger, "append_lifecycle_event")
+
+
+def test_public_read_rejects_output_tail_truncation_for_every_projection() -> None:
+    """No read method may return a plausible partial run after raw row loss."""
+
+    writer = DjangoMacroFactorRunLedgerRepository()
+    bundle = _bundle()
+    writer.append_bundle(bundle)
+    runtime = build_concrete_lasso_runner_runtime()
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "DELETE FROM macro_factor_dated_output WHERE output_id = %s",
+            [bundle.outputs[0].output_id],
+        )
+
+    with pytest.raises(MacroFactorRunLedgerCorruption, match="sealed external manifest"):
+        runtime.ledger.get_artifact(bundle.artifact.artifact_id)
+    with pytest.raises(MacroFactorRunLedgerCorruption, match="sealed external manifest"):
+        runtime.ledger.list_outputs(bundle.artifact.artifact_id)
+    with pytest.raises(MacroFactorRunLedgerCorruption, match="sealed external manifest"):
+        runtime.ledger.list_lifecycle_events(bundle.artifact.artifact_id)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_public_read_rejects_orphan_children_after_raw_artifact_loss() -> None:
+    """Missing parent evidence is corruption, never a clean empty ledger result."""
+
+    if connection.vendor != "sqlite":
+        pytest.skip("raw orphan simulation is isolated to SQLite component coverage")
+    writer = DjangoMacroFactorRunLedgerRepository()
+    bundle = _bundle()
+    writer.append_bundle(bundle)
+    runtime = build_concrete_lasso_runner_runtime()
+
+    constraints_disabled = connection.disable_constraint_checking()
+    assert constraints_disabled is True
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM macro_factor_run_artifact WHERE artifact_id = %s",
+                [bundle.artifact.artifact_id],
+            )
+    finally:
+        connection.enable_constraint_checking()
+    assert MacroFactorDatedOutputModel._default_manager.count() == 1
+    assert MacroFactorLifecycleEventModel._default_manager.count() == 1
+
+    with pytest.raises(MacroFactorRunLedgerCorruption, match="child rows remain"):
+        runtime.ledger.get_artifact(bundle.artifact.artifact_id)
+    with pytest.raises(MacroFactorRunLedgerCorruption, match="child rows remain"):
+        runtime.ledger.list_outputs(bundle.artifact.artifact_id)
+    with pytest.raises(MacroFactorRunLedgerCorruption, match="child rows remain"):
+        runtime.ledger.list_lifecycle_events(bundle.artifact.artifact_id)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_public_read_rejects_lifecycle_event_tail_truncation() -> None:
+    """The immutable stream anchor prevents a retired run reverting to its root."""
+
+    if connection.vendor != "sqlite":
+        pytest.skip("raw orphan simulation is isolated to SQLite component coverage")
+    writer = DjangoMacroFactorRunLedgerRepository()
+    bundle = _bundle()
+    writer.append_bundle(bundle)
+    result = bundle.source_result
+    retirement = RetirementEvidence(
+        event_id="retire-growth-run-v1",
+        retired_at=bundle.artifact.produced_at + timedelta(days=1),
+        policy_version=result.retirement_policy.policy_version,
+        reason_codes=(result.retirement_policy.rules[0].rule_id,),
+        evidence_hash="9" * 64,
+    )
+    retired = append_retirement_event(
+        artifact=bundle.artifact,
+        source_result=result,
+        retirement=retirement,
+        owner_attestation=retirement_owner_attestation(
+            bundle.artifact,
+            result,
+            retirement,
+        ),
+        previous_event=bundle.lifecycle_events[0],
+        recorded_at=retirement.retired_at,
+    )
+    writer.append_lifecycle_event(retired)
+    assert MacroFactorLifecycleStreamCommitModel._default_manager.count() == 2
+
+    constraints_disabled = connection.disable_constraint_checking()
+    assert constraints_disabled is True
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM macro_factor_lifecycle_event WHERE event_id = %s",
+                [retired.event_id],
+            )
+    finally:
+        connection.enable_constraint_checking()
+    assert MacroFactorLifecycleEventModel._default_manager.count() == 1
+    assert MacroFactorLifecycleStreamCommitModel._default_manager.count() == 2
+
+    runtime = build_concrete_lasso_runner_runtime()
+    with pytest.raises(MacroFactorRunLedgerCorruption, match="stream commit"):
+        runtime.ledger.get_artifact(bundle.artifact.artifact_id)
+    with pytest.raises(MacroFactorRunLedgerCorruption, match="stream commit"):
+        runtime.ledger.list_outputs(bundle.artifact.artifact_id)
+    with pytest.raises(MacroFactorRunLedgerCorruption, match="stream commit"):
+        runtime.ledger.list_lifecycle_events(bundle.artifact.artifact_id)
+
+
+def test_public_read_rejects_lifecycle_anchor_tail_truncation() -> None:
+    """A lifecycle event without its exact cumulative anchor is also corruption."""
+
+    writer = DjangoMacroFactorRunLedgerRepository()
+    bundle = _bundle()
+    writer.append_bundle(bundle)
+    result = bundle.source_result
+    retirement = RetirementEvidence(
+        event_id="retire-growth-run-v1",
+        retired_at=bundle.artifact.produced_at + timedelta(days=1),
+        policy_version=result.retirement_policy.policy_version,
+        reason_codes=(result.retirement_policy.rules[0].rule_id,),
+        evidence_hash="9" * 64,
+    )
+    retired = append_retirement_event(
+        artifact=bundle.artifact,
+        source_result=result,
+        retirement=retirement,
+        owner_attestation=retirement_owner_attestation(
+            bundle.artifact,
+            result,
+            retirement,
+        ),
+        previous_event=bundle.lifecycle_events[0],
+        recorded_at=retirement.retired_at,
+    )
+    writer.append_lifecycle_event(retired)
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "DELETE FROM macro_factor_lifecycle_stream_commit WHERE sequence = %s",
+            [retired.sequence],
+        )
+
+    runtime = build_concrete_lasso_runner_runtime()
+    with pytest.raises(MacroFactorRunLedgerCorruption, match="stream commit"):
+        runtime.ledger.list_lifecycle_events(bundle.artifact.artifact_id)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_public_read_rejects_paired_lifecycle_tail_truncation() -> None:
+    """The independent latest head detects paired event/commit tail loss."""
+
+    if connection.vendor != "sqlite":
+        pytest.skip("raw paired-tail simulation is isolated to SQLite component coverage")
+    writer = DjangoMacroFactorRunLedgerRepository()
+    bundle = _bundle()
+    writer.append_bundle(bundle)
+    result = bundle.source_result
+    retirement = RetirementEvidence(
+        event_id="retire-growth-run-v1",
+        retired_at=bundle.artifact.produced_at + timedelta(days=1),
+        policy_version=result.retirement_policy.policy_version,
+        reason_codes=(result.retirement_policy.rules[0].rule_id,),
+        evidence_hash="9" * 64,
+    )
+    retired = append_retirement_event(
+        artifact=bundle.artifact,
+        source_result=result,
+        retirement=retirement,
+        owner_attestation=retirement_owner_attestation(
+            bundle.artifact,
+            result,
+            retirement,
+        ),
+        previous_event=bundle.lifecycle_events[0],
+        recorded_at=retirement.retired_at,
+    )
+    writer.append_lifecycle_event(retired)
+    head = MacroFactorLifecycleStreamHeadModel._default_manager.get()
+    assert head.latest_sequence == head.event_count == 2
+
+    constraints_disabled = connection.disable_constraint_checking()
+    assert constraints_disabled is True
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM macro_factor_lifecycle_stream_commit WHERE sequence = %s",
+                [retired.sequence],
+            )
+            cursor.execute(
+                "DELETE FROM macro_factor_lifecycle_event WHERE event_id = %s",
+                [retired.event_id],
+            )
+    finally:
+        connection.enable_constraint_checking()
+    assert MacroFactorLifecycleEventModel._default_manager.count() == 1
+    assert MacroFactorLifecycleStreamCommitModel._default_manager.count() == 1
+
+    runtime = build_concrete_lasso_runner_runtime()
+    with pytest.raises(MacroFactorRunLedgerCorruption, match="stream head"):
+        runtime.ledger.get_artifact(bundle.artifact.artifact_id)
+    with pytest.raises(MacroFactorRunLedgerCorruption, match="stream head"):
+        runtime.ledger.list_outputs(bundle.artifact.artifact_id)
+    with pytest.raises(MacroFactorRunLedgerCorruption, match="stream head"):
+        runtime.ledger.list_lifecycle_events(bundle.artifact.artifact_id)
 
 
 def test_exact_replay_is_idempotent_and_conflicting_run_identity_is_rejected() -> None:
@@ -175,6 +403,7 @@ def test_default_base_and_related_manager_mutations_are_blocked() -> None:
     artifact_model = MacroFactorRunArtifactModel._default_manager.get()
     output_model = MacroFactorDatedOutputModel._default_manager.get()
     event_model = MacroFactorLifecycleEventModel._default_manager.get()
+    head_model = MacroFactorLifecycleStreamHeadModel._default_manager.get()
 
     guarded_models = (
         MacroFactorResearchResultModel,
@@ -196,6 +425,14 @@ def test_default_base_and_related_manager_mutations_are_blocked() -> None:
         event_model.save()
     with pytest.raises(ValidationError, match="cannot be deleted"):
         artifact_model.delete()
+    with pytest.raises(ValidationError, match="exact repository write claim"):
+        head_model.save()
+    with pytest.raises(ValidationError, match="publicly updated"):
+        MacroFactorLifecycleStreamHeadModel._default_manager.filter(
+            artifact_id=artifact_model.artifact_id
+        ).update(latest_sequence=2)
+    with pytest.raises(ValidationError, match="cannot be deleted"):
+        head_model.delete()
 
 
 def test_bundle_insert_rolls_back_every_table_on_child_failure(monkeypatch) -> None:

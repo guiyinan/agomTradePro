@@ -6,6 +6,7 @@ from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from importlib.metadata import version as package_version
+from inspect import signature
 
 import pytest
 
@@ -14,7 +15,10 @@ from apps.macro_factor.application.reproducible_runner import (
     MacroFactorRunnerStatus,
     RunReproducibleMacroFactorCommand,
 )
-from apps.macro_factor.composition import build_concrete_lasso_runner_runtime
+from apps.macro_factor.composition import (
+    _build_concrete_lasso_runner_runtime_for_test,
+    build_concrete_lasso_runner_runtime,
+)
 from apps.macro_factor.domain.entities import (
     FactorOutputRole,
     MacroTargetDefinition,
@@ -828,7 +832,7 @@ def test_benchmark_and_cost_identity_must_match_exact_governed_contract(field: s
 def test_concrete_composition_records_only_with_complete_providers() -> None:
     manifest, dataset, spec, config = _synthetic_case()
     repository = _Repository()
-    runtime = build_concrete_lasso_runner_runtime(
+    runtime = _build_concrete_lasso_runner_runtime_for_test(
         config=config,
         spec_provider=_SpecProvider(spec),
         manifest_provider=_ManifestProvider(manifest),
@@ -865,17 +869,18 @@ def test_concrete_composition_records_only_with_complete_providers() -> None:
     assert assessment.must_not_execute is True
 
     unavailable_repository = _Repository()
-    unavailable = build_concrete_lasso_runner_runtime(
-        config=config,
-        spec_provider=_SpecProvider(spec),
-        manifest_provider=None,
-        dataset_provider=_DatasetProvider(dataset),
-        repository=unavailable_repository,
-    ).run.execute(command)
+    unavailable_runtime = build_concrete_lasso_runner_runtime()
+    unavailable = unavailable_runtime.run.execute(command)
     assert unavailable.status is MacroFactorRunnerStatus.BLOCKED
     assert unavailable_repository.bundle is None
+    assert tuple(signature(build_concrete_lasso_runner_runtime).parameters) == ("using",)
+    assert not hasattr(unavailable_runtime.run, "__dict__")
+    assert type(unavailable_runtime.run).__slots__ == ()
+    assert unavailable_runtime.run.execute.__func__.__closure__ is None
+    assert not hasattr(unavailable_runtime.ledger, "append_bundle")
+    assert not hasattr(unavailable_runtime.ledger, "append_lifecycle_event")
 
-    missing_spec_owner = build_concrete_lasso_runner_runtime(
+    missing_spec_owner = _build_concrete_lasso_runner_runtime_for_test(
         config=config,
         spec_provider=None,
         manifest_provider=_ManifestProvider(manifest),
@@ -885,3 +890,7 @@ def test_concrete_composition_records_only_with_complete_providers() -> None:
     assert missing_spec_owner.status is MacroFactorRunnerStatus.BLOCKED
     assert missing_spec_owner.blocked_reasons == (MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID,)
     assert unavailable_repository.bundle is None
+
+    malformed = unavailable_runtime.run.execute(object())  # type: ignore[arg-type]
+    assert malformed.status is MacroFactorRunnerStatus.BLOCKED
+    assert malformed.blocked_reasons == (MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID,)

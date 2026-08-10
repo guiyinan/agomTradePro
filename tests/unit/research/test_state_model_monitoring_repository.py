@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from inspect import signature
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -42,6 +43,8 @@ from apps.research.infrastructure.state_model_qualification_repository import (
 )
 from apps.research.state_model_monitoring_composition import (
     DjangoR6MonitoringRuntime,
+    _build_django_r6_monitoring_runtime_for_test,
+    _DjangoR6MonitoringTestRuntime,
     build_django_r6_monitoring_runtime,
 )
 from tests.unit.research.state_model_monitoring_factories import (
@@ -200,7 +203,7 @@ def _runtime(
     clock: MutableClock,
     qualification_ref: R6QualificationRef,
     facts: tuple[R6MonitoringObservation, ...] | None = None,
-) -> tuple[DjangoR6MonitoringRuntime, StaticRawFactProvider, R6MonitoringPolicy]:
+) -> tuple[_DjangoR6MonitoringTestRuntime, StaticRawFactProvider, R6MonitoringPolicy]:
     monitoring_policy = policy(qualification_ref=qualification_ref)
     raw_source = StaticRawFactProvider(
         facts
@@ -210,7 +213,7 @@ def _runtime(
             observation(sequence=2, monitoring_policy=monitoring_policy),
         )
     )
-    runtime = build_django_r6_monitoring_runtime(
+    runtime = _build_django_r6_monitoring_runtime_for_test(
         active_qualification_provider=StaticQualificationProvider(
             active_qualification(qualification_ref=qualification_ref)
         ),
@@ -267,7 +270,8 @@ def test_register_recomputes_and_appends_exact_pit_graph() -> None:
     )
     assert any(item.owner_recorded_at != item.ledger_recorded_at for item in raw_models)
 
-    exact = runtime.get_exact.execute(
+    read_runtime = build_django_r6_monitoring_runtime()
+    exact = read_runtime.get_exact.execute(
         GetExactR6MonitoringAssessmentCommand(
             assessment_ref=persisted.assessment_ref,
             as_of=NOW,
@@ -275,7 +279,7 @@ def test_register_recomputes_and_appends_exact_pit_graph() -> None:
     )
     assert exact == persisted
     assert (
-        runtime.get_exact.execute(
+        read_runtime.get_exact.execute(
             GetExactR6MonitoringAssessmentCommand(
                 assessment_ref=persisted.assessment_ref,
                 as_of=NOW - timedelta(microseconds=1),
@@ -283,7 +287,7 @@ def test_register_recomputes_and_appends_exact_pit_graph() -> None:
         )
         is None
     )
-    audit = runtime.audit.execute(as_of=NOW, limit=1)
+    audit = read_runtime.audit.execute(as_of=NOW, limit=1)
     assert len(audit.entries) == 1
     assert audit.entries[0].assessment_ref == persisted.assessment_ref
     assert set(DjangoR6MonitoringRuntime.__dataclass_fields__) == {
@@ -300,7 +304,7 @@ def test_register_recomputes_and_appends_exact_pit_graph() -> None:
         assessment_id=persisted.assessment_ref.assessment_id,
     )
     with pytest.raises(ValueError, match="cursor cutoff"):
-        runtime.audit.execute(
+        read_runtime.audit.execute(
             as_of=NOW - timedelta(microseconds=1),
             cursor=bound_cursor,
             limit=1,
@@ -312,7 +316,7 @@ def test_register_recomputes_and_appends_exact_pit_graph() -> None:
         .rstrip("=")
     )
     with pytest.raises(ValueError, match="non-canonical"):
-        runtime.audit.execute(
+        read_runtime.audit.execute(
             as_of=NOW,
             cursor=wrong_version_cursor,
             limit=1,
@@ -386,7 +390,7 @@ def test_future_cutoff_and_missing_canonical_provider_are_unavailable() -> None:
             )
         )
     with pytest.raises(R6MonitoringPersistenceUnavailable, match="unavailable"):
-        build_django_r6_monitoring_runtime(
+        _build_django_r6_monitoring_runtime_for_test(
             active_qualification_provider=None,
             policy_provider=StaticPolicyProvider(monitoring_policy),
             period_calendar_provider=StaticCalendarProvider(period_calendar()),
@@ -409,7 +413,7 @@ def test_missing_or_mismatched_uow_attestation_blocks_composition() -> None:
             return active_qualification(qualification_ref=qualification_ref)
 
     with pytest.raises(ValueError, match="unit_of_work_key"):
-        build_django_r6_monitoring_runtime(
+        _build_django_r6_monitoring_runtime_for_test(
             active_qualification_provider=MissingUowQualificationProvider(),
             policy_provider=StaticPolicyProvider(monitoring_policy),
             period_calendar_provider=StaticCalendarProvider(period_calendar()),
@@ -418,7 +422,7 @@ def test_missing_or_mismatched_uow_attestation_blocks_composition() -> None:
         )
 
     with pytest.raises(ValueError, match="different units of work"):
-        build_django_r6_monitoring_runtime(
+        _build_django_r6_monitoring_runtime_for_test(
             active_qualification_provider=StaticQualificationProvider(
                 active_qualification(qualification_ref=qualification_ref)
             ),
@@ -430,6 +434,36 @@ def test_missing_or_mismatched_uow_attestation_blocks_composition() -> None:
             ),
             clock=clock,
         )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_public_monitoring_runtime_is_inert_and_retains_only_exact_reads() -> None:
+    """Production composition cannot receive owner or clock capabilities."""
+
+    runtime = build_django_r6_monitoring_runtime()
+    qualification_ref = R6QualificationRef(
+        assessment_id="r6-assessment:public-inert",
+        assessment_hash="a" * 64,
+    )
+    command = RegisterR6MonitoringAssessmentCommand(
+        qualification_ref=qualification_ref,
+        policy_id="r6-monitoring-policy:public-inert",
+        policy_version="r6-monitoring-policy.v1",
+        expected_policy_hash="b" * 64,
+        as_of=NOW,
+    )
+
+    assert isinstance(runtime, DjangoR6MonitoringRuntime)
+    assert tuple(signature(build_django_r6_monitoring_runtime).parameters) == ("using",)
+    assert not hasattr(runtime.register, "__dict__")
+    assert type(runtime.register).__slots__ == ()
+    assert runtime.register.execute.__func__.__closure__ is None
+    with pytest.raises(R6MonitoringPersistenceUnavailable, match="unavailable"):
+        runtime.register.execute(command)
+    with pytest.raises(R6MonitoringPersistenceUnavailable, match="invalid"):
+        runtime.register.execute(object())  # type: ignore[arg-type]
+    assert R6MonitoringObservationModel._default_manager.count() == 0
+    assert R6MonitoringAssessmentModel._default_manager.count() == 0
 
 
 @pytest.mark.django_db(transaction=True)
