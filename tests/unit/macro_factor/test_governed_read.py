@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -50,8 +52,11 @@ class _Ledger:
         self.artifact = artifact
         self.outputs = outputs
         self.events = events
+        self.unit_of_work_key = "macro-factor-test-uow"
+        self.calls = 0
 
     def get_artifact(self, artifact_id: str) -> ReproducibleMacroFactorRunArtifact | None:
+        self.calls += 1
         return self.artifact if artifact_id == self.artifact.artifact_id else None
 
     def list_outputs(self, artifact_id: str) -> tuple[DatedMacroFactorOutput, ...]:
@@ -68,6 +73,7 @@ class _RegimeProvider:
     def __init__(self, report: R3RegimeSegmentReport | None) -> None:
         self.report = report
         self.calls: list[tuple[str, str, datetime]] = []
+        self.unit_of_work_key = "macro-factor-test-uow"
 
     def get_report(
         self,
@@ -84,6 +90,7 @@ class _TrialProvider:
     def __init__(self, trial: R3ExperimentTrialEvidence | None) -> None:
         self.trial = trial
         self.calls: list[tuple[str, str, datetime]] = []
+        self.unit_of_work_key = "macro-factor-test-uow"
 
     def get_trial(
         self,
@@ -100,6 +107,7 @@ class _PromotionProvider:
     def __init__(self, decision: R3PromotionDecisionEvidence | None) -> None:
         self.decision = decision
         self.calls: list[tuple[str, str, datetime]] = []
+        self.unit_of_work_key = "macro-factor-test-uow"
 
     def get_decision(
         self,
@@ -116,6 +124,7 @@ class _MonitoringProvider:
     def __init__(self, evidence: R3MonitoringEvidence | None) -> None:
         self.evidence = evidence
         self.calls: list[tuple[str, str, datetime]] = []
+        self.unit_of_work_key = "macro-factor-test-uow"
 
     def get_monitoring(
         self,
@@ -126,6 +135,27 @@ class _MonitoringProvider:
     ) -> R3MonitoringEvidence | None:
         self.calls.append((artifact_id, expected_artifact_hash, as_of))
         return self.evidence
+
+
+class _UnitOfWork:
+    def __init__(self) -> None:
+        self.unit_of_work_key = "macro-factor-test-uow"
+        self.atomic_entries = 0
+
+    @contextmanager
+    def atomic(self) -> Iterator[None]:
+        self.atomic_entries += 1
+        yield
+
+
+class _Clock:
+    def __init__(self, now: datetime) -> None:
+        self.current = now
+        self.calls = 0
+
+    def now(self) -> datetime:
+        self.calls += 1
+        return self.current
 
 
 @dataclass(frozen=True)
@@ -307,6 +337,8 @@ def _execute(
     use_default_trial: bool = True,
     use_default_decision: bool = True,
     use_default_monitoring: bool = True,
+    unit_of_work: _UnitOfWork | None = None,
+    clock: _Clock | None = None,
 ):
     regime_provider = _RegimeProvider(case.report if use_default_report else report)
     trial_provider = _TrialProvider(case.trial if use_default_trial else trial)
@@ -320,6 +352,8 @@ def _execute(
         trial_provider=trial_provider,
         promotion_provider=promotion_provider,
         monitoring_provider=monitoring_provider,
+        unit_of_work=unit_of_work or _UnitOfWork(),
+        clock=clock or _Clock(datetime(2027, 1, 1, tzinfo=UTC)),
     ).execute(case.command)
     return assessment, regime_provider, trial_provider, promotion_provider, monitoring_provider
 
@@ -344,10 +378,13 @@ def test_complete_exact_projection_remains_research_only_and_not_current() -> No
         case.ledger.artifact.content_hash,
         case.command.as_of,
     )
-    assert regime.calls == [expected_call]
-    assert trial.calls == [expected_call]
-    assert promotion.calls == [(case.trial.trial_id, case.trial.content_hash, case.command.as_of)]
-    assert monitoring.calls == [expected_call]
+    assert regime.calls == [expected_call, expected_call]
+    assert trial.calls == [expected_call, expected_call]
+    assert promotion.calls == [
+        (case.trial.trial_id, case.trial.content_hash, case.command.as_of),
+        (case.trial.trial_id, case.trial.content_hash, case.command.as_of),
+    ]
+    assert monitoring.calls == [expected_call, expected_call]
 
 
 def test_regime_report_recalculates_complete_oos_coverage_and_metrics() -> None:
@@ -551,8 +588,262 @@ def test_governed_read_requires_exact_hash_identities() -> None:
         trial_provider=_TrialProvider(case.trial),
         promotion_provider=_PromotionProvider(case.decision),
         monitoring_provider=_MonitoringProvider(case.monitoring),
+        unit_of_work=_UnitOfWork(),
+        clock=_Clock(datetime(2027, 1, 1, tzinfo=UTC)),
     ).execute(wrong_hash)
 
     assert assessment.blocker_codes == (R3GovernedReadBlockerCode.OUTPUT_MISMATCH,)
     with pytest.raises(ValueError, match="sha256"):
         replace(case.command, artifact_id="latest")
+
+
+def test_execute_revalidates_mutated_command_and_rejects_future_cutoff() -> None:
+    case = _case()
+    object.__setattr__(case.command, "expected_artifact_hash", object())
+
+    assessment, *_ = _execute(case)
+
+    assert assessment.status is R3GovernedReadStatus.BLOCKED
+    assert assessment.blocker_codes == (R3GovernedReadBlockerCode.READ_INPUT_INVALID,)
+    assert assessment.projection is None
+    assert case.ledger.calls == 0
+
+    future = _case()
+    assessment, *_ = _execute(
+        future,
+        clock=_Clock(future.command.as_of - timedelta(microseconds=1)),
+    )
+    assert assessment.blocker_codes == (R3GovernedReadBlockerCode.READ_INPUT_INVALID,)
+    assert assessment.projection is None
+    assert future.ledger.calls == 0
+
+
+def test_complete_read_uses_one_atomic_and_revalidates_dynamic_uow_keys() -> None:
+    case = _case()
+    unit_of_work = _UnitOfWork()
+
+    assessment, *_ = _execute(case, unit_of_work=unit_of_work)
+
+    assert assessment.status is R3GovernedReadStatus.EVIDENCE_COMPLETE
+    assert unit_of_work.atomic_entries == 1
+
+    mismatched = _case()
+    mismatched.ledger.unit_of_work_key = "another-uow"
+    assessment, *_ = _execute(mismatched)
+    assert assessment.blocker_codes == (R3GovernedReadBlockerCode.OWNER_EVIDENCE_UNAVAILABLE,)
+    assert assessment.projection is None
+    assert mismatched.ledger.calls == 0
+
+    dynamic = _case()
+
+    class _DriftingKeyRegimeProvider:
+        def __init__(self) -> None:
+            self.key_reads = 0
+            self.calls: list[tuple[str, str, datetime]] = []
+
+        @property
+        def unit_of_work_key(self) -> str:
+            self.key_reads += 1
+            return "macro-factor-test-uow" if self.key_reads <= 4 else "drifted-uow"
+
+        def get_report(
+            self,
+            *,
+            artifact_id: str,
+            expected_artifact_hash: str,
+            as_of: datetime,
+        ) -> R3RegimeSegmentReport | None:
+            self.calls.append((artifact_id, expected_artifact_hash, as_of))
+            return dynamic.report
+
+    drifting_provider = _DriftingKeyRegimeProvider()
+    assessment = ReadGovernedR3Output(
+        ledger=dynamic.ledger,
+        regime_provider=drifting_provider,
+        trial_provider=_TrialProvider(dynamic.trial),
+        promotion_provider=_PromotionProvider(dynamic.decision),
+        monitoring_provider=_MonitoringProvider(dynamic.monitoring),
+        unit_of_work=_UnitOfWork(),
+        clock=_Clock(datetime(2027, 1, 1, tzinfo=UTC)),
+    ).execute(dynamic.command)
+    assert assessment.blocker_codes == (R3GovernedReadBlockerCode.OWNER_EVIDENCE_UNAVAILABLE,)
+    assert assessment.projection is None
+    assert drifting_provider.key_reads == 5
+
+
+def test_complete_owner_graph_is_deep_reread_before_projection() -> None:
+    case = _case()
+    changed_monitoring = replace(
+        case.monitoring,
+        observations=_monitoring_observations(Decimal("0.19"), Decimal("0.17")),
+    )
+
+    class _DriftingMonitoringProvider(_MonitoringProvider):
+        def get_monitoring(
+            self,
+            *,
+            artifact_id: str,
+            expected_artifact_hash: str,
+            as_of: datetime,
+        ) -> R3MonitoringEvidence | None:
+            self.calls.append((artifact_id, expected_artifact_hash, as_of))
+            return case.monitoring if len(self.calls) == 1 else changed_monitoring
+
+    provider = _DriftingMonitoringProvider(case.monitoring)
+    assessment = ReadGovernedR3Output(
+        ledger=case.ledger,
+        regime_provider=_RegimeProvider(case.report),
+        trial_provider=_TrialProvider(case.trial),
+        promotion_provider=_PromotionProvider(case.decision),
+        monitoring_provider=provider,
+        unit_of_work=_UnitOfWork(),
+        clock=_Clock(datetime(2027, 1, 1, tzinfo=UTC)),
+    ).execute(case.command)
+
+    assert assessment.blocker_codes == (R3GovernedReadBlockerCode.OWNER_EVIDENCE_UNAVAILABLE,)
+    assert assessment.projection is None
+    assert len(provider.calls) == 2
+
+
+@pytest.mark.parametrize(
+    "boundary",
+    (
+        "clock",
+        "ledger_artifact",
+        "ledger_outputs",
+        "ledger_lifecycle",
+        "regime",
+        "trial",
+        "promotion",
+        "monitoring",
+        "malformed",
+    ),
+)
+def test_boundary_failures_are_stable_blockers(boundary: str) -> None:
+    case = _case()
+
+    class _FailingClock(_Clock):
+        def now(self) -> datetime:
+            raise RuntimeError("clock unavailable")
+
+    class _FailingLedger(_Ledger):
+        def __init__(
+            self,
+            artifact: ReproducibleMacroFactorRunArtifact,
+            outputs: tuple[DatedMacroFactorOutput, ...],
+            events: tuple[MacroFactorLifecycleEvent, ...],
+            failure: str,
+        ) -> None:
+            super().__init__(artifact, outputs, events)
+            self.failure = failure
+
+        def get_artifact(
+            self,
+            artifact_id: str,
+        ) -> ReproducibleMacroFactorRunArtifact | None:
+            if self.failure == "ledger_artifact":
+                raise RuntimeError("ledger unavailable")
+            return super().get_artifact(artifact_id)
+
+        def list_outputs(self, artifact_id: str) -> tuple[DatedMacroFactorOutput, ...]:
+            if self.failure == "ledger_outputs":
+                raise RuntimeError("ledger unavailable")
+            return super().list_outputs(artifact_id)
+
+        def list_lifecycle_events(
+            self,
+            artifact_id: str,
+        ) -> tuple[MacroFactorLifecycleEvent, ...]:
+            if self.failure == "ledger_lifecycle":
+                raise RuntimeError("ledger unavailable")
+            return super().list_lifecycle_events(artifact_id)
+
+    class _FailingRegimeProvider(_RegimeProvider):
+        def get_report(
+            self,
+            *,
+            artifact_id: str,
+            expected_artifact_hash: str,
+            as_of: datetime,
+        ) -> R3RegimeSegmentReport | None:
+            raise RuntimeError("owner unavailable")
+
+    class _FailingTrialProvider(_TrialProvider):
+        def get_trial(
+            self,
+            *,
+            artifact_id: str,
+            expected_artifact_hash: str,
+            as_of: datetime,
+        ) -> R3ExperimentTrialEvidence | None:
+            raise RuntimeError("owner unavailable")
+
+    class _FailingPromotionProvider(_PromotionProvider):
+        def get_decision(
+            self,
+            *,
+            trial_id: str,
+            expected_trial_hash: str,
+            as_of: datetime,
+        ) -> R3PromotionDecisionEvidence | None:
+            raise RuntimeError("owner unavailable")
+
+    class _FailingMonitoringProvider(_MonitoringProvider):
+        def get_monitoring(
+            self,
+            *,
+            artifact_id: str,
+            expected_artifact_hash: str,
+            as_of: datetime,
+        ) -> R3MonitoringEvidence | None:
+            raise RuntimeError("owner unavailable")
+
+    class _MalformedRegimeProvider(_RegimeProvider):
+        def get_report(  # type: ignore[override]
+            self,
+            *,
+            artifact_id: str,
+            expected_artifact_hash: str,
+            as_of: datetime,
+        ) -> object:
+            return object()
+
+    clock: _Clock = _Clock(datetime(2027, 1, 1, tzinfo=UTC))
+    ledger: _Ledger = case.ledger
+    regime: _RegimeProvider = _RegimeProvider(case.report)
+    trial: _TrialProvider = _TrialProvider(case.trial)
+    promotion: _PromotionProvider = _PromotionProvider(case.decision)
+    monitoring: _MonitoringProvider = _MonitoringProvider(case.monitoring)
+    if boundary == "clock":
+        clock = _FailingClock(clock.current)
+    elif boundary.startswith("ledger_"):
+        ledger = _FailingLedger(
+            case.ledger.artifact,
+            case.ledger.outputs,
+            case.ledger.events,
+            boundary,
+        )
+    elif boundary == "regime":
+        regime = _FailingRegimeProvider(case.report)
+    elif boundary == "trial":
+        trial = _FailingTrialProvider(case.trial)
+    elif boundary == "promotion":
+        promotion = _FailingPromotionProvider(case.decision)
+    elif boundary == "monitoring":
+        monitoring = _FailingMonitoringProvider(case.monitoring)
+    elif boundary == "malformed":
+        regime = _MalformedRegimeProvider(case.report)
+
+    assessment = ReadGovernedR3Output(
+        ledger=ledger,
+        regime_provider=regime,
+        trial_provider=trial,
+        promotion_provider=promotion,
+        monitoring_provider=monitoring,
+        unit_of_work=_UnitOfWork(),
+        clock=clock,
+    ).execute(case.command)
+
+    assert assessment.status is R3GovernedReadStatus.BLOCKED
+    assert assessment.blocker_codes == (R3GovernedReadBlockerCode.OWNER_EVIDENCE_UNAVAILABLE,)
+    assert assessment.projection is None
