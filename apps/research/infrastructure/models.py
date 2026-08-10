@@ -226,6 +226,11 @@ from apps.research.infrastructure.r7_research_result_lifecycle_models import (  
 from apps.research.infrastructure.r7_research_result_models import (  # noqa: E402,F401
     R7ResearchResultModel,
 )
+from apps.research.infrastructure.r7_post_promotion_monitoring_models import (  # noqa: E402,F401
+    R7MonitoringAssessmentLedgerModel,
+    R7MonitoringAuditSnapshotModel,
+    R7MonitoringObservationLedgerModel,
+)
 from apps.research.infrastructure.r7_sample_policy_models import (  # noqa: E402,F401
     R7SamplePolicyApprovalReceiptModel,
     R7SamplePolicyModel,
