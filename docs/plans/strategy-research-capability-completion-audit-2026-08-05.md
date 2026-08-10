@@ -11,7 +11,7 @@
 - 未发现当前代码可越过 research-only/readiness 直接影响生产决策或执行的 P0。
 - 真实数据、Publication、PIT 样本、历史 outcome、外部对账和 PromotionDecision 仍是外部阻断。
 - 同时确认多项纯软件能力仍可在无真实数据时开发，因此不得再使用“R1—R8 无数据基础全部完成”的口径。
-- 最新续批关闭 R3 caller-supplied runner spec及其Research-owned persistence、R4/R5/R8 post-promotion monitoring Phase A+B、R8 lifecycle 非原子写入与 R7 production composition writer capability 软件 P1；独立交叉复核在修复后均未发现遗留 P0/P1。
+- 最新续批关闭 R3 caller-supplied runner spec及其Research-owned persistence、R4/R5/R8 post-promotion monitoring Phase A+B、R8 lifecycle 非原子写入、R7 production composition writer capability及 R7 post-promotion monitoring Phase A 软件 P1；独立交叉复核在修复后均未发现遗留 P0/P1。
 
 ## 2. 逐能力剩余开发项
 
@@ -23,7 +23,7 @@
 | R4 | beta/CI/R²/残差、PSD、风险贡献、typed rolling/regime、三基准同窗 OOS、Portfolio result ledger/query、covariance diagnostics、Research stable scope/policy/trial/decision、五表 append-only ledger、lifecycle/active provider、concrete composition，以及 post-promotion monitoring Phase A+B 三表持久化 | canonical monitoring owner composition；下游 active consumer 接线须等待真实 Promotion 并另行验收 | R3 晋级版本、真实 exposure/covariance/constraint snapshot、Regime PIT assignment、owner authorization、monitoring facts 和历史样本 |
 | R5 | 单券定价/久期/凸性/carry/roll-down、相对价值/组合风险、fixed_income/Portfolio/Research append-only owner ledgers、cross-owner UoW、Promotion/retire/rollback与post-promotion monitoring Phase A+B persistence | canonical monitoring owner composition；下游 active consumer仍须等待真实Promotion后另验 | 两条曲线、信用估值、Bond Master/CashFlow/Calendar Publication、PIT/OOS、容量/借券、authorization、monitoring facts与外部对账 |
 | R6 | 简单基准不足、高级 artifact gate、七指标 qualification/政策反应诊断、assessment/lifecycle ledger、monitoring persistence，以及 activation/RETIRE/`stack[-2]` rollback Phase A+B 四本 ledger | canonical owner adapters、真实 PostgreSQL 并发与 DB-level permission/signature depth；不得提前接 consumer | 真实 shortfall、PIT/OOS、稳定标签、政策目标、monitoring facts、owner authorization 与 Promotion |
-| R7 | 概率分栏、Brier/分箱、PIT 类比/路径、reminder/sample-policy/result/lifecycle ledger、物化审计 snapshot 与无状态 production façade | post-promotion monitoring、family-level rollback、production Risk Center owner adapter；不在 fixture 上接 probability/current/consumer | 完整预测—复核—兑现历史、获批 sample policy、PIT 路径样本、owner authorization 与合格 result |
+| R7 | 概率分栏、Brier/分箱、PIT 类比/路径、reminder/sample-policy/result/lifecycle ledger、物化审计 snapshot、无状态 production façade，以及完整 lifecycle/Forecast Ledger/calendar/PIT 约束的 post-promotion monitoring Phase A | monitoring Application/persistence、family-level rollback、production Risk Center/Forecast Ledger owner adapter；不在 fixture 上接 probability/current/consumer | 完整预测—复核—兑现历史、获批 sample policy、PIT 路径样本、owner authorization 与合格 result |
 | R8 | canonical snapshot、execution feedback、13 类 typed 输入、current baseline、可投资 universe、四市场约束、path drawdown、四候选比较、独立 canonical input receipt、exact result/receipt DB version constraint、ID-only shared-UoW/server-clock lifecycle、post-promotion monitoring Phase A+B、fail-closed composition 与无状态 production façades | canonical monitoring owner composition及真实 Research/Portfolio provider接线；上线前补 PostgreSQL并发证据 | broker reconciliation、R3/R4/R5 晋级、真实 Portfolio snapshot、成本/容量/市场约束校准 |
 
 ## 3. 本批完成项
@@ -174,7 +174,7 @@
 
 ## 4. 后续实施顺序
 
-1. R7 post-promotion monitoring Phase A 的收窄事实模型与 family-level rollback。
+1. R7 post-promotion monitoring Application/persistence 与 family-level rollback。
 2. R2 explanatory trial/monitoring persistence及 concrete owner composition。
 3. 真实证据到位后再接 R3/R4/R5/R8 canonical owner composition 与下游 consumer。
 
