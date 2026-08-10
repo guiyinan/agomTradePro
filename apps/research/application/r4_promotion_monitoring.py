@@ -246,6 +246,13 @@ class EvaluateR4PromotionMonitoring:
             raise R4MonitoringUnavailable("R4 monitoring owners use different units of work")
         self._expected_uow_key = next(iter(keys))
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the live shared owner transaction identity."""
+
+        self._require_unchanged_uow()
+        return self._expected_uow_key
+
     def execute(
         self,
         command: EvaluateR4PromotionMonitoringCommand,

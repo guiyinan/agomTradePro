@@ -192,6 +192,11 @@ from apps.research.infrastructure.r4_promotion_models import (  # noqa: E402,F40
     R4PromotionLifecycleEventModel,
     R4PromotionPolicyModel,
 )
+from apps.research.infrastructure.r4_promotion_monitoring_models import (  # noqa: E402,F401
+    R4MonitoringAssessmentLedgerModel,
+    R4MonitoringAuditSnapshotModel,
+    R4MonitoringObservationLedgerModel,
+)
 from apps.research.infrastructure.r5_relative_value_promotion_models import (  # noqa: E402,F401
     R5PromotionArtifactModel,
     R5PromotionDecisionAuthorizationModel,
