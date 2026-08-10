@@ -11,14 +11,14 @@
 - 未发现当前代码可越过 research-only/readiness 直接影响生产决策或执行的 P0。
 - 真实数据、Publication、PIT 样本、历史 outcome、外部对账和 PromotionDecision 仍是外部阻断。
 - 同时确认多项纯软件能力仍可在无真实数据时开发，因此不得再使用“R1—R8 无数据基础全部完成”的口径。
-- 最新续批关闭 R3 caller-supplied runner spec及其Research-owned persistence、R4/R5/R8 post-promotion monitoring Phase A+B、R8 lifecycle 非原子写入、R7 production composition writer capability及 R7 post-promotion monitoring Phase A 软件 P1；独立交叉复核在修复后均未发现遗留 P0/P1。
+- 最新续批关闭 R2 explanatory trial/monitoring persistence、R3 caller-supplied runner spec及其Research-owned persistence、R4/R5/R8 post-promotion monitoring Phase A+B、R8 lifecycle 非原子写入、R7 production composition writer capability及 R7 post-promotion monitoring Phase A 软件 P1；独立交叉复核在修复后均未发现遗留 P0/P1。
 
 ## 2. 逐能力剩余开发项
 
 | 能力 | 已有可靠基础 | 仍可无数据开发的主要 P1 | 必须等待的真实证据 |
 |---|---|---|---|
 | R1 | Sector typed AST/DAG、三情景、PIT fact、Equity 误差台账与持久 bridge、cash-flow/六阶段/template-run seal、owner-approval-enforced baseline spec、完整配对 trial、Research exact Promotion/retirement/rollback | 当前 R1 无数据软件切片经 Luna Max 复核已无 P0/P1；Valuation 消费须等待真实证据并另建阶段 | QW-7 反馈、连续行业 KPI、财务/估值 Publication、真实 owner approval、trial 与 approved decision |
-| R2 | actor/series 双时间、proxy/measure semantics、PIT membership、描述性证据、版本化 expected-period calendar、完整 coverage、Publication exact gate/Promotion lifecycle，以及两周期 explanatory trial/monitoring 纯合同 | persistence/concrete owner providers 留作后续；不得把合成 trial 或描述性 evidence 当预测信号 | 获批 taxonomy/calendar、owner authorization、两个市场周期、Production Publication 与真实 Audit outcome |
+| R2 | actor/series 双时间、proxy/measure semantics、PIT membership、描述性证据、版本化 expected-period calendar、完整 coverage、Publication exact gate/Promotion lifecycle、两周期 explanatory trial/monitoring合同，以及 `0016` 四本 append-only persistence | concrete owner composition留作后续；旧 v1 Promotion不得冒充PASSED trial，合成 trial或描述性evidence不得成为预测信号 | 获批 taxonomy/calendar、owner authorization、两个市场周期、Production Publication 与真实 Audit outcome |
 | R3 | 独立 App、exact PIT fact/manifest、historical-mean/FMP、concrete sklearn Lasso/OLS、nested temporal-CV、完整 spec/request canonical seal、Research-owned authoritative spec ledger/exact provider、独立 label-free inference row/target calendar、dated ledger、governed read 与 retirement lifecycle | 真实 definition provider composition、canonical Data Center/Regime owner adapters、真实 inference Publication/calendar、trial/monitoring composition；不得用 synthetic PIT attested ready | 宏观 vintage、代理资产/连续期货、真实 cost/benchmark、Regime/OOS trial、owner authorization 与 Promotion |
 | R4 | beta/CI/R²/残差、PSD、风险贡献、typed rolling/regime、三基准同窗 OOS、Portfolio result ledger/query、covariance diagnostics、Research stable scope/policy/trial/decision、五表 append-only ledger、lifecycle/active provider、concrete composition，以及 post-promotion monitoring Phase A+B 三表持久化 | canonical monitoring owner composition；下游 active consumer 接线须等待真实 Promotion 并另行验收 | R3 晋级版本、真实 exposure/covariance/constraint snapshot、Regime PIT assignment、owner authorization、monitoring facts 和历史样本 |
 | R5 | 单券定价/久期/凸性/carry/roll-down、相对价值/组合风险、fixed_income/Portfolio/Research append-only owner ledgers、cross-owner UoW、Promotion/retire/rollback与post-promotion monitoring Phase A+B persistence | canonical monitoring owner composition；下游 active consumer仍须等待真实Promotion后另验 | 两条曲线、信用估值、Bond Master/CashFlow/Calendar Publication、PIT/OOS、容量/借券、authorization、monitoring facts与外部对账 |
@@ -175,7 +175,7 @@
 ## 4. 后续实施顺序
 
 1. R7 post-promotion monitoring Application/persistence 与 family-level rollback。
-2. R2 explanatory trial/monitoring persistence及 concrete owner composition。
+2. R2 explanatory trial/monitoring concrete owner composition。
 3. 真实证据到位后再接 R3/R4/R5/R8 canonical owner composition 与下游 consumer。
 
 R1 与 R8 本轮无数据软件清单已关闭。R1 只有取得真实 QW-7、Publication、连续 KPI、真实 trial 与 approved decision 后，才另建 Valuation 消费阶段；R8 只有取得真实 R3/R4/R5 Promotion、Portfolio snapshot、broker reconciliation 和约束校准后，才另建 transition plan/生产消费阶段。两者都不在 fixture 上提前接线。

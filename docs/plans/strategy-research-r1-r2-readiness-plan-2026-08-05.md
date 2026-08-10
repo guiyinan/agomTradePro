@@ -1,6 +1,6 @@
 # R1/R2 策略研究能力启动门整改计划（2026-08-05）
 
-> 状态：**R1 持久证据桥接、精确 baseline/Promotion 生命周期与 R2 expected-period coverage 已实现；真实数据和真实晋级证据仍缺失，R1/R2 能力保持 Blocked**
+> 状态：**R1 持久证据桥接、精确 baseline/Promotion 生命周期与 R2 expected-period/trial-monitoring persistence 已实现；真实数据和真实晋级证据仍缺失，R1/R2 能力保持 Blocked**
 > 依据：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
 > 复核基线：`dev/refactor-scenario-governance-quick-wins`
 > 本轮主任务：判断 R1 行业经营驱动与盈利预测、R2 市场结构与投资者资金流是否具备启动条件。
@@ -245,6 +245,8 @@ python scripts/verify_architecture.py --include-audit --format text
 2026-08-07 R2 Publication/Promotion 软件续批：Data Center taxonomy actor/series 与 period-calendar 已接入 Canonical Publication/member 精确 attestation，Research `0009` 已落地 policy/decision/PROMOTE-RETIRE-ROLLBACK append-only ledger、ID-only shared-UoW 与 PIT active replay。unit `24 passed`、Data Center component `6 passed`、Research component `2 passed`、migration `2 passed`；真实 taxonomy/calendar Publication、两个市场周期 coverage manifest 与 owner policy/authorization 仍缺，R2 继续 `blocked`。
 
 2026-08-09 R2 两周期 trial/monitoring Phase A：新增纯 Domain/Application 的预注册解释力 trial 与 monitoring 合同。Policy 精确封存 taxonomy/calendar Publication projection、canonical series×period manifest、恰好两个完整且不重叠的市场周期、selection cutoff、指标/阈值、Holm-v1 与 invalidation；Audit outcome 与 monitoring facts 只能通过 ID-only exact provider 重读，coverage/denominator、adjusted p-value、stability 与 `delta_r2` 均现场派生。所有结果固定 descriptive/research-only，并强制禁止 predictive signal/current/decision/execution；targeted `31 passed`，独立复核 P0/P1/P2 均为 0。真实两周期数据、Publication、Audit outcome 与生产 provider 尚未形成，因此 readiness 不变。
+
+2026-08-10 R2 两周期 trial/monitoring Phase B：Research `0016` 建立 trial assessment、assessment-scoped monitoring observation、monitoring assessment 与 audit snapshot 四本 schema-only ledger，无 seed/backfill。Phase A owner providers、clock、evaluator和writer使用同一 exact UoW；事务内 owner graph 双读后，persistence 在 append 前再次完整取证并逐图比较，第三次读取漂移稳定 unavailable/zero-write。Strict codec、server ledger clock、exact PIT、幂等 winner/fork、signed immutable audit、unclaimed ORM mutation和0015→0016→0015→0016 zero-seed均验证。Production register/audit仍为无状态 unavailable façade，旧 `0009` Promotion 不被解释为 PASSED explanatory trial；真实 provider和数据条件不变。
 
 ## 9. 回滚
 
