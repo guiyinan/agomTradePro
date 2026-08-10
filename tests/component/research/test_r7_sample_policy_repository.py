@@ -31,8 +31,8 @@ from apps.research.infrastructure.r7_sample_policy_repository import (
     _policy_values,
 )
 from apps.research.r7_sample_policy_composition import (
-    DjangoR7SamplePolicyRuntime,
     _build_django_r7_sample_policy_test_runtime,
+    _DjangoR7SamplePolicyTestRuntime,
     build_django_r7_sample_policy_runtime,
 )
 from tests.unit.research.r7_sample_policy_factories import (
@@ -140,7 +140,7 @@ class AuthorizationProvider:
 
 @dataclass
 class RuntimeFixture:
-    runtime: DjangoR7SamplePolicyRuntime
+    runtime: _DjangoR7SamplePolicyTestRuntime
     clock: FixedClock
     draft: R7SamplePolicyRegistrationDraft
     authorization: AuthorizationProvider
@@ -172,12 +172,9 @@ def _command(fixture: RuntimeFixture) -> RegisterR7SamplePolicyCommand:
 @pytest.mark.django_db
 def test_production_runtime_stays_fail_closed_without_risk_center_owner_evidence() -> None:
     draft = make_draft()
-    runtime = build_django_r7_sample_policy_runtime(
-        definition_provider=DefinitionProvider(draft),
-        clock=FixedClock(RECORDED_AT),
-    )
+    runtime = build_django_r7_sample_policy_runtime()
     authorization = make_authorization(draft)
-    with pytest.raises(R7SamplePolicyUnavailable, match="Risk Center owner approval"):
+    with pytest.raises(R7SamplePolicyUnavailable, match="owner providers"):
         runtime.register.execute(
             RegisterR7SamplePolicyCommand(
                 policy_id=draft.policy_id,

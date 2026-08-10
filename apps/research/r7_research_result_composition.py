@@ -96,9 +96,41 @@ class _R7ResearchResultRegistrationWriter:
             raise R7ResearchResultConflict("R7 research result race lost") from exc
 
 
-@dataclass(frozen=True)
+class _UnavailableR7ResearchResultRegistrationFacade:
+    """State-free production writer surface while canonical owners are absent."""
+
+    __slots__ = ()
+
+    def execute(
+        self,
+        command: RegisterR7ResearchResultCommand,
+    ) -> PersistedR7ResearchResult:
+        """Validate the ID-only command and fail before any repository is built."""
+
+        try:
+            if type(command) is not RegisterR7ResearchResultCommand:
+                raise TypeError
+            command.__post_init__()
+        except (AttributeError, TypeError, ValueError) as error:
+            raise R7ResearchResultUnavailable(
+                "R7 research result registration command is invalid"
+            ) from error
+        raise R7ResearchResultUnavailable(
+            "R7 research result canonical owner providers are unavailable"
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class DjangoR7ResearchResultRuntime:
-    """Safe public registration/query capabilities for the result ledger."""
+    """Production-safe inert registration plus an exact read-only query."""
+
+    register: _UnavailableR7ResearchResultRegistrationFacade
+    get_exact: GetExactR7ResearchResult
+
+
+@dataclass(frozen=True, slots=True)
+class _DjangoR7ResearchResultTestRuntime:
+    """Private injectable runtime used by persistence component tests."""
 
     register: RegisterR7ResearchResult
     get_exact: GetExactR7ResearchResult
@@ -107,13 +139,26 @@ class DjangoR7ResearchResultRuntime:
 
 def build_django_r7_research_result_runtime(
     *,
+    using: str = "default",
+) -> DjangoR7ResearchResultRuntime:
+    """Build an inert writer and a read-only exact query with no caller owner ports."""
+
+    repository = DjangoR7ResearchResultRepository(using=using)
+    return DjangoR7ResearchResultRuntime(
+        register=_UnavailableR7ResearchResultRegistrationFacade(),
+        get_exact=GetExactR7ResearchResult(repository),
+    )
+
+
+def _build_django_r7_research_result_test_runtime(
+    *,
     forecast_provider: ExactR7ForecastObservationProvider,
     historical_analogy_provider: ExactR7HistoricalAnalogyProvider,
     path_study_provider: ExactR7PathStudyProvider,
     using: str = "default",
     clock: R7ResearchResultClock | None = None,
-) -> DjangoR7ResearchResultRuntime:
-    """Build a runtime that has no fake/default data or owner evidence path."""
+) -> _DjangoR7ResearchResultTestRuntime:
+    """Build the private injectable runtime used by component tests."""
 
     authoritative_clock = clock or DjangoR7ResearchResultClock()
     store = _DjangoR7ResearchResultStore(using=using)
@@ -145,7 +190,7 @@ def build_django_r7_research_result_runtime(
         store=store,
         clock=authoritative_clock,
     )
-    return DjangoR7ResearchResultRuntime(
+    return _DjangoR7ResearchResultTestRuntime(
         register=RegisterR7ResearchResult(writer),
         get_exact=GetExactR7ResearchResult(repository),
         repository=repository,

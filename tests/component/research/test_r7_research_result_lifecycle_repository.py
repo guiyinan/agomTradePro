@@ -51,7 +51,8 @@ from apps.research.infrastructure.r7_research_result_lifecycle_repository import
 )
 from apps.research.infrastructure.r7_research_result_models import R7ResearchResultModel
 from apps.research.r7_research_result_lifecycle_composition import (
-    DjangoR7ResultLifecycleRuntime,
+    _build_django_r7_result_lifecycle_test_runtime,
+    _DjangoR7ResultLifecycleTestRuntime,
     build_django_r7_result_lifecycle_runtime,
 )
 from tests.component.research.test_r7_research_result_repository import (
@@ -95,7 +96,7 @@ class AuthorizationProvider:
 
 @dataclass(frozen=True)
 class LifecycleFixture:
-    runtime: DjangoR7ResultLifecycleRuntime
+    runtime: _DjangoR7ResultLifecycleTestRuntime
     repository: _DjangoR7ResultLifecycleStore
     provider: AuthorizationProvider
     clock: FixedClock
@@ -103,7 +104,7 @@ class LifecycleFixture:
 
 def _lifecycle_runtime(clock: FixedClock) -> LifecycleFixture:
     provider = AuthorizationProvider()
-    runtime = build_django_r7_result_lifecycle_runtime(
+    runtime = _build_django_r7_result_lifecycle_test_runtime(
         authorization_provider=provider,
         clock=clock,
     )
@@ -154,6 +155,25 @@ def _apply_command(
             authorization.authorization_version,
         ),
     )
+
+
+@pytest.mark.django_db
+def test_production_runtime_without_owner_graph_is_inert_and_writes_nothing() -> None:
+    runtime = build_django_r7_result_lifecycle_runtime()
+    command = ApplyR7ResultLifecycleCommand(
+        result_ref=R7ResearchResultRef("r7-result", "result-v1", "a" * 64),
+        action=R7ResultLifecycleAction.PROMOTE,
+        authorization_ref=R7ResultLifecycleAuthorizationRef(
+            "r7-lifecycle-authorization",
+            "authorization-v1",
+        ),
+    )
+
+    with pytest.raises(R7ResultLifecycleUnavailable, match="owner provider"):
+        runtime.apply.execute(command)
+
+    assert R7ResultLifecycleAuthorizationModel._default_manager.count() == 0
+    assert R7ResultLifecycleEventModel._default_manager.count() == 0
 
 
 @pytest.mark.django_db
