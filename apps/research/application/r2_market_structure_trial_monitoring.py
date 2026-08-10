@@ -7,6 +7,8 @@ from its owner and its content seal is recomputed before Domain evaluation.
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
@@ -62,12 +64,37 @@ def _require_hash(value: str, field_name: str) -> None:
 class R2TrialMonitoringClock(Protocol):
     """Authoritative server clock used to reject future PIT cutoffs."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact storage snapshot identity used by owner reads."""
+
     def now(self) -> datetime:
         """Return one timezone-aware server timestamp."""
 
 
+class R2TrialMonitoringUnitOfWork(Protocol):
+    """Shared transaction boundary for every authoritative R2 owner read."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity."""
+
+    def atomic(self) -> AbstractContextManager[None]:
+        """Open one atomic owner-read transaction."""
+
+
+class _R2UnitOfWorkParticipant(Protocol):
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity."""
+
+
 class ExactR2TrialPolicyProvider(Protocol):
     """Research owner port for one exact preregistered policy body."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity."""
 
     def get_exact(
         self,
@@ -82,6 +109,10 @@ class ExactR2TrialPolicyProvider(Protocol):
 
 class ExactR2CanonicalPublicationProvider(Protocol):
     """Canonical taxonomy/calendar owner port."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity."""
 
     def get_exact(
         self,
@@ -99,6 +130,10 @@ class ExactR2CanonicalPublicationProvider(Protocol):
 class ExactR2CyclePITEvidenceProvider(Protocol):
     """Owner port for exact complete-cycle PIT artifacts."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity."""
+
     def get_exact(
         self,
         *,
@@ -112,6 +147,10 @@ class ExactR2CyclePITEvidenceProvider(Protocol):
 
 class ExactR2AuditOutcomeProvider(Protocol):
     """Audit owner port for derived explanatory metrics and outcome."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity."""
 
     def get_exact(
         self,
@@ -128,6 +167,10 @@ class ExactR2AuditOutcomeProvider(Protocol):
 
 class ExactR2MonitoringRawFactProvider(Protocol):
     """Monitoring owner port returning raw facts, never an assessment."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity."""
 
     def list_exact(
         self,
@@ -171,6 +214,107 @@ class _R2GraphLoad:
     graph: _R2EvidenceGraph | None
     policy_ref: R2EvidenceRef | None
     blockers: tuple[R2TrialBlockerCode, ...]
+
+
+class R2TrialMonitoringUnavailable(RuntimeError):
+    """A complete authoritative R2 owner graph is unavailable."""
+
+
+@dataclass(frozen=True)
+class R2ExplanatoryTrialEvaluationEvidence:
+    """Complete double-read owner graph and locally derived trial result."""
+
+    policy: R2MarketStructureTrialPolicy
+    taxonomy_publication: R2CanonicalPublicationEvidence
+    calendar_publication: R2CanonicalPublicationEvidence
+    cycles: tuple[R2CyclePITEvidence, ...]
+    audit_outcome: R2AuditExplanatoryOutcome
+    assessment: R2ExplanatoryTrialAssessment
+
+    def validated_copy(self) -> R2ExplanatoryTrialEvaluationEvidence:
+        """Deep-copy and replay the full trial evidence graph."""
+
+        rebuilt = deepcopy(self)
+        if rebuilt.assessment != _evaluate_trial_graph(
+            _R2EvidenceGraph(
+                policy=rebuilt.policy,
+                taxonomy_publication=rebuilt.taxonomy_publication,
+                calendar_publication=rebuilt.calendar_publication,
+                cycles=rebuilt.cycles,
+                audit_outcome=rebuilt.audit_outcome,
+            ),
+            rebuilt.assessment.assessed_at,
+        ):
+            raise ValueError("R2 trial evidence assessment cannot be replayed")
+        return rebuilt
+
+
+@dataclass(frozen=True)
+class R2MonitoringEvaluationEvidence:
+    """Complete double-read trial graph, raw facts, and monitoring result."""
+
+    trial: R2ExplanatoryTrialEvaluationEvidence
+    facts: tuple[R2MonitoringRawFact, ...]
+    assessment: R2MonitoringAssessment
+
+    def validated_copy(self) -> R2MonitoringEvaluationEvidence:
+        """Deep-copy and replay the complete monitoring evidence graph."""
+
+        rebuilt = deepcopy(self)
+        trial = rebuilt.trial.validated_copy()
+        expected = evaluate_r2_monitoring(
+            policy=trial.policy,
+            taxonomy_publication=trial.taxonomy_publication,
+            calendar_publication=trial.calendar_publication,
+            trial_assessment=trial.assessment,
+            facts=rebuilt.facts,
+            assessed_at=rebuilt.assessment.assessed_at,
+        )
+        if rebuilt.assessment != expected:
+            raise ValueError("R2 monitoring evidence assessment cannot be replayed")
+        return rebuilt
+
+
+def _exact_unit_of_work_key(value: object) -> str:
+    if type(value) is not str or not value.strip() or len(value) > 192:
+        raise ValueError("R2 trial monitoring unit_of_work_key is invalid")
+    return value
+
+
+class _R2SharedUnitOfWork:
+    """Validate a stable shared UoW identity before and during execution."""
+
+    def __init__(
+        self,
+        *,
+        unit_of_work: R2TrialMonitoringUnitOfWork,
+        participants: tuple[_R2UnitOfWorkParticipant, ...],
+    ) -> None:
+        self._unit_of_work = unit_of_work
+        self._participants = participants
+        self._expected_key = self.validate()
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the construction baseline after live participant validation."""
+
+        self.validate()
+        return self._expected_key
+
+    def validate(self) -> str:
+        key = _exact_unit_of_work_key(self._unit_of_work.unit_of_work_key)
+        participant_keys = tuple(
+            _exact_unit_of_work_key(item.unit_of_work_key) for item in self._participants
+        )
+        if any(item != key for item in participant_keys):
+            raise ValueError("R2 trial monitoring owners must share one unit of work")
+        if hasattr(self, "_expected_key") and key != self._expected_key:
+            raise ValueError("R2 trial monitoring unit of work identity changed")
+        return key
+
+    def atomic(self) -> AbstractContextManager[None]:
+        self.validate()
+        return self._unit_of_work.atomic()
 
 
 class _R2EvidenceGraphLoader:
@@ -395,6 +539,7 @@ class EvaluateR2MarketStructureExplanatoryTrial:
         cycle_provider: ExactR2CyclePITEvidenceProvider,
         audit_provider: ExactR2AuditOutcomeProvider,
         clock: R2TrialMonitoringClock,
+        unit_of_work: R2TrialMonitoringUnitOfWork,
     ) -> None:
         self._loader = _R2EvidenceGraphLoader(
             policy_provider=policy_provider,
@@ -403,6 +548,22 @@ class EvaluateR2MarketStructureExplanatoryTrial:
             audit_provider=audit_provider,
             clock=clock,
         )
+        self._shared_uow = _R2SharedUnitOfWork(
+            unit_of_work=unit_of_work,
+            participants=(
+                policy_provider,
+                publication_provider,
+                cycle_provider,
+                audit_provider,
+                clock,
+            ),
+        )
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact shared UoW baseline after a live drift check."""
+
+        return self._shared_uow.unit_of_work_key
 
     def execute(
         self,
@@ -410,36 +571,85 @@ class EvaluateR2MarketStructureExplanatoryTrial:
     ) -> R2ExplanatoryTrialAssessment:
         """Reread owner evidence and derive a research-only trial assessment."""
 
+        result = self._execute(command)
+        return (
+            result.assessment
+            if isinstance(result, R2ExplanatoryTrialEvaluationEvidence)
+            else result
+        )
+
+    def execute_evidence(
+        self,
+        command: EvaluateR2MarketStructureTrialCommand,
+    ) -> R2ExplanatoryTrialEvaluationEvidence:
+        """Return a complete double-read graph or raise stable unavailability."""
+
+        result = self._execute(command)
+        if not isinstance(result, R2ExplanatoryTrialEvaluationEvidence):
+            raise R2TrialMonitoringUnavailable(
+                "complete R2 explanatory trial evidence is unavailable"
+            )
+        return result
+
+    def _execute(
+        self,
+        command: EvaluateR2MarketStructureTrialCommand,
+    ) -> R2ExplanatoryTrialEvaluationEvidence | R2ExplanatoryTrialAssessment:
+
         try:
-            loaded = self._loader.load(command)
-        except Exception:  # noqa: BLE001 - malformed owner content must block
+            command.__post_init__()
+            self._shared_uow.validate()
+            with self._shared_uow.atomic():
+                self._shared_uow.validate()
+                first = self._loader.load(command)
+                if first.graph is None:
+                    return R2ExplanatoryTrialAssessment.blocked(
+                        assessed_at=command.as_of,
+                        policy_ref=first.policy_ref,
+                        blockers=first.blockers,
+                    )
+                baseline = deepcopy(first.graph)
+                first_assessment = _evaluate_trial_graph(baseline, command.as_of)
+                second = self._loader.load(command)
+                if second.graph is None:
+                    return R2ExplanatoryTrialAssessment.blocked(
+                        assessed_at=command.as_of,
+                        policy_ref=second.policy_ref,
+                        blockers=second.blockers,
+                    )
+                reread = deepcopy(second.graph)
+                second_assessment = _evaluate_trial_graph(reread, command.as_of)
+                self._shared_uow.validate()
+                if baseline != reread or first_assessment != second_assessment:
+                    raise ValueError("R2 trial owner graph changed during evaluation")
+                return R2ExplanatoryTrialEvaluationEvidence(
+                    policy=reread.policy,
+                    taxonomy_publication=reread.taxonomy_publication,
+                    calendar_publication=reread.calendar_publication,
+                    cycles=reread.cycles,
+                    audit_outcome=reread.audit_outcome,
+                    assessment=second_assessment,
+                ).validated_copy()
+        except Exception:  # noqa: BLE001 - malformed owner/UoW content must block
             return R2ExplanatoryTrialAssessment.blocked(
                 assessed_at=command.as_of,
                 policy_ref=None,
                 blockers=(R2TrialBlockerCode.OWNER_EVIDENCE_UNAVAILABLE,),
             )
-        if loaded.graph is None:
-            return R2ExplanatoryTrialAssessment.blocked(
-                assessed_at=command.as_of,
-                policy_ref=loaded.policy_ref,
-                blockers=loaded.blockers,
-            )
-        graph = loaded.graph
-        try:
-            return evaluate_r2_explanatory_trial(
-                policy=graph.policy,
-                taxonomy_publication=graph.taxonomy_publication,
-                calendar_publication=graph.calendar_publication,
-                cycle_evidence=graph.cycles,
-                audit_outcome=graph.audit_outcome,
-                assessed_at=command.as_of,
-            )
-        except Exception:  # noqa: BLE001 - owner graph must not escape as an error
-            return R2ExplanatoryTrialAssessment.blocked(
-                assessed_at=command.as_of,
-                policy_ref=graph.policy.reference,
-                blockers=(R2TrialBlockerCode.OWNER_EVIDENCE_UNAVAILABLE,),
-            )
+
+
+def _evaluate_trial_graph(
+    graph: _R2EvidenceGraph,
+    assessed_at: datetime,
+) -> R2ExplanatoryTrialAssessment:
+    return evaluate_r2_explanatory_trial(
+        policy=graph.policy,
+        taxonomy_publication=graph.taxonomy_publication,
+        calendar_publication=graph.calendar_publication,
+        cycle_evidence=graph.cycles,
+        audit_outcome=graph.audit_outcome,
+        assessed_at=assessed_at,
+    )
 
 
 class EvaluateR2MarketStructureMonitoring:
@@ -454,6 +664,7 @@ class EvaluateR2MarketStructureMonitoring:
         audit_provider: ExactR2AuditOutcomeProvider,
         monitoring_fact_provider: ExactR2MonitoringRawFactProvider,
         clock: R2TrialMonitoringClock,
+        unit_of_work: R2TrialMonitoringUnitOfWork,
     ) -> None:
         self._loader = _R2EvidenceGraphLoader(
             policy_provider=policy_provider,
@@ -463,6 +674,23 @@ class EvaluateR2MarketStructureMonitoring:
             clock=clock,
         )
         self._monitoring_fact_provider = monitoring_fact_provider
+        self._shared_uow = _R2SharedUnitOfWork(
+            unit_of_work=unit_of_work,
+            participants=(
+                policy_provider,
+                publication_provider,
+                cycle_provider,
+                audit_provider,
+                monitoring_fact_provider,
+                clock,
+            ),
+        )
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact shared UoW baseline after a live drift check."""
+
+        return self._shared_uow.unit_of_work_key
 
     def execute(
         self,
@@ -470,14 +698,66 @@ class EvaluateR2MarketStructureMonitoring:
     ) -> R2MonitoringAssessment:
         """Reread raw monitoring facts and derive a manual-review-only assessment."""
 
+        result = self._execute(command)
+        return result.assessment if isinstance(result, R2MonitoringEvaluationEvidence) else result
+
+    def execute_evidence(
+        self,
+        command: EvaluateR2MarketStructureTrialCommand,
+    ) -> R2MonitoringEvaluationEvidence:
+        """Return complete double-read monitoring evidence or stable unavailability."""
+
+        result = self._execute(command)
+        if not isinstance(result, R2MonitoringEvaluationEvidence):
+            raise R2TrialMonitoringUnavailable("complete R2 monitoring evidence is unavailable")
+        return result
+
+    def _execute(
+        self,
+        command: EvaluateR2MarketStructureTrialCommand,
+    ) -> R2MonitoringEvaluationEvidence | R2MonitoringAssessment:
+
         try:
-            loaded = self._loader.load(command)
-        except Exception:  # noqa: BLE001 - malformed owner content must block
+            command.__post_init__()
+            self._shared_uow.validate()
+            with self._shared_uow.atomic():
+                self._shared_uow.validate()
+                first = self._evaluate_once(command)
+                if isinstance(first, R2MonitoringAssessment):
+                    return first
+                baseline = deepcopy(first)
+                second = self._evaluate_once(command)
+                if isinstance(second, R2MonitoringAssessment):
+                    return second
+                reread = deepcopy(second)
+                self._shared_uow.validate()
+                if baseline != reread:
+                    raise ValueError("R2 monitoring owner graph changed during evaluation")
+                graph = reread.graph
+                return R2MonitoringEvaluationEvidence(
+                    trial=R2ExplanatoryTrialEvaluationEvidence(
+                        policy=graph.policy,
+                        taxonomy_publication=graph.taxonomy_publication,
+                        calendar_publication=graph.calendar_publication,
+                        cycles=graph.cycles,
+                        audit_outcome=graph.audit_outcome,
+                        assessment=reread.trial_assessment,
+                    ),
+                    facts=reread.facts,
+                    assessment=reread.assessment,
+                ).validated_copy()
+        except Exception:  # noqa: BLE001 - malformed owner/UoW content must block
             return R2MonitoringAssessment.blocked(
                 assessed_at=command.as_of,
                 policy_ref=None,
                 blockers=(R2TrialBlockerCode.OWNER_EVIDENCE_UNAVAILABLE,),
             )
+
+    def _evaluate_once(
+        self,
+        command: EvaluateR2MarketStructureTrialCommand,
+    ) -> _R2MonitoringRun | R2MonitoringAssessment:
+        loaded = self._loader.load(command)
         if loaded.graph is None:
             return R2MonitoringAssessment.blocked(
                 assessed_at=command.as_of,
@@ -485,21 +765,7 @@ class EvaluateR2MarketStructureMonitoring:
                 blockers=loaded.blockers,
             )
         graph = loaded.graph
-        try:
-            trial_assessment = evaluate_r2_explanatory_trial(
-                policy=graph.policy,
-                taxonomy_publication=graph.taxonomy_publication,
-                calendar_publication=graph.calendar_publication,
-                cycle_evidence=graph.cycles,
-                audit_outcome=graph.audit_outcome,
-                assessed_at=command.as_of,
-            )
-        except Exception:  # noqa: BLE001 - owner graph must not escape as an error
-            return R2MonitoringAssessment.blocked(
-                assessed_at=command.as_of,
-                policy_ref=graph.policy.reference,
-                blockers=(R2TrialBlockerCode.OWNER_EVIDENCE_UNAVAILABLE,),
-            )
+        trial_assessment = _evaluate_trial_graph(graph, command.as_of)
         if trial_assessment.status is not R2TrialStatus.PASSED:
             return R2MonitoringAssessment.blocked(
                 assessed_at=command.as_of,
@@ -568,21 +834,28 @@ class EvaluateR2MarketStructureMonitoring:
                 policy_ref=graph.policy.reference,
                 blockers=(R2TrialBlockerCode.MONITORING_FACT_REPLACED,),
             )
-        try:
-            return evaluate_r2_monitoring(
-                policy=graph.policy,
-                taxonomy_publication=graph.taxonomy_publication,
-                calendar_publication=graph.calendar_publication,
-                trial_assessment=trial_assessment,
-                facts=facts,
-                assessed_at=command.as_of,
-            )
-        except Exception:  # noqa: BLE001 - owner facts must not escape as an error
-            return R2MonitoringAssessment.blocked(
-                assessed_at=command.as_of,
-                policy_ref=graph.policy.reference,
-                blockers=(R2TrialBlockerCode.OWNER_EVIDENCE_UNAVAILABLE,),
-            )
+        assessment = evaluate_r2_monitoring(
+            policy=graph.policy,
+            taxonomy_publication=graph.taxonomy_publication,
+            calendar_publication=graph.calendar_publication,
+            trial_assessment=trial_assessment,
+            facts=facts,
+            assessed_at=command.as_of,
+        )
+        return _R2MonitoringRun(
+            graph=graph,
+            trial_assessment=trial_assessment,
+            facts=facts,
+            assessment=assessment,
+        )
+
+
+@dataclass(frozen=True)
+class _R2MonitoringRun:
+    graph: _R2EvidenceGraph
+    trial_assessment: R2ExplanatoryTrialAssessment
+    facts: tuple[R2MonitoringRawFact, ...]
+    assessment: R2MonitoringAssessment
 
 
 __all__ = [
@@ -595,4 +868,8 @@ __all__ = [
     "ExactR2MonitoringRawFactProvider",
     "ExactR2TrialPolicyProvider",
     "R2TrialMonitoringClock",
+    "R2ExplanatoryTrialEvaluationEvidence",
+    "R2MonitoringEvaluationEvidence",
+    "R2TrialMonitoringUnavailable",
+    "R2TrialMonitoringUnitOfWork",
 ]

@@ -185,6 +185,12 @@ from apps.research.infrastructure.r2_market_structure_promotion_models import ( 
     R2MarketStructurePromotionLifecycleEventModel,
     R2MarketStructurePromotionPolicyModel,
 )
+from apps.research.infrastructure.r2_market_structure_trial_monitoring_models import (  # noqa: E402,F401
+    R2ExplanatoryTrialAssessmentLedgerModel,
+    R2MonitoringAssessmentLedgerModel,
+    R2MonitoringAuditSnapshotModel,
+    R2MonitoringObservationLedgerModel,
+)
 from apps.research.infrastructure.r3_macro_factor_runner_spec_models import (  # noqa: E402,F401
     R3MacroFactorRunnerSpecModel,
 )

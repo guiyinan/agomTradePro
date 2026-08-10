@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -627,20 +628,35 @@ def test_evaluators_revalidate_resealed_delta_r2_values() -> None:
 @dataclass
 class _Clock:
     current: datetime = NOW
+    unit_of_work_key: str = "django:r2-test"
 
     def now(self) -> datetime:
         return self.current
 
 
 class _UnavailableClock:
+    unit_of_work_key = "django:r2-test"
+
     def now(self) -> datetime:
         raise RuntimeError("clock unavailable")
+
+
+@dataclass
+class _UnitOfWork:
+    unit_of_work_key: str = "django:r2-test"
+    entries: int = 0
+
+    @contextmanager
+    def atomic(self) -> AbstractContextManager[None]:
+        self.entries += 1
+        yield
 
 
 @dataclass
 class _PolicyProvider:
     policy: R2MarketStructureTrialPolicy | None
     calls: int = 0
+    unit_of_work_key: str = "django:r2-test"
 
     def get_exact(
         self,
@@ -655,11 +671,31 @@ class _PolicyProvider:
 
 
 @dataclass
+class _PolicySequenceProvider:
+    policies: tuple[R2MarketStructureTrialPolicy | None, ...]
+    calls: int = 0
+    unit_of_work_key: str = "django:r2-test"
+
+    def get_exact(
+        self,
+        *,
+        policy_id: str,
+        policy_version: str,
+        expected_content_hash: str,
+        as_of: datetime,
+    ) -> R2MarketStructureTrialPolicy | None:
+        selected = self.policies[min(self.calls, len(self.policies) - 1)]
+        self.calls += 1
+        return selected
+
+
+@dataclass
 class _PublicationProvider:
     taxonomy: R2CanonicalPublicationEvidence | None
     calendar: R2CanonicalPublicationEvidence | None
     calls: int = 0
     selectors: list[tuple[R2PublicationKind, str, datetime, datetime]] | None = None
+    unit_of_work_key: str = "django:r2-test"
 
     def get_exact(
         self,
@@ -691,6 +727,7 @@ class _PublicationProvider:
 class _CycleProvider:
     cycles: tuple[R2CyclePITEvidence, ...]
     calls: int = 0
+    unit_of_work_key: str = "django:r2-test"
 
     def get_exact(
         self,
@@ -709,6 +746,7 @@ class _AuditProvider:
     outcome: R2AuditExplanatoryOutcome | None
     calls: int = 0
     expected_identity: tuple[str, str] | None = None
+    unit_of_work_key: str = "django:r2-test"
 
     def get_exact(
         self,
@@ -730,6 +768,7 @@ class _FactProvider:
     facts: tuple[R2MonitoringRawFact, ...]
     calls: int = 0
     expected_identities: tuple[tuple[str, str], ...] | None = None
+    unit_of_work_key: str = "django:r2-test"
 
     def list_exact(
         self,
@@ -774,6 +813,7 @@ def _application(
         cycle_provider=cycles,
         audit_provider=audit,
         clock=_Clock(),
+        unit_of_work=_UnitOfWork(),
     )
     return use_case, policy, publications, cycles, audit
 
@@ -791,21 +831,25 @@ def test_application_command_has_only_exact_policy_selector_and_as_of() -> None:
         "as_of",
     }
     assert assessment.status is R2TrialStatus.PASSED
-    assert (policy.calls, publications.calls, cycles.calls, audit.calls) == (1, 2, 2, 1)
-    assert publications.selectors == [
-        (
-            R2PublicationKind.TAXONOMY,
-            scenario.policy.taxonomy_projection_seal.projection_hash,
-            scenario.policy.taxonomy_projection_seal.available_at,
-            scenario.policy.taxonomy_projection_seal.recorded_at,
-        ),
-        (
-            R2PublicationKind.EXPECTED_PERIOD_CALENDAR,
-            scenario.policy.calendar_projection_seal.projection_hash,
-            scenario.policy.calendar_projection_seal.available_at,
-            scenario.policy.calendar_projection_seal.recorded_at,
-        ),
-    ]
+    assert (policy.calls, publications.calls, cycles.calls, audit.calls) == (2, 4, 4, 2)
+    assert (
+        publications.selectors
+        == [
+            (
+                R2PublicationKind.TAXONOMY,
+                scenario.policy.taxonomy_projection_seal.projection_hash,
+                scenario.policy.taxonomy_projection_seal.available_at,
+                scenario.policy.taxonomy_projection_seal.recorded_at,
+            ),
+            (
+                R2PublicationKind.EXPECTED_PERIOD_CALENDAR,
+                scenario.policy.calendar_projection_seal.projection_hash,
+                scenario.policy.calendar_projection_seal.available_at,
+                scenario.policy.calendar_projection_seal.recorded_at,
+            ),
+        ]
+        * 2
+    )
     assert audit.expected_identity == (
         derive_r2_audit_outcome_id(
             policy_ref=scenario.policy.reference,
@@ -822,6 +866,60 @@ def test_application_command_has_only_exact_policy_selector_and_as_of() -> None:
             as_of=NOW,
             outcome="passed",
         )
+
+
+def test_application_uses_one_shared_atomic_uow_and_blocks_owner_drift() -> None:
+    scenario = build_r2_scenario()
+    changed_policy = replace(
+        scenario.policy,
+        active_until=scenario.policy.active_until + timedelta(days=1),
+    )
+    policy = _PolicySequenceProvider((scenario.policy, changed_policy))
+    publications = _PublicationProvider(scenario.taxonomy, scenario.calendar)
+    cycles = _CycleProvider(scenario.cycles)
+    audit = _AuditProvider(scenario.audit)
+    uow = _UnitOfWork()
+    use_case = EvaluateR2MarketStructureExplanatoryTrial(
+        policy_provider=policy,
+        publication_provider=publications,
+        cycle_provider=cycles,
+        audit_provider=audit,
+        clock=_Clock(),
+        unit_of_work=uow,
+    )
+
+    assessment = use_case.execute(_command(scenario))
+
+    assert uow.entries == 1
+    assert policy.calls == 2
+    assert assessment.status is R2TrialStatus.BLOCKED
+    assert assessment.blockers == (R2TrialBlockerCode.POLICY_HASH_MISMATCH,)
+
+
+def test_application_blocks_unit_of_work_identity_mismatch_and_runtime_drift() -> None:
+    scenario = build_r2_scenario()
+    with pytest.raises(ValueError, match="share one unit of work"):
+        EvaluateR2MarketStructureExplanatoryTrial(
+            policy_provider=_PolicyProvider(
+                scenario.policy,
+                unit_of_work_key="django:other",
+            ),
+            publication_provider=_PublicationProvider(scenario.taxonomy, scenario.calendar),
+            cycle_provider=_CycleProvider(scenario.cycles),
+            audit_provider=_AuditProvider(scenario.audit),
+            clock=_Clock(),
+            unit_of_work=_UnitOfWork(),
+        )
+
+    policy = _PolicyProvider(scenario.policy)
+    use_case, *_ = _application(scenario, policy_provider=policy)
+    policy.unit_of_work_key = "django:changed"
+
+    assessment = use_case.execute(_command(scenario))
+
+    assert assessment.status is R2TrialStatus.BLOCKED
+    assert assessment.blockers == (R2TrialBlockerCode.OWNER_EVIDENCE_UNAVAILABLE,)
+    assert policy.calls == 0
 
 
 def test_application_recomputes_policy_seal_before_owner_graph_reads() -> None:
@@ -912,14 +1010,15 @@ def test_application_monitoring_rereads_trial_and_uses_only_raw_facts() -> None:
         audit_provider=audit,
         monitoring_fact_provider=facts,
         clock=_Clock(),
+        unit_of_work=_UnitOfWork(),
     )
 
     assessment = use_case.execute(_command(scenario))
 
     assert assessment.status is R2MonitoringStatus.RETIREMENT_REVIEW_REQUIRED
     assert assessment.automatic_retirement is False
-    assert facts.calls == 1
-    assert (policy.calls, publications.calls, cycles.calls, audit.calls) == (1, 2, 2, 1)
+    assert facts.calls == 2
+    assert (policy.calls, publications.calls, cycles.calls, audit.calls) == (2, 4, 4, 2)
     assert facts.expected_identities == tuple(
         (
             derive_r2_monitoring_fact_id(
@@ -945,6 +1044,7 @@ def test_application_monitoring_reseals_facts_and_preserves_missing_semantics() 
         audit_provider=_AuditProvider(scenario.audit),
         monitoring_fact_provider=changed_facts,
         clock=_Clock(),
+        unit_of_work=_UnitOfWork(),
     )
 
     changed_assessment = changed_use_case.execute(_command(scenario))
@@ -958,6 +1058,7 @@ def test_application_monitoring_reseals_facts_and_preserves_missing_semantics() 
         audit_provider=_AuditProvider(scenario.audit),
         monitoring_fact_provider=_FactProvider(()),
         clock=_Clock(),
+        unit_of_work=_UnitOfWork(),
     )
     missing_assessment = missing_use_case.execute(_command(scenario))
     assert missing_assessment.blockers == (R2TrialBlockerCode.MONITORING_FACTS_MISSING,)
@@ -975,6 +1076,7 @@ def test_application_future_cutoff_and_owner_exception_are_stable_zero_write_blo
         cycle_provider=cycles,
         audit_provider=audit,
         clock=_Clock(),
+        unit_of_work=_UnitOfWork(),
     )
     future = replace(_command(scenario), as_of=NOW + timedelta(seconds=1))
 
@@ -998,6 +1100,7 @@ def test_application_normalizes_unavailable_authoritative_clock(
         cycle_provider=_CycleProvider(scenario.cycles),
         audit_provider=_AuditProvider(scenario.audit),
         clock=clock,
+        unit_of_work=_UnitOfWork(),
     )
 
     assessment = use_case.execute(_command(scenario))
@@ -1030,6 +1133,7 @@ def test_application_normalizes_invalid_live_owner_objects() -> None:
         audit_provider=_AuditProvider(scenario.audit),
         monitoring_fact_provider=_FactProvider((*scenario.monitoring_facts[:-1], changed_fact)),
         clock=_Clock(),
+        unit_of_work=_UnitOfWork(),
     )
 
     monitoring = monitoring_use_case.execute(_command(scenario))
