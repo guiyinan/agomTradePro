@@ -195,6 +195,8 @@ python scripts/verify_architecture.py
 
 2026-08-10 R7 monitoring Phase B、family rollback 与 R3/R6 authority 收口验证：R7 monitoring unit/component/migration 为 `21 / 2 / 3 passed`，R7 family focused+lifecycle 为 `20 passed`；R3 ledger此前完整 component `14 passed`，本轮新增tail/head攻击与roundtrip/guard节点 `2 + 1 + 3 passed`。`macro_factor.0003` 独立 SQLite forward/reverse/reforward均成功，commit/head为`0/0`且反迁移两表消失。相关增量mypy 0 regression，Ruff/Black/isort、Django check、Macro Factor/Research migration drift、governance consistency与架构扫描（2435 files / 0 violations）均通过；三组独立Luna Max终核P0/P1为0。真实owner、Forecast outcome、Promotion/authorization与consumer仍缺，R3/R6/R7继续`blocked`。
 
+2026-08-10 R6 monitoring capability 二次收口验证：production register/audit均为无状态 unavailable façade；public exact-read repository不保存clock/token，也不能激活写UoW；live audit与可注入成功链仅保留在非导出的test runtime。独立SQLite repository全文件`12 passed`；2个生产文件增量mypy 0 regression，Ruff/Black/isort、Django model check、governance consistency与架构扫描（2441 files / 0 violations）均通过。真实monitoring facts、canonical owner、Promotion/authorization与consumer仍缺，R6继续`blocked`。
+
 完整路线图审计后的 R4/R5 增量批次另行复验 fixed-income 全部 unit/component 与 R4 macro-risk，共 `49 passed`；增量 mypy/ruff/black、Django check、架构边界（2148 files / 0 violations）、业务配置硬编码和 43 个 current-data surface 均通过。
 
 回滚点按 R1、R5、R6、R8 四个独立提交组切分。新增迁移只建立 append-only 研究台账与 canonical snapshot/反馈存储；没有任务注册、API/MCP/TUI 发布，也不把研究结果接入现有决策或执行路径。

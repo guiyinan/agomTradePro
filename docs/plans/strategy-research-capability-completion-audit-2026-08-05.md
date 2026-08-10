@@ -259,6 +259,8 @@ R7 result persistence 已完成 Research `0007` evidence graph、input receipt/r
 
 2026-08-10 R3/R6 authority与R3 ledger完整性收口：R3/R6 public mutation builder只接受数据库别名，无状态façade不保存provider/clock/writer/store/token。R3完整read统一重放source/artifact/output/lifecycle，`macro_factor.0003`以cumulative commit和独立per-artifact latest head封存count与latest event/commit/stream hash；单侧或配对tail截断均fail closed。独立SQLite forward/reverse/reforward为zero-seed，Luna Max终核P0/P1=0。真实owner、Publication、PIT/trial、Promotion与consumer仍缺，R3/R6继续`blocked`。
 
+2026-08-10 R6 monitoring public capability 复核发现原 read repository 仍持 write token/clock、`atomic()` 可激活写UoW，production audit还直接分页live ledger。续批已拆分 public read repository 与 private store：公开对象只保存DB alias，production audit为无状态 unavailable façade，私有test runtime继续覆盖live audit与成功写链。Repository focused `12 passed`；2个生产文件增量mypy 0 regression，Ruff/Black/isort、Django model check、architecture与governance均通过。该修复不接真实owner或consumer，R6继续`blocked`。
+
 2026-08-10 R3 authoritative runner-spec persistence 新增 Research `0015` 单表 schema-only ledger，完整 canonical payload与 strict codec 可无损重建 runner spec。ID-only writer在同一 UoW内 owner首读、trusted clock、owner二读并动态复核 UoW，identical retry返回exact winner，异spec冲突；production注册无状态 unavailable，exact provider只读。主代理复跑 unit/component/migration `4/13/3 passed`，独立复核 P0/P1为0。真实 definition provider、manifest/dataset、PIT数据、trial与Promotion仍缺，R3继续`blocked`。
 
 完成路线图仍需为上表每项取得代码、迁移/台账、研究证据、运行时行为和 Promotion/回滚的直接证明；“测试全绿”只证明已覆盖合同，不替代真实数据和样本外结果。
