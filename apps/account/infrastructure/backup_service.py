@@ -23,8 +23,10 @@ from django.db import connections
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.account.infrastructure.backup_delivery_projection import get_backup_delivery_settings
-from apps.account.infrastructure.models import SystemSettingsModel
+from apps.account.infrastructure.backup_delivery_projection import (
+    BackupDeliveryRuntimeSettings,
+    get_backup_delivery_settings,
+)
 from apps.config_center.application.public import record_backup_download_token
 
 DOWNLOAD_TOKEN_SALT = "account-db-backup-download"
@@ -57,8 +59,7 @@ class BackupPackageDescription(TypedDict):
 
 def build_backup_download_url(token: str) -> str:
     path = reverse("admin-db-backup-download", kwargs={"token": token})
-    legacy_settings = SystemSettingsModel.get_settings_for_read()
-    config = get_backup_delivery_settings(base_settings=legacy_settings)
+    config = get_backup_delivery_settings()
     base_url = (config.backup_app_base_url or getattr(settings, "APP_BASE_URL", "")).rstrip("/")
     if base_url:
         return f"{base_url}{path}"
@@ -68,7 +69,7 @@ def build_backup_download_url(token: str) -> str:
     return f"{scheme}://{host}{path}"
 
 
-def generate_download_token(config: SystemSettingsModel) -> str:
+def generate_download_token(config: BackupDeliveryRuntimeSettings) -> str:
     if (
         isinstance(config.backup_link_ttl_days, bool)
         or not isinstance(config.backup_link_ttl_days, int)
@@ -147,10 +148,10 @@ def validate_download_token(
     }
 
 
-def generate_backup_archive(config: SystemSettingsModel) -> GeneratedBackup:
+def generate_backup_archive(config: BackupDeliveryRuntimeSettings) -> GeneratedBackup:
     raw_backup = _build_raw_backup_bytes()
     compressed = gzip.compress(raw_backup, compresslevel=6)
-    encrypted = _encrypt_backup_bytes(compressed, config.get_backup_password())
+    encrypted = _encrypt_backup_bytes(compressed, config.archive_password)
     timestamp = timezone.now().strftime("%Y%m%d%H%M%S")
     db_engine = connections["default"].settings_dict.get("ENGINE", "unknown").rsplit(".", 1)[-1]
     filename = f"agomtradepro-db-backup-{db_engine}-{timestamp}.agbk"
@@ -169,14 +170,14 @@ def describe_backup_package() -> BackupPackageDescription:
     }
 
 
-def get_backup_email_connection(config: SystemSettingsModel) -> BaseEmailBackend:
+def get_backup_email_connection(config: BackupDeliveryRuntimeSettings) -> BaseEmailBackend:
     return cast(
         BaseEmailBackend,
         get_connection(
             host=config.backup_smtp_host,
             port=config.backup_smtp_port,
             username=config.backup_smtp_username or None,
-            password=config.get_backup_smtp_password() or None,
+            password=config.smtp_password or None,
             use_tls=config.backup_smtp_use_tls,
             use_ssl=config.backup_smtp_use_ssl,
             fail_silently=False,

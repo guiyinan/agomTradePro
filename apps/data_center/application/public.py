@@ -252,7 +252,6 @@ def persist_provider_credentials(
     *,
     api_key: str | None,
     api_secret: str | None,
-    allow_legacy_fallback: bool = False,
 ) -> str:
     """Persist provider secrets through the Data Center application port."""
 
@@ -260,7 +259,6 @@ def persist_provider_credentials(
         provider_id,
         api_key=api_key,
         api_secret=api_secret,
-        allow_legacy_fallback=allow_legacy_fallback,
     )
 
 

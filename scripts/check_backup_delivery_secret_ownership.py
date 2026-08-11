@@ -14,7 +14,11 @@ LEGACY_ASSIGNMENT_NAMES = {
     "backup_smtp_password_encrypted",
 }
 LEGACY_SETTER_NAMES = {"set_backup_password", "set_backup_smtp_password"}
-ALLOWED_MODEL_PATH = "apps/config_center/infrastructure/models.py"
+LEGACY_GETTER_NAMES = {"get_backup_password", "get_backup_smtp_password"}
+LEGACY_SECRET_REFS = {
+    "system_settings.backup_password_encrypted",
+    "system_settings.backup_smtp_password_encrypted",
+}
 
 
 def _iter_source_files() -> list[Path]:
@@ -36,8 +40,6 @@ def _legacy_write_violations(path: Path) -> list[str]:
     """Find direct legacy encrypted-column writes outside the owner model."""
 
     relative = _relative(path)
-    if relative == ALLOWED_MODEL_PATH:
-        return []
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=relative)
     violations: list[str] = []
     for node in ast.walk(tree):
@@ -48,8 +50,13 @@ def _legacy_write_violations(path: Path) -> list[str]:
                 if isinstance(target, ast.Attribute) and target.attr in LEGACY_ASSIGNMENT_NAMES:
                     violations.append(f"{relative}:{node.lineno}:{target.attr}")
         elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-            if node.func.attr in LEGACY_SETTER_NAMES:
+            if node.func.attr in LEGACY_SETTER_NAMES | LEGACY_GETTER_NAMES:
                 violations.append(f"{relative}:{node.lineno}:{node.func.attr}")
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if node.name in LEGACY_SETTER_NAMES | LEGACY_GETTER_NAMES:
+                violations.append(f"{relative}:{node.lineno}:{node.name}")
+        elif isinstance(node, ast.Constant) and node.value in LEGACY_SECRET_REFS:
+            violations.append(f"{relative}:{node.lineno}:{node.value}")
     return violations
 
 
@@ -66,6 +73,8 @@ def validate() -> list[str]:
         "backup.smtp_password",
     }:
         violations.append("secret_ref_catalog_invalid")
+    if payload.get("legacy_compatibility_paths") != []:
+        violations.append("legacy_compatibility_paths_not_empty")
     for required in payload.get("owner_paths", []):
         if not (ROOT / str(required)).exists():
             violations.append(f"owner_path_missing:{required}")

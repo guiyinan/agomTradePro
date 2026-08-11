@@ -15,10 +15,7 @@ from apps.data_center.infrastructure.models import (
     RawAuditModel,
 )
 
-from .provider_credentials import (
-    ProviderCredentialEncryptionUnavailable,
-    ProviderCredentialStore,
-)
+from .provider_credentials import ProviderCredentialStore
 
 
 class ProviderConfigRepository:
@@ -77,34 +74,12 @@ class ProviderConfigRepository:
             else:
                 model = ProviderConfigModel()
 
-            has_encrypted_record = self._credentials.has_record(model)
-            encryption_available = self._credentials.encryption_available()
-            legacy_unchanged = (
-                config.id is not None
-                and not has_encrypted_record
-                and model.api_key == config.api_key
-                and model.api_secret == config.api_secret
-                and bool(model.api_key or model.api_secret)
-            )
-            if (config.api_key or config.api_secret) and not encryption_available:
-                if not legacy_unchanged:
-                    raise ProviderCredentialEncryptionUnavailable(
-                        "AGOMTRADEPRO_ENCRYPTION_KEY not configured"
-                    )
+            has_secret = config.id is not None and self._credentials.has_record(model)
 
             model.name = config.name
             model.source_type = config.source_type
             model.is_active = config.is_active
             model.priority = config.priority
-            # Never write a new credential to the compatibility columns. An
-            # untouched legacy value is retained only when the deployment key
-            # is unavailable and an explicit migration has not happened yet.
-            if encryption_available:
-                model.api_key = ""
-                model.api_secret = ""
-            else:
-                model.api_key = model.api_key if legacy_unchanged else ""
-                model.api_secret = model.api_secret if legacy_unchanged else ""
             model.http_url = config.http_url
             model.api_endpoint = config.api_endpoint
             model.extra_config = config.extra_config
@@ -112,11 +87,8 @@ class ProviderConfigRepository:
             model.save()
             self._credentials.persist(
                 model,
-                api_key=(None if has_encrypted_record and not config.api_key else config.api_key),
-                api_secret=(
-                    None if has_encrypted_record and not config.api_secret else config.api_secret
-                ),
-                allow_legacy_fallback=config.id is not None,
+                api_key=(None if has_secret and not config.api_key else config.api_key),
+                api_secret=(None if has_secret and not config.api_secret else config.api_secret),
             )
             return self._to_domain(model)
 
@@ -126,7 +98,6 @@ class ProviderConfigRepository:
         *,
         api_key: str | None,
         api_secret: str | None,
-        allow_legacy_fallback: bool = False,
     ) -> str:
         """Persist Admin-supplied credentials through the encrypted owner."""
 
@@ -138,7 +109,6 @@ class ProviderConfigRepository:
                 model,
                 api_key=api_key,
                 api_secret=api_secret,
-                allow_legacy_fallback=allow_legacy_fallback,
             )
 
     def delete(self, provider_id: int) -> None:

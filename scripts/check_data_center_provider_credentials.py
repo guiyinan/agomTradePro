@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import ast
 import json
-import re
 from pathlib import Path
 from typing import Any
 
@@ -23,16 +22,16 @@ def _load_contract() -> dict[str, Any]:
 def _production_files() -> list[Path]:
     paths: list[Path] = []
     for source_root in (ROOT / "apps", ROOT / "core", ROOT / "shared"):
-        paths.extend(source_root.rglob("*.py"))
+        paths.extend(
+            path
+            for path in source_root.rglob("*.py")
+            if "migrations" not in path.parts and "tests" not in path.parts
+        )
     return sorted(paths)
 
 
 def _relative(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
-
-
-def _allowed(path: str, patterns: list[str]) -> bool:
-    return any(re.search(pattern, path) for pattern in patterns)
 
 
 def _entrypoint_exists(entrypoints: list[dict[str, Any]]) -> list[str]:
@@ -58,31 +57,41 @@ def _entrypoint_exists(entrypoints: list[dict[str, Any]]) -> list[str]:
     return errors
 
 
-def _scan_file(path: Path, patterns: list[str]) -> list[str]:
+def _scan_file(path: Path) -> list[str]:
     relative = _relative(path)
-    if _allowed(relative, patterns):
-        return []
     try:
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=relative)
     except (OSError, SyntaxError) as exc:
         return [f"{relative}: parse error {type(exc).__name__}"]
 
-    imported_provider_model = False
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.ImportFrom):
-            continue
-        if node.module not in {"apps.data_center.models", "apps.data_center.infrastructure.models"}:
-            continue
-        if any(alias.name in {"ProviderConfigModel", "*"} for alias in node.names):
-            imported_provider_model = True
-            break
-    direct_orm = bool(re.search(r"ProviderConfigModel\.(?:objects|_default_manager)", source))
-    if imported_provider_model or direct_orm:
-        return [
-            f"{relative}: provider credential ORM bypass; use Data Center repository/public port"
-        ]
-    return []
+    violations: list[str] = []
+    forbidden_tokens = {
+        "ProviderCredentialModel",
+        "allow_legacy_fallback",
+        "migrate_legacy",
+        "provider_credential_models",
+    }
+    for token in sorted(forbidden_tokens):
+        if token in source:
+            violations.append(f"{relative}: legacy provider credential token: {token}")
+    if relative == "apps/data_center/infrastructure/models.py":
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef) or node.name != "ProviderConfigModel":
+                continue
+            for statement in node.body:
+                if isinstance(statement, (ast.Assign, ast.AnnAssign)):
+                    targets = (
+                        statement.targets
+                        if isinstance(statement, ast.Assign)
+                        else [statement.target]
+                    )
+                    for target in targets:
+                        if isinstance(target, ast.Name) and target.id in {"api_key", "api_secret"}:
+                            violations.append(
+                                f"{relative}:{statement.lineno}: plaintext provider field: {target.id}"
+                            )
+    return violations
 
 
 def main() -> int:
@@ -91,17 +100,20 @@ def main() -> int:
     contract = _load_contract()
     entrypoints = contract.get("entrypoints")
     patterns = contract.get("legacy_plaintext_paths")
-    if not isinstance(entrypoints, list) or not isinstance(patterns, list):
+    if not isinstance(entrypoints, list) or patterns != []:
         raise SystemExit(
-            "provider credential contract requires entrypoints and legacy_plaintext_paths"
+            "provider credential contract requires entrypoints and zero legacy_plaintext_paths"
         )
+    if contract.get("credential_owner") != (
+        "apps.config_center.infrastructure.secret_models.ConfigCenterSecretModel"
+    ):
+        raise SystemExit("provider credential owner must be Config Center")
 
     violations = _entrypoint_exists(
         [dict(entry) for entry in entrypoints if isinstance(entry, dict)]
     )
-    allowed_patterns = [str(pattern) for pattern in patterns]
     for path in _production_files():
-        violations.extend(_scan_file(path, allowed_patterns))
+        violations.extend(_scan_file(path))
     if violations:
         print(json.dumps(violations, ensure_ascii=False, indent=2))
         return 1

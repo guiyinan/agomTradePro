@@ -45,8 +45,8 @@ def test_backup_policy_update_uses_config_center_secret_owner() -> None:
         for row in rows
     )
     projected = get_backup_delivery_settings()
-    assert projected.get_backup_password() == "archive-secret"
-    assert projected.get_backup_smtp_password() == "smtp-secret"
+    assert projected.archive_password == "archive-secret"
+    assert projected.smtp_password == "smtp-secret"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -75,5 +75,5 @@ def test_account_repository_reads_config_center_secrets_without_creating_legacy_
     assert not SystemSettingsModel._default_manager.filter(pk=1).exists()
 
     assert projected.is_backup_due() is True
-    assert projected.get_backup_password() == "archive-secret"
-    assert projected.get_backup_smtp_password() == "smtp-secret"
+    assert projected.archive_password == "archive-secret"
+    assert projected.smtp_password == "smtp-secret"

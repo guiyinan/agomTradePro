@@ -35,7 +35,10 @@ from apps.account.infrastructure.account_profile_repository import (
 from apps.account.infrastructure.asset_metadata_repository import (
     AssetMetadataRepository as AssetMetadataRepository,
 )
-from apps.account.infrastructure.backup_delivery_projection import get_backup_delivery_settings
+from apps.account.infrastructure.backup_delivery_projection import (
+    BackupDeliveryRuntimeSettings,
+    get_backup_delivery_settings,
+)
 from apps.account.infrastructure.models import (
     BrokerTradeImportBatchModel,
     MacroSizingConfigModel,
@@ -721,7 +724,7 @@ class TransactionCostConfigRepository:
 class SystemSettingsRepository:
     """系统设置仓储。"""
 
-    def get_settings(self) -> SystemSettingsModel:
+    def get_settings(self) -> BackupDeliveryRuntimeSettings:
         """Return the typed backup projection without creating the legacy singleton."""
 
         get_settings = cast(

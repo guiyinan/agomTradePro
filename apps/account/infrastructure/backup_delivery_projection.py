@@ -1,13 +1,18 @@
-"""Compatibility projection for the Config Center-owned backup contract."""
+"""Typed runtime projection for Config Center-owned backup delivery secrets."""
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from apps.account.infrastructure.models import SystemSettingsModel
 from apps.config_center.application.public import (
     get_backup_delivery_runtime_payload,
     resolve_config_secret,
+)
+from apps.config_center.domain.backup_delivery import (
+    BACKUP_ARCHIVE_PASSWORD_SECRET_REF,
+    BACKUP_SMTP_PASSWORD_SECRET_REF,
 )
 
 _BACKUP_POLICY_FIELDS: tuple[str, ...] = (
@@ -30,72 +35,94 @@ _BACKUP_STATE_FIELDS: tuple[str, ...] = (
     "backup_download_token_expires_at",
     "backup_download_consumed_at",
 )
-_LEGACY_ARCHIVE_PASSWORD_REF = "system_settings.backup_password_encrypted"
-_LEGACY_SMTP_PASSWORD_REF = "system_settings.backup_smtp_password_encrypted"
 
 
-def _project_secret(
-    settings_obj: SystemSettingsModel,
-    *,
-    secret_ref: object,
-    legacy_ref: str,
-    encrypted_field: str,
-    setter_name: str,
-) -> None:
-    """Resolve a Config Center ref into an ephemeral compatibility projection."""
+class BackupDeliveryRuntimeSettings:
+    """Ephemeral backup settings with secrets resolved from canonical refs."""
 
-    normalized_ref = str(secret_ref or "").strip()
-    if not normalized_ref or normalized_ref == legacy_ref:
-        return
-    setattr(settings_obj, encrypted_field, "")
+    __slots__ = ("_archive_password", "_settings", "_smtp_password")
+    _archive_password: str
+    _settings: SystemSettingsModel
+    _smtp_password: str
+
+    def __init__(
+        self,
+        *,
+        settings_obj: SystemSettingsModel,
+        archive_password: str,
+        smtp_password: str,
+    ) -> None:
+        object.__setattr__(self, "_settings", settings_obj)
+        object.__setattr__(self, "_archive_password", archive_password)
+        object.__setattr__(self, "_smtp_password", smtp_password)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._settings, name)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if name in self.__slots__:
+            object.__setattr__(self, name, value)
+            return
+        setattr(self._settings, name, value)
+
+    @property
+    def archive_password(self) -> str:
+        """Return the ephemeral archive password for the backup worker."""
+
+        return self._archive_password
+
+    @property
+    def smtp_password(self) -> str:
+        """Return the ephemeral SMTP password for the backup worker."""
+
+        return self._smtp_password
+
+    def is_backup_due(self, now: datetime | None = None) -> bool:
+        """Return whether a fully configured backup delivery is due."""
+
+        if not self.backup_enabled or not self.backup_email or not self.archive_password:
+            return False
+        current = now or datetime.now(UTC)
+        if self.backup_last_sent_at is None:
+            return True
+        return bool((current - self.backup_last_sent_at).days >= self.backup_interval_days)
+
+
+def _resolve_exact_secret(*, actual_ref: object, expected_ref: str) -> str:
+    if actual_ref != expected_ref:
+        return ""
     try:
-        plaintext = resolve_config_secret(normalized_ref)
-        if plaintext:
-            setter = getattr(settings_obj, setter_name)
-            setter(plaintext)
-    except (AttributeError, RuntimeError, TypeError, ValueError):
-        # A missing deployment key must remain a blocked, empty projection;
-        # never re-open the legacy column as a silent bypass.
-        setattr(settings_obj, encrypted_field, "")
+        return resolve_config_secret(expected_ref)
+    except (RuntimeError, TypeError, ValueError):
+        return ""
 
 
 def get_backup_delivery_settings(
     *,
     base_settings: SystemSettingsModel | None = None,
-) -> SystemSettingsModel:
-    """Return a legacy-shaped read model backed by the typed policy/state.
-
-    The old model remains a compatibility shape for backup infrastructure.  It
-    is never used as the owner once a typed profile/state row is available.
-    """
+) -> BackupDeliveryRuntimeSettings:
+    """Resolve policy/state plus canonical Config Center secrets for runtime."""
 
     settings_obj = base_settings or SystemSettingsModel.get_settings_for_read()
-    try:
-        payload = get_backup_delivery_runtime_payload()
-    except RuntimeError:
-        return settings_obj
+    payload = get_backup_delivery_runtime_payload()
     for field_name in _BACKUP_POLICY_FIELDS + _BACKUP_STATE_FIELDS:
         if field_name in payload:
             setattr(settings_obj, field_name, payload[field_name])
-    _project_secret(
-        settings_obj,
-        secret_ref=payload.get("backup_archive_password_ref"),
-        legacy_ref=_LEGACY_ARCHIVE_PASSWORD_REF,
-        encrypted_field="backup_password_encrypted",
-        setter_name="set_backup_password",
+    return BackupDeliveryRuntimeSettings(
+        settings_obj=settings_obj,
+        archive_password=_resolve_exact_secret(
+            actual_ref=payload.get("backup_archive_password_ref"),
+            expected_ref=BACKUP_ARCHIVE_PASSWORD_SECRET_REF,
+        ),
+        smtp_password=_resolve_exact_secret(
+            actual_ref=payload.get("backup_smtp_password_ref"),
+            expected_ref=BACKUP_SMTP_PASSWORD_SECRET_REF,
+        ),
     )
-    _project_secret(
-        settings_obj,
-        secret_ref=payload.get("backup_smtp_password_ref"),
-        legacy_ref=_LEGACY_SMTP_PASSWORD_REF,
-        encrypted_field="backup_smtp_password_encrypted",
-        setter_name="set_backup_smtp_password",
-    )
-    return settings_obj
 
 
 def get_backup_delivery_payload() -> dict[str, Any]:
-    """Return the non-ORM backup contract for diagnostics and readiness."""
+    """Return the non-secret backup contract for diagnostics and readiness."""
 
     try:
         return get_backup_delivery_runtime_payload()
@@ -106,9 +133,15 @@ def get_backup_delivery_payload() -> dict[str, Any]:
                 field_name: getattr(settings_obj, field_name)
                 for field_name in _BACKUP_POLICY_FIELDS + _BACKUP_STATE_FIELDS
             },
+            "backup_archive_password_ref": BACKUP_ARCHIVE_PASSWORD_SECRET_REF,
+            "backup_smtp_password_ref": BACKUP_SMTP_PASSWORD_SECRET_REF,
             "policy_source": "system_settings_compatibility",
             "state_source": "system_settings_compatibility",
         }
 
 
-__all__ = ["get_backup_delivery_payload", "get_backup_delivery_settings"]
+__all__ = [
+    "BackupDeliveryRuntimeSettings",
+    "get_backup_delivery_payload",
+    "get_backup_delivery_settings",
+]

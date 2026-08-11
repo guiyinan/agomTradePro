@@ -128,10 +128,6 @@ class ConfigCenterSettingsRepository:
         "backup_archive_password_ref": "backup.archive_password",
         "backup_smtp_password_ref": "backup.smtp_password",
     }
-    LEGACY_BACKUP_SECRET_REF_MAP = {
-        "backup.archive_password": "system_settings.backup_password_encrypted",
-        "backup.smtp_password": "system_settings.backup_smtp_password_encrypted",
-    }
 
     def get_system_settings(self) -> SystemSettingsModel:
         return SystemSettingsModel.get_settings()
@@ -185,19 +181,12 @@ class ConfigCenterSettingsRepository:
         }
 
     @staticmethod
-    def _legacy_runtime_secret_refs() -> dict[str, str]:
-        """Return new secret refs when migrated, else explicit legacy refs."""
+    def _canonical_runtime_secret_refs() -> dict[str, str]:
+        """Return the only supported Config Center-owned backup refs."""
 
         return {
-            definition_key: (
-                new_ref
-                if ConfigCenterSettingsRepository._config_secret_present(new_ref)
-                else ConfigCenterSettingsRepository.LEGACY_BACKUP_SECRET_REF_MAP[definition_key]
-            )
-            for definition_key, new_ref in (
-                ("backup.archive_password", BACKUP_ARCHIVE_PASSWORD_SECRET_REF),
-                ("backup.smtp_password", BACKUP_SMTP_PASSWORD_SECRET_REF),
-            )
+            "backup.archive_password": BACKUP_ARCHIVE_PASSWORD_SECRET_REF,
+            "backup.smtp_password": BACKUP_SMTP_PASSWORD_SECRET_REF,
         }
 
     @staticmethod
@@ -212,9 +201,8 @@ class ConfigCenterSettingsRepository:
     def build_backup_delivery_payload(self) -> dict[str, Any]:
         """Return typed backup policy plus isolated delivery state.
 
-        During migration, the two secret refs resolve to the encrypted legacy
-        columns inside the account-owned compatibility row.  No plaintext is
-        placed in the runtime profile or in this payload.
+        Secret references always resolve through the Config Center owner. No
+        legacy SystemSettings secret reference is returned.
         """
 
         settings_obj = self.get_system_settings_for_read()
@@ -226,15 +214,18 @@ class ConfigCenterSettingsRepository:
             field_name: getattr(settings_obj, field_name)
             for field_name in self.BACKUP_RUNTIME_FIELD_MAP
         }
-        legacy_refs = self._legacy_runtime_secret_refs()
+        canonical_refs = self._canonical_runtime_secret_refs()
         payload.update(
             {
-                "backup_archive_password_ref": legacy_refs["backup.archive_password"],
-                "backup_smtp_password_ref": legacy_refs["backup.smtp_password"],
+                "backup_archive_password_ref": canonical_refs["backup.archive_password"],
+                "backup_smtp_password_ref": canonical_refs["backup.smtp_password"],
             }
         )
         source = "system_settings_compatibility"
-        if typed is not None:
+        if typed is not None and (
+            typed.get("backup_archive_password_ref") == BACKUP_ARCHIVE_PASSWORD_SECRET_REF
+            and typed.get("backup_smtp_password_ref") == BACKUP_SMTP_PASSWORD_SECRET_REF
+        ):
             payload.update(
                 {field_name: typed[field_name] for field_name in self.BACKUP_RUNTIME_FIELD_MAP}
             )
@@ -551,7 +542,7 @@ class ConfigCenterSettingsRepository:
                 environment=self._runtime_environment(),
                 patch=patch,
                 bootstrap_values=self._legacy_runtime_values(settings_obj),
-                bootstrap_secret_refs=self._legacy_runtime_secret_refs(),
+                bootstrap_secret_refs=self._canonical_runtime_secret_refs(),
                 actor=str(actor or "config-center"),
                 reason="Qlib/Alpha runtime configuration updated",
             )
@@ -633,7 +624,7 @@ class ConfigCenterSettingsRepository:
                 environment=self._runtime_environment(),
                 patch=runtime_patch,
                 bootstrap_values=self._legacy_runtime_values(settings_obj),
-                bootstrap_secret_refs=self._legacy_runtime_secret_refs(),
+                bootstrap_secret_refs=self._canonical_runtime_secret_refs(),
                 actor=str(actor or "config-center"),
                 reason="Global runtime governance configuration updated",
             )
@@ -680,7 +671,7 @@ class ConfigCenterSettingsRepository:
             patch=patch,
             secret_ref_patch=secret_ref_patch,
             bootstrap_values=self._legacy_runtime_values(settings_obj),
-            bootstrap_secret_refs=self._legacy_runtime_secret_refs(),
+            bootstrap_secret_refs=self._canonical_runtime_secret_refs(),
             actor=str(actor or "config-center"),
             reason="Backup delivery policy updated",
         )

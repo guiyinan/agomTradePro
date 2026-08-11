@@ -136,10 +136,6 @@ class ProviderConfigModel(models.Model):
         help_text="Dispatch priority — lower value = higher precedence",
     )
 
-    # Credentials
-    api_key = models.CharField(max_length=500, blank=True, help_text="API key / token")
-    api_secret = models.CharField(max_length=500, blank=True, help_text="API secret (if required)")
-
     # Network
     http_url = models.URLField(
         blank=True,
@@ -178,9 +174,8 @@ class ProviderConfigModel(models.Model):
     ) -> ProviderConfig:
         """Convert to domain value object with explicitly resolved secrets.
 
-        The model no longer exposes its legacy plaintext columns by default.
-        Infrastructure repositories must resolve credentials through the
-        encrypted provider-credential store and pass them explicitly.
+        Infrastructure repositories resolve credentials through Config Center
+        and pass them explicitly.
         """
 
         return ProviderConfig(

@@ -48,7 +48,7 @@ class AccountInterfaceAdministrationRepositoryMixin:
     def _account_settings_projection(
         cls,
         base_settings: SystemSettingsModel | None = None,
-    ) -> tuple[SystemSettingsModel, dict[str, Any]]:
+    ) -> tuple[Any, dict[str, Any]]:
         """Return the compatibility model overlaid with the typed account profile."""
 
         system_settings = get_backup_delivery_settings(base_settings=base_settings)

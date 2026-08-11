@@ -1,18 +1,23 @@
-"""Provider credential owner and migration contract tests."""
+"""Config Center-owned Data Center provider credential tests."""
 
 from __future__ import annotations
 
 import pytest
 from django.contrib.admin import AdminSite
-from django.core.management import call_command
 from django.test import RequestFactory, override_settings
 
+from apps.config_center.application.repository_provider import (
+    get_config_center_secret_repository,
+)
+from apps.config_center.models import ConfigCenterSecretModel
 from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.infrastructure.models import ProviderConfigModel
-from apps.data_center.infrastructure.provider_credential_models import ProviderCredentialModel
 from apps.data_center.infrastructure.provider_credentials import (
     ProviderCredentialEncryptionUnavailable,
     ProviderCredentialStore,
+    api_key_ref_for_provider,
+    api_secret_ref_for_provider,
+    credential_ref_for_provider,
 )
 from apps.data_center.infrastructure.provider_state_repositories import ProviderConfigRepository
 from apps.data_center.interface.admin import ProviderConfigAdmin, ProviderConfigAdminForm
@@ -36,16 +41,21 @@ def _provider_config(*, provider_id: int | None = None, api_key: str = "") -> Pr
 
 @pytest.mark.django_db
 @override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="provider-credential-test-key")
-def test_repository_writes_credentials_only_to_encrypted_owner() -> None:
+def test_repository_writes_credentials_only_to_config_center_owner() -> None:
     saved = ProviderConfigRepository().save(_provider_config(api_key="token-value"))
 
     model = ProviderConfigModel.objects.get(pk=saved.id)
-    credential = ProviderCredentialModel.objects.get(provider_id=saved.id)
-    assert model.api_key == ""
-    assert model.api_secret == ""
-    assert credential.api_key_encrypted.startswith("encrypted:v1:")
-    assert credential.api_secret_encrypted.startswith("encrypted:v1:")
-    assert saved.credential_ref == credential.credential_ref
+    assert "api_key" not in {field.name for field in model._meta.fields}
+    assert "api_secret" not in {field.name for field in model._meta.fields}
+    key_row = ConfigCenterSecretModel._default_manager.get(
+        secret_ref=api_key_ref_for_provider(int(saved.id))
+    )
+    secret_row = ConfigCenterSecretModel._default_manager.get(
+        secret_ref=api_secret_ref_for_provider(int(saved.id))
+    )
+    assert key_row.encrypted_value.startswith("encrypted:v1:")
+    assert secret_row.encrypted_value.startswith("encrypted:v1:")
+    assert saved.credential_ref == credential_ref_for_provider(int(saved.id))
 
     loaded = ProviderConfigRepository().get_by_id(int(saved.id))
     assert loaded is not None
@@ -54,43 +64,26 @@ def test_repository_writes_credentials_only_to_encrypted_owner() -> None:
 
 
 @pytest.mark.django_db
-@override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="provider-credential-test-key")
-def test_legacy_plaintext_is_explicitly_migrated_and_cleared() -> None:
-    legacy = ProviderConfigModel.objects.create(
-        name="legacy-provider-secret-test",
-        source_type="tushare",
-        api_key="legacy-token",
-        api_secret="legacy-secret",
-    )
-
-    loaded = ProviderConfigRepository().get_by_id(int(legacy.pk))
-    assert loaded is not None
-    assert loaded.api_key == "legacy-token"
-    assert loaded.credential_ref == f"data_center.provider.{legacy.pk}.credentials"
-
-    call_command("encrypt_provider_credentials")
-    legacy.refresh_from_db()
-    assert legacy.api_key == ""
-    assert legacy.api_secret == ""
-    assert ProviderCredentialModel.objects.filter(provider_id=legacy.pk).exists()
-
-
-@pytest.mark.django_db
 @override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="")
-def test_new_credential_write_fails_closed_without_encryption_key() -> None:
+def test_new_credential_write_fails_closed_without_encryption_key(monkeypatch) -> None:
+    monkeypatch.setattr(get_config_center_secret_repository(), "_crypto", None)
     with pytest.raises(ProviderCredentialEncryptionUnavailable):
         ProviderConfigRepository().save(_provider_config(api_key="new-token"))
+    assert ProviderConfigModel._default_manager.count() == 0
+    assert ConfigCenterSecretModel._default_manager.count() == 0
 
 
 @pytest.mark.django_db
-def test_metadata_update_does_not_delete_encrypted_credentials_without_key() -> None:
+def test_metadata_update_does_not_delete_config_center_credentials_without_key() -> None:
     with override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="provider-credential-test-key"):
         saved = ProviderConfigRepository().save(_provider_config(api_key="token-value"))
 
     with override_settings(AGOMTRADEPRO_ENCRYPTION_KEY=""):
         ProviderConfigRepository().save(_provider_config(provider_id=int(saved.id), api_key=""))
 
-    assert ProviderCredentialModel.objects.filter(provider_id=saved.id).exists()
+    assert ConfigCenterSecretModel._default_manager.filter(
+        secret_ref=api_key_ref_for_provider(int(saved.id))
+    ).exists()
 
 
 @pytest.mark.django_db
@@ -99,13 +92,13 @@ def test_provider_credential_status_never_returns_secret_values() -> None:
     provider = ProviderConfigModel.objects.create(
         name="status-provider-secret-test",
         source_type="tushare",
-        api_key="legacy-token",
     )
+    ProviderCredentialStore().persist(provider, api_key="secret-token", api_secret=None)
 
     status = ProviderCredentialStore().status(provider)
     assert status.has_api_key is True
-    assert status.credential_ref.endswith(f".{provider.pk}.credentials")
-    assert "legacy-token" not in str(status)
+    assert status.credential_ref == credential_ref_for_provider(int(provider.pk))
+    assert "secret-token" not in str(status)
 
 
 @pytest.mark.django_db
@@ -131,7 +124,9 @@ def test_admin_save_model_uses_application_credential_port() -> None:
     request = RequestFactory().post("/admin/data-center/providers/")
     ProviderConfigAdmin(ProviderConfigModel, AdminSite()).save_model(request, obj, form, False)
 
-    stored = ProviderConfigModel.objects.get(pk=obj.pk)
-    assert stored.api_key == ""
-    assert stored.api_secret == ""
-    assert ProviderCredentialModel.objects.get(provider_id=obj.pk).api_key_encrypted
+    assert ConfigCenterSecretModel._default_manager.filter(
+        secret_ref=api_key_ref_for_provider(int(obj.pk))
+    ).exists()
+    assert ConfigCenterSecretModel._default_manager.filter(
+        secret_ref=api_secret_ref_for_provider(int(obj.pk))
+    ).exists()
