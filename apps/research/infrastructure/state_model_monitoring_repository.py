@@ -26,6 +26,7 @@ from apps.research.application.state_model_monitoring_persistence import (
 )
 from apps.research.domain.state_model_monitoring import (
     R6MonitoringAssessment,
+    R6MonitoringAssessmentStatus,
     R6MonitoringObservation,
     R6MonitoringPeriodCalendar,
     R6MonitoringPolicy,
@@ -181,6 +182,58 @@ class DjangoR6MonitoringRepository:
         if not matches or matches[0].recorded_at > as_of:
             return None
         return matches[0]
+
+    def get_latest_complete_for_active(
+        self,
+        *,
+        qualification_ref: R6QualificationRef,
+        as_of: datetime,
+    ) -> R6MonitoringPersistedAssessment | None:
+        """Select the unique latest complete monitoring period for one qualification."""
+
+        if type(qualification_ref) is not R6QualificationRef:
+            raise R6MonitoringPersistenceUnavailable("R6 monitoring qualification ref type differs")
+        R6QualificationRef.__post_init__(qualification_ref)
+        self._require_pit_cutoff(as_of)
+        models = tuple(
+            R6MonitoringAssessmentModel._default_manager.using(self._using)
+            .filter(
+                qualification_assessment_id=qualification_ref.assessment_id,
+                qualification_assessment_hash=qualification_ref.assessment_hash,
+                evaluated_at__lte=as_of,
+                ledger_recorded_at__lte=as_of,
+                status__in=(
+                    R6MonitoringAssessmentStatus.HEALTHY.value,
+                    R6MonitoringAssessmentStatus.BREACHED.value,
+                    R6MonitoringAssessmentStatus.RETIREMENT_REVIEW_REQUIRED.value,
+                ),
+            )
+            .order_by("-evaluated_at", "-ledger_recorded_at", "assessment_id")
+        )
+        bundles = tuple(self._restore_bundle(model) for model in models)
+        complete = tuple(
+            bundle
+            for bundle in bundles
+            if bundle.assessment.qualification_ref == qualification_ref
+            and bundle.observations
+            and bundle.assessment.status is not R6MonitoringAssessmentStatus.BLOCKED
+        )
+        if not complete:
+            return None
+        latest_period_end = max(
+            observation.period_end for bundle in complete for observation in bundle.observations
+        )
+        winners = tuple(
+            bundle
+            for bundle in complete
+            if max(observation.period_end for observation in bundle.observations)
+            == latest_period_end
+        )
+        if len(winners) != 1:
+            raise R6MonitoringPersistenceCorruption(
+                "R6 monitoring latest complete period has multiple canonical winners"
+            )
+        return winners[0]
 
     def list_audit(
         self,

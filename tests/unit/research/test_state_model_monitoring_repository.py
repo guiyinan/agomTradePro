@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import base64
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from inspect import signature
 
@@ -37,7 +37,10 @@ from apps.research.infrastructure.state_model_monitoring_models import (
     R6MonitoringAssessmentModel,
     R6MonitoringObservationModel,
 )
-from apps.research.infrastructure.state_model_monitoring_repository import _encode_cursor
+from apps.research.infrastructure.state_model_monitoring_repository import (
+    DjangoR6MonitoringRepository,
+    _encode_cursor,
+)
 from apps.research.infrastructure.state_model_qualification_repository import (
     _DjangoR6QualificationStore,
 )
@@ -299,6 +302,62 @@ def test_register_recomputes_and_appends_exact_pit_graph() -> None:
     }
     assert not hasattr(runtime, "repository")
     assert "_DjangoR6MonitoringStore" not in repository_module.__all__
+
+
+@pytest.mark.django_db(transaction=True)
+def test_latest_complete_selector_returns_unique_period_and_rejects_fork() -> None:
+    """The caller cannot choose an assessment when the latest period forks."""
+
+    clock = MutableClock(NOW)
+    qualification_ref = _persist_qualification(clock)
+    runtime, _, monitoring_policy = _runtime(
+        clock=clock,
+        qualification_ref=qualification_ref,
+    )
+    persisted = runtime.register.execute(_command(qualification_ref, monitoring_policy))
+    repository = DjangoR6MonitoringRepository()
+
+    assert (
+        repository.get_latest_complete_for_active(
+            qualification_ref=qualification_ref,
+            as_of=NOW,
+        )
+        == persisted
+    )
+
+    fork_policy = replace(
+        monitoring_policy,
+        policy_id="r6-monitoring-policy-fork",
+        policy_version="v2",
+    )
+    fork_facts = (
+        observation(
+            sequence=11,
+            monitoring_policy=fork_policy,
+            observed_at=NOW - timedelta(days=2),
+        ),
+        observation(
+            sequence=12,
+            monitoring_policy=fork_policy,
+            observed_at=NOW - timedelta(days=1),
+        ),
+    )
+    fork_runtime = _build_django_r6_monitoring_runtime_for_test(
+        active_qualification_provider=StaticQualificationProvider(
+            active_qualification(qualification_ref=qualification_ref)
+        ),
+        policy_provider=StaticPolicyProvider(fork_policy),
+        period_calendar_provider=StaticCalendarProvider(period_calendar()),
+        raw_fact_provider=StaticRawFactProvider(fork_facts),
+        clock=clock,
+    )
+    fork_runtime.register.execute(_command(qualification_ref, fork_policy))
+
+    with pytest.raises(R6MonitoringPersistenceCorruption, match="multiple canonical winners"):
+        repository.get_latest_complete_for_active(
+            qualification_ref=qualification_ref,
+            as_of=NOW,
+        )
 
     bound_cursor = _encode_cursor(
         as_of=NOW,

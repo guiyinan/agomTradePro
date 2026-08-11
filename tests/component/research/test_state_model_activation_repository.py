@@ -35,6 +35,7 @@ from apps.research.infrastructure.state_model_activation_models import (
     R6ActivationStreamCommitModel,
 )
 from apps.research.infrastructure.state_model_activation_repository import (
+    DjangoR6ActivationRepository,
     _DjangoR6ActivationStore,
 )
 
@@ -161,6 +162,55 @@ def test_activation_repository_round_trip_exact_pit_and_idempotency() -> None:
             as_of=clock.value,
         )
         == authorization
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_read_only_scope_state_selector_replays_active_then_retired_head() -> None:
+    """The narrow 0012 query derives state without a caller-selected event."""
+
+    clock = FixedClock(BASE + timedelta(days=1))
+    store = _DjangoR6ActivationStore(clock=clock)
+    authorization, activation = _transition(1, ())
+    _append(store, authorization, activation)
+    repository = DjangoR6ActivationRepository(clock=clock)
+
+    assert repository.get_active_approval_ref_for_scope(
+        scope_ref=activation.scope_ref,
+        as_of=activation.recorded_at,
+    ) == R6ActivationApprovalRef("approval-1", "v1", "1" * 64)
+
+    retirement_instant = BASE + timedelta(seconds=20)
+    retirement_authorization = R6ActivationAuthorization(
+        authorization_id="authorization-2",
+        authorization_version="v1",
+        event_id="event-2",
+        event_version="v1",
+        scope_ref=activation.scope_ref,
+        action=R6ActivationAction.RETIRE,
+        subject=activation.subject,
+        rollback_target=None,
+        expected_sequence=2,
+        expected_previous_event_hash=activation.content_hash,
+        owner="research",
+        issued_at=retirement_instant,
+        recorded_at=retirement_instant + timedelta(seconds=1),
+        valid_until=retirement_instant + timedelta(hours=1),
+        reason_codes=("manual-retirement",),
+        evidence_ref="research://activation/authorization-2",
+    )
+    retirement = create_r6_activation_event(
+        authorization=retirement_authorization,
+        previous_events=(activation,),
+        applied_at=retirement_instant + timedelta(seconds=2),
+    )
+    _append(store, retirement_authorization, retirement)
+    assert (
+        repository.get_active_approval_ref_for_scope(
+            scope_ref=activation.scope_ref,
+            as_of=retirement.recorded_at,
+        )
+        is None
     )
 
 

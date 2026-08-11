@@ -126,6 +126,26 @@ class DjangoR6ActivationRepository:
         except Exception as error:
             raise R6ActivationUnavailable("R6 activation server clock is unavailable") from error
 
+    def get_active_approval_ref_for_scope(
+        self,
+        *,
+        scope_ref: R6ActivationScopeRef,
+        as_of: datetime,
+    ) -> R6ActivationApprovalRef | None:
+        """Replay one exact 0012 stream and return only its active stack head."""
+
+        self._require_pit_cutoff(as_of)
+        events = self._restore_stream(scope_ref=scope_ref, as_of=as_of)
+        if not events:
+            return None
+        try:
+            state = derive_r6_activation_state(events, evaluated_at=as_of)
+        except ValueError as error:
+            raise R6ActivationCorruption("R6 activation stream replay failed") from error
+        if state.scope_ref != scope_ref:
+            raise R6ActivationCorruption("R6 activation stream scope was substituted")
+        return state.active_approval
+
     def load_stream(
         self,
         *,
