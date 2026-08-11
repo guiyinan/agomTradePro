@@ -94,12 +94,14 @@
         "apps/config_center/migrations/0003_systemsettingsmodel_backup_download_token_state.py",
         "apps/config_center/migrations/0009_backupdeliverystatemodel.py",
         "apps/config_center/migrations/0011_version_storage_budget_policies.py",
+        "apps/config_center/migrations/0015_remove_legacy_backup_secret_columns.py",
         "apps/data_center/migrations/0053_archivemanifestmodel_retentionpolicymodel_and_more.py",
         "apps/data_center/migrations/0056_retentionrunmodel.py",
         "apps/data_center/migrations/0063_archivemanifest_archive_restore_evidence.py",
         "apps/data_center/migrations/0064_retention_exact_plan_members.py",
         "apps/data_center/migrations/0065_widen_retention_member_digests.py",
         "apps/data_center/migrations/0066_make_retention_digest_widening_reversible.py",
+        "tests/migrations/test_data_center_evaluation_actual_migration.py",
         "tests/migrations/test_data_center_retention_plan_migration.py"
       ],
       "status": "active_public"
@@ -117,6 +119,7 @@
         "tests/component/test_task_monitor.py",
         "tests/integration/test_tui_registry_backup_commands.py",
         "tests/unit/account/test_t3a_documentation_view_and_task_contracts.py",
+        "tests/unit/account/test_celery_task_outcome_contracts.py",
         "tests/unit/data_center/test_archive_application.py",
         "tests/unit/data_center/test_archive_tasks.py",
         "tests/unit/data_center/test_raw_archive_store.py",

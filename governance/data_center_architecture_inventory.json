@@ -1,10 +1,45 @@
 {
+  "approved_non_data_http_imports": [
+    {
+      "import": "requests",
+      "line": 5,
+      "owner": "ai-provider",
+      "path": "apps/dashboard/infrastructure/ai_insight_client.py",
+      "reason": "Calls a configured generative-AI inference endpoint and does not acquire canonical investment data.",
+      "scope": "ai_inference"
+    },
+    {
+      "import": "requests",
+      "line": 5,
+      "owner": "terminal",
+      "path": "apps/terminal/infrastructure/http_client.py",
+      "reason": "Invokes AgomTradePro command APIs for the terminal control plane and is not an external data provider.",
+      "scope": "internal_control_plane"
+    },
+    {
+      "import": "requests",
+      "line": 14,
+      "owner": "task-monitor",
+      "path": "shared/infrastructure/alert_service.py",
+      "reason": "Delivers operational alerts to configured webhooks and never supplies business facts or decision inputs.",
+      "scope": "alert_delivery"
+    },
+    {
+      "import": "requests",
+      "line": 17,
+      "owner": "platform-observability",
+      "path": "shared/infrastructure/alerts.py",
+      "reason": "Delivers Slack, DingTalk, and WeChat Work notifications and never supplies canonical business data.",
+      "scope": "alert_delivery"
+    }
+  ],
   "counts": {
+    "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 51,
-    "current_surface_references": 3420,
+    "current_surface_references": 3576,
     "data_write_task_decorators": 58,
     "direct_data_center_imports_outside_data_center": 0,
-    "external_http_imports_for_review": 4,
+    "external_http_imports_for_review": 0,
     "legacy_fact_references": 0,
     "provider_imports_outside_data_center": 0,
     "runtime_parameter_references": 49
@@ -22,7 +57,7 @@
     },
     {
       "import": "apps.config_center.infrastructure.models",
-      "line": 59,
+      "line": 62,
       "path": "apps/account/infrastructure/repositories.py"
     },
     {
@@ -733,6 +768,16 @@
       "text": "\"\"\"Return the latest exchange rate for one currency pair.\"\"\""
     },
     {
+      "line": 85,
+      "path": "apps/account/infrastructure/backup_delivery_projection.py",
+      "text": "current = now or datetime.now(UTC)"
+    },
+    {
+      "line": 88,
+      "path": "apps/account/infrastructure/backup_delivery_projection.py",
+      "text": "return bool((current - self.backup_last_sent_at).days >= self.backup_interval_days)"
+    },
+    {
       "line": 181,
       "path": "apps/account/infrastructure/classification_models.py",
       "text": "current = self.parent"
@@ -858,12 +903,12 @@
       "text": "trade_date.isoformat() if trade_date is not None else \"latest\","
     },
     {
-      "line": 810,
+      "line": 813,
       "path": "apps/account/infrastructure/repositories.py",
       "text": "current = self._get_active_model()"
     },
     {
-      "line": 816,
+      "line": 819,
       "path": "apps/account/infrastructure/repositories.py",
       "text": "payload[\"version\"] = (current.version + 1) if current is not None else 1"
     },
@@ -2323,12 +2368,12 @@
       "text": "\"\"\"Evaluate one registered artifact and persist its latest metrics.\"\"\""
     },
     {
-      "line": 191,
+      "line": 239,
       "path": "apps/alpha/application/monitoring_tasks.py",
       "text": "\"\"\"Compare the current rolling IC with up to 20 prior observations.\"\"\""
     },
     {
-      "line": 415,
+      "line": 566,
       "path": "apps/alpha/application/monitoring_tasks.py",
       "text": "\"\"\"Log the current Alpha monitoring metric summary.\"\"\""
     },
@@ -2518,37 +2563,57 @@
       "text": "\"\"\"Return True when the cache row is only the delivery channel for the latest Qlib output.\"\"\""
     },
     {
-      "line": 1069,
+      "line": 101,
+      "path": "apps/alpha/application/task_outcome_contracts.py",
+      "text": "\"\"\"Map an authoritative refresh summary into the task outcome vocabulary.\"\"\""
+    },
+    {
+      "line": 1134,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data("
     },
     {
-      "line": 1075,
+      "line": 1148,
       "path": "apps/alpha/application/tasks.py",
-      "text": "\"status\": \"success\" if summary.get(\"status\") == \"success\" else summary.get(\"status\"),"
+      "text": "summary_status = str(summary.get(\"status\") or \"failed\")"
     },
     {
-      "line": 1077,
+      "line": 1149,
+      "path": "apps/alpha/application/tasks.py",
+      "text": "raw_count = summary.get(\"universe_count\", 1)"
+    },
+    {
+      "line": 1154,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": summary,"
     },
     {
-      "line": 1145,
+      "line": 1234,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data_for_codes("
     },
     {
-      "line": 1152,
-      "path": "apps/alpha/application/tasks.py",
-      "text": "\"status\": \"success\" if summary.get(\"status\") == \"success\" else summary.get(\"status\"),"
-    },
-    {
-      "line": 1156,
+      "line": 1249,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1157,
+      "line": 1262,
+      "path": "apps/alpha/application/tasks.py",
+      "text": "summary_status = str(summary.get(\"status\") or \"failed\")"
+    },
+    {
+      "line": 1263,
+      "path": "apps/alpha/application/tasks.py",
+      "text": "raw_stored_count = summary.get(\"stock_count\", 0)"
+    },
+    {
+      "line": 1272,
+      "path": "apps/alpha/application/tasks.py",
+      "text": "\"summary\": {"
+    },
+    {
+      "line": 1273,
       "path": "apps/alpha/application/tasks.py",
       "text": "**summary,"
     },
@@ -3803,9 +3868,14 @@
       "text": "\"summary\": summary,"
     },
     {
-      "line": 329,
+      "line": 358,
       "path": "apps/backtest/application/tasks.py",
       "text": "\"summary\": domain_result.to_summary_dict(),"
+    },
+    {
+      "line": 369,
+      "path": "apps/backtest/application/tasks.py",
+      "text": "summary=report[\"summary\"],"
     },
     {
       "line": 271,
@@ -4138,6 +4208,21 @@
       "text": "\"summary\": summary,"
     },
     {
+      "line": 264,
+      "path": "apps/broker_execution/application/r8_monitoring_reconciliation_registry.py",
+      "text": "current = ("
+    },
+    {
+      "line": 270,
+      "path": "apps/broker_execution/application/r8_monitoring_reconciliation_registry.py",
+      "text": "if tuple(id(item) for item in current) != self._participant_ids:"
+    },
+    {
+      "line": 274,
+      "path": "apps/broker_execution/application/r8_monitoring_reconciliation_registry.py",
+      "text": "if _shared_uow_key(current) != self._expected_uow_key:"
+    },
+    {
       "line": 249,
       "path": "apps/broker_execution/application/use_cases.py",
       "text": "risk_snapshot[\"violations\"].append(\"latest market quote is unavailable\")"
@@ -4166,6 +4251,21 @@
       "line": 541,
       "path": "apps/broker_execution/application/use_cases.py",
       "text": "\"summary\": {"
+    },
+    {
+      "line": 474,
+      "path": "apps/broker_execution/domain/r8_monitoring_reconciliation.py",
+      "text": "raise ValueError(\"Broker definition observed_at must preserve the latest source clock\")"
+    },
+    {
+      "line": 771,
+      "path": "apps/broker_execution/domain/r8_monitoring_reconciliation.py",
+      "text": "\"\"\"Return the preserved latest source observation clock.\"\"\""
+    },
+    {
+      "line": 777,
+      "path": "apps/broker_execution/domain/r8_monitoring_reconciliation.py",
+      "text": "\"\"\"Return the preserved latest source availability clock.\"\"\""
     },
     {
       "line": 23,
@@ -4273,17 +4373,17 @@
       "text": "\"summary\": {\"latest_run_id\": run.pk, \"p0_auto_stop\": has_p0},"
     },
     {
-      "line": 428,
+      "line": 418,
       "path": "apps/broker_execution/infrastructure/models.py",
       "text": "summary = models.JSONField(default=dict, blank=True)"
     },
     {
-      "line": 500,
+      "line": 490,
       "path": "apps/broker_execution/infrastructure/models.py",
       "text": "\"\"\"Daily execution, reconciliation, and safety summary per account.\"\"\""
     },
     {
-      "line": 507,
+      "line": 497,
       "path": "apps/broker_execution/infrastructure/models.py",
       "text": "summary = models.JSONField(default=dict, blank=True)"
     },
@@ -4338,7 +4438,7 @@
       "text": "\"\"\"Read the latest resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 562,
+      "line": 570,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Return the latest capacity observation without a fallback.\"\"\""
     },
@@ -4363,7 +4463,7 @@
       "text": "\"\"\"Return one value from the active typed profile for the current environment.\"\"\""
     },
     {
-      "line": 445,
+      "line": 436,
       "path": "apps/config_center/infrastructure/repositories.py",
       "text": "\"\"\"Atomically consume the current token and reject replay/expiry.\"\"\""
     },
@@ -5168,137 +5268,137 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 386,
+      "line": 384,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the macro governance summary through the public port.\"\"\""
     },
     {
-      "line": 519,
+      "line": 517,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 589,
+      "line": 587,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read fresh, member-bound macro values for current-facing consumers.\"\"\""
     },
     {
-      "line": 598,
+      "line": 596,
       "path": "apps/data_center/application/public.py",
       "text": "maintenance screens.  Current-facing pages use this port so a non-empty"
     },
     {
-      "line": 599,
+      "line": 597,
       "path": "apps/data_center/application/public.py",
       "text": "raw latest fact cannot be presented as a usable indicator value."
     },
     {
-      "line": 749,
+      "line": 747,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 842,
+      "line": 840,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 849,
+      "line": 847,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 872,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
       "line": 874,
       "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 876,
-      "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 884,
+      "line": 882,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 939,
+      "line": 937,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 943,
+      "line": 941,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
     },
     {
-      "line": 956,
+      "line": 954,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 961,
+      "line": 959,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 976,
+      "line": 974,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 992,
+      "line": 990,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1010,
+      "line": 1008,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1027,
+      "line": 1025,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1043,
+      "line": 1041,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 1080,
+      "line": 1078,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 1083,
+      "line": 1081,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 1087,
+      "line": 1085,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 1089,
+      "line": 1087,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 1092,
+      "line": 1090,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 1093,
+      "line": 1091,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 1258,
+      "line": 1256,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -5818,7 +5918,7 @@
       "text": "\"summary\": self.summary,"
     },
     {
-      "line": 150,
+      "line": 149,
       "path": "apps/data_center/domain/protocols.py",
       "text": "\"\"\"Optional provider capability for one-request current valuation batches.\"\"\""
     },
@@ -5943,12 +6043,12 @@
       "text": "\"\"\"Return provider configuration summary.\"\"\""
     },
     {
-      "line": 81,
+      "line": 79,
       "path": "apps/data_center/infrastructure/config_summary_repository.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 95,
+      "line": 93,
       "path": "apps/data_center/infrastructure/config_summary_repository.py",
       "text": "\"summary\": {"
     },
@@ -6798,7 +6898,7 @@
       "text": "\"\"\"Resolve historical members without substituting the current component set.\"\"\""
     },
     {
-      "line": 1079,
+      "line": 1074,
       "path": "apps/data_center/infrastructure/models.py",
       "text": "summary = models.TextField(blank=True)"
     },
@@ -6846,11 +6946,6 @@
       "line": 89,
       "path": "apps/data_center/infrastructure/pit_repository.py",
       "text": "\"\"\"Return one latest knowable version per business key.\"\"\""
-    },
-    {
-      "line": 93,
-      "path": "apps/data_center/infrastructure/provider_credentials.py",
-      "text": "logger.warning(\"Provider credential cannot be decrypted in the current environment\")"
     },
     {
       "line": 101,
@@ -8023,6 +8118,11 @@
       "text": "composite_method=latest.composite_method,"
     },
     {
+      "line": 25,
+      "path": "apps/equity/forecast_baseline_evaluation_preflight_composition.py",
+      "text": "\"\"\"One read-only preflight with no mutation, current, decision, or execution port.\"\"\""
+    },
+    {
       "line": 441,
       "path": "apps/equity/infrastructure/adapters.py",
       "text": "pool_key = f\"{self._cache_key_prefix}:current\""
@@ -9023,7 +9123,7 @@
       "text": "\"summary\": {"
     },
     {
-      "line": 105,
+      "line": 150,
       "path": "apps/macro_factor/application/governed_read.py",
       "text": "\"\"\"ID-only exact output read at a PIT cutoff; never a latest/current query.\"\"\""
     },
@@ -9033,27 +9133,27 @@
       "text": "\"\"\"Typed current/forward output returned in the canonical external artifact.\"\"\""
     },
     {
-      "line": 55,
-      "path": "apps/macro_factor/domain/dated_outputs.py",
-      "text": "raise ValueError(\"current-state output requires horizon_periods=0\")"
-    },
-    {
       "line": 57,
       "path": "apps/macro_factor/domain/dated_outputs.py",
+      "text": "raise ValueError(\"current-state output requires horizon_periods=0\")"
+    },
+    {
+      "line": 59,
+      "path": "apps/macro_factor/domain/dated_outputs.py",
       "text": "raise ValueError(\"current-state target cannot follow knowledge_as_of\")"
     },
     {
-      "line": 144,
+      "line": 148,
       "path": "apps/macro_factor/domain/dated_outputs.py",
       "text": "raise ValueError(\"current-state output requires horizon_periods=0\")"
     },
     {
-      "line": 146,
+      "line": 150,
       "path": "apps/macro_factor/domain/dated_outputs.py",
       "text": "raise ValueError(\"current-state target cannot follow knowledge_as_of\")"
     },
     {
-      "line": 162,
+      "line": 177,
       "path": "apps/macro_factor/domain/entities.py",
       "text": "raise ValueError(\"current-state targets require horizon_periods=0\")"
     },
@@ -9068,44 +9168,99 @@
       "text": "if all(_comparison_holds(rule.operator, item.value, rule.threshold) for item in latest):"
     },
     {
-      "line": 90,
+      "line": 122,
+      "path": "apps/macro_factor/domain/lifecycle_stream.py",
+      "text": "\"\"\"Independent mutable-row value that seals the latest committed stream prefix.\"\"\""
+    },
+    {
+      "line": 147,
+      "path": "apps/macro_factor/domain/lifecycle_stream.py",
+      "text": "raise ValueError(\"lifecycle stream head count must equal latest sequence\")"
+    },
+    {
+      "line": 153,
+      "path": "apps/macro_factor/domain/lifecycle_stream.py",
+      "text": "\"\"\"Return every independent latest-head identity canonically.\"\"\""
+    },
+    {
+      "line": 170,
+      "path": "apps/macro_factor/domain/lifecycle_stream.py",
+      "text": "\"\"\"Return canonical latest-head content for persistence.\"\"\""
+    },
+    {
+      "line": 222,
+      "path": "apps/macro_factor/domain/lifecycle_stream.py",
+      "text": "\"\"\"Build the one exact independent latest-head value for a committed stream.\"\"\""
+    },
+    {
+      "line": 363,
+      "path": "apps/macro_factor/domain/runner_inputs.py",
+      "text": "raise ValueError(\"inference available_at must equal latest proxy availability\")"
+    },
+    {
+      "line": 448,
       "path": "apps/macro_factor/domain/runner_inputs.py",
       "text": "raise ValueError(\"row available_at must equal latest proxy fact availability\")"
     },
     {
-      "line": 122,
-      "path": "apps/macro_factor/domain/temporal_plan.py",
+      "line": 115,
+      "path": "apps/macro_factor/domain/temporal_cv_contracts.py",
       "text": "raise ValueError(\"current-state availability requires horizon_periods=0\")"
     },
     {
-      "line": 127,
-      "path": "apps/macro_factor/domain/temporal_plan.py",
+      "line": 122,
+      "path": "apps/macro_factor/domain/temporal_cv_contracts.py",
       "text": "raise ValueError(\"current-state normalized horizon must be zero\")"
     },
     {
-      "line": 332,
+      "line": 724,
+      "path": "apps/macro_factor/domain/temporal_plan.py",
+      "text": "raise ValueError(\"current-state inference target period exceeds its knowledge cutoff\")"
+    },
+    {
+      "line": 339,
       "path": "apps/macro_factor/infrastructure/run_ledger_models.py",
       "text": "\"\"\"One immutable current-state or forward-expectation research output.\"\"\""
     },
     {
-      "line": 343,
-      "path": "apps/macro_factor/infrastructure/run_ledger_repository.py",
-      "text": "latest = ("
+      "line": 753,
+      "path": "apps/macro_factor/infrastructure/run_ledger_models.py",
+      "text": "\"\"\"Repository-owned latest head that cannot silently regress with an append tail.\"\"\""
     },
     {
-      "line": 348,
-      "path": "apps/macro_factor/infrastructure/run_ledger_repository.py",
-      "text": "if latest is None or event.sequence != latest.sequence + 1:"
+      "line": 793,
+      "path": "apps/macro_factor/infrastructure/run_ledger_models.py",
+      "text": "\"\"\"Restore and verify the independent latest-head seal.\"\"\""
     },
     {
-      "line": 349,
+      "line": 816,
+      "path": "apps/macro_factor/infrastructure/run_ledger_models.py",
+      "text": "\"\"\"Reject a latest head that is not exactly sealed to its artifact.\"\"\""
+    },
+    {
+      "line": 382,
+      "path": "apps/macro_factor/infrastructure/run_ledger_repository.py",
+      "text": "raise ValueError(\"persisted lifecycle stream head does not match exact latest prefix\")"
+    },
+    {
+      "line": 723,
       "path": "apps/macro_factor/infrastructure/run_ledger_repository.py",
       "text": "raise ValueError(\"lifecycle event does not extend the current chain\")"
     },
     {
-      "line": 350,
-      "path": "apps/macro_factor/infrastructure/run_ledger_repository.py",
-      "text": "if event.previous_event_hash != latest.content_hash:"
+      "line": 853,
+      "path": "apps/macro_factor/infrastructure/sklearn_nested_cv_runner.py",
+      "text": "current = {item.asset_code: item.factor_weight for item in fold.coefficients}"
+    },
+    {
+      "line": 857,
+      "path": "apps/macro_factor/infrastructure/sklearn_nested_cv_runner.py",
+      "text": "abs(current.get(code, Decimal(\"0\")) - previous.get(code, Decimal(\"0\")))"
+    },
+    {
+      "line": 864,
+      "path": "apps/macro_factor/infrastructure/sklearn_nested_cv_runner.py",
+      "text": "previous = current"
     },
     {
       "line": 1,
@@ -9823,47 +9978,57 @@
       "text": "message += f\"摘要: {structured_data['summary']}\\n\""
     },
     {
-      "line": 111,
+      "line": 184,
       "path": "apps/policy/application/tasks.py",
       "text": "latest = status.latest_event"
     },
     {
-      "line": 112,
+      "line": 185,
       "path": "apps/policy/application/tasks.py",
       "text": "if latest:"
     },
     {
-      "line": 113,
+      "line": 186,
       "path": "apps/policy/application/tasks.py",
       "text": "_send_policy_alert(level=status.current_level, event=latest, status=status)"
     },
     {
-      "line": 278,
+      "line": 362,
       "path": "apps/policy/application/tasks.py",
       "text": "logger.info(f\"Policy transition summary sent: {len(changes)} changes\")"
     },
     {
-      "line": 281,
+      "line": 365,
       "path": "apps/policy/application/tasks.py",
       "text": "logger.error(f\"Failed to send transition summary: {e}\", exc_info=True)"
     },
     {
-      "line": 516,
+      "line": 656,
       "path": "apps/policy/application/tasks.py",
       "text": "summary = get_workbench_repository().get_daily_policy_summary(today)"
     },
     {
-      "line": 519,
+      "line": 659,
       "path": "apps/policy/application/tasks.py",
       "text": "logger.info(f\"Daily policy summary generated: {summary}\")"
     },
     {
-      "line": 521,
+      "line": 661,
       "path": "apps/policy/application/tasks.py",
-      "text": "return cast(TaskPayload, summary)"
+      "text": "if not isinstance(summary, dict):"
     },
     {
-      "line": 524,
+      "line": 662,
+      "path": "apps/policy/application/tasks.py",
+      "text": "raise ValueError(\"daily policy summary must be an object\")"
+    },
+    {
+      "line": 663,
+      "path": "apps/policy/application/tasks.py",
+      "text": "return _operation_result(outcome=\"success\", **summary)"
+    },
+    {
+      "line": 666,
       "path": "apps/policy/application/tasks.py",
       "text": "logger.error(f\"Daily policy summary generation failed: {e}\", exc_info=True)"
     },
@@ -10288,54 +10453,129 @@
       "text": "summary=\"触发RSS抓取\","
     },
     {
+      "line": 82,
+      "path": "apps/portfolio/application/build_macro_risk_candidate_family.py",
+      "text": "\"\"\"Provide the current UTC cutoff for future-request rejection.\"\"\""
+    },
+    {
+      "line": 85,
+      "path": "apps/portfolio/application/build_macro_risk_candidate_family.py",
+      "text": "\"\"\"Return current UTC time.\"\"\""
+    },
+    {
       "line": 84,
       "path": "apps/portfolio/application/canonical_snapshots.py",
       "text": "\"\"\"Return the latest eligible source observation at a fixed cutoff.\"\"\""
     },
     {
-      "line": 143,
+      "line": 303,
+      "path": "apps/portfolio/application/governed_optimization.py",
+      "text": "\"canonical governed optimization input set is not current\""
+    },
+    {
+      "line": 387,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "\"\"\"Trusted numerical problem plus its unmodified current configuration.\"\"\""
     },
     {
-      "line": 171,
+      "line": 419,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "raise ValueError(\"current configuration snapshot mismatch\")"
     },
     {
-      "line": 253,
+      "line": 504,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "current = build_current_configuration_baseline("
     },
     {
-      "line": 287,
+      "line": 538,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "current_by_asset = dict(zip(current.asset_codes, current.weights, strict=True))"
     },
     {
-      "line": 380,
+      "line": 633,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "current_configuration_hash=current.content_hash,"
     },
     {
-      "line": 388,
+      "line": 643,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "current_configuration=current,"
     },
     {
-      "line": 569,
+      "line": 766,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "raise ValueError(\"engine current baseline rewrites the canonical configuration\")"
     },
     {
-      "line": 684,
+      "line": 904,
       "path": "apps/portfolio/application/governed_optimization.py",
       "text": "raise ValueError(\"macro numerical evidence is not current\")"
+    },
+    {
+      "line": 364,
+      "path": "apps/portfolio/application/governed_optimization_lifecycle.py",
+      "text": "latest: ExactPromotionAttestation | OptimizationLifecycleOwnerAttestation = ("
+    },
+    {
+      "line": 371,
+      "path": "apps/portfolio/application/governed_optimization_lifecycle.py",
+      "text": "latest = self._get_exact_owner(command, result, recorded_at)"
+    },
+    {
+      "line": 377,
+      "path": "apps/portfolio/application/governed_optimization_lifecycle.py",
+      "text": "if latest != expected:"
+    },
+    {
+      "line": 90,
+      "path": "apps/portfolio/application/governed_optimization_monitoring.py",
+      "text": "\"\"\"Exact current R3, R4, or R5 Promotion provider.\"\"\""
+    },
+    {
+      "line": 271,
+      "path": "apps/portfolio/application/governed_optimization_monitoring.py",
+      "text": "\"\"\"Evaluate without lifecycle, transition, current, or execution side effects.\"\"\""
+    },
+    {
+      "line": 61,
+      "path": "apps/portfolio/application/governed_optimization_monitoring_persistence.py",
+      "text": "\"\"\"Exact PIT read accepting no latest/current semantics.\"\"\""
+    },
+    {
+      "line": 269,
+      "path": "apps/portfolio/application/r4_monitoring_raw_fact_receipt.py",
+      "text": "expected: tuple[object, ...], current: tuple[object, ...]"
+    },
+    {
+      "line": 271,
+      "path": "apps/portfolio/application/r4_monitoring_raw_fact_receipt.py",
+      "text": "if len(expected) != len(current) or any("
+    },
+    {
+      "line": 273,
+      "path": "apps/portfolio/application/r4_monitoring_raw_fact_receipt.py",
+      "text": "for expected_item, current_item in zip(expected, current, strict=True)"
     },
     {
       "line": 54,
       "path": "apps/portfolio/application/r4_rolling_research_query.py",
       "text": "\"\"\"Read one exact PIT-valid Portfolio owner record; never latest/current/list.\"\"\""
+    },
+    {
+      "line": 160,
+      "path": "apps/portfolio/application/r5_monitoring_raw_fact_registry.py",
+      "text": "current: tuple[_UowBound, ...] = ("
+    },
+    {
+      "line": 168,
+      "path": "apps/portfolio/application/r5_monitoring_raw_fact_registry.py",
+      "text": "for actual, expected in zip(current, self._participants, strict=True)"
+    },
+    {
+      "line": 173,
+      "path": "apps/portfolio/application/r5_monitoring_raw_fact_registry.py",
+      "text": "_require_expected_uow(current, self._expected_uow_key)"
     },
     {
       "line": 274,
@@ -10346,6 +10586,21 @@
       "line": 397,
       "path": "apps/portfolio/application/r5_relative_value_outcome.py",
       "text": "\"\"\"Hash-bound PIT query without latest/current/list semantics.\"\"\""
+    },
+    {
+      "line": 229,
+      "path": "apps/portfolio/application/r8_monitoring_calendar_registry.py",
+      "text": "current = ("
+    },
+    {
+      "line": 235,
+      "path": "apps/portfolio/application/r8_monitoring_calendar_registry.py",
+      "text": "if tuple(id(item) for item in current) != self._participant_ids:"
+    },
+    {
+      "line": 239,
+      "path": "apps/portfolio/application/r8_monitoring_calendar_registry.py",
+      "text": "if _shared_uow_key(current) != self._expected_uow_key:"
     },
     {
       "line": 42,
@@ -10453,24 +10708,74 @@
       "text": "\"\"\"Non-executable order generated from target/current differences.\"\"\""
     },
     {
-      "line": 518,
+      "line": 526,
       "path": "apps/portfolio/domain/governed_input_set.py",
       "text": "raise ValueError(f\"{kind.value} owner binding is not current\")"
     },
     {
-      "line": 536,
+      "line": 544,
       "path": "apps/portfolio/domain/governed_input_set.py",
       "text": "raise ValueError(\"promotion attestation is not current\")"
     },
     {
-      "line": 561,
+      "line": 569,
       "path": "apps/portfolio/domain/governed_input_set.py",
       "text": "raise ValueError(\"market constraint row is not current at input-set creation\")"
+    },
+    {
+      "line": 280,
+      "path": "apps/portfolio/domain/governed_optimization_monitoring.py",
+      "text": "latest = latest_period_id is not None and any("
+    },
+    {
+      "line": 285,
+      "path": "apps/portfolio/domain/governed_optimization_monitoring.py",
+      "text": "return MonitoringAssessmentStatus.BREACHED if latest else MonitoringAssessmentStatus.HEALTHY"
+    },
+    {
+      "line": 331,
+      "path": "apps/portfolio/domain/governed_optimization_monitoring.py",
+      "text": "latest_period_id or \"blocked:no-latest-period\","
+    },
+    {
+      "line": 407,
+      "path": "apps/portfolio/domain/governed_optimization_monitoring.py",
+      "text": "current=current_upstream_promotions,"
+    },
+    {
+      "line": 550,
+      "path": "apps/portfolio/domain/governed_optimization_monitoring.py",
+      "text": "current: tuple[ExactPromotionAttestation, ...],"
+    },
+    {
+      "line": 568,
+      "path": "apps/portfolio/domain/governed_optimization_monitoring.py",
+      "text": "if type(current) is not tuple or len(current) != 3 or receipt is None:"
+    },
+    {
+      "line": 574,
+      "path": "apps/portfolio/domain/governed_optimization_monitoring.py",
+      "text": "for promotion in current:"
+    },
+    {
+      "line": 303,
+      "path": "apps/portfolio/domain/governed_optimization_monitoring_contracts.py",
+      "text": "\"\"\"Identity-only selector for one current upstream Promotion.\"\"\""
+    },
+    {
+      "line": 662,
+      "path": "apps/portfolio/domain/governed_optimization_monitoring_contracts.py",
+      "text": "\"\"\"Exact result plus full lifecycle proving current Promotion state.\"\"\""
     },
     {
       "line": 199,
       "path": "apps/portfolio/domain/macro_factor_risk.py",
       "text": "\"\"\"Current or candidate portfolio weight and liquidity capacity.\"\"\""
+    },
+    {
+      "line": 105,
+      "path": "apps/portfolio/domain/macro_factor_risk_optimizer.py",
+      "text": "\"\"\"Current weight, hard bounds, liquidity, and linear cost for one asset.\"\"\""
     },
     {
       "line": 707,
@@ -10613,9 +10918,34 @@
       "text": "weights = _project_to_effective_bounds(problem, current)"
     },
     {
-      "line": 138,
+      "line": 102,
+      "path": "apps/portfolio/infrastructure/governed_optimization_monitoring_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 45,
+      "path": "apps/portfolio/infrastructure/optimization_input_receipt_repository.py",
+      "text": "\"\"\"Return the current server time.\"\"\""
+    },
+    {
+      "line": 52,
+      "path": "apps/portfolio/infrastructure/optimization_input_receipt_repository.py",
+      "text": "\"\"\"Return the current server time.\"\"\""
+    },
+    {
+      "line": 77,
+      "path": "apps/portfolio/infrastructure/optimization_input_receipt_repository.py",
+      "text": "\"\"\"Return whether this exact UoW owns the current context.\"\"\""
+    },
+    {
+      "line": 290,
       "path": "apps/portfolio/infrastructure/optimization_research_repository.py",
       "text": "raise ValueError(\"lifecycle event does not extend the current chain\")"
+    },
+    {
+      "line": 55,
+      "path": "apps/portfolio/infrastructure/r4_monitoring_raw_fact_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
     },
     {
       "line": 36,
@@ -12143,7 +12473,7 @@
       "text": "\"\"\"Rehydrate a UI-friendly action recommendation from the latest persisted log.\"\"\""
     },
     {
-      "line": 357,
+      "line": 396,
       "path": "apps/regime/application/orchestration.py",
       "text": "\"falling back to current resolver\""
     },
@@ -12523,6 +12853,26 @@
       "text": "\"\"\"Return current artifact attestation or ``None``.\"\"\""
     },
     {
+      "line": 116,
+      "path": "apps/research/application/r2_market_structure_trial_monitoring_persistence.py",
+      "text": "\"\"\"Exact PIT query without latest/current semantics.\"\"\""
+    },
+    {
+      "line": 130,
+      "path": "apps/research/application/r2_market_structure_trial_monitoring_persistence.py",
+      "text": "\"\"\"Exact PIT query without latest/current semantics.\"\"\""
+    },
+    {
+      "line": 87,
+      "path": "apps/research/application/r3_macro_factor_runner_spec.py",
+      "text": "\"\"\"Return one exact record with no latest or fallback behavior.\"\"\""
+    },
+    {
+      "line": 142,
+      "path": "apps/research/application/r3_macro_factor_runner_spec.py",
+      "text": "\"\"\"Exact historical query without latest/current fallback.\"\"\""
+    },
+    {
       "line": 381,
       "path": "apps/research/application/r4_promotion_decision.py",
       "text": "\"\"\"Re-read exact policy, Portfolio and current R3 before decision append.\"\"\""
@@ -12548,6 +12898,76 @@
       "text": "\"exact current r3 attestation was substituted or is inactive\""
     },
     {
+      "line": 145,
+      "path": "apps/research/application/r4_promotion_monitoring.py",
+      "text": "\"\"\"Return the exact current R3 projection or explicit absence.\"\"\""
+    },
+    {
+      "line": 109,
+      "path": "apps/research/application/r4_promotion_monitoring_owner_registry.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 445,
+      "path": "apps/research/application/r4_promotion_monitoring_owner_registry.py",
+      "text": "expected: tuple[object, ...], current: tuple[object, ...]"
+    },
+    {
+      "line": 447,
+      "path": "apps/research/application/r4_promotion_monitoring_owner_registry.py",
+      "text": "if len(expected) != len(current) or any("
+    },
+    {
+      "line": 449,
+      "path": "apps/research/application/r4_promotion_monitoring_owner_registry.py",
+      "text": "for expected_item, current_item in zip(expected, current, strict=True)"
+    },
+    {
+      "line": 81,
+      "path": "apps/research/application/r4_promotion_monitoring_persistence.py",
+      "text": "\"\"\"Exact PIT query accepting no current/latest semantics.\"\"\""
+    },
+    {
+      "line": 199,
+      "path": "apps/research/application/r5_monitoring_owner_registry.py",
+      "text": "current: tuple[_UowBound, ...] = ("
+    },
+    {
+      "line": 207,
+      "path": "apps/research/application/r5_monitoring_owner_registry.py",
+      "text": "for actual, expected in zip(current, self._participants, strict=True)"
+    },
+    {
+      "line": 212,
+      "path": "apps/research/application/r5_monitoring_owner_registry.py",
+      "text": "_require_expected_uow(current, self._expected_uow_key)"
+    },
+    {
+      "line": 318,
+      "path": "apps/research/application/r5_monitoring_owner_registry.py",
+      "text": "current: tuple[_UowBound, ...] = ("
+    },
+    {
+      "line": 326,
+      "path": "apps/research/application/r5_monitoring_owner_registry.py",
+      "text": "for actual, expected in zip(current, self._participants, strict=True)"
+    },
+    {
+      "line": 331,
+      "path": "apps/research/application/r5_monitoring_owner_registry.py",
+      "text": "_require_expected_uow(current, self._expected_uow_key)"
+    },
+    {
+      "line": 36,
+      "path": "apps/research/application/r5_relative_value_monitoring.py",
+      "text": "\"\"\"Return the current timezone-aware server time.\"\"\""
+    },
+    {
+      "line": 56,
+      "path": "apps/research/application/r5_relative_value_monitoring_persistence.py",
+      "text": "\"\"\"Exact PIT read accepting no latest or current semantics.\"\"\""
+    },
+    {
       "line": 97,
       "path": "apps/research/application/r5_relative_value_promotion_lifecycle.py",
       "text": "\"\"\"Return the current UTC server timestamp.\"\"\""
@@ -12556,6 +12976,46 @@
       "line": 648,
       "path": "apps/research/application/r5_relative_value_promotion_lifecycle.py",
       "text": "\"authorization predates the current stream head\","
+    },
+    {
+      "line": 84,
+      "path": "apps/research/application/r5_research_control_adapters.py",
+      "text": "\"\"\"Return the latest complete period tied to the active decision.\"\"\""
+    },
+    {
+      "line": 195,
+      "path": "apps/research/application/r5_research_control_adapters.py",
+      "text": "\"\"\"Return only the server-selected latest complete monitoring evidence.\"\"\""
+    },
+    {
+      "line": 63,
+      "path": "apps/research/application/r5_research_control_preflight.py",
+      "text": "\"\"\"Strict projection of the server-selected latest complete assessment.\"\"\""
+    },
+    {
+      "line": 190,
+      "path": "apps/research/application/r5_research_control_preflight.py",
+      "text": "\"\"\"Read-only gate result that never grants current, decision, or execution use.\"\"\""
+    },
+    {
+      "line": 269,
+      "path": "apps/research/application/r5_research_control_preflight.py",
+      "text": "\"\"\"Server-selecting latest-complete monitoring assessment reader.\"\"\""
+    },
+    {
+      "line": 281,
+      "path": "apps/research/application/r5_research_control_preflight.py",
+      "text": "\"\"\"Select by active decision and latest complete period, never caller health.\"\"\""
+    },
+    {
+      "line": 352,
+      "path": "apps/research/application/r5_research_control_preflight.py",
+      "text": "\"\"\"Evaluate the exact latest graph without any write or consumer side effect.\"\"\""
+    },
+    {
+      "line": 105,
+      "path": "apps/research/application/r7_post_promotion_monitoring_persistence.py",
+      "text": "\"\"\"Exact PIT read with no latest/current semantics.\"\"\""
     },
     {
       "line": 119,
@@ -12593,6 +13053,41 @@
       "text": "\"\"\"Return the exact result without latest/current fallback.\"\"\""
     },
     {
+      "line": 231,
+      "path": "apps/research/application/r7_result_family_lifecycle.py",
+      "text": "\"\"\"Return one exact owner instruction without latest fallback.\"\"\""
+    },
+    {
+      "line": 235,
+      "path": "apps/research/application/r7_result_family_lifecycle.py",
+      "text": "\"\"\"Append-only family stream boundary; no active/current consumer surface.\"\"\""
+    },
+    {
+      "line": 684,
+      "path": "apps/research/application/r7_result_family_lifecycle.py",
+      "text": "\"\"\"Block activation if current owner state retired or expired meanwhile.\"\"\""
+    },
+    {
+      "line": 704,
+      "path": "apps/research/application/r7_result_family_lifecycle.py",
+      "text": "raise ValueError(\"current owner identity differs\")"
+    },
+    {
+      "line": 708,
+      "path": "apps/research/application/r7_result_family_lifecycle.py",
+      "text": "raise ValueError(\"current subject cannot activate\")"
+    },
+    {
+      "line": 712,
+      "path": "apps/research/application/r7_result_family_lifecycle.py",
+      "text": "raise ValueError(\"current rollback target cannot activate\")"
+    },
+    {
+      "line": 715,
+      "path": "apps/research/application/r7_result_family_lifecycle.py",
+      "text": "\"R7 family current owner state cannot activate\""
+    },
+    {
       "line": 209,
       "path": "apps/research/application/r7_sample_policy.py",
       "text": "\"\"\"Exact historical query with no latest/current fallback.\"\"\""
@@ -12603,9 +13098,29 @@
       "text": "\"\"\"Return frozen evidence and never rebuild history from current values.\"\"\""
     },
     {
+      "line": 4,
+      "path": "apps/research/application/state_model_activation.py",
+      "text": "not publish a current model, replace Regime, authorize a decision, or execute."
+    },
+    {
+      "line": 872,
+      "path": "apps/research/application/state_model_activation.py",
+      "text": "\"\"\"Resolve a PIT active approval only after full current owner revalidation.\"\"\""
+    },
+    {
       "line": 37,
       "path": "apps/research/application/state_model_baseline.py",
       "text": "\"\"\"Return evidence without recomputing it from revised current data.\"\"\""
+    },
+    {
+      "line": 310,
+      "path": "apps/research/application/state_model_monitoring.py",
+      "text": "\"\"\"Evaluate exact evidence without lifecycle, current, or execution side effects.\"\"\""
+    },
+    {
+      "line": 238,
+      "path": "apps/research/application/state_model_monitoring_persistence.py",
+      "text": "\"\"\"Return a PIT page without latest/current semantics.\"\"\""
     },
     {
       "line": 130,
@@ -12641,6 +13156,51 @@
       "line": 642,
       "path": "apps/research/domain/r1_forecast_promotion_lifecycle.py",
       "text": "latest_event_hash=latest.content_hash,"
+    },
+    {
+      "line": 3,
+      "path": "apps/research/domain/r2_market_structure_trial_contracts.py",
+      "text": "This module deliberately cannot publish predictive signals, current state,"
+    },
+    {
+      "line": 679,
+      "path": "apps/research/domain/r2_market_structure_trial_contracts.py",
+      "text": "current.period_start < previous.period_end"
+    },
+    {
+      "line": 680,
+      "path": "apps/research/domain/r2_market_structure_trial_contracts.py",
+      "text": "for previous, current in zip(periods, periods[1:], strict=False)"
+    },
+    {
+      "line": 719,
+      "path": "apps/research/domain/r2_market_structure_trial_contracts.py",
+      "text": "current.period_start != previous.period_end"
+    },
+    {
+      "line": 720,
+      "path": "apps/research/domain/r2_market_structure_trial_contracts.py",
+      "text": "for previous, current in zip("
+    },
+    {
+      "line": 1088,
+      "path": "apps/research/domain/r2_market_structure_trial_evaluation.py",
+      "text": "current.period_start < previous.period_end"
+    },
+    {
+      "line": 1089,
+      "path": "apps/research/domain/r2_market_structure_trial_evaluation.py",
+      "text": "for previous, current in zip(ordered, ordered[1:], strict=False)"
+    },
+    {
+      "line": 1170,
+      "path": "apps/research/domain/r2_market_structure_trial_evaluation.py",
+      "text": "latest = ordered[-1]"
+    },
+    {
+      "line": 1171,
+      "path": "apps/research/domain/r2_market_structure_trial_evaluation.py",
+      "text": "freshness_anchor = min(latest.period_end, latest.observed_at)"
     },
     {
       "line": 369,
@@ -12758,6 +13318,36 @@
       "text": "latest_event_hash=latest.content_hash,"
     },
     {
+      "line": 4,
+      "path": "apps/research/domain/r4_promotion_monitoring.py",
+      "text": "never retires a promotion, publishes current state, authorizes a portfolio"
+    },
+    {
+      "line": 115,
+      "path": "apps/research/domain/r4_promotion_monitoring.py",
+      "text": "\"\"\"Latest threshold state and trailing breach count for one metric.\"\"\""
+    },
+    {
+      "line": 707,
+      "path": "apps/research/domain/r4_promotion_monitoring.py",
+      "text": "latest = ordered[-1]"
+    },
+    {
+      "line": 708,
+      "path": "apps/research/domain/r4_promotion_monitoring.py",
+      "text": "if evaluated_at - latest.period_end > timedelta("
+    },
+    {
+      "line": 243,
+      "path": "apps/research/domain/r4_promotion_monitoring_contracts.py",
+      "text": "current.period_start != previous.period_end"
+    },
+    {
+      "line": 244,
+      "path": "apps/research/domain/r4_promotion_monitoring_contracts.py",
+      "text": "for previous, current in zip(ordered, ordered[1:], strict=False)"
+    },
+    {
       "line": 1,
       "path": "apps/research/domain/r4_promotion_trial.py",
       "text": "\"\"\"Exact R4 promotion trial seal over Portfolio and current R3 evidence.\"\"\""
@@ -12776,6 +13366,16 @@
       "line": 165,
       "path": "apps/research/domain/r4_promotion_trial.py",
       "text": "raise ValueError(\"R4 promotion trial current R3 evidence was substituted\")"
+    },
+    {
+      "line": 252,
+      "path": "apps/research/domain/r5_relative_value_monitoring.py",
+      "text": "raise ValueError(\"available assessment requires latest period\")"
+    },
+    {
+      "line": 253,
+      "path": "apps/research/domain/r5_relative_value_monitoring.py",
+      "text": "_require_hash(self.latest_period_id, \"monitoring assessment latest period\")"
     },
     {
       "line": 656,
@@ -12803,6 +13403,91 @@
       "text": "latest_event_hash=latest.content_hash,"
     },
     {
+      "line": 230,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "current = object.__getattribute__(self, \"content_hash\")"
+    },
+    {
+      "line": 234,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "require_sha256(current, \"R7 local lifecycle attestation content_hash\")"
+    },
+    {
+      "line": 235,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "if current != expected:"
+    },
+    {
+      "line": 445,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "current = object.__getattribute__(self, \"content_hash\")"
+    },
+    {
+      "line": 449,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "require_sha256(current, \"R7 family owner evidence content_hash\")"
+    },
+    {
+      "line": 450,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "if current != expected:"
+    },
+    {
+      "line": 654,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "current = object.__getattribute__(self, \"content_hash\")"
+    },
+    {
+      "line": 658,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "require_sha256(current, \"R7 family authorization content_hash\")"
+    },
+    {
+      "line": 659,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "if current != expected:"
+    },
+    {
+      "line": 793,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "current = object.__getattribute__(self, \"content_hash\")"
+    },
+    {
+      "line": 797,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "require_sha256(current, \"R7 family event content_hash\")"
+    },
+    {
+      "line": 798,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "if current != expected:"
+    },
+    {
+      "line": 994,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "stack, evidence_stack, latest = _replay_chain(events)"
+    },
+    {
+      "line": 1005,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "if latest.action is R7FamilyLifecycleAction.ROLLBACK"
+    },
+    {
+      "line": 1010,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "family=latest.family,"
+    },
+    {
+      "line": 1014,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "sequence=latest.sequence,"
+    },
+    {
+      "line": 1015,
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "text": "head_event_hash=latest.content_hash,"
+    },
+    {
       "line": 65,
       "path": "apps/research/domain/scenario_research_evidence.py",
       "text": "\"\"\"Freeze a canonical reference without resolving current data.\"\"\""
@@ -12813,14 +13498,84 @@
       "text": "raise ValueError(\"historical analogy feature uses look-ahead or current-value backfill\")"
     },
     {
+      "line": 5,
+      "path": "apps/research/domain/state_model_activation.py",
+      "text": "auditable stack, but this module never publishes ``current``, replaces Regime,"
+    },
+    {
       "line": 353,
       "path": "apps/research/domain/state_model_baseline.py",
       "text": "\"\"\"Prove shortfall only from complete, current, specification-bound evidence.\"\"\""
     },
     {
+      "line": 4,
+      "path": "apps/research/domain/state_model_monitoring.py",
+      "text": "It never retires a qualification, replaces Regime, publishes current state, or"
+    },
+    {
+      "line": 290,
+      "path": "apps/research/domain/state_model_monitoring.py",
+      "text": "current.period_start < previous.period_end"
+    },
+    {
+      "line": 291,
+      "path": "apps/research/domain/state_model_monitoring.py",
+      "text": "for previous, current in zip(ordered, ordered[1:], strict=False)"
+    },
+    {
+      "line": 295,
+      "path": "apps/research/domain/state_model_monitoring.py",
+      "text": "current.period_start != previous.period_end"
+    },
+    {
+      "line": 296,
+      "path": "apps/research/domain/state_model_monitoring.py",
+      "text": "for previous, current in zip(ordered, ordered[1:], strict=False)"
+    },
+    {
+      "line": 698,
+      "path": "apps/research/domain/state_model_monitoring.py",
+      "text": "\"\"\"Recomputed latest threshold state and trailing breach count.\"\"\""
+    },
+    {
+      "line": 976,
+      "path": "apps/research/domain/state_model_monitoring.py",
+      "text": "current.period_start < previous.period_end"
+    },
+    {
+      "line": 977,
+      "path": "apps/research/domain/state_model_monitoring.py",
+      "text": "for previous, current in zip(ordered, ordered[1:], strict=False)"
+    },
+    {
       "line": 6,
       "path": "apps/research/domain/state_model_qualification_contracts.py",
       "text": "publishes a current state, authorizes a decision, or replaces canonical Regime."
+    },
+    {
+      "line": 91,
+      "path": "apps/research/infrastructure/r1_forecast_trial_evidence_repository.py",
+      "text": "\"\"\"Return one exact knowable/active receipt, never a latest fallback.\"\"\""
+    },
+    {
+      "line": 74,
+      "path": "apps/research/infrastructure/r2_market_structure_trial_monitoring_repository.py",
+      "text": "\"\"\"Return the current server timestamp.\"\"\""
+    },
+    {
+      "line": 106,
+      "path": "apps/research/infrastructure/r4_promotion_monitoring_owner_adapters.py",
+      "text": "\"\"\"Project the canonical R3 exact provider without latest fallback.\"\"\""
+    },
+    {
+      "line": 65,
+      "path": "apps/research/infrastructure/r4_promotion_monitoring_owner_repository.py",
+      "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
+    },
+    {
+      "line": 96,
+      "path": "apps/research/infrastructure/r4_promotion_monitoring_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
     },
     {
       "line": 238,
@@ -12853,14 +13608,49 @@
       "text": "\"Portfolio R4 record or current R3 evidence was substituted\""
     },
     {
+      "line": 97,
+      "path": "apps/research/infrastructure/r5_relative_value_monitoring_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 199,
+      "path": "apps/research/infrastructure/r5_relative_value_monitoring_repository.py",
+      "text": "\"\"\"Select the latest complete period for one exact active decision.\"\"\""
+    },
+    {
+      "line": 254,
+      "path": "apps/research/infrastructure/r5_relative_value_monitoring_repository.py",
+      "text": "\"R5 monitoring latest complete selector has multiple winners\""
+    },
+    {
       "line": 63,
       "path": "apps/research/infrastructure/r5_relative_value_promotion_repository_support.py",
       "text": "\"\"\"Return the current server timestamp.\"\"\""
     },
     {
+      "line": 76,
+      "path": "apps/research/infrastructure/r7_post_promotion_monitoring_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
       "line": 106,
       "path": "apps/research/infrastructure/r7_research_result_lifecycle_repository.py",
       "text": "\"\"\"Exact append/PIT audit repository with no active/current result reader.\"\"\""
+    },
+    {
+      "line": 161,
+      "path": "apps/research/infrastructure/r7_result_family_lifecycle_repository.py",
+      "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
+    },
+    {
+      "line": 78,
+      "path": "apps/research/infrastructure/state_model_activation_repository.py",
+      "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
+    },
+    {
+      "line": 62,
+      "path": "apps/research/infrastructure/state_model_monitoring_repository.py",
+      "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
     },
     {
       "line": 49,
@@ -12878,9 +13668,9 @@
       "text": "\"\"\"Restore a scope-local event stream without latest/current fallback.\"\"\""
     },
     {
-      "line": 24,
-      "path": "apps/research/r7_research_result_lifecycle_composition.py",
-      "text": "\"\"\"Safe public apply/audit capabilities with no active/current selector.\"\"\""
+      "line": 58,
+      "path": "apps/research/r5_research_control_composition.py",
+      "text": "\"\"\"Read-only runtime with no writer, consumer, current, or execution port.\"\"\""
     },
     {
       "line": 1,
@@ -14253,6 +15043,11 @@
       "text": "snapshot = ShareSnapshotModel.objects.filter(share_link=active_share_link).latest("
     },
     {
+      "line": 87,
+      "path": "apps/signal/application/forecast_realization_owner.py",
+      "text": "\"\"\"Return one exact manifest; never latest, current, or a list.\"\"\""
+    },
+    {
       "line": 290,
       "path": "apps/signal/application/invalidation_checker.py",
       "text": "latest = self.macro_repo.get_latest_by_code(code)"
@@ -14348,92 +15143,92 @@
       "text": "\"\"\"Daily signal summary returned by the scheduled task.\"\"\""
     },
     {
-      "line": 250,
+      "line": 333,
       "path": "apps/signal/application/tasks.py",
       "text": "summary: SignalSummary = {"
     },
     {
-      "line": 258,
+      "line": 347,
       "path": "apps/signal/application/tasks.py",
       "text": "logger.info(f\"每日信号摘要: {summary}\")"
     },
     {
-      "line": 261,
+      "line": 350,
       "path": "apps/signal/application/tasks.py",
       "text": "summary[\"notification_sent\"] = _send_signal_summary_notification("
     },
     {
-      "line": 262,
+      "line": 351,
       "path": "apps/signal/application/tasks.py",
       "text": "summary,"
     },
     {
-      "line": 266,
+      "line": 355,
       "path": "apps/signal/application/tasks.py",
       "text": "if not summary[\"notification_sent\"]:"
     },
     {
-      "line": 267,
+      "line": 356,
       "path": "apps/signal/application/tasks.py",
       "text": "raise DataFetchError(\"Signal summary notification delivery failed\")"
     },
     {
-      "line": 269,
+      "line": 358,
       "path": "apps/signal/application/tasks.py",
       "text": "return summary"
     },
     {
-      "line": 279,
+      "line": 368,
       "path": "apps/signal/application/tasks.py",
       "text": "summary: SignalSummary,"
     },
     {
-      "line": 287,
+      "line": 376,
       "path": "apps/signal/application/tasks.py",
       "text": "summary: 摘要统计数据"
     },
     {
-      "line": 302,
+      "line": 391,
       "path": "apps/signal/application/tasks.py",
       "text": "subject = f\"[AgomTradePro] 每日信号摘要 - {summary['date']}\""
     },
     {
-      "line": 306,
+      "line": 395,
       "path": "apps/signal/application/tasks.py",
       "text": "f\"**日期**: {summary['date']}\","
     },
     {
-      "line": 309,
+      "line": 398,
       "path": "apps/signal/application/tasks.py",
       "text": "f\"- 新建信号: {summary['new_signals']} 个\","
     },
     {
-      "line": 310,
+      "line": 399,
       "path": "apps/signal/application/tasks.py",
       "text": "f\"- 证伪信号: {summary['invalidated_signals']} 个\","
     },
     {
-      "line": 311,
+      "line": 400,
       "path": "apps/signal/application/tasks.py",
       "text": "f\"- 当前有效信号: {summary['total_approved']} 个\","
     },
     {
-      "line": 379,
+      "line": 468,
       "path": "apps/signal/application/tasks.py",
       "text": "<p>{summary['date']}</p>"
     },
     {
-      "line": 385,
+      "line": 474,
       "path": "apps/signal/application/tasks.py",
       "text": "<div class=\"stat-value\">{summary['new_signals']}</div>"
     },
     {
-      "line": 389,
+      "line": 478,
       "path": "apps/signal/application/tasks.py",
       "text": "<div class=\"stat-value\">{summary['invalidated_signals']}</div>"
     },
     {
-      "line": 393,
+      "line": 482,
       "path": "apps/signal/application/tasks.py",
       "text": "<div class=\"stat-value\">{summary['total_approved']}</div>"
     },
@@ -14693,74 +15488,94 @@
       "text": "last_updated=latest.observed_at.isoformat() if latest.observed_at else None,"
     },
     {
-      "line": 22,
+      "line": 59,
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "summary = result.get(\"summary\", {})"
+    },
+    {
+      "line": 74,
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "\"summary:\","
+    },
+    {
+      "line": 75,
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "f\"- positions_count: {summary.get('positions_count')}\","
+    },
+    {
+      "line": 76,
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "f\"- rebalance_required_count: {summary.get('rebalance_required_count')}\","
+    },
+    {
+      "line": 77,
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "f\"- rebalance_assets: {summary.get('rebalance_assets')}\","
+    },
+    {
+      "line": 78,
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "f\"- total_value: {summary.get('total_value')}\","
+    },
+    {
+      "line": 79,
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "f\"- current_cash: {summary.get('current_cash')}\","
+    },
+    {
+      "line": 107,
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "summary = result.get(\"summary\", {})"
+    },
+    {
+      "line": 148,
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "f\"- 需要调整的资产数: {summary.get('rebalance_required_count', 0)}\","
+    },
+    {
+      "line": 200,
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "body=f\"账户 {context['account_name']} 的日更巡检发现了 {summary.get('rebalance_required_count', 0)} 个需要调整的资产，请审核再平衡建议 #{proposal_id}。\","
+    },
+    {
+      "line": 21,
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "from apps.realtime.application.price_polling_service import PricePollingUseCase"
     },
     {
-      "line": 98,
+      "line": 109,
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "\"\"\"Execute one realtime polling cycle through the owning realtime app.\"\"\""
     },
     {
-      "line": 214,
+      "line": 320,
       "path": "apps/simulated_trading/application/tasks.py",
-      "text": "\"summary\": {"
+      "text": "summary={"
     },
     {
-      "line": 808,
+      "line": 807,
       "path": "apps/simulated_trading/application/tasks.py",
-      "text": "summary = result.get(\"summary\", {})"
+      "text": "raise ValueError(\"performance summary recipients are malformed\")"
     },
     {
-      "line": 823,
+      "line": 1135,
       "path": "apps/simulated_trading/application/tasks.py",
-      "text": "\"summary:\","
+      "text": "raise ValueError(\"invalidation summary returned malformed evidence\")"
     },
     {
-      "line": 824,
-      "path": "apps/simulated_trading/application/tasks.py",
-      "text": "f\"- positions_count: {summary.get('positions_count')}\","
-    },
-    {
-      "line": 825,
-      "path": "apps/simulated_trading/application/tasks.py",
-      "text": "f\"- rebalance_required_count: {summary.get('rebalance_required_count')}\","
-    },
-    {
-      "line": 826,
-      "path": "apps/simulated_trading/application/tasks.py",
-      "text": "f\"- rebalance_assets: {summary.get('rebalance_assets')}\","
-    },
-    {
-      "line": 827,
-      "path": "apps/simulated_trading/application/tasks.py",
-      "text": "f\"- total_value: {summary.get('total_value')}\","
-    },
-    {
-      "line": 828,
-      "path": "apps/simulated_trading/application/tasks.py",
-      "text": "f\"- current_cash: {summary.get('current_cash')}\","
-    },
-    {
-      "line": 856,
-      "path": "apps/simulated_trading/application/tasks.py",
-      "text": "summary = result.get(\"summary\", {})"
-    },
-    {
-      "line": 897,
-      "path": "apps/simulated_trading/application/tasks.py",
-      "text": "f\"- 需要调整的资产数: {summary.get('rebalance_required_count', 0)}\","
-    },
-    {
-      "line": 949,
-      "path": "apps/simulated_trading/application/tasks.py",
-      "text": "body=f\"账户 {context['account_name']} 的日更巡检发现了 {summary.get('rebalance_required_count', 0)} 个需要调整的资产，请审核再平衡建议 #{proposal_id}。\","
-    },
-    {
-      "line": 1207,
+      "line": 1266,
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "使用 realtime 模块的价格轮询服务，更新所有持仓资产的最新价格。"
+    },
+    {
+      "line": 1297,
+      "path": "apps/simulated_trading/application/tasks.py",
+      "text": "raise ValueError(\"realtime polling returned malformed evidence\")"
+    },
+    {
+      "line": 1302,
+      "path": "apps/simulated_trading/application/tasks.py",
+      "text": "raise ValueError(\"realtime polling counters are inconsistent\")"
     },
     {
       "line": 40,
@@ -17370,27 +18185,27 @@
   ],
   "data_write_task_decorators": [
     {
-      "line": 60,
+      "line": 80,
       "path": "apps/account/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 125,
+      "line": 165,
       "path": "apps/account/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 198,
+      "line": 254,
       "path": "apps/account/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 241,
+      "line": 306,
       "path": "apps/account/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 454,
+      "line": 529,
       "path": "apps/account/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
@@ -17530,39 +18345,29 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 74,
+      "line": 97,
       "path": "apps/operational_readiness/application/tasks.py",
       "text": "@shared_task("
     },
     {
-      "line": 81,
+      "line": 154,
       "path": "apps/policy/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 149,
+      "line": 226,
       "path": "apps/policy/application/tasks.py",
       "text": "@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]"
     },
     {
-      "line": 200,
+      "line": 281,
       "path": "apps/policy/application/tasks.py",
       "text": "@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]"
     },
     {
-      "line": 287,
+      "line": 371,
       "path": "apps/policy/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
-    },
-    {
-      "line": 373,
-      "path": "apps/policy/application/tasks.py",
-      "text": "@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]"
-    },
-    {
-      "line": 406,
-      "path": "apps/policy/application/tasks.py",
-      "text": "@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]"
     },
     {
       "line": 473,
@@ -17570,27 +18375,37 @@
       "text": "@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]"
     },
     {
-      "line": 507,
+      "line": 510,
       "path": "apps/policy/application/tasks.py",
       "text": "@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]"
     },
     {
-      "line": 531,
+      "line": 607,
+      "path": "apps/policy/application/tasks.py",
+      "text": "@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]"
+    },
+    {
+      "line": 647,
+      "path": "apps/policy/application/tasks.py",
+      "text": "@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]"
+    },
+    {
+      "line": 673,
       "path": "apps/policy/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 610,
+      "line": 758,
       "path": "apps/policy/application/tasks.py",
       "text": "@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]"
     },
     {
-      "line": 623,
+      "line": 771,
       "path": "apps/policy/application/tasks.py",
       "text": "@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]"
     },
     {
-      "line": 663,
+      "line": 811,
       "path": "apps/policy/application/tasks.py",
       "text": "@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]"
     },
@@ -17600,27 +18415,27 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 128,
+      "line": 153,
       "path": "apps/regime/application/orchestration.py",
       "text": "@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]"
     },
     {
-      "line": 196,
+      "line": 226,
       "path": "apps/regime/application/orchestration.py",
       "text": "@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]"
     },
     {
-      "line": 287,
+      "line": 319,
       "path": "apps/regime/application/orchestration.py",
       "text": "@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]"
     },
     {
-      "line": 382,
+      "line": 422,
       "path": "apps/regime/application/orchestration.py",
       "text": "@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]"
     },
     {
-      "line": 565,
+      "line": 623,
       "path": "apps/regime/application/orchestration.py",
       "text": "@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]"
     },
@@ -17635,12 +18450,12 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 371,
+      "line": 399,
       "path": "apps/task_monitor/application/tasks.py",
       "text": "@shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]"
     },
     {
-      "line": 406,
+      "line": 447,
       "path": "apps/task_monitor/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
@@ -17661,28 +18476,7 @@
     }
   ],
   "direct_data_center_imports_outside_data_center": [],
-  "external_http_imports_for_review": [
-    {
-      "import": "requests",
-      "line": 5,
-      "path": "apps/dashboard/infrastructure/ai_insight_client.py"
-    },
-    {
-      "import": "requests",
-      "line": 5,
-      "path": "apps/terminal/infrastructure/http_client.py"
-    },
-    {
-      "import": "requests",
-      "line": 14,
-      "path": "shared/infrastructure/alert_service.py"
-    },
-    {
-      "import": "requests",
-      "line": 17,
-      "path": "shared/infrastructure/alerts.py"
-    }
-  ],
+  "external_http_imports_for_review": [],
   "legacy_fact_references": {},
   "provider_imports_outside_data_center": [],
   "runtime_parameter_references": [

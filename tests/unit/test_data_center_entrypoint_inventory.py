@@ -189,7 +189,7 @@ def test_inventory_includes_internal_consumers_admin_and_config_compatibility(
         "data_center.provider.failover_tolerance",
         "consumer_cutover_in_progress",
     ) in entry_keys
-    assert any(
+    assert not any(
         category == "system_settings_compatibility" and path == "core/encryption_readiness.py"
         for category, path, _symbol, _locator in entry_keys
     )

@@ -11,10 +11,10 @@
       "compatibility_facade": 91,
       "current_data_surface": 46,
       "dynamic_import_edge": 8,
-      "management_command": 26,
+      "management_command": 25,
       "management_command_edge": 56,
       "mcp_tool": 40,
-      "migration_evidence": 11,
+      "migration_evidence": 13,
       "operational_dispatch_edge": 60,
       "operational_script": 28,
       "orchestration_entry": 8,
@@ -25,19 +25,19 @@
       "scheduler_writer": 16,
       "script": 3,
       "sdk": 46,
-      "system_settings_compatibility": 10,
+      "system_settings_compatibility": 7,
       "terminal_tui": 28,
-      "test_evidence": 31,
+      "test_evidence": 32,
       "workflow_step": 9
     },
     "by_status": {
-      "active_public": 629,
-      "adjacent_operational": 319,
+      "active_public": 668,
+      "adjacent_operational": 282,
       "candidate-review": 0,
-      "compatibility": 173,
+      "compatibility": 170,
       "retired_blocked": 0
     },
-    "total": 1121
+    "total": 1120
   },
   "entries": [
     {
@@ -1822,11 +1822,11 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:calculate_all_performance_task:simulated-weekly-performance",
       "locator": "simulated-weekly-performance",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "calculate_all_performance_task",
       "target": "apps.simulated_trading.application.tasks.calculate_all_performance_task"
     },
@@ -1872,21 +1872,21 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:check_position_invalidation_task:simulated-check-position-invalidation-afternoon",
       "locator": "simulated-check-position-invalidation-afternoon",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "check_position_invalidation_task",
       "target": "apps.simulated_trading.application.tasks.check_position_invalidation_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:check_position_invalidation_task:simulated-check-position-invalidation-morning",
       "locator": "simulated-check-position-invalidation-morning",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "check_position_invalidation_task",
       "target": "apps.simulated_trading.application.tasks.check_position_invalidation_task"
     },
@@ -1912,21 +1912,21 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:check_stop_loss_and_take_profit_task:account-check-stop-loss-take-profit-intraday",
       "locator": "account-check-stop-loss-take-profit-intraday",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "check_stop_loss_and_take_profit_task",
       "target": "apps.account.application.tasks.check_stop_loss_and_take_profit_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:cleanup_inactive_accounts_task:simulated-cleanup-accounts",
       "locator": "simulated-cleanup-accounts",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "cleanup_inactive_accounts_task",
       "target": "apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task"
     },
@@ -1942,11 +1942,11 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:cleanup_old_task_records:task-monitor-cleanup",
       "locator": "task-monitor-cleanup",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "cleanup_old_task_records",
       "target": "apps.task_monitor.application.tasks.cleanup_old_task_records"
     },
@@ -1962,11 +1962,11 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:daily_auto_trading_task:simulated-daily-auto-trading",
       "locator": "simulated-daily-auto-trading",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "daily_auto_trading_task",
       "target": "apps.simulated_trading.application.tasks.daily_auto_trading_task"
     },
@@ -2002,21 +2002,21 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:fetch_rss_sources:policy-fetch-rss-sources",
       "locator": "policy-fetch-rss-sources",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "fetch_rss_sources",
       "target": "apps.policy.application.tasks.fetch_rss_sources"
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:generate_daily_regime_signal:high-frequency-generate-signal",
       "locator": "high-frequency-generate-signal",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "generate_daily_regime_signal",
       "target": "apps.regime.application.orchestration.generate_daily_regime_signal"
     },
@@ -2052,21 +2052,21 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:monitor_sla_exceeded_task:policy-sla-monitor",
       "locator": "policy-sla-monitor",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "monitor_sla_exceeded_task",
       "target": "apps.policy.application.tasks.monitor_sla_exceeded_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:notify_invalidated_positions_task:simulated-notify-invalidated-positions",
       "locator": "simulated-notify-invalidated-positions",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "notify_invalidated_positions_task",
       "target": "apps.simulated_trading.application.tasks.notify_invalidated_positions_task"
     },
@@ -2172,41 +2172,41 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:qlib_daily_scoped_inference:qlib-daily-scoped-inference",
       "locator": "qlib-daily-scoped-inference",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "qlib_daily_scoped_inference",
       "target": "apps.alpha.application.tasks.qlib_daily_scoped_inference"
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:qlib_daily_scoped_inference:qlib-post-close-scoped-inference-recovery",
       "locator": "qlib-post-close-scoped-inference-recovery",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "qlib_daily_scoped_inference",
       "target": "apps.alpha.application.tasks.qlib_daily_scoped_inference"
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:qlib_refresh_cache:qlib-weekly-cache-refresh",
       "locator": "qlib-weekly-cache-refresh",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "qlib_refresh_cache",
       "target": "apps.alpha.application.tasks.qlib_refresh_cache"
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:recalculate_regime_with_daily_signal:high-frequency-recalculate-regime",
       "locator": "high-frequency-recalculate-regime",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "recalculate_regime_with_daily_signal",
       "target": "apps.regime.application.orchestration.recalculate_regime_with_daily_signal"
     },
@@ -2222,11 +2222,11 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:refresh_gate_constraints_task:policy-gate-refresh",
       "locator": "policy-gate-refresh",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "refresh_gate_constraints_task",
       "target": "apps.policy.application.tasks.refresh_gate_constraints_task"
     },
@@ -2252,31 +2252,31 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:run_personal_readiness_daily_task:personal-readiness-daily-evidence",
       "locator": "personal-readiness-daily-evidence",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "run_personal_readiness_daily_task",
       "target": "apps.operational_readiness.application.tasks.run_personal_readiness_daily_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:send_database_backup_email_task:send-database-backup-email",
       "locator": "send-database-backup-email",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "send_database_backup_email_task",
       "target": "apps.account.application.tasks.send_database_backup_email_task"
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:send_performance_summary_task:simulated-daily-summary",
       "locator": "simulated-daily-summary",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "send_performance_summary_task",
       "target": "apps.simulated_trading.application.tasks.send_performance_summary_task"
     },
@@ -2302,31 +2302,31 @@
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:sync_macro_then_refresh_regime:daily-sync-and-calculate",
       "locator": "daily-sync-and-calculate",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "sync_macro_then_refresh_regime",
       "target": "apps.regime.application.orchestration.sync_macro_then_refresh_regime"
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:update_all_prices_after_close:realtime-update-prices-after-close",
       "locator": "realtime-update-prices-after-close",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "update_all_prices_after_close",
       "target": "apps.simulated_trading.application.tasks.update_all_prices_after_close"
     },
     {
       "category": "beat_schedule",
-      "evidence": "adjacent app-owned operational schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/base.py:update_position_prices_task:simulated-update-prices",
       "locator": "simulated-update-prices",
       "path": "core/settings/base.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "update_position_prices_task",
       "target": "apps.simulated_trading.application.tasks.update_position_prices_task"
     },
@@ -2602,21 +2602,21 @@
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
       "id": "celery_dispatch_edge:apps/alpha/application/ops_use_cases.py:delay:line:122",
       "locator": "line:122",
       "path": "apps/alpha/application/ops_use_cases.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "delay",
       "target": "apps.alpha.application.tasks.qlib_predict_scores"
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
       "id": "celery_dispatch_edge:apps/alpha/application/ops_use_cases.py:delay:line:199",
       "locator": "line:199",
       "path": "apps/alpha/application/ops_use_cases.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "delay",
       "target": "apps.alpha.application.tasks.qlib_predict_scores"
     },
@@ -2632,101 +2632,101 @@
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
       "id": "celery_dispatch_edge:apps/alpha/application/ops_use_cases.py:delay:line:344",
       "locator": "line:344",
       "path": "apps/alpha/application/ops_use_cases.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "delay",
       "target": "apps.alpha.application.tasks.qlib_refresh_runtime_data_task"
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
       "id": "celery_dispatch_edge:apps/alpha/application/ops_use_cases.py:delay:line:429",
       "locator": "line:429",
       "path": "apps/alpha/application/ops_use_cases.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "delay",
       "target": "apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task"
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
-      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:750",
-      "locator": "line:750",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
+      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:1037",
+      "locator": "line:1037",
       "path": "apps/alpha/application/tasks.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "delay",
       "target": "apps.alpha.application.tasks.qlib_predict_scores"
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
-      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:815",
-      "locator": "line:815",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
+      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:757",
+      "locator": "line:757",
       "path": "apps/alpha/application/tasks.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "delay",
       "target": "apps.alpha.application.tasks.qlib_predict_scores"
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
-      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:983",
-      "locator": "line:983",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
+      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:841",
+      "locator": "line:841",
       "path": "apps/alpha/application/tasks.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "delay",
       "target": "apps.alpha.application.tasks.qlib_predict_scores"
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
       "id": "celery_dispatch_edge:apps/alpha/infrastructure/adapters/qlib_adapter.py:apply_async:line:641",
       "locator": "line:641",
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "apply_async",
       "target": "apps.alpha.application.tasks.qlib_predict_scores"
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
       "id": "celery_dispatch_edge:apps/alpha/management/commands/train_qlib_model.py:apply_async:line:108",
       "locator": "line:108",
       "path": "apps/alpha/management/commands/train_qlib_model.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "apply_async",
       "target": "apps.alpha.application.tasks.qlib_train_model"
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
       "id": "celery_dispatch_edge:apps/dashboard/application/alpha_homepage_runtime.py:delay:line:236",
       "locator": "line:236",
       "path": "apps/dashboard/application/alpha_homepage_runtime.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "delay",
       "target": "apps.alpha.application.tasks.qlib_predict_scores"
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
       "id": "celery_dispatch_edge:apps/dashboard/interface/alpha_stock_views.py:delay:line:243",
       "locator": "line:243",
       "path": "apps/dashboard/interface/alpha_stock_views.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "delay",
       "target": "apps.alpha.application.tasks.qlib_predict_scores"
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
       "id": "celery_dispatch_edge:apps/dashboard/interface/alpha_stock_views.py:delay:line:305",
       "locator": "line:305",
       "path": "apps/dashboard/interface/alpha_stock_views.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "delay",
       "target": "apps.alpha.application.tasks.qlib_predict_scores"
     },
@@ -2742,31 +2742,31 @@
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
       "id": "celery_dispatch_edge:apps/policy/infrastructure/models.py:delay:line:712",
       "locator": "line:712",
       "path": "apps/policy/infrastructure/models.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "delay",
       "target": "apps.policy.application.tasks.trigger_signal_reevaluation"
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
-      "id": "celery_dispatch_edge:apps/regime/application/orchestration.py:s:line:611",
-      "locator": "line:611",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
+      "id": "celery_dispatch_edge:apps/regime/application/orchestration.py:s:line:669",
+      "locator": "line:669",
       "path": "apps/regime/application/orchestration.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "s",
       "target": "apps.regime.application.orchestration.calculate_regime_after_sync"
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
-      "id": "celery_dispatch_edge:apps/regime/application/orchestration.py:s:line:614",
-      "locator": "line:614",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
+      "id": "celery_dispatch_edge:apps/regime/application/orchestration.py:s:line:672",
+      "locator": "line:672",
       "path": "apps/regime/application/orchestration.py",
-      "status": "adjacent_operational",
+      "status": "active_public",
       "symbol": "s",
       "target": "apps.regime.application.orchestration.notify_regime_change_after_calculation"
     },
@@ -2782,7 +2782,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/account/application/tasks.py:check_stop_loss_and_take_profit_task:apps.account.application.tasks.check_stop_loss_and_take_profit_task",
       "locator": "apps.account.application.tasks.check_stop_loss_and_take_profit_task",
       "path": "apps/account/application/tasks.py",
@@ -2792,7 +2792,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/account/application/tasks.py:check_stop_loss_task:apps.account.application.tasks.check_stop_loss_task",
       "locator": "apps.account.application.tasks.check_stop_loss_task",
       "path": "apps/account/application/tasks.py",
@@ -2802,7 +2802,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/account/application/tasks.py:check_take_profit_task:apps.account.application.tasks.check_take_profit_task",
       "locator": "apps.account.application.tasks.check_take_profit_task",
       "path": "apps/account/application/tasks.py",
@@ -2812,7 +2812,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/account/application/tasks.py:check_volatility_and_adjust_task:apps.account.application.tasks.check_volatility_and_adjust_task",
       "locator": "apps.account.application.tasks.check_volatility_and_adjust_task",
       "path": "apps/account/application/tasks.py",
@@ -2822,7 +2822,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/account/application/tasks.py:send_database_backup_email_task:apps.account.application.tasks.send_database_backup_email_task",
       "locator": "apps.account.application.tasks.send_database_backup_email_task",
       "path": "apps/account/application/tasks.py",
@@ -2832,7 +2832,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/monitoring_tasks.py:calculate_ic_drift:alpha.monitor.calculate_ic_drift",
       "locator": "alpha.monitor.calculate_ic_drift",
       "path": "apps/alpha/application/monitoring_tasks.py",
@@ -2842,7 +2842,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/monitoring_tasks.py:calculate_ic_drift_legacy:apps.alpha.application.monitoring_tasks.calculate_ic_drift",
       "locator": "apps.alpha.application.monitoring_tasks.calculate_ic_drift",
       "path": "apps/alpha/application/monitoring_tasks.py",
@@ -2852,7 +2852,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/monitoring_tasks.py:check_queue_lag:alpha.monitor.check_queue_lag",
       "locator": "alpha.monitor.check_queue_lag",
       "path": "apps/alpha/application/monitoring_tasks.py",
@@ -2862,7 +2862,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/monitoring_tasks.py:check_queue_lag_legacy:apps.alpha.application.monitoring_tasks.check_queue_lag",
       "locator": "apps.alpha.application.monitoring_tasks.check_queue_lag",
       "path": "apps/alpha/application/monitoring_tasks.py",
@@ -2872,7 +2872,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/monitoring_tasks.py:cleanup_old_metrics:alpha.monitor.cleanup_old_metrics",
       "locator": "alpha.monitor.cleanup_old_metrics",
       "path": "apps/alpha/application/monitoring_tasks.py",
@@ -2882,7 +2882,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/monitoring_tasks.py:cleanup_old_metrics_legacy:apps.alpha.application.monitoring_tasks.cleanup_old_metrics",
       "locator": "apps.alpha.application.monitoring_tasks.cleanup_old_metrics",
       "path": "apps/alpha/application/monitoring_tasks.py",
@@ -2892,7 +2892,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/monitoring_tasks.py:evaluate_alerts:alpha.monitor.evaluate_alerts",
       "locator": "alpha.monitor.evaluate_alerts",
       "path": "apps/alpha/application/monitoring_tasks.py",
@@ -2902,7 +2902,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/monitoring_tasks.py:evaluate_alerts_legacy:apps.alpha.application.monitoring_tasks.evaluate_alerts",
       "locator": "apps.alpha.application.monitoring_tasks.evaluate_alerts",
       "path": "apps/alpha/application/monitoring_tasks.py",
@@ -2912,7 +2912,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/monitoring_tasks.py:generate_daily_report:alpha.monitor.generate_daily_report",
       "locator": "alpha.monitor.generate_daily_report",
       "path": "apps/alpha/application/monitoring_tasks.py",
@@ -2922,7 +2922,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/monitoring_tasks.py:generate_daily_report_legacy:apps.alpha.application.monitoring_tasks.generate_daily_report",
       "locator": "apps.alpha.application.monitoring_tasks.generate_daily_report",
       "path": "apps/alpha/application/monitoring_tasks.py",
@@ -2932,7 +2932,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/monitoring_tasks.py:update_provider_metrics:alpha.monitor.update_provider_metrics",
       "locator": "alpha.monitor.update_provider_metrics",
       "path": "apps/alpha/application/monitoring_tasks.py",
@@ -2942,7 +2942,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/monitoring_tasks.py:update_provider_metrics_legacy:apps.alpha.application.monitoring_tasks.update_provider_metrics",
       "locator": "apps.alpha.application.monitoring_tasks.update_provider_metrics",
       "path": "apps/alpha/application/monitoring_tasks.py",
@@ -2952,7 +2952,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/tasks.py:qlib_daily_inference:alpha.qlib_daily_inference",
       "locator": "alpha.qlib_daily_inference",
       "path": "apps/alpha/application/tasks.py",
@@ -2962,7 +2962,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/tasks.py:qlib_daily_inference_alias:apps.alpha.application.tasks.qlib_daily_inference",
       "locator": "apps.alpha.application.tasks.qlib_daily_inference",
       "path": "apps/alpha/application/tasks.py",
@@ -2972,7 +2972,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/tasks.py:qlib_daily_scoped_inference:alpha.qlib_daily_scoped_inference",
       "locator": "alpha.qlib_daily_scoped_inference",
       "path": "apps/alpha/application/tasks.py",
@@ -2982,7 +2982,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/tasks.py:qlib_daily_scoped_inference_alias:apps.alpha.application.tasks.qlib_daily_scoped_inference",
       "locator": "apps.alpha.application.tasks.qlib_daily_scoped_inference",
       "path": "apps/alpha/application/tasks.py",
@@ -2992,7 +2992,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/tasks.py:qlib_evaluate_model:apps.alpha.application.tasks.qlib_evaluate_model",
       "locator": "apps.alpha.application.tasks.qlib_evaluate_model",
       "path": "apps/alpha/application/tasks.py",
@@ -3002,7 +3002,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/tasks.py:qlib_predict_scores:apps.alpha.application.tasks.qlib_predict_scores",
       "locator": "apps.alpha.application.tasks.qlib_predict_scores",
       "path": "apps/alpha/application/tasks.py",
@@ -3012,7 +3012,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/tasks.py:qlib_refresh_cache:alpha.qlib_refresh_cache",
       "locator": "alpha.qlib_refresh_cache",
       "path": "apps/alpha/application/tasks.py",
@@ -3022,7 +3022,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/tasks.py:qlib_refresh_cache_alias:apps.alpha.application.tasks.qlib_refresh_cache",
       "locator": "apps.alpha.application.tasks.qlib_refresh_cache",
       "path": "apps/alpha/application/tasks.py",
@@ -3032,7 +3032,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/tasks.py:qlib_refresh_runtime_data_for_codes_task:apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task",
       "locator": "apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task",
       "path": "apps/alpha/application/tasks.py",
@@ -3042,7 +3042,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/tasks.py:qlib_refresh_runtime_data_task:apps.alpha.application.tasks.qlib_refresh_runtime_data_task",
       "locator": "apps.alpha.application.tasks.qlib_refresh_runtime_data_task",
       "path": "apps/alpha/application/tasks.py",
@@ -3052,7 +3052,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/alpha/application/tasks.py:qlib_train_model:apps.alpha.application.tasks.qlib_train_model",
       "locator": "apps.alpha.application.tasks.qlib_train_model",
       "path": "apps/alpha/application/tasks.py",
@@ -3062,7 +3062,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/backtest/application/tasks.py:cleanup_old_backtests:backtest.cleanup_old_backtests",
       "locator": "backtest.cleanup_old_backtests",
       "path": "apps/backtest/application/tasks.py",
@@ -3072,7 +3072,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/backtest/application/tasks.py:generate_backtest_report:backtest.generate_backtest_report",
       "locator": "backtest.generate_backtest_report",
       "path": "apps/backtest/application/tasks.py",
@@ -3082,7 +3082,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/backtest/application/tasks.py:run_backtest_task:apps.backtest.application.tasks.run_backtest_task",
       "locator": "apps.backtest.application.tasks.run_backtest_task",
       "path": "apps/backtest/application/tasks.py",
@@ -3092,7 +3092,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/broker_execution/application/tasks.py:generate_broker_reconciliation_runs:broker_execution.generate_reconciliation_runs",
       "locator": "broker_execution.generate_reconciliation_runs",
       "path": "apps/broker_execution/application/tasks.py",
@@ -3102,7 +3102,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/broker_execution/application/tasks.py:run_broker_execution_maintenance:broker_execution.run_maintenance",
       "locator": "broker_execution.run_maintenance",
       "path": "apps/broker_execution/application/tasks.py",
@@ -3472,7 +3472,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/operational_readiness/application/tasks.py:run_personal_readiness_daily_task:apps.operational_readiness.application.tasks.run_personal_readiness_daily_task",
       "locator": "apps.operational_readiness.application.tasks.run_personal_readiness_daily_task",
       "path": "apps/operational_readiness/application/tasks.py",
@@ -3482,7 +3482,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/policy/application/tasks.py:auto_assign_pending_audits:apps.policy.application.tasks.auto_assign_pending_audits",
       "locator": "apps.policy.application.tasks.auto_assign_pending_audits",
       "path": "apps/policy/application/tasks.py",
@@ -3502,7 +3502,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/policy/application/tasks.py:check_policy_status_alert:apps.policy.application.tasks.check_policy_status_alert",
       "locator": "apps.policy.application.tasks.check_policy_status_alert",
       "path": "apps/policy/application/tasks.py",
@@ -3512,7 +3512,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/policy/application/tasks.py:cleanup_old_audit_queues:apps.policy.application.tasks.cleanup_old_audit_queues",
       "locator": "apps.policy.application.tasks.cleanup_old_audit_queues",
       "path": "apps/policy/application/tasks.py",
@@ -3522,7 +3522,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/policy/application/tasks.py:cleanup_old_policy_logs:apps.policy.application.tasks.cleanup_old_policy_logs",
       "locator": "apps.policy.application.tasks.cleanup_old_policy_logs",
       "path": "apps/policy/application/tasks.py",
@@ -3532,7 +3532,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/policy/application/tasks.py:cleanup_old_rss_logs:apps.policy.application.tasks.cleanup_old_rss_logs",
       "locator": "apps.policy.application.tasks.cleanup_old_rss_logs",
       "path": "apps/policy/application/tasks.py",
@@ -3542,7 +3542,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/policy/application/tasks.py:fetch_rss_sources:apps.policy.application.tasks.fetch_rss_sources",
       "locator": "apps.policy.application.tasks.fetch_rss_sources",
       "path": "apps/policy/application/tasks.py",
@@ -3552,7 +3552,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/policy/application/tasks.py:generate_daily_policy_summary:apps.policy.application.tasks.generate_daily_policy_summary",
       "locator": "apps.policy.application.tasks.generate_daily_policy_summary",
       "path": "apps/policy/application/tasks.py",
@@ -3562,7 +3562,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/policy/application/tasks.py:monitor_policy_transitions:apps.policy.application.tasks.monitor_policy_transitions",
       "locator": "apps.policy.application.tasks.monitor_policy_transitions",
       "path": "apps/policy/application/tasks.py",
@@ -3572,7 +3572,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/policy/application/tasks.py:monitor_sla_exceeded_task:apps.policy.application.tasks.monitor_sla_exceeded_task",
       "locator": "apps.policy.application.tasks.monitor_sla_exceeded_task",
       "path": "apps/policy/application/tasks.py",
@@ -3582,7 +3582,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/policy/application/tasks.py:refresh_gate_constraints_task:apps.policy.application.tasks.refresh_gate_constraints_task",
       "locator": "apps.policy.application.tasks.refresh_gate_constraints_task",
       "path": "apps/policy/application/tasks.py",
@@ -3592,7 +3592,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/policy/application/tasks.py:trigger_signal_reevaluation:apps.policy.application.tasks.trigger_signal_reevaluation",
       "locator": "apps.policy.application.tasks.trigger_signal_reevaluation",
       "path": "apps/policy/application/tasks.py",
@@ -3602,7 +3602,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/pulse/application/tasks.py:calculate_weekly_pulse:pulse.calculate_weekly",
       "locator": "pulse.calculate_weekly",
       "path": "apps/pulse/application/tasks.py",
@@ -3622,7 +3622,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/regime/application/orchestration.py:calculate_regime_after_sync:apps.regime.application.orchestration.calculate_regime_after_sync",
       "locator": "apps.regime.application.orchestration.calculate_regime_after_sync",
       "path": "apps/regime/application/orchestration.py",
@@ -3632,7 +3632,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/regime/application/orchestration.py:generate_daily_regime_signal:apps.regime.application.orchestration.generate_daily_regime_signal",
       "locator": "apps.regime.application.orchestration.generate_daily_regime_signal",
       "path": "apps/regime/application/orchestration.py",
@@ -3642,7 +3642,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/regime/application/orchestration.py:notify_regime_change_after_calculation:apps.regime.application.orchestration.notify_regime_change_after_calculation",
       "locator": "apps.regime.application.orchestration.notify_regime_change_after_calculation",
       "path": "apps/regime/application/orchestration.py",
@@ -3652,7 +3652,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/regime/application/orchestration.py:recalculate_regime_with_daily_signal:apps.regime.application.orchestration.recalculate_regime_with_daily_signal",
       "locator": "apps.regime.application.orchestration.recalculate_regime_with_daily_signal",
       "path": "apps/regime/application/orchestration.py",
@@ -3662,7 +3662,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/regime/application/orchestration.py:sync_macro_then_refresh_regime:apps.regime.application.orchestration.sync_macro_then_refresh_regime",
       "locator": "apps.regime.application.orchestration.sync_macro_then_refresh_regime",
       "path": "apps/regime/application/orchestration.py",
@@ -3772,7 +3772,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/signal/application/tasks.py:check_all_signal_invalidations:signal.check_all_invalidations",
       "locator": "signal.check_all_invalidations",
       "path": "apps/signal/application/tasks.py",
@@ -3782,7 +3782,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/signal/application/tasks.py:check_single_signal_invalidation:signal.check_single_invalidation",
       "locator": "signal.check_single_invalidation",
       "path": "apps/signal/application/tasks.py",
@@ -3792,7 +3792,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/signal/application/tasks.py:cleanup_old_invalidated_signals:signal.cleanup_old_invalidated",
       "locator": "signal.cleanup_old_invalidated",
       "path": "apps/signal/application/tasks.py",
@@ -3802,7 +3802,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/signal/application/tasks.py:send_daily_signal_summary:signal.daily_summary",
       "locator": "signal.daily_summary",
       "path": "apps/signal/application/tasks.py",
@@ -3812,7 +3812,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:calculate_all_performance_task:simulated.calculate_all_performance",
       "locator": "simulated.calculate_all_performance",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3822,7 +3822,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:calculate_all_performance_task_alias:apps.simulated_trading.application.tasks.calculate_all_performance_task",
       "locator": "apps.simulated_trading.application.tasks.calculate_all_performance_task",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3832,7 +3832,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:check_position_invalidation_task:simulated.check_position_invalidation",
       "locator": "simulated.check_position_invalidation",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3842,7 +3842,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:check_position_invalidation_task_alias:apps.simulated_trading.application.tasks.check_position_invalidation_task",
       "locator": "apps.simulated_trading.application.tasks.check_position_invalidation_task",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3852,7 +3852,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:cleanup_inactive_accounts_task:simulated.cleanup_inactive_accounts",
       "locator": "simulated.cleanup_inactive_accounts",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3862,7 +3862,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:cleanup_inactive_accounts_task_alias:apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task",
       "locator": "apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3872,7 +3872,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:daily_auto_trading_task:apps.simulated_trading.application.tasks.daily_auto_trading_task",
       "locator": "apps.simulated_trading.application.tasks.daily_auto_trading_task",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3882,7 +3882,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:daily_portfolio_inspection_task:simulated.daily_portfolio_inspection",
       "locator": "simulated.daily_portfolio_inspection",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3892,7 +3892,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:notify_invalidated_positions_task:simulated.notify_invalidated_positions",
       "locator": "simulated.notify_invalidated_positions",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3902,7 +3902,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:notify_invalidated_positions_task_alias:apps.simulated_trading.application.tasks.notify_invalidated_positions_task",
       "locator": "apps.simulated_trading.application.tasks.notify_invalidated_positions_task",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3912,7 +3912,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:send_performance_summary_task:simulated.send_performance_summary",
       "locator": "simulated.send_performance_summary",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3922,7 +3922,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:send_performance_summary_task_alias:apps.simulated_trading.application.tasks.send_performance_summary_task",
       "locator": "apps.simulated_trading.application.tasks.send_performance_summary_task",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3932,7 +3932,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:update_all_prices_after_close:apps.simulated_trading.application.tasks.update_all_prices_after_close",
       "locator": "apps.simulated_trading.application.tasks.update_all_prices_after_close",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3942,7 +3942,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:update_position_prices_task:simulated.update_position_prices",
       "locator": "simulated.update_position_prices",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3952,7 +3952,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/simulated_trading/application/tasks.py:update_position_prices_task_alias:apps.simulated_trading.application.tasks.update_position_prices_task",
       "locator": "apps.simulated_trading.application.tasks.update_position_prices_task",
       "path": "apps/simulated_trading/application/tasks.py",
@@ -3982,7 +3982,7 @@
     },
     {
       "category": "celery_task",
-      "evidence": "Adjacent app-owned operational task; not a Data Center owner task",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/task_monitor/application/tasks.py:cleanup_old_task_records:apps.task_monitor.application.tasks.cleanup_old_task_records",
       "locator": "apps.task_monitor.application.tasks.cleanup_old_task_records",
       "path": "apps/task_monitor/application/tasks.py",
@@ -5543,16 +5543,6 @@
     {
       "category": "management_command",
       "evidence": "Data Center-owned Django command",
-      "id": "management_command:apps/data_center/management/commands/encrypt_provider_credentials.py:encrypt_provider_credentials:",
-      "locator": "",
-      "path": "apps/data_center/management/commands/encrypt_provider_credentials.py",
-      "status": "active_public",
-      "symbol": "encrypt_provider_credentials",
-      "target": ""
-    },
-    {
-      "category": "management_command",
-      "evidence": "Data Center-owned Django command",
       "id": "management_command:apps/data_center/management/commands/import_investor_accounts.py:import_investor_accounts:",
       "locator": "",
       "path": "apps/data_center/management/commands/import_investor_accounts.py",
@@ -5713,8 +5703,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command target is external or runtime-selected",
-      "id": "management_command_edge:apps/account/infrastructure/backup_service.py:dumpdata:line:220",
-      "locator": "line:220",
+      "id": "management_command_edge:apps/account/infrastructure/backup_service.py:dumpdata:line:221",
+      "locator": "line:221",
       "path": "apps/account/infrastructure/backup_service.py",
       "status": "adjacent_operational",
       "symbol": "dumpdata",
@@ -6713,6 +6703,16 @@
     {
       "category": "migration_evidence",
       "evidence": "executable Data Center archive/retention schema evidence",
+      "id": "migration_evidence:apps/config_center/migrations/0015_remove_legacy_backup_secret_columns.py:0015_remove_legacy_backup_secret_columns:",
+      "locator": "",
+      "path": "apps/config_center/migrations/0015_remove_legacy_backup_secret_columns.py",
+      "status": "active_public",
+      "symbol": "0015_remove_legacy_backup_secret_columns",
+      "target": ""
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "executable Data Center archive/retention schema evidence",
       "id": "migration_evidence:apps/data_center/migrations/0053_archivemanifestmodel_retentionpolicymodel_and_more.py:0053_archivemanifestmodel_retentionpolicymodel_and_more:",
       "locator": "",
       "path": "apps/data_center/migrations/0053_archivemanifestmodel_retentionpolicymodel_and_more.py",
@@ -6768,6 +6768,16 @@
       "path": "apps/data_center/migrations/0066_make_retention_digest_widening_reversible.py",
       "status": "active_public",
       "symbol": "0066_make_retention_digest_widening_reversible",
+      "target": ""
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "executable Data Center archive/retention schema evidence",
+      "id": "migration_evidence:tests/migrations/test_data_center_evaluation_actual_migration.py:test_data_center_evaluation_actual_migration:",
+      "locator": "",
+      "path": "tests/migrations/test_data_center_evaluation_actual_migration.py",
+      "status": "active_public",
+      "symbol": "test_data_center_evaluation_actual_migration",
       "target": ""
     },
     {
@@ -10473,8 +10483,8 @@
     {
       "category": "system_settings_compatibility",
       "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/account/infrastructure/account_interface_administration_repository.py:SystemSettingsModel:lines:19,50,51,138,198,214,406,418,419,443,445,456",
-      "locator": "lines:19,50,51,138,198,214,406,418,419,443,445,456",
+      "id": "system_settings_compatibility:apps/account/infrastructure/account_interface_administration_repository.py:SystemSettingsModel:lines:19,50,138,198,214,406,418,419,443,445,456",
+      "locator": "lines:19,50,138,198,214,406,418,419,443,445,456",
       "path": "apps/account/infrastructure/account_interface_administration_repository.py",
       "status": "compatibility",
       "symbol": "SystemSettingsModel",
@@ -10493,19 +10503,9 @@
     {
       "category": "system_settings_compatibility",
       "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/account/infrastructure/backup_delivery_projection.py:SystemSettingsModel:lines:7,38,64,65,72,103",
-      "locator": "lines:7,38,64,65,72,103",
+      "id": "system_settings_compatibility:apps/account/infrastructure/backup_delivery_projection.py:SystemSettingsModel:lines:8,45,51,102,106,130",
+      "locator": "lines:8,45,51,102,106,130",
       "path": "apps/account/infrastructure/backup_delivery_projection.py",
-      "status": "compatibility",
-      "symbol": "SystemSettingsModel",
-      "target": ""
-    },
-    {
-      "category": "system_settings_compatibility",
-      "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/account/infrastructure/backup_service.py:SystemSettingsModel:lines:27,60,71,150,172",
-      "locator": "lines:27,60,71,150,172",
-      "path": "apps/account/infrastructure/backup_service.py",
       "status": "compatibility",
       "symbol": "SystemSettingsModel",
       "target": ""
@@ -10523,8 +10523,8 @@
     {
       "category": "system_settings_compatibility",
       "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/account/infrastructure/repositories.py:SystemSettingsModel:lines:59,724,728",
-      "locator": "lines:59,724,728",
+      "id": "system_settings_compatibility:apps/account/infrastructure/repositories.py:SystemSettingsModel:lines:62,731",
+      "locator": "lines:62,731",
       "path": "apps/account/infrastructure/repositories.py",
       "status": "compatibility",
       "symbol": "SystemSettingsModel",
@@ -10543,29 +10543,9 @@
     {
       "category": "system_settings_compatibility",
       "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/config_center/infrastructure/repositories.py:SystemSettingsModel:lines:37,136,137,147,164,263,264,267",
-      "locator": "lines:37,136,137,147,164,263,264,267",
+      "id": "system_settings_compatibility:apps/config_center/infrastructure/repositories.py:SystemSettingsModel:lines:37,132,133,143,160,254,255,258",
+      "locator": "lines:37,132,133,143,160,254,255,258",
       "path": "apps/config_center/infrastructure/repositories.py",
-      "status": "compatibility",
-      "symbol": "SystemSettingsModel",
-      "target": ""
-    },
-    {
-      "category": "system_settings_compatibility",
-      "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/config_center/management/commands/migrate_backup_delivery_secrets.py:SystemSettingsModel:lines:18,36",
-      "locator": "lines:18,36",
-      "path": "apps/config_center/management/commands/migrate_backup_delivery_secrets.py",
-      "status": "compatibility",
-      "symbol": "SystemSettingsModel",
-      "target": ""
-    },
-    {
-      "category": "system_settings_compatibility",
-      "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:core/encryption_readiness.py:SystemSettingsModel:lines:14,25",
-      "locator": "lines:14,25",
-      "path": "core/encryption_readiness.py",
       "status": "compatibility",
       "symbol": "SystemSettingsModel",
       "target": ""
@@ -10933,6 +10913,16 @@
     {
       "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/account/test_celery_task_outcome_contracts.py:test_celery_task_outcome_contracts:",
+      "locator": "",
+      "path": "tests/unit/account/test_celery_task_outcome_contracts.py",
+      "status": "active_public",
+      "symbol": "test_celery_task_outcome_contracts",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/unit/account/test_t3a_documentation_view_and_task_contracts.py:test_t3a_documentation_view_and_task_contracts:",
       "locator": "",
       "path": "tests/unit/account/test_t3a_documentation_view_and_task_contracts.py",
@@ -11261,7 +11251,7 @@
     "retired_blocked": "known unsafe or obsolete operational path retained only as blocked evidence"
   },
   "source_contract_counts": {
-    "celery_tasks": 31,
+    "celery_tasks": 87,
     "current_data_contracts": 46,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 12,
