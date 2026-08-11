@@ -19,6 +19,12 @@ from .forecast_models import (  # noqa: F401
     ForecastLedgerEntry,
     ForecastOutcome,
 )
+from .forecast_realization_models import (  # noqa: F401
+    ForecastRealizationManifestModel,
+    ForecastRealizationReceiptModel,
+    ForecastRealizationSourceDefinitionMemberModel,
+    ForecastRealizationSourceDefinitionModel,
+)
 
 
 class InvestmentSignalModel(models.Model):
