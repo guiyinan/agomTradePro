@@ -20,21 +20,24 @@ from apps.portfolio.infrastructure.optimization_research_models import (
 )
 from apps.portfolio.infrastructure.order_models import OrderIntentModel
 from apps.portfolio.infrastructure.policy_models import PortfolioPlanningPolicyModel
+from apps.portfolio.infrastructure.r4_monitoring_raw_fact_models import (
+    PortfolioR4MonitoringRawFactReceiptModel,
+)
 from apps.portfolio.infrastructure.r4_rolling_research_models import (
     R4RollingResearchReceiptModel,
     R4RollingResearchResultModel,
 )
-from apps.portfolio.infrastructure.r4_monitoring_raw_fact_models import (
-    PortfolioR4MonitoringRawFactReceiptModel,
+from apps.portfolio.infrastructure.r5_monitoring_raw_fact_models import (
+    PortfolioR5MonitoringRawFactReceiptModel,
 )
 from apps.portfolio.infrastructure.r5_relative_value_outcome_models import (
     PortfolioR5RelativeValueOutcomeModel,
 )
-from apps.portfolio.infrastructure.r5_monitoring_raw_fact_models import (
-    PortfolioR5MonitoringRawFactReceiptModel,
-)
 from apps.portfolio.infrastructure.r8_monitoring_calendar_models import (
     R8MonitoringCalendarRegistryModel,
+)
+from apps.portfolio.infrastructure.r8_monitoring_feedback_models import (
+    PortfolioR8MonitoringFeedbackReceiptModel,
 )
 from apps.portfolio.infrastructure.transition_models import PortfolioTransitionPlanModel
 
@@ -56,4 +59,5 @@ __all__ = [
     "PortfolioR5RelativeValueOutcomeModel",
     "PortfolioR5MonitoringRawFactReceiptModel",
     "R8MonitoringCalendarRegistryModel",
+    "PortfolioR8MonitoringFeedbackReceiptModel",
 ]

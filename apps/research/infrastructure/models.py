@@ -210,14 +210,14 @@ from apps.research.infrastructure.r4_promotion_monitoring_owner_models import ( 
     R4MonitoringCalendarLedgerModel,
     R4MonitoringPolicyLedgerModel,
 )
+from apps.research.infrastructure.r5_monitoring_owner_models import (  # noqa: E402,F401
+    R5MonitoringCalendarRegistryModel,
+    R5MonitoringPolicyRegistryModel,
+)
 from apps.research.infrastructure.r5_relative_value_monitoring_models import (  # noqa: E402,F401
     R5MonitoringAssessmentLedgerModel,
     R5MonitoringAuditSnapshotModel,
     R5MonitoringObservationLedgerModel,
-)
-from apps.research.infrastructure.r5_monitoring_owner_models import (  # noqa: E402,F401
-    R5MonitoringCalendarRegistryModel,
-    R5MonitoringPolicyRegistryModel,
 )
 from apps.research.infrastructure.r5_relative_value_promotion_models import (  # noqa: E402,F401
     R5PromotionArtifactModel,
@@ -248,6 +248,9 @@ from apps.research.infrastructure.r7_result_family_lifecycle_models import (  # 
 from apps.research.infrastructure.r7_sample_policy_models import (  # noqa: E402,F401
     R7SamplePolicyApprovalReceiptModel,
     R7SamplePolicyModel,
+)
+from apps.research.infrastructure.r8_monitoring_policy_models import (  # noqa: E402,F401
+    R8MonitoringPolicyRegistryModel,
 )
 from apps.research.infrastructure.scenario_review_reminder_models import (  # noqa: E402,F401
     ScenarioReviewReminderEventModel,
