@@ -32,18 +32,53 @@ def test_inventory_artifact_is_deterministic_and_current() -> None:
     assert _ARTIFACT.read_text(encoding="utf-8") == expected
 
 
-def test_inventory_separates_sdk_ownership_from_http_review() -> None:
-    """Provider SDKs are centralized while generic HTTP callers remain reviewable."""
+def test_inventory_separates_sdk_ownership_from_reviewed_non_data_http() -> None:
+    """Provider SDKs stay centralized and each non-data HTTP caller has an owner."""
 
     module = _load_inventory_module()
     payload = module.build_inventory()
     assert payload["counts"]["provider_imports_outside_data_center"] == 0
     assert payload["counts"]["direct_data_center_imports_outside_data_center"] == 0
-    assert payload["counts"]["external_http_imports_for_review"] > 0
+    assert payload["counts"]["external_http_imports_for_review"] == 0
+    assert payload["counts"]["approved_non_data_http_imports"] == 4
+    approved = payload["approved_non_data_http_imports"]
+    assert {(item["path"], item["import"], item["owner"], item["scope"]) for item in approved} == {
+        (
+            "apps/dashboard/infrastructure/ai_insight_client.py",
+            "requests",
+            "ai-provider",
+            "ai_inference",
+        ),
+        (
+            "apps/terminal/infrastructure/http_client.py",
+            "requests",
+            "terminal",
+            "internal_control_plane",
+        ),
+        (
+            "shared/infrastructure/alert_service.py",
+            "requests",
+            "task-monitor",
+            "alert_delivery",
+        ),
+        (
+            "shared/infrastructure/alerts.py",
+            "requests",
+            "platform-observability",
+            "alert_delivery",
+        ),
+    }
+    assert all(item["reason"].strip() for item in approved)
     assert "generated_at" not in payload
 
     artifact = json.loads(_ARTIFACT.read_text(encoding="utf-8"))
-    assert artifact["counts"] == payload["counts"]
+    for count_name in (
+        "provider_imports_outside_data_center",
+        "direct_data_center_imports_outside_data_center",
+        "external_http_imports_for_review",
+        "approved_non_data_http_imports",
+    ):
+        assert artifact["counts"][count_name] == payload["counts"][count_name]
 
 
 def test_legacy_inventory_uses_module_identity_instead_of_symbol_substrings() -> None:
