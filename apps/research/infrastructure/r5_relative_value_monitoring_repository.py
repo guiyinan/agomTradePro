@@ -190,6 +190,71 @@ class DjangoR5MonitoringRepository:
             )
         return matches[0]
 
+    def get_latest_complete_for_active(
+        self,
+        *,
+        active_lifecycle: R5MonitoringActiveLifecycle,
+        as_of: datetime,
+    ) -> R5MonitoringPersistedAssessment | None:
+        """Select the latest complete period for one exact active decision."""
+
+        self._require_pit_cutoff(as_of)
+        try:
+            if type(active_lifecycle) is not R5MonitoringActiveLifecycle:
+                raise TypeError("active lifecycle type differs")
+            canonical_active = active_lifecycle.validated_copy()
+            if canonical_active != active_lifecycle:
+                raise ValueError("active lifecycle differs after replay")
+        except (AttributeError, TypeError, ValueError) as error:
+            raise R5MonitoringPersistenceUnavailable(
+                "R5 monitoring active selector is malformed"
+            ) from error
+        if not canonical_active.recorded_at <= as_of < canonical_active.valid_until:
+            return None
+        rows = tuple(
+            R5MonitoringAssessmentLedgerModel._default_manager.using(self._using)
+            .filter(
+                scope_id=canonical_active.scope_id,
+                active_decision_stable_id=canonical_active.decision_id,
+                active_decision_version=canonical_active.decision_version,
+                active_decision_hash=canonical_active.decision_hash,
+                active_lifecycle_hash=canonical_active.content_hash,
+                evaluated_at__lte=as_of,
+                ledger_recorded_at__lte=as_of,
+                fact_count__gt=0,
+            )
+            .select_related(
+                "active_decision",
+                "lifecycle_event",
+                "active_decision__authorization",
+                "active_decision__policy",
+                "active_decision__trial",
+                "lifecycle_event__authorization",
+                "lifecycle_event__decision",
+            )
+        )
+        restored = tuple(self._restore_bundle(row) for row in rows)
+        complete = tuple(
+            bundle
+            for bundle in restored
+            if _is_complete_active_monitoring_bundle(
+                bundle,
+                active_lifecycle=canonical_active,
+                as_of=as_of,
+            )
+        )
+        if not complete:
+            return None
+        ordered = tuple(sorted(complete, key=_latest_complete_sort_key, reverse=True))
+        winner = ordered[0]
+        winner_key = _latest_complete_rank_key(winner)
+        ties = tuple(item for item in ordered if _latest_complete_rank_key(item) == winner_key)
+        if len(ties) != 1:
+            raise R5MonitoringPersistenceCorruption(
+                "R5 monitoring latest complete selector has multiple winners"
+            )
+        return winner
+
     def list_audit(
         self,
         *,
@@ -492,6 +557,46 @@ class DjangoR5MonitoringRepository:
             raise R5MonitoringPersistenceCorruption(
                 "R5 monitoring authoritative lifecycle projection differs"
             )
+
+
+def _is_complete_active_monitoring_bundle(
+    bundle: R5MonitoringPersistedAssessment,
+    *,
+    active_lifecycle: R5MonitoringActiveLifecycle,
+    as_of: datetime,
+) -> bool:
+    assessment = bundle.assessment
+    entries = bundle.calendar.entries
+    facts = bundle.portfolio_facts
+    return bool(
+        bundle.active_lifecycle == active_lifecycle
+        and bundle.ledger_recorded_at <= as_of
+        and assessment.evaluated_at <= as_of
+        and entries
+        and tuple(item.period_id for item in facts) == tuple(item.period_id for item in entries)
+        and len(facts) == len(entries)
+        and assessment.research_only
+        and assessment.must_not_publish_current
+        and assessment.must_not_decide
+        and assessment.must_not_execute
+    )
+
+
+def _latest_complete_sort_key(
+    bundle: R5MonitoringPersistedAssessment,
+) -> tuple[datetime, datetime, datetime, str]:
+    return (
+        bundle.calendar.entries[-1].period_end,
+        bundle.assessment.evaluated_at,
+        bundle.ledger_recorded_at,
+        bundle.assessment_ref.assessment_id,
+    )
+
+
+def _latest_complete_rank_key(
+    bundle: R5MonitoringPersistedAssessment,
+) -> tuple[datetime, datetime, datetime]:
+    return _latest_complete_sort_key(bundle)[:3]
 
 
 class _DjangoR5MonitoringStore(DjangoR5MonitoringRepository):

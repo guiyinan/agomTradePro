@@ -865,6 +865,12 @@ class GetActiveR5RelativeValuePromotion:
             repository=repository,
         )
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the live Research lifecycle transaction identity."""
+
+        return self._repository.unit_of_work_key
+
     def get_active(
         self,
         scope_ref: R5RelativeValueLifecycleScopeRef,
