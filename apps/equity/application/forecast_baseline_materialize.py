@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -354,6 +355,13 @@ class OperatingForecastEvidenceProvider(Protocol):
 
 class ForecastBaselineSpecRepository(Protocol):
     """Append/load exact immutable baseline specifications."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity."""
+
+    def atomic(self) -> AbstractContextManager[None]:
+        """Open the authoritative write transaction used by owner reads."""
 
     def append_spec(self, spec: ForecastBaselineSpec) -> ForecastBaselineSpec: ...
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -82,6 +83,10 @@ class ResearchTrialEvidence:
 class EvaluationActualEvidenceProvider(Protocol):
     """Exact-read independent Data Center actual manifest evidence."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity."""
+
     def get_actual_manifest(
         self,
         manifest_ref: VersionRef,
@@ -93,12 +98,27 @@ class EvaluationActualEvidenceProvider(Protocol):
 class ResearchTrialEvidenceProvider(Protocol):
     """Exact-read pre-registered Research trial evidence."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity."""
+
     def get_trial(
         self,
         trial_ref: VersionRef,
         *,
         as_of: datetime,
     ) -> ResearchTrialEvidence | None: ...
+
+
+class ForecastBaselineEvaluationClock(Protocol):
+    """Trusted server clock participating in the shared evaluation UoW."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity."""
+
+    def now(self) -> datetime:
+        """Return the authoritative evaluation timestamp."""
 
 
 @dataclass(frozen=True)
@@ -113,6 +133,16 @@ class EvaluateForecastBaselineTrialCommand:
     as_of: datetime
 
     def __post_init__(self) -> None:
+        for field_name, reference in (
+            ("output_trial_ref", self.output_trial_ref),
+            ("spec_ref", self.spec_ref),
+            ("artifact_ref", self.artifact_ref),
+            ("actual_manifest_ref", self.actual_manifest_ref),
+            ("research_trial_ref", self.research_trial_ref),
+        ):
+            if type(reference) is not VersionRef:
+                raise TypeError(f"command {field_name} must be an exact VersionRef")
+            VersionRef.__post_init__(reference)
         _require_aware(self.as_of, "command as_of")
 
 
@@ -125,16 +155,71 @@ class EvaluateForecastBaselineTrialUseCase:
         actual_provider: EvaluationActualEvidenceProvider,
         research_trial_provider: ResearchTrialEvidenceProvider,
         repository: ForecastBaselineSpecRepository,
+        clock: ForecastBaselineEvaluationClock,
     ) -> None:
         self._actual_provider = actual_provider
         self._research_trial_provider = research_trial_provider
         self._repository = repository
+        self._clock = clock
+        self._expected_unit_of_work_key = self._validate_shared_unit_of_work()
 
     def execute(
         self,
         command: EvaluateForecastBaselineTrialCommand,
     ) -> ForecastBaselineTrialResult:
         """Create paired rows internally and append a recomputed trial result."""
+
+        try:
+            if type(command) is not EvaluateForecastBaselineTrialCommand:
+                raise TypeError("forecast baseline evaluation command type differs")
+            EvaluateForecastBaselineTrialCommand.__post_init__(command)
+        except Exception as error:
+            raise ForecastBaselineEvidenceError(
+                "forecast baseline evaluation command is invalid"
+            ) from error
+        try:
+            self._validate_shared_unit_of_work()
+            with self._repository.atomic():
+                self._validate_shared_unit_of_work()
+                evaluated_at = self._trusted_now()
+                self._validate_shared_unit_of_work()
+                if command.as_of > evaluated_at:
+                    raise ForecastBaselineEvidenceError(
+                        "forecast baseline PIT cutoff is from the future"
+                    )
+                first = deepcopy(self._load_evidence_graph(command))
+                result = self._build_result(
+                    command=command,
+                    graph=first,
+                    evaluated_at=evaluated_at,
+                )
+                self._validate_shared_unit_of_work()
+                second = deepcopy(self._load_evidence_graph(command))
+                self._validate_shared_unit_of_work()
+                if first != second:
+                    raise ForecastBaselineEvidenceError(
+                        "authoritative forecast baseline evidence changed during evaluation"
+                    )
+                self._validate_shared_unit_of_work()
+                persisted = self._repository.append_trial(result)
+                self._validate_shared_unit_of_work()
+                if persisted != result:
+                    raise ForecastBaselineEvidenceError(
+                        "trial repository did not preserve the exact domain object"
+                    )
+                return persisted
+        except ForecastBaselineEvidenceError:
+            raise
+        except Exception as error:
+            raise ForecastBaselineEvidenceError(
+                "authoritative forecast baseline evaluation is unavailable"
+            ) from error
+
+    def _load_evidence_graph(
+        self,
+        command: EvaluateForecastBaselineTrialCommand,
+    ) -> _ForecastBaselineEvaluationGraph:
+        """Read the complete canonical evaluation graph once."""
 
         spec = self._repository.get_spec(command.spec_ref)
         artifact = self._repository.get_artifact(command.artifact_ref)
@@ -161,41 +246,131 @@ class EvaluateForecastBaselineTrialUseCase:
         )
         if actual_snapshot is None:
             raise ForecastBaselineEvidenceError("exact evaluation actual manifest is unavailable")
-        actual_manifest = _materialize_actual_manifest(command, spec, actual_snapshot)
         trial_evidence = self._research_trial_provider.get_trial(
             command.research_trial_ref,
             as_of=command.as_of,
         )
         if trial_evidence is None:
             raise ForecastBaselineEvidenceError("exact Research trial is unavailable")
-        authorization = _materialize_research_authorization(
-            command,
-            spec,
-            artifact,
-            trial_evidence,
-        )
-        paired_rows = _materialize_paired_rows(artifact, actual_manifest)
-        valid_until = min(spec.valid_until, artifact.valid_until, authorization.valid_until)
-        if command.as_of >= valid_until:
-            raise ForecastBaselineEvidenceError("trial authority is expired")
-        result = ForecastBaselineTrialResult.create(
-            result_id=command.output_trial_ref.stable_id,
-            result_version=command.output_trial_ref.version,
-            owner="equity",
-            research_trial=authorization,
+        return _ForecastBaselineEvaluationGraph(
             spec=spec,
             artifact=artifact,
-            paired_rows=paired_rows,
-            actual_manifest=actual_manifest,
-            evaluated_at=command.as_of,
-            valid_until=valid_until,
+            actual_snapshot=actual_snapshot,
+            research_trial=trial_evidence,
         )
-        persisted = self._repository.append_trial(result)
-        if persisted != result:
-            raise ForecastBaselineEvidenceError(
-                "trial repository did not preserve the exact domain object"
+
+    def _build_result(
+        self,
+        *,
+        command: EvaluateForecastBaselineTrialCommand,
+        graph: _ForecastBaselineEvaluationGraph,
+        evaluated_at: datetime,
+    ) -> ForecastBaselineTrialResult:
+        """Materialize one result from a complete authoritative graph."""
+
+        return build_forecast_baseline_trial_candidate(
+            command=command,
+            spec=graph.spec,
+            artifact=graph.artifact,
+            actual_snapshot=graph.actual_snapshot,
+            research_trial=graph.research_trial,
+            evaluated_at=evaluated_at,
+        )
+
+    def _trusted_now(self) -> datetime:
+        now = self._clock.now()
+        _require_aware(now, "forecast baseline evaluation server clock")
+        return now
+
+    def _validate_shared_unit_of_work(self) -> str:
+        try:
+            keys = (
+                _exact_unit_of_work_key(self._repository.unit_of_work_key),
+                _exact_unit_of_work_key(self._actual_provider.unit_of_work_key),
+                _exact_unit_of_work_key(self._research_trial_provider.unit_of_work_key),
+                _exact_unit_of_work_key(self._clock.unit_of_work_key),
             )
-        return persisted
+        except ForecastBaselineEvidenceError:
+            raise
+        except Exception as error:
+            raise ForecastBaselineEvidenceError(
+                "forecast baseline evaluation unit of work is unavailable"
+            ) from error
+        if len(set(keys)) != 1:
+            raise ForecastBaselineEvidenceError(
+                "forecast baseline evaluation owners must share one unit of work"
+            )
+        key = keys[0]
+        if hasattr(self, "_expected_unit_of_work_key") and key != self._expected_unit_of_work_key:
+            raise ForecastBaselineEvidenceError(
+                "forecast baseline evaluation unit of work identity changed"
+            )
+        return key
+
+
+@dataclass(frozen=True)
+class _ForecastBaselineEvaluationGraph:
+    spec: ForecastBaselineSpec
+    artifact: ForecastBaselineArtifact
+    actual_snapshot: EvaluationActualManifestSnapshot
+    research_trial: ResearchTrialEvidence
+
+
+def build_forecast_baseline_trial_candidate(
+    *,
+    command: EvaluateForecastBaselineTrialCommand,
+    spec: ForecastBaselineSpec,
+    artifact: ForecastBaselineArtifact,
+    actual_snapshot: EvaluationActualManifestSnapshot,
+    research_trial: ResearchTrialEvidence,
+    evaluated_at: datetime,
+) -> ForecastBaselineTrialResult:
+    """Rebuild a complete prospective trial without persisting it."""
+
+    if type(command) is not EvaluateForecastBaselineTrialCommand:
+        raise ForecastBaselineEvidenceError("forecast baseline evaluation command type differs")
+    EvaluateForecastBaselineTrialCommand.__post_init__(command)
+    if type(spec) is not ForecastBaselineSpec or (
+        spec.spec_id,
+        spec.spec_version,
+    ) != (command.spec_ref.stable_id, command.spec_ref.version):
+        raise ForecastBaselineEvidenceError("exact baseline spec was substituted")
+    if type(artifact) is not ForecastBaselineArtifact or (
+        artifact.artifact_id,
+        artifact.artifact_version,
+    ) != (command.artifact_ref.stable_id, command.artifact_ref.version):
+        raise ForecastBaselineEvidenceError("exact baseline artifact was substituted")
+    actual_manifest = _materialize_actual_manifest(command, spec, actual_snapshot)
+    authorization = _materialize_research_authorization(
+        command,
+        spec,
+        artifact,
+        research_trial,
+    )
+    paired_rows = _materialize_paired_rows(artifact, actual_manifest)
+    valid_until = min(spec.valid_until, artifact.valid_until, authorization.valid_until)
+    if evaluated_at >= valid_until:
+        raise ForecastBaselineEvidenceError("trial authority is expired")
+    return ForecastBaselineTrialResult.create(
+        result_id=command.output_trial_ref.stable_id,
+        result_version=command.output_trial_ref.version,
+        owner="equity",
+        research_trial=authorization,
+        spec=spec,
+        artifact=artifact,
+        paired_rows=paired_rows,
+        actual_manifest=actual_manifest,
+        evaluated_at=evaluated_at,
+        valid_until=valid_until,
+    )
+
+
+def _exact_unit_of_work_key(value: object) -> str:
+    if type(value) is not str or not value.strip() or len(value) > 192:
+        raise ForecastBaselineEvidenceError(
+            "forecast baseline evaluation unit of work key is invalid"
+        )
+    return value
 
 
 def _materialize_actual_manifest(
@@ -416,8 +591,10 @@ __all__ = [
     "EvaluateForecastBaselineTrialUseCase",
     "EvaluationActualEvidenceProvider",
     "EvaluationActualManifestSnapshot",
+    "ForecastBaselineEvaluationClock",
     "ResearchTrialEvidence",
     "ResearchTrialEvidenceProvider",
+    "build_forecast_baseline_trial_candidate",
     "forecast_baseline_trial_parameter_hash",
     "forecast_baseline_trial_split_hash",
 ]
