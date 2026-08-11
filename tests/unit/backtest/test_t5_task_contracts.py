@@ -84,6 +84,17 @@ def test_run_backtest_task_persists_success_and_exercises_default_readers(
 
     assert response["status"] == "completed"
     assert response["total_return"] == 0.2
+    assert {
+        key: response[key]
+        for key in ("outcome", "success", "requested", "succeeded", "failed", "stored")
+    } == {
+        "outcome": "success",
+        "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": 1,
+    }
     repository.update_status.assert_called_once_with(7, "running")
     repository.save_result.assert_called_once_with(7, result)
 
@@ -107,7 +118,16 @@ def test_cleanup_old_backtests_deletes_only_completed_expired_records(
     repository.delete_completed_before.return_value = 1
     monkeypatch.setattr(tasks, "get_backtest_repository", lambda: repository)
 
-    assert tasks.cleanup_old_backtests.run(90) == 1
+    assert tasks.cleanup_old_backtests.run(90) == {
+        "outcome": "success",
+        "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": 0,
+        "deleted_count": 1,
+        "days_old": 90,
+    }
     repository.delete_completed_before.assert_called_once()
     assert repository.delete_completed_before.call_args.args[0] < timezone.now()
 
@@ -163,6 +183,17 @@ def test_generate_report_and_analysis_helpers_summarize_results(
     report = tasks.generate_backtest_report.run(1)
 
     assert report["summary"] == {"total_return": 0.2}
+    assert {
+        key: report[key]
+        for key in ("outcome", "success", "requested", "succeeded", "failed", "stored")
+    } == {
+        "outcome": "success",
+        "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": 0,
+    }
     assert report["regime_analysis"]["Recovery"]["total_return"] == 0.2
     assert report["regime_analysis"]["Zero"]["total_return"] == 0
     assert report["trade_analysis"]["cost_ratio"] == 0.01

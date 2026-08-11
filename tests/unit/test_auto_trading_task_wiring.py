@@ -119,7 +119,12 @@ def test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor():
     )
     engine.run_daily_trading.assert_called_once_with(date(2026, 4, 30), account_ids=[1])
     assert result == {
+        "outcome": "success",
         "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": 3,
         "trade_date": "2026-04-30",
         "total_accounts": 1,
         "results": {1: {"buy_count": 1, "sell_count": 2}},
@@ -147,4 +152,13 @@ def test_update_all_prices_after_close_uses_local_realtime_polling_helper():
         result = update_all_prices_after_close.run()
 
     polling_helper.assert_called_once_with()
-    assert result == {"success": True, "snapshot": snapshot}
+    assert result == {
+        "outcome": "success",
+        "success": True,
+        "requested": 2,
+        "succeeded": 2,
+        "failed": 0,
+        "stored": 2,
+        "account_id": None,
+        "snapshot": snapshot,
+    }

@@ -368,6 +368,34 @@ def task_revoked_handler(
 from celery import shared_task  # noqa: E402
 
 
+def _cleanup_old_task_records_result(
+    *,
+    outcome: str,
+    days_to_keep: object,
+    deleted_count: int = 0,
+    error: str | None = None,
+) -> dict[str, Any]:
+    """Build one normalized cleanup operation result in record-count units."""
+
+    if outcome not in {"success", "noop", "failed"}:
+        raise ValueError("invalid task-monitor cleanup outcome")
+    completed = outcome in {"success", "noop"}
+    payload: dict[str, Any] = {
+        "status": "success" if completed else "error",
+        "outcome": outcome,
+        "success": completed,
+        "requested": 1,
+        "succeeded": 1 if completed else 0,
+        "failed": 1 if outcome == "failed" else 0,
+        "stored": 0,
+        "deleted_count": deleted_count,
+        "days_to_keep": days_to_keep,
+    }
+    if error is not None:
+        payload["error"] = error
+    return payload
+
+
 @shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]
 def cleanup_old_task_records(days_to_keep: int = 30) -> dict[str, Any]:
     """
@@ -381,26 +409,39 @@ def cleanup_old_task_records(days_to_keep: int = 30) -> dict[str, Any]:
     Returns:
         dict: 清理结果
     """
+    if type(days_to_keep) is not int or not 1 <= days_to_keep <= 3650:
+        return _cleanup_old_task_records_result(
+            outcome="failed",
+            days_to_keep=days_to_keep,
+            error="days_to_keep must be an integer between 1 and 3650",
+        )
+
     try:
         from apps.task_monitor.application.use_cases import CleanupOldRecordsUseCase
 
         use_case = CleanupOldRecordsUseCase(repository=get_repository())
         count = use_case.execute(days_to_keep=days_to_keep)
+        if type(count) is not int or count < 0:
+            raise ValueError("cleanup repository returned an invalid deleted count")
 
         logger.info(f"Cleaned up {count} old task records")
 
-        return {
-            "status": "success",
-            "deleted_count": count,
-            "days_to_keep": days_to_keep,
-        }
+        return _cleanup_old_task_records_result(
+            outcome="success" if count else "noop",
+            days_to_keep=days_to_keep,
+            deleted_count=count,
+        )
 
     except Exception as exc:
         logger.error(
             "Failed to cleanup old task records: error_type=%s",
             exc.__class__.__name__,
         )
-        raise
+        return _cleanup_old_task_records_result(
+            outcome="failed",
+            days_to_keep=days_to_keep,
+            error="cleanup_old_task_records_failed",
+        )
 
 
 @shared_task(  # type: ignore[misc]

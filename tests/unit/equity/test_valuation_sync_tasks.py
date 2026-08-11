@@ -1,10 +1,87 @@
 from unittest.mock import MagicMock, patch
 
+from apps.equity.application import tasks as compatibility_tasks
+from apps.equity.application import tasks_valuation_sync as canonical_tasks
 from apps.equity.application.tasks_valuation_sync import (
     sync_equity_valuation_task,
     sync_financial_data_task,
     sync_validate_scan_equity_valuation_task,
 )
+
+
+def test_legacy_equity_task_aliases_delegate_exactly_to_canonical_tasks(monkeypatch) -> None:
+    """The four legacy Celery names are wrappers, not independent business tasks."""
+
+    assert (
+        compatibility_tasks.sync_equity_valuation_task is canonical_tasks.sync_equity_valuation_task
+    )
+    assert (
+        compatibility_tasks.validate_equity_valuation_quality_task
+        is canonical_tasks.validate_equity_valuation_quality_task
+    )
+    assert (
+        compatibility_tasks.sync_validate_scan_equity_valuation_task
+        is canonical_tasks.sync_validate_scan_equity_valuation_task
+    )
+    assert compatibility_tasks.sync_financial_data_task is canonical_tasks.sync_financial_data_task
+
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def delegate(name: str):
+        def run(**kwargs):
+            calls.append((name, kwargs))
+            return {"canonical": name}
+
+        return run
+
+    monkeypatch.setattr(canonical_tasks.sync_equity_valuation_task, "run", delegate("sync"))
+    monkeypatch.setattr(
+        canonical_tasks.validate_equity_valuation_quality_task,
+        "run",
+        delegate("validate"),
+    )
+    monkeypatch.setattr(
+        canonical_tasks.sync_validate_scan_equity_valuation_task,
+        "run",
+        delegate("workflow"),
+    )
+    monkeypatch.setattr(canonical_tasks.sync_financial_data_task, "run", delegate("financial"))
+
+    assert compatibility_tasks.sync_equity_valuation_task_alias.run(
+        days_back=2,
+        primary_source="p",
+        fallback_source="f",
+    ) == {"canonical": "sync"}
+    assert compatibility_tasks.validate_equity_valuation_quality_task_alias.run(
+        primary_source="p"
+    ) == {"canonical": "validate"}
+    assert compatibility_tasks.sync_validate_scan_equity_valuation_task_alias.run(
+        days_back=2,
+        primary_source="p",
+        fallback_source="f",
+        universe="active",
+        lookback_days=9,
+    ) == {"canonical": "workflow"}
+    assert compatibility_tasks.sync_financial_data_task_alias.run(
+        source="p",
+        periods=6,
+        stock_codes=["000001.SZ"],
+    ) == {"canonical": "financial"}
+    assert calls == [
+        ("sync", {"days_back": 2, "primary_source": "p", "fallback_source": "f"}),
+        ("validate", {"primary_source": "p"}),
+        (
+            "workflow",
+            {
+                "days_back": 2,
+                "primary_source": "p",
+                "fallback_source": "f",
+                "universe": "active",
+                "lookback_days": 9,
+            },
+        ),
+        ("financial", {"source": "p", "periods": 6, "stock_codes": ["000001.SZ"]}),
+    ]
 
 
 def test_sync_validate_scan_task_skips_scan_when_gate_blocked():

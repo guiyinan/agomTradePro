@@ -246,6 +246,47 @@ def test_cleanup_task_reports_deleted_count(monkeypatch: pytest.MonkeyPatch) -> 
 
     assert tasks.cleanup_old_task_records.run(days_to_keep=30) == {
         "status": "success",
+        "outcome": "success",
+        "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": 0,
         "deleted_count": 32,
         "days_to_keep": 30,
+    }
+
+
+def test_cleanup_task_reports_noop_and_stable_input_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = Mock()
+    monkeypatch.setattr(tasks, "get_repository", lambda: repository)
+    monkeypatch.setattr(
+        "apps.task_monitor.application.use_cases.CleanupOldRecordsUseCase",
+        lambda repository: SimpleNamespace(execute=lambda *, days_to_keep: 0),
+    )
+
+    assert tasks.cleanup_old_task_records.run(days_to_keep=30) == {
+        "status": "success",
+        "outcome": "noop",
+        "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": 0,
+        "deleted_count": 0,
+        "days_to_keep": 30,
+    }
+    assert tasks.cleanup_old_task_records.run(days_to_keep=True) == {
+        "status": "error",
+        "outcome": "failed",
+        "success": False,
+        "requested": 1,
+        "succeeded": 0,
+        "failed": 1,
+        "stored": 0,
+        "deleted_count": 0,
+        "days_to_keep": True,
+        "error": "days_to_keep must be an integer between 1 and 3650",
     }

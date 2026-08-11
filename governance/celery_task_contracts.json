@@ -9,7 +9,19 @@
     "apps/task_monitor/application/backup_tasks.py",
     "apps/sentiment/application/tasks.py",
     "apps/macro/application/tasks.py",
-    "apps/realtime/application/tasks.py"
+    "apps/realtime/application/tasks.py",
+    "apps/policy/application/tasks.py",
+    "apps/regime/application/orchestration.py",
+    "apps/account/application/tasks.py",
+    "apps/simulated_trading/application/tasks.py",
+    "apps/alpha/application/monitoring_tasks.py",
+    "apps/alpha/application/tasks.py",
+    "apps/backtest/application/tasks.py",
+    "apps/broker_execution/application/tasks.py",
+    "apps/operational_readiness/application/tasks.py",
+    "apps/pulse/application/tasks.py",
+    "apps/signal/application/tasks.py",
+    "apps/task_monitor/application/tasks.py"
   ],
   "tasks": [
     {
@@ -700,6 +712,1063 @@
           "test_function": "test_poll_realtime_prices_task_preserves_upstream_business_block"
         }
       }
+    },
+    {
+      "task_path": "apps.policy.application.tasks.cleanup_old_policy_logs",
+      "source_file": "apps/policy/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/policy/test_celery_cleanup_contracts.py",
+          "test_function": "test_policy_cleanup_tasks_reject_invalid_input_with_failed_outcome"
+        },
+        "all_success": {
+          "test_file": "tests/unit/policy/test_celery_cleanup_contracts.py",
+          "test_function": "test_policy_cleanup_tasks_report_all_success_and_exact_deleted_records"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/policy/test_celery_cleanup_contracts.py",
+          "test_function": "test_policy_cleanup_tasks_report_zero_output_as_noop"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/policy/test_celery_cleanup_contracts.py",
+          "test_function": "test_policy_cleanup_tasks_report_complete_failure_without_deleted_records"
+        }
+      }
+    },
+    {
+      "task_path": "apps.policy.application.tasks.cleanup_old_rss_logs",
+      "source_file": "apps/policy/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/policy/test_celery_cleanup_contracts.py",
+          "test_function": "test_policy_cleanup_tasks_reject_invalid_input_with_failed_outcome"
+        },
+        "all_success": {
+          "test_file": "tests/unit/policy/test_celery_cleanup_contracts.py",
+          "test_function": "test_policy_cleanup_tasks_report_all_success_and_exact_deleted_records"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/policy/test_celery_cleanup_contracts.py",
+          "test_function": "test_policy_cleanup_tasks_report_zero_output_as_noop"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/policy/test_celery_cleanup_contracts.py",
+          "test_function": "test_policy_cleanup_tasks_report_complete_failure_without_deleted_records"
+        }
+      }
+    },
+    {
+      "task_path": "apps.policy.application.tasks.cleanup_old_audit_queues",
+      "source_file": "apps/policy/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/policy/test_celery_cleanup_contracts.py",
+          "test_function": "test_policy_cleanup_tasks_reject_invalid_input_with_failed_outcome"
+        },
+        "all_success": {
+          "test_file": "tests/unit/policy/test_celery_cleanup_contracts.py",
+          "test_function": "test_policy_cleanup_tasks_report_all_success_and_exact_deleted_records"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/policy/test_celery_cleanup_contracts.py",
+          "test_function": "test_policy_cleanup_tasks_report_zero_output_as_noop"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/policy/test_celery_cleanup_contracts.py",
+          "test_function": "test_policy_cleanup_tasks_report_complete_failure_without_deleted_records"
+        }
+      }
+    },
+    {
+      "task_path": "apps.policy.application.tasks.check_policy_status_alert",
+      "source_file": "apps/policy/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_policy_status_rejects_invalid_date_before_repository_access"
+        },
+        "all_success": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_policy_status_transition_cleanup_and_notification_tasks"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/policy/test_t3b_task_failure_contracts.py",
+          "test_function": "test_policy_status_task_distinguishes_business_and_exhausted_retry_failures"
+        }
+      }
+    },
+    {
+      "task_path": "apps.policy.application.tasks.monitor_policy_transitions",
+      "source_file": "apps/policy/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_policy_status_transition_cleanup_and_notification_tasks"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_policy_monitoring_tasks_report_zero_output_without_fake_success"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/policy/test_t3b_task_failure_contracts.py",
+          "test_function": "test_policy_transition_and_cleanup_tasks_serialize_unexpected_failures"
+        }
+      }
+    },
+    {
+      "task_path": "apps.policy.application.tasks.fetch_rss_sources",
+      "source_file": "apps/policy/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/policy/test_t3b_task_failure_contracts.py",
+          "test_function": "test_fetch_rss_task_validates_source_and_survives_classifier_initialization_failure"
+        },
+        "all_success": {
+          "test_file": "tests/unit/policy/test_t3b_task_failure_contracts.py",
+          "test_function": "test_fetch_rss_task_validates_source_and_survives_classifier_initialization_failure"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/policy/test_t3b_task_failure_contracts.py",
+          "test_function": "test_fetch_rss_task_reports_partial_and_zero_output"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/policy/test_t3b_task_failure_contracts.py",
+          "test_function": "test_fetch_rss_task_reports_partial_and_zero_output"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/policy/test_t3b_task_failure_contracts.py",
+          "test_function": "test_fetch_rss_task_propagates_retry_exhaustion"
+        }
+      }
+    },
+    {
+      "task_path": "apps.policy.application.tasks.auto_assign_pending_audits",
+      "source_file": "apps/policy/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_policy_destructive_tasks_reject_invalid_bounds_before_repository_access"
+        },
+        "all_success": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_rss_cleanup_assignment_summary_and_sla_tasks"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_auto_assign_pending_audits_reports_partial_assignment"
+        },
+        "blocked": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_gate_refresh_signal_reevaluation_and_no_auditor_paths"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/policy/test_t3b_task_failure_contracts.py",
+          "test_function": "test_policy_maintenance_tasks_keep_repository_errors_visible"
+        }
+      }
+    },
+    {
+      "task_path": "apps.policy.application.tasks.generate_daily_policy_summary",
+      "source_file": "apps/policy/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_rss_cleanup_assignment_summary_and_sla_tasks"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_policy_scheduled_tasks_report_repository_and_runtime_failures"
+        }
+      }
+    },
+    {
+      "task_path": "apps.policy.application.tasks.trigger_signal_reevaluation",
+      "source_file": "apps/policy/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_signal_reevaluation_rejects_invalid_policy_context"
+        },
+        "all_success": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_gate_refresh_signal_reevaluation_and_no_auditor_paths"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_policy_monitoring_tasks_report_zero_output_without_fake_success"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_signal_reevaluation_does_not_swallow_retry"
+        }
+      }
+    },
+    {
+      "task_path": "apps.policy.application.tasks.monitor_sla_exceeded_task",
+      "source_file": "apps/policy/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_rss_cleanup_assignment_summary_and_sla_tasks"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_policy_monitoring_tasks_report_zero_output_without_fake_success"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_policy_scheduled_tasks_report_repository_and_runtime_failures"
+        }
+      }
+    },
+    {
+      "task_path": "apps.policy.application.tasks.refresh_gate_constraints_task",
+      "source_file": "apps/policy/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_gate_refresh_signal_reevaluation_and_no_auditor_paths"
+        },
+        "blocked": {
+          "test_file": "tests/unit/policy/test_task_edges.py",
+          "test_function": "test_policy_scheduled_tasks_report_repository_and_runtime_failures"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/policy/test_t3b_task_failure_contracts.py",
+          "test_function": "test_policy_maintenance_tasks_keep_repository_errors_visible"
+        }
+      }
+    },
+    {
+      "task_path": "apps.regime.application.orchestration.generate_daily_regime_signal",
+      "source_file": "apps/regime/application/orchestration.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/regime/test_orchestration_edges.py",
+          "test_function": "test_generate_daily_regime_signal_success_and_business_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/regime/test_orchestration_edges.py",
+          "test_function": "test_generate_daily_regime_signal_success_and_business_failure"
+        },
+        "invalid_input": {
+          "test_file": "tests/unit/regime/test_orchestration_edges.py",
+          "test_function": "test_invalid_daily_signal_payload_fails_closed"
+        }
+      }
+    },
+    {
+      "task_path": "apps.regime.application.orchestration.recalculate_regime_with_daily_signal",
+      "source_file": "apps/regime/application/orchestration.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/regime/test_orchestration_edges.py",
+          "test_function": "test_recalculation_uses_monthly_fallback_and_conflict_resolution"
+        }
+      }
+    },
+    {
+      "task_path": "apps.regime.application.orchestration.calculate_regime_after_sync",
+      "source_file": "apps/regime/application/orchestration.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/regime/test_orchestration_edges.py",
+          "test_function": "test_calculation_skip_fallback_and_notification_skip"
+        },
+        "blocked": {
+          "test_file": "tests/unit/regime/test_orchestration_edges.py",
+          "test_function": "test_calculation_skip_fallback_and_notification_skip"
+        }
+      }
+    },
+    {
+      "task_path": "apps.regime.application.orchestration.notify_regime_change_after_calculation",
+      "source_file": "apps/regime/application/orchestration.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "zero_output": {
+          "test_file": "tests/unit/regime/test_orchestration_edges.py",
+          "test_function": "test_notification_truthfully_reports_no_change_and_invalid_payload"
+        },
+        "blocked": {
+          "test_file": "tests/unit/regime/test_orchestration_edges.py",
+          "test_function": "test_calculation_skip_fallback_and_notification_skip"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/regime/test_orchestration_edges.py",
+          "test_function": "test_notification_truthfully_reports_no_change_and_invalid_payload"
+        }
+      }
+    },
+    {
+      "task_path": "apps.regime.application.orchestration.sync_macro_then_refresh_regime",
+      "source_file": "apps/regime/application/orchestration.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/regime/test_orchestration_edges.py",
+          "test_function": "test_sync_macro_workflow_dispatch_has_normalized_task_contract"
+        }
+      }
+    },
+    {
+      "task_path": "apps.task_monitor.application.tasks.cleanup_old_task_records",
+      "source_file": "apps/task_monitor/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/task_monitor/test_t4b_monitoring_outcome_contracts.py",
+          "test_function": "test_cleanup_task_reports_noop_and_stable_input_failure"
+        },
+        "all_success": {
+          "test_file": "tests/unit/task_monitor/test_t4b_monitoring_outcome_contracts.py",
+          "test_function": "test_cleanup_task_reports_deleted_count"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/task_monitor/test_t4b_monitoring_outcome_contracts.py",
+          "test_function": "test_cleanup_task_reports_noop_and_stable_input_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.account.application.tasks.send_database_backup_email_task",
+      "source_file": "apps/account/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_backup_delivery_reports_noop_and_success_counts"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_backup_delivery_reports_noop_and_success_counts"
+        }
+      }
+    },
+    {
+      "task_path": "apps.account.application.tasks.check_stop_loss_task",
+      "source_file": "apps/account/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_stop_loss_and_take_profit_publish_success_and_noop"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_stop_loss_business_failure_has_failed_outcome"
+        }
+      }
+    },
+    {
+      "task_path": "apps.account.application.tasks.check_take_profit_task",
+      "source_file": "apps/account/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "zero_output": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_stop_loss_and_take_profit_publish_success_and_noop"
+        }
+      }
+    },
+    {
+      "task_path": "apps.account.application.tasks.check_stop_loss_and_take_profit_task",
+      "source_file": "apps/account/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_combined_risk_check_publishes_aggregate_counts"
+        }
+      }
+    },
+    {
+      "task_path": "apps.account.application.tasks.check_volatility_and_adjust_task",
+      "source_file": "apps/account/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "partial_failure": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_volatility_task_reports_partial_and_complete_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_volatility_task_reports_partial_and_complete_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.daily_auto_trading_task",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_parameterized_tasks_reject_invalid_input_before_dependency_access"
+        },
+        "all_success": {
+          "test_file": "tests/unit/test_auto_trading_task_wiring.py",
+          "test_function": "test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor"
+        }
+      }
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.update_position_prices_task",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_parameterized_tasks_reject_invalid_input_before_dependency_access"
+        },
+        "all_success": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_price_cleanup_and_inspection_success_count_actual_mutations"
+        }
+      }
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.calculate_all_performance_task",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "partial_failure": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_performance_batch_reports_partial_and_complete_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_performance_batch_reports_partial_and_complete_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_parameterized_tasks_reject_invalid_input_before_dependency_access"
+        },
+        "all_success": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_price_cleanup_and_inspection_success_count_actual_mutations"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_maintenance_and_inspection_publish_noop_blocked_and_success_counts"
+        }
+      }
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.send_performance_summary_task",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "partial_failure": {
+          "test_file": "tests/unit/simulated_trading/test_t3b_task_contracts.py",
+          "test_function": "test_performance_summary_filters_requested_accounts_and_records_delivery"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/simulated_trading/test_t3b_task_contracts.py",
+          "test_function": "test_performance_summary_notification_and_repository_failures_are_distinct"
+        }
+      }
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.daily_portfolio_inspection_task",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_parameterized_tasks_reject_invalid_input_before_dependency_access"
+        },
+        "all_success": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_price_cleanup_and_inspection_success_count_actual_mutations"
+        },
+        "blocked": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_maintenance_and_inspection_publish_noop_blocked_and_success_counts"
+        }
+      }
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.check_position_invalidation_task",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/test_position_invalidation_tasks.py",
+          "test_function": "test_check_position_invalidation_task_marks_only_without_trade_side_effects"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_invalidation_and_price_polling_failures_have_stable_task_results"
+        }
+      }
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.notify_invalidated_positions_task",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/test_position_invalidation_tasks.py",
+          "test_function": "test_notify_invalidated_positions_task_sends_notifications_without_trade_side_effects"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/test_position_invalidation_tasks.py",
+          "test_function": "test_notify_invalidated_positions_task_skips_notifications_when_no_positions"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_invalidation_and_price_polling_failures_have_stable_task_results"
+        }
+      }
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.update_all_prices_after_close",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_parameterized_tasks_reject_invalid_input_before_dependency_access"
+        },
+        "all_success": {
+          "test_file": "tests/unit/test_auto_trading_task_wiring.py",
+          "test_function": "test_update_all_prices_after_close_uses_local_realtime_polling_helper"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_invalidation_and_price_polling_failures_have_stable_task_results"
+        }
+      }
+    },
+    {
+      "task_path": "apps.alpha.application.monitoring_tasks.evaluate_alerts",
+      "source_file": "apps/alpha/application/monitoring_tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_evaluate_alerts_reports_success_and_complete_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_evaluate_alerts_reports_success_and_complete_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.alpha.application.monitoring_tasks.update_provider_metrics",
+      "source_file": "apps/alpha/application/monitoring_tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_update_provider_metrics_reports_success_and_complete_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_update_provider_metrics_reports_success_and_complete_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.alpha.application.monitoring_tasks.calculate_ic_drift",
+      "source_file": "apps/alpha/application/monitoring_tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_calculate_ic_drift_reports_blocked_success_and_failure"
+        },
+        "blocked": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_calculate_ic_drift_reports_blocked_success_and_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_calculate_ic_drift_reports_blocked_success_and_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.alpha.application.monitoring_tasks.check_queue_lag",
+      "source_file": "apps/alpha/application/monitoring_tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_check_queue_lag_reports_blocked_success_and_failure"
+        },
+        "blocked": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_check_queue_lag_reports_blocked_success_and_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_check_queue_lag_reports_blocked_success_and_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.alpha.application.monitoring_tasks.generate_daily_report",
+      "source_file": "apps/alpha/application/monitoring_tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_generate_daily_report_reports_success_and_complete_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_generate_daily_report_reports_success_and_complete_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.alpha.application.monitoring_tasks.cleanup_old_metrics",
+      "source_file": "apps/alpha/application/monitoring_tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_cleanup_old_metrics_reports_success_noop_and_complete_failure"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_cleanup_old_metrics_reports_success_noop_and_complete_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/alpha/test_monitoring_task_outcome_contracts.py",
+          "test_function": "test_cleanup_old_metrics_reports_success_noop_and_complete_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.alpha.application.tasks.qlib_predict_scores",
+      "source_file": "apps/alpha/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
+          "test_function": "test_qlib_predict_scores_reports_stored_success"
+        }
+      }
+    },
+    {
+      "task_path": "apps.alpha.application.tasks.qlib_train_model",
+      "source_file": "apps/alpha/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
+          "test_function": "test_qlib_train_model_reports_registry_write"
+        }
+      }
+    },
+    {
+      "task_path": "apps.alpha.application.tasks.qlib_evaluate_model",
+      "source_file": "apps/alpha/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
+          "test_function": "test_qlib_evaluate_model_normalizes_service_result"
+        }
+      }
+    },
+    {
+      "task_path": "apps.alpha.application.tasks.qlib_refresh_cache",
+      "source_file": "apps/alpha/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
+          "test_function": "test_qlib_refresh_cache_reports_success_noop_and_failure"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
+          "test_function": "test_qlib_refresh_cache_reports_success_noop_and_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
+          "test_function": "test_qlib_refresh_cache_reports_success_noop_and_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.alpha.application.tasks.qlib_daily_inference",
+      "source_file": "apps/alpha/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "partial_failure": {
+          "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
+          "test_function": "test_qlib_daily_inference_reports_partial_refresh_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.alpha.application.tasks.qlib_daily_scoped_inference",
+      "source_file": "apps/alpha/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
+          "test_function": "test_qlib_daily_scoped_inference_reports_blocked_and_success"
+        },
+        "blocked": {
+          "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
+          "test_function": "test_qlib_daily_scoped_inference_reports_blocked_and_success"
+        }
+      }
+    },
+    {
+      "task_path": "apps.alpha.application.tasks.qlib_refresh_runtime_data_task",
+      "source_file": "apps/alpha/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
+          "test_function": "test_qlib_refresh_runtime_data_task_normalizes_summary"
+        }
+      }
+    },
+    {
+      "task_path": "apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task",
+      "source_file": "apps/alpha/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
+          "test_function": "test_qlib_refresh_runtime_data_for_codes_reports_portfolio_counts"
+        }
+      }
+    },
+    {
+      "task_path": "apps.backtest.application.tasks.run_backtest_task",
+      "source_file": "apps/backtest/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/backtest/test_t5_task_contracts.py",
+          "test_function": "test_run_backtest_task_persists_success_and_exercises_default_readers"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/backtest/test_t5_task_contracts.py",
+          "test_function": "test_run_backtest_task_returns_failed_outcome_for_missing_record"
+        }
+      }
+    },
+    {
+      "task_path": "apps.backtest.application.tasks.cleanup_old_backtests",
+      "source_file": "apps/backtest/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/backtest/test_tasks.py",
+          "test_function": "test_cleanup_rejects_unsafe_retention_without_querying"
+        },
+        "all_success": {
+          "test_file": "tests/unit/backtest/test_t5_task_contracts.py",
+          "test_function": "test_cleanup_old_backtests_deletes_only_completed_expired_records"
+        }
+      }
+    },
+    {
+      "task_path": "apps.backtest.application.tasks.generate_backtest_report",
+      "source_file": "apps/backtest/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "blocked": {
+          "test_file": "tests/unit/backtest/test_t5_task_contracts.py",
+          "test_function": "test_generate_report_rejects_missing_or_incomplete_backtests"
+        },
+        "all_success": {
+          "test_file": "tests/unit/backtest/test_t5_task_contracts.py",
+          "test_function": "test_generate_report_and_analysis_helpers_summarize_results"
+        }
+      }
+    },
+    {
+      "task_path": "apps.broker_execution.application.tasks.run_broker_execution_maintenance",
+      "source_file": "apps/broker_execution/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/broker_execution/test_application_boundaries.py",
+          "test_function": "test_maintenance_result_survives_malformed_alert_payload"
+        }
+      }
+    },
+    {
+      "task_path": "apps.broker_execution.application.tasks.generate_broker_reconciliation_runs",
+      "source_file": "apps/broker_execution/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "zero_output": {
+          "test_file": "tests/unit/broker_execution/test_application_boundaries.py",
+          "test_function": "test_reconciliation_task_reports_normalized_noop"
+        },
+        "invalid_input": {
+          "test_file": "tests/unit/broker_execution/test_application_boundaries.py",
+          "test_function": "test_reconciliation_rejects_invalid_target_before_persisting"
+        }
+      }
+    },
+    {
+      "task_path": "apps.operational_readiness.application.tasks.run_personal_readiness_daily_task",
+      "source_file": "apps/operational_readiness/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "blocked": {
+          "test_file": "tests/unit/test_personal_readiness_daily_task.py",
+          "test_function": "test_canonical_readiness_task_uses_same_normalized_executor"
+        }
+      }
+    },
+    {
+      "task_path": "apps.pulse.application.tasks.calculate_weekly_pulse",
+      "source_file": "apps/pulse/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/pulse/test_t4b_task_and_serializer_contracts.py",
+          "test_function": "test_weekly_pulse_task_reports_success"
+        },
+        "blocked": {
+          "test_file": "tests/unit/pulse/test_t4b_task_and_serializer_contracts.py",
+          "test_function": "test_weekly_pulse_task_reports_business_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.signal.application.tasks.check_all_signal_invalidations",
+      "source_file": "apps/signal/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "partial_failure": {
+          "test_file": "tests/unit/signal/test_task_delivery_edges.py",
+          "test_function": "test_signal_tasks_check_cleanup_and_daily_summary"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/signal/test_task_delivery_edges.py",
+          "test_function": "test_invalidation_batch_result_rejects_false_success"
+        }
+      }
+    },
+    {
+      "task_path": "apps.signal.application.tasks.check_single_signal_invalidation",
+      "source_file": "apps/signal/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/signal/test_task_delivery_edges.py",
+          "test_function": "test_signal_tasks_check_cleanup_and_daily_summary"
+        },
+        "invalid_input": {
+          "test_file": "tests/unit/signal/test_task_delivery_edges.py",
+          "test_function": "test_single_invalidation_rejects_invalid_signal_id"
+        }
+      }
+    },
+    {
+      "task_path": "apps.signal.application.tasks.cleanup_old_invalidated_signals",
+      "source_file": "apps/signal/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "blocked": {
+          "test_file": "tests/unit/signal/test_task_delivery_edges.py",
+          "test_function": "test_signal_tasks_check_cleanup_and_daily_summary"
+        },
+        "invalid_input": {
+          "test_file": "tests/unit/signal/test_task_delivery_edges.py",
+          "test_function": "test_cleanup_rejects_unbounded_days"
+        }
+      }
+    },
+    {
+      "task_path": "apps.signal.application.tasks.send_daily_signal_summary",
+      "source_file": "apps/signal/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/signal/test_task_delivery_edges.py",
+          "test_function": "test_signal_tasks_check_cleanup_and_daily_summary"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/signal/test_task_delivery_edges.py",
+          "test_function": "test_daily_summary_fails_when_notification_is_not_delivered"
+        }
+      }
+    }
+  ],
+  "exemptions": [
+    {
+      "task_path": "apps.equity.application.tasks.sync_equity_valuation_task_alias",
+      "source_file": "apps/equity/application/tasks.py",
+      "owner": "equity",
+      "reason": "Compatibility wrapper retained for legacy beat and manual dispatch routes.",
+      "compatibility_target": "apps.equity.application.tasks_valuation_sync.sync_equity_valuation_task"
+    },
+    {
+      "task_path": "apps.equity.application.tasks.validate_equity_valuation_quality_task_alias",
+      "source_file": "apps/equity/application/tasks.py",
+      "owner": "equity",
+      "reason": "Compatibility wrapper retained for legacy beat and manual dispatch routes.",
+      "compatibility_target": "apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task"
+    },
+    {
+      "task_path": "apps.equity.application.tasks.sync_validate_scan_equity_valuation_task_alias",
+      "source_file": "apps/equity/application/tasks.py",
+      "owner": "equity",
+      "reason": "Compatibility wrapper retained for legacy beat and manual dispatch routes.",
+      "compatibility_target": "apps.equity.application.tasks_valuation_sync.sync_validate_scan_equity_valuation_task"
+    },
+    {
+      "task_path": "apps.equity.application.tasks.sync_financial_data_task_alias",
+      "source_file": "apps/equity/application/tasks.py",
+      "owner": "equity",
+      "reason": "Compatibility wrapper retained for legacy beat and manual dispatch routes.",
+      "compatibility_target": "apps.equity.application.tasks_valuation_sync.sync_financial_data_task"
+    },
+    {
+      "task_path": "apps.policy.application.tasks.auto_assign_pending_audits_task",
+      "source_file": "apps/policy/application/tasks.py",
+      "owner": "policy",
+      "reason": "Compatibility wrapper retained for the duplicate legacy workbench beat route.",
+      "compatibility_target": "apps.policy.application.tasks.auto_assign_pending_audits"
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.update_position_prices_task_alias",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "owner": "simulated_trading",
+      "reason": "Compatibility wrapper retained for legacy dotted-name beat schedules.",
+      "compatibility_target": "apps.simulated_trading.application.tasks.update_position_prices_task"
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.calculate_all_performance_task_alias",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "owner": "simulated_trading",
+      "reason": "Compatibility wrapper retained for legacy dotted-name beat schedules.",
+      "compatibility_target": "apps.simulated_trading.application.tasks.calculate_all_performance_task"
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task_alias",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "owner": "simulated_trading",
+      "reason": "Compatibility wrapper retained for legacy dotted-name beat schedules.",
+      "compatibility_target": "apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task"
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.send_performance_summary_task_alias",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "owner": "simulated_trading",
+      "reason": "Compatibility wrapper retained for legacy dotted-name beat schedules.",
+      "compatibility_target": "apps.simulated_trading.application.tasks.send_performance_summary_task"
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.check_position_invalidation_task_alias",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "owner": "simulated_trading",
+      "reason": "Compatibility wrapper retained for legacy dotted-name beat schedules.",
+      "compatibility_target": "apps.simulated_trading.application.tasks.check_position_invalidation_task"
+    },
+    {
+      "task_path": "apps.simulated_trading.application.tasks.notify_invalidated_positions_task_alias",
+      "source_file": "apps/simulated_trading/application/tasks.py",
+      "owner": "simulated_trading",
+      "reason": "Compatibility wrapper retained for legacy dotted-name beat schedules.",
+      "compatibility_target": "apps.simulated_trading.application.tasks.notify_invalidated_positions_task"
+    },
+    {
+      "task_path": "apps.alpha.application.monitoring_tasks.evaluate_alerts_legacy",
+      "source_file": "apps/alpha/application/monitoring_tasks.py",
+      "owner": "alpha",
+      "reason": "Compatibility wrapper retained for legacy dotted-name monitoring schedules.",
+      "compatibility_target": "apps.alpha.application.monitoring_tasks.evaluate_alerts"
+    },
+    {
+      "task_path": "apps.alpha.application.monitoring_tasks.update_provider_metrics_legacy",
+      "source_file": "apps/alpha/application/monitoring_tasks.py",
+      "owner": "alpha",
+      "reason": "Compatibility wrapper retained for legacy dotted-name monitoring schedules.",
+      "compatibility_target": "apps.alpha.application.monitoring_tasks.update_provider_metrics"
+    },
+    {
+      "task_path": "apps.alpha.application.monitoring_tasks.check_queue_lag_legacy",
+      "source_file": "apps/alpha/application/monitoring_tasks.py",
+      "owner": "alpha",
+      "reason": "Compatibility wrapper retained for legacy dotted-name monitoring schedules.",
+      "compatibility_target": "apps.alpha.application.monitoring_tasks.check_queue_lag"
+    },
+    {
+      "task_path": "apps.alpha.application.monitoring_tasks.calculate_ic_drift_legacy",
+      "source_file": "apps/alpha/application/monitoring_tasks.py",
+      "owner": "alpha",
+      "reason": "Compatibility wrapper retained for legacy dotted-name monitoring schedules.",
+      "compatibility_target": "apps.alpha.application.monitoring_tasks.calculate_ic_drift"
+    },
+    {
+      "task_path": "apps.alpha.application.monitoring_tasks.generate_daily_report_legacy",
+      "source_file": "apps/alpha/application/monitoring_tasks.py",
+      "owner": "alpha",
+      "reason": "Compatibility wrapper retained for legacy dotted-name monitoring schedules.",
+      "compatibility_target": "apps.alpha.application.monitoring_tasks.generate_daily_report"
+    },
+    {
+      "task_path": "apps.alpha.application.monitoring_tasks.cleanup_old_metrics_legacy",
+      "source_file": "apps/alpha/application/monitoring_tasks.py",
+      "owner": "alpha",
+      "reason": "Compatibility wrapper retained for legacy dotted-name monitoring schedules.",
+      "compatibility_target": "apps.alpha.application.monitoring_tasks.cleanup_old_metrics"
+    },
+    {
+      "task_path": "apps.alpha.application.tasks.qlib_daily_inference_alias",
+      "source_file": "apps/alpha/application/tasks.py",
+      "owner": "alpha",
+      "reason": "Compatibility wrapper retained for the legacy dotted-name inference schedule.",
+      "compatibility_target": "apps.alpha.application.tasks.qlib_daily_inference"
+    },
+    {
+      "task_path": "apps.alpha.application.tasks.qlib_daily_scoped_inference_alias",
+      "source_file": "apps/alpha/application/tasks.py",
+      "owner": "alpha",
+      "reason": "Compatibility wrapper retained for the legacy scoped-inference schedule.",
+      "compatibility_target": "apps.alpha.application.tasks.qlib_daily_scoped_inference"
+    },
+    {
+      "task_path": "apps.alpha.application.tasks.qlib_refresh_cache_alias",
+      "source_file": "apps/alpha/application/tasks.py",
+      "owner": "alpha",
+      "reason": "Compatibility wrapper retained for the legacy dotted-name cache schedule.",
+      "compatibility_target": "apps.alpha.application.tasks.qlib_refresh_cache"
+    },
+    {
+      "task_path": "apps.task_monitor.application.tasks.run_personal_readiness_daily_task",
+      "source_file": "apps/task_monitor/application/tasks.py",
+      "owner": "operational_readiness",
+      "reason": "Compatibility wrapper retained for the legacy task-monitor readiness schedule.",
+      "compatibility_target": "apps.operational_readiness.application.tasks.run_personal_readiness_daily_task"
     }
   ]
 }

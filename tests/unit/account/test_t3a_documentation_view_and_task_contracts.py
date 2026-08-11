@@ -252,10 +252,10 @@ def test_backup_email_task_handles_not_due_and_sent(
         save=lambda **_kwargs: None,
     )
     monkeypatch.setattr(tasks.system_settings_repo, "get_settings", lambda: config)
-    assert tasks.send_database_backup_email_task.run() == {
-        "status": "skipped",
-        "reason": "not_due",
-    }
+    skipped = tasks.send_database_backup_email_task.run()
+    assert skipped["status"] == "skipped"
+    assert skipped["reason"] == "not_due"
+    assert skipped["outcome"] == "noop"
 
     config.is_backup_due = lambda: True
     sent: list[dict[str, object]] = []
@@ -279,7 +279,9 @@ def test_backup_email_task_handles_not_due_and_sent(
 
     result = tasks.send_database_backup_email_task.run()
 
-    assert result == {"status": "sent", "email": "owner@example.test"}
+    assert result["status"] == "sent"
+    assert result["email"] == "owner@example.test"
+    assert result["outcome"] == "success"
     assert "https://example.test/backup" in sent[0]["body"]
     assert config.backup_last_sent_at is not None
 

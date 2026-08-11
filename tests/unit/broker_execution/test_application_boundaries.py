@@ -134,7 +134,14 @@ def test_alert_forwarding_never_propagates_monitoring_exception(
 def test_maintenance_result_survives_malformed_alert_payload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repository = _repository(run_maintenance=lambda: {"expired_orders": 1, "alerts": "invalid"})
+    repository = _repository(
+        run_maintenance=lambda: {
+            "stale_agents": 0,
+            "expired_orders": 1,
+            "released_leases": 0,
+            "alerts": "invalid",
+        }
+    )
     monkeypatch.setattr(tasks, "get_broker_execution_repository", lambda: repository)
 
     result = tasks.run_broker_execution_maintenance.run()
@@ -142,6 +149,43 @@ def test_maintenance_result_survives_malformed_alert_payload(
     assert result["expired_orders"] == 1
     assert result["task_monitor_alert_ids"] == []
     assert result["task_monitor_alert_failure_count"] == 1
+    assert {
+        key: result[key]
+        for key in ("outcome", "success", "requested", "succeeded", "failed", "stored")
+    } == {
+        "outcome": "success",
+        "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": 1,
+    }
+
+
+def test_reconciliation_task_reports_normalized_noop(monkeypatch: pytest.MonkeyPatch) -> None:
+    repository = _repository(
+        list_reconciliation_targets=lambda: [],
+        generate_reconciliation_runs=lambda **_payload: {
+            "created_runs": 0,
+            "duplicate_runs": 0,
+            "alerts": [],
+        },
+    )
+    monkeypatch.setattr(tasks, "get_broker_execution_repository", lambda: repository)
+
+    result = tasks.generate_broker_reconciliation_runs.run()
+
+    assert {
+        key: result[key]
+        for key in ("outcome", "success", "requested", "succeeded", "failed", "stored")
+    } == {
+        "outcome": "noop",
+        "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": 0,
+    }
 
 
 def test_reconciliation_rejects_invalid_target_before_persisting(

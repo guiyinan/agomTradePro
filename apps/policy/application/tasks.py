@@ -52,7 +52,80 @@ def _validate_positive_int(value: object, *, field_name: str, maximum: int) -> i
 def _input_error(exc: ValueError) -> TaskPayload:
     """Build a stable non-retryable input error payload."""
 
-    return {"status": "error", "error": str(exc), "error_type": "input"}
+    return _operation_result(
+        outcome="failed",
+        error=str(exc),
+        error_type="input",
+    )
+
+
+def _operation_result(
+    *,
+    outcome: str,
+    stored_record_count: int = 0,
+    **details: object,
+) -> TaskPayload:
+    """Build one canonical single-operation task outcome without key spoofing."""
+
+    if outcome not in {"success", "partial", "noop", "blocked", "failed"}:
+        raise ValueError("unsupported task outcome")
+    compatible_success = outcome in {"success", "partial", "noop"}
+    status = "success" if compatible_success else ("blocked" if outcome == "blocked" else "error")
+    return {
+        **details,
+        "status": status,
+        "outcome": outcome,
+        "success": compatible_success,
+        "requested_operation_count": 1,
+        "succeeded_operation_count": 1 if compatible_success else 0,
+        "failed_operation_count": 1 if outcome == "failed" else 0,
+        "stored_record_count": stored_record_count,
+    }
+
+
+def _cleanup_result(
+    *,
+    outcome: str,
+    deleted_record_count: int = 0,
+    error: str | None = None,
+    error_type: str | None = None,
+    **details: object,
+) -> TaskPayload:
+    """Build one unambiguous destructive-maintenance business outcome."""
+
+    if outcome not in {"success", "noop", "failed"}:
+        raise ValueError("unsupported cleanup outcome")
+    succeeded = outcome in {"success", "noop"}
+    payload: TaskPayload = {
+        "status": "success" if succeeded else "error",
+        "outcome": outcome,
+        "success": succeeded,
+        "requested_operation_count": 1,
+        "succeeded_operation_count": 1 if succeeded else 0,
+        "failed_operation_count": 0 if succeeded else 1,
+        "stored_record_count": 0,
+        "deleted_record_count": deleted_record_count,
+        **details,
+    }
+    if error is not None:
+        payload["error"] = error
+    if error_type is not None:
+        payload["error_type"] = error_type
+    return payload
+
+
+def _cleanup_input_error(exc: ValueError) -> TaskPayload:
+    """Return a failed cleanup result before any repository access."""
+
+    return _cleanup_result(outcome="failed", error=str(exc), error_type="input")
+
+
+def _validate_deleted_count(value: object) -> int:
+    """Reject malformed repository mutation evidence before reporting success."""
+
+    if type(value) is not int or value < 0:
+        raise ValueError("deleted record count must be a non-negative integer")
+    return value
 
 
 def reevaluate_signals_for_policy_change(
@@ -115,7 +188,7 @@ def check_policy_status_alert(
         logger.info(f"Policy status check completed for {as_of_date}")
 
         return {
-            "status": "success",
+            **_operation_result(outcome="success"),
             "level": status.current_level.value,
             "date": as_of_date.isoformat(),
         }
@@ -134,7 +207,11 @@ def check_policy_status_alert(
         # Non-retryable business logic errors
         logger.error(f"Policy status check failed (non-retryable): {e}")
         record_exception(e, module="policy", is_handled=True)
-        return {"status": "error", "error": str(e), "error_type": "business_logic"}
+        return _operation_result(
+            outcome="failed",
+            error=str(e),
+            error_type="business_logic",
+        )
     except Exception as e:
         # Unexpected error - still retry but log differently
         logger.exception(f"Policy status check failed (unexpected): {e}")
@@ -182,7 +259,7 @@ def monitor_policy_transitions() -> TaskPayload:
         logger.info("Policy transition monitoring completed")
 
         return {
-            "status": "success",
+            **_operation_result(outcome="success" if recent_events else "noop"),
             "events_checked": len(recent_events),
             "transitions_found": len(changes) if len(recent_events) > 1 else 0,
         }
@@ -190,11 +267,15 @@ def monitor_policy_transitions() -> TaskPayload:
     except (DataFetchError, DatabaseError) as e:
         logger.warning(f"Policy transition monitoring failed (data error): {e}")
         record_exception(e, module="policy", is_handled=True)
-        return {"status": "error", "error": str(e), "error_type": "data_fetch"}
+        return _operation_result(
+            outcome="failed",
+            error=str(e),
+            error_type="data_fetch",
+        )
     except Exception as e:
         logger.exception(f"Policy transition monitoring failed (unexpected): {e}")
         record_exception(e, module="policy", is_handled=False)
-        return {"status": "error", "error": str(e)}
+        return _operation_result(outcome="failed", error=str(e))
 
 
 @shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]
@@ -214,29 +295,32 @@ def cleanup_old_policy_logs(days_to_keep: int = 365) -> TaskPayload:
             maximum=36500,
         )
     except ValueError as exc:
-        return _input_error(exc)
+        return _cleanup_input_error(exc)
 
     try:
         cutoff_date = date.today() - timedelta(days=validated_days)
 
-        deleted_count = get_current_policy_repository().delete_events_before(cutoff_date)
+        deleted_count = _validate_deleted_count(
+            get_current_policy_repository().delete_events_before(cutoff_date)
+        )
 
         logger.info(f"Cleaned up {deleted_count} old policy logs")
 
-        return {
-            "status": "success",
-            "deleted_count": deleted_count,
-            "cutoff_date": cutoff_date.isoformat(),
-        }
+        return _cleanup_result(
+            outcome="success" if deleted_count else "noop",
+            deleted_record_count=deleted_count,
+            deleted_count=deleted_count,
+            cutoff_date=cutoff_date.isoformat(),
+        )
 
     except DatabaseError as e:
         logger.error(f"Policy log cleanup failed (database error): {e}", exc_info=True)
         record_exception(e, module="policy", is_handled=True)
-        return {"status": "error", "error": str(e), "error_type": "database"}
+        return _cleanup_result(outcome="failed", error=str(e), error_type="database")
     except Exception as e:
         logger.exception(f"Policy log cleanup failed (unexpected): {e}")
         record_exception(e, module="policy", is_handled=False)
-        return {"status": "error", "error": str(e)}
+        return _cleanup_result(outcome="failed", error=str(e))
 
 
 # 辅助函数
@@ -353,8 +437,24 @@ def fetch_rss_sources(
             category_stats = policy_repo.get_category_stats()
             logger.info(f"Policy categories: {category_stats}")
 
+        failed_source_count = len(output.errors)
+        requested_source_count = output.sources_processed + failed_source_count
+        if requested_source_count == 0:
+            outcome = "noop"
+        elif output.sources_processed == 0:
+            outcome = "failed"
+        elif failed_source_count:
+            outcome = "partial"
+        else:
+            outcome = "success"
         return {
-            "status": "success",
+            "outcome": outcome,
+            "success": outcome in {"success", "partial", "noop"},
+            "status": "success" if outcome in {"success", "partial", "noop"} else "failed",
+            "requested_source_count": requested_source_count,
+            "succeeded_source_count": output.sources_processed,
+            "failed_source_count": failed_source_count,
+            "stored_record_count": output.new_policy_events,
             "sources_processed": output.sources_processed,
             "total_items": output.total_items,
             "new_events": output.new_policy_events,
@@ -385,19 +485,23 @@ def cleanup_old_rss_logs(days_to_keep: int = 90) -> TaskPayload:
             maximum=36500,
         )
     except ValueError as exc:
-        return _input_error(exc)
+        return _cleanup_input_error(exc)
 
     try:
         rss_repo = get_rss_repository()
-        deleted_count = rss_repo.cleanup_old_logs(validated_days)
+        deleted_count = _validate_deleted_count(rss_repo.cleanup_old_logs(validated_days))
 
         logger.info(f"Cleaned up {deleted_count} old RSS logs")
 
-        return {"status": "success", "deleted_count": deleted_count}
+        return _cleanup_result(
+            outcome="success" if deleted_count else "noop",
+            deleted_record_count=deleted_count,
+            deleted_count=deleted_count,
+        )
 
     except Exception as e:
         logger.error(f"RSS log cleanup failed: {e}")
-        return {"status": "error", "error": str(e)}
+        return _cleanup_result(outcome="failed", error=str(e))
 
 
 # ========== 审核相关任务 ==========
@@ -433,7 +537,18 @@ def auto_assign_pending_audits(max_per_user: int = 10) -> TaskPayload:
 
         if not auditor_ids:
             logger.warning("No auditors found with staff privileges")
-            return {"assigned": 0, "remaining": len(unassigned_ids)}
+            requested_count = len(unassigned_ids)
+            return {
+                "status": "blocked" if requested_count else "success",
+                "outcome": "blocked" if requested_count else "noop",
+                "success": requested_count == 0,
+                "requested_queue_item_count": requested_count,
+                "succeeded_queue_item_count": 0,
+                "failed_queue_item_count": 0,
+                "stored_record_count": 0,
+                "assigned": 0,
+                "remaining": requested_count,
+            }
 
         # 轮询分配
         assigned_per_auditor = workbench_repo.get_pending_assignment_counts(auditor_ids)
@@ -459,15 +574,34 @@ def auto_assign_pending_audits(max_per_user: int = 10) -> TaskPayload:
 
         logger.info(f"Auto-assigned {assigned_count} policy reviews to {auditor_count} auditors")
 
+        remaining_count = len(unassigned_ids) - assigned_count
+        if not unassigned_ids:
+            outcome = "noop"
+        elif remaining_count == 0:
+            outcome = "success"
+        elif assigned_count:
+            outcome = "partial"
+        else:
+            outcome = "blocked"
         return {
+            "status": "success" if outcome in {"success", "partial", "noop"} else "blocked",
+            "outcome": outcome,
+            "success": outcome in {"success", "partial", "noop"},
+            "requested_queue_item_count": len(unassigned_ids),
+            "succeeded_queue_item_count": assigned_count,
+            "failed_queue_item_count": remaining_count,
+            "stored_record_count": assigned_count,
             "assigned": assigned_count,
-            "remaining": len(unassigned_ids) - assigned_count,
+            "remaining": remaining_count,
             "auditors": auditor_count,
         }
 
     except Exception as e:
         logger.error(f"Auto-assign audits failed: {e}", exc_info=True)
-        return {"assigned": 0, "error": str(e)}
+        return {
+            **_operation_result(outcome="failed", error=str(e)),
+            "assigned": 0,
+        }
 
 
 @shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]
@@ -487,21 +621,27 @@ def cleanup_old_audit_queues(days_to_keep: int = 30) -> TaskPayload:
             maximum=36500,
         )
     except ValueError as exc:
-        return _input_error(exc)
+        return _cleanup_input_error(exc)
 
     try:
         cutoff_date = timezone.now() - timedelta(days=validated_days)
 
         # 只删除已审核的队列记录
-        deleted_count = get_workbench_repository().delete_reviewed_queue_before(cutoff_date)
+        deleted_count = _validate_deleted_count(
+            get_workbench_repository().delete_reviewed_queue_before(cutoff_date)
+        )
 
         logger.info(f"Cleaned up {deleted_count} old audit queue records")
 
-        return {"status": "success", "deleted_count": deleted_count}
+        return _cleanup_result(
+            outcome="success" if deleted_count else "noop",
+            deleted_record_count=deleted_count,
+            deleted_count=deleted_count,
+        )
 
     except Exception as e:
         logger.error(f"Audit queue cleanup failed: {e}")
-        return {"status": "error", "error": str(e)}
+        return _cleanup_result(outcome="failed", error=str(e))
 
 
 @shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]
@@ -518,11 +658,13 @@ def generate_daily_policy_summary() -> TaskPayload:
         # 存储摘要或发送告警
         logger.info(f"Daily policy summary generated: {summary}")
 
-        return cast(TaskPayload, summary)
+        if not isinstance(summary, dict):
+            raise ValueError("daily policy summary must be an object")
+        return _operation_result(outcome="success", **summary)
 
     except Exception as e:
         logger.error(f"Daily policy summary generation failed: {e}", exc_info=True)
-        return {"status": "error", "error": str(e)}
+        return _operation_result(outcome="failed", error=str(e))
 
 
 # ========== Signal 同步相关任务 ==========
@@ -590,7 +732,13 @@ def trigger_signal_reevaluation(
         )
 
         return {
-            "status": "success",
+            "status": "success" if result.total_count else "noop",
+            "outcome": "success" if result.total_count else "noop",
+            "success": True,
+            "requested_signal_count": result.total_count,
+            "succeeded_signal_count": result.total_count,
+            "failed_signal_count": 0,
+            "stored_record_count": result.rejected_count,
             "total_count": result.total_count,
             "rejected_count": result.rejected_count,
             "rejected_signal_ids": result.rejected_signal_ids,
@@ -649,7 +797,7 @@ def monitor_sla_exceeded_task() -> TaskPayload:
             )
 
         return {
-            "status": "success",
+            **_operation_result(outcome="success" if total_exceeded else "noop"),
             "p23_exceeded": breakdown["p23_exceeded"],
             "normal_exceeded": breakdown["normal_exceeded"],
             "total_exceeded": total_exceeded,
@@ -657,7 +805,7 @@ def monitor_sla_exceeded_task() -> TaskPayload:
 
     except Exception as e:
         logger.error(f"SLA monitor failed: {e}", exc_info=True)
-        return {"status": "error", "error": str(e)}
+        return _operation_result(outcome="failed", error=str(e))
 
 
 @shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]
@@ -698,14 +846,17 @@ def refresh_gate_constraints_task() -> TaskPayload:
             )
 
             return {
-                "status": "success",
+                **_operation_result(outcome="success"),
                 "heat_score": global_heat,
                 "sentiment_score": global_sentiment,
                 "gate_level": gate_level.value,
             }
 
-        return {"status": "success", "message": "No gate config or data available"}
+        return _operation_result(
+            outcome="blocked",
+            message="No gate config or data available",
+        )
 
     except Exception as e:
         logger.error(f"Gate constraints refresh failed: {e}", exc_info=True)
-        return {"status": "error", "error": str(e)}
+        return _operation_result(outcome="failed", error=str(e))

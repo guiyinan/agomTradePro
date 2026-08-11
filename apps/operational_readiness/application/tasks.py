@@ -20,6 +20,27 @@ CANONICAL_READINESS_TASK_NAME = (
 LEGACY_READINESS_TASK_NAME = "apps.task_monitor.application.tasks.run_personal_readiness_daily_task"
 
 
+def _normalize_task_result(payload: dict[str, Any]) -> dict[str, Any]:
+    """Attach one fail-closed business outcome to a readiness run."""
+
+    status = str(payload.get("status") or "").strip().lower()
+    if status == "ok":
+        outcome, succeeded, failed = "success", 1, 0
+    elif status == "error":
+        outcome, succeeded, failed = "failed", 0, 1
+    else:
+        outcome, succeeded, failed = "blocked", 0, 0
+    return {
+        **payload,
+        "outcome": outcome,
+        "success": outcome == "success",
+        "requested": 1,
+        "succeeded": succeeded,
+        "failed": failed,
+        "stored": 0,
+    }
+
+
 def execute_personal_readiness_daily_task(
     *,
     task: Any,
@@ -49,22 +70,24 @@ def execute_personal_readiness_daily_task(
         allow_unclosed_target_date=allow_unclosed_target_date,
     )
     active_runner = runner or run_personal_readiness_daily
-    payload = active_runner(
-        target_date=resolved_target_date,
-        user_id=user_id,
-        account_id=account_id,
-        output_dir=Path(output_dir),
-        required_days=required_days,
-        calendar_source=calendar_source,
-        max_qlib_staleness_days=max_qlib_staleness_days,
-        repair_accounts=repair_accounts,
-        run_workspace_refresh=run_workspace_refresh,
-        include_weekly_advisor=include_weekly_advisor,
-        persist_risk_report=persist_risk_report,
-        allow_unclosed_target_date=allow_unclosed_target_date,
-        trigger_source=trigger_source,
-        trigger_task_id=trigger_task_id,
-        trigger_task_name=getattr(task, "name", None),
+    payload = _normalize_task_result(
+        active_runner(
+            target_date=resolved_target_date,
+            user_id=user_id,
+            account_id=account_id,
+            output_dir=Path(output_dir),
+            required_days=required_days,
+            calendar_source=calendar_source,
+            max_qlib_staleness_days=max_qlib_staleness_days,
+            repair_accounts=repair_accounts,
+            run_workspace_refresh=run_workspace_refresh,
+            include_weekly_advisor=include_weekly_advisor,
+            persist_risk_report=persist_risk_report,
+            allow_unclosed_target_date=allow_unclosed_target_date,
+            trigger_source=trigger_source,
+            trigger_task_id=trigger_task_id,
+            trigger_task_name=getattr(task, "name", None),
+        )
     )
     if strict_daily and payload.get("status") != "ok":
         raise RuntimeError(f"Personal readiness daily run is {payload.get('status')}")

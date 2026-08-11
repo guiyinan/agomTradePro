@@ -29,6 +29,27 @@ logger = logging.getLogger(__name__)
 _MAX_CLEANUP_DAYS = 3650
 
 
+def _backtest_task_result(
+    *,
+    outcome: str,
+    stored: int = 0,
+    **details: object,
+) -> dict[str, object]:
+    """Build normalized counters for one backtest task request."""
+
+    if outcome not in {"success", "noop"} or stored < 0:
+        raise ValueError("invalid backtest task outcome")
+    return {
+        "outcome": outcome,
+        "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": stored,
+        **details,
+    }
+
+
 def _required_text(payload: Mapping[str, object], field_name: str) -> str:
     """Return one required non-empty task string."""
 
@@ -213,14 +234,16 @@ def run_backtest_task(
 
         logger.info(f"Backtest {backtest_id} completed successfully via Celery")
 
-        return {
-            "backtest_id": backtest_id,
-            "status": "completed",
-            "total_return": result.total_return,
-            "annualized_return": result.annualized_return,
-            "max_drawdown": result.max_drawdown,
-            "sharpe_ratio": result.sharpe_ratio,
-        }
+        return _backtest_task_result(
+            outcome="success",
+            stored=1,
+            backtest_id=backtest_id,
+            status="completed",
+            total_return=result.total_return,
+            annualized_return=result.annualized_return,
+            max_drawdown=result.max_drawdown,
+            sharpe_ratio=result.sharpe_ratio,
+        )
 
     except (
         BusinessLogicError,
@@ -256,7 +279,7 @@ def run_backtest_task(
     time_limit=300,
     soft_time_limit=280,
 )
-def cleanup_old_backtests(self: BoundTask, days_old: int = 90) -> int:
+def cleanup_old_backtests(self: BoundTask, days_old: int = 90) -> dict[str, object]:
     """
     清理旧的回测记录
 
@@ -279,7 +302,13 @@ def cleanup_old_backtests(self: BoundTask, days_old: int = 90) -> int:
         deleted_count = repository.delete_completed_before(cutoff_date)
 
         logger.info(f"Cleanup completed: {deleted_count} old backtests deleted")
-        return deleted_count
+        if type(deleted_count) is not int or deleted_count < 0:
+            raise BusinessLogicError("Backtest cleanup returned an invalid deleted count")
+        return _backtest_task_result(
+            outcome="success" if deleted_count else "noop",
+            deleted_count=deleted_count,
+            days_old=days_old,
+        )
     except DatabaseError as exc:
         logger.exception("Backtest cleanup failed")
         raise self.retry(exc=exc, countdown=60) from exc
@@ -325,7 +354,7 @@ def generate_backtest_report(
     domain_result = repository.to_domain_entity(backtest)
 
     # 生成报告
-    report = {
+    report: dict[str, object] = {
         "summary": domain_result.to_summary_dict(),
         "regime_analysis": _analyze_regime_performance(domain_result.regime_history),
         "trade_analysis": _analyze_trades(domain_result.trades),
@@ -335,7 +364,13 @@ def generate_backtest_report(
         },
     }
 
-    return report
+    return _backtest_task_result(
+        outcome="success",
+        summary=report["summary"],
+        regime_analysis=report["regime_analysis"],
+        trade_analysis=report["trade_analysis"],
+        risk_metrics=report["risk_metrics"],
+    )
 
 
 def _analyze_regime_performance(

@@ -11,6 +11,7 @@ from typing import Any, TypedDict
 from celery import current_app
 from django.utils import timezone
 
+from apps.alpha.application import task_outcome_contracts as _outcomes
 from apps.alpha.application.repository_provider import (
     calculate_rolling_metrics,
     get_alpha_runtime_alert_manager,
@@ -116,9 +117,16 @@ def _record_coverage_if_resolvable(
 def evaluate_alerts() -> dict[str, Any]:
     """Evaluate all configured Alpha alert rules."""
 
-    alert_manager = get_alpha_runtime_alert_manager()
-    alerts = alert_manager.evaluate_all()
-    timestamp = timezone.now().isoformat()
+    try:
+        alert_manager = get_alpha_runtime_alert_manager()
+        alerts = alert_manager.evaluate_all()
+        timestamp = timezone.now().isoformat()
+    except Exception as exc:
+        logger.error(
+            "Alpha alert evaluation failed: error_type=%s",
+            exc.__class__.__name__,
+        )
+        return _outcomes.failed_task_result(reason="alert_evaluation_failed")
     if alerts:
         logger.warning("=== Alpha 告警 (%s 条) ===", len(alerts))
         for alert in alerts:
@@ -128,61 +136,101 @@ def evaluate_alerts() -> dict[str, Any]:
             "count": len(alerts),
             "alerts": alerts,
             "timestamp": timestamp,
+            **_outcomes.task_outcome_fields(
+                outcome="success",
+                requested=1,
+                succeeded=1,
+                failed=0,
+                stored=0,
+            ),
         }
-    return {"status": "ok", "count": 0, "timestamp": timestamp}
+    return {
+        "status": "ok",
+        "count": 0,
+        "timestamp": timestamp,
+        **_outcomes.task_outcome_fields(
+            outcome="success",
+            requested=1,
+            succeeded=1,
+            failed=0,
+            stored=0,
+        ),
+    }
 
 
 @typed_shared_task(name="alpha.monitor.update_provider_metrics")
 def update_provider_metrics() -> dict[str, Any]:
     """Update provider success, staleness, and evidence-backed coverage metrics."""
 
-    metrics = get_alpha_metrics()
-    since = timezone.now() - timedelta(hours=1)
-    for provider in _PROVIDERS:
-        recent_caches = _cache_repository.list_recent_provider_caches(
-            provider=provider,
-            since=since,
-        )
-        if not recent_caches:
-            continue
+    try:
+        metrics = get_alpha_metrics()
+        since = timezone.now() - timedelta(hours=1)
+        stored_count = 0
+        for provider in _PROVIDERS:
+            recent_caches = _cache_repository.list_recent_provider_caches(
+                provider=provider,
+                since=since,
+            )
+            if not recent_caches:
+                continue
 
-        total = len(recent_caches)
-        available = sum(cache.status == "available" for cache in recent_caches)
-        success_rate = available / total
-        metrics.registry.set_gauge(
-            "alpha_provider_success_rate",
-            success_rate,
-            labels={"provider": provider},
-        )
-        staleness_values = [float(cache.get_staleness_days()) for cache in recent_caches]
-        avg_staleness = sum(staleness_values) / total
-        metrics.registry.set_gauge(
-            "alpha_provider_staleness_days",
-            avg_staleness,
-            labels={"provider": provider},
-        )
+            total = len(recent_caches)
+            available = sum(cache.status == "available" for cache in recent_caches)
+            success_rate = available / total
+            metrics.registry.set_gauge(
+                "alpha_provider_success_rate",
+                success_rate,
+                labels={"provider": provider},
+            )
+            staleness_values = [float(cache.get_staleness_days()) for cache in recent_caches]
+            avg_staleness = sum(staleness_values) / total
+            metrics.registry.set_gauge(
+                "alpha_provider_staleness_days",
+                avg_staleness,
+                labels={"provider": provider},
+            )
+            stored_count += 2
 
-    latest_cache = _cache_repository.get_latest_cache_for_universe(
-        universe_id="csi300",
-        since=timezone.now() - timedelta(days=1),
-    )
-    coverage_status = "unavailable"
-    coverage_universe_count: int | None = None
-    if latest_cache is not None:
-        scored_count = _score_count(latest_cache.scores)
-        coverage_universe_count = _resolve_cache_universe_count(latest_cache)
-        coverage_status = _record_coverage_if_resolvable(
-            metrics,
-            scored_count=scored_count,
-            universe_count=coverage_universe_count,
+        latest_cache = _cache_repository.get_latest_cache_for_universe(
+            universe_id="csi300",
+            since=timezone.now() - timedelta(days=1),
         )
+        coverage_status = "unavailable"
+        coverage_universe_count: int | None = None
+        if latest_cache is not None:
+            scored_count = _score_count(latest_cache.scores)
+            coverage_universe_count = _resolve_cache_universe_count(latest_cache)
+            coverage_status = _record_coverage_if_resolvable(
+                metrics,
+                scored_count=scored_count,
+                universe_count=coverage_universe_count,
+            )
+            if coverage_status == "available":
+                stored_count += 1
 
-    metrics.log_metrics()
+        metrics.log_metrics()
+        timestamp = timezone.now().isoformat()
+    except Exception as exc:
+        logger.error(
+            "Alpha provider metric update failed: error_type=%s",
+            exc.__class__.__name__,
+        )
+        return _outcomes.failed_task_result(
+            reason="provider_metric_update_failed",
+            requested=len(_PROVIDERS),
+        )
     return {
         "status": "success",
         "coverage_status": coverage_status,
         "coverage_universe_count": coverage_universe_count,
-        "timestamp": timezone.now().isoformat(),
+        "timestamp": timestamp,
+        **_outcomes.task_outcome_fields(
+            outcome="success",
+            requested=len(_PROVIDERS),
+            succeeded=len(_PROVIDERS),
+            failed=0,
+            stored=stored_count,
+        ),
     }
 
 
@@ -190,41 +238,79 @@ def update_provider_metrics() -> dict[str, Any]:
 def calculate_ic_drift() -> dict[str, Any]:
     """Compare the current rolling IC with up to 20 prior observations."""
 
-    metrics = get_alpha_metrics()
-    active_model = _registry_repository.get_active_model()
-    if not active_model:
-        logger.warning("没有激活的模型，跳过 IC 漂移计算")
-        return {"status": "skipped", "reason": "no_active_model"}
+    try:
+        metrics = get_alpha_metrics()
+        active_model = _registry_repository.get_active_model()
+        if not active_model:
+            logger.warning("没有激活的模型，跳过 IC 漂移计算")
+            return {
+                "status": "skipped",
+                "reason": "no_active_model",
+                **_outcomes.task_outcome_fields(
+                    outcome="blocked",
+                    requested=1,
+                    succeeded=0,
+                    failed=0,
+                    stored=0,
+                ),
+            }
 
-    caches = _cache_repository.list_caches_for_model(
-        model_artifact_hash=active_model.artifact_hash,
-        provider_source="qlib",
-    )
-    if len(caches) < _IC_HISTORY_WINDOW:
-        logger.warning("缓存数据不足 (%s 条)，跳过 IC 漂移计算", len(caches))
-        return {"status": "skipped", "reason": "insufficient_data"}
+        caches = _cache_repository.list_caches_for_model(
+            model_artifact_hash=active_model.artifact_hash,
+            provider_source="qlib",
+        )
+        if len(caches) < _IC_HISTORY_WINDOW:
+            logger.warning("缓存数据不足 (%s 条)，跳过 IC 漂移计算", len(caches))
+            return {
+                "status": "skipped",
+                "reason": "insufficient_data",
+                **_outcomes.task_outcome_fields(
+                    outcome="blocked",
+                    requested=1,
+                    succeeded=0,
+                    failed=0,
+                    stored=0,
+                ),
+            }
 
-    rolling = calculate_rolling_metrics(
-        model_artifact_hash=active_model.artifact_hash,
-        universe_id=caches[0].universe_id,
-        start_date=caches[0].intended_trade_date,
-        end_date=caches[-1].intended_trade_date,
-        window=_IC_HISTORY_WINDOW,
-    )
-    finite_ics = [float(row.ic) for row in rolling if isfinite(float(row.ic))]
-    if len(finite_ics) < 2:
-        logger.warning("滚动 IC 缺少当前值之前的有效历史，标记为 skipped")
-        return {"status": "skipped", "reason": "insufficient_rolling_ic_history"}
+        rolling = calculate_rolling_metrics(
+            model_artifact_hash=active_model.artifact_hash,
+            universe_id=caches[0].universe_id,
+            start_date=caches[0].intended_trade_date,
+            end_date=caches[-1].intended_trade_date,
+            window=_IC_HISTORY_WINDOW,
+        )
+        finite_ics = [float(row.ic) for row in rolling if isfinite(float(row.ic))]
+        if len(finite_ics) < 2:
+            logger.warning("滚动 IC 缺少当前值之前的有效历史，标记为 skipped")
+            return {
+                "status": "skipped",
+                "reason": "insufficient_rolling_ic_history",
+                **_outcomes.task_outcome_fields(
+                    outcome="blocked",
+                    requested=1,
+                    succeeded=0,
+                    failed=0,
+                    stored=0,
+                ),
+            }
 
-    current_ic = finite_ics[-1]
-    historical_ics = finite_ics[-(_IC_HISTORY_WINDOW + 1) : -1]
-    historical_mean = sum(historical_ics) / len(historical_ics)
-    drift = current_ic - historical_mean
-    metrics.record_ic_metrics(
-        current_ic,
-        historical_ics,
-        window=_IC_HISTORY_WINDOW,
-    )
+        current_ic = finite_ics[-1]
+        historical_ics = finite_ics[-(_IC_HISTORY_WINDOW + 1) : -1]
+        historical_mean = sum(historical_ics) / len(historical_ics)
+        drift = current_ic - historical_mean
+        metrics.record_ic_metrics(
+            current_ic,
+            historical_ics,
+            window=_IC_HISTORY_WINDOW,
+        )
+        timestamp = timezone.now().isoformat()
+    except Exception as exc:
+        logger.error(
+            "Alpha IC drift calculation failed: error_type=%s",
+            exc.__class__.__name__,
+        )
+        return _outcomes.failed_task_result(reason="ic_drift_calculation_failed")
     logger.info(
         "IC 漂移计算完成: 当前 IC=%.4f, 历史均值=%.4f",
         current_ic,
@@ -236,7 +322,14 @@ def calculate_ic_drift() -> dict[str, Any]:
         "historical_mean": historical_mean,
         "drift": drift,
         "history_count": len(historical_ics),
-        "timestamp": timezone.now().isoformat(),
+        "timestamp": timestamp,
+        **_outcomes.task_outcome_fields(
+            outcome="success",
+            requested=1,
+            succeeded=1,
+            failed=0,
+            stored=1,
+        ),
     }
 
 
@@ -261,11 +354,21 @@ def check_queue_lag() -> dict[str, Any]:
         inspector = current_app.control.inspect()
         reserved = inspector.reserved()
     except Exception as exc:
-        logger.warning("无法获取 Celery reserved 队列状态: %s", exc)
+        logger.warning(
+            "无法获取 Celery reserved 队列状态: error_type=%s",
+            exc.__class__.__name__,
+        )
         return {
             "status": "unavailable",
             "reason": "celery_inspect_failed",
             "timestamp": timezone.now().isoformat(),
+            **_outcomes.task_outcome_fields(
+                outcome="failed",
+                requested=1,
+                succeeded=0,
+                failed=1,
+                stored=0,
+            ),
         }
 
     if not isinstance(reserved, Mapping) or not reserved:
@@ -274,6 +377,13 @@ def check_queue_lag() -> dict[str, Any]:
             "status": "unavailable",
             "reason": "no_worker_response",
             "timestamp": timezone.now().isoformat(),
+            **_outcomes.task_outcome_fields(
+                outcome="blocked",
+                requested=1,
+                succeeded=0,
+                failed=0,
+                stored=0,
+            ),
         }
 
     queue_tasks: dict[str, int] = {}
@@ -291,6 +401,13 @@ def check_queue_lag() -> dict[str, Any]:
         "status": "success",
         "queues": queue_tasks,
         "timestamp": timezone.now().isoformat(),
+        **_outcomes.task_outcome_fields(
+            outcome="success",
+            requested=len(_QLIB_QUEUES),
+            succeeded=len(_QLIB_QUEUES),
+            failed=0,
+            stored=len(_QLIB_QUEUES),
+        ),
     }
 
 
@@ -298,25 +415,40 @@ def check_queue_lag() -> dict[str, Any]:
 def generate_daily_report() -> dict[str, Any]:
     """Generate a daily report from persisted cache and metric evidence."""
 
-    metrics = get_alpha_metrics()
-    today = timezone.now().date()
-    today_caches = _cache_repository.list_today_cache_rows(today)
-    provider_stats: dict[str, ProviderDailyStats] = {}
-    for cache in today_caches:
-        provider = str(cache["provider_source"])
-        stats = provider_stats.setdefault(provider, {"count": 0, "available": 0})
-        stats["count"] += 1
-        if cache["status"] == "available":
-            stats["available"] += 1
+    try:
+        metrics = get_alpha_metrics()
+        today = timezone.now().date()
+        today_caches = _cache_repository.list_today_cache_rows(today)
+        provider_stats: dict[str, ProviderDailyStats] = {}
+        for cache in today_caches:
+            provider = str(cache["provider_source"])
+            stats = provider_stats.setdefault(provider, {"count": 0, "available": 0})
+            stats["count"] += 1
+            if cache["status"] == "available":
+                stats["available"] += 1
 
-    model_activations = _registry_repository.count_activations_on(today)
-    report: dict[str, Any] = {
-        "date": today.isoformat(),
-        "cache_records": len(today_caches),
-        "provider_stats": provider_stats,
-        "model_activations": model_activations,
-        "metrics_snapshot": metrics.get_metrics_json(),
-    }
+        model_activations = _registry_repository.count_activations_on(today)
+        report: dict[str, Any] = {
+            "status": "success",
+            "date": today.isoformat(),
+            "cache_records": len(today_caches),
+            "provider_stats": provider_stats,
+            "model_activations": model_activations,
+            "metrics_snapshot": metrics.get_metrics_json(),
+            **_outcomes.task_outcome_fields(
+                outcome="success",
+                requested=1,
+                succeeded=1,
+                failed=0,
+                stored=0,
+            ),
+        }
+    except Exception as exc:
+        logger.error(
+            "Alpha daily monitoring report failed: error_type=%s",
+            exc.__class__.__name__,
+        )
+        return _outcomes.failed_task_result(reason="daily_report_generation_failed")
     logger.info("=== Alpha 每日监控报告 ===")
     for provider, stats in provider_stats.items():
         success_rate = stats["available"] / stats["count"] if stats["count"] else 0.0
@@ -335,9 +467,21 @@ def cleanup_old_metrics(days: int = 30) -> dict[str, Any]:
 
     if isinstance(days, bool) or not isinstance(days, int) or days <= 0:
         raise ValueError("监控数据保留天数必须是正整数")
-    cutoff_date = timezone.now().date() - timedelta(days=days)
-    archive_result = _cache_repository.archive_before(cutoff_date)
-    deleted_count = _cache_repository.cleanup_before(cutoff_date)
+    try:
+        cutoff_date = timezone.now().date() - timedelta(days=days)
+        archive_result = _cache_repository.archive_before(cutoff_date)
+        deleted_count = _cache_repository.cleanup_before(cutoff_date)
+        archived_count = archive_result.get("archived_count", 0)
+        if type(archived_count) is not int or archived_count < 0:
+            raise ValueError("archived_count must be a non-negative integer")
+        if type(deleted_count) is not int or deleted_count < 0:
+            raise ValueError("deleted_count must be a non-negative integer")
+    except Exception as exc:
+        logger.error(
+            "Alpha monitoring cleanup failed: error_type=%s",
+            exc.__class__.__name__,
+        )
+        return _outcomes.failed_task_result(reason="monitoring_cleanup_failed")
     logger.info(
         "归档 %s 条 Alpha 监控摘要，清理了 %s 条过期缓存记录",
         archive_result.get("archived_count", 0),
@@ -348,6 +492,13 @@ def cleanup_old_metrics(days: int = 30) -> dict[str, Any]:
         "deleted_count": deleted_count,
         "archive": archive_result,
         "cutoff_date": cutoff_date.isoformat(),
+        **_outcomes.task_outcome_fields(
+            outcome="success" if deleted_count or archived_count else "noop",
+            requested=deleted_count,
+            succeeded=deleted_count,
+            failed=0,
+            stored=archived_count,
+        ),
     }
 
 

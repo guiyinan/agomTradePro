@@ -299,7 +299,10 @@ def test_daily_inference_and_cache_refresh_keep_failure_results_explicit(
         lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("broker down")),
     )
     refreshed = tasks.qlib_refresh_cache.run("csi300", days_back=7, top_n=10)
-    assert refreshed == {"status": "error", "error": "broker down"}
+    assert refreshed["status"] == "error"
+    assert refreshed["error"] == "broker down"
+    assert refreshed["outcome"] == "failed"
+    assert refreshed["success"] is False
 
 
 def test_scoped_inference_isolates_empty_duplicate_resolution_refresh_and_queue_failures(
@@ -384,11 +387,11 @@ def test_scoped_inference_skips_without_active_model(
     result = tasks.qlib_daily_scoped_inference.run(
         trade_date=TRADE_DATE.isoformat(),
     )
-    assert result == {
-        "status": "skipped",
-        "reason": "no_active_model",
-        "trade_date": TRADE_DATE.isoformat(),
-    }
+    assert result["status"] == "skipped"
+    assert result["reason"] == "no_active_model"
+    assert result["trade_date"] == TRADE_DATE.isoformat()
+    assert result["outcome"] == "blocked"
+    assert result["success"] is False
 
 
 def test_portfolio_runtime_refresh_reports_empty_failed_missing_and_successful_scopes(

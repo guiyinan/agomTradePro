@@ -51,8 +51,12 @@ def test_stop_loss_take_profit_and_combined_tasks_report_counts(monkeypatch) -> 
     stop = tasks.check_stop_loss_task.run(user_id=1)
     take = tasks.check_take_profit_task.run(user_id=1)
     combined = tasks.check_stop_loss_and_take_profit_task.run(user_id=1)
-    assert stop == {"status": "success", "checked_count": 2, "triggered_count": 1}
-    assert take == {"status": "success", "checked_count": 1, "triggered_count": 1}
+    assert stop["status"] == "success"
+    assert stop["checked_count"] == 2
+    assert stop["triggered_count"] == 1
+    assert take["status"] == "success"
+    assert take["checked_count"] == 1
+    assert take["triggered_count"] == 1
     assert combined["stop_loss_triggered"] == 1
     assert combined["take_profit_triggered"] == 1
     assert ("stop", 1) in notifications and ("take", 1) in notifications
@@ -73,11 +77,10 @@ def test_stop_loss_business_failure_redacts_exception_message(monkeypatch, caplo
 
     result = tasks.check_stop_loss_task.run(user_id=1)
 
-    assert result == {
-        "status": "error",
-        "error": "stop_loss_business_logic_failed",
-        "error_type": "business_logic",
-    }
+    assert result["status"] == "error"
+    assert result["error"] == "stop_loss_business_logic_failed"
+    assert result["error_type"] == "business_logic"
+    assert result["outcome"] == "failed"
     assert secret not in caplog.text
 
 

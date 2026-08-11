@@ -84,7 +84,15 @@ def test_performance_task_reports_repository_initialization_failure(
         lambda: (_ for _ in ()).throw(RuntimeError("calculator unavailable")),
     )
     result = tasks.calculate_all_performance_task.run("2026-07-24")
-    assert result == {"success": False, "error": "calculator unavailable"}
+    assert result == {
+        "outcome": "failed",
+        "success": False,
+        "requested": 1,
+        "succeeded": 0,
+        "failed": 1,
+        "stored": 0,
+        "error": "calculator unavailable",
+    }
 
 
 def test_performance_summary_filters_requested_accounts_and_records_delivery(
@@ -149,6 +157,18 @@ def test_performance_summary_filters_requested_accounts_and_records_delivery(
     )
     result = tasks.send_performance_summary_task.run(account_ids=[1, 99, 2])
     assert result["success"] is True
+    assert result["outcome"] == "partial"
+    assert (result["requested"], result["succeeded"], result["failed"], result["stored"]) == (
+        3,
+        2,
+        1,
+        0,
+    )
+    assert (
+        result["requested_recipient_count"],
+        result["succeeded_recipient_count"],
+        result["failed_recipient_count"],
+    ) == (2, 1, 1)
     assert len(result["summaries"]) == 2
     assert result["notifications"] == [
         {"email": "owner@example.test", "success": True},
@@ -192,7 +212,19 @@ def test_performance_summary_notification_and_repository_failures_are_distinct(
     )
     result = tasks.send_performance_summary_task.run()
     assert result["success"] is True
+    assert result["outcome"] == "partial"
+    assert result["notification_error"] == "mail transport offline"
     assert result["notifications"] == []
+
+    settings.PERFORMANCE_SUMMARY_RECIPIENTS = []
+    monkeypatch.setattr(
+        notification_module,
+        "get_notification_service",
+        lambda: (_ for _ in ()).throw(AssertionError("unused notification dependency")),
+    )
+    no_delivery = tasks.send_performance_summary_task.run()
+    assert no_delivery["outcome"] == "success"
+    assert no_delivery["notification_error"] is None
 
     monkeypatch.setattr(
         tasks,
@@ -200,6 +232,11 @@ def test_performance_summary_notification_and_repository_failures_are_distinct(
         lambda: (_ for _ in ()).throw(RuntimeError("account DB offline")),
     )
     assert tasks.send_performance_summary_task.run() == {
+        "outcome": "failed",
         "success": False,
+        "requested": 1,
+        "succeeded": 0,
+        "failed": 1,
+        "stored": 0,
         "error": "account DB offline",
     }

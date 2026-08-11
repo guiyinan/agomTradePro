@@ -11,6 +11,34 @@ from .repository_provider import get_broker_execution_repository
 from .use_case_errors import BrokerExecutionValidationError
 
 
+def _task_result(
+    result: dict[str, object],
+    *,
+    outcome: str,
+    stored: int,
+) -> dict[str, object]:
+    """Attach normalized operation counters to one repository result."""
+
+    if outcome not in {"success", "noop"} or stored < 0:
+        raise BrokerExecutionValidationError("Broker task returned invalid counters")
+    return {
+        **result,
+        "outcome": outcome,
+        "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": stored,
+    }
+
+
+def _non_negative_counter(result: dict[str, object], key: str) -> int:
+    value = result.get(key, 0)
+    if type(value) is not int or value < 0:
+        raise BrokerExecutionValidationError(f"Broker task returned invalid {key}")
+    return value
+
+
 @typed_shared_task(name="broker_execution.run_maintenance")
 def run_broker_execution_maintenance() -> dict[str, object]:
     """Expire orders/leases and mark stale Agents offline."""
@@ -19,7 +47,15 @@ def run_broker_execution_maintenance() -> dict[str, object]:
     alert_ids, failure_count = forward_operational_alerts(result.get("alerts"))
     result["task_monitor_alert_ids"] = alert_ids
     result["task_monitor_alert_failure_count"] = failure_count
-    return result
+    mutation_count = sum(
+        _non_negative_counter(result, key)
+        for key in ("stale_agents", "expired_orders", "released_leases")
+    )
+    return _task_result(
+        result,
+        outcome="success" if mutation_count else "noop",
+        stored=mutation_count,
+    )
 
 
 @typed_shared_task(name="broker_execution.generate_reconciliation_runs")
@@ -58,4 +94,10 @@ def generate_broker_reconciliation_runs() -> dict[str, object]:
     alert_ids, failure_count = forward_operational_alerts(result.get("alerts"))
     result["task_monitor_alert_ids"] = alert_ids
     result["task_monitor_alert_failure_count"] = failure_count
-    return result
+    created_runs = _non_negative_counter(result, "created_runs")
+    _non_negative_counter(result, "duplicate_runs")
+    return _task_result(
+        result,
+        outcome="success" if created_runs else "noop",
+        stored=created_runs,
+    )

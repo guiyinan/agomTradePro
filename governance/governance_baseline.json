@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-08.v217",
+  "version": "2026-08-11.v218",
   "mcp_tool_count": 377,
   "mcp_governance": {
     "default_top_level_tool_count": 9,
@@ -64,12 +64,7 @@
     "terminal": 9,
     "valuation": 11
   },
-  "allowed_application_third_party_imports": {
-    "apps/alpha/application/tasks.py": {
-      "numpy": 1,
-      "pandas": 4
-    }
-  },
+  "allowed_application_third_party_imports": {},
   "core_integration_app_infrastructure_import_count": 0,
   "core_integration_orm_access_count": 0,
   "core_management_command_app_infrastructure_import_count": 0,
