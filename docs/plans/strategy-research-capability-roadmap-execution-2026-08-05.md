@@ -77,6 +77,9 @@
 64. 完成 R1 production read-only evaluation preflight：单shared atomic与trusted clock双读Equity spec/artifact、Data Center `0068` actual和Research `0020` trial prereg，只发布prospective hash与READY/BLOCKED，不写trial/Promotion/current/decision/execution。
 65. 完成 R5 canonical monitoring owner软件边界：Research `0022` policy/calendar registry与Portfolio `0014` sealed raw-fact receipt均schema-only、zero-seed；private composition串接Phase A/B与preflight，public mutationusing-only inert，assessment不得反充owner。
 66. 完成 R8 Broker reconciliation owner软件边界：Broker Execution `0007`封存三项feedback所需raw numerator/denominator及完整result/receipt/calendar/period/plan/reconciliation graph；旧Fill/Run/Difference字段不足时不推导，缺receipt继续`BLOCKED`。
+67. 完成 R2 research-control preflight：以policy identity/hash/as-of为唯一selector，在单shared UoW/atomic内双读Research `0021` policy与`0016`服务端选择的latest-complete trial/monitoring pair；caller不能选择assessment，缺Data Center Publication/calendar/cycle或Audit owner时稳定`BLOCKED`且零写。
+68. 完成 R6 manual-activation preflight：只读组合Research `0008` active qualification、`0011` latest-complete monitoring与`0012` activation state，shared-UoW/trusted-clock双读后只允许人工activation review；缺canonical scope owner或scope→qualification映射时公开runtime稳定`BLOCKED`，不调用activation writer。
+69. 完成 R8 monitoring policy/feedback owner软件边界：Research `0023`封存独立policy owner，Portfolio `0015`封存七类source member与八项raw-derived metrics，并与Broker `0007`三项feedback组成11项输入；public mutation inert，缺R3/R4/R5 Promotion或真实source receipt时Phase A/B继续`BLOCKED`。
 
 ## 2. 启动状态矩阵
 
@@ -221,4 +224,6 @@ python scripts/verify_architecture.py
 
 2026-08-11 第三批软件续批验证：R1 evaluation preflight、R5 canonical monitoring owners与R8 Broker reconciliation共 `20 unit + 9 component passed`。Research `0022`、Portfolio `0014`、Broker Execution `0007` 在独立SQLite完成forward/reverse/re-forward，四张新增表每次均zero-seed；三App migration state无drift。23个生产文件增量mypy 0 regression，36个scoped文件Ruff/Black/isort通过，架构扫描`2514 files / 0 violations`、governance consistency `0 violations`。真实Publication/PIT/OOS、owner source、Promotion、Broker对账与consumer验收仍未形成，R1/R5/R8继续`blocked`。
 
-回滚点按 R1、R5、R6、R8 四个独立提交组切分。新增迁移只建立 append-only 研究台账与 canonical snapshot/反馈存储；没有任务注册、API/MCP/TUI 发布，也不把研究结果接入现有决策或执行路径。
+2026-08-11 第四批软件续批验证：R2 research-control preflight `10 passed`、R6 manual-activation preflight及相关repository回归 `36 passed`、R8 policy/feedback owner unit+component `21 passed`、Research `0023`与Portfolio `0015` migration `4 passed`，合计 `71 passed`。26个生产文件增量mypy 0 regression；Ruff、Black、isort、Django system check、Research/Portfolio migration drift、架构扫描`2535 files / 0 violations`与governance consistency `0 violations`均通过。该批只证明软件边界，不替代真实Publication/calendar/cycle、Audit outcome、scope owner、R3/R4/R5 Promotion、Portfolio/Broker source registration或consumer验收，R2/R6/R8继续`blocked`。
+
+回滚点按每批能力纵切保持独立提交；第四批进一步拆为 R2、R6、R8 与文档四组。新增迁移只建立 append-only 研究台账与 canonical snapshot/反馈存储；没有任务注册、API/MCP/TUI 发布，也不把研究结果接入现有决策或执行路径。
