@@ -10,7 +10,10 @@ from pathlib import Path
 from apps.research.application.capability_readiness_registry import (
     OwnerMechanismAttestation,
 )
-from apps.research.domain.capability_readiness import ReadinessRequirement
+from apps.research.domain.capability_readiness import (
+    ReadinessRequirement,
+    is_mechanism_attestable_requirement,
+)
 
 _SCHEMA_VERSION = "research-capability-mechanism-attestations.v1"
 _ENTRY_FIELDS = frozenset({"requirement", "owner", "observed_at", "valid_until", "evidence_ref"})
@@ -56,6 +59,11 @@ def load_governed_mechanism_attestations(
             raise ValueError(
                 f"capability readiness attestation {index} requirement is unsupported"
             ) from exc
+        if not is_mechanism_attestable_requirement(requirement):
+            raise ValueError(
+                "capability readiness attestation "
+                f"{index} requirement is not mechanism-attestable"
+            )
         if requirement in seen:
             raise ValueError(f"duplicate governed mechanism attestation for {requirement.value}")
         seen.add(requirement)

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -18,9 +20,84 @@ from apps.research.domain.capability_readiness import (
     ReadinessRequirement,
     ReadinessState,
     ResearchCapability,
+    is_mechanism_attestable_requirement,
+    requirement_owner,
+)
+from apps.research.infrastructure.capability_readiness_attestations import (
+    load_governed_mechanism_attestations,
 )
 
 NOW = datetime(2026, 8, 5, 12, tzinfo=UTC)
+
+
+@pytest.mark.parametrize(
+    "requirement",
+    (
+        ReadinessRequirement.EXPERIMENT_REGISTRY,
+        ReadinessRequirement.GOVERNED_SCENARIO_VERSIONS,
+        ReadinessRequirement.OPTIMIZER_INPUT_CONTRACT,
+    ),
+)
+def test_explicit_mechanism_requirements_are_attestable(
+    requirement: ReadinessRequirement,
+) -> None:
+    assert is_mechanism_attestable_requirement(requirement)
+
+
+@pytest.mark.parametrize(
+    "requirement",
+    (
+        ReadinessRequirement.COMPLETE_SCENARIO_OUTCOME_HISTORY,
+        ReadinessRequirement.PORTFOLIO_CANONICAL_SNAPSHOT,
+        ReadinessRequirement.EXECUTION_FEEDBACK_RECONCILED,
+    ),
+)
+def test_live_data_and_outcome_requirements_are_not_mechanism_attestable(
+    requirement: ReadinessRequirement,
+) -> None:
+    assert not is_mechanism_attestable_requirement(requirement)
+
+
+@pytest.mark.parametrize(
+    "requirement",
+    (
+        ReadinessRequirement.COMPLETE_SCENARIO_OUTCOME_HISTORY,
+        ReadinessRequirement.PORTFOLIO_CANONICAL_SNAPSHOT,
+        ReadinessRequirement.EXECUTION_FEEDBACK_RECONCILED,
+    ),
+)
+def test_static_manifest_rejects_live_data_and_outcome_attestations(
+    tmp_path: Path,
+    requirement: ReadinessRequirement,
+) -> None:
+    manifest = tmp_path / "readiness-attestations.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": "research-capability-mechanism-attestations.v1",
+                "attestations": [
+                    {
+                        "requirement": requirement.value,
+                        "owner": requirement_owner(requirement),
+                        "observed_at": "2026-08-05T00:00:00+08:00",
+                        "valid_until": "2026-11-05T00:00:00+08:00",
+                        "evidence_ref": "repo://mechanism|test://contract",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="not mechanism-attestable"):
+        load_governed_mechanism_attestations(manifest)
+
+
+def test_current_governed_manifest_contains_only_explicit_mechanisms() -> None:
+    attestations = load_governed_mechanism_attestations()
+
+    assert attestations
+    assert all(is_mechanism_attestable_requirement(item.requirement) for item in attestations)
 
 
 def _attestation(requirement: ReadinessRequirement) -> OwnerMechanismAttestation:
