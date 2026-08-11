@@ -159,6 +159,41 @@ def decode_r2_monitoring_fact(payload: object) -> R2MonitoringRawFact:
     )
 
 
+def encode_r2_trial_policy(
+    policy: R2MarketStructureTrialPolicy,
+) -> dict[str, object]:
+    """Encode one complete Phase-A policy after replaying its live seal."""
+
+    try:
+        if type(policy) is not R2MarketStructureTrialPolicy:
+            raise TypeError("R2 trial policy type differs")
+        expected_hash = policy.content_hash
+        R2MarketStructureTrialPolicy.__post_init__(policy)
+        if policy.content_hash != expected_hash:
+            raise ValueError("R2 trial policy live seal differs")
+        return _encode_envelope("research-r2-trial-policy.v1", policy)
+    except (AttributeError, TypeError, ValueError) as error:
+        raise R2TrialMonitoringCodecError("invalid R2 trial policy") from error
+
+
+def decode_r2_trial_policy(payload: object) -> R2MarketStructureTrialPolicy:
+    """Strictly restore the existing Phase-A policy factory and computed seal."""
+
+    result = _decode_envelope(
+        payload,
+        schema="research-r2-trial-policy.v1",
+        expected_type=R2MarketStructureTrialPolicy,
+    )
+    try:
+        expected_hash = result.content_hash
+        R2MarketStructureTrialPolicy.__post_init__(result)
+        if result.content_hash != expected_hash:
+            raise ValueError("R2 trial policy live seal differs")
+        return result
+    except (AttributeError, TypeError, ValueError) as error:
+        raise R2TrialMonitoringCodecError("R2 trial policy replay failed") from error
+
+
 def _encode_envelope(schema: str, value: object) -> dict[str, object]:
     return {"schema": schema, "value": _encode_value(value)}
 
@@ -358,10 +393,12 @@ def _utc_text(value: datetime) -> str:
 
 __all__ = [
     "R2TrialMonitoringCodecError",
+    "decode_r2_trial_policy",
     "decode_r2_monitoring_evidence",
     "decode_r2_monitoring_fact",
     "decode_r2_trial_evidence",
     "encode_r2_monitoring_evidence",
     "encode_r2_monitoring_fact",
+    "encode_r2_trial_policy",
     "encode_r2_trial_evidence",
 ]

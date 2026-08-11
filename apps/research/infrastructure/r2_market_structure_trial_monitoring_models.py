@@ -540,11 +540,16 @@ def _reject_r2_trial_monitoring_collector_delete(
     raise ValidationError("R2 trial monitoring evidence cannot be deleted.")
 
 
+from apps.research.infrastructure.r2_market_structure_trial_policy_models import (  # noqa: E402,F401
+    R2MarketStructureTrialPolicyLedgerModel,
+)
+
 __all__ = [
     "R2ExplanatoryTrialAssessmentLedgerModel",
     "R2MonitoringAssessmentLedgerModel",
     "R2MonitoringAuditSnapshotModel",
     "R2MonitoringObservationLedgerModel",
+    "R2MarketStructureTrialPolicyLedgerModel",
     "_activate_r2_trial_monitoring_uow",
     "_claim_r2_trial_monitoring_insert",
     "_require_active_r2_trial_monitoring_uow",
