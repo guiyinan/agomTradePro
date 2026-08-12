@@ -308,6 +308,69 @@ def test_dynamic_unit_of_work_replacement_after_clock_is_stably_blocked() -> Non
     assert uow.atomic_entries == 1
 
 
+@pytest.mark.parametrize(
+    "field_name",
+    (
+        "_policy_provider",
+        "_publication_provider",
+        "_cycle_provider",
+        "_latest_complete_provider",
+        "_audit_provider",
+        "_monitoring_fact_provider",
+        "_unit_of_work",
+    ),
+)
+def test_same_uow_actual_participant_replacement_is_blocked_before_owner_reads(
+    field_name: str,
+) -> None:
+    scenario = build_r2_scenario()
+    policy = _Provider(scenario.policy)
+    publication = _PublicationProvider(scenario.taxonomy, scenario.calendar)
+    cycle = _CycleProvider(scenario.cycles)
+    latest = _Provider(_latest())
+    audit = _Provider(scenario.audit)
+    facts = _Provider(scenario.monitoring_facts)
+    unit_of_work = _UnitOfWork()
+    service = EvaluateR2ResearchControlPreflight(
+        policy_provider=policy,
+        publication_provider=publication,
+        cycle_provider=cycle,
+        latest_complete_provider=latest,
+        audit_provider=audit,
+        monitoring_fact_provider=facts,
+        unit_of_work=unit_of_work,
+    )
+    replacements: dict[str, object] = {
+        "_policy_provider": _Provider(scenario.policy),
+        "_publication_provider": _PublicationProvider(
+            scenario.taxonomy,
+            scenario.calendar,
+        ),
+        "_cycle_provider": _CycleProvider(scenario.cycles),
+        "_latest_complete_provider": _Provider(_latest()),
+        "_audit_provider": _Provider(scenario.audit),
+        "_monitoring_fact_provider": _Provider(scenario.monitoring_facts),
+        "_unit_of_work": _UnitOfWork(),
+    }
+    replacement = replacements[field_name]
+    object.__setattr__(service, field_name, replacement)
+
+    result = service.execute(_command())
+
+    assert result.status is R2ResearchControlPreflightStatus.BLOCKED
+    assert result.blocker_codes == (R2ResearchControlBlockerCode.UNIT_OF_WORK_CHANGED,)
+    assert all(
+        provider.calls == 0
+        for provider in (policy, publication, cycle, latest, audit, facts)
+    )
+    if isinstance(replacement, (_Provider, _PublicationProvider, _CycleProvider)):
+        assert replacement.calls == 0
+    if field_name == "_unit_of_work":
+        assert isinstance(replacement, _UnitOfWork)
+        assert replacement.atomic_entries == 0
+        assert unit_of_work.atomic_entries == 1
+
+
 def test_future_cutoff_is_rejected_before_owner_reads() -> None:
     scenario = build_r2_scenario()
     policy = _Provider(scenario.policy)

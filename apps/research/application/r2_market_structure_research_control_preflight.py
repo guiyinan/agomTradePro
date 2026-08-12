@@ -7,7 +7,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from typing import Protocol
+from typing import Protocol, cast
 
 from apps.research.application.r2_market_structure_trial_monitoring import (
     ExactR2AuditOutcomeProvider,
@@ -322,16 +322,7 @@ class EvaluateR2ResearchControlPreflight:
         self._audit_provider = audit_provider
         self._monitoring_fact_provider = monitoring_fact_provider
         self._unit_of_work = unit_of_work
-        self._participants: tuple[_UnitOfWorkBound, ...] = (
-            policy_provider,
-            publication_provider,
-            cycle_provider,
-            latest_complete_provider,
-            audit_provider,
-            monitoring_fact_provider,
-            unit_of_work,
-        )
-        self._participant_ids = tuple(id(item) for item in self._participants)
+        self._participant_seal = self._current_participants()
         try:
             keys = self._current_uow_keys()
         except Exception as error:
@@ -353,11 +344,15 @@ class EvaluateR2ResearchControlPreflight:
         self._require_command(command)
         checked_at: datetime | None = None
         try:
+            self._require_live_uow()
+        except _UnitOfWorkChanged:
+            return self._blocked_after_early_participant_change(command)
+        try:
             with self._unit_of_work.atomic():
-                self._require_live_uow()
                 server_now = self._unit_of_work.server_now()
                 _require_aware(server_now, "R2 research-control server_now")
                 checked_at = server_now
+                self._require_live_uow()
                 if command.as_of > checked_at:
                     raise _FutureCutoff
                 first = self._read_graph(command)
@@ -599,18 +594,71 @@ class EvaluateR2ResearchControlPreflight:
 
     def _current_uow_keys(self) -> tuple[str, ...]:
         return tuple(
-            _exact_uow_key(participant.unit_of_work_key) for participant in self._participants
+            _exact_uow_key(participant.unit_of_work_key)
+            for participant in self._current_participants()
+        )
+
+    def _current_participants(self) -> tuple[_UnitOfWorkBound, ...]:
+        return (
+            self._policy_provider,
+            self._publication_provider,
+            self._cycle_provider,
+            self._latest_complete_provider,
+            self._audit_provider,
+            self._monitoring_fact_provider,
+            self._unit_of_work,
         )
 
     def _require_live_uow(self) -> None:
-        if tuple(id(item) for item in self._participants) != self._participant_ids:
+        participants = self._current_participants()
+        if len(participants) != len(self._participant_seal) or any(
+            participant is not sealed
+            for participant, sealed in zip(
+                participants,
+                self._participant_seal,
+                strict=True,
+            )
+        ):
             raise _UnitOfWorkChanged
         try:
-            keys = self._current_uow_keys()
+            keys = tuple(
+                _exact_uow_key(participant.unit_of_work_key)
+                for participant in participants
+            )
         except Exception as error:
             raise _UnitOfWorkChanged from error
         if any(key != self._expected_uow_key for key in keys):
             raise _UnitOfWorkChanged
+
+    def _blocked_after_early_participant_change(
+        self,
+        command: EvaluateR2ResearchControlPreflightCommand,
+    ) -> R2ResearchControlPreflightResult:
+        """Use only the sealed trusted clock to report a pre-read identity failure."""
+
+        sealed_unit_of_work = cast(
+            R2ResearchControlUnitOfWork,
+            self._participant_seal[-1],
+        )
+        try:
+            with sealed_unit_of_work.atomic():
+                checked_at = sealed_unit_of_work.server_now()
+                _require_aware(checked_at, "R2 research-control server_now")
+                if command.as_of > checked_at:
+                    raise _FutureCutoff
+        except _FutureCutoff as error:
+            raise R2ResearchControlUnavailable(
+                "R2 research-control PIT cutoff is in the future"
+            ) from error
+        except Exception as error:
+            raise R2ResearchControlUnavailable(
+                "R2 research-control transaction or trusted clock is unavailable"
+            ) from error
+        return self._blocked(
+            command,
+            checked_at,
+            R2ResearchControlBlockerCode.UNIT_OF_WORK_CHANGED,
+        )
 
 
 class _FutureCutoff(RuntimeError):
