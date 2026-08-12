@@ -39,7 +39,9 @@ from apps.research.infrastructure.r7_sample_policy_repository import (
     _DjangoR7SamplePolicyStore,
 )
 from apps.research.r7_research_result_composition import (
-    DjangoR7ResearchResultRuntime,
+    _build_django_r7_research_result_owner_runtime,
+    _build_django_r7_research_result_test_runtime,
+    _DjangoR7ResearchResultTestRuntime,
     build_django_r7_research_result_runtime,
 )
 from tests.unit.research.r7_research_result_factories import (
@@ -118,7 +120,7 @@ class PathProvider:
 
 @dataclass
 class RuntimeFixture:
-    runtime: DjangoR7ResearchResultRuntime
+    runtime: _DjangoR7ResearchResultTestRuntime
     clock: FixedClock
     forecast: ForecastProvider
 
@@ -133,7 +135,7 @@ def _runtime() -> RuntimeFixture:
     _persist_policy()
     clock = FixedClock(RESULT_RECORDED_AT)
     forecast = ForecastProvider()
-    runtime = build_django_r7_research_result_runtime(
+    runtime = _build_django_r7_research_result_test_runtime(
         forecast_provider=forecast,
         historical_analogy_provider=AnalogyProvider(),
         path_study_provider=PathProvider(),
@@ -200,12 +202,33 @@ def test_missing_owner_data_and_mismatched_uow_fail_closed_without_rows() -> Non
     wrong_path = PathProvider()
     wrong_path.unit_of_work_key = "django:other"
     with pytest.raises(ValueError, match="different units of work"):
-        build_django_r7_research_result_runtime(
+        _build_django_r7_research_result_test_runtime(
             forecast_provider=ForecastProvider(),
             historical_analogy_provider=AnalogyProvider(),
             path_study_provider=wrong_path,
             clock=fixture.clock,
         )
+
+
+@pytest.mark.django_db
+def test_canonical_owner_runtime_blocks_when_any_owner_graph_is_absent() -> None:
+    _persist_policy()
+    runtime = _build_django_r7_research_result_owner_runtime()
+
+    with pytest.raises(R7ResearchResultUnavailable, match="owner evidence"):
+        runtime.register.execute(_command())
+
+    assert R7ResearchResultModel._default_manager.count() == 0
+
+
+@pytest.mark.django_db
+def test_production_runtime_without_owner_graph_is_inert_and_writes_nothing() -> None:
+    runtime = build_django_r7_research_result_runtime()
+
+    with pytest.raises(R7ResearchResultUnavailable, match="owner providers"):
+        runtime.register.execute(_command())
+
+    assert R7ResearchResultModel._default_manager.count() == 0
 
 
 @pytest.mark.django_db

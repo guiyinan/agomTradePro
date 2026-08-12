@@ -81,7 +81,7 @@ class ProviderConfigAdminForm(TypedModelForm[ProviderConfigModel]):
             self._api_key_replaced = True
             return value
         self._api_key_replaced = False
-        return self.instance.api_key if self.instance.pk is not None else ""
+        return ""
 
     def clean_api_secret(self) -> str:
         """Preserve an existing API secret when the masked input stays blank."""
@@ -91,7 +91,7 @@ class ProviderConfigAdminForm(TypedModelForm[ProviderConfigModel]):
             self._api_secret_replaced = True
             return value
         self._api_secret_replaced = False
-        return self.instance.api_secret if self.instance.pk is not None else ""
+        return ""
 
     def clean(self) -> dict[str, Any]:
         """Persist and validate the explicit Tushare transport selection."""
@@ -169,11 +169,6 @@ class ProviderConfigAdmin(TypedModelAdmin[ProviderConfigModel]):
     ) -> None:
         """Persist provider metadata and credentials through the app port."""
 
-        existing = (
-            ProviderConfigModel._default_manager.filter(pk=obj.pk).first()
-            if obj.pk is not None
-            else None
-        )
         submitted_key = (
             form.cleaned_data.get("api_key") if getattr(form, "_api_key_replaced", False) else None
         )
@@ -182,24 +177,12 @@ class ProviderConfigAdmin(TypedModelAdmin[ProviderConfigModel]):
             if getattr(form, "_api_secret_replaced", False)
             else None
         )
-        # Keep an old plaintext value only as a transient compatibility
-        # projection when the masked field is untouched. The application port
-        # encrypts it whenever the deployment key is available.
-        obj.api_key = (
-            "" if submitted_key is not None else (existing.api_key if existing is not None else "")
-        )
-        obj.api_secret = (
-            ""
-            if submitted_secret is not None
-            else (existing.api_secret if existing is not None else "")
-        )
         with transaction.atomic():
             super().save_model(request, obj, form, change)
             persist_provider_credentials(
                 int(obj.pk),
                 api_key=submitted_key,
                 api_secret=submitted_secret,
-                allow_legacy_fallback=True,
             )
 
     @admin.display(description="连接方式")

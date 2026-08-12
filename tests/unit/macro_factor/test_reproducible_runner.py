@@ -6,13 +6,20 @@ from decimal import Decimal
 
 import pytest
 
-from apps.macro_factor.domain.entities import FactorOutputRole, RetirementEvidence
+from apps.macro_factor.domain.entities import (
+    FactorOutputRole,
+    PITInferenceCalendarPeriodEvidence,
+    PITManifestEvidence,
+    RetirementEvidence,
+)
 from apps.macro_factor.domain.reproducible_runner import (
     ExternalAlphaScore,
     ExternalInnerFoldScore,
     ExternalNestedCVArtifact,
     ExternalOuterFoldSelectionEvidence,
     ExternalProxyCoefficient,
+    InferenceTargetCalendarPeriod,
+    InputKnowledgeFreshnessPolicy,
     MacroFactorLifecycleEventType,
     MacroFactorOutputResearchStatus,
     TargetAvailabilityPolicy,
@@ -62,6 +69,160 @@ def test_runner_seals_baselines_nested_cv_and_all_governance_identities() -> Non
     assert bundle.outputs[0].must_not_execute is True
     assert bundle.lifecycle_events[0].event_type is MacroFactorLifecycleEventType.RECORDED
     assert artifact.fold_benchmarks[0].historical_mean.mean_absolute_error == Decimal("3")
+
+
+def test_request_binds_freshness_policy_and_limits_output_to_knowledge_expiry() -> None:
+    spec = runner_spec()
+    dataset = runner_dataset()
+    manifest = complete_manifest()
+    request = build_execution_request(spec, dataset, manifest)
+    policy = spec.input_knowledge_freshness_policy
+
+    assert request.pit_manifest_content_hash == manifest.content_hash
+    assert request.input_freshness_policy_version == policy.policy_version
+    assert request.input_freshness_policy_hash == policy.content_hash
+    assert request.max_manifest_age_seconds == policy.max_manifest_age_seconds
+    assert request.max_inference_age_seconds == policy.max_inference_age_seconds
+    assert request.maximum_allowed_input_age_seconds == policy.maximum_allowed_age_seconds
+
+    short_manifest_policy = InputKnowledgeFreshnessPolicy.create(
+        policy_version="short-manifest-freshness-v1",
+        max_manifest_age_seconds=9 * 24 * 60 * 60,
+        max_inference_age_seconds=30 * 24 * 60 * 60,
+        maximum_allowed_age_seconds=30 * 24 * 60 * 60,
+    )
+    with pytest.raises(ValueError, match="output validity exceeds PIT manifest freshness"):
+        build_execution_request(
+            replace(
+                spec,
+                input_knowledge_freshness_policy=short_manifest_policy,
+            ),
+            dataset,
+            manifest,
+        )
+    short_inference_policy = InputKnowledgeFreshnessPolicy.create(
+        policy_version="short-inference-freshness-v1",
+        max_manifest_age_seconds=30 * 24 * 60 * 60,
+        max_inference_age_seconds=9 * 24 * 60 * 60,
+        maximum_allowed_age_seconds=30 * 24 * 60 * 60,
+    )
+    with pytest.raises(ValueError, match="output validity exceeds PIT inference freshness"):
+        build_execution_request(
+            replace(
+                spec,
+                input_knowledge_freshness_policy=short_inference_policy,
+            ),
+            dataset,
+            manifest,
+        )
+
+
+def test_request_seals_complete_same_code_target_and_candidate_semantics() -> None:
+    spec = runner_spec()
+    request = build_execution_request(spec, runner_dataset(), complete_manifest())
+
+    assert request.spec_hash == spec.content_hash
+    assert request.target_definition == spec.target
+    assert request.candidate_definitions == spec.candidates
+    assert request.canonical_payload["target"] == {
+        "target_code": spec.target.target_code,
+        "family": spec.target.family.value,
+        "output_role": spec.target.output_role.value,
+        "dataset_key": spec.target.dataset_key,
+        "business_key": spec.target.business_key,
+        "unit": spec.target.unit,
+        "frequency": spec.target.frequency,
+        "transformation_version": spec.target.transformation_version,
+        "horizon_periods": spec.target.horizon_periods,
+        "horizon_unit": spec.target.horizon_unit,
+    }
+    assert request.canonical_payload["candidates"] == [
+        {
+            "asset_code": candidate.asset_code,
+            "dataset_key": candidate.dataset_key,
+            "business_key": candidate.business_key,
+            "kind": candidate.kind.value,
+            "frequency": candidate.frequency,
+            "transformation_version": candidate.transformation_version,
+            "continuous_roll_policy_version": candidate.continuous_roll_policy_version,
+        }
+        for candidate in spec.candidates
+    ]
+
+    same_code_target = replace(
+        spec,
+        target=replace(
+            spec.target,
+            unit="percent",
+            frequency="quarterly",
+            transformation_version="qoq-standardization-v3",
+        ),
+    )
+    same_code_candidate = replace(
+        spec,
+        candidates=(
+            replace(
+                spec.candidates[0],
+                frequency="weekly",
+                transformation_version="weekly-return-v3",
+            ),
+            spec.candidates[1],
+        ),
+    )
+
+    assert same_code_target.target.target_code == spec.target.target_code
+    assert same_code_candidate.candidates[0].asset_code == spec.candidates[0].asset_code
+    assert same_code_target.content_hash != spec.content_hash
+    assert same_code_candidate.content_hash != spec.content_hash
+    assert (
+        build_execution_request(
+            same_code_target, runner_dataset(), complete_manifest()
+        ).content_hash
+        != request.content_hash
+    )
+    assert (
+        build_execution_request(
+            same_code_candidate,
+            runner_dataset(),
+            complete_manifest(),
+        ).content_hash
+        != request.content_hash
+    )
+
+
+@pytest.mark.parametrize("nested_kind", ("calendar_member", "dataset_slice"))
+def test_manifest_factory_live_validates_nested_owner_evidence(nested_kind: str) -> None:
+    manifest = complete_manifest()
+    if nested_kind == "calendar_member":
+        object.__setattr__(
+            manifest.inference_periods[0],
+            "period_end",
+            manifest.inference_periods[0].period_end + timedelta(days=1),
+        )
+    else:
+        object.__setattr__(
+            manifest.slices[0].selected_versions[0],
+            "version_id",
+            999_999,
+        )
+
+    with pytest.raises(ValueError, match="hash|selected versions"):
+        PITManifestEvidence.create(
+            manifest_id=manifest.manifest_id,
+            manifest_hash=manifest.manifest_hash,
+            as_of_time=manifest.as_of_time,
+            knowledge_scope=manifest.knowledge_scope,
+            calendar_id=manifest.calendar_id,
+            calendar_version=manifest.calendar_version,
+            calendar_hash=manifest.calendar_hash,
+            inference_periods=manifest.inference_periods,
+            slices=manifest.slices,
+            coverage_ratio=manifest.coverage_ratio,
+            missing_count=manifest.missing_count,
+            estimated_count=manifest.estimated_count,
+            unknown_count=manifest.unknown_count,
+            is_verified=manifest.is_verified,
+        )
 
 
 def test_outer_folds_select_independently_and_only_explicit_final_fold_binds_result() -> None:
@@ -198,6 +359,222 @@ def test_request_uses_available_at_cutoffs_and_hashes_every_fold_design() -> Non
     assert changed_request.folds[-1].design_hash != request.folds[-1].design_hash
 
 
+@pytest.mark.parametrize("fact_kind", ("target", "proxy"))
+def test_request_live_revalidates_each_fact_against_its_row_summary(
+    fact_kind: str,
+) -> None:
+    spec = runner_spec()
+    dataset = runner_dataset()
+    manifest = complete_manifest()
+    row = dataset.rows[0]
+    unavailable_until = spec.plan.outer_folds[0].selection_as_of + timedelta(days=1)
+    if fact_kind == "target":
+        object.__setattr__(row.target_fact_version, "available_at", unavailable_until)
+        object.__setattr__(
+            manifest.slices[0].selected_versions[0],
+            "available_at",
+            unavailable_until,
+        )
+    else:
+        object.__setattr__(row.proxies[0].fact_version, "available_at", unavailable_until)
+        object.__setattr__(
+            manifest.slices[1].selected_versions[0],
+            "available_at",
+            unavailable_until,
+        )
+
+    with pytest.raises(ValueError, match="availability|available_at|selection cutoff"):
+        build_execution_request(spec, dataset, manifest)
+
+
+def test_request_live_revalidates_inner_membership_and_timing_policy_seal() -> None:
+    spec = runner_spec()
+    first_outer = spec.plan.outer_folds[0]
+    object.__setattr__(
+        first_outer.inner_folds[0],
+        "validation_row_ids",
+        first_outer.validation_row_ids,
+    )
+    with pytest.raises(ValueError, match="contained in outer training"):
+        build_execution_request(spec, runner_dataset(), complete_manifest())
+
+    spec = runner_spec()
+    object.__setattr__(spec.plan.timing, "purge_days", 1)
+    object.__setattr__(spec.plan.timing, "embargo_days", 1)
+    with pytest.raises(ValueError, match="purge_days|content_hash"):
+        build_execution_request(spec, runner_dataset(), complete_manifest())
+
+
+def test_request_requires_one_label_free_inference_row_and_exact_future_period() -> None:
+    with pytest.raises(ValueError, match="label-free inference row"):
+        build_execution_request(
+            runner_spec(),
+            replace(runner_dataset(), inference_row=None),
+            complete_manifest(),
+        )
+
+    spec = runner_spec()
+    dataset = runner_dataset()
+    assert dataset.inference_row is not None
+    invalid_period = InferenceTargetCalendarPeriod.create(
+        calendar_id=dataset.inference_row.target_period.calendar_id,
+        period_id=dataset.inference_row.target_period.period_id,
+        calendar_version=dataset.inference_row.target_period.calendar_version,
+        calendar_hash=dataset.inference_row.target_period.calendar_hash,
+        period_start=spec.calculated_at.date(),
+        period_end=spec.calculated_at.date() + timedelta(days=30),
+    )
+    manifest = complete_manifest()
+    invalid_member = PITInferenceCalendarPeriodEvidence.create(
+        calendar_id=invalid_period.calendar_id,
+        calendar_version=invalid_period.calendar_version,
+        calendar_hash=invalid_period.calendar_hash,
+        period_id=invalid_period.period_id,
+        period_start=invalid_period.period_start,
+        period_end=invalid_period.period_end,
+    )
+    invalid_manifest = PITManifestEvidence.create(
+        manifest_id=manifest.manifest_id,
+        manifest_hash=manifest.manifest_hash,
+        as_of_time=manifest.as_of_time,
+        knowledge_scope=manifest.knowledge_scope,
+        calendar_id=manifest.calendar_id,
+        calendar_version=manifest.calendar_version,
+        calendar_hash=manifest.calendar_hash,
+        inference_periods=(invalid_member,),
+        slices=manifest.slices,
+        coverage_ratio=manifest.coverage_ratio,
+        missing_count=manifest.missing_count,
+        estimated_count=manifest.estimated_count,
+        unknown_count=manifest.unknown_count,
+        is_verified=manifest.is_verified,
+    )
+    with pytest.raises(ValueError, match="must follow knowledge and production"):
+        build_execution_request(
+            replace(
+                spec,
+                expected_manifest_content_hash=invalid_manifest.content_hash,
+                inference_target_period=invalid_period,
+            ),
+            replace(
+                dataset,
+                manifest_content_hash=invalid_manifest.content_hash,
+                inference_row=replace(
+                    dataset.inference_row,
+                    target_period=invalid_period,
+                ),
+            ),
+            invalid_manifest,
+        )
+
+    current_target = replace(
+        spec.target,
+        output_role=FactorOutputRole.CURRENT_STATE,
+        horizon_periods=0,
+    )
+    current_timing = TargetAvailabilityPolicy.create(
+        policy_version=spec.plan.timing.policy_version,
+        target_code=current_target.target_code,
+        output_role=current_target.output_role,
+        horizon_periods=current_target.horizon_periods,
+        horizon_unit=current_target.horizon_unit,
+        normalized_horizon_days=0,
+        label_availability_lag_days=spec.plan.timing.label_availability_lag_days,
+        purge_days=spec.plan.timing.purge_days,
+        embargo_days=spec.plan.timing.embargo_days,
+    )
+    with pytest.raises(ValueError, match="current-state inference target period"):
+        build_execution_request(
+            replace(
+                spec,
+                target=current_target,
+                plan=replace(spec.plan, timing=current_timing),
+            ),
+            runner_dataset(),
+            complete_manifest(),
+        )
+
+
+def test_request_live_revalidates_inference_proxy_clocks_and_calendar_seal() -> None:
+    dataset = runner_dataset()
+    manifest = complete_manifest()
+    assert dataset.inference_row is not None
+    future = dataset.manifest_as_of + timedelta(seconds=1)
+    object.__setattr__(
+        dataset.inference_row.proxies[0].fact_version,
+        "available_at",
+        future,
+    )
+    object.__setattr__(manifest.slices[1].selected_versions[-1], "available_at", future)
+    with pytest.raises(ValueError, match="inference available_at|manifest knowledge"):
+        build_execution_request(runner_spec(), dataset, manifest)
+
+    dataset = runner_dataset()
+    assert dataset.inference_row is not None
+    object.__setattr__(
+        dataset.inference_row.target_period,
+        "period_end",
+        dataset.inference_row.target_period.period_end + timedelta(days=1),
+    )
+    with pytest.raises(ValueError, match="calendar period hash"):
+        build_execution_request(runner_spec(), dataset, complete_manifest())
+
+
+def test_runner_spec_and_request_reject_future_evaluation_evidence() -> None:
+    spec = runner_spec()
+    latest_evaluation = max(fold.evaluation_as_of for fold in spec.plan.outer_folds)
+    with pytest.raises(ValueError, match="cannot precede fold selection or evaluation"):
+        replace(spec, calculated_at=latest_evaluation - timedelta(microseconds=1))
+
+    future_fold = replace(
+        spec.plan.outer_folds[-1],
+        evaluation_as_of=spec.calculated_at + timedelta(seconds=1),
+    )
+    tampered_plan = replace(
+        spec.plan,
+        outer_folds=(*spec.plan.outer_folds[:-1], future_fold),
+    )
+    object.__setattr__(spec, "plan", tampered_plan)
+
+    with pytest.raises(ValueError, match="cannot precede fold selection or evaluation"):
+        build_execution_request(spec, runner_dataset(), complete_manifest())
+
+
+def test_manifest_and_request_reject_future_selected_fact_versions() -> None:
+    manifest = complete_manifest()
+    target_slice = manifest.slices[0]
+    future_version = replace(
+        target_slice.selected_versions[0],
+        available_at=manifest.as_of_time + timedelta(seconds=1),
+    )
+    with pytest.raises(ValueError, match="unavailable at its as_of_time"):
+        replace(
+            manifest,
+            slices=(
+                replace(
+                    target_slice,
+                    selected_versions=(
+                        future_version,
+                        *target_slice.selected_versions[1:],
+                    ),
+                ),
+                *manifest.slices[1:],
+            ),
+        )
+
+    live_manifest = complete_manifest()
+    object.__setattr__(
+        live_manifest.slices[0].selected_versions[0],
+        "available_at",
+        live_manifest.as_of_time + timedelta(seconds=1),
+    )
+    with pytest.raises(
+        ValueError,
+        match="unavailable at its as_of_time|future selected fact version",
+    ):
+        build_execution_request(runner_spec(), runner_dataset(), live_manifest)
+
+
 def test_request_rejects_tampered_manifest_fact_content_hash() -> None:
     manifest = complete_manifest()
     target_slice = manifest.slices[0]
@@ -205,8 +582,15 @@ def test_request_rejects_tampered_manifest_fact_content_hash() -> None:
         target_slice.selected_versions[0],
         content_hash="f" * 64,
     )
-    tampered_manifest = replace(
-        manifest,
+    tampered_manifest = PITManifestEvidence.create(
+        manifest_id=manifest.manifest_id,
+        manifest_hash=manifest.manifest_hash,
+        as_of_time=manifest.as_of_time,
+        knowledge_scope=manifest.knowledge_scope,
+        calendar_id=manifest.calendar_id,
+        calendar_version=manifest.calendar_version,
+        calendar_hash=manifest.calendar_hash,
+        inference_periods=manifest.inference_periods,
         slices=(
             replace(
                 target_slice,
@@ -217,10 +601,25 @@ def test_request_rejects_tampered_manifest_fact_content_hash() -> None:
             ),
             *manifest.slices[1:],
         ),
+        coverage_ratio=manifest.coverage_ratio,
+        missing_count=manifest.missing_count,
+        estimated_count=manifest.estimated_count,
+        unknown_count=manifest.unknown_count,
+        is_verified=manifest.is_verified,
     )
 
     with pytest.raises(ValueError, match="exact manifest-selected version"):
-        build_execution_request(runner_spec(), runner_dataset(), tampered_manifest)
+        build_execution_request(
+            replace(
+                runner_spec(),
+                expected_manifest_content_hash=tampered_manifest.content_hash,
+            ),
+            replace(
+                runner_dataset(),
+                manifest_content_hash=tampered_manifest.content_hash,
+            ),
+            tampered_manifest,
+        )
 
 
 def test_request_rejects_rows_outside_the_exact_typed_split_window() -> None:
@@ -311,6 +710,43 @@ def test_external_selection_requires_complete_alpha_grid_and_exact_final_fit() -
         build_reproducible_run(
             runner_spec(), runner_dataset(), complete_manifest(), wrong_fit_artifact
         )
+
+
+def test_dated_output_knowledge_is_exactly_the_manifest_dataset_cutoff() -> None:
+    artifact = external_runner_artifact()
+    earlier = replace(
+        artifact.dated_outputs[0],
+        knowledge_as_of=artifact.dated_outputs[0].knowledge_as_of - timedelta(seconds=1),
+    )
+    self_reported = ExternalNestedCVArtifact.create(
+        evidence_id=artifact.evidence_id,
+        producer_ref=artifact.producer_ref,
+        produced_at=artifact.produced_at,
+        request_hash=artifact.request_hash,
+        result=artifact.result,
+        fold_selections=artifact.fold_selections,
+        predictions=artifact.predictions,
+        dated_outputs=(earlier,),
+        validity_policy=artifact.validity_policy,
+    )
+
+    with pytest.raises(ValueError, match="exact PIT knowledge cutoff"):
+        build_reproducible_run(
+            runner_spec(),
+            runner_dataset(),
+            complete_manifest(),
+            self_reported,
+        )
+
+    bundle = build_reproducible_run(
+        runner_spec(),
+        runner_dataset(),
+        complete_manifest(),
+        external_runner_artifact(),
+    )
+    assert bundle.outputs[0].knowledge_as_of == runner_dataset().manifest_as_of
+    assert runner_dataset().inference_row is not None
+    assert bundle.outputs[0].observation_date == runner_dataset().inference_row.observation_date
 
 
 def test_external_artifact_requires_exact_canonical_bytes_and_request_hash() -> None:

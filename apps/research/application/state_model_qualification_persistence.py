@@ -105,8 +105,8 @@ class R6QualificationAssessmentWriter(Protocol):
         """Recompute exact owner evidence and append one server-clocked result."""
 
 
-class R6QualificationAssessmentRepository(Protocol):
-    """Read-only exact PIT and audit page boundary."""
+class R6QualificationExactReadRepository(Protocol):
+    """Narrow read-only boundary for one exact PIT assessment."""
 
     @property
     def unit_of_work_key(self) -> str:
@@ -119,6 +119,10 @@ class R6QualificationAssessmentRepository(Protocol):
         as_of: datetime,
     ) -> StateModelQualificationAssessment | None:
         """Return one exact persisted assessment knowable at ``as_of``."""
+
+
+class R6QualificationAssessmentRepository(R6QualificationExactReadRepository, Protocol):
+    """Read-only exact PIT and internal audit page boundary."""
 
     def list_audit(
         self,
@@ -148,7 +152,7 @@ class RegisterR6QualificationAssessment:
 class GetExactR6QualificationAssessment:
     """Application facade for one exact PIT assessment query."""
 
-    def __init__(self, repository: R6QualificationAssessmentRepository) -> None:
+    def __init__(self, repository: R6QualificationExactReadRepository) -> None:
         self._repository = repository
 
     def execute(
@@ -186,6 +190,7 @@ class MonitorR6Qualification:
 __all__ = [
     "R6QualificationConflict",
     "R6QualificationCorruption",
+    "R6QualificationExactReadRepository",
     "R6QualificationUnavailable",
     "GetExactR6QualificationAssessment",
     "GetExactR6QualificationAssessmentCommand",

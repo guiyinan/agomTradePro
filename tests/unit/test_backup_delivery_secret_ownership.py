@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 from types import ModuleType
 
@@ -19,3 +20,13 @@ def _load_guard() -> ModuleType:
 
 def test_backup_delivery_secret_owner_has_no_legacy_production_writes() -> None:
     assert _load_guard().validate() == []
+    contract = json.loads(
+        (_ROOT / "governance" / "backup_delivery_secret_contracts.json").read_text(encoding="utf-8")
+    )
+    assert contract["legacy_compatibility_paths"] == []
+
+
+def test_backup_delivery_secret_guard_rejects_legacy_runtime_tokens() -> None:
+    guard = _load_guard()
+    projection = _ROOT / "apps" / "account" / "infrastructure" / "backup_delivery_projection.py"
+    assert guard._legacy_write_violations(projection) == []

@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "owner": "data-center-architecture",
+  "policy": "Only exact non-data outbound HTTP imports may be dispositioned; market, macro, portfolio, and other canonical data acquisition remains owned by data_center.",
+  "entries": [
+    {
+      "path": "apps/dashboard/infrastructure/ai_insight_client.py",
+      "import": "requests",
+      "owner": "ai-provider",
+      "scope": "ai_inference",
+      "reason": "Calls a configured generative-AI inference endpoint and does not acquire canonical investment data."
+    },
+    {
+      "path": "apps/terminal/infrastructure/http_client.py",
+      "import": "requests",
+      "owner": "terminal",
+      "scope": "internal_control_plane",
+      "reason": "Invokes AgomTradePro command APIs for the terminal control plane and is not an external data provider."
+    },
+    {
+      "path": "shared/infrastructure/alert_service.py",
+      "import": "requests",
+      "owner": "task-monitor",
+      "scope": "alert_delivery",
+      "reason": "Delivers operational alerts to configured webhooks and never supplies business facts or decision inputs."
+    },
+    {
+      "path": "shared/infrastructure/alerts.py",
+      "import": "requests",
+      "owner": "platform-observability",
+      "scope": "alert_delivery",
+      "reason": "Delivers Slack, DingTalk, and WeChat Work notifications and never supplies canonical business data."
+    }
+  ]
+}

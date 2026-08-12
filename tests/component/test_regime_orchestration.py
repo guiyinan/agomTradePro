@@ -59,6 +59,17 @@ def test_calculate_regime_after_sync_persists_snapshot(mocker) -> None:
     assert result["status"] == "success"
     assert result["observed_at"] == "2026-04-08"
     assert result["is_fallback"] is False
+    assert {
+        key: result[key]
+        for key in ("outcome", "success", "requested", "succeeded", "failed", "stored")
+    } == {
+        "outcome": "success",
+        "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": 1,
+    }
 
 
 def test_build_regime_snapshot_rejects_missing_trend_indicators() -> None:
@@ -120,3 +131,14 @@ def test_notify_regime_change_after_calculation_uses_previous_snapshot(mocker) -
     assert result["regime_changed"] is True
     assert result["notification_attempted"] is True
     assert result["notified"] is True
+    assert {
+        key: result[key]
+        for key in ("outcome", "success", "requested", "succeeded", "failed", "stored")
+    } == {
+        "outcome": "success",
+        "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": 0,
+    }

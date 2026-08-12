@@ -30,6 +30,10 @@ from .run_artifacts import (
     ReproducibleMacroFactorRunArtifact,
 )
 from .runner_inputs import (
+    ABSOLUTE_MAXIMUM_INPUT_KNOWLEDGE_AGE_SECONDS,
+    InferenceTargetCalendarPeriod,
+    InputKnowledgeFreshnessPolicy,
+    PITInferenceRow,
     PITResearchDataset,
     PITResearchRow,
     ProxyObservation,
@@ -52,6 +56,7 @@ from .temporal_plan import (
 )
 
 __all__ = [
+    "ABSOLUTE_MAXIMUM_INPUT_KNOWLEDGE_AGE_SECONDS",
     "DatedMacroFactorOutput",
     "DeterministicErrorMetrics",
     "ExecutionFoldBinding",
@@ -71,6 +76,8 @@ __all__ = [
     "FoldBenchmarkResult",
     "InnerFoldBinding",
     "InnerTemporalFoldPlan",
+    "InferenceTargetCalendarPeriod",
+    "InputKnowledgeFreshnessPolicy",
     "MacroFactorLifecycleEvent",
     "MacroFactorLifecycleEventType",
     "MacroFactorOutputResearchStatus",
@@ -82,6 +89,7 @@ __all__ = [
     "OptimizationDirection",
     "OuterTemporalFoldPlan",
     "PITResearchDataset",
+    "PITInferenceRow",
     "PITResearchRow",
     "ProxyObservation",
     "ResearchOutputValidityPolicy",

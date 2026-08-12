@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import cast
+from typing import NoReturn, cast
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
 
 from apps.macro_factor.domain._runner_support import hash_payload, utc_text
 from apps.macro_factor.domain.baselines import DeterministicErrorMetrics, FoldBenchmarkResult
@@ -16,9 +18,14 @@ from apps.macro_factor.domain.lifecycle import (
     MacroFactorLifecycleEvent,
     MacroFactorLifecycleEventType,
 )
+from apps.macro_factor.domain.lifecycle_stream import (
+    MacroFactorLifecycleStreamCommit,
+    MacroFactorLifecycleStreamHead,
+)
 from apps.macro_factor.domain.run_artifacts import ReproducibleMacroFactorRunArtifact
 
 from .append_only import MacroFactorAppendOnlyModel
+from .lifecycle_head_guard import LifecycleHeadGuardedModel
 from .models import MacroFactorResearchResultModel
 
 
@@ -635,8 +642,204 @@ class MacroFactorLifecycleEventModel(MacroFactorAppendOnlyModel):
             raise ValidationError("lifecycle event artifact hash mismatch")
 
 
+class MacroFactorLifecycleStreamCommitModel(MacroFactorAppendOnlyModel):
+    """Immutable cumulative anchor paired one-to-one with a lifecycle event."""
+
+    commit_id = models.CharField(max_length=64, primary_key=True)
+    artifact = models.ForeignKey(
+        MacroFactorRunArtifactModel,
+        on_delete=models.PROTECT,
+        related_name="lifecycle_stream_commits",
+    )
+    event = models.OneToOneField(
+        MacroFactorLifecycleEventModel,
+        on_delete=models.PROTECT,
+        related_name="lifecycle_stream_commit",
+    )
+    artifact_hash = models.CharField(max_length=64)
+    event_hash = models.CharField(max_length=64)
+    sequence = models.PositiveIntegerField()
+    event_count = models.PositiveIntegerField()
+    head_event_hash = models.CharField(max_length=64)
+    previous_commit_hash = models.CharField(max_length=64, null=True, blank=True)
+    stream_hash = models.CharField(max_length=64, unique=True)
+    content_hash = models.CharField(max_length=64, unique=True)
+    payload = models.JSONField()
+    research_only = models.BooleanField(default=True, editable=False)
+    must_not_use_for_decision = models.BooleanField(default=True, editable=False)
+    must_not_execute = models.BooleanField(default=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "macro_factor_lifecycle_stream_commit"
+        base_manager_name = "objects"
+        default_manager_name = "objects"
+        ordering = ["artifact_id", "sequence"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["artifact", "sequence"],
+                name="mf_lifecycle_commit_seq_uniq",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(event_count=models.F("sequence")),
+                name="mf_lifecycle_commit_count_ck",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(head_event_hash=models.F("event_hash")),
+                name="mf_lifecycle_commit_head_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(sequence=1, previous_commit_hash__isnull=True)
+                    | models.Q(sequence__gt=1, previous_commit_hash__isnull=False)
+                ),
+                name="mf_lifecycle_commit_prev_ck",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    research_only=True,
+                    must_not_use_for_decision=True,
+                    must_not_execute=True,
+                ),
+                name="mf_lifecycle_commit_blocked_ck",
+            ),
+        ]
+
+    def to_domain(self) -> MacroFactorLifecycleStreamCommit:
+        """Restore and verify one cumulative lifecycle stream commitment."""
+
+        commit = MacroFactorLifecycleStreamCommit(
+            commit_id=self.commit_id,
+            artifact_id=self.artifact_id,
+            artifact_hash=self.artifact_hash,
+            event_id=self.event_id,
+            event_hash=self.event_hash,
+            sequence=self.sequence,
+            event_count=self.event_count,
+            head_event_hash=self.head_event_hash,
+            previous_commit_hash=self.previous_commit_hash,
+            stream_hash=self.stream_hash,
+            research_only=self.research_only,
+            must_not_use_for_decision=self.must_not_use_for_decision,
+            must_not_execute=self.must_not_execute,
+        )
+        payload = _mapping(self.payload, "lifecycle stream commit payload")
+        if commit.canonical_payload != payload or commit.content_hash != self.content_hash:
+            raise ValueError("lifecycle stream commit payload/hash does not match columns")
+        artifact = self.artifact.to_domain()
+        event = self.event.to_domain()
+        if (
+            commit.artifact_id != artifact.artifact_id
+            or commit.artifact_hash != artifact.content_hash
+            or commit.event_id != event.event_id
+            or commit.event_hash != event.content_hash
+            or commit.sequence != event.sequence
+            or commit.head_event_hash != event.content_hash
+        ):
+            raise ValueError("lifecycle stream commit does not exactly bind artifact/event")
+        return commit
+
+    def clean(self) -> None:
+        """Reject stream commitments that do not match their exact parent rows."""
+
+        super().clean()
+        try:
+            self.to_domain()
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("invalid macro-factor lifecycle stream commit") from exc
+
+
+class MacroFactorLifecycleStreamHeadModel(LifecycleHeadGuardedModel):
+    """Repository-owned latest head that cannot silently regress with an append tail."""
+
+    artifact = models.OneToOneField(
+        MacroFactorRunArtifactModel,
+        on_delete=models.PROTECT,
+        related_name="lifecycle_stream_head",
+        primary_key=True,
+    )
+    artifact_hash = models.CharField(max_length=64)
+    latest_sequence = models.PositiveIntegerField()
+    event_count = models.PositiveIntegerField()
+    latest_event_hash = models.CharField(max_length=64)
+    latest_commit_hash = models.CharField(max_length=64)
+    stream_hash = models.CharField(max_length=64)
+    content_hash = models.CharField(max_length=64)
+    payload = models.JSONField()
+    research_only = models.BooleanField(default=True, editable=False)
+    must_not_use_for_decision = models.BooleanField(default=True, editable=False)
+    must_not_execute = models.BooleanField(default=True, editable=False)
+
+    class Meta:
+        db_table = "macro_factor_lifecycle_stream_head"
+        base_manager_name = "objects"
+        default_manager_name = "objects"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(event_count=models.F("latest_sequence")),
+                name="mf_lifecycle_head_count_ck",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    research_only=True,
+                    must_not_use_for_decision=True,
+                    must_not_execute=True,
+                ),
+                name="mf_lifecycle_head_blocked_ck",
+            ),
+        ]
+
+    def to_domain(self) -> MacroFactorLifecycleStreamHead:
+        """Restore and verify the independent latest-head seal."""
+
+        head = MacroFactorLifecycleStreamHead(
+            artifact_id=self.artifact_id,
+            artifact_hash=self.artifact_hash,
+            latest_sequence=self.latest_sequence,
+            event_count=self.event_count,
+            latest_event_hash=self.latest_event_hash,
+            latest_commit_hash=self.latest_commit_hash,
+            stream_hash=self.stream_hash,
+            research_only=self.research_only,
+            must_not_use_for_decision=self.must_not_use_for_decision,
+            must_not_execute=self.must_not_execute,
+        )
+        payload = _mapping(self.payload, "lifecycle stream head payload")
+        if head.canonical_payload != payload or head.content_hash != self.content_hash:
+            raise ValueError("lifecycle stream head payload/hash does not match columns")
+        artifact = self.artifact.to_domain()
+        if head.artifact_id != artifact.artifact_id or head.artifact_hash != artifact.content_hash:
+            raise ValueError("lifecycle stream head does not exactly bind artifact")
+        return head
+
+    def clean(self) -> None:
+        """Reject a latest head that is not exactly sealed to its artifact."""
+
+        super().clean()
+        try:
+            self.to_domain()
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("invalid macro-factor lifecycle stream head") from exc
+
+
+@receiver(pre_delete, sender=MacroFactorLifecycleStreamHeadModel, weak=False)
+def _reject_lifecycle_head_collector_delete(
+    *,
+    sender: type[models.Model],
+    instance: models.Model,
+    using: str,
+    origin: object | None,
+    **kwargs: object,
+) -> NoReturn:
+    """Reject Collector and direct delete paths for the authoritative head."""
+
+    raise ValidationError("Macro-factor lifecycle stream head cannot be deleted")
+
+
 __all__ = [
     "MacroFactorDatedOutputModel",
     "MacroFactorLifecycleEventModel",
+    "MacroFactorLifecycleStreamCommitModel",
+    "MacroFactorLifecycleStreamHeadModel",
     "MacroFactorRunArtifactModel",
 ]

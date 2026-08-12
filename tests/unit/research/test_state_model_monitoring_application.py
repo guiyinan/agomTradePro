@@ -6,10 +6,13 @@ from dataclasses import replace
 from datetime import timedelta
 from decimal import Decimal
 
+import pytest
+
 from apps.research.application.state_model_monitoring import (
     ActiveR6QualificationEvidence,
     EvaluateR6Monitoring,
     EvaluateR6MonitoringCommand,
+    R6MonitoringUnavailable,
 )
 from apps.research.domain.state_model_monitoring import (
     R6MonitoringAssessmentStatus,
@@ -32,6 +35,8 @@ from tests.unit.research.state_model_monitoring_factories import (
 
 
 class _ActiveProvider:
+    unit_of_work_key = "test:r6-monitoring"
+
     def __init__(self, evidence: ActiveR6QualificationEvidence | None) -> None:
         self.evidence = evidence
         self.calls: list[tuple[R6QualificationRef, object]] = []
@@ -42,6 +47,8 @@ class _ActiveProvider:
 
 
 class _PolicyProvider:
+    unit_of_work_key = "test:r6-monitoring"
+
     def __init__(self, value: R6MonitoringPolicy | None) -> None:
         self.value = value
         self.calls = 0
@@ -60,6 +67,8 @@ class _PolicyProvider:
 
 
 class _RawFactProvider:
+    unit_of_work_key = "test:r6-monitoring"
+
     def __init__(self, values: tuple[R6MonitoringObservation, ...]) -> None:
         self.values = values
         self.calls = 0
@@ -81,6 +90,8 @@ class _RawFactProvider:
 
 
 class _PeriodCalendarProvider:
+    unit_of_work_key = "test:r6-monitoring"
+
     def __init__(self, value: R6MonitoringPeriodCalendar | None) -> None:
         self.value = value
         self.calls = 0
@@ -95,6 +106,14 @@ class _PeriodCalendarProvider:
         as_of,
     ):
         self.calls += 1
+        return self.value
+
+
+class _Clock:
+    def __init__(self, value=NOW) -> None:
+        self.value = value
+
+    def now(self):
         return self.value
 
 
@@ -136,6 +155,7 @@ def test_application_rereads_exact_active_policy_and_raw_facts() -> None:
         policy_provider=policy_provider,
         period_calendar_provider=calendar_provider,
         raw_fact_provider=raw_provider,
+        clock=_Clock(),
     )
 
     assessment = use_case.execute(_command())
@@ -166,6 +186,7 @@ def test_missing_active_qualification_blocks_before_other_owner_reads() -> None:
         policy_provider=policy_provider,
         period_calendar_provider=calendar_provider,
         raw_fact_provider=raw_provider,
+        clock=_Clock(),
     )
 
     assessment = use_case.execute(_command())
@@ -187,6 +208,7 @@ def test_missing_policy_blocks_before_raw_fact_read() -> None:
         policy_provider=_PolicyProvider(None),
         period_calendar_provider=calendar_provider,
         raw_fact_provider=raw_provider,
+        clock=_Clock(),
     )
 
     assessment = use_case.execute(_command())
@@ -215,6 +237,7 @@ def test_same_identity_threshold_substitution_is_blocked_by_expected_hash() -> N
         policy_provider=_PolicyProvider(substituted),
         period_calendar_provider=_PeriodCalendarProvider(period_calendar()),
         raw_fact_provider=_RawFactProvider(()),
+        clock=_Clock(),
     )
 
     assessment = use_case.execute(_command(expected_policy_hash=expected.content_hash))
@@ -241,6 +264,7 @@ def test_privately_mutated_policy_fails_content_seal_replay() -> None:
         policy_provider=_PolicyProvider(expected),
         period_calendar_provider=_PeriodCalendarProvider(period_calendar()),
         raw_fact_provider=_RawFactProvider(()),
+        clock=_Clock(),
     )
 
     assessment = use_case.execute(_command(expected_policy_hash=expected.content_hash))
@@ -258,6 +282,7 @@ def test_missing_exact_period_calendar_blocks_before_raw_fact_read() -> None:
         policy_provider=_PolicyProvider(policy()),
         period_calendar_provider=_PeriodCalendarProvider(None),
         raw_fact_provider=raw_provider,
+        clock=_Clock(),
     )
 
     assessment = use_case.execute(_command())
@@ -271,12 +296,17 @@ def test_same_identity_replaced_period_calendar_is_blocked() -> None:
     """A provider cannot replace exact members behind one calendar ID/version."""
 
     canonical = period_calendar()
-    substituted = replace(canonical, entries=canonical.entries[:-1])
+    substituted = replace(
+        canonical,
+        valid_until=canonical.entries[-2].period_end,
+        entries=canonical.entries[:-1],
+    )
     use_case = EvaluateR6Monitoring(
         active_qualification_provider=_ActiveProvider(active_qualification()),
         policy_provider=_PolicyProvider(policy()),
         period_calendar_provider=_PeriodCalendarProvider(substituted),
         raw_fact_provider=_RawFactProvider(()),
+        clock=_Clock(),
     )
 
     assessment = use_case.execute(_command())
@@ -295,6 +325,7 @@ def test_future_period_calendar_is_blocked() -> None:
         policy_provider=_PolicyProvider(policy()),
         period_calendar_provider=_PeriodCalendarProvider(future),
         raw_fact_provider=_RawFactProvider(()),
+        clock=_Clock(),
     )
 
     assessment = use_case.execute(_command())
@@ -314,6 +345,7 @@ def test_privately_tampered_period_calendar_fails_content_seal_replay() -> None:
         policy_provider=_PolicyProvider(policy()),
         period_calendar_provider=_PeriodCalendarProvider(tampered),
         raw_fact_provider=_RawFactProvider(()),
+        clock=_Clock(),
     )
 
     assessment = use_case.execute(_command())
@@ -330,3 +362,150 @@ def test_active_projection_is_always_internal_and_content_bound() -> None:
     assert evidence.research_only is True
     assert evidence.must_not_use_for_decision is True
     assert evidence.must_not_replace_regime is True
+    assert len(evidence.content_hash) == 64
+
+
+def test_future_as_of_is_rejected_before_any_owner_read() -> None:
+    """A caller cannot advance the PIT boundary beyond the trusted server clock."""
+
+    active_provider = _ActiveProvider(active_qualification())
+    use_case = EvaluateR6Monitoring(
+        active_qualification_provider=active_provider,
+        policy_provider=_PolicyProvider(policy()),
+        period_calendar_provider=_PeriodCalendarProvider(period_calendar()),
+        raw_fact_provider=_RawFactProvider(()),
+        clock=_Clock(),
+    )
+
+    with pytest.raises(R6MonitoringUnavailable, match="future"):
+        use_case.execute(replace(_command(), as_of=NOW + timedelta(microseconds=1)))
+
+    assert active_provider.calls == []
+
+
+def test_tampered_active_projection_is_blocked_before_policy_read() -> None:
+    """The live projection carries an independent seal beyond its qualification ref."""
+
+    active = active_qualification()
+    object.__setattr__(active, "candidate_version", "substituted-v2")
+    policy_provider = _PolicyProvider(policy())
+    use_case = EvaluateR6Monitoring(
+        active_qualification_provider=_ActiveProvider(active),
+        policy_provider=policy_provider,
+        period_calendar_provider=_PeriodCalendarProvider(period_calendar()),
+        raw_fact_provider=_RawFactProvider(()),
+        clock=_Clock(),
+    )
+
+    assessment = use_case.execute(_command())
+
+    assert assessment.status is R6MonitoringAssessmentStatus.BLOCKED
+    assert R6MonitoringBlockerCode.ACTIVE_QUALIFICATION_INVALID in assessment.blockers
+    assert policy_provider.calls == 0
+
+
+def test_provider_exception_is_normalized_as_unavailable() -> None:
+    """Owner implementation failures never leak as arbitrary exceptions."""
+
+    class FailingActiveProvider(_ActiveProvider):
+        def get_exact_active(self, *, qualification_ref, as_of):
+            raise OSError("owner offline")
+
+    use_case = EvaluateR6Monitoring(
+        active_qualification_provider=FailingActiveProvider(None),
+        policy_provider=_PolicyProvider(policy()),
+        period_calendar_provider=_PeriodCalendarProvider(period_calendar()),
+        raw_fact_provider=_RawFactProvider(()),
+        clock=_Clock(),
+    )
+
+    with pytest.raises(R6MonitoringUnavailable, match="qualification owner"):
+        use_case.execute(_command())
+
+
+@pytest.mark.parametrize("malformed_owner", ("active", "policy", "calendar", "facts"))
+def test_malformed_owner_results_are_normalized_as_unavailable(
+    malformed_owner: str,
+) -> None:
+    """Wrong owner result types cannot escape attribute or live-seal validation."""
+
+    active_provider = _ActiveProvider(active_qualification())
+    policy_provider = _PolicyProvider(policy())
+    calendar_provider = _PeriodCalendarProvider(period_calendar())
+    raw_provider = _RawFactProvider(())
+    if malformed_owner == "active":
+        active_provider.evidence = object()  # type: ignore[assignment]
+    elif malformed_owner == "policy":
+        policy_provider.value = object()  # type: ignore[assignment]
+    elif malformed_owner == "calendar":
+        calendar_provider.value = object()  # type: ignore[assignment]
+    else:
+        raw_provider.values = (object(),)  # type: ignore[assignment]
+    use_case = EvaluateR6Monitoring(
+        active_qualification_provider=active_provider,
+        policy_provider=policy_provider,
+        period_calendar_provider=calendar_provider,
+        raw_fact_provider=raw_provider,
+        clock=_Clock(),
+    )
+
+    with pytest.raises(R6MonitoringUnavailable, match="owner"):
+        use_case.execute(_command())
+
+
+@pytest.mark.parametrize("malformed_owner", ("policy", "calendar", "observation"))
+def test_non_string_owner_content_hash_is_normalized_as_unavailable(
+    malformed_owner: str,
+) -> None:
+    """Frozen owner objects cannot leak a non-string ``content_hash`` to Domain."""
+
+    monitoring_policy = policy()
+    calendar = period_calendar()
+    facts = (
+        observation(sequence=1, monitoring_policy=monitoring_policy),
+        observation(sequence=2, monitoring_policy=monitoring_policy),
+    )
+    if malformed_owner == "policy":
+        object.__setattr__(monitoring_policy, "content_hash", object())
+    elif malformed_owner == "calendar":
+        object.__setattr__(calendar, "content_hash", object())
+    else:
+        object.__setattr__(facts[0], "content_hash", object())
+    use_case = EvaluateR6Monitoring(
+        active_qualification_provider=_ActiveProvider(active_qualification()),
+        policy_provider=_PolicyProvider(monitoring_policy),
+        period_calendar_provider=_PeriodCalendarProvider(calendar),
+        raw_fact_provider=_RawFactProvider(facts),
+        clock=_Clock(),
+    )
+
+    with pytest.raises(R6MonitoringUnavailable, match="owner"):
+        use_case.execute(_command())
+
+
+def test_missing_or_mismatched_owner_uow_key_is_rejected() -> None:
+    """All canonical providers must attest one explicit transaction boundary."""
+
+    class MissingKeyActiveProvider:
+        def get_exact_active(self, *, qualification_ref, as_of):
+            return active_qualification()
+
+    with pytest.raises(ValueError, match="unit_of_work_key"):
+        EvaluateR6Monitoring(
+            active_qualification_provider=MissingKeyActiveProvider(),
+            policy_provider=_PolicyProvider(policy()),
+            period_calendar_provider=_PeriodCalendarProvider(period_calendar()),
+            raw_fact_provider=_RawFactProvider(()),
+            clock=_Clock(),
+        )
+
+    mismatched = _RawFactProvider(())
+    mismatched.unit_of_work_key = "test:attacker"
+    with pytest.raises(ValueError, match="different units of work"):
+        EvaluateR6Monitoring(
+            active_qualification_provider=_ActiveProvider(active_qualification()),
+            policy_provider=_PolicyProvider(policy()),
+            period_calendar_provider=_PeriodCalendarProvider(period_calendar()),
+            raw_fact_provider=mismatched,
+            clock=_Clock(),
+        )

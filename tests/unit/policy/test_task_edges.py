@@ -34,6 +34,7 @@ def test_policy_status_transition_cleanup_and_notification_tasks(monkeypatch) ->
     sent: list[object] = []
     monkeypatch.setattr(tasks, "_send_transition_summary", lambda changes: sent.extend(changes))
     transition = tasks.monitor_policy_transitions.run()
+    assert transition["outcome"] == "success"
     assert transition["transitions_found"] == 1
     assert sent[0]["from"] == "P1" and sent[0]["to"] == "P2"
     assert tasks.cleanup_old_policy_logs.run(30)["deleted_count"] == 3
@@ -51,6 +52,7 @@ def test_policy_status_transition_cleanup_and_notification_tasks(monkeypatch) ->
         lambda level, event, status: alerts.append(level),
     )
     result = tasks.check_policy_status_alert.run("2026-07-24")
+    assert result["outcome"] == "success"
     assert result["level"] == "P2"
     assert alerts == [PolicyLevel.P2]
 
@@ -80,10 +82,13 @@ def test_rss_cleanup_assignment_summary_and_sla_tasks(monkeypatch) -> None:
     )
     monkeypatch.setattr(tasks, "get_workbench_repository", lambda: workbench)
     assigned = tasks.auto_assign_pending_audits.run(max_per_user=2)
+    assert assigned["outcome"] == "success"
     assert assigned["assigned"] == 3
     assert assigned["remaining"] == 0
     assert tasks.cleanup_old_audit_queues.run()["deleted_count"] == 2
-    assert tasks.generate_daily_policy_summary.run()["events"] == 5
+    summary = tasks.generate_daily_policy_summary.run()
+    assert summary["events"] == 5
+    assert summary["outcome"] == "success"
 
     sla_calls: list[tuple[int, int]] = []
     monkeypatch.setattr(
@@ -92,6 +97,7 @@ def test_rss_cleanup_assignment_summary_and_sla_tasks(monkeypatch) -> None:
         lambda: SimpleNamespace(send_sla_alert=lambda p23, normal: sla_calls.append((p23, normal))),
     )
     sla = tasks.monitor_sla_exceeded_task.run()
+    assert sla["outcome"] == "success"
     assert sla["total_exceeded"] == 3
     assert sla_calls == [(2, 1)]
 
@@ -115,8 +121,11 @@ def test_gate_refresh_signal_reevaluation_and_no_auditor_paths(monkeypatch) -> N
     monkeypatch.setattr(tasks, "get_workbench_repository", lambda: workbench)
     gate = tasks.refresh_gate_constraints_task.run()
     assert gate["status"] == "success"
+    assert gate["outcome"] == "success"
     assert gate["gate_level"]
-    assert tasks.auto_assign_pending_audits.run()["remaining"] == 2
+    assignment = tasks.auto_assign_pending_audits.run()
+    assert assignment["remaining"] == 2
+    assert assignment["outcome"] == "blocked"
 
     from apps.regime.application import current_regime
 
@@ -135,6 +144,7 @@ def test_gate_refresh_signal_reevaluation_and_no_auditor_paths(monkeypatch) -> N
         ),
     )
     reevaluated = tasks.trigger_signal_reevaluation.run(2, "2026-07-24")
+    assert reevaluated["outcome"] == "success"
     assert reevaluated["rejected_count"] == 1
     assert reevaluated["current_regime"] == "Recovery"
 
@@ -166,10 +176,15 @@ def test_policy_scheduled_tasks_report_repository_and_runtime_failures(monkeypat
             get_gate_config=lambda scope: None,
         ),
     )
-    assert tasks.generate_daily_policy_summary.run()["status"] == "error"
-    assert tasks.monitor_sla_exceeded_task.run()["status"] == "error"
+    summary = tasks.generate_daily_policy_summary.run()
+    assert summary["status"] == "error"
+    assert summary["outcome"] == "failed"
+    sla = tasks.monitor_sla_exceeded_task.run()
+    assert sla["status"] == "error"
+    assert sla["outcome"] == "failed"
     gate = tasks.refresh_gate_constraints_task.run()
     assert gate["message"] == "No gate config or data available"
+    assert gate["outcome"] == "blocked"
 
     monkeypatch.setattr(
         tasks,
@@ -219,6 +234,7 @@ def test_policy_destructive_tasks_reject_invalid_bounds_before_repository_access
     result = task.run(**kwargs)
 
     assert result["status"] == "error"
+    assert result["outcome"] == "failed"
     assert result["error_type"] == "input"
 
 
@@ -237,6 +253,7 @@ def test_signal_reevaluation_rejects_invalid_policy_context(
     result = tasks.trigger_signal_reevaluation.run(new_level, event_date)
 
     assert result["status"] == "error"
+    assert result["outcome"] == "failed"
     assert result["error_type"] == "input"
 
 
@@ -256,3 +273,84 @@ def test_signal_reevaluation_does_not_swallow_retry(monkeypatch) -> None:
 
     with pytest.raises(RuntimeError, match="retry scheduled"):
         tasks.trigger_signal_reevaluation.run(2, "2026-07-24")
+
+
+def test_policy_status_rejects_invalid_date_before_repository_access(monkeypatch) -> None:
+    """Beat/CLI callers cannot bypass date validation at the task boundary."""
+
+    monkeypatch.setattr(
+        tasks,
+        "get_current_policy_repository",
+        lambda: pytest.fail("repository must not be called"),
+    )
+
+    result = tasks.check_policy_status_alert.run("not-a-date")
+
+    assert result["outcome"] == "failed"
+    assert result["error_type"] == "business_logic"
+
+
+def test_policy_monitoring_tasks_report_zero_output_without_fake_success(monkeypatch) -> None:
+    """Empty monitoring scopes remain explicit no-ops with zero stored records."""
+
+    monkeypatch.setattr(
+        tasks,
+        "get_current_policy_repository",
+        lambda: SimpleNamespace(get_events_in_range=lambda *args: []),
+    )
+    workbench = SimpleNamespace(
+        get_ingestion_config=lambda: SimpleNamespace(p23_sla_hours=2, normal_sla_hours=24),
+        get_sla_exceeded_breakdown=lambda **kwargs: {
+            "p23_exceeded": 0,
+            "normal_exceeded": 0,
+            "total_exceeded": 0,
+        },
+    )
+    monkeypatch.setattr(tasks, "get_workbench_repository", lambda: workbench)
+
+    from apps.regime.application import current_regime
+
+    monkeypatch.setattr(
+        current_regime,
+        "resolve_current_regime",
+        lambda: SimpleNamespace(dominant_regime="Recovery", confidence=0.8),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "reevaluate_signals_for_policy_change",
+        lambda **kwargs: SimpleNamespace(
+            total_count=0,
+            rejected_count=0,
+            rejected_signal_ids=[],
+        ),
+    )
+
+    results = (
+        tasks.monitor_policy_transitions.run(),
+        tasks.monitor_sla_exceeded_task.run(),
+        tasks.trigger_signal_reevaluation.run(2, "2026-07-24"),
+    )
+
+    for result in results:
+        assert result["outcome"] == "noop"
+        assert result["stored_record_count"] == 0
+
+
+def test_auto_assign_pending_audits_reports_partial_assignment(monkeypatch) -> None:
+    """Per-item assignment misses are visible instead of being reported as all-success."""
+
+    workbench = SimpleNamespace(
+        list_unassigned_audit_queue_ids=lambda: [1, 2],
+        list_staff_auditor_ids=lambda: [10],
+        get_pending_assignment_counts=lambda ids: {10: 0},
+        assign_audit_queue_item=lambda **kwargs: kwargs["queue_id"] == 1,
+    )
+    monkeypatch.setattr(tasks, "get_workbench_repository", lambda: workbench)
+
+    result = tasks.auto_assign_pending_audits.run(max_per_user=2)
+
+    assert result["outcome"] == "partial"
+    assert result["requested_queue_item_count"] == 2
+    assert result["succeeded_queue_item_count"] == 1
+    assert result["failed_queue_item_count"] == 1
+    assert result["stored_record_count"] == 1

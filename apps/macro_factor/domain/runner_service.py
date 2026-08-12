@@ -145,11 +145,27 @@ def build_reproducible_run(
 ) -> ReproducibleMacroFactorRunBundle:
     """Validate typed external evidence and build an immutable research bundle."""
 
+    spec = spec.validated_copy()
+    dataset = dataset.validated_copy()
+    manifest = manifest.validated_copy()
+    external.__post_init__()
     request = build_execution_request(spec, dataset, manifest)
     if external.request_hash != request.content_hash:
         raise ValueError("external artifact request hash does not match runner request")
     _validate_external_result_identity(spec, external)
     _validate_fold_selection_evidence(spec, request, external)
+    if len(external.dated_outputs) != 1:
+        raise ValueError("one run must publish exactly one governed inference horizon")
+    inference = dataset.inference_row
+    if inference is None:
+        raise ValueError("one label-free inference row is required")
+    freshness_policy = spec.input_knowledge_freshness_policy.validated_copy()
+    manifest_fresh_until = freshness_policy.manifest_expires_at(manifest.as_of_time)
+    inference_fresh_until = freshness_policy.inference_expires_at(inference.available_at)
+    if external.produced_at > manifest_fresh_until:
+        raise ValueError("external production time exceeds PIT manifest freshness")
+    if external.produced_at > inference_fresh_until:
+        raise ValueError("external production time exceeds PIT inference freshness")
     blockers = validate_external_macro_factor_result(
         external.result,
         manifest,
@@ -244,6 +260,7 @@ def build_reproducible_run(
         fold_benchmarks=tuple(fold_benchmarks),
     )
     outputs: list[DatedMacroFactorOutput] = []
+    knowledge_cutoff = dataset.manifest_as_of
     for item in external.dated_outputs:
         if (
             item.output_role is not spec.target.output_role
@@ -252,8 +269,20 @@ def build_reproducible_run(
             or item.unit != spec.target.unit
         ):
             raise ValueError("external dated output does not match target definition")
+        if (
+            item.observation_date != inference.observation_date
+            or item.target_period_start != inference.target_period.period_start
+            or item.target_period_end != inference.target_period.period_end
+        ):
+            raise ValueError("external dated output does not match the inference calendar row")
         if item.knowledge_as_of > external.produced_at or item.valid_until <= external.produced_at:
             raise ValueError("external dated output publication timeline is invalid")
+        if item.knowledge_as_of != knowledge_cutoff:
+            raise ValueError("external dated output must use the exact PIT knowledge cutoff")
+        if item.valid_until > manifest_fresh_until:
+            raise ValueError("external dated output exceeds PIT manifest freshness")
+        if item.valid_until > inference_fresh_until:
+            raise ValueError("external dated output exceeds PIT inference freshness")
         output_id = hash_payload(
             {
                 "artifact_id": artifact.artifact_id,
@@ -276,7 +305,7 @@ def build_reproducible_run(
                 target_period_end=item.target_period_end,
                 horizon_periods=item.horizon_periods,
                 horizon_unit=item.horizon_unit,
-                knowledge_as_of=item.knowledge_as_of,
+                knowledge_as_of=knowledge_cutoff,
                 produced_at=external.produced_at,
                 valid_until=item.valid_until,
                 value=item.value,

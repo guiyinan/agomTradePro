@@ -52,24 +52,62 @@ def _decorator_name(decorator: ast.expr) -> str | None:
     return None
 
 
+def _explicit_task_name(decorator: ast.expr) -> str | None:
+    """Return one literal Celery ``name=`` override when present."""
+
+    if (
+        not isinstance(decorator, ast.Call)
+        or _decorator_name(decorator) not in TASK_DECORATOR_NAMES
+    ):
+        return None
+    for keyword in decorator.keywords:
+        if (
+            keyword.arg == "name"
+            and isinstance(keyword.value, ast.Constant)
+            and isinstance(keyword.value.value, str)
+            and keyword.value.value
+        ):
+            return keyword.value.value
+    return None
+
+
 def collect_shared_task_functions_from_source(
     source: str,
     *,
     filename: str,
 ) -> set[str]:
-    """Collect top-level functions decorated with ``shared_task`` from source."""
+    """Collect every function decorated with ``shared_task`` from source."""
 
     tree = ast.parse(source, filename=filename)
     return {
         node.name
-        for node in tree.body
+        for node in ast.walk(tree)
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
         and any(_decorator_name(item) in TASK_DECORATOR_NAMES for item in node.decorator_list)
     }
 
 
+def collect_nested_shared_task_functions_from_source(
+    source: str,
+    *,
+    filename: str,
+) -> set[str]:
+    """Return decorated tasks that are not importable module-level symbols."""
+    tree = ast.parse(source, filename=filename)
+    top_level_node_ids = {
+        id(node) for node in tree.body if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    }
+    return {
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        and id(node) not in top_level_node_ids
+        and any(_decorator_name(item) in TASK_DECORATOR_NAMES for item in node.decorator_list)
+    }
+
+
 def collect_shared_task_functions(path: Path) -> set[str]:
-    """Collect top-level functions decorated with ``shared_task``."""
+    """Collect every function decorated with ``shared_task``."""
 
     return collect_shared_task_functions_from_source(
         path.read_text(encoding="utf-8"),
@@ -90,20 +128,94 @@ def collect_test_functions(path: Path) -> set[str]:
 
 
 def _registered_tasks_by_file(payload: dict[str, Any]) -> dict[str, set[str]]:
-    """Index registered task function names by repository-relative source file."""
+    """Index registered and explicitly exempt task names by source file."""
 
     registered: dict[str, set[str]] = {}
-    raw_tasks = payload.get("tasks")
-    if not isinstance(raw_tasks, list):
-        return registered
-    for raw_task in raw_tasks:
-        if not isinstance(raw_task, dict):
+    for collection_name in ("tasks", "exemptions"):
+        raw_tasks = payload.get(collection_name)
+        if not isinstance(raw_tasks, list):
             continue
-        source_file = raw_task.get("source_file")
-        task_path = raw_task.get("task_path")
-        if isinstance(source_file, str) and isinstance(task_path, str):
-            registered.setdefault(source_file, set()).add(task_path.rsplit(".", 1)[-1])
+        for raw_task in raw_tasks:
+            if not isinstance(raw_task, dict):
+                continue
+            source_file = raw_task.get("source_file")
+            task_path = raw_task.get("task_path")
+            if isinstance(source_file, str) and isinstance(task_path, str):
+                registered.setdefault(source_file, set()).add(task_path.rsplit(".", 1)[-1])
     return registered
+
+
+def _canonical_task_path(source_file: str, task_name: str) -> str:
+    """Return the import path implied by one Application source file and symbol."""
+
+    module = source_file.removesuffix(".py").replace("/", ".").replace("\\", ".")
+    return f"{module}.{task_name}"
+
+
+def _allowed_registered_task_paths(
+    *,
+    repo_root: Path,
+    source_file: str,
+    task_name: str,
+) -> set[str]:
+    """Return source-canonical plus literal decorator task paths for one symbol."""
+
+    allowed: set[str] = set()
+    source_path = repo_root / source_file
+    try:
+        tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+    except (OSError, SyntaxError):
+        return {_canonical_task_path(source_file, task_name)}
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) or node.name != task_name:
+            continue
+        allowed.add(_canonical_task_path(source_file, task_name))
+        for decorator in node.decorator_list:
+            explicit_name = _explicit_task_name(decorator)
+            if explicit_name is not None:
+                allowed.add(explicit_name)
+    return allowed
+
+
+def collect_application_shared_tasks(
+    repo_root: Path,
+    *,
+    violations: list[ContractViolation] | None = None,
+) -> dict[str, set[str]]:
+    """Discover every shared task below every app's Application layer."""
+
+    discovered: dict[str, set[str]] = {}
+    apps_root = repo_root / "apps"
+    if not apps_root.is_dir():
+        return discovered
+    for source_path in sorted(apps_root.glob("*/application/**/*.py")):
+        try:
+            source = source_path.read_text(encoding="utf-8")
+            task_names = collect_shared_task_functions_from_source(
+                source,
+                filename=str(source_path),
+            )
+            nested_task_names = collect_nested_shared_task_functions_from_source(
+                source,
+                filename=str(source_path),
+            )
+        except (OSError, SyntaxError) as exc:
+            if violations is not None:
+                source_file = source_path.relative_to(repo_root).as_posix()
+                violations.append(ContractViolation("source_parse_error", f"{source_file}: {exc}"))
+            continue
+        if task_names:
+            source_file = source_path.relative_to(repo_root).as_posix()
+            discovered[source_file] = task_names
+            if violations is not None:
+                for task_name in sorted(nested_task_names):
+                    violations.append(
+                        ContractViolation(
+                            "nested_shared_task",
+                            f"{source_file}: shared task {task_name} must be module-level",
+                        )
+                    )
+    return discovered
 
 
 def _is_application_python_file(path: str) -> bool:
@@ -219,6 +331,7 @@ def validate_celery_task_contracts(
 
     raw_governed_files = payload.get("governed_source_files")
     raw_tasks = payload.get("tasks")
+    raw_exemptions = payload.get("exemptions", [])
     if not isinstance(raw_governed_files, list) or not all(
         isinstance(item, str) and item for item in raw_governed_files
     ):
@@ -232,9 +345,13 @@ def validate_celery_task_contracts(
     if not isinstance(raw_tasks, list):
         violations.append(ContractViolation("tasks", "tasks must be a list"))
         raw_tasks = []
+    if not isinstance(raw_exemptions, list):
+        violations.append(ContractViolation("exemptions", "exemptions must be a list"))
+        raw_exemptions = []
 
     registered_by_file: dict[str, set[str]] = {}
     seen_task_paths: set[str] = set()
+    seen_covered_paths: set[str] = set()
     test_cache: dict[Path, set[str]] = {}
 
     for index, raw_task in enumerate(raw_tasks):
@@ -255,13 +372,26 @@ def validate_celery_task_contracts(
                 ContractViolation("task_duplicate", f"duplicate task_path: {task_path}")
             )
         seen_task_paths.add(task_path)
+        seen_covered_paths.add(task_path)
 
         if not isinstance(source_file, str) or not source_file:
             violations.append(
                 ContractViolation("source_file", f"{task_path}: source_file is required")
             )
             continue
-        registered_by_file.setdefault(source_file, set()).add(task_path.rsplit(".", 1)[-1])
+        task_name = task_path.rsplit(".", 1)[-1]
+        registered_by_file.setdefault(source_file, set()).add(task_name)
+        if task_path not in _allowed_registered_task_paths(
+            repo_root=repo_root,
+            source_file=source_file,
+            task_name=task_name,
+        ):
+            violations.append(
+                ContractViolation(
+                    "task_path_mismatch",
+                    f"{task_path}: path does not match {source_file}",
+                )
+            )
 
         if criticality not in {"freshness_critical", "data_mutation_critical"}:
             violations.append(
@@ -331,6 +461,78 @@ def validate_celery_task_contracts(
                     )
                 )
 
+    exempted_by_file: dict[str, set[str]] = {}
+    exemption_targets: list[tuple[str, str]] = []
+    for index, raw_exemption in enumerate(raw_exemptions):
+        label = f"exemptions[{index}]"
+        if not isinstance(raw_exemption, dict):
+            violations.append(ContractViolation("exemption_invalid", f"{label} must be an object"))
+            continue
+        task_path = raw_exemption.get("task_path")
+        source_file = raw_exemption.get("source_file")
+        owner = raw_exemption.get("owner")
+        reason = raw_exemption.get("reason")
+        compatibility_target = raw_exemption.get("compatibility_target")
+        if not isinstance(task_path, str) or not task_path:
+            violations.append(
+                ContractViolation("exemption_task_path", f"{label}.task_path is required")
+            )
+            continue
+        if task_path in seen_covered_paths:
+            violations.append(
+                ContractViolation("task_duplicate", f"duplicate covered task_path: {task_path}")
+            )
+        seen_covered_paths.add(task_path)
+        if not isinstance(source_file, str) or not source_file:
+            violations.append(
+                ContractViolation("exemption_source_file", f"{task_path}: source_file is required")
+            )
+            continue
+        task_name = task_path.rsplit(".", 1)[-1]
+        exempted_by_file.setdefault(source_file, set()).add(task_name)
+        if task_path != _canonical_task_path(source_file, task_name) or task_path not in (
+            _allowed_registered_task_paths(
+                repo_root=repo_root,
+                source_file=source_file,
+                task_name=task_name,
+            )
+        ):
+            violations.append(
+                ContractViolation(
+                    "exemption_task_path",
+                    f"{task_path}: path does not match {source_file}",
+                )
+            )
+        if not isinstance(owner, str) or not owner.strip() or len(owner) > 128:
+            violations.append(
+                ContractViolation("exemption_owner", f"{task_path}: bounded owner is required")
+            )
+        if not isinstance(reason, str) or len(reason.strip()) < 20:
+            violations.append(
+                ContractViolation(
+                    "exemption_reason",
+                    f"{task_path}: auditable compatibility reason is required",
+                )
+            )
+        if not isinstance(compatibility_target, str) or not compatibility_target:
+            violations.append(
+                ContractViolation(
+                    "exemption_target",
+                    f"{task_path}: compatibility_target is required",
+                )
+            )
+        else:
+            exemption_targets.append((task_path, compatibility_target))
+
+    for task_path, target in exemption_targets:
+        if target == task_path or target not in seen_task_paths:
+            violations.append(
+                ContractViolation(
+                    "exemption_target",
+                    f"{task_path}: compatibility target {target!r} must be a registered task",
+                )
+            )
+
     for source_file in raw_governed_files:
         source_path = repo_root / source_file
         if not source_path.is_file():
@@ -343,7 +545,9 @@ def validate_celery_task_contracts(
         except (OSError, SyntaxError) as exc:
             violations.append(ContractViolation("source_parse_error", f"{source_file}: {exc}"))
             continue
-        registered = registered_by_file.get(source_file, set())
+        registered = registered_by_file.get(source_file, set()) | exempted_by_file.get(
+            source_file, set()
+        )
         for task_name in sorted(discovered - registered):
             violations.append(
                 ContractViolation(
@@ -356,6 +560,31 @@ def validate_celery_task_contracts(
                 ContractViolation(
                     "task_not_found",
                     f"{source_file}: registered task {task_name} is not a shared task",
+                )
+            )
+
+    all_discovered = collect_application_shared_tasks(repo_root, violations=violations)
+    covered_by_file: dict[str, set[str]] = {}
+    for source_file, task_names in registered_by_file.items():
+        covered_by_file.setdefault(source_file, set()).update(task_names)
+    for source_file, task_names in exempted_by_file.items():
+        covered_by_file.setdefault(source_file, set()).update(task_names)
+    for source_file, task_names in all_discovered.items():
+        covered = covered_by_file.get(source_file, set())
+        for task_name in sorted(task_names - covered):
+            violations.append(
+                ContractViolation(
+                    "unregistered_application_task",
+                    f"{source_file}: shared task {task_name} requires a contract or exemption",
+                )
+            )
+    for source_file, task_names in covered_by_file.items():
+        discovered = all_discovered.get(source_file, set())
+        for task_name in sorted(task_names - discovered):
+            violations.append(
+                ContractViolation(
+                    "covered_task_not_found",
+                    f"{source_file}: covered task {task_name} is not a shared task",
                 )
             )
 
@@ -391,7 +620,8 @@ def main() -> int:
     payload = _load_json(args.manifest)
     print(
         "Celery task contracts OK: "
-        f"{len(payload.get('tasks', []))} task(s), "
+        f"{len(payload.get('tasks', []))} registered task(s), "
+        f"{len(payload.get('exemptions', []))} exemption(s), "
         f"{len(payload.get('governed_source_files', []))} governed file(s)"
     )
     return 0

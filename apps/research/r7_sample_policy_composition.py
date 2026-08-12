@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 
 from django.db import IntegrityError
 
@@ -12,7 +11,6 @@ from apps.research.application.r7_sample_policy import (
     ExactR7SamplePolicyDefinitionProvider,
     GetExactR7SamplePolicy,
     R7SamplePolicyConflict,
-    R7SamplePolicyOwnerApproval,
     R7SamplePolicyUnavailable,
     RegisterR7SamplePolicy,
     RegisterR7SamplePolicyCommand,
@@ -138,9 +136,41 @@ class _R7SamplePolicyRegistrationWriter:
             raise R7SamplePolicyConflict("R7 sample policy race lost") from exc
 
 
-@dataclass(frozen=True)
+class _UnavailableR7SamplePolicyRegistrationFacade:
+    """State-free production writer surface until canonical owners are composed."""
+
+    __slots__ = ()
+
+    def execute(
+        self,
+        command: RegisterR7SamplePolicyCommand,
+    ) -> PersistedR7SamplePolicy:
+        """Validate the ID-only command, then fail without constructing a writer."""
+
+        try:
+            if type(command) is not RegisterR7SamplePolicyCommand:
+                raise TypeError
+            command.__post_init__()
+        except (AttributeError, TypeError, ValueError) as error:
+            raise R7SamplePolicyUnavailable(
+                "R7 sample policy registration command is invalid"
+            ) from error
+        raise R7SamplePolicyUnavailable(
+            "R7 sample policy canonical owner providers are unavailable"
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class DjangoR7SamplePolicyRuntime:
-    """Safe public capabilities for approved R7 policy registration/query."""
+    """Production-safe inert registration plus an exact read-only query."""
+
+    register: _UnavailableR7SamplePolicyRegistrationFacade
+    get_exact: GetExactR7SamplePolicy
+
+
+@dataclass(frozen=True, slots=True)
+class _DjangoR7SamplePolicyTestRuntime:
+    """Private injectable runtime used by persistence component tests."""
 
     register: RegisterR7SamplePolicy
     get_exact: GetExactR7SamplePolicy
@@ -150,17 +180,16 @@ class DjangoR7SamplePolicyRuntime:
 
 def build_django_r7_sample_policy_runtime(
     *,
-    definition_provider: ExactR7SamplePolicyDefinitionProvider,
     using: str = "default",
-    clock: R7SamplePolicyClock | None = None,
 ) -> DjangoR7SamplePolicyRuntime:
-    """Build a production runtime that fails closed until Risk Center evidence exists."""
+    """Build an inert writer and a read-only exact query with no caller owner ports."""
 
-    return _build_r7_sample_policy_runtime(
-        definition_provider=definition_provider,
-        authorization_provider=_UnavailableR7SamplePolicyAuthorizationProvider(using=using),
+    repository = DjangoR7SamplePolicyRepository(
         using=using,
-        clock=clock,
+    )
+    return DjangoR7SamplePolicyRuntime(
+        register=_UnavailableR7SamplePolicyRegistrationFacade(),
+        get_exact=GetExactR7SamplePolicy(repository),
     )
 
 
@@ -170,7 +199,7 @@ def _build_django_r7_sample_policy_test_runtime(
     authorization_provider: DjangoR7SamplePolicyAuthorizationProvider,
     using: str = "default",
     clock: R7SamplePolicyClock | None = None,
-) -> DjangoR7SamplePolicyRuntime:
+) -> _DjangoR7SamplePolicyTestRuntime:
     """Test-only composition hook for injecting an owner projection fake."""
 
     return _build_r7_sample_policy_runtime(
@@ -181,39 +210,13 @@ def _build_django_r7_sample_policy_test_runtime(
     )
 
 
-class _UnavailableR7SamplePolicyAuthorizationProvider:
-    """Production owner port until Risk Center supplies an immutable audit query."""
-
-    def __init__(self, *, using: str) -> None:
-        self._using = using
-
-    @property
-    def unit_of_work_key(self) -> str:
-        return f"django:{self._using}"
-
-    def get_exact(
-        self,
-        *,
-        authorization_id: str,
-        authorization_version: str,
-        policy_id: str,
-        policy_version: str,
-        scope_content_hash: str,
-        policy_definition_hash: str,
-        as_of: datetime,
-    ) -> R7SamplePolicyOwnerApproval | None:
-        """Never invent owner approval while the canonical source is absent."""
-
-        return None
-
-
 def _build_r7_sample_policy_runtime(
     *,
     definition_provider: ExactR7SamplePolicyDefinitionProvider,
     authorization_provider: ExactR7SamplePolicyAuthorizationProvider,
     using: str,
     clock: R7SamplePolicyClock | None,
-) -> DjangoR7SamplePolicyRuntime:
+) -> _DjangoR7SamplePolicyTestRuntime:
     """Assemble shared runtime capabilities for production and test composition."""
 
     authoritative_clock = clock or DjangoR7SamplePolicyClock()
@@ -231,7 +234,7 @@ def _build_r7_sample_policy_runtime(
         clock=authoritative_clock,
     )
     provider = DjangoR7SamplePolicyProvider(repository)
-    return DjangoR7SamplePolicyRuntime(
+    return _DjangoR7SamplePolicyTestRuntime(
         register=RegisterR7SamplePolicy(writer),
         get_exact=GetExactR7SamplePolicy(repository),
         repository=repository,

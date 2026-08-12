@@ -18,10 +18,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "governance" / "data_center_architecture_inventory.json"
 LEGACY_ACCESS_CONTRACT = ROOT / "governance" / "data_center_legacy_access_contracts.json"
+EXTERNAL_HTTP_DISPOSITIONS = ROOT / "governance" / "data_center_external_http_dispositions.json"
 SOURCE_ROOTS = ("apps", "core", "shared")
 ALLOWED_PROVIDER_ROOT = "apps/data_center/infrastructure/"
 PROVIDER_SDK_MODULES = frozenset({"tushare", "akshare", "xtquant", "baostock"})
 HTTP_MODULES = frozenset({"requests", "httpx", "aiohttp"})
+NON_DATA_HTTP_SCOPES = frozenset({"ai_inference", "internal_control_plane", "alert_delivery"})
 SURFACE_PATTERN = re.compile(r"\b(current|latest|realtime|summary)\b", re.IGNORECASE)
 RUNTIME_ENV_PATTERN = re.compile(r"\b(?:os\.getenv|os\.environ|getenv|env)\s*\(")
 CELERY_DECORATOR_PATTERN = re.compile(r"@(?:shared_task|app\.task|celery\.task)\b")
@@ -65,6 +67,49 @@ def _load_legacy_access_contract() -> tuple[dict[str, set[str]], list[re.Pattern
     }
     allowed = [re.compile(str(pattern)) for pattern in payload.get("allowed_path_patterns", [])]
     return modules, allowed
+
+
+def _load_external_http_dispositions() -> dict[tuple[str, str], dict[str, str]]:
+    """Load exact, owner-bound dispositions for outbound non-data HTTP imports."""
+
+    payload = json.loads(EXTERNAL_HTTP_DISPOSITIONS.read_text(encoding="utf-8"))
+    if set(payload) != {"schema_version", "owner", "policy", "entries"}:
+        raise ValueError("external HTTP disposition contract keys are invalid")
+    if payload["schema_version"] != "1.0" or payload["owner"] != "data-center-architecture":
+        raise ValueError("external HTTP disposition contract identity is invalid")
+    if not isinstance(payload["policy"], str) or not payload["policy"].strip():
+        raise ValueError("external HTTP disposition policy is required")
+    entries = payload["entries"]
+    if not isinstance(entries, list):
+        raise ValueError("external HTTP disposition entries must be a list")
+
+    dispositions: dict[tuple[str, str], dict[str, str]] = {}
+    expected_keys = {"path", "import", "owner", "scope", "reason"}
+    for raw_entry in entries:
+        if not isinstance(raw_entry, dict) or set(raw_entry) != expected_keys:
+            raise ValueError("external HTTP disposition entry keys are invalid")
+        if any(not isinstance(raw_entry[key], str) for key in expected_keys):
+            raise ValueError("external HTTP disposition fields must be strings")
+        entry = {key: raw_entry[key].strip() for key in expected_keys}
+        path = entry["path"]
+        import_name = entry["import"]
+        if (
+            not path.endswith(".py")
+            or not path.startswith(tuple(f"{root}/" for root in SOURCE_ROOTS))
+            or "*" in path
+            or "?" in path
+            or import_name not in HTTP_MODULES
+            or not entry["owner"]
+            or any(character.isspace() for character in entry["owner"])
+            or entry["scope"] not in NON_DATA_HTTP_SCOPES
+            or len(entry["reason"]) < 20
+        ):
+            raise ValueError("external HTTP disposition entry is invalid")
+        key = (path, import_name)
+        if key in dispositions:
+            raise ValueError("external HTTP disposition entry is duplicated")
+        dispositions[key] = entry
+    return dispositions
 
 
 def _resolved_import_from_module(node: ast.ImportFrom, relative: str) -> str:
@@ -193,12 +238,15 @@ def build_inventory() -> dict[str, object]:
     provider_imports: list[dict[str, object]] = []
     direct_data_center_imports: list[dict[str, object]] = []
     external_http_imports: list[dict[str, object]] = []
+    approved_non_data_http_imports: list[dict[str, object]] = []
     cross_app_orm: list[dict[str, object]] = []
     legacy_fact_reads: list[dict[str, object]] = []
     current_surfaces: list[dict[str, object]] = []
     data_tasks: list[dict[str, object]] = []
     runtime_parameters: set[str] = set()
     legacy_modules, legacy_allowed_paths = _load_legacy_access_contract()
+    http_dispositions = _load_external_http_dispositions()
+    matched_http_dispositions: set[tuple[str, str]] = set()
 
     for path in _iter_python_files():
         relative = _source_path(path)
@@ -237,9 +285,25 @@ def build_inventory() -> dict[str, object]:
                         }
                     )
             elif top_level in HTTP_MODULES and not relative.startswith(ALLOWED_PROVIDER_ROOT):
-                external_http_imports.append(
-                    {"path": relative, "line": lineno, "import": import_name}
-                )
+                row: dict[str, object] = {
+                    "path": relative,
+                    "line": lineno,
+                    "import": import_name,
+                }
+                disposition_key = (relative, import_name)
+                disposition = http_dispositions.get(disposition_key)
+                if disposition is None:
+                    external_http_imports.append(row)
+                else:
+                    matched_http_dispositions.add(disposition_key)
+                    approved_non_data_http_imports.append(
+                        {
+                            **row,
+                            "owner": disposition["owner"],
+                            "scope": disposition["scope"],
+                            "reason": disposition["reason"],
+                        }
+                    )
             if ".infrastructure.models" in import_name and relative.startswith("apps/"):
                 source_app = relative.split("/", 2)[1]
                 target_parts = import_name.split(".")
@@ -270,6 +334,11 @@ def build_inventory() -> dict[str, object]:
             if match:
                 runtime_parameters.add(stripped[:200])
 
+    stale_http_dispositions = set(http_dispositions) - matched_http_dispositions
+    if stale_http_dispositions:
+        stale = ", ".join(f"{path}:{module}" for path, module in sorted(stale_http_dispositions))
+        raise ValueError(f"stale external HTTP dispositions: {stale}")
+
     grouped_legacy: dict[str, list[dict[str, object]]] = defaultdict(list)
     for item in legacy_fact_reads:
         grouped_legacy[str(item["symbol"])].append(item)
@@ -286,6 +355,10 @@ def build_inventory() -> dict[str, object]:
         ),
         "external_http_imports_for_review": sorted(
             external_http_imports,
+            key=lambda row: (str(row["path"]), int(str(row["line"]))),
+        ),
+        "approved_non_data_http_imports": sorted(
+            approved_non_data_http_imports,
             key=lambda row: (str(row["path"]), int(str(row["line"]))),
         ),
         "cross_app_orm_imports": sorted(
@@ -306,6 +379,7 @@ def build_inventory() -> dict[str, object]:
             "provider_imports_outside_data_center": len(provider_imports),
             "direct_data_center_imports_outside_data_center": len(direct_data_center_imports),
             "external_http_imports_for_review": len(external_http_imports),
+            "approved_non_data_http_imports": len(approved_non_data_http_imports),
             "cross_app_orm_imports": len(cross_app_orm),
             "legacy_fact_references": len(legacy_fact_reads),
             "current_surface_references": len(current_surfaces),

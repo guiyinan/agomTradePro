@@ -185,6 +185,15 @@ from apps.research.infrastructure.r2_market_structure_promotion_models import ( 
     R2MarketStructurePromotionLifecycleEventModel,
     R2MarketStructurePromotionPolicyModel,
 )
+from apps.research.infrastructure.r2_market_structure_trial_monitoring_models import (  # noqa: E402,F401
+    R2ExplanatoryTrialAssessmentLedgerModel,
+    R2MonitoringAssessmentLedgerModel,
+    R2MonitoringAuditSnapshotModel,
+    R2MonitoringObservationLedgerModel,
+)
+from apps.research.infrastructure.r3_macro_factor_runner_spec_models import (  # noqa: E402,F401
+    R3MacroFactorRunnerSpecModel,
+)
 from apps.research.infrastructure.r4_promotion_models import (  # noqa: E402,F401
     R4PromotionDecisionBundleModel,
     R4PromotionDecisionReceiptModel,
@@ -192,12 +201,46 @@ from apps.research.infrastructure.r4_promotion_models import (  # noqa: E402,F40
     R4PromotionLifecycleEventModel,
     R4PromotionPolicyModel,
 )
+from apps.research.infrastructure.r4_promotion_monitoring_models import (  # noqa: E402,F401
+    R4MonitoringAssessmentLedgerModel,
+    R4MonitoringAuditSnapshotModel,
+    R4MonitoringObservationLedgerModel,
+)
+from apps.research.infrastructure.r4_promotion_monitoring_owner_models import (  # noqa: E402,F401
+    R4MonitoringCalendarLedgerModel,
+    R4MonitoringPolicyLedgerModel,
+)
+from apps.research.infrastructure.r5_monitoring_owner_models import (  # noqa: E402,F401
+    R5MonitoringCalendarRegistryModel,
+    R5MonitoringPolicyRegistryModel,
+)
+from apps.research.infrastructure.r5_relative_value_monitoring_models import (  # noqa: E402,F401
+    R5MonitoringAssessmentLedgerModel,
+    R5MonitoringAuditSnapshotModel,
+    R5MonitoringObservationLedgerModel,
+)
 from apps.research.infrastructure.r5_relative_value_promotion_models import (  # noqa: E402,F401
     R5PromotionArtifactModel,
     R5PromotionDecisionAuthorizationModel,
     R5PromotionDecisionBundleModel,
     R5PromotionLifecycleAuthorizationModel,
     R5PromotionLifecycleEventModel,
+)
+from apps.research.infrastructure.r6_scope_qualification_models import (  # noqa: E402,F401
+    R6ScopeQualificationRegistryModel,
+)
+from apps.research.infrastructure.r7_analogy_path_owner_models import (  # noqa: E402,F401
+    R7HistoricalAnalogyCandidateModel,
+    R7HistoricalAnalogyDefinitionModel,
+    R7HistoricalAnalogyReceiptModel,
+    R7ScenarioPathDefinitionModel,
+    R7ScenarioPathMemberModel,
+    R7ScenarioPathReceiptModel,
+)
+from apps.research.infrastructure.r7_post_promotion_monitoring_models import (  # noqa: E402,F401
+    R7MonitoringAssessmentLedgerModel,
+    R7MonitoringAuditSnapshotModel,
+    R7MonitoringObservationLedgerModel,
 )
 from apps.research.infrastructure.r7_research_result_lifecycle_models import (  # noqa: E402,F401
     R7ResearchResultAuditSnapshotModel,
@@ -207,13 +250,32 @@ from apps.research.infrastructure.r7_research_result_lifecycle_models import (  
 from apps.research.infrastructure.r7_research_result_models import (  # noqa: E402,F401
     R7ResearchResultModel,
 )
+from apps.research.infrastructure.r7_result_family_lifecycle_models import (  # noqa: E402,F401
+    R7FamilyLifecycleAuditSnapshotModel,
+    R7FamilyLifecycleAuthorizationModel,
+    R7FamilyLifecycleEventModel,
+    R7FamilyLifecycleStreamCommitModel,
+)
 from apps.research.infrastructure.r7_sample_policy_models import (  # noqa: E402,F401
     R7SamplePolicyApprovalReceiptModel,
     R7SamplePolicyModel,
 )
+from apps.research.infrastructure.r8_monitoring_policy_models import (  # noqa: E402,F401
+    R8MonitoringPolicyRegistryModel,
+)
 from apps.research.infrastructure.scenario_review_reminder_models import (  # noqa: E402,F401
     ScenarioReviewReminderEventModel,
     ScenarioReviewReminderModel,
+)
+from apps.research.infrastructure.state_model_activation_models import (  # noqa: E402,F401
+    R6ActivationAuditSnapshotModel,
+    R6ActivationAuthorizationModel,
+    R6ActivationEventModel,
+    R6ActivationStreamCommitModel,
+)
+from apps.research.infrastructure.state_model_monitoring_models import (  # noqa: E402,F401
+    R6MonitoringAssessmentModel,
+    R6MonitoringObservationModel,
 )
 from apps.research.infrastructure.state_model_qualification_models import (  # noqa: E402,F401
     R6QualificationAssessmentModel,

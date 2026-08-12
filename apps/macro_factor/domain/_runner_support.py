@@ -49,7 +49,7 @@ def require_finite(value: Decimal, field_name: str) -> None:
 def require_positive(value: int, field_name: str) -> None:
     """Require a positive integer and reject bool."""
 
-    if isinstance(value, bool) or value <= 0:
+    if type(value) is not int or value <= 0:
         raise ValueError(f"{field_name} must be a positive integer")
 
 

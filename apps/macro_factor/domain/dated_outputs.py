@@ -46,6 +46,8 @@ class ExternalDatedFactorOutput:
         require_token(self.unit, "ExternalDatedFactorOutput.unit")
         if self.target_period_start > self.target_period_end:
             raise ValueError("dated output target period is invalid")
+        if type(self.horizon_periods) is not int or self.horizon_periods < 0:
+            raise ValueError("dated output horizon_periods must be an integer")
         if self.observation_date > self.knowledge_as_of.date():
             raise ValueError("dated output observation cannot follow knowledge_as_of")
         if self.valid_until <= self.knowledge_as_of:
@@ -137,6 +139,8 @@ class DatedMacroFactorOutput:
             raise ValueError("dated output valid_until must follow produced_at")
         if self.target_period_start > self.target_period_end:
             raise ValueError("dated output target period is invalid")
+        if type(self.horizon_periods) is not int or self.horizon_periods < 0:
+            raise ValueError("dated output horizon_periods must be an integer")
         if self.observation_date > self.knowledge_as_of.date():
             raise ValueError("dated output observation cannot follow knowledge_as_of")
         if self.output_role is FactorOutputRole.CURRENT_STATE:

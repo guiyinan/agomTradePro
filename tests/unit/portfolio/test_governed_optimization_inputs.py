@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from unittest.mock import patch
 
 import pytest
 
 from apps.portfolio.application.governed_optimization import (
+    AppendGovernedOptimizationLifecycleEventCommand,
     AssembleGovernedOptimizationCommand,
     AssembleGovernedOptimizationProblemUseCase,
     GovernedOptimizationRunBundle,
     GovernedOptimizationUnavailable,
+    RegisterGovernedOptimizationInputReceiptCommand,
+    RegisterGovernedOptimizationInputReceiptUseCase,
     RunGovernedOptimizationResearchUseCase,
 )
 from apps.portfolio.composition import make_governed_optimization_research_runtime
@@ -79,9 +82,18 @@ from apps.portfolio.domain.macro_factor_risk import (
     MacroExposureVersion,
     MacroFactorBeta,
 )
+from apps.portfolio.domain.optimization_input_receipt import (
+    GovernedOptimizationInputReceipt,
+)
+from apps.portfolio.domain.optimization_lifecycle import OptimizationLifecycleEventType
 from apps.portfolio.domain.optimizer_inputs import OptimizationInputKind
 from apps.portfolio.infrastructure.deterministic_optimizer import (
     DeterministicConstrainedSearchAdapter,
+)
+from apps.portfolio.infrastructure.optimization_research_models import (
+    GovernedOptimizationInputReceiptModel,
+    GovernedOptimizationResearchResultModel,
+    OptimizationResearchLifecycleEventModel,
 )
 
 NOW = datetime(2026, 8, 5, 9, tzinfo=UTC)
@@ -434,23 +446,61 @@ def _with_binding_pit_manifests(
 
 class _InputSetProvider:
     def __init__(self, input_set: GovernedOptimizationInputSet | None) -> None:
-        self._input_set = input_set
+        self._receipt = (
+            None
+            if input_set is None
+            else GovernedOptimizationInputReceipt.record(
+                input_set=input_set,
+                server_recorded_at=input_set.created_at,
+            )
+        )
+
+    @property
+    def unit_of_work_key(self) -> str:
+        return "test:governed-optimization"
 
     def get_exact(
         self,
         *,
         input_set_id: str,
         evaluated_at: datetime,
-    ) -> GovernedOptimizationInputSet | None:
+    ) -> GovernedOptimizationInputReceipt | None:
         del evaluated_at
-        if self._input_set is None or self._input_set.input_set_id != input_set_id:
+        if self._receipt is None or self._receipt.input_set_id != input_set_id:
             return None
-        return self._input_set
+        return self._receipt
+
+
+class _SequenceInputReceiptProvider:
+    def __init__(
+        self,
+        responses: tuple[GovernedOptimizationInputReceipt | None, ...],
+    ) -> None:
+        self._responses = list(responses)
+        self.calls = 0
+
+    @property
+    def unit_of_work_key(self) -> str:
+        return "test:governed-optimization"
+
+    def get_exact(
+        self,
+        *,
+        input_set_id: str,
+        evaluated_at: datetime,
+    ) -> GovernedOptimizationInputReceipt | None:
+        del input_set_id, evaluated_at
+        self.calls += 1
+        return self._responses.pop(0)
 
 
 class _PromotionProvider:
     def __init__(self, promotions: tuple[ExactPromotionAttestation, ...]) -> None:
         self._promotions = {(item.capability_key, item.decision_id): item for item in promotions}
+
+    @property
+    def unit_of_work_key(self) -> str:
+        return "test:governed-optimization"
 
     def get_exact(
         self,
@@ -463,9 +513,50 @@ class _PromotionProvider:
         return self._promotions.get((capability_key, decision_id))
 
 
+class _RetiringPromotionProvider(_PromotionProvider):
+    def __init__(self, promotions: tuple[ExactPromotionAttestation, ...]) -> None:
+        super().__init__(promotions)
+        self._calls: dict[str, int] = {}
+
+    def get_exact(
+        self,
+        *,
+        capability_key: str,
+        decision_id: str,
+        evaluated_at: datetime,
+    ) -> ExactPromotionAttestation | None:
+        trusted = super().get_exact(
+            capability_key=capability_key,
+            decision_id=decision_id,
+            evaluated_at=evaluated_at,
+        )
+        self._calls[capability_key] = self._calls.get(capability_key, 0) + 1
+        if trusted is None or capability_key != "r5" or self._calls[capability_key] == 1:
+            return trusted
+        return ExactPromotionAttestation.create(
+            capability_key=trusted.capability_key,
+            artifact_id=trusted.artifact_id,
+            artifact_version=trusted.artifact_version,
+            artifact_content_hash=trusted.artifact_content_hash,
+            decision_id=trusted.decision_id,
+            decision_content_hash=trusted.decision_content_hash,
+            owner=trusted.owner,
+            approved_at=trusted.approved_at,
+            valid_until=trusted.valid_until,
+            retired_at=evaluated_at,
+        )
+
+
 class _RunRepository:
     def __init__(self) -> None:
         self.bundles: list[GovernedOptimizationRunBundle] = []
+
+    @property
+    def unit_of_work_key(self) -> str:
+        return "test:governed-optimization"
+
+    def atomic(self) -> nullcontext[None]:
+        return nullcontext()
 
     def append_bundle(
         self,
@@ -633,6 +724,12 @@ def test_governed_input_set_recomputes_all_13_payload_and_owner_hashes() -> None
         replace(input_set.owner_bindings[0], owner_attestation_hash="0" * 64)
     with pytest.raises(ValueError, match="requires every canonical payload exactly once"):
         replace(input_set, payloads=input_set.payloads[:-1])
+    with pytest.raises(ValueError, match="payloads must be canonically ordered"):
+        replace(input_set, payloads=tuple(reversed(input_set.payloads)))
+    with pytest.raises(ValueError, match="owner bindings must be canonically ordered"):
+        replace(input_set, owner_bindings=tuple(reversed(input_set.owner_bindings)))
+    with pytest.raises(ValueError, match="promotions must be canonically ordered"):
+        replace(input_set, promotions=tuple(reversed(input_set.promotions)))
 
 
 def test_governed_input_set_rejects_fake_owner_and_missing_exact_promotion_lineage() -> None:
@@ -726,7 +823,7 @@ def test_trusted_assembler_rebuilds_solver_problem_from_all_typed_payloads() -> 
         item.code for item in traded.blockers
     }
 
-    with pytest.raises(ValueError, match="canonical governed input set is unavailable"):
+    with pytest.raises(ValueError, match="canonical governed input receipt is unavailable"):
         AssembleGovernedOptimizationProblemUseCase(
             input_set_provider=_InputSetProvider(None),
             promotion_provider=_PromotionProvider(input_set.promotions),
@@ -779,13 +876,16 @@ def test_trusted_assembler_rebuilds_solver_problem_from_all_typed_payloads() -> 
 def test_governed_run_compares_all_four_candidates_and_stays_research_only() -> None:
     input_set = _input_set()
     repository = _RunRepository()
+    input_receipt_provider = _InputSetProvider(input_set)
     use_case = RunGovernedOptimizationResearchUseCase(
         assembler=AssembleGovernedOptimizationProblemUseCase(
-            input_set_provider=_InputSetProvider(input_set),
+            input_set_provider=input_receipt_provider,
             promotion_provider=_PromotionProvider(input_set.promotions),
         ),
         engine=DeterministicConstrainedSearchAdapter(),
         repository=repository,
+        input_receipt_provider=input_receipt_provider,
+        promotion_provider=_PromotionProvider(input_set.promotions),
     )
 
     bundle = use_case.execute(
@@ -801,21 +901,208 @@ def test_governed_run_compares_all_four_candidates_and_stays_research_only() -> 
     assert bundle.result.must_not_use_for_decision is True
 
 
-def test_production_composition_is_constructable_but_unavailable_before_any_write() -> None:
-    runtime = make_governed_optimization_research_runtime()
+def test_governed_run_rereads_receipt_and_zero_writes_on_disappearance_or_replacement() -> None:
+    input_set = _input_set()
+    receipt = GovernedOptimizationInputReceipt.record(
+        input_set=input_set,
+        server_recorded_at=NOW,
+    )
+    replacement_set = _with_binding_pit_manifests(
+        input_set,
+        exposure_pit_manifest_id="pit:macro-exposure:replacement",
+        covariance_pit_manifest_id="pit:asset-covariance:replacement",
+    )
+    replacement = GovernedOptimizationInputReceipt.record(
+        input_set=replacement_set,
+        server_recorded_at=NOW,
+    )
 
-    with patch.object(runtime.repository, "append_bundle") as append_bundle:
-        with pytest.raises(
-            GovernedOptimizationUnavailable,
-            match="canonical governed input set is unavailable",
-        ):
-            runtime.run.execute(
-                command=_command(_input_set()),
-                run_key="r8-production-unavailable",
+    for second, error, match in (
+        (None, GovernedOptimizationUnavailable, "disappeared"),
+        (replacement, ValueError, "changed"),
+    ):
+        provider = _SequenceInputReceiptProvider((receipt, second))
+        repository = _RunRepository()
+        use_case = RunGovernedOptimizationResearchUseCase(
+            assembler=AssembleGovernedOptimizationProblemUseCase(
+                input_set_provider=provider,
+                promotion_provider=_PromotionProvider(input_set.promotions),
+            ),
+            engine=DeterministicConstrainedSearchAdapter(),
+            repository=repository,
+            input_receipt_provider=provider,
+            promotion_provider=_PromotionProvider(input_set.promotions),
+        )
+
+        with pytest.raises(error, match=match):
+            use_case.execute(
+                command=_command(input_set),
+                run_key="r8-receipt-reread",
                 run_version="v1",
             )
 
-    append_bundle.assert_not_called()
+        assert provider.calls == 2
+        assert repository.bundles == []
+
+
+def test_governed_run_rereads_promotions_after_calculation_and_blocks_retirement() -> None:
+    input_set = _input_set()
+    receipt_provider = _InputSetProvider(input_set)
+    promotion_provider = _RetiringPromotionProvider(input_set.promotions)
+    repository = _RunRepository()
+    use_case = RunGovernedOptimizationResearchUseCase(
+        assembler=AssembleGovernedOptimizationProblemUseCase(
+            input_set_provider=receipt_provider,
+            promotion_provider=promotion_provider,
+        ),
+        engine=DeterministicConstrainedSearchAdapter(),
+        repository=repository,
+        input_receipt_provider=receipt_provider,
+        promotion_provider=promotion_provider,
+    )
+
+    with pytest.raises(ValueError, match="substituted"):
+        use_case.execute(
+            command=_command(input_set),
+            run_key="r8-promotion-retired-between",
+            run_version="v1",
+        )
+
+    assert repository.bundles == []
+
+
+@pytest.mark.django_db
+def test_production_registration_is_id_only_unavailable_and_zero_write() -> None:
+    runtime = make_governed_optimization_research_runtime()
+    facade = runtime.register_input_receipt
+
+    for private_surface in (
+        "repository",
+        "writer",
+        "token",
+        "unit_of_work",
+        "_writer",
+        "_token",
+    ):
+        assert not hasattr(facade, private_surface)
+
+    assert type(facade).__slots__ == ()
+    assert not hasattr(facade, "__dict__")
+    assert facade.execute.__func__.__closure__ is None
+
+    pending: list[object] = [runtime]
+    visited: set[int] = set()
+    runtime_graph: list[object] = []
+    while pending:
+        current = pending.pop()
+        if id(current) in visited:
+            continue
+        visited.add(id(current))
+        runtime_graph.append(current)
+        if isinstance(current, dict):
+            pending.extend(current.keys())
+            pending.extend(current.values())
+            continue
+        if isinstance(current, (list, tuple, set, frozenset)):
+            pending.extend(current)
+            continue
+        state = getattr(current, "__dict__", None)
+        if isinstance(state, dict):
+            pending.extend(state.values())
+        for owner in type(current).__mro__:
+            slot_names = owner.__dict__.get("__slots__", ())
+            if isinstance(slot_names, str):
+                slot_names = (slot_names,)
+            for slot_name in slot_names:
+                if slot_name in {"__dict__", "__weakref__"}:
+                    continue
+                try:
+                    pending.append(object.__getattribute__(current, slot_name))
+                except AttributeError:
+                    continue
+
+    assert not any(
+        isinstance(item, RegisterGovernedOptimizationInputReceiptUseCase) for item in runtime_graph
+    )
+    assert not any(
+        isinstance(item, RunGovernedOptimizationResearchUseCase) for item in runtime_graph
+    )
+    assert type(runtime.run).__slots__ == ()
+    assert not hasattr(runtime.run, "__dict__")
+    assert runtime.run.execute.__func__.__closure__ is None
+
+    with pytest.raises(
+        GovernedOptimizationUnavailable,
+        match="canonical governed optimization input receipt registration is unavailable",
+    ):
+        facade.execute(
+            RegisterGovernedOptimizationInputReceiptCommand(
+                input_set_id="optimizer-input-set:production-missing",
+                input_set_version="governed-optimizer-input-set.v1",
+            )
+        )
+
+    assert GovernedOptimizationInputReceiptModel._default_manager.count() == 0
+    assert GovernedOptimizationResearchResultModel._default_manager.count() == 0
+    assert OptimizationResearchLifecycleEventModel._default_manager.count() == 0
+
+
+@pytest.mark.django_db
+def test_production_registration_revalidates_malformed_command_and_remains_zero_write() -> None:
+    runtime = make_governed_optimization_research_runtime()
+    command = RegisterGovernedOptimizationInputReceiptCommand(
+        input_set_id="optimizer-input-set:mutated",
+        input_set_version="governed-optimizer-input-set.v1",
+    )
+    object.__setattr__(command, "input_set_id", object())
+
+    with pytest.raises(
+        GovernedOptimizationUnavailable,
+        match="registration command is invalid",
+    ):
+        runtime.register_input_receipt.execute(command)
+
+    assert GovernedOptimizationInputReceiptModel._default_manager.count() == 0
+    assert GovernedOptimizationResearchResultModel._default_manager.count() == 0
+    assert OptimizationResearchLifecycleEventModel._default_manager.count() == 0
+
+
+@pytest.mark.django_db
+def test_production_composition_is_constructable_but_unavailable_before_any_write() -> None:
+    runtime = make_governed_optimization_research_runtime()
+
+    assert not hasattr(runtime, "repository")
+    with pytest.raises(
+        GovernedOptimizationUnavailable,
+        match="canonical governed input receipt is unavailable",
+    ):
+        runtime.run.execute(
+            command=_command(_input_set()),
+            run_key="r8-production-unavailable",
+            run_version="v1",
+        )
+
+    with pytest.raises(
+        GovernedOptimizationUnavailable,
+        match="lifecycle owner authorization is unavailable",
+    ):
+        runtime.append_lifecycle.execute(
+            AppendGovernedOptimizationLifecycleEventCommand(
+                result_id="governed_optimization_result:production-missing",
+                event_type=OptimizationLifecycleEventType.RETIRED,
+                authorization_id="portfolio-authorization:production-missing",
+                reason_codes=("owner_retired",),
+            )
+        )
+
+    assert type(runtime.append_lifecycle).__slots__ == ()
+    assert not hasattr(runtime.append_lifecycle, "__dict__")
+    for private_surface in ("repository", "store", "token", "_repository", "_token"):
+        assert not hasattr(runtime.append_lifecycle, private_surface)
+
+    assert GovernedOptimizationInputReceiptModel._default_manager.count() == 0
+    assert GovernedOptimizationResearchResultModel._default_manager.count() == 0
+    assert OptimizationResearchLifecycleEventModel._default_manager.count() == 0
 
 
 def test_nested_market_and_drawdown_rows_cannot_cross_the_pit_cutoff() -> None:

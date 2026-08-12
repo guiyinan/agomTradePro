@@ -156,7 +156,9 @@ def test_cleanup_uses_one_bulk_repository_delete(monkeypatch) -> None:
         lambda: _CleanupRepository(),
     )
 
-    assert cleanup_old_backtests.run(days_old=90) == 12
+    result = cleanup_old_backtests.run(days_old=90)
+    assert result["deleted_count"] == 12
+    assert result["outcome"] == "success"
     assert isinstance(observed["cutoff"], datetime)
     assert observed["cutoff"].tzinfo is not None
 

@@ -106,17 +106,22 @@ def period_calendar() -> R6MonitoringPeriodCalendar:
     )
 
 
-def policy(*, minimum_observation_count: int = 2) -> R6MonitoringPolicy:
+def policy(
+    *,
+    minimum_observation_count: int = 2,
+    maximum_observation_age_seconds: int = 2 * 24 * 60 * 60,
+    qualification_ref: R6QualificationRef = QUALIFICATION_REF,
+) -> R6MonitoringPolicy:
     """Build an exact active monitoring policy."""
 
     monitoring_calendar = period_calendar()
     return R6MonitoringPolicy(
         policy_id="r6-monitoring-policy",
         policy_version="v1",
-        qualification_ref=QUALIFICATION_REF,
+        qualification_ref=qualification_ref,
         thresholds=thresholds(),
         minimum_observation_count=minimum_observation_count,
-        maximum_observation_age_seconds=7 * 24 * 60 * 60,
+        maximum_observation_age_seconds=maximum_observation_age_seconds,
         label_protocol_version="labels-v1",
         expected_label_set_hash=EXPECTED_LABEL_HASH,
         expected_source_owner=EXPECTED_SOURCE_OWNER,
@@ -127,7 +132,8 @@ def policy(*, minimum_observation_count: int = 2) -> R6MonitoringPolicy:
         expected_period_calendar_version=EXPECTED_PERIOD_CALENDAR_VERSION,
         expected_period_calendar_hash=monitoring_calendar.content_hash,
         expected_evidence_ref_prefix=EXPECTED_EVIDENCE_REF_PREFIX,
-        active_from=NOW - timedelta(days=30),
+        recorded_at=NOW - timedelta(days=8),
+        active_from=NOW - timedelta(days=7),
         active_until=NOW + timedelta(days=30),
     )
 
@@ -217,7 +223,7 @@ def observation(
         period_calendar_hash=effective_calendar_hash,
         period_start=effective_period_start,
         period_end=effective_period_end,
-        qualification_ref=QUALIFICATION_REF,
+        qualification_ref=monitoring_policy.qualification_ref,
         policy_id=monitoring_policy.policy_id,
         policy_version=monitoring_policy.policy_version,
         policy_hash=monitoring_policy.content_hash,
@@ -237,11 +243,14 @@ def observation(
     )
 
 
-def active_qualification() -> ActiveR6QualificationEvidence:
+def active_qualification(
+    *,
+    qualification_ref: R6QualificationRef = QUALIFICATION_REF,
+) -> ActiveR6QualificationEvidence:
     """Build a canonical active internal qualification projection."""
 
     return ActiveR6QualificationEvidence(
-        qualification_ref=QUALIFICATION_REF,
+        qualification_ref=qualification_ref,
         candidate_id="r6-candidate",
         candidate_version="v1",
         assessed_at=NOW - timedelta(days=10),

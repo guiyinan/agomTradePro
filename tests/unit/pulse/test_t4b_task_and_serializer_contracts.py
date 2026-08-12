@@ -16,7 +16,12 @@ def test_weekly_pulse_task_reports_success(monkeypatch: pytest.MonkeyPatch) -> N
     )
 
     assert tasks.calculate_weekly_pulse.run() == {
+        "outcome": "success",
         "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": 1,
         "composite_score": 0.375,
     }
 
@@ -29,7 +34,15 @@ def test_weekly_pulse_task_reports_business_failure(
         lambda: SimpleNamespace(execute=lambda: None),
     )
 
-    assert tasks.calculate_weekly_pulse.run() == {"success": False}
+    assert tasks.calculate_weekly_pulse.run() == {
+        "outcome": "blocked",
+        "success": False,
+        "requested": 1,
+        "succeeded": 0,
+        "failed": 0,
+        "stored": 0,
+        "reason": "pulse_evidence_unavailable",
+    }
 
 
 def _snapshot_payload() -> dict[str, object]:

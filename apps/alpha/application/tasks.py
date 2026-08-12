@@ -14,6 +14,7 @@ from typing import Any, Protocol, cast
 
 from django.utils import timezone
 
+from apps.alpha.application import task_outcome_contracts as _outcomes
 from apps.alpha.application.model_evaluation_service import evaluate_model_artifact
 from apps.alpha.application.ops_services import QlibRuntimeDataRefreshService
 from apps.alpha.application.ops_use_cases import collect_portfolio_refs_for_refresh
@@ -345,7 +346,7 @@ def qlib_predict_scores(
                     intended_trade_date,
                     exc,
                 )
-                return fallback_result
+                return _outcomes.completed_task_result(fallback_result)
             raise RuntimeError(runtime_failure_reason) from exc
 
         if latest_qlib_data_date is None or latest_qlib_data_date < trade_date:
@@ -389,7 +390,7 @@ def qlib_predict_scores(
                     intended_trade_date,
                     outdated_reason,
                 )
-                return fallback_result
+                return _outcomes.completed_task_result(fallback_result)
 
         execution_trade_date = trade_date
         execution_metadata: dict[str, object] = {
@@ -438,7 +439,7 @@ def qlib_predict_scores(
                     intended_trade_date,
                     exc,
                 )
-                return fallback_result
+                return _outcomes.completed_task_result(fallback_result)
             raise
 
         if not scores_data:
@@ -462,7 +463,7 @@ def qlib_predict_scores(
                     universe_id,
                     intended_trade_date,
                 )
-                return fallback_result
+                return _outcomes.completed_task_result(fallback_result)
             raise RuntimeError("Qlib 预测未返回任何评分")
 
         # 4. 写入缓存
@@ -486,17 +487,19 @@ def qlib_predict_scores(
             pool_scope.universe_id if pool_scope else universe_id, trade_date, pool_scope
         )
 
-        return {
-            "status": "success",
-            "universe_id": universe_id,
-            "scope_hash": pool_scope.scope_hash if pool_scope else None,
-            "trade_date": intended_trade_date,
-            "cache_created": created,
-            "stock_count": len(scores_data),
-            "model_artifact_hash": active_model.artifact_hash,
-            **execution_metadata,
-            **workspace_refresh_metadata,
-        }
+        return _outcomes.completed_task_result(
+            {
+                "status": "success",
+                "universe_id": universe_id,
+                "scope_hash": pool_scope.scope_hash if pool_scope else None,
+                "trade_date": intended_trade_date,
+                "cache_created": created,
+                "stock_count": len(scores_data),
+                "model_artifact_hash": active_model.artifact_hash,
+                **execution_metadata,
+                **workspace_refresh_metadata,
+            }
+        )
 
     except Exception as exc:
         logger.error(f"Qlib 推理失败: {exc}", exc_info=True)
@@ -652,15 +655,17 @@ def qlib_train_model(
         logger.info(f"  IC: {metrics.get('ic', 'N/A')}")
         logger.info(f"  ICIR: {metrics.get('icir', 'N/A')}")
 
-        return {
-            "status": "success",
-            "model_name": model_name,
-            "model_type": model_type,
-            "artifact_hash": artifact_hash,
-            "activated": activate_after_train,
-            "ic": metrics.get("ic"),
-            "icir": metrics.get("icir"),
-        }
+        return _outcomes.completed_task_result(
+            {
+                "status": "success",
+                "model_name": model_name,
+                "model_type": model_type,
+                "artifact_hash": artifact_hash,
+                "activated": activate_after_train,
+                "ic": metrics.get("ic"),
+                "icir": metrics.get("icir"),
+            }
+        )
 
     except Exception as exc:
         logger.error(f"Qlib 训练失败: {exc}", exc_info=True)
@@ -696,7 +701,7 @@ def qlib_evaluate_model(
             evaluator=evaluate_model_from_cache,
         )
         logger.info("模型评估完成: %s", model_artifact_hash)
-        return result
+        return _outcomes.completed_task_result(result)
     except Exception as exc:
         logger.error("模型评估失败: %s", exc, exc_info=True)
         raise
@@ -733,6 +738,8 @@ def qlib_refresh_cache(
         >>> from apps.alpha.application.tasks import qlib_refresh_cache
         >>> qlib_refresh_cache.delay("csi300", days_back=7)
     """
+    results: list[dict[str, str]] = []
+    attempted_count = 0
     try:
         from datetime import timedelta
 
@@ -741,12 +748,12 @@ def qlib_refresh_cache(
         end_date = date.today()
         start_date = end_date - timedelta(days=days_back)
 
-        results = []
         current_date = start_date
 
         while current_date <= end_date:
             # 触发推理任务（仅工作日）
             if current_date.weekday() < 5:  # 周一到周五
+                attempted_count += 1
                 result = qlib_predict_scores.delay(
                     universe_id,
                     current_date.isoformat(),
@@ -764,11 +771,29 @@ def qlib_refresh_cache(
             "top_n": top_n,
             "tasks_triggered": len(results),
             "tasks": results,
+            **_outcomes.scoped_work_outcome(
+                requested=attempted_count,
+                failed=0,
+                stored=0,
+                no_work=not results,
+            ),
         }
 
     except Exception as exc:
         logger.error(f"刷新缓存失败: {exc}", exc_info=True)
-        return {"status": "error", "error": str(exc)}
+        failed_count = 1
+        requested_count = max(attempted_count, len(results) + failed_count)
+        return {
+            "status": "error",
+            "error": str(exc),
+            "reason": "prediction_queue_failed",
+            **_outcomes.scoped_work_outcome(
+                requested=requested_count,
+                failed=failed_count,
+                stored=0,
+                no_work=not results,
+            ),
+        }
 
 
 @typed_shared_task(
@@ -812,7 +837,26 @@ def qlib_daily_inference(
             }
 
     trade_date = trade_date_obj.isoformat()
-    result = qlib_predict_scores.delay(universe_id, trade_date, top_n)
+    try:
+        result = qlib_predict_scores.delay(universe_id, trade_date, top_n)
+    except Exception as exc:
+        logger.error(
+            "Qlib daily inference queue failed: error_type=%s",
+            exc.__class__.__name__,
+        )
+        return {
+            "status": "error",
+            "reason": "prediction_queue_failed",
+            "universe_id": universe_id,
+            "trade_date": trade_date,
+            "top_n": top_n,
+            "refresh_result": refresh_result,
+            **_outcomes.daily_inference_outcome(
+                refresh_data=refresh_data,
+                refresh_status=refresh_result.get("status"),
+                queue_succeeded=False,
+            ),
+        }
     return {
         "status": "queued",
         "task_id": result.id,
@@ -820,6 +864,11 @@ def qlib_daily_inference(
         "trade_date": trade_date,
         "top_n": top_n,
         "refresh_result": refresh_result,
+        **_outcomes.daily_inference_outcome(
+            refresh_data=refresh_data,
+            refresh_status=refresh_result.get("status"),
+            queue_succeeded=True,
+        ),
     }
 
 
@@ -873,6 +922,7 @@ def qlib_daily_scoped_inference(
             "status": "skipped",
             "reason": "no_active_model",
             "trade_date": target_trade_date.isoformat(),
+            **_outcomes.refresh_summary_outcome(status="blocked", requested=1),
         }
 
     cache_repository = get_alpha_score_cache_repository()
@@ -887,6 +937,7 @@ def qlib_daily_scoped_inference(
     queued: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
     fresh_cache_count = 0
+    failed_count = 0
     for ref in portfolio_refs:
         try:
             resolved = resolver.resolve(
@@ -944,6 +995,7 @@ def qlib_daily_scoped_inference(
                 if normalized
             )
         except Exception as exc:
+            failed_count += 1
             logger.error(
                 "Qlib scoped inference resolve failed: portfolio_id=%s, error=%s",
                 ref.get("portfolio_id"),
@@ -958,6 +1010,7 @@ def qlib_daily_scoped_inference(
             )
 
     refresh_result: dict[str, Any] = {"status": "skipped", "reason": "refresh_disabled"}
+    refresh_requested = bool(refresh_data and scoped_codes and resolved_scopes)
     if refresh_data and scoped_codes and resolved_scopes:
         try:
             refresh_result = _refresh_qlib_runtime_data_for_codes(
@@ -967,6 +1020,7 @@ def qlib_daily_scoped_inference(
                 lookback_days=lookback_days,
             )
         except Exception as exc:
+            failed_count += 1
             logger.error(
                 "Qlib scoped data refresh failed, continue queueing inference: %s",
                 exc,
@@ -997,6 +1051,7 @@ def qlib_daily_scoped_inference(
                 }
             )
         except Exception as exc:
+            failed_count += 1
             logger.error(
                 "Qlib scoped inference queue failed: portfolio_id=%s, error=%s",
                 ref.get("portfolio_id"),
@@ -1018,6 +1073,8 @@ def qlib_daily_scoped_inference(
         elif not resolved_scopes:
             reason = "no_scopes_to_queue"
 
+    requested_count = len(portfolio_refs) + (1 if refresh_requested else 0)
+
     return {
         "status": status,
         "reason": reason,
@@ -1032,6 +1089,13 @@ def qlib_daily_scoped_inference(
         "skipped_count": len(skipped),
         "queued": queued,
         "skipped": skipped,
+        "failed_count": failed_count,
+        **_outcomes.scoped_work_outcome(
+            requested=requested_count,
+            failed=failed_count,
+            stored=len(queued),
+            no_work=not queued,
+        ),
     }
 
 
@@ -1066,15 +1130,33 @@ def qlib_refresh_runtime_data_task(
 ) -> dict[str, Any]:
     """Refresh local qlib data for named universes from the ops page."""
     trade_date = date.fromisoformat(target_date)
-    summary = _refresh_qlib_runtime_data(
-        target_date=trade_date,
-        universes=universes,
-        lookback_days=lookback_days,
-    )
+    try:
+        summary = _refresh_qlib_runtime_data(
+            target_date=trade_date,
+            universes=universes,
+            lookback_days=lookback_days,
+        )
+    except Exception as exc:
+        logger.error(
+            "Qlib universe refresh failed: error_type=%s",
+            exc.__class__.__name__,
+        )
+        return {
+            "mode": "universes",
+            **_outcomes.failed_task_result(reason="runtime_data_refresh_failed"),
+        }
+    summary_status = str(summary.get("status") or "failed")
+    raw_count = summary.get("universe_count", 1)
+    unit_count = raw_count if type(raw_count) is int and raw_count > 0 else 1
     return {
-        "status": "success" if summary.get("status") == "success" else summary.get("status"),
+        "status": summary_status,
         "mode": "universes",
         "summary": summary,
+        **_outcomes.refresh_summary_outcome(
+            status=summary_status,
+            requested=unit_count,
+            stored=unit_count,
+        ),
     }
 
 
@@ -1103,6 +1185,7 @@ def qlib_refresh_runtime_data_for_codes_task(
     skipped: list[dict[str, Any]] = []
     requested_portfolio_set = set(requested_portfolio_ids)
     seen_portfolio_ids: set[int] = set()
+    failed_count = 0
 
     for ref in portfolio_refs:
         portfolio_id = int(ref["portfolio_id"])
@@ -1130,10 +1213,12 @@ def qlib_refresh_runtime_data_for_codes_task(
                 }
             )
         except Exception as exc:
+            failed_count += 1
             skipped.append({"portfolio_id": portfolio_id, "reason": str(exc)})
 
     if not all_active_portfolios:
         missing_portfolio_ids = sorted(requested_portfolio_set - seen_portfolio_ids)
+        failed_count += len(missing_portfolio_ids)
         skipped.extend(
             {
                 "portfolio_id": portfolio_id,
@@ -1142,14 +1227,45 @@ def qlib_refresh_runtime_data_for_codes_task(
             for portfolio_id in missing_portfolio_ids
         )
 
-    summary = _refresh_qlib_runtime_data_for_codes(
-        target_date=trade_date,
-        stock_codes=scoped_codes,
-        universe_id="scoped_portfolios",
-        lookback_days=lookback_days,
+    requested_count = (
+        len(requested_portfolio_set) if not all_active_portfolios else len(portfolio_refs)
+    )
+    try:
+        summary = _refresh_qlib_runtime_data_for_codes(
+            target_date=trade_date,
+            stock_codes=scoped_codes,
+            universe_id="scoped_portfolios",
+            lookback_days=lookback_days,
+        )
+    except Exception as exc:
+        logger.error(
+            "Qlib scoped runtime refresh failed: error_type=%s",
+            exc.__class__.__name__,
+        )
+        return {
+            "mode": "scoped_codes",
+            "portfolio_count": len(resolved_scopes),
+            "pool_mode": pool_mode,
+            "summary": {
+                "status": "failed",
+                "reason": "runtime_data_refresh_failed",
+                "requested_portfolio_ids": requested_portfolio_ids,
+                "all_active_portfolios": all_active_portfolios,
+                "resolved_scopes": resolved_scopes,
+                "skipped": skipped,
+            },
+            **_outcomes.failed_task_result(
+                reason="runtime_data_refresh_failed",
+                requested=max(requested_count, 1),
+            ),
+        }
+    summary_status = str(summary.get("status") or "failed")
+    raw_stored_count = summary.get("stock_count", 0)
+    stored_count = (
+        raw_stored_count if type(raw_stored_count) is int and raw_stored_count >= 0 else 0
     )
     return {
-        "status": "success" if summary.get("status") == "success" else summary.get("status"),
+        "status": summary_status,
         "mode": "scoped_codes",
         "portfolio_count": len(resolved_scopes),
         "pool_mode": pool_mode,
@@ -1160,6 +1276,13 @@ def qlib_refresh_runtime_data_for_codes_task(
             "resolved_scopes": resolved_scopes,
             "skipped": skipped,
         },
+        **_outcomes.refresh_summary_outcome(
+            status=summary_status,
+            requested=requested_count,
+            failed=failed_count,
+            stored=stored_count,
+            no_work=not resolved_scopes,
+        ),
     }
 
 

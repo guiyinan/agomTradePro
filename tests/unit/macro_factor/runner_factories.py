@@ -22,11 +22,14 @@ from apps.macro_factor.domain.reproducible_runner import (
     ExternalProxyCoefficient,
     FixedFMPDefinition,
     FixedFMPWeight,
+    InferenceTargetCalendarPeriod,
     InnerTemporalFoldPlan,
+    InputKnowledgeFreshnessPolicy,
     MacroFactorRunnerSpec,
     NestedTemporalCVPlan,
     OptimizationDirection,
     OuterTemporalFoldPlan,
+    PITInferenceRow,
     PITResearchDataset,
     PITResearchRow,
     ProxyObservation,
@@ -71,9 +74,35 @@ def _row(index: int, observed_on: date) -> PITResearchRow:
     )
 
 
+def inference_target_period() -> InferenceTargetCalendarPeriod:
+    """Return the exact preregistered forward calendar period for this run."""
+
+    member = complete_manifest().inference_periods[0]
+    return InferenceTargetCalendarPeriod.create(
+        calendar_id=member.calendar_id,
+        period_id=member.period_id,
+        calendar_version=member.calendar_version,
+        calendar_hash=member.calendar_hash,
+        period_start=member.period_start,
+        period_end=member.period_end,
+    )
+
+
+def input_knowledge_freshness_policy() -> InputKnowledgeFreshnessPolicy:
+    """Return the preregistered maximum ages for the synthetic PIT inputs."""
+
+    return InputKnowledgeFreshnessPolicy.create(
+        policy_version="macro-factor-input-freshness-v1",
+        max_manifest_age_seconds=30 * 24 * 60 * 60,
+        max_inference_age_seconds=30 * 24 * 60 * 60,
+        maximum_allowed_age_seconds=90 * 24 * 60 * 60,
+    )
+
+
 def runner_dataset() -> PITResearchDataset:
     """Return sparse, invented in-memory rows that are never persisted as facts."""
 
+    manifest = complete_manifest()
     observations = (
         date(2015, 1, 1),
         date(2016, 1, 1),
@@ -83,13 +112,26 @@ def runner_dataset() -> PITResearchDataset:
         date(2020, 1, 6),
         date(2021, 1, 6),
     )
+    etf_fact = manifest.slices[1].selected_versions[-1]
+    future_fact = manifest.slices[2].selected_versions[-1]
     return PITResearchDataset(
         manifest_id="pit-r3-growth-v1",
         manifest_hash="a" * 64,
+        manifest_content_hash=manifest.content_hash,
         manifest_as_of=datetime(2026, 6, 30, 16, tzinfo=UTC),
         target_code="growth_nowcast_1m",
         candidate_asset_codes=("ETF_CREDIT", "FUTURE_COPPER"),
         rows=tuple(_row(index, observed_on) for index, observed_on in enumerate(observations, 1)),
+        inference_row=PITInferenceRow(
+            row_id="pit-inference-2026-06-30",
+            observation_date=date(2026, 6, 30),
+            available_at=max(etf_fact.available_at, future_fact.available_at),
+            target_period=inference_target_period(),
+            proxies=(
+                ProxyObservation("ETF_CREDIT", Decimal("0.7"), etf_fact),
+                ProxyObservation("FUTURE_COPPER", Decimal("0.35"), future_fact),
+            ),
+        ),
     )
 
 
@@ -172,7 +214,10 @@ def runner_spec() -> MacroFactorRunnerSpec:
         run_key="growth-fmp-research",
         run_version=1,
         factor_version="macro-growth-v1",
+        expected_manifest_content_hash=complete_manifest().content_hash,
         target=complete_result().target,
+        inference_target_period=inference_target_period(),
+        input_knowledge_freshness_policy=input_knowledge_freshness_policy(),
         candidates=complete_result().candidates,
         plan=runner_plan(),
         temporal_split=complete_result().split,
@@ -206,6 +251,7 @@ def runner_spec() -> MacroFactorRunnerSpec:
             parameter_hash="c" * 64,
         ),
         random_seed=1729,
+        registered_at=datetime(2014, 12, 31, tzinfo=UTC),
         calculated_at=datetime(2026, 7, 2, 10, tzinfo=UTC),
     )
 

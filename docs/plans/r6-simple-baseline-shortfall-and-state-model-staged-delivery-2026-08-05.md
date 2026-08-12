@@ -1,6 +1,6 @@
 # R6 简单基准不足证据与高级状态模型分阶段计划（2026-08-05）
 
-> 状态：S0/S2、qualification evidence/persistence/lifecycle 与 monitoring Phase A 纯合同已实现；真实 S1、monitoring 持久化/owner 接线、真实监控事实和 approved Promotion 仍 `blocked`
+> 状态：S0/S2、qualification evidence/persistence/lifecycle、monitoring Phase A+B 与 activation Phase A+B 已实现；真实 S1、canonical owner 接线、真实监控事实和 approved Promotion 仍 `blocked`
 > 来源：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md) R6
 > 边界：不在仓库内训练 Markov/HMM/贝叶斯/政策反应模型；只验证外部 artifact、状态概率/转移/OOS/政策目标证据，且永不替换现有 Regime/Pulse。
 
@@ -64,7 +64,15 @@ S1 通过后另建计划与分支：
 
 2026-08-09 monitoring Phase A：新增纯 Domain/Application 监控合同。版本化 policy 必须显式注入 transition accuracy、log loss、calibration error、duration MAE、decision loss、label stability 及政策反应 adjusted R²、残差自相关、异方差、参数稳定性和 condition number 的全部单位、方向、阈值与连续 breach 次数；不存在代码默认。11 类 raw metric 按数学语义拒绝越界值（比例/p-value `[0,1]`，loss/error/MAE 非负，adjusted R² 不得大于 1，condition number 不得小于 1）。Policy 另精确绑定 owner-recorded period calendar manifest 的 owner/ID/version/content hash；manifest 封存全部 canonical start/end/period ID 成员并现场重算 seal。Raw observation 封存 `period_start/period_end`，要求 `start < end` 且 `observed_at` 落在半开窗口内；评估除拒绝重复/重叠窗口外，还要求每个窗口逐值命中 exact manifest member，因此自行派生两个相邻 1µs 窗口也会 blocked。Application 命令只接受 qualification ref、policy ID/version、expected policy hash 与 as-of，通过 Protocol 精确重读 active qualification、policy、period calendar 和 raw facts 后现场复算；calendar 缺失、同 ID/version 替换、未来记录或私有篡改均 fail closed。Domain 重算全部 content seal，并把 policy 约束的 source owner、PIT manifest ID/hash、period calendar 与 evidence namespace 逐项绑定；metrics 作为语义集合按 metric key canonical 封存。输出仅为 `healthy / breached / retirement_review_required / blocked`，连续 breach 或 label drift 只能请求人工退役复核，固定禁止自动 RETIRE、Regime replacement、current、decision 和 execution。Phase A targeted unit 回归 `46 passed`。
 
-下一项无数据 P1 是 Research-owned monitoring observation/assessment append-only ledger、strict codec、server-clock/shared-UoW/private mutation guards、exact PIT query 与 canonical owner adapters；在该阶段落地和真实 owner facts 到位前，不得把 Phase A 对象当作持久或生产监控证据。现有 PROMOTE/RETIRE lifecycle 只管理内部 qualification 档案，所有 consumer 必须稳定 blocked；真正模型 activation 与 `stack[-2]` rollback 另建阶段，不在本批扩展。
+2026-08-09 monitoring Phase B：Research `0011` 已建立 observation/assessment 两张 schema-only append-only ledger，无 seed/backfill。ID-only registration 在同一 UoW 精确重读 active qualification、policy、完整连续 period calendar 与 raw facts并现场复算；owner `recorded_at` 与 server-clock `ledger_recorded_at` 分离，后者进入 row-header seal与 PIT/cursor replay。Strict codec、first-winner/fork/rollback、future cutoff、raw header/clock tamper及常规 ORM/Collector mutation均 fail closed；Domain/Application/codec/repository 合并 targeted `81 passed`，最终 malformed owner hash 补强后相关组合 `73 passed`，独立复核 P0/P1/P2 为 0。
+
+2026-08-09 activation Phase A：新增与 qualification lifecycle 分离的纯 Domain/Application activation stream。ACTIVATE 必须动态重读 exact qualification、健康且新鲜的 monitoring、approved Promotion 和 owner authorization；Authorization 封存 exact previous-event hash，签发/记录时点严格晚于当前 head。Existing winner 只有在完整 canonical prefix 重放、前驱和授权全部一致时才可幂等返回；RETIRE 清空当前栈，ROLLBACK 只能回到 `stack[-2]`。构造后 UoW identity 漂移、orphan/fork/future winner、projection 自证和 owner 异常均 fail closed。该阶段无 ORM/migration/composition/consumer，固定禁止替换 Regime、发布 current、产生决策或执行。
+
+2026-08-09 activation Phase B：Research `0012` 新增 authorization、event、stream commit anchor 与 immutable audit snapshot 四张 schema-only ledger，零 seed/backfill。Strict codec 现场重放完整 stream、双时钟单调、authorization↔event↔commit 三方集合/row seal、projection content seal 与 exact `stack[-2]`；写入使用追加阶段 trusted server clock 作为 knowledge cutoff，scope identity 与 scope hash 分别建立 sequence 唯一约束。审计分页使用签名 cursor 与物化 snapshot，首屏后 backdated append 不进入后页；单侧 orphan、成对尾删、缺失 commit、FK alias、header/payload、私有 ORM/Collector、race/fork/rollback 与 limit 类型绕过均 fail closed。Production mutation/audit façade保持无状态 inert，公开对象图不持有 store/token；仅 exact read 使用只读 repository。Targeted unit/component/migration-contract `42 passed`，独立空 SQLite 实迁移成功且四表 `0/0/0/0`；真实 PostgreSQL 并发、DB 权限/外部签名锚仍是上线前纵深。
+
+2026-08-10 monitoring production authority 收口：公开 builder 只接受数据库别名，register与audit façade均为无状态 unavailable对象，不再允许caller注入qualification/policy/calendar/raw-fact provider或clock；成功写链和live-ledger audit只存在于非导出的test factory。Exact read repository仅保存数据库别名，既无store/token/clock，也不能激活写UoW；公开runtime对象图不再递归暴露写能力。最终repository回归`12 passed`，增量mypy、Ruff/Black/isort、Django model check、architecture与governance均通过；真实canonical owner adapters、Promotion/authorization与monitoring facts仍缺，R6保持`blocked`。
+
+下一项依赖是 canonical qualification/monitoring/Promotion/authorization owner adapters 与真实证据，随后才能做 consumer/current 激活验收；在这些证据缺失时生产 mutation 保持 unavailable，不接 Regime、决策或执行。
 
 ## 5. 非目标
 

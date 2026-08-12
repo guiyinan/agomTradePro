@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from datetime import datetime
 
 from django.db import IntegrityError, transaction
 from django.db.models import Q
+from django.utils import timezone
 
 from apps.equity.application.forecast_baseline_evaluation import (
     forecast_baseline_trial_parameter_hash,
@@ -55,6 +57,17 @@ def _require_aware(value: datetime, field_name: str) -> None:
 
 class DjangoForecastBaselineRepository:
     """Persist and exactly restore owner approval plus Domain baseline records."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the canonical database identity for authoritative evaluation."""
+
+        return "django:default"
+
+    def atomic(self) -> AbstractContextManager[None]:
+        """Open the shared transaction used by exact owner reads and trial append."""
+
+        return transaction.atomic()
 
     @transaction.atomic
     def append_approval(
@@ -847,4 +860,89 @@ class DjangoForecastBaselineRepository:
             )
 
 
-__all__ = ["DjangoForecastBaselineRepository"]
+class DjangoForecastBaselineEvaluationClock:
+    """Django-backed trusted clock for R1 trial evaluation."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the canonical database identity used by the repository."""
+
+        return "django:default"
+
+    def now(self) -> datetime:
+        """Return one timezone-aware server evaluation timestamp."""
+
+        return timezone.now()
+
+
+class DjangoForecastBaselineEvaluationReadRepository:
+    """Read-only spec/artifact UoW for the production preflight surface."""
+
+    __slots__ = ("_using",)
+
+    def __init__(self, *, using: str = "default") -> None:
+        if type(using) is not str or not using.strip() or len(using) > 192:
+            raise ValueError("forecast baseline read database alias is invalid")
+        self._using = using
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact shared database identity."""
+
+        return f"django:{self._using}"
+
+    def atomic(self) -> AbstractContextManager[None]:
+        """Open one shared transaction without retaining a write capability."""
+
+        return transaction.atomic(using=self._using)
+
+    def server_now(self) -> datetime:
+        """Return the trusted server clock used by the read-only preflight."""
+
+        return timezone.now()
+
+    def get_spec(self, spec_ref: VersionRef) -> ForecastBaselineSpec | None:
+        """Restore one exact immutable spec through its full approval ancestry."""
+
+        if type(spec_ref) is not VersionRef:
+            raise ForecastBaselineEvidenceError("baseline spec reference type differs")
+        VersionRef.__post_init__(spec_ref)
+        model = (
+            ForecastBaselineSpecModel._default_manager.using(self._using)
+            .select_related("approval")
+            .filter(
+                spec_id=spec_ref.stable_id,
+                spec_version=spec_ref.version,
+            )
+            .first()
+        )
+        return None if model is None else DjangoForecastBaselineRepository._spec_from_model(model)
+
+    def get_artifact(
+        self,
+        artifact_ref: VersionRef,
+    ) -> ForecastBaselineArtifact | None:
+        """Restore one exact immutable artifact through its full spec ancestry."""
+
+        if type(artifact_ref) is not VersionRef:
+            raise ForecastBaselineEvidenceError("baseline artifact reference type differs")
+        VersionRef.__post_init__(artifact_ref)
+        model = (
+            ForecastBaselineArtifactModel._default_manager.using(self._using)
+            .select_related("spec", "spec__approval")
+            .filter(
+                artifact_id=artifact_ref.stable_id,
+                artifact_version=artifact_ref.version,
+            )
+            .first()
+        )
+        return (
+            None if model is None else DjangoForecastBaselineRepository._artifact_from_model(model)
+        )
+
+
+__all__ = [
+    "DjangoForecastBaselineEvaluationClock",
+    "DjangoForecastBaselineEvaluationReadRepository",
+    "DjangoForecastBaselineRepository",
+]

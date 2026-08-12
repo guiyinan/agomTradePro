@@ -14,10 +14,22 @@ from django.db import models
 from apps.signal.domain.entities import InvestmentSignal, SignalStatus
 from apps.signal.domain.invalidation import InvalidationRule
 
+from .forecast_calibration_sample_models import (  # noqa: F401
+    ForecastCalibrationExpectedMemberModel,
+    ForecastCalibrationSampleDefinitionModel,
+    ForecastCalibrationSampleMemberReceiptModel,
+    ForecastCalibrationSampleReceiptModel,
+)
 from .forecast_models import (  # noqa: F401
     ForecastEvaluation,
     ForecastLedgerEntry,
     ForecastOutcome,
+)
+from .forecast_realization_models import (  # noqa: F401
+    ForecastRealizationManifestModel,
+    ForecastRealizationReceiptModel,
+    ForecastRealizationSourceDefinitionMemberModel,
+    ForecastRealizationSourceDefinitionModel,
 )
 
 

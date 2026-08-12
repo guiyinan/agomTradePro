@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import logging
+from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Protocol
 
@@ -30,7 +31,7 @@ from apps.macro_factor.domain.reproducible_runner import (
 logger = logging.getLogger(__name__)
 
 
-class MacroFactorRunnerStatus(str, Enum):
+class MacroFactorRunnerStatus(str, Enum):  # noqa: UP042 -- preserve legacy string semantics
     """Research-only orchestration outcome."""
 
     RECORDED = "recorded"
@@ -38,7 +39,7 @@ class MacroFactorRunnerStatus(str, Enum):
     BLOCKED = "blocked"
 
 
-class MacroFactorRunnerBlockerCode(str, Enum):
+class MacroFactorRunnerBlockerCode(str, Enum):  # noqa: UP042 -- preserve legacy string semantics
     """Stable fail-closed reasons for runner and lifecycle orchestration."""
 
     PIT_MANIFEST_MISSING = "pit_manifest_missing"
@@ -59,6 +60,18 @@ class MacroFactorRunnerManifestProvider(Protocol):
         """Return exact immutable PIT evidence or ``None``."""
 
 
+class MacroFactorRunnerSpecProvider(Protocol):
+    """Read one preregistered runner specification by owner identity."""
+
+    def get_spec(
+        self,
+        *,
+        spec_id: str,
+        spec_version: int,
+    ) -> MacroFactorRunnerSpec | None:
+        """Return the exact authoritative spec body or ``None``."""
+
+
 class MacroFactorRunnerDatasetProvider(Protocol):
     """Build in-memory design rows from a manifest-bound Data Center view."""
 
@@ -71,6 +84,20 @@ class MacroFactorRunnerDatasetProvider(Protocol):
         candidate_asset_codes: tuple[str, ...],
     ) -> PITResearchDataset | None:
         """Return rows without persisting a second fact source."""
+
+
+class MacroFactorRunnerClock(Protocol):
+    """Trusted Application clock used to reject future run evidence."""
+
+    def now(self) -> datetime:
+        """Return one timezone-aware server time."""
+
+
+class _SystemMacroFactorRunnerClock:
+    """Default server clock for production composition."""
+
+    def now(self) -> datetime:
+        return datetime.now(UTC)
 
 
 class TypedExternalMacroFactorRunner(Protocol):
@@ -116,17 +143,68 @@ class MacroFactorRunLedgerRepository(Protocol):
 
 @dataclass(frozen=True)
 class RunReproducibleMacroFactorCommand:
-    """Exact runner spec and expected canonical manifest identity."""
+    """Identity-only selector for authoritative runner and PIT contracts."""
 
-    spec: MacroFactorRunnerSpec
+    expected_spec_id: str
+    expected_spec_version: int
+    expected_spec_hash: str
     expected_manifest_id: str
     expected_manifest_hash: str
+    expected_manifest_content_hash: str
+    expected_input_freshness_policy_version: str
+    expected_input_freshness_policy_hash: str
+    expected_max_manifest_age_seconds: int
+    expected_max_inference_age_seconds: int
+    expected_maximum_allowed_age_seconds: int
 
     def __post_init__(self) -> None:
-        if not self.expected_manifest_id.strip():
+        if not isinstance(self.expected_spec_id, str) or not self.expected_spec_id.strip():
+            raise ValueError("expected_spec_id cannot be blank")
+        if type(self.expected_spec_version) is not int or self.expected_spec_version <= 0:
+            raise ValueError("expected_spec_version must be a positive integer")
+        if not isinstance(self.expected_manifest_id, str) or not self.expected_manifest_id.strip():
             raise ValueError("expected_manifest_id cannot be blank")
-        if len(self.expected_manifest_hash) != 64:
+        if (
+            not isinstance(self.expected_manifest_hash, str)
+            or len(self.expected_manifest_hash) != 64
+            or any(
+                character not in "0123456789abcdefABCDEF"
+                for character in self.expected_manifest_hash
+            )
+        ):
             raise ValueError("expected_manifest_hash must be a sha256 digest")
+        for digest, name in (
+            (self.expected_spec_hash, "expected_spec_hash"),
+            (self.expected_manifest_content_hash, "expected_manifest_content_hash"),
+            (
+                self.expected_input_freshness_policy_hash,
+                "expected_input_freshness_policy_hash",
+            ),
+        ):
+            if (
+                not isinstance(digest, str)
+                or len(digest) != 64
+                or any(character not in "0123456789abcdefABCDEF" for character in digest)
+            ):
+                raise ValueError(f"{name} must be a sha256 digest")
+        if (
+            not isinstance(self.expected_input_freshness_policy_version, str)
+            or not self.expected_input_freshness_policy_version.strip()
+        ):
+            raise ValueError("expected_input_freshness_policy_version cannot be blank")
+        for age_seconds, name in (
+            (self.expected_max_manifest_age_seconds, "expected_max_manifest_age_seconds"),
+            (
+                self.expected_max_inference_age_seconds,
+                "expected_max_inference_age_seconds",
+            ),
+            (
+                self.expected_maximum_allowed_age_seconds,
+                "expected_maximum_allowed_age_seconds",
+            ),
+        ):
+            if type(age_seconds) is not int or age_seconds <= 0:
+                raise ValueError(f"{name} must be a positive integer")
 
 
 @dataclass(frozen=True)
@@ -170,15 +248,19 @@ class RunReproducibleMacroFactor:
     def __init__(
         self,
         *,
+        spec_provider: MacroFactorRunnerSpecProvider,
         manifest_provider: MacroFactorRunnerManifestProvider,
         dataset_provider: MacroFactorRunnerDatasetProvider,
         external_runner: TypedExternalMacroFactorRunner,
         repository: MacroFactorRunLedgerRepository,
+        clock: MacroFactorRunnerClock | None = None,
     ) -> None:
+        self._spec_provider = spec_provider
         self._manifest_provider = manifest_provider
         self._dataset_provider = dataset_provider
         self._external_runner = external_runner
         self._repository = repository
+        self._clock = clock or _SystemMacroFactorRunnerClock()
 
     def execute(
         self,
@@ -186,43 +268,165 @@ class RunReproducibleMacroFactor:
     ) -> MacroFactorRunnerAssessment:
         """Fail closed before persistence on every absent or inconsistent input."""
 
-        manifest = self._manifest_provider.get_manifest(command.expected_manifest_id)
-        if manifest is None:
+        try:
+            command.__post_init__()
+            trusted_now = self._clock.now()
+            if (
+                not isinstance(trusted_now, datetime)
+                or trusted_now.tzinfo is None
+                or trusted_now.utcoffset() is None
+            ):
+                raise ValueError("macro-factor trusted clock must be timezone-aware")
+        except Exception:
+            logger.exception("macro-factor trusted run input validation failed")
+            return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
+        try:
+            spec_value = self._spec_provider.get_spec(
+                spec_id=command.expected_spec_id,
+                spec_version=command.expected_spec_version,
+            )
+        except Exception:
+            logger.exception("macro-factor runner spec provider failed")
+            return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
+        if spec_value is None or type(spec_value) is not MacroFactorRunnerSpec:
+            return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
+        try:
+            spec = deepcopy(spec_value).validated_copy()
+            freshness = spec.input_knowledge_freshness_policy.validated_copy()
+            if (
+                spec.run_key != command.expected_spec_id
+                or spec.run_version != command.expected_spec_version
+                or spec.content_hash.lower() != command.expected_spec_hash.lower()
+            ):
+                raise ValueError("authoritative runner spec identity was replaced")
+            if (
+                spec.expected_manifest_content_hash.lower()
+                != command.expected_manifest_content_hash.lower()
+            ):
+                raise ValueError("command manifest content seal does not match runner spec")
+            if (
+                freshness.policy_version != command.expected_input_freshness_policy_version
+                or freshness.content_hash.lower()
+                != command.expected_input_freshness_policy_hash.lower()
+                or freshness.max_manifest_age_seconds != command.expected_max_manifest_age_seconds
+                or freshness.max_inference_age_seconds != command.expected_max_inference_age_seconds
+                or freshness.maximum_allowed_age_seconds
+                != command.expected_maximum_allowed_age_seconds
+            ):
+                raise ValueError("command freshness policy does not match runner spec")
+            if spec.registered_at > trusted_now or spec.calculated_at > trusted_now:
+                raise ValueError("macro-factor runner spec cannot be from the future")
+        except Exception:
+            logger.exception("macro-factor authoritative runner spec validation failed")
+            return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
+        try:
+            manifest_value = self._manifest_provider.get_manifest(command.expected_manifest_id)
+        except Exception:
+            logger.exception("macro-factor PIT manifest provider failed")
+            return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
+        if manifest_value is None:
             return _blocked(MacroFactorRunnerBlockerCode.PIT_MANIFEST_MISSING)
+        if not isinstance(manifest_value, PITManifestEvidence):
+            return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
+        try:
+            manifest = deepcopy(manifest_value).validated_copy()
+        except Exception:
+            logger.exception("macro-factor PIT manifest projection is invalid")
+            return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
         if (
             manifest.manifest_id != command.expected_manifest_id
             or manifest.manifest_hash.lower() != command.expected_manifest_hash.lower()
+            or manifest.content_hash.lower() != command.expected_manifest_content_hash.lower()
         ):
             return _blocked(MacroFactorRunnerBlockerCode.PIT_MANIFEST_MISMATCH)
         if not manifest.is_complete:
             return _blocked(MacroFactorRunnerBlockerCode.PIT_MANIFEST_UNVERIFIED)
-        candidate_codes = tuple(item.asset_code for item in command.spec.candidates)
-        dataset = self._dataset_provider.get_dataset(
-            manifest_id=manifest.manifest_id,
-            manifest_hash=manifest.manifest_hash,
-            target_code=command.spec.target.target_code,
-            candidate_asset_codes=candidate_codes,
-        )
-        if dataset is None:
-            return _blocked(MacroFactorRunnerBlockerCode.PIT_DATASET_MISSING)
+        if manifest.as_of_time > trusted_now:
+            return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
+        candidate_codes = tuple(item.asset_code for item in spec.candidates)
         try:
-            request = build_execution_request(command.spec, dataset, manifest)
-        except ValueError:
+            dataset_value = self._dataset_provider.get_dataset(
+                manifest_id=manifest.manifest_id,
+                manifest_hash=manifest.manifest_hash,
+                target_code=spec.target.target_code,
+                candidate_asset_codes=candidate_codes,
+            )
+        except Exception:
+            logger.exception("macro-factor PIT dataset provider failed")
+            return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
+        if dataset_value is None:
+            return _blocked(MacroFactorRunnerBlockerCode.PIT_DATASET_MISSING)
+        if not isinstance(dataset_value, PITResearchDataset):
             return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
         try:
+            dataset = deepcopy(dataset_value).validated_copy()
+            if dataset.manifest_as_of > trusted_now:
+                raise ValueError("macro-factor PIT dataset cannot be from the future")
+            request = build_execution_request(spec, dataset, manifest)
+        except Exception:
+            logger.exception("macro-factor runner inputs failed live validation")
+            return _blocked(MacroFactorRunnerBlockerCode.RUN_INPUT_INVALID)
+        baseline_request_hash = request.content_hash
+        baseline_spec_hash = spec.content_hash
+        baseline_dataset_hash = dataset.content_hash
+        baseline_manifest_content_hash = manifest.content_hash
+        baseline_freshness_hash = spec.input_knowledge_freshness_policy.content_hash
+        runner_spec = deepcopy(spec).validated_copy()
+        runner_dataset = deepcopy(dataset).validated_copy()
+        runner_manifest = deepcopy(manifest).validated_copy()
+        runner_request = build_execution_request(runner_spec, runner_dataset, runner_manifest)
+        runner_spec_snapshot = deepcopy(runner_spec)
+        runner_dataset_snapshot = deepcopy(runner_dataset)
+        runner_request_snapshot = deepcopy(runner_request)
+        try:
             external = self._external_runner.execute(
-                request=request,
-                dataset=dataset,
-                spec=command.spec,
+                request=runner_request,
+                dataset=runner_dataset,
+                spec=runner_spec,
             )
         except Exception:
             logger.exception("macro-factor external runner boundary failed")
             return _blocked(MacroFactorRunnerBlockerCode.EXTERNAL_RUNNER_UNAVAILABLE)
+        try:
+            revalidated_spec = deepcopy(spec).validated_copy()
+            revalidated_dataset = deepcopy(dataset).validated_copy()
+            revalidated_manifest = deepcopy(manifest).validated_copy()
+            revalidated_request = build_execution_request(
+                revalidated_spec,
+                revalidated_dataset,
+                revalidated_manifest,
+            )
+            rebuilt_runner_request = build_execution_request(
+                runner_spec,
+                runner_dataset,
+                runner_manifest,
+            )
+            if (
+                revalidated_request.content_hash != baseline_request_hash
+                or revalidated_spec.content_hash != baseline_spec_hash
+                or revalidated_dataset.content_hash != baseline_dataset_hash
+                or revalidated_manifest.content_hash != baseline_manifest_content_hash
+                or revalidated_spec.input_knowledge_freshness_policy.content_hash
+                != baseline_freshness_hash
+                or runner_spec != runner_spec_snapshot
+                or runner_dataset != runner_dataset_snapshot
+                or runner_request != runner_request_snapshot
+                or runner_request.content_hash != baseline_request_hash
+                or runner_spec.content_hash != baseline_spec_hash
+                or rebuilt_runner_request.content_hash != baseline_request_hash
+            ):
+                raise ValueError("external runner input graph changed during execution")
+        except Exception:
+            logger.exception("macro-factor external runner input isolation failed")
+            return _blocked(MacroFactorRunnerBlockerCode.EXTERNAL_ARTIFACT_INVALID)
         if external is None:
             return _blocked(MacroFactorRunnerBlockerCode.EXTERNAL_RUNNER_UNAVAILABLE)
+        if not isinstance(external, ExternalNestedCVArtifact):
+            return _blocked(MacroFactorRunnerBlockerCode.EXTERNAL_ARTIFACT_INVALID)
         try:
-            bundle = build_reproducible_run(command.spec, dataset, manifest, external)
-        except ValueError:
+            bundle = build_reproducible_run(spec, dataset, manifest, external)
+        except Exception:
+            logger.exception("macro-factor external artifact validation failed")
             return _blocked(MacroFactorRunnerBlockerCode.EXTERNAL_ARTIFACT_INVALID)
         stored = self._repository.append_bundle(bundle)
         return MacroFactorRunnerAssessment(
@@ -295,8 +499,10 @@ __all__ = [
     "MacroFactorRunLedgerRepository",
     "MacroFactorRunnerAssessment",
     "MacroFactorRunnerBlockerCode",
+    "MacroFactorRunnerClock",
     "MacroFactorRunnerDatasetProvider",
     "MacroFactorRunnerManifestProvider",
+    "MacroFactorRunnerSpecProvider",
     "MacroFactorRunnerStatus",
     "RetireReproducibleMacroFactorRun",
     "RetireReproducibleMacroFactorRunCommand",

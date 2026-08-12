@@ -27,6 +27,13 @@ def test_signal_tasks_check_cleanup_and_daily_summary(monkeypatch) -> None:
     )
     checked = tasks.check_all_signal_invalidations.run()
     assert checked["checked"] == 3
+    assert checked["outcome"] == "partial"
+    assert (checked["requested"], checked["succeeded"], checked["failed"], checked["stored"]) == (
+        3,
+        2,
+        1,
+        2,
+    )
 
     check_result = SimpleNamespace(is_invalidated=True, reason="threshold breached")
     monkeypatch.setattr(
@@ -45,7 +52,22 @@ def test_signal_tasks_check_cleanup_and_daily_summary(monkeypatch) -> None:
     monkeypatch.setattr(tasks, "get_signal_repository", lambda: repo)
     single = tasks.check_single_signal_invalidation.run(7)
     assert single["is_invalidated"] is True
-    assert tasks.cleanup_old_invalidated_signals.run(30)["signal_ids"] == [7, 8]
+    assert single["outcome"] == "success"
+    assert (single["requested"], single["succeeded"], single["failed"], single["stored"]) == (
+        1,
+        1,
+        0,
+        1,
+    )
+    cleanup = tasks.cleanup_old_invalidated_signals.run(30)
+    assert cleanup["signal_ids"] == [7, 8]
+    assert cleanup["outcome"] == "blocked"
+    assert (cleanup["requested"], cleanup["succeeded"], cleanup["failed"], cleanup["stored"]) == (
+        2,
+        0,
+        0,
+        0,
+    )
 
     sent: list[dict[str, object]] = []
     monkeypatch.setattr(
@@ -56,6 +78,13 @@ def test_signal_tasks_check_cleanup_and_daily_summary(monkeypatch) -> None:
     summary = tasks.send_daily_signal_summary.run()
     assert summary["new_signals"] == 1
     assert summary["invalidated_signals"] == 1
+    assert summary["outcome"] == "success"
+    assert (summary["requested"], summary["succeeded"], summary["failed"], summary["stored"]) == (
+        1,
+        1,
+        0,
+        0,
+    )
     assert sent == [summary]
 
 

@@ -81,8 +81,316 @@ def _require_token(value: str, label: str) -> None:
         raise R6QualificationCorruption(f"{label} cannot contain whitespace")
 
 
-class DjangoR6QualificationRepository:
-    """Public exact/PIT repository plus composition-owned lifecycle primitives."""
+class DjangoR6QualificationReadRepository:
+    """Public exact/PIT reader with no clock, token, or mutation capability."""
+
+    __slots__ = ("_using",)
+
+    def __init__(self, *, using: str = "default") -> None:
+        if type(using) is not str or not using.strip() or using != using.strip():
+            raise ValueError("R6 qualification database alias is invalid")
+        self._using = using
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the Django database unit-of-work identity."""
+
+        return f"django:{self._using}"
+
+    def get_exact(
+        self,
+        *,
+        assessment_ref: R6QualificationRef,
+        as_of: datetime,
+    ) -> StateModelQualificationAssessment | None:
+        """Restore one exact assessment only when its row was known at ``as_of``."""
+
+        self._require_ref(assessment_ref)
+        self._require_pit_cutoff(as_of)
+        models = list(
+            R6QualificationAssessmentModel._default_manager.using(self._using).filter(
+                Q(assessment_id=assessment_ref.assessment_id)
+                | Q(content_hash=assessment_ref.assessment_hash)
+            )
+        )
+        restored = tuple((model, self._restore_assessment(model)) for model in models)
+        matches = tuple(
+            pair
+            for pair in restored
+            if r6_qualification_assessment_id(
+                study_id=pair[1].study_id,
+                assessed_at=pair[1].assessed_at,
+                content_hash=pair[1].content_hash,
+            )
+            == assessment_ref.assessment_id
+            and pair[1].content_hash == assessment_ref.assessment_hash
+        )
+        if len(matches) > 1:
+            raise R6QualificationCorruption(
+                "multiple R6 qualification assessments match one exact identity"
+            )
+        if not matches or self._recorded_at(matches[0][0], matches[0][1]) > as_of:
+            return None
+        return matches[0][1]
+
+    def get_active(
+        self,
+        *,
+        qualification_ref: R6QualificationRef,
+        as_of: datetime,
+    ) -> StateModelQualificationAssessment | None:
+        """Replay the exact lifecycle prefix for one caller-selected identity."""
+
+        self._require_ref(qualification_ref)
+        self._require_pit_cutoff(as_of)
+        assessment = self.get_exact(assessment_ref=qualification_ref, as_of=as_of)
+        if (
+            assessment is None
+            or assessment.status is not StateModelQualificationStatus.EVIDENCE_COMPLETE
+        ):
+            return None
+        models = tuple(
+            R6QualificationLifecycleEventModel._default_manager.using(self._using)
+            .select_related("assessment", "authorization")
+            .filter(
+                Q(assessment__assessment_id=qualification_ref.assessment_id)
+                | Q(assessment__content_hash=qualification_ref.assessment_hash),
+                recorded_at__lte=as_of,
+            )
+            .order_by("sequence", "id")
+        )
+        events: list[R6QualificationLifecycleEvent] = []
+        for model in models:
+            event = self._restore_event(model)
+            if event.qualification_ref != qualification_ref:
+                raise R6QualificationCorruption("R6 lifecycle event scope/hash anchor substitution")
+            events.append(event)
+        if len({event.sequence for event in events}) != len(events):
+            raise R6QualificationCorruption("duplicate R6 qualification lifecycle event")
+        prefix = tuple(event for event in events if event.recorded_at <= as_of)
+        if not prefix:
+            return None
+        try:
+            state = derive_r6_qualification_lifecycle_state(prefix, evaluated_at=as_of)
+        except ValueError as error:
+            raise R6QualificationCorruption("R6 qualification lifecycle replay failed") from error
+        if not state.active or state.qualification_ref != qualification_ref:
+            return None
+        return assessment
+
+    @staticmethod
+    def _require_ref(value: object) -> None:
+        try:
+            if type(value) is not R6QualificationRef:
+                raise TypeError
+            R6QualificationRef.__post_init__(value)
+        except (AttributeError, TypeError, ValueError) as error:
+            raise R6QualificationUnavailable("R6 qualification reference is malformed") from error
+
+    @staticmethod
+    def _require_pit_cutoff(as_of: object) -> None:
+        if type(as_of) is not datetime or as_of.tzinfo is None or as_of.utcoffset() is None:
+            raise R6QualificationUnavailable("R6 qualification as_of must be timezone-aware")
+        now = timezone.now()
+        if _aware_utc(now, "R6 qualification server clock") < _aware_utc(
+            as_of,
+            "R6 qualification as_of",
+        ):
+            raise R6QualificationUnavailable("future R6 qualification as_of is not permitted")
+
+    @staticmethod
+    def _restore_assessment(
+        model: R6QualificationAssessmentModel,
+    ) -> StateModelQualificationAssessment:
+        try:
+            assessment = decode_r6_qualification_assessment(model.canonical_payload)
+        except R6QualificationCodecError as error:
+            raise R6QualificationCorruption(
+                "R6 qualification assessment payload is invalid"
+            ) from error
+        expected_id = r6_qualification_assessment_id(
+            study_id=assessment.study_id,
+            assessed_at=assessment.assessed_at,
+            content_hash=assessment.content_hash,
+        )
+        expected_headers = (
+            model.assessment_id,
+            model.study_id,
+            model.assessed_at,
+            model.status,
+            model.candidate_id,
+            model.candidate_version,
+            model.study_hash,
+            model.preregistration_hash,
+            model.baseline_shortfall_report_hash,
+            model.candidate_evidence_hash,
+            model.advanced_assessment_hash,
+            model.pit_manifest_canonical_hash,
+            model.artifact_attestation_hash,
+            model.advanced_threshold_hash,
+            model.derived_metric_bundle_hash,
+            model.policy_hash,
+            model.metric_result_count,
+            model.blockers,
+            model.may_request_promotion_review,
+            model.promotion_decision_present,
+            model.research_only,
+            model.must_not_use_for_decision,
+            model.must_not_replace_regime,
+            model.content_hash,
+        )
+        actual_headers = (
+            expected_id,
+            assessment.study_id,
+            assessment.assessed_at,
+            assessment.status.value,
+            assessment.candidate_id,
+            assessment.candidate_version,
+            assessment.study_hash,
+            assessment.preregistration_hash,
+            assessment.baseline_shortfall_report_hash,
+            assessment.candidate_evidence_hash,
+            assessment.advanced_assessment_hash,
+            assessment.pit_manifest_canonical_hash,
+            assessment.artifact_attestation_hash,
+            assessment.advanced_threshold_hash,
+            assessment.derived_metric_bundle_hash,
+            assessment.policy_hash,
+            len(assessment.metric_results),
+            [item.value for item in assessment.blockers],
+            assessment.may_request_promotion_review,
+            assessment.promotion_decision_present,
+            assessment.research_only,
+            assessment.must_not_use_for_decision,
+            assessment.must_not_replace_regime,
+            assessment.content_hash,
+        )
+        if expected_headers != actual_headers:
+            raise R6QualificationCorruption("R6 qualification assessment header mismatch")
+        return assessment
+
+    def _restore_authorization(
+        self,
+        model: R6QualificationLifecycleAuthorizationModel,
+    ) -> R6QualificationPromotionAuthorization:
+        try:
+            authorization = decode_r6_qualification_authorization(model.canonical_payload)
+        except R6QualificationCodecError as error:
+            raise R6QualificationCorruption(
+                "R6 qualification authorization payload is invalid"
+            ) from error
+        assessment = self._restore_assessment(model.assessment)
+        expected_ref = R6QualificationRef(model.assessment.assessment_id, assessment.content_hash)
+        if authorization.qualification_ref != expected_ref:
+            raise R6QualificationCorruption("R6 authorization assessment relation mismatch")
+        expected_headers = (
+            model.authorization_id,
+            model.authorization_version,
+            model.event_id,
+            model.event_version,
+            model.action,
+            model.expected_sequence,
+            model.owner,
+            model.issued_at,
+            model.recorded_at,
+            model.valid_until,
+            model.reason_codes,
+            model.evidence_ref,
+            model.content_hash,
+            model.research_only,
+            model.must_not_use_for_decision,
+            model.must_not_replace_regime,
+        )
+        actual_headers = (
+            authorization.authorization_id,
+            authorization.authorization_version,
+            authorization.event_id,
+            authorization.event_version,
+            authorization.action.value,
+            authorization.expected_sequence,
+            authorization.owner,
+            authorization.issued_at,
+            authorization.recorded_at,
+            authorization.valid_until,
+            list(authorization.reason_codes),
+            authorization.evidence_ref,
+            authorization.content_hash,
+            authorization.research_only,
+            authorization.must_not_use_for_decision,
+            authorization.must_not_replace_regime,
+        )
+        if expected_headers != actual_headers:
+            raise R6QualificationCorruption("R6 qualification authorization header mismatch")
+        return authorization
+
+    def _restore_event(
+        self,
+        model: R6QualificationLifecycleEventModel,
+    ) -> R6QualificationLifecycleEvent:
+        try:
+            event = decode_r6_qualification_event(model.canonical_payload)
+        except R6QualificationCodecError as error:
+            raise R6QualificationCorruption(
+                "R6 qualification lifecycle payload is invalid"
+            ) from error
+        authorization = self._restore_authorization(model.authorization)
+        assessment = self._restore_assessment(model.assessment)
+        expected_ref = R6QualificationRef(model.assessment.assessment_id, assessment.content_hash)
+        if (
+            event.qualification_ref != expected_ref
+            or event.authorization_hash != authorization.content_hash
+            or event.authorization_id != authorization.authorization_id
+            or event.authorization_version != authorization.authorization_version
+        ):
+            raise R6QualificationCorruption("R6 lifecycle relation substitution")
+        if model.assessment_id != model.authorization.assessment_id:
+            raise R6QualificationCorruption("R6 lifecycle assessment foreign-key mismatch")
+        expected_headers = (
+            model.event_id,
+            model.event_version,
+            model.action,
+            model.sequence,
+            model.occurred_at,
+            model.recorded_at,
+            model.previous_event_hash,
+            model.reason_codes,
+            model.content_hash,
+            model.research_only,
+            model.must_not_use_for_decision,
+            model.must_not_replace_regime,
+        )
+        actual_headers = (
+            event.event_id,
+            event.event_version,
+            event.action.value,
+            event.sequence,
+            event.occurred_at,
+            event.recorded_at,
+            event.previous_event_hash,
+            list(event.reason_codes),
+            event.content_hash,
+            event.research_only,
+            event.must_not_use_for_decision,
+            event.must_not_replace_regime,
+        )
+        if expected_headers != actual_headers:
+            raise R6QualificationCorruption("R6 qualification lifecycle event header mismatch")
+        return event
+
+    @staticmethod
+    def _recorded_at(
+        model: R6QualificationAssessmentModel,
+        assessment: StateModelQualificationAssessment,
+    ) -> datetime:
+        if model.recorded_at.tzinfo is None or model.recorded_at.utcoffset() is None:
+            raise R6QualificationCorruption("R6 qualification recorded_at is naive")
+        if model.assessed_at != assessment.assessed_at:
+            raise R6QualificationCorruption("R6 qualification assessed_at relation mismatch")
+        return model.recorded_at
+
+
+class _DjangoR6QualificationRepository:
+    """Private exact/PIT repository plus lifecycle write primitives."""
 
     __slots__ = ("_clock", "_token", "_using")
 
@@ -630,7 +938,7 @@ class DjangoR6QualificationRepository:
         return model.recorded_at
 
 
-class _DjangoR6QualificationStore(DjangoR6QualificationRepository):
+class _DjangoR6QualificationStore(_DjangoR6QualificationRepository):
     """Private append capability retained by the composition root."""
 
     def append_assessment(
@@ -798,7 +1106,7 @@ def _decode_cursor(cursor: str | None) -> tuple[datetime, str] | None:
 
 __all__ = [
     "DjangoR6QualificationClock",
-    "DjangoR6QualificationRepository",
+    "DjangoR6QualificationReadRepository",
     "R6QualificationClock",
     "_DjangoR6QualificationStore",
 ]

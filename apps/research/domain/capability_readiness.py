@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 
 
-class ResearchCapability(str, Enum):
+class ResearchCapability(str, Enum):  # noqa: UP042 - preserve stable legacy str() form
     """Research capability whose implementation start is being evaluated."""
 
     INDUSTRY_EARNINGS_FORECAST = "industry_earnings_forecast"
@@ -20,7 +20,7 @@ class ResearchCapability(str, Enum):
     MULTI_ASSET_OPTIMIZATION = "multi_asset_optimization"
 
 
-class ReadinessState(str, Enum):
+class ReadinessState(str, Enum):  # noqa: UP042 - preserve stable legacy str() form
     """State of one externally verifiable prerequisite."""
 
     VERIFIED = "verified"
@@ -29,14 +29,14 @@ class ReadinessState(str, Enum):
     STALE = "stale"
 
 
-class ReadinessDecision(str, Enum):
+class ReadinessDecision(str, Enum):  # noqa: UP042 - preserve stable legacy str() form
     """Start decision produced by the readiness gate."""
 
     READY = "ready"
     BLOCKED = "blocked"
 
 
-class ReadinessRequirement(str, Enum):
+class ReadinessRequirement(str, Enum):  # noqa: UP042 - preserve stable legacy str() form
     """Stable prerequisite identifiers for the R1-R8 capability gates."""
 
     QUICK_WIN_USAGE_FEEDBACK = "quick_win_usage_feedback"
@@ -247,6 +247,30 @@ _REQUIREMENT_OWNERS: dict[ReadinessRequirement, str] = {
 }
 
 
+# Static repository evidence may attest only this explicit, code-reviewed set.
+# Live data, coverage, outcomes, snapshots, reconciliations, model results, and
+# owner decisions are intentionally absent.
+MECHANISM_ATTESTABLE_REQUIREMENTS: frozenset[ReadinessRequirement] = frozenset(
+    {
+        ReadinessRequirement.PUBLICATION_GATE_AVAILABLE,
+        ReadinessRequirement.FIXED_INCOME_RESEARCH_ONLY_SCOPE,
+        ReadinessRequirement.SIMPLE_REGIME_BASELINE,
+        ReadinessRequirement.EXPERIMENT_REGISTRY,
+        ReadinessRequirement.MULTIPLE_TEST_FAMILY,
+        ReadinessRequirement.PROMOTION_DECISION,
+        ReadinessRequirement.SPLIT_AND_EMBARGO_POLICY,
+        ReadinessRequirement.GOVERNED_SCENARIO_VERSIONS,
+        ReadinessRequirement.APPEND_ONLY_FORECAST_LEDGER,
+        ReadinessRequirement.SCENARIO_VERSION_LEDGER_BINDING,
+        ReadinessRequirement.SUBJECTIVE_MODEL_PROBABILITY_SEPARATION,
+        ReadinessRequirement.PORTFOLIO_PLANNING_CONSTRAINTS,
+        ReadinessRequirement.RISK_CENTER_SCENARIO_INPUT,
+        ReadinessRequirement.OPTIMIZER_INPUT_CONTRACT,
+        ReadinessRequirement.OPTIMIZER_BASELINE_FAIL_CLOSED_POLICY,
+    }
+)
+
+
 @dataclass(frozen=True)
 class ReadinessEvidence:
     """Evidence supplied by the canonical owner of one prerequisite."""
@@ -339,6 +363,14 @@ def requirement_owner(requirement: ReadinessRequirement) -> str:
     """Return the canonical owner that must attest one requirement."""
 
     return _REQUIREMENT_OWNERS[requirement]
+
+
+def is_mechanism_attestable_requirement(
+    requirement: ReadinessRequirement,
+) -> bool:
+    """Return whether static repository mechanism evidence may attest a requirement."""
+
+    return requirement in MECHANISM_ATTESTABLE_REQUIREMENTS
 
 
 def evaluate_capability_readiness(

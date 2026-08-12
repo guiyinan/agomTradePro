@@ -1,5 +1,8 @@
 # R3/R4 宏观因子与宏观风险平价启动门禁及分阶段实施计划
 
+> 2026-08-10 R3 authoritative runner-spec persistence：Research `0015` 建立完整 spec append-only ledger与strict codec；ID-only writer在shared UoW内执行owner双读、trusted server clock、动态UoW复核和exact winner replay，ledger knowledge time严格早于首次selection。Production缺真实definition provider时保持无状态unavailable，不接manifest/dataset/run/current/Promotion；R3总门禁不变。
+> 2026-08-10 R3 governed-read事务收口：读取command现场重验，trusted clock、Regime/trial/Promotion/lifecycle/monitoring五类reader与repository统一使用动态exact shared-UoW和单atomic；完整owner graph在返回前双读比较，clock/provider/ledger/malformed异常统一为稳定blocker且零projection。该收口不新增owner adapter或current/consumer，真实Regime、trial、Promotion与monitoring证据仍缺，R3保持`blocked`。
+
 > 状态：**R3 concrete research fitting 与 R4 候选风险验证已实现；真实 PIT、owner policy、晋级版本和 canonical 组合输入仍 Blocked**
 > 建立日期：2026-08-05
 > 适用分支：`dev/refactor-scenario-governance-quick-wins`
@@ -7,6 +10,16 @@
 > 本阶段边界：允许 Infrastructure 在已验证的 PIT design 上执行 research-only Lasso/nested temporal-CV；不从空库造训练数据，不发布 current，不把拟合结果或 R4 候选称为已晋级宏观因子/风险平价。
 
 > 2026-08-09 concrete fitting 续批：新增 sklearn 标准化/Lasso 与 OLS refit Infrastructure adapter。每个 inner fold 独立选择预登记 alpha，outer OOS 不进入选择或 final fit；标准化参数、intercept、系数、权重、显著性、BIC、调整 R²、benchmark/cost/version/hash 均进入 canonical artifact。Application 仍先验证 exact PIT manifest/dataset/spec，composition 缺任一 owner/config/repository 时显式 blocked 且零写入。合成 PIT 测试只证明算法与防泄漏合同，不替代真实宏观 vintage、代理资产、连续期货、成本、Regime/OOS trial 或 Promotion。
+
+> 2026-08-09 inference chronology 续批：PIT design rows 继续只服务训练、选择与历史 OOS 评估；dated publication 改为要求独立、无 label/value 的 manifest-selected inference row。Authoritative manifest full seal 封存 calendar owner 与 exact period member；版本化 freshness policy 对 manifest/inference age 设置封存上限，validity 不得越过任一 expiry。Inference proxy facts、target-calendar period、manifest cutoff 与 request hash 精确绑定，FORWARD period 必须晚于 knowledge/production cutoff，CURRENT period 不得晚于 cutoff；concrete runner 的 final fit 只预测该行，external runner 使用独立重建副本，返回后按未传出的基线现场重验。Trusted Application clock、provider/malformed-object 边界和逐 fact cutoff 均 fail closed。真实 inference Publication/calendar owner、PIT 数据、trial 与 Promotion 未形成，门禁不变。
+
+> 2026-08-09 runner contract integrity 续批：`MacroFactorRunnerSpec` 以全字段 canonical `content_hash` 封存 target/candidate、split、benchmark、cost、reproducibility、freshness 与 validity；execution request 同时携带完整 typed definitions 与 `spec_hash`，sklearn adapter 在拟合前重建并精确比对 request/dataset/spec。Manifest factory 聚合前重验 calendar member 与 slice seal；所有版本、期间、样本数、seed、age、iteration 与 artifact length 使用 exact built-in `int`，float/bool/int subclass 和同 code 语义替换均拒绝。Temporal-CV contracts 与 runner spec 拆成独立纯 Domain 模块，Macro Factor unit `133 passed`。软件合同闭合不替代真实 owner manifest、PIT 数据、trial 或 Promotion，R3 仍 `blocked`。
+
+> 2026-08-09 authoritative spec 续批：`RunReproducibleMacroFactorCommand` 只携 spec ID/version/hash 与 manifest/freshness identity，完整 spec 必须由注入的 `MacroFactorRunnerSpecProvider` 精确重读。`registered_at` 进入 spec seal并严格早于首个 nested-CV selection；owner 缺失、异常、同 ID 语义替换、未来或迟注册均返回 `RUN_INPUT_INVALID`，runner 与 ledger 零调用。现有通用 Research Registry 不能无损表达完整 runner spec，production composition 因此保持 unavailable，而不是构造伪 owner adapter。Macro Factor unit `146 passed`；真实 registry persistence、PIT 数据、trial 与 Promotion 仍未形成。
+
+> 2026-08-09 R4 monitoring Phase A：新增版本化 11 指标 policy、canonical period calendar、Portfolio-owned raw fact seal 与 assessment；连续 breach、任一完整期间 label/data drift、fresh/future/missing/substitution 均 fail closed，输出限定为 `HEALTHY / BREACHED / RETIREMENT_REVIEW_REQUIRED / BLOCKED`。Application command 仅携 policy/active-decision identity 与 as-of，六个 owner provider 必须共享同一 UoW；`automatic_retirement` 固定为 false。该批无 ORM/migration/composition，不接 current、consumer 或 execution；真实 owner facts 与晋级版本仍缺，R4 保持 `blocked`。
+
+> 2026-08-10 R4 monitoring Phase B：Research `0013` 建立 observation、assessment、audit snapshot 三张 append-only schema-only ledger，无 seed/backfill。Strict codec 对 Phase A 完整 owner graph、raw facts 与 assessment 逐层重建；writer 在同 DB UoW 内动态重读六个 provider、现场 evaluate，并用第二次 trusted server clock 写 sealed ledger clock。Exact PIT 先按 server knowledge cutoff 过滤，audit 物化 immutable snapshot 并使用独立 salt 的确定性签名 cursor；first-winner、fork/rollback、payload/header/FK tamper 与 Django mutation paths 均 fail closed。Production owner sources仍 unavailable，且不自动 RETIRE、不接 current/consumer/execution，R4 继续 `blocked`。
 
 ## 1. 启动决策
 
@@ -192,6 +205,8 @@ verified 证据必须来自合同指定 owner、包含非空引用、timezone-aw
 2026-08-06 Promotion Phase A 已完成 Research Domain/Application 软件合同：stable semantic scope 与 exact evidence seal 分离，Policy 必须在最早 selection 前预注册，Decision 在同一 atomic/UoW 内动态重读 exact policy/Portfolio/current-R3 并派生 gates/outcome/validity。Lifecycle 使用 scope-local stack，A→B→C 只能逐层 C→B→A；PROMOTE/ROLLBACK/active 重验当前 evidence，RETIRE 可按 decision-time 历史 PIT 清理失效 top。当前没有五表 append-only repository/migration、concrete owner provider/composition、组合预览或下游 active input，Phase A 测试不能替代真实 Promotion，R4 继续 `blocked`。
 
 2026-08-06 Promotion Phase B 已完成五表 append-only persistence、schema-only `0004`、strict typed restore、server-clock policy registration、private UoW/insert claim、concrete repository/providers/composition 与持久 PIT replay。Portfolio 只通过 Application exact query 注入；decision/lifecycle receipt 与 child 同事务，first-miss race 只重放完整一致 winner，stream fork、异证据、raw tamper 和所有 ORM mutation shortcut fail closed。Phase A + codec `38 passed`、component `13 passed`、migration `4 passed`，Luna Max 最终复核 P0/P1 为 0。仍未接组合预览或下游 active consumer；真实 R3 Promotion、canonical input、owner authorization 与 OOS trial 缺失，R4 继续 `blocked`。
+
+2026-08-10 R3 production authority 与 exact-ledger 收口：public concrete runner builder 只接受数据库别名，run mutation façade无状态且不保存spec/manifest/dataset provider、clock、writer或token；可注入成功链仅保留在非导出test factory。三类read统一恢复完整source/artifact/output/lifecycle graph。`macro_factor.0003`新增每个lifecycle prefix的cumulative commit及独立per-artifact latest head，root/RETIRE在同事务内推进，读取时精确比较count、latest event/commit hash与stream hash；output、artifact、event、commit及配对tail截断均fail closed。独立SQLite正反迁移zero-seed、攻击节点与静态门禁均通过，Luna Max终核P0/P1=0。真实definition provider、Publication、PIT数据、trial、Promotion与consumer仍缺，R3保持`blocked`。
 
 ## 6. 明确非目标
 

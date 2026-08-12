@@ -24,14 +24,21 @@ def test_check_position_invalidation_task_marks_only_without_trade_side_effects(
             return_value=task_result,
         ) as checker_mock,
         patch("apps.simulated_trading.application.tasks.AutoTradingEngine") as engine_cls,
-        patch("apps.simulated_trading.application.tasks.ExecuteSellOrderUseCase") as sell_use_case_cls,
+        patch(
+            "apps.simulated_trading.application.tasks.ExecuteSellOrderUseCase"
+        ) as sell_use_case_cls,
     ):
         from apps.simulated_trading.application.tasks import check_position_invalidation_task
 
         result = check_position_invalidation_task.run()
 
     assert result == {
+        "outcome": "success",
         "success": True,
+        "requested": 3,
+        "succeeded": 3,
+        "failed": 0,
+        "stored": 1,
         "checked": 3,
         "invalidated": 1,
         "positions": task_result["positions"],
@@ -75,14 +82,21 @@ def test_notify_invalidated_positions_task_sends_notifications_without_trade_sid
             create=True,
         ),
         patch("apps.simulated_trading.application.tasks.AutoTradingEngine") as engine_cls,
-        patch("apps.simulated_trading.application.tasks.ExecuteSellOrderUseCase") as sell_use_case_cls,
+        patch(
+            "apps.simulated_trading.application.tasks.ExecuteSellOrderUseCase"
+        ) as sell_use_case_cls,
     ):
         from apps.simulated_trading.application.tasks import notify_invalidated_positions_task
 
         result = notify_invalidated_positions_task.run()
 
     assert result == {
+        "outcome": "success",
         "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": 0,
         "count": 1,
         "positions": positions,
         "notifications": [{"email": "ops@example.com", "success": True}],
@@ -103,14 +117,21 @@ def test_notify_invalidated_positions_task_skips_notifications_when_no_positions
             "shared.infrastructure.notification_service.get_notification_service",
         ) as notification_service_mock,
         patch("apps.simulated_trading.application.tasks.AutoTradingEngine") as engine_cls,
-        patch("apps.simulated_trading.application.tasks.ExecuteSellOrderUseCase") as sell_use_case_cls,
+        patch(
+            "apps.simulated_trading.application.tasks.ExecuteSellOrderUseCase"
+        ) as sell_use_case_cls,
     ):
         from apps.simulated_trading.application.tasks import notify_invalidated_positions_task
 
         result = notify_invalidated_positions_task.run()
 
     assert result == {
+        "outcome": "noop",
         "success": True,
+        "requested": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "stored": 0,
         "count": 0,
         "positions": [],
         "notifications": [],

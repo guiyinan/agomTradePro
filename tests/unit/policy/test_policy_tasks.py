@@ -93,11 +93,11 @@ def test_auto_assign_pending_audits_uses_workbench_repository(monkeypatch):
 
     result = auto_assign_pending_audits.run(max_per_user=2)
 
-    assert result == {
-        "assigned": 3,
-        "remaining": 0,
-        "auditors": 2,
-    }
+    assert result["assigned"] == 3
+    assert result["remaining"] == 0
+    assert result["auditors"] == 2
+    assert result["outcome"] == "success"
+    assert result["stored_record_count"] == 3
     assert fake_repo.assigned == [(101, 11), (102, 12), (103, 12)]
 
 
@@ -128,12 +128,11 @@ def test_monitor_sla_exceeded_task_uses_workbench_repository(monkeypatch):
 
     result = monitor_sla_exceeded_task.run()
 
-    assert result == {
-        "status": "success",
-        "p23_exceeded": 2,
-        "normal_exceeded": 1,
-        "total_exceeded": 3,
-    }
+    assert result["status"] == "success"
+    assert result["outcome"] == "success"
+    assert result["p23_exceeded"] == 2
+    assert result["normal_exceeded"] == 1
+    assert result["total_exceeded"] == 3
     assert fake_notification_service.sla_alerts == [(2, 1)]
 
 

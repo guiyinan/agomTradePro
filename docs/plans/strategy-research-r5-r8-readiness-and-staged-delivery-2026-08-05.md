@@ -5,6 +5,23 @@
 > 实施边界：本阶段只交付启动门禁、证据清单和后续最小纵切，不训练模型、不生成概率、不构造债券事实、不运行优化器、不触发真实交易
 > 数据边界：以下数据库证据来自 2026-08-05 对本地 `db.sqlite3` 的只读审计，不代表生产环境状态；生产启动仍须重新取证
 
+> 2026-08-09 R8 lifecycle 事务治理续批：lifecycle 写入口改为 ID-only；result、stream、Research Promotion 与 Portfolio authorization 在同一 UoW 内双次精确重读，event 使用 repository trusted server clock。Selector substitution、authorization retire-between、UoW 漂移、fork/race 和 provider/repository 异常均在 append 前稳定阻断；existing winner 必须锁 result 并完整重放 stream。Production runtime 仅暴露无状态 façade，公开对象图不保留 repository/store/token。真实 owner providers 与 post-promotion optimization monitoring 尚未形成，R8 保持 `blocked`。
+
+> 2026-08-10 R8 monitoring Phase A：新增 content-addressed policy、canonical period calendar、11 项 Portfolio/Broker owner metric payload与四态 assessment。Policy 精确绑定 optimization scope、active result、receipt、R8 lifecycle Promotion及 R3/R4/R5 Promotion；Application command 仅含 policy identity/as-of，并在 shared UoW 内按 policy target 双次精确重读 owner graph。连续 breach、历史 label/data drift只输出人工 retirement review，固定 `automatic_retirement=false` 且禁止 current/decision/execution。该批无 ORM/migration/composition或 lifecycle mutation；真实执行反馈与 owner providers仍缺，R8 继续 `blocked`。
+
+> 2026-08-10 R5 monitoring Phase A：新增独立 Portfolio monitoring raw projection而不复用既有 outcome；七项指标由封存分子/分母现场派生，owner role、known/recorded/valid clocks、benchmark/calendar/active decision/FI/cost/liquidity/label/schema identities全部进入 policy与fact seal。Application只接收policy identity/as-of并在shared UoW内双读。输出仅为healthy/breached/manual retirement review/blocked，禁止current/decision/execution与自动retirement；无ORM/persistence/composition，真实Publication、owner facts和Promotion仍缺。
+
+> 2026-08-10 R8 monitoring Phase B：Portfolio `0011` 创建 observation、assessment、audit snapshot 三张 append-only schema-only ledger，zero seed。Observation 使用 assessment-scoped persisted hash并另存 Domain raw hash，允许相同 raw facts跨policy复用；existing winner在取得新ledger clock前完整重放，跨时钟重试幂等。Production composition固定server clock且不公开store/token；exact PIT、immutable signed audit、outer rollback/fork、完整Django mutation guard与0011正反迁移均验证。真实owner providers仍未接入，门禁保持`blocked`。
+
+> 2026-08-10 R5 monitoring Phase B：Research `0014` 创建 assessment-scoped observation、assessment、audit snapshot 三张 append-only schema-only ledger，zero seed。Writer 在 shared UoW 内重读并复算完整 Phase A owner graph；existing winner 在新 server clock 前严格恢复，时钟前进、回退或异常均不改变原 ledger time。Exact PIT、签名跨页 snapshot、IntegrityError winner/fork、outer rollback、完整 ORM/Collector guard及 0014 forward/reverse/reforward 已验证。Production register/audit保持无状态 unavailable，不接 current/consumer/execution，真实 owner providers仍缺，R5 保持`blocked`。
+
+> 2026-08-10 R7 production façade：sample-policy、result、lifecycle 三个公开 builder 均收紧为仅接受 `using`，mutation façade不持有 provider/clock/writer/store/token；可注入写路径降为非导出的 test factory。Production 缺真实 owner 时稳定 unavailable/zero-write，read/audit保留 capability-minimal query。R7 monitoring 与 family rollback仍是后续软件项，真实 outcome/policy/authorization仍缺，门禁保持`blocked`。
+
+> 2026-08-10 R7 monitoring Phase A：新增 Domain-only post-promotion monitoring。完整 lifecycle stream 的 exact head/count、最终 PROMOTED 状态与 result ref 必须重放一致；prediction 仅取 active result 中严格早于目标 period 的 subjective/model projection，realization 必须来自独立 Forecast Ledger owner record，并逐 member 封存 observation identity/version/hash、horizon 与 knowledge clocks。Canonical calendar 强制首尾和逐期连续、评价 period 必须为 exact member；subjective/model coverage 与 Brier 分开派生。缺 calibration、analogy 或 path evidence 时保持 `BLOCKED`，固定 research-only/manual-review，禁止 probability/current/decision/execution。真实 owner provider、Application/persistence 与 family rollback仍未形成，R7 继续 `blocked`。
+> 2026-08-10 R7 monitoring Phase B：Research `0017` 新增 assessment、assessment-scoped observation 与 immutable audit snapshot 三本 schema-only ledger。Application/persistence 在 shared UoW 中重复重放完整 result/lifecycle head attestation、calendar、Forecast Ledger realization 与 assessment graph；repository 提供 exact PIT、first-winner/fork 和 signed audit，production register/audit 保持无状态 unavailable。Unit/component/migration 为 `21/2/3 passed`，独立终核 P0/P1=0；真实 owner provider、policy 与 outcome 历史仍缺，R7 继续 `blocked`。
+> 2026-08-10 R7 family rollback Phase A：新增独立 family v2 lifecycle，要求本地 result lifecycle authoritative head/count/stream attestation，PROMOTE/RETIRE/ROLLBACK 在 append 前最终重读 authorization 与完整 owner graph；rollback 只允许 exact `stack[-2]`，A→B→A 重复入栈被拒绝。Focused 与既有 lifecycle 回归 `20 passed`，独立终核 P0/P1=0。该批无 ORM/migration/composition，不改变既有 terminal RETIRE；真实 family owner、authorization 与 persistence 仍缺。
+> 2026-08-10 R7 family rollback Phase B：Research `0018` 新增 authorization receipt、event、stream commit 与 immutable audit snapshot 四本schema-only ledger，zero seed。Writer在shared UoW内最终重读owner graph后同事务写三联证据；exact winner按原ledger cutoff恢复，不依赖回退或异常的新时钟，读取同时重验canonical result与local authorization↔event graph。Production apply/audit无状态且zero-write；真实family owner/authorization仍缺，R7保持`blocked`。
+
 ## 1. 本阶段结论
 
 R5—R8 都具有部分基础代码，但没有一项同时满足备忘中的数据、研究和生产证据条件。因此本阶段不把任何能力标记为已启动：
@@ -13,7 +30,7 @@ R5—R8 都具有部分基础代码，但没有一项同时满足备忘中的数
 |---|---|---|---|
 | R5 固定收益相对价值与久期 | 宏观指标目录中有部分国债、信用收益率和资金利率代码；Data Center 已有 Publication 门禁；QW-5 可显式阻断 | 无两条已发布可靠曲线、无券级主数据/现金流/交易日历、无信用估值 Publication、无久期/凸性对账 | `blocked` |
 | R6 高级状态模型 | Regime V2、PMI/CPI、Pulse 和简单转折规则可作为基准 | 未证明简单基准不足；无 PIT 训练证据、稳定标签协议、样本外转移准确率或政策反应函数基准 | `blocked` |
-| R7 情景概率校准 | 情景版本、Signal Forecast Ledger、revision/set UUID 绑定、主观/模型概率分栏和显式 realization row score 已实现 | 无完整预测—复核—兑现样本，也没有经批准的 calibration sample policy | `blocked` |
+| R7 情景概率校准 | 情景版本、Signal Forecast Ledger、revision/set UUID 绑定、主观/模型概率分栏、显式 realization row score、post-promotion monitoring Phase A+B 与独立 family `stack[-2]` rollback Phase A+B ledger已实现 | 无完整预测—复核—兑现样本，也没有经批准的 calibration sample policy、真实 monitoring owner provider或family owner/authorization | `blocked` |
 | R8 多资产优化 | Portfolio 有目标组合、过渡计划、部分交易约束和 research-only 优化输入合约；Broker Execution 有成交/对账模型；Risk Center 有情景损失 | 无 Portfolio-owned canonical snapshot 持久真源；R3/R4/R5 未晋级；无真实执行反馈样本；尚未实现或运行优化器 | `blocked` |
 
 `blocked` 是 fail-closed 业务状态，不等于代码缺陷，也不能通过页面、默认数据或 LLM 推断解除。
@@ -241,6 +258,12 @@ Owner：`portfolio` + `broker_execution`，在 R3/R4/R5 晋级前可独立建设
 2026-08-06 O1/O2 无数据续批完成 13 类 typed 数值 payload、版本化 current baseline、Portfolio-owned 可投资 universe、四市场 `available_at` 规则、逐期 path drawdown、四候选完整性/argmin/守恒重算，以及 append-only result/lifecycle ledger。完整 problem/result/event graph 使用 Decimal/UTC canonical hash；Promotion 必须由 Research exact provider 重读，retirement/rollback 必须由 Portfolio owner authorization provider 重读。无法在 weight 层证明手数、T+1、基金结算、债券应计或商品保证金时稳定返回 blocker，不把近似权重当作可执行结果。`portfolio.0006` 为 schema-only、零 seed，只创建 result/lifecycle 两表；input set 虽封入 result evidence graph，但独立 canonical input receipt/provider 尚未建立。该实现不注册 API/TUI/Celery/订单或 transition plan，真实证据门仍保持 `blocked`。
 
 2026-08-09 readiness/composition P1 收口：治理清单不再用 `CanonicalPortfolioSnapshot` class/repository 证明真实 `portfolio_canonical_snapshot`，运行时该 requirement 在没有 owner evidence 时保持 `unverified`；`optimizer_baseline_fail_closed_policy` 改由 Portfolio owner 以四候选/完整阻断测试签署机制 evidence。新增 production composition 组装 deterministic engine、append-only repository 和 lifecycle use case，但 canonical input-set、Research exact Promotion 与 Portfolio lifecycle authorization 均使用显式 unavailable provider；缺证据时在任何 result/lifecycle 写入前失败。独立 input receipt/concrete owner provider 继续作为后续 P1，真实 snapshot、晋级和 broker reconciliation 总门不变。
+
+2026-08-09 input receipt Phase B：Portfolio `0009` 新增独立 append-only canonical receipt，完整保存 13 类 typed payload、13 个 owner binding、universe/snapshot/PIT graph 与 R3/R4/R5 Promotion。Registration command 仅含 input-set identity，在同一 UoW 从 authoritative Protocol 逐项重读；新 result v2 将 receipt ID/hash/schema 纳入 canonical hash，legacy null 仅显式 research read。计算后再次重读 receipt 与三项 Promotion，race 使用 nested savepoint exact-winner replay；production runtime 不暴露 repository/writer。Unit/component/migration 为 `25 / 18 / 4 passed`，独立复核 P0/P1 为 0。真实 owner providers 未接入，因此安全 registration façade不在 production runtime 暴露、运行仍 blocked；nullable FK 仅为历史兼容，无 seed/backfill。
+
+2026-08-09 receipt DB integrity：Portfolio `0010` schema-only 约束将合法 result shape 精确枚举为 `v1 + NULL receipt` 或 `v2 + receipt`，并限制 receipt 为 canonical v1；unknown/blank/alias 版本不能形成可读污染。`0009` reverse guard 在 evidence 查询前取得 PostgreSQL 表级排他锁或 SQLite writer reservation；有 v2/receipt evidence 时逆迁稳定拒绝并保全 recorder、result 与 receipt。非法历史行应用 `0010` 时整次迁移原子回滚，不做数据清洗。真实双连接后端 contention 测试留作上线前 P2；真实 owner/provider 门禁仍保持 blocked。
+
+2026-08-09 production registration façade：Portfolio runtime 暴露无状态 ID-only registration façade，但不保存或闭包捕获 registration use case、writer、UoW、provider 或 clock；合法命令与被私有篡改的命令都在任何写能力可达前稳定 `GovernedOptimizationUnavailable`，receipt/result/lifecycle 保持零写。真实 canonical input-set、13-owner graph、universe、snapshot 与 R3/R4/R5 Promotion provider 接入前，不开放生产注册能力，R8 总门禁不变。
 
 - 第一版离线 research-only；
 - 明确等权和现有配置基准；

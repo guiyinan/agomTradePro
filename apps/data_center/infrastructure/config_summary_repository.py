@@ -40,8 +40,6 @@ class DjangoDataCenterConfigSummaryRepository:
                 "source_type",
                 "name",
                 "is_active",
-                "api_key",
-                "api_secret",
                 "http_url",
             )
         )

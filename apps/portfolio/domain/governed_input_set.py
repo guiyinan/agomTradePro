@@ -431,6 +431,14 @@ class GovernedOptimizationInputSet:
             raise ValueError("input set cannot predate universe availability")
         if self.valid_until > self.universe.valid_until:
             raise ValueError("input set cannot outlive its universe")
+        if self.payloads != tuple(sorted(self.payloads, key=lambda item: item.kind.value)):
+            raise ValueError("input set payloads must be canonically ordered")
+        if self.owner_bindings != tuple(
+            sorted(self.owner_bindings, key=lambda item: item.kind.value)
+        ):
+            raise ValueError("input set owner bindings must be canonically ordered")
+        if self.promotions != tuple(sorted(self.promotions, key=lambda item: item.capability_key)):
+            raise ValueError("input set promotions must be canonically ordered")
         payload_by_kind = _validate_payloads(self.payloads, self.universe)
         binding_by_kind = _validate_bindings(
             self.owner_bindings,

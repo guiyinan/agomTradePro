@@ -498,3 +498,9 @@ __all__ = [
     "R1PromotionLifecycleEventBundleModel",
     "R1PromotionLifecycleReceiptModel",
 ]
+
+
+# Import the adjacent R1 ledger for Django model discovery.
+from apps.research.infrastructure.r1_forecast_trial_evidence_models import (  # noqa: E402,F401
+    R1ForecastTrialEvidenceLedgerModel,
+)

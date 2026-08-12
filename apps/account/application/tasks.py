@@ -57,6 +57,26 @@ class CombinedRiskCheckCheckpoint(TypedDict, total=False):
     take_profit_triggered: int
 
 
+def _task_outcome_fields(
+    *,
+    outcome: str,
+    requested: int,
+    succeeded: int,
+    failed: int,
+    stored: int,
+) -> dict[str, object]:
+    """Build the normalized business-outcome projection shared by Account tasks."""
+
+    return {
+        "outcome": outcome,
+        "success": outcome in {"success", "partial", "noop"},
+        "requested": requested,
+        "succeeded": succeeded,
+        "failed": failed,
+        "stored": stored,
+    }
+
+
 @shared_task(  # type: ignore[misc]
     bind=True,
     max_retries=2,
@@ -64,12 +84,22 @@ class CombinedRiskCheckCheckpoint(TypedDict, total=False):
     time_limit=300,
     soft_time_limit=270,
 )
-def send_database_backup_email_task(self: Any) -> dict[str, str]:
+def send_database_backup_email_task(self: Any) -> dict[str, object]:
     """按系统配置发送加密逻辑数据导出链接；该工件不是灾备恢复点。"""
     try:
         config = system_settings_repo.get_settings()
         if not config.is_backup_due():
-            return {"status": "skipped", "reason": "not_due"}
+            return {
+                "status": "skipped",
+                "reason": "not_due",
+                **_task_outcome_fields(
+                    outcome="noop",
+                    requested=1,
+                    succeeded=0,
+                    failed=0,
+                    stored=0,
+                ),
+            }
 
         token = generate_download_token(config)
         download_url = build_backup_download_url(token)
@@ -113,7 +143,17 @@ def send_database_backup_email_task(self: Any) -> dict[str, str]:
             config.backup_last_sent_at = sent_at
             config.save(update_fields=["backup_last_sent_at", "updated_at"])
         logger.info("数据库备份下载链接已发送至 %s", config.backup_email)
-        return {"status": "sent", "email": config.backup_email}
+        return {
+            "status": "sent",
+            "email": config.backup_email,
+            **_task_outcome_fields(
+                outcome="success",
+                requested=1,
+                succeeded=1,
+                failed=0,
+                stored=1,
+            ),
+        }
     except Exception as exc:
         logger.error(
             "Database backup email task failed: error_type=%s",
@@ -155,10 +195,19 @@ def check_stop_loss_task(
             if triggered_results:
                 _send_stop_loss_notifications(triggered_results, user_id)
 
+        checked_count = len(results)
+        triggered_count = len([result for result in results if result.should_close])
         return {
             "status": "success",
-            "checked_count": len(results),
-            "triggered_count": len([r for r in results if r.should_close]),
+            "checked_count": checked_count,
+            "triggered_count": triggered_count,
+            **_task_outcome_fields(
+                outcome="success" if checked_count else "noop",
+                requested=checked_count,
+                succeeded=checked_count,
+                failed=0,
+                stored=triggered_count,
+            ),
         }
 
     except (DataFetchError, DatabaseError) as exc:
@@ -184,6 +233,13 @@ def check_stop_loss_task(
             "status": "error",
             "error": "stop_loss_business_logic_failed",
             "error_type": "business_logic",
+            **_task_outcome_fields(
+                outcome="failed",
+                requested=0,
+                succeeded=0,
+                failed=1,
+                stored=0,
+            ),
         }
     except Exception as exc:
         # Unexpected error
@@ -224,10 +280,19 @@ def check_take_profit_task(
             if triggered_results:
                 _send_take_profit_notifications(triggered_results, user_id)
 
+        checked_count = len(results)
+        triggered_count = len([result for result in results if result.should_close])
         return {
             "status": "success",
-            "checked_count": len(results),
-            "triggered_count": len([r for r in results if r.should_close]),
+            "checked_count": checked_count,
+            "triggered_count": triggered_count,
+            **_task_outcome_fields(
+                outcome="success" if checked_count else "noop",
+                requested=checked_count,
+                succeeded=checked_count,
+                failed=0,
+                stored=triggered_count,
+            ),
         }
 
     except Exception as exc:
@@ -305,6 +370,9 @@ def check_stop_loss_and_take_profit_task(
     total_triggered = stage_counts.get("stop_loss_triggered", 0) + stage_counts.get(
         "take_profit_triggered", 0
     )
+    total_checked = stage_counts.get("stop_loss_checked", 0) + stage_counts.get(
+        "take_profit_checked", 0
+    )
     logger.info("止损止盈检查完成，触发 %s 个", total_triggered)
 
     return {
@@ -313,6 +381,13 @@ def check_stop_loss_and_take_profit_task(
         "stop_loss_triggered": stage_counts.get("stop_loss_triggered", 0),
         "take_profit_checked": stage_counts.get("take_profit_checked", 0),
         "take_profit_triggered": stage_counts.get("take_profit_triggered", 0),
+        **_task_outcome_fields(
+            outcome="success" if total_checked else "noop",
+            requested=total_checked,
+            succeeded=total_checked,
+            failed=0,
+            stored=total_triggered,
+        ),
     }
 
 
@@ -478,6 +553,7 @@ def check_volatility_and_adjust_task(
 
         adjusted_count = 0
         warning_count = 0
+        failed_count = 0
 
         for portfolio in portfolios:
             try:
@@ -518,6 +594,7 @@ def check_volatility_and_adjust_task(
                     )
 
             except Exception as exc:
+                failed_count += 1
                 logger.error(
                     "Portfolio volatility check failed: portfolio_id=%s error_type=%s",
                     portfolio["id"],
@@ -530,11 +607,28 @@ def check_volatility_and_adjust_task(
             f"调整 {adjusted_count} 个，警告 {warning_count} 个"
         )
 
+        succeeded_count = len(portfolios) - failed_count
+        if not portfolios:
+            outcome = "noop"
+        elif failed_count == len(portfolios):
+            outcome = "failed"
+        elif failed_count:
+            outcome = "partial"
+        else:
+            outcome = "success"
         return {
             "status": "success",
             "checked_count": len(portfolios),
             "adjusted_count": adjusted_count,
             "warning_count": warning_count,
+            "failed_count": failed_count,
+            **_task_outcome_fields(
+                outcome=outcome,
+                requested=len(portfolios),
+                succeeded=succeeded_count,
+                failed=failed_count,
+                stored=adjusted_count,
+            ),
         }
 
     except Exception as exc:

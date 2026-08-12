@@ -69,13 +69,11 @@
           "backup_smtp_host",
           "backup_smtp_port",
           "backup_smtp_username",
-          "backup_smtp_password_encrypted",
           "backup_smtp_use_tls",
           "backup_smtp_use_ssl",
           "backup_enabled",
           "backup_interval_days",
           "backup_link_ttl_days",
-          "backup_password_encrypted",
           "backup_password_hint",
           "backup_last_sent_at",
           "backup_download_token_digest",
@@ -124,7 +122,10 @@
       "profile_key": "development",
       "capacity_policy": "local-development",
       "active_source": "settings",
-      "status": "supported"
+      "status": "supported",
+      "source_decision": "intentional_bootstrap_only",
+      "reason": "Local development must start before a Config Center database/profile exists; settings is restricted to non-production bootstrap and is never a production fallback.",
+      "promotion_policy": "Any shared, staging, or production-like profile must be materialized in Config Center and may not inherit this settings source."
     },
     {
       "profile_key": "production-90g",

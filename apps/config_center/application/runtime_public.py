@@ -389,11 +389,19 @@ def get_active_account_runtime_config(environment: str) -> dict[str, object] | N
 def get_active_backup_delivery_config(environment: str) -> dict[str, object] | None:
     """Resolve the complete typed backup policy and secret references."""
 
-    return _get_typed_runtime_projection(
+    resolved = _get_typed_runtime_projection(
         environment,
         _BACKUP_RUNTIME_FIELDS,
         secret_definition_keys=_BACKUP_SECRET_DEFINITION_KEYS,
     )
+    if resolved is None:
+        return None
+    if (
+        resolved.get("backup_archive_password_ref") != "config_center.backup.archive_password"
+        or resolved.get("backup_smtp_password_ref") != "config_center.backup.smtp_password"
+    ):
+        return None
+    return resolved
 
 
 def _get_typed_runtime_projection(

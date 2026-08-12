@@ -43,6 +43,41 @@ class SignalSummary(TypedDict):
     invalidated_signals: int
     total_approved: int
     notification_sent: bool
+    outcome: str
+    success: bool
+    requested: int
+    succeeded: int
+    failed: int
+    stored: int
+
+
+def _signal_task_result(
+    payload: Mapping[str, object],
+    *,
+    outcome: str,
+    requested: int,
+    succeeded: int,
+    failed: int,
+    stored: int,
+) -> dict[str, object]:
+    """Attach validated signal-count units to one task result."""
+
+    counters = (requested, succeeded, failed, stored)
+    if (
+        outcome not in {"success", "partial", "noop", "blocked", "failed"}
+        or any(type(value) is not int or value < 0 for value in counters)
+        or succeeded + failed > requested
+    ):
+        raise BusinessLogicError("Signal task counters are invalid")
+    return {
+        **payload,
+        "outcome": outcome,
+        "success": outcome in {"success", "partial", "noop"},
+        "requested": requested,
+        "succeeded": succeeded,
+        "failed": failed,
+        "stored": stored,
+    }
 
 
 def _validated_batch_result(result: object) -> dict[str, object]:
@@ -101,7 +136,23 @@ def check_all_signal_invalidations(self: BoundTask) -> dict[str, object]:
             f"拒绝信号 IDs: {result['rejected_ids']}"
         )
 
-        return result
+        checked = cast(int, result["checked"])
+        rejected = cast(int, result["rejected"])
+        invalidated = cast(int, result["invalidated"])
+        succeeded = checked - rejected
+        outcome = (
+            "noop"
+            if checked == 0
+            else "failed" if rejected == checked else "partial" if rejected else "success"
+        )
+        return _signal_task_result(
+            result,
+            outcome=outcome,
+            requested=checked,
+            succeeded=succeeded,
+            failed=rejected,
+            stored=invalidated + rejected,
+        )
 
     except (DataFetchError, DatabaseError) as exc:
         # Retryable data errors
@@ -134,7 +185,7 @@ def check_all_signal_invalidations(self: BoundTask) -> dict[str, object]:
 def check_single_signal_invalidation(
     self: BoundTask,
     signal_id: int,
-) -> dict[str, object] | None:
+) -> dict[str, object]:
     """
     检查单个信号的证伪状态
 
@@ -161,14 +212,28 @@ def check_single_signal_invalidation(
             else:
                 logger.info(f"信号 {signal_id} 未满足证伪条件: {result.reason}")
 
-            return {
-                "signal_id": signal_id,
-                "is_invalidated": result.is_invalidated,
-                "reason": result.reason,
-            }
+            return _signal_task_result(
+                {
+                    "signal_id": signal_id,
+                    "is_invalidated": result.is_invalidated,
+                    "reason": result.reason,
+                },
+                outcome="success",
+                requested=1,
+                succeeded=1,
+                failed=0,
+                stored=1 if result.is_invalidated else 0,
+            )
         else:
             logger.warning(f"信号 {signal_id} 不存在")
-            return None
+            return _signal_task_result(
+                {"signal_id": signal_id, "reason": "signal_not_found"},
+                outcome="noop",
+                requested=1,
+                succeeded=1,
+                failed=0,
+                stored=0,
+            )
 
     except (DataFetchError, DatabaseError) as exc:
         logger.warning("检查信号 %s 失败（数据错误）: %s", signal_id, exc)
@@ -177,11 +242,18 @@ def check_single_signal_invalidation(
             raise self.retry(exc=exc, countdown=60)
         except MaxRetriesExceededError:
             logger.error(f"Max retries exceeded for signal {signal_id}")
-            return {
-                "signal_id": signal_id,
-                "error": "Signal invalidation data check failed",
-                "status": "failed",
-            }
+            return _signal_task_result(
+                {
+                    "signal_id": signal_id,
+                    "error": "Signal invalidation data check failed",
+                    "status": "failed",
+                },
+                outcome="failed",
+                requested=1,
+                succeeded=0,
+                failed=1,
+                stored=0,
+            )
     except Exception as exc:
         logger.exception("检查信号 %s 失败（未预期）", signal_id)
         record_exception(exc, module="signal", is_handled=False)
@@ -214,7 +286,18 @@ def cleanup_old_invalidated_signals(days: int = 90) -> dict[str, object]:
 
         logger.info(f"找到 {count} 个旧证伪信号: {old_ids}")
 
-        return {"found": count, "signal_ids": old_ids}
+        return _signal_task_result(
+            {
+                "found": count,
+                "signal_ids": old_ids,
+                "reason": "cleanup_mutation_not_implemented" if count else "no_candidates",
+            },
+            outcome="blocked" if count else "noop",
+            requested=count,
+            succeeded=0,
+            failed=0,
+            stored=0,
+        )
 
     except Exception:
         logger.exception("清理旧证伪信号失败")
@@ -253,6 +336,12 @@ def send_daily_signal_summary() -> SignalSummary:
         "invalidated_signals": len(invalidated_details),
         "total_approved": approved_count,
         "notification_sent": False,
+        "outcome": "success",
+        "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": 0,
     }
 
     logger.info(f"每日信号摘要: {summary}")

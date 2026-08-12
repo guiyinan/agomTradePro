@@ -216,8 +216,8 @@ def test_active_backup_delivery_config_requires_policy_and_secret_refs(monkeypat
         "backup.interval_days": 7,
         "backup.link_ttl_days": 2,
         "backup.password_hint": "vault-a",
-        "backup.archive_password": "system_settings.backup_password_encrypted",
-        "backup.smtp_password": "system_settings.backup_smtp_password_encrypted",
+        "backup.archive_password": "config_center.backup.archive_password",
+        "backup.smtp_password": "config_center.backup.smtp_password",
     }
     monkeypatch.setattr(
         runtime_public,
@@ -231,7 +231,7 @@ def test_active_backup_delivery_config_requires_policy_and_secret_refs(monkeypat
 
     assert result is not None
     assert result["backup_smtp_port"] == 587
-    assert result["backup_archive_password_ref"].startswith("system_settings.")
+    assert result["backup_archive_password_ref"] == "config_center.backup.archive_password"
 
     values.pop("backup.smtp_password")
     assert runtime_public.get_active_backup_delivery_config("development") is None

@@ -73,20 +73,14 @@ class BrokerAccountBindingModel(models.Model):
     broker_account_mask = models.CharField(max_length=32, blank=True, default="")
     account_type = models.CharField(max_length=32, default="STOCK")
     auto_execution_enabled = models.BooleanField(default=False)
-    max_single_order_amount = models.DecimalField(
-        max_digits=18, decimal_places=2, default=0
-    )
-    daily_order_amount_limit = models.DecimalField(
-        max_digits=18, decimal_places=2, default=0
-    )
+    max_single_order_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    daily_order_amount_limit = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     max_position_count = models.PositiveIntegerField(default=20)
     max_snapshot_age_seconds = models.PositiveIntegerField(default=120)
     price_deviation_limit_pct = models.DecimalField(
         max_digits=7, decimal_places=4, default=Decimal("0.03")
     )
-    allowed_trading_windows = models.JSONField(
-        default=default_trading_windows, blank=True
-    )
+    allowed_trading_windows = models.JSONField(default=default_trading_windows, blank=True)
     enforce_trading_session = models.BooleanField(default=True)
     allowed_symbols = models.JSONField(default=list, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
@@ -97,9 +91,7 @@ class BrokerAccountBindingModel(models.Model):
         app_label = "broker_execution"
         db_table = "broker_execution_account_binding"
         constraints = [
-            models.UniqueConstraint(
-                fields=["account_id"], name="uq_broker_exec_account_binding"
-            ),
+            models.UniqueConstraint(fields=["account_id"], name="uq_broker_exec_account_binding"),
             models.UniqueConstraint(
                 fields=["user", "account_id"], name="uq_broker_exec_user_account"
             ),
@@ -216,9 +208,7 @@ class LiveOrderModel(models.Model):
     submitted_at = models.DateTimeField(null=True, blank=True)
     broker_order_id = models.CharField(max_length=128, blank=True, default="", db_index=True)
     filled_quantity = models.DecimalField(max_digits=20, decimal_places=4, default=0)
-    average_fill_price = models.DecimalField(
-        max_digits=20, decimal_places=4, null=True, blank=True
-    )
+    average_fill_price = models.DecimalField(max_digits=20, decimal_places=4, null=True, blank=True)
     failure_code = models.CharField(max_length=64, blank=True, default="")
     failure_message = models.TextField(blank=True, default="")
     version = models.PositiveIntegerField(default=1)
@@ -603,3 +593,8 @@ class BrokerExecutionIdempotencyModel(models.Model):
                 name="uq_broker_exec_idempotency",
             )
         ]
+
+
+from apps.broker_execution.infrastructure.r8_monitoring_reconciliation_models import (  # noqa: E402,F401
+    R8BrokerMonitoringPeriodReceiptModel,
+)

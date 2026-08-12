@@ -63,6 +63,36 @@ def test_personal_readiness_daily_task_calls_runner(monkeypatch):
     assert "trigger_task_id" in kwargs
     assert payload["status"] == "ok"
     assert payload["validation"]["accepted_days"] == 2
+    assert {
+        key: payload[key]
+        for key in ("outcome", "success", "requested", "succeeded", "failed", "stored")
+    } == {
+        "outcome": "success",
+        "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": 0,
+    }
+
+
+def test_canonical_readiness_task_uses_same_normalized_executor(monkeypatch):
+    monkeypatch.setattr(
+        canonical_task_module,
+        "run_personal_readiness_daily",
+        lambda **_kwargs: {"status": "warning", "validation": {}},
+    )
+
+    payload = canonical_task_module.run_personal_readiness_daily_task.run(target_date="2026-07-01")
+
+    assert payload["outcome"] == "blocked"
+    assert payload["success"] is False
+    assert (payload["requested"], payload["succeeded"], payload["failed"], payload["stored"]) == (
+        1,
+        0,
+        0,
+        0,
+    )
 
 
 def test_personal_readiness_daily_task_passes_celery_request_id(monkeypatch):

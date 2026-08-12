@@ -683,7 +683,7 @@
           "\"must_not_use_for_decision\": latest.must_not_use_for_decision"
         ],
         "apps/regime/application/orchestration.py": [
-          "\"status\": \"blocked\" if must_not_use_for_decision else \"success\"",
+          "status=\"blocked\" if must_not_use_for_decision else \"success\"",
           "result.observed_at.isoformat() if result.observed_at is not None else None"
         ],
         "apps/prompt/infrastructure/adapters/regime_adapter.py": [

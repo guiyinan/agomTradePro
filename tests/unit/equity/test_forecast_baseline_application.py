@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import fields, replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -273,6 +275,8 @@ RESULT_REF = VersionRef("baseline-trial-result:consumer", "result.v1")
 ACTUAL_MANIFEST_REF = VersionRef("actual-manifest:consumer", "actuals.v1")
 RESEARCH_TRIAL_REF = VersionRef("research-trial:r1:consumer", "trial.v1")
 EVALUATED_AT = datetime(2025, 3, 5, 9, tzinfo=UTC)
+SERVER_NOW = EVALUATED_AT + timedelta(hours=1)
+EVALUATION_UOW_KEY = "django:test-r1-forecast-evaluation"
 
 
 def _operating_forecast() -> OperatingForecastVersion:
@@ -635,7 +639,15 @@ class _ForecastProvider:
 class _ActualProvider:
     def __init__(self, snapshot: EvaluationActualManifestSnapshot | None) -> None:
         self.snapshot = snapshot
+        self.snapshots: list[EvaluationActualManifestSnapshot | None] = [snapshot]
         self.calls: list[tuple[VersionRef, datetime]] = []
+        self.error_on_call: int | None = None
+        self._unit_of_work_key = EVALUATION_UOW_KEY
+        self.call_hook: object | None = None
+
+    @property
+    def unit_of_work_key(self) -> str:
+        return self._unit_of_work_key
 
     def get_actual_manifest(
         self,
@@ -644,13 +656,43 @@ class _ActualProvider:
         as_of: datetime,
     ) -> EvaluationActualManifestSnapshot | None:
         self.calls.append((manifest_ref, as_of))
-        return self.snapshot
+        if callable(self.call_hook):
+            self.call_hook(len(self.calls))
+        if self.error_on_call == len(self.calls):
+            raise RuntimeError("injected actual owner failure")
+        index = min(len(self.calls) - 1, len(self.snapshots) - 1)
+        return self.snapshots[index]
+
+
+class _EvaluationClock:
+    def __init__(self, now: datetime, *, unit_of_work_key: str = EVALUATION_UOW_KEY) -> None:
+        self.current = now
+        self.calls = 0
+        self._unit_of_work_key = unit_of_work_key
+        self.error: Exception | None = None
+
+    @property
+    def unit_of_work_key(self) -> str:
+        return self._unit_of_work_key
+
+    def now(self) -> datetime:
+        self.calls += 1
+        if self.error is not None:
+            raise self.error
+        return self.current
 
 
 class _ResearchProvider:
     def __init__(self, evidence: ResearchTrialEvidence | None) -> None:
         self.evidence = evidence
+        self.evidence_reads: list[ResearchTrialEvidence | None] = [evidence]
         self.calls: list[tuple[VersionRef, datetime]] = []
+        self.error_on_call: int | None = None
+        self._unit_of_work_key = EVALUATION_UOW_KEY
+
+    @property
+    def unit_of_work_key(self) -> str:
+        return self._unit_of_work_key
 
     def get_trial(
         self,
@@ -659,7 +701,10 @@ class _ResearchProvider:
         as_of: datetime,
     ) -> ResearchTrialEvidence | None:
         self.calls.append((trial_ref, as_of))
-        return self.evidence
+        if self.error_on_call == len(self.calls):
+            raise RuntimeError("injected Research owner failure")
+        index = min(len(self.calls) - 1, len(self.evidence_reads) - 1)
+        return self.evidence_reads[index]
 
 
 class _Repository:
@@ -667,12 +712,35 @@ class _Repository:
         self.appended: list[ForecastBaselineSpec] = []
         self.artifacts: list[ForecastBaselineArtifact] = []
         self.trials: list[ForecastBaselineTrialResult] = []
+        self.atomic_calls = 0
+        self.spec_reads = 0
+        self.artifact_reads = 0
+        self._unit_of_work_key = EVALUATION_UOW_KEY
+        self.append_hook: object | None = None
+        self.spec_error_on_read: int | None = None
+
+    @property
+    def unit_of_work_key(self) -> str:
+        return self._unit_of_work_key
+
+    @contextmanager
+    def atomic(self) -> Iterator[None]:
+        self.atomic_calls += 1
+        trial_snapshot = list(self.trials)
+        try:
+            yield
+        except Exception:
+            self.trials[:] = trial_snapshot
+            raise
 
     def append_spec(self, spec: ForecastBaselineSpec) -> ForecastBaselineSpec:
         self.appended.append(spec)
         return spec
 
     def get_spec(self, spec_ref: VersionRef) -> ForecastBaselineSpec | None:
+        self.spec_reads += 1
+        if self.spec_error_on_read == self.spec_reads:
+            raise RuntimeError("injected baseline repository failure")
         return next(
             (
                 item
@@ -693,6 +761,7 @@ class _Repository:
         self,
         artifact_ref: VersionRef,
     ) -> ForecastBaselineArtifact | None:
+        self.artifact_reads += 1
         return next(
             (
                 item
@@ -708,6 +777,8 @@ class _Repository:
         trial: ForecastBaselineTrialResult,
     ) -> ForecastBaselineTrialResult:
         self.trials.append(trial)
+        if callable(self.append_hook):
+            self.append_hook()
         return trial
 
     def get_trial(
@@ -780,6 +851,7 @@ def _evaluate_trial(
     approval: BaselineApprovalEvidence | None = None,
     actual_snapshot: EvaluationActualManifestSnapshot | None = None,
     research_evidence: ResearchTrialEvidence | None = None,
+    clock: _EvaluationClock | None = None,
 ) -> tuple[
     ForecastBaselineSpec,
     ForecastBaselineArtifact,
@@ -795,10 +867,13 @@ def _evaluate_trial(
     research_provider = _ResearchProvider(
         _research_trial(spec) if research_evidence is None else research_evidence
     )
+    repository.spec_reads = 0
+    repository.artifact_reads = 0
     result = EvaluateForecastBaselineTrialUseCase(
         actual_provider=actual_provider,
         research_trial_provider=research_provider,
         repository=repository,
+        clock=clock or _EvaluationClock(SERVER_NOW),
     ).execute(
         EvaluateForecastBaselineTrialCommand(
             output_trial_ref=RESULT_REF,
@@ -1088,8 +1163,16 @@ def test_evaluate_trial_is_id_only_and_builds_paired_rows_internally() -> None:
         "research_trial_ref",
         "as_of",
     )
-    assert actual_provider.calls == [(ACTUAL_MANIFEST_REF, EVALUATED_AT)]
-    assert research_provider.calls == [(RESEARCH_TRIAL_REF, EVALUATED_AT)]
+    assert actual_provider.calls == [
+        (ACTUAL_MANIFEST_REF, EVALUATED_AT),
+        (ACTUAL_MANIFEST_REF, EVALUATED_AT),
+    ]
+    assert research_provider.calls == [
+        (RESEARCH_TRIAL_REF, EVALUATED_AT),
+        (RESEARCH_TRIAL_REF, EVALUATED_AT),
+    ]
+    assert repository.spec_reads == 2
+    assert repository.artifact_reads == 2
     assert result.spec_content_hash == spec.content_hash
     assert result.baseline_artifact_content_hash == artifact.content_hash
     assert result.research_trial.trial_version == RESEARCH_TRIAL_REF.version
@@ -1102,6 +1185,268 @@ def test_evaluate_trial_is_id_only_and_builds_paired_rows_internally() -> None:
     assert result.paired_rows[0].baseline_value == Decimal("100")
     assert result.paired_rows[0].actual.value == Decimal("104")
     assert repository.trials == [result]
+
+
+@pytest.mark.parametrize("attack", ("mutated_as_of", "mutated_ref", "subclass", "no_op"))
+def test_evaluate_revalidates_exact_live_command_before_any_read_or_write(
+    attack: str,
+) -> None:
+    """Frozen-command and validator bypasses fail before opening the owner UoW."""
+
+    spec, _, _, repository = _build_artifact()
+    repository.spec_reads = 0
+    repository.artifact_reads = 0
+    actual_provider = _ActualProvider(_actual_snapshot())
+    research_provider = _ResearchProvider(_research_trial(spec))
+    clock = _EvaluationClock(SERVER_NOW)
+    use_case = EvaluateForecastBaselineTrialUseCase(
+        actual_provider=actual_provider,
+        research_trial_provider=research_provider,
+        repository=repository,
+        clock=clock,
+    )
+    values = {
+        "output_trial_ref": VersionRef(RESULT_REF.stable_id, RESULT_REF.version),
+        "spec_ref": VersionRef(SPEC_REF.stable_id, SPEC_REF.version),
+        "artifact_ref": VersionRef(ARTIFACT_REF.stable_id, ARTIFACT_REF.version),
+        "actual_manifest_ref": VersionRef(
+            ACTUAL_MANIFEST_REF.stable_id,
+            ACTUAL_MANIFEST_REF.version,
+        ),
+        "research_trial_ref": VersionRef(
+            RESEARCH_TRIAL_REF.stable_id,
+            RESEARCH_TRIAL_REF.version,
+        ),
+        "as_of": EVALUATED_AT,
+    }
+
+    if attack == "subclass":
+
+        class NoValidationCommand(EvaluateForecastBaselineTrialCommand):
+            def __post_init__(self) -> None:
+                pass
+
+        command = NoValidationCommand(**values)
+    else:
+        command = EvaluateForecastBaselineTrialCommand(**values)
+        if attack == "mutated_as_of":
+            object.__setattr__(command, "as_of", EVALUATED_AT.replace(tzinfo=None))
+        elif attack == "mutated_ref":
+            object.__setattr__(command.spec_ref, "stable_id", "")
+        else:
+            object.__setattr__(command, "as_of", EVALUATED_AT.replace(tzinfo=None))
+            object.__setattr__(command, "__post_init__", lambda: None)
+
+    with pytest.raises(ForecastBaselineEvidenceError, match="command is invalid"):
+        use_case.execute(command)
+
+    assert repository.atomic_calls == 0
+    assert repository.spec_reads == 0
+    assert repository.artifact_reads == 0
+    assert actual_provider.calls == []
+    assert research_provider.calls == []
+    assert clock.calls == 0
+    assert repository.trials == []
+
+
+def test_evaluate_uses_trusted_clock_shared_atomic_and_double_reads_owner_graph() -> None:
+    """The PIT cutoff is not the ledger evaluation clock or a one-read authority."""
+
+    spec, artifact, _, repository = _build_artifact()
+    actual_provider = _ActualProvider(_actual_snapshot())
+    research_provider = _ResearchProvider(_research_trial(spec))
+    clock = _EvaluationClock(SERVER_NOW)
+
+    result = EvaluateForecastBaselineTrialUseCase(
+        actual_provider=actual_provider,
+        research_trial_provider=research_provider,
+        repository=repository,
+        clock=clock,
+    ).execute(
+        EvaluateForecastBaselineTrialCommand(
+            output_trial_ref=RESULT_REF,
+            spec_ref=SPEC_REF,
+            artifact_ref=ARTIFACT_REF,
+            actual_manifest_ref=ACTUAL_MANIFEST_REF,
+            research_trial_ref=RESEARCH_TRIAL_REF,
+            as_of=EVALUATED_AT,
+        )
+    )
+
+    assert result.evaluated_at == SERVER_NOW
+    assert actual_provider.calls == [
+        (ACTUAL_MANIFEST_REF, EVALUATED_AT),
+        (ACTUAL_MANIFEST_REF, EVALUATED_AT),
+    ]
+    assert research_provider.calls == [
+        (RESEARCH_TRIAL_REF, EVALUATED_AT),
+        (RESEARCH_TRIAL_REF, EVALUATED_AT),
+    ]
+    assert clock.calls == 1
+    assert repository.atomic_calls == 1
+    assert repository.trials == [result]
+
+
+def test_evaluate_rejects_future_pit_cutoff_before_owner_reads_and_writes() -> None:
+    spec, artifact, _, repository = _build_artifact()
+    actual_provider = _ActualProvider(_actual_snapshot())
+    research_provider = _ResearchProvider(_research_trial(spec))
+
+    with pytest.raises(ForecastBaselineEvidenceError, match="future"):
+        EvaluateForecastBaselineTrialUseCase(
+            actual_provider=actual_provider,
+            research_trial_provider=research_provider,
+            repository=repository,
+            clock=_EvaluationClock(SERVER_NOW),
+        ).execute(
+            EvaluateForecastBaselineTrialCommand(
+                output_trial_ref=RESULT_REF,
+                spec_ref=VersionRef(artifact.spec_id, artifact.spec_version),
+                artifact_ref=ARTIFACT_REF,
+                actual_manifest_ref=ACTUAL_MANIFEST_REF,
+                research_trial_ref=RESEARCH_TRIAL_REF,
+                as_of=SERVER_NOW + timedelta(microseconds=1),
+            )
+        )
+
+    assert actual_provider.calls == []
+    assert research_provider.calls == []
+    assert repository.trials == []
+
+
+def test_evaluate_rejects_owner_substitution_on_second_read_without_writing() -> None:
+    spec, _, _, repository = _build_artifact()
+    actual_provider = _ActualProvider(_actual_snapshot())
+    actual_provider.snapshots = [
+        _actual_snapshot(),
+        replace(
+            _actual_snapshot(),
+            identity=replace(_actual_snapshot().identity, content_hash="f" * 64),
+        ),
+    ]
+    research_provider = _ResearchProvider(_research_trial(spec))
+
+    with pytest.raises(ForecastBaselineEvidenceError, match="changed"):
+        EvaluateForecastBaselineTrialUseCase(
+            actual_provider=actual_provider,
+            research_trial_provider=research_provider,
+            repository=repository,
+            clock=_EvaluationClock(SERVER_NOW),
+        ).execute(
+            EvaluateForecastBaselineTrialCommand(
+                output_trial_ref=RESULT_REF,
+                spec_ref=SPEC_REF,
+                artifact_ref=ARTIFACT_REF,
+                actual_manifest_ref=ACTUAL_MANIFEST_REF,
+                research_trial_ref=RESEARCH_TRIAL_REF,
+                as_of=EVALUATED_AT,
+            )
+        )
+
+    assert len(actual_provider.calls) == 2
+    assert repository.trials == []
+
+
+@pytest.mark.parametrize("boundary", ("clock", "owner", "repository"))
+def test_evaluate_normalizes_authoritative_boundary_exception_and_rolls_back(
+    boundary: str,
+) -> None:
+    spec, _, _, repository = _build_artifact()
+    actual_provider = _ActualProvider(_actual_snapshot())
+    clock = _EvaluationClock(SERVER_NOW)
+    if boundary == "clock":
+        clock.error = RuntimeError("injected clock failure")
+    elif boundary == "owner":
+        actual_provider.error_on_call = 2
+    else:
+        repository.spec_reads = 0
+        repository.spec_error_on_read = 2
+
+    with pytest.raises(ForecastBaselineEvidenceError, match="unavailable"):
+        EvaluateForecastBaselineTrialUseCase(
+            actual_provider=actual_provider,
+            research_trial_provider=_ResearchProvider(_research_trial(spec)),
+            repository=repository,
+            clock=clock,
+        ).execute(
+            EvaluateForecastBaselineTrialCommand(
+                output_trial_ref=RESULT_REF,
+                spec_ref=SPEC_REF,
+                artifact_ref=ARTIFACT_REF,
+                actual_manifest_ref=ACTUAL_MANIFEST_REF,
+                research_trial_ref=RESEARCH_TRIAL_REF,
+                as_of=EVALUATED_AT,
+            )
+        )
+
+    assert repository.trials == []
+
+
+def test_evaluate_rejects_dynamic_owner_uow_drift_before_append() -> None:
+    spec, _, _, repository = _build_artifact()
+    actual_provider = _ActualProvider(_actual_snapshot())
+    actual_provider.call_hook = lambda call_count: (
+        setattr(actual_provider, "_unit_of_work_key", "django:drifted") if call_count == 2 else None
+    )
+
+    with pytest.raises(ForecastBaselineEvidenceError, match="unit of work"):
+        EvaluateForecastBaselineTrialUseCase(
+            actual_provider=actual_provider,
+            research_trial_provider=_ResearchProvider(_research_trial(spec)),
+            repository=repository,
+            clock=_EvaluationClock(SERVER_NOW),
+        ).execute(
+            EvaluateForecastBaselineTrialCommand(
+                output_trial_ref=RESULT_REF,
+                spec_ref=SPEC_REF,
+                artifact_ref=ARTIFACT_REF,
+                actual_manifest_ref=ACTUAL_MANIFEST_REF,
+                research_trial_ref=RESEARCH_TRIAL_REF,
+                as_of=EVALUATED_AT,
+            )
+        )
+
+    assert repository.trials == []
+
+
+def test_evaluate_requires_exact_builtin_str_shared_uow_identity() -> None:
+    class StringSubclass(str):
+        pass
+
+    spec, _, _, repository = _build_artifact()
+    with pytest.raises(ForecastBaselineEvidenceError, match="key is invalid"):
+        EvaluateForecastBaselineTrialUseCase(
+            actual_provider=_ActualProvider(_actual_snapshot()),
+            research_trial_provider=_ResearchProvider(_research_trial(spec)),
+            repository=repository,
+            clock=_EvaluationClock(SERVER_NOW, unit_of_work_key=StringSubclass(EVALUATION_UOW_KEY)),
+        )
+
+    assert repository.trials == []
+
+
+def test_evaluate_post_append_uow_drift_rolls_back_the_trial() -> None:
+    spec, _, _, repository = _build_artifact()
+    repository.append_hook = lambda: setattr(repository, "_unit_of_work_key", "django:drifted")
+
+    with pytest.raises(ForecastBaselineEvidenceError, match="unit of work"):
+        EvaluateForecastBaselineTrialUseCase(
+            actual_provider=_ActualProvider(_actual_snapshot()),
+            research_trial_provider=_ResearchProvider(_research_trial(spec)),
+            repository=repository,
+            clock=_EvaluationClock(SERVER_NOW),
+        ).execute(
+            EvaluateForecastBaselineTrialCommand(
+                output_trial_ref=RESULT_REF,
+                spec_ref=SPEC_REF,
+                artifact_ref=ARTIFACT_REF,
+                actual_manifest_ref=ACTUAL_MANIFEST_REF,
+                research_trial_ref=RESEARCH_TRIAL_REF,
+                as_of=EVALUATED_AT,
+            )
+        )
+
+    assert repository.trials == []
 
 
 @pytest.mark.parametrize(

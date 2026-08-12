@@ -37,6 +37,31 @@ logger = get_task_logger(__name__)
 
 VALID_DAILY_SIGNAL_DIRECTIONS = frozenset({"BULLISH", "BEARISH", "NEUTRAL"})
 CALCULATION_READY_SYNC_STATUSES = frozenset({"success", "partial"})
+_TASK_OUTCOMES = frozenset({"success", "noop", "blocked", "failed"})
+
+
+def _orchestration_task_result(
+    *,
+    outcome: str,
+    status: str,
+    stored: int = 0,
+    **details: Any,
+) -> dict[str, Any]:
+    """Build one normalized business outcome for a single orchestration request."""
+
+    if outcome not in _TASK_OUTCOMES or stored not in {0, 1}:
+        raise ValueError("invalid regime orchestration task outcome")
+    completed = outcome in {"success", "noop"}
+    return {
+        "status": status,
+        "outcome": outcome,
+        "success": completed,
+        "requested": 1,
+        "succeeded": 1 if completed else 0,
+        "failed": 1 if outcome == "failed" else 0,
+        "stored": stored,
+        **details,
+    }
 
 
 def build_regime_snapshot_from_v2_result(
@@ -171,22 +196,27 @@ def generate_daily_regime_signal(as_of_date: str | None = None) -> dict[str, Any
             if result.warning_signals:
                 logger.warning(f"Warning signals detected: {result.warning_signals}")
 
-            return {
-                "status": "success",
-                "as_of_date": str(target_date),
-                "signal_direction": result.signal_direction,
-                "signal_strength": result.signal_strength,
-                "confidence": result.confidence,
-                "contributing_indicators": result.contributing_indicators,
-                "warning_signals": result.warning_signals,
-            }
+            return _orchestration_task_result(
+                outcome="success",
+                status="success",
+                as_of_date=str(target_date),
+                signal_direction=result.signal_direction,
+                signal_strength=result.signal_strength,
+                confidence=result.confidence,
+                contributing_indicators=result.contributing_indicators,
+                warning_signals=result.warning_signals,
+            )
         error = (
             result.error
             if not result.success
             else "daily signal payload is incomplete or outside its valid range"
         )
         logger.error("Daily regime signal generation failed: %s", error)
-        return {"status": "error", "error": error}
+        return _orchestration_task_result(
+            outcome="failed",
+            status="error",
+            error=error,
+        )
 
     except Exception as exc:
         logger.error(f"Daily regime signal generation failed: {exc}")
@@ -241,38 +271,40 @@ def recalculate_regime_with_daily_signal(
                 "Daily signal unavailable or invalid; using monthly regime only: %s",
                 daily_response.error,
             )
-            return {
-                "status": "success",
-                "as_of_date": str(target_date),
-                "final_regime": monthly_result.dominant_regime,
-                "final_confidence": monthly_result.confidence,
-                "source": "MONTHLY_ONLY",
-                "monthly_signal": monthly_result.dominant_regime,
-                "daily_signal": None,
-            }
+            return _orchestration_task_result(
+                outcome="success",
+                status="success",
+                as_of_date=str(target_date),
+                final_regime=monthly_result.dominant_regime,
+                final_confidence=monthly_result.confidence,
+                source="MONTHLY_ONLY",
+                monthly_signal=monthly_result.dominant_regime,
+                daily_signal=None,
+            )
 
         # 日频信号表达方向，月频结果表达四象限；没有 Domain 映射证据时不能互相替代。
         logger.info(
             "Daily directional context collected without changing monthly four-quadrant regime"
         )
 
-        return {
-            "status": "success",
-            "as_of_date": str(target_date),
-            "final_regime": monthly_result.dominant_regime,
-            "final_confidence": monthly_result.confidence,
-            "source": "MONTHLY_WITH_DAILY_DIRECTION_CONTEXT",
-            "resolution_reason": (
+        return _orchestration_task_result(
+            outcome="success",
+            status="success",
+            as_of_date=str(target_date),
+            final_regime=monthly_result.dominant_regime,
+            final_confidence=monthly_result.confidence,
+            source="MONTHLY_WITH_DAILY_DIRECTION_CONTEXT",
+            resolution_reason=(
                 "Daily signal is directional evidence and is not a four-quadrant "
                 "Regime classification."
             ),
-            "monthly_signal": monthly_result.dominant_regime,
-            "monthly_confidence": monthly_result.confidence,
-            "daily_signal": daily_response.signal_direction,
-            "daily_confidence": daily_response.confidence,
-            "daily_contributors": daily_response.contributing_indicators,
-            "warning_signals": daily_response.warning_signals,
-        }
+            monthly_signal=monthly_result.dominant_regime,
+            monthly_confidence=monthly_result.confidence,
+            daily_signal=daily_response.signal_direction,
+            daily_confidence=daily_response.confidence,
+            daily_contributors=daily_response.contributing_indicators,
+            warning_signals=daily_response.warning_signals,
+        )
 
     except Exception as exc:
         logger.error(f"Regime recalculation with daily signal failed: {exc}")
@@ -314,7 +346,12 @@ def calculate_regime_after_sync(
                 f"Previous sync step failed, skipping regime calculation: "
                 f"{sync_result.get('error')}"
             )
-            return {"status": "skipped", "reason": "sync_failed", "sync_result": sync_result}
+            return _orchestration_task_result(
+                outcome="blocked",
+                status="skipped",
+                reason="sync_failed",
+                sync_result=sync_result,
+            )
 
         target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
         logger.info(f"Starting regime calculation for date={as_of_date}, use_pit={use_pit}")
@@ -341,16 +378,18 @@ def calculate_regime_after_sync(
             get_regime_repository().save_snapshot(snapshot)
             logger.info(f"Regime calculation completed and persisted: {snapshot.dominant_regime}")
 
-            return {
-                "status": "success",
-                "as_of_date": str(target_date),
-                "observed_at": snapshot.observed_at.isoformat(),
-                "dominant_regime": snapshot.dominant_regime,
-                "confidence": snapshot.confidence,
-                "warnings": list(response.warnings or []),
-                "data_source": snapshot.data_source,
-                "is_fallback": False,
-            }
+            return _orchestration_task_result(
+                outcome="success",
+                status="success",
+                stored=1,
+                as_of_date=str(target_date),
+                observed_at=snapshot.observed_at.isoformat(),
+                dominant_regime=snapshot.dominant_regime,
+                confidence=snapshot.confidence,
+                warnings=list(response.warnings or []),
+                data_source=snapshot.data_source,
+                is_fallback=False,
+            )
 
         logger.warning(
             "V2 regime calculation did not produce a persistable snapshot, "
@@ -359,20 +398,21 @@ def calculate_regime_after_sync(
         result = resolve_current_regime(as_of_date=target_date, use_pit=use_pit)
         must_not_use_for_decision = bool(getattr(result, "must_not_use_for_decision", False))
 
-        return {
-            "status": "blocked" if must_not_use_for_decision else "success",
-            "as_of_date": str(target_date),
-            "observed_at": (
+        return _orchestration_task_result(
+            outcome="blocked" if must_not_use_for_decision else "success",
+            status="blocked" if must_not_use_for_decision else "success",
+            as_of_date=str(target_date),
+            observed_at=(
                 result.observed_at.isoformat() if result.observed_at is not None else None
             ),
-            "dominant_regime": result.dominant_regime,
-            "confidence": result.confidence,
-            "warnings": result.warnings,
-            "data_source": result.data_source,
-            "is_fallback": result.is_fallback,
-            "must_not_use_for_decision": must_not_use_for_decision,
-            "blocked_reason": str(getattr(result, "blocked_reason", "") or ""),
-        }
+            dominant_regime=result.dominant_regime,
+            confidence=result.confidence,
+            warnings=result.warnings,
+            data_source=result.data_source,
+            is_fallback=result.is_fallback,
+            must_not_use_for_decision=must_not_use_for_decision,
+            blocked_reason=str(getattr(result, "blocked_reason", "") or ""),
+        )
 
     except Exception as exc:
         logger.error(f"Regime calculation failed: {exc}")
@@ -400,7 +440,11 @@ def notify_regime_change_after_calculation(
                 f"Regime calculation not successful, skipping notification: "
                 f"{regime_result.get('status') if regime_result else 'None'}"
             )
-            return {"status": "skipped", "reason": "regime_not_successful"}
+            return _orchestration_task_result(
+                outcome="blocked",
+                status="skipped",
+                reason="regime_not_successful",
+            )
 
         dominant_regime = str(regime_result.get("dominant_regime") or "").strip()
         confidence = regime_result.get("confidence")
@@ -413,11 +457,19 @@ def notify_regime_change_after_calculation(
             or not 0.0 <= float(confidence) <= 1.0
             or not isinstance(raw_observed_at, str)
         ):
-            return {"status": "error", "reason": "invalid_regime_result"}
+            return _orchestration_task_result(
+                outcome="failed",
+                status="error",
+                reason="invalid_regime_result",
+            )
         try:
             current_date = date.fromisoformat(raw_observed_at)
         except ValueError:
-            return {"status": "error", "reason": "invalid_regime_result"}
+            return _orchestration_task_result(
+                outcome="failed",
+                status="error",
+                reason="invalid_regime_result",
+            )
 
         logger.info(
             f"Checking regime change for notification: " f"{regime_result.get('dominant_regime')}"
@@ -547,15 +599,21 @@ def notify_regime_change_after_calculation(
                     logger.warning(f"置信度下降通知发送失败: {notify_err}")
 
         notification_required = regime_changed or confidence_dropped
-        return {
-            "status": "warning" if notification_required and not notified else "success",
-            "notified": notified,
-            "notification_attempted": notification_attempted,
-            "regime_changed": regime_changed,
-            "confidence_dropped": confidence_dropped,
-            "regime": regime_result.get("dominant_regime"),
-            "confidence": regime_result.get("confidence"),
-        }
+        outcome = (
+            "success"
+            if notification_required and notified
+            else "failed" if notification_required else "noop"
+        )
+        return _orchestration_task_result(
+            outcome=outcome,
+            status="warning" if notification_required and not notified else "success",
+            notified=notified,
+            notification_attempted=notification_attempted,
+            regime_changed=regime_changed,
+            confidence_dropped=confidence_dropped,
+            regime=regime_result.get("dominant_regime"),
+            confidence=regime_result.get("confidence"),
+        )
 
     except Exception as exc:
         logger.error(f"Failed to send regime change notification: {exc}")
@@ -619,13 +677,14 @@ def sync_macro_then_refresh_regime(
 
         logger.info(f"Orchestrated workflow started, task ID: {result.id}")
 
-        return {
-            "status": "started",
-            "task_id": result.id,
-            "workflow": "sync_macro_data -> calculate_regime_after_sync -> notify_regime_change_after_calculation",
-            "source": source,
-            "as_of_date": as_of_date or target_date.isoformat(),
-        }
+        return _orchestration_task_result(
+            outcome="success",
+            status="started",
+            task_id=result.id,
+            workflow="sync_macro_data -> calculate_regime_after_sync -> notify_regime_change_after_calculation",
+            source=source,
+            as_of_date=as_of_date or target_date.isoformat(),
+        )
 
     except Exception as exc:
         logger.error(f"Failed to start orchestrated workflow: {exc}")

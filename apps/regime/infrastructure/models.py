@@ -288,3 +288,9 @@ class RiskParameterConfigModel(models.Model):
         if self.value_json is not None:
             return cast(object, self.value_json)
         return None
+
+
+from apps.regime.infrastructure.historical_assignment_models import (  # noqa: E402,F401
+    HistoricalRegimeAssignmentDefinitionModel,
+    HistoricalRegimeAssignmentReceiptModel,
+)

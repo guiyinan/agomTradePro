@@ -105,3 +105,16 @@ class PITDatasetManifestModel(ImmutableModelMixin):
         db_table = "data_center_pit_dataset_manifest"
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["knowledge_scope", "as_of_time"])]
+
+
+# Import the independent R1 ledgers while this already-discovered model module
+# is loading, without changing the user-owned aggregate model exports.
+from .evaluation_actual_manifest_models import (  # noqa: E402,F401
+    EvaluationActualManifestReceiptModel,
+    EvaluationActualSourceDefinitionModel,
+)
+from .macro_factor_research_source_models import (  # noqa: E402,F401
+    MacroFactorResearchCalendarPeriodModel,
+    MacroFactorResearchMemberRuleModel,
+    MacroFactorResearchSourceDefinitionModel,
+)

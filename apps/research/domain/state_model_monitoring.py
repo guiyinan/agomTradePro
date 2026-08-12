@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from hashlib import sha256
@@ -32,9 +32,27 @@ def _require_text(value: str, field_name: str, *, maximum: int = 300) -> None:
         raise ValueError(f"{field_name} must be bounded non-blank text")
 
 
-def _require_hash(value: str, field_name: str) -> None:
-    if len(value) != 64 or any(character not in "0123456789abcdefABCDEF" for character in value):
+def _is_hash(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(character in "0123456789abcdefABCDEF" for character in value)
+    )
+
+
+def _require_hash(value: object, field_name: str) -> None:
+    if not _is_hash(value):
         raise ValueError(f"{field_name} must be a SHA-256 digest")
+
+
+def _hashes_equal(left: object, right: object) -> bool:
+    return (
+        isinstance(left, str)
+        and isinstance(right, str)
+        and _is_hash(left)
+        and _is_hash(right)
+        and left.lower() == right.lower()
+    )
 
 
 def _require_aware(value: datetime, field_name: str) -> None:
@@ -170,13 +188,17 @@ class R6MonitoringBlockerCode(str, Enum):
     POLICY_MISSING = "r6_monitoring.policy.missing"
     POLICY_BINDING_MISMATCH = "r6_monitoring.policy.binding_mismatch"
     POLICY_HASH_MISMATCH = "r6_monitoring.policy.hash_mismatch"
+    POLICY_FROM_FUTURE = "r6_monitoring.policy.from_future"
     POLICY_INACTIVE = "r6_monitoring.policy.inactive"
+    POLICY_QUALIFICATION_CAUSALITY_INVALID = "r6_monitoring.policy.qualification_causality_invalid"
     OBSERVATIONS_MISSING = "r6_monitoring.observations.missing"
     OBSERVATION_IDENTITY_DUPLICATE = "r6_monitoring.observation.identity_duplicate"
     OBSERVATION_PERIOD_DUPLICATE = "r6_monitoring.observation.period_duplicate"
     OBSERVATION_PERIOD_ORDER_INVALID = "r6_monitoring.observation.period_order_invalid"
     OBSERVATION_PERIOD_ID_MISMATCH = "r6_monitoring.observation.period_id_mismatch"
     OBSERVATION_PERIOD_WINDOW_INVALID = "r6_monitoring.observation.period_window_invalid"
+    OBSERVATION_PERIOD_INCOMPLETE = "r6_monitoring.observation.period_incomplete"
+    OBSERVATION_PERIOD_COVERAGE_INCOMPLETE = "r6_monitoring.observation.period_coverage_incomplete"
     OBSERVATION_PERIOD_OVERLAP = "r6_monitoring.observation.period_overlap"
     PERIOD_CALENDAR_MISMATCH = "r6_monitoring.observation.period_calendar_mismatch"
     PERIOD_CALENDAR_MISSING = "r6_monitoring.period_calendar.missing"
@@ -184,6 +206,7 @@ class R6MonitoringBlockerCode(str, Enum):
     PERIOD_CALENDAR_HASH_MISMATCH = "r6_monitoring.period_calendar.hash_mismatch"
     PERIOD_CALENDAR_FROM_FUTURE = "r6_monitoring.period_calendar.from_future"
     PERIOD_CALENDAR_INACTIVE = "r6_monitoring.period_calendar.inactive"
+    PERIOD_CALENDAR_HORIZON_INSUFFICIENT = "r6_monitoring.period_calendar.horizon_insufficient"
     OBSERVATION_PERIOD_NOT_IN_CALENDAR = "r6_monitoring.observation.period_not_in_calendar"
     OBSERVATION_BINDING_MISMATCH = "r6_monitoring.observation.binding_mismatch"
     OBSERVATION_OWNER_MISMATCH = "r6_monitoring.observation.owner_mismatch"
@@ -268,6 +291,13 @@ class R6MonitoringPeriodCalendar:
             for previous, current in zip(ordered, ordered[1:], strict=False)
         ):
             raise ValueError("R6 monitoring period calendar entries cannot overlap")
+        if any(
+            current.period_start != previous.period_end
+            for previous, current in zip(ordered, ordered[1:], strict=False)
+        ):
+            raise ValueError("R6 monitoring period calendar entries must be contiguous")
+        if ordered[0].period_start != self.valid_from or ordered[-1].period_end != self.valid_until:
+            raise ValueError("R6 monitoring period calendar must cover its full validity window")
         object.__setattr__(self, "content_hash", _monitoring_period_calendar_hash(self))
 
     def is_active_at(self, as_of: datetime) -> bool:
@@ -304,6 +334,12 @@ def _monitoring_period_calendar_hash(calendar: R6MonitoringPeriodCalendar) -> st
             ],
         }
     )
+
+
+def r6_monitoring_period_calendar_hash(calendar: R6MonitoringPeriodCalendar) -> str:
+    """Recompute the canonical monitoring-calendar content seal."""
+
+    return _monitoring_period_calendar_hash(calendar)
 
 
 @dataclass(frozen=True)
@@ -362,6 +398,7 @@ class R6MonitoringPolicy:
     expected_period_calendar_version: str
     expected_period_calendar_hash: str
     expected_evidence_ref_prefix: str
+    recorded_at: datetime
     active_from: datetime
     active_until: datetime
     content_hash: str = field(init=False)
@@ -369,6 +406,10 @@ class R6MonitoringPolicy:
     def __post_init__(self) -> None:
         _require_token(self.policy_id, "R6MonitoringPolicy.policy_id")
         _require_token(self.policy_version, "R6MonitoringPolicy.policy_version")
+        _require_hash(
+            self.qualification_ref.assessment_hash,
+            "R6MonitoringPolicy.qualification_ref.assessment_hash",
+        )
         keys = tuple(item.metric_key for item in self.thresholds)
         if len(keys) != len(set(keys)):
             raise ValueError("R6 monitoring policy metric thresholds must be unique")
@@ -421,10 +462,11 @@ class R6MonitoringPolicy:
             self.expected_evidence_ref_prefix,
             "R6MonitoringPolicy.expected_evidence_ref_prefix",
         )
+        _require_aware(self.recorded_at, "R6MonitoringPolicy.recorded_at")
         _require_aware(self.active_from, "R6MonitoringPolicy.active_from")
         _require_aware(self.active_until, "R6MonitoringPolicy.active_until")
-        if self.active_until <= self.active_from:
-            raise ValueError("R6 monitoring policy active window is invalid")
+        if not self.recorded_at <= self.active_from < self.active_until:
+            raise ValueError("R6 monitoring policy knowledge/active clocks are invalid")
         object.__setattr__(self, "content_hash", _monitoring_policy_hash(self))
 
     def is_active_at(self, as_of: datetime) -> bool:
@@ -437,7 +479,7 @@ class R6MonitoringPolicy:
 def _monitoring_policy_hash(policy: R6MonitoringPolicy) -> str:
     return _hash_payload(
         {
-            "schema": "r6-monitoring-policy.v1",
+            "schema": "r6-monitoring-policy.v2",
             "policy_id": policy.policy_id,
             "policy_version": policy.policy_version,
             "qualification_ref": {
@@ -468,10 +510,17 @@ def _monitoring_policy_hash(policy: R6MonitoringPolicy) -> str:
             "expected_period_calendar_version": policy.expected_period_calendar_version,
             "expected_period_calendar_hash": policy.expected_period_calendar_hash.lower(),
             "expected_evidence_ref_prefix": policy.expected_evidence_ref_prefix,
+            "recorded_at": _utc_text(policy.recorded_at),
             "active_from": _utc_text(policy.active_from),
             "active_until": _utc_text(policy.active_until),
         }
     )
+
+
+def r6_monitoring_policy_hash(policy: R6MonitoringPolicy) -> str:
+    """Recompute the canonical monitoring-policy content seal."""
+
+    return _monitoring_policy_hash(policy)
 
 
 @dataclass(frozen=True)
@@ -550,6 +599,10 @@ class R6MonitoringObservation:
             "R6MonitoringObservation.period_calendar_hash",
         )
         _require_hash(self.policy_hash, "R6MonitoringObservation.policy_hash")
+        _require_hash(
+            self.qualification_ref.assessment_hash,
+            "R6MonitoringObservation.qualification_ref.assessment_hash",
+        )
         _require_hash(self.pit_manifest_hash, "R6MonitoringObservation.pit_manifest_hash")
         _require_hash(
             self.observed_label_set_hash,
@@ -634,6 +687,12 @@ def _monitoring_observation_hash(observation: R6MonitoringObservation) -> str:
     )
 
 
+def r6_monitoring_observation_hash(observation: R6MonitoringObservation) -> str:
+    """Recompute one canonical raw-observation content seal."""
+
+    return _monitoring_observation_hash(observation)
+
+
 @dataclass(frozen=True)
 class R6MonitoringMetricResult:
     """Recomputed latest threshold state and trailing breach count."""
@@ -683,6 +742,10 @@ class R6MonitoringAssessment:
             self.expected_policy_hash,
             "R6MonitoringAssessment.expected_policy_hash",
         )
+        _require_hash(
+            self.qualification_ref.assessment_hash,
+            "R6MonitoringAssessment.qualification_ref.assessment_hash",
+        )
         if self.qualification_content_hash is not None:
             _require_hash(
                 self.qualification_content_hash,
@@ -695,8 +758,8 @@ class R6MonitoringAssessment:
             raise ValueError("R6 monitoring blockers must be unique")
         if len(self.observation_hashes) != len(set(self.observation_hashes)):
             raise ValueError("R6 monitoring observation hashes must be unique")
-        if any(len(value) != 64 for value in self.observation_hashes):
-            raise ValueError("R6 monitoring assessment observation hash is invalid")
+        for value in self.observation_hashes:
+            _require_hash(value, "R6MonitoringAssessment.observation_hash")
         if self.status is R6MonitoringAssessmentStatus.BLOCKED:
             if not self.blockers or self.metric_results or self.retirement_review_required:
                 raise ValueError("blocked R6 monitoring assessment shape is invalid")
@@ -768,6 +831,8 @@ def evaluate_r6_monitoring(
     *,
     qualification_ref: R6QualificationRef,
     qualification_content_hash: str | None,
+    qualification_assessed_at: datetime | None,
+    qualification_known_at: datetime | None,
     requested_policy_id: str,
     requested_policy_version: str,
     expected_policy_hash: str,
@@ -781,48 +846,93 @@ def evaluate_r6_monitoring(
     _require_token(requested_policy_id, "requested_policy_id")
     _require_token(requested_policy_version, "requested_policy_version")
     _require_hash(expected_policy_hash, "expected_policy_hash")
+    _require_hash(
+        qualification_ref.assessment_hash,
+        "qualification_ref.assessment_hash",
+    )
     _require_aware(evaluated_at, "evaluated_at")
     blockers: list[R6MonitoringBlockerCode] = []
+    qualification_clocks_valid = False
     if qualification_content_hash is None:
         blockers.append(R6MonitoringBlockerCode.ACTIVE_QUALIFICATION_MISSING)
-    elif qualification_content_hash.lower() != qualification_ref.assessment_hash.lower():
+    elif not _hashes_equal(
+        qualification_content_hash,
+        qualification_ref.assessment_hash,
+    ):
         blockers.append(R6MonitoringBlockerCode.ACTIVE_QUALIFICATION_INVALID)
+    elif qualification_assessed_at is None or qualification_known_at is None:
+        blockers.append(R6MonitoringBlockerCode.ACTIVE_QUALIFICATION_INVALID)
+    else:
+        try:
+            _require_aware(qualification_assessed_at, "qualification_assessed_at")
+            _require_aware(qualification_known_at, "qualification_known_at")
+        except (AttributeError, TypeError, ValueError):
+            blockers.append(R6MonitoringBlockerCode.ACTIVE_QUALIFICATION_INVALID)
+        else:
+            if (
+                qualification_assessed_at > qualification_known_at
+                or qualification_known_at > evaluated_at
+            ):
+                blockers.append(R6MonitoringBlockerCode.ACTIVE_QUALIFICATION_INVALID)
+            else:
+                qualification_clocks_valid = True
     if policy is None:
         blockers.append(R6MonitoringBlockerCode.POLICY_MISSING)
     else:
-        recomputed_policy_hash = _monitoring_policy_hash(policy)
+        try:
+            recomputed_policy_hash = _monitoring_policy_hash(policy)
+        except (AttributeError, TypeError, ValueError):
+            recomputed_policy_hash = None
         if (
             policy.policy_id != requested_policy_id
             or policy.policy_version != requested_policy_version
             or policy.qualification_ref != qualification_ref
         ):
             blockers.append(R6MonitoringBlockerCode.POLICY_BINDING_MISMATCH)
-        if (
-            policy.content_hash.lower() != recomputed_policy_hash.lower()
-            or recomputed_policy_hash.lower() != expected_policy_hash.lower()
+        if not _hashes_equal(policy.content_hash, recomputed_policy_hash) or not _hashes_equal(
+            recomputed_policy_hash, expected_policy_hash
         ):
             blockers.append(R6MonitoringBlockerCode.POLICY_HASH_MISMATCH)
+        if policy.recorded_at > evaluated_at:
+            blockers.append(R6MonitoringBlockerCode.POLICY_FROM_FUTURE)
+        if (
+            qualification_clocks_valid
+            and qualification_assessed_at is not None
+            and qualification_known_at is not None
+            and policy.recorded_at < max(qualification_assessed_at, qualification_known_at)
+        ):
+            blockers.append(R6MonitoringBlockerCode.POLICY_QUALIFICATION_CAUSALITY_INVALID)
         if not policy.is_active_at(evaluated_at):
             blockers.append(R6MonitoringBlockerCode.POLICY_INACTIVE)
     if period_calendar is None:
         blockers.append(R6MonitoringBlockerCode.PERIOD_CALENDAR_MISSING)
     elif policy is not None:
-        recomputed_calendar_hash = _monitoring_period_calendar_hash(period_calendar)
+        try:
+            recomputed_calendar_hash = _monitoring_period_calendar_hash(period_calendar)
+        except (AttributeError, TypeError, ValueError):
+            recomputed_calendar_hash = None
         if (
             period_calendar.source_owner != policy.expected_period_calendar_owner
             or period_calendar.calendar_id != policy.expected_period_calendar_id
             or period_calendar.calendar_version != policy.expected_period_calendar_version
         ):
             blockers.append(R6MonitoringBlockerCode.PERIOD_CALENDAR_BINDING_MISMATCH)
-        if (
-            period_calendar.content_hash.lower() != recomputed_calendar_hash.lower()
-            or recomputed_calendar_hash.lower() != policy.expected_period_calendar_hash.lower()
+        if not _hashes_equal(
+            period_calendar.content_hash, recomputed_calendar_hash
+        ) or not _hashes_equal(
+            recomputed_calendar_hash,
+            policy.expected_period_calendar_hash,
         ):
             blockers.append(R6MonitoringBlockerCode.PERIOD_CALENDAR_HASH_MISMATCH)
         if period_calendar.recorded_at > evaluated_at:
             blockers.append(R6MonitoringBlockerCode.PERIOD_CALENDAR_FROM_FUTURE)
         if not period_calendar.is_active_at(evaluated_at):
             blockers.append(R6MonitoringBlockerCode.PERIOD_CALENDAR_INACTIVE)
+        if (
+            period_calendar.valid_from > policy.active_from
+            or period_calendar.valid_until < policy.active_until
+        ):
+            blockers.append(R6MonitoringBlockerCode.PERIOD_CALENDAR_HORIZON_INSUFFICIENT)
     if not observations:
         blockers.append(R6MonitoringBlockerCode.OBSERVATIONS_MISSING)
     if policy is None or period_calendar is None or blockers:
@@ -832,7 +942,11 @@ def evaluate_r6_monitoring(
             requested_policy_version=requested_policy_version,
             expected_policy_hash=expected_policy_hash,
             qualification_content_hash=qualification_content_hash,
-            policy_hash=None if policy is None else policy.content_hash,
+            policy_hash=(
+                policy.content_hash
+                if policy is not None and _is_hash(policy.content_hash)
+                else None
+            ),
             evaluated_at=evaluated_at,
             observations=observations,
             blockers=tuple(dict.fromkeys(blockers)),
@@ -850,6 +964,8 @@ def evaluate_r6_monitoring(
             ),
         )
     )
+    if observations != ordered:
+        blockers.append(R6MonitoringBlockerCode.OBSERVATION_PERIOD_ORDER_INVALID)
     identities = tuple((item.observation_id, item.observation_version) for item in ordered)
     if len(identities) != len(set(identities)):
         blockers.append(R6MonitoringBlockerCode.OBSERVATION_IDENTITY_DUPLICATE)
@@ -864,11 +980,37 @@ def evaluate_r6_monitoring(
     if len(ordered) < policy.minimum_observation_count:
         blockers.append(R6MonitoringBlockerCode.OBSERVATION_COUNT_INSUFFICIENT)
     threshold_by_key = {item.metric_key: item for item in policy.thresholds}
-    calendar_entry_by_id = {item.period_id: item for item in period_calendar.entries}
+    ordered_calendar_entries = tuple(
+        sorted(
+            period_calendar.entries,
+            key=lambda item: (item.period_start, item.period_end, item.period_id),
+        )
+    )
+    calendar_entry_by_id = {item.period_id: item for item in ordered_calendar_entries}
+    completed_calendar_entries = tuple(
+        item for item in ordered_calendar_entries if item.period_end <= evaluated_at
+    )
+    monitoring_floor = evaluated_at - timedelta(seconds=policy.maximum_observation_age_seconds)
+    selected_calendar_entries = tuple(
+        item for item in completed_calendar_entries if item.period_end > monitoring_floor
+    )
+    selected_period_ids = tuple(item.period_id for item in selected_calendar_entries)
+    if (
+        len(selected_calendar_entries) < policy.minimum_observation_count
+        or periods != selected_period_ids
+    ):
+        blockers.append(R6MonitoringBlockerCode.OBSERVATION_PERIOD_COVERAGE_INCOMPLETE)
     values_by_observation: list[dict[R6MonitoringMetricKey, Decimal]] = []
     label_drift = False
     for observation in ordered:
-        if observation.content_hash.lower() != _monitoring_observation_hash(observation).lower():
+        try:
+            recomputed_observation_hash = _monitoring_observation_hash(observation)
+        except (AttributeError, TypeError, ValueError):
+            recomputed_observation_hash = None
+        if not _hashes_equal(
+            observation.content_hash,
+            recomputed_observation_hash,
+        ):
             blockers.append(R6MonitoringBlockerCode.OBSERVATION_HASH_MISMATCH)
         try:
             derived_period_id = derive_r6_monitoring_period_id(
@@ -880,15 +1022,22 @@ def evaluate_r6_monitoring(
         except (TypeError, ValueError):
             blockers.append(R6MonitoringBlockerCode.OBSERVATION_PERIOD_WINDOW_INVALID)
         else:
-            if observation.observation_period_id.lower() != derived_period_id.lower():
+            if not _hashes_equal(
+                observation.observation_period_id,
+                derived_period_id,
+            ):
                 blockers.append(R6MonitoringBlockerCode.OBSERVATION_PERIOD_ID_MISMATCH)
         if not observation.period_start <= observation.observed_at < observation.period_end:
             blockers.append(R6MonitoringBlockerCode.OBSERVATION_PERIOD_WINDOW_INVALID)
+        if observation.period_end > evaluated_at:
+            blockers.append(R6MonitoringBlockerCode.OBSERVATION_PERIOD_INCOMPLETE)
         if (
             observation.period_calendar_id != policy.expected_period_calendar_id
             or observation.period_calendar_version != policy.expected_period_calendar_version
-            or observation.period_calendar_hash.lower()
-            != policy.expected_period_calendar_hash.lower()
+            or not _hashes_equal(
+                observation.period_calendar_hash,
+                policy.expected_period_calendar_hash,
+            )
         ):
             blockers.append(R6MonitoringBlockerCode.PERIOD_CALENDAR_MISMATCH)
         calendar_entry = calendar_entry_by_id.get(observation.observation_period_id)
@@ -902,14 +1051,14 @@ def evaluate_r6_monitoring(
             observation.qualification_ref != qualification_ref
             or observation.policy_id != policy.policy_id
             or observation.policy_version != policy.policy_version
-            or observation.policy_hash.lower() != policy.content_hash.lower()
+            or not _hashes_equal(observation.policy_hash, policy.content_hash)
         ):
             blockers.append(R6MonitoringBlockerCode.OBSERVATION_BINDING_MISMATCH)
         if observation.source_owner != policy.expected_source_owner:
             blockers.append(R6MonitoringBlockerCode.OBSERVATION_OWNER_MISMATCH)
-        if (
-            observation.pit_manifest_id != policy.expected_pit_manifest_id
-            or observation.pit_manifest_hash.lower() != policy.expected_pit_manifest_hash.lower()
+        if observation.pit_manifest_id != policy.expected_pit_manifest_id or not _hashes_equal(
+            observation.pit_manifest_hash,
+            policy.expected_pit_manifest_hash,
         ):
             blockers.append(R6MonitoringBlockerCode.PIT_MANIFEST_MISMATCH)
         if not observation.evidence_ref.startswith(policy.expected_evidence_ref_prefix):
@@ -928,7 +1077,10 @@ def evaluate_r6_monitoring(
             blockers.append(R6MonitoringBlockerCode.OBSERVATION_STALE)
         if observation.label_protocol_version != policy.label_protocol_version:
             blockers.append(R6MonitoringBlockerCode.LABEL_PROTOCOL_MISMATCH)
-        elif observation.observed_label_set_hash.lower() != policy.expected_label_set_hash.lower():
+        elif not _hashes_equal(
+            observation.observed_label_set_hash,
+            policy.expected_label_set_hash,
+        ):
             label_drift = True
         metric_keys = tuple(item.metric_key for item in observation.metrics)
         if len(metric_keys) != len(set(metric_keys)):
@@ -950,7 +1102,7 @@ def evaluate_r6_monitoring(
             requested_policy_version=requested_policy_version,
             expected_policy_hash=expected_policy_hash,
             qualification_content_hash=qualification_content_hash,
-            policy_hash=policy.content_hash,
+            policy_hash=(policy.content_hash if _is_hash(policy.content_hash) else None),
             evaluated_at=evaluated_at,
             observations=ordered,
             blockers=tuple(dict.fromkeys(blockers)),
@@ -1033,7 +1185,9 @@ def _blocked_monitoring_assessment(
         policy_hash=policy_hash,
         evaluated_at=evaluated_at,
         status=R6MonitoringAssessmentStatus.BLOCKED,
-        observation_hashes=tuple(dict.fromkeys(item.content_hash for item in observations)),
+        observation_hashes=tuple(
+            dict.fromkeys(item.content_hash for item in observations if _is_hash(item.content_hash))
+        ),
         metric_results=(),
         blockers=blockers,
         label_drift_detected=False,
@@ -1057,4 +1211,7 @@ __all__ = [
     "R6MonitoringThresholdDirection",
     "derive_r6_monitoring_period_id",
     "evaluate_r6_monitoring",
+    "r6_monitoring_observation_hash",
+    "r6_monitoring_period_calendar_hash",
+    "r6_monitoring_policy_hash",
 ]

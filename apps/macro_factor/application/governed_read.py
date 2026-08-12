@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -32,6 +34,10 @@ from apps.macro_factor.domain.run_artifacts import ReproducibleMacroFactorRunArt
 class R3GovernedReadLedger(Protocol):
     """Read-only boundary over the immutable R3 run ledger."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity used by ledger reads."""
+
     def get_artifact(
         self,
         artifact_id: str,
@@ -51,6 +57,10 @@ class R3GovernedReadLedger(Protocol):
 class R3RegimeReportProvider(Protocol):
     """Read the Regime-owner exact OOS segmentation evidence."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity used by this reader."""
+
     def get_report(
         self,
         *,
@@ -63,6 +73,10 @@ class R3RegimeReportProvider(Protocol):
 
 class R3TrialEvidenceProvider(Protocol):
     """Read Research-owner preregistered trial evidence."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity used by this reader."""
 
     def get_trial(
         self,
@@ -77,6 +91,10 @@ class R3TrialEvidenceProvider(Protocol):
 class R3PromotionDecisionProvider(Protocol):
     """Read one Research-owner exact PromotionDecision."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity used by this reader."""
+
     def get_decision(
         self,
         *,
@@ -90,6 +108,10 @@ class R3PromotionDecisionProvider(Protocol):
 class R3MonitoringEvidenceProvider(Protocol):
     """Read raw retirement-policy-owner monitoring evidence."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity used by this reader."""
+
     def get_monitoring(
         self,
         *,
@@ -98,6 +120,29 @@ class R3MonitoringEvidenceProvider(Protocol):
         as_of: datetime,
     ) -> R3MonitoringEvidence | None:
         """Return exact metric facts; callers cannot submit a claimed health gate."""
+
+
+class R3GovernedReadUnitOfWork(Protocol):
+    """One atomic snapshot shared by the ledger and all four owner readers."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database/snapshot identity opened by ``atomic``."""
+
+    def atomic(self) -> AbstractContextManager[None]:
+        """Open the single read transaction used by one governed read."""
+
+
+class R3GovernedReadClock(Protocol):
+    """Trusted server clock that bounds caller-supplied PIT cutoffs."""
+
+    def now(self) -> datetime:
+        """Return a timezone-aware trusted server time."""
+
+
+class _R3UnitOfWorkBound(Protocol):
+    @property
+    def unit_of_work_key(self) -> str: ...
 
 
 @dataclass(frozen=True)
@@ -117,24 +162,32 @@ class ReadGovernedR3OutputCommand:
             (self.output_id, "output_id"),
             (self.expected_output_hash, "expected_output_hash"),
         ):
-            if len(value) != 64 or any(
-                character not in "0123456789abcdefABCDEF" for character in value
+            if (
+                type(value) is not str
+                or len(value) != 64
+                or any(character not in "0123456789abcdefABCDEF" for character in value)
             ):
                 raise ValueError(f"{name} must be a sha256 digest")
-        if self.as_of.tzinfo is None or self.as_of.utcoffset() is None:
+        if (
+            type(self.as_of) is not datetime
+            or self.as_of.tzinfo is None
+            or self.as_of.utcoffset() is None
+        ):
             raise ValueError("as_of must be timezone-aware")
 
 
-class R3GovernedReadStatus(str, Enum):
+class R3GovernedReadStatus(str, Enum):  # noqa: UP042 -- preserve string enum compatibility
     """Outcome of the read-only evidence projection."""
 
     EVIDENCE_COMPLETE = "evidence_complete"
     BLOCKED = "blocked"
 
 
-class R3GovernedReadBlockerCode(str, Enum):
+class R3GovernedReadBlockerCode(str, Enum):  # noqa: UP042 -- preserve string enum compatibility
     """Stable fail-closed reasons for exact R3 reads."""
 
+    READ_INPUT_INVALID = "read_input_invalid"
+    OWNER_EVIDENCE_UNAVAILABLE = "owner_evidence_unavailable"
     ARTIFACT_MISSING = "artifact_missing"
     ARTIFACT_MISMATCH = "artifact_mismatch"
     ARTIFACT_FUTURE = "artifact_future"
@@ -195,6 +248,31 @@ def _blocked(code: R3GovernedReadBlockerCode) -> R3GovernedReadAssessment:
     )
 
 
+@dataclass(frozen=True)
+class _R3GovernedReadOwnerGraph:
+    """One fully validated snapshot of all governed-read owner evidence."""
+
+    artifact: ReproducibleMacroFactorRunArtifact
+    outputs: tuple[DatedMacroFactorOutput, ...]
+    events: tuple[MacroFactorLifecycleEvent, ...]
+    regime_report: R3RegimeSegmentReport
+    trial: R3ExperimentTrialEvidence
+    decision: R3PromotionDecisionEvidence
+    monitoring: R3MonitoringEvidence
+
+
+def _exact_unit_of_work_key(value: object) -> str:
+    if type(value) is not str or value != value.strip() or not value or len(value) > 200:
+        raise ValueError("R3 governed-read unit_of_work_key is invalid")
+    return value
+
+
+def _validate_trusted_now(value: object) -> datetime:
+    if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("R3 governed-read trusted clock is invalid")
+    return value
+
+
 class ReadGovernedR3Output:
     """Dynamically replay exact owner evidence before returning one read projection."""
 
@@ -206,29 +284,97 @@ class ReadGovernedR3Output:
         trial_provider: R3TrialEvidenceProvider,
         promotion_provider: R3PromotionDecisionProvider,
         monitoring_provider: R3MonitoringEvidenceProvider,
+        unit_of_work: R3GovernedReadUnitOfWork,
+        clock: R3GovernedReadClock,
     ) -> None:
         self._ledger = ledger
         self._regime_provider = regime_provider
         self._trial_provider = trial_provider
         self._promotion_provider = promotion_provider
         self._monitoring_provider = monitoring_provider
+        self._unit_of_work = unit_of_work
+        self._clock = clock
 
     def execute(self, command: ReadGovernedR3OutputCommand) -> R3GovernedReadAssessment:
         """Read an exact output, failing closed on every absent or changed owner record."""
 
+        try:
+            if type(command) is not ReadGovernedR3OutputCommand:
+                raise TypeError("R3 governed-read command type differs")
+            ReadGovernedR3OutputCommand.__post_init__(command)
+        except (AttributeError, TypeError, ValueError):
+            return _blocked(R3GovernedReadBlockerCode.READ_INPUT_INVALID)
+
+        try:
+            self._validate_shared_unit_of_work()
+            with self._unit_of_work.atomic():
+                self._validate_shared_unit_of_work()
+                trusted_now = _validate_trusted_now(self._clock.now())
+                if command.as_of > trusted_now:
+                    return _blocked(R3GovernedReadBlockerCode.READ_INPUT_INVALID)
+
+                first = self._read_owner_graph(command)
+                if isinstance(first, R3GovernedReadAssessment):
+                    return first
+                baseline = deepcopy(first)
+                self._validate_shared_unit_of_work()
+
+                second = self._read_owner_graph(command)
+                if isinstance(second, R3GovernedReadAssessment):
+                    return _blocked(R3GovernedReadBlockerCode.OWNER_EVIDENCE_UNAVAILABLE)
+                reread = deepcopy(second)
+                self._validate_shared_unit_of_work()
+                if baseline != reread:
+                    return _blocked(R3GovernedReadBlockerCode.OWNER_EVIDENCE_UNAVAILABLE)
+
+                projection = self._build_projection(reread, command)
+                self._validate_shared_unit_of_work()
+                return R3GovernedReadAssessment(
+                    status=R3GovernedReadStatus.EVIDENCE_COMPLETE,
+                    blocker_codes=(),
+                    projection=projection,
+                )
+        except Exception:  # noqa: BLE001 - every owner boundary must fail closed
+            return _blocked(R3GovernedReadBlockerCode.OWNER_EVIDENCE_UNAVAILABLE)
+
+    def _validate_shared_unit_of_work(self) -> None:
+        expected = _exact_unit_of_work_key(self._unit_of_work.unit_of_work_key)
+        readers: tuple[_R3UnitOfWorkBound, ...] = (
+            self._ledger,
+            self._regime_provider,
+            self._trial_provider,
+            self._promotion_provider,
+            self._monitoring_provider,
+        )
+        if any(_exact_unit_of_work_key(reader.unit_of_work_key) != expected for reader in readers):
+            raise ValueError("R3 governed-read readers do not share one unit of work")
+
+    def _read_owner_graph(
+        self,
+        command: ReadGovernedR3OutputCommand,
+    ) -> _R3GovernedReadOwnerGraph | R3GovernedReadAssessment:
         artifact = self._ledger.get_artifact(command.artifact_id)
         if artifact is None:
             return _blocked(R3GovernedReadBlockerCode.ARTIFACT_MISSING)
+        if type(artifact) is not ReproducibleMacroFactorRunArtifact:
+            raise TypeError("R3 artifact type differs")
+        ReproducibleMacroFactorRunArtifact.__post_init__(artifact)
         if artifact.content_hash != command.expected_artifact_hash:
             return _blocked(R3GovernedReadBlockerCode.ARTIFACT_MISMATCH)
         if artifact.produced_at > command.as_of:
             return _blocked(R3GovernedReadBlockerCode.ARTIFACT_FUTURE)
 
-        try:
-            outputs = self._ledger.list_outputs(artifact.artifact_id)
-        except ValueError:
-            return _blocked(R3GovernedReadBlockerCode.OUTPUT_MISMATCH)
-        output = next((item for item in outputs if item.output_id == command.output_id), None)
+        outputs = self._ledger.list_outputs(artifact.artifact_id)
+        if type(outputs) is not tuple or any(
+            type(output_item) is not DatedMacroFactorOutput for output_item in outputs
+        ):
+            raise TypeError("R3 output collection type differs")
+        for output_item in outputs:
+            DatedMacroFactorOutput.__post_init__(output_item)
+        output = next(
+            (output_item for output_item in outputs if output_item.output_id == command.output_id),
+            None,
+        )
         if output is None:
             return _blocked(R3GovernedReadBlockerCode.OUTPUT_MISSING)
         if (
@@ -238,8 +384,14 @@ class ReadGovernedR3Output:
         ):
             return _blocked(R3GovernedReadBlockerCode.OUTPUT_MISMATCH)
 
+        events = self._ledger.list_lifecycle_events(artifact.artifact_id)
+        if type(events) is not tuple or any(
+            type(event) is not MacroFactorLifecycleEvent for event in events
+        ):
+            raise TypeError("R3 lifecycle collection type differs")
+        for event in events:
+            MacroFactorLifecycleEvent.__post_init__(event)
         try:
-            events = self._ledger.list_lifecycle_events(artifact.artifact_id)
             output_status = assess_output_research_status(
                 output,
                 events,
@@ -257,7 +409,10 @@ class ReadGovernedR3Output:
         )
         if regime_report is None:
             return _blocked(R3GovernedReadBlockerCode.REGIME_REPORT_MISSING)
+        if type(regime_report) is not R3RegimeSegmentReport:
+            raise TypeError("R3 Regime report type differs")
         try:
+            R3RegimeSegmentReport.__post_init__(regime_report)
             recalculated_regime_report = build_regime_segment_report(
                 artifact,
                 regime_report.observations,
@@ -278,7 +433,10 @@ class ReadGovernedR3Output:
         )
         if trial is None:
             return _blocked(R3GovernedReadBlockerCode.TRIAL_MISSING)
+        if type(trial) is not R3ExperimentTrialEvidence:
+            raise TypeError("R3 trial type differs")
         try:
+            R3ExperimentTrialEvidence.__post_init__(trial)
             validate_trial_binding(trial, artifact, regime_report)
             if not trial.is_active_at(command.as_of):
                 raise ValueError("R3 trial is inactive")
@@ -292,7 +450,10 @@ class ReadGovernedR3Output:
         )
         if decision is None:
             return _blocked(R3GovernedReadBlockerCode.PROMOTION_MISSING)
+        if type(decision) is not R3PromotionDecisionEvidence:
+            raise TypeError("R3 PromotionDecision type differs")
         try:
+            R3PromotionDecisionEvidence.__post_init__(decision)
             validate_promotion_binding(decision, trial, regime_report)
         except ValueError:
             return _blocked(R3GovernedReadBlockerCode.PROMOTION_INVALID)
@@ -308,7 +469,10 @@ class ReadGovernedR3Output:
         )
         if monitoring is None:
             return _blocked(R3GovernedReadBlockerCode.MONITORING_MISSING)
+        if type(monitoring) is not R3MonitoringEvidence:
+            raise TypeError("R3 monitoring evidence type differs")
         try:
+            R3MonitoringEvidence.__post_init__(monitoring)
             root = events[0]
             if (
                 monitoring.artifact_id != artifact.artifact_id
@@ -326,6 +490,30 @@ class ReadGovernedR3Output:
         if monitoring_assessment.status is R3MonitoringStatus.RETIREMENT_REVIEW_REQUIRED:
             return _blocked(R3GovernedReadBlockerCode.RETIREMENT_REVIEW_REQUIRED)
 
+        return _R3GovernedReadOwnerGraph(
+            artifact=artifact,
+            outputs=outputs,
+            events=events,
+            regime_report=regime_report,
+            trial=trial,
+            decision=decision,
+            monitoring=monitoring,
+        )
+
+    @staticmethod
+    def _build_projection(
+        graph: _R3GovernedReadOwnerGraph,
+        command: ReadGovernedR3OutputCommand,
+    ) -> R3GovernedReadProjection:
+        artifact = graph.artifact
+        output = next(item for item in graph.outputs if item.output_id == command.output_id)
+        trial = graph.trial
+        decision = graph.decision
+        regime_report = graph.regime_report
+        monitoring_assessment = assess_monitoring(
+            graph.monitoring,
+            assessed_at=command.as_of,
+        )
         decision_boundary = (
             decision.valid_until
             if decision.retired_at is None
@@ -349,18 +537,16 @@ class ReadGovernedR3Output:
                 monitoring_assessment.valid_until,
             ),
         )
-        return R3GovernedReadAssessment(
-            status=R3GovernedReadStatus.EVIDENCE_COMPLETE,
-            blocker_codes=(),
-            projection=projection,
-        )
+        return projection
 
 
 __all__ = [
     "R3GovernedReadAssessment",
     "R3GovernedReadBlockerCode",
+    "R3GovernedReadClock",
     "R3GovernedReadLedger",
     "R3GovernedReadStatus",
+    "R3GovernedReadUnitOfWork",
     "R3MonitoringEvidenceProvider",
     "R3PromotionDecisionProvider",
     "R3RegimeReportProvider",
