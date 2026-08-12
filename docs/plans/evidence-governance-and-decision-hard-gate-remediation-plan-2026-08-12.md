@@ -1,6 +1,6 @@
 # AgomTradePro 证据治理与决策硬闸改造计划
 
-> 执行状态（2026-08-12）：**M0 进行中，M1 Domain、append-only persistence 与 staff-only exact read API 首批已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、审批/激活、Application adapter、TUI、Risk、Portfolio、Broker 或生产硬切换已经完成。
+> 执行状态（2026-08-12）：**M0 进行中，M1 Domain、append-only persistence、staff-only exact read API 与 Operator Spec lifecycle 首批已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、真实 Risk Center 审批 provider、各 App adapter、TUI、Risk、Portfolio、Broker 或生产硬切换已经完成。
 
 ## 0. 分阶段实施记录
 
@@ -21,11 +21,14 @@
 - 新增 Research Application exact-read port/facade、composition root 与三个只读 HTTP detail endpoint；Operator Spec、Track Record 和 Envelope 均强制 identity/version、预期 content hash 与非未来的 timezone-aware `as_of`，Envelope 额外强制应用级 `output_owner`。
 - 只读 HTTP 面严格限定已认证 staff，写方法全部 405，miss 使用统一非枚举 404；由于当前 Evidence artifact `owner` 表示应用/能力而非用户或租户，本批没有伪造 owner-scoped 授权语义。
 - 公共仓储同时注入权威 server clock 并拒绝 future PIT cutoff，确保绕过 HTTP 直接调用 Application/Repository 也不能查询未来证据。
+- 新增 Operator Spec definition、Risk Center approval receipt 与 activated record 的 immutable lifecycle；调用方 mutation command 只能提交 spec/approval 的 ID、版本和 `as_of`，claim/method/权限/actor/supersession 均只能来自可信 definition provider 与 Risk Center Application port。
+- 激活在同一事务内双读 definition/approval 防漂移，并原子追加 approval receipt 与 activation；exact/PIT read 会重放完整 supersession chain，fork、orphan、cycle、断链、空 active ledger 和 future cutoff 均失败关闭。
+- migration `0027_evidence_operator_spec_lifecycle` 为 schema-only/zero-seed；数据库唯一约束同时阻断并发双 root 和同一 predecessor 的双 successor，append-only ORM guard 继续覆盖直接 create/bulk/mutation/delete shortcut；没有新增公开 HTTP writer。
 
 仍未完成：
 
 - M0 尚需扩展全量 R1–R8、动态 dict/TypedDict/interface/query payload、Broker query API、raw/governed MCP 输出语义与旧 Transition Plan 写路径分类；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口及 41 个高风险输出首批冻结已完成。
-- M1 的用户/租户 scope 模型与 owner-scoped 授权、Operator Spec 审批/激活、并发 first-winner 正式数据库验证和各 App Application adapter；staff-only exact read API 首批已完成。
+- M1 的用户/租户 scope 模型与 owner-scoped 授权、真实 Risk Center approval provider/composition、并发 first-winner PostgreSQL 验证和各 App Application adapter；staff-only exact read API 与 Operator Spec lifecycle 合同/持久化首批已完成。
 - M2–M5 全部交付及真实生产切换证据。
 
 本阶段验证：
@@ -35,8 +38,9 @@
 - Domain 与 freeze guard 聚合纯测试：`22 passed`。
 - Django 5.1/SQLite 内存库逐项执行 persistence component 场景：`8 passed`；覆盖 exact replay/fork、三模型 ORM mutation/delete shortcut、raw SQL tamper、公共 reader 写隔离与 future PIT 拒绝。
 - Django 4.2/DRF 3.16 最小 settings 下 exact read API/facade：`18 passed`；覆盖 staff 权限、精确 selector、未来 cutoff、非枚举 404、三类 payload 和全部写方法 405。
+- Operator Spec lifecycle 纯 Domain/Application/codec 与 migration 静态测试：`11 passed`、standalone strict mypy `0 errors`；Django 5.1/SQLite lifecycle component 场景：`3 passed`，覆盖原子激活/幂等读取、空 ledger/直接 ORM 写阻断及数据库级并发 root/child fork 拒绝。
 - `black --check`、`isort --check-only`、`compileall` 与 `git diff --check`：通过；Domain/codec standalone strict mypy：`0 errors`。
-- 未验证：当前机器没有同时具备完整项目依赖与 pytest-django 的 runtime，标准项目 settings 下的 component/API pytest、完整 `manage.py check`、`makemigrations --check`、PostgreSQL 并发 first-winner 仍待项目 runtime/CI 执行。
+- 未验证：当前机器没有同时具备完整项目依赖与 pytest-django 的 runtime，标准项目 settings 下的 component/API pytest、完整 `manage.py check`、`makemigrations --check`、PostgreSQL 并发 first-winner 与真实 Risk Center provider 集成仍待项目 runtime/CI 和后续批次执行。
 
 ## 一、目标与既定决策
 

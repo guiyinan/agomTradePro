@@ -185,6 +185,10 @@ from apps.research.infrastructure.evidence_models import (  # noqa: E402,F401
     EvidenceOperatorSpecModel,
     EvidenceTrackRecordModel,
 )
+from apps.research.infrastructure.evidence_operator_spec_lifecycle_models import (  # noqa: E402,F401
+    ActivatedEvidenceOperatorSpecModel,
+    EvidenceOperatorSpecApprovalReceiptModel,
+)
 from apps.research.infrastructure.r2_market_structure_promotion_models import (  # noqa: E402,F401
     R2MarketStructurePromotionDecisionModel,
     R2MarketStructurePromotionLifecycleEventModel,
