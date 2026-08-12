@@ -284,6 +284,23 @@
 
 - inventory 专属 `12 passed`；机器分母 `65 / 14 / 53 / 18`；diff-check 通过。本批仅修改治理 inventory、测试和文档，没有改变 Portfolio 运行行为。
 
+### 2026-08-13：Portfolio canonical transition 账户边界与 submit 硬阻断
+
+已完成：
+
+- canonical create/detail/approve/submit 四个 REST 入口不再只检查 `IsAuthenticated`：create 的 `account_id` 必须是当前用户实际拥有的数字账户，后续三个入口先读取 plan，再用 plan.account_id 复核同一 ownership；跨账户访问稳定返回 403，非数字 legacy account identity 不再被猜测映射。
+- `SubmitApprovedPlanUseCase` 保留 not-found/status/expiry 前置校验，但在当前未接正式 Evidence 时固定失败关闭，`APPROVED` 计划也不能再从 API 获得 `execution_handoff`。该链原本没有 Broker 真调用，因此本批不撤销订单或外部交易，只关闭了一个语义上过度声明的 handoff 发布面。
+- create 与 approve 仍保留用于生成/审核不可执行计划；旧 Decision Rhythm plan 链与 `AdvisorOrderIntent` live-draft consumer 未在本批改动。
+
+仍未完成：
+
+- 只有在 canonical payload hash、contract family、decision/portfolio/target/prices/market facts/policy version、正式 Operator Spec/Envelope/Track Record 与调用者授权全部 exact 重验后，submit 才能恢复。
+- `DECISION_SNAPSHOT_REQUIRED` 仍默认 false；创建和审批目前只是计划生命周期，不是 Evidence 硬门禁。完整 Django API/component 因当前环境缺 Django 未执行，跨账户与 blocked handoff API 测试已写、待合格 runtime 复跑。
+
+本阶段验证：
+
+- 纯 Application submit gate `4 passed`；Decision write freeze `10 / 54 / 15 / 25 / 23 / 32`；architecture delta `0` boundary/audit violations；Application standalone strict mypy `0 issues`；Black/isort/diff-check 通过。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

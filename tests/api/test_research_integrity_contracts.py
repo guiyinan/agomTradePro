@@ -10,6 +10,7 @@ from apps.prompt.infrastructure.eval_models import (
     PromptVersion,
 )
 from apps.prompt.infrastructure.models import PromptTemplateORM
+from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
 
 def _assert_json(response, status_code: int) -> dict:  # type: ignore[no-untyped-def]
@@ -84,8 +85,16 @@ def test_pit_manifest_and_decision_snapshot_api_contract(authenticated_client) -
 
 
 @pytest.mark.django_db
-def test_portfolio_plan_is_idempotent_and_snapshot_bound(authenticated_client) -> None:
+def test_portfolio_plan_is_idempotent_and_snapshot_bound(authenticated_client, auth_user) -> None:
     now = datetime.now(UTC)
+    account = SimulatedAccountModel.objects.create(
+        user=auth_user,
+        account_name="portfolio-contract",
+        account_type="simulated",
+        initial_capital="10000.00",
+        current_cash="10000.00",
+        total_value="10000.00",
+    )
     PortfolioPlanningPolicyModel.objects.create(
         policy_id="api-policy-v1",
         version="a-share-policy-v1",
@@ -99,7 +108,7 @@ def test_portfolio_plan_is_idempotent_and_snapshot_bound(authenticated_client) -
     )
     request = {
         "idempotency_key": "portfolio-contract-1",
-        "account_id": "account-1",
+        "account_id": str(account.id),
         "portfolio_snapshot_id": "holdings-1",
         "as_of_time": now.isoformat(),
         "cash": "10000.00",
@@ -160,6 +169,56 @@ def test_portfolio_plan_is_idempotent_and_snapshot_bound(authenticated_client) -
         200,
     )
     assert approved["status"] == "APPROVED"
+    blocked_handoff = _assert_json(
+        authenticated_client.post(
+            f"/api/portfolio/transition-plans/{first['plan_id']}/submit/",
+            {},
+            content_type="application/json",
+        ),
+        400,
+    )
+    assert "Evidence is integrated" in str(blocked_handoff)
+
+
+@pytest.mark.django_db
+def test_portfolio_transition_plan_rejects_foreign_account(authenticated_client) -> None:
+    from django.contrib.auth import get_user_model
+
+    other_user = get_user_model().objects.create_user(
+        username="portfolio-other", password="testpass123"
+    )
+    account = SimulatedAccountModel.objects.create(
+        user=other_user,
+        account_name="foreign-portfolio",
+        account_type="simulated",
+        initial_capital="10000.00",
+        current_cash="10000.00",
+        total_value="10000.00",
+    )
+    now = datetime.now(UTC)
+    response = authenticated_client.post(
+        "/api/portfolio/transition-plans/",
+        {
+            "idempotency_key": "foreign-plan",
+            "account_id": str(account.id),
+            "portfolio_snapshot_id": "foreign-holdings",
+            "as_of_time": now.isoformat(),
+            "cash": "10000.00",
+            "current_positions": {},
+            "target_portfolio_id": "foreign-target",
+            "decision_snapshot_id": "foreign-decision",
+            "target_positions": [],
+            "target_cash_weight": "1",
+            "strategy_version": "strategy-v1",
+            "prices": {},
+            "market_facts": {},
+            "expires_at": (now + timedelta(hours=1)).isoformat(),
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+    assert "无权" in response.json()["detail"]
 
 
 @pytest.mark.django_db

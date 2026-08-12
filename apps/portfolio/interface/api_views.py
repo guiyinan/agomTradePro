@@ -19,6 +19,7 @@ from apps.portfolio.domain.entities import (
     TargetPosition,
     TransitionPlan,
 )
+from apps.simulated_trading.application.interface_services import get_account_access
 
 
 class BuildTransitionPlanSerializer(serializers.Serializer[dict[str, object]]):
@@ -70,6 +71,17 @@ def _serialize(plan: TransitionPlan) -> dict[str, object]:
     }
 
 
+def _require_account_access(request: object, account_id: str, *, action: str) -> Response | None:
+    """Require one numeric account owned by the authenticated caller."""
+
+    if not account_id.isdigit():
+        return Response({"detail": "account_id must identify an owned account."}, status=400)
+    access = get_account_access(getattr(request, "user", None), int(account_id), action=action)
+    if access.error:
+        return Response({"detail": access.error}, status=access.status_code)
+    return None
+
+
 class TransitionPlanListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -77,6 +89,9 @@ class TransitionPlanListCreateView(APIView):
         serializer = BuildTransitionPlanSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        access_error = _require_account_access(request, str(data["account_id"]), action="创建计划")
+        if access_error is not None:
+            return access_error
         target = TargetPortfolio(
             target_id=data["target_portfolio_id"],
             decision_snapshot_id=data["decision_snapshot_id"],
@@ -119,6 +134,9 @@ class TransitionPlanDetailView(APIView):
         plan = get_transition_plan(plan_id)
         if plan is None:
             return Response({"detail": "Plan not found."}, status=status.HTTP_404_NOT_FOUND)
+        access_error = _require_account_access(request, plan.account_id, action="查看计划")
+        if access_error is not None:
+            return access_error
         return Response(_serialize(plan))
 
 
@@ -126,6 +144,12 @@ class TransitionPlanApproveView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, plan_id: str):  # type: ignore[no-untyped-def]
+        existing = get_transition_plan(plan_id)
+        if existing is None:
+            return Response({"detail": "Plan not found."}, status=status.HTTP_404_NOT_FOUND)
+        access_error = _require_account_access(request, existing.account_id, action="审批计划")
+        if access_error is not None:
+            return access_error
         decision_snapshot_id = str(request.data.get("decision_snapshot_id") or "")
         if not decision_snapshot_id:
             return Response({"detail": "decision_snapshot_id is required."}, status=400)
@@ -140,6 +164,12 @@ class TransitionPlanSubmitView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, plan_id: str):  # type: ignore[no-untyped-def]
+        existing = get_transition_plan(plan_id)
+        if existing is None:
+            return Response({"detail": "Plan not found."}, status=status.HTTP_404_NOT_FOUND)
+        access_error = _require_account_access(request, existing.account_id, action="提交计划")
+        if access_error is not None:
+            return access_error
         try:
             plan = make_submit_approved_plan_use_case().execute(plan_id)
         except ValueError as exc:
