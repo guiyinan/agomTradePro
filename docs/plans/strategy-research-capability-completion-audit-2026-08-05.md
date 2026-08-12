@@ -21,6 +21,7 @@
 - 2026-08-12 第五批完成 Data Center `0069` R3 PIT source definition/projection、R4 read-only research-control preflight与Signal `0013` R7 calibration sample owner；public mutation继续inert，PIT/source字段不足、owner缺失或真实历史未形成时稳定`BLOCKED`，不以fixture、latest猜测或下游assessment反充owner。
 - 2026-08-12 第六批完成 Regime `0010` R3 historical assignment owner/exact adapter与R5 persisted active-lifecycle production read composition；Regime public runtime已拆成窄read repository，R5缺Portfolio canonical source时只在owner叶阻断，两者都不开放writer/current/decision/execution。
 - 2026-08-12 第七批完成Research `0024` R6 scope→qualification owner registry与`0025` R7 analogy/path owner persistence；两者public mutation均inert，只暴露exact PIT read，缺真实owner时继续fail-closed。
+- 2026-08-12 第八批完成R7 result canonical owner join，并关闭R2 participant双真源、R3 Regime adapter writer可达、R6 qualification public authority三项软件边界；未新增迁移或真实数据声明。
 
 ## 2. 逐能力剩余开发项
 
@@ -281,5 +282,7 @@ R7 result persistence 已完成 Research `0007` evidence graph、input receipt/r
 2026-08-12 第六批软件续批验证：Regime historical assignment unit+component `11 passed`、migration `2 passed`；R5 research-control preflight unit `7 passed`、component `2 passed`。Regime `0010`完成独立SQLite forward/reverse/re-forward，migration drift与Django system check均通过；10个生产文件增量mypy 0 regression，Black/isort/Ruff与架构扫描`2563 files / 0 violations`通过。自审发现并关闭Regime public concrete writer泄漏、receipt FK owner图校验和IntegrityError savepoint三项边界。真实Regime definition/facts、Portfolio outcome source、PIT/OOS/Promotion与consumer验收仍未形成，R3/R5继续`blocked`。
 
 2026-08-12 第七批软件续批验证：R6 scope registry unit `3 passed`、component `4 passed`、migration static `1 passed`；R7 analogy/path unit+component+migration static合并 `12 passed`。Research migration drift为0；R7 4个生产文件与R6 7个生产文件增量mypy均0 regression，Ruff/Black/isort通过，架构扫描`2575 files / 0 violations`、governance consistency `0 violations`。R7 Domain按analogy/path拆至778/983非空行，关闭large-file治理红线。真实scope binding、analogy/path raw历史、Promotion/consumer仍缺，R6/R7继续`blocked`。
+
+2026-08-12 第八批软件收口验证：R7 canonical result composition unit `8 passed`、empty-owner component `1 passed`；R2 preflight focused `15 passed`；R3 Regime exact-read composition focused `24 passed`；R6 qualification authority unit+repository+component合并 `7 passed`。相关生产文件增量mypy均0 regression，Ruff通过。该批仅收紧composition/UoW/capability边界，无迁移、seed、current/decision/execution写面；真实owner数据仍缺，readiness继续`blocked`。
 
 完成路线图仍需为上表每项取得代码、迁移/台账、研究证据、运行时行为和 Promotion/回滚的直接证明；“测试全绿”只证明已覆盖合同，不替代真实数据和样本外结果。
