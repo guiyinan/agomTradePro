@@ -893,12 +893,12 @@
       "text": "payload[\"version\"] = (current.version + 1) if current is not None else 1"
     },
     {
-      "line": 85,
+      "line": 87,
       "path": "apps/account/infrastructure/system_settings_projection.py",
       "text": "current = now or datetime.now(UTC)"
     },
     {
-      "line": 88,
+      "line": 90,
       "path": "apps/account/infrastructure/system_settings_projection.py",
       "text": "return bool((current - self.backup_last_sent_at).days >= self.backup_interval_days)"
     },
@@ -8123,7 +8123,7 @@
       "text": "composite_method=latest.composite_method,"
     },
     {
-      "line": 25,
+      "line": 27,
       "path": "apps/equity/forecast_baseline_evaluation_preflight_composition.py",
       "text": "\"\"\"One read-only preflight with no mutation, current, decision, or execution port.\"\"\""
     },
@@ -9223,12 +9223,12 @@
       "text": "raise ValueError(\"current-state inference target period exceeds its knowledge cutoff\")"
     },
     {
-      "line": 33,
+      "line": 30,
       "path": "apps/macro_factor/infrastructure/regime_historical_assignment_adapter.py",
       "text": "\"\"\"Return the one exact PIT receipt or ``None`` without latest guessing.\"\"\""
     },
     {
-      "line": 90,
+      "line": 87,
       "path": "apps/macro_factor/infrastructure/regime_historical_assignment_adapter.py",
       "text": "\"\"\"Return a recalculated exact report or ``None`` without latest guessing.\"\"\""
     },
