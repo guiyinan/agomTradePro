@@ -13,6 +13,9 @@ from apps.research.application.r6_manual_activation_preflight import (
     R6ManualActivationBlockerCode,
     R6ManualActivationPreflightStatus,
 )
+from apps.research.infrastructure.r6_scope_qualification_models import (
+    R6ScopeQualificationRegistryModel,
+)
 from apps.research.infrastructure.state_model_activation_models import (
     R6ActivationAuditSnapshotModel,
     R6ActivationAuthorizationModel,
@@ -45,6 +48,7 @@ def _ledger_counts() -> tuple[int, ...]:
         R6ActivationEventModel,
         R6ActivationStreamCommitModel,
         R6ActivationAuditSnapshotModel,
+        R6ScopeQualificationRegistryModel,
     )
     return tuple(model._default_manager.count() for model in model_types)
 

@@ -252,6 +252,9 @@ from apps.research.infrastructure.r7_sample_policy_models import (  # noqa: E402
 from apps.research.infrastructure.r8_monitoring_policy_models import (  # noqa: E402,F401
     R8MonitoringPolicyRegistryModel,
 )
+from apps.research.infrastructure.r6_scope_qualification_models import (  # noqa: E402,F401
+    R6ScopeQualificationRegistryModel,
+)
 from apps.research.infrastructure.scenario_review_reminder_models import (  # noqa: E402,F401
     ScenarioReviewReminderEventModel,
     ScenarioReviewReminderModel,
