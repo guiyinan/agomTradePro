@@ -85,6 +85,8 @@
 72. 完成 R7 calibration sample owner软件边界：`signal.0013`四本ledger封存预先定义的完整分母与resolved/unresolved/censored/invalidated四态receipt，owner graph三次exact重读且canonical clock统一UTC；public mutation inert，缺真实history/metadata/policy时继续`BLOCKED`。
 73. 完成 R3 Regime historical assignment owner软件边界：`regime.0010`封存policy/source-contract/OOS-row×三fact definition及派生assignment receipt，public runtime仅窄exact read，Macro Factor adapter不从可变RegimeLog反充owner。
 74. 完成 R5 production research-control read composition：按scope/as-of重放Research `0006` active lifecycle并复核policy/trial/auth/FI owner；Portfolio canonical source缺失被下沉到owner叶，public preflight继续只读`BLOCKED`而非顶层硬编码active unavailable。
+75. 完成 R6 canonical scope binding：Research `0024`单表schema-only owner ledger提供scope→qualification exact PIT read，manual-activation preflight不再靠caller选择qualification；public registration inert，空库稳定`SCOPE_OWNER_UNAVAILABLE`且零写。
+76. 完成 R7 analogy/path canonical owners：Research `0025`用两个独立aggregate六表封存definition、raw receipt及成员图，similarity与path概率从raw成员派生；public registration inert、exact adapter为空/fork时fail-closed，不由R7 result快照反充owner。
 
 ## 2. 启动状态矩阵
 
@@ -234,5 +236,7 @@ python scripts/verify_architecture.py
 2026-08-12 第五批软件续批验证：R3 Data Center source unit+adapter `8 passed`、component `7 passed`、migration `3 passed`；R4 research-control unit `7 passed`、component `3 passed`；R7 calibration unit `11 passed`、component `9 passed`、migration `2 passed`。Data Center `0069`与Signal `0013`均完成独立SQLite forward/reverse/re-forward；22个生产文件增量mypy 0 regression，Black/isort/Ruff、Django system check、Data Center/Signal migration drift、架构扫描`2555 files / 0 violations`及governance consistency `0 violations`均通过。测试不替代真实Publication/PIT历史、Regime/OOS trial、Promotion、Risk Center policy、analogy/path owner或consumer验收，R3/R4/R7继续`blocked`。
 
 2026-08-12 第六批软件续批验证：Regime historical assignment unit+component `11 passed`、migration `2 passed`；R5 research-control preflight unit `7 passed`、component `2 passed`。Regime `0010`完成独立SQLite forward/reverse/re-forward，migration drift与Django system check均通过；10个生产文件增量mypy 0 regression，Black/isort/Ruff与架构扫描`2563 files / 0 violations`通过。测试不替代真实Regime definition/facts、Portfolio outcome source、PIT/OOS/Promotion或consumer验收，R3/R5继续`blocked`。
+
+2026-08-12 第七批软件续批验证：R6 scope registry unit `3 passed`、component `4 passed`、migration static `1 passed`；R7 analogy/path unit+component+migration static合并 `12 passed`。Research migration drift为0；R6/R7增量mypy 0 regression，Ruff/Black/isort通过，架构扫描`2575 files / 0 violations`、governance consistency `0 violations`。测试不替代真实scope definition、analogy/path历史源、Promotion或consumer验收，R6/R7继续`blocked`。
 
 回滚点按每批能力纵切保持独立提交；第四批进一步拆为 R2、R6、R8 与文档四组。新增迁移只建立 append-only 研究台账与 canonical snapshot/反馈存储；没有任务注册、API/MCP/TUI 发布，也不把研究结果接入现有决策或执行路径。
