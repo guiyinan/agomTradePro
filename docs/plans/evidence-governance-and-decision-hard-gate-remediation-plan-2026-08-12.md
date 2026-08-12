@@ -394,6 +394,24 @@
 
 - Broker projector/domain `32 passed`；SDK `5 passed`；MCP closed projection `5 passed`；MCP semantic guard `9 passed`，统计 `18 / disabled 6 / integrated 0`；全仓 architecture scan（2662 files / 0 violations）、Black/isort/py_compile/diff-check 通过。
 
+### 2026-08-13：Broker audit 动态字段白名单与脱敏
+
+已完成：
+
+- 代码核对确认 audit repository 原样返回 `before/after/reason/request_id/actor/resource_id`，且 Agent command `result` 为外部 Agent 可控任意 JSON；`view` 角色覆盖 analyst/read_only，因此仅禁用 MCP 不能保护 HTTP、SDK 与 Classic read。
+- 新增纯 Application audit projector：按固定 action/resource family 投影有界状态字段，未知 writer 或未知 command type 只返回元数据与稳定 blocker。动态 command 明确登记 cancel/full_sync × completed/failed，不使用前缀泛化放行。
+- 统一删除 actor id/username、resource/request id、reason、IP、UA、credential、token/secret/password、risk snapshot、approval digest、recommendation IDs、broker order id 与完整 Agent result；订单 audit 只留状态、版本、成交数量及状态时间，其他 family 只留最小安全状态。
+- QueryService 使用单一 aware 评估时钟，顶层及逐事件固定 `display_only / must_not_execute / must_not_use_for_decision`；SDK 原样保留这些 redaction markers。MCP audit 继续 disabled，本批不改变 Evidence inventory 的 `integrated=0`。
+
+仍未完成：
+
+- 本批是 legacy audit read-model 安全收窄，不是正式 Evidence/Audit receipt。14 个 writer 的 AST/schema 机器清单尚未独立固化，后续新增 writer 仍需在 CI 增加 closed-world guard；完整 Django HTTP/component 与 Classic 页面需合格 runtime 回归。
+- reconciliation 与 order catalog 仍有任意 JSON/权限语义待收口；正式 Evidence/Risk/plan receipts 与四节点 exact current 重验仍未完成。
+
+本阶段验证：
+
+- audit projector `6 passed`；Broker SDK `6 passed`；MCP semantic freeze PASS（18 / disabled 6 / integrated 0）；全仓 architecture scan（2663 files / 0 violations）、Black/isort/py_compile/diff-check 通过。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

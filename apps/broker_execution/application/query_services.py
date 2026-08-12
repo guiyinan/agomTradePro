@@ -8,6 +8,7 @@ from typing import Any, cast
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
+from .audit_projection import project_broker_audit_event
 from .authorization import action_permissions, require_action
 from .connection_status import project_connection_status
 from .order_detail_evidence import project_broker_order_detail
@@ -352,7 +353,7 @@ class BrokerExecutionQueryService:
         return {"runs": rows, "total_count": len(rows)}
 
     def audits(self, *, actor: Any, limit: int = 100) -> dict[str, Any]:
-        """Return user-visible execution audit events."""
+        """Return typed, redacted, display-only execution audit events."""
 
         user_id, _role, is_admin = require_action(actor, "view")
         rows = self.repository.list_audits(
@@ -360,4 +361,13 @@ class BrokerExecutionQueryService:
             is_admin=is_admin,
             limit=_bounded_limit(limit),
         )
-        return {"events": rows, "total_count": len(rows)}
+        now = self._now()
+        events = [project_broker_audit_event(row, evaluated_at=now).to_payload() for row in rows]
+        return {
+            "evaluated_at": now.isoformat(),
+            "events": events,
+            "total_count": len(events),
+            "permission": "display_only",
+            "must_not_execute": True,
+            "must_not_use_for_decision": True,
+        }

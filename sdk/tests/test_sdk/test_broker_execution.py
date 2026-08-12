@@ -59,6 +59,39 @@ def test_sdk_connection_read_preserves_current_data_markers() -> None:
     client.get.assert_called_once_with("/api/broker-execution/connections/", params=None)
 
 
+def test_sdk_audit_read_preserves_redaction_and_display_only_markers() -> None:
+    client = Mock()
+    expected = {
+        "evaluated_at": "2026-08-13T12:00:00+00:00",
+        "events": [
+            {
+                "id": 7,
+                "actor_type": "user",
+                "action": "order_approve",
+                "account_id": 3,
+                "resource_type": "live_order",
+                "created_at": "2026-08-13T11:59:00+00:00",
+                "evaluated_at": "2026-08-13T12:00:00+00:00",
+                "before": {"status": "WAITING_APPROVAL", "version": 1},
+                "after": {"status": "READY", "version": 2},
+                "details_redacted": True,
+                "blocker_codes": ["broker_audit_details_redacted"],
+                "permission": "display_only",
+                "must_not_execute": True,
+                "must_not_use_for_decision": True,
+            }
+        ],
+        "total_count": 1,
+        "permission": "display_only",
+        "must_not_execute": True,
+        "must_not_use_for_decision": True,
+    }
+    client.get.return_value = {"success": True, "data": expected}
+
+    assert BrokerExecutionModule(client).audit(limit=10) == expected
+    client.get.assert_called_once_with("/api/broker-execution/audit/", params={"limit": 10})
+
+
 def test_sdk_order_detail_preserves_governed_evidence_and_permission_markers() -> None:
     client = Mock()
     expected = {
