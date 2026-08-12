@@ -14,8 +14,10 @@ from apps.broker_execution.domain.entities import (
     OrderApprovalSnapshot,
 )
 from apps.research.application.broker_execution_evidence_adapter import (
-    build_order_approval_snapshot_legacy_evidence_summary,
+    LegacyBrokerApprovalProjection,
+    build_broker_approval_projection_legacy_evidence_summary,
 )
+from apps.research.application.evidence_summary import EvidenceSummaryDTO
 
 NOW = datetime(2026, 8, 13, 9, tzinfo=UTC)
 
@@ -40,9 +42,32 @@ def _snapshot() -> OrderApprovalSnapshot:
     )
 
 
+def _summary(snapshot: OrderApprovalSnapshot, *, evaluated_at: datetime) -> EvidenceSummaryDTO:
+    return build_broker_approval_projection_legacy_evidence_summary(
+        LegacyBrokerApprovalProjection(
+            account_id=snapshot.account_id,
+            agent_id=snapshot.agent_id,
+            asset_code=snapshot.asset_code,
+            market=snapshot.market,
+            side=snapshot.side.value,
+            order_type=snapshot.order_type.value,
+            quantity=snapshot.quantity,
+            limit_price=snapshot.limit_price,
+            estimated_amount=snapshot.estimated_amount,
+            expires_at=snapshot.expires_at,
+            risk_policy_version=snapshot.risk_policy_version,
+            risk_snapshot_json=snapshot.risk_snapshot_json,
+            approval_mode=snapshot.approval_mode,
+            source_recommendation_ids=snapshot.source_recommendation_ids,
+            source_signal_ids=snapshot.source_signal_ids,
+        ),
+        evaluated_at=evaluated_at,
+    )
+
+
 def test_approval_snapshot_adapter_is_content_bound_and_fail_closed() -> None:
-    first = build_order_approval_snapshot_legacy_evidence_summary(_snapshot(), evaluated_at=NOW)
-    changed = build_order_approval_snapshot_legacy_evidence_summary(
+    first = _summary(_snapshot(), evaluated_at=NOW)
+    changed = _summary(
         replace(
             _snapshot(),
             quantity=Decimal("200"),
@@ -86,15 +111,9 @@ def test_approval_snapshot_adapter_rejects_unverifiable_inputs() -> None:
     )
     for snapshot in snapshots:
         with pytest.raises((TypeError, ValueError)):
-            build_order_approval_snapshot_legacy_evidence_summary(
-                snapshot,
-                evaluated_at=NOW,
-            )
+            _summary(snapshot, evaluated_at=NOW)
 
 
 def test_approval_snapshot_adapter_rejects_naive_evaluation_clock() -> None:
     with pytest.raises(ValueError, match="evaluated_at"):
-        build_order_approval_snapshot_legacy_evidence_summary(
-            _snapshot(),
-            evaluated_at=NOW.replace(tzinfo=None),
-        )
+        _summary(_snapshot(), evaluated_at=NOW.replace(tzinfo=None))

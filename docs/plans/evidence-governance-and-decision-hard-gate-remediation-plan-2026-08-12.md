@@ -75,6 +75,7 @@
 - adapter 对 aware expiry/evaluation clock、正且有限的 Decimal、数量×价格金额勾稽、canonical JSON object、严格有序唯一 source IDs 和 exact enum/type 失败关闭。
 - 输出始终为 `legacy_unverified + DISPLAY_ONLY`，`must_not_use_for_decision` 与 `must_not_execute` 恒真；没有接入或修改 Broker 批准/提交授权链，也不替代现有 approval digest。
 - Evidence inventory 仅把 `OrderApprovalSnapshot` 与此前 `QuoteResponse` 标为 wrapped；41 个 surface、11 个 direct-position 与 32 个 marker 分母不变。
+- Broker Domain 类型到 Research 数据投影的转换位于 `core/integration`，Research Application 不直接依赖 Broker App；带 allowlist 的 module-cycle gate 保持 207 条边、0 cycle。
 
 本阶段验证：
 

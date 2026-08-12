@@ -1,17 +1,13 @@
-"""Fail-closed Evidence adapter for legacy broker approval snapshots."""
+"""Pure fail-closed projection for legacy broker approval evidence."""
 
 from __future__ import annotations
 
+import hashlib
 import json
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from apps.broker_execution.domain.entities import (
-    LiveOrderSide,
-    LiveOrderType,
-    OrderApprovalSnapshot,
-)
-from apps.broker_execution.domain.rules import build_approval_digest
 from apps.research.application.evidence_summary import EvidenceSummaryDTO
 from apps.research.domain.evidence_contracts import (
     ArtifactRef,
@@ -22,6 +18,27 @@ from apps.research.domain.evidence_contracts import (
 
 _AMOUNT_QUANTUM = Decimal("0.01")
 _ARTIFACT_VERSION = "approval-snapshot-v1"
+
+
+@dataclass(frozen=True, slots=True)
+class LegacyBrokerApprovalProjection:
+    """Data-only boundary projection supplied by a cross-app composition root."""
+
+    account_id: int
+    agent_id: str
+    asset_code: str
+    market: str
+    side: str
+    order_type: str
+    quantity: Decimal
+    limit_price: Decimal | None
+    estimated_amount: Decimal
+    expires_at: str
+    risk_policy_version: str
+    risk_snapshot_json: str
+    approval_mode: str
+    source_recommendation_ids: tuple[str, ...]
+    source_signal_ids: tuple[str, ...]
 
 
 def _require_aware(value: datetime, field_name: str) -> None:
@@ -39,12 +56,7 @@ def _require_token(value: object, field_name: str) -> None:
         raise ValueError(f"{field_name} must be a bounded non-blank token")
 
 
-def _require_source_ids(
-    values: tuple[str, ...],
-    *,
-    field_name: str,
-    required: bool,
-) -> None:
+def _require_source_ids(values: tuple[str, ...], *, field_name: str, required: bool) -> None:
     if type(values) is not tuple:
         raise TypeError(f"{field_name} must be a tuple")
     if required and not values:
@@ -82,11 +94,7 @@ def _validate_risk_snapshot_json(value: object) -> None:
     if type(decoded) is not dict:
         raise ValueError("risk_snapshot_json must encode an object")
     canonical = json.dumps(
-        decoded,
-        allow_nan=False,
-        ensure_ascii=False,
-        separators=(",", ":"),
-        sort_keys=True,
+        decoded, allow_nan=False, ensure_ascii=False, separators=(",", ":"), sort_keys=True
     )
     if value != canonical:
         raise ValueError("risk_snapshot_json must use canonical JSON encoding")
@@ -103,11 +111,13 @@ def _parse_expiry(value: object) -> datetime:
     return expiry
 
 
-def _validate_snapshot(snapshot: OrderApprovalSnapshot, *, evaluated_at: datetime) -> datetime:
-    if type(snapshot) is not OrderApprovalSnapshot:
-        raise TypeError("snapshot must be an exact OrderApprovalSnapshot")
+def _validate_projection(
+    projection: LegacyBrokerApprovalProjection, *, evaluated_at: datetime
+) -> datetime:
+    if type(projection) is not LegacyBrokerApprovalProjection:
+        raise TypeError("projection must be an exact LegacyBrokerApprovalProjection")
     _require_aware(evaluated_at, "evaluated_at")
-    if type(snapshot.account_id) is not int or snapshot.account_id <= 0:
+    if type(projection.account_id) is not int or projection.account_id <= 0:
         raise ValueError("account_id must be a positive integer")
     for field_name in (
         "agent_id",
@@ -116,61 +126,66 @@ def _validate_snapshot(snapshot: OrderApprovalSnapshot, *, evaluated_at: datetim
         "risk_policy_version",
         "approval_mode",
     ):
-        _require_token(getattr(snapshot, field_name), field_name)
-    if type(snapshot.side) is not LiveOrderSide:
-        raise TypeError("side must be an exact LiveOrderSide")
-    if type(snapshot.order_type) is not LiveOrderType:
-        raise TypeError("order_type must be an exact LiveOrderType")
-    if snapshot.order_type is not LiveOrderType.LIMIT:
+        _require_token(getattr(projection, field_name), field_name)
+    if projection.side not in {"BUY", "SELL"}:
+        raise ValueError("side must be a canonical broker side")
+    if projection.order_type != "LIMIT":
         raise ValueError("legacy approval snapshot adapter supports LIMIT orders only")
     if (
-        type(snapshot.quantity) is not Decimal
-        or not snapshot.quantity.is_finite()
-        or snapshot.quantity <= 0
-        or snapshot.quantity != snapshot.quantity.to_integral_value()
+        type(projection.quantity) is not Decimal
+        or not projection.quantity.is_finite()
+        or projection.quantity <= 0
+        or projection.quantity != projection.quantity.to_integral_value()
     ):
         raise ValueError("quantity must be a positive finite whole Decimal")
     if (
-        type(snapshot.limit_price) is not Decimal
-        or not snapshot.limit_price.is_finite()
-        or snapshot.limit_price <= 0
+        type(projection.limit_price) is not Decimal
+        or not projection.limit_price.is_finite()
+        or projection.limit_price <= 0
     ):
         raise ValueError("limit_price must be a positive finite Decimal")
     if (
-        type(snapshot.estimated_amount) is not Decimal
-        or not snapshot.estimated_amount.is_finite()
-        or snapshot.estimated_amount <= 0
+        type(projection.estimated_amount) is not Decimal
+        or not projection.estimated_amount.is_finite()
+        or projection.estimated_amount <= 0
     ):
         raise ValueError("estimated_amount must be a positive finite Decimal")
-    expected_amount = (snapshot.quantity * snapshot.limit_price).quantize(_AMOUNT_QUANTUM)
-    if snapshot.estimated_amount != expected_amount:
+    expected_amount = (projection.quantity * projection.limit_price).quantize(_AMOUNT_QUANTUM)
+    if projection.estimated_amount != expected_amount:
         raise ValueError("estimated_amount must equal quantity times limit_price")
-    _validate_risk_snapshot_json(snapshot.risk_snapshot_json)
+    _validate_risk_snapshot_json(projection.risk_snapshot_json)
     _require_source_ids(
-        snapshot.source_recommendation_ids,
+        projection.source_recommendation_ids,
         field_name="source_recommendation_ids",
         required=True,
     )
     _require_source_ids(
-        snapshot.source_signal_ids,
-        field_name="source_signal_ids",
-        required=False,
+        projection.source_signal_ids, field_name="source_signal_ids", required=False
     )
-    expiry = _parse_expiry(snapshot.expires_at)
+    expiry = _parse_expiry(projection.expires_at)
     if expiry <= evaluated_at:
         raise ValueError("approval snapshot is expired at evaluated_at")
     return expiry
 
 
-def build_order_approval_snapshot_legacy_evidence_summary(
-    snapshot: OrderApprovalSnapshot,
-    *,
-    evaluated_at: datetime,
-) -> EvidenceSummaryDTO:
-    """Wrap one exact approval snapshot as legacy-unverified display-only Evidence."""
+def _content_hash(projection: LegacyBrokerApprovalProjection) -> str:
+    payload = asdict(projection)
+    payload["quantity"] = str(projection.quantity)
+    payload["limit_price"] = str(projection.limit_price)
+    payload["estimated_amount"] = str(projection.estimated_amount)
+    encoded = json.dumps(
+        payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+    ).encode()
+    return hashlib.sha256(encoded).hexdigest()
 
-    valid_until = _validate_snapshot(snapshot, evaluated_at=evaluated_at)
-    content_hash = build_approval_digest(snapshot)
+
+def build_broker_approval_projection_legacy_evidence_summary(
+    projection: LegacyBrokerApprovalProjection, *, evaluated_at: datetime
+) -> EvidenceSummaryDTO:
+    """Wrap one exact broker projection as legacy-unverified display-only Evidence."""
+
+    valid_until = _validate_projection(projection, evaluated_at=evaluated_at)
+    content_hash = _content_hash(projection)
     artifact = ArtifactRef(
         owner="broker_execution",
         artifact_type="order_approval_snapshot",
@@ -188,4 +203,7 @@ def build_order_approval_snapshot_legacy_evidence_summary(
     return EvidenceSummaryDTO.from_legacy_envelope(envelope=envelope)
 
 
-__all__ = ["build_order_approval_snapshot_legacy_evidence_summary"]
+__all__ = [
+    "LegacyBrokerApprovalProjection",
+    "build_broker_approval_projection_legacy_evidence_summary",
+]
