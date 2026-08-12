@@ -39,6 +39,7 @@ from apps.research.infrastructure.r7_sample_policy_repository import (
     _DjangoR7SamplePolicyStore,
 )
 from apps.research.r7_research_result_composition import (
+    _build_django_r7_research_result_owner_runtime,
     _build_django_r7_research_result_test_runtime,
     _DjangoR7ResearchResultTestRuntime,
     build_django_r7_research_result_runtime,
@@ -207,6 +208,17 @@ def test_missing_owner_data_and_mismatched_uow_fail_closed_without_rows() -> Non
             path_study_provider=wrong_path,
             clock=fixture.clock,
         )
+
+
+@pytest.mark.django_db
+def test_canonical_owner_runtime_blocks_when_any_owner_graph_is_absent() -> None:
+    _persist_policy()
+    runtime = _build_django_r7_research_result_owner_runtime()
+
+    with pytest.raises(R7ResearchResultUnavailable, match="owner evidence"):
+        runtime.register.execute(_command())
+
+    assert R7ResearchResultModel._default_manager.count() == 0
 
 
 @pytest.mark.django_db

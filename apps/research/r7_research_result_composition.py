@@ -19,6 +19,13 @@ from apps.research.application.r7_research_result_persistence import (
     materialize_persisted_r7_research_result,
 )
 from apps.research.domain.r7_research_result_persistence import PersistedR7ResearchResult
+from apps.research.infrastructure.r7_analogy_path_owner_repository import (
+    DjangoR7HistoricalAnalogyProvider,
+    DjangoR7PathStudyProvider,
+)
+from apps.research.infrastructure.r7_forecast_calibration_sample_provider import (
+    SignalForecastCalibrationSampleProvider,
+)
 from apps.research.infrastructure.r7_research_result_repository import (
     DjangoR7ResearchEvidenceGraphProvider,
     DjangoR7ResearchResultClock,
@@ -26,6 +33,9 @@ from apps.research.infrastructure.r7_research_result_repository import (
     DjangoR7SamplePolicyRecordIdentityProvider,
     R7ResearchResultClock,
     _DjangoR7ResearchResultStore,
+)
+from apps.signal.forecast_calibration_sample_composition import (
+    build_django_forecast_calibration_sample_query,
 )
 
 
@@ -83,6 +93,14 @@ class _R7ResearchResultRegistrationWriter:
                     policy_record=policy_record,
                     evaluated_at=command.as_of,
                 )
+                if (
+                    not evidence_graph.forecast_observations
+                    or evidence_graph.historical_analogy is None
+                    or evidence_graph.path_study is None
+                ):
+                    raise R7ResearchResultUnavailable(
+                        "complete canonical R7 owner evidence is unavailable"
+                    )
                 result = materialize_persisted_r7_research_result(
                     result_id=command.result_id,
                     result_version=command.result_version,
@@ -194,6 +212,22 @@ def _build_django_r7_research_result_test_runtime(
         register=RegisterR7ResearchResult(writer),
         get_exact=GetExactR7ResearchResult(repository),
         repository=repository,
+    )
+
+
+def _build_django_r7_research_result_owner_runtime(
+    *,
+    using: str = "default",
+) -> _DjangoR7ResearchResultTestRuntime:
+    """Bind the private result writer to canonical read-only owner adapters."""
+
+    return _build_django_r7_research_result_test_runtime(
+        forecast_provider=SignalForecastCalibrationSampleProvider(
+            build_django_forecast_calibration_sample_query(using=using)
+        ),
+        historical_analogy_provider=DjangoR7HistoricalAnalogyProvider(using=using),
+        path_study_provider=DjangoR7PathStudyProvider(using=using),
+        using=using,
     )
 
 

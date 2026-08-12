@@ -25,6 +25,7 @@ from apps.research.domain.r7_research_result_lifecycle import (
     R7ResultLifecycleAction,
 )
 from apps.research.r7_research_result_composition import (
+    _build_django_r7_research_result_owner_runtime,
     build_django_r7_research_result_runtime,
 )
 from apps.research.r7_research_result_lifecycle_composition import (
@@ -102,6 +103,30 @@ def test_public_builders_accept_no_owner_provider_or_clock() -> None:
         build_django_r7_result_lifecycle_runtime,
     ):
         assert tuple(signature(builder).parameters) == ("using",)
+
+
+def test_private_result_owner_runtime_composes_only_canonical_exact_readers() -> None:
+    runtime = _build_django_r7_research_result_owner_runtime(using="owners")
+
+    writer = runtime.register._writer
+    evidence_provider = writer._evidence_provider
+    source = evidence_provider._source
+    assert type(source._forecast_provider).__name__ == (
+        "SignalForecastCalibrationSampleProvider"
+    )
+    assert type(source._historical_analogy_provider).__name__ == (
+        "DjangoR7HistoricalAnalogyProvider"
+    )
+    assert type(source._path_study_provider).__name__ == "DjangoR7PathStudyProvider"
+    assert {
+        runtime.repository.unit_of_work_key,
+        writer._policy_provider.unit_of_work_key,
+        writer._store.unit_of_work_key,
+        source.unit_of_work_key,
+    } == {"django:owners"}
+    assert tuple(signature(_build_django_r7_research_result_owner_runtime).parameters) == (
+        "using",
+    )
 
 
 @pytest.mark.parametrize(
