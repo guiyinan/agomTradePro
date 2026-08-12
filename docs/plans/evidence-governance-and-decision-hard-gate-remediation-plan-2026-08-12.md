@@ -1,6 +1,6 @@
 # AgomTradePro 证据治理与决策硬闸改造计划
 
-> 执行状态（2026-08-13）：**M0 进行中，M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle 与 Risk Center approval provider 首批已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、Research↔Risk composition adapter、各 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
+> 执行状态（2026-08-13）：**M0 进行中，M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider 与 Research↔Risk read composition 首批已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、Risk Center 人工审批写入面、各 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
 
 ## 0. 分阶段实施记录
 
@@ -35,10 +35,12 @@
 - 审批命令只接受 subject/approval ID、版本和 `as_of`；批准者来自 server-authenticated actor，必须是 human staff，并同时以 actor ID 与 user ID 禁止自审批；签发时间只取 Risk Center server clock。
 - 新增 Application exact/hash/PIT/definition selector facade；未来 cutoff、签发前、过期、identity/hash/definition/supersession 不匹配均失败关闭。
 - 新增 append-only subject/approval ledger、strict codec、typed redundant headers、first-winner 唯一约束与 raw tamper 检测；migration `0007_evidence_operator_spec_approvals` 为 schema-only、zero-seed，无跨 App ORM FK、无公开 HTTP writer。
+- 新增 Research Application adapter 与 Django composition：只通过 Risk Center Application query facade 读取 exact approval，不直接导入 Risk ORM；adapter 二次校验 owner/capability/approval/operator/definition/supersession selector，并把 Risk approval record hash 固定为 Research receipt 的外部真源。
+- composition 只暴露 ID-only activation 和 exact/active PIT reads，不暴露 Risk append repository 或 actor 注入；在人工 subject/审批写入面未提供时仍 fail closed。
 
 仍未完成：
 
-- 顶层 Research↔Risk composition adapter；Risk Center 的 subject 注册/人工审核入口及生产 actor 注入；PostgreSQL 真实并发 first-winner 验证。
+- Risk Center 的 subject 注册/人工审核入口及生产 actor 注入；PostgreSQL 真实并发 first-winner 验证。
 - 各 App 输出 adapter、M2–M5 与生产硬切换证据仍未完成。
 
 本阶段验证：
@@ -46,12 +48,13 @@
 - 纯 Domain/Application/codec：`10 passed`，standalone strict mypy `0 errors`。
 - Django 5.1/SQLite component：`6 passed`；migration forward/reverse/re-forward 全通过且 zero seed，migration drift 无变化，最小 Django check `0 issues`。
 - 架构扫描：`2640 files / 0 violations`；Black、isort 与 `git diff --check` 通过。
+- Research↔Risk adapter 纯单元：`3 passed`；adapter/test standalone strict mypy `0 errors`；Black、isort 与 `git diff --check` 通过。
 - 未验证：标准项目 pytest-django runtime 与 PostgreSQL 真实并发竞争。
 
 仍未完成：
 
 - M0 尚需扩展全量 R1–R8、动态 dict/TypedDict/interface/query payload、Broker query API、raw/governed MCP 输出语义与旧 Transition Plan 写路径分类；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口及 41 个高风险输出首批冻结已完成。
-- M1 的用户/租户 scope 模型与 owner-scoped 授权、Research↔Risk composition、并发 first-winner PostgreSQL 验证和各 App Application adapter；staff-only exact read API、Operator Spec lifecycle 与 Risk Center approval provider 首批已完成。
+- M1 的用户/租户 scope 模型与 owner-scoped 授权、Risk Center 人工审批写入面、并发 first-winner PostgreSQL 验证和各 App Application adapter；staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider 与 Research↔Risk read composition 首批已完成。
 - M2–M5 全部交付及真实生产切换证据。
 
 本阶段验证：
