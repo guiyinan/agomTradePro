@@ -151,6 +151,34 @@ def test_macro_repository_candidate_preserves_published_at_and_evidence() -> Non
     assert str(missing.pk) not in {reference.fact_pk for reference in references}
 
 
+@pytest.mark.django_db
+def test_macro_repository_maps_zero_based_fact_revision_to_first_publication() -> None:
+    row = MacroFactModel.objects.create(
+        indicator_code="CN_CPI",
+        reporting_period=REPORTING_PERIOD,
+        value=1.2,
+        unit="%",
+        source="provider-main",
+        revision_number=0,
+        published_at=PUBLISHED_AT,
+    )
+    fact = MacroFact(
+        indicator_code="CN_CPI",
+        reporting_period=REPORTING_PERIOD,
+        value=1.2,
+        unit="%",
+        source="provider-main",
+        revision_number=0,
+        published_at=PUBLISHED_AT,
+    )
+
+    references = MacroFactRepository().list_publication_candidates([fact])
+
+    assert len(references) == 1
+    assert references[0].fact_pk == str(row.pk)
+    assert references[0].revision_number == 1
+
+
 def test_sync_macro_use_case_invokes_publication_after_fact_write() -> None:
     class _Provider:
         def provider_name(self) -> str:
