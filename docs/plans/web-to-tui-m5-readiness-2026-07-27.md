@@ -65,6 +65,13 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
 - 针对测试 `3 passed, 1 skipped`；skip 为当前环境缺 Django 的 registry publish/rollback/restore 往返用例。
   本地代表 wave 不替代生产 registry 备份/恢复、真实部署或全量 wave 验收，cutover 仍 DENY。
 
+### 2026-08-13：M5-C 最终库存门禁
+
+- `web_template_migration_inventory.py --require-finalized` 已与迁移期普通 `--check` 分离；普通检查语义不变。
+- 最终模式精确要求 41 个 C 档物理模板，A/B/D 全部 `deleted`，并扫描已删模板的活 view/route literal、孤儿静态资产及 published legacy alias 的 canonical target 与生产代码消费者。
+- 当前普通检查通过（196 行，A=131/B=17/C=41/D=7）；最终模式按设计 DENY，148 个 A/B 模板尚未完成 lifecycle。32 个 alias 中另有 11 个没有活生产代码引用，`capability-router.gateway` target dangling。
+- 门禁专属测试 `10 passed`；当前机器缺 Django runtime，历史 inventory rebuild 的 Django resolver 用例未纳入本次专属测试。静态引用扫描不替代生产流量证明，真实 alias 删除仍须进入逐波观察与回滚证据。
+
 - M4：17/17 个 B 类 route template 已迁移，0 backlog；完整 TUI Workbench 加操作组
   非 sticky 回归现为 `240 passed`。
 - AGENTS.md 固定其余三组最小回归：`35 passed`；IA 与归一化幂等：
