@@ -1,6 +1,6 @@
 # AgomTradePro 证据治理与决策硬闸改造计划
 
-> 执行状态（2026-08-13）：**M0 进行中，外部写面、Transition Plan 内部 writer、54 个显式高风险输出及 18 个动态 query/GET/presenter 面已冻结；M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与首批 legacy adapters 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、写入面的完整项目 runtime/component 证明、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
+> 执行状态（2026-08-13）：**M0 进行中，外部写面、Transition Plan 内部 writer、62 个显式高风险输出及 18 个动态 query/GET/presenter 面已冻结；M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与首批 legacy adapters 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、写入面的完整项目 runtime/component 证明、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
 
 ## 0. 分阶段实施记录
 
@@ -209,6 +209,25 @@
 本阶段验证：
 
 - inventory guard 通过；Evidence inventory + Strategy adapter/contracts 聚合 `39 passed`；py_compile、Black/isort 与 diff-check 通过。
+
+### 2026-08-13：M1 Strategy OrderIntent legacy adapter
+
+已完成：
+
+- 新增独立的纯 Research Application projection，完整绑定 Strategy `OrderIntent` 顶层身份、方向、数量、限价、时效、幂等键、状态与时间，以及 Decision、Sizing 和 Risk Snapshot 的全部业务字段；调用方只能提供冻结的 tuple/Decimal/datetime 数据，adapter 不导入 repository、orchestrator 或执行 provider。
+- 数量必须与 sizing 数量一致；ID/枚举/文本有界，Decimal 必须有限，confidence 在 `[0,1]`，价格/名义金额/风险限额与交易次数按现有领域约束失败关闭；`created_at <= updated_at <= evaluated_at < decision_valid_until` 且全部时间必须 aware。
+- canonical hash 对等价 Decimal 尾零与等价时区保持稳定；artifact version 同时绑定 content hash，因此 `DRAFT→SENT` 即使旧 repository 没有刷新 `updated_at` 也会产生新身份。
+- 输出固定为 `legacy_unverified + research_only + display_only`，`must_not_use_for_decision=true`、`must_not_execute=true`。现有 `ExecutionOrchestrator` 及 broker submission 链没有接入或改变，旧 `ALLOW` 绝不因本 wrapper 获得授权。
+- inventory 仅把完整 Domain `OrderIntent` 标为 `legacy_evidence_wrapped_display_only`；有损的 `OrderIntentResponseDTO` 继续保持未集成，不能从缺失有效期、完整 sizing/risk 的 DTO 反推 Evidence。
+
+仍未完成：
+
+- production consumer/composition、正式 Operator Spec、持久化 Envelope/Track Record 与执行前 exact revalidation；当前 canonical planner flag 和旧 Strategy 直提交流程均未切换。
+- `DecisionPolicyEngine` 的普通 DENY 在 OrderIntent 持久化前返回且没有 validity；adapter 不为其补造有效期，只有外部已提供未来 canonical validity 的完整投影才可包装。
+
+本阶段验证：
+
+- OrderIntent/Decision adapter 与 Evidence contract/summary 聚合 `46 passed`；Evidence inventory guard 为 `62 / 11 / 53 / 18`；architecture delta `0` boundary/audit violations；生产 adapter standalone strict mypy `0 issues`；Black/isort 与 diff-check 通过。
 
 ### 2026-08-13：Equity research snapshot 四入口唯一归并
 

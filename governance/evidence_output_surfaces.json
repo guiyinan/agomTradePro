@@ -800,7 +800,7 @@
       "claim_kind": "recommendation",
       "method_kind": "deterministic",
       "position_impact": "direct",
-      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "current_gate_state": "legacy_evidence_wrapped_display_only",
       "required_fields": ["decision", "intent_id", "sizing"]
     },
     {
