@@ -9288,7 +9288,7 @@
       "text": "\"\"\"Narrow read adapter without runner, mutation, current, or decision surfaces.\"\"\""
     },
     {
-      "line": 20,
+      "line": 22,
       "path": "apps/macro_factor/r3_regime_assignment_composition.py",
       "text": "\"\"\"Narrow report reader without mutation, current, decision, or execution ports.\"\"\""
     },
