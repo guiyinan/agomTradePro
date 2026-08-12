@@ -17,9 +17,9 @@ from scripts.check_evidence_output_surfaces import (
 
 def test_repository_evidence_output_inventory_is_exact() -> None:
     assert validate_inventory(load_inventory()) == {
-        "surface_count": 54,
+        "surface_count": 62,
         "direct_position_surface_count": 11,
-        "marked_surface_count": 45,
+        "marked_surface_count": 53,
         "dynamic_surface_count": 18,
     }
 
@@ -37,6 +37,19 @@ def test_parser_rejects_missing_required_classification_field() -> None:
     del payload["surfaces"][0]["method_kind"]
 
     with pytest.raises(ValueError, match="method_kind must be non-empty text"):
+        parse_inventory(payload)
+
+
+def test_parser_rejects_composite_field_outside_required_contract() -> None:
+    payload = json.loads(DEFAULT_INVENTORY.read_text(encoding="utf-8"))
+    bundle = next(
+        surface
+        for surface in payload["surfaces"]
+        if surface["source_symbol"].endswith("::GovernedOptimizationRunBundle")
+    )
+    bundle["composite_fields"] = ["missing_component"]
+
+    with pytest.raises(ValueError, match="composite_fields must be required fields"):
         parse_inventory(payload)
 
 
@@ -125,3 +138,38 @@ def test_r1_r6_research_outputs_remain_non_evidence_integrated() -> None:
         and surface.position_impact == "indirect"
         for surface in audited
     )
+
+
+def test_r7_r8_denominator_freeze_does_not_claim_evidence_integration() -> None:
+    inventory = load_inventory()
+    research_only_symbols = {
+        "apps/portfolio/application/constrained_optimization.py::OptimizationResearchReport",
+        "apps/portfolio/application/governed_optimization.py::GovernedOptimizationAssembly",
+        "apps/portfolio/application/governed_optimization.py::GovernedOptimizationRunBundle",
+        "apps/research/application/scenario_probability_research.py::ScenarioProbabilityResearchPacket",
+        "apps/research/domain/r7_post_promotion_monitoring.py::R7PostPromotionMonitoringAssessment",
+        "apps/research/domain/r7_research_result_persistence.py::PersistedR7ResearchResult",
+        "apps/research/domain/r7_result_family_lifecycle.py::R7FamilyLifecycleSnapshot",
+    }
+    governed_input_symbols = {
+        "apps/portfolio/domain/canonical_snapshots.py::CanonicalPortfolioSnapshot",
+        "apps/portfolio/domain/canonical_snapshots.py::PortfolioExecutionFeedback",
+    }
+    surfaces = {surface.source_symbol: surface for surface in inventory.surfaces}
+
+    assert research_only_symbols <= surfaces.keys()
+    assert governed_input_symbols <= surfaces.keys()
+    assert all(
+        surfaces[symbol].current_gate_state == "not_evidence_integrated_research_only"
+        and surfaces[symbol].position_impact == "indirect"
+        for symbol in research_only_symbols
+    )
+    assert all(
+        surfaces[symbol].current_gate_state == "not_evidence_integrated_governed_input"
+        and surfaces[symbol].position_impact == "indirect"
+        for symbol in governed_input_symbols
+    )
+    bundle = surfaces[
+        "apps/portfolio/application/governed_optimization.py::GovernedOptimizationRunBundle"
+    ]
+    assert bundle.composite_fields == frozenset({"lifecycle_root", "result"})

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Freeze the first classified batch of decision-facing output symbols."""
+"""Freeze the classified denominator of decision-facing output symbols."""
 
 from __future__ import annotations
 
@@ -19,8 +19,8 @@ GATE_STATES = frozenset(
     {
         "not_evidence_integrated_legacy_boolean",
         "not_evidence_integrated_legacy_ungated",
+        "not_evidence_integrated_governed_input",
         "not_evidence_integrated_research_only",
-        "legacy_evidence_wrapped_display_only",
         "legacy_evidence_wrapped_display_only",
     }
 )
@@ -30,6 +30,7 @@ OUTPUT_KINDS = frozenset(
         "current_state",
         "data_reliability",
         "execution_decision",
+        "execution_feedback",
         "execution_preview",
         "invalidation_assessment",
         "market_observation",
@@ -55,7 +56,7 @@ class DiscoveryRule:
 
 @dataclass(frozen=True)
 class EvidenceOutputSurface:
-    """One explicitly classified legacy decision-facing output symbol."""
+    """One explicitly classified decision-facing output symbol."""
 
     source_symbol: str
     owner_app: str
@@ -65,6 +66,7 @@ class EvidenceOutputSurface:
     position_impact: str
     current_gate_state: str
     required_fields: frozenset[str]
+    composite_fields: frozenset[str]
 
 
 @dataclass(frozen=True)
@@ -87,6 +89,18 @@ def _required_text_list(payload: dict[str, object], key: str) -> tuple[str, ...]
     value = payload.get(key)
     if not isinstance(value, list) or not value:
         raise ValueError(f"evidence output surface field {key} must be a non-empty list")
+    if any(not isinstance(item, str) or not item.strip() for item in value):
+        raise ValueError(f"evidence output surface field {key} contains an invalid item")
+    items = tuple(value)
+    if items != tuple(sorted(set(items))):
+        raise ValueError(f"evidence output surface field {key} must be sorted and unique")
+    return items
+
+
+def _optional_text_list(payload: dict[str, object], key: str) -> tuple[str, ...]:
+    value = payload.get(key, [])
+    if not isinstance(value, list):
+        raise ValueError(f"evidence output surface field {key} must be a list")
     if any(not isinstance(item, str) or not item.strip() for item in value):
         raise ValueError(f"evidence output surface field {key} contains an invalid item")
     items = tuple(value)
@@ -151,6 +165,7 @@ def parse_inventory(payload: object) -> EvidenceOutputInventory:
             position_impact=_required_text(raw_surface, "position_impact"),
             current_gate_state=_required_text(raw_surface, "current_gate_state"),
             required_fields=frozenset(_required_text_list(raw_surface, "required_fields")),
+            composite_fields=frozenset(_optional_text_list(raw_surface, "composite_fields")),
         )
         if "unclassified" in {
             surface.output_kind,
@@ -170,6 +185,10 @@ def parse_inventory(payload: object) -> EvidenceOutputInventory:
             raise ValueError(f"unknown position_impact for {surface.source_symbol}")
         if surface.current_gate_state not in GATE_STATES:
             raise ValueError(f"unknown current_gate_state for {surface.source_symbol}")
+        if not surface.composite_fields <= surface.required_fields:
+            raise ValueError(
+                f"composite_fields must be required fields for {surface.source_symbol}"
+            )
         surfaces.append(surface)
     symbols = tuple(surface.source_symbol for surface in surfaces)
     if symbols != tuple(sorted(set(symbols))):

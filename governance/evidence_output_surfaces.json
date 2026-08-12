@@ -1,7 +1,7 @@
 {
   "version": 1,
   "updated_at": "2026-08-13",
-  "status": "r1_r6_research_output_denominator_expanded",
+  "status": "r1_r8_output_denominator_expanded",
   "allowed_claim_kinds": [
     "derived",
     "estimate",
@@ -20,6 +20,7 @@
   ],
   "allowed_gate_states": [
     "legacy_evidence_wrapped_display_only",
+    "not_evidence_integrated_governed_input",
     "not_evidence_integrated_legacy_boolean",
     "not_evidence_integrated_legacy_ungated",
     "not_evidence_integrated_research_only"
@@ -84,6 +85,18 @@
     {
       "path": "apps/policy/application/workbench_use_cases.py",
       "marker_fields": ["must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/portfolio/application/constrained_optimization.py",
+      "marker_fields": ["comparison_complete"]
+    },
+    {
+      "path": "apps/portfolio/application/governed_optimization.py",
+      "marker_fields": ["input_receipt_hash", "lifecycle_root"]
+    },
+    {
+      "path": "apps/portfolio/domain/canonical_snapshots.py",
+      "marker_fields": ["cash_version", "portfolio_snapshot_ref"]
     },
     {
       "path": "apps/portfolio/domain/constrained_optimization.py",
@@ -154,6 +167,18 @@
       "marker_fields": ["must_not_execute", "must_not_use_for_decision"]
     },
     {
+      "path": "apps/research/domain/r7_post_promotion_monitoring.py",
+      "marker_fields": ["realization_hash"]
+    },
+    {
+      "path": "apps/research/domain/r7_research_result_persistence.py",
+      "marker_fields": ["publishes_model_probability"]
+    },
+    {
+      "path": "apps/research/domain/r7_result_family_lifecycle.py",
+      "marker_fields": ["approved_stack"]
+    },
+    {
       "path": "apps/research/domain/state_model_qualification_evaluation.py",
       "marker_fields": ["derived_metric_bundle_hash"]
     },
@@ -195,7 +220,7 @@
       "method_kind": "deterministic",
       "position_impact": "indirect",
       "current_gate_state": "not_evidence_integrated_research_only",
-      "required_fields": ["definition", "must_not_execute", "must_not_use_for_decision"]
+      "required_fields": ["available_at", "content_hash", "definition", "must_not_execute", "must_not_publish_current", "must_not_use_for_decision", "observed_at", "owner", "receipt_id", "receipt_version", "recorded_at", "research_only", "source_receipt", "valid_until"]
     },
     {
       "source_symbol": "apps/data_center/application/dtos.py::DecisionReliabilityRepairReport",
@@ -418,6 +443,57 @@
       "required_fields": ["max_position_cap", "must_not_use_for_decision", "signal_paused"]
     },
     {
+      "source_symbol": "apps/portfolio/application/constrained_optimization.py::OptimizationResearchReport",
+      "owner_app": "portfolio",
+      "output_kind": "research_assessment",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["asset_risk_parity", "blockers", "candidate", "comparison_complete", "current_configuration", "equal_weight", "evaluated_at", "evidence_hash", "input_readiness", "lowest_objective_candidate", "must_not_execute", "must_not_use_for_decision", "problem_assessment", "problem_id", "report_version", "research_only", "status"]
+    },
+    {
+      "source_symbol": "apps/portfolio/application/governed_optimization.py::GovernedOptimizationAssembly",
+      "owner_app": "portfolio",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["assembled_at", "assembly_version", "content_hash", "current_configuration", "input_receipt_hash", "input_receipt_id", "input_set_hash", "input_set_id", "must_not_execute", "must_not_use_for_decision", "problem", "research_only"]
+    },
+    {
+      "source_symbol": "apps/portfolio/application/governed_optimization.py::GovernedOptimizationRunBundle",
+      "owner_app": "portfolio",
+      "output_kind": "research_assessment",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["lifecycle_root", "result"],
+      "composite_fields": ["lifecycle_root", "result"]
+    },
+    {
+      "source_symbol": "apps/portfolio/domain/canonical_snapshots.py::CanonicalPortfolioSnapshot",
+      "owner_app": "portfolio",
+      "output_kind": "current_state",
+      "claim_kind": "observation",
+      "method_kind": "identity",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_governed_input",
+      "required_fields": ["account_ref", "as_of", "base_currency", "cash_balance", "cash_version", "content_hash", "positions", "positions_version", "snapshot_id", "source_evidence"]
+    },
+    {
+      "source_symbol": "apps/portfolio/domain/canonical_snapshots.py::PortfolioExecutionFeedback",
+      "owner_app": "portfolio",
+      "output_kind": "execution_feedback",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_governed_input",
+      "required_fields": ["actual_fee", "asset_code", "average_fill_price", "broker_order_ref", "client_order_ref", "constraint_deviations", "content_hash", "fee_variance", "feedback_id", "fill_rate", "filled_quantity", "fills", "order_events", "order_intent_ref", "planned_estimated_fee", "planned_quantity", "planned_reference_price", "planning_policy_version", "portfolio_snapshot_ref", "realized_slippage", "reconciliation_observed_at", "reconciliation_ref", "rejected", "rejection_code", "rejection_reason", "side", "source_evidence_hash", "transition_plan_ref"]
+    },
+    {
       "source_symbol": "apps/portfolio/domain/constrained_optimization.py::CandidateEvaluation",
       "owner_app": "portfolio",
       "output_kind": "research_assessment",
@@ -425,7 +501,7 @@
       "method_kind": "deterministic",
       "position_impact": "indirect",
       "current_gate_state": "not_evidence_integrated_research_only",
-      "required_fields": ["candidate_kind", "must_not_execute", "weights"]
+      "required_fields": ["blockers", "candidate_kind", "cash_weight", "declares_global_optimum", "eligible_for_comparison", "evidence_hash", "metrics", "must_not_execute", "research_only", "solver_detail", "solver_iterations", "solver_residual", "solver_status", "weights"]
     },
     {
       "source_symbol": "apps/portfolio/domain/constrained_optimization.py::OptimizationProblemAssessment",
@@ -435,7 +511,7 @@
       "method_kind": "deterministic",
       "position_impact": "indirect",
       "current_gate_state": "not_evidence_integrated_research_only",
-      "required_fields": ["must_not_execute", "problem_id", "ready_for_solver"]
+      "required_fields": ["blockers", "evaluated_at", "evidence_hash", "must_not_execute", "problem_id", "ready_for_solver", "research_only"]
     },
     {
       "source_symbol": "apps/portfolio/domain/governed_optimization_monitoring.py::GovernedOptimizationMonitoringAssessment",
@@ -445,7 +521,7 @@
       "method_kind": "statistical",
       "position_impact": "indirect",
       "current_gate_state": "not_evidence_integrated_research_only",
-      "required_fields": ["must_not_execute", "must_not_use_for_decision", "status"]
+      "required_fields": ["assessment_id", "assessment_version", "automatic_retirement", "blocker_codes", "calendar_hash", "content_hash", "evaluated_at", "latest_period_id", "manual_retirement_review_required", "metric_results", "must_not_execute", "must_not_publish_current", "must_not_use_for_decision", "observation_hashes", "policy_hash", "policy_id", "required_consecutive_breaches", "research_only", "result_hash", "result_id", "status"]
     },
     {
       "source_symbol": "apps/portfolio/domain/macro_factor_risk_optimizer.py::MacroRiskCandidateFamilyResult",
@@ -455,7 +531,7 @@
       "method_kind": "deterministic",
       "position_impact": "indirect",
       "current_gate_state": "not_evidence_integrated_research_only",
-      "required_fields": ["must_not_execute", "must_not_use_for_decision", "solutions"]
+      "required_fields": ["blockers", "content_hash", "evaluated_at", "must_not_execute", "must_not_use_for_decision", "policy_hash", "solutions", "source_hash", "status", "usage_scope"]
     },
     {
       "source_symbol": "apps/portfolio/domain/macro_factor_risk_optimizer.py::MacroRiskCandidateSolution",
@@ -465,7 +541,7 @@
       "method_kind": "deterministic",
       "position_impact": "indirect",
       "current_gate_state": "not_evidence_integrated_research_only",
-      "required_fields": ["candidate", "must_not_execute", "must_not_use_for_decision"]
+      "required_fields": ["candidate", "convergence_error", "iterations", "must_not_execute", "must_not_use_for_decision", "report", "usage_scope"]
     },
     {
       "source_symbol": "apps/portfolio/domain/optimization_research_result.py::GovernedOptimizationResearchResult",
@@ -475,7 +551,7 @@
       "method_kind": "deterministic",
       "position_impact": "indirect",
       "current_gate_state": "not_evidence_integrated_research_only",
-      "required_fields": ["must_not_execute", "must_not_use_for_decision", "status"]
+      "required_fields": ["assembly_hash", "candidates", "content_hash", "evaluated_at", "input_receipt_hash", "input_receipt_id", "input_receipt_schema_version", "input_set_hash", "input_set_id", "must_not_execute", "must_not_use_for_decision", "problem_blockers", "problem_hash", "problem_id", "research_only", "result_id", "result_version", "run_key", "run_version", "selected_candidate", "status", "valid_until"]
     },
     {
       "source_symbol": "apps/pulse/application/dtos.py::PulseHistoryDTO",
@@ -565,7 +641,7 @@
       "method_kind": "statistical",
       "position_impact": "indirect",
       "current_gate_state": "not_evidence_integrated_research_only",
-      "required_fields": ["calibration", "must_not_use_for_decision", "research_only"]
+      "required_fields": ["calibration", "content_hash", "dispatches_reminders", "evaluated_at", "historical_analogy", "must_not_use_for_decision", "packet_version", "path_research", "policy_version", "research_only", "review_reminder_intents", "scope_hash", "trains_probability_model"]
     },
     {
       "source_symbol": "apps/research/application/state_model_activation.py::R6ActiveStateModelProjection",
@@ -638,6 +714,36 @@
       "required_fields": ["must_not_execute", "must_not_use_for_decision", "state"]
     },
     {
+      "source_symbol": "apps/research/domain/r7_post_promotion_monitoring.py::R7PostPromotionMonitoringAssessment",
+      "owner_app": "research",
+      "output_kind": "monitoring_assessment",
+      "claim_kind": "derived",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["assessment_id", "assessment_version", "automatic_retirement", "blocker_codes", "calendar_hash", "content_hash", "evaluated_at", "executes_orders", "forecast_outcome_coverage", "manual_retirement_review_required", "model_brier_score", "model_probability_coverage", "must_not_execute", "must_not_use_for_decision", "period_id", "produces_decision", "publishes_model_probability", "publishes_probability_current", "realization_hash", "research_only", "result_hash", "result_id", "status", "subjective_brier_score", "subjective_probability_coverage", "trains_probability_model"]
+    },
+    {
+      "source_symbol": "apps/research/domain/r7_research_result_persistence.py::PersistedR7ResearchResult",
+      "owner_app": "research",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["calibration", "content_hash", "evidence_graph", "executes_orders", "historical_analogy", "input_receipt", "must_not_execute", "must_not_use_for_decision", "path_research", "produces_decision", "publishes_model_probability", "recorded_at", "research_only", "result_id", "result_version", "trains_probability_model"]
+    },
+    {
+      "source_symbol": "apps/research/domain/r7_result_family_lifecycle.py::R7FamilyLifecycleSnapshot",
+      "owner_app": "research",
+      "output_kind": "current_state",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["active_result_ref", "approved_stack", "evaluated_at", "executes_orders", "family", "head_event_hash", "must_not_execute", "must_not_use_for_decision", "produces_decision", "publishes_model_probability", "publishes_probability_current", "research_only", "sequence", "status"]
+    },
+    {
       "source_symbol": "apps/research/domain/state_model_qualification_evaluation.py::StateModelQualificationAssessment",
       "owner_app": "research",
       "output_kind": "research_assessment",
@@ -684,7 +790,7 @@
       "claim_kind": "recommendation",
       "method_kind": "deterministic",
       "position_impact": "direct",
-      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "current_gate_state": "legacy_evidence_wrapped_display_only",
       "required_fields": ["action", "reason_codes", "valid_until"]
     },
     {

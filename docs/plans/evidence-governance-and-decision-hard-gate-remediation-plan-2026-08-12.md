@@ -176,6 +176,40 @@
 
 - MCP semantic freeze 与专属 disabled-state 测试随本阶段提交执行；完整项目 Broker HTTP/component 未改也未重跑。
 
+### 2026-08-13：M1 Strategy DecisionResult legacy adapter
+
+已完成：
+
+- 新增纯 Application projection，把单个 Strategy `DecisionResult` 的 action、reason、有效期与 confidence 绑定到 canonical content hash；只接受规范 action、排序去重的非空 reason codes、aware 且未过期的有效期，以及 `[0,1]` 内有限 confidence。
+- adapter 固定生成 `legacy_unverified + research_only + display_only` summary，始终发布 `must_not_use_for_decision=true`、`must_not_execute=true`；旧 `ALLOW` 不会因此成为 Evidence 授权或交易许可。
+- production Strategy/Broker consumer 尚未接线；本批只提供可复核的兼容投影，不改变现有执行路径。
+
+仍未完成：
+
+- 补真实 Operator Spec、持久化 Envelope/Track Record、consumer binding 与执行时二次核验；在此之前 inventory 只能标记为 display-only wrapper。
+- 11 个 tagged research/decision MCP read 同样尚无 Evidence；暂停它们属于生产可见服务降级，安全审查要求取得用户明确授权，本轮未绕过、未修改其 manifest。
+
+本阶段验证：
+
+- Strategy adapter 与 Evidence contract/summary 聚合 `28 passed`；standalone strict mypy 2 files `0 issues`；architecture delta `0` violations。
+
+### 2026-08-13：M0 R7–R8 输出分母扩展
+
+已完成：
+
+- 新增 R7 持久结果、晋级后监控与 family lifecycle snapshot 3 个输出面，以及 R8 research report、assembly、run bundle、canonical portfolio snapshot、execution feedback 5 个输出面。
+- 扩充既有 R7/R8 输出的 exact required fields；run bundle 以 `composite_fields=result+lifecycle_root` 明确复合合同，canonical snapshot/feedback 如实分类为 `not_evidence_integrated_governed_input`，不冒充 research-only 或 Evidence integrated。
+- 机器分母现为 62 个显式面、11 个直接仓位面、53 个 marker 面、18 个动态面；新增/字段漂移/composite 漂移均 fail closed。
+
+仍未完成：
+
+- 这只是 R1–R8 分母冻结；R7/R8 仍需真实 Operator Spec、Envelope/Track Record、持久化 lineage 与 consumer binding。
+- mixed/variant 类型、Broker 以外其余动态 dict/TypedDict/interface/query payload 与 11 个 tagged MCP read 仍待后续批次。
+
+本阶段验证：
+
+- inventory guard 通过；Evidence inventory + Strategy adapter/contracts 聚合 `39 passed`；py_compile、Black/isort 与 diff-check 通过。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
