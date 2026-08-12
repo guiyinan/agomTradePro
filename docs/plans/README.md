@@ -1,6 +1,6 @@
 # 活跃计划索引
 
-> 更新日期：2026-08-12
+> 更新日期：2026-08-13
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。
 
 ## 维护规则
@@ -64,6 +64,7 @@
 | 2026-08-12 | 第一期 P0 | Evidence M1 Operator Spec lifecycle 首批 | ID-only activation、可信 definition provider/Risk Center approval port、双读防漂移、原子 receipt+activation ledger 与完整 supersession replay 已实现；DB 约束阻断双 root/双 successor；纯测试 `11 passed`、隔离仓储 `3 passed` | 实现真实 Risk Center provider/composition，补 PostgreSQL 并发验证和各 App adapters |
 | 2026-08-12 | 第一期 P0 | Evidence M0 CI wiring | 决策写面冻结与 Evidence 输出清单两条机器守卫已接入 consistency-check workflow，并纳入 governance wiring 自检 | 继续扩展输出分类与统一 Evidence adapters |
 | 2026-08-12 | 第一期 P0 | Evidence M1 summary contract | 紧凑 `EvidenceSummaryDTO` 已固定 hashes/分类/权限/blockers/有效期，并区分 Track Record `not_required/unavailable/empty/available`；纯测试 `5 passed` | 接入各 App 输出 DTO 与 TUI Evidence Strip |
+| 2026-08-13 | 第一期 P0 | Evidence M1 Risk approval provider 首批 | Risk Center 专用 immutable subject/approval ledger、human staff 非自审批、server clock、exact/PIT selector、tamper/ORM mutation 防线已实现；纯测试 `10 passed`、隔离 component `6 passed` | 补 Research↔Risk composition、生产人工审核入口和 PostgreSQL 并发验证 |
 
 ## 2026-08-12 整理结果
 
