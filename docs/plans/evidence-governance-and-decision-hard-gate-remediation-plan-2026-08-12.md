@@ -210,6 +210,23 @@
 
 - inventory guard 通过；Evidence inventory + Strategy adapter/contracts 聚合 `39 passed`；py_compile、Black/isort 与 diff-check 通过。
 
+### 2026-08-13：Equity research snapshot 四入口唯一归并
+
+已完成：
+
+- 将原 MCP handler 内的 7 次 SDK/API 请求、evidence presence、nested freshness 和全局 readiness 归并迁入纯 Equity Application use case；Application 只依赖 Protocol，Data Center publication-only readers 与 core strict readiness 在顶层 composition 注入。
+- 新增 authenticated、GET-only REST `/api/equity/research-snapshot/{stock_code}/`，严格拒绝未知参数/越界 limit/不安全 identifier；SDK 新增单一方法，MCP handler 只做一次 SDK 调用并原样返回服务端 envelope，Agent 继续沿既有 capability route。
+- 更新 current-data 机器合同，明确 Application 是 freshness/阻断语义唯一 owner，REST/SDK/MCP 不再各自拼结论；`equity.read.research_snapshot` 仍保持 `semantic_tag_overclaims_contract`，没有误报 Evidence integrated，也没有禁用 11 个 tagged reads。
+
+仍未完成：
+
+- 当前本机没有符合项目声明的 Django 5.2 + DRF + Celery 完整 runtime；专属 API tests 已写但未执行。可用 `agomwiki` 仅 Django 4.2，且缺 Celery，不能作为正式证明。
+- 补正式 EvidenceSummary/Envelope 与 consumer binding 后，才能移除 semantic overclaim；四入口收口本身不授予决策或执行权限。
+
+本阶段验证：
+
+- Application + SDK/MCP 专属聚合 `39 passed`；current-data contract `46 surfaces` PASS；architecture delta `0` violations；Black/isort/diff-check PASS。API runtime 测试明确列为未验证项。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

@@ -7,123 +7,6 @@ from typing import Any
 
 from agomtradepro_mcp.registry.runtime_handlers.common import _call_registered_tool
 
-_UNUSABLE_CURRENT_DATA_STATUSES = frozenset(
-    {
-        "blocked",
-        "error",
-        "failed",
-        "missing",
-        "stale",
-        "unavailable",
-        "unverified",
-        "unknown",
-    }
-)
-
-
-def _payload_has_evidence(payload: object) -> bool:
-    """Return whether a section contains at least one persisted evidence row."""
-
-    if isinstance(payload, list):
-        return bool(payload)
-    if not isinstance(payload, dict):
-        return False
-    for key in (
-        "rows",
-        "results",
-        "data",
-        "bars",
-        "financials",
-        "valuations",
-        "news",
-        "flows",
-    ):
-        value = payload.get(key)
-        if isinstance(value, list):
-            return bool(value)
-    return any(
-        value not in (None, "", [], {})
-        for key, value in payload.items()
-        if key not in {"status", "success", "detail", "error", "message"}
-    )
-
-
-def _payload_block_reason(payload: object) -> str | None:
-    """Return a stable block reason when a read payload is not decision-grade.
-
-    Publication-gated APIs normally publish ``must_not_use_for_decision`` at the
-    top level.  The MCP boundary also checks nested reliability/publication
-    metadata so a malformed or older response cannot turn stale rows into a
-    fresh section merely because the boolean gate was omitted.
-    """
-
-    if not isinstance(payload, dict):
-        return None
-    candidates: list[dict[str, Any]] = [payload]
-    for key in ("contract", "publication", "reliability"):
-        nested = payload.get(key)
-        if isinstance(nested, dict):
-            candidates.append(nested)
-
-    for candidate in candidates:
-        if bool(candidate.get("must_not_use_for_decision")):
-            return str(
-                candidate.get("blocked_reason")
-                or candidate.get("block_reason_code")
-                or candidate.get("block_reason")
-                or "decision_reliability_blocked"
-            )
-
-    for candidate in candidates:
-        freshness_status = str(candidate.get("freshness_status") or "").strip().lower()
-        if freshness_status in _UNUSABLE_CURRENT_DATA_STATUSES:
-            return str(
-                candidate.get("blocked_reason")
-                or candidate.get("block_reason_code")
-                or candidate.get("block_reason")
-                or f"section_freshness_{freshness_status}"
-            )
-        status = str(candidate.get("status") or "").strip().lower()
-        if status in _UNUSABLE_CURRENT_DATA_STATUSES:
-            return str(
-                candidate.get("blocked_reason")
-                or candidate.get("block_reason_code")
-                or candidate.get("block_reason")
-                or f"section_status_{status}"
-            )
-    return None
-
-
-def _read_research_section(loader: Callable[[], object], *, required: bool) -> dict[str, Any]:
-    """Execute one bounded read and normalize missing/failure semantics."""
-
-    try:
-        payload = loader()
-    except Exception:
-        return {
-            "status": "failed",
-            "required": required,
-            "data": None,
-            "must_not_use_for_decision": required,
-            "block_reason_code": "upstream_read_failed",
-        }
-    block_reason = _payload_block_reason(payload)
-    gate_blocked = block_reason is not None
-    has_evidence = not gate_blocked and _payload_has_evidence(payload)
-    return {
-        "status": "blocked" if gate_blocked else ("fresh" if has_evidence else "missing"),
-        "required": required,
-        "data": payload,
-        "must_not_use_for_decision": gate_blocked or (required and not has_evidence),
-        "block_reason_code": block_reason or ("" if has_evidence else "section_evidence_missing"),
-    }
-
-
-def _published_read(method: Callable[..., object], *args: object, **kwargs: object) -> object:
-    """Request a publication-gated read without a compatibility bypass."""
-
-    return method(*args, mode="published", **kwargs)
-
 
 def _internal_handler_equity_read_research_snapshot(
     stock_code: str,
@@ -133,131 +16,20 @@ def _internal_handler_equity_read_research_snapshot(
     news_limit: int = 20,
     capital_flow_limit: int = 60,
 ) -> dict[str, Any]:
-    """Compose a fail-closed equity snapshot exclusively from SDK/API evidence."""
+    """Return the canonical REST snapshot through one SDK call."""
 
     from agomtradepro import AgomTradeProClient
-    from agomtradepro.exceptions import AgomTradeProAPIError
 
     client = AgomTradeProClient()
-    try:
-        decision_readiness = client.get("/api/decision-ready/")
-    except AgomTradeProAPIError as exc:
-        decision_readiness = exc.response or {
-            "status": "blocked",
-            "must_not_use_for_decision": True,
-        }
-
-    identity_section = _read_research_section(
-        lambda: client.data_center.resolve_asset(stock_code),
-        required=True,
+    result: dict[str, Any] = client.equity.get_research_snapshot(
+        stock_code,
+        history_limit=history_limit,
+        financial_limit=financial_limit,
+        valuation_limit=valuation_limit,
+        news_limit=news_limit,
+        capital_flow_limit=capital_flow_limit,
     )
-    identity = identity_section.get("data")
-    if not isinstance(identity, dict) or not identity.get("code"):
-        return {
-            "status": "missing",
-            "stock_code": None,
-            "identity": identity_section,
-            "sections": {},
-            "decision_readiness": decision_readiness,
-            "reliability": {
-                "status": "missing",
-                "source": "agomtradepro_api",
-                "must_not_use_for_decision": True,
-                "block_reason_code": "equity_identity_unresolved",
-                "block_reason": "无法从证券主数据唯一解析该名称或代码。",
-            },
-            "must_not_use_for_decision": True,
-        }
-
-    canonical_code = str(identity["code"])
-    sections = {
-        "latest_quote": _read_research_section(
-            lambda: _published_read(
-                client.data_center.get_latest_quotes,
-                canonical_code,
-                strict_freshness=True,
-            ),
-            required=True,
-        ),
-        "price_history": _read_research_section(
-            lambda: _published_read(
-                client.data_center.get_price_history,
-                canonical_code,
-                limit=history_limit,
-            ),
-            required=True,
-        ),
-        "valuation": _read_research_section(
-            lambda: _published_read(
-                client.data_center.get_valuations,
-                canonical_code,
-                limit=valuation_limit,
-            ),
-            required=True,
-        ),
-        "financials": _read_research_section(
-            lambda: _published_read(
-                client.data_center.get_financials,
-                canonical_code,
-                limit=financial_limit,
-            ),
-            required=True,
-        ),
-        "news": _read_research_section(
-            lambda: _published_read(
-                client.data_center.get_news,
-                canonical_code,
-                limit=news_limit,
-            ),
-            required=False,
-        ),
-        "capital_flows": _read_research_section(
-            lambda: _published_read(
-                client.data_center.get_capital_flows,
-                canonical_code,
-                limit=capital_flow_limit,
-            ),
-            required=False,
-        ),
-    }
-    blocked_sections = [
-        name
-        for name, section in sections.items()
-        if section["required"] and section["must_not_use_for_decision"]
-    ]
-    global_blocked = bool(decision_readiness.get("must_not_use_for_decision", True))
-    must_not_use = global_blocked or bool(blocked_sections)
-    optional_missing = [
-        name
-        for name, section in sections.items()
-        if not section["required"] and section["status"] != "fresh"
-    ]
-    status = "blocked" if must_not_use else ("partial" if optional_missing else "fresh")
-    block_reason_code = ""
-    block_reason = ""
-    if global_blocked:
-        block_reason_code = "decision_readiness_blocked"
-        block_reason = "系统严格决策就绪度未通过。"
-    elif blocked_sections:
-        block_reason_code = "equity_core_evidence_incomplete"
-        block_reason = f"缺少核心证据分区: {', '.join(blocked_sections)}"
-
-    return {
-        "status": status,
-        "stock_code": canonical_code,
-        "identity": identity_section,
-        "sections": sections,
-        "decision_readiness": decision_readiness,
-        "missing_optional_sections": optional_missing,
-        "reliability": {
-            "status": status,
-            "source": "agomtradepro_api",
-            "must_not_use_for_decision": must_not_use,
-            "block_reason_code": block_reason_code,
-            "block_reason": block_reason,
-        },
-        "must_not_use_for_decision": must_not_use,
-    }
+    return result
 
 
 def _fallback_equity_read_pool_catalog(

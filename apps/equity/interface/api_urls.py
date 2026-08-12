@@ -8,6 +8,7 @@ This module is mounted under:
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from .research_snapshot_views import EquityResearchSnapshotAPIView
 from .views import (
     EquityMultiDimScreenAPIView,
     EquityViewSet,
@@ -18,9 +19,18 @@ app_name = "equity_api"
 
 router = DefaultRouter()
 router.register(r"", EquityViewSet, basename="equity")
-router.register(r"config/valuation-repair", ValuationRepairConfigViewSet, basename="valuation-repair-config")
+router.register(
+    r"config/valuation-repair",
+    ValuationRepairConfigViewSet,
+    basename="valuation-repair-config",
+)
 
 urlpatterns = [
+    path(
+        "research-snapshot/<str:stock_code>/",
+        EquityResearchSnapshotAPIView.as_view(),
+        name="research_snapshot",
+    ),
     path("", include(router.urls)),
     path("multidim-screen/", EquityMultiDimScreenAPIView.as_view(), name="multidim_screen"),
 ]

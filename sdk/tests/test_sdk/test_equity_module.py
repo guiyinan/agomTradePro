@@ -4,6 +4,54 @@ from agomtradepro import AgomTradeProClient
 
 
 class TestEquityModuleReadContracts:
+    def test_get_research_snapshot_uses_canonical_endpoint_and_preserves_envelope(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+        snapshot = {
+            "status": "blocked",
+            "stock_code": "002156.SZ",
+            "sections": {"financials": {"status": "stale"}},
+            "must_not_use_for_decision": True,
+        }
+
+        with patch.object(client, "get", return_value=snapshot) as mock_get:
+            result = client.equity.get_research_snapshot(
+                "通富微电",
+                history_limit=120,
+                financial_limit=8,
+                valuation_limit=90,
+                news_limit=12,
+                capital_flow_limit=30,
+            )
+
+        assert result == snapshot
+        mock_get.assert_called_once_with(
+            "/api/equity/research-snapshot/通富微电/",
+            params={
+                "history_limit": 120,
+                "financial_limit": 8,
+                "valuation_limit": 90,
+                "news_limit": 12,
+                "capital_flow_limit": 30,
+            },
+        )
+
+    def test_get_research_snapshot_publishes_bounded_query_defaults(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        with patch.object(client, "get", return_value={"status": "fresh"}) as mock_get:
+            client.equity.get_research_snapshot("002156.SZ")
+
+        mock_get.assert_called_once_with(
+            "/api/equity/research-snapshot/002156.SZ/",
+            params={
+                "history_limit": 252,
+                "financial_limit": 20,
+                "valuation_limit": 252,
+                "news_limit": 20,
+                "capital_flow_limit": 60,
+            },
+        )
+
     def test_get_stock_pool_uses_canonical_endpoint_and_returns_named_envelope(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")
 

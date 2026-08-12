@@ -1426,10 +1426,14 @@
     },
     {
       "id": "mcp.equity_research_snapshot",
-      "surface": "MCP equity.read.research_snapshot + AI capability route",
+      "surface": "Equity Application + REST + SDK + MCP research snapshot + AI capability route",
       "source_files": [
         "apps/ai_capability/application/use_cases.py",
         "apps/ai_capability/application/financial_fact_routing.py",
+        "apps/equity/application/research_snapshot.py",
+        "apps/equity/interface/research_snapshot_views.py",
+        "apps/equity/research_snapshot_composition.py",
+        "sdk/agomtradepro/modules/equity.py",
         "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py",
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py"
       ],
@@ -1442,18 +1446,56 @@
           "EQUITY_RESEARCH_CAPABILITY_SUFFIX = \"equity.read.research_snapshot\"",
           "financial_evidence_capability_unavailable"
         ],
+        "apps/equity/application/research_snapshot.py": [
+          "class EquityResearchSnapshotUseCase:",
+          "def _payload_block_reason(",
+          "decision_readiness_blocked",
+          "equity_core_evidence_incomplete"
+        ],
+        "apps/equity/interface/research_snapshot_views.py": [
+          "class EquityResearchSnapshotAPIView(APIView):",
+          "permission_classes = [IsAuthenticated]",
+          "make_equity_research_snapshot_use_case().execute(use_case_request)"
+        ],
+        "apps/equity/research_snapshot_composition.py": [
+          "class DataCenterEquityResearchSnapshotReader:",
+          "get_published_latest_quote_payload",
+          "run_decision_readiness_checks"
+        ],
+        "sdk/agomtradepro/modules/equity.py": [
+          "def get_research_snapshot(",
+          "research-snapshot/{stock_code}/"
+        ],
         "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py": [
           "capability_key=\"equity.read.research_snapshot\"",
           "requires_confirmation=False"
         ],
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py": [
-          "def _payload_block_reason(",
-          "_UNUSABLE_CURRENT_DATA_STATUSES",
           "def _internal_handler_equity_read_research_snapshot(",
-          "decision_readiness_blocked"
+          "client.equity.get_research_snapshot("
         ]
       },
       "required_tests": [
+        {
+          "case": "application_optional_gap",
+          "test_file": "tests/unit/equity/test_research_snapshot_use_case.py",
+          "test_function": "test_optional_gaps_are_partial_but_decision_usable"
+        },
+        {
+          "case": "application_required_stale",
+          "test_file": "tests/unit/equity/test_research_snapshot_use_case.py",
+          "test_function": "test_core_section_fail_closed_for_publication_freshness_and_empty_evidence"
+        },
+        {
+          "case": "rest_auth_and_thin_delegate",
+          "test_file": "tests/api/test_equity_research_snapshot_api.py",
+          "test_function": "test_research_snapshot_delegates_normalized_defaults_to_application"
+        },
+        {
+          "case": "sdk_single_endpoint",
+          "test_file": "sdk/tests/test_sdk/test_equity_module.py",
+          "test_function": "test_get_research_snapshot_uses_canonical_endpoint_and_preserves_envelope"
+        },
         {
           "case": "chinese_research_route",
           "test_file": "tests/unit/test_ai_capability/test_equity_research_routing.py",
@@ -1465,24 +1507,9 @@
           "test_function": "test_financial_fact_query_without_evidence_capability_never_calls_chat_model"
         },
         {
-          "case": "mcp_optional_gap_visible",
+          "case": "mcp_single_sdk_call",
           "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
-          "test_function": "test_research_snapshot_keeps_optional_gaps_visible_without_fabrication"
-        },
-        {
-          "case": "mcp_global_readiness_blocked",
-          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
-          "test_function": "test_research_snapshot_obeys_global_decision_readiness"
-        },
-        {
-          "case": "mcp_stale_section_without_boolean_gate_blocked",
-          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
-          "test_function": "test_research_snapshot_blocks_stale_section_without_boolean_gate"
-        },
-        {
-          "case": "mcp_nested_stale_reliability_without_boolean_gate_blocked",
-          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
-          "test_function": "test_research_snapshot_blocks_nested_stale_reliability_without_boolean_gate"
+          "test_function": "test_research_snapshot_is_a_single_sdk_call_and_preserves_envelope"
         }
       ]
     },
@@ -2158,12 +2185,12 @@
     },
     {
       "id": "data_center.publication_gated_reads",
-      "surface": "Data Center API/SDK/MCP publication-gated decision reads",
+      "surface": "Data Center API/SDK and Equity Application publication-gated decision reads",
       "source_files": [
         "apps/data_center/interface/api_views.py",
         "apps/data_center/interface/publication_guards.py",
         "sdk/agomtradepro/modules/data_center.py",
-        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py"
+        "apps/equity/research_snapshot_composition.py"
       ],
       "required_markers": {
         "apps/data_center/interface/api_views.py": [
@@ -2180,9 +2207,11 @@
           "publication_key",
           "params[\"mode\"] = mode"
         ],
-        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py": [
-          "def _published_read(",
-          "mode=\"published\""
+        "apps/equity/research_snapshot_composition.py": [
+          "get_published_latest_quote_payload",
+          "get_published_price_bar_series",
+          "get_published_financial_facts",
+          "get_published_valuation_facts"
         ]
       },
       "required_tests": [
@@ -2202,14 +2231,14 @@
           "test_function": "test_data_center_module_can_request_publication_gated_reads"
         },
         {
-          "case": "mcp_research_uses_gate",
-          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
-          "test_function": "test_research_snapshot_keeps_optional_gaps_visible_without_fabrication"
+          "case": "equity_application_research_uses_gate",
+          "test_file": "tests/unit/equity/test_research_snapshot_use_case.py",
+          "test_function": "test_optional_gaps_are_partial_but_decision_usable"
         },
         {
-          "case": "mcp_blocked_gate_metadata_is_not_evidence",
-          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
-          "test_function": "test_research_snapshot_does_not_treat_blocked_publication_metadata_as_evidence"
+          "case": "equity_application_blocked_gate_metadata_is_not_evidence",
+          "test_file": "tests/unit/equity/test_research_snapshot_use_case.py",
+          "test_function": "test_core_section_fail_closed_for_publication_freshness_and_empty_evidence"
         }
       ]
     },

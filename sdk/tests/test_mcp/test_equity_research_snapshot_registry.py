@@ -1,7 +1,11 @@
 """Equity research snapshot MCP registry contract."""
 
+from types import SimpleNamespace
+
 from agomtradepro_mcp.registry import CapabilityRegistryLoader
+from agomtradepro_mcp.registry.dispatcher import CapabilityDispatcher
 from agomtradepro_mcp.registry.runtime_handlers.owners.equity import (
+    GOVERNED_HANDLERS,
     _internal_handler_equity_read_research_snapshot,
 )
 
@@ -10,6 +14,7 @@ def test_equity_research_snapshot_is_low_risk_read_without_confirmation() -> Non
     manifest = CapabilityRegistryLoader().build_registry().get("equity.read.research_snapshot")
 
     assert manifest is not None
+    assert manifest.enabled is True
     assert manifest.owner_app == "equity"
     assert manifest.risk_level == "low"
     assert manifest.requires_confirmation is False
@@ -17,211 +22,80 @@ def test_equity_research_snapshot_is_low_risk_read_without_confirmation() -> Non
     assert "全部" in manifest.description
 
 
-class _FakeDataCenter:
-    def resolve_asset(self, value):
-        assert value == "通富微电"
-        return {"code": "002156.SZ", "name": "通富微电", "is_active": True}
+def test_research_snapshot_is_a_single_sdk_call_and_preserves_envelope(monkeypatch) -> None:
+    calls: list[tuple[str, dict[str, int]]] = []
+    snapshot = {
+        "status": "blocked",
+        "stock_code": "002156.SZ",
+        "sections": {"financials": {"status": "stale"}},
+        "reliability": {"block_reason_code": "canonical_publication_stale"},
+        "must_not_use_for_decision": True,
+    }
 
-    def get_latest_quotes(self, code, strict_freshness=True, *, mode=None):
-        assert code == "002156.SZ"
-        assert strict_freshness is True
-        assert mode == "published"
-        return {
-            "results": [
-                {
-                    "asset_code": code,
-                    "current_price": 56.73,
-                    "snapshot_at": "2026-07-31T08:14:24+00:00",
-                    "source": "tencent",
-                }
-            ],
-            "must_not_use_for_decision": False,
-        }
+    def get_research_snapshot(stock_code: str, **limits: int) -> dict[str, object]:
+        calls.append((stock_code, limits))
+        return snapshot
 
-    def get_price_history(self, code, limit, *, mode=None):
-        assert mode == "published"
-        return {"results": [{"asset_code": code, "bar_date": "2026-07-31"}], "limit": limit}
-
-    def get_valuations(self, code, limit, *, mode=None):
-        assert mode == "published"
-        return {"results": [{"asset_code": code, "trade_date": "2026-07-31"}], "limit": limit}
-
-    def get_financials(self, code, limit, *, mode=None):
-        assert mode == "published"
-        return {"results": [{"asset_code": code, "period_end": "2026-03-31"}], "limit": limit}
-
-    def get_news(self, code, limit, *, mode=None):
-        assert mode == "published"
-        return {"results": [], "asset_code": code, "limit": limit}
-
-    def get_capital_flows(self, code, limit, *, mode=None):
-        assert mode == "published"
-        return {"results": [], "asset_code": code, "limit": limit}
-
-
-class _FakeClient:
-    def __init__(self, *, blocked=False):
-        self.data_center = _FakeDataCenter()
-        self.blocked = blocked
-
-    def get(self, path):
-        assert path == "/api/decision-ready/"
-        return {
-            "status": "blocked" if self.blocked else "ok",
-            "must_not_use_for_decision": self.blocked,
-        }
-
-
-def test_research_snapshot_keeps_optional_gaps_visible_without_fabrication(monkeypatch) -> None:
-    monkeypatch.setattr("agomtradepro.AgomTradeProClient", _FakeClient)
-
-    result = _internal_handler_equity_read_research_snapshot("通富微电")
-
-    assert result["stock_code"] == "002156.SZ"
-    assert result["status"] == "partial"
-    assert result["must_not_use_for_decision"] is False
-    assert result["missing_optional_sections"] == ["news", "capital_flows"]
-    assert result["sections"]["latest_quote"]["data"]["results"][0]["current_price"] == 56.73
-
-
-def test_research_snapshot_obeys_global_decision_readiness(monkeypatch) -> None:
     monkeypatch.setattr(
         "agomtradepro.AgomTradeProClient",
-        lambda: _FakeClient(blocked=True),
+        lambda: SimpleNamespace(
+            equity=SimpleNamespace(get_research_snapshot=get_research_snapshot)
+        ),
     )
 
-    result = _internal_handler_equity_read_research_snapshot("通富微电")
+    result = _internal_handler_equity_read_research_snapshot(
+        "通富微电",
+        history_limit=120,
+        financial_limit=8,
+        valuation_limit=90,
+        news_limit=12,
+        capital_flow_limit=30,
+    )
 
-    assert result["status"] == "blocked"
-    assert result["must_not_use_for_decision"] is True
-    assert result["reliability"]["block_reason_code"] == "decision_readiness_blocked"
-
-
-def test_research_snapshot_does_not_treat_blocked_publication_metadata_as_evidence(
-    monkeypatch,
-) -> None:
-    """Gate metadata must not make an empty/stale required section look complete."""
-
-    class BlockedFinancialDataCenter(_FakeDataCenter):
-        def get_financials(self, code, limit, *, mode=None):
-            assert mode == "published"
-            return {
-                "rows": [],
-                "publication_id": "pub-stale",
-                "must_not_use_for_decision": True,
-                "blocked_reason": "canonical_publication_stale",
-            }
-
-    class BlockedFinancialClient(_FakeClient):
-        def __init__(self):
-            super().__init__()
-            self.data_center = BlockedFinancialDataCenter()
-
-    monkeypatch.setattr("agomtradepro.AgomTradeProClient", BlockedFinancialClient)
-
-    result = _internal_handler_equity_read_research_snapshot("通富微电")
-
-    assert result["status"] == "blocked"
-    assert result["must_not_use_for_decision"] is True
-    assert result["sections"]["financials"]["status"] == "blocked"
-    assert result["sections"]["financials"]["block_reason_code"] == ("canonical_publication_stale")
-
-
-def test_research_snapshot_blocks_stale_section_without_boolean_gate(monkeypatch) -> None:
-    """A stale section cannot become fresh when its boolean gate is omitted."""
-
-    class StaleFinancialDataCenter(_FakeDataCenter):
-        def get_financials(self, code, limit, *, mode=None):
-            assert mode == "published"
-            return {
-                "rows": [{"asset_code": code, "period_end": "2025-12-31"}],
-                "freshness_status": "stale",
-            }
-
-    class StaleFinancialClient(_FakeClient):
-        def __init__(self):
-            super().__init__()
-            self.data_center = StaleFinancialDataCenter()
-
-    monkeypatch.setattr("agomtradepro.AgomTradeProClient", StaleFinancialClient)
-
-    result = _internal_handler_equity_read_research_snapshot("通富微电")
-
-    assert result["status"] == "blocked"
-    assert result["must_not_use_for_decision"] is True
-    assert result["sections"]["financials"]["status"] == "blocked"
-    assert result["sections"]["financials"]["block_reason_code"] == ("section_freshness_stale")
-
-
-def test_research_snapshot_blocks_nested_stale_reliability_without_boolean_gate(
-    monkeypatch,
-) -> None:
-    """Nested reliability metadata must also fail closed at the MCP boundary."""
-
-    class StaleReliabilityDataCenter(_FakeDataCenter):
-        def get_financials(self, code, limit, *, mode=None):
-            assert mode == "published"
-            return {
-                "rows": [{"asset_code": code, "period_end": "2025-12-31"}],
-                "reliability": {"status": "stale"},
-            }
-
-    class StaleReliabilityClient(_FakeClient):
-        def __init__(self):
-            super().__init__()
-            self.data_center = StaleReliabilityDataCenter()
-
-    monkeypatch.setattr("agomtradepro.AgomTradeProClient", StaleReliabilityClient)
-
-    result = _internal_handler_equity_read_research_snapshot("通富微电")
-
-    assert result["status"] == "blocked"
-    assert result["must_not_use_for_decision"] is True
-    assert result["sections"]["financials"]["status"] == "blocked"
-    assert result["sections"]["financials"]["block_reason_code"] == ("section_status_stale")
-
-
-def test_research_snapshot_does_not_treat_empty_rows_as_evidence(monkeypatch) -> None:
-    """Publication metadata cannot turn an empty required section into evidence."""
-
-    class EmptyFinancialDataCenter(_FakeDataCenter):
-        def get_financials(self, code, limit, *, mode=None):
-            assert mode == "published"
-            return {
-                "rows": [],
-                "publication_id": "pub-empty",
-                "must_not_use_for_decision": False,
-                "freshness_status": "fresh",
-            }
-
-    class EmptyFinancialClient(_FakeClient):
-        def __init__(self):
-            super().__init__()
-            self.data_center = EmptyFinancialDataCenter()
-
-    monkeypatch.setattr("agomtradepro.AgomTradeProClient", EmptyFinancialClient)
-
-    result = _internal_handler_equity_read_research_snapshot("通富微电")
-
-    assert result["status"] == "blocked"
-    assert result["must_not_use_for_decision"] is True
-    assert result["sections"]["financials"]["status"] == "missing"
-    assert result["sections"]["financials"]["block_reason_code"] == "section_evidence_missing"
+    assert result is snapshot
+    assert calls == [
+        (
+            "通富微电",
+            {
+                "history_limit": 120,
+                "financial_limit": 8,
+                "valuation_limit": 90,
+                "news_limit": 12,
+                "capital_flow_limit": 30,
+            },
+        )
+    ]
 
 
 def test_research_snapshot_executes_through_core_native_handler(monkeypatch) -> None:
-    """Prove core-only agom_capability_call wiring via INTERNAL_GOVERNED_HANDLERS."""
+    """Prove core dispatcher wiring without importing the optional MCP server."""
 
-    import agomtradepro_mcp.server as server_module
+    snapshot = {
+        "status": "partial",
+        "stock_code": "002156.SZ",
+        "missing_optional_sections": ["news"],
+        "must_not_use_for_decision": False,
+    }
+    monkeypatch.setattr(
+        "agomtradepro.AgomTradeProClient",
+        lambda: SimpleNamespace(
+            equity=SimpleNamespace(get_research_snapshot=lambda *_args, **_kwargs: snapshot)
+        ),
+    )
+    dispatcher = CapabilityDispatcher(
+        registry=CapabilityRegistryLoader().build_registry(),
+        legacy_tool_caller=lambda _name, _arguments: None,
+        internal_handler_caller=lambda ref, arguments: GOVERNED_HANDLERS[ref](**arguments),
+        audit_logger=SimpleNamespace(
+            log_governed_capability_event=lambda **_kwargs: "test-audit-log"
+        ),
+        role_provider=lambda: "admin",
+    )
 
-    monkeypatch.setattr("agomtradepro.AgomTradeProClient", _FakeClient)
-    assert "equity_read_research_snapshot" in server_module.INTERNAL_GOVERNED_HANDLERS
-    agom_capability_call = server_module.CORE_DISPATCHER.call
-
-    result = agom_capability_call(
+    result = dispatcher.call(
         capability_key="equity.read.research_snapshot",
         arguments={"stock_code": "通富微电"},
     )
 
     assert result["status"] == "completed"
-    assert result["result"]["stock_code"] == "002156.SZ"
+    assert result["result"] is snapshot
