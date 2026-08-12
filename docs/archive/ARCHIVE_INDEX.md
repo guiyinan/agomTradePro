@@ -72,6 +72,44 @@
 2. 活跃文档请参考 `docs/INDEX.md`
 3. 如需恢复某文档，请复制到对应目录并更新 INDEX.md
 
+### 10. 计划目录整理归档（2026-08-12）
+
+本批从 `docs/plans/` 迁入 44 份已完成文档。归档标准是“仓库范围已经实现、阶段已经验收或已被后续计划取代”；仍有真实数据、生产 cutover、外部环境或上线验收门禁的文档继续留在活跃计划目录。
+
+#### 发布、产品与数据能力
+
+- `0.8.0-release-closure-plan-2026-07-05.md`
+- `auto-advisor-prd-2026-06-25.md`
+- `auto-advisor-implementation-2026-06-25.md`
+- `personal-auto-advisor-roadmap-2026-06-30.md`
+- `production-code-remediation-plan-2026-06-26.md`
+- `data-mid-plat-260405.md`
+- `eastmoney-integration.md`
+
+#### 工程治理与阶段收口
+
+- `architecture-cycle-remediation-2026-04-26.md`（由 2026-07-15 后续计划取代）
+- `ci-stabilization-2026-07-13.md`
+- `large-file-remediation-2026-07-14.md` 及 7 份分模块记录
+- `provider-abstraction-convergence-2026-07-18.md`
+- `repository-debt-remediation-closure-2026-07-19.md`
+- `repository-governance-debt-2026-07-19.md`
+- `mypy-debt-remediation-2026-07-19.md`
+- `maintainability-refactoring-plan-2026-07-20.md` 及 `maintainability-r0/`、`maintainability-r2/`、`maintainability-r3-lite/`、`maintainability-stability/`
+- `testing-improvement-plan-2026-07-24.md`
+- `tui-regime-display-contract-postmortem-2026-07-30.md`
+
+#### 已完成里程碑证据
+
+- `regime-navigator/`（总方案与 Phase 1–3）
+- `web-to-tui-m0-evidence-2026-07-26.md`
+- `web-to-tui-m1-chart-evidence-2026-07-26.md`
+- `web-to-tui-m2-consolidated-evidence-2026-07-26.md`
+- `web-to-tui-m3-consolidated-evidence-2026-07-26.md`
+- `web-to-tui-m4-consolidated-evidence-2026-07-26.md`
+
+活跃入口与保留理由见 [`../plans/README.md`](../plans/README.md)。
+
 ---
 
 ### 7. 过程性文档批量归档 (process/)

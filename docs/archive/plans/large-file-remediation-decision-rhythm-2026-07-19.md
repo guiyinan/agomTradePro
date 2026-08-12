@@ -2,7 +2,7 @@
 
 ## Stage objective
 
-This batch continues the Decision Rhythm large-file remediation line recorded in `docs/plans/large-file-remediation-2026-07-14.md`. It splits the remaining over-threshold pure-Python module, `apps/decision_rhythm/domain/services.py`, into focused domain owners while preserving the established import and patch surface. The machine-readable source for allowances and thresholds remains `governance/governance_baseline.json`; this document intentionally does not copy live line counts.
+This batch continues the Decision Rhythm large-file remediation line recorded in `docs/archive/plans/large-file-remediation-2026-07-14.md`. It splits the remaining over-threshold pure-Python module, `apps/decision_rhythm/domain/services.py`, into focused domain owners while preserving the established import and patch surface. The machine-readable source for allowances and thresholds remains `governance/governance_baseline.json`; this document intentionally does not copy live line counts.
 
 ## Completed
 

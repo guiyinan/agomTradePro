@@ -569,7 +569,7 @@ for stock in result['stocks']:
 
 ## 📝 相关文档
 
-- [实施方案 v1.1](agomtradepro-qlib-integration-plan-v1.1.md)
+- [实施方案 v1.1](../archive/plans/agomtradepro-qlib-integration-plan-v1.1.md)
 - [Phase 1 总结](../archive/plans/phase1-alpha-implementation-summary.md)
 - [Phase 2 总结](../archive/plans/phase2-qlib-inference-summary.md)
 - [Phase 3 总结](../archive/plans/phase3-training-summary.md)

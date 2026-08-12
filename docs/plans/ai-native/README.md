@@ -13,20 +13,20 @@ These files are intended for:
 
 ## Milestones
 
-- [M0-baseline-freeze.md](./M0-baseline-freeze.md) - project kickoff, scope freeze, interface freeze
-- [M1-agent-runtime-foundation.md](./M1-agent-runtime-foundation.md) - runtime data model, state machine, base APIs
-- [M2-context-and-task-tools.md](./M2-context-and-task-tools.md) - context snapshots, facades, SDK and MCP task entrypoints
-- [M3-proposal-approval-execution.md](./M3-proposal-approval-execution.md) - proposal lifecycle, approval gates, guarded execution
-- [M4-observability-recovery-and-release.md](./M4-observability-recovery-and-release.md) - dashboard, recovery, regression, staging release
+- [M0-baseline-freeze.md](../../archive/plans/ai-native/M0-baseline-freeze.md) - project kickoff, scope freeze, interface freeze
+- [M1-agent-runtime-foundation.md](../../archive/plans/ai-native/M1-agent-runtime-foundation.md) - runtime data model, state machine, base APIs
+- [M2-context-and-task-tools.md](../../archive/plans/ai-native/M2-context-and-task-tools.md) - context snapshots, facades, SDK and MCP task entrypoints
+- [M3-proposal-approval-execution.md](../../archive/plans/ai-native/M3-proposal-approval-execution.md) - proposal lifecycle, approval gates, guarded execution
+- [M4-observability-recovery-and-release.md](../../archive/plans/ai-native/M4-observability-recovery-and-release.md) - dashboard, recovery, regression, staging release
 
 ## Execution Pack
 
-- [implementation-contract.md](./implementation-contract.md) - hard constraints, frozen names, forbidden implementation patterns
-- [schema-contract.md](./schema-contract.md) - model, API, SDK, MCP, and error contracts
+- [implementation-contract.md](../../archive/plans/ai-native/implementation-contract.md) - hard constraints, frozen names, forbidden implementation patterns
+- [schema-contract.md](../../archive/plans/ai-native/schema-contract.md) - model, API, SDK, MCP, and error contracts
 - [execution-backlog.md](./execution-backlog.md) - execution-order backlog for vendor teams or coding agents
-- [glm-execution-prompt-template.md](./glm-execution-prompt-template.md) - ready-to-send implementation prompt for GLM or similar coding agents
-- [vendor-baseline-contract.md](./vendor-baseline-contract.md) - vendor baseline, scope, ownership, state machine, freeze rules
-- [test-matrix.md](./test-matrix.md) - test requirements per milestone
+- [glm-execution-prompt-template.md](../../archive/plans/ai-native/glm-execution-prompt-template.md) - ready-to-send implementation prompt for GLM or similar coding agents
+- [vendor-baseline-contract.md](../../archive/plans/ai-native/vendor-baseline-contract.md) - vendor baseline, scope, ownership, state machine, freeze rules
+- [test-matrix.md](../../archive/plans/ai-native/test-matrix.md) - test requirements per milestone
 
 ## How To Use This Pack
 

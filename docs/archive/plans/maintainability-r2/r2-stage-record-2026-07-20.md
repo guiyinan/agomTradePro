@@ -54,4 +54,4 @@ unit/API/integration 广域回归使用 4 worker 首轮得到 6,853 passed、14 
 
 上述三组均未触达 R2/R3-lite 改动路径，作为既有集成测试债务登记，不在本批混入 macro/regime/strategy 业务修复。R2 专项、固定最小回归和治理护栏均为绿色。
 
-后续独立稳定性批次已修复上述三个 fixture/source propagation 契约；unit/API/integration 单进程全量回归最终为 7,022 passed、14 skipped、0 failed，详见 `docs/plans/maintainability-stability/stability-closeout-2026-07-20.md`。
+后续独立稳定性批次已修复上述三个 fixture/source propagation 契约；unit/API/integration 单进程全量回归最终为 7,022 passed、14 skipped、0 failed，详见 `docs/archive/plans/maintainability-stability/stability-closeout-2026-07-20.md`。

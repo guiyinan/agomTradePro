@@ -210,7 +210,7 @@ P2（持续优化）：
 6. 分层中央回归：Unit `5169 passed`、Component `1707 passed / 4 skipped`、API+Migration `565 passed`、Integration `958 passed / 13 deselected`、Django E2E `97 passed`、App-local `288 passed`。
 7. Guardrail + Critical `165 passed`；固定 TUI/Terminal/SDK/SSL 回归分别为 `194 / 11 / 22 / 2 passed`。
 
-详细证据、已知非阻断项和回滚点见 `docs/plans/testing-improvement-plan-2026-07-24.md`。
+详细证据、已知非阻断项和回滚点见 `docs/archive/plans/testing-improvement-plan-2026-07-24.md`。
 
 ### 2026-07-22 关键可靠性测试收口
 

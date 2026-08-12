@@ -377,11 +377,11 @@ python tui-metadata-compiler/scripts/publish_tui_metadata.py \
 
 | 里程碑 | Wave / 范围 | 状态 | 证据真源 |
 |---|---|---|---|
-| M0 / M0-D | 195 模板基线、矩阵、冻结与 7 个死模板清理 | 已完成 | `web-to-tui-m0-evidence-2026-07-26.md` |
-| M1 | 图表契约样板 | 已完成 | `web-to-tui-m1-chart-evidence-2026-07-26.md` |
-| M2 | W1–W20，配置、CRUD 与治理任务 | 已完成 | `web-to-tui-m2-consolidated-evidence-2026-07-26.md` |
-| M3 | W21–W42，长尾工作台与运维任务 | 已完成 | `web-to-tui-m3-consolidated-evidence-2026-07-26.md` |
-| M4 | W43–W51，图表与分析任务 | 已完成 | `web-to-tui-m4-consolidated-evidence-2026-07-26.md` |
+| M0 / M0-D | 195 模板基线、矩阵、冻结与 7 个死模板清理 | 已完成 | `../archive/plans/web-to-tui-m0-evidence-2026-07-26.md` |
+| M1 | 图表契约样板 | 已完成 | `../archive/plans/web-to-tui-m1-chart-evidence-2026-07-26.md` |
+| M2 | W1–W20，配置、CRUD 与治理任务 | 已完成 | `../archive/plans/web-to-tui-m2-consolidated-evidence-2026-07-26.md` |
+| M3 | W21–W42，长尾工作台与运维任务 | 已完成 | `../archive/plans/web-to-tui-m3-consolidated-evidence-2026-07-26.md` |
+| M4 | W43–W51，图表与分析任务 | 已完成 | `../archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md` |
 | M5 | 108-route UAT/closure、回滚与生产 cutover | M5-A DENY；候选未部署 | `web-to-tui-m5-readiness-2026-07-27.md` 及其引用的机器证据 |
 
 ## 10. M0 映射矩阵契约

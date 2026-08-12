@@ -250,7 +250,7 @@ VPS AgomTradePro
 - `apps/data_center/infrastructure/gateways/qmt_gateway.py`
 - `apps/risk_center/application/trade_guard.py`
 - `docs/development/unified-financial-datasource-registry.md`
-- `docs/plans/auto-advisor-implementation-2026-06-25.md`
+- `docs/archive/plans/auto-advisor-implementation-2026-06-25.md`
 
 ## 10. 推荐模块和文件归属
 

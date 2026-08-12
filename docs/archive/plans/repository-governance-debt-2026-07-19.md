@@ -24,7 +24,7 @@
 ## 独立后续主线
 
 - mypy `ignore_errors` 豁免缩减与基线错误修复。
-- 其余 P1 大文件按 `docs/plans/large-file-remediation-2026-07-14.md` 继续拆分。
+- 其余 P1 大文件按 `docs/archive/plans/large-file-remediation-2026-07-14.md` 继续拆分。
 
 ## 验证记录
 

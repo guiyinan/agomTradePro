@@ -1831,9 +1831,9 @@ CI 观察结论：
 
 | 文档 | 本计划与其关系 |
 | --- | --- |
-| [data-mid-plat-260405.md](data-mid-plat-260405.md) | 保留为第一阶段建设历史；其中“Phase 1-6 已完成”只代表骨架和主要入口曾完成迁移，不再作为唯一真源验收证据 |
+| [data-mid-plat-260405.md](../archive/plans/data-mid-plat-260405.md) | 归档为第一阶段建设历史；其中“Phase 1-6 已完成”只代表骨架和主要入口曾完成迁移，不再作为唯一真源验收证据 |
 | [production-data-reliability-full-remediation-2026-08-01.md](production-data-reliability-full-remediation-2026-08-01.md) | 继续承担生产事故 P0/P1/P2 整改；其维护阻断、时间保真、全市场回填和无证据阻断是本计划的前置安全底座 |
-| [provider-abstraction-convergence-2026-07-18.md](provider-abstraction-convergence-2026-07-18.md) | Provider 抽象治理并入本计划 M2，不再只以文件拆分或协议存在作为完成标准 |
+| [provider-abstraction-convergence-2026-07-18.md](../archive/plans/provider-abstraction-convergence-2026-07-18.md) | Provider 抽象治理并入本计划 M2，不再只以文件拆分或协议存在作为完成标准 |
 | [critical-reliability-test-closure-2026-07-22.md](critical-reliability-test-closure-2026-07-22.md) | 测试分层与 PostgreSQL 验收并入 M0、M9、M10 |
 | [data-freshness-contract-guard.md](../development/data-freshness-contract-guard.md) | 作为 current/latest/realtime 语义的最低要求，本计划会把它扩展到所有 Dataset Contract |
 | [celery-task-contract-guard.md](../development/celery-task-contract-guard.md) | 作为批量写入任务的最低要求，本计划会增加同步运行、批次、断点和发布状态 |

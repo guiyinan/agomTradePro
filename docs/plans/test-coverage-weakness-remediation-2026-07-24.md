@@ -12,7 +12,7 @@
 ## 1. 计划目标
 
 本计划承接已完成的
-`docs/plans/testing-improvement-plan-2026-07-24.md`，不重复建设测试分层体系，
+`docs/archive/plans/testing-improvement-plan-2026-07-24.md`，不重复建设测试分层体系，
 重点解决以下剩余问题：
 
 1. 当前仓库行覆盖率刚越过门槛，新增少量未覆盖代码即可导致门禁回退。

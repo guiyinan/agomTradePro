@@ -10,16 +10,16 @@
 
 | 批次 | 状态 | 结果 |
 |---|---|---|
-| R0 | 完成 | 五份 inventory/矩阵已落档，见 `docs/plans/maintainability-r0/` |
+| R0 | 完成 | 五份 inventory/矩阵已落档，见 `docs/archive/plans/maintainability-r0/` |
 | R1A | deprecated 阶段完成 | Filter API/SDK/MCP 发布弃用契约；因 TUI 与 governed MCP 仍是登记消费者且无生产连续日志窗口，未物理删除 |
 | R1B | 完成 | readiness evidence provenance、quote freshness、workspace core 分类收敛为公共真源 |
 | R1C | 完成 | 新 owner 为 `apps.operational_readiness`；旧命令模块和旧 Celery task name 保留兼容代理，静态 Beat 与 setup 命令的 canonical task 已切换；专项、固定、治理与 Celery 注册回归均通过 |
-| R2 | 完成 | API fixture/root/auth 契约、TUI 静态源码契约、AI capability manifest 投影、SDK owner 同型 case 与 readiness 证据/调度矩阵已收敛；语义迁移映射和阶段记录见 `docs/plans/maintainability-r2/` |
+| R2 | 完成 | API fixture/root/auth 契约、TUI 静态源码契约、AI capability manifest 投影、SDK owner 同型 case 与 readiness 证据/调度矩阵已收敛；语义迁移映射和阶段记录见 `docs/archive/plans/maintainability-r2/` |
 | R3-lite | 完成 | 新建 `apps.valuation` 作为估值快照、质量/新鲜度策略与估值选择用例的 canonical owner；`feature_providers.py` 估值段已迁出；旧 import、ORM app identity 和 `/api/valuation/**` 路径保持兼容 |
 
 R1A 的物理删除不属于本次完成项；必须等到 2026-09-30 前后的独立 sunset 评审且四重证据门槛全部满足。
 
-R2 + R3-lite 收口后不自动继续完整 R3。当前维护边界稳定在“测试重复收敛 + valuation canonical owner + 兼容 facade”；advisor/recommendation 仅在进入高频开发时再启动独立拆分。广域回归暴露的 macro canonical fixture、regime source propagation 与 strategy regime 枚举 fixture 漂移已在独立稳定性批次修复，避免与架构主提交混改；验证记录见 `docs/plans/maintainability-stability/stability-closeout-2026-07-20.md`。
+R2 + R3-lite 收口后不自动继续完整 R3。当前维护边界稳定在“测试重复收敛 + valuation canonical owner + 兼容 facade”；advisor/recommendation 仅在进入高频开发时再启动独立拆分。广域回归暴露的 macro canonical fixture、regime source propagation 与 strategy regime 枚举 fixture 漂移已在独立稳定性批次修复，避免与架构主提交混改；验证记录见 `docs/archive/plans/maintainability-stability/stability-closeout-2026-07-20.md`。
 
 ---
 
