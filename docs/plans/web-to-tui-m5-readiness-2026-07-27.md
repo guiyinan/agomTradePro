@@ -47,8 +47,12 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
 - 更换候选会清空 UAT、cleanup、defects、telemetry、rollback/backup、review snapshot 与审批。
 - observation 合成测试 `15 passed`；candidate/readiness 相关全组在本机受慢速/临时目录权限影响
   未取得一次完整结束证明，但旧证据实际 readiness 输出已确认 DENY。
-- 尚未完成：UAT、cleanup 与 rollback 三条 recorder/builder 自动写入 candidate binding；在此之前
-  readiness 会安全保持 DENY，禁止手工复用或补写旧证据。
+- UAT/cleanup/rollback candidate recorder 已实现：固定执行套件并重解析 JUnit，任何
+  failure/error/skip 都拒绝写入；rollback 只接受 drill v2 exact binding，CLI 不接受自报
+  `passed`。结构报告有独立 JSON Schema，专属测试 `5 passed`。
+- 当前 cutover candidate 未建立，真实 recorder 实测按设计 FAIL 且不写 evidence，readiness
+  仍安全 DENY。另外仍缺 M5-B 删除后的 cleanup wave/rollback manifest/48h observation ledger
+  recorder，不能用 candidate cleanup report 冒充每波生产观察。
 
 ### 2026-08-13：candidate-bound rollback drill v2
 
