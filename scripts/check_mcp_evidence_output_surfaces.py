@@ -16,8 +16,9 @@ for search_root in (REPO_ROOT, REPO_ROOT / "sdk"):
     if str(search_root) not in sys.path:
         sys.path.insert(0, str(search_root))
 
-from agomtradepro_mcp.registry.loader import CapabilityRegistryLoader
 from apps.terminal.application.tui_metadata import validate_tui_metadata
+
+from agomtradepro_mcp.registry.loader import CapabilityRegistryLoader
 
 DEFAULT_INVENTORY = REPO_ROOT / "governance" / "mcp_evidence_output_surfaces.json"
 TAGGED_READ_MARKERS = frozenset({"mcp:research_read", "mcp:decision_read", "mcp:decision_evidence"})
@@ -27,6 +28,7 @@ ALLOWED_STATES = frozenset(
         "not_evidence_integrated_native_dynamic",
         "not_evidence_integrated_dynamic_passthrough",
         "blocked_unbound_dynamic_passthrough",
+        "blocked_unbound_native_dynamic",
         "semantic_tag_overclaims_contract",
     }
 )
@@ -173,6 +175,8 @@ def validate_inventory(
             manifest.enabled or surface.current_gate_state != "blocked_unbound_dynamic_passthrough"
         ):
             raise ValueError("unbound MCP terminal result bridge must remain disabled")
+        if surface.current_gate_state == "blocked_unbound_native_dynamic" and manifest.enabled:
+            raise ValueError(f"unbound MCP native output must remain disabled: {key}")
     if any("evidence_integrated" == surface.current_gate_state for surface in surfaces):
         raise ValueError("semantic freeze must not claim MCP Evidence integration")
     _validate_tui_closure(closure)
@@ -186,6 +190,7 @@ def validate_inventory(
             s.publication_semantic == "broker_execution_projection" for s in surfaces
         ),
         "integrated_count": 0,
+        "disabled_count": sum(not discovered[s.capability_key].enabled for s in surfaces),
     }
 
 

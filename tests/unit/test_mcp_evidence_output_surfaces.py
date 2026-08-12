@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import replace
 
 import pytest
-
 from scripts.check_mcp_evidence_output_surfaces import load_inventory, validate_inventory
 
 
@@ -15,6 +14,7 @@ def test_repository_mcp_evidence_surface_freeze_is_exact() -> None:
         "tagged_read_count": 11,
         "broker_native_count": 6,
         "integrated_count": 0,
+        "disabled_count": 7,
     }
 
 
@@ -66,3 +66,19 @@ def test_unbound_terminal_result_bridge_is_disabled() -> None:
     bridge = registry["terminal.read.user_action_result"]
 
     assert bridge.enabled is False
+
+
+def test_decision_facing_broker_native_reads_are_disabled() -> None:
+    from agomtradepro_mcp.registry.loader import CapabilityRegistryLoader
+
+    registry = CapabilityRegistryLoader().build_registry()
+    blocked = {
+        "broker_execution.read.overview",
+        "broker_execution.read.order_catalog",
+        "broker_execution.read.order_detail",
+        "broker_execution.read.connection_status",
+        "broker_execution.read.reconciliation_catalog",
+        "broker_execution.read.audit_catalog",
+    }
+
+    assert all(registry[key].enabled is False for key in blocked)

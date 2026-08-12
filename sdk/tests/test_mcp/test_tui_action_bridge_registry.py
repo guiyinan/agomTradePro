@@ -22,6 +22,20 @@ def test_terminal_action_bridge_manifests_are_registered() -> None:
     assert write_manifest.idempotency == "required"
 
 
+def test_decision_facing_broker_native_reads_are_not_discoverable() -> None:
+    registry = CapabilityRegistryLoader().build_registry()
+    blocked = {
+        "broker_execution.read.overview",
+        "broker_execution.read.order_catalog",
+        "broker_execution.read.order_detail",
+        "broker_execution.read.connection_status",
+        "broker_execution.read.reconciliation_catalog",
+        "broker_execution.read.audit_catalog",
+    }
+
+    assert all(registry[key].enabled is False for key in blocked)
+
+
 def test_terminal_action_handlers_search_schema_and_block_unbound_read(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

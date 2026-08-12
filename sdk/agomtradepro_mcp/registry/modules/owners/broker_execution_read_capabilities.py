@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from agomtradepro_mcp.registry.manifest import CapabilityManifest
 
 
@@ -10,8 +12,10 @@ def _read(
     title: str,
     summary: str,
     executor_ref: str,
-    properties: dict | None = None,
+    properties: dict[str, Any] | None = None,
     required: list[str] | None = None,
+    *,
+    enabled: bool = True,
 ) -> CapabilityManifest:
     return CapabilityManifest(
         capability_key=key,
@@ -35,6 +39,7 @@ def _read(
         output_schema={"type": "object"},
         audit_tags=("broker_execution:read", "mcp:native"),
         legacy_tool_names=(),
+        enabled=enabled,
     )
 
 
@@ -44,6 +49,7 @@ MANIFESTS = [
         "Live Execution Readiness",
         "Read QMT live-execution readiness, stop state, pending approvals, and differences.",
         "get_broker_execution_overview",
+        enabled=False,
     ),
     _read(
         "broker_execution.read.order_catalog",
@@ -55,6 +61,7 @@ MANIFESTS = [
             "status": {"type": "string"},
             "limit": {"type": "integer", "minimum": 1, "maximum": 200},
         },
+        enabled=False,
     ),
     _read(
         "broker_execution.read.order_detail",
@@ -63,12 +70,14 @@ MANIFESTS = [
         "get_broker_execution_order",
         {"client_order_id": {"type": "string", "format": "uuid"}},
         ["client_order_id"],
+        enabled=False,
     ),
     _read(
         "broker_execution.read.connection_status",
         "QMT Connection Status",
         "Read persisted Windows Agent, QMT, and account-binding health.",
         "get_broker_execution_connections",
+        enabled=False,
     ),
     _read(
         "broker_execution.read.reconciliation_catalog",
@@ -76,6 +85,7 @@ MANIFESTS = [
         "List order, fill, cash, and position reconciliation evidence.",
         "list_broker_execution_reconciliations",
         {"limit": {"type": "integer", "minimum": 1, "maximum": 200}},
+        enabled=False,
     ),
     _read(
         "broker_execution.read.audit_catalog",
@@ -83,5 +93,6 @@ MANIFESTS = [
         "List visible approval, cancel, stop, credential, and resolution audit events.",
         "list_broker_execution_audit",
         {"limit": {"type": "integer", "minimum": 1, "maximum": 200}},
+        enabled=False,
     ),
 ]

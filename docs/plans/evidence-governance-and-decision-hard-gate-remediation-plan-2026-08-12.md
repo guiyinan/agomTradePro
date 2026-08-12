@@ -158,6 +158,24 @@
 
 - MCP Evidence freeze 与 coverage/handler 专属聚合：`12 passed, 3 skipped`；skip 为当前隔离运行未加载 core-only MCP fixture，不是断言失败。
 
+### 2026-08-13：M0 Broker MCP 决策语义 read kill switch
+
+已完成：
+
+- 逐项反查 6 个 Broker native read：overview 发布 readiness/待审批金额/kill switch/现金与仓位对账差异；order catalog/detail 发布审批链、订单状态和 action availability；reconciliation 发布订单/成交/现金/仓位差异。这 4 项已从 MCP discovery/call 面禁用。
+- `connection_status` 进一步核出 freshness 假阳性：它直接发布持久化 `qmt_connected/status/last_heartbeat_at`，没有复用已有 90 秒 heartbeat freshness 或 blocker，因此也已禁用。历史 `audit_catalog` 的动态 before/after 可嵌完整订单/审批与 credential/Agent 结果，在 typed discriminated 白名单完成前同样禁用。
+- MCP semantic guard 强制 6 个 `blocked_unbound_native_dynamic` 在未完成 typed contract、summary/Envelope 与 consumer 校验前保持 disabled；连同 Terminal bridge，当前 18 个 P0 面中 disabled=`7`、integrated=`0`。
+- HTTP、TUI、SDK 与 Broker 写/审批链未改，避免关闭正式运维入口；本批只关闭缺 Evidence 的 MCP 旁路。
+
+仍未完成：
+
+- Order detail 只能在 exact、未过期、LIMIT、来源/金额/risk JSON 完整且 approval digest 闭合时复用现有 approval snapshot legacy adapter；catalog、overview、reconciliation 需要各自新的 typed contract 与 display-only Evidence summary，不能套用单订单 adapter。
+- Connection 需补 heartbeat freshness、derived connected、stable blocker 与 typed projection；audit before/after 需白名单和有界化。完成运行时接线与测试后才可逐项恢复 disabled capability。
+
+本阶段验证：
+
+- MCP semantic freeze 与专属 disabled-state 测试随本阶段提交执行；完整项目 Broker HTTP/component 未改也未重跑。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
