@@ -1,7 +1,7 @@
 {
   "version": 1,
   "updated_at": "2026-08-13",
-  "status": "first_batch_frozen_one_legacy_adapter_wrapped",
+  "status": "first_batch_frozen_two_legacy_adapters_wrapped",
   "allowed_claim_kinds": [
     "derived",
     "estimate",
@@ -132,7 +132,7 @@
       "claim_kind": "derived",
       "method_kind": "deterministic",
       "position_impact": "direct",
-      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "current_gate_state": "legacy_evidence_wrapped_display_only",
       "required_fields": ["quantity", "risk_snapshot_json", "source_recommendation_ids"]
     },
     {

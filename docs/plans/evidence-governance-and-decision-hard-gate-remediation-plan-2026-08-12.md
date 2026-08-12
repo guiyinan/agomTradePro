@@ -67,6 +67,20 @@
 
 - adapter、summary 与 inventory 聚合纯测试：`19 passed`；standalone strict mypy `0 errors`；Black、isort、`py_compile`、inventory CLI 与 `git diff --check` 通过。
 
+### 2026-08-13：M1 Broker approval snapshot legacy adapter
+
+已完成：
+
+- 为实际位于人工批准到券商提交边界的 `OrderApprovalSnapshot` 增加 content-bound legacy adapter；复用现有 approval digest，绑定账户、Agent、资产/市场、方向/订单类型、数量/限价/金额、有效期、Risk policy/snapshot、approval mode 与 recommendation/signal IDs 全字段。
+- adapter 对 aware expiry/evaluation clock、正且有限的 Decimal、数量×价格金额勾稽、canonical JSON object、严格有序唯一 source IDs 和 exact enum/type 失败关闭。
+- 输出始终为 `legacy_unverified + DISPLAY_ONLY`，`must_not_use_for_decision` 与 `must_not_execute` 恒真；没有接入或修改 Broker 批准/提交授权链，也不替代现有 approval digest。
+- Evidence inventory 仅把 `OrderApprovalSnapshot` 与此前 `QuoteResponse` 标为 wrapped；41 个 surface、11 个 direct-position 与 32 个 marker 分母不变。
+
+本阶段验证：
+
+- adapter 与 inventory 聚合纯测试 `22 passed`；inventory guard 为 `41 / 11 / 32`。
+- 两个目标文件 standalone strict mypy `0 errors`；Black、isort、`py_compile` 与 diff check 通过。
+
 ### 2026-08-13：M1 Risk Center 人工 subject / 审批写入面
 
 已完成：
@@ -90,7 +104,7 @@
 仍未完成：
 
 - M0 尚需扩展全量 R1–R8、动态 dict/TypedDict/interface/query payload、Broker query API、raw/governed MCP 输出语义与旧 Transition Plan 写路径分类；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口及 41 个高风险输出首批冻结已完成。
-- M1 的用户/租户 scope 模型与 owner-scoped 授权、人工审批写入面的完整项目 runtime/component 证明、并发 first-winner PostgreSQL 验证和其余 App Application adapter仍未完成；staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与 Data Center quote legacy adapter 首批已完成。
+- M1 的用户/租户 scope 模型与 owner-scoped 授权、人工审批写入面的完整项目 runtime/component 证明、并发 first-winner PostgreSQL 验证和其余 App Application adapter 仍未完成；staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码，以及 Data Center quote/Broker approval snapshot 两个 legacy adapter 已完成。
 - M2–M5 全部交付及真实生产切换证据。
 
 本阶段验证：
