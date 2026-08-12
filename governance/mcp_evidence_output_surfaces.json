@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "updated_at": "2026-08-13",
+  "status": "p0_semantic_surface_frozen_zero_integrated",
+  "tui_action_closure": {
+    "published_path": "config/tui/published/tui_operation_graph.published.json",
+    "published_sha256": "1d5b38416c23f7583297130d3076da9d80c4af25a4ea77721ee7b9633143f3f8",
+    "normalized_action_count": 430,
+    "normalized_read_action_count": 408,
+    "normalized_read_key_sha256": "b2487aa1219af02b31a7c0faefcbff5a1048aedad56d2f1af139415e7ef34fa8",
+    "raw_debug_true_count": 430,
+    "evidence_binding_count": 0
+  },
+  "surfaces": [
+    {"capability_key":"alpha.read.stock_scores","executor_kind":"legacy_tool","executor_ref":"alpha_read_stock_scores","raw_aliases":["get_alpha_stock_scores"],"output_schema_sha256":"4129b4b69620eb2963be4d87c2fec39c11d796cdbf7f7634b4c0426485c157a8","publication_semantic":"research_result","current_gate_state":"not_evidence_integrated_tagged_read"},
+    {"capability_key":"asset_analysis.compute.multidim_screen","executor_kind":"legacy_tool","executor_ref":"asset_analysis_compute_multidim_screen","raw_aliases":["asset_multidim_screen"],"output_schema_sha256":"c7bb771c9060e6e3a9c6e0b65a07c32c51d7463d6aadb2bd069778e09a613b2c","publication_semantic":"research_result","current_gate_state":"not_evidence_integrated_tagged_read"},
+    {"capability_key":"asset_analysis.compute.pool_screen","executor_kind":"legacy_tool","executor_ref":"asset_analysis_compute_pool_screen","raw_aliases":["asset_pool_screen"],"output_schema_sha256":"92665f5f4f347cd86693d32965f06c356151589ae4a6df18439ad310bbd5ee01","publication_semantic":"research_result","current_gate_state":"not_evidence_integrated_tagged_read"},
+    {"capability_key":"backtest.read.equity_curve","executor_kind":"legacy_tool","executor_ref":"backtest_read_equity_curve","raw_aliases":["get_backtest_equity_curve"],"output_schema_sha256":"781f4dbb456b4954501990681838277d54d4b88a57f38d10cc58d4d9a6778537","publication_semantic":"research_result","current_gate_state":"not_evidence_integrated_tagged_read"},
+    {"capability_key":"broker_execution.read.audit_catalog","executor_kind":"internal_handler","executor_ref":"list_broker_execution_audit","raw_aliases":[],"output_schema_sha256":"a2c799262a3ce3c19ef5cdd983bf3d12b43ab3c426227091b909dcb7054738c0","publication_semantic":"broker_execution_projection","current_gate_state":"not_evidence_integrated_native_dynamic"},
+    {"capability_key":"broker_execution.read.connection_status","executor_kind":"internal_handler","executor_ref":"get_broker_execution_connections","raw_aliases":[],"output_schema_sha256":"a2c799262a3ce3c19ef5cdd983bf3d12b43ab3c426227091b909dcb7054738c0","publication_semantic":"broker_execution_projection","current_gate_state":"not_evidence_integrated_native_dynamic"},
+    {"capability_key":"broker_execution.read.order_catalog","executor_kind":"internal_handler","executor_ref":"list_broker_execution_orders","raw_aliases":[],"output_schema_sha256":"a2c799262a3ce3c19ef5cdd983bf3d12b43ab3c426227091b909dcb7054738c0","publication_semantic":"broker_execution_projection","current_gate_state":"not_evidence_integrated_native_dynamic"},
+    {"capability_key":"broker_execution.read.order_detail","executor_kind":"internal_handler","executor_ref":"get_broker_execution_order","raw_aliases":[],"output_schema_sha256":"a2c799262a3ce3c19ef5cdd983bf3d12b43ab3c426227091b909dcb7054738c0","publication_semantic":"broker_execution_projection","current_gate_state":"not_evidence_integrated_native_dynamic"},
+    {"capability_key":"broker_execution.read.overview","executor_kind":"internal_handler","executor_ref":"get_broker_execution_overview","raw_aliases":[],"output_schema_sha256":"a2c799262a3ce3c19ef5cdd983bf3d12b43ab3c426227091b909dcb7054738c0","publication_semantic":"broker_execution_projection","current_gate_state":"not_evidence_integrated_native_dynamic"},
+    {"capability_key":"broker_execution.read.reconciliation_catalog","executor_kind":"internal_handler","executor_ref":"list_broker_execution_reconciliations","raw_aliases":[],"output_schema_sha256":"a2c799262a3ce3c19ef5cdd983bf3d12b43ab3c426227091b909dcb7054738c0","publication_semantic":"broker_execution_projection","current_gate_state":"not_evidence_integrated_native_dynamic"},
+    {"capability_key":"decision.compute.workflow_precheck","executor_kind":"legacy_tool","executor_ref":"decision_compute_workflow_precheck","raw_aliases":["decision_workflow_precheck"],"output_schema_sha256":"24916cf0fc1c21bd51f3014914c378da5512ebe7ec23cd6e348646a91a0a47e9","publication_semantic":"decision_preflight","current_gate_state":"not_evidence_integrated_tagged_read"},
+    {"capability_key":"equity.compute.analysis","executor_kind":"legacy_tool","executor_ref":"equity_compute_analysis","raw_aliases":["analyze_stock"],"output_schema_sha256":"dd6223783af2097737041c402f36432519889084bb28f9edce66c106549638b8","publication_semantic":"research_result","current_gate_state":"not_evidence_integrated_tagged_read"},
+    {"capability_key":"equity.compute.recommendations","executor_kind":"legacy_tool","executor_ref":"equity_compute_recommendations","raw_aliases":["get_stock_recommendations"],"output_schema_sha256":"8871cb72e9687faeab4c9e4ae99239b127d26f46491193c785465b919246d93e","publication_semantic":"recommendation","current_gate_state":"not_evidence_integrated_tagged_read"},
+    {"capability_key":"equity.read.research_snapshot","executor_kind":"internal_handler","executor_ref":"equity_read_research_snapshot","raw_aliases":[],"output_schema_sha256":"0f56d95e7f989f5bf5a45c3e690e80bf0e8c6c4c82c00a1a343d48e0ac4add5a","publication_semantic":"research_snapshot","current_gate_state":"semantic_tag_overclaims_contract"},
+    {"capability_key":"regime.read.action_recommendation","executor_kind":"legacy_tool","executor_ref":"regime_read_action_recommendation","raw_aliases":["get_action_recommendation"],"output_schema_sha256":"39ed925ab74ffb844daf3bb0c24b1346f15979eb808e2b7b6859f51e67390b14","publication_semantic":"recommendation","current_gate_state":"not_evidence_integrated_tagged_read"},
+    {"capability_key":"sector.compute.analysis","executor_kind":"legacy_tool","executor_ref":"sector_compute_analysis","raw_aliases":["analyze_sector"],"output_schema_sha256":"c8a1ac469a826ea3547ac220c7bbfdcd6b58080d4ec596ff2a0149c5ccb9b699","publication_semantic":"research_result","current_gate_state":"not_evidence_integrated_tagged_read"},
+    {"capability_key":"sector.compute.comparison","executor_kind":"legacy_tool","executor_ref":"sector_compute_comparison","raw_aliases":["compare_sectors"],"output_schema_sha256":"c8a1ac469a826ea3547ac220c7bbfdcd6b58080d4ec596ff2a0149c5ccb9b699","publication_semantic":"research_result","current_gate_state":"not_evidence_integrated_tagged_read"},
+    {"capability_key":"terminal.read.user_action_result","executor_kind":"internal_handler","executor_ref":"terminal_run_user_read_action","raw_aliases":[],"output_schema_sha256":"c8a1ac469a826ea3547ac220c7bbfdcd6b58080d4ec596ff2a0149c5ccb9b699","publication_semantic":"tui_read_passthrough","current_gate_state":"not_evidence_integrated_dynamic_passthrough"}
+  ],
+  "notes": [
+    "Inventory presence is semantic freeze only; zero listed capability is Evidence integrated.",
+    "The TUI action bridge closure is computed after validate_tui_metadata applies defaults.",
+    "The remaining marker-discovered MCP reads and raw/governed semantic equivalence are still active M0 work."
+  ]
+}

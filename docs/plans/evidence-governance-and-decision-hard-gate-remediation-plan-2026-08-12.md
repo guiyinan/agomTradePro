@@ -120,6 +120,27 @@
 - `python scripts/check_evidence_output_surfaces.py`：通过，显式输出 `54`、direct-position `11`、marker-discovered `45`、动态面 `18`。
 - 专属纯测试 `9 passed`；`py_compile` 通过。完整格式、类型、架构与 diff 检查随本阶段提交执行。
 
+### 2026-08-13：M0 MCP P0 输出语义冻结
+
+已完成：
+
+- 新增独立 `governance/mcp_evidence_output_surfaces.json`，先冻结 18 个最高优先 MCP 发布面：11 个带 research/decision Evidence 语义 tag 的 read、6 个 Broker native read，以及可展开全部发布态 read action 的 `terminal.read.user_action_result`。
+- 每项精确绑定 capability key、executor kind/ref、raw alias、canonical output-schema SHA、发布语义与当前 gate state；新增、删除、alias/schema/executor 漂移均失败关闭。
+- `equity.read.research_snapshot` 虽带 `mcp:decision_evidence`，但没有完整 Evidence Summary/Envelope/Operator/Track Record 合同，机器状态明确记为 `semantic_tag_overclaims_contract`，不把标签当完成证明。
+- TUI bridge 闭包必须先经过 runtime metadata normalization：当前 published graph 为 430 actions / 408 read，430 个 `raw_debug=true`、0 个 `evidence_binding`；raw graph SHA 与 read-key SHA 均冻结。结果说明 bridge 仍可发布 raw response，本批只登记风险，不修改 payload。
+- 新 guard 已接入 consistency-check workflow，并纳入 governance wiring 自检。
+
+仍未完成：
+
+- 本批 `integrated_count=0`；18 个面均未因此取得 Evidence 决策或执行许可。Terminal bridge 应优先关闭 raw bypass/强制 evidence binding，随后迁移 6 个 Broker native 与 11 个 tagged read。
+- 审计识别的其余 28 个首批 marker 高风险 read 尚待登记，之后仍需完成剩余 read-like capability 的 raw/governed 语义分类与等价性门禁。
+- `QuoteResponse` 与 `OrderApprovalSnapshot` 虽已有 legacy adapter，但运行时 Data Center/Broker MCP 链尚未接入这些 adapter。
+
+本阶段验证：
+
+- `python scripts/check_mcp_evidence_output_surfaces.py`：通过，surfaces `18`、tagged reads `11`、Broker native `6`、integrated `0`。
+- 专属纯测试 `6 passed`；其余格式、类型、架构、governance wiring 和 diff 检查随本阶段提交执行。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
@@ -182,7 +203,7 @@
 
 仍未完成：
 
-- M0 尚需扩展 R7/R8、Broker 以外其余动态 dict/TypedDict/interface/query payload、mixed/variant 分类，以及 raw/governed MCP 输出语义；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口、10 个 Transition Plan 内部 writer、54 个显式高风险输出及 18 个动态 query/GET/presenter 面已冻结。
+- M0 尚需扩展 R7/R8、Broker 以外其余动态 dict/TypedDict/interface/query payload、mixed/variant 分类，以及其余 MCP read 的 raw/governed 语义；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口、10 个 Transition Plan 内部 writer、54 个显式高风险输出、18 个动态 query/GET/presenter 面及 18 个 MCP P0 发布面已冻结。
 - M1 的用户/租户 scope 模型与 owner-scoped 授权、人工审批写入面的完整项目 runtime/component 证明、并发 first-winner PostgreSQL 验证和其余 App Application adapter 仍未完成；staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码，以及 Data Center quote/Broker approval snapshot 两个 legacy adapter 已完成。
 - M2–M5 全部交付及真实生产切换证据。
 

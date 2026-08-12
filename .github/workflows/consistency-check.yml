@@ -144,6 +144,9 @@ jobs:
       - name: Run MCP read evidence guard
         run: python scripts/check_mcp_read_evidence.py
 
+      - name: Run MCP Evidence output semantic freeze
+        run: python scripts/check_mcp_evidence_output_surfaces.py
+
       - name: Run MCP write confirmation guard
         run: python scripts/check_mcp_write_confirmation.py
 
