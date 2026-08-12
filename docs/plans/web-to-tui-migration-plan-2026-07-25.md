@@ -2,7 +2,7 @@
 
 > **文档日期**: 2026-07-25
 > **最后修订**: 2026-08-13
-> **状态**: 实施中；M0、M0-D、M1、M2、M3 与 M4 仓库实现已完成；M5 遥测、同任务错误率与机器 cutover gate 已落地，但历史 108/108 UAT、cleanup 和本地 rollback 未绑定当前 candidate graph/runtime snapshot，已于 2026-08-13 改判未通过；候选部署证明、14 日窗口、最终候选 UAT/回滚、生产样本、缺陷窗口、生产 registry 备份与审批均未满足，当前禁止清理 Classic
+> **状态**: 实施中；M0、M0-D、M1、M2、M3 与 M4 仓库实现已完成；M5 遥测、同任务错误率与机器 cutover gate 已落地，但历史 108/108 UAT、cleanup 和本地 rollback 未绑定当前 candidate graph/runtime snapshot，已于 2026-08-13 改判未通过；当日生产 preflight 虽确认 release 已更新且 health/ready 正常，但 OCI revision=`unknown` 且无 source manifest，仍无候选部署证明；14 日窗口、最终候选 UAT/回滚、生产样本、缺陷窗口、生产 registry 备份与审批均未满足，当前禁止清理 Classic
 > **适用对象**: 开发负责人 / 模块维护人 / AI 代理
 > **主范围**: 以 M0 的 195 个 Django 模板为初始基线，持续盘点 `core/templates/` 与 `apps/*/templates/`，并把适合迁移的用户任务迁入 TUI 工作台（`/tui/`）；迁移期新增的共用兼容组件也必须进入同一台账
 > **后端边界**: 默认保持业务语义不变；为补齐 TUI API 契约所需的 owner app 纵向切片允许纳入，但必须单独估算、提交和验收，不得把业务逻辑堆入 `terminal`

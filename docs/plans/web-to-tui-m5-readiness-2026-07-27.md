@@ -18,11 +18,16 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
 必须由真实候选部署后的机器窗口计算。证据见
 `web-to-tui-m5-production-preflight-2026-07-28.md`。
 
+2026-08-13 再次只读 preflight 已确认生产 release 更新为 `source-20260813002655`，因此上段
+`2e399607…` 只保留为 7 月 28 日历史事实；但当前镜像 OCI revision 为 `unknown`，release 又无
+`.git`/source manifest，仍无法绑定任何候选 commit。公开 health/ready 均为 200/ok 不改变
+此结论。见 `web-to-tui-m5-production-preflight-2026-08-13.md`。
+
 ## 退出门槛快照
 
 | 门槛 | 当前证据 | 判定 |
 |---|---|---|
-| 至少 1 个稳定版本且不少于 14 个自然日 | 生产仍运行不含当前矩阵的旧提交；`stable_version`、`candidate_commit`、`released_at`、`observation_end` 尚未绑定，观察未开始 | 未通过 |
+| 至少 1 个稳定版本且不少于 14 个自然日 | 当前 release 为 `source-20260813002655`，但 OCI revision=`unknown` 且无 source manifest，不能绑定候选；`stable_version`、`candidate_commit`、`released_at`、`observation_end` 尚未建立 | 未通过 |
 | 计划内角色与主路径 UAT 100% | 历史覆盖为 108/108，但未绑定当前 candidate graph/runtime snapshot | 未通过；须对最终候选重跑并结构化回写 |
 | 逐 route 清理条件 100% | 历史六类 scope 为 108/108，但缺当前 candidate binding；cleanup recorder 尚待补齐 | 未通过 |
 | P0/P1 阻断缺陷为 0 | 尚无覆盖完整兼容窗口的缺陷报表 | 未通过 |

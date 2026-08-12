@@ -72,6 +72,7 @@
 | 2026-08-13 | 第二期 P0 | Web→TUI rollback drill v2 | 从 migration anchor 自动推导 baseline，全部 patch/manifest/graph/schema/runtime 绑定 immutable candidate；真实隔离 reverse/forward 通过 31 artifacts，actions `402→430` | 补 Django registry 往返 runtime、生产备份/恢复和最终候选重跑 |
 | 2026-08-13 | 第二期 P0 | Web→TUI candidate evidence recorders | UAT/cleanup 固定执行套件并重解析 JUnit，rollback 只接受 drill v2，报告绑定 exact candidate 且不接受自报 passed；`5 passed` | 建立真实 candidate 后重跑；另补 M5-B wave/48h observation ledger recorder |
 | 2026-08-13 | 第二期 P0 | Web→TUI M5-C final inventory gate | 新增独立 `--require-finalized`：只允许 41 个 C 档物理模板，A/B/D 全 deleted，并检查孤儿 view/route/static 与 legacy alias；普通 196 行冻结检查保持通过，最终模式因 148 个 A/B 未清理保持 DENY | 仅在逐波生产观察、rollback 和审批齐全后执行删除；清理 11 个 dead alias 与 1 个 dangling alias |
+| 2026-08-13 | 第二期 P0 | Web→TUI current production preflight | 公开 health/ready 为 200/ok；当前 release=`source-20260813002655`，但 OCI revision=`unknown` 且 release 无 Git/source manifest，不能绑定 candidate，观察仍未开始 | 修复 release provenance，重新部署干净最终候选，并在部署后生成结构化 attestation |
 
 ## 2026-08-12 整理结果
 
