@@ -59,6 +59,40 @@ def test_sdk_connection_read_preserves_current_data_markers() -> None:
     client.get.assert_called_once_with("/api/broker-execution/connections/", params=None)
 
 
+def test_sdk_order_detail_preserves_governed_evidence_and_permission_markers() -> None:
+    client = Mock()
+    expected = {
+        "client_order_id": "00000000-0000-0000-0000-000000000001",
+        "evaluated_at": "2026-08-13T12:00:00+00:00",
+        "lifecycle_transitions": {"approve": False, "reject": True, "cancel": True},
+        "actor_authorization": {"approve": False, "reject": True, "cancel": True},
+        "transport_blocker_codes": [],
+        "event_payload_policy": "omitted_untyped",
+        "risk_snapshot_policy": "content_hash_only",
+        "risk_snapshot_content_hash": None,
+        "approval_evidence_status": "blocked",
+        "approval_evidence_blocker_codes": ["broker_order_approval_missing"],
+        "approval_evidence": None,
+        "permission": "display_only",
+        "must_not_use_for_decision": True,
+        "must_not_execute": True,
+        "events": [],
+        "fills": [],
+    }
+    client.get.return_value = {"success": True, "data": expected}
+
+    result = BrokerExecutionModule(client).get_order(expected["client_order_id"])
+
+    assert result == expected
+    assert result["actor_authorization"]["approve"] is False
+    assert result["approval_evidence_blocker_codes"] == ["broker_order_approval_missing"]
+    assert result["must_not_execute"] is True
+    client.get.assert_called_once_with(
+        "/api/broker-execution/orders/00000000-0000-0000-0000-000000000001/",
+        params=None,
+    )
+
+
 def test_sdk_order_action_preserves_preview_and_idempotency() -> None:
     client = Mock()
     client.post.return_value = {"success": True, "data": {"preview_only": False}}

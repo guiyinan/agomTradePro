@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 import pytest
+
 from scripts.check_mcp_evidence_output_surfaces import load_inventory, validate_inventory
 
 
@@ -14,7 +15,7 @@ def test_repository_mcp_evidence_surface_freeze_is_exact() -> None:
         "tagged_read_count": 11,
         "broker_native_count": 6,
         "integrated_count": 0,
-        "disabled_count": 7,
+        "disabled_count": 6,
     }
 
 
@@ -75,10 +76,21 @@ def test_decision_facing_broker_native_reads_are_disabled() -> None:
     blocked = {
         "broker_execution.read.overview",
         "broker_execution.read.order_catalog",
-        "broker_execution.read.order_detail",
         "broker_execution.read.connection_status",
         "broker_execution.read.reconciliation_catalog",
         "broker_execution.read.audit_catalog",
     }
 
     assert all(registry[key].enabled is False for key in blocked)
+    order_detail = registry["broker_execution.read.order_detail"]
+    assert order_detail.enabled is True
+    assert order_detail.output_schema["additionalProperties"] is False
+
+
+def test_governed_broker_order_detail_is_display_only_not_evidence_integrated() -> None:
+    _, surfaces = load_inventory()
+    order_detail = next(
+        item for item in surfaces if item.capability_key == "broker_execution.read.order_detail"
+    )
+
+    assert order_detail.current_gate_state == ("legacy_evidence_wrapped_display_only_native")

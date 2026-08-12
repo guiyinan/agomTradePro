@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any, cast
 from uuid import UUID
@@ -37,6 +38,11 @@ def _allow_view(monkeypatch: pytest.MonkeyPatch) -> None:
         query_services,
         "require_action",
         lambda _actor, _action: (7, "owner", False),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "action_permissions",
+        lambda _actor: {"approve": True, "reject": True, "cancel": True},
     )
 
 
@@ -257,15 +263,72 @@ def test_order_detail_canonicalizes_uuid_before_repository_access(
 
     def get_order(**payload: Any) -> dict[str, Any]:
         received.update(payload)
-        return {"client_order_id": payload["client_order_id"]}
+        return {
+            "client_order_id": payload["client_order_id"],
+            "account_id": 7,
+            "approval_digest": "",
+        }
 
-    service = BrokerExecutionQueryService(_repository(get_order=get_order))
+    service = BrokerExecutionQueryService(
+        _repository(
+            get_order=get_order,
+            has_account_access=lambda **_payload: True,
+        )
+    )
     order_id = UUID("00000000-0000-0000-0000-000000000001")
 
     result = service.order_detail(actor=object(), client_order_id=order_id)
 
     assert result["client_order_id"] == str(order_id)
     assert received["client_order_id"] == str(order_id)
+
+
+def test_order_detail_separates_lifecycle_from_account_authorization(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_view(monkeypatch)
+    access_checks: list[str] = []
+
+    def has_account_access(**payload: Any) -> bool:
+        action = str(payload["action"])
+        access_checks.append(action)
+        return action != "cancel"
+
+    repository = _repository(
+        get_order=lambda **_payload: {
+            "client_order_id": "00000000-0000-0000-0000-000000000001",
+            "account_id": 7,
+            "approval_digest": "",
+            "action_availability": {
+                "approve": False,
+                "reject": False,
+                "cancel": True,
+            },
+        },
+        has_account_access=has_account_access,
+    )
+    service = BrokerExecutionQueryService(
+        repository,
+        clock=lambda: datetime(2026, 8, 13, 9, tzinfo=UTC),
+    )
+
+    result = service.order_detail(
+        actor=object(),
+        client_order_id="00000000-0000-0000-0000-000000000001",
+    )
+
+    assert access_checks == ["approve", "reject", "cancel"]
+    assert result["lifecycle_transitions"] == {
+        "approve": False,
+        "reject": False,
+        "cancel": True,
+    }
+    assert result["actor_authorization"] == {
+        "approve": True,
+        "reject": True,
+        "cancel": False,
+    }
+    assert result["must_not_execute"] is True
 
 
 def test_order_detail_rejects_malformed_uuid_before_repository_access(

@@ -376,6 +376,24 @@
 
 - 纯 hard-gate/advisor/Agent/domain 聚合 `39 passed`；MCP disabled/catalog `5 passed`；Broker gate、decision-write freeze、MCP Evidence freeze、全仓 architecture scan（2661 files / 0 violations）、Black/isort/py_compile/diff-check 通过。项目 mypy 因缺 `mypy_django_plugin` 仅证明增量 regressions 为 0；完整 broker_execution unit 与 TUI component 因当前环境缺 Celery/Django 未执行，不计为通过。全局 governance consistency 仍被本批未修改的既存 `core/integration` infrastructure import 基线差异（0→4）阻断，未通过抬高基线掩盖。
 
+### 2026-08-13：Broker order detail legacy Evidence 只读收口
+
+已完成：
+
+- 抽出唯一 canonical `approval_snapshot_for_order`，审批、Agent ACK 与读取投影共用同一 14 字段 digest；读取时重新构造 snapshot、重算 lowercase SHA-256，并要求 legacy Evidence `output_content_hash` 与 persisted approval digest exact 一致。
+- 新增 frozen Application 投影：无论 approval Evidence 是否可验证，结果均固定 `display_only / must_not_use_for_decision / must_not_execute`。过期、缺字段、金额不闭合、非 canonical risk JSON、source IDs 或 digest 漂移均发布稳定 blocker，绝不升级为执行授权。
+- 将生命周期可迁移性与当前 actor 的角色/账户授权拆成两个字段；raw `risk_snapshot` 仅发布 content hash，Broker event 任意 payload 被删除，events/fills 采用字段白名单，畸形 transport 行发布 blocker。
+- SDK 保留上述 markers；MCP 仅恢复 `broker_execution.read.order_detail`，handler 再做 closed projection，output schema 每层 `additionalProperties=false`。overview、order catalog、connection、reconciliation、audit 5 个动态读继续 disabled；18 个 P0 面仍明确 `integrated=0`，本项只标记 `legacy_evidence_wrapped_display_only_native`。
+
+仍未完成：
+
+- legacy wrapper 没有 activated Operator Spec、Track Record、Risk Authorization 或 owner-bound plan receipt，不能用于 approve/lease/submitting，四节点硬暂停保持不变。MCP 使用配置 SDK 身份，`actor_authorization` 只说明该服务身份的账户权限，不代表最终自然人授权。
+- 完整 Django API/component、Celery Application boundary 和 core-only MCP dispatcher 因当前 runtime 缺 Django/Celery/MCP 包未完整执行；HTTP 账户隔离和零写入需在合格项目 runtime 复验。audit 任意 before/after、reconciliation expected/actual、order catalog 动态 risk 仍按下一阶段分别收口。
+
+本阶段验证：
+
+- Broker projector/domain `32 passed`；SDK `5 passed`；MCP closed projection `5 passed`；MCP semantic guard `9 passed`，统计 `18 / disabled 6 / integrated 0`；全仓 architecture scan（2662 files / 0 violations）、Black/isort/py_compile/diff-check 通过。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

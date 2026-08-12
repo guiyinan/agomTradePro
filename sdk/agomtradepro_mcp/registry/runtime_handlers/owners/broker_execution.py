@@ -2,7 +2,118 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from typing import Any
+
+_ORDER_DETAIL_SCALAR_FIELDS = (
+    "client_order_id",
+    "account_id",
+    "agent_id",
+    "asset_code",
+    "market",
+    "side",
+    "order_type",
+    "quantity",
+    "limit_price",
+    "estimated_amount",
+    "status",
+    "source_recommendation_ids",
+    "source_signal_ids",
+    "risk_policy_version",
+    "approval_mode",
+    "approval_digest",
+    "approved_by",
+    "approved_at",
+    "expires_at",
+    "submitted_at",
+    "broker_order_id",
+    "filled_quantity",
+    "average_fill_price",
+    "failure_code",
+    "failure_message",
+    "version",
+    "created_at",
+    "updated_at",
+    "evaluated_at",
+    "transport_blocker_codes",
+    "event_payload_policy",
+    "risk_snapshot_policy",
+    "risk_snapshot_content_hash",
+    "approval_evidence_status",
+    "approval_evidence_blocker_codes",
+    "permission",
+    "must_not_use_for_decision",
+    "must_not_execute",
+)
+_ACTION_FIELDS = ("approve", "reject", "cancel")
+_EVENT_FIELDS = ("event_id", "event_type", "status", "occurred_at", "received_at")
+_FILL_FIELDS = ("broker_trade_id", "quantity", "price", "amount", "occurred_at")
+_EVIDENCE_FIELDS = (
+    "output_owner",
+    "output_artifact_type",
+    "output_artifact_id",
+    "output_artifact_version",
+    "output_content_hash",
+    "envelope_content_hash",
+    "operator_spec_content_hash",
+    "claim_kind",
+    "method_kind",
+    "research_family",
+    "governance_state",
+    "permission",
+    "blocker_codes",
+    "dependency_flags",
+    "track_record_availability",
+    "track_record_content_hash",
+    "n_eff",
+    "coverage",
+    "evaluated_at",
+    "valid_until",
+    "must_not_use_for_decision",
+    "must_not_execute",
+)
+
+
+def _closed_projection(value: object, fields: tuple[str, ...], *, label: str) -> dict[str, Any]:
+    """Copy an exact allowlist from one trusted mapping."""
+
+    if not isinstance(value, Mapping):
+        raise ValueError(f"Broker order detail {label} must be an object")
+    missing = [field for field in fields if field not in value]
+    if missing:
+        raise ValueError(f"Broker order detail {label} is missing fields: {missing}")
+    return {field: value[field] for field in fields}
+
+
+def _closed_rows(value: object, fields: tuple[str, ...], *, label: str) -> list[dict[str, Any]]:
+    """Copy bounded timeline rows without forwarding arbitrary nested payloads."""
+
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        raise ValueError(f"Broker order detail {label} must be an array")
+    return [_closed_projection(row, fields, label=label) for row in value]
+
+
+def _mcp_order_detail_projection(value: object) -> dict[str, Any]:
+    """Publish only the exact Broker order-detail MCP contract."""
+
+    result = _closed_projection(value, _ORDER_DETAIL_SCALAR_FIELDS, label="response")
+    source = value
+    assert isinstance(source, Mapping)
+    result["events"] = _closed_rows(source.get("events"), _EVENT_FIELDS, label="events")
+    result["fills"] = _closed_rows(source.get("fills"), _FILL_FIELDS, label="fills")
+    result["lifecycle_transitions"] = _closed_projection(
+        source.get("lifecycle_transitions"), _ACTION_FIELDS, label="lifecycle_transitions"
+    )
+    result["actor_authorization"] = _closed_projection(
+        source.get("actor_authorization"), _ACTION_FIELDS, label="actor_authorization"
+    )
+    evidence = source.get("approval_evidence")
+    result["approval_evidence"] = (
+        None
+        if evidence is None
+        else _closed_projection(evidence, _EVIDENCE_FIELDS, label="approval_evidence")
+    )
+    return result
 
 
 def _client():
@@ -20,13 +131,11 @@ def _internal_handler_broker_execution_orders(
     status: str | None = None,
     limit: int = 100,
 ) -> dict[str, Any]:
-    return _client().broker_execution.list_orders(
-        account_id=account_id, status=status, limit=limit
-    )
+    return _client().broker_execution.list_orders(account_id=account_id, status=status, limit=limit)
 
 
 def _internal_handler_broker_execution_order(client_order_id: str) -> dict[str, Any]:
-    return _client().broker_execution.get_order(client_order_id)
+    return _mcp_order_detail_projection(_client().broker_execution.get_order(client_order_id))
 
 
 def _internal_handler_broker_execution_connections() -> dict[str, Any]:

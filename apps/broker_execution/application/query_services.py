@@ -8,8 +8,9 @@ from typing import Any, cast
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
-from .authorization import require_action
+from .authorization import action_permissions, require_action
 from .connection_status import project_connection_status
+from .order_detail_evidence import project_broker_order_detail
 from .overview_status import OverviewRawFacts, project_broker_overview
 from .ports import BrokerExecutionRepositoryProtocol
 from .repository_provider import get_broker_execution_repository
@@ -133,9 +134,7 @@ class BrokerExecutionQueryService:
 
         now = self.clock()
         if now.tzinfo is None:
-            raise BrokerExecutionValidationError(
-                "connection evaluation clock must be timezone-aware"
-            )
+            raise BrokerExecutionValidationError("evaluation clock must be timezone-aware")
         return now.astimezone(UTC)
 
     def overview(self, *, actor: Any) -> dict[str, Any]:
@@ -147,9 +146,12 @@ class BrokerExecutionQueryService:
         now = self._now()
         connections = [project_connection_status(row, evaluated_at=now) for row in rows]
         overview["connections"] = connections
-        return project_broker_overview(
-            cast(OverviewRawFacts, overview),
-            evaluated_at=now,
+        return cast(
+            dict[str, Any],
+            project_broker_overview(
+                cast(OverviewRawFacts, overview),
+                evaluated_at=now,
+            ),
         )
 
     def orders(
@@ -188,7 +190,25 @@ class BrokerExecutionQueryService:
         )
         if order is None:
             raise BrokerExecutionNotFoundError("Live order does not exist")
-        return order
+        role_permissions = action_permissions(actor)
+        account_id = _optional_account_id(cast(int | None, order.get("account_id")))
+        if account_id is None:
+            raise BrokerExecutionValidationError("order account_id is missing")
+        actor_authorization = {
+            action: bool(role_permissions.get(action))
+            and self.repository.has_account_access(
+                user_id=user_id,
+                is_admin=is_admin,
+                account_id=account_id,
+                action=action,
+            )
+            for action in ("approve", "reject", "cancel")
+        }
+        return project_broker_order_detail(
+            order,
+            evaluated_at=self._now(),
+            actor_authorization=actor_authorization,
+        ).to_payload()
 
     def connections(self, *, actor: Any) -> dict[str, Any]:
         """Return source-time-preserving, freshness-derived connection health."""
