@@ -248,7 +248,7 @@ provider 健康度从“连接可用”升级为能力级状态：
 ### P1：核心数据可完整支撑个股查询
 
 - [ ] 活跃 A 股行情、估值、财务完成全量回填。
-- [ ] 个股全景能力在四个入口行为一致。
+- [x] 个股全景能力在四个入口行为一致（2026-08-13：Equity Application 唯一归并，authenticated REST、SDK、MCP 单调用与 Agent capability route 已收口；API runtime 仍需在正式 Django 5.2 环境复跑，但四入口实现差异已消除）。
 - [ ] provider 能力健康度、覆盖和告警生效。
 
 ### P2：防复发与生产验收闭环
