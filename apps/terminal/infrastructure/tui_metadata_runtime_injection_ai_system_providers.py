@@ -171,7 +171,7 @@ RUNTIME_AI_SYSTEM_PROVIDER_ACTIONS: tuple[dict[str, Any], ...] = (
         "source": "approved:runtime-identity-access",
         "task_group": "04 管理员 AI",
         "sequence": 430,
-        "task_tier": "primary",
+        "task_tier": "operation",
         "fields": [
             {
                 "key": "name",
@@ -203,7 +203,7 @@ RUNTIME_AI_SYSTEM_PROVIDER_ACTIONS: tuple[dict[str, Any], ...] = (
                 "key": "api_key",
                 "label": "API Key",
                 "input_type": "password",
-                "required": False,
+                "required": True,
                 "binding": "body",
                 "value_type": "string",
             },
@@ -308,7 +308,7 @@ RUNTIME_AI_SYSTEM_PROVIDER_ACTIONS: tuple[dict[str, Any], ...] = (
         "source": "approved:runtime-identity-access",
         "task_group": "04 管理员 AI",
         "sequence": 440,
-        "task_tier": "support",
+        "task_tier": "operation",
         "fields": [
             {
                 "key": "provider_id",
@@ -446,7 +446,7 @@ RUNTIME_AI_SYSTEM_PROVIDER_ACTIONS: tuple[dict[str, Any], ...] = (
         "source": "approved:runtime-identity-access",
         "task_group": "04 管理员 AI",
         "sequence": 450,
-        "task_tier": "support",
+        "task_tier": "operation",
         "fields": [
             {
                 "key": "provider_id",
@@ -476,7 +476,7 @@ RUNTIME_AI_SYSTEM_PROVIDER_ACTIONS: tuple[dict[str, Any], ...] = (
         "source": "approved:runtime-identity-access",
         "task_group": "04 管理员 AI",
         "sequence": 460,
-        "task_tier": "primary",
+        "task_tier": "operation",
         "fields": [
             {
                 "key": "provider_id",
@@ -588,7 +588,7 @@ RUNTIME_AI_SYSTEM_PROVIDER_ACTIONS: tuple[dict[str, Any], ...] = (
         "source": "approved:runtime-identity-access",
         "task_group": "04 管理员 AI",
         "sequence": 480,
-        "task_tier": "support",
+        "task_tier": "operation",
         "fields": [
             {
                 "key": "provider_id",

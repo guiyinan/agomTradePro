@@ -200,12 +200,21 @@
 
     function coerceFieldValue(field, value, checked) {
         const valueType = String(field.value_type || field.input_type || "text").toLowerCase();
-        if (field.input_type === "checkbox" || valueType === "boolean") {
+        if (field.input_type === "checkbox") {
             return Boolean(checked);
         }
         const text = String(value ?? "").trim();
         if (text === "") {
             return "";
+        }
+        if (valueType === "boolean") {
+            if (["true", "1", "yes", "on"].includes(text.toLowerCase())) {
+                return true;
+            }
+            if (["false", "0", "no", "off"].includes(text.toLowerCase())) {
+                return false;
+            }
+            return text;
         }
         if (valueType === "integer" || valueType === "int" || field.input_type === "number") {
             const parsed = Number(text);

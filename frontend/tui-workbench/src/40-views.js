@@ -1058,7 +1058,7 @@
                 if (!fields.length) {
                     return false;
                 }
-                return fields.some((field) => rowValueForField(row, field.key, action) !== undefined);
+                return fields.some((field) => rowValueForField(row, field, action) !== undefined);
             })
             .sort((left, right) => {
                 const tierRank = { operation: 0, advanced: 1, primary: 2, support: 3 };
@@ -1075,7 +1075,7 @@
             if (field.input_type === "hidden") {
                 return;
             }
-            const value = rowValueForField(row, field.key, action);
+            const value = rowValueForField(row, field, action);
             if (value !== undefined && value !== null && value !== "") {
                 params[field.key] = value;
             }

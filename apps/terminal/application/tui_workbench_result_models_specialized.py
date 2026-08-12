@@ -470,11 +470,23 @@ class TuiWorkbenchSpecializedResultMixin:
                 "VALIDATION_ERROR",
                 self._operator_text(payload.get("error") or "请求参数验证失败"),
             )
+        if code == "AI_PROVIDER_UNAVAILABLE":
+            return (
+                "AI_PROVIDER_NOT_CONFIGURED",
+                "当前账号没有可用的 AI 服务，请先完成服务商配置并测试连通性。",
+            )
+        if code == "AI_PROVIDER_REQUEST_FAILED" or text == "terminal_agent_unavailable":
+            return (
+                "AI_PROVIDER_REQUEST_FAILED",
+                "AI 服务调用失败，请检查服务商连通性、默认模型和额度后重试。",
+            )
         return "", ""
 
     def _ai_router_next_step(self, payload: dict[str, Any], *, error_code: str) -> str:
         if error_code == "AI_PROVIDER_NOT_CONFIGURED":
             return "先完成默认 AI 服务配置，再回到当前页面重试。"
+        if error_code == "AI_PROVIDER_REQUEST_FAILED":
+            return "先在 AI 服务商页面测试连通性，再核对默认模型和额度。"
         missing_params = list(payload.get("missing_params") or [])
         if missing_params:
             return "先补全缺失参数，再重新发起请求。"

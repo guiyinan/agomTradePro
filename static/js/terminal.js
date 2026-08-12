@@ -1905,11 +1905,14 @@ class AgomTerminal {
                 }
                 this.updateSessionInfo();
             } else {
-                this.printError(data.error || 'Failed to get AI response');
+                this.printError(data.error || data.detail || 'AI 服务调用失败，请稍后重试。');
+                if (data.setup_required || data.code === 'AI_PROVIDER_REQUEST_FAILED') {
+                    this.printInfo('请前往 TUI 的 AI 服务商页面检查配置并测试连通性。');
+                }
             }
         } catch (error) {
             this.hideTypingIndicator();
-            this.printError(`Network error: ${error.message}`);
+            this.printError(`网络请求失败：${error.message}`);
         } finally {
             this.isLoading = false;
         }
