@@ -28,9 +28,15 @@
 
 ### 2026-08-12
 
-- 依赖技术债完成结构性收口：当前 App 静态依赖图保持 `0` 个双向依赖、`0` 个循环组件，Data Center、Equity、Research、Portfolio、Broker、Macro Factor 与 Regime 的跨模块装配统一经 owner-owned provider 或 `core/integration/*` 中立边界
-- 治理与投研能力按阶段归档，已实现计划从 `docs/plans/` 迁入归档索引；未闭合的真实数据、Publication、Promotion 与 consumer 接线继续保留为可追踪备忘录，不会被误标为完成
-- 开发分支完成再次清理：已合入的短期 `dev/*` 分支删除，`dev/next-development` 作为唯一开发集成主线；Architecture、Consistency、Security 与 Fast Feedback（Python 3.11/3.13、完整 mypy 债务门）均已通过
+- 从 7 月 30 日到 8 月 12 日完成一轮大规模治理与能力建设：Git 记录包含 **616 个提交、2,076 个变更文件**，覆盖数据可靠性、配置与密钥、投研证据链、组合研究、运行安全、CI 和文档归档；下面按主线归纳，而不是只列最后几笔收口提交
+- Data Center 可靠性控制面完成系统化落地：Publication/member、PIT/as-of、源观测时间、新鲜度、failover provenance、shadow reconciliation、retention/capacity、A 股 backfill 与同步快照进入可审计真源；Dashboard、SDK、MCP、Equity、Fund、Macro、Sentiment、Strategy、Alpha 等 current/latest 消费链改为 publication-bound、缺证据 fail-closed
+- Config Center 成为运行配置与秘密的统一 owner：provider credential、运行时 profile、备份投递秘密、failover 参数和 Qlib runtime 逐步退出 Account/SystemSettings 与旧兼容入口；遗留 admin 写面、脚本入口、默认路径和明文 credential fallback 已受迁移与 CI 门禁约束
+- Strategy Research 的 R1–R8 软件纵切集中推进：补齐 Forecast Baseline、Market Structure、Macro Factor、Macro Risk、Fixed Income、State Model、Scenario/Calibration/Analogy/Path 等 definition、receipt、runner、Promotion/lifecycle、monitoring、rollback、audit 与 research-control preflight；production 写能力保持受控，真实 Publication、owner 数据和 consumer 未齐时继续明确 BLOCKED
+- Portfolio / Broker / Research 的可复现证据进一步闭环：canonical portfolio snapshots、优化输入 receipt、rolling macro risk、fixed-income outcome、broker reconciliation、11 项监控原始事实及 family lifecycle 均采用 exact PIT、append-only、content seal、winner/fork 检测和回滚保护
+- 运维与交付链同步加固：PostgreSQL 迁移/回滚/恢复证据、完整 canonical schema 与 migration marker 部署门、VPS 备份的有界 SFTP 下载、raw archive/retention 安全计划以及无数据库/组件/迁移测试分层进入自动化验证
+- 用户与自动化入口继续完善：QMT/Tushare relay onboarding、Provider 激活 TUI、A 股情绪感知、MCP route identity/audit 签名与 evidence 契约、Celery 任务标准 `outcome` 及 requested/succeeded/failed/stored 计数完成治理化
+- 依赖和维护性债务完成结构性收口：App 静态图保持 `0` 个双向依赖、`0` 个循环组件，跨模块装配统一经 owner-owned provider 或 `core/integration/*`；大文件、生产 mypy 新增债务、Data Center/Qlib/配置遗留入口均由 Architecture、Consistency、Security 与 Fast Feedback（Python 3.11/3.13）持续锁定
+- 已实现计划已从 `docs/plans/` 分批归档，剩余真实数据、Publication、Promotion 与 consumer 接线保留为开发团队可跟踪备忘录；已合入的短期 `dev/*` 分支删除，`dev/next-development` 保持为唯一开发集成主线
 
 ### 2026-07-30
 
