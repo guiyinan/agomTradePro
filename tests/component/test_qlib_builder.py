@@ -479,3 +479,21 @@ def test_tushare_qlib_builder_rejects_invalid_retry_policy() -> None:
 
     with pytest.raises(ValueError, match="finite and non-negative"):
         TushareQlibBuilder._call_with_retry(lambda: None, delay_seconds=float("nan"))
+
+
+def test_tushare_qlib_builder_does_not_retry_authorization_failures() -> None:
+    calls = 0
+
+    def reject() -> None:
+        nonlocal calls
+        calls += 1
+        raise PermissionError("provider authorization rejected")
+
+    with pytest.raises(PermissionError, match="authorization rejected"):
+        TushareQlibBuilder._call_with_retry(
+            reject,
+            retries=3,
+            delay_seconds=0,
+        )
+
+    assert calls == 1

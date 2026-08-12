@@ -51,6 +51,9 @@ def test_command_builds_repair_use_case_with_unit_rule_repository(monkeypatch):
     )
 
     assert "indicator_unit_rule_repo" in captured
+    assert "macro_publication_publisher" in captured
+    assert "price_publication_publisher" in captured
+    assert "quote_publication_publisher" in captured
     assert captured["request"].macro_indicator_codes == ["CN_NEW_CREDIT"]
     assert captured["request"].portfolio_id == 135
 

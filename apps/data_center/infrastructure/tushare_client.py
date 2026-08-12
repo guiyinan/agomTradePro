@@ -6,13 +6,12 @@ relay.  The shared package no longer owns financial-provider transport.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from functools import partial
 from importlib import import_module
 from typing import Any, Protocol, cast
 from urllib.parse import urlsplit
-
-import requests
 
 from shared.config.secrets import get_secrets
 from shared.config.tushare import (
@@ -40,7 +39,7 @@ class _TushareDataApi(Protocol):
     _DataApi__http_url: str
 
 
-class TushareRelayAuthorizationError(RuntimeError):
+class TushareRelayAuthorizationError(PermissionError):
     """Raised when the configured relay rejects its API credential."""
 
 
@@ -121,6 +120,41 @@ def configure_tushare_pro_client(pro: object, http_url: str | None) -> object:
     return pro
 
 
+def _append_custom_endpoint_to_no_proxy(http_url: str | None) -> None:
+    """Bypass process proxies for one validated custom Tushare endpoint host.
+
+    The Tushare SDK delegates transport to ``requests``. Some production
+    environments inject HTTP(S) proxy variables, so the custom endpoint must
+    be present in both conventional NO_PROXY spellings before the SDK module
+    is imported. The bypass is deliberately host-scoped instead of disabling
+    proxy handling for unrelated outbound services in the process.
+    """
+
+    normalized_http_url = _validated_http_url(http_url)
+    if not normalized_http_url:
+        return
+    hostname = urlsplit(normalized_http_url).hostname
+    if not hostname:
+        return
+    for variable_name in ("NO_PROXY", "no_proxy"):
+        current_entries = [
+            entry.strip()
+            for entry in os.environ.get(variable_name, "").split(",")
+            if entry.strip()
+        ]
+        normalized_entries = {entry.casefold() for entry in current_entries}
+        if "*" in normalized_entries or hostname.casefold() in normalized_entries:
+            continue
+        os.environ[variable_name] = ",".join([*current_entries, hostname])
+
+
+def _create_requests_session() -> Any:
+    """Create a requests session without importing requests at module load."""
+
+    requests_module = cast(Any, import_module("requests"))
+    return requests_module.Session()
+
+
 class _UnifiedRelayClient:
     """Tushare-compatible client for a single-URL authenticated relay."""
 
@@ -128,7 +162,7 @@ class _UnifiedRelayClient:
         self._token = token
         self._http_url = http_url
         self._timeout_seconds = timeout_seconds
-        self._session = requests.Session()
+        self._session = _create_requests_session()
         self._session.headers.update({"X-API-Key": token})
         self._session.trust_env = False
         self._session.proxies = {"http": "", "https": ""}
@@ -212,8 +246,9 @@ def create_tushare_pro_client(
             http_url=settings.http_url,
         )
 
+    _append_custom_endpoint_to_no_proxy(settings.http_url)
     try:
-        import tushare as ts
+        ts = cast(Any, import_module("tushare"))
     except ImportError as exc:
         raise ImportError("请安装 tushare: pip install tushare") from exc
     pro = ts.pro_api(settings.token)

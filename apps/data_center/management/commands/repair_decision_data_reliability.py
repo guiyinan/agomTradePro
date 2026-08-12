@@ -22,6 +22,11 @@ from apps.data_center.application.interface_services import (
     resolve_portfolio_alpha_scope,
     run_alpha_score_prediction_now,
 )
+from apps.data_center.application.macro_publication import PublishMacroBatchUseCase
+from apps.data_center.application.publication_sync import (
+    PublishPriceBarBatchUseCase,
+    PublishQuoteSnapshotBatchUseCase,
+)
 from apps.data_center.application.sync_use_cases import RECOVERABLE_DATA_CENTER_EXCEPTIONS
 from apps.data_center.application.use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
@@ -30,6 +35,8 @@ from apps.data_center.application.use_cases import (
     SyncQuoteUseCase,
 )
 from apps.data_center.composition import (
+    CanonicalPublicationRepository,
+    PublicationPolicyRepository,
     build_provider_registry_for_repo,
 )
 from apps.data_center.infrastructure.repositories import (
@@ -133,15 +140,35 @@ class Command(BaseCommand):
         if portfolio_id is None:
             portfolio_id = self._resolve_default_portfolio_id(user, target_date)
         provider_repo = ProviderConfigRepository()
+        macro_repository = MacroFactRepository()
+        price_repository = PriceBarRepository()
+        quote_repository = QuoteSnapshotRepository()
+        publication_repository = CanonicalPublicationRepository()
+        policy_repository = PublicationPolicyRepository()
         use_case = RepairDecisionDataReliabilityUseCase(
             provider_repo=provider_repo,
             provider_registry=build_provider_registry_for_repo(provider_repo),
-            macro_fact_repo=MacroFactRepository(),
+            macro_fact_repo=macro_repository,
             indicator_catalog_repo=IndicatorCatalogRepository(),
             indicator_unit_rule_repo=IndicatorUnitRuleRepository(),
-            price_bar_repo=PriceBarRepository(),
-            quote_snapshot_repo=QuoteSnapshotRepository(),
+            price_bar_repo=price_repository,
+            quote_snapshot_repo=quote_repository,
             raw_audit_repo=RawAuditRepository(),
+            macro_publication_publisher=PublishMacroBatchUseCase(
+                fact_repository=macro_repository,
+                publication_repository=publication_repository,
+                policy_repository=policy_repository,
+            ),
+            price_publication_publisher=PublishPriceBarBatchUseCase(
+                fact_repository=price_repository,
+                publication_repository=publication_repository,
+                policy_repository=policy_repository,
+            ),
+            quote_publication_publisher=PublishQuoteSnapshotBatchUseCase(
+                fact_repository=quote_repository,
+                publication_repository=publication_repository,
+                policy_repository=policy_repository,
+            ),
             pulse_refresher=self._build_pulse_refresher(),
             alpha_refresher=self._build_alpha_refresher(
                 user,
