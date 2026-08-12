@@ -203,6 +203,14 @@ class _LifecycleAuthorizationProvider:
         return self.items.get((authorization_ref.stable_id, authorization_ref.version))
 
 
+@dataclass(frozen=True)
+class _Clock:
+    item: datetime = BASE_TIME + timedelta(days=10)
+
+    def now(self) -> datetime:
+        return self.item
+
+
 class _Repository:
     unit_of_work_key = "uow"
 
@@ -380,6 +388,8 @@ def _apply(
 def _active(
     ports: _Ports,
     repository: _Repository,
+    *,
+    clock: _Clock | None = None,
 ) -> GetActiveR5RelativeValuePromotion:
     return GetActiveR5RelativeValuePromotion(
         policy_provider=ports.policy,
@@ -388,6 +398,7 @@ def _active(
         portfolio_outcome_provider=ports.outcomes,
         decision_authorization_provider=ports.decisions,
         repository=repository,
+        clock=clock or _Clock(),
     )
 
 
@@ -787,3 +798,28 @@ def test_active_reread_returns_none_for_each_missing_owner_or_expiry(
         )
         is None
     )
+
+
+def test_active_replay_rejects_a_future_cutoff_before_repository_access(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A caller cannot turn future-dated evidence into a PIT active result."""
+
+    graph = _graph(monkeypatch)
+    ports = _ports(graph)
+    repository = _Repository(graph.decisions)
+    future_as_of = BASE_TIME + timedelta(hours=4)
+
+    assert (
+        _active(
+            ports,
+            repository,
+            clock=_Clock(future_as_of - timedelta(microseconds=1)),
+        ).get_active(
+            R5RelativeValueLifecycleScopeRef(graph.policy.scope.scope_id),
+            as_of=future_as_of,
+        )
+        is None
+    )
+    assert repository.active is False
+    assert ports.records.calls == 0
