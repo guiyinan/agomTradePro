@@ -21,6 +21,7 @@
   "allowed_gate_states": [
     "legacy_evidence_wrapped_display_only",
     "not_evidence_integrated_governed_input",
+    "not_evidence_integrated_hard_blocked",
     "not_evidence_integrated_legacy_boolean",
     "not_evidence_integrated_legacy_ungated",
     "not_evidence_integrated_research_only"
@@ -289,7 +290,7 @@
       "claim_kind": "recommendation",
       "method_kind": "deterministic",
       "position_impact": "direct",
-      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "current_gate_state": "not_evidence_integrated_hard_blocked",
       "required_fields": ["delta_quantity", "order_intent_id", "side"]
     },
     {

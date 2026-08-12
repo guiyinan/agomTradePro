@@ -145,28 +145,27 @@ class _OrderCreator:
 def test_advisor_execution_plan_maps_only_to_governed_order_drafts() -> None:
     creator = _OrderCreator()
     use_case = CreateLiveOrdersFromAdvisorExecutionPlanUseCase(order_creator=creator)
-    result = use_case.execute(
-        actor=object(),
-        execution_plan={
-            "status": "READY_FOR_CONFIRMATION",
-            "orders": [
-                {
-                    "order_intent_id": "intent-1",
-                    "account_id": 7,
-                    "asset_code": "510300.SH",
-                    "side": "ADD",
-                    "suggested_quantity": 100,
-                    "estimated_price": 3.9,
-                    "source_recommendation_ids": ["recommendation-1"],
-                }
-            ],
-        },
-        idempotency_prefix="advisor-sheet-1",
-    )
+    with pytest.raises(BrokerExecutionConflictError, match="Evidence is integrated"):
+        use_case.execute(
+            actor=object(),
+            execution_plan={
+                "status": "READY_FOR_CONFIRMATION",
+                "orders": [
+                    {
+                        "order_intent_id": "intent-1",
+                        "account_id": 7,
+                        "asset_code": "510300.SH",
+                        "side": "ADD",
+                        "suggested_quantity": 100,
+                        "estimated_price": 3.9,
+                        "source_recommendation_ids": ["recommendation-1"],
+                    }
+                ],
+            },
+            idempotency_prefix="advisor-sheet-1",
+        )
 
-    assert result["created_count"] == 1
-    assert creator.calls[0]["plan"]["side"] == "BUY"
-    assert creator.calls[0]["idempotency_key"] == "advisor-sheet-1:intent-1"
+    assert creator.calls == []
 
 
 @pytest.mark.django_db
@@ -206,25 +205,18 @@ def test_current_advisor_sheet_requires_matching_preview_digest() -> None:
         account_id=7,
         preview_only=True,
     )
-    committed = use_case.execute(
-        actor=actor,
-        account_id=7,
-        preview_only=False,
-        expected_plan_digest=preview["plan_digest"],
-        idempotency_key="advisor-bridge-1",
-    )
-
     assert preview["orders_count"] == 1
-    assert committed["created_count"] == 1
-    assert creator.calls[0]["plan"]["asset_code"] == "510300.SH"
-    with pytest.raises(BrokerExecutionValidationError, match="changed after preview"):
+    assert preview["commit_allowed"] is False
+    assert preview["must_not_execute"] is True
+    with pytest.raises(BrokerExecutionConflictError, match="Evidence is integrated"):
         use_case.execute(
             actor=actor,
             account_id=7,
             preview_only=False,
-            expected_plan_digest="0" * 64,
-            idempotency_key="advisor-bridge-2",
+            expected_plan_digest=preview["plan_digest"],
+            idempotency_key="advisor-bridge-1",
         )
+    assert creator.calls == []
 
 
 @pytest.mark.django_db

@@ -301,6 +301,25 @@
 
 - 纯 Application submit gate `4 passed`；Decision write freeze `10 / 54 / 15 / 25 / 23 / 32`；architecture delta `0` boundary/audit violations；Application standalone strict mypy `0 issues`；Black/isort/diff-check 通过。
 
+### 2026-08-13：Advisor intent → Broker live draft consumer 硬阻断
+
+已完成：
+
+- 代码核对确认 `AdvisorOrderIntent` 会经当前服务端 advisor sheet、`PreviewOrCreateAdvisorLiveOrdersUseCase` 与 `CreateLiveOrdersFromAdvisorExecutionPlanUseCase` 转成 Broker live-order draft；此前只做 preview digest、服务端 risk recheck 和后续审批，未绑定 Operator Spec/Envelope/Track Record/EvidenceSummary。
+- 保留只读 preview，但固定发布 `commit_allowed=false`、`display_only=true`、`must_not_use_for_decision=true`、`must_not_execute=true` 与稳定 blocker `advisor_order_intent_evidence_not_integrated`；Classic Broker workbench 在该标志为 false 时不再展示“确认生成草稿”按钮。
+- commit 分支在调用 order creator 前返回稳定 conflict；底层 plan converter 同样独立 fail closed，内部直调也不能绕过。原先无效 `valid_until` 静默补 30 分钟的路径不再可达，未用伪造窗口冒充有效证据。
+- inventory 将 `AdvisorOrderIntent` 从 `not_evidence_integrated_legacy_ungated` 改为新的、如实的 `not_evidence_integrated_hard_blocked`；分母仍为 `65/14/53/18`，没有把 hard block 声称成 Evidence integrated 或 legacy wrapper。
+
+仍未完成：
+
+- 只有在完整 advisor payload、source recommendation/signal、risk/data-as-of、有效期、账户授权与正式 Evidence graph 全部 exact 绑定并在 consumer 重验后，才可恢复 draft commit。
+- 本批不改变普通 advisor sheet 阅读，也不处理旧 Decision Rhythm approval/read 链。Django component/API 仍需在项目声明的 Django runtime 复跑；当前环境只有纯 Application/inventory 测试可执行。
+
+本阶段验证：
+
+- 纯 Application + inventory `17 passed`；Evidence inventory `65 / 14 / 53 / 18`；Decision write freeze `10 / 54 / 15 / 25 / 23 / 32`；architecture delta `0` boundary violations；Black/isort/py_compile/diff-check 通过。
+- 项目 mypy 配置在当前环境因缺 `mypy_django_plugin` 不能完整加载；隔离 strict 对该历史大文件仍报告 5 个未改区域的 `no-any-return`，增量脚本报告 `0 regressions`，但不把它记为全文件 strict 通过。Django component/API 同样因当前环境缺 Django 未执行。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

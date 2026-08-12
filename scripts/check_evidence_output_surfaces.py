@@ -19,6 +19,7 @@ GATE_STATES = frozenset(
     {
         "not_evidence_integrated_legacy_boolean",
         "not_evidence_integrated_legacy_ungated",
+        "not_evidence_integrated_hard_blocked",
         "not_evidence_integrated_governed_input",
         "not_evidence_integrated_research_only",
         "legacy_evidence_wrapped_display_only",

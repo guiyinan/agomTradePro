@@ -45,6 +45,18 @@ def test_real_portfolio_transition_surfaces_are_frozen_before_evidence_integrati
     }
 
 
+def test_advisor_order_intent_records_hard_blocked_execution_consumer() -> None:
+    inventory = load_inventory()
+    advisor = next(
+        surface
+        for surface in inventory.surfaces
+        if surface.source_symbol.endswith("::AdvisorOrderIntent")
+    )
+
+    assert advisor.position_impact == "direct"
+    assert advisor.current_gate_state == "not_evidence_integrated_hard_blocked"
+
+
 def test_parser_rejects_unclassified_claim_kind() -> None:
     payload = json.loads(DEFAULT_INVENTORY.read_text(encoding="utf-8"))
     payload["surfaces"][0]["claim_kind"] = "unclassified"
