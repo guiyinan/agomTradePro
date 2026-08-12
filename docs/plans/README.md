@@ -65,6 +65,7 @@
 | 2026-08-12 | 第一期 P0 | Evidence M0 CI wiring | 决策写面冻结与 Evidence 输出清单两条机器守卫已接入 consistency-check workflow，并纳入 governance wiring 自检 | 继续扩展输出分类与统一 Evidence adapters |
 | 2026-08-12 | 第一期 P0 | Evidence M1 summary contract | 紧凑 `EvidenceSummaryDTO` 已固定 hashes/分类/权限/blockers/有效期，并区分 Track Record `not_required/unavailable/empty/available`；纯测试 `5 passed` | 接入各 App 输出 DTO 与 TUI Evidence Strip |
 | 2026-08-13 | 第一期 P0 | Evidence M1 Risk approval provider 首批 | Risk Center 专用 immutable subject/approval ledger、human staff 非自审批、server clock、exact/PIT selector、tamper/ORM mutation 防线已实现；纯测试 `10 passed`、隔离 component `6 passed` | 补 Research↔Risk composition、生产人工审核入口和 PostgreSQL 并发验证 |
+| 2026-08-13 | 第二期 P0 | Web→TUI M5 candidate/observation gate 加固 | UAT/cleanup/rollback 改为绑定 commit+matrix+graph+schema+runtime/build/manifest；旧 108/108 与旧 rollback 已改判 FAIL；observation 只接受新鲜、已提交的 production deployment attestation，禁止 caller 回填日期；observation `15 passed` | 补 UAT/cleanup/rollback recorders、修复并重跑 rollback drill，随后部署真实候选启动 14 日窗口 |
 
 ## 2026-08-12 整理结果
 

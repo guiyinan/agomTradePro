@@ -140,16 +140,16 @@
 | [scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md](plans/scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md) | **情景硬编码治理、动态/参数/宏观情景、AI MCP 受控修改及策略方法 Quick Wins（M0-M6）** | 提案，待评审实施 |
 | [strategy-research-capability-completion-audit-2026-08-05.md](plans/strategy-research-capability-completion-audit-2026-08-05.md) | **策略研究 R1—R8 完成度审计、真实数据阻断与无数据开发队列** | 实施中；无 P0，剩余 P1 分批收口 |
 | [sentiment-awareness-enhancement-plan-2026-07-31.md](archive/plans/sentiment-awareness-enhancement-plan-2026-07-31.md) | **A 股情绪态势感知增强计划（S0-S4，交易行为情绪指标 / Pulse sentiment 维度 / 文本情绪打通 / TUI 情绪面板）** | ✅ 已完成并归档 |
-| [web-to-tui-migration-plan-2026-07-25.md](plans/web-to-tui-migration-plan-2026-07-25.md) | **Web 界面 → TUI 整体迁移计划（M0-M5，195 模板去向矩阵 / 图表样板 / web 保留清单）** | 实施中；M0-M4 实现完成，M5 候选尚未部署、观察未开始，当前禁止清理 Classic |
+| [web-to-tui-migration-plan-2026-07-25.md](plans/web-to-tui-migration-plan-2026-07-25.md) | **Web 界面 → TUI 整体迁移计划（M0-M5，195 模板去向矩阵 / 图表样板 / web 保留清单）** | 实施中；M0-M4 完成；M5 旧 UAT/cleanup/rollback 因未绑定最终候选已改判 FAIL，观察未开始 |
 | [web-to-tui-m0-evidence-2026-07-26.md](archive/plans/web-to-tui-m0-evidence-2026-07-26.md) | **Web → TUI M0/M0-D 证据（195 模板矩阵、7 个死模板清理、冻结门与双端基线）** | ✅ M0/M0-D 已完成并归档 |
 | [web-to-tui-m1-chart-evidence-2026-07-26.md](archive/plans/web-to-tui-m1-chart-evidence-2026-07-26.md) | **Web → TUI M1 图表样板证据（portable chart 契约、多序列/采样/可访问性、双端门禁）** | ✅ M1 已完成并归档 |
 | [web-to-tui-m2-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m2-consolidated-evidence-2026-07-26.md) | **Web → TUI M2 合并证据（W1-W20，15 份原始 wave 记录与 SHA-256 清单）** | ✅ M2 已完成并归档 |
 | [web-to-tui-m3-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m3-consolidated-evidence-2026-07-26.md) | **Web → TUI M3 合并证据（W21-W42，22 份原始 wave 记录与 SHA-256 清单）** | ✅ M3 已完成并归档 |
 | [web-to-tui-m4-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md) | **Web → TUI M4 合并证据（W43-W51，9 份原始 wave 记录与 SHA-256 清单）** | ✅ M4 已完成并归档 |
-| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；候选尚未部署，复审日待机器窗口确定 |
-| [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | ✅ 生产健康；仍运行旧提交，不计入 cutover gate |
-| [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | ✅ 本地演练通过；不解除 14 日与生产门禁 |
-| [web-to-tui-m5-browser-uat-evidence-2026-07-27.md](plans/web-to-tui-m5-browser-uat-evidence-2026-07-27.md) | **Web → TUI M5 浏览器 UAT（角色边界、矩阵深链、直读/参数读取与生命周期）** | ✅ 自动化 15/15；主任务 UAT 108/108；Classic 清理仍 DENY |
+| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；candidate binding/部署证明门禁已加固，三条 recorder 与真实候选窗口待补 |
+| [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | 历史只读记录；不代表 2026-08-13 当前线上版本，不计入 cutover gate |
+| [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | 历史演练记录；当前 baseline 已漂移且未绑定最终候选，当前 gate FAIL |
+| [web-to-tui-m5-browser-uat-evidence-2026-07-27.md](plans/web-to-tui-m5-browser-uat-evidence-2026-07-27.md) | **Web → TUI M5 浏览器 UAT（角色边界、矩阵深链、直读/参数读取与生命周期）** | 历史自动化 15/15、主任务 108/108；未绑定最终候选，当前 gate FAIL |
 | [web-to-tui-m5-route-closure-evidence-2026-07-27.md](plans/web-to-tui-m5-route-closure-evidence-2026-07-27.md) | **Web → TUI M5 逐 Route 清理证据（认证边界、兼容目标与状态/回滚范围）** | ✅ 六类 scope 均为 108/108；不替代生产门禁 |
 | [tui-regime-display-contract-postmortem-2026-07-30.md](archive/plans/tui-regime-display-contract-postmortem-2026-07-30.md) | **TUI Regime 有数据未显示复盘（契约漂移、fail-closed 与跨层回归门禁）** | ✅ 整改完成并归档，持续执行门禁 |
 | [qmt-live-trading-bridge-plan.md](plans/qmt-live-trading-bridge-plan.md) | **QMT 本地执行桥与 VPS 实盘交易接入计划（Web / TUI / MCP / 权限 / 风控 / 对账）** | 仓库 MVP 已实现；待目标券商 Phase 0 与仿真实测 |

@@ -4,6 +4,12 @@
 
 **M5 清理判定：DENY。**
 
+> 2026-08-13 代码复核修正：此前仓内 108/108 UAT、108/108 cleanup 与本地 rollback
+> 仅绑定旧 Markdown 摘要，未绑定最终 candidate commit、当前 matrix、published graph、
+> schema、runtime version/build 和 runtime manifest，不能再记为通过。readiness 已改为对三类
+> 证据要求完全一致的 candidate binding；当前旧证据均显示 `binding=false` 并失败关闭。
+> 本节以下 7 月 27/28 的“通过”叙述保留为历史执行记录，不再代表当前候选 gate 状态。
+
 M0–M4 的仓库实现已完成，迁移矩阵中的 17 个 B 类 route template 已全部迁入
 TUI，B 类 backlog 为 0；但这不等于获得 Classic 删除授权。2026-07-28 只读生产
 preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952fae64565153213`，
@@ -17,16 +23,32 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
 | 门槛 | 当前证据 | 判定 |
 |---|---|---|
 | 至少 1 个稳定版本且不少于 14 个自然日 | 生产仍运行不含当前矩阵的旧提交；`stable_version`、`candidate_commit`、`released_at`、`observation_end` 尚未绑定，观察未开始 | 未通过 |
-| 计划内角色与主路径 UAT 100% | 108/108 矩阵深链 smoke 通过；71 个无需 fixture 的直读 route、9 个参数化读取 route、策略/个人 AI 服务商生命周期、Policy 创建、治理/筛选、本地详情/生命周期及 2 个受控外部 AI 流程已真实执行，去重后机器 gate 登记 108/108 | 通过 |
-| 逐 route 清理条件 100% | 六类 scope 均为 108/108；回滚映射由 3 个真实迁移提交生成，并通过当前分支 ancestry 与 evidence 一致性校验 | 通过（108/108） |
+| 计划内角色与主路径 UAT 100% | 历史覆盖为 108/108，但未绑定当前 candidate graph/runtime snapshot | 未通过；须对最终候选重跑并结构化回写 |
+| 逐 route 清理条件 100% | 历史六类 scope 为 108/108，但缺当前 candidate binding；cleanup recorder 尚待补齐 | 未通过 |
 | P0/P1 阻断缺陷为 0 | 尚无覆盖完整兼容窗口的缺陷报表 | 未通过 |
 | 旧入口占比 ≤ 5% 或低频例外双签 | 已实现矩阵驱动的有界 Classic/TUI 同任务指标与 14 日 PromQL；尚无生产样本 | 未通过 |
 | TUI 错误率不高于基线 0.5 个百分点 | 已把 Classic 同源 API execution 通过受审 Referer 归入固定 task，并实现 task request 对照和最小样本告警；101 个 comparable task 当前无生产窗口数据 | 未通过 |
-| wave 级 graph/runtime 与 route/template 回滚演练 | 本地隔离 reverse/restore 与 registry publish/rollback/restore 已通过，见回滚演练证据 | 通过（本地） |
+| wave 级 graph/runtime 与 route/template 回滚演练 | 旧本地演练未绑定当前 candidate graph/runtime/build，且当前静态 drill baseline 已漂移 | 未通过；须修复并重跑最终候选演练 |
 | 生产 registry 可校验备份 | 仓库外备份/恢复工具与集成测试已完成，但尚无绑定候选版本、commit、矩阵 SHA、外部 locator、完整性摘要和恢复验证的生产证据 | 未通过 |
 | owner 与独立 reviewer 切换审批 | 尚无绑定候选版本、commit、矩阵 SHA 和经摘要校验评审快照的双签 | 未通过 |
 
 ## 当前已通过的实现门禁
+
+### 2026-08-13：candidate binding 与 observation 防回填加固
+
+- 新增统一 candidate binding：稳定版本/完整 commit、matrix SHA、published graph SHA、
+  schema version、runtime version/build ID 与 runtime manifest SHA 必须完全一致。
+- readiness 现在对 UAT、cleanup、rollback 和 production registry backup 重新核对当前 binding；
+  仓内旧证据实测全部因 `binding=false` 为 FAIL，不再产生旧证据假阳性。
+- observation 启动不再接受 caller 提交 `released_at/as_of`；只能读取仓库内 HEAD 已提交且
+  byte-exact 的 production deployment preflight，核验 production release/source commit、OCI
+  image/revision、health/readiness 200/ok 响应摘要及时区感知单调时钟。health/verification 必须在
+  30 分钟内、部署不超过 24 小时，窗口从 `verified_at` 当日开始，不能回填证明前时段。
+- 更换候选会清空 UAT、cleanup、defects、telemetry、rollback/backup、review snapshot 与审批。
+- observation 合成测试 `15 passed`；candidate/readiness 相关全组在本机受慢速/临时目录权限影响
+  未取得一次完整结束证明，但旧证据实际 readiness 输出已确认 DENY。
+- 尚未完成：UAT、cleanup 与 rollback 三条 recorder/builder 自动写入 candidate binding；在此之前
+  readiness 会安全保持 DENY，禁止手工复用或补写旧证据。
 
 - M4：17/17 个 B 类 route template 已迁移，0 backlog；完整 TUI Workbench 加操作组
   非 sticky 回归现为 `240 passed`。

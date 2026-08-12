@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agomtrade.pro/schemas/web_to_tui_deployment_preflight_attestation.v1.schema.json",
+  "title": "Web-to-TUI production deployment preflight attestation",
+  "description": "Machine evidence produced after a production deployment. Static examples and historical reports are not valid observation-start proof because the consumer enforces freshness.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "environment",
+    "release",
+    "oci_image",
+    "production_health",
+    "verified_at"
+  ],
+  "properties": {
+    "version": {
+      "const": "web-to-tui-production-deployment-preflight.v1"
+    },
+    "environment": {
+      "const": "production"
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stable_version",
+        "release_id",
+        "source_commit",
+        "deployed_at"
+      ],
+      "properties": {
+        "stable_version": {
+          "type": "string",
+          "pattern": "^[0-9A-Za-z][0-9A-Za-z._+-]*$"
+        },
+        "release_id": {
+          "type": "string",
+          "pattern": "^[0-9A-Za-z][0-9A-Za-z._+-]*$"
+        },
+        "source_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+        },
+        "deployed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "oci_image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["image_id", "revision"],
+      "properties": {
+        "image_id": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+        }
+      }
+    },
+    "production_health": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checked_at", "health", "readiness"],
+      "properties": {
+        "checked_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "health": {
+          "$ref": "#/$defs/successfulProbe"
+        },
+        "readiness": {
+          "$ref": "#/$defs/successfulProbe"
+        }
+      }
+    },
+    "verified_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "successfulProbe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["http_status", "status", "response_sha256"],
+      "properties": {
+        "http_status": {
+          "const": 200
+        },
+        "status": {
+          "const": "ok"
+        },
+        "response_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}
