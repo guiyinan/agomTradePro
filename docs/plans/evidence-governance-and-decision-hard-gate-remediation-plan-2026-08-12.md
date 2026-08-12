@@ -11,6 +11,7 @@
 - 在独立 `dev/plan-closure-by-priority` 分支开始实施，并把完成计划归档、活跃计划优先级和索引修正作为独立基线提交。
 - 新增 [`ADR-0007`](../architecture/adr-0007-evidence-envelope-and-decision-gates.md)，明确 Research、Data Center/Signal、Risk Center、Portfolio、Broker Execution 与 TUI 的 owner/接口矩阵，以及决策写入口冻结原则。
 - 新增 `governance/decision_write_surfaces.json` 与机器门禁，冻结 54 个 Decision Rhythm、Portfolio、Broker Execution、Simulated Trading、Strategy HTTP 写入口、15 个 SDK 写方法、25 个发布态 TUI 决策流 action、23 个发布态 mutation/AI/admin action，以及 32 个可能影响决策或仓位的 MCP 写能力；发布图 SHA 漂移、新增旁路或陈旧登记均阻断。
+- 同一写面门禁现另冻结 Transition Plan 的 9 个内部 writer：默认仍启用的 5 个 Decision Rhythm legacy build/save/upsert/status/approval-request 路径，以及 4 个 Portfolio canonical build/validate/save/approve 路径。每项固定 ownership、mutation semantic、默认启用状态、legacy replacement 与关键 AST call；新增未登记 writer、陈旧 symbol 或写调用漂移均阻断。这只冻结现状，不批准 legacy 原地 upsert。
 - 新增 Research Domain `evidence_contracts.py`，落地 `ClaimKind`、`MethodKind`、`GovernanceState`、唯一有序的 `DecisionPermission`、`DependencyFlag`、`ArtifactRef`、`EvidenceOperatorSpec`、`TrackRecordSnapshot`、`GovernanceGrant` 与 `EvidenceEnvelope`。
 - 实现 fail-closed 传播：权限取严格交集，lineage/不确定性依赖取并集，必要输入 stale/missing/PIT 未验证、Promotion/monitoring/Track Record 缺失或过期、精确 artifact 不匹配和 `n=0` 均降为 `DISPLAY_ONLY`。
 - 兼容布尔值只由权限派生；旧输出只能生成非持久化 `legacy_unverified + DISPLAY_ONLY` Envelope。
@@ -104,7 +105,7 @@
 
 仍未完成：
 
-- M0 尚需扩展全量 R1–R8、动态 dict/TypedDict/interface/query payload、Broker query API、raw/governed MCP 输出语义与旧 Transition Plan 写路径分类；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口及 41 个高风险输出首批冻结已完成。
+- M0 尚需扩展全量 R1–R8、动态 dict/TypedDict/interface/query payload、Broker query API 与 raw/governed MCP 输出语义；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口、9 个 Transition Plan 内部 writer 及 41 个高风险输出首批冻结已完成。
 - M1 的用户/租户 scope 模型与 owner-scoped 授权、人工审批写入面的完整项目 runtime/component 证明、并发 first-winner PostgreSQL 验证和其余 App Application adapter 仍未完成；staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码，以及 Data Center quote/Broker approval snapshot 两个 legacy adapter 已完成。
 - M2–M5 全部交付及真实生产切换证据。
 

@@ -2,6 +2,116 @@
   "version": 1,
   "updated_at": "2026-08-12",
   "status": "frozen_pending_evidence_gate",
+  "transition_plan_internal_writer_scopes": [
+    "apps/decision_rhythm/application/workspace_services.py",
+    "apps/decision_rhythm/infrastructure/recommendation_repositories.py",
+    "apps/portfolio/application/use_cases.py",
+    "apps/portfolio/infrastructure/repositories.py"
+  ],
+  "transition_plan_internal_writers": [
+    {
+      "source_symbol": "apps/decision_rhythm/application/workspace_services.py::build_transition_plan_for_account",
+      "ownership": "decision_rhythm_legacy",
+      "mutation_semantic": "transition_plan_generate_and_persist",
+      "enabled_by_default": true,
+      "replacement": "apps/portfolio/application/use_cases.py::BuildTransitionPlanUseCase.execute",
+      "required_ast_calls": [
+        "create_portfolio_transition_plan",
+        "get_portfolio_transition_plan_repository.save"
+      ]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/application/workspace_services.py::save_transition_plan",
+      "ownership": "decision_rhythm_legacy",
+      "mutation_semantic": "transition_plan_upsert",
+      "enabled_by_default": true,
+      "replacement": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.save",
+      "required_ast_calls": [
+        "get_portfolio_transition_plan_repository.save"
+      ]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/infrastructure/recommendation_repositories.py::ExecutionApprovalRequestRepository.create_for_transition_plan",
+      "ownership": "decision_rhythm_legacy",
+      "mutation_semantic": "approval_request_create_and_plan_status_update",
+      "enabled_by_default": true,
+      "replacement": "apps/portfolio/application/use_cases.py::ValidateTransitionPlanUseCase.execute",
+      "required_ast_calls": [
+        "ExecutionApprovalRequestModel.objects.create",
+        "PortfolioTransitionPlanModel.objects.get",
+        "plan_model.save",
+        "self.has_pending_request_for_plan"
+      ]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/infrastructure/recommendation_repositories.py::PortfolioTransitionPlanRepository.save",
+      "ownership": "decision_rhythm_legacy",
+      "mutation_semantic": "transition_plan_upsert",
+      "enabled_by_default": true,
+      "replacement": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.save",
+      "required_ast_calls": [
+        "PortfolioTransitionPlanModel.objects.update_or_create",
+        "transition_model_to_domain"
+      ]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/infrastructure/recommendation_repositories.py::PortfolioTransitionPlanRepository.update_status",
+      "ownership": "decision_rhythm_legacy",
+      "mutation_semantic": "transition_plan_status_update",
+      "enabled_by_default": true,
+      "replacement": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.approve",
+      "required_ast_calls": [
+        "PortfolioTransitionPlanModel.objects.get",
+        "model.save",
+        "transition_model_to_domain"
+      ]
+    },
+    {
+      "source_symbol": "apps/portfolio/application/use_cases.py::BuildTransitionPlanUseCase.execute",
+      "ownership": "portfolio_canonical",
+      "mutation_semantic": "transition_plan_build_and_persist",
+      "enabled_by_default": true,
+      "replacement": null,
+      "required_ast_calls": [
+        "build_transition_plan",
+        "self._repository.save"
+      ]
+    },
+    {
+      "source_symbol": "apps/portfolio/application/use_cases.py::ValidateTransitionPlanUseCase.execute",
+      "ownership": "portfolio_canonical",
+      "mutation_semantic": "transition_plan_approve",
+      "enabled_by_default": true,
+      "replacement": null,
+      "required_ast_calls": [
+        "self._repository.approve"
+      ]
+    },
+    {
+      "source_symbol": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.approve",
+      "ownership": "portfolio_canonical",
+      "mutation_semantic": "transition_plan_approve",
+      "enabled_by_default": true,
+      "replacement": null,
+      "required_ast_calls": [
+        "PortfolioTransitionPlanModel._default_manager.select_for_update.get",
+        "row.save",
+        "timezone.now"
+      ]
+    },
+    {
+      "source_symbol": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.save",
+      "ownership": "portfolio_canonical",
+      "mutation_semantic": "immutable_transition_plan_create",
+      "enabled_by_default": true,
+      "replacement": null,
+      "required_ast_calls": [
+        "PortfolioTransitionPlanModel._default_manager.create",
+        "PortfolioTransitionPlanModel._default_manager.filter",
+        "get_decision_snapshot"
+      ]
+    }
+  ],
   "http_interface_scopes": [
     "apps/broker_execution/interface",
     "apps/decision_rhythm/interface",
@@ -178,6 +288,7 @@
   ],
   "notes": [
     "Inventory presence does not attest that the legacy surface already enforces an evidence receipt.",
-    "Agent protocol transitions are included because lease and submitting can cause external execution side effects."
+    "Agent protocol transitions are included because lease and submitting can cause external execution side effects.",
+    "Transition-plan internal writers freeze both the default-enabled legacy chain and its canonical replacement; inventory presence does not approve either path."
   ]
 }
