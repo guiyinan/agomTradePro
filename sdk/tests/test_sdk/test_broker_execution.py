@@ -20,6 +20,30 @@ def test_sdk_reads_overview_and_order_catalog() -> None:
     )
 
 
+def test_sdk_connection_read_preserves_current_data_markers() -> None:
+    client = Mock()
+    expected = {
+        "evaluated_at": "2026-08-13T12:00:00+00:00",
+        "must_not_use_for_decision": True,
+        "must_not_execute": True,
+        "connections": [
+            {
+                "agent_id": "agent-1",
+                "source_observed_at": None,
+                "received_at": "2026-08-13T12:00:00Z",
+                "freshness_status": "missing_source",
+                "qmt_connected": False,
+                "blocker_codes": ["broker_agent_source_observation_missing"],
+            }
+        ],
+        "total_count": 1,
+    }
+    client.get.return_value = {"success": True, "data": expected}
+
+    assert BrokerExecutionModule(client).connections() == expected
+    client.get.assert_called_once_with("/api/broker-execution/connections/", params=None)
+
+
 def test_sdk_order_action_preserves_preview_and_idempotency() -> None:
     client = Mock()
     client.post.return_value = {"success": True, "data": {"preview_only": False}}

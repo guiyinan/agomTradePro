@@ -1164,6 +1164,92 @@
       ]
     },
     {
+      "id": "broker_execution.connection_status",
+      "surface": "Agent heartbeat -> GET /api/broker-execution/connections/ -> SDK connection status",
+      "source_files": [
+        "apps/broker_execution/application/connection_status.py",
+        "apps/broker_execution/application/query_services.py",
+        "apps/broker_execution/domain/connection_freshness.py",
+        "apps/broker_execution/infrastructure/broker_repository_access.py",
+        "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py",
+        "apps/broker_execution/interface/serializers.py",
+        "docs/api/qmt-agent-v1.schema.json",
+        "qmt_agent/executor.py",
+        "sdk/agomtradepro/modules/broker_execution.py"
+      ],
+      "required_markers": {
+        "apps/broker_execution/application/connection_status.py": [
+          "heartbeat_times_are_fresh",
+          "source_observed_at",
+          "received_at",
+          "must_not_use_for_decision",
+          "must_not_execute"
+        ],
+        "apps/broker_execution/domain/connection_freshness.py": [
+          "HEARTBEAT_FRESHNESS = timedelta(seconds=90)",
+          "source <= received <= evaluated"
+        ],
+        "apps/broker_execution/application/query_services.py": [
+          "project_connection_status(row, evaluated_at=now)",
+          "\"must_not_execute\": not any_connected"
+        ],
+        "apps/broker_execution/infrastructure/broker_repository_access.py": [
+          "\"source_observed_at\"",
+          "\"received_at\""
+        ],
+        "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py": [
+          "reported_qmt_connected",
+          "Agent heartbeat source or receipt is stale"
+        ],
+        "apps/broker_execution/interface/serializers.py": [
+          "observed_at = serializers.CharField(required=False",
+          "observed_at must include a timezone"
+        ],
+        "docs/api/qmt-agent-v1.schema.json": [
+          "Agent source observation time",
+          "fail-closed for connection and lease readiness"
+        ],
+        "qmt_agent/executor.py": [
+          "\"observed_at\": datetime.now(UTC).isoformat()"
+        ],
+        "sdk/agomtradepro/modules/broker_execution.py": [
+          "def connections(self) -> dict[str, Any]:"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "fresh_source_and_receipt_preserved",
+          "test_file": "tests/unit/broker_execution/test_connection_status.py",
+          "test_function": "test_fresh_connection_preserves_source_and_receipt_clocks"
+        },
+        {
+          "case": "source_and_receipt_fail_closed",
+          "test_file": "tests/unit/broker_execution/test_connection_status.py",
+          "test_function": "test_source_or_receipt_clock_failures_block_current_health"
+        },
+        {
+          "case": "reported_state_cannot_override_blockers",
+          "test_file": "tests/unit/broker_execution/test_connection_status.py",
+          "test_function": "test_reported_state_cannot_override_connection_blockers"
+        },
+        {
+          "case": "agent_publishes_source_clock",
+          "test_file": "tests/unit/broker_execution/test_agent.py",
+          "test_function": "test_heartbeat_publishes_agent_source_observation_time"
+        },
+        {
+          "case": "sdk_preserves_current_markers",
+          "test_file": "sdk/tests/test_sdk/test_broker_execution.py",
+          "test_function": "test_sdk_connection_read_preserves_current_data_markers"
+        },
+        {
+          "case": "mcp_remains_disabled",
+          "test_file": "tests/unit/test_mcp_evidence_output_surfaces.py",
+          "test_function": "test_decision_facing_broker_native_reads_are_disabled"
+        }
+      ]
+    },
+    {
       "id": "broker_execution.qmt_onboarding",
       "surface": "GET /api/broker-execution/qmt-onboarding/ + TUI QMT 接入与设置",
       "source_files": [
@@ -1172,9 +1258,9 @@
       ],
       "required_markers": {
         "apps/broker_execution/application/query_services.py": [
-          "_QMT_HEARTBEAT_FRESHNESS = timedelta(seconds=90)",
-          "\"last_heartbeat_at\": agent.get(\"last_heartbeat_at\")",
-          "\"must_not_use_for_decision\": not qmt_connected"
+          "project_connection_status(agent, evaluated_at=now)",
+          "\"source_observed_at\": connection[\"source_observed_at\"]",
+          "\"must_not_use_for_decision\": connection[\"must_not_use_for_decision\"]"
         ],
         "apps/broker_execution/interface/api_views.py": [
           "class BrokerExecutionQmtOnboardingView(APIView):"

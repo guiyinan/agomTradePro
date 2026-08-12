@@ -635,18 +635,30 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
         for agent in queryset:
             row = {
                 "agent_id": agent.agent_id,
-                "user_id": agent.user_id,
                 "display_name": agent.display_name,
                 "status": agent.status,
                 "qmt_connected": agent.qmt_connected,
+                "reported_qmt_connected": (
+                    bool(agent.health_snapshot.get("reported_qmt_connected"))
+                    if isinstance(agent.health_snapshot, dict)
+                    else agent.qmt_connected
+                ),
                 "agent_version": agent.agent_version,
                 "last_heartbeat_at": (
                     agent.last_heartbeat_at.isoformat() if agent.last_heartbeat_at else None
                 ),
+                "received_at": (
+                    agent.last_heartbeat_at.isoformat() if agent.last_heartbeat_at else None
+                ),
+                "source_observed_at": (
+                    agent.health_snapshot.get("source_observed_at")
+                    if isinstance(agent.health_snapshot, dict)
+                    else None
+                ),
                 "is_active": agent.is_active,
                 "bindings": [
                     {
-                        "user_id": binding.user_id,
+                        **({"user_id": binding.user_id} if is_admin else {}),
                         "agent_id": agent.agent_id,
                         "account_id": binding.account_id,
                         "broker_account_mask": binding.broker_account_mask,
@@ -671,6 +683,7 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
                 ],
             }
             if is_admin:
+                row["user_id"] = agent.user_id
                 row["credentials"] = [
                     {
                         "credential_id": str(credential.credential_id),

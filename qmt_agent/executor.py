@@ -58,6 +58,7 @@ class QmtAgentExecutor:
             "heartbeat/",
             {
                 "contract_version": "1.0",
+                "observed_at": datetime.now(UTC).isoformat(),
                 "qmt_connected": bool(health.get("qmt_connected")),
                 "account_ids": [self.config.system_account_id],
                 "agent_version": "0.1.0",

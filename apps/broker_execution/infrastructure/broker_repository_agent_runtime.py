@@ -18,6 +18,7 @@ from apps.broker_execution.application.use_case_errors import (
     BrokerExecutionConflictError,
     BrokerExecutionNotFoundError,
 )
+from apps.broker_execution.domain.connection_freshness import heartbeat_times_are_fresh
 from apps.broker_execution.domain.entities import LiveOrderStatus
 from apps.broker_execution.domain.rules import (
     is_trading_session_open,
@@ -124,19 +125,41 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
         )
         if not set(account_ids).issubset(allowed_ids):
             raise BrokerAgentAuthenticationError("Heartbeat contains an unbound account")
+        received_at = timezone.now()
+        raw_observed_at = payload.get("observed_at")
+        try:
+            observed_at = datetime.fromisoformat(
+                str(raw_observed_at).strip().replace("Z", "+00:00")
+            )
+        except ValueError:
+            observed_at = None
+        source_is_fresh = heartbeat_times_are_fresh(
+            source_observed_at=observed_at,
+            received_at=received_at,
+            evaluated_at=received_at,
+        )
+        reported_qmt_connected = bool(payload.get("qmt_connected"))
+        effective_qmt_connected = bool(reported_qmt_connected and source_is_fresh)
         agent.status = (
             BrokerAgentModel.STATUS_ONLINE
-            if bool(payload.get("qmt_connected"))
+            if effective_qmt_connected
             else BrokerAgentModel.STATUS_DEGRADED
         )
-        agent.qmt_connected = bool(payload.get("qmt_connected"))
+        agent.qmt_connected = effective_qmt_connected
         agent.agent_version = str(payload.get("agent_version") or "")[:32]
-        agent.last_heartbeat_at = timezone.now()
+        source_observed_at = (
+            observed_at.isoformat()
+            if isinstance(observed_at, datetime) and observed_at.tzinfo is not None
+            else None
+        )
+        agent.last_heartbeat_at = received_at
         agent.health_snapshot = {
             "account_ids": account_ids,
             "qmt_version": str(payload.get("qmt_version") or "")[:64],
             "dry_run": bool(payload.get("dry_run", True)),
             "message": str(payload.get("message") or "")[:500],
+            "source_observed_at": source_observed_at,
+            "reported_qmt_connected": reported_qmt_connected,
         }
         agent.save(
             update_fields=[
@@ -199,8 +222,23 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
 
         now = timezone.now()
         agent = BrokerAgentModel._default_manager.get(pk=agent_pk, is_active=True)
+        try:
+            source_observed_at = datetime.fromisoformat(
+                str((agent.health_snapshot or {}).get("source_observed_at") or "").replace(
+                    "Z", "+00:00"
+                )
+            )
+        except ValueError:
+            source_observed_at = None
+        heartbeat_is_fresh = heartbeat_times_are_fresh(
+            source_observed_at=source_observed_at,
+            received_at=agent.last_heartbeat_at,
+            evaluated_at=now,
+        )
         if agent.status != BrokerAgentModel.STATUS_ONLINE or not agent.qmt_connected:
             raise BrokerExecutionConflictError("Agent or QMT is not online")
+        if not heartbeat_is_fresh:
+            raise BrokerExecutionConflictError("Agent heartbeat source or receipt is stale")
         bindings = list(
             agent.account_bindings.filter(
                 account_id__in=allowed_account_ids,

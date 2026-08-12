@@ -140,11 +140,16 @@ def test_qmt_onboarding_is_admin_only_and_returns_safe_setup_materials() -> None
     agent.status = BrokerAgentModel.STATUS_ONLINE
     agent.qmt_connected = True
     agent.last_heartbeat_at = timezone.now()
+    agent.health_snapshot = {
+        "source_observed_at": agent.last_heartbeat_at.isoformat(),
+        "reported_qmt_connected": True,
+    }
     agent.save(
         update_fields=[
             "status",
             "qmt_connected",
             "last_heartbeat_at",
+            "health_snapshot",
             "updated_at",
         ]
     )
@@ -176,7 +181,9 @@ def test_qmt_onboarding_is_admin_only_and_returns_safe_setup_materials() -> None
     agent.save(update_fields=["last_heartbeat_at", "updated_at"])
     stale = client.get("/api/broker-execution/qmt-onboarding/").json()["data"]
     assert stale["setup_state"] == "等待本地 Agent 连接"
-    assert stale["connections"][0]["last_heartbeat_at"] == stale_observed_at.isoformat()
+    assert stale["connections"][0]["last_heartbeat_at"] == stale_observed_at.isoformat().replace(
+        "+00:00", "Z"
+    )
     assert stale["connections"][0]["heartbeat_fresh"] is False
     assert stale["connections"][0]["must_not_use_for_decision"] is True
 
@@ -781,9 +788,15 @@ def test_submit_ack_rechecks_limits_and_allow_list_after_approval() -> None:
         content_type="application/json",
     )
     assert approval.status_code == 200
+    heartbeat_at = timezone.now()
     BrokerAgentModel.objects.filter(pk=agent.pk).update(
         status=BrokerAgentModel.STATUS_ONLINE,
         qmt_connected=True,
+        last_heartbeat_at=heartbeat_at,
+        health_snapshot={
+            "source_observed_at": heartbeat_at.isoformat(),
+            "reported_qmt_connected": True,
+        },
     )
     BrokerAccountSnapshotModel.objects.create(
         user=owner,
@@ -838,9 +851,15 @@ def test_submit_ack_revokes_approval_when_estimated_amount_changes() -> None:
     )
     assert approval.status_code == 200
     LiveOrderModel.objects.filter(pk=order.pk).update(estimated_amount=Decimal("1.00"))
+    heartbeat_at = timezone.now()
     BrokerAgentModel.objects.filter(pk=agent.pk).update(
         status=BrokerAgentModel.STATUS_ONLINE,
         qmt_connected=True,
+        last_heartbeat_at=heartbeat_at,
+        health_snapshot={
+            "source_observed_at": heartbeat_at.isoformat(),
+            "reported_qmt_connected": True,
+        },
     )
     BrokerAccountSnapshotModel.objects.create(
         user=owner,
@@ -1013,6 +1032,7 @@ def test_agent_scope_signature_and_nonce_replay_are_enforced() -> None:
     token = f"{credential.credential_id}.{secret}"
     payload = {
         "contract_version": "1.0",
+        "observed_at": timezone.now().isoformat(),
         "qmt_connected": True,
         "account_ids": [7],
         "agent_version": "0.1.0",
@@ -1076,6 +1096,7 @@ def test_agent_credential_account_scope_is_enforced_independently_of_binding() -
 
     forbidden_payload = {
         "contract_version": "1.0",
+        "observed_at": timezone.now().isoformat(),
         "qmt_connected": True,
         "account_ids": [95],
         "agent_version": "0.1.0",

@@ -15,6 +15,7 @@
       "required": ["contract_version", "qmt_connected", "account_ids", "agent_version"],
       "properties": {
         "contract_version": {"$ref": "#/$defs/contractVersion"},
+        "observed_at": {"type": "string", "format": "date-time", "description": "Agent source observation time; legacy omission is accepted but fail-closed for connection and lease readiness."},
         "qmt_connected": {"type": "boolean"},
         "account_ids": {"type": "array", "maxItems": 50, "items": {"type": "integer", "minimum": 1}},
         "agent_version": {"type": "string", "maxLength": 32},

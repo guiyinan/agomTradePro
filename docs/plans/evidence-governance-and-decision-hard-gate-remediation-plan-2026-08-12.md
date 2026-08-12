@@ -320,6 +320,25 @@
 - 纯 Application + inventory `17 passed`；Evidence inventory `65 / 14 / 53 / 18`；Decision write freeze `10 / 54 / 15 / 25 / 23 / 32`；architecture delta `0` boundary violations；Black/isort/py_compile/diff-check 通过。
 - 项目 mypy 配置在当前环境因缺 `mypy_django_plugin` 不能完整加载；隔离 strict 对该历史大文件仍报告 5 个未改区域的 `no-any-return`，增量脚本报告 `0 regressions`，但不把它记为全文件 strict 通过。Django component/API 同样因当前环境缺 Django 未执行。
 
+### 2026-08-13：Broker connection current-data 与执行时钟硬闸
+
+已完成：
+
+- 核对确认正式 `/api/broker-execution/connections/` 与 SDK 原先直接发布 persisted `qmt_connected/status/last_heartbeat_at`，而 90 秒 freshness 只存在于 admin onboarding；更关键的是 `last_heartbeat_at` 是服务端接收时间，不是 Agent 源观测时间，旧值可被包装成当前连接。
+- Agent heartbeat `1.0` 新增可选、timezone-aware `observed_at`；服务端在既有 `health_snapshot` 分别保存 `source_observed_at` 与 server `received_at`，无需 migration。旧 Agent 缺该字段仍可被接收，但 effective connection 固定 degraded，不能领取订单。
+- 新增纯 Domain 双时钟规则与 Application typed projection：source 与 receipt 必须有时区、顺序为 `source <= receipt <= evaluated` 且都在 90 秒窗口；缺失、未来、过期、inactive、offline 或 reported disconnected 均发布稳定 blockers、`must_not_use_for_decision=true`、`must_not_execute=true`，且不覆盖原始时间。
+- connections 与 QMT onboarding 共用同一投影；SDK 继续一跳原样保留 current markers。普通用户连接响应不再暴露 owner/binding `user_id`，admin credential 投影仍保持原权限边界。lease 在读取数据库状态后再次重验同一 source/receipt 时钟规则，手工或陈旧 `qmt_connected=true` 不能绕过。
+- 新增 `broker_execution.connection_status` current-data 机器合同；总数升为 `48 surfaces`。Broker MCP connection/read 能力继续 `enabled=false`，本批没有据 HTTP/SDK 修复提前恢复 MCP identity/permission/Evidence 语义。
+
+仍未完成：
+
+- 完整 Django component/API 需要项目声明的 Django runtime 复跑；生产 Windows Agent 也必须升级后重新产生 fresh heartbeat，不能把兼容接收旧 heartbeat 当成连接验收。
+- connection 只是运维 current-data 合同，不是 EvidenceSummary，也不授权决策/执行；Broker overview/order/reconciliation/audit MCP 仍须各自 typed projection、权限与 Evidence 收口。
+
+本阶段验证：
+
+- pure connection/Agent `30 passed`；SDK `4 passed`；MCP disabled assertion `1 passed`；current-data guard `48 surfaces`；architecture delta `0` boundary violations；新 Domain/Application strict mypy `0 issues`；Black/isort/py_compile/diff-check 通过。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

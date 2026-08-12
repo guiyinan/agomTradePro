@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
 from .authorization import require_action
+from .connection_status import project_connection_status
 from .ports import BrokerExecutionRepositoryProtocol
 from .repository_provider import get_broker_execution_repository
 from .use_case_errors import (
@@ -16,8 +18,6 @@ from .use_case_errors import (
 )
 
 _MAX_QUERY_LIMIT = 500
-_QMT_HEARTBEAT_FRESHNESS = timedelta(seconds=90)
-_QMT_MAX_FUTURE_SKEW = timedelta(minutes=5)
 
 
 def _server_address(value: str) -> str:
@@ -73,23 +73,6 @@ def _setup_guide() -> str:
     )
 
 
-def _heartbeat_is_fresh(value: object) -> bool:
-    """Return whether a persisted heartbeat is recent and timezone-aware."""
-
-    if not isinstance(value, str) or not value.strip():
-        return False
-    try:
-        observed_at = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
-    except ValueError:
-        return False
-    if observed_at.tzinfo is None:
-        return False
-    now = datetime.now(UTC)
-    return (
-        now - _QMT_HEARTBEAT_FRESHNESS <= observed_at.astimezone(UTC) <= now + _QMT_MAX_FUTURE_SKEW
-    )
-
-
 def _bounded_limit(value: int) -> int:
     """Validate a query limit before it reaches persistence."""
 
@@ -136,10 +119,23 @@ class BrokerExecutionQueryService:
     def __init__(
         self,
         repository: BrokerExecutionRepositoryProtocol | None = None,
+        *,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
         self.repository = (
             repository if repository is not None else get_broker_execution_repository()
         )
+        self.clock = clock or (lambda: datetime.now(UTC))
+
+    def _now(self) -> datetime:
+        """Return one trusted, timezone-aware evaluation clock."""
+
+        now = self.clock()
+        if now.tzinfo is None:
+            raise BrokerExecutionValidationError(
+                "connection evaluation clock must be timezone-aware"
+            )
+        return now.astimezone(UTC)
 
     def overview(self, *, actor: Any) -> dict[str, Any]:
         """Return the current user's execution readiness overview."""
@@ -186,11 +182,20 @@ class BrokerExecutionQueryService:
         return order
 
     def connections(self, *, actor: Any) -> dict[str, Any]:
-        """Return persisted Agent/QMT connection snapshots."""
+        """Return source-time-preserving, freshness-derived connection health."""
 
         user_id, _role, is_admin = require_action(actor, "view")
         rows = self.repository.list_connections(user_id=user_id, is_admin=is_admin)
-        return {"connections": rows, "total_count": len(rows)}
+        now = self._now()
+        connections = [project_connection_status(row, evaluated_at=now) for row in rows]
+        any_connected = any(bool(item["qmt_connected"]) for item in connections)
+        return {
+            "evaluated_at": now.isoformat(),
+            "connections": connections,
+            "total_count": len(connections),
+            "must_not_use_for_decision": not any_connected,
+            "must_not_execute": not any_connected,
+        }
 
     def qmt_onboarding(
         self,
@@ -203,6 +208,7 @@ class BrokerExecutionQueryService:
         actor_id, _role, is_admin = require_action(actor, "manage_binding")
         normalized_server_address = _server_address(server_address)
         persisted = self.repository.list_connections(user_id=actor_id, is_admin=is_admin)
+        now = self._now()
         connections: list[dict[str, Any]] = []
         settings: list[dict[str, Any]] = []
         for agent in persisted:
@@ -213,24 +219,24 @@ class BrokerExecutionQueryService:
                 for binding in bindings
                 if isinstance(binding, dict) and bool(binding.get("is_active"))
             ]
-            heartbeat_fresh = _heartbeat_is_fresh(agent.get("last_heartbeat_at"))
-            reported_qmt_connected = bool(agent.get("qmt_connected"))
-            qmt_connected = bool(
-                reported_qmt_connected
-                and heartbeat_fresh
-                and str(agent.get("status") or "").lower() == "online"
-            )
+            connection = project_connection_status(agent, evaluated_at=now)
+            qmt_connected = bool(connection["qmt_connected"])
             connections.append(
                 {
                     "agent_id": str(agent.get("agent_id") or ""),
                     "display_name": str(agent.get("display_name") or ""),
                     "status": str(agent.get("status") or ""),
                     "qmt_connected": qmt_connected,
-                    "reported_qmt_connected": reported_qmt_connected,
+                    "reported_qmt_connected": connection["reported_qmt_connected"],
                     "agent_version": str(agent.get("agent_version") or ""),
-                    "last_heartbeat_at": agent.get("last_heartbeat_at"),
-                    "heartbeat_fresh": heartbeat_fresh,
-                    "must_not_use_for_decision": not qmt_connected,
+                    "source_observed_at": connection["source_observed_at"],
+                    "received_at": connection["received_at"],
+                    "last_heartbeat_at": connection["last_heartbeat_at"],
+                    "heartbeat_fresh": connection["heartbeat_fresh"],
+                    "freshness_status": connection["freshness_status"],
+                    "blocker_codes": connection["blocker_codes"],
+                    "must_not_use_for_decision": connection["must_not_use_for_decision"],
+                    "must_not_execute": connection["must_not_execute"],
                     "blocking_reason": (
                         "" if qmt_connected else "QMT 未连接或 Agent 心跳已超过 90 秒"
                     ),
