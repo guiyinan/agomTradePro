@@ -60,6 +60,7 @@
 | [architecture-remediation-result-2026-04-26.md](architecture/architecture-remediation-result-2026-04-26.md) | **架构整改结果（cycle=0 / audit=0 / MCP 契约未变）** | ✅ 2026-04-26 新增 |
 | [adr-0001-shared-infrastructure-boundaries.md](architecture/adr-0001-shared-infrastructure-boundaries.md) | **ADR：shared.infrastructure 边界判定** | ✅ 2026-05-02 新增 |
 | [adr-0006-tui-primary-interface.md](architecture/adr-0006-tui-primary-interface.md) | **ADR：TUI 作为日常任务主界面与 Web 保留清单边界** | ✅ 2026-07-26 已接受 |
+| [adr-0007-evidence-envelope-and-decision-gates.md](architecture/adr-0007-evidence-envelope-and-decision-gates.md) | **ADR：Evidence Envelope、Track Record 与决策硬闸所有权** | 2026-08-12 分阶段实施 |
 | [shared-cleanup-program-2026-05-02.md](architecture/shared-cleanup-program-2026-05-02.md) | **shared 残留清理专项** | ✅ 2026-05-02 新增 |
 | [module-cycle-regression-remediation-2026-05-02.md](architecture/module-cycle-regression-remediation-2026-05-02.md) | **模块依赖回归整改说明（cycle 回归复盘与修复）** | ✅ 2026-05-02 新增 |
 | [mcp-hosted-transport-and-identity-memo-2026-05-10.md](architecture/mcp-hosted-transport-and-identity-memo-2026-05-10.md) | **MCP 服务化演进备忘录（stdio vs HTTP/SSE、Token vs per-user OAuth）** | ✅ 2026-05-10 新增 |
@@ -169,6 +170,7 @@
 | [production-code-remediation-plan-2026-06-26.md](archive/plans/production-code-remediation-plan-2026-06-26.md) | **投产代码整改方案（数据守门 / 初始化 / UI 闭环）** | ✅ 2026-06-26 完成并归档 |
 | [0.8.0-release-closure-plan-2026-07-05.md](archive/plans/0.8.0-release-closure-plan-2026-07-05.md) | **0.8.0 收口开发计划（发布 / 运维 / 架构减债 Top 10）** | ✅ 2026-07-05 已执行并归档 |
 | [post-0.8.0-stabilization-priority-2026-07-08.md](plans/post-0.8.0-stabilization-priority-2026-07-08.md) | **0.8.0 发布后两周稳定化实施清单（优先级 / 负责人 / 命令 / 验收）** | 进行中 |
+| [evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | **证据治理与决策硬闸改造计划** | 第一期 P0：M0 owner/HTTP/SDK freeze 首批、M1 Domain 首批已完成（19 passed） |
 | [mcp-consolidation-remediation-plan-2026-07-09.md](archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md) | **MCP 收口整改计划（统一能力注册、统一调用、legacy 退役）** | ✅ 完成并归档；持续状态由机器门禁维护 |
 | [system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md](archive/plans/system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md) | **系统级 AI Capability Catalog 与统一路由任务书** | ✅ 代码与自动化验收完成并归档 |
 | [terminal-mcp-governance-outsourcing-task-book-2026-03-19.md](archive/plans/terminal-mcp-governance-outsourcing-task-book-2026-03-19.md) | **Terminal MCP 治理与确认机制任务书** | ✅ 已实现并由 AgentProposal 持久审批架构承接 |

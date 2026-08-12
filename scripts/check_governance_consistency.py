@@ -121,7 +121,7 @@ DYNAMIC_GOVERNANCE_DOCS = (
     "docs/development/tui-workbench.md",
     "docs/governance/ARCHITECTURE_GUARDRAILS.md",
     "docs/governance/DEVELOPMENT_BANLIST.md",
-    "docs/plans/mcp-consolidation-remediation-plan-2026-07-09.md",
+    "docs/archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md",
     "docs/mcp/mcp-technical-and-development-standard.md",
     "docs/mcp/mcp_guide.md",
     "docs/modules/ai_capability/ai-capability-guide.md",

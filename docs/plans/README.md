@@ -51,6 +51,14 @@
 
 同一期内先处理会阻断投资决策正确性和生产安全的项目；仅有代码或本地测试、但缺少任务书要求的最终验收证明时，继续保留在活跃目录。
 
+## 分阶段执行记录
+
+| 日期 | 期次 | 阶段 | 完成情况 | 后续 |
+|------|------|------|----------|------|
+| 2026-08-12 | 基线 | 归档与排期 | 已在 `dev/plan-closure-by-priority` 创建基线提交 `919a9cea7` | 按本表期次继续独立提交 |
+| 2026-08-12 | 第一期 P0 | Evidence M1 Domain 首批 | 统一分类、ArtifactRef、Track Record、Envelope、权限交集和 fail-closed 传播已实现；canonical hash 防篡改已加固；纯 Domain `16 passed`，standalone strict mypy `0 errors` | 补 M0 写入口冻结，再做 M1 持久化和 adapters |
+| 2026-08-12 | 第一期 P0 | Evidence M0 owner/freeze 首批 | ADR-0007 owner/接口矩阵已接受；54 个 HTTP 与 15 个 SDK 写入口由 AST 门禁精确冻结；聚合验证 `19 passed` | 补 TUI/MCP/输出分类，再推进 M1 持久化 |
+
 ## 2026-08-12 整理结果
 
 - 归档 50 份已完成文档：原批次 44 份，加上零循环整改、TUI IA，以及经代码与自动化证据复核完成的 MCP、Capability Catalog 和 Terminal 三条历史任务主线。
