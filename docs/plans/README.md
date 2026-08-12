@@ -67,6 +67,7 @@
 | 2026-08-13 | 第一期 P0 | Evidence M1 Risk approval provider 首批 | Risk Center 专用 immutable subject/approval ledger、human staff 非自审批、server clock、exact/PIT selector、tamper/ORM mutation 防线已实现；纯测试 `10 passed`、隔离 component `6 passed` | 补 Research↔Risk composition、生产人工审核入口和 PostgreSQL 并发验证 |
 | 2026-08-13 | 第一期 P0 | Evidence M1 Research↔Risk composition | Research 经 Risk Center Application facade 精确读取审批，二次校验 owner/capability/definition/supersession，并以 approval record hash 封存外部真源；纯单元 `3 passed` | 补 Risk 人工 subject/审批入口、PostgreSQL 并发验证和各 App adapters |
 | 2026-08-13 | 第二期 P0 | Web→TUI M5 candidate/observation gate 加固 | UAT/cleanup/rollback 改为绑定 commit+matrix+graph+schema+runtime/build/manifest；旧 108/108 与旧 rollback 已改判 FAIL；observation 只接受新鲜、已提交的 production deployment attestation，禁止 caller 回填日期；observation `15 passed` | 补 UAT/cleanup/rollback recorders、修复并重跑 rollback drill，随后部署真实候选启动 14 日窗口 |
+| 2026-08-13 | 第二期 P0 | Web→TUI M5 cleanup wave guard | 修复 post-delete/pre-cleanup SHA 不可达循环；强制双签重放、≤10 route/波、rollback manifest、串行 commit、≥48h+定时周期观察、缺陷与错误率门禁；`15 passed` | 补 cleanup wave/rollback/observation ledger recorder；无真实证据前保持 DENY |
 
 ## 2026-08-12 整理结果
 

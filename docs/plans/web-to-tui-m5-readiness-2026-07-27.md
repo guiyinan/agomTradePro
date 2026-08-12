@@ -107,9 +107,15 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
   旧签字；`record_web_to_tui_cutover_approval.py` 分别生成 owner/reviewer 角色绑定 attestation，
   强制不同身份、候选/矩阵/快照摘要一致和窗口结束后签署。Checker 会重建 review snapshot 并
   逐份核对 attestation；工具只记录真实审批，不能代替或伪造审批人决定。
-- Classic cleanup guard 已接入 consistency CI：固定识别 7 个 M0-D 审计基线；任何新增
-  `deleted` 行必须保留 A/B lifecycle、进入 M5-B wave，并由完整 readiness checker 返回
-  ALLOW，否则 CI 直接失败。
+- 2026-08-13 修复 cleanup guard 的 SHA 不可达循环：不再把删除后 matrix 交给变更前的
+  full readiness，而是先从 pre-cleanup candidate Git blobs 重放 final review snapshot 与外部
+  owner/reviewer attestations，再逐 M5-B wave 重建删除后 matrix/catalog/graph/runtime binding。
+- 每波强制精确删除范围、≤10 route、物理删除、legacy URL policy、独立复核、rollback manifest
+  和串行 commit lineage；外部 SHA observation ledger 还必须覆盖≥48 小时及至少一次定时周期，
+  P0/P1 全 0，基线/候选请求各≥20，错误率回退≤0.5 个百分点；前波完成观察后才能开始后波，
+  最后一波必须绑定当前 snapshot。caller 自写 `passed=true` 会因 exact schema 失败。
+- cleanup guard 针对测试 `15 passed`；当前尚无正式 cleanup wave/rollback manifest/observation
+  ledger recorder，因此真实新删除仍保持 DENY。
 - A/B route 即使在 M5-B 标为 `deleted`，仍保留在 108-route UAT/清理范围和 telemetry
   catalog 中；对应回归证明删除状态不能缩小证据分母或绕过历史任务监测。
 - 逐 route 兼容面首批证据 `2 passed`：展开 108 route 的 118 个 URL pattern，验证匿名认证

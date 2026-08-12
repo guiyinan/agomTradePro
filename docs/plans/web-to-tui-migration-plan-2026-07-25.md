@@ -351,7 +351,7 @@ python tui-metadata-compiler/scripts/publish_tui_metadata.py \
 | 大批次难以验收和回滚 | M2/M3 默认每 wave 不超过 3 个 route page 或 1 个复杂 CRUD 工作台；跟踪表逐 wave 记录 owner 和证据 |
 | 只验证“能渲染”未验证“能完成任务” | 每个 route page 至少有一个主任务 UAT，覆盖角色、空态、错误态、写操作、刷新、键盘和 console |
 | 遥测归因错误或样本被全站流量稀释 | 只接受 telemetry catalog 中有界 task key；Classic 使用同源页面 Referer 归因入口/API 执行，TUI 使用真实 action execution；跨源/未知 key 丢弃并告警 |
-| 在 DENY 状态下提前删除 Classic | CI 的 cleanup guard 固定放行 7 个已审 M0-D 基线；检测到任何新增 `deleted` 行时，必须属于 M5-B 且完整 checker 返回 ALLOW，否则 fail closed；任何人工叙述不得覆盖机器结果 |
+| 在 DENY 状态下提前删除 Classic | CI cleanup guard 只固定放行 7 个已审 M0-D 基线；新增 `deleted` 必须重放变更前最终双签，并逐 M5-B wave 验证删除后 candidate binding、≤10 route、rollback manifest、≥48h 观察、定时周期、缺陷和错误率，否则 fail closed；任何人工叙述不得覆盖机器结果 |
 
 ## 8. Web 保留清单（C 档，当前 41 个）
 
