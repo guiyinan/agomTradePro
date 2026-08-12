@@ -236,7 +236,11 @@ def test_order_query_normalizes_bounded_filters(
         received.update(payload)
         return []
 
-    service = BrokerExecutionQueryService(_repository(list_orders=list_orders))
+    now = datetime(2026, 8, 13, 9, tzinfo=UTC)
+    service = BrokerExecutionQueryService(
+        _repository(list_orders=list_orders),
+        clock=lambda: now,
+    )
 
     result = service.orders(
         actor=object(),
@@ -245,7 +249,15 @@ def test_order_query_normalizes_bounded_filters(
         limit=25,
     )
 
-    assert result == {"orders": [], "total_count": 0}
+    assert result == {
+        "evaluated_at": now.isoformat(),
+        "orders": [],
+        "total_count": 0,
+        "permission": "display_only",
+        "blocker_codes": ["broker_order_catalog_display_only"],
+        "must_not_use_for_decision": True,
+        "must_not_execute": True,
+    }
     assert received == {
         "user_id": 7,
         "is_admin": False,

@@ -35,6 +35,51 @@ def test_sdk_reads_overview_and_order_catalog() -> None:
     )
 
 
+def test_sdk_order_catalog_preserves_actor_aware_display_only_actions() -> None:
+    client = Mock()
+    expected = {
+        "evaluated_at": "2026-08-13T09:00:00+00:00",
+        "orders": [
+            {
+                "client_order_id": "00000000-0000-0000-0000-000000000001",
+                "account_id": 7,
+                "status": "WAITING_APPROVAL",
+                "lifecycle_transitions": {
+                    "approve": True,
+                    "reject": True,
+                    "cancel": True,
+                },
+                "actor_authorization": {
+                    "approve": True,
+                    "reject": True,
+                    "cancel": False,
+                },
+                "evidence_gate": {
+                    "approve": False,
+                    "reject": True,
+                    "cancel": True,
+                },
+                "effective_actions": {
+                    "approve": False,
+                    "reject": True,
+                    "cancel": False,
+                },
+                "permission": "display_only",
+                "must_not_use_for_decision": True,
+                "must_not_execute": True,
+            }
+        ],
+        "total_count": 1,
+        "permission": "display_only",
+        "blocker_codes": ["broker_order_catalog_display_only"],
+        "must_not_use_for_decision": True,
+        "must_not_execute": True,
+    }
+    client.get.return_value = {"success": True, "data": expected}
+
+    assert BrokerExecutionModule(client).list_orders(status="WAITING_APPROVAL") == expected
+
+
 def test_sdk_connection_read_preserves_current_data_markers() -> None:
     client = Mock()
     expected = {

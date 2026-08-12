@@ -430,6 +430,24 @@
 
 - reconciliation projector `6 passed`；Broker SDK `7 passed`；MCP semantic freeze PASS（18 / disabled 6 / integrated 0）；全仓 architecture scan（2664 files / 0 violations）、Black/isort/py_compile/diff-check 通过。
 
+### 2026-08-13：Broker order catalog actor-aware display-only 收口
+
+已完成：
+
+- 将订单目录从 30 字段动态 payload 收敛为有界摘要，移除 agent、approval digest、broker order id、failure message、source IDs 与 raw risk JSON；仅保留 canonical risk content hash，详细审批/事件/成交身份留在已治理的 order detail。
+- 严格校验 UUID、16 态生命周期、BUY/SELL、LIMIT、有限 Decimal、positive version、aware datetime，并要求 `created <= updated <= evaluated`、submitted/expires 不早于 created、filled quantity 不超过 quantity；任一异常关闭全部 effective action。
+- 将旧 `action_availability` 明确保留为 lifecycle-only 兼容别名，同时新增 lifecycle、actor role/account authorization、Evidence gate 与 effective action 四层。approve 因正式 receipt 未集成固定 false；reject/cancel 仅在生命周期、角色与账户授权同时允许时可见。
+- QueryService 使用单一 trusted now，并按 `(account_id, action)` 缓存访问检查，权限查询上限由逐行 3N 收敛为每账户 3A。顶层/逐行均固定 display-only/must_not_execute，MCP order catalog 继续 disabled。
+
+仍未完成：
+
+- `has_account_access` 当前对 reject 只要求任意 active grant、没有独立 can_reject 字段；本批忠实投影现有策略，未擅自改变产品授权模型，需后续 RBAC/账户授权决策。目录 API 对未知 status 从静默空结果改为 400，是有意 fail-closed 兼容变化。
+- 正式 Evidence/Risk/plan receipts 未完成，approve/create/lease/submitting 总闸保持关闭；Django API/component、Classic 模板 effective_actions 切换与固定 query-count 验证待合格 runtime 补验。
+
+本阶段验证：
+
+- catalog + order-detail 纯测试 `40 passed`；Broker SDK `8 passed`；MCP semantic freeze PASS（18 / disabled 6 / integrated 0）；全仓 architecture scan（2665 files / 0 violations）、Black/isort/py_compile/diff-check 通过。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

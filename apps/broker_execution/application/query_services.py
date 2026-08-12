@@ -8,9 +8,12 @@ from typing import Any, cast
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
+from apps.broker_execution.domain.entities import LiveOrderStatus
+
 from .audit_projection import project_broker_audit_event
 from .authorization import action_permissions, require_action
 from .connection_status import project_connection_status
+from .order_catalog import project_broker_order_catalog_item
 from .order_detail_evidence import project_broker_order_detail
 from .overview_status import OverviewRawFacts, project_broker_overview
 from .ports import BrokerExecutionRepositoryProtocol
@@ -96,14 +99,15 @@ def _optional_account_id(value: int | None) -> int | None:
 
 
 def _optional_status(value: str | None) -> str | None:
-    """Normalize a bounded optional order status."""
+    """Normalize an optional canonical order status."""
 
     if value is None:
         return None
     normalized = value.strip()
-    if not normalized or len(normalized) > 32:
+    try:
+        return LiveOrderStatus(normalized).value
+    except (AttributeError, ValueError):
         raise BrokerExecutionValidationError("status is invalid")
-    return normalized
 
 
 def _client_order_id(value: str | UUID) -> str:
@@ -164,17 +168,56 @@ class BrokerExecutionQueryService:
         status: str | None = None,
         limit: int = 100,
     ) -> dict[str, Any]:
-        """Return a scoped order catalog."""
+        """Return a scoped, actor-aware, display-only order catalog."""
 
         user_id, _role, is_admin = require_action(actor, "view")
+        normalized_account_id = _optional_account_id(account_id)
         rows = self.repository.list_orders(
             user_id=user_id,
             is_admin=is_admin,
-            account_id=_optional_account_id(account_id),
+            account_id=normalized_account_id,
             status=_optional_status(status),
             limit=_bounded_limit(limit),
         )
-        return {"orders": rows, "total_count": len(rows)}
+        now = self._now()
+        role_permissions = action_permissions(actor)
+        access_cache: dict[tuple[int, str], bool] = {}
+        orders: list[dict[str, object]] = []
+        for row in rows:
+            raw_account_id = row.get("account_id")
+            valid_account_id = (
+                raw_account_id if type(raw_account_id) is int and raw_account_id > 0 else None
+            )
+            actor_authorization: dict[str, bool] = {}
+            for action in ("approve", "reject", "cancel"):
+                cache_key = (valid_account_id or 0, action)
+                if valid_account_id is None or not bool(role_permissions.get(action)):
+                    actor_authorization[action] = False
+                    continue
+                if cache_key not in access_cache:
+                    access_cache[cache_key] = self.repository.has_account_access(
+                        user_id=user_id,
+                        is_admin=is_admin,
+                        account_id=valid_account_id,
+                        action=action,
+                    )
+                actor_authorization[action] = access_cache[cache_key]
+            orders.append(
+                project_broker_order_catalog_item(
+                    row,
+                    evaluated_at=now,
+                    actor_authorization=actor_authorization,
+                ).to_payload()
+            )
+        return {
+            "evaluated_at": now.isoformat(),
+            "orders": orders,
+            "total_count": len(orders),
+            "permission": "display_only",
+            "blocker_codes": ["broker_order_catalog_display_only"],
+            "must_not_use_for_decision": True,
+            "must_not_execute": True,
+        }
 
     def order_detail(
         self,
