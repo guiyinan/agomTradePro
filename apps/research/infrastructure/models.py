@@ -226,6 +226,17 @@ from apps.research.infrastructure.r5_relative_value_promotion_models import (  #
     R5PromotionLifecycleAuthorizationModel,
     R5PromotionLifecycleEventModel,
 )
+from apps.research.infrastructure.r6_scope_qualification_models import (  # noqa: E402,F401
+    R6ScopeQualificationRegistryModel,
+)
+from apps.research.infrastructure.r7_analogy_path_owner_models import (  # noqa: E402,F401
+    R7HistoricalAnalogyCandidateModel,
+    R7HistoricalAnalogyDefinitionModel,
+    R7HistoricalAnalogyReceiptModel,
+    R7ScenarioPathDefinitionModel,
+    R7ScenarioPathMemberModel,
+    R7ScenarioPathReceiptModel,
+)
 from apps.research.infrastructure.r7_post_promotion_monitoring_models import (  # noqa: E402,F401
     R7MonitoringAssessmentLedgerModel,
     R7MonitoringAuditSnapshotModel,
@@ -251,9 +262,6 @@ from apps.research.infrastructure.r7_sample_policy_models import (  # noqa: E402
 )
 from apps.research.infrastructure.r8_monitoring_policy_models import (  # noqa: E402,F401
     R8MonitoringPolicyRegistryModel,
-)
-from apps.research.infrastructure.r6_scope_qualification_models import (  # noqa: E402,F401
-    R6ScopeQualificationRegistryModel,
 )
 from apps.research.infrastructure.scenario_review_reminder_models import (  # noqa: E402,F401
     ScenarioReviewReminderEventModel,

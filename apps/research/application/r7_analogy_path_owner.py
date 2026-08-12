@@ -366,7 +366,7 @@ class RegisterHistoricalAnalogyReceipt:
             self._definition_source.get_exact(
                 definition_id=command.definition_id,
                 definition_version=command.definition_version,
-                as_of=command.as_of,
+                as_of=recorded_at,
             )
         )
         if (
@@ -452,7 +452,7 @@ class RegisterScenarioPathReceipt:
             self._definition_source.get_exact(
                 definition_id=command.definition_id,
                 definition_version=command.definition_version,
-                as_of=command.as_of,
+                as_of=recorded_at,
             )
         )
         if (
