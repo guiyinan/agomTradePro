@@ -78,6 +78,12 @@ jobs:
         run: |
           python scripts/check_business_configuration_hardcodes.py --mode full
 
+      - name: Enforce decision write surface freeze
+        run: python scripts/check_decision_write_surface_freeze.py
+
+      - name: Enforce Evidence output surface inventory
+        run: python scripts/check_evidence_output_surfaces.py
+
       - name: Run governance consistency check
         run: |
           python scripts/check_governance_consistency.py \

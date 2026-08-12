@@ -1178,6 +1178,8 @@ def check_ci_governance_wiring() -> tuple[list[Violation], dict]:
     )
     consistency_tokens = (
         "scripts/check_current_data_contracts.py",
+        "scripts/check_decision_write_surface_freeze.py",
+        "scripts/check_evidence_output_surfaces.py",
         "scripts/check_governance_consistency.py",
         "--baseline governance/governance_baseline.json",
         "--write-report reports/consistency/governance-consistency.json",

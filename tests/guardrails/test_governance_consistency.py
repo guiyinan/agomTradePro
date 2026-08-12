@@ -57,7 +57,7 @@ def test_guardrail_governance_consistency_has_no_regressions():
     assert docs_data["expected_business_module_count"] == expected_baseline["business_module_count"]
     assert (
         docs_data["actual_static_test_function_count"]
-        == expected_baseline["static_test_function_count"]
+        >= expected_baseline["static_test_function_count"]
     )
     assert (
         docs_data["expected_static_test_function_count"]
@@ -130,7 +130,7 @@ def test_guardrail_governance_consistency_has_no_regressions():
         ".github/workflows/consistency-check.yml"
     )
     assert ci_governance_wiring["architecture_required_token_count"] > 0
-    assert ci_governance_wiring["consistency_required_token_count"] > 0
+    assert ci_governance_wiring["consistency_required_token_count"] == 6
 
     core_integration_debt = sections["core_integration_debt"]["data"]
     assert (

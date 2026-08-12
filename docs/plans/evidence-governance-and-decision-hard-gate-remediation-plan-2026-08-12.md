@@ -18,6 +18,7 @@
 - 新增 schema-only、zero-seed 的 migration `0026_evidence_ledgers`，建立 Operator Spec、Track Record 与 Envelope 三个 immutable ledger；identity/content/header hash、clock check 与 PIT index 均落在数据库 schema。
 - 新增 strict codec、公共 exact/PIT reader 和私有 token/claim append store；instance/QuerySet/manager 的 save/update/delete/bulk/conflict-update/raw shortcut 均 fail closed，exact replay 幂等，identity fork、payload/header/hash 漂移均阻断。
 - 新增 `governance/evidence_output_surfaces.json` 与机器门禁，首批冻结 41 个高风险决策输出（11 个直接影响仓位）；12 个 legacy boolean、14 个 legacy ungated、15 个 research-only 输出均明确标为尚未接入统一 Evidence，不以登记冒充完成。
+- 将 write-surface freeze 与 Evidence output inventory 两条守卫接入常规 consistency-check CI，并由 governance wiring 自检强制保留命令，避免仅靠人工单独运行。
 - 新增 Research Application exact-read port/facade、composition root 与三个只读 HTTP detail endpoint；Operator Spec、Track Record 和 Envelope 均强制 identity/version、预期 content hash 与非未来的 timezone-aware `as_of`，Envelope 额外强制应用级 `output_owner`。
 - 只读 HTTP 面严格限定已认证 staff，写方法全部 405，miss 使用统一非枚举 404；由于当前 Evidence artifact `owner` 表示应用/能力而非用户或租户，本批没有伪造 owner-scoped 授权语义。
 - 公共仓储同时注入权威 server clock 并拒绝 future PIT cutoff，确保绕过 HTTP 直接调用 Application/Repository 也不能查询未来证据。
