@@ -1250,6 +1250,83 @@
       ]
     },
     {
+      "id": "broker_execution.overview_readiness",
+      "surface": "GET /api/broker-execution/ overview readiness -> SDK thin projection",
+      "source_files": [
+        "apps/broker_execution/application/overview_status.py",
+        "apps/broker_execution/application/query_services.py",
+        "apps/broker_execution/infrastructure/broker_repository_access.py",
+        "sdk/agomtradepro/modules/broker_execution.py",
+        "sdk/agomtradepro_mcp/registry/modules/owners/broker_execution_read_capabilities.py"
+      ],
+      "required_markers": {
+        "apps/broker_execution/application/overview_status.py": [
+          "def project_broker_overview(",
+          "broker_snapshot_missing_stale_or_invalid",
+          "broker_reconciliation_missing_stale_or_unbound",
+          "heartbeat_times_are_fresh(",
+          "\"must_not_execute\": readiness != \"READY\"",
+          "\"connection_evidence\": connection_facts",
+          "\"source_times\": source_times"
+        ],
+        "apps/broker_execution/application/query_services.py": [
+          "project_broker_overview(",
+          "project_connection_status(row, evaluated_at=now)",
+          "overview[\"connections\"] = connections"
+        ],
+        "apps/broker_execution/infrastructure/broker_repository_access.py": [
+          "Application owns current-readiness semantics",
+          "\"account_evidence\": account_evidence",
+          "\"open_orders\"",
+          "\"generated_at\": row.generated_at.isoformat()"
+        ],
+        "sdk/agomtradepro/modules/broker_execution.py": [
+          "def overview(self) -> dict[str, Any]:"
+        ],
+        "sdk/agomtradepro_mcp/registry/modules/owners/broker_execution_read_capabilities.py": [
+          "\"broker_execution.read.overview\"",
+          "enabled=False"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "complete_same_snapshot_graph_required",
+          "test_file": "tests/unit/broker_execution/test_overview_status.py",
+          "test_function": "test_ready_requires_complete_current_same_snapshot_evidence"
+        },
+        {
+          "case": "each_current_fact_fails_closed",
+          "test_file": "tests/unit/broker_execution/test_overview_status.py",
+          "test_function": "test_each_required_evidence_breaks_ready"
+        },
+        {
+          "case": "all_active_accounts_covered",
+          "test_file": "tests/unit/broker_execution/test_overview_status.py",
+          "test_function": "test_all_active_bindings_require_complete_evidence"
+        },
+        {
+          "case": "source_times_not_laundered",
+          "test_file": "tests/unit/broker_execution/test_overview_status.py",
+          "test_function": "test_evaluated_at_never_replaces_or_reformats_source_times"
+        },
+        {
+          "case": "application_projects_repository_facts",
+          "test_file": "tests/unit/broker_execution/test_overview_status.py",
+          "test_function": "test_query_service_projects_repository_facts_with_one_trusted_clock"
+        },
+        {
+          "case": "sdk_preserves_overview_markers",
+          "test_file": "sdk/tests/test_sdk/test_broker_execution.py",
+          "test_function": "test_sdk_reads_overview_and_order_catalog"
+        },
+        {
+          "case": "mcp_remains_disabled",
+          "test_file": "tests/unit/test_mcp_evidence_output_surfaces.py",
+          "test_function": "test_decision_facing_broker_native_reads_are_disabled"
+        }
+      ]
+    },
+    {
       "id": "broker_execution.qmt_onboarding",
       "surface": "GET /api/broker-execution/qmt-onboarding/ + TUI QMT 接入与设置",
       "source_files": [

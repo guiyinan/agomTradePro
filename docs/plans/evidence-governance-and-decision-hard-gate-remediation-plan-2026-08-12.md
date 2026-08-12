@@ -339,6 +339,25 @@
 
 - pure connection/Agent `30 passed`；SDK `4 passed`；MCP disabled assertion `1 passed`；current-data guard `48 surfaces`；architecture delta `0` boundary violations；新 Domain/Application strict mypy `0 issues`；Black/isort/py_compile/diff-check 通过。
 
+### 2026-08-13：Broker overview 完整 current-evidence READY 门禁
+
+已完成：
+
+- 代码复核确认原 `build_overview()` 会用任一持久化 `online + qmt_connected` Agent 把页面判为 READY，并以查询时 `generated_at` 包装结果；它没有验证 active binding 的逐账户覆盖、Broker snapshot 新鲜度或 latest reconciliation 是否精确绑定同一 snapshot。
+- Infrastructure 现在只返回 actor-scoped 原始事实：active bindings、最新 snapshot、最新 reconciliation 及其 snapshot identity、开放订单、kill switch、告警、差异和 daily report 原 `generated_at`；它不再生成 `today_readiness`，查询时钟也不再冒充源观测时钟。
+- 新增纯 Application typed projector。READY 必须同时满足：每个 active binding 的 auto execution 开启、对应 Agent 双时钟连接 fresh、snapshot 在该 binding SLA 内、completed reconciliation 精确绑定同一 snapshot id 与 captured time、开放订单未过期且非异常状态，以及无 kill switch、P0/P1 alert、execution exception 或 reconciliation difference。
+- 输出固定发布 `evaluated_at/evidence_complete/must_not_use_for_decision/must_not_execute/blocker_codes/source_times`；STOPPED 优先于 OFFLINE，其他阻断为 REVIEW。SDK 保持单次 GET 原样保留这些字段；`broker_execution.read.overview` MCP 继续 `enabled=false`，本批没有恢复最终调用者身份或 EvidenceSummary。
+- 单账户 live-execution readiness 也补用相同 source/receipt 90 秒规则；旧 `qmt_connected=true` 不能在 overview、resume evidence 或 Agent lease 任一处绕过 freshness。
+
+仍未完成：
+
+- 这只是 Broker operational current-evidence，不是正式 Evidence Envelope、Track Record 或 Risk Authorization；order/reconciliation/audit typed summary 和四节点 receipt 重验仍未完成。
+- 完整 Django component/API 仍需在项目声明的 Django runtime 复跑；生产 Windows Agent、snapshot 与 reconciliation 必须重新产生真实 fresh evidence，不能用本地构造测试替代。
+
+本阶段验证：
+
+- overview/connection 纯测试 `29 passed`；SDK `4 passed`；MCP disabled assertion `1 passed`；current-data guard `49 surfaces`；新增 Application strict mypy `0 issues`，Black/isort/py_compile/diff-check 通过。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

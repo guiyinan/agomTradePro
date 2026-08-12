@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
 from .authorization import require_action
 from .connection_status import project_connection_status
+from .overview_status import OverviewRawFacts, project_broker_overview
 from .ports import BrokerExecutionRepositoryProtocol
 from .repository_provider import get_broker_execution_repository
 from .use_case_errors import (
@@ -141,7 +142,15 @@ class BrokerExecutionQueryService:
         """Return the current user's execution readiness overview."""
 
         user_id, _role, is_admin = require_action(actor, "view")
-        return self.repository.build_overview(user_id=user_id, is_admin=is_admin)
+        overview = self.repository.build_overview(user_id=user_id, is_admin=is_admin)
+        rows = self.repository.list_connections(user_id=user_id, is_admin=is_admin)
+        now = self._now()
+        connections = [project_connection_status(row, evaluated_at=now) for row in rows]
+        overview["connections"] = connections
+        return project_broker_overview(
+            cast(OverviewRawFacts, overview),
+            evaluated_at=now,
+        )
 
     def orders(
         self,

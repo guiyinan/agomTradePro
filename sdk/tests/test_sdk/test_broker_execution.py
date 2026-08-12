@@ -7,12 +7,27 @@ from agomtradepro.modules.broker_execution import BrokerExecutionModule
 
 def test_sdk_reads_overview_and_order_catalog() -> None:
     client = Mock()
+    overview = {
+        "today_readiness": "REVIEW",
+        "evaluated_at": "2026-08-13T12:00:00+00:00",
+        "evidence_complete": False,
+        "must_not_use_for_decision": True,
+        "must_not_execute": True,
+        "blocker_codes": ["broker_snapshot_missing_stale_or_invalid"],
+        "source_times": [
+            {
+                "account_id": 7,
+                "snapshot_captured_at": None,
+                "connection_observed_at": "2026-08-13T11:59:30Z",
+            }
+        ],
+    }
     client.get.side_effect = [
-        {"success": True, "data": {"today_readiness": "READY"}},
+        {"success": True, "data": overview},
         {"success": True, "data": {"orders": [], "total_count": 0}},
     ]
     module = BrokerExecutionModule(client)
-    assert module.overview()["today_readiness"] == "READY"
+    assert module.overview() == overview
     assert module.list_orders(status="READY")["total_count"] == 0
     client.get.assert_any_call("/api/broker-execution/", params=None)
     client.get.assert_any_call(
