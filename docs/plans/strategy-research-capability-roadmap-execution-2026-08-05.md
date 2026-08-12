@@ -91,6 +91,7 @@
 78. 关闭 R2 preflight participant双真源：七个实际provider/UoW字段按强引用身份与动态exact key逐阶段复核，同key对象替换在任何owner读取前fail-closed。
 79. 关闭 R3 Regime adapter writer可达：Macro Factor只依赖窄exact-read Protocol，并由public using-only composition组装，递归对象图不再持append/atomic/token/writer能力。
 80. 关闭 R6 qualification public authority：exported builder仅接受`using`，register/monitor/apply均无状态inert façade；真实8-provider成功链仅保留非导出test runtime，public reader只持数据库别名。
+81. 关闭 R6 qualification 历史PIT污染：lifecycle事件在ORM层先按`recorded_at <= as_of`截断，再做完整prefix重放与corruption校验；未来损坏不阻断过去时点，到达未来cutoff后仍fail-closed。
 
 ## 2. 启动状态矩阵
 

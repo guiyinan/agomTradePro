@@ -285,4 +285,6 @@ R7 result persistence 已完成 Research `0007` evidence graph、input receipt/r
 
 2026-08-12 第八批软件收口验证：R7 canonical result composition unit `8 passed`、empty-owner component `1 passed`；R2 preflight focused `15 passed`；R3 Regime exact-read composition focused `24 passed`；R6 qualification authority unit+repository+component合并 `7 passed`。相关生产文件增量mypy均0 regression，Ruff通过。该批仅收紧composition/UoW/capability边界，无迁移、seed、current/decision/execution写面；真实owner数据仍缺，readiness继续`blocked`。
 
+终核另关闭R6 qualification历史PIT被未来事件污染的问题：cutoff现于ORM阶段下推，旧PIT忽略未来损坏行，新PIT仍fail-closed；repository unit `5 passed`、public runtime component `2 passed`，mypy 0 regression。软件P0/P1终核为0，剩余项均需真实Publication/PIT/OOS/Promotion/owner/consumer证据。
+
 完成路线图仍需为上表每项取得代码、迁移/台账、研究证据、运行时行为和 Promotion/回滚的直接证明；“测试全绿”只证明已覆盖合同，不替代真实数据和样本外结果。
