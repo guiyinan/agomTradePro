@@ -20,6 +20,7 @@ def test_repository_evidence_output_inventory_is_exact() -> None:
         "surface_count": 41,
         "direct_position_surface_count": 11,
         "marked_surface_count": 32,
+        "dynamic_surface_count": 16,
     }
 
 
@@ -69,3 +70,26 @@ def test_guard_rejects_registered_contract_field_drift() -> None:
 
     with pytest.raises(ValueError, match="changed evidence output contract"):
         validate_inventory(replace(inventory, surfaces=(changed, *inventory.surfaces[1:])))
+
+
+def test_guard_rejects_unregistered_dynamic_surface() -> None:
+    inventory = load_inventory()
+    missing = next(iter(inventory.dynamic_surfaces))
+
+    with pytest.raises(ValueError, match="unclassified dynamic evidence output surfaces"):
+        validate_inventory(
+            replace(inventory, dynamic_surfaces=inventory.dynamic_surfaces - {missing})
+        )
+
+
+def test_guard_rejects_stale_dynamic_surface() -> None:
+    inventory = load_inventory()
+
+    with pytest.raises(ValueError, match="stale dynamic evidence output surfaces"):
+        validate_inventory(
+            replace(
+                inventory,
+                dynamic_surfaces=inventory.dynamic_surfaces
+                | {"apps/broker_execution/application/query_services.py::Missing.output"},
+            )
+        )

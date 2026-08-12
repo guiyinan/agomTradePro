@@ -1,6 +1,6 @@
 # AgomTradePro 证据治理与决策硬闸改造计划
 
-> 执行状态（2026-08-13）：**M0 进行中，M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与首个 Data Center legacy adapter 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、写入面的完整项目 runtime/component 证明、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
+> 执行状态（2026-08-13）：**M0 进行中，外部写面、Transition Plan 内部 writer、41 个显式高风险输出及 16 个 Broker 动态 query/GET 发布面已冻结；M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与首批 legacy adapters 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、写入面的完整项目 runtime/component 证明、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
 
 ## 0. 分阶段实施记录
 
@@ -83,6 +83,23 @@
 - adapter 与 inventory 聚合纯测试 `22 passed`；inventory guard 为 `41 / 11 / 32`。
 - 两个目标文件 standalone strict mypy `0 errors`；Black、isort、`py_compile` 与 diff check 通过。
 
+### 2026-08-13：M0 Broker 动态输出面冻结
+
+已完成：
+
+- 在既有 41 个显式 Evidence 输出清单之外，精确登记 `BrokerExecutionQueryService` 的 8 个 `dict[str, Any]` 查询方法，以及实际发布这些查询结果的 8 个 GET handler。
+- 守卫通过 AST 独立发现这 16 个动态面；新增未登记 query/GET、删除后遗留登记或 symbol 漂移均失败关闭，避免动态 payload 绕开基于 dataclass/字段的原有发现规则。
+- 本步骤只冻结迁移分母，不把 legacy dict 响应标为 Evidence 集成，也不授予决策、批准或执行权限。
+
+仍未完成：
+
+- 16 个 Broker 动态响应的 typed contract、Evidence Envelope/summary adapter、consumer 接线与执行硬闸重验；其余 App 的动态 dict/TypedDict/interface/query payload 及 raw/governed MCP 输出语义仍待盘点。
+
+本阶段验证：
+
+- `python scripts/check_evidence_output_surfaces.py`：通过，显式输出 `41`、direct-position `11`、marker-discovered `32`、Broker dynamic `16`。
+- 专属纯测试 `8 passed`；守卫与测试 standalone strict mypy `0 errors`；Black、isort、`py_compile`、JSON parse 与 diff check 通过。
+
 ### 2026-08-13：M1 Risk Center 人工 subject / 审批写入面
 
 已完成：
@@ -105,14 +122,14 @@
 
 仍未完成：
 
-- M0 尚需扩展全量 R1–R8、动态 dict/TypedDict/interface/query payload、Broker query API 与 raw/governed MCP 输出语义；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口、9 个 Transition Plan 内部 writer 及 41 个高风险输出首批冻结已完成。
+- M0 尚需扩展全量 R1–R8、Broker 以外的动态 dict/TypedDict/interface/query payload，以及 raw/governed MCP 输出语义；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口、9 个 Transition Plan 内部 writer、41 个显式高风险输出及 16 个 Broker 动态 query/GET 发布面已冻结。
 - M1 的用户/租户 scope 模型与 owner-scoped 授权、人工审批写入面的完整项目 runtime/component 证明、并发 first-winner PostgreSQL 验证和其余 App Application adapter 仍未完成；staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码，以及 Data Center quote/Broker approval snapshot 两个 legacy adapter 已完成。
 - M2–M5 全部交付及真实生产切换证据。
 
 本阶段验证：
 
 - `python scripts/check_decision_write_surface_freeze.py`：通过，HTTP `54`、SDK `15`、TUI decision `25`、TUI mutation `23`、MCP position-write `32`。
-- `python scripts/check_evidence_output_surfaces.py`：通过，outputs `41`、direct-position `11`、marker-discovered `32`；纯 Python `5 passed`，standalone strict mypy `0 errors`。
+- `python scripts/check_evidence_output_surfaces.py`：通过，outputs `41`、direct-position `11`、marker-discovered `32`、Broker dynamic `16`；纯 Python `8 passed`，standalone strict mypy `0 errors`。
 - Domain 与 freeze guard 聚合纯测试：`22 passed`。
 - Django 5.1/SQLite 内存库逐项执行 persistence component 场景：`8 passed`；覆盖 exact replay/fork、三模型 ORM mutation/delete shortcut、raw SQL tamper、公共 reader 写隔离与 future PIT 拒绝。
 - Django 4.2/DRF 3.16 最小 settings 下 exact read API/facade：`18 passed`；覆盖 staff 权限、精确 selector、未来 cutoff、非枚举 404、三类 payload 和全部写方法 405。

@@ -526,9 +526,28 @@
       "required_fields": ["action", "asset_code", "confidence"]
     }
   ],
+  "dynamic_surfaces": [
+    "apps/broker_execution/application/query_services.py::BrokerExecutionQueryService.account_access_grants",
+    "apps/broker_execution/application/query_services.py::BrokerExecutionQueryService.audits",
+    "apps/broker_execution/application/query_services.py::BrokerExecutionQueryService.connections",
+    "apps/broker_execution/application/query_services.py::BrokerExecutionQueryService.order_detail",
+    "apps/broker_execution/application/query_services.py::BrokerExecutionQueryService.orders",
+    "apps/broker_execution/application/query_services.py::BrokerExecutionQueryService.overview",
+    "apps/broker_execution/application/query_services.py::BrokerExecutionQueryService.qmt_onboarding",
+    "apps/broker_execution/application/query_services.py::BrokerExecutionQueryService.reconciliations",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionAccountAccessView.get",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionAuditView.get",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionConnectionView.get",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionOrderDetailView.get",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionOrderListView.get",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionOverviewView.get",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionQmtOnboardingView.get",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionReconciliationView.get"
+  ],
   "notes": [
     "This first batch is intentionally incomplete and focuses on outputs with explicit execution, position, recommendation, transition, or fail-closed semantics.",
     "Inventory presence is not Evidence integration. Every current_gate_state explicitly records the remaining legacy or research-only state.",
-    "No unclassified claim_kind or method_kind is accepted by the guard. Unclear surfaces must be investigated before registration."
+    "No unclassified claim_kind or method_kind is accepted by the guard. Unclear surfaces must be investigated before registration.",
+    "Broker dynamic query and HTTP response surfaces are frozen separately because their dict payloads are not discoverable through class fields."
   ]
 }

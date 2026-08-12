@@ -73,6 +73,7 @@ class EvidenceOutputInventory:
 
     discovery_rules: tuple[DiscoveryRule, ...]
     surfaces: tuple[EvidenceOutputSurface, ...]
+    dynamic_surfaces: frozenset[str]
 
 
 def _required_text(payload: dict[str, object], key: str) -> str:
@@ -111,10 +112,18 @@ def parse_inventory(payload: object) -> EvidenceOutputInventory:
 
     raw_rules = payload.get("discovery_rules")
     raw_surfaces = payload.get("surfaces")
+    raw_dynamic = payload.get("dynamic_surfaces")
     if not isinstance(raw_rules, list) or not raw_rules:
         raise ValueError("evidence output discovery_rules must be a non-empty list")
     if not isinstance(raw_surfaces, list) or not raw_surfaces:
         raise ValueError("evidence output surfaces must be a non-empty list")
+    if not isinstance(raw_dynamic, list) or not raw_dynamic:
+        raise ValueError("evidence output dynamic_surfaces must be a non-empty list")
+    dynamic_surfaces = tuple(raw_dynamic)
+    if any(not isinstance(item, str) or not item.strip() for item in dynamic_surfaces):
+        raise ValueError("evidence output dynamic surface must be non-empty text")
+    if dynamic_surfaces != tuple(sorted(set(dynamic_surfaces))):
+        raise ValueError("evidence output dynamic surfaces must be sorted and unique")
 
     rules: list[DiscoveryRule] = []
     for raw_rule in raw_rules:
@@ -165,7 +174,11 @@ def parse_inventory(payload: object) -> EvidenceOutputInventory:
     symbols = tuple(surface.source_symbol for surface in surfaces)
     if symbols != tuple(sorted(set(symbols))):
         raise ValueError("evidence output surfaces must be sorted and unique")
-    return EvidenceOutputInventory(discovery_rules=tuple(rules), surfaces=tuple(surfaces))
+    return EvidenceOutputInventory(
+        discovery_rules=tuple(rules),
+        surfaces=tuple(surfaces),
+        dynamic_surfaces=frozenset(dynamic_surfaces),
+    )
 
 
 def load_inventory(path: Path = DEFAULT_INVENTORY) -> EvidenceOutputInventory:
@@ -228,6 +241,50 @@ def discover_marked_surfaces(
     return frozenset(discovered)
 
 
+def _qualified_functions(path: str) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+    functions: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
+    for node in _parse_source(path).body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            functions[node.name] = node
+        elif isinstance(node, ast.ClassDef):
+            for member in node.body:
+                if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    functions[f"{node.name}.{member.name}"] = member
+    return functions
+
+
+def discover_broker_dynamic_surfaces() -> frozenset[str]:
+    """Freeze Broker dict query methods and their exact GET publication handlers."""
+
+    query_path = "apps/broker_execution/application/query_services.py"
+    view_path = "apps/broker_execution/interface/api_views.py"
+    query_methods = _qualified_functions(query_path)
+    view_methods = _qualified_functions(view_path)
+    discovered: set[str] = set()
+    for qualname, node in query_methods.items():
+        if not qualname.startswith("BrokerExecutionQueryService.") or qualname.endswith(
+            ".__init__"
+        ):
+            continue
+        returns = ast.unparse(node.returns) if node.returns is not None else ""
+        if returns == "dict[str, Any]":
+            discovered.add(f"{query_path}::{qualname}")
+    query_names = {item.rsplit(".", 1)[-1] for item in discovered}
+    for qualname, node in view_methods.items():
+        if not qualname.endswith(".get"):
+            continue
+        calls = {
+            child.func.attr
+            for child in ast.walk(node)
+            if isinstance(child, ast.Call)
+            and isinstance(child.func, ast.Attribute)
+            and child.func.attr in query_names
+        }
+        if calls:
+            discovered.add(f"{view_path}::{qualname}")
+    return frozenset(discovered)
+
+
 def validate_inventory(inventory: EvidenceOutputInventory) -> dict[str, int]:
     """Require all registered symbols and marker-discovered surfaces to stay exact."""
 
@@ -252,6 +309,13 @@ def validate_inventory(inventory: EvidenceOutputInventory) -> dict[str, int]:
     unclassified = sorted(discovered - registered.keys())
     if unclassified:
         errors.append(f"unclassified marked evidence output surfaces: {unclassified}")
+    dynamic = discover_broker_dynamic_surfaces()
+    missing_dynamic = sorted(dynamic - inventory.dynamic_surfaces)
+    stale_dynamic = sorted(inventory.dynamic_surfaces - dynamic)
+    if missing_dynamic:
+        errors.append(f"unclassified dynamic evidence output surfaces: {missing_dynamic}")
+    if stale_dynamic:
+        errors.append(f"stale dynamic evidence output surfaces: {stale_dynamic}")
     if errors:
         raise ValueError("Evidence output surface freeze failed:\n- " + "\n- ".join(errors))
     return {
@@ -260,6 +324,7 @@ def validate_inventory(inventory: EvidenceOutputInventory) -> dict[str, int]:
             surface.position_impact == "direct" for surface in inventory.surfaces
         ),
         "marked_surface_count": len(discovered),
+        "dynamic_surface_count": len(dynamic),
     }
 
 
