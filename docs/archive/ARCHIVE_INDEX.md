@@ -110,6 +110,11 @@
 
 活跃入口与保留理由见 [`../plans/README.md`](../plans/README.md)。
 
+#### 同日后续补归档
+
+- `architecture-cycle-remediation-2026-07-15.md`（最终实现零双向依赖、零强连通循环组件）
+- `tui-ia-consolidation-2026-07-20.md`（AgomTradePro 主计划已实施；跨仓兼容后续由独立可移植性计划承接）
+
 ---
 
 ### 7. 过程性文档批量归档 (process/)

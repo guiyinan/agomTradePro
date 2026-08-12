@@ -5,7 +5,7 @@
 > **状态**: AgomTradePro 重构与本地发布完成；AgomTUI schema 同步转配套整改
 > **范围决策**: 重构信息架构；保留终端仿真 chrome、F 键、三栏布局和 CLI 风格；每日决策流优先；普通用户自助与管理员治理严格分层  
 > **目标口径**: 37 个 published 屏与 11 个 runtime 注入屏，收敛为普通用户 13 个任务屏；管理员在此基础上增加 3 个治理屏，共 16 个最终可导航屏
-> **配套整改**: [AgomTUI 可移植性整改方案](agomtui-portability-remediation-2026-07-21.md)，负责跨仓库 Runtime 同步、schema 兼容、宿主接入与双端发布门禁
+> **配套整改**: [AgomTUI 可移植性整改方案](../../plans/agomtui-portability-remediation-2026-07-21.md)，负责跨仓库 Runtime 同步、schema 兼容、宿主接入与双端发布门禁
 
 ## 一、现状诊断
 

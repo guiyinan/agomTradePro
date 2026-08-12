@@ -87,7 +87,7 @@ The baseline is not an exemption for new code. It exists to keep historical debt
 
 `governance/module_cycle_allowlist.json` records the app dependency graph budget.
 
-- `allowed_bidirectional_pairs` and `allowed_cycle_components` record only unresolved historical debt. Every resolved edge must be removed immediately; the active burn-down plan is `docs/plans/architecture-cycle-remediation-2026-07-15.md`.
+- `allowed_bidirectional_pairs` and `allowed_cycle_components` record only unresolved historical debt. Every resolved edge must be removed immediately; the completed zero-cycle burn-down record is `docs/archive/plans/architecture-cycle-remediation-2026-07-15.md`.
 - `max_app_import_edges`, `max_outbound_modules_per_app`, and `max_inbound_modules_per_app` must match the current dependency graph.
 - `max_outbound_modules_by_app` and `max_inbound_modules_by_app` must cover every app module.
 

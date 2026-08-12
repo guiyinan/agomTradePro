@@ -2,7 +2,7 @@
 
 > **日期**: 2026-07-21  
 > **状态**: 待批准  
-> **上游主计划**: [TUI 信息架构重构计划](tui-ia-consolidation-2026-07-20.md)  
+> **上游主计划**: [TUI 信息架构重构计划](../archive/plans/tui-ia-consolidation-2026-07-20.md)
 > **涉及仓库**: `AgomTradePro`（业务宿主与 Runtime 唯一上游）、`AgomTUI`（通用框架与下游镜像）  
 > **目标模式**: AgomTUI 提供通用 Workbench；AgomTradePro 继续提供业务 metadata、runtime normalization、认证权限、action executor、审计和业务 API
 
