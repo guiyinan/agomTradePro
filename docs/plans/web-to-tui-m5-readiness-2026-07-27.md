@@ -50,6 +50,17 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
 - 尚未完成：UAT、cleanup 与 rollback 三条 recorder/builder 自动写入 candidate binding；在此之前
   readiness 会安全保持 DENY，禁止手工复用或补写旧证据。
 
+### 2026-08-13：candidate-bound rollback drill v2
+
+- 删除易漂移的静态 baseline/new-path 清单；从代表 wave 的 migration anchor 唯一新增提交
+  自动推导 baseline parent，candidate/ref 先解析为 immutable commit。
+- patch、artifact manifest、graph/schema contract、runtime manifest 和矩阵 rollback commit 全部从同一
+  candidate Git snapshot 重建；工作树不作为候选证据读取。
+- 真实本地隔离 reverse/forward 演练通过：31 artifacts（3 added / 18 modified / 10 unchanged），
+  graph actions `402 → 430`，runtime manifest 18 files 逐一验摘要，回滚与恢复后内容精确。
+- 针对测试 `3 passed, 1 skipped`；skip 为当前环境缺 Django 的 registry publish/rollback/restore 往返用例。
+  本地代表 wave 不替代生产 registry 备份/恢复、真实部署或全量 wave 验收，cutover 仍 DENY。
+
 - M4：17/17 个 B 类 route template 已迁移，0 backlog；完整 TUI Workbench 加操作组
   非 sticky 回归现为 `240 passed`。
 - AGENTS.md 固定其余三组最小回归：`35 passed`；IA 与归一化幂等：
