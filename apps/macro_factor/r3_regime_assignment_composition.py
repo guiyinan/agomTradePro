@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 from apps.macro_factor.infrastructure.regime_historical_assignment_adapter import (
+    ExactHistoricalRegimeAssignmentReceiptReader,
     RegimeHistoricalAssignmentReportAdapter,
 )
 from apps.macro_factor.infrastructure.run_ledger_repository import (
@@ -30,7 +32,10 @@ def build_macro_factor_r3_regime_assignment_read_runtime(
 
     return MacroFactorR3RegimeAssignmentReadRuntime(
         report_provider=RegimeHistoricalAssignmentReportAdapter(
-            assignment_reader=build_r3_regime_assignment_reader(using=using),
+            assignment_reader=cast(
+                ExactHistoricalRegimeAssignmentReceiptReader,
+                build_r3_regime_assignment_reader(using=using),
+            ),
             ledger=DjangoMacroFactorRunLedgerReadRepository(using=using),
         )
     )

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Protocol, cast
+from typing import Any, Protocol
 
 from apps.macro_factor.domain.governed_read import (
     R3RegimeObservationEvidence,
@@ -112,24 +112,23 @@ class RegimeHistoricalAssignmentReportAdapter:
             validator = getattr(receipt, "validated_copy", None)
             if not callable(validator):
                 return None
-            validated = cast(Any, validator())
-            if validated != receipt:
+            validated_receipt: Any = validator()
+            if validated_receipt != receipt:
                 return None
-            receipt = validated
             if (
-                receipt.artifact_id != artifact.artifact_id
-                or receipt.artifact_hash != artifact.content_hash
-                or receipt.source_result_hash != artifact.source_result_hash
-                or receipt.pit_manifest_id != artifact.pit_manifest_id
-                or receipt.pit_manifest_hash != artifact.pit_manifest_hash
-                or receipt.recorded_at > as_of
+                validated_receipt.artifact_id != artifact.artifact_id
+                or validated_receipt.artifact_hash != artifact.content_hash
+                or validated_receipt.source_result_hash != artifact.source_result_hash
+                or validated_receipt.pit_manifest_id != artifact.pit_manifest_id
+                or validated_receipt.pit_manifest_hash != artifact.pit_manifest_hash
+                or validated_receipt.recorded_at > as_of
             ):
                 return None
             observations = tuple(
                 R3RegimeObservationEvidence(
                     owner="regime",
-                    artifact_id=receipt.artifact_id,
-                    artifact_hash=receipt.artifact_hash,
+                    artifact_id=validated_receipt.artifact_id,
+                    artifact_hash=validated_receipt.artifact_hash,
                     fold_id=item.fold_id,
                     row_id=item.row_id,
                     observation_at=item.observation_at,
@@ -150,12 +149,12 @@ class RegimeHistoricalAssignmentReportAdapter:
                         item.inflation_fact.available_at,
                     ),
                 )
-                for item in receipt.assignments
+                for item in validated_receipt.assignments
             )
             report = build_regime_segment_report(
                 artifact,
                 observations,
-                evaluated_at=receipt.recorded_at,
+                evaluated_at=validated_receipt.recorded_at,
             )
             self._require_live_readers()
             return report
