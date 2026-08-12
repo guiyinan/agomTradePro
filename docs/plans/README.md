@@ -74,6 +74,7 @@
 | 2026-08-13 | 第二期 P0 | Web→TUI M5-C final inventory gate | 新增独立 `--require-finalized`：只允许 41 个 C 档物理模板，A/B/D 全 deleted，并检查孤儿 view/route/static 与 legacy alias；普通 196 行冻结检查保持通过，最终模式因 148 个 A/B 未清理保持 DENY | 仅在逐波生产观察、rollback 和审批齐全后执行删除；清理 11 个 dead alias 与 1 个 dangling alias |
 | 2026-08-13 | 第二期 P0 | Web→TUI current production preflight | 公开 health/ready 为 200/ok；当前 release=`source-20260813002655`，但 OCI revision=`unknown` 且 release 无 Git/source manifest，不能绑定 candidate，观察仍未开始 | 修复 release provenance，重新部署干净最终候选，并在部署后生成结构化 attestation |
 | 2026-08-13 | 第二期 P0 | Web→TUI M5-B cleanup wave recorder | 从 candidate Git snapshot 重算单波删除/≤10 route/task/rollback；强制已提交且 commit+OCI 精确绑定的 deployment preflight，以及部署后 48h telemetry/defect/scheduled-cycle 原始证据；`14 passed` | 当前无删除候选和生产证据，CLI 保持 FAIL；待候选部署后逐波实际执行 |
+| 2026-08-13 | 第二期 P0 | Web→TUI release provenance fail-closed | 发布工具拒绝 dirty/unknown source，clone 锁定 exact commit；构建强制 OCI revision 并生成只读 release manifest，deploy 在启动服务/切换 current 前复核 manifest+image；相关 `44 passed` | 尚未部署；当前生产仍为 revision=`unknown`/无 manifest，须经授权部署干净候选并重新 preflight |
 
 ## 2026-08-12 整理结果
 

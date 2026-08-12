@@ -357,6 +357,8 @@ python tui-metadata-compiler/scripts/publish_tui_metadata.py \
 
 同日新增 `record_web_to_tui_cleanup_wave.py` 与结构化 schema，正式承接 M5-B 每波记录。recorder 从 immutable candidate Git snapshot 重算新增删除、连续 wave、route 数、catalog task 和 rollback commit；每次只允许新增一个 wave且 route page 为 1–10 个。它强制读取已提交的 production deployment preflight，并要求 source commit/OCI revision 精确等于删除候选；deployment attestation 必须在 candidate 之后、观察开始之前提交，48 小时窗口不得早于部署核验。telemetry、P0/P1 defect tracker 与 scheduled cycle 三类原始证据均按 exact schema 重算，caller 不能提交 `passed` 或自报日期。当前无 M5-B 删除候选，CLI 按设计返回 FAIL，不产生证据。
 
+发布工具也已在仓库侧补齐 provenance：上传构建拒绝 dirty worktree 和 `unknown`/非完整 commit，clone 构建锁定 expected commit；两种路径均要求 OCI revision exact match，并生成只读 release manifest。deploy 会在任何服务启动或 `current` 切换前核验 manifest、image ID 与 revision。相关本地回归 `44 passed`。该代码尚未部署，当前生产快照仍无法证明候选身份，因此不能据此启动或回填 M5-A。
+
 ## 8. Web 保留清单（C 档，当前 41 个）
 
 | 保留域 | 模板范围 | 数量 | 默认 owner | 保留理由 |

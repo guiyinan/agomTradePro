@@ -36,3 +36,14 @@
 2. release 应包含无秘密、不可变的 source/release manifest，记录 release ID、完整 commit、image ID/revision 与生成时间，供独立核验。
 3. 修复发布 provenance 后，需要重新部署一个干净最终候选，并在部署后 30 分钟内重新取得 health/ready 与 OCI/source identity 的结构化 attestation。
 4. 观察窗口只能从新证明的 `verified_at` 开始；本文件和 7 月 31 日历史发布均不能用作回填依据。
+
+## 2026-08-13 仓库整改进展
+
+发布工具的 provenance 缺口已在本地代码中关闭，但尚未部署到生产：
+
+- source-upload 模式现在要求工作树完全干净，并拒绝缺失、缩写、大小写不规范或 `unknown` 的源码 commit；git-clone 模式也会锁定调用方给出的完整 commit，并在 clone 后精确复核。
+- 两种构建模式都会核对镜像 `org.opencontainers.image.revision` 与源码 commit，并生成只读、字段白名单的 `.agom-release-manifest.json`。
+- deploy 在启动 compose 服务或切换 `current` 前核验 manifest 文件类型/权限、release tag、完整 commit、image tag/ID、OCI revision、构建时间和 source mode；部署报告继续保留同一完整身份。
+- 相关本地回归 `44 passed`，strict mypy、Black、isort、compileall、生成 shell 的 `sh -n` 与 diff check 均通过；Ruff 在当前环境未安装。
+
+这一步只证明下一次发布能够 fail closed 地形成候选溯源，不改变上文当前生产快照。当前线上 OCI revision 仍是 `unknown`，也没有合格 manifest；在获得发布授权、部署干净候选并重新取得结构化 preflight 前，M5 仍为 `DENY`。

@@ -85,6 +85,13 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
 - 三个 wave artifact 先写 SHA，cutover evidence 原子替换失败时回收本次 artifact；专属测试 `14 passed`，strict mypy、Black、isort、schemas、compile 与 diff check 通过。
 - 当前仓库没有 M5-B 删除候选和对应生产证据，真实 CLI 保持 FAIL；本实现只关闭 recorder 缺口，不代表任何 wave 已观察或获准删除。
 
+### 2026-08-13：发布 provenance fail-closed
+
+- source-upload 拒绝 dirty worktree 和非完整 Git SHA；git-clone 在构建前后锁定并复核 exact candidate commit。
+- 构建强制 OCI revision 等于源码 commit，并生成只读 exact-schema release manifest；deploy 在任何服务启动或 `current` 切换前复核 manifest、image ID 与 OCI revision。
+- 相关本地回归 `44 passed`，strict mypy、格式、编译和三个生成 shell 的语法检查通过；Ruff 未安装。
+- 代码整改尚未部署，当前生产仍是本页所述 OCI revision=`unknown`/无 manifest 状态。它不能替代真实候选部署、deployment attestation 或观察窗口，readiness 继续 `DENY`。
+
 - M4：17/17 个 B 类 route template 已迁移，0 backlog；完整 TUI Workbench 加操作组
   非 sticky 回归现为 `240 passed`。
 - AGENTS.md 固定其余三组最小回归：`35 passed`；IA 与归一化幂等：

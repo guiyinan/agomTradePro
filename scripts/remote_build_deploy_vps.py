@@ -101,6 +101,15 @@ def _normalize_domain(value: str) -> str:
     return ascii_domain
 
 
+def _normalize_source_commit(value: str) -> str:
+    """Return an exact Git SHA-1 identity or reject the deployment source."""
+
+    candidate = value.strip()
+    if re.fullmatch(r"[0-9a-f]{40}", candidate) is None:
+        raise ValueError("SOURCE_COMMIT must be an exact lowercase 40-hex Git commit")
+    return candidate
+
+
 def _latest_sqlite(project_root: Path) -> Path:
     db = project_root / "db.sqlite3"
     if not db.exists():
@@ -724,13 +733,23 @@ KEEP_REMOTE_TEMP="${KEEP_REMOTE_TEMP:-0}"
 EXPORT_IMAGE_TAR="${EXPORT_IMAGE_TAR:-1}"
 REMOTE_IMAGE_TAR="${REMOTE_IMAGE_TAR:?missing REMOTE_IMAGE_TAR}"
 DEPLOY_AFTER_BUILD="${DEPLOY_AFTER_BUILD:-1}"
-SOURCE_COMMIT="${SOURCE_COMMIT:-unknown}"
+SOURCE_COMMIT="${SOURCE_COMMIT:?missing SOURCE_COMMIT}"
 export SOURCE_COMMIT
 BUILD_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 export BUILD_STARTED_AT
 
 command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; exit 1; }
 command -v tar >/dev/null 2>&1 || { echo "[ERROR] tar is required" >&2; exit 1; }
+command -v python3 >/dev/null 2>&1 || { echo "[ERROR] python3 is required" >&2; exit 1; }
+
+python3 - "$SOURCE_COMMIT" <<'PY'
+import re
+import sys
+
+source_commit = sys.argv[1]
+if re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
+    raise SystemExit("[ERROR] SOURCE_COMMIT must be an exact lowercase 40-hex Git commit")
+PY
 
 REMOTE_BASE="$(dirname "$REMOTE_TARBALL")"
 WORK_ROOT="$REMOTE_BASE/build-$RELEASE_TAG"
@@ -769,10 +788,63 @@ if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CAC
   DOCKER_BUILDKIT=0 docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .
 fi
 docker run --rm --entrypoint python "agomtradepro-web:$RELEASE_TAG" -m compileall -q /app
-IMAGE_ID="$(docker image inspect "agomtradepro-web:$RELEASE_TAG" --format '{{.Id}}')"
-export IMAGE_ID
+IMAGE_TAG="agomtradepro-web:$RELEASE_TAG"
+IMAGE_ID="$(docker image inspect "$IMAGE_TAG" --format '{{.Id}}')"
+IMAGE_REVISION="$(docker image inspect "$IMAGE_TAG" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')"
+if [ "$IMAGE_REVISION" != "$SOURCE_COMMIT" ]; then
+  echo "[ERROR] image OCI revision does not match source commit: image=$IMAGE_REVISION source=$SOURCE_COMMIT" >&2
+  exit 1
+fi
+export IMAGE_TAG IMAGE_ID IMAGE_REVISION
 BUILD_FINISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 export BUILD_FINISHED_AT
+
+MANIFEST_PATH=".agom-release-manifest.json"
+export MANIFEST_PATH
+python3 - <<'PY'
+import json
+import os
+import re
+from datetime import datetime
+from pathlib import Path
+
+release_tag = os.environ["RELEASE_TAG"]
+source_commit = os.environ["SOURCE_COMMIT"]
+image_tag = os.environ["IMAGE_TAG"]
+image_id = os.environ["IMAGE_ID"]
+build_started_at = os.environ["BUILD_STARTED_AT"]
+build_finished_at = os.environ["BUILD_FINISHED_AT"]
+
+if re.fullmatch(r"[0-9]{14}", release_tag) is None:
+    raise SystemExit("[ERROR] RELEASE_TAG must be an exact 14-digit UTC deployment tag")
+if re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
+    raise SystemExit("[ERROR] SOURCE_COMMIT must be an exact lowercase 40-hex Git commit")
+if image_tag != f"agomtradepro-web:{release_tag}":
+    raise SystemExit("[ERROR] image tag does not match release tag")
+if re.fullmatch(r"sha256:[0-9a-f]{64}", image_id) is None:
+    raise SystemExit("[ERROR] Docker image ID is not an exact sha256 identity")
+timestamp_format = "%Y-%m-%dT%H:%M:%SZ"
+started = datetime.strptime(build_started_at, timestamp_format)
+finished = datetime.strptime(build_finished_at, timestamp_format)
+if finished < started:
+    raise SystemExit("[ERROR] build finish timestamp precedes build start timestamp")
+
+manifest = {
+    "version": 1,
+    "release_tag": release_tag,
+    "source_commit": source_commit,
+    "image_tag": image_tag,
+    "image_id": image_id,
+    "build_started_at": build_started_at,
+    "build_finished_at": build_finished_at,
+    "source_mode": "source-upload",
+}
+manifest_path = Path(os.environ["MANIFEST_PATH"])
+with manifest_path.open("x", encoding="utf-8", newline="\n") as handle:
+    json.dump(manifest, handle, ensure_ascii=True, indent=2, sort_keys=True)
+    handle.write("\n")
+manifest_path.chmod(0o444)
+PY
 
 if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
   IMAGE_BYTES="$(docker image inspect "agomtradepro-web:$RELEASE_TAG" --format '{{.Size}}' 2>/dev/null || echo 0)"
@@ -792,15 +864,13 @@ python3 - <<'PY'
 import json
 import os
 from pathlib import Path
+
+manifest_path = Path(os.environ["MANIFEST_PATH"])
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 report = {
-    "release_tag": os.environ["RELEASE_TAG"],
+    **manifest,
     "release_dir": str(Path(".").resolve()),
     "target_dir": Path(".").resolve().parents[1].as_posix(),
-    "image_tag": f"agomtradepro-web:{os.environ['RELEASE_TAG']}",
-    "image_id": os.environ.get("IMAGE_ID", ""),
-    "source_commit": os.environ.get("SOURCE_COMMIT", "unknown"),
-    "build_started_at": os.environ.get("BUILD_STARTED_AT", ""),
-    "build_finished_at": os.environ.get("BUILD_FINISHED_AT", ""),
     "remote_image_tar": os.environ.get("REMOTE_IMAGE_TAR", ""),
     "deployed": False,
     "deploy_after_build": os.environ.get("DEPLOY_AFTER_BUILD", "1") == "1",
@@ -862,11 +932,23 @@ KEEP_REMOTE_TEMP="${KEEP_REMOTE_TEMP:-0}"
 EXPORT_IMAGE_TAR="${EXPORT_IMAGE_TAR:-1}"
 REMOTE_IMAGE_TAR="${REMOTE_IMAGE_TAR:?missing REMOTE_IMAGE_TAR}"
 DEPLOY_AFTER_BUILD="${DEPLOY_AFTER_BUILD:-1}"
+EXPECTED_SOURCE_COMMIT="${SOURCE_COMMIT:?missing SOURCE_COMMIT}"
+export EXPECTED_SOURCE_COMMIT
 BUILD_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 export BUILD_STARTED_AT
 
 command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; exit 1; }
 command -v git >/dev/null 2>&1 || { echo "[ERROR] git is required" >&2; exit 1; }
+command -v python3 >/dev/null 2>&1 || { echo "[ERROR] python3 is required" >&2; exit 1; }
+
+python3 - "$EXPECTED_SOURCE_COMMIT" <<'PY'
+import re
+import sys
+
+source_commit = sys.argv[1]
+if re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
+    raise SystemExit("[ERROR] SOURCE_COMMIT must be an exact lowercase 40-hex Git commit")
+PY
 
 RELEASE_DIR="$TARGET_DIR/releases/source-$RELEASE_TAG"
 rm -rf "$RELEASE_DIR"
@@ -875,7 +957,20 @@ mkdir -p "$(dirname "$RELEASE_DIR")"
 echo "[INFO] Cloning $GIT_REPO branch=$GIT_BRANCH into $RELEASE_DIR"
 git clone --depth 1 --branch "$GIT_BRANCH" "$GIT_REPO" "$RELEASE_DIR"
 cd "$RELEASE_DIR"
-SOURCE_COMMIT="$(git rev-parse HEAD)"
+CLONED_SOURCE_COMMIT="$(git rev-parse --verify HEAD)"
+python3 - "$CLONED_SOURCE_COMMIT" <<'PY'
+import re
+import sys
+
+source_commit = sys.argv[1]
+if re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
+    raise SystemExit("[ERROR] SOURCE_COMMIT must be an exact lowercase 40-hex Git commit")
+PY
+if [ "$CLONED_SOURCE_COMMIT" != "$EXPECTED_SOURCE_COMMIT" ]; then
+  echo "[ERROR] cloned source commit does not match requested candidate: cloned=$CLONED_SOURCE_COMMIT expected=$EXPECTED_SOURCE_COMMIT" >&2
+  exit 1
+fi
+SOURCE_COMMIT="$CLONED_SOURCE_COMMIT"
 export SOURCE_COMMIT
 
 if [ -f docker/entrypoint.prod.sh ]; then sed -i 's/\r$//' docker/entrypoint.prod.sh || true; fi
@@ -900,10 +995,63 @@ if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CAC
   DOCKER_BUILDKIT=0 docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .
 fi
 docker run --rm --entrypoint python "agomtradepro-web:$RELEASE_TAG" -m compileall -q /app
-IMAGE_ID="$(docker image inspect "agomtradepro-web:$RELEASE_TAG" --format '{{.Id}}')"
-export IMAGE_ID
+IMAGE_TAG="agomtradepro-web:$RELEASE_TAG"
+IMAGE_ID="$(docker image inspect "$IMAGE_TAG" --format '{{.Id}}')"
+IMAGE_REVISION="$(docker image inspect "$IMAGE_TAG" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')"
+if [ "$IMAGE_REVISION" != "$SOURCE_COMMIT" ]; then
+  echo "[ERROR] image OCI revision does not match source commit: image=$IMAGE_REVISION source=$SOURCE_COMMIT" >&2
+  exit 1
+fi
+export IMAGE_TAG IMAGE_ID IMAGE_REVISION
 BUILD_FINISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 export BUILD_FINISHED_AT
+
+MANIFEST_PATH=".agom-release-manifest.json"
+export MANIFEST_PATH
+python3 - <<'PY'
+import json
+import os
+import re
+from datetime import datetime
+from pathlib import Path
+
+release_tag = os.environ["RELEASE_TAG"]
+source_commit = os.environ["SOURCE_COMMIT"]
+image_tag = os.environ["IMAGE_TAG"]
+image_id = os.environ["IMAGE_ID"]
+build_started_at = os.environ["BUILD_STARTED_AT"]
+build_finished_at = os.environ["BUILD_FINISHED_AT"]
+
+if re.fullmatch(r"[0-9]{14}", release_tag) is None:
+    raise SystemExit("[ERROR] RELEASE_TAG must be an exact 14-digit UTC deployment tag")
+if re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
+    raise SystemExit("[ERROR] SOURCE_COMMIT must be an exact lowercase 40-hex Git commit")
+if image_tag != f"agomtradepro-web:{release_tag}":
+    raise SystemExit("[ERROR] image tag does not match release tag")
+if re.fullmatch(r"sha256:[0-9a-f]{64}", image_id) is None:
+    raise SystemExit("[ERROR] Docker image ID is not an exact sha256 identity")
+timestamp_format = "%Y-%m-%dT%H:%M:%SZ"
+started = datetime.strptime(build_started_at, timestamp_format)
+finished = datetime.strptime(build_finished_at, timestamp_format)
+if finished < started:
+    raise SystemExit("[ERROR] build finish timestamp precedes build start timestamp")
+
+manifest = {
+    "version": 1,
+    "release_tag": release_tag,
+    "source_commit": source_commit,
+    "image_tag": image_tag,
+    "image_id": image_id,
+    "build_started_at": build_started_at,
+    "build_finished_at": build_finished_at,
+    "source_mode": "git-clone",
+}
+manifest_path = Path(os.environ["MANIFEST_PATH"])
+with manifest_path.open("x", encoding="utf-8", newline="\n") as handle:
+    json.dump(manifest, handle, ensure_ascii=True, indent=2, sort_keys=True)
+    handle.write("\n")
+manifest_path.chmod(0o444)
+PY
 
 if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
   IMAGE_BYTES="$(docker image inspect "agomtradepro-web:$RELEASE_TAG" --format '{{.Size}}' 2>/dev/null || echo 0)"
@@ -923,19 +1071,16 @@ python3 - <<'PY'
 import json
 import os
 from pathlib import Path
+
+manifest_path = Path(os.environ["MANIFEST_PATH"])
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 report = {
-    "release_tag": os.environ["RELEASE_TAG"],
+    **manifest,
     "release_dir": str(Path(".").resolve()),
     "target_dir": Path(".").resolve().parents[1].as_posix(),
-    "image_tag": f"agomtradepro-web:{os.environ['RELEASE_TAG']}",
-    "image_id": os.environ.get("IMAGE_ID", ""),
-    "source_commit": os.environ.get("SOURCE_COMMIT", "unknown"),
-    "build_started_at": os.environ.get("BUILD_STARTED_AT", ""),
-    "build_finished_at": os.environ.get("BUILD_FINISHED_AT", ""),
     "remote_image_tar": os.environ.get("REMOTE_IMAGE_TAR", ""),
     "deployed": False,
     "deploy_after_build": os.environ.get("DEPLOY_AFTER_BUILD", "1") == "1",
-    "source_mode": "git-clone",
     "git_repo": os.environ.get("GIT_REPO", ""),
     "git_branch": os.environ.get("GIT_BRANCH", "main"),
 }
@@ -977,6 +1122,92 @@ fi
 
 RELEASE_DIR="$TARGET_DIR/releases/source-$RELEASE_TAG"
 [ -d "$RELEASE_DIR" ] || { echo "[ERROR] release dir not found: $RELEASE_DIR" >&2; exit 1; }
+MANIFEST_PATH="$RELEASE_DIR/.agom-release-manifest.json"
+echo "[INFO] Validating immutable release provenance"
+if ! python3 - "$MANIFEST_PATH" "$RELEASE_TAG" <<'PY'
+import json
+import re
+import stat
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+manifest_path = Path(sys.argv[1])
+release_tag = sys.argv[2]
+if manifest_path.is_symlink() or not manifest_path.is_file():
+    raise SystemExit("release manifest must be a regular file")
+if stat.S_IMODE(manifest_path.stat().st_mode) != 0o444:
+    raise SystemExit("release manifest must be read-only (0444)")
+try:
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+    raise SystemExit(f"release manifest is unreadable: {exc}") from exc
+if not isinstance(manifest, dict):
+    raise SystemExit("release manifest must be a JSON object")
+expected_keys = {
+    "version",
+    "release_tag",
+    "source_commit",
+    "image_tag",
+    "image_id",
+    "build_started_at",
+    "build_finished_at",
+    "source_mode",
+}
+if set(manifest) != expected_keys:
+    raise SystemExit(f"release manifest must contain exactly {sorted(expected_keys)}")
+if type(manifest["version"]) is not int or manifest["version"] != 1:
+    raise SystemExit("release manifest version must be integer 1")
+string_keys = expected_keys - {"version"}
+if any(type(manifest[key]) is not str or not manifest[key] for key in string_keys):
+    raise SystemExit("release manifest identity fields must be non-empty strings")
+if re.fullmatch(r"[0-9]{14}", release_tag) is None:
+    raise SystemExit("release tag must be an exact 14-digit UTC deployment tag")
+if manifest["release_tag"] != release_tag:
+    raise SystemExit("release manifest tag does not match requested release")
+if re.fullmatch(r"[0-9a-f]{40}", manifest["source_commit"]) is None:
+    raise SystemExit("release manifest source commit must be exact lowercase 40-hex")
+expected_image_tag = f"agomtradepro-web:{release_tag}"
+if manifest["image_tag"] != expected_image_tag:
+    raise SystemExit("release manifest image tag does not match requested release")
+if re.fullmatch(r"sha256:[0-9a-f]{64}", manifest["image_id"]) is None:
+    raise SystemExit("release manifest image ID must be an exact sha256 identity")
+if manifest["source_mode"] not in {"source-upload", "git-clone"}:
+    raise SystemExit("release manifest source mode is unsupported")
+timestamp_format = "%Y-%m-%dT%H:%M:%SZ"
+for key in ("build_started_at", "build_finished_at"):
+    if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", manifest[key]) is None:
+        raise SystemExit(f"release manifest {key} is not an exact UTC timestamp")
+started = datetime.strptime(manifest["build_started_at"], timestamp_format)
+finished = datetime.strptime(manifest["build_finished_at"], timestamp_format)
+if finished < started:
+    raise SystemExit("release manifest build timestamps are not monotonic")
+
+image_id = subprocess.check_output(
+    ["docker", "image", "inspect", expected_image_tag, "--format", "{{.Id}}"],
+    text=True,
+).strip()
+image_revision = subprocess.check_output(
+    [
+        "docker",
+        "image",
+        "inspect",
+        expected_image_tag,
+        "--format",
+        '{{index .Config.Labels "org.opencontainers.image.revision"}}',
+    ],
+    text=True,
+).strip()
+if image_id != manifest["image_id"]:
+    raise SystemExit("release image ID does not match immutable manifest")
+if image_revision != manifest["source_commit"]:
+    raise SystemExit("release image OCI revision does not match immutable manifest")
+PY
+then
+  echo "[ERROR] release provenance validation failed before deployment mutation" >&2
+  exit 1
+fi
 PREVIOUS_RELEASE="$(readlink -f "$TARGET_DIR/current" 2>/dev/null || true)"
 PREVIOUS_IMAGE=""
 if [ -n "$PREVIOUS_RELEASE" ] && [ -f "$PREVIOUS_RELEASE/deploy/.env" ]; then
@@ -1648,7 +1879,11 @@ import os
 import subprocess
 from pathlib import Path
 release_tag = os.environ["RELEASE_TAG"]
+manifest_path = Path(".agom-release-manifest.json")
+release_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 image_ref = f"agomtradepro-web:{release_tag}"
+if image_ref != release_manifest["image_tag"]:
+    raise SystemExit("release manifest image tag changed during deployment")
 image_id = subprocess.check_output(
     ["docker", "inspect", image_ref, "--format", "{{.Id}}"],
     text=True,
@@ -1657,18 +1892,26 @@ source_commit = subprocess.check_output(
     ["docker", "inspect", image_ref, "--format", "{{index .Config.Labels \"org.opencontainers.image.revision\"}}"],
     text=True,
 ).strip()
-build_report_path = Path("/tmp/agomtradepro-build-report.json")
-build_report = json.loads(build_report_path.read_text(encoding="utf-8")) if build_report_path.exists() else {}
+if release_manifest["release_tag"] != release_tag:
+    raise SystemExit("release manifest tag changed during deployment")
+if image_id != release_manifest["image_id"]:
+    raise SystemExit("release image ID changed during deployment")
+if source_commit != release_manifest["source_commit"]:
+    raise SystemExit("release image OCI revision changed during deployment")
 report = {
+    "version": release_manifest["version"],
     "release_tag": release_tag,
     "release_dir": str(Path(".").resolve()),
     "target_dir": Path(".").resolve().parents[1].as_posix(),
     "health_json": Path("/tmp/agomtradepro-health.json").read_text(encoding="utf-8"),
     "compose_ps": Path("/tmp/agomtradepro-compose-ps.txt").read_text(encoding="utf-8"),
-    "image_id": image_id,
-    "source_commit": source_commit,
-    "build_started_at": build_report.get("build_started_at", ""),
-    "build_finished_at": build_report.get("build_finished_at", ""),
+    "image_tag": release_manifest["image_tag"],
+    "image_id": release_manifest["image_id"],
+    "source_commit": release_manifest["source_commit"],
+    "build_started_at": release_manifest["build_started_at"],
+    "build_finished_at": release_manifest["build_finished_at"],
+    "source_mode": release_manifest["source_mode"],
+    "release_manifest": release_manifest,
     "deployed": True,
 }
 Path("/tmp/agomtradepro-deploy-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
@@ -1762,14 +2005,34 @@ def main() -> int:
 
     project_root = Path(__file__).resolve().parents[1]
     try:
-        source_commit = subprocess.check_output(
+        raw_source_commit = subprocess.check_output(
             ["git", "rev-parse", "HEAD"],
             cwd=project_root,
             text=True,
             stderr=subprocess.DEVNULL,
         ).strip()
-    except (OSError, subprocess.CalledProcessError):
-        source_commit = "unknown"
+    except (OSError, subprocess.CalledProcessError) as exc:
+        _die(f"Unable to resolve the local source commit: {exc}")
+    try:
+        source_commit = _normalize_source_commit(raw_source_commit)
+    except ValueError as exc:
+        _die(str(exc))
+    if not args.git_clone:
+        try:
+            worktree_status = subprocess.check_output(
+                ["git", "status", "--porcelain", "--untracked-files=all"],
+                cwd=project_root,
+                text=True,
+                stderr=subprocess.DEVNULL,
+            )
+        except (OSError, subprocess.CalledProcessError) as exc:
+            _die(f"Unable to verify the source-upload worktree: {exc}")
+        dirty_paths = len(worktree_status.splitlines())
+        if dirty_paths:
+            _die(
+                "Source-upload mode requires a clean Git worktree; "
+                f"found {dirty_paths} tracked or untracked path(s)"
+            )
     host = args.host or _prompt("VPS host/IP")
     if not host:
         _die("Missing VPS host")
@@ -1976,6 +2239,7 @@ def main() -> int:
                 "EXPORT_IMAGE_TAR": _bool_env(True),
                 "REMOTE_IMAGE_TAR": remote_image_tar,
                 "DEPLOY_AFTER_BUILD": _bool_env(deploy_after_build),
+                "SOURCE_COMMIT": source_commit,
             }
 
             exports = " ".join(f"{key}={shlex.quote(value)}" for key, value in build_env.items())
