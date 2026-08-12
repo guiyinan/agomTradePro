@@ -784,6 +784,16 @@
       "required_fields": ["decision_action", "intent_id", "qty"]
     },
     {
+      "source_symbol": "apps/strategy/application/execution_preview.py::ExecutionPreviewResult",
+      "owner_app": "strategy",
+      "output_kind": "execution_preview",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["account_observed_at", "blocker_codes", "can_execute", "decision_action", "evaluated_at", "governance_state", "market_observed_at", "must_not_execute", "must_not_use_for_decision", "permission", "regime_observed_at", "research_only", "risk_snapshot", "signal_observed_at"]
+    },
+    {
       "source_symbol": "apps/strategy/domain/entities.py::DecisionResult",
       "owner_app": "strategy",
       "output_kind": "execution_decision",

@@ -2,6 +2,56 @@
   "schema_version": 1,
   "contracts": [
     {
+      "id": "strategy.execution_preview",
+      "surface": "POST /api/strategy/execution/evaluate/ display-only preview",
+      "source_files": [
+        "apps/strategy/application/execution_preview.py",
+        "apps/strategy/interface/execution_views.py",
+        "apps/strategy/interface/serializers.py"
+      ],
+      "required_markers": {
+        "apps/strategy/application/execution_preview.py": [
+          "market_observed_at",
+          "signal_observed_at",
+          "regime_observed_at",
+          "account_observed_at",
+          "can_execute=False",
+          "must_not_use_for_decision=True",
+          "must_not_execute=True"
+        ],
+        "apps/strategy/interface/execution_views.py": [
+          "evaluate_execution_preview(",
+          "current_price=data[\"current_price\"]",
+          "current_regime=data[\"current_regime\"]",
+          "regime_confidence=data[\"regime_confidence\"]"
+        ],
+        "apps/strategy/interface/serializers.py": [
+          "current_price = serializers.FloatField(",
+          "current_regime = serializers.CharField(",
+          "regime_confidence = serializers.FloatField(",
+          "must_not_use_for_decision = serializers.BooleanField(",
+          "must_not_execute = serializers.BooleanField("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "allow_remains_display_only",
+          "test_file": "tests/unit/strategy/test_execution_preview.py",
+          "test_function": "test_allowing_domain_preview_is_still_display_only_and_non_executable"
+        },
+        {
+          "case": "stale_sources_fail_closed",
+          "test_file": "tests/unit/strategy/test_execution_preview.py",
+          "test_function": "test_preview_rejects_each_stale_source_snapshot"
+        },
+        {
+          "case": "current_fact_provenance_required",
+          "test_file": "tests/unit/strategy/test_serializers.py",
+          "test_function": "test_execution_evaluate_requires_all_current_fact_provenance"
+        }
+      ]
+    },
+    {
       "id": "regime.current_cache_warmup",
       "surface": "Regime current cache warmup",
       "source_files": [

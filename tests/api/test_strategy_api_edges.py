@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -133,6 +133,76 @@ def test_strategy_execution_evaluate_rejects_nonfinite_numbers(authenticated_cli
 
     assert response.status_code == 400
     assert "account_equity" in response.json()["errors"]
+
+
+@pytest.mark.django_db
+def test_strategy_execution_evaluate_requires_current_fact_provenance(
+    authenticated_client,
+):
+    response = authenticated_client.post(
+        "/api/strategy/execution/evaluate/",
+        data={"symbol": "000001.SZ", "side": "buy"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    errors = response.json()["errors"]
+    assert {
+        "current_price",
+        "signal_strength",
+        "signal_direction",
+        "signal_confidence",
+        "current_regime",
+        "regime_confidence",
+        "market_observed_at",
+        "signal_observed_at",
+        "regime_observed_at",
+        "account_observed_at",
+        "account_equity",
+        "current_position_value",
+        "daily_pnl_pct",
+        "daily_trade_count",
+    } <= set(errors)
+
+
+@pytest.mark.django_db
+def test_strategy_execution_evaluate_allow_is_still_display_only(
+    authenticated_client,
+):
+    now = timezone.now()
+    response = authenticated_client.post(
+        "/api/strategy/execution/evaluate/",
+        data={
+            "symbol": "000001.SZ",
+            "side": "buy",
+            "current_price": 12.5,
+            "signal_strength": 0.9,
+            "signal_direction": "bullish",
+            "signal_confidence": 0.85,
+            "current_regime": "recovery",
+            "regime_confidence": 0.8,
+            "target_regime": "recovery",
+            "account_equity": 100000,
+            "current_position_value": 5000,
+            "daily_pnl_pct": 0.1,
+            "daily_trade_count": 1,
+            "market_observed_at": (now - timedelta(seconds=30)).isoformat(),
+            "signal_observed_at": (now - timedelta(minutes=2)).isoformat(),
+            "regime_observed_at": (now - timedelta(hours=1)).isoformat(),
+            "account_observed_at": (now - timedelta(seconds=45)).isoformat(),
+            "stop_loss_price": 11.5,
+            "avg_volume": 200000,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["decision_action"] == "allow"
+    assert payload["can_execute"] is False
+    assert payload["permission"] == "display_only"
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["must_not_execute"] is True
 
 
 @pytest.mark.django_db

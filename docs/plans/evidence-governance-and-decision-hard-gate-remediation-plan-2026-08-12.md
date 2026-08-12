@@ -1,6 +1,6 @@
 # AgomTradePro 证据治理与决策硬闸改造计划
 
-> 执行状态（2026-08-13）：**M0 进行中，外部写面、Transition Plan 内部 writer、62 个显式高风险输出及 18 个动态 query/GET/presenter 面已冻结；M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与首批 legacy adapters 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、写入面的完整项目 runtime/component 证明、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
+> 执行状态（2026-08-13）：**M0 进行中，外部写面、Transition Plan 内部 writer、63 个显式高风险输出及 18 个动态 query/GET/presenter 面已冻结；M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与首批 legacy adapters 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、写入面的完整项目 runtime/component 证明、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
 
 ## 0. 分阶段实施记录
 
@@ -245,6 +245,26 @@
 本阶段验证：
 
 - Application + SDK/MCP 专属聚合 `39 passed`；current-data contract `46 surfaces` PASS；architecture delta `0` violations；Black/isort/diff-check PASS。API runtime 测试明确列为未验证项。
+
+### 2026-08-13：Strategy execution preview 真实发布面 fail-closed
+
+已完成：
+
+- 代码审计确认 inventory 中旧 `EvaluateExecutionResponseDTO` 没有 production caller；真实 `/api/strategy/execution/evaluate/` 原先在 Interface 直接拼 dict，并在缺 `current_price` 时使用 `100.0`、缺真实 Regime 时使用 target/`Unknown` 与固定 confidence=`0.8`，随后可能发布 `can_execute=true`。
+- 新增纯 Strategy Application `ExecutionPreviewRequest/Policy/Result`，Interface 只做 serializer 输入与 settings policy 装配；行情、信号、Regime、账户快照的完整数值与各自源观测时间全部必填，不再合成当前价格/状态/账户事实。
+- 四类源时间均须 timezone-aware、不得来自未来并分别满足 5 分钟/15 分钟/1 日/5 分钟 freshness；过期或非法输入稳定失败关闭。真实 current Regime/confidence 直接送入 Domain engine，不再把 target Regime 当 current。
+- 即使 Domain 返回 `allow` 且 PreTradeRiskGate 通过，Application 仍固定 `research_only + display_only + can_execute=false + must_not_use_for_decision=true + must_not_execute=true`，并发布稳定 blocker；本 endpoint 是 sandbox preview，不再冒充执行授权。
+- 将真实 `ExecutionPreviewResult` 补入 Evidence 输出分母并如实标为 `not_evidence_integrated_research_only`；旧零调用 DTO 的原状态不变。机器分母由 `62/11/53/18` 修正为 `63/12/53/18`，没有把显式阻断冒充 legacy Evidence wrapper。
+
+仍未完成：
+
+- 为 preview 建立正式 Operator Spec/Envelope/Track Record 与 EvidenceSummary 后，才能考虑 advisory/decision permission；当前无条件禁止执行。
+- `AdvisorOrderIntent` 已确认流向 Broker live draft，不能只加 display-only adapter；后续必须同步硬阻断该 consumer 或完成正式生产 Evidence。真实 Portfolio canonical `TransitionPlan/OrderDraft` 尚未进入本 inventory，须先修分母，再处理旧 Transition DTO/审批链。
+
+本阶段验证：
+
+- 纯 Application `8 passed`；current-data guard `47 surfaces`；Evidence inventory `63 / 12 / 53 / 18`；architecture delta `0` boundary/audit violations；生产 Application standalone strict mypy `0 issues`；Black/isort/diff-check 通过。
+- API/serializer 测试已补，但当前系统 Python 缺 Django，普通 pytest 还先被损坏的 Playwright entry point 阻断；禁用自动插件后仍因缺 Django 无法加载，因此不计为通过。`py_compile` 也因既存 `__pycache__` 权限拒绝未作为证明。
 
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
