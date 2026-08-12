@@ -9,6 +9,10 @@ from apps.config_center.application.public import (
     get_backup_delivery_runtime_payload,
     resolve_config_secret,
 )
+from apps.config_center.domain.backup_delivery import (
+    BACKUP_ARCHIVE_PASSWORD_SECRET_REF,
+    BACKUP_SMTP_PASSWORD_SECRET_REF,
+)
 
 _BACKUP_POLICY_FIELDS: tuple[str, ...] = (
     "backup_enabled",
@@ -36,15 +40,16 @@ def _project_secret(
     settings_obj: SystemSettingsProjection,
     *,
     secret_ref: object,
+    expected_ref: str,
     attach_name: str,
 ) -> None:
     """Resolve a Config Center ref into an ephemeral compatibility projection."""
 
     normalized_ref = str(secret_ref or "").strip()
-    if not normalized_ref:
+    if normalized_ref != expected_ref:
         return
     try:
-        plaintext = resolve_config_secret(normalized_ref)
+        plaintext = resolve_config_secret(expected_ref)
         if plaintext:
             attach = getattr(settings_obj, attach_name)
             attach(plaintext)
@@ -75,11 +80,13 @@ def get_backup_delivery_settings(
     _project_secret(
         settings_obj,
         secret_ref=payload.get("backup_archive_password_ref"),
+        expected_ref=BACKUP_ARCHIVE_PASSWORD_SECRET_REF,
         attach_name="attach_backup_password",
     )
     _project_secret(
         settings_obj,
         secret_ref=payload.get("backup_smtp_password_ref"),
+        expected_ref=BACKUP_SMTP_PASSWORD_SECRET_REF,
         attach_name="attach_backup_smtp_password",
     )
     return settings_obj

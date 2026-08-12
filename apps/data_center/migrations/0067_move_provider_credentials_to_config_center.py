@@ -118,7 +118,7 @@ class Migration(migrations.Migration):
     atomic = True
 
     dependencies = [
-        ("config_center", "0015_remove_legacy_backup_secret_columns"),
+        ("config_center", "0016_merge_runtime_materialization_and_secret_cutover"),
         ("data_center", "0066_make_retention_digest_widening_reversible"),
     ]
 

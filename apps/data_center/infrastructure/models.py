@@ -109,10 +109,6 @@ class ProviderConfigModel(models.Model):
         help_text="Dispatch priority — lower value = higher precedence",
     )
 
-    # Credentials
-    api_key = models.CharField(max_length=500, blank=True, help_text="API key / token")
-    api_secret = models.CharField(max_length=500, blank=True, help_text="API secret (if required)")
-
     # Network
     http_url = models.URLField(
         blank=True,

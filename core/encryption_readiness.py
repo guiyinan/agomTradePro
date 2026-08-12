@@ -11,6 +11,11 @@ from apps.account.infrastructure.backup_delivery_projection import (
 from apps.account.infrastructure.models import UserAccessTokenModel
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.ai_provider.infrastructure.repositories import AIProviderRepository
+from apps.config_center.application.public import config_secret_present
+from apps.config_center.domain.backup_delivery import (
+    BACKUP_ARCHIVE_PASSWORD_SECRET_REF,
+    BACKUP_SMTP_PASSWORD_SECRET_REF,
+)
 
 
 def collect_encryption_readiness() -> dict[str, Any]:
@@ -31,10 +36,10 @@ def collect_encryption_readiness() -> dict[str, Any]:
         "usable_provider_count": sum(
             provider_repo.has_usable_api_key(provider) for provider in encrypted_providers
         ),
-        "backup_password_present": bool(settings_obj.get_backup_password()),
-        "backup_password_recoverable": bool(settings_obj.get_backup_password()),
-        "smtp_password_present": bool(settings_obj.get_backup_smtp_password()),
-        "smtp_password_recoverable": bool(settings_obj.get_backup_smtp_password()),
+        "backup_password_present": config_secret_present(BACKUP_ARCHIVE_PASSWORD_SECRET_REF),
+        "backup_password_recoverable": bool(settings_obj.archive_password),
+        "smtp_password_present": config_secret_present(BACKUP_SMTP_PASSWORD_SECRET_REF),
+        "smtp_password_recoverable": bool(settings_obj.smtp_password),
         "backup_policy_source": backup_payload.get("policy_source", "unknown"),
         "backup_state_source": backup_payload.get("state_source", "unknown"),
         "failures": [],

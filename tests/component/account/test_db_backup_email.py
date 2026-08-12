@@ -58,8 +58,8 @@ def _configure_backup_settings(**overrides):
 def test_config_center_can_roundtrip_backup_password():
     settings_obj = _configure_backup_settings()
 
-    assert settings_obj.get_backup_password() == "secret-123"
-    assert settings_obj.get_backup_smtp_password() == "smtp-secret"
+    assert settings_obj.archive_password == "secret-123"
+    assert settings_obj.smtp_password == "smtp-secret"
 
 
 @pytest.mark.django_db(transaction=True)

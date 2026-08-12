@@ -57,8 +57,9 @@ class SystemSettingsProjection:
 
         self._backup_password = str(raw_password or "")
 
-    def get_backup_password(self) -> str:
-        """Return the resolved canonical archive password for internal delivery code."""
+    @property
+    def archive_password(self) -> str:
+        """Return the ephemeral canonical archive password."""
 
         return self._backup_password
 
@@ -67,8 +68,9 @@ class SystemSettingsProjection:
 
         self._backup_smtp_password = str(raw_password or "")
 
-    def get_backup_smtp_password(self) -> str:
-        """Return the resolved canonical SMTP password for internal delivery code."""
+    @property
+    def smtp_password(self) -> str:
+        """Return the ephemeral canonical SMTP password."""
 
         return self._backup_smtp_password
 
@@ -78,7 +80,7 @@ class SystemSettingsProjection:
         if (
             not self.backup_enabled
             or not self.backup_email
-            or not self.get_backup_password()
+            or not self.archive_password
             or self.backup_interval_days < 1
         ):
             return False

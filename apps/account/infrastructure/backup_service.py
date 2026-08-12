@@ -149,7 +149,7 @@ def validate_download_token(
 def generate_backup_archive(config: SystemSettingsProjection) -> GeneratedBackup:
     raw_backup = _build_raw_backup_bytes()
     compressed = gzip.compress(raw_backup, compresslevel=6)
-    encrypted = _encrypt_backup_bytes(compressed, config.get_backup_password())
+    encrypted = _encrypt_backup_bytes(compressed, config.archive_password)
     timestamp = timezone.now().strftime("%Y%m%d%H%M%S")
     db_engine = connections["default"].settings_dict.get("ENGINE", "unknown").rsplit(".", 1)[-1]
     filename = f"agomtradepro-db-backup-{db_engine}-{timestamp}.agbk"
@@ -175,7 +175,7 @@ def get_backup_email_connection(config: SystemSettingsProjection) -> BaseEmailBa
             host=config.backup_smtp_host,
             port=config.backup_smtp_port,
             username=config.backup_smtp_username or None,
-            password=config.get_backup_smtp_password() or None,
+            password=config.smtp_password or None,
             use_tls=config.backup_smtp_use_tls,
             use_ssl=config.backup_smtp_use_ssl,
             fail_silently=False,
