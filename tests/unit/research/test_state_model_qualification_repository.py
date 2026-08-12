@@ -25,6 +25,7 @@ from apps.research.domain.state_model_qualification_lifecycle import (
     R6QualificationPromotionAuthorization,
     R6QualificationRef,
 )
+from apps.research.infrastructure import state_model_qualification_repository as repository_module
 from apps.research.infrastructure.state_model_qualification_models import (
     R6QualificationAssessmentModel,
 )
@@ -65,6 +66,57 @@ class StaticAuthorizationProvider:
         ):
             return None
         return authorization
+
+
+class _LifecycleQuerySpy:
+    def __init__(self) -> None:
+        self.filter_lookups: dict[str, object] | None = None
+
+    def using(self, alias: str) -> _LifecycleQuerySpy:
+        assert alias == "default"
+        return self
+
+    def select_related(self, *fields: str) -> _LifecycleQuerySpy:
+        assert fields == ("assessment", "authorization")
+        return self
+
+    def filter(self, *conditions: object, **lookups: object) -> _LifecycleQuerySpy:
+        assert len(conditions) == 1
+        self.filter_lookups = lookups
+        return self
+
+    def order_by(self, *fields: str) -> _LifecycleQuerySpy:
+        assert fields == ("sequence", "id")
+        return self
+
+    def __iter__(self):
+        return iter(())
+
+
+def test_active_reader_pushes_pit_cutoff_into_lifecycle_query(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    query = _LifecycleQuerySpy()
+
+    class _LifecycleModelStub:
+        _default_manager = query
+
+    assessment = _assessment()
+    monkeypatch.setattr(
+        repository_module,
+        "R6QualificationLifecycleEventModel",
+        _LifecycleModelStub,
+    )
+    monkeypatch.setattr(
+        DjangoR6QualificationReadRepository,
+        "get_exact",
+        lambda self, *, assessment_ref, as_of: assessment,
+    )
+    repository = DjangoR6QualificationReadRepository()
+    ref = R6QualificationRef("qualification:r6:pit-query", assessment.content_hash)
+
+    assert repository.get_active(qualification_ref=ref, as_of=NOW) is None
+    assert query.filter_lookups == {"recorded_at__lte": NOW}
 
 
 def _authorization(

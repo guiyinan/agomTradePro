@@ -154,7 +154,8 @@ class DjangoR6QualificationReadRepository:
             .select_related("assessment", "authorization")
             .filter(
                 Q(assessment__assessment_id=qualification_ref.assessment_id)
-                | Q(assessment__content_hash=qualification_ref.assessment_hash)
+                | Q(assessment__content_hash=qualification_ref.assessment_hash),
+                recorded_at__lte=as_of,
             )
             .order_by("sequence", "id")
         )
