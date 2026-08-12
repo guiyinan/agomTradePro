@@ -1,10 +1,10 @@
 # AgomTradePro 证据治理与决策硬闸改造计划
 
-> 执行状态（2026-08-12）：**M0 进行中，M1 Domain 合同首批已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表 Persistence、Application adapter、TUI、Risk、Portfolio、Broker 或生产硬切换已经完成。
+> 执行状态（2026-08-12）：**M0 进行中，M1 Domain 与 append-only persistence 首批已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表只读 API、审批/激活、Application adapter、TUI、Risk、Portfolio、Broker 或生产硬切换已经完成。
 
 ## 0. 分阶段实施记录
 
-### 2026-08-12：M0 基线与 M1 Domain 首批
+### 2026-08-12：M0 基线与 M1 Domain / persistence 首批
 
 已完成：
 
@@ -14,19 +14,23 @@
 - 新增 Research Domain `evidence_contracts.py`，落地 `ClaimKind`、`MethodKind`、`GovernanceState`、唯一有序的 `DecisionPermission`、`DependencyFlag`、`ArtifactRef`、`EvidenceOperatorSpec`、`TrackRecordSnapshot`、`GovernanceGrant` 与 `EvidenceEnvelope`。
 - 实现 fail-closed 传播：权限取严格交集，lineage/不确定性依赖取并集，必要输入 stale/missing/PIT 未验证、Promotion/monitoring/Track Record 缺失或过期、精确 artifact 不匹配和 `n=0` 均降为 `DISPLAY_ONLY`。
 - 兼容布尔值只由权限派生；旧输出只能生成非持久化 `legacy_unverified + DISPLAY_ONLY` Envelope。
-- 新增 16 个纯 Domain 测试；补充 Operator Spec、Track Record、Envelope 的 canonical hash 重算和构造后篡改阻断，以及 naive datetime 在哈希前拒绝；隔离项目外部插件后 `16 passed`，生产文件 standalone strict mypy 为 `0 errors`。
+- 新增 19 个纯 Domain 测试；补充 Operator Spec、Track Record、Envelope 的 canonical hash 重算和构造后篡改阻断、naive datetime、非有限 Decimal 及倒置有效期拒绝；隔离项目外部插件后 `19 passed`，Domain/codec standalone strict mypy 为 `0 errors`。
+- 新增 schema-only、zero-seed 的 migration `0026_evidence_ledgers`，建立 Operator Spec、Track Record 与 Envelope 三个 immutable ledger；identity/content/header hash、clock check 与 PIT index 均落在数据库 schema。
+- 新增 strict codec、公共 exact/PIT reader 和私有 token/claim append store；instance/QuerySet/manager 的 save/update/delete/bulk/conflict-update/raw shortcut 均 fail closed，exact replay 幂等，identity fork、payload/header/hash 漂移均阻断。
 
 仍未完成：
 
 - M0 尚需把影响仓位的输出、raw/governed MCP 语义与旧 Transition Plan 写路径逐项分类；owner/接口矩阵及 HTTP/SDK/TUI/MCP 写入口冻结已完成。
-- M1 的 append-only ORM、strict codec、repository、只读 API、Operator Spec 审批/激活和各 App Application adapter。
+- M1 的认证 owner-scoped 只读 API、Operator Spec 审批/激活、并发 first-winner 正式数据库验证和各 App Application adapter。
 - M2–M5 全部交付及真实生产切换证据。
 
 本阶段验证：
 
 - `python scripts/check_decision_write_surface_freeze.py`：通过，HTTP `54`、SDK `15`、TUI decision `25`、TUI mutation `23`、MCP position-write `32`。
-- Domain 与 freeze guard 聚合纯测试：`19 passed`。
-- 两个新增生产/门禁 Python 文件 standalone strict mypy：`0 errors`。
+- Domain 与 freeze guard 聚合纯测试：`22 passed`。
+- Django 5.1/SQLite 内存库逐项执行 persistence component 场景：`7 passed`；覆盖 exact replay/fork、三模型 ORM mutation/delete shortcut、raw SQL tamper 和公共 reader 写隔离。
+- `black --check`、`isort --check-only`、`compileall` 与 `git diff --check`：通过；Domain/codec standalone strict mypy：`0 errors`。
+- 未验证：当前机器没有同时具备完整项目依赖与 pytest-django 的 runtime，标准 component pytest、完整 `manage.py check`、`makemigrations --check`、PostgreSQL 并发 first-winner 仍待项目 runtime/CI 执行。
 
 ## 一、目标与既定决策
 

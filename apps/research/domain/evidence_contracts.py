@@ -121,6 +121,11 @@ def _require_aware(value: object, field_name: str) -> None:
         raise ValueError(f"{field_name} must be a timezone-aware datetime")
 
 
+def _require_finite_decimal(value: object, field_name: str) -> None:
+    if type(value) is not Decimal or not value.is_finite():
+        raise ValueError(f"{field_name} must be a finite Decimal")
+
+
 def _utc_text(value: datetime) -> str:
     return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
@@ -363,6 +368,8 @@ class TrackRecordSnapshot:
         )
         if any(type(value) is not int or value < 0 for value in counts):
             raise ValueError("track-record denominator counts must be non-negative integers")
+        for field_name in ("n_eff", "coverage"):
+            _require_finite_decimal(getattr(self, field_name), field_name)
         if self.eligible != self.resolved + self.unresolved + self.censored + self.invalidated:
             raise ValueError("track-record denominator states must conserve eligible samples")
         if self.n_eff < 0 or self.n_eff > Decimal(self.resolved):
@@ -381,6 +388,16 @@ class TrackRecordSnapshot:
             self.confidence_interval_low,
             self.confidence_interval_high,
         )
+        for field_name in (
+            "primary_metric_value",
+            "benchmark_metric_value",
+            "skill_delta",
+            "confidence_interval_low",
+            "confidence_interval_high",
+        ):
+            value = getattr(self, field_name)
+            if value is not None:
+                _require_finite_decimal(value, field_name)
         if self.eligible == 0 and any(value is not None for value in metric_values):
             raise ValueError("eligible=0 cannot publish performance or confidence metrics")
         if self.eligible == 0 and any(
@@ -495,6 +512,8 @@ class EvidenceEnvelope:
             raise ValueError("blockers must be ordered and unique")
         _require_aware(self.evaluated_at, "evaluated_at")
         _require_aware(self.valid_until, "valid_until")
+        if self.evaluated_at >= self.valid_until:
+            raise ValueError("evidence-envelope validity window is invalid")
         expected_hash = _canonical_hash(_envelope_payload(self))
         if not self.content_hash:
             object.__setattr__(self, "content_hash", expected_hash)

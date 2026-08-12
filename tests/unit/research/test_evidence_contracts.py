@@ -280,6 +280,22 @@ def test_track_record_rejects_incomplete_denominator_and_future_metrics_for_zero
         replace(record, eligible=0, resolved=0, n_eff=Decimal(0), coverage=Decimal(0))
 
 
+@pytest.mark.parametrize("invalid", [Decimal("NaN"), Decimal("Infinity")])
+def test_track_record_rejects_non_finite_metrics(invalid: Decimal) -> None:
+    record = _track_record(_artifact("forecast-1", digest="e"))
+
+    with pytest.raises(ValueError, match="finite Decimal"):
+        replace(record, primary_metric_value=invalid, content_hash="")
+
+
+def test_envelope_rejects_inverted_validity_window() -> None:
+    output = _artifact("forecast-1", digest="e")
+    envelope = _resolve(output)
+
+    with pytest.raises(ValueError, match="validity window"):
+        replace(envelope, valid_until=envelope.evaluated_at, content_hash="")
+
+
 def test_valid_until_is_earliest_evidence_expiry() -> None:
     output = _artifact("forecast-1", digest="e")
     early = NOW + timedelta(hours=1)
