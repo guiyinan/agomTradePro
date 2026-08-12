@@ -19,7 +19,8 @@ def test_broker_execution_actions_and_p0_panels_are_published() -> None:
         "broker-execution.order-list",
         "broker-execution.order-detail",
         "broker-execution.approval-preview",
-        "broker-execution.approve-order",
+        "broker-execution.reject-preview",
+        "broker-execution.reject-order",
         "broker-execution.cancel-preview",
         "broker-execution.request-cancel",
         "broker-execution.connection-status",
@@ -31,8 +32,9 @@ def test_broker_execution_actions_and_p0_panels_are_published() -> None:
         "broker-execution.resume-trading",
     }
     assert expected <= set(actions)
-    assert actions["broker-execution.approve-order"]["risk"] == "write"
-    assert actions["broker-execution.approve-order"]["confirmation_required"] is True
+    assert "broker-execution.approve-order" not in actions
+    assert "broker-execution.advisor-draft-preview" in actions
+    assert "broker-execution.advisor-draft" not in actions
     assert actions["broker-execution.trigger-kill-switch"]["confirmation_required"] is True
     assert actions["broker-execution.resume-trading"]["requires_password"] is True
     account_panels = {

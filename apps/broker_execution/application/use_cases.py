@@ -12,6 +12,12 @@ from typing import Any, Protocol, cast
 
 from ..domain.rules import InvalidOrderTransitionError, target_status_for_order_action
 from .authorization import require_action
+from .evidence_gate import (
+    BROKER_ORDER_EVIDENCE_BLOCK_MESSAGE,
+    BROKER_ORDER_EVIDENCE_BLOCKER,
+    broker_order_evidence_integrated,
+    require_broker_order_evidence,
+)
 from .ports import BrokerExecutionRepositoryProtocol
 from .query_services import BrokerExecutionQueryService
 from .repository_provider import get_broker_execution_repository
@@ -125,6 +131,8 @@ class CreateLiveOrderFromExecutionPlanUseCase:
         """Validate source/risk evidence before creating WAITING_APPROVAL."""
 
         user_id, role, is_admin = require_action(actor, "create_draft")
+        if not broker_order_evidence_integrated():
+            require_broker_order_evidence(checkpoint="create")
         required = {
             "account_id",
             "asset_code",
@@ -504,8 +512,22 @@ class PreviewOrMutateOrderUseCase:
                 ),
             },
         }
+        if normalized_action == "approve":
+            preview.update(
+                {
+                    "commit_allowed": False,
+                    "display_only": True,
+                    "must_not_use_for_decision": True,
+                    "must_not_execute": True,
+                    "blocker_codes": [BROKER_ORDER_EVIDENCE_BLOCKER],
+                    "warning": BROKER_ORDER_EVIDENCE_BLOCK_MESSAGE,
+                }
+            )
         if preview_only:
             return preview
+        if normalized_action == "approve":
+            if not broker_order_evidence_integrated():
+                require_broker_order_evidence(checkpoint="approve")
         if not idempotency_key or not str(idempotency_key).strip():
             raise BrokerExecutionValidationError("idempotency_key is required")
         if expected_version is None:

@@ -358,6 +358,24 @@
 
 - overview/connection 纯测试 `29 passed`；SDK `4 passed`；MCP disabled assertion `1 passed`；current-data guard `49 surfaces`；新增 Application strict mypy `0 issues`，Black/isort/py_compile/diff-check 通过。
 
+### 2026-08-13：Broker live-order 四节点 Evidence 硬暂停
+
+已完成：
+
+- 代码核对确认 Advisor HTTP create 已被上一批阻断，但内部 `CreateLiveOrderFromExecutionPlanUseCase` 与 repository 仍能创建 `WAITING_APPROVAL`；更严重的是存量或旧批次订单可仅凭普通 risk JSON、recommendation IDs 与 approval digest，经 approve → Agent lease → submitting 进入实盘。approval digest 只证明 14 个订单字段未漂移，不包含 Operator Spec、Envelope、Track Record、Risk Authorization、Portfolio attestation 或 owner-bound plan receipt。
+- 新增唯一 fail-closed gate，在 create、approve、lease、submitting 四个 advancement checkpoint 双层阻断 Application 和 repository 直调；不接受配置、环境变量或 warning-only bypass。Agent poll 返回稳定空订单与 blocker，闸上线时遗留 lease 也不能 ack 到 submitting。
+- approve preview 继续只读但固定 `commit_allowed=false/display_only/must_not_execute`；reject、cancel、kill switch、对账和所有只读面保持可用。MCP `broker_execution.approve.order` 标记 disabled；TUI 保留 approval/advisor preview 与风险降低操作，移除 approve/advisor-draft commit action；SDK ABI 保留，由后端稳定 409。
+- 新增独立机器 guard 并接入 consistency-check，冻结 4 个 checkpoint、MCP disabled 与 TUI commit=0；任何 checkpoint marker、disabled 状态或风险降低 action 漂移都会阻断 CI。
+
+仍未完成：
+
+- 本批是明确的实盘新提交功能收缩，不是正式 Evidence 集成。恢复 create/approve/lease/submitting 前，必须先实现 owner-bound append-only Evidence、Risk Authorization、exact plan/attestation receipt，并在四节点做 current/exact 重验；不得用现有 caller-controlled JSON 或 digest 冒充。
+- 已存在 SUBMITTED/PARTIALLY_FILLED/FILLED 的订单不回退、不自动撤单；风险降低与对账继续工作。完整 Django API/component/critical/fake-Agent runtime 因当前环境缺 Django/Celery 未运行，必须在合格项目 runtime 补验状态零副作用与稳定 409。
+
+本阶段验证：
+
+- 纯 hard-gate/advisor/Agent/domain 聚合 `39 passed`；MCP disabled/catalog `5 passed`；Broker gate、decision-write freeze、MCP Evidence freeze、全仓 architecture scan（2661 files / 0 violations）、Black/isort/py_compile/diff-check 通过。项目 mypy 因缺 `mypy_django_plugin` 仅证明增量 regressions 为 0；完整 broker_execution unit 与 TUI component 因当前环境缺 Celery/Django 未执行，不计为通过。全局 governance consistency 仍被本批未修改的既存 `core/integration` infrastructure import 基线差异（0→4）阻断，未通过抬高基线掩盖。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

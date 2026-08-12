@@ -37,6 +37,7 @@ def test_broker_execution_manifests_are_governed() -> None:
             assert manifest.requires_confirmation is True
             assert manifest.idempotency == "required"
             assert "mcp:write" in manifest.audit_tags
+    assert registry["broker_execution.approve.order"].enabled is False
     resume_schema = registry["broker_execution.resume.trading"].input_schema
     assert "reauth_password" in resume_schema["required"]
     assert resume_schema["properties"]["reauth_password"]["writeOnly"] is True
@@ -134,7 +135,10 @@ def test_agom_capability_call_reads_broker_execution_family_in_core_only_mode(
 
         @staticmethod
         def list_orders(**kwargs):
-            return {"orders": [{"client_order_id": "00000000-0000-0000-0000-000000000001"}], "total_count": 1}
+            return {
+                "orders": [{"client_order_id": "00000000-0000-0000-0000-000000000001"}],
+                "total_count": 1,
+            }
 
         @staticmethod
         def get_order(client_order_id):
@@ -165,17 +169,21 @@ def test_agom_capability_call_reads_broker_execution_family_in_core_only_mode(
             capability_key="broker_execution.read.order_detail",
             arguments={"client_order_id": "00000000-0000-0000-0000-000000000001"},
         ),
-        agom_capability_call(capability_key="broker_execution.read.connection_status", arguments={}),
-        agom_capability_call(capability_key="broker_execution.read.reconciliation_catalog", arguments={}),
+        agom_capability_call(
+            capability_key="broker_execution.read.connection_status", arguments={}
+        ),
+        agom_capability_call(
+            capability_key="broker_execution.read.reconciliation_catalog", arguments={}
+        ),
         agom_capability_call(capability_key="broker_execution.read.audit_catalog", arguments={}),
     ]
     assert all(item["status"] == "completed" for item in results)
 
 
-def test_broker_execution_write_capabilities_start_with_preview_confirmation(
+def test_broker_execution_approve_is_disabled_while_risk_reducing_writes_remain(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import agomtradepro_mcp.server as server_module
+    from agomtradepro_mcp.registry.dispatcher import CapabilityDispatcher
 
     monkeypatch.setenv("AGOMTRADEPRO_MCP_ROLE", "owner")
 
@@ -187,9 +195,12 @@ def test_broker_execution_write_capabilities_start_with_preview_confirmation(
             calls.append({"client_order_id": client_order_id, "action": action, **kwargs})
             return {"preview_only": kwargs["preview_only"], "action": action}
 
-    monkeypatch.setattr(
-        "agomtradepro.AgomTradeProClient",
-        lambda: SimpleNamespace(broker_execution=_BrokerExecution()),
+    registry = CapabilityRegistryLoader().build_registry()
+    dispatcher = CapabilityDispatcher(
+        registry=registry,
+        legacy_tool_caller=lambda _name, _arguments: {},
+        internal_handler_caller=lambda _name, _arguments: {},
+        role_provider=lambda: "owner",
     )
     assert {
         "broker_execution.approve.order",
@@ -199,7 +210,7 @@ def test_broker_execution_write_capabilities_start_with_preview_confirmation(
         "broker_execution.resume.trading",
         "broker_execution.resolve.reconciliation",
     } <= BROKER_EXECUTION_KEYS
-    preview = server_module.CORE_DISPATCHER.call(
+    blocked = dispatcher.call(
         capability_key="broker_execution.approve.order",
         arguments={
             "client_order_id": "00000000-0000-0000-0000-000000000001",
@@ -208,15 +219,9 @@ def test_broker_execution_write_capabilities_start_with_preview_confirmation(
             "idempotency_key": "approve-1",
         },
     )
-    assert preview["status"] == "confirmation_required"
-    assert preview["preview_result"]["preview_only"] is True
-    assert calls == [
-        {
-            "client_order_id": "00000000-0000-0000-0000-000000000001",
-            "action": "approve",
-            "reason": "reviewed",
-            "preview_only": True,
-            "expected_version": 3,
-            "idempotency_key": "approve-1",
-        }
-    ]
+    assert blocked["status"] == "error"
+    assert blocked["error"]["code"] == "capability_not_found"
+    assert calls == []
+    assert dispatcher.get_schema("broker_execution.reject.order")
+    assert dispatcher.get_schema("broker_execution.request.cancel")
+    assert dispatcher.get_schema("broker_execution.trigger.kill_switch")

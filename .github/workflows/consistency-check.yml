@@ -81,6 +81,9 @@ jobs:
       - name: Enforce decision write surface freeze
         run: python scripts/check_decision_write_surface_freeze.py
 
+      - name: Enforce Broker live-order Evidence hard gate
+        run: python scripts/check_broker_live_order_evidence_gate.py
+
       - name: Enforce Evidence output surface inventory
         run: python scripts/check_evidence_output_surfaces.py
 

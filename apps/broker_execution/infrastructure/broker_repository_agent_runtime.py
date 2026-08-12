@@ -13,6 +13,11 @@ from django.db import IntegrityError, transaction
 from django.db.models import F, Model, Q, Sum
 from django.utils import timezone
 
+from apps.broker_execution.application.evidence_gate import (
+    blocked_lease_result,
+    broker_order_evidence_integrated,
+    require_broker_order_evidence,
+)
 from apps.broker_execution.application.use_case_errors import (
     BrokerAgentAuthenticationError,
     BrokerExecutionConflictError,
@@ -220,6 +225,9 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
     ) -> dict[str, Any]:
         """Lease READY orders only when connection, binding, and kill switches allow it."""
 
+        if not broker_order_evidence_integrated():
+            return blocked_lease_result()
+
         now = timezone.now()
         agent = BrokerAgentModel._default_manager.get(pk=agent_pk, is_active=True)
         try:
@@ -340,6 +348,9 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
         lease_token: str,
     ) -> dict[str, Any]:
         """Verify the lease and enter SUBMITTING before calling the broker API."""
+
+        if not broker_order_evidence_integrated():
+            require_broker_order_evidence(checkpoint="submitting")
 
         now = timezone.now()
         digest_invalid = False

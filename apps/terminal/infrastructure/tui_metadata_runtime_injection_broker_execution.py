@@ -410,9 +410,6 @@ RUNTIME_BROKER_EXECUTION_ACTIONS: tuple[dict[str, Any], ...] = (
         "broker-execution.approval-preview", "批准订单", "approve", preview=True, sequence=200
     ),
     _order_action(
-        "broker-execution.approve-order", "批准订单", "approve", preview=False, sequence=210
-    ),
-    _order_action(
         "broker-execution.reject-preview", "拒绝订单", "reject", preview=True, sequence=220
     ),
     _order_action(
@@ -808,6 +805,7 @@ RUNTIME_BROKER_EXECUTION_ACTIONS: tuple[dict[str, Any], ...] = (
             }
         ],
         effect="create",
+        commit_enabled=False,
     ),
     *_admin_preview_commit_actions(
         key_prefix="broker-execution.agent-binding",

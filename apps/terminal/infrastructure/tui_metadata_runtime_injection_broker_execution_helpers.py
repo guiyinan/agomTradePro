@@ -104,7 +104,8 @@ def _admin_preview_commit_actions(
     result_semantics: list[str] | None = None,
     screen_key: str = "broker-execution.overview",
     task_group: str = "05 实盘接入治理",
-) -> tuple[dict[str, Any], dict[str, Any]]:
+    commit_enabled: bool = True,
+) -> tuple[dict[str, Any], ...]:
     """Build one admin-only preview/commit pair."""
 
     shared = {
@@ -175,7 +176,7 @@ def _admin_preview_commit_actions(
     }
     if result_semantics:
         commit["result_semantics"] = result_semantics
-    return preview, commit
+    return (preview, commit) if commit_enabled else (preview,)
 
 
 _ACCOUNT_ID_FIELD = {
