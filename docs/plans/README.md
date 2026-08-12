@@ -63,6 +63,7 @@
 | 2026-08-12 | 第一期 P0 | Evidence M1 exact read API 首批 | Application port/facade 与三个 staff-only detail endpoint 已实现；强制 identity/version/hash/PIT，未来 cutoff 双层拒绝，写方法 405；隔离 Django/DRF `18 passed` | 定义真实用户/租户 scope 后再做 owner-scoped 授权；继续审批激活和 adapters |
 | 2026-08-12 | 第一期 P0 | Evidence M1 Operator Spec lifecycle 首批 | ID-only activation、可信 definition provider/Risk Center approval port、双读防漂移、原子 receipt+activation ledger 与完整 supersession replay 已实现；DB 约束阻断双 root/双 successor；纯测试 `11 passed`、隔离仓储 `3 passed` | 实现真实 Risk Center provider/composition，补 PostgreSQL 并发验证和各 App adapters |
 | 2026-08-12 | 第一期 P0 | Evidence M0 CI wiring | 决策写面冻结与 Evidence 输出清单两条机器守卫已接入 consistency-check workflow，并纳入 governance wiring 自检 | 继续扩展输出分类与统一 Evidence adapters |
+| 2026-08-12 | 第一期 P0 | Evidence M1 summary contract | 紧凑 `EvidenceSummaryDTO` 已固定 hashes/分类/权限/blockers/有效期，并区分 Track Record `not_required/unavailable/empty/available`；纯测试 `5 passed` | 接入各 App 输出 DTO 与 TUI Evidence Strip |
 
 ## 2026-08-12 整理结果
 
