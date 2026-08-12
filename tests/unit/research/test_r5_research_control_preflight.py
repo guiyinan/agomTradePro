@@ -297,9 +297,16 @@ def test_command_exposes_no_assessment_or_health_selector() -> None:
 
 
 def test_public_composition_accepts_no_owner_injection_and_is_fail_closed() -> None:
+    from apps.research.infrastructure.r5_research_control_active_query import (
+        DjangoR5ResearchControlActiveLifecycleProvider,
+    )
+
     assert tuple(signature(build_django_r5_research_control_runtime).parameters) == ("using",)
     runtime = build_django_r5_research_control_runtime()
     assert tuple(runtime.__dataclass_fields__) == ("preflight",)
+    assert type(runtime.preflight._active_lifecycle_provider) is (
+        DjangoR5ResearchControlActiveLifecycleProvider
+    )
     assert not hasattr(runtime, "register")
     assert not hasattr(runtime, "publish_current")
     assert not hasattr(runtime, "decide")

@@ -35,6 +35,13 @@ from apps.research.infrastructure.r5_relative_value_monitoring_repository import
     DjangoR5MonitoringRepository,
     _build_r5_monitoring_writer,
 )
+from apps.research.infrastructure.r5_relative_value_promotion_models import (
+    R5PromotionArtifactModel,
+    R5PromotionDecisionAuthorizationModel,
+    R5PromotionDecisionBundleModel,
+    R5PromotionLifecycleAuthorizationModel,
+    R5PromotionLifecycleEventModel,
+)
 from apps.research.r5_research_control_composition import (
     build_django_r5_research_control_runtime,
 )
@@ -118,6 +125,11 @@ def test_public_runtime_is_empty_database_blocked_and_zero_write() -> None:
     before = (
         R5MonitoringAssessmentLedgerModel._default_manager.count(),
         R5MonitoringObservationLedgerModel._default_manager.count(),
+        R5PromotionArtifactModel._default_manager.count(),
+        R5PromotionDecisionAuthorizationModel._default_manager.count(),
+        R5PromotionDecisionBundleModel._default_manager.count(),
+        R5PromotionLifecycleAuthorizationModel._default_manager.count(),
+        R5PromotionLifecycleEventModel._default_manager.count(),
     )
     runtime = build_django_r5_research_control_runtime()
 
@@ -133,4 +145,9 @@ def test_public_runtime_is_empty_database_blocked_and_zero_write() -> None:
     assert (
         R5MonitoringAssessmentLedgerModel._default_manager.count(),
         R5MonitoringObservationLedgerModel._default_manager.count(),
+        R5PromotionArtifactModel._default_manager.count(),
+        R5PromotionDecisionAuthorizationModel._default_manager.count(),
+        R5PromotionDecisionBundleModel._default_manager.count(),
+        R5PromotionLifecycleAuthorizationModel._default_manager.count(),
+        R5PromotionLifecycleEventModel._default_manager.count(),
     ) == before
