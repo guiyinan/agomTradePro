@@ -26,6 +26,12 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-08-12
+
+- 依赖技术债完成结构性收口：当前 App 静态依赖图保持 `0` 个双向依赖、`0` 个循环组件，Data Center、Equity、Research、Portfolio、Broker、Macro Factor 与 Regime 的跨模块装配统一经 owner-owned provider 或 `core/integration/*` 中立边界
+- 治理与投研能力按阶段归档，已实现计划从 `docs/plans/` 迁入归档索引；未闭合的真实数据、Publication、Promotion 与 consumer 接线继续保留为可追踪备忘录，不会被误标为完成
+- 开发分支完成再次清理：已合入的短期 `dev/*` 分支删除，`dev/next-development` 作为唯一开发集成主线；Architecture、Consistency、Security 与 Fast Feedback（Python 3.11/3.13、完整 mypy 债务门）均已通过
+
 ### 2026-07-30
 
 - 仓库分支完成集中收口：已验证的治理、TUI 迁移和质量整改统一汇入 `dev/next-development`，并在回归通过后将 `main` 快进到同一提交；长期主线保持为稳定展示的 `main` 与持续治理的 `dev/next-development`
@@ -300,7 +306,7 @@ AgomTradePro 和大多数“量化工具 / AI 投研 demo / 股票分析面板�
 - AI 原生能力已成型：**治理化 MCP、Agents SDK Terminal、Agent Runtime、Capability Catalog**
 - 生产运行闭环继续完善：价格流、WebSocket、告警订阅、受控事件回放、任务监控与 readiness 证据已进入统一治理链路
 - 模块职责进一步独立：估值引擎与生产就绪验收分别收口到 `valuation` 和 `operational_readiness`
-- 架构治理保持硬约束：App 级双向依赖、循环组件与大文件治理豁免当前均已清零
+- 架构治理保持硬约束：App 级双向依赖、循环组件、大文件治理豁免与生产 mypy 新增债务当前均为零，并由 CI 锁定
 - 仍在持续完善：更多 public demo 场景、README/文档国际化、AgomTUI 可移植性与运维自动化
 
 ---

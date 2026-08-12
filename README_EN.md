@@ -26,6 +26,12 @@
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
 
+### 2026-08-12
+
+- Dependency debt has been structurally closed: the static app graph remains at `0` bidirectional dependencies and `0` cycle components, while cross-module composition across Data Center, Equity, Research, Portfolio, Broker, Macro Factor, and Regime now uses owner-provided factories or neutral `core/integration/*` boundaries
+- Governance and research work is archived by completed stage; implemented plans have moved out of `docs/plans/`, while remaining real-data, Publication, Promotion, and consumer wiring requirements stay visible as tracked follow-up work instead of being marked complete
+- Development branches were consolidated again: merged short-lived `dev/*` branches were removed, leaving `dev/next-development` as the integration line; Architecture, Consistency, Security, and Fast Feedback—including Python 3.11/3.13 and the full mypy debt ceiling—are green
+
 ### 2026-07-30
 
 - Repository branches have been consolidated: verified governance, TUI migration, and quality-remediation work now converges on `dev/next-development`, with `main` fast-forwarded to the same tested commit; the two long-lived lines remain stable `main` and continuously governed `dev/next-development`
