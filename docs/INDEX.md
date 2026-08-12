@@ -146,7 +146,7 @@
 | [web-to-tui-m2-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m2-consolidated-evidence-2026-07-26.md) | **Web → TUI M2 合并证据（W1-W20，15 份原始 wave 记录与 SHA-256 清单）** | ✅ M2 已完成并归档 |
 | [web-to-tui-m3-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m3-consolidated-evidence-2026-07-26.md) | **Web → TUI M3 合并证据（W21-W42，22 份原始 wave 记录与 SHA-256 清单）** | ✅ M3 已完成并归档 |
 | [web-to-tui-m4-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md) | **Web → TUI M4 合并证据（W43-W51，9 份原始 wave 记录与 SHA-256 清单）** | ✅ M4 已完成并归档 |
-| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；candidate 证据 recorder/部署证明/M5-B guard 已加固；wave ledger recorder、真实候选与观察窗口待补 |
+| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；candidate/deployment/M5-B wave recorders 与 guards 已加固；真实候选部署、观察窗口和逐波生产证据待补 |
 | [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | 历史只读记录；不代表 2026-08-13 当前线上版本，不计入 cutover gate |
 | [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 当前生产 Preflight（公开探针 + 只读 release/OCI 核对）** | health/ready 正常；OCI revision=`unknown` 且无 source manifest，候选身份不可证明，观察未开始 |
 | [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | 历史记录不再算当前 gate；v2 candidate-bound 本地演练已修复，最终候选/生产备份恢复待验 |

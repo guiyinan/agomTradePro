@@ -55,9 +55,9 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
 - UAT/cleanup/rollback candidate recorder 已实现：固定执行套件并重解析 JUnit，任何
   failure/error/skip 都拒绝写入；rollback 只接受 drill v2 exact binding，CLI 不接受自报
   `passed`。结构报告有独立 JSON Schema，专属测试 `5 passed`。
-- 当前 cutover candidate 未建立，真实 recorder 实测按设计 FAIL 且不写 evidence，readiness
-  仍安全 DENY。另外仍缺 M5-B 删除后的 cleanup wave/rollback manifest/48h observation ledger
-  recorder，不能用 candidate cleanup report 冒充每波生产观察。
+- 当前 cutover candidate 未建立，candidate recorder 实测按设计 FAIL 且不写 evidence，readiness
+  仍安全 DENY。M5-B wave recorder 已补齐，但当前没有删除候选、部署 attestation 或 48h 原始
+  生产记录，不能用 candidate cleanup report 冒充每波生产观察。
 
 ### 2026-08-13：candidate-bound rollback drill v2
 
@@ -76,6 +76,14 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
 - 最终模式精确要求 41 个 C 档物理模板，A/B/D 全部 `deleted`，并扫描已删模板的活 view/route literal、孤儿静态资产及 published legacy alias 的 canonical target 与生产代码消费者。
 - 当前普通检查通过（196 行，A=131/B=17/C=41/D=7）；最终模式按设计 DENY，148 个 A/B 模板尚未完成 lifecycle。32 个 alias 中另有 11 个没有活生产代码引用，`capability-router.gateway` target dangling。
 - 门禁专属测试 `10 passed`；当前机器缺 Django runtime，历史 inventory rebuild 的 Django resolver 用例未纳入本次专属测试。静态引用扫描不替代生产流量证明，真实 alias 删除仍须进入逐波观察与回滚证据。
+
+### 2026-08-13：M5-B cleanup wave recorder
+
+- recorder 从 candidate Git snapshot 重算每波新增删除、连续 wave、1–10 route、telemetry task coverage 与 rollback commit，不接受 caller 自报 scope 或 `passed`。
+- 必须提供已提交的 production deployment preflight；stable version、source commit 与 OCI revision 均精确绑定删除候选，attestation commit 位于 candidate 之后且不晚于观察开始。
+- candidate observation 必须发生在 deployment verification 之后且不少于 48 小时；telemetry、P0/P1 tracker 与 scheduled cycle 原始记录分别按 exact schema 重算，窗口/候选/任务集合不一致即失败。
+- 三个 wave artifact 先写 SHA，cutover evidence 原子替换失败时回收本次 artifact；专属测试 `14 passed`，strict mypy、Black、isort、schemas、compile 与 diff check 通过。
+- 当前仓库没有 M5-B 删除候选和对应生产证据，真实 CLI 保持 FAIL；本实现只关闭 recorder 缺口，不代表任何 wave 已观察或获准删除。
 
 - M4：17/17 个 B 类 route template 已迁移，0 backlog；完整 TUI Workbench 加操作组
   非 sticky 回归现为 `240 passed`。

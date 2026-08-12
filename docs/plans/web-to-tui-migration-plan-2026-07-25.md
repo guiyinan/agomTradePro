@@ -355,6 +355,8 @@ python tui-metadata-compiler/scripts/publish_tui_metadata.py \
 
 2026-08-13 已增加独立 M5-C 最终库存模式 `python scripts/web_template_migration_inventory.py --require-finalized`。普通 `--check` 继续只验证迁移期 196 行冻结台账；最终模式另要求物理模板精确等于 41 个 C 档路径、A/B/D lifecycle 全为 `deleted`，并拒绝已删模板残留 view/route literal、仅由已删模板消费的静态资产、无活生产代码消费者或指向非 canonical screen 的 legacy alias。当前普通检查通过；最终模式按设计失败，原因包括 148 个 A/B 模板尚未完成 lifecycle。published graph 当前 32 个 legacy alias 中另有 11 个无活生产代码引用、1 个 dangling，均须在真实流量观察与各 wave 证明后清理，不能据静态扫描提前删除。
 
+同日新增 `record_web_to_tui_cleanup_wave.py` 与结构化 schema，正式承接 M5-B 每波记录。recorder 从 immutable candidate Git snapshot 重算新增删除、连续 wave、route 数、catalog task 和 rollback commit；每次只允许新增一个 wave且 route page 为 1–10 个。它强制读取已提交的 production deployment preflight，并要求 source commit/OCI revision 精确等于删除候选；deployment attestation 必须在 candidate 之后、观察开始之前提交，48 小时窗口不得早于部署核验。telemetry、P0/P1 defect tracker 与 scheduled cycle 三类原始证据均按 exact schema 重算，caller 不能提交 `passed` 或自报日期。当前无 M5-B 删除候选，CLI 按设计返回 FAIL，不产生证据。
+
 ## 8. Web 保留清单（C 档，当前 41 个）
 
 | 保留域 | 模板范围 | 数量 | 默认 owner | 保留理由 |
