@@ -1,20 +1,20 @@
 {
   "counts": {
     "by_category": {
-      "admin_surface": 14,
+      "admin_surface": 13,
       "agent_skill": 3,
-      "application_consumer": 157,
+      "application_consumer": 156,
       "beat_schedule": 57,
       "capability_runtime": 25,
       "celery_dispatch_edge": 18,
       "celery_task": 122,
-      "compatibility_facade": 91,
+      "compatibility_facade": 90,
       "current_data_surface": 46,
       "dynamic_import_edge": 8,
       "management_command": 25,
       "management_command_edge": 56,
       "mcp_tool": 40,
-      "migration_evidence": 13,
+      "migration_evidence": 14,
       "operational_dispatch_edge": 60,
       "operational_script": 28,
       "orchestration_entry": 8,
@@ -25,19 +25,18 @@
       "scheduler_writer": 16,
       "script": 3,
       "sdk": 46,
-      "system_settings_compatibility": 7,
       "terminal_tui": 28,
       "test_evidence": 32,
       "workflow_step": 9
     },
     "by_status": {
-      "active_public": 668,
+      "active_public": 695,
       "adjacent_operational": 282,
-      "candidate-review": 0,
-      "compatibility": 170,
+      "candidate-review": 1,
+      "compatibility": 133,
       "retired_blocked": 0
     },
-    "total": 1120
+    "total": 1111
   },
   "entries": [
     {
@@ -79,16 +78,6 @@
       "status": "active_public",
       "symbol": "DataOwnerRegistrationAdmin",
       "target": "DataOwnerRegistrationModel"
-    },
-    {
-      "category": "admin_surface",
-      "evidence": "Data/Config Center-owned Django Admin registration",
-      "id": "admin_surface:apps/data_center/interface/admin.py:DataProviderSettingsAdmin:DataProviderSettingsModel",
-      "locator": "DataProviderSettingsModel",
-      "path": "apps/data_center/interface/admin.py",
-      "status": "active_public",
-      "symbol": "DataProviderSettingsAdmin",
-      "target": "DataProviderSettingsModel"
     },
     {
       "category": "admin_surface",
@@ -493,16 +482,6 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/config_center/infrastructure/repositories.py:get_provider_settings_payload:line:44",
-      "locator": "line:44",
-      "path": "apps/config_center/infrastructure/repositories.py",
-      "status": "active_public",
-      "symbol": "get_provider_settings_payload",
-      "target": ""
-    },
-    {
-      "category": "application_consumer",
-      "evidence": "canonical Data Center Application Public Port import",
       "id": "application_consumer:apps/dashboard/application/integration_gateways.py:get_published_macro_fact_series:line:314",
       "locator": "line:314",
       "path": "apps/dashboard/application/integration_gateways.py",
@@ -533,8 +512,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/dashboard/infrastructure/repositories.py:update_asset_display_name:line:24",
-      "locator": "line:24",
+      "id": "application_consumer:apps/dashboard/infrastructure/repositories.py:update_asset_display_name:line:31",
+      "locator": "line:31",
       "path": "apps/dashboard/infrastructure/repositories.py",
       "status": "active_public",
       "symbol": "update_asset_display_name",
@@ -1783,9 +1762,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:audit_decision_readiness_task:decision-readiness-fail-closed-audit",
+      "id": "beat_schedule:core/settings/celery_schedule.py:audit_decision_readiness_task:decision-readiness-fail-closed-audit",
       "locator": "decision-readiness-fail-closed-audit",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "audit_decision_readiness_task",
       "target": "apps.config_center.application.decision_readiness_guard_tasks.audit_decision_readiness_task"
@@ -1793,9 +1772,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:auto_assign_pending_audits_task:policy-review-auto-assign",
+      "id": "beat_schedule:core/settings/celery_schedule.py:auto_assign_pending_audits_task:policy-review-auto-assign",
       "locator": "policy-review-auto-assign",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "auto_assign_pending_audits_task",
       "target": "apps.policy.application.tasks.auto_assign_pending_audits_task"
@@ -1803,9 +1782,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:auto_sync_due_macro_indicators:auto-sync-due-macro-indicators",
+      "id": "beat_schedule:core/settings/celery_schedule.py:auto_sync_due_macro_indicators:auto-sync-due-macro-indicators",
       "locator": "auto-sync-due-macro-indicators",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "auto_sync_due_macro_indicators",
       "target": "apps.macro.application.tasks.auto_sync_due_macro_indicators"
@@ -1813,9 +1792,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:backup_database_task:database-daily-backup",
+      "id": "beat_schedule:core/settings/celery_schedule.py:backup_database_task:database-daily-backup",
       "locator": "database-daily-backup",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "backup_database_task",
       "target": "apps.task_monitor.application.tasks.backup_database_task"
@@ -1823,9 +1802,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:calculate_all_performance_task:simulated-weekly-performance",
+      "id": "beat_schedule:core/settings/celery_schedule.py:calculate_all_performance_task:simulated-weekly-performance",
       "locator": "simulated-weekly-performance",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "calculate_all_performance_task",
       "target": "apps.simulated_trading.application.tasks.calculate_all_performance_task"
@@ -1833,9 +1812,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:calculate_ic_drift:alpha-calculate-ic-drift",
+      "id": "beat_schedule:core/settings/celery_schedule.py:calculate_ic_drift:alpha-calculate-ic-drift",
       "locator": "alpha-calculate-ic-drift",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "calculate_ic_drift",
       "target": "alpha.monitor.calculate_ic_drift"
@@ -1843,9 +1822,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:calculate_weekly:pulse-weekly-calculate",
+      "id": "beat_schedule:core/settings/celery_schedule.py:calculate_weekly:pulse-weekly-calculate",
       "locator": "pulse-weekly-calculate",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "calculate_weekly",
       "target": "pulse.calculate_weekly"
@@ -1853,9 +1832,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:check_all_invalidations:daily-signal-invalidation",
+      "id": "beat_schedule:core/settings/celery_schedule.py:check_all_invalidations:daily-signal-invalidation",
       "locator": "daily-signal-invalidation",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "check_all_invalidations",
       "target": "signal.check_all_invalidations"
@@ -1863,9 +1842,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:check_data_freshness:check-data-freshness",
+      "id": "beat_schedule:core/settings/celery_schedule.py:check_data_freshness:check-data-freshness",
       "locator": "check-data-freshness",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "check_data_freshness",
       "target": "apps.macro.application.tasks.check_data_freshness"
@@ -1873,9 +1852,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:check_position_invalidation_task:simulated-check-position-invalidation-afternoon",
+      "id": "beat_schedule:core/settings/celery_schedule.py:check_position_invalidation_task:simulated-check-position-invalidation-afternoon",
       "locator": "simulated-check-position-invalidation-afternoon",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "check_position_invalidation_task",
       "target": "apps.simulated_trading.application.tasks.check_position_invalidation_task"
@@ -1883,9 +1862,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:check_position_invalidation_task:simulated-check-position-invalidation-morning",
+      "id": "beat_schedule:core/settings/celery_schedule.py:check_position_invalidation_task:simulated-check-position-invalidation-morning",
       "locator": "simulated-check-position-invalidation-morning",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "check_position_invalidation_task",
       "target": "apps.simulated_trading.application.tasks.check_position_invalidation_task"
@@ -1893,9 +1872,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:check_queue_lag:alpha-check-queue-lag",
+      "id": "beat_schedule:core/settings/celery_schedule.py:check_queue_lag:alpha-check-queue-lag",
       "locator": "alpha-check-queue-lag",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "check_queue_lag",
       "target": "alpha.monitor.check_queue_lag"
@@ -1903,9 +1882,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:check_regime_health:check-regime-health",
+      "id": "beat_schedule:core/settings/celery_schedule.py:check_regime_health:check-regime-health",
       "locator": "check-regime-health",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "check_regime_health",
       "target": "apps.regime.application.tasks.check_regime_health"
@@ -1913,9 +1892,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:check_stop_loss_and_take_profit_task:account-check-stop-loss-take-profit-intraday",
+      "id": "beat_schedule:core/settings/celery_schedule.py:check_stop_loss_and_take_profit_task:account-check-stop-loss-take-profit-intraday",
       "locator": "account-check-stop-loss-take-profit-intraday",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "check_stop_loss_and_take_profit_task",
       "target": "apps.account.application.tasks.check_stop_loss_and_take_profit_task"
@@ -1923,9 +1902,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:cleanup_inactive_accounts_task:simulated-cleanup-accounts",
+      "id": "beat_schedule:core/settings/celery_schedule.py:cleanup_inactive_accounts_task:simulated-cleanup-accounts",
       "locator": "simulated-cleanup-accounts",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "cleanup_inactive_accounts_task",
       "target": "apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task"
@@ -1933,9 +1912,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:cleanup_old_metrics:alpha-cleanup-metrics",
+      "id": "beat_schedule:core/settings/celery_schedule.py:cleanup_old_metrics:alpha-cleanup-metrics",
       "locator": "alpha-cleanup-metrics",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "cleanup_old_metrics",
       "target": "alpha.monitor.cleanup_old_metrics"
@@ -1943,9 +1922,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:cleanup_old_task_records:task-monitor-cleanup",
+      "id": "beat_schedule:core/settings/celery_schedule.py:cleanup_old_task_records:task-monitor-cleanup",
       "locator": "task-monitor-cleanup",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "cleanup_old_task_records",
       "target": "apps.task_monitor.application.tasks.cleanup_old_task_records"
@@ -1953,9 +1932,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:collect_storage_capacity_profile_task:config-center-storage-capacity-profile-hourly",
+      "id": "beat_schedule:core/settings/celery_schedule.py:collect_storage_capacity_profile_task:config-center-storage-capacity-profile-hourly",
       "locator": "config-center-storage-capacity-profile-hourly",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "collect_storage_capacity_profile_task",
       "target": "apps.config_center.application.tasks.collect_storage_capacity_profile_task"
@@ -1963,9 +1942,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:daily_auto_trading_task:simulated-daily-auto-trading",
+      "id": "beat_schedule:core/settings/celery_schedule.py:daily_auto_trading_task:simulated-daily-auto-trading",
       "locator": "simulated-daily-auto-trading",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "daily_auto_trading_task",
       "target": "apps.simulated_trading.application.tasks.daily_auto_trading_task"
@@ -1973,9 +1952,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:daily_portfolio_inspection:simulated-daily-inspection",
+      "id": "beat_schedule:core/settings/celery_schedule.py:daily_portfolio_inspection:simulated-daily-inspection",
       "locator": "simulated-daily-inspection",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "daily_portfolio_inspection",
       "target": "simulated.daily_portfolio_inspection"
@@ -1983,9 +1962,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:daily_summary:daily-signal-summary",
+      "id": "beat_schedule:core/settings/celery_schedule.py:daily_summary:daily-signal-summary",
       "locator": "daily-signal-summary",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "daily_summary",
       "target": "signal.daily_summary"
@@ -1993,9 +1972,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:evaluate_alerts:alpha-evaluate-alerts",
+      "id": "beat_schedule:core/settings/celery_schedule.py:evaluate_alerts:alpha-evaluate-alerts",
       "locator": "alpha-evaluate-alerts",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "evaluate_alerts",
       "target": "alpha.monitor.evaluate_alerts"
@@ -2003,9 +1982,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:fetch_rss_sources:policy-fetch-rss-sources",
+      "id": "beat_schedule:core/settings/celery_schedule.py:fetch_rss_sources:policy-fetch-rss-sources",
       "locator": "policy-fetch-rss-sources",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "fetch_rss_sources",
       "target": "apps.policy.application.tasks.fetch_rss_sources"
@@ -2013,9 +1992,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:generate_daily_regime_signal:high-frequency-generate-signal",
+      "id": "beat_schedule:core/settings/celery_schedule.py:generate_daily_regime_signal:high-frequency-generate-signal",
       "locator": "high-frequency-generate-signal",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "generate_daily_regime_signal",
       "target": "apps.regime.application.orchestration.generate_daily_regime_signal"
@@ -2023,9 +2002,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:generate_daily_report:alpha-daily-report",
+      "id": "beat_schedule:core/settings/celery_schedule.py:generate_daily_report:alpha-daily-report",
       "locator": "alpha-daily-report",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "generate_daily_report",
       "target": "alpha.monitor.generate_daily_report"
@@ -2033,9 +2012,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:generate_reconciliation_runs:broker-execution-reconciliation-eod",
+      "id": "beat_schedule:core/settings/celery_schedule.py:generate_reconciliation_runs:broker-execution-reconciliation-eod",
       "locator": "broker-execution-reconciliation-eod",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "generate_reconciliation_runs",
       "target": "broker_execution.generate_reconciliation_runs"
@@ -2043,9 +2022,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:generate_reconciliation_runs:broker-execution-reconciliation-intraday",
+      "id": "beat_schedule:core/settings/celery_schedule.py:generate_reconciliation_runs:broker-execution-reconciliation-intraday",
       "locator": "broker-execution-reconciliation-intraday",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "generate_reconciliation_runs",
       "target": "broker_execution.generate_reconciliation_runs"
@@ -2053,9 +2032,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:monitor_sla_exceeded_task:policy-sla-monitor",
+      "id": "beat_schedule:core/settings/celery_schedule.py:monitor_sla_exceeded_task:policy-sla-monitor",
       "locator": "policy-sla-monitor",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "monitor_sla_exceeded_task",
       "target": "apps.policy.application.tasks.monitor_sla_exceeded_task"
@@ -2063,9 +2042,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:notify_invalidated_positions_task:simulated-notify-invalidated-positions",
+      "id": "beat_schedule:core/settings/celery_schedule.py:notify_invalidated_positions_task:simulated-notify-invalidated-positions",
       "locator": "simulated-notify-invalidated-positions",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "notify_invalidated_positions_task",
       "target": "apps.simulated_trading.application.tasks.notify_invalidated_positions_task"
@@ -2073,9 +2052,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:plan_retention_task:data-center-retention-preview-asset-master",
+      "id": "beat_schedule:core/settings/celery_schedule.py:plan_retention_task:data-center-retention-preview-asset-master",
       "locator": "data-center-retention-preview-asset-master",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "plan_retention_task",
       "target": "apps.data_center.application.tasks.plan_retention_task"
@@ -2083,9 +2062,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:plan_retention_task:data-center-retention-preview-capital-flow",
+      "id": "beat_schedule:core/settings/celery_schedule.py:plan_retention_task:data-center-retention-preview-capital-flow",
       "locator": "data-center-retention-preview-capital-flow",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "plan_retention_task",
       "target": "apps.data_center.application.tasks.plan_retention_task"
@@ -2093,9 +2072,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:plan_retention_task:data-center-retention-preview-financial-fact",
+      "id": "beat_schedule:core/settings/celery_schedule.py:plan_retention_task:data-center-retention-preview-financial-fact",
       "locator": "data-center-retention-preview-financial-fact",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "plan_retention_task",
       "target": "apps.data_center.application.tasks.plan_retention_task"
@@ -2103,9 +2082,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:plan_retention_task:data-center-retention-preview-fund-nav",
+      "id": "beat_schedule:core/settings/celery_schedule.py:plan_retention_task:data-center-retention-preview-fund-nav",
       "locator": "data-center-retention-preview-fund-nav",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "plan_retention_task",
       "target": "apps.data_center.application.tasks.plan_retention_task"
@@ -2113,9 +2092,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:plan_retention_task:data-center-retention-preview-macro-fact",
+      "id": "beat_schedule:core/settings/celery_schedule.py:plan_retention_task:data-center-retention-preview-macro-fact",
       "locator": "data-center-retention-preview-macro-fact",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "plan_retention_task",
       "target": "apps.data_center.application.tasks.plan_retention_task"
@@ -2123,9 +2102,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:plan_retention_task:data-center-retention-preview-market-news",
+      "id": "beat_schedule:core/settings/celery_schedule.py:plan_retention_task:data-center-retention-preview-market-news",
       "locator": "data-center-retention-preview-market-news",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "plan_retention_task",
       "target": "apps.data_center.application.tasks.plan_retention_task"
@@ -2133,9 +2112,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:plan_retention_task:data-center-retention-preview-price-bars",
+      "id": "beat_schedule:core/settings/celery_schedule.py:plan_retention_task:data-center-retention-preview-price-bars",
       "locator": "data-center-retention-preview-price-bars",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "plan_retention_task",
       "target": "apps.data_center.application.tasks.plan_retention_task"
@@ -2143,9 +2122,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:plan_retention_task:data-center-retention-preview-quote-snapshot",
+      "id": "beat_schedule:core/settings/celery_schedule.py:plan_retention_task:data-center-retention-preview-quote-snapshot",
       "locator": "data-center-retention-preview-quote-snapshot",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "plan_retention_task",
       "target": "apps.data_center.application.tasks.plan_retention_task"
@@ -2153,9 +2132,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:plan_retention_task:data-center-retention-preview-sector-membership",
+      "id": "beat_schedule:core/settings/celery_schedule.py:plan_retention_task:data-center-retention-preview-sector-membership",
       "locator": "data-center-retention-preview-sector-membership",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "plan_retention_task",
       "target": "apps.data_center.application.tasks.plan_retention_task"
@@ -2163,9 +2142,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:plan_retention_task:data-center-retention-preview-valuation-fact",
+      "id": "beat_schedule:core/settings/celery_schedule.py:plan_retention_task:data-center-retention-preview-valuation-fact",
       "locator": "data-center-retention-preview-valuation-fact",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "plan_retention_task",
       "target": "apps.data_center.application.tasks.plan_retention_task"
@@ -2173,9 +2152,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:qlib_daily_scoped_inference:qlib-daily-scoped-inference",
+      "id": "beat_schedule:core/settings/celery_schedule.py:qlib_daily_scoped_inference:qlib-daily-scoped-inference",
       "locator": "qlib-daily-scoped-inference",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "qlib_daily_scoped_inference",
       "target": "apps.alpha.application.tasks.qlib_daily_scoped_inference"
@@ -2183,9 +2162,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:qlib_daily_scoped_inference:qlib-post-close-scoped-inference-recovery",
+      "id": "beat_schedule:core/settings/celery_schedule.py:qlib_daily_scoped_inference:qlib-post-close-scoped-inference-recovery",
       "locator": "qlib-post-close-scoped-inference-recovery",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "qlib_daily_scoped_inference",
       "target": "apps.alpha.application.tasks.qlib_daily_scoped_inference"
@@ -2193,9 +2172,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:qlib_refresh_cache:qlib-weekly-cache-refresh",
+      "id": "beat_schedule:core/settings/celery_schedule.py:qlib_refresh_cache:qlib-weekly-cache-refresh",
       "locator": "qlib-weekly-cache-refresh",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "qlib_refresh_cache",
       "target": "apps.alpha.application.tasks.qlib_refresh_cache"
@@ -2203,9 +2182,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:recalculate_regime_with_daily_signal:high-frequency-recalculate-regime",
+      "id": "beat_schedule:core/settings/celery_schedule.py:recalculate_regime_with_daily_signal:high-frequency-recalculate-regime",
       "locator": "high-frequency-recalculate-regime",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "recalculate_regime_with_daily_signal",
       "target": "apps.regime.application.orchestration.recalculate_regime_with_daily_signal"
@@ -2213,9 +2192,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:refresh_current_sentiment_index:sentiment-refresh-current-index",
+      "id": "beat_schedule:core/settings/celery_schedule.py:refresh_current_sentiment_index:sentiment-refresh-current-index",
       "locator": "sentiment-refresh-current-index",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "refresh_current_sentiment_index",
       "target": "sentiment.refresh_current_sentiment_index"
@@ -2223,9 +2202,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:refresh_gate_constraints_task:policy-gate-refresh",
+      "id": "beat_schedule:core/settings/celery_schedule.py:refresh_gate_constraints_task:policy-gate-refresh",
       "locator": "policy-gate-refresh",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "refresh_gate_constraints_task",
       "target": "apps.policy.application.tasks.refresh_gate_constraints_task"
@@ -2233,9 +2212,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:refresh_market_thermometer_task:market-thermometer-refresh-post-close",
+      "id": "beat_schedule:core/settings/celery_schedule.py:refresh_market_thermometer_task:market-thermometer-refresh-post-close",
       "locator": "market-thermometer-refresh-post-close",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "refresh_market_thermometer_task",
       "target": "apps.data_center.application.tasks.refresh_market_thermometer_task"
@@ -2243,9 +2222,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:run_maintenance:broker-execution-maintenance",
+      "id": "beat_schedule:core/settings/celery_schedule.py:run_maintenance:broker-execution-maintenance",
       "locator": "broker-execution-maintenance",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "run_maintenance",
       "target": "broker_execution.run_maintenance"
@@ -2253,9 +2232,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:run_personal_readiness_daily_task:personal-readiness-daily-evidence",
+      "id": "beat_schedule:core/settings/celery_schedule.py:run_personal_readiness_daily_task:personal-readiness-daily-evidence",
       "locator": "personal-readiness-daily-evidence",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "run_personal_readiness_daily_task",
       "target": "apps.operational_readiness.application.tasks.run_personal_readiness_daily_task"
@@ -2263,9 +2242,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:send_database_backup_email_task:send-database-backup-email",
+      "id": "beat_schedule:core/settings/celery_schedule.py:send_database_backup_email_task:send-database-backup-email",
       "locator": "send-database-backup-email",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "send_database_backup_email_task",
       "target": "apps.account.application.tasks.send_database_backup_email_task"
@@ -2273,9 +2252,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:send_performance_summary_task:simulated-daily-summary",
+      "id": "beat_schedule:core/settings/celery_schedule.py:send_performance_summary_task:simulated-daily-summary",
       "locator": "simulated-daily-summary",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "send_performance_summary_task",
       "target": "apps.simulated_trading.application.tasks.send_performance_summary_task"
@@ -2283,9 +2262,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:sync_high_frequency_bonds:high-frequency-sync-bonds",
+      "id": "beat_schedule:core/settings/celery_schedule.py:sync_high_frequency_bonds:high-frequency-sync-bonds",
       "locator": "high-frequency-sync-bonds",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "sync_high_frequency_bonds",
       "target": "apps.macro.application.tasks.sync_high_frequency_bonds"
@@ -2293,9 +2272,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:sync_high_frequency_commodities:high-frequency-sync-commodities",
+      "id": "beat_schedule:core/settings/celery_schedule.py:sync_high_frequency_commodities:high-frequency-sync-commodities",
       "locator": "high-frequency-sync-commodities",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "sync_high_frequency_commodities",
       "target": "apps.macro.application.tasks.sync_high_frequency_commodities"
@@ -2303,9 +2282,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:sync_macro_then_refresh_regime:daily-sync-and-calculate",
+      "id": "beat_schedule:core/settings/celery_schedule.py:sync_macro_then_refresh_regime:daily-sync-and-calculate",
       "locator": "daily-sync-and-calculate",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "sync_macro_then_refresh_regime",
       "target": "apps.regime.application.orchestration.sync_macro_then_refresh_regime"
@@ -2313,9 +2292,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:update_all_prices_after_close:realtime-update-prices-after-close",
+      "id": "beat_schedule:core/settings/celery_schedule.py:update_all_prices_after_close:realtime-update-prices-after-close",
       "locator": "realtime-update-prices-after-close",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "update_all_prices_after_close",
       "target": "apps.simulated_trading.application.tasks.update_all_prices_after_close"
@@ -2323,9 +2302,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:update_position_prices_task:simulated-update-prices",
+      "id": "beat_schedule:core/settings/celery_schedule.py:update_position_prices_task:simulated-update-prices",
       "locator": "simulated-update-prices",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "update_position_prices_task",
       "target": "apps.simulated_trading.application.tasks.update_position_prices_task"
@@ -2333,9 +2312,9 @@
     {
       "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
-      "id": "beat_schedule:core/settings/base.py:update_provider_metrics:alpha-update-provider-metrics",
+      "id": "beat_schedule:core/settings/celery_schedule.py:update_provider_metrics:alpha-update-provider-metrics",
       "locator": "alpha-update-provider-metrics",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "adjacent_operational",
       "symbol": "update_provider_metrics",
       "target": "alpha.monitor.update_provider_metrics"
@@ -2343,9 +2322,9 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "beat_schedule:core/settings/base.py:verify_storage_budget_task:data-center-storage-budget-check",
+      "id": "beat_schedule:core/settings/celery_schedule.py:verify_storage_budget_task:data-center-storage-budget-check",
       "locator": "data-center-storage-budget-check",
-      "path": "core/settings/base.py",
+      "path": "core/settings/celery_schedule.py",
       "status": "active_public",
       "symbol": "verify_storage_budget_task",
       "target": "apps.data_center.application.tasks.verify_storage_budget_task"
@@ -4003,16 +3982,6 @@
     {
       "category": "compatibility_facade",
       "evidence": "registered legacy Application facade pending consumer cutover",
-      "id": "compatibility_facade:apps/data_center/application/interface_services.py:can_create_provider_settings:",
-      "locator": "",
-      "path": "apps/data_center/application/interface_services.py",
-      "status": "compatibility",
-      "symbol": "can_create_provider_settings",
-      "target": ""
-    },
-    {
-      "category": "compatibility_facade",
-      "evidence": "registered legacy Application facade pending consumer cutover",
       "id": "compatibility_facade:apps/data_center/application/interface_services.py:fetch_latest_prices:",
       "locator": "",
       "path": "apps/data_center/application/interface_services.py",
@@ -4932,7 +4901,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=2",
+      "evidence": "governed current-data contract; source_files=3",
       "id": "current_data_surface:governance/current_data_contracts.json:broker_execution.live_order_quote:Live-order pre-trade quote evidence",
       "locator": "Live-order pre-trade quote evidence",
       "path": "governance/current_data_contracts.json",
@@ -4972,7 +4941,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=5",
+      "evidence": "governed current-data contract; source_files=6",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_as_of_reads:Historical financial reads preserve an explicit as-of boundary",
       "locator": "Historical financial reads preserve an explicit as-of boundary",
       "path": "governance/current_data_contracts.json",
@@ -5012,7 +4981,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=5",
+      "evidence": "governed current-data contract; source_files=6",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.public_current_read_ports:Cross-app current decision-readiness and coverage Public Ports",
       "locator": "Cross-app current decision-readiness and coverage Public Ports",
       "path": "governance/current_data_contracts.json",
@@ -5032,7 +5001,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=22",
+      "evidence": "governed current-data contract; source_files=24",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_only_d2_d3:Current quote and macro consumers use Data Center publication-only ports",
       "locator": "Current quote and macro consumers use Data Center publication-only ports",
       "path": "governance/current_data_contracts.json",
@@ -5042,7 +5011,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=12",
+      "evidence": "governed current-data contract; source_files=13",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_only_d4_d5:Current financial and valuation reads use Data Center publication-only ports",
       "locator": "Current financial and valuation reads use Data Center publication-only ports",
       "path": "governance/current_data_contracts.json",
@@ -5052,7 +5021,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=5",
+      "evidence": "governed current-data contract; source_files=6",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_only_d7_d9:Data Center Public Ports for sector membership, market news, and capital flow",
       "locator": "Data Center Public Ports for sector membership, market news, and capital flow",
       "path": "governance/current_data_contracts.json",
@@ -5062,7 +5031,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=18",
+      "evidence": "governed current-data contract; source_files=20",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_writer_atomicity:Canonical publication writer and member snapshot commit",
       "locator": "Canonical publication writer and member snapshot commit",
       "path": "governance/current_data_contracts.json",
@@ -5102,7 +5071,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=2",
+      "evidence": "governed current-data contract; source_files=3",
       "id": "current_data_surface:governance/current_data_contracts.json:equity.current_financials:Equity repository current financial context and fundamentals listing",
       "locator": "Equity repository current financial context and fundamentals listing",
       "path": "governance/current_data_contracts.json",
@@ -5112,7 +5081,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=4",
+      "evidence": "governed current-data contract; source_files=5",
       "id": "current_data_surface:governance/current_data_contracts.json:equity.current_price_context:Equity repository and asset scoring current price context",
       "locator": "Equity repository and asset scoring current price context",
       "path": "governance/current_data_contracts.json",
@@ -5122,7 +5091,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=2",
+      "evidence": "governed current-data contract; source_files=3",
       "id": "current_data_surface:governance/current_data_contracts.json:equity.current_valuation:Equity repository current valuation context and fundamentals listing",
       "locator": "Equity repository current valuation context and fundamentals listing",
       "path": "governance/current_data_contracts.json",
@@ -5232,7 +5201,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=8",
+      "evidence": "governed current-data contract; source_files=9",
       "id": "current_data_surface:governance/current_data_contracts.json:realtime.market_summary:GET /api/realtime/market-summary/ + MCP get_market_summary",
       "locator": "GET /api/realtime/market-summary/ + MCP get_market_summary",
       "path": "governance/current_data_contracts.json",
@@ -5282,7 +5251,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=11",
+      "evidence": "governed current-data contract; source_files=12",
       "id": "current_data_surface:governance/current_data_contracts.json:regime.current:GET /api/regime/current/ -> SDK/MCP/Terminal",
       "locator": "GET /api/regime/current/ -> SDK/MCP/Terminal",
       "path": "governance/current_data_contracts.json",
@@ -5373,8 +5342,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/application/interface_services.py:import_module:line:709",
-      "locator": "line:709",
+      "id": "dynamic_import_edge:apps/data_center/application/interface_services.py:import_module:line:241",
+      "locator": "line:241",
       "path": "apps/data_center/application/interface_services.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -5703,8 +5672,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command target is external or runtime-selected",
-      "id": "management_command_edge:apps/account/infrastructure/backup_service.py:dumpdata:line:221",
-      "locator": "line:221",
+      "id": "management_command_edge:apps/account/infrastructure/backup_service.py:dumpdata:line:219",
+      "locator": "line:219",
       "path": "apps/account/infrastructure/backup_service.py",
       "status": "adjacent_operational",
       "symbol": "dumpdata",
@@ -6033,8 +6002,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/alpha/management/commands/build_qlib_data.py",
-      "id": "management_command_edge:apps/data_center/application/interface_services.py:build_qlib_data:line:687",
-      "locator": "line:687",
+      "id": "management_command_edge:apps/data_center/application/interface_services.py:build_qlib_data:line:219",
+      "locator": "line:219",
       "path": "apps/data_center/application/interface_services.py",
       "status": "adjacent_operational",
       "symbol": "build_qlib_data",
@@ -6043,8 +6012,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/alpha/management/commands/build_qlib_data.py",
-      "id": "management_command_edge:apps/data_center/application/interface_services.py:build_qlib_data:line:694",
-      "locator": "line:694",
+      "id": "management_command_edge:apps/data_center/application/interface_services.py:build_qlib_data:line:226",
+      "locator": "line:226",
       "path": "apps/data_center/application/interface_services.py",
       "status": "adjacent_operational",
       "symbol": "build_qlib_data",
@@ -6778,6 +6747,16 @@
       "path": "tests/migrations/test_data_center_evaluation_actual_migration.py",
       "status": "active_public",
       "symbol": "test_data_center_evaluation_actual_migration",
+      "target": ""
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "migration_evidence:tests/migrations/test_data_center_macro_factor_research_source_migration.py:test_data_center_macro_factor_research_source_migration:",
+      "locator": "",
+      "path": "tests/migrations/test_data_center_macro_factor_research_source_migration.py",
+      "status": "candidate-review",
+      "symbol": "test_data_center_macro_factor_research_source_migration",
       "target": ""
     },
     {
@@ -9382,71 +9361,71 @@
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=4; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.allow_token_plaintext_view:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=4; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.allow_token_plaintext_view:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "account.allow_token_plaintext_view",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=2; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.auto_approve_first_admin:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=2; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.auto_approve_first_admin:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "account.auto_approve_first_admin",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=4; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.default_mcp_enabled:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=4; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.default_mcp_enabled:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "account.default_mcp_enabled",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=2; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.notes:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=2; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.notes:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "account.notes",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=3; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.require_user_approval:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=3; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.require_user_approval:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "account.require_user_approval",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=2; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.risk_warning_content:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=2; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.risk_warning_content:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "account.risk_warning_content",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=2; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.user_agreement_content:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=2; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:account.user_agreement_content:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "account.user_agreement_content",
       "target": ""
     },
@@ -9552,221 +9531,221 @@
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=alpha; consumers=2; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.runtime.fixed_provider:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=alpha; consumers=2; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.runtime.fixed_provider:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "alpha.runtime.fixed_provider",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=alpha; consumers=3; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.runtime.pool_mode:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=alpha; consumers=3; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:alpha.runtime.pool_mode:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "alpha.runtime.pool_mode",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.app_base_url:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=1; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.app_base_url:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "backup.app_base_url",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=config_center; consumers=3; migration_status=config_center_secret_owner_with_legacy_migration",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.archive_password:config_center_secret_owner_with_legacy_migration",
-      "locator": "config_center_secret_owner_with_legacy_migration",
+      "evidence": "runtime owner=config_center; consumers=3; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.archive_password:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "backup.archive_password",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.enabled:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=1; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.enabled:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "backup.enabled",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.interval_days:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=1; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.interval_days:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "backup.interval_days",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=2; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.link_ttl_days:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=2; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.link_ttl_days:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "backup.link_ttl_days",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.mail_from_email:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=1; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.mail_from_email:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "backup.mail_from_email",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.password_hint:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=1; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.password_hint:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "backup.password_hint",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=2; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.recipient_email:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=2; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.recipient_email:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "backup.recipient_email",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_host:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=1; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_host:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "backup.smtp_host",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=config_center; consumers=3; migration_status=config_center_secret_owner_with_legacy_migration",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_password:config_center_secret_owner_with_legacy_migration",
-      "locator": "config_center_secret_owner_with_legacy_migration",
+      "evidence": "runtime owner=config_center; consumers=3; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_password:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "backup.smtp_password",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_port:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=1; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_port:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "backup.smtp_port",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_use_ssl:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=1; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_use_ssl:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "backup.smtp_use_ssl",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_use_tls:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=1; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_use_tls:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "backup.smtp_use_tls",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=account; consumers=1; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_username:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=account; consumers=1; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:backup.smtp_username:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "backup.smtp_username",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=config_center; consumers=3; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.market.asset_proxy_code_map:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=config_center; consumers=3; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.market.asset_proxy_code_map:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "config_center.market.asset_proxy_code_map",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=config_center; consumers=3; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.market.benchmark_code_map:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=config_center; consumers=3; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.market.benchmark_code_map:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "config_center.market.benchmark_code_map",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=config_center; consumers=3; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.market.color_convention:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=config_center; consumers=3; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.market.color_convention:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "config_center.market.color_convention",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=data-platform; consumers=4; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:data_center.provider.default_source:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=data-platform; consumers=4; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:data_center.provider.default_source:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "data_center.provider.default_source",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=data-platform; consumers=3; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:data_center.provider.enable_failover:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=data-platform; consumers=3; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:data_center.provider.enable_failover:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "data_center.provider.enable_failover",
       "target": ""
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=data-platform; consumers=3; migration_status=consumer_cutover_in_progress",
-      "id": "runtime_config_key:governance/runtime_config_contracts.json:data_center.provider.failover_tolerance:consumer_cutover_in_progress",
-      "locator": "consumer_cutover_in_progress",
+      "evidence": "runtime owner=data-platform; consumers=3; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:data_center.provider.failover_tolerance:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",
-      "status": "compatibility",
+      "status": "active_public",
       "symbol": "data_center.provider.failover_tolerance",
       "target": ""
     },
@@ -10479,76 +10458,6 @@
       "status": "compatibility",
       "symbol": "RealtimeModule.get_price_history",
       "target": "DataCenterModule.get_price_history"
-    },
-    {
-      "category": "system_settings_compatibility",
-      "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/account/infrastructure/account_interface_administration_repository.py:SystemSettingsModel:lines:19,50,138,198,214,406,418,419,443,445,456",
-      "locator": "lines:19,50,138,198,214,406,418,419,443,445,456",
-      "path": "apps/account/infrastructure/account_interface_administration_repository.py",
-      "status": "compatibility",
-      "symbol": "SystemSettingsModel",
-      "target": ""
-    },
-    {
-      "category": "system_settings_compatibility",
-      "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/account/infrastructure/account_interface_registration_repository.py:SystemSettingsModel:lines:20,47,50,165,247,295",
-      "locator": "lines:20,47,50,165,247,295",
-      "path": "apps/account/infrastructure/account_interface_registration_repository.py",
-      "status": "compatibility",
-      "symbol": "SystemSettingsModel",
-      "target": ""
-    },
-    {
-      "category": "system_settings_compatibility",
-      "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/account/infrastructure/backup_delivery_projection.py:SystemSettingsModel:lines:8,45,51,102,106,130",
-      "locator": "lines:8,45,51,102,106,130",
-      "path": "apps/account/infrastructure/backup_delivery_projection.py",
-      "status": "compatibility",
-      "symbol": "SystemSettingsModel",
-      "target": ""
-    },
-    {
-      "category": "system_settings_compatibility",
-      "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/account/infrastructure/models.py:SystemSettingsModel:lines:7",
-      "locator": "lines:7",
-      "path": "apps/account/infrastructure/models.py",
-      "status": "compatibility",
-      "symbol": "SystemSettingsModel",
-      "target": ""
-    },
-    {
-      "category": "system_settings_compatibility",
-      "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/account/infrastructure/repositories.py:SystemSettingsModel:lines:62,731",
-      "locator": "lines:62,731",
-      "path": "apps/account/infrastructure/repositories.py",
-      "status": "compatibility",
-      "symbol": "SystemSettingsModel",
-      "target": ""
-    },
-    {
-      "category": "system_settings_compatibility",
-      "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/config_center/infrastructure/config_summary_repository.py:SystemSettingsModel:lines:14,70,121,163,169,179,190",
-      "locator": "lines:14,70,121,163,169,179,190",
-      "path": "apps/config_center/infrastructure/config_summary_repository.py",
-      "status": "compatibility",
-      "symbol": "SystemSettingsModel",
-      "target": ""
-    },
-    {
-      "category": "system_settings_compatibility",
-      "evidence": "explicit legacy singleton reference pending M9 field retirement",
-      "id": "system_settings_compatibility:apps/config_center/infrastructure/repositories.py:SystemSettingsModel:lines:37,132,133,143,160,254,255,258",
-      "locator": "lines:37,132,133,143,160,254,255,258",
-      "path": "apps/config_center/infrastructure/repositories.py",
-      "status": "compatibility",
-      "symbol": "SystemSettingsModel",
-      "target": ""
     },
     {
       "category": "terminal_tui",
