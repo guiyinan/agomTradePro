@@ -1,0 +1,533 @@
+{
+  "version": 1,
+  "updated_at": "2026-08-12",
+  "status": "first_batch_frozen_not_evidence_integrated",
+  "allowed_claim_kinds": [
+    "derived",
+    "estimate",
+    "forecast",
+    "observation",
+    "recommendation"
+  ],
+  "allowed_method_kinds": [
+    "deterministic",
+    "identity",
+    "statistical"
+  ],
+  "allowed_position_impacts": [
+    "direct",
+    "indirect"
+  ],
+  "allowed_gate_states": [
+    "not_evidence_integrated_legacy_boolean",
+    "not_evidence_integrated_legacy_ungated",
+    "not_evidence_integrated_research_only"
+  ],
+  "discovery_rules": [
+    {
+      "path": "apps/broker_execution/domain/r8_monitoring_reconciliation.py",
+      "marker_fields": ["must_not_execute", "must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/data_center/application/dtos.py",
+      "marker_fields": ["must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/data_center/domain/entities.py",
+      "marker_fields": ["must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/data_center/domain/market_structure_evidence.py",
+      "marker_fields": ["must_not_execute", "must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/decision_rhythm/application/advisor_contracts.py",
+      "marker_fields": ["order_intent_id"]
+    },
+    {
+      "path": "apps/decision_rhythm/application/dtos.py",
+      "marker_fields": ["can_enter_approval", "orders", "recommendations"]
+    },
+    {
+      "path": "apps/decision_rhythm/domain/transition_entities.py",
+      "marker_fields": ["orders"]
+    },
+    {
+      "path": "apps/policy/application/workbench_use_cases.py",
+      "marker_fields": ["must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/portfolio/domain/constrained_optimization.py",
+      "marker_fields": ["must_not_execute"]
+    },
+    {
+      "path": "apps/portfolio/domain/governed_optimization_monitoring.py",
+      "marker_fields": ["must_not_execute", "must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/portfolio/domain/macro_factor_risk_optimizer.py",
+      "marker_fields": ["must_not_execute", "must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/portfolio/domain/optimization_research_result.py",
+      "marker_fields": ["must_not_execute", "must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/pulse/application/dtos.py",
+      "marker_fields": ["transition_warning"]
+    },
+    {
+      "path": "apps/regime/application/current_regime.py",
+      "marker_fields": ["must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/regime/domain/action_mapper.py",
+      "marker_fields": ["must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/research/application/scenario_probability_research.py",
+      "marker_fields": ["must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/research/domain/advanced_state_model.py",
+      "marker_fields": ["must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/research/domain/r2_market_structure_trial_evaluation.py",
+      "marker_fields": ["must_not_execute", "must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/research/domain/r4_promotion_trial.py",
+      "marker_fields": ["must_not_execute", "must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/research/domain/r5_relative_value_promotion_trial.py",
+      "marker_fields": ["must_not_execute", "must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/signal/application/use_cases.py",
+      "marker_fields": ["is_invalidated"]
+    },
+    {
+      "path": "apps/strategy/application/dtos.py",
+      "marker_fields": ["can_execute", "decision_action"]
+    }
+  ],
+  "surfaces": [
+    {
+      "source_symbol": "apps/alpha/application/dtos.py::AlphaResultDTO",
+      "owner_app": "alpha",
+      "output_kind": "scored_forecast",
+      "claim_kind": "forecast",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["scores", "status", "timestamp"]
+    },
+    {
+      "source_symbol": "apps/broker_execution/domain/entities.py::OrderApprovalSnapshot",
+      "owner_app": "broker_execution",
+      "output_kind": "approval_snapshot",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["quantity", "risk_snapshot_json", "source_recommendation_ids"]
+    },
+    {
+      "source_symbol": "apps/broker_execution/domain/r8_monitoring_reconciliation.py::R8BrokerMonitoringPeriodReceipt",
+      "owner_app": "broker_execution",
+      "output_kind": "monitoring_assessment",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["definition", "must_not_execute", "must_not_use_for_decision"]
+    },
+    {
+      "source_symbol": "apps/data_center/application/dtos.py::DecisionReliabilityRepairReport",
+      "owner_app": "data_center",
+      "output_kind": "data_reliability",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_boolean",
+      "required_fields": ["alpha_status", "macro_status", "pulse_status", "quote_status"]
+    },
+    {
+      "source_symbol": "apps/data_center/application/dtos.py::DecisionReliabilitySection",
+      "owner_app": "data_center",
+      "output_kind": "data_reliability",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_boolean",
+      "required_fields": ["must_not_use_for_decision", "status"]
+    },
+    {
+      "source_symbol": "apps/data_center/application/dtos.py::MacroSeriesResponse",
+      "owner_app": "data_center",
+      "output_kind": "market_observation",
+      "claim_kind": "observation",
+      "method_kind": "identity",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_boolean",
+      "required_fields": ["data", "decision_grade", "must_not_use_for_decision"]
+    },
+    {
+      "source_symbol": "apps/data_center/application/dtos.py::QuoteResponse",
+      "owner_app": "data_center",
+      "output_kind": "market_observation",
+      "claim_kind": "observation",
+      "method_kind": "identity",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_boolean",
+      "required_fields": ["must_not_use_for_decision", "snapshot_at", "source"]
+    },
+    {
+      "source_symbol": "apps/data_center/domain/entities.py::MarketThermometerSnapshot",
+      "owner_app": "data_center",
+      "output_kind": "current_state",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_boolean",
+      "required_fields": ["must_not_use_for_decision", "observed_at", "score"]
+    },
+    {
+      "source_symbol": "apps/data_center/domain/market_structure_evidence.py::ImmutableMarketStructureEvidence",
+      "owner_app": "data_center",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["evidence_hash", "must_not_execute", "must_not_use_for_decision"]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/application/advisor_contracts.py::AdvisorOrderIntent",
+      "owner_app": "decision_rhythm",
+      "output_kind": "order_intent",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["delta_quantity", "order_intent_id", "side"]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/application/dtos.py::ExecutionPreviewDTO",
+      "owner_app": "decision_rhythm",
+      "output_kind": "execution_preview",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["recommendation_id", "suggested_quantity"]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/application/dtos.py::PortfolioTransitionPlanDTO",
+      "owner_app": "decision_rhythm",
+      "output_kind": "transition_plan",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["can_enter_approval", "orders", "plan_id"]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/application/dtos.py::RecommendationsListDTO",
+      "owner_app": "decision_rhythm",
+      "output_kind": "recommendation",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["recommendations", "total_count"]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/application/dtos.py::TransitionOrderDTO",
+      "owner_app": "decision_rhythm",
+      "output_kind": "transition_order",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["action", "delta_qty", "security_code"]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/application/dtos.py::UnifiedRecommendationDTO",
+      "owner_app": "decision_rhythm",
+      "output_kind": "recommendation",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["recommendation_id", "security_code", "side"]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/domain/transition_entities.py::PortfolioTransitionPlan",
+      "owner_app": "portfolio",
+      "output_kind": "transition_plan",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["orders", "plan_id", "risk_contract"]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/domain/transition_entities.py::TransitionOrder",
+      "owner_app": "portfolio",
+      "output_kind": "transition_order",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["action", "delta_qty", "target_weight"]
+    },
+    {
+      "source_symbol": "apps/policy/application/workbench_use_cases.py::SentimentGateStateOutput",
+      "owner_app": "policy",
+      "output_kind": "risk_gate_state",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_boolean",
+      "required_fields": ["max_position_cap", "must_not_use_for_decision", "signal_paused"]
+    },
+    {
+      "source_symbol": "apps/portfolio/domain/constrained_optimization.py::CandidateEvaluation",
+      "owner_app": "portfolio",
+      "output_kind": "research_assessment",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["candidate_kind", "must_not_execute", "weights"]
+    },
+    {
+      "source_symbol": "apps/portfolio/domain/constrained_optimization.py::OptimizationProblemAssessment",
+      "owner_app": "portfolio",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["must_not_execute", "problem_id", "ready_for_solver"]
+    },
+    {
+      "source_symbol": "apps/portfolio/domain/governed_optimization_monitoring.py::GovernedOptimizationMonitoringAssessment",
+      "owner_app": "portfolio",
+      "output_kind": "monitoring_assessment",
+      "claim_kind": "derived",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["must_not_execute", "must_not_use_for_decision", "status"]
+    },
+    {
+      "source_symbol": "apps/portfolio/domain/macro_factor_risk_optimizer.py::MacroRiskCandidateFamilyResult",
+      "owner_app": "portfolio",
+      "output_kind": "research_assessment",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["must_not_execute", "must_not_use_for_decision", "solutions"]
+    },
+    {
+      "source_symbol": "apps/portfolio/domain/macro_factor_risk_optimizer.py::MacroRiskCandidateSolution",
+      "owner_app": "portfolio",
+      "output_kind": "research_assessment",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["candidate", "must_not_execute", "must_not_use_for_decision"]
+    },
+    {
+      "source_symbol": "apps/portfolio/domain/optimization_research_result.py::GovernedOptimizationResearchResult",
+      "owner_app": "portfolio",
+      "output_kind": "research_assessment",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["must_not_execute", "must_not_use_for_decision", "status"]
+    },
+    {
+      "source_symbol": "apps/pulse/application/dtos.py::PulseHistoryDTO",
+      "owner_app": "pulse",
+      "output_kind": "current_state",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["observed_at", "transition_warning"]
+    },
+    {
+      "source_symbol": "apps/pulse/application/dtos.py::PulseSnapshotDTO",
+      "owner_app": "pulse",
+      "output_kind": "current_state",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_boolean",
+      "required_fields": ["is_reliable", "observed_at", "transition_warning"]
+    },
+    {
+      "source_symbol": "apps/regime/application/current_regime.py::CurrentRegimeResult",
+      "owner_app": "regime",
+      "output_kind": "current_state",
+      "claim_kind": "estimate",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_boolean",
+      "required_fields": ["dominant_regime", "must_not_use_for_decision", "observed_at"]
+    },
+    {
+      "source_symbol": "apps/regime/domain/action_mapper.py::RegimeActionRecommendation",
+      "owner_app": "regime",
+      "output_kind": "recommendation",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_boolean",
+      "required_fields": ["asset_weights", "must_not_use_for_decision", "risk_budget_pct"]
+    },
+    {
+      "source_symbol": "apps/research/application/scenario_probability_research.py::ScenarioProbabilityResearchPacket",
+      "owner_app": "research",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["calibration", "must_not_use_for_decision", "research_only"]
+    },
+    {
+      "source_symbol": "apps/research/domain/advanced_state_model.py::AdvancedStateModelAssessment",
+      "owner_app": "research",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["must_not_use_for_decision", "status"]
+    },
+    {
+      "source_symbol": "apps/research/domain/advanced_state_model.py::AdvancedStateModelCandidateEvidence",
+      "owner_app": "research",
+      "output_kind": "research_assessment",
+      "claim_kind": "estimate",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["must_not_use_for_decision", "state_distribution"]
+    },
+    {
+      "source_symbol": "apps/research/domain/r2_market_structure_trial_evaluation.py::R2ExplanatoryTrialAssessment",
+      "owner_app": "research",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["must_not_execute", "must_not_use_for_decision", "status"]
+    },
+    {
+      "source_symbol": "apps/research/domain/r2_market_structure_trial_evaluation.py::R2MonitoringAssessment",
+      "owner_app": "research",
+      "output_kind": "monitoring_assessment",
+      "claim_kind": "derived",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["must_not_execute", "must_not_use_for_decision", "status"]
+    },
+    {
+      "source_symbol": "apps/research/domain/r4_promotion_trial.py::R4PromotionTrialSeal",
+      "owner_app": "research",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["must_not_execute", "must_not_use_for_decision", "state"]
+    },
+    {
+      "source_symbol": "apps/research/domain/r5_relative_value_promotion_trial.py::R5RelativeValuePromotionTrial",
+      "owner_app": "research",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["must_not_execute", "must_not_use_for_decision", "state"]
+    },
+    {
+      "source_symbol": "apps/signal/application/use_cases.py::CheckSignalInvalidationResponse",
+      "owner_app": "signal",
+      "output_kind": "invalidation_assessment",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_boolean",
+      "required_fields": ["is_invalidated", "reason"]
+    },
+    {
+      "source_symbol": "apps/strategy/application/dtos.py::EvaluateExecutionResponseDTO",
+      "owner_app": "strategy",
+      "output_kind": "execution_decision",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_legacy_boolean",
+      "required_fields": ["action", "can_execute", "reason_codes"]
+    },
+    {
+      "source_symbol": "apps/strategy/application/dtos.py::OrderIntentResponseDTO",
+      "owner_app": "strategy",
+      "output_kind": "order_intent",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_legacy_boolean",
+      "required_fields": ["decision_action", "intent_id", "qty"]
+    },
+    {
+      "source_symbol": "apps/strategy/domain/entities.py::DecisionResult",
+      "owner_app": "strategy",
+      "output_kind": "execution_decision",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["action", "reason_codes", "valid_until"]
+    },
+    {
+      "source_symbol": "apps/strategy/domain/entities.py::OrderIntent",
+      "owner_app": "strategy",
+      "output_kind": "order_intent",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["decision", "intent_id", "sizing"]
+    },
+    {
+      "source_symbol": "apps/strategy/domain/entities.py::SignalRecommendation",
+      "owner_app": "strategy",
+      "output_kind": "recommendation",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["action", "asset_code", "confidence"]
+    }
+  ],
+  "notes": [
+    "This first batch is intentionally incomplete and focuses on outputs with explicit execution, position, recommendation, transition, or fail-closed semantics.",
+    "Inventory presence is not Evidence integration. Every current_gate_state explicitly records the remaining legacy or research-only state.",
+    "No unclassified claim_kind or method_kind is accepted by the guard. Unclear surfaces must be investigated before registration."
+  ]
+}
