@@ -9,9 +9,6 @@ from django.db.models import Q
 from apps.research.application.state_model_monitoring import (
     ActiveR6QualificationEvidence,
 )
-from apps.research.application.state_model_qualification_lifecycle import (
-    GetActiveR6Qualification,
-)
 from apps.research.domain.state_model_qualification_lifecycle import (
     R6QualificationRef,
 )
@@ -19,8 +16,7 @@ from apps.research.infrastructure.state_model_qualification_models import (
     R6QualificationAssessmentModel,
 )
 from apps.research.infrastructure.state_model_qualification_repository import (
-    DjangoR6QualificationClock,
-    DjangoR6QualificationRepository,
+    DjangoR6QualificationReadRepository,
 )
 
 
@@ -53,11 +49,11 @@ class DjangoR6ActiveQualificationExactQuery:
         R6QualificationRef.__post_init__(qualification_ref)
         if type(as_of) is not datetime or as_of.tzinfo is None or as_of.utcoffset() is None:
             raise ValueError("R6 qualification exact query as_of must be timezone-aware")
-        repository = DjangoR6QualificationRepository(using=self._using)
-        assessment = GetActiveR6Qualification(
-            repository=repository,
-            clock=DjangoR6QualificationClock(),
-        ).get_active(qualification_ref=qualification_ref, as_of=as_of)
+        repository = DjangoR6QualificationReadRepository(using=self._using)
+        assessment = repository.get_active(
+            qualification_ref=qualification_ref,
+            as_of=as_of,
+        )
         if assessment is None:
             return None
         candidates = tuple(

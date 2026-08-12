@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from apps.research.application.state_model_qualification_lifecycle import (
     ApplyR6QualificationLifecycle,
@@ -28,7 +29,7 @@ from apps.research.infrastructure.state_model_qualification_models import (
     R6QualificationAssessmentModel,
 )
 from apps.research.infrastructure.state_model_qualification_repository import (
-    DjangoR6QualificationRepository,
+    DjangoR6QualificationReadRepository,
     _DjangoR6QualificationStore,
 )
 from tests.unit.research.advanced_state_model_factories import NOW
@@ -105,7 +106,7 @@ def test_exact_pit_and_append_only_guards() -> None:
         ),
         assessment.content_hash,
     )
-    repository = DjangoR6QualificationRepository(clock=clock)
+    repository = DjangoR6QualificationReadRepository()
     assert repository.get_exact(assessment_ref=ref, as_of=clock.now()) == persisted
     assert (
         repository.get_exact(
@@ -115,7 +116,10 @@ def test_exact_pit_and_append_only_guards() -> None:
         is None
     )
     with pytest.raises(R6QualificationUnavailable):
-        repository.get_exact(assessment_ref=ref, as_of=clock.now() + timedelta(seconds=1))
+        repository.get_exact(
+            assessment_ref=ref,
+            as_of=timezone.now() + timedelta(days=1),
+        )
 
     model = R6QualificationAssessmentModel._default_manager.get(assessment_id=ref.assessment_id)
     with pytest.raises(ValidationError):
@@ -135,7 +139,7 @@ def test_audit_cursor_is_stable_and_pit_bounded() -> None:
     with store.atomic():
         store.append_assessment(first)
         store.append_assessment(second)
-    monitor = MonitorR6Qualification(DjangoR6QualificationRepository(clock=clock))
+    monitor = MonitorR6Qualification(store)
     page = monitor.execute(as_of=clock.now(), limit=1)
     assert len(page.entries) == 1
     assert page.next_cursor is not None

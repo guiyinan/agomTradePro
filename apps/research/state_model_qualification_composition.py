@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol
+from typing import NoReturn, Protocol
 
 from apps.research.application.state_model_qualification import (
     AssessStateModelQualificationCommand,
@@ -19,6 +19,7 @@ from apps.research.application.state_model_qualification import (
 )
 from apps.research.application.state_model_qualification_lifecycle import (
     ApplyR6QualificationLifecycle,
+    ApplyR6QualificationLifecycleCommand,
     GetActiveR6Qualification,
     R6QualificationAuthorizationRef,
     R6QualificationClock,
@@ -28,6 +29,8 @@ from apps.research.application.state_model_qualification_lifecycle import (
 from apps.research.application.state_model_qualification_persistence import (
     GetExactR6QualificationAssessment,
     MonitorR6Qualification,
+    R6QualificationAuditPage,
+    R6QualificationUnavailable,
     RegisterR6QualificationAssessment,
     RegisterR6QualificationAssessmentCommand,
 )
@@ -51,7 +54,7 @@ from apps.research.infrastructure.state_model_qualification_models import (
 )
 from apps.research.infrastructure.state_model_qualification_repository import (
     DjangoR6QualificationClock,
-    DjangoR6QualificationRepository,
+    DjangoR6QualificationReadRepository,
     _DjangoR6QualificationStore,
 )
 
@@ -181,7 +184,7 @@ class _HybridR6QualificationAuthorizationProvider:
         self,
         *,
         source: _R6QualificationAuthorizationSource,
-        repository: DjangoR6QualificationRepository,
+        repository: _DjangoR6QualificationStore,
     ) -> None:
         self._source = source
         self._repository = repository
@@ -255,9 +258,137 @@ def _owner_unit_of_work_key(source: object, default: str) -> str:
     return candidate
 
 
-@dataclass(frozen=True)
+class UnavailableR6QualificationRegisterFacade:
+    """Stateless production registration surface without owner or write authority."""
+
+    __slots__ = ()
+
+    def execute(self, command: RegisterR6QualificationAssessmentCommand) -> NoReturn:
+        """Validate the ID-only command, then stop before database access."""
+
+        try:
+            if type(command) is not RegisterR6QualificationAssessmentCommand:
+                raise TypeError("R6 qualification command type differs")
+            RegisterR6QualificationAssessmentCommand.__post_init__(command)
+            if (
+                RegisterR6QualificationAssessmentCommand(
+                    study_id=command.study_id,
+                    assessed_at=command.assessed_at,
+                )
+                != command
+            ):
+                raise ValueError("R6 qualification command differs after replay")
+        except (AttributeError, TypeError, ValueError) as error:
+            raise R6QualificationUnavailable(
+                "R6 qualification registration command is malformed"
+            ) from error
+        raise R6QualificationUnavailable(
+            "canonical R6 qualification owner providers are unavailable"
+        )
+
+
+class UnavailableR6QualificationMonitorFacade:
+    """Stateless production audit surface without a live-ledger capability."""
+
+    __slots__ = ()
+
+    def execute(
+        self,
+        *,
+        as_of: datetime,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> R6QualificationAuditPage:
+        """Validate a bounded audit request, then fail without reading the ledger."""
+
+        if (
+            type(as_of) is not datetime
+            or as_of.tzinfo is None
+            or as_of.utcoffset() is None
+            or (cursor is not None and type(cursor) is not str)
+            or type(limit) is not int
+            or limit < 1
+            or limit > 200
+        ):
+            raise R6QualificationUnavailable("R6 qualification monitor request is malformed")
+        raise R6QualificationUnavailable("R6 qualification production monitor is unavailable")
+
+
+class UnavailableR6QualificationLifecycleFacade:
+    """Stateless production lifecycle surface without authorization or a writer."""
+
+    __slots__ = ()
+
+    def execute(self, command: ApplyR6QualificationLifecycleCommand) -> NoReturn:
+        """Validate an ID-only lifecycle command, then fail without persistence access."""
+
+        try:
+            if type(command) is not ApplyR6QualificationLifecycleCommand:
+                raise TypeError("R6 qualification lifecycle command type differs")
+            if type(command.qualification_ref) is not R6QualificationRef:
+                raise TypeError("R6 qualification lifecycle ref type differs")
+            R6QualificationRef.__post_init__(command.qualification_ref)
+            if type(command.action) is not R6QualificationLifecycleAction:
+                raise TypeError("R6 qualification lifecycle action type differs")
+            if type(command.authorization_ref) is not R6QualificationAuthorizationRef:
+                raise TypeError("R6 qualification authorization ref type differs")
+            R6QualificationAuthorizationRef.__post_init__(command.authorization_ref)
+            if (
+                ApplyR6QualificationLifecycleCommand(
+                    qualification_ref=command.qualification_ref,
+                    action=command.action,
+                    authorization_ref=command.authorization_ref,
+                )
+                != command
+            ):
+                raise ValueError("R6 qualification lifecycle command differs after replay")
+        except (AttributeError, TypeError, ValueError) as error:
+            raise R6QualificationUnavailable(
+                "R6 qualification lifecycle command is malformed"
+            ) from error
+        raise R6QualificationUnavailable(
+            "canonical R6 qualification lifecycle owner providers are unavailable"
+        )
+
+
+class R6QualificationActiveExactReadFacade:
+    """Narrow exact active reader over a repository with no write capability."""
+
+    __slots__ = ("_repository",)
+
+    def __init__(self, repository: DjangoR6QualificationReadRepository) -> None:
+        if type(repository) is not DjangoR6QualificationReadRepository:
+            raise TypeError("R6 qualification active reader requires the exact repository")
+        self._repository = repository
+
+    def get_active(
+        self,
+        *,
+        qualification_ref: R6QualificationRef,
+        as_of: datetime,
+    ) -> StateModelQualificationAssessment | None:
+        """Return one exact active assessment or explicit absence."""
+
+        return self._repository.get_active(
+            qualification_ref=qualification_ref,
+            as_of=as_of,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class DjangoR6QualificationRuntime:
-    """Application facades bound to one Django database/UoW."""
+    """Public exact reads plus deliberately inert mutation and audit surfaces."""
+
+    register: UnavailableR6QualificationRegisterFacade
+    get_exact: GetExactR6QualificationAssessment
+    monitor: UnavailableR6QualificationMonitorFacade
+    apply_lifecycle: UnavailableR6QualificationLifecycleFacade
+    get_active: R6QualificationActiveExactReadFacade
+
+
+@dataclass(frozen=True, slots=True)
+class _DjangoR6QualificationTestRuntime:
+    """Private source-injected runtime proving the persistence contracts."""
 
     register: RegisterR6QualificationAssessment
     get_exact: GetExactR6QualificationAssessment
@@ -267,6 +398,22 @@ class DjangoR6QualificationRuntime:
 
 
 def build_django_r6_qualification_runtime(
+    *,
+    using: str = "default",
+) -> DjangoR6QualificationRuntime:
+    """Build using-only exact reads without a writer, token, or clock object."""
+
+    repository = DjangoR6QualificationReadRepository(using=using)
+    return DjangoR6QualificationRuntime(
+        register=UnavailableR6QualificationRegisterFacade(),
+        get_exact=GetExactR6QualificationAssessment(repository),
+        monitor=UnavailableR6QualificationMonitorFacade(),
+        apply_lifecycle=UnavailableR6QualificationLifecycleFacade(),
+        get_active=R6QualificationActiveExactReadFacade(repository),
+    )
+
+
+def _build_django_r6_qualification_test_runtime(
     *,
     study_provider: StateModelComparativeStudyProvider,
     preregistration_provider: StateModelStudyPreregistrationProvider,
@@ -278,14 +425,12 @@ def build_django_r6_qualification_runtime(
     authorization_provider: R6QualificationLifecycleAuthorizationProvider,
     using: str = "default",
     clock: R6QualificationClock | None = None,
-) -> DjangoR6QualificationRuntime:
-    """Build Research-only registration, monitoring, and lifecycle facades."""
+) -> _DjangoR6QualificationTestRuntime:
+    """Build the source-injected success graph for isolated contract tests."""
 
     authoritative_clock = clock or DjangoR6QualificationClock()
-    repository = DjangoR6QualificationRepository(
-        using=using,
-        clock=authoritative_clock,
-    )
+    store = _DjangoR6QualificationStore(using=using, clock=authoritative_clock)
+    read_repository = DjangoR6QualificationReadRepository(using=using)
     owner_sources = (
         study_provider,
         preregistration_provider,
@@ -297,12 +442,11 @@ def build_django_r6_qualification_runtime(
         authorization_provider,
     )
     keys = {
-        repository.unit_of_work_key,
-        *(_owner_unit_of_work_key(source, repository.unit_of_work_key) for source in owner_sources),
+        store.unit_of_work_key,
+        *(_owner_unit_of_work_key(source, store.unit_of_work_key) for source in owner_sources),
     }
     if len(keys) != 1:
         raise ValueError("R6 lifecycle owner and Research repository use different units of work")
-    store = _DjangoR6QualificationStore(using=using, clock=authoritative_clock)
     use_case = AssessStateModelQualificationUseCase(
         study_provider=_StudyOwnerGuard(study_provider),
         preregistration_provider=_PreregistrationOwnerGuard(preregistration_provider),
@@ -318,10 +462,10 @@ def build_django_r6_qualification_runtime(
         source=authorization_provider,
         repository=store,
     )
-    return DjangoR6QualificationRuntime(
+    return _DjangoR6QualificationTestRuntime(
         register=RegisterR6QualificationAssessment(_RegistrationClosure(store, writer)),
-        get_exact=GetExactR6QualificationAssessment(repository),
-        monitor=MonitorR6Qualification(repository),
+        get_exact=GetExactR6QualificationAssessment(read_repository),
+        monitor=MonitorR6Qualification(store),
         apply_lifecycle=ApplyR6QualificationLifecycle(
             authorization_provider=lifecycle_authorization_provider,
             repository=lifecycle_repository,
@@ -354,5 +498,9 @@ class _RegistrationClosure:
 
 __all__ = [
     "DjangoR6QualificationRuntime",
+    "R6QualificationActiveExactReadFacade",
+    "UnavailableR6QualificationLifecycleFacade",
+    "UnavailableR6QualificationMonitorFacade",
+    "UnavailableR6QualificationRegisterFacade",
     "build_django_r6_qualification_runtime",
 ]
