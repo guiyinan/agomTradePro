@@ -253,8 +253,8 @@ def _qualified_functions(path: str) -> dict[str, ast.FunctionDef | ast.AsyncFunc
     return functions
 
 
-def discover_broker_dynamic_surfaces() -> frozenset[str]:
-    """Freeze Broker dict query methods and their exact GET publication handlers."""
+def discover_dynamic_surfaces() -> frozenset[str]:
+    """Freeze Broker query publications and typed internal research presenters."""
 
     query_path = "apps/broker_execution/application/query_services.py"
     view_path = "apps/broker_execution/interface/api_views.py"
@@ -282,6 +282,22 @@ def discover_broker_dynamic_surfaces() -> frozenset[str]:
         }
         if calls:
             discovered.add(f"{view_path}::{qualname}")
+    for presenter_path, presenter_name in (
+        (
+            "apps/fixed_income/interface/presenters.py",
+            "present_fixed_income_research_preview",
+        ),
+        (
+            "apps/macro_factor/interface/presenters.py",
+            "present_macro_factor_assessment",
+        ),
+    ):
+        presenter = _qualified_functions(presenter_path).get(presenter_name)
+        if presenter is None or presenter.returns is None:
+            raise ValueError(f"evidence output presenter is missing: {presenter_path}")
+        if ast.unparse(presenter.returns) != "dict[str, object]":
+            raise ValueError(f"evidence output presenter contract changed: {presenter_path}")
+        discovered.add(f"{presenter_path}::{presenter_name}")
     return frozenset(discovered)
 
 
@@ -309,7 +325,7 @@ def validate_inventory(inventory: EvidenceOutputInventory) -> dict[str, int]:
     unclassified = sorted(discovered - registered.keys())
     if unclassified:
         errors.append(f"unclassified marked evidence output surfaces: {unclassified}")
-    dynamic = discover_broker_dynamic_surfaces()
+    dynamic = discover_dynamic_surfaces()
     missing_dynamic = sorted(dynamic - inventory.dynamic_surfaces)
     stale_dynamic = sorted(inventory.dynamic_surfaces - dynamic)
     if missing_dynamic:

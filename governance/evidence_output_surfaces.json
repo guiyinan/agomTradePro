@@ -1,7 +1,7 @@
 {
   "version": 1,
   "updated_at": "2026-08-13",
-  "status": "first_batch_frozen_two_legacy_adapters_wrapped",
+  "status": "r1_r6_research_output_denominator_expanded",
   "allowed_claim_kinds": [
     "derived",
     "estimate",
@@ -54,6 +54,34 @@
       "marker_fields": ["orders"]
     },
     {
+      "path": "apps/equity/application/forecast_baseline_evaluation_preflight.py",
+      "marker_fields": ["prospective_result_hash"]
+    },
+    {
+      "path": "apps/equity/domain/forecast_baseline_trial.py",
+      "marker_fields": ["eligible_for_promotion"]
+    },
+    {
+      "path": "apps/fixed_income/domain/entities.py",
+      "marker_fields": ["reconciliation"]
+    },
+    {
+      "path": "apps/fixed_income/domain/portfolio_risk.py",
+      "marker_fields": ["totals"]
+    },
+    {
+      "path": "apps/fixed_income/domain/relative_value_assessment.py",
+      "marker_fields": ["component_seals"]
+    },
+    {
+      "path": "apps/macro_factor/application/governed_read.py",
+      "marker_fields": ["execution_authorized"]
+    },
+    {
+      "path": "apps/macro_factor/domain/entities.py",
+      "marker_fields": ["assessed_at"]
+    },
+    {
       "path": "apps/policy/application/workbench_use_cases.py",
       "marker_fields": ["must_not_use_for_decision"]
     },
@@ -86,8 +114,28 @@
       "marker_fields": ["must_not_use_for_decision"]
     },
     {
+      "path": "apps/research/application/r2_market_structure_research_control_preflight.py",
+      "marker_fields": ["trial_receipt_hash"]
+    },
+    {
+      "path": "apps/research/application/r4_research_control_preflight.py",
+      "marker_fields": ["r3_attestation_hash"]
+    },
+    {
+      "path": "apps/research/application/r5_research_control_preflight.py",
+      "marker_fields": ["fixed_income_owner_seal_hash"]
+    },
+    {
+      "path": "apps/research/application/r6_manual_activation_preflight.py",
+      "marker_fields": ["active_approval_hash"]
+    },
+    {
       "path": "apps/research/application/scenario_probability_research.py",
       "marker_fields": ["must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/research/application/state_model_activation.py",
+      "marker_fields": ["head_event_hash"]
     },
     {
       "path": "apps/research/domain/advanced_state_model.py",
@@ -104,6 +152,10 @@
     {
       "path": "apps/research/domain/r5_relative_value_promotion_trial.py",
       "marker_fields": ["must_not_execute", "must_not_use_for_decision"]
+    },
+    {
+      "path": "apps/research/domain/state_model_qualification_evaluation.py",
+      "marker_fields": ["derived_metric_bundle_hash"]
     },
     {
       "path": "apps/signal/application/use_cases.py",
@@ -286,6 +338,76 @@
       "required_fields": ["action", "delta_qty", "target_weight"]
     },
     {
+      "source_symbol": "apps/equity/application/forecast_baseline_evaluation_preflight.py::ForecastBaselineEvaluationPreflightResult",
+      "owner_app": "equity",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["blocker_codes", "must_not_execute", "must_not_publish_current", "must_not_use_for_decision", "prospective_result_hash", "research_only", "status"]
+    },
+    {
+      "source_symbol": "apps/equity/domain/forecast_baseline_trial.py::ForecastBaselineTrialResult",
+      "owner_app": "equity",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["content_hash", "eligible_for_promotion", "invalidation_outcomes", "metric_comparisons", "must_not_execute", "must_not_use_for_decision", "research_only"]
+    },
+    {
+      "source_symbol": "apps/fixed_income/domain/entities.py::FixedIncomeResearchPreview",
+      "owner_app": "fixed_income",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["analytics", "blocked_reasons", "must_not_execute", "must_not_use_for_decision", "publication_ids", "relative_value", "research_only", "status"]
+    },
+    {
+      "source_symbol": "apps/fixed_income/domain/portfolio_risk.py::FixedIncomePortfolioRiskAssessment",
+      "owner_app": "fixed_income",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["blockers", "bundle_id", "evaluated_at", "input_hash", "must_not_execute", "must_not_use_for_decision", "output_hash", "policy_hash", "policy_version", "portfolio_snapshot_hash", "portfolio_snapshot_id", "position_contributions", "research_only", "status", "stress_results", "totals"]
+    },
+    {
+      "source_symbol": "apps/fixed_income/domain/relative_value_assessment.py::R5RelativeValueAssessment",
+      "owner_app": "fixed_income",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["blockers", "component_seals", "input_hash", "must_not_execute", "must_not_use_for_decision", "output_hash", "research_only", "status"]
+    },
+    {
+      "source_symbol": "apps/macro_factor/application/governed_read.py::R3GovernedReadAssessment",
+      "owner_app": "macro_factor",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["blocker_codes", "decision_authorized", "execution_authorized", "must_not_execute", "must_not_use_for_decision", "projection", "publishes_current", "research_only", "status"]
+    },
+    {
+      "source_symbol": "apps/macro_factor/domain/entities.py::MacroFactorResearchAssessment",
+      "owner_app": "macro_factor",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["assessed_at", "blocked_reasons", "external_evidence_id", "factor_version", "must_not_use_for_decision", "record", "research_only", "status"]
+    },
+    {
       "source_symbol": "apps/policy/application/workbench_use_cases.py::SentimentGateStateOutput",
       "owner_app": "policy",
       "output_kind": "risk_gate_state",
@@ -396,6 +518,46 @@
       "required_fields": ["asset_weights", "must_not_use_for_decision", "risk_budget_pct"]
     },
     {
+      "source_symbol": "apps/research/application/r2_market_structure_research_control_preflight.py::R2ResearchControlPreflightResult",
+      "owner_app": "research",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["audit_outcome_hash", "blocker_codes", "monitoring_receipt_hash", "must_not_execute", "must_not_publish_current", "must_not_use_as_predictive_signal", "must_not_use_for_decision", "research_only", "status", "trial_receipt_hash"]
+    },
+    {
+      "source_symbol": "apps/research/application/r4_research_control_preflight.py::R4ResearchControlPreflightResult",
+      "owner_app": "research",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["active_decision_hash", "blocker_codes", "content_hash", "monitoring_assessment_hash", "must_not_execute", "must_not_publish_current", "must_not_use_for_decision", "portfolio_record_hash", "r3_attestation_hash", "research_only", "status"]
+    },
+    {
+      "source_symbol": "apps/research/application/r5_research_control_preflight.py::R5ResearchControlPreflightResult",
+      "owner_app": "research",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["active_lifecycle_hash", "blocker_codes", "content_hash", "fixed_income_owner_seal_hash", "monitoring_assessment_hash", "must_not_execute", "must_not_publish_current", "must_not_use_for_decision", "research_only", "status"]
+    },
+    {
+      "source_symbol": "apps/research/application/r6_manual_activation_preflight.py::R6ManualActivationPreflightResult",
+      "owner_app": "research",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["active_approval_hash", "blocker_codes", "content_hash", "monitoring_hash", "must_not_execute", "must_not_publish_current", "must_not_replace_regime", "must_not_use_for_decision", "qualification_hash", "research_only", "scope_hash", "status"]
+    },
+    {
       "source_symbol": "apps/research/application/scenario_probability_research.py::ScenarioProbabilityResearchPacket",
       "owner_app": "research",
       "output_kind": "research_assessment",
@@ -404,6 +566,16 @@
       "position_impact": "indirect",
       "current_gate_state": "not_evidence_integrated_research_only",
       "required_fields": ["calibration", "must_not_use_for_decision", "research_only"]
+    },
+    {
+      "source_symbol": "apps/research/application/state_model_activation.py::R6ActiveStateModelProjection",
+      "owner_app": "research",
+      "output_kind": "current_state",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["approval", "content_hash", "head_event_hash", "monitoring", "must_not_execute", "must_not_publish_current", "must_not_replace_regime", "must_not_use_for_decision", "qualification", "research_only", "scope_ref"]
     },
     {
       "source_symbol": "apps/research/domain/advanced_state_model.py::AdvancedStateModelAssessment",
@@ -464,6 +636,16 @@
       "position_impact": "indirect",
       "current_gate_state": "not_evidence_integrated_research_only",
       "required_fields": ["must_not_execute", "must_not_use_for_decision", "state"]
+    },
+    {
+      "source_symbol": "apps/research/domain/state_model_qualification_evaluation.py::StateModelQualificationAssessment",
+      "owner_app": "research",
+      "output_kind": "research_assessment",
+      "claim_kind": "derived",
+      "method_kind": "statistical",
+      "position_impact": "indirect",
+      "current_gate_state": "not_evidence_integrated_research_only",
+      "required_fields": ["blockers", "content_hash", "derived_metric_bundle_hash", "may_request_promotion_review", "must_not_replace_regime", "must_not_use_for_decision", "promotion_decision_present", "research_only", "status"]
     },
     {
       "source_symbol": "apps/signal/application/use_cases.py::CheckSignalInvalidationResponse",
@@ -542,7 +724,9 @@
     "apps/broker_execution/interface/api_views.py::BrokerExecutionOrderListView.get",
     "apps/broker_execution/interface/api_views.py::BrokerExecutionOverviewView.get",
     "apps/broker_execution/interface/api_views.py::BrokerExecutionQmtOnboardingView.get",
-    "apps/broker_execution/interface/api_views.py::BrokerExecutionReconciliationView.get"
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionReconciliationView.get",
+    "apps/fixed_income/interface/presenters.py::present_fixed_income_research_preview",
+    "apps/macro_factor/interface/presenters.py::present_macro_factor_assessment"
   ],
   "notes": [
     "This first batch is intentionally incomplete and focuses on outputs with explicit execution, position, recommendation, transition, or fail-closed semantics.",

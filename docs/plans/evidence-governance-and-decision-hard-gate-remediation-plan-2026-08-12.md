@@ -1,6 +1,6 @@
 # AgomTradePro 证据治理与决策硬闸改造计划
 
-> 执行状态（2026-08-13）：**M0 进行中，外部写面、Transition Plan 内部 writer、41 个显式高风险输出及 16 个 Broker 动态 query/GET 发布面已冻结；M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与首批 legacy adapters 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、写入面的完整项目 runtime/component 证明、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
+> 执行状态（2026-08-13）：**M0 进行中，外部写面、Transition Plan 内部 writer、54 个显式高风险输出及 18 个动态 query/GET/presenter 面已冻结；M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与首批 legacy adapters 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、写入面的完整项目 runtime/component 证明、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
 
 ## 0. 分阶段实施记录
 
@@ -100,6 +100,26 @@
 - `python scripts/check_evidence_output_surfaces.py`：通过，显式输出 `41`、direct-position `11`、marker-discovered `32`、Broker dynamic `16`。
 - 专属纯测试 `8 passed`；守卫与测试 standalone strict mypy `0 errors`；Black、isort、`py_compile`、JSON parse 与 diff check 通过。
 
+### 2026-08-13：M0 R1–R6 研究输出分母扩展
+
+已完成：
+
+- 代码反查补登记 13 个可静态、诚实分类的 R1–R6 结果面：R1 baseline preflight/trial，R2/R4/R5/R6 research-control preflight，R3 governed read/macro-factor assessment，R5 fixed-income preview/portfolio risk/relative-value assessment，以及 R6 active projection/qualification assessment。
+- 所有新增结果均保持 `indirect + not_evidence_integrated_research_only`；登记只冻结迁移分母，不代表 Operator Spec、Envelope、summary、consumer 或决策许可已经接入。
+- 动态面新增两个无 HTTP route 的 internal presenter：Macro Factor 与 Fixed Income 的 `dict[str, object]` 投影。机器守卫验证精确 symbol 与返回类型，不把它们冒充公开 API。
+- `OperatingForecastVersion` 可在同一实例混合 observation、human assumption 与 model inference；`DatedMacroFactorOutput` 又由角色区分 current estimate/forward forecast，因此没有强塞进当前单值 `claim_kind/method_kind`，留待 inventory discriminator/composite schema 扩展。
+
+仍未完成：
+
+- R7/R8 及 Broker 以外其他动态 dict/TypedDict/query/interface 发布面；R1/R3 上述 mixed/variant 类型的 schema 表达。
+- 54 个显式输出中的绝大多数仍无正式 Evidence adapter/持久化/consumer binding，所有新增研究结果仍不得用于当前决策或执行。
+- raw/governed MCP 语义仍须独立冻结；审计已发现 TUI read-action bridge 与 Broker native read 是优先绕行面。
+
+本阶段验证：
+
+- `python scripts/check_evidence_output_surfaces.py`：通过，显式输出 `54`、direct-position `11`、marker-discovered `45`、动态面 `18`。
+- 专属纯测试 `9 passed`；`py_compile` 通过。完整格式、类型、架构与 diff 检查随本阶段提交执行。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
@@ -162,14 +182,14 @@
 
 仍未完成：
 
-- M0 尚需扩展全量 R1–R8、Broker 以外的动态 dict/TypedDict/interface/query payload，以及 raw/governed MCP 输出语义；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口、10 个 Transition Plan 内部 writer、41 个显式高风险输出及 16 个 Broker 动态 query/GET 发布面已冻结。
+- M0 尚需扩展 R7/R8、Broker 以外其余动态 dict/TypedDict/interface/query payload、mixed/variant 分类，以及 raw/governed MCP 输出语义；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口、10 个 Transition Plan 内部 writer、54 个显式高风险输出及 18 个动态 query/GET/presenter 面已冻结。
 - M1 的用户/租户 scope 模型与 owner-scoped 授权、人工审批写入面的完整项目 runtime/component 证明、并发 first-winner PostgreSQL 验证和其余 App Application adapter 仍未完成；staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码，以及 Data Center quote/Broker approval snapshot 两个 legacy adapter 已完成。
 - M2–M5 全部交付及真实生产切换证据。
 
 本阶段验证：
 
 - `python scripts/check_decision_write_surface_freeze.py`：通过，Transition Plan writers `10`、HTTP `54`、SDK `15`、TUI decision `25`、TUI mutation `23`、MCP position-write `32`。
-- `python scripts/check_evidence_output_surfaces.py`：通过，outputs `41`、direct-position `11`、marker-discovered `32`、Broker dynamic `16`；纯 Python `8 passed`，standalone strict mypy `0 errors`。
+- `python scripts/check_evidence_output_surfaces.py`：通过，outputs `54`、direct-position `11`、marker-discovered `45`、dynamic `18`；最新专属纯 Python `9 passed`。
 - Domain 与 freeze guard 聚合纯测试：`22 passed`。
 - Django 5.1/SQLite 内存库逐项执行 persistence component 场景：`8 passed`；覆盖 exact replay/fork、三模型 ORM mutation/delete shortcut、raw SQL tamper、公共 reader 写隔离与 future PIT 拒绝。
 - Django 4.2/DRF 3.16 最小 settings 下 exact read API/facade：`18 passed`；覆盖 staff 权限、精确 selector、未来 cutoff、非枚举 404、三类 payload 和全部写方法 405。

@@ -17,10 +17,10 @@ from scripts.check_evidence_output_surfaces import (
 
 def test_repository_evidence_output_inventory_is_exact() -> None:
     assert validate_inventory(load_inventory()) == {
-        "surface_count": 41,
+        "surface_count": 54,
         "direct_position_surface_count": 11,
-        "marked_surface_count": 32,
-        "dynamic_surface_count": 16,
+        "marked_surface_count": 45,
+        "dynamic_surface_count": 18,
     }
 
 
@@ -93,3 +93,35 @@ def test_guard_rejects_stale_dynamic_surface() -> None:
                 | {"apps/broker_execution/application/query_services.py::Missing.output"},
             )
         )
+
+
+def test_r1_r6_research_outputs_remain_non_evidence_integrated() -> None:
+    inventory = load_inventory()
+    audited_fragments = (
+        "ForecastBaselineEvaluationPreflightResult",
+        "ForecastBaselineTrialResult",
+        "R2ResearchControlPreflightResult",
+        "R3GovernedReadAssessment",
+        "MacroFactorResearchAssessment",
+        "R4ResearchControlPreflightResult",
+        "R5ResearchControlPreflightResult",
+        "FixedIncomeResearchPreview",
+        "FixedIncomePortfolioRiskAssessment",
+        "R5RelativeValueAssessment",
+        "R6ManualActivationPreflightResult",
+        "R6ActiveStateModelProjection",
+        "StateModelQualificationAssessment",
+    )
+
+    audited = tuple(
+        surface
+        for surface in inventory.surfaces
+        if any(fragment in surface.source_symbol for fragment in audited_fragments)
+    )
+
+    assert len(audited) == len(audited_fragments)
+    assert all(
+        surface.current_gate_state == "not_evidence_integrated_research_only"
+        and surface.position_impact == "indirect"
+        for surface in audited
+    )
