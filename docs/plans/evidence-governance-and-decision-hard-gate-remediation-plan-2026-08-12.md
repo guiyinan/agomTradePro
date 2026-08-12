@@ -412,6 +412,24 @@
 
 - audit projector `6 passed`；Broker SDK `6 passed`；MCP semantic freeze PASS（18 / disabled 6 / integrated 0）；全仓 architecture scan（2663 files / 0 violations）、Black/isort/py_compile/diff-check 通过。
 
+### 2026-08-13：Broker reconciliation typed current-evidence 只读收口
+
+已完成：
+
+- 将 repository 原样 `summary/expected/actual` JSON 收敛为纯 Application typed projector；固定 run status、四维 dimension、P0/P1 severity 与 difference status，未知/legacy值整批 fail-closed，不发布局部 raw JSON。
+- 保留 snapshot source time 并校验 `snapshot_captured_at <= started_at <= completed_at <= evaluated_at`；查询时钟仅用于评估，不回填源时点。run completion、resolution 与 difference status 必须互相一致。
+- 强制四维计数、`summary.difference_count` 与实际差异条数守恒，`p0_auto_stop` 与 P0 差异精确一致，`(dimension,difference_key)` 唯一；expected/actual 仅允许 order/fill/cash/position 各自精确字段与有限 Decimal 文本。
+- 计算 canonical content hash；resolved summary 只保留 resolution identity，不发布 operator reason/resolved_by。顶层及逐 run 固定 `display_only / must_not_execute / must_not_use_for_decision`，SDK 原样保留。MCP reconciliation 继续 disabled，`integrated=0` 不变。
+
+仍未完成：
+
+- 这是 operational reconciliation display-only projection，不是正式 Evidence Envelope/Track Record/Risk Authorization。生产 `total_asset` 目前只进入 run_key、未形成差异比较；Overview 尚未显式绑定 snapshot row `created_at`，需后续 source contract 扩展。
+- Django HTTP/component、真实 PostgreSQL run/difference 持久化与并发 resolution 未在当前 runtime 验证；MCP 恢复需另批 closed schema/handler 与最终调用者身份语义，不能因 typed 投影自动启用。
+
+本阶段验证：
+
+- reconciliation projector `6 passed`；Broker SDK `7 passed`；MCP semantic freeze PASS（18 / disabled 6 / integrated 0）；全仓 architecture scan（2664 files / 0 violations）、Black/isort/py_compile/diff-check 通过。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

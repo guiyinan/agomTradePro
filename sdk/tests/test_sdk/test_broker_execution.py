@@ -92,6 +92,52 @@ def test_sdk_audit_read_preserves_redaction_and_display_only_markers() -> None:
     client.get.assert_called_once_with("/api/broker-execution/audit/", params={"limit": 10})
 
 
+def test_sdk_reconciliation_read_preserves_current_display_only_markers() -> None:
+    client = Mock()
+    expected = {
+        "evaluated_at": "2026-08-13T12:00:00+00:00",
+        "runs": [
+            {
+                "id": 9,
+                "account_id": 7,
+                "status": "completed",
+                "summary": {
+                    "source": "qmt_snapshot_reconciliation",
+                    "snapshot_id": 3,
+                    "snapshot_captured_at": "2026-08-13T11:58:00+00:00",
+                    "difference_count": 0,
+                    "p0_auto_stop": False,
+                },
+                "difference_counts": {
+                    "order": 0,
+                    "fill": 0,
+                    "cash": 0,
+                    "position": 0,
+                },
+                "differences": [],
+                "started_at": "2026-08-13T11:59:00+00:00",
+                "completed_at": "2026-08-13T11:59:00+00:00",
+                "evaluated_at": "2026-08-13T12:00:00+00:00",
+                "content_hash": "a" * 64,
+                "blocker_codes": [],
+                "permission": "display_only",
+                "must_not_use_for_decision": True,
+                "must_not_execute": True,
+            }
+        ],
+        "total_count": 1,
+        "permission": "display_only",
+        "must_not_use_for_decision": True,
+        "must_not_execute": True,
+    }
+    client.get.return_value = {"success": True, "data": expected}
+
+    assert BrokerExecutionModule(client).reconciliations(limit=10) == expected
+    client.get.assert_called_once_with(
+        "/api/broker-execution/reconciliations/", params={"limit": 10}
+    )
+
+
 def test_sdk_order_detail_preserves_governed_evidence_and_permission_markers() -> None:
     client = Mock()
     expected = {

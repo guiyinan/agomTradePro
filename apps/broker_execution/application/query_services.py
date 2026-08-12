@@ -14,6 +14,7 @@ from .connection_status import project_connection_status
 from .order_detail_evidence import project_broker_order_detail
 from .overview_status import OverviewRawFacts, project_broker_overview
 from .ports import BrokerExecutionRepositoryProtocol
+from .reconciliation_projection import project_broker_reconciliation
 from .repository_provider import get_broker_execution_repository
 from .use_case_errors import (
     BrokerExecutionNotFoundError,
@@ -342,7 +343,7 @@ class BrokerExecutionQueryService:
         return {"access_grants": rows, "access_grant_count": len(rows)}
 
     def reconciliations(self, *, actor: Any, limit: int = 100) -> dict[str, Any]:
-        """Return persisted reconciliation runs."""
+        """Return typed, current, display-only reconciliation evidence."""
 
         user_id, _role, is_admin = require_action(actor, "view")
         rows = self.repository.list_reconciliations(
@@ -350,7 +351,16 @@ class BrokerExecutionQueryService:
             is_admin=is_admin,
             limit=_bounded_limit(limit),
         )
-        return {"runs": rows, "total_count": len(rows)}
+        now = self._now()
+        runs = [project_broker_reconciliation(row, evaluated_at=now).to_payload() for row in rows]
+        return {
+            "evaluated_at": now.isoformat(),
+            "runs": runs,
+            "total_count": len(runs),
+            "permission": "display_only",
+            "must_not_use_for_decision": True,
+            "must_not_execute": True,
+        }
 
     def audits(self, *, actor: Any, limit: int = 100) -> dict[str, Any]:
         """Return typed, redacted, display-only execution audit events."""
