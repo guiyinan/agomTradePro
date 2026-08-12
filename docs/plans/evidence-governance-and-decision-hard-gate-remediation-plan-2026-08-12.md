@@ -10,7 +10,7 @@
 
 - 在独立 `dev/plan-closure-by-priority` 分支开始实施，并把完成计划归档、活跃计划优先级和索引修正作为独立基线提交。
 - 新增 [`ADR-0007`](../architecture/adr-0007-evidence-envelope-and-decision-gates.md)，明确 Research、Data Center/Signal、Risk Center、Portfolio、Broker Execution 与 TUI 的 owner/接口矩阵，以及决策写入口冻结原则。
-- 新增 `governance/decision_write_surfaces.json` 与 AST 门禁，冻结 54 个 Decision Rhythm、Portfolio、Broker Execution、Simulated Trading、Strategy HTTP 写入口及 15 个 SDK 写方法；新增旁路或陈旧登记均阻断。
+- 新增 `governance/decision_write_surfaces.json` 与机器门禁，冻结 54 个 Decision Rhythm、Portfolio、Broker Execution、Simulated Trading、Strategy HTTP 写入口、15 个 SDK 写方法、25 个发布态 TUI 决策流 action、23 个发布态 mutation/AI/admin action，以及 32 个可能影响决策或仓位的 MCP 写能力；发布图 SHA 漂移、新增旁路或陈旧登记均阻断。
 - 新增 Research Domain `evidence_contracts.py`，落地 `ClaimKind`、`MethodKind`、`GovernanceState`、唯一有序的 `DecisionPermission`、`DependencyFlag`、`ArtifactRef`、`EvidenceOperatorSpec`、`TrackRecordSnapshot`、`GovernanceGrant` 与 `EvidenceEnvelope`。
 - 实现 fail-closed 传播：权限取严格交集，lineage/不确定性依赖取并集，必要输入 stale/missing/PIT 未验证、Promotion/monitoring/Track Record 缺失或过期、精确 artifact 不匹配和 `n=0` 均降为 `DISPLAY_ONLY`。
 - 兼容布尔值只由权限派生；旧输出只能生成非持久化 `legacy_unverified + DISPLAY_ONLY` Envelope。
@@ -18,13 +18,13 @@
 
 仍未完成：
 
-- M0 尚需把影响仓位的输出、TUI action、raw/governed MCP 与旧 Transition Plan 写路径逐项分类；owner/接口矩阵及 HTTP/SDK 写入口冻结已完成。
+- M0 尚需把影响仓位的输出、raw/governed MCP 语义与旧 Transition Plan 写路径逐项分类；owner/接口矩阵及 HTTP/SDK/TUI/MCP 写入口冻结已完成。
 - M1 的 append-only ORM、strict codec、repository、只读 API、Operator Spec 审批/激活和各 App Application adapter。
 - M2–M5 全部交付及真实生产切换证据。
 
 本阶段验证：
 
-- `python scripts/check_decision_write_surface_freeze.py`：通过，HTTP `54`、SDK `15`。
+- `python scripts/check_decision_write_surface_freeze.py`：通过，HTTP `54`、SDK `15`、TUI decision `25`、TUI mutation `23`、MCP position-write `32`。
 - Domain 与 freeze guard 聚合纯测试：`19 passed`。
 - 两个新增生产/门禁 Python 文件 standalone strict mypy：`0 errors`。
 

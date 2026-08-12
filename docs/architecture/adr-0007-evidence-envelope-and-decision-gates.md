@@ -1,7 +1,7 @@
 # ADR-0007：Evidence Envelope 与决策硬闸所有权
 
-> 状态：Accepted（分阶段实施）  
-> 日期：2026-08-12  
+> 状态：Accepted（分阶段实施）
+> 日期：2026-08-12
 > 对应计划：[`../plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md`](../plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md)
 
 ## 决策
@@ -28,7 +28,7 @@
 
 ## 冻结策略
 
-第一阶段先冻结当前 Decision Rhythm、Portfolio、Broker Execution、Simulated Trading 与 Strategy HTTP 写入口，以及会委托 HTTP 写操作的 SDK 方法。登记只表示历史入口存在，不表示它已经满足新证据门禁。
+第一阶段冻结当前 Decision Rhythm、Portfolio、Broker Execution、Simulated Trading 与 Strategy HTTP 写入口、会委托 HTTP 写操作的 SDK 方法、发布态 TUI 决策及 mutation/AI/admin action，以及可能影响决策或仓位的 MCP 写能力。TUI 清单同时绑定发布图 SHA，防止图更新绕过复核。登记只表示历史入口存在，不表示它已经满足新证据门禁。
 
 任何冻结清单变更必须同时更新本 ADR、实施计划和 Evidence/Risk/Broker 验收测试；M4 完成前不得借登记扩展新的仓位影响入口。
 

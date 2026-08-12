@@ -13,6 +13,9 @@ def test_repository_decision_write_surface_inventory_is_exact() -> None:
     assert validate_surface_freeze(load_inventory()) == {
         "http_surface_count": 54,
         "sdk_surface_count": 15,
+        "tui_decision_action_count": 25,
+        "tui_mutation_action_count": 23,
+        "mcp_position_write_count": 32,
     }
 
 
