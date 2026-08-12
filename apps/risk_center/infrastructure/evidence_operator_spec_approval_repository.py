@@ -7,7 +7,7 @@ import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Protocol, cast
 
 from django.db import IntegrityError, transaction
 from django.db.models import Q
@@ -53,7 +53,7 @@ class DjangoEvidenceOperatorSpecApprovalClock:
     def now(self) -> datetime:
         """Return the current timezone-aware server timestamp."""
 
-        return timezone.now()
+        return cast(datetime, timezone.now())
 
 
 class DjangoEvidenceOperatorSpecApprovalRepository:
@@ -169,23 +169,32 @@ class DjangoEvidenceOperatorSpecApprovalRepository:
         *,
         recorded_at: datetime,
     ) -> EvidenceOperatorSpecApprovalRecord:
-        """Append subject plus approval or recover the concurrent first winner."""
+        """Append an approval against its registered exact subject first winner."""
 
         if recorded_at != approval.issued_at:
             raise EvidenceOperatorSpecApprovalConflict(
                 "approval record must use the authoritative transaction clock"
             )
-        subject_values = _subject_values(approval.subject, recorded_at=recorded_at)
         approval_values = _approval_values(approval, recorded_at=recorded_at)
         try:
             with transaction.atomic(using=self._using):
-                subject_model = EvidenceOperatorSpecApprovalSubjectModel(**subject_values)
-                with _claim_evidence_operator_spec_approval_insert(
-                    token=_active_token(),
-                    model_type=EvidenceOperatorSpecApprovalSubjectModel,
-                    expected_values=subject_values,
-                ):
-                    subject_model.save(force_insert=True, using=self._using)
+                subject_model = self._exact_subject_model(approval.subject)
+                if subject_model is None:
+                    subject_values = _subject_values(
+                        approval.subject,
+                        recorded_at=recorded_at,
+                    )
+                    subject_model = EvidenceOperatorSpecApprovalSubjectModel(**subject_values)
+                    with _claim_evidence_operator_spec_approval_insert(
+                        token=_active_token(),
+                        model_type=EvidenceOperatorSpecApprovalSubjectModel,
+                        expected_values=subject_values,
+                    ):
+                        subject_model.save(force_insert=True, using=self._using)
+                elif subject_model.recorded_at > recorded_at:
+                    raise EvidenceOperatorSpecApprovalConflict(
+                        "approval subject was not knowable at the approval clock"
+                    )
                 approval_values_with_fk: dict[str, object] = {
                     **approval_values,
                     "subject_id": subject_model.pk,
@@ -209,6 +218,41 @@ class DjangoEvidenceOperatorSpecApprovalRepository:
                 ) from None
             return winner
         return self._restore_approval(approval_model)
+
+    def append_subject(
+        self,
+        subject: EvidenceOperatorSpecApprovalSubject,
+        *,
+        recorded_at: datetime,
+    ) -> EvidenceOperatorSpecApprovalSubject:
+        """Append a separately registered subject or return its exact winner."""
+
+        if recorded_at != subject.requested_at:
+            raise EvidenceOperatorSpecApprovalConflict(
+                "approval subject must use the authoritative registration clock"
+            )
+        _active_token()
+        existing = self._exact_subject_model(subject)
+        if existing is not None:
+            return self._restore_subject(existing)
+        values = _subject_values(subject, recorded_at=recorded_at)
+        model = EvidenceOperatorSpecApprovalSubjectModel(**values)
+        try:
+            with transaction.atomic(using=self._using):
+                with _claim_evidence_operator_spec_approval_insert(
+                    token=_active_token(),
+                    model_type=EvidenceOperatorSpecApprovalSubjectModel,
+                    expected_values=values,
+                ):
+                    model.save(force_insert=True, using=self._using)
+        except IntegrityError:
+            winner = self._exact_subject_model(subject)
+            if winner is None:
+                raise EvidenceOperatorSpecApprovalConflict(
+                    "approval subject append conflicted without an exact first winner"
+                ) from None
+            return self._restore_subject(winner)
+        return self._restore_subject(model)
 
     def get_exact_by_hash(
         self,
@@ -374,15 +418,47 @@ class DjangoEvidenceOperatorSpecApprovalRepository:
             raise EvidenceOperatorSpecApprovalCorruption(
                 "approval record subject foreign key is invalid"
             )
-        if model.recorded_at != model.subject.recorded_at:
+        if model.subject.recorded_at > model.recorded_at:
             raise EvidenceOperatorSpecApprovalCorruption(
-                "approval record/subject knowledge clock mismatch"
+                "approval record predates its registered subject"
             )
         if approval.issued_at != model.recorded_at:
             raise EvidenceOperatorSpecApprovalCorruption(
                 "approval issue time is not the Risk Center server clock"
             )
         return approval
+
+    def _exact_subject_model(
+        self,
+        subject: EvidenceOperatorSpecApprovalSubject,
+    ) -> EvidenceOperatorSpecApprovalSubjectModel | None:
+        """Resolve every subject uniqueness anchor and reject partial collisions."""
+
+        identity_hash = evidence_operator_spec_subject_identity_hash(
+            subject_id=subject.subject_id,
+            subject_version=subject.subject_version,
+        )
+        models = list(
+            EvidenceOperatorSpecApprovalSubjectModel._default_manager.using(self._using).filter(
+                Q(subject_id=subject.subject_id, subject_version=subject.subject_version)
+                | Q(subject_identity_hash=identity_hash)
+                | Q(operator_id=subject.operator_id, operator_version=subject.operator_version)
+                | Q(definition_hash=subject.definition_hash)
+                | Q(content_hash=subject.content_hash)
+            )
+        )
+        if not models:
+            return None
+        restored = tuple(self._restore_subject(model) for model in models)
+        matches = tuple(
+            model for model, value in zip(models, restored, strict=True) if value == subject
+        )
+        if len(models) != 1 or len(matches) != 1:
+            raise EvidenceOperatorSpecApprovalConflict(
+                "approval subject append conflicted without a visible first winner; "
+                "a different first winner owns its uniqueness anchor"
+            )
+        return matches[0]
 
 
 def _active_token() -> object:

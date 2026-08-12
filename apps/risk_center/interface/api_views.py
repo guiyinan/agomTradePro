@@ -114,6 +114,12 @@ class RiskCenterApiHomeView(APIView):
                     "post_investment_check": "/api/risk-center/post-investment-check/",
                     "daily_report": "/api/risk-center/daily-report/",
                     "daily_report_history": "/api/risk-center/daily-report/?account_id=1",
+                    "operator_spec_approval_subjects": (
+                        "/api/risk-center/evidence/operator-spec-approval-subjects/"
+                    ),
+                    "operator_spec_approvals": (
+                        "/api/risk-center/evidence/operator-spec-approvals/"
+                    ),
                 },
             }
         )

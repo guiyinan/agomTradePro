@@ -17,6 +17,10 @@ from apps.risk_center.interface.api_views import (
     RiskTemplateDetailView,
     RiskTemplateListCreateView,
 )
+from apps.risk_center.interface.evidence_operator_spec_approval_api_views import (
+    ApproveEvidenceOperatorSpecView,
+    RegisterEvidenceOperatorSpecApprovalSubjectView,
+)
 from apps.risk_center.interface.scenario_api_views import (
     ActivateScenarioSetView,
     ActiveScenarioSetView,
@@ -63,6 +67,16 @@ urlpatterns = [
         name="post-investment-check",
     ),
     path("daily-report/", RiskCenterDailyReportView.as_view(), name="daily-report"),
+    path(
+        "evidence/operator-spec-approval-subjects/",
+        RegisterEvidenceOperatorSpecApprovalSubjectView.as_view(),
+        name="evidence-operator-spec-approval-subject-register",
+    ),
+    path(
+        "evidence/operator-spec-approvals/",
+        ApproveEvidenceOperatorSpecView.as_view(),
+        name="evidence-operator-spec-approve",
+    ),
     path("stress-scenarios/", StressScenarioListView.as_view(), name="stress-scenarios"),
     path(
         "stress-scenarios/validate-revision/",

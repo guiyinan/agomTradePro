@@ -1,6 +1,6 @@
 # AgomTradePro 证据治理与决策硬闸改造计划
 
-> 执行状态（2026-08-13）：**M0 进行中，M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition 与首个 Data Center legacy adapter 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、Risk Center 人工审批写入面、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
+> 执行状态（2026-08-13）：**M0 进行中，M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与首个 Data Center legacy adapter 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、写入面的完整项目 runtime/component 证明、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
 
 ## 0. 分阶段实施记录
 
@@ -67,10 +67,30 @@
 
 - adapter、summary 与 inventory 聚合纯测试：`19 passed`；standalone strict mypy `0 errors`；Black、isort、`py_compile`、inventory CLI 与 `git diff --check` 通过。
 
+### 2026-08-13：M1 Risk Center 人工 subject / 审批写入面
+
+已完成：
+
+- 新增只接受 subject/operator ID 与版本的 subject 注册用例；可信 definition 由 Research Infrastructure 按 canonical Operator Spec 与 activation chain 解析，调用方不能提交 definition hash、权限或 supersession。
+- subject 与 approval 分两次 append-only 写入，分别保留服务端注册/审批时钟；已有 exact subject 可幂等重放，first-winner 冲突和知识时钟倒置均失败关闭。
+- composition root 只从 Django `request.user` 构造 human staff actor；注册人和审批人同时按 actor ID 与 user ID 禁止自审批。
+- 增加 SessionAuthentication、CSRF、authenticated staff、POST-only 的注册/审批端点；serializer 精确拒绝 caller 提交 actor、hash、`as_of` 或任何未声明字段，Interface 不直接导入 ORM。
+
+仍未完成：
+
+- 当前默认 Python 缺 DRF，备用环境又不满足项目 Django/Celery 声明，因此新增 HTTP 与数据库 component 测试尚未在完整项目 runtime 取得通过证明；不得把纯测试当作生产 HTTP 验收。
+- PostgreSQL 真实并发 first-winner、用户/租户 owner scope、生产角色治理和真实人工审核记录仍待完成。
+
+本阶段验证：
+
+- 纯 Application 测试 `13 passed`；architecture delta 与全量 architecture verify 均为 `0 boundary / 0 audit violations`。
+- 4 个非 DRF 生产文件 standalone strict mypy `0 issues`；13 个目标文件 Black/isort 通过，compileall 通过。
+- 未验证：完整项目 DRF/API/component、DRF 项目级 mypy、PostgreSQL 并发。module dependency budget 仍报告当前分支总边 `208 > 207`（Research outbound 与 Risk Center inbound 各 +1），未形成实际 cycle，需在后续 composition 边界治理中收口。
+
 仍未完成：
 
 - M0 尚需扩展全量 R1–R8、动态 dict/TypedDict/interface/query payload、Broker query API、raw/governed MCP 输出语义与旧 Transition Plan 写路径分类；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口及 41 个高风险输出首批冻结已完成。
-- M1 的用户/租户 scope 模型与 owner-scoped 授权、Risk Center 人工审批写入面、并发 first-winner PostgreSQL 验证和其余 App Application adapter；staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition 与 Data Center quote legacy adapter 首批已完成。
+- M1 的用户/租户 scope 模型与 owner-scoped 授权、人工审批写入面的完整项目 runtime/component 证明、并发 first-winner PostgreSQL 验证和其余 App Application adapter仍未完成；staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与 Data Center quote legacy adapter 首批已完成。
 - M2–M5 全部交付及真实生产切换证据。
 
 本阶段验证：
