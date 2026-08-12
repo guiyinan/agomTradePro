@@ -111,7 +111,7 @@
 
 仍未完成：
 
-- 同表 `plan_contract_kind/schema_family` 隔离、legacy/canonical cross-family read/write 阻断和 nullable migration；在完成这些防线及 owner/snapshot/policy/人工审批验收前，不得翻转 canonical planner 默认开关。
+- 存量 family 分类审计、PostgreSQL 并发、owner/snapshot/policy/人工审批验收仍未完成；同表 schema family 与 cross-family read/write 首批防线已完成，但不得据此翻转 canonical planner 默认开关。
 - 当前 Python runtime 缺 Django 与 mypy Django plugin；新 API/ORM 行为测试已写但未在完整项目 runtime 执行，PostgreSQL 并发与零副作用阻断也待 CI/项目环境验证。
 
 本阶段验证：
@@ -119,6 +119,26 @@
 - writer freeze 专属纯测试 `8 passed`；CLI 为 Transition Plan writers `10`、HTTP `54`、SDK `15`、TUI decision `25`、TUI mutation `23`、MCP position-write `32`。
 - Architecture delta/full verify 均 `0 violations`；module audit `207 edges / 0 cycles`；Black、isort、`py_compile`、JSON 与 diff check 通过。
 - `check_mypy_regression.py` 报 `Mypy regressions: 0`，但项目 mypy plugin 因环境缺 `mypy_django_plugin` 未启动；API 测试加载阶段因缺 Django 未执行，不计为通过。
+
+### 2026-08-13：M0 Transition Plan 同表 contract-family 隔离
+
+已完成：
+
+- 为共用的 `decision_portfolio_transition_plan` 增加 nullable、indexed `plan_contract_family`，仅允许 `decision_rhythm_legacy_v1` 与 `portfolio_canonical_v1`；migration `0016` 只有一个 `AddField`，无 `RunPython/RunSQL`、无 default、无存量回填。
+- legacy repository 的所有新写入显式标记 legacy family；存量 `NULL/blank` 仅按保守 legacy 兼容读取，任何已标 canonical 行在 decode、overwrite、status update、approval create/update 前失败关闭。
+- canonical repository 的新写入显式标记 canonical family，并以 `plan_id` 与 `idempotency_key` 双身份加锁查询；read/replay/approve 只接受 canonical family，拒绝消费 legacy 或未分类 payload。
+- 共享 family 规则放在 `core/integration`，没有让 Portfolio 反向依赖 Decision Rhythm；一次中间实现被 module-cycle gate 抓到并撤销，最终恢复为原有 207 条 App 边、0 cycle。
+
+仍未完成：
+
+- 存量 `NULL` 行的受控分类/审计迁移、cross-family attempt 指标与日志、PostgreSQL first-winner 并发验证；当前 canonical `select_for_update` 对不存在行不能替代数据库并发 first-winner 证据。
+- 完整 Django runtime 下 migration forward/reverse、legacy/canonical repository round-trip 与 cross-family 零副作用 component 测试尚未运行；canonical flag 继续默认关闭，路由/TUI/SDK/MCP 未切换。
+
+本阶段验证：
+
+- family/migration 静态规则与 writer freeze 聚合纯测试 `16 passed`；migration AST 证明单一 nullable `AddField` 且无数据操作。
+- Architecture delta/full verify 均 `0 violations`；module audit `207 edges / 0 cycles`；writer freeze 仍为 `10 / 54 / 15 / 25 / 23 / 32`。
+- Black、isort、`py_compile` 与 diff check 通过；`check_mypy_regression.py` 因缺 Django plugin 只报告 regressions `0`，不作为完整 mypy 通过证明。
 
 ### 2026-08-13：M1 Risk Center 人工 subject / 审批写入面
 

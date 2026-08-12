@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from apps.portfolio.domain.entities import ConstraintDecision, OrderDraft, TransitionPlan
 from core.integration.research_integrity_registry import get_decision_snapshot
+from core.integration.transition_plan_contracts import require_canonical_transition_plan_family
 
 from .models import PortfolioTransitionPlanModel
 from .policy_models import PortfolioPlanningPolicyModel
@@ -69,15 +70,27 @@ class PortfolioTransitionPlanRepository:
         payload_hash = hashlib.sha256(
             json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
-        existing = PortfolioTransitionPlanModel._default_manager.filter(
-            idempotency_key=plan.idempotency_key
-        ).first()
+        existing = (
+            PortfolioTransitionPlanModel._default_manager.select_for_update()
+            .filter(plan_id=plan.plan_id)
+            .first()
+        )
+        idempotent = (
+            PortfolioTransitionPlanModel._default_manager.select_for_update()
+            .filter(idempotency_key=plan.idempotency_key)
+            .first()
+        )
+        if existing is not None and idempotent is not None and existing.pk != idempotent.pk:
+            raise ValueError("plan id and idempotency key resolve to different transition plans")
+        existing = existing or idempotent
         if existing:
+            require_canonical_transition_plan_family(existing.plan_contract_family)
             if existing.immutable_payload_hash != payload_hash:
                 raise ValueError("idempotency key was already used for a different plan")
             return self._to_domain(existing)
         PortfolioTransitionPlanModel._default_manager.create(
             plan_id=plan.plan_id,
+            plan_contract_family=PortfolioTransitionPlanModel.CONTRACT_FAMILY_CANONICAL,
             account_id=plan.account_id,
             source_recommendation_ids=[],
             current_positions_snapshot=[],
@@ -115,6 +128,7 @@ class PortfolioTransitionPlanRepository:
         """Approve only an unexpired plan bound to the same decision snapshot."""
 
         row = PortfolioTransitionPlanModel._default_manager.select_for_update().get(plan_id=plan_id)
+        require_canonical_transition_plan_family(row.plan_contract_family)
         if row.decision_snapshot_id != decision_snapshot_id:
             raise ValueError("decision snapshot changed; rebuild the transition plan")
         if row.expires_at is None or row.expires_at <= timezone.now():
@@ -128,6 +142,7 @@ class PortfolioTransitionPlanRepository:
 
     @classmethod
     def _to_domain(cls, row: PortfolioTransitionPlanModel) -> TransitionPlan:
+        require_canonical_transition_plan_family(row.plan_contract_family)
         orders = tuple(cls._order_from_dict(item) for item in (row.orders or []))
         constraints = tuple(
             ConstraintDecision(**item) for item in (row.risk_contract or {}).get("constraints", [])

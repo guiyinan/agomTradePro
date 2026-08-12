@@ -97,6 +97,7 @@ def test_transition_plan_repository_serializes_nested_json_snapshots():
     saved_plan = repository.save(plan)
     model = PortfolioTransitionPlanModel.objects.get(plan_id="plan_repo_json")
 
+    assert model.plan_contract_family == PortfolioTransitionPlanModel.CONTRACT_FAMILY_LEGACY
     assert model.current_positions_snapshot[0]["market_value"] == "1100.00"
     assert model.current_positions_snapshot[0]["snapshot_at"] == "2026-03-29T09:30:00+00:00"
     assert model.current_positions_snapshot[0]["metrics"]["avg_cost"] == "10.0000"
@@ -126,3 +127,32 @@ def test_transition_plan_repository_serializes_nested_json_snapshots():
     assert saved_plan.orders[0].risk_summary == "PMI 跌破 50"
     assert saved_plan.orders[0].reward_risk["ratio"] == "2.20"
     assert saved_plan.orders[0].data_asof == "2026-03-29T09:30:00+00:00"
+
+
+@pytest.mark.django_db
+def test_legacy_repository_cannot_overwrite_canonical_contract_family():
+    model = PortfolioTransitionPlanModel.objects.create(
+        plan_id="canonical-row",
+        account_id="acct-canonical",
+        as_of=datetime(2026, 3, 29, 9, 30, tzinfo=UTC),
+        plan_contract_family=PortfolioTransitionPlanModel.CONTRACT_FAMILY_CANONICAL,
+    )
+    repository = PortfolioTransitionPlanRepository()
+    plan = PortfolioTransitionPlan(
+        plan_id=model.plan_id,
+        account_id=model.account_id,
+        as_of=model.as_of,
+        source_recommendation_ids=[],
+        current_positions_snapshot=[],
+        target_positions_snapshot=[],
+        orders=[],
+        risk_contract={},
+        summary={},
+        status=TransitionPlanStatus.DRAFT,
+    )
+
+    with pytest.raises(ValueError, match="cannot consume canonical payload"):
+        repository.save(plan)
+
+    model.refresh_from_db()
+    assert model.plan_contract_family == PortfolioTransitionPlanModel.CONTRACT_FAMILY_CANONICAL

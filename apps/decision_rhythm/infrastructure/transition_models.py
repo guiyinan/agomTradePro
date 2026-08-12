@@ -3,11 +3,15 @@
 from decimal import Decimal
 from typing import Any
 
+from core.integration.transition_plan_contracts import require_legacy_transition_plan_family
+
 from ..domain.entities import PortfolioTransitionPlan, TransitionOrder, TransitionPlanStatus
 
 
 def transition_model_to_domain(model: Any) -> PortfolioTransitionPlan:
     """Convert the portfolio-owned persistence row to the legacy domain value."""
+
+    require_legacy_transition_plan_family(getattr(model, "plan_contract_family", None))
 
     orders = [
         TransitionOrder(

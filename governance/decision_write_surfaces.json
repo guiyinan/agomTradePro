@@ -41,6 +41,7 @@
       "required_ast_calls": [
         "ExecutionApprovalRequestModel.objects.create",
         "PortfolioTransitionPlanModel.objects.get",
+        "_ensure_legacy_transition_plan_row",
         "_ensure_legacy_transition_plan_write_enabled",
         "plan_model.save",
         "self.has_pending_request_for_plan"
@@ -54,6 +55,7 @@
       "replacement": "apps/portfolio/application/use_cases.py::ValidateTransitionPlanUseCase.execute",
       "required_ast_calls": [
         "ExecutionApprovalRequestModel.objects.select_related",
+        "_ensure_legacy_transition_plan_row",
         "_ensure_legacy_transition_plan_write_enabled",
         "model.save",
         "model.transition_plan.save"
@@ -67,6 +69,7 @@
       "replacement": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.save",
       "required_ast_calls": [
         "PortfolioTransitionPlanModel.objects.update_or_create",
+        "_ensure_legacy_transition_plan_row",
         "_ensure_legacy_transition_plan_write_enabled",
         "transition_model_to_domain"
       ]
@@ -79,6 +82,7 @@
       "replacement": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.approve",
       "required_ast_calls": [
         "PortfolioTransitionPlanModel.objects.get",
+        "_ensure_legacy_transition_plan_row",
         "_ensure_legacy_transition_plan_write_enabled",
         "model.save",
         "transition_model_to_domain"
@@ -125,8 +129,9 @@
       "replacement": null,
       "required_ast_calls": [
         "PortfolioTransitionPlanModel._default_manager.create",
-        "PortfolioTransitionPlanModel._default_manager.filter",
-        "get_decision_snapshot"
+        "PortfolioTransitionPlanModel._default_manager.select_for_update.filter",
+        "get_decision_snapshot",
+        "require_canonical_transition_plan_family"
       ]
     }
   ],
