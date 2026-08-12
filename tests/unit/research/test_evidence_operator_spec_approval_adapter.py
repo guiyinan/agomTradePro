@@ -7,14 +7,12 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from apps.research.application.evidence_operator_spec_approval_adapter import (
-    RiskCenterOperatorSpecApprovalAdapter,
+    ExternalOperatorSpecApprovalProjection,
+    project_operator_spec_owner_approval,
 )
 from apps.research.application.evidence_operator_spec_lifecycle import (
     EvidenceOperatorSpecCorruption,
     EvidenceOperatorSpecOwnerApproval,
-)
-from apps.risk_center.application.evidence_operator_spec_approval import (
-    GetEvidenceOperatorSpecApprovalForDefinitionCommand,
 )
 from apps.risk_center.domain.evidence_operator_spec_approval import (
     EvidenceOperatorSpecApprovalActor,
@@ -59,49 +57,47 @@ def _approval() -> EvidenceOperatorSpecApprovalRecord:
     )
 
 
-class _Query:
-    def __init__(self, value: EvidenceOperatorSpecApprovalRecord | None) -> None:
-        self.value = value
-        self.commands: list[GetEvidenceOperatorSpecApprovalForDefinitionCommand] = []
+def _projection(
+    record: EvidenceOperatorSpecApprovalRecord,
+) -> ExternalOperatorSpecApprovalProjection:
+    subject = record.subject
+    return ExternalOperatorSpecApprovalProjection(
+        owner=record.owner,
+        capability=record.capability,
+        approval_id=record.approval_id,
+        approval_version=record.approval_version,
+        owner_record_hash=record.content_hash,
+        operator_id=subject.operator_id,
+        operator_version=subject.operator_version,
+        definition_hash=subject.definition_hash,
+        supersedes_activation_hash=subject.supersedes_activation_hash,
+        approved_by=record.approved_by.actor_id,
+        issued_at=record.issued_at,
+        valid_until=record.valid_until,
+    )
 
-    def execute(
-        self,
-        command: GetEvidenceOperatorSpecApprovalForDefinitionCommand,
-    ) -> EvidenceOperatorSpecApprovalRecord | None:
-        self.commands.append(command)
-        return self.value
 
-
-def _get(
-    adapter: RiskCenterOperatorSpecApprovalAdapter,
-) -> EvidenceOperatorSpecOwnerApproval | None:
-    return adapter.get_exact(
+def _get(record: EvidenceOperatorSpecApprovalRecord) -> EvidenceOperatorSpecOwnerApproval:
+    return project_operator_spec_owner_approval(
+        _projection(record),
         approval_id="approval:sector-score:1",
         approval_version="1",
         operator_id="sector-score",
         operator_version="1",
         definition_hash=HASH,
         supersedes_activation_hash=None,
-        as_of=NOW,
     )
 
 
 def test_adapter_projects_exact_owner_record_identity_and_hash() -> None:
     approval = _approval()
-    query = _Query(approval)
-
-    projected = _get(RiskCenterOperatorSpecApprovalAdapter(query))
+    projected = _get(approval)
 
     assert projected is not None
     assert projected.owner_record_id == approval.approval_id
     assert projected.owner_record_version == approval.approval_version
     assert projected.owner_record_hash == approval.content_hash
     assert projected.approved_by == approval.approved_by.actor_id
-    assert len(query.commands) == 1
-
-
-def test_adapter_preserves_unavailable_as_fail_closed_none() -> None:
-    assert _get(RiskCenterOperatorSpecApprovalAdapter(_Query(None))) is None
 
 
 def test_adapter_rejects_provider_selector_substitution() -> None:
@@ -126,4 +122,4 @@ def test_adapter_rejects_provider_selector_substitution() -> None:
     )
 
     with pytest.raises(EvidenceOperatorSpecCorruption, match="selector mismatch"):
-        _get(RiskCenterOperatorSpecApprovalAdapter(_Query(substituted)))
+        _get(substituted)

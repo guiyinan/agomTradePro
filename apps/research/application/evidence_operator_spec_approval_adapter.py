@@ -1,122 +1,76 @@
-"""Application adapter from Risk Center approvals to Research activation."""
+"""Pure projection of an external approval into Research activation."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol
 
 from apps.research.application.evidence_operator_spec_lifecycle import (
     EvidenceOperatorSpecCorruption,
     EvidenceOperatorSpecOwnerApproval,
 )
-from apps.risk_center.application.evidence_operator_spec_approval import (
-    GetEvidenceOperatorSpecApprovalForDefinition,
-    GetEvidenceOperatorSpecApprovalForDefinitionCommand,
-)
-from apps.risk_center.domain.evidence_operator_spec_approval import (
-    EVIDENCE_OPERATOR_SPEC_APPROVAL_CAPABILITY,
-    EVIDENCE_OPERATOR_SPEC_APPROVAL_OWNER,
-    EvidenceOperatorSpecApprovalRecord,
-)
 
 
-class RiskCenterOperatorSpecApprovalDefinitionQuery(Protocol):
-    """Narrow Risk Center Application facade consumed by this adapter."""
+@dataclass(frozen=True, slots=True)
+class ExternalOperatorSpecApprovalProjection:
+    """Data-only boundary projection supplied by a composition root."""
 
-    def execute(
-        self,
-        command: GetEvidenceOperatorSpecApprovalForDefinitionCommand,
-    ) -> EvidenceOperatorSpecApprovalRecord | None:
-        """Return one exact validated owner approval or no projection."""
+    owner: str
+    capability: str
+    approval_id: str
+    approval_version: str
+    owner_record_hash: str
+    operator_id: str
+    operator_version: str
+    definition_hash: str
+    supersedes_activation_hash: str | None
+    approved_by: str
+    issued_at: datetime
+    valid_until: datetime
 
 
-class RiskCenterOperatorSpecApprovalAdapter:
-    """Project one exact Risk Center approval without exposing its repository."""
+def project_operator_spec_owner_approval(
+    projection: ExternalOperatorSpecApprovalProjection,
+    *,
+    approval_id: str,
+    approval_version: str,
+    operator_id: str,
+    operator_version: str,
+    definition_hash: str,
+    supersedes_activation_hash: str | None,
+) -> EvidenceOperatorSpecOwnerApproval:
+    """Revalidate authority and exact selectors before creating a receipt input."""
 
-    __slots__ = ("_query",)
-
-    def __init__(self, query: RiskCenterOperatorSpecApprovalDefinitionQuery) -> None:
-        self._query = query
-
-    def get_exact(
-        self,
-        *,
-        approval_id: str,
-        approval_version: str,
-        operator_id: str,
-        operator_version: str,
-        definition_hash: str,
-        supersedes_activation_hash: str | None,
-        as_of: datetime,
-    ) -> EvidenceOperatorSpecOwnerApproval | None:
-        """Return a revalidated Research projection for one exact selector."""
-
-        record = self._query.execute(
-            GetEvidenceOperatorSpecApprovalForDefinitionCommand(
-                approval_id=approval_id,
-                approval_version=approval_version,
-                operator_id=operator_id,
-                operator_version=operator_version,
-                definition_hash=definition_hash,
-                supersedes_activation_hash=supersedes_activation_hash,
-                as_of=as_of,
-            )
+    if (
+        projection.owner != "risk_center"
+        or projection.capability != "evidence_operator_spec_activation"
+        or projection.approval_id != approval_id
+        or projection.approval_version != approval_version
+        or projection.operator_id != operator_id
+        or projection.operator_version != operator_version
+        or projection.definition_hash != definition_hash
+        or projection.supersedes_activation_hash != supersedes_activation_hash
+    ):
+        raise EvidenceOperatorSpecCorruption(
+            "Risk Center operator specification approval selector mismatch"
         )
-        if record is None:
-            return None
-        self._require_selector(
-            record,
-            approval_id=approval_id,
-            approval_version=approval_version,
-            operator_id=operator_id,
-            operator_version=operator_version,
-            definition_hash=definition_hash,
-            supersedes_activation_hash=supersedes_activation_hash,
-        )
-        subject = record.subject
-        return EvidenceOperatorSpecOwnerApproval(
-            approval_id=record.approval_id,
-            approval_version=record.approval_version,
-            owner_record_id=record.approval_id,
-            owner_record_version=record.approval_version,
-            owner_record_hash=record.content_hash,
-            operator_id=subject.operator_id,
-            operator_version=subject.operator_version,
-            definition_hash=subject.definition_hash,
-            supersedes_activation_hash=subject.supersedes_activation_hash,
-            approved_by=record.approved_by.actor_id,
-            issued_at=record.issued_at,
-            valid_until=record.valid_until,
-        )
-
-    @staticmethod
-    def _require_selector(
-        record: EvidenceOperatorSpecApprovalRecord,
-        *,
-        approval_id: str,
-        approval_version: str,
-        operator_id: str,
-        operator_version: str,
-        definition_hash: str,
-        supersedes_activation_hash: str | None,
-    ) -> None:
-        subject = record.subject
-        if (
-            record.owner != EVIDENCE_OPERATOR_SPEC_APPROVAL_OWNER
-            or record.capability != EVIDENCE_OPERATOR_SPEC_APPROVAL_CAPABILITY
-            or record.approval_id != approval_id
-            or record.approval_version != approval_version
-            or subject.operator_id != operator_id
-            or subject.operator_version != operator_version
-            or subject.definition_hash != definition_hash
-            or subject.supersedes_activation_hash != supersedes_activation_hash
-        ):
-            raise EvidenceOperatorSpecCorruption(
-                "Risk Center operator specification approval selector mismatch"
-            )
+    return EvidenceOperatorSpecOwnerApproval(
+        approval_id=projection.approval_id,
+        approval_version=projection.approval_version,
+        owner_record_id=projection.approval_id,
+        owner_record_version=projection.approval_version,
+        owner_record_hash=projection.owner_record_hash,
+        operator_id=projection.operator_id,
+        operator_version=projection.operator_version,
+        definition_hash=projection.definition_hash,
+        supersedes_activation_hash=projection.supersedes_activation_hash,
+        approved_by=projection.approved_by,
+        issued_at=projection.issued_at,
+        valid_until=projection.valid_until,
+    )
 
 
 __all__ = [
-    "RiskCenterOperatorSpecApprovalAdapter",
-    "RiskCenterOperatorSpecApprovalDefinitionQuery",
+    "ExternalOperatorSpecApprovalProjection",
+    "project_operator_spec_owner_approval",
 ]

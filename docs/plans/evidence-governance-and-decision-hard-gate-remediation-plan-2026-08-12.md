@@ -85,7 +85,7 @@
 
 - 纯 Application 测试 `13 passed`；architecture delta 与全量 architecture verify 均为 `0 boundary / 0 audit violations`。
 - 4 个非 DRF 生产文件 standalone strict mypy `0 issues`；13 个目标文件 Black/isort 通过，compileall 通过。
-- 未验证：完整项目 DRF/API/component、DRF 项目级 mypy、PostgreSQL 并发。module dependency budget 仍报告当前分支总边 `208 > 207`（Research outbound 与 Risk Center inbound 各 +1），未形成实际 cycle，需在后续 composition 边界治理中收口。
+- 未验证：完整项目 DRF/API/component、DRF 项目级 mypy、PostgreSQL 并发。跨 App approval projection 已移入 `core/integration` composition root，Research Application 只保留数据型投影和自身 Protocol；带 allowlist 的 module-cycle gate 恢复为 207 条边、0 cycle。
 
 仍未完成：
 
