@@ -13,5 +13,12 @@ class RegimeConfig(AppConfig):
         import apps.regime.application.tasks  # noqa: F401 - Import Celery tasks
         import apps.regime.interface.admin  # noqa: F401
         from apps.regime.application.pulse_gateway import register_regime_pulse_gateway
+        from apps.regime.historical_assignment_composition import (
+            build_historical_regime_assignment_runtime,
+        )
+        from core.integration.r3_owner_evidence import configure_r3_regime_assignment_factory
 
         register_regime_pulse_gateway()
+        configure_r3_regime_assignment_factory(
+            lambda using: build_historical_regime_assignment_runtime(using=using).repository
+        )

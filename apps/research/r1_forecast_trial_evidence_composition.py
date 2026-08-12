@@ -77,6 +77,14 @@ def build_r1_forecast_trial_evidence_runtime(
     )
 
 
+def build_r1_forecast_trial_evidence_provider(
+    *, using: str = "default"
+) -> DjangoResearchTrialEvidenceProvider:
+    """Build only the exact read provider for cross-app composition."""
+
+    return build_r1_forecast_trial_evidence_runtime(using=using).equity_provider
+
+
 def _build_private_r1_forecast_trial_evidence_runtime(
     *,
     definition_provider: R1ForecastTrialDefinitionProvider,
@@ -107,5 +115,6 @@ def _build_private_r1_forecast_trial_evidence_runtime(
 
 __all__ = [
     "R1ForecastTrialEvidenceRuntime",
+    "build_r1_forecast_trial_evidence_provider",
     "build_r1_forecast_trial_evidence_runtime",
 ]

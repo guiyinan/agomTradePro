@@ -48,6 +48,10 @@ class ConfigCenterConfig(AppConfig):
         from core.integration.config_center_runtime import (
             configure_config_center_runtime_port,
         )
+        from core.integration.config_secret_store import (
+            ConfigSecretStorePort,
+            configure_config_secret_store,
+        )
         from core.integration.runtime_settings import configure_runtime_settings_provider
 
         configure_config_center_repositories(
@@ -60,6 +64,9 @@ class ConfigCenterConfig(AppConfig):
         configure_config_center_summary_repository(DjangoConfigCenterSummaryRepository())
         configure_runtime_settings_provider(get_config_center_summary_service())
         configure_config_center_runtime_port(runtime_public)
+        from apps.config_center.application import public as config_center_public
+
+        configure_config_secret_store(cast(ConfigSecretStorePort, config_center_public))
         configure_runtime_config_services(
             definitions=RuntimeConfigDefinitionRepository(),
             profiles=RuntimeConfigProfileRepository(),

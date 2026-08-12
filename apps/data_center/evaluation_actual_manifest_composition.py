@@ -29,7 +29,6 @@ from apps.data_center.domain.evaluation_actual_manifest import (
 )
 from apps.data_center.infrastructure.evaluation_actual_manifest_repository import (
     DjangoEvaluationActualClock,
-    DjangoEvaluationActualEvidenceProvider,
     DjangoEvaluationActualGraphProvider,
     DjangoEvaluationActualRepository,
     DjangoEvaluationActualSourceDefinitionProvider,
@@ -364,7 +363,7 @@ class DjangoEvaluationActualRuntime:
     register_source: _UnavailableEvaluationActualSourceRegistration
     materialize: _UnavailableEvaluationActualManifestMaterialization
     get_source: GetExactEvaluationActualSource
-    actual_provider: DjangoEvaluationActualEvidenceProvider
+    repository: DjangoEvaluationActualRepository
 
 
 @dataclass(frozen=True, slots=True)
@@ -374,7 +373,6 @@ class _DjangoEvaluationActualTestRuntime:
     register_source: RegisterEvaluationActualSource
     materialize: MaterializeEvaluationActualManifest
     get_source: GetExactEvaluationActualSource
-    actual_provider: DjangoEvaluationActualEvidenceProvider
     repository: DjangoEvaluationActualRepository
 
 
@@ -389,7 +387,7 @@ def build_django_evaluation_actual_runtime(
         register_source=_UnavailableEvaluationActualSourceRegistration(),
         materialize=_UnavailableEvaluationActualManifestMaterialization(),
         get_source=GetExactEvaluationActualSource(repository),
-        actual_provider=DjangoEvaluationActualEvidenceProvider(repository),
+        repository=repository,
     )
 
 
@@ -438,7 +436,6 @@ def _build_django_evaluation_actual_test_runtime(
             )
         ),
         get_source=GetExactEvaluationActualSource(repository),
-        actual_provider=DjangoEvaluationActualEvidenceProvider(repository),
         repository=repository,
     )
 

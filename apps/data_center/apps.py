@@ -29,6 +29,10 @@ class DataCenterConfig(AppConfig):
             get_asset_analysis_market_registry,
         )
         from core.integration.data_center_readiness import configure_data_center_read_port
+        from core.integration.r1_evaluation_actual import (
+            configure_r1_evaluation_actual_repository_factory,
+        )
+        from core.integration.r3_owner_evidence import configure_r3_pit_projection_factory
 
         configure_data_center_read_port(build_data_center_read_facade())
         get_asset_analysis_market_registry().register_name_resolver(
@@ -39,6 +43,22 @@ class DataCenterConfig(AppConfig):
         configure_data_center_config_summary_repository(DjangoDataCenterConfigSummaryRepository())
         configure_research_data_foundation_facade(
             ResearchDataFoundationFacade(ResearchDataFoundationRepository())
+        )
+        from apps.data_center.macro_factor_research_source_composition import (
+            build_django_macro_factor_research_source_runtime,
+        )
+
+        configure_r3_pit_projection_factory(
+            lambda using: build_django_macro_factor_research_source_runtime(
+                using=using
+            ).projection_provider
+        )
+        from apps.data_center.infrastructure.evaluation_actual_manifest_repository import (
+            DjangoEvaluationActualRepository,
+        )
+
+        configure_r1_evaluation_actual_repository_factory(
+            lambda using: DjangoEvaluationActualRepository(using=using)
         )
         from apps.data_center.application.pit_provider import configure_pit_providers
 

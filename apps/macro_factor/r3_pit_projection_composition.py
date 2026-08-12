@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from apps.data_center.macro_factor_research_source_composition import (
-    build_django_macro_factor_research_source_runtime,
-)
 from apps.macro_factor.infrastructure.data_center_pit_projection_adapter import (
     DataCenterMacroFactorPITProjectionAdapter,
+)
+from core.integration.r3_owner_evidence import (
+    build_r3_pit_projection_provider,
 )
 
 
@@ -25,9 +25,10 @@ def build_macro_factor_r3_pit_read_runtime(
 ) -> MacroFactorR3PITReadRuntime:
     """Build the production read path from a database alias only."""
 
-    data_center = build_django_macro_factor_research_source_runtime(using=using)
     return MacroFactorR3PITReadRuntime(
-        pit_provider=DataCenterMacroFactorPITProjectionAdapter(data_center.projection_provider)
+        pit_provider=DataCenterMacroFactorPITProjectionAdapter(
+            build_r3_pit_projection_provider(using=using)
+        )
     )
 
 

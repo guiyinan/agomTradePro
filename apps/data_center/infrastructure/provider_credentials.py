@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
-from apps.config_center.application.public import (
+from core.integration.config_secret_store import (
     config_secret_present,
     persist_config_secret,
     resolve_config_secret,

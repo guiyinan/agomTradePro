@@ -11,11 +11,11 @@ from apps.portfolio.domain.r5_monitoring_raw_fact_registry import (
     PortfolioR5MonitoringRawFactDefinition,
     PortfolioR5MonitoringRawFactSourceReceipt,
 )
-from apps.research.domain.r5_relative_value_monitoring_contracts import (
+from apps.portfolio.domain.r5_relative_value_monitoring_contracts import (
     _require_aware,
     _require_token,
 )
-from apps.research.domain.r5_relative_value_monitoring_facts import (
+from apps.portfolio.domain.r5_relative_value_monitoring_facts import (
     R5PostPromotionMonitoringFact,
 )
 

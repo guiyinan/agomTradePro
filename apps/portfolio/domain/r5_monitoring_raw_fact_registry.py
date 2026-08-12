@@ -6,12 +6,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from apps.fixed_income.domain.evidence import canonical_hash
-from apps.research.domain.r5_relative_value_monitoring_contracts import (
+from apps.portfolio.domain.r5_relative_value_monitoring_contracts import (
     _require_aware,
     _require_hash,
     _require_token,
 )
-from apps.research.domain.r5_relative_value_monitoring_facts import (
+from apps.portfolio.domain.r5_relative_value_monitoring_facts import (
     R5PostPromotionMonitoringFact,
 )
 

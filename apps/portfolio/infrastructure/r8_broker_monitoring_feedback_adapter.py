@@ -3,14 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any, Protocol, cast
 
-from apps.broker_execution.domain.r8_monitoring_reconciliation import (
-    R8BrokerMonitoringMetricKey,
-    R8BrokerMonitoringPeriodReceipt,
-)
-from apps.broker_execution.r8_monitoring_reconciliation_composition import (
-    build_django_r8_broker_monitoring_receipt_provider,
-)
 from apps.portfolio.domain.governed_optimization_monitoring import (
     OptimizationMonitoringSourceEvidence,
 )
@@ -19,14 +13,19 @@ from apps.portfolio.domain.governed_optimization_monitoring_metrics import (
     MonitoringSourceOwner,
     OptimizationMonitoringOwnerMetricPayload,
 )
+from core.integration.r8_broker_monitoring import (
+    build_r8_broker_monitoring_provider,
+)
 
-_METRIC_KEY_MAP = {
-    R8BrokerMonitoringMetricKey.TOTAL_COST_RATE: MonitoringMetricKey.TOTAL_COST_RATE,
-    R8BrokerMonitoringMetricKey.ADVERSE_SLIPPAGE_RATE: (MonitoringMetricKey.ADVERSE_SLIPPAGE_RATE),
-    R8BrokerMonitoringMetricKey.RECONCILIATION_BREAK_RATE: (
-        MonitoringMetricKey.RECONCILIATION_BREAK_RATE
-    ),
+_METRIC_KEY_MAP: dict[str, MonitoringMetricKey] = {
+    "total_cost_rate": MonitoringMetricKey.TOTAL_COST_RATE,
+    "adverse_slippage_rate": MonitoringMetricKey.ADVERSE_SLIPPAGE_RATE,
+    "reconciliation_break_rate": MonitoringMetricKey.RECONCILIATION_BREAK_RATE,
 }
+
+
+class _BrokerReceiptProvider(Protocol):
+    def list_exact(self, **kwargs: object) -> object: ...
 
 
 class DjangoR8BrokerMonitoringFeedbackAdapter:
@@ -36,7 +35,10 @@ class DjangoR8BrokerMonitoringFeedbackAdapter:
 
     def __init__(self, *, using: str = "default") -> None:
         self._using = using
-        self._provider = build_django_r8_broker_monitoring_receipt_provider(using=using)
+        self._provider = cast(
+            _BrokerReceiptProvider,
+            build_r8_broker_monitoring_provider(using=using),
+        )
 
     @property
     def unit_of_work_key(self) -> str:
@@ -70,26 +72,32 @@ class DjangoR8BrokerMonitoringFeedbackAdapter:
         )
         if receipts is None:
             return ()
-        if type(receipts) is not tuple or any(
-            type(item) is not R8BrokerMonitoringPeriodReceipt for item in receipts
-        ):
+        if type(receipts) is not tuple:
             raise ValueError("Broker monitoring receipt provider returned an invalid type")
         return tuple(_to_portfolio_evidence(item) for item in receipts)
 
 
-def _to_portfolio_evidence(
-    value: R8BrokerMonitoringPeriodReceipt,
-) -> OptimizationMonitoringSourceEvidence:
-    receipt = value.validated_copy()
+def _to_portfolio_evidence(value: object) -> OptimizationMonitoringSourceEvidence:
+    validator = getattr(value, "validated_copy", None)
+    if not callable(validator):
+        raise ValueError("Broker monitoring receipt is not recursively validated")
+    receipt = cast(Any, validator())
+    if receipt != value:
+        raise ValueError("Broker monitoring receipt is noncanonical")
     definition = receipt.definition
-    payload = tuple(
-        OptimizationMonitoringOwnerMetricPayload.create(
-            metric_key=_METRIC_KEY_MAP[item.metric_key],
-            value=item.value,
-            evidence_namespace=f"r8.monitoring.{item.metric_key.value}.v1",
+    payload_items: list[OptimizationMonitoringOwnerMetricPayload] = []
+    for item in definition.metric_facts:
+        raw_key = getattr(getattr(item, "metric_key", None), "value", None)
+        if type(raw_key) is not str or raw_key not in _METRIC_KEY_MAP:
+            raise ValueError("Broker monitoring receipt has an unsupported metric")
+        payload_items.append(
+            OptimizationMonitoringOwnerMetricPayload.create(
+                metric_key=_METRIC_KEY_MAP[raw_key],
+                value=item.value,
+                evidence_namespace=f"r8.monitoring.{raw_key}.v1",
+            )
         )
-        for item in definition.metric_facts
-    )
+    payload = tuple(payload_items)
     evidence = OptimizationMonitoringSourceEvidence.create(
         owner=MonitoringSourceOwner.BROKER_EXECUTION,
         evidence_id=receipt.receipt_id,

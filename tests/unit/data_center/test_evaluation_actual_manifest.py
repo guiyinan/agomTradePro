@@ -485,7 +485,7 @@ def test_production_runtime_has_inert_writes_and_read_only_provider() -> None:
         runtime.register_source.execute(register_command)
     with pytest.raises(EvaluationActualUnavailable, match="canonical owner"):
         runtime.materialize.execute(materialize_command)
-    assert not hasattr(runtime.actual_provider, "_store")
+    assert not hasattr(runtime.repository, "append_source_definition")
 
 
 def test_domain_fork_is_not_equal_to_the_canonical_winner() -> None:

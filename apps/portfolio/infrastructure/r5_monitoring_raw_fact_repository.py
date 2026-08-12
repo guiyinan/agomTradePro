@@ -22,6 +22,14 @@ from apps.portfolio.domain.r5_monitoring_raw_fact_registry import (
     PortfolioR5MonitoringRawFactDefinition,
     PortfolioR5MonitoringRawFactSourceReceipt,
 )
+from apps.portfolio.domain.r5_relative_value_monitoring_contracts import (
+    _require_aware,
+    _require_hash,
+    _require_token,
+)
+from apps.portfolio.domain.r5_relative_value_monitoring_facts import (
+    R5PostPromotionMonitoringFact,
+)
 from apps.portfolio.infrastructure.optimization_research_models import (
     _activate_governed_optimization_uow,
     _claim_governed_optimization_insert,
@@ -32,14 +40,6 @@ from apps.portfolio.infrastructure.r5_monitoring_raw_fact_codec import (
 )
 from apps.portfolio.infrastructure.r5_monitoring_raw_fact_models import (
     PortfolioR5MonitoringRawFactReceiptModel,
-)
-from apps.research.domain.r5_relative_value_monitoring_contracts import (
-    _require_aware,
-    _require_hash,
-    _require_token,
-)
-from apps.research.domain.r5_relative_value_monitoring_facts import (
-    R5PostPromotionMonitoringFact,
 )
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Protocol
+from typing import Any, Protocol, cast
 
 from apps.macro_factor.domain.governed_read import (
     R3RegimeObservationEvidence,
@@ -11,9 +11,6 @@ from apps.macro_factor.domain.governed_read import (
     build_regime_segment_report,
 )
 from apps.macro_factor.domain.run_artifacts import ReproducibleMacroFactorRunArtifact
-from apps.regime.domain.historical_assignment import (
-    HistoricalRegimeAssignmentReceipt,
-)
 
 
 class ExactHistoricalRegimeAssignmentReceiptReader(Protocol):
@@ -29,7 +26,7 @@ class ExactHistoricalRegimeAssignmentReceiptReader(Protocol):
         artifact_id: str,
         expected_artifact_hash: str,
         as_of: datetime,
-    ) -> HistoricalRegimeAssignmentReceipt | None:
+    ) -> object | None:
         """Return the one exact PIT receipt or ``None`` without latest guessing."""
 
 
@@ -112,7 +109,13 @@ class RegimeHistoricalAssignmentReportAdapter:
             self._require_live_readers()
             if receipt is None:
                 return None
-            receipt = receipt.validated_copy()
+            validator = getattr(receipt, "validated_copy", None)
+            if not callable(validator):
+                return None
+            validated = cast(Any, validator())
+            if validated != receipt:
+                return None
+            receipt = validated
             if (
                 receipt.artifact_id != artifact.artifact_id
                 or receipt.artifact_hash != artifact.content_hash

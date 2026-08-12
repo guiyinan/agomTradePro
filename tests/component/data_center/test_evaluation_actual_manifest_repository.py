@@ -36,6 +36,9 @@ from apps.data_center.infrastructure.evaluation_actual_manifest_models import (
     EvaluationActualSourceDefinitionModel,
 )
 from apps.equity.application.forecast_baseline_materialize import VersionRef
+from apps.equity.infrastructure.evaluation_actual_evidence_provider import (
+    DjangoEvaluationActualEvidenceProvider,
+)
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -198,10 +201,11 @@ def _runtime(graph_provider: _GraphProvider) -> _DjangoEvaluationActualTestRunti
 
 def test_empty_production_read_is_none_and_mutation_is_inert() -> None:
     runtime = build_django_evaluation_actual_runtime()
+    actual_provider = DjangoEvaluationActualEvidenceProvider(runtime.repository)
     register, materialize = _commands()
 
     assert (
-        runtime.actual_provider.get_actual_manifest(
+        actual_provider.get_actual_manifest(
             VersionRef(materialize.manifest_id, materialize.manifest_version),
             as_of=datetime.now(UTC),
         )
@@ -213,7 +217,7 @@ def test_empty_production_read_is_none_and_mutation_is_inert() -> None:
         runtime.materialize.execute(materialize)
     assert not hasattr(runtime.register_source, "_writer")
     assert not hasattr(runtime.materialize, "_writer")
-    assert not hasattr(runtime.actual_provider, "_store")
+    assert not hasattr(actual_provider, "_store")
     assert EvaluationActualSourceDefinitionModel._default_manager.count() == 0
     assert EvaluationActualManifestReceiptModel._default_manager.count() == 0
 
@@ -221,11 +225,12 @@ def test_empty_production_read_is_none_and_mutation_is_inert() -> None:
 def test_private_synthetic_owner_builds_full_graph_and_exact_pit_projection() -> None:
     graph_provider = _GraphProvider()
     runtime = _runtime(graph_provider)
+    actual_provider = DjangoEvaluationActualEvidenceProvider(runtime.repository)
     register, materialize = _commands()
 
     source = runtime.register_source.execute(register)
     manifest = runtime.materialize.execute(materialize)
-    snapshot = runtime.actual_provider.get_actual_manifest(
+    snapshot = actual_provider.get_actual_manifest(
         VersionRef(manifest.manifest_id, manifest.manifest_version),
         as_of=CUTOFF,
     )
@@ -237,14 +242,14 @@ def test_private_synthetic_owner_builds_full_graph_and_exact_pit_projection() ->
     assert snapshot.actuals[0].observation_hash
     assert snapshot.selected_versions_hash == manifest.selected_versions_hash
     assert (
-        runtime.actual_provider.get_actual_manifest(
+        actual_provider.get_actual_manifest(
             VersionRef(manifest.manifest_id, manifest.manifest_version),
             as_of=CUTOFF - timedelta(microseconds=1),
         )
         is None
     )
     assert (
-        runtime.actual_provider.get_actual_manifest(
+        actual_provider.get_actual_manifest(
             VersionRef(manifest.manifest_id, "manifest.v2"),
             as_of=CUTOFF,
         )

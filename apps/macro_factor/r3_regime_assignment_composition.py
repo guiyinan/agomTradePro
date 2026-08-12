@@ -10,8 +10,8 @@ from apps.macro_factor.infrastructure.regime_historical_assignment_adapter impor
 from apps.macro_factor.infrastructure.run_ledger_repository import (
     DjangoMacroFactorRunLedgerReadRepository,
 )
-from apps.regime.historical_assignment_composition import (
-    build_historical_regime_assignment_runtime,
+from core.integration.r3_owner_evidence import (
+    build_r3_regime_assignment_reader,
 )
 
 
@@ -28,10 +28,9 @@ def build_macro_factor_r3_regime_assignment_read_runtime(
 ) -> MacroFactorR3RegimeAssignmentReadRuntime:
     """Compose public Regime and Macro Factor exact readers on one database alias."""
 
-    regime = build_historical_regime_assignment_runtime(using=using)
     return MacroFactorR3RegimeAssignmentReadRuntime(
         report_provider=RegimeHistoricalAssignmentReportAdapter(
-            assignment_reader=regime.repository,
+            assignment_reader=build_r3_regime_assignment_reader(using=using),
             ledger=DjangoMacroFactorRunLedgerReadRepository(using=using),
         )
     )

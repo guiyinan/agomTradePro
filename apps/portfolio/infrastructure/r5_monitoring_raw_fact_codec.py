@@ -8,16 +8,16 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any, TypeVar, cast, get_args, get_origin, get_type_hints
 
-from apps.research.domain.r5_relative_value_monitoring_contracts import (
+from apps.portfolio.domain.r5_relative_value_monitoring_contracts import (
     R5MonitoringMetric,
     R5MonitoringMetricKey,
     R5MonitoringMetricUnit,
 )
-from apps.research.domain.r5_relative_value_monitoring_facts import (
+from apps.portfolio.domain.r5_relative_value_monitoring_facts import (
     R5MonitoringPortfolioSourceProjection,
     R5PostPromotionMonitoringFact,
 )
-from apps.research.domain.r5_relative_value_monitoring_owners import (
+from apps.portfolio.domain.r5_relative_value_monitoring_owners import (
     R5MonitoringOwnerRef,
     R5MonitoringOwnerRole,
 )

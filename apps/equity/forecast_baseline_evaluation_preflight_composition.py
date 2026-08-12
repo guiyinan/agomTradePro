@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
-from apps.data_center.evaluation_actual_manifest_composition import (
-    build_django_evaluation_actual_runtime,
-)
-from apps.research.r1_forecast_trial_evidence_composition import (
-    build_r1_forecast_trial_evidence_runtime,
+from core.integration.r1_forecast_trial_evidence import (
+    build_r1_forecast_trial_evidence_provider,
 )
 
+from .application.forecast_baseline_evaluation import ResearchTrialEvidenceProvider
 from .application.forecast_baseline_evaluation_preflight import (
     EvaluateForecastBaselineTrialPreflight,
 )
 from .application.forecast_baseline_materialize import ForecastBaselineEvidenceError
+from .infrastructure.evaluation_actual_evidence_provider import (
+    DjangoEvaluationActualEvidenceProvider,
+)
 from .infrastructure.forecast_baseline_repository import (
     DjangoForecastBaselineEvaluationReadRepository,
 )
@@ -36,8 +38,11 @@ def build_django_forecast_baseline_evaluation_preflight_runtime(
     if type(using) is not str or not using.strip() or len(using) > 192:
         raise ValueError("R1 evaluation preflight database alias is invalid")
     read_repository = DjangoForecastBaselineEvaluationReadRepository(using=using)
-    actual_provider = build_django_evaluation_actual_runtime(using=using).actual_provider
-    research_trial_provider = build_r1_forecast_trial_evidence_runtime(using=using).equity_provider
+    actual_provider = DjangoEvaluationActualEvidenceProvider(using=using)
+    research_trial_provider = cast(
+        ResearchTrialEvidenceProvider,
+        build_r1_forecast_trial_evidence_provider(using=using),
+    )
     keys = {
         read_repository.unit_of_work_key,
         actual_provider.unit_of_work_key,

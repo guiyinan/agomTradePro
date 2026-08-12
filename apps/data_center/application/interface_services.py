@@ -48,11 +48,11 @@ from apps.data_center.domain.protocols import (
     MacroFactRepositoryProtocol,
     ProviderRegistryProtocol,
 )
-from apps.task_monitor.application.tracking import record_pending_task
 from core.integration.config_center_runtime import (
     activate_runtime_profile_patch,
     get_active_runtime_value,
 )
+from core.integration.runtime_imports import record_pending_task
 
 from .business_runtime_gateway import fetch_latest_prices as _fetch_latest_prices
 from .business_runtime_gateway import load_alpha_homepage_data as _load_alpha_homepage_data

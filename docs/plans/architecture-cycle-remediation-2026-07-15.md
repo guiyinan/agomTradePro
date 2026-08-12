@@ -83,6 +83,26 @@ Eliminate the app-level bidirectional dependencies that regrew after the 2026-04
 - `check_module_cycles.py --fail-on-cycles` succeeds without an allowlist.
 - Remaining work is regression verification and compatibility cleanup; no accepted app-cycle debt remains.
 
+## Completed batch 10 — 2026-08-12
+
+- Removed the regressed `data_center -> equity` dependency by moving the
+  evaluation-actual projection into Equity infrastructure; Data Center now
+  exposes only its own strict read repository.
+- Removed `equity -> research`, `portfolio -> broker_execution`, and Macro
+  Factor's direct Data Center/Regime composition imports through typed
+  app-neutral factories registered by the owner apps.
+- Removed Data Center's direct Config Center secret and Task Monitor tracking
+  imports by routing both capabilities through `core.integration` ownership
+  boundaries.
+- Re-homed R5 portfolio monitoring source/fact contracts under Portfolio and
+  retained Research compatibility exports, removing the
+  `portfolio -> research` reverse dependency without duplicating logic.
+- The graph returned to the existing exact 207-edge ceiling with zero
+  bidirectional pairs and zero cycle components. Per-app budgets were shifted
+  without increasing the global edge budget: stale Data Center/Task Monitor
+  headroom was retired while the existing Research-owned R3 runner-spec edge
+  was recorded explicitly.
+
 ## Integration checkpoint — 2026-07-29
 
 - Integrating the TUI task workbench added six one-way Terminal composition-root dependencies and one-way Alpha/Dashboard observability dependencies.

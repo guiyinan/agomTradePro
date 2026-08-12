@@ -20,6 +20,15 @@ class BrokerExecutionConfig(AppConfig):
         from apps.broker_execution.infrastructure.repositories import (
             DjangoBrokerExecutionRepository,
         )
+        from apps.broker_execution.r8_monitoring_reconciliation_composition import (
+            build_django_r8_broker_monitoring_receipt_provider,
+        )
+        from core.integration.r8_broker_monitoring import (
+            configure_r8_broker_monitoring_factory,
+        )
 
         configure_broker_execution_repository(DjangoBrokerExecutionRepository)
+        configure_r8_broker_monitoring_factory(
+            lambda using: build_django_r8_broker_monitoring_receipt_provider(using=using)
+        )
         _ = security_signals

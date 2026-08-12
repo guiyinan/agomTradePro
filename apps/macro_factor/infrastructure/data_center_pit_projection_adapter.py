@@ -2,15 +2,8 @@
 
 from __future__ import annotations
 
-from apps.data_center.application.macro_factor_research_source import (
-    ExactMacroFactorPITProjectionProvider,
-)
-from apps.data_center.domain.macro_factor_research_source import (
-    CanonicalMacroFactorPITFact,
-    CanonicalMacroFactorPITProjection,
-    MacroFactorResearchMemberRole,
-    MacroFactorResearchPeriodKind,
-)
+from typing import Any, Protocol, cast
+
 from apps.macro_factor.domain.entities import (
     PITDatasetSlice,
     PITInferenceCalendarPeriodEvidence,
@@ -26,15 +19,24 @@ from apps.macro_factor.domain.runner_inputs import (
 )
 
 
+class _ExactPITProjectionProvider(Protocol):
+    @property
+    def unit_of_work_key(self) -> str: ...
+
+    def get_exact_projection(
+        self, *, manifest_id: str, expected_manifest_hash: str | None
+    ) -> object: ...
+
+
 class DataCenterMacroFactorPITProjectionAdapter:
     """Expose only exact manifest/dataset reads; never a runner or writer."""
 
     __slots__ = ("_expected_provider_id", "_expected_uow_key", "_provider")
 
-    def __init__(self, provider: ExactMacroFactorPITProjectionProvider) -> None:
-        self._provider = provider
+    def __init__(self, provider: object) -> None:
+        self._provider = cast(_ExactPITProjectionProvider, provider)
         self._expected_provider_id = id(provider)
-        self._expected_uow_key = _uow_key(provider.unit_of_work_key)
+        self._expected_uow_key = _uow_key(self._provider.unit_of_work_key)
 
     @property
     def unit_of_work_key(self) -> str:
@@ -89,7 +91,7 @@ class DataCenterMacroFactorPITProjectionAdapter:
         *,
         manifest_id: str,
         expected_manifest_hash: str | None,
-    ) -> CanonicalMacroFactorPITProjection | None:
+    ) -> Any | None:
         self._require_live_provider()
         value = self._provider.get_exact_projection(
             manifest_id=manifest_id,
@@ -98,9 +100,12 @@ class DataCenterMacroFactorPITProjectionAdapter:
         self._require_live_provider()
         if value is None:
             return None
-        if type(value) is not CanonicalMacroFactorPITProjection:
-            raise TypeError("Data Center PIT projection type differs")
-        projection = value.validated_copy()
+        validator = getattr(value, "validated_copy", None)
+        if not callable(validator):
+            raise TypeError("Data Center PIT projection is not recursively validated")
+        projection = cast(Any, validator())
+        if projection != value:
+            raise ValueError("Data Center PIT projection is noncanonical")
         if projection.manifest_id != manifest_id or (
             expected_manifest_hash is not None
             and projection.manifest_hash.lower() != expected_manifest_hash
@@ -116,7 +121,7 @@ class DataCenterMacroFactorPITProjectionAdapter:
             raise ValueError("Data Center PIT projection provider changed")
 
 
-def _to_manifest(projection: CanonicalMacroFactorPITProjection) -> PITManifestEvidence:
+def _to_manifest(projection: Any) -> PITManifestEvidence:
     definition = projection.source.definition
     calendar = definition.calendar
     inference = definition.inference_period
@@ -161,30 +166,28 @@ def _to_manifest(projection: CanonicalMacroFactorPITProjection) -> PITManifestEv
 
 
 def _to_dataset(
-    projection: CanonicalMacroFactorPITProjection,
+    projection: Any,
     manifest: PITManifestEvidence,
 ) -> PITResearchDataset:
     definition = projection.source.definition
-    facts = {(item.row_id, item.role, item.member_code): item for item in projection.facts}
+    facts = {(item.row_id, item.role.value, item.member_code): item for item in projection.facts}
     rows: list[PITResearchRow] = []
     inference_row: PITInferenceRow | None = None
     for period in definition.periods:
         proxies = tuple(
             ProxyObservation(
                 asset_code=asset_code,
-                value=facts[(period.row_id, MacroFactorResearchMemberRole.PROXY, asset_code)].value,
-                fact_version=_selected_version(
-                    facts[(period.row_id, MacroFactorResearchMemberRole.PROXY, asset_code)]
-                ),
+                value=facts[(period.row_id, "proxy", asset_code)].value,
+                fact_version=_selected_version(facts[(period.row_id, "proxy", asset_code)]),
             )
             for asset_code in definition.candidate_asset_codes
         )
         available_at = max(item.fact_version.available_at for item in proxies)
-        if period.kind is MacroFactorResearchPeriodKind.HISTORICAL:
+        if period.kind.value == "historical":
             target = facts[
                 (
                     period.row_id,
-                    MacroFactorResearchMemberRole.TARGET,
+                    "target",
                     definition.target_code,
                 )
             ]
@@ -231,7 +234,7 @@ def _to_dataset(
     ).validated_copy()
 
 
-def _selected_version(fact: CanonicalMacroFactorPITFact) -> PITSelectedFactVersion:
+def _selected_version(fact: Any) -> PITSelectedFactVersion:
     return PITSelectedFactVersion(
         version_id=fact.version_id,
         content_hash=fact.content_hash,
