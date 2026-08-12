@@ -39,6 +39,17 @@ def test_parser_rejects_missing_required_classification_field() -> None:
         parse_inventory(payload)
 
 
+def test_quote_surface_records_legacy_display_only_adapter() -> None:
+    inventory = load_inventory()
+    quote = next(
+        surface
+        for surface in inventory.surfaces
+        if surface.source_symbol.endswith("::QuoteResponse")
+    )
+
+    assert quote.current_gate_state == "legacy_evidence_wrapped_display_only"
+
+
 def test_guard_rejects_unregistered_marked_surface() -> None:
     inventory = load_inventory()
     retained = tuple(

@@ -1,6 +1,6 @@
 # AgomTradePro 证据治理与决策硬闸改造计划
 
-> 执行状态（2026-08-13）：**M0 进行中，M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider 与 Research↔Risk read composition 首批已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、Risk Center 人工审批写入面、各 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
+> 执行状态（2026-08-13）：**M0 进行中，M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition 与首个 Data Center legacy adapter 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、Risk Center 人工审批写入面、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
 
 ## 0. 分阶段实施记录
 
@@ -51,10 +51,26 @@
 - Research↔Risk adapter 纯单元：`3 passed`；adapter/test standalone strict mypy `0 errors`；Black、isort 与 `git diff --check` 通过。
 - 未验证：标准项目 pytest-django runtime 与 PostgreSQL 真实并发竞争。
 
+### 2026-08-13：M1 Data Center legacy adapter 首批
+
+已完成：
+
+- 为 `QuoteResponse` 增加 Research Application adapter；adapter 从 quote 全字段生成 canonical content hash，使用源 `snapshot_at` 作为 artifact version，并拒绝 naive/future 时间、future fetch、非有限数值和非法 freshness window。
+- 旧 quote 只生成非持久化 `legacy_unverified + DISPLAY_ONLY` Envelope；`EvidenceSummaryDTO.from_legacy_envelope` 会重建并精确比对标准 legacy wrapper，禁止伪造 Operator Spec、治理状态、权限、lineage 或 blocker。
+- Evidence 输出清单将且仅将 `QuoteResponse` 标为 `legacy_evidence_wrapped_display_only`；其余 40 个输出的未接入状态不变。这个状态不等于正式 Evidence 集成，也不授予任何决策或执行权限。
+
+仍未完成：
+
+- Quote 真实 Operator Spec 激活、持久化 Envelope、owner-scoped API 与 consumer 接线；其余 Data Center、Regime、Policy、Pulse、Alpha、Signal、R1–R8、Strategy/Portfolio adapters。
+
+本阶段验证：
+
+- adapter、summary 与 inventory 聚合纯测试：`19 passed`；standalone strict mypy `0 errors`；Black、isort、`py_compile`、inventory CLI 与 `git diff --check` 通过。
+
 仍未完成：
 
 - M0 尚需扩展全量 R1–R8、动态 dict/TypedDict/interface/query payload、Broker query API、raw/governed MCP 输出语义与旧 Transition Plan 写路径分类；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口及 41 个高风险输出首批冻结已完成。
-- M1 的用户/租户 scope 模型与 owner-scoped 授权、Risk Center 人工审批写入面、并发 first-winner PostgreSQL 验证和各 App Application adapter；staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider 与 Research↔Risk read composition 首批已完成。
+- M1 的用户/租户 scope 模型与 owner-scoped 授权、Risk Center 人工审批写入面、并发 first-winner PostgreSQL 验证和其余 App Application adapter；staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition 与 Data Center quote legacy adapter 首批已完成。
 - M2–M5 全部交付及真实生产切换证据。
 
 本阶段验证：

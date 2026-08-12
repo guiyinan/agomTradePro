@@ -10,6 +10,7 @@ from apps.research.domain.evidence_contracts import (
     EvidenceEnvelope,
     EvidenceOperatorSpec,
     TrackRecordSnapshot,
+    build_legacy_unverified_envelope,
 )
 
 
@@ -104,6 +105,47 @@ class EvidenceSummaryDTO:
             track_record_content_hash=track_record_hash,
             n_eff=n_eff,
             coverage=coverage,
+            evaluated_at=envelope.evaluated_at,
+            valid_until=envelope.valid_until,
+            must_not_use_for_decision=envelope.must_not_use_for_decision,
+            must_not_execute=envelope.must_not_execute,
+        )
+
+    @classmethod
+    def from_legacy_envelope(cls, *, envelope: EvidenceEnvelope) -> EvidenceSummaryDTO:
+        """Project an exact legacy wrapper without inventing an activated spec."""
+
+        output = envelope.output_artifact
+        adapter = envelope.operator_spec_ref
+        expected = build_legacy_unverified_envelope(
+            output_artifact=output,
+            claim_kind=envelope.claim_kind,
+            method_kind=envelope.method_kind,
+            evaluated_at=envelope.evaluated_at,
+            valid_until=envelope.valid_until,
+        )
+        if envelope != expected:
+            raise ValueError("Evidence summary requires an exact legacy wrapper")
+
+        return cls(
+            output_owner=output.owner,
+            output_artifact_type=output.artifact_type,
+            output_artifact_id=output.artifact_id,
+            output_artifact_version=output.artifact_version,
+            output_content_hash=output.content_hash,
+            envelope_content_hash=envelope.content_hash,
+            operator_spec_content_hash=adapter.content_hash,
+            claim_kind=envelope.claim_kind.value,
+            method_kind=envelope.method_kind.value,
+            research_family=envelope.research_family,
+            governance_state=envelope.governance_state.value,
+            permission=envelope.permission.value,
+            blocker_codes=tuple(item.value for item in envelope.blockers),
+            dependency_flags=(),
+            track_record_availability=TrackRecordAvailability.UNAVAILABLE.value,
+            track_record_content_hash=None,
+            n_eff=None,
+            coverage=None,
             evaluated_at=envelope.evaluated_at,
             valid_until=envelope.valid_until,
             must_not_use_for_decision=envelope.must_not_use_for_decision,

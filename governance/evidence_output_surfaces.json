@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "updated_at": "2026-08-12",
-  "status": "first_batch_frozen_not_evidence_integrated",
+  "updated_at": "2026-08-13",
+  "status": "first_batch_frozen_one_legacy_adapter_wrapped",
   "allowed_claim_kinds": [
     "derived",
     "estimate",
@@ -19,6 +19,7 @@
     "indirect"
   ],
   "allowed_gate_states": [
+    "legacy_evidence_wrapped_display_only",
     "not_evidence_integrated_legacy_boolean",
     "not_evidence_integrated_legacy_ungated",
     "not_evidence_integrated_research_only"
@@ -181,7 +182,7 @@
       "claim_kind": "observation",
       "method_kind": "identity",
       "position_impact": "indirect",
-      "current_gate_state": "not_evidence_integrated_legacy_boolean",
+      "current_gate_state": "legacy_evidence_wrapped_display_only",
       "required_fields": ["must_not_use_for_decision", "snapshot_at", "source"]
     },
     {

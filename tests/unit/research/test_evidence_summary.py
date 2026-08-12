@@ -19,6 +19,7 @@ from apps.research.domain.evidence_contracts import (
     MethodKind,
     MetricDirection,
     TrackRecordSnapshot,
+    build_legacy_unverified_envelope,
 )
 
 NOW = datetime(2026, 8, 12, 9, tzinfo=UTC)
@@ -146,4 +147,30 @@ def test_summary_rejects_operator_and_track_record_substitution() -> None:
             envelope=envelope,
             operator_spec=operator,
             track_record=replace(track, snapshot_version="v2", content_hash=""),
+        )
+
+
+def test_summary_accepts_only_exact_legacy_wrapper() -> None:
+    envelope = build_legacy_unverified_envelope(
+        output_artifact=_artifact(),
+        claim_kind=ClaimKind.FORECAST,
+        method_kind=MethodKind.STATISTICAL,
+        evaluated_at=NOW,
+        valid_until=LATER,
+    )
+
+    summary = EvidenceSummaryDTO.from_legacy_envelope(envelope=envelope)
+
+    assert summary.permission == "display_only"
+    assert summary.blocker_codes == ("evidence.legacy_unverified",)
+    assert summary.operator_spec_content_hash == envelope.operator_spec_ref.content_hash
+    assert summary.track_record_availability == "unavailable"
+
+    with pytest.raises(ValueError, match="exact legacy wrapper"):
+        EvidenceSummaryDTO.from_legacy_envelope(
+            envelope=replace(
+                envelope,
+                research_family="forged",
+                content_hash="",
+            )
         )
