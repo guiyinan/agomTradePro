@@ -168,6 +168,25 @@ def _function_calls(node: ast.FunctionDef | ast.AsyncFunctionDef) -> frozenset[s
     )
 
 
+def _guarded_transition_plan_update(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    """Check that only plan-linked approval updates invoke the legacy guard."""
+
+    for node in ast.walk(function):
+        if not isinstance(node, ast.If):
+            continue
+        if ast.unparse(node.test) != "model.transition_plan is not None":
+            continue
+        return any(
+            isinstance(child, ast.Call)
+            and _call_name(child.func) == "_ensure_legacy_transition_plan_write_enabled"
+            for statement in node.body
+            for child in ast.walk(statement)
+        )
+    return False
+
+
 def _source_functions(path: Path) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
     functions: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
     for node in _parse(path).body:
@@ -202,11 +221,14 @@ def discover_transition_plan_internal_writers(
                         }
                         & calls
                     )
-                elif qualname == "ExecutionApprovalRequestRepository.create_for_transition_plan":
-                    is_writer = {
-                        "ExecutionApprovalRequestModel.objects.create",
-                        "plan_model.save",
-                    } <= calls
+                elif qualname.startswith("ExecutionApprovalRequestRepository."):
+                    is_writer = bool(
+                        {
+                            "plan_model.save",
+                            "model.transition_plan.save",
+                        }
+                        & calls
+                    )
             elif scope.endswith("portfolio/application/use_cases.py"):
                 is_writer = bool({"self._repository.save", "self._repository.approve"} & calls)
             elif scope.endswith("portfolio/infrastructure/repositories.py"):
@@ -250,6 +272,12 @@ def _validate_transition_plan_internal_writers(
         if missing_calls:
             errors.append(
                 f"transition plan internal writer AST calls changed for {symbol}: {missing_calls}"
+            )
+        if symbol.endswith("::ExecutionApprovalRequestRepository.update_status") and not (
+            _guarded_transition_plan_update(function)
+        ):
+            errors.append(
+                "transition plan approval status update lost its conditional canonical-mode guard"
             )
     return errors
 

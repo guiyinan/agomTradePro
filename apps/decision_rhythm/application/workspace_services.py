@@ -29,6 +29,7 @@ from ..domain.entities import (
     create_execution_approval_request,
     create_portfolio_transition_plan,
 )
+from ..domain.exceptions import LegacyTransitionPlanWriteDisabledError
 from ..domain.services import RecommendationConsolidationService, ValuationSnapshotService
 from .dtos import (
     ConflictDTO,
@@ -68,6 +69,15 @@ RISK_CHECK_EXCEPTIONS = (
     TypeError,
     ValueError,
 )
+
+
+def _ensure_legacy_transition_plan_write_enabled() -> None:
+    """Reject legacy plan mutations after the canonical planner is enabled."""
+
+    if bool(getattr(settings, "PORTFOLIO_CANONICAL_PLANNER_ENABLED", False)):
+        raise LegacyTransitionPlanWriteDisabledError(
+            "legacy transition-plan writes are disabled; use the portfolio application facade"
+        )
 
 
 def get_simulated_position_snapshots(account_id: int | str) -> list[dict[str, Any]]:
@@ -236,8 +246,7 @@ def build_transition_plan_for_account(
             "Deprecated decision_rhythm transition-plan writer invoked",
             extra={"account_id": account_id},
         )
-        if settings.PORTFOLIO_CANONICAL_PLANNER_ENABLED:
-            raise ValueError("legacy planner is read-only; use the portfolio transition-plan API")
+        _ensure_legacy_transition_plan_write_enabled()
     recommendation_repo = get_unified_recommendation_repository()
     recommendations = recommendation_repo.get_plan_candidates(
         account_id=account_id,
@@ -275,6 +284,7 @@ def get_transition_plan(plan_id: str) -> PortfolioTransitionPlan | None:
 
 def save_transition_plan(plan: PortfolioTransitionPlan) -> PortfolioTransitionPlan:
     """Persist a transition plan."""
+    _ensure_legacy_transition_plan_write_enabled()
     return get_portfolio_transition_plan_repository().save(plan)
 
 

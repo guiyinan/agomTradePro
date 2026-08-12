@@ -16,6 +16,7 @@
       "enabled_by_default": true,
       "replacement": "apps/portfolio/application/use_cases.py::BuildTransitionPlanUseCase.execute",
       "required_ast_calls": [
+        "_ensure_legacy_transition_plan_write_enabled",
         "create_portfolio_transition_plan",
         "get_portfolio_transition_plan_repository.save"
       ]
@@ -27,6 +28,7 @@
       "enabled_by_default": true,
       "replacement": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.save",
       "required_ast_calls": [
+        "_ensure_legacy_transition_plan_write_enabled",
         "get_portfolio_transition_plan_repository.save"
       ]
     },
@@ -39,8 +41,22 @@
       "required_ast_calls": [
         "ExecutionApprovalRequestModel.objects.create",
         "PortfolioTransitionPlanModel.objects.get",
+        "_ensure_legacy_transition_plan_write_enabled",
         "plan_model.save",
         "self.has_pending_request_for_plan"
+      ]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/infrastructure/recommendation_repositories.py::ExecutionApprovalRequestRepository.update_status",
+      "ownership": "decision_rhythm_legacy",
+      "mutation_semantic": "approval_status_and_transition_plan_status_update",
+      "enabled_by_default": true,
+      "replacement": "apps/portfolio/application/use_cases.py::ValidateTransitionPlanUseCase.execute",
+      "required_ast_calls": [
+        "ExecutionApprovalRequestModel.objects.select_related",
+        "_ensure_legacy_transition_plan_write_enabled",
+        "model.save",
+        "model.transition_plan.save"
       ]
     },
     {
@@ -51,6 +67,7 @@
       "replacement": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.save",
       "required_ast_calls": [
         "PortfolioTransitionPlanModel.objects.update_or_create",
+        "_ensure_legacy_transition_plan_write_enabled",
         "transition_model_to_domain"
       ]
     },
@@ -62,6 +79,7 @@
       "replacement": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.approve",
       "required_ast_calls": [
         "PortfolioTransitionPlanModel.objects.get",
+        "_ensure_legacy_transition_plan_write_enabled",
         "model.save",
         "transition_model_to_domain"
       ]

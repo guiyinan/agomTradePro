@@ -11,7 +11,7 @@
 - 在独立 `dev/plan-closure-by-priority` 分支开始实施，并把完成计划归档、活跃计划优先级和索引修正作为独立基线提交。
 - 新增 [`ADR-0007`](../architecture/adr-0007-evidence-envelope-and-decision-gates.md)，明确 Research、Data Center/Signal、Risk Center、Portfolio、Broker Execution 与 TUI 的 owner/接口矩阵，以及决策写入口冻结原则。
 - 新增 `governance/decision_write_surfaces.json` 与机器门禁，冻结 54 个 Decision Rhythm、Portfolio、Broker Execution、Simulated Trading、Strategy HTTP 写入口、15 个 SDK 写方法、25 个发布态 TUI 决策流 action、23 个发布态 mutation/AI/admin action，以及 32 个可能影响决策或仓位的 MCP 写能力；发布图 SHA 漂移、新增旁路或陈旧登记均阻断。
-- 同一写面门禁现另冻结 Transition Plan 的 9 个内部 writer：默认仍启用的 5 个 Decision Rhythm legacy build/save/upsert/status/approval-request 路径，以及 4 个 Portfolio canonical build/validate/save/approve 路径。每项固定 ownership、mutation semantic、默认启用状态、legacy replacement 与关键 AST call；新增未登记 writer、陈旧 symbol 或写调用漂移均阻断。这只冻结现状，不批准 legacy 原地 upsert。
+- 同一写面门禁现冻结 Transition Plan 的 10 个内部 writer：默认仍启用的 6 个 Decision Rhythm legacy build/save/upsert/status/approval-request 路径（含审批结果对 plan 的连带状态写入），以及 4 个 Portfolio canonical build/validate/save/approve 路径。每项固定 ownership、mutation semantic、默认启用状态、legacy replacement 与关键 AST call；新增未登记 writer、陈旧 symbol 或写调用漂移均阻断。这只冻结现状，不批准 legacy 原地 upsert。
 - 新增 Research Domain `evidence_contracts.py`，落地 `ClaimKind`、`MethodKind`、`GovernanceState`、唯一有序的 `DecisionPermission`、`DependencyFlag`、`ArtifactRef`、`EvidenceOperatorSpec`、`TrackRecordSnapshot`、`GovernanceGrant` 与 `EvidenceEnvelope`。
 - 实现 fail-closed 传播：权限取严格交集，lineage/不确定性依赖取并集，必要输入 stale/missing/PIT 未验证、Promotion/monitoring/Track Record 缺失或过期、精确 artifact 不匹配和 `n=0` 均降为 `DISPLAY_ONLY`。
 - 兼容布尔值只由权限派生；旧输出只能生成非持久化 `legacy_unverified + DISPLAY_ONLY` Envelope。
@@ -100,6 +100,26 @@
 - `python scripts/check_evidence_output_surfaces.py`：通过，显式输出 `41`、direct-position `11`、marker-discovered `32`、Broker dynamic `16`。
 - 专属纯测试 `8 passed`；守卫与测试 standalone strict mypy `0 errors`；Black、isort、`py_compile`、JSON parse 与 diff check 通过。
 
+### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
+
+已完成：
+
+- 代码审计确认 legacy 与 canonical repository 共用 `decision_portfolio_transition_plan` 表，但 orders、snapshot、expiry、idempotency 与 approval 生命周期契约不兼容，不能把 replacement 当作可直接互换的实现；本批保持 `PORTFOLIO_CANONICAL_PLANNER_ENABLED` 默认关闭，不切路由、不改 TUI/SDK/MCP payload。
+- 补登记此前漏掉的 `ExecutionApprovalRequestRepository.update_status`：它会在 plan-linked approval approve/reject 时连带更新 plan 状态和 `approval_request_id`。Transition Plan writer 分母由 9 修正为 10（legacy 6、canonical 4）。
+- 6 个 legacy writer 在 canonical 模式下统一 fail-closed；审批状态入口仅在 `model.transition_plan is not None` 时阻断，普通 unified/legacy recommendation 审批不受影响。机器守卫同时验证这个条件分支，避免只在函数其他位置出现 guard 的假阳性。
+- approve/reject Interface 只捕获专用 `LegacyTransitionPlanWriteDisabledError` 并返回稳定 409；其他 `ValueError` 不被误报为切换冲突。
+
+仍未完成：
+
+- 同表 `plan_contract_kind/schema_family` 隔离、legacy/canonical cross-family read/write 阻断和 nullable migration；在完成这些防线及 owner/snapshot/policy/人工审批验收前，不得翻转 canonical planner 默认开关。
+- 当前 Python runtime 缺 Django 与 mypy Django plugin；新 API/ORM 行为测试已写但未在完整项目 runtime 执行，PostgreSQL 并发与零副作用阻断也待 CI/项目环境验证。
+
+本阶段验证：
+
+- writer freeze 专属纯测试 `8 passed`；CLI 为 Transition Plan writers `10`、HTTP `54`、SDK `15`、TUI decision `25`、TUI mutation `23`、MCP position-write `32`。
+- Architecture delta/full verify 均 `0 violations`；module audit `207 edges / 0 cycles`；Black、isort、`py_compile`、JSON 与 diff check 通过。
+- `check_mypy_regression.py` 报 `Mypy regressions: 0`，但项目 mypy plugin 因环境缺 `mypy_django_plugin` 未启动；API 测试加载阶段因缺 Django 未执行，不计为通过。
+
 ### 2026-08-13：M1 Risk Center 人工 subject / 审批写入面
 
 已完成：
@@ -122,13 +142,13 @@
 
 仍未完成：
 
-- M0 尚需扩展全量 R1–R8、Broker 以外的动态 dict/TypedDict/interface/query payload，以及 raw/governed MCP 输出语义；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口、9 个 Transition Plan 内部 writer、41 个显式高风险输出及 16 个 Broker 动态 query/GET 发布面已冻结。
+- M0 尚需扩展全量 R1–R8、Broker 以外的动态 dict/TypedDict/interface/query payload，以及 raw/governed MCP 输出语义；owner/接口矩阵、HTTP/SDK/TUI/MCP 写入口、10 个 Transition Plan 内部 writer、41 个显式高风险输出及 16 个 Broker 动态 query/GET 发布面已冻结。
 - M1 的用户/租户 scope 模型与 owner-scoped 授权、人工审批写入面的完整项目 runtime/component 证明、并发 first-winner PostgreSQL 验证和其余 App Application adapter 仍未完成；staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码，以及 Data Center quote/Broker approval snapshot 两个 legacy adapter 已完成。
 - M2–M5 全部交付及真实生产切换证据。
 
 本阶段验证：
 
-- `python scripts/check_decision_write_surface_freeze.py`：通过，HTTP `54`、SDK `15`、TUI decision `25`、TUI mutation `23`、MCP position-write `32`。
+- `python scripts/check_decision_write_surface_freeze.py`：通过，Transition Plan writers `10`、HTTP `54`、SDK `15`、TUI decision `25`、TUI mutation `23`、MCP position-write `32`。
 - `python scripts/check_evidence_output_surfaces.py`：通过，outputs `41`、direct-position `11`、marker-discovered `32`、Broker dynamic `16`；纯 Python `8 passed`，standalone strict mypy `0 errors`。
 - Domain 与 freeze guard 聚合纯测试：`22 passed`。
 - Django 5.1/SQLite 内存库逐项执行 persistence component 场景：`8 passed`；覆盖 exact replay/fork、三模型 ORM mutation/delete shortcut、raw SQL tamper、公共 reader 写隔离与 future PIT 拒绝。

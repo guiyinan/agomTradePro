@@ -12,6 +12,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -23,8 +24,18 @@ from ..domain.entities import (
     UnifiedRecommendation,
     ValuationSnapshot,
 )
+from ..domain.exceptions import LegacyTransitionPlanWriteDisabledError
 
 logger = logging.getLogger(__name__)
+
+
+def _ensure_legacy_transition_plan_write_enabled() -> None:
+    """Reject legacy plan mutations after the canonical planner is enabled."""
+
+    if bool(getattr(settings, "PORTFOLIO_CANONICAL_PLANNER_ENABLED", False)):
+        raise LegacyTransitionPlanWriteDisabledError(
+            "legacy transition-plan writes are disabled; use the portfolio application facade"
+        )
 
 
 def _json_safe_value(value: Any) -> Any:
@@ -360,6 +371,7 @@ class PortfolioTransitionPlanRepository:
     """账户级调仓计划仓储。"""
 
     def save(self, plan: PortfolioTransitionPlan) -> PortfolioTransitionPlan:
+        _ensure_legacy_transition_plan_write_enabled()
         from .models import PortfolioTransitionPlanModel
 
         model, _ = PortfolioTransitionPlanModel.objects.update_or_create(
@@ -413,6 +425,7 @@ class PortfolioTransitionPlanRepository:
         status_value: str,
         approval_request_id: str | None = None,
     ) -> PortfolioTransitionPlan | None:
+        _ensure_legacy_transition_plan_write_enabled()
         from .models import PortfolioTransitionPlanModel
 
         try:
@@ -618,6 +631,8 @@ class ExecutionApprovalRequestRepository:
                     .select_for_update()
                     .get(request_id=request_id)
                 )
+                if model.transition_plan is not None:
+                    _ensure_legacy_transition_plan_write_enabled()
                 old_status = model.approval_status
                 model.approval_status = approval_status.value
 
@@ -738,6 +753,7 @@ class ExecutionApprovalRequestRepository:
         market_price: Decimal | None,
     ) -> ExecutionApprovalRequest:
         """为账户级调仓计划创建审批请求。"""
+        _ensure_legacy_transition_plan_write_enabled()
         from uuid import uuid4
 
         from .models import ExecutionApprovalRequestModel, PortfolioTransitionPlanModel

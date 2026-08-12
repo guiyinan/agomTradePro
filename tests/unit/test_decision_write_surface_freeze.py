@@ -14,7 +14,7 @@ from scripts.check_decision_write_surface_freeze import (
 
 def test_repository_decision_write_surface_inventory_is_exact() -> None:
     assert validate_surface_freeze(load_inventory()) == {
-        "transition_plan_internal_writer_count": 9,
+        "transition_plan_internal_writer_count": 10,
         "http_surface_count": 54,
         "sdk_surface_count": 15,
         "tui_decision_action_count": 25,
@@ -57,7 +57,7 @@ def test_transition_plan_internal_writers_are_classified_and_exact() -> None:
             writer.ownership == "decision_rhythm_legacy"
             for writer in inventory.transition_plan_internal_writers
         )
-        == 5
+        == 6
     )
     assert (
         sum(
@@ -76,6 +76,21 @@ def test_transition_plan_internal_writers_are_classified_and_exact() -> None:
         writer.replacement is None
         for writer in inventory.transition_plan_internal_writers
         if writer.ownership == "portfolio_canonical"
+    )
+
+
+def test_legacy_transition_plan_writers_share_canonical_mode_guard() -> None:
+    inventory = load_inventory()
+    legacy_writers = [
+        writer
+        for writer in inventory.transition_plan_internal_writers
+        if writer.ownership == "decision_rhythm_legacy"
+    ]
+
+    assert len(legacy_writers) == 6
+    assert all(
+        "_ensure_legacy_transition_plan_write_enabled" in writer.required_ast_calls
+        for writer in legacy_writers
     )
 
 
@@ -105,3 +120,13 @@ def test_guard_rejects_transition_plan_internal_writer_ast_drift() -> None:
                 ),
             )
         )
+
+
+def test_guard_rejects_lost_conditional_transition_plan_approval_guard(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scripts import check_decision_write_surface_freeze as guard
+
+    monkeypatch.setattr(guard, "_guarded_transition_plan_update", lambda _function: False)
+    with pytest.raises(ValueError, match="lost its conditional canonical-mode guard"):
+        guard.validate_surface_freeze(guard.load_inventory())
