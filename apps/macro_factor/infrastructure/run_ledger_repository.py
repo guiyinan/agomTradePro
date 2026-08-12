@@ -392,6 +392,12 @@ class DjangoMacroFactorRunLedgerReadRepository:
             raise ValueError("macro-factor run ledger database alias is invalid")
         self._using = using
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact database identity used by all ledger reads."""
+
+        return f"django:{self._using}"
+
     def get_artifact(
         self,
         artifact_id: str,
