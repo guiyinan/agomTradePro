@@ -7,11 +7,12 @@ import json
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import TypeVar, cast
+from typing import Protocol, TypeVar, cast
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Model, Q
+from django.utils import timezone
 
 from apps.research.domain.evidence_contracts import (
     EvidenceEnvelope,
@@ -47,13 +48,35 @@ class EvidenceRepositoryCorruption(RuntimeError):
 _EvidenceT = TypeVar("_EvidenceT", EvidenceOperatorSpec, TrackRecordSnapshot, EvidenceEnvelope)
 
 
+class EvidenceRepositoryClock(Protocol):
+    """Authoritative clock used to reject impossible future PIT queries."""
+
+    def now(self) -> datetime:
+        """Return the current timezone-aware server time."""
+
+
+class DjangoEvidenceRepositoryClock:
+    """Django timezone-backed evidence repository clock."""
+
+    def now(self) -> datetime:
+        """Return the current server time."""
+
+        return timezone.now()
+
+
 class DjangoEvidenceRepository:
     """Public read-only exact/PIT provider; it owns no insert claim."""
 
-    __slots__ = ("_using",)
+    __slots__ = ("_clock", "_using")
 
-    def __init__(self, *, using: str = "default") -> None:
+    def __init__(
+        self,
+        *,
+        using: str = "default",
+        clock: EvidenceRepositoryClock | None = None,
+    ) -> None:
         self._using = using
+        self._clock = clock or DjangoEvidenceRepositoryClock()
 
     @property
     def unit_of_work_key(self) -> str:
@@ -72,6 +95,7 @@ class DjangoEvidenceRepository:
         """Return one exact immutable operator version knowable at ``as_of``."""
 
         _query(operator_id, operator_version, expected_content_hash, as_of)
+        self._require_pit_cutoff(as_of)
         rows = tuple(
             EvidenceOperatorSpecModel._default_manager.using(self._using).filter(
                 Q(operator_id=operator_id, operator_version=operator_version)
@@ -101,6 +125,7 @@ class DjangoEvidenceRepository:
         """Return one exact immutable Track Record knowable at ``as_of``."""
 
         _query(snapshot_id, snapshot_version, expected_content_hash, as_of)
+        self._require_pit_cutoff(as_of)
         rows = tuple(
             EvidenceTrackRecordModel._default_manager.using(self._using).filter(
                 Q(snapshot_id=snapshot_id, snapshot_version=snapshot_version)
@@ -140,6 +165,7 @@ class DjangoEvidenceRepository:
             _token(token)
         _hash(expected_content_hash)
         _aware(as_of)
+        self._require_pit_cutoff(as_of)
         rows = tuple(
             EvidenceEnvelopeModel._default_manager.using(self._using).filter(
                 Q(
@@ -171,14 +197,26 @@ class DjangoEvidenceRepository:
             as_of=as_of,
         )
 
+    def _require_pit_cutoff(self, as_of: datetime) -> None:
+        now = self._clock.now()
+        _aware(now)
+        if as_of > now:
+            raise ValueError("future evidence as_of is not permitted")
+
 
 class _DjangoEvidenceStore(DjangoEvidenceRepository):
     """Private exact-append capability, intentionally absent from ``__all__``."""
 
     __slots__ = ("_token",)
 
-    def __init__(self, *, token: object, using: str) -> None:
-        super().__init__(using=using)
+    def __init__(
+        self,
+        *,
+        token: object,
+        using: str,
+        clock: EvidenceRepositoryClock | None = None,
+    ) -> None:
+        super().__init__(using=using, clock=clock)
         self._token = token
 
     @contextmanager
@@ -512,6 +550,8 @@ def _aware(value: object) -> None:
 
 __all__ = [
     "DjangoEvidenceRepository",
+    "DjangoEvidenceRepositoryClock",
+    "EvidenceRepositoryClock",
     "EvidenceRepositoryConflict",
     "EvidenceRepositoryCorruption",
 ]

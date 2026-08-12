@@ -59,7 +59,8 @@
 | 2026-08-12 | 第一期 P0 | Evidence M1 Domain 首批 | 统一分类、ArtifactRef、Track Record、Envelope、权限交集和 fail-closed 传播已实现；canonical hash、非有限 Decimal 和有效期防线已加固；纯 Domain `19 passed`，standalone strict mypy `0 errors` | 做 M1 persistence、API、审批激活和 adapters |
 | 2026-08-12 | 第一期 P0 | Evidence M0 owner/freeze | ADR-0007 owner/接口矩阵已接受；54 个 HTTP、15 个 SDK、25 个发布态 TUI 决策 action、23 个 TUI mutation/AI/admin action 与 32 个 MCP 仓位相关写能力被机器门禁精确冻结，发布图 SHA 漂移也会阻断；聚合验证 `19 passed` | 补输出、raw/governed MCP 与旧 Transition Plan 语义分类，再推进 M1 持久化 |
 | 2026-08-12 | 第一期 P0 | Evidence M0 输出分类首批 | 41 个高风险输出（其中 11 个直接影响仓位）被精确冻结；全部如实标记为 legacy boolean/ungated 或 research-only，机器门禁 `5 passed` | 扩展 R1–R8、动态 payload、Broker query API、raw/governed MCP，并逐项接入 Evidence |
-| 2026-08-12 | 第一期 P0 | Evidence M1 persistence 首批 | schema-only/zero-seed 的 Operator Spec、Track Record、Envelope append-only ledger，strict codec、公共 exact/PIT reader 和私有幂等 append store 已实现；内存数据库 `7 passed` | 补标准 pytest-django/PostgreSQL 并发验证、只读 API、审批激活和各 App adapters |
+| 2026-08-12 | 第一期 P0 | Evidence M1 persistence 首批 | schema-only/zero-seed 的 Operator Spec、Track Record、Envelope append-only ledger，strict codec、公共 exact/PIT reader 和私有幂等 append store 已实现；内存数据库 `8 passed` | 补标准 pytest-django/PostgreSQL 并发验证、审批激活和各 App adapters |
+| 2026-08-12 | 第一期 P0 | Evidence M1 exact read API 首批 | Application port/facade 与三个 staff-only detail endpoint 已实现；强制 identity/version/hash/PIT，未来 cutoff 双层拒绝，写方法 405；隔离 Django/DRF `18 passed` | 定义真实用户/租户 scope 后再做 owner-scoped 授权；继续审批激活和 adapters |
 
 ## 2026-08-12 整理结果
 

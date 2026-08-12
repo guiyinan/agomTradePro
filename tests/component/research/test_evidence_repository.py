@@ -38,6 +38,11 @@ NOW = datetime(2026, 8, 12, 8, tzinfo=UTC)
 LATER = NOW + timedelta(days=30)
 
 
+class _Clock:
+    def now(self) -> datetime:
+        return NOW
+
+
 def _artifact(identifier: str, digest: str) -> ArtifactRef:
     return ArtifactRef("research", "scenario_forecast", identifier, "v1", digest * 64)
 
@@ -256,3 +261,16 @@ def test_public_reader_and_unclaimed_model_are_write_inert() -> None:
     assert not hasattr(reader, "append_operator_spec")
     with pytest.raises(ValidationError, match="insert claim"):
         EvidenceOperatorSpecModel(operator_id="forbidden").save(force_insert=True)
+
+
+def test_public_reader_rejects_future_pit_cutoff() -> None:
+    """A caller cannot query evidence from a server-future cutoff."""
+
+    reader = DjangoEvidenceRepository(clock=_Clock())
+    with pytest.raises(ValueError, match="future evidence as_of"):
+        reader.get_operator_spec(
+            operator_id="operator-1",
+            operator_version="v1",
+            expected_content_hash="a" * 64,
+            as_of=NOW + timedelta(seconds=1),
+        )
