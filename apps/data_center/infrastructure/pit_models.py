@@ -113,3 +113,8 @@ from .evaluation_actual_manifest_models import (  # noqa: E402,F401
     EvaluationActualManifestReceiptModel,
     EvaluationActualSourceDefinitionModel,
 )
+from .macro_factor_research_source_models import (  # noqa: E402,F401
+    MacroFactorResearchCalendarPeriodModel,
+    MacroFactorResearchMemberRuleModel,
+    MacroFactorResearchSourceDefinitionModel,
+)
