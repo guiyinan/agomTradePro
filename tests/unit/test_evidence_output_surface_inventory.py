@@ -17,10 +17,31 @@ from scripts.check_evidence_output_surfaces import (
 
 def test_repository_evidence_output_inventory_is_exact() -> None:
     assert validate_inventory(load_inventory()) == {
-        "surface_count": 62,
-        "direct_position_surface_count": 11,
+        "surface_count": 65,
+        "direct_position_surface_count": 14,
         "marked_surface_count": 53,
         "dynamic_surface_count": 18,
+    }
+
+
+def test_real_portfolio_transition_surfaces_are_frozen_before_evidence_integration() -> None:
+    inventory = load_inventory()
+    portfolio = {
+        surface.source_symbol.rsplit("::", 1)[-1]: surface
+        for surface in inventory.surfaces
+        if surface.source_symbol.startswith("apps/portfolio/domain/entities.py::")
+    }
+
+    assert set(portfolio) == {"OrderDraft", "TransitionPlan"}
+    assert all(
+        surface.position_impact == "direct"
+        and surface.current_gate_state == "not_evidence_integrated_legacy_ungated"
+        for surface in portfolio.values()
+    )
+    assert portfolio["TransitionPlan"].composite_fields == {
+        "constraints",
+        "metadata",
+        "orders",
     }
 
 

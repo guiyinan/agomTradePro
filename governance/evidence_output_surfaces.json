@@ -514,6 +514,27 @@
       "required_fields": ["blockers", "evaluated_at", "evidence_hash", "must_not_execute", "problem_id", "ready_for_solver", "research_only"]
     },
     {
+      "source_symbol": "apps/portfolio/domain/entities.py::OrderDraft",
+      "owner_app": "portfolio",
+      "output_kind": "transition_order",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["asset_code", "constraints", "estimated_fee", "quantity", "reference_price", "remaining_quantity", "side", "status"]
+    },
+    {
+      "source_symbol": "apps/portfolio/domain/entities.py::TransitionPlan",
+      "owner_app": "portfolio",
+      "output_kind": "transition_plan",
+      "claim_kind": "recommendation",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_legacy_ungated",
+      "required_fields": ["account_id", "as_of_time", "cash_after", "cash_before", "constraints", "decision_snapshot_id", "expires_at", "idempotency_key", "metadata", "orders", "plan_id", "portfolio_snapshot_id", "status", "target_portfolio_id", "version"],
+      "composite_fields": ["constraints", "metadata", "orders"]
+    },
+    {
       "source_symbol": "apps/portfolio/domain/governed_optimization_monitoring.py::GovernedOptimizationMonitoringAssessment",
       "owner_app": "portfolio",
       "output_kind": "monitoring_assessment",

@@ -1,6 +1,6 @@
 # AgomTradePro 证据治理与决策硬闸改造计划
 
-> 执行状态（2026-08-13）：**M0 进行中，外部写面、Transition Plan 内部 writer、63 个显式高风险输出及 18 个动态 query/GET/presenter 面已冻结；M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与首批 legacy adapters 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、写入面的完整项目 runtime/component 证明、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
+> 执行状态（2026-08-13）：**M0 进行中，外部写面、Transition Plan 内部 writer、65 个显式高风险输出及 18 个动态 query/GET/presenter 面已冻结；M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与首批 legacy adapters 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、写入面的完整项目 runtime/component 证明、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
 
 ## 0. 分阶段实施记录
 
@@ -265,6 +265,24 @@
 
 - 纯 Application `8 passed`；current-data guard `47 surfaces`；Evidence inventory `63 / 12 / 53 / 18`；architecture delta `0` boundary/audit violations；生产 Application standalone strict mypy `0 issues`；Black/isort/diff-check 通过。
 - API/serializer 测试已补，但当前系统 Python 缺 Django，普通 pytest 还先被损坏的 Playwright entry point 阻断；禁用自动插件后仍因缺 Django 无法加载，因此不计为通过。`py_compile` 也因既存 `__pycache__` 权限拒绝未作为证明。
+
+### 2026-08-13：Portfolio canonical transition 输出分母校正
+
+已完成：
+
+- 只读核对真实 `/api/portfolio/transition-plans/*` 链后，补登记此前 inventory 漏掉的 `apps.portfolio.domain.entities.TransitionPlan` 与 `OrderDraft`；两者都直接影响仓位，不能用多个零 production caller 的旧 Decision Rhythm DTO 替代真实分母。
+- `TransitionPlan` 冻结身份、账户、decision/portfolio/target snapshot refs、as-of/expiry、现金、状态/version、orders/constraints 与 `metadata`（包含 planning policy version）；`OrderDraft` 冻结资产、方向、数量、参考价格、费用、状态、剩余数量与约束。三个复合字段由 guard 继续要求存在。
+- 两项均如实分类为 `not_evidence_integrated_legacy_ungated`。当前 create/get/approve/submit REST 均生产可达；submit 只校验 `APPROVED + 未过期` 后返回 `execution_handoff`，尚无 Broker 调用，但也没有 Evidence/must-not-execute 语义，不能标 wrapped 或 research-only。
+- 旧 Application `ExecutionPreviewDTO/TransitionOrderDTO/PortfolioTransitionPlanDTO` 没有 production 构造；旧 Domain TransitionPlan/Order 仍有读/审批消费者，故本批不删除旧登记，也不把旧 Domain 类误标 dead。
+
+仍未完成：
+
+- canonical approve/submit 必须绑定并重验 immutable payload hash、contract family、decision/portfolio/target/prices/market facts/policy version 与正式 Evidence；`DECISION_SNAPSHOT_REQUIRED` 当前默认 false，不能据可选校验宣称硬门禁完成。
+- submit 在 Evidence 完成前应转为明确 display-only handoff 或硬阻断；这属于生产可见行为收缩，需作为独立批次实施与验收。TUI 生成的 detail GET 参数类型也需另批修正。
+
+本阶段验证：
+
+- inventory 专属 `12 passed`；机器分母 `65 / 14 / 53 / 18`；diff-check 通过。本批仅修改治理 inventory、测试和文档，没有改变 Portfolio 运行行为。
 
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
