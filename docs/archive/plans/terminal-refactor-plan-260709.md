@@ -1,5 +1,7 @@
 # Terminal 重构：OpenAI Agents SDK + MCP
 
+> 归档状态（2026-08-12）：仓库实现与验收完成。Terminal 已接入 OpenAI Agents SDK、MCP stdio、SSE、Provider 解析和持久化审批；2026-08-12 定向复核中 Agent Runtime、Terminal Agent、审批及真实装配测试 `427 passed`，生产浏览器证据另见 [`../../plans/web-to-tui-m5-browser-uat-evidence-2026-07-27.md`](../../plans/web-to-tui-m5-browser-uat-evidence-2026-07-27.md)。
+
 ## Summary
 将 `terminal` 从“自研命令/路由/工具执行后端”改成薄前端入口；真正的 AI 执行迁移到 `agent_runtime`，使用 OpenAI Agents SDK 调 MCP server。当前选择固定为：大幅删除旧 terminal 命令后端、第一版直接支持流式输出、保留现有 `ai_provider` 多 Provider 配置。
 

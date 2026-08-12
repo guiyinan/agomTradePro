@@ -3,7 +3,7 @@
 > **模块**: `apps/ai_capability/`  
 > **版本**: V1.0  
 > **创建日期**: 2026-03-19  
-> **最后更新**: 2026-07-17
+> **最后更新**: 2026-08-12
 > **状态**: 生产就绪
 
 ---
@@ -83,7 +83,7 @@ AI Capability Catalog 是系统级 AI 能力目录与统一路由服务，为 te
 
 如果你要接入首页聊天、`AgomChatWidget` 或其他页面内嵌 AI 助手，优先查看共享网页聊天接口文档：
 
-- [Shared Web Chat API 文档](/D:/githv/agomTradePro/docs/api/web-chat-api.md)
+- [Shared Web Chat API 文档](../../api/web-chat-api.md)
 
 该文档覆盖：
 
@@ -768,11 +768,11 @@ API 采集器会自动识别高危模式。如需手动标记，可在 Admin 后
 
 ## 10. 相关文档
 
-- [架构评估报告](architecture/ai-capability-architecture-review-2026-03-19.md)
-- [任务书](plans/system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md)
-- [CLAUDE.md - 架构规范](../CLAUDE.md)
+- [架构评估报告](../../architecture/ai-capability-architecture-review-2026-03-19.md)
+- [历史任务书](../../archive/plans/system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md)
+- [CLAUDE.md - 架构规范](../../../CLAUDE.md)
 
 ---
 
 **维护者**: AgomTradePro Team  
-**最后更新**: 2026-07-04
+**最后更新**: 2026-08-12

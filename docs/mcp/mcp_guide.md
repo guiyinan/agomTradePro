@@ -254,7 +254,7 @@ Recommended environment split:
 
 Do not switch local/prod by editing one shared server entry.
 
-You can validate tool registration locally. Current MCP governance counts are not maintained in this guide; `governance/governance_baseline.json` is the machine source of truth, while [mcp-consolidation-remediation-plan-2026-07-09.md](../plans/mcp-consolidation-remediation-plan-2026-07-09.md) section `0.2.2 唯一机器真源字段与验证入口` explains field meanings and verification commands.
+You can validate tool registration locally. Current MCP governance counts are not maintained in this guide; `governance/governance_baseline.json` is the machine source of truth. The [archived MCP consolidation plan](../archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md) explains the historical field meanings and verification commands, while [MCP full closure evidence](../development/mcp-full-closure-evidence-2026-07-14.md) records the completed acceptance result.
 
 ```bash
 python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"

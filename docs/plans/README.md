@@ -33,8 +33,6 @@
 
 - [`web-to-tui-migration-plan-2026-07-25.md`](web-to-tui-migration-plan-2026-07-25.md) 与 [`web-to-tui-migration-matrix-2026-07-25.csv`](web-to-tui-migration-matrix-2026-07-25.csv)
 - [`web-to-tui-m5-readiness-2026-07-27.md`](web-to-tui-m5-readiness-2026-07-27.md)
-- [`terminal-refactor-plan-260709.md`](terminal-refactor-plan-260709.md)
-- [`mcp-consolidation-remediation-plan-2026-07-09.md`](mcp-consolidation-remediation-plan-2026-07-09.md)
 - [`ai-native/README.md`](ai-native/README.md)
 
 ### 外部环境或真实接入阻断
@@ -42,9 +40,21 @@
 - [`qmt-live-trading-bridge-plan.md`](qmt-live-trading-bridge-plan.md)
 - [`macro-sizing-multiplier-outsourcing-2026-03-31.md`](macro-sizing-multiplier-outsourcing-2026-03-31.md)
 
+## 未完成项执行期（重要到次要）
+
+| 期次 | 优先级 | 主线 | 退出条件 |
+|------|--------|------|----------|
+| 第一期 | P0 | 决策证据硬门禁、策略研究生产数据、Data Center canonical 与可靠性整改 | 决策链不再消费无证据或不新鲜数据，机器门禁和生产数据证据齐全 |
+| 第二期 | P0 | Web → TUI M5 readiness、生产 preflight、浏览器 UAT、回滚演练与 route closure | cutover、UAT、回滚和路由关闭均取得最终签字或可复验证据 |
+| 第三期 | P1 | AI-Native 人工 UAT/release gate、首页聊天复用前端自动化与浏览器验收 | 任务书验收表、人工签字、自动化资产和发布门禁全部闭环 |
+| 外部阻断线 | P2 | QMT 实盘桥接、宏观 sizing multiplier 真实接入 | 外部环境、真实数据和生产接入证据到位后再转入完成验收 |
+
+同一期内先处理会阻断投资决策正确性和生产安全的项目；仅有代码或本地测试、但缺少任务书要求的最终验收证明时，继续保留在活跃目录。
+
 ## 2026-08-12 整理结果
 
-- 归档 46 份已完成文档：原批次 44 份，加上随后完成的零循环整改计划和已由独立跨仓计划承接后续工作的 TUI IA 主计划。
-- 保留 49 份活跃文件；其中也包括尚未解除生产门禁的本地完成记录。
+- 归档 50 份已完成文档：原批次 44 份，加上零循环整改、TUI IA，以及经代码与自动化证据复核完成的 MCP、Capability Catalog 和 Terminal 三条历史任务主线。
+- 保留 45 份活跃文件；其中也包括尚未解除生产门禁的本地完成记录。
 - Web → TUI M0–M4 历史证据已归档；M5 readiness、生产 preflight、UAT、回滚与 route closure 继续留在活跃区，直到 cutover 门禁真正解除。
+- AI-Native 主计划因人工 UAT 签字与 release gate 尚未补齐继续保留；首页聊天复用任务书因前端自动化和浏览器验收资产未闭环继续保留。
 - `implementation-progress-summary.md` 暂保留为总体进度入口，不按阶段总结归档。

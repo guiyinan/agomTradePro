@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.8.0** - 个人投研平台
-> **最后更新**: 2026-08-04
+> **最后更新**: 2026-08-12
 > **项目状态**: 生产就绪
 > **版本管理**: [VERSION.md](VERSION.md)
 
@@ -169,7 +169,10 @@
 | [production-code-remediation-plan-2026-06-26.md](archive/plans/production-code-remediation-plan-2026-06-26.md) | **投产代码整改方案（数据守门 / 初始化 / UI 闭环）** | ✅ 2026-06-26 完成并归档 |
 | [0.8.0-release-closure-plan-2026-07-05.md](archive/plans/0.8.0-release-closure-plan-2026-07-05.md) | **0.8.0 收口开发计划（发布 / 运维 / 架构减债 Top 10）** | ✅ 2026-07-05 已执行并归档 |
 | [post-0.8.0-stabilization-priority-2026-07-08.md](plans/post-0.8.0-stabilization-priority-2026-07-08.md) | **0.8.0 发布后两周稳定化实施清单（优先级 / 负责人 / 命令 / 验收）** | 进行中 |
-| [mcp-consolidation-remediation-plan-2026-07-09.md](plans/mcp-consolidation-remediation-plan-2026-07-09.md) | **MCP 收口整改计划（统一能力注册、统一调用、legacy 退役）** | P0 已启动 |
+| [mcp-consolidation-remediation-plan-2026-07-09.md](archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md) | **MCP 收口整改计划（统一能力注册、统一调用、legacy 退役）** | ✅ 完成并归档；持续状态由机器门禁维护 |
+| [system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md](archive/plans/system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md) | **系统级 AI Capability Catalog 与统一路由任务书** | ✅ 代码与自动化验收完成并归档 |
+| [terminal-mcp-governance-outsourcing-task-book-2026-03-19.md](archive/plans/terminal-mcp-governance-outsourcing-task-book-2026-03-19.md) | **Terminal MCP 治理与确认机制任务书** | ✅ 已实现并由 AgentProposal 持久审批架构承接 |
+| [terminal-refactor-plan-260709.md](archive/plans/terminal-refactor-plan-260709.md) | **Terminal Agents SDK + MCP 重构计划** | ✅ Agents SDK、SSE、MCP 与持久审批完成并归档 |
 | [auto-advisor-prd-2026-06-25.md](archive/plans/auto-advisor-prd-2026-06-25.md) | **账户级自动投顾 PRD（持仓驱动 + 建议订单清单）** | ✅ Implemented v1，已归档 |
 | [auto-advisor-implementation-2026-06-25.md](archive/plans/auto-advisor-implementation-2026-06-25.md) | **账户级自动投顾实施文档（后端/Classic UI/TUI/测试）** | ✅ Implemented v1，已归档 |
 | [personal-auto-advisor-roadmap-2026-06-30.md](archive/plans/personal-auto-advisor-roadmap-2026-06-30.md) | **个人自用自动投顾增强路线图（风控 / 数据新鲜度 / 决策卡片 / 复盘）** | ✅ Implemented v1，已归档 |
@@ -441,7 +444,7 @@
 ## 文档口径来源
 
 - 仓库级动态治理数据以 `governance/governance_baseline.json` 为机器唯一真源。
-- MCP 整改期 live 治理数据同样写入 `governance/governance_baseline.json` 的 `mcp_governance` 字段；[plans/mcp-consolidation-remediation-plan-2026-07-09.md](plans/mcp-consolidation-remediation-plan-2026-07-09.md) 的 `0.2.2` 只解释字段和验证入口，`0.2.3` 维护默认续做顺序。
+- MCP live 治理数据写入 `governance/governance_baseline.json` 的 `mcp_governance` 字段；历史整改过程见[已归档 MCP 收口计划](archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md)，当前完成证据见 [MCP Full Closure Evidence](development/mcp-full-closure-evidence-2026-07-14.md)。
 - 本索引只维护导航、清单和阅读路径，不复制业务模块数、MCP 工具数、静态测试函数数等动态治理数字。
 - 验证命令：`python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text`
 
@@ -623,4 +626,4 @@
 ---
 
 **文档维护**: AgomTradePro Team
-**最后更新**: 2026-08-04
+**最后更新**: 2026-08-12

@@ -1,10 +1,12 @@
 # MCP 收口整改计划（2026-07-09）
 
+> 归档状态（2026-08-12）：仓库范围实现与验收已完成。默认 MCP surface、governed capability、legacy disposition、写能力 preview/confirmation/idempotency 和 CI 门禁均已落地；最终验收依据见 [`../../development/mcp-full-closure-evidence-2026-07-14.md`](../../development/mcp-full-closure-evidence-2026-07-14.md)。本文保留为历史实施记录，不再作为当前待办入口。
+
 > 目标：将 AgomTradePro MCP 从大规模平铺工具和 API 包装层，整改为统一注册、统一调用、统一治理、可审计的外部 Agent 操作协议。
 > 关键约束：本计划不是把 `terminal agent` 从 MCP 切走，而是把它当前消费的 MCP surface 从散装 raw tools 收口为 `core tools + governed capabilities`。
 > 执行口径（2026-07-10）：`terminal agent` 当前真实链路是 `terminal agent -> MCPServerStdio -> python -m agomtradepro_mcp.server`，因此整改目标是统一注册与统一调度，不是去 MCP 化。
 > 治理数据口径（2026-07-12）：`governance/governance_baseline.json` 是动态治理数据唯一可写、唯一可判定的机器真源；本文只维护规则、字段解释、执行状态和证据入口，不维护 live 数字副本。
-> 配套标准：[MCP 技术与开发标准](../mcp/mcp-technical-and-development-standard.md)
+> 配套标准：[MCP 技术与开发标准](../../mcp/mcp-technical-and-development-standard.md)
 
 ---
 
