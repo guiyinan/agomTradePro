@@ -26,6 +26,7 @@ ALLOWED_STATES = frozenset(
         "not_evidence_integrated_tagged_read",
         "not_evidence_integrated_native_dynamic",
         "not_evidence_integrated_dynamic_passthrough",
+        "blocked_unbound_dynamic_passthrough",
         "semantic_tag_overclaims_contract",
     }
 )
@@ -168,6 +169,10 @@ def validate_inventory(
             surface.current_gate_state != "semantic_tag_overclaims_contract"
         ):
             raise ValueError(f"MCP decision_evidence tag lacks explicit overclaim state: {key}")
+        if key == "terminal.read.user_action_result" and (
+            manifest.enabled or surface.current_gate_state != "blocked_unbound_dynamic_passthrough"
+        ):
+            raise ValueError("unbound MCP terminal result bridge must remain disabled")
     if any("evidence_integrated" == surface.current_gate_state for surface in surfaces):
         raise ValueError("semantic freeze must not claim MCP Evidence integration")
     _validate_tui_closure(closure)

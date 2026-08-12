@@ -57,3 +57,12 @@ def test_decision_evidence_tag_is_recorded_as_overclaim() -> None:
     )
 
     assert surface.current_gate_state == "semantic_tag_overclaims_contract"
+
+
+def test_unbound_terminal_result_bridge_is_disabled() -> None:
+    from agomtradepro_mcp.registry.loader import CapabilityRegistryLoader
+
+    registry = CapabilityRegistryLoader().build_registry()
+    bridge = registry["terminal.read.user_action_result"]
+
+    assert bridge.enabled is False

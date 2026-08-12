@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Verify that every published TUI action is reachable through governed MCP bridges."""
+"""Classify published TUI actions against the governed MCP bridge safety state."""
 
 from __future__ import annotations
 
@@ -70,6 +70,8 @@ def validate_tui_action_coverage(
     write_bridge = registry.get("terminal.execute.user_action")
     if read_bridge is not None and read_bridge.requires_confirmation:
         errors.append("read action bridge must not require confirmation")
+    if read_bridge is not None and read_bridge.enabled:
+        errors.append("unbound read action result bridge must remain disabled")
     if write_bridge is not None and (
         not write_bridge.requires_confirmation or write_bridge.idempotency != "required"
     ):
@@ -81,7 +83,12 @@ def validate_tui_action_coverage(
     return {
         "published_action_count": len(actions),
         "unique_action_count": len(set(keys)),
-        "read_bridge_count": risk_counts.get("read", 0),
+        "read_bridge_count": (
+            risk_counts.get("read", 0) if bool(getattr(read_bridge, "enabled", False)) else 0
+        ),
+        "blocked_read_action_count": (
+            0 if bool(getattr(read_bridge, "enabled", False)) else risk_counts.get("read", 0)
+        ),
         "confirmed_bridge_count": sum(
             risk_counts.get(risk, 0) for risk in ("ai", "write", "admin")
         ),
@@ -94,7 +101,6 @@ def main() -> int:
 
     setup_runtime()
     from agomtradepro_mcp.registry.loader import CapabilityRegistryLoader
-
     from apps.terminal.application.repository_provider import get_tui_metadata_repository
 
     metadata = get_tui_metadata_repository().load_published()

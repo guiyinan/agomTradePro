@@ -127,12 +127,12 @@
 - 新增独立 `governance/mcp_evidence_output_surfaces.json`，先冻结 18 个最高优先 MCP 发布面：11 个带 research/decision Evidence 语义 tag 的 read、6 个 Broker native read，以及可展开全部发布态 read action 的 `terminal.read.user_action_result`。
 - 每项精确绑定 capability key、executor kind/ref、raw alias、canonical output-schema SHA、发布语义与当前 gate state；新增、删除、alias/schema/executor 漂移均失败关闭。
 - `equity.read.research_snapshot` 虽带 `mcp:decision_evidence`，但没有完整 Evidence Summary/Envelope/Operator/Track Record 合同，机器状态明确记为 `semantic_tag_overclaims_contract`，不把标签当完成证明。
-- TUI bridge 闭包必须先经过 runtime metadata normalization：当前 published graph 为 430 actions / 408 read，430 个 `raw_debug=true`、0 个 `evidence_binding`；raw graph SHA 与 read-key SHA 均冻结。结果说明 bridge 仍可发布 raw response，本批只登记风险，不修改 payload。
+- TUI bridge 闭包必须先经过 runtime metadata normalization：当前 published graph 为 430 actions / 408 read，430 个 `raw_debug=true`、0 个 `evidence_binding`；raw graph SHA 与 read-key SHA 均冻结。随后已将 `terminal.read.user_action_result` manifest 关闭，并让 handler 直调在 POST 前返回稳定 `mcp_evidence_binding_required`，因此 408 个未绑定 read action 当前全部对 MCP result bridge fail-closed；普通 TUI/search/schema 与其调试 payload 不变。
 - 新 guard 已接入 consistency-check workflow，并纳入 governance wiring 自检。
 
 仍未完成：
 
-- 本批 `integrated_count=0`；18 个面均未因此取得 Evidence 决策或执行许可。Terminal bridge 应优先关闭 raw bypass/强制 evidence binding，随后迁移 6 个 Broker native 与 11 个 tagged read。
+- 本批 `integrated_count=0`；18 个面均未因此取得 Evidence 决策或执行许可。Terminal result bridge 已安全暂停；只有 metadata binding、runtime Evidence Summary 校验与 MCP 白名单投影全部完成后才能重新启用。随后迁移 6 个 Broker native 与 11 个 tagged read。
 - 审计识别的其余 28 个首批 marker 高风险 read 尚待登记，之后仍需完成剩余 read-like capability 的 raw/governed 语义分类与等价性门禁。
 - `QuoteResponse` 与 `OrderApprovalSnapshot` 虽已有 legacy adapter，但运行时 Data Center/Broker MCP 链尚未接入这些 adapter。
 
@@ -140,6 +140,23 @@
 
 - `python scripts/check_mcp_evidence_output_surfaces.py`：通过，surfaces `18`、tagged reads `11`、Broker native `6`、integrated `0`。
 - 专属纯测试 `6 passed`；其余格式、类型、架构、governance wiring 和 diff 检查随本阶段提交执行。
+
+### 2026-08-13：M0 Terminal MCP 未绑定 read bridge kill switch
+
+已完成：
+
+- `terminal.read.user_action_result` 已从 MCP discovery/call 面禁用；handler 保留第二道 fail-closed，schema 为 read 但没有 Evidence binding 时不发起 action POST，稳定抛出 `mcp_evidence_binding_required`。
+- 修正 TUI action coverage guard 的假阳性：disabled bridge 不再把 published read action 计为 reachable；当前 read bridge count 为 `0`、blocked read actions 为 `408`。
+- 保留普通 TUI 的 `raw_debug` 默认、`run_action` envelope、generated/published graph 字节和 action search/schema。只删除 raw response 仍会经 view model 发布无 Evidence 结论，因此没有采用该不完整方案。
+
+仍未完成：
+
+- 首个受控恢复批次必须同时实现 metadata `evidence_binding` schema、Agent schema 发布、runtime `evidence_summary` exact 校验及 MCP 白名单投影（永不返回完整 debug），并同步两张 operation graph 后才可重新启用。
+- 6 个 Broker native、11 个 tagged read 及其余 marker/read-like capability 的正式 Evidence 接入仍未完成。
+
+本阶段验证：
+
+- MCP Evidence freeze 与 coverage/handler 专属聚合：`12 passed, 3 skipped`；skip 为当前隔离运行未加载 core-only MCP fixture，不是断言失败。
 
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 

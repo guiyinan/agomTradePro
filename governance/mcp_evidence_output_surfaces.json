@@ -1,7 +1,7 @@
 {
   "version": 1,
   "updated_at": "2026-08-13",
-  "status": "p0_semantic_surface_frozen_zero_integrated",
+  "status": "p0_semantic_surface_frozen_terminal_bridge_blocked",
   "tui_action_closure": {
     "published_path": "config/tui/published/tui_operation_graph.published.json",
     "published_sha256": "1d5b38416c23f7583297130d3076da9d80c4af25a4ea77721ee7b9633143f3f8",
@@ -29,7 +29,7 @@
     {"capability_key":"regime.read.action_recommendation","executor_kind":"legacy_tool","executor_ref":"regime_read_action_recommendation","raw_aliases":["get_action_recommendation"],"output_schema_sha256":"39ed925ab74ffb844daf3bb0c24b1346f15979eb808e2b7b6859f51e67390b14","publication_semantic":"recommendation","current_gate_state":"not_evidence_integrated_tagged_read"},
     {"capability_key":"sector.compute.analysis","executor_kind":"legacy_tool","executor_ref":"sector_compute_analysis","raw_aliases":["analyze_sector"],"output_schema_sha256":"c8a1ac469a826ea3547ac220c7bbfdcd6b58080d4ec596ff2a0149c5ccb9b699","publication_semantic":"research_result","current_gate_state":"not_evidence_integrated_tagged_read"},
     {"capability_key":"sector.compute.comparison","executor_kind":"legacy_tool","executor_ref":"sector_compute_comparison","raw_aliases":["compare_sectors"],"output_schema_sha256":"c8a1ac469a826ea3547ac220c7bbfdcd6b58080d4ec596ff2a0149c5ccb9b699","publication_semantic":"research_result","current_gate_state":"not_evidence_integrated_tagged_read"},
-    {"capability_key":"terminal.read.user_action_result","executor_kind":"internal_handler","executor_ref":"terminal_run_user_read_action","raw_aliases":[],"output_schema_sha256":"c8a1ac469a826ea3547ac220c7bbfdcd6b58080d4ec596ff2a0149c5ccb9b699","publication_semantic":"tui_read_passthrough","current_gate_state":"not_evidence_integrated_dynamic_passthrough"}
+    {"capability_key":"terminal.read.user_action_result","executor_kind":"internal_handler","executor_ref":"terminal_run_user_read_action","raw_aliases":[],"output_schema_sha256":"c8a1ac469a826ea3547ac220c7bbfdcd6b58080d4ec596ff2a0149c5ccb9b699","publication_semantic":"tui_read_passthrough","current_gate_state":"blocked_unbound_dynamic_passthrough"}
   ],
   "notes": [
     "Inventory presence is semantic freeze only; zero listed capability is Evidence integrated.",
