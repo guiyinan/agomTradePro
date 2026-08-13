@@ -1744,6 +1744,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Account v2 Domain/Application pure `43 passed`、Django 5.2 component `2 passed`；strict mypy、ruff、Black/isort与diff-check通过。
 - 0042仍为未部署zero-seed最终schema；production pipeline、canonical identity输入与全writer原子cutover仍未完成，总闸不变。
 
+### 2026-08-13：SimulatedAccount 三账本 Evidence Pipeline 安全前置
+
+- 新增未激活的Infrastructure pipeline，在调用方已经开启的同alias外层事务中固定按raw observation → source v2 → Account v2顺序投影；create/update/delete共用同一条编排，delete tombstone不会被降级成旧present版本。
+- pipeline把raw observation ID/version/content hash原样交给source v2，再把source content hash原样交给Account v2；返回值逐阶段要求exact Domain type并重跑不变量，adapter替换对象稳定报corruption，不允许fallback v1。
+- canonical-form Account namespace/string ID与underlying integer identity保持为显式`UnverifiedCanonicalAccountReference`，pipeline只校验shape及其与physical row selector闭合，绝不把typed input冒充Account owner authority，也不通过`str(pk)`或`int(account_id)`推导身份。pipeline不重复声明Account capture内部的service recorder，避免制造无法独立证明的provenance。
+
+验证与剩余边界：
+
+- pipeline unit `8 passed`；strict mypy、ruff、Black/isort、architecture（2807 files / 0 violations）与diff-check通过。缺外层事务时三阶段零调用；source失败不会调用Account阶段；每阶段返回对象替换均fail closed。
+- 本批没有composition、model hook、Admin/cascade、任务或生产writer接线；typed canonical Account reference仍由未来Account-owner exact provider提供，当前不可由caller自报进入production。三账本继续zero-seed，总执行闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
