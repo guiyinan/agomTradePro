@@ -698,6 +698,17 @@
 - Domain+Application 纯测试 `74 passed`；standalone strict mypy 两个生产文件、Black/isort/py_compile/diff-check通过。
 - 现有 BrokerAccountBinding 和 unified account 仍是 mutable row，尚无上述两个 immutable source ledger/provider；因此真实 composition 不能签发 binding。本阶段只有协议与pure fake，仍固定inactive，后续须先补Account/Broker owner source、append-only binding ledger、人工入口和PostgreSQL并发，pre-Risk blocker与总闸不变。
 
+### 2026-08-13：Broker/Account namespace binding append-only ledger
+
+- 新增 binding strict codec、私有UOW/exact insert claim与append-only ORM；identity、root和predecessor first-winner及logical-head CAS封闭同一Broker账户链，精确幂等以完整Domain对象为准。
+- repository先closed-world恢复全部记录并复核canonical payload、两侧source/header、actor、identity/content/ledger/root/link/persisted clock seals，再做exact/PIT/current selector匹配；orphan/fork/cross-account/clock倒置或双selector篡改均fail closed，最终expired successor不回退旧binding。
+- `0011_portfolio_broker_account_binding`依赖0010，仅schema/zero-seed，无RunPython/RunSQL；permission仍固定inactive，未接真实Account/Broker source composition、API或执行闸。
+
+未完成与验证：
+
+- Domain/Application回归 `74 passed`；py_compile、Black/isort/diff-check、codec strict mypy与architecture `2723 files / 0 violations`通过。root用Django 5.2.10最小schema-editor补验zero-seed、append与exact round-trip通过。
+- 当前Django5.2环境无pytest，完整component与migration drift未取得最终结果；PostgreSQL并发CAS未验证。真实facade/raw provider/key service/composition/actor仍缺，namespace/pre-Risk blocker与总闸不变。
+
 ### 2026-08-13：Portfolio policy benchmark snapshot Domain 合同
 
 - 新增 Portfolio-owned、零跨 App import 的 policy benchmark snapshot candidate；封存 Account identity、Portfolio planning-policy activation、Portfolio benchmark definition 三个 exact source ref（owner/type/id/version/hash/recorded/validity），账户 namespace/字符串 ID、owner user、base currency、live inception/observed/recorded clock 与 predecessor。
