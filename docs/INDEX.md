@@ -534,6 +534,9 @@
 - ✅ **Broker-owned broker account identity snapshot Domain 合同**
   - 封存Broker账户、Account exact source、binding/Agent owner seal与keyed QMT reference digest；Account字符串与Broker整数身份不做cast，owner/real/active必须闭合
   - 固定inactive；Account facade、Broker raw provider/digest service、ID-only发行和ledger/current reader均未完成，namespace blocker不变
+- ✅ **Broker account identity snapshot Application workflow**
+  - ID-only发行双读Account exact source与Broker binding/Agent facts；QMT明文只进入注入的keyed digest服务，server actor、first-winner/CAS及closed-current闭合
+  - 仅Protocol+pure fake；真实facade/raw provider、key service、账本/composition、actor与PG并发仍未完成，ruff未验证
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**

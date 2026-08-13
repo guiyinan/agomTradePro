@@ -792,6 +792,18 @@
 - 纯Domain `34 passed`；standalone strict mypy、Black/isort/py_compile/diff-check与零跨App import通过。
 - 现有Broker binding/Agent仍mutable，尚无Account exact facade、Broker trusted raw provider、keyed digest service、ID-only issuance、append-only ledger或exact/current reader；本合同不能供namespace binding真实composition，总闸不变。
 
+### 2026-08-13：Broker account identity snapshot Application workflow
+
+- 新增ID-only发行命令：只接snapshot identity、Account source identity与Broker整数account selector，不接受account owner、hash、clock、QMT reference或permission。Account exact source和Broker binding/Agent raw projection均在同一server cutoff首末双读。
+- Account consumer DTO保留字符串namespace/ID、owner/real/active/hash/PIT/current；Broker raw DTO保留独立整数namespace/ID、binding revision/hash/owner、Agent identity/hash/owner与broker category。两类ID分别封存，从不cast或相等比较；三处owner必须一致。
+- QMT原值只允许作为trusted raw DTO中的non-empty exact bytes进入注入的keyed digest service；Domain、persisted record、current selector与输出只保留algorithm/key ID/digest，测试证明明文不进入snapshot payload。plain SHA或digest类型替换fail closed。
+- server human-staff actor、first-winner跨时钟原actor重放、logical-head predecessor CAS、exact/PIT与closed-current完整selector均已编排；结果固定inactive/must-not-execute。
+
+未完成与验证：
+
+- Broker account identity Domain/Application组合 `54 passed`；strict mypy、Black/isort/py_compile/diff-check与架构扫描 `2706 files / 0 violations`通过；当前环境无ruff，未验证该项。
+- 仅Protocol+pure fake；真实Account facade、Broker binding/Agent raw provider、keyed digest key service、snapshot账本/composition、actor入口与PG并发未完成，不能供namespace binding真实签发或解除总闸。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
