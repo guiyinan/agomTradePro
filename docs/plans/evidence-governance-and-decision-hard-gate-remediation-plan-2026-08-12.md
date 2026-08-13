@@ -1755,6 +1755,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - pipeline unit `8 passed`；strict mypy、ruff、Black/isort、architecture（2807 files / 0 violations）与diff-check通过。缺外层事务时三阶段零调用；source失败不会调用Account阶段；每阶段返回对象替换均fail closed。
 - 本批没有composition、model hook、Admin/cascade、任务或生产writer接线；typed canonical Account reference仍由未来Account-owner exact provider提供，当前不可由caller自报进入production。三账本继续zero-seed，总执行闸不变。
 
+### 2026-08-13：Account owner-assignment claimant provenance receipt v2 Domain
+
+- 新增独立v2 claimant receipt，固定绑定Account physical-row v2 owner/type/schema、ID/version/identity/content/predecessor、recorded/valid clock，以及source/raw content hashes、row user与active/present/tombstone事实；validator重新执行完整physical v2不变量并逐字段闭合，拒绝v1对象或仅格式正确的替代hash。
+- `claimed_owner`与`legacy_default_claim`明确只是human claimant声明，不使用`authoritative`命名。creation要求claimant=claimed owner=live row user；manual reclaim只能claim claimant自己但不冒充旧row user；migration只能由human staff reviewer声明legacy default且owner保持空。
+- 新签发只允许exact live row；terminal/expired head只保留历史审计语义并且不回退旧claim。receipt固定`evidence_only/inactive/must_not_execute`，不能发布authoritative identity；root/successor同时绑定receipt predecessor与相邻physical v2 row predecessor，issued/recorded clock必须推进。
+
+验证与剩余边界：
+
+- pure unit `22 passed`；strict mypy、ruff、Black/isort、architecture（2808 files / 0 violations）与diff-check通过。
+- 本批仅Domain；ID/hash-only Application、0043 zero-seed ledger、独立staff approval evidence v2与authoritative canonical identity provider仍未完成，production pipeline不得接受caller自报身份，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

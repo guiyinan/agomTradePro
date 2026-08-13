@@ -702,6 +702,9 @@
 - ✅ **SimulatedAccount 三账本 Evidence Pipeline 安全前置**
   - 未激活pipeline要求调用方同alias外层事务，固定raw→source-v2→Account-v2并原样传递hash/tombstone；unverified canonical-form identity不做str/int cast
   - unit 8 passed、architecture 2807/0；未接production writer，Account owner authoritative provider与一次性全writer cutover仍缺
+- ✅ **Account owner-assignment claimant provenance receipt v2 Domain**
+  - 独立v2精确绑定physical/source/raw三层hash、clock与presence；claimed-owner/legacy-default只代表human claim，live-row签发且final失效不回退
+  - pure 22 passed、architecture 2808/0；Application/0043/staff approval evidence v2与authoritative provider仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
