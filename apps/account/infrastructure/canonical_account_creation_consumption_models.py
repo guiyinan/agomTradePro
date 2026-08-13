@@ -200,6 +200,7 @@ class CanonicalAccountCreationConsumptionClaimModel(
     physical_v2_content_hash = models.CharField(max_length=64, unique=True)
     physical_v3_root_content_hash = models.CharField(max_length=64, null=True)
     recorded_at = models.DateTimeField(db_index=True)
+    knowledge_at = models.DateTimeField(db_index=True, null=True)
     permission = models.CharField(max_length=32)
     status = models.CharField(max_length=16)
     canonical_payload = models.JSONField()

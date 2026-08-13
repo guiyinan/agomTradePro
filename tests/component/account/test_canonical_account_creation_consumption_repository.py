@@ -161,6 +161,8 @@ def test_v2_pair_roundtrip_first_winner_exact_pit_and_permanent_read() -> None:
         binding_version=binding.binding_version,
         as_of=_at(8),
     ) == PersistedCanonicalAccountCreationBindingV2(binding, claim)
+    claim_row = CanonicalAccountCreationConsumptionClaimModel.objects.get()
+    assert claim_row.knowledge_at == claim.recorded_at
     assert (
         repository.get_exact_by_hash(
             binding_id=binding.binding_id,
@@ -170,6 +172,32 @@ def test_v2_pair_roundtrip_first_winner_exact_pit_and_permanent_read() -> None:
         )
         == binding
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_v2_pair_visibility_uses_claim_knowledge_clock() -> None:
+    repository = _repository()
+    binding, claim = _pair()
+    _seed_v2_foreign_evidence(binding)
+    with repository.atomic():
+        _append_pair(repository, binding, claim)
+    table = connection.ops.quote_name(CanonicalAccountCreationConsumptionClaimModel._meta.db_table)
+    with connection.cursor() as cursor:
+        cursor.execute(f"UPDATE {table} SET knowledge_at = %s", [_at(10)])  # noqa: S608
+
+    assert (
+        repository.get_winner(
+            binding_id=binding.binding_id,
+            binding_version=binding.binding_version,
+            as_of=_at(9),
+        )
+        is None
+    )
+    assert repository.get_winner(
+        binding_id=binding.binding_id,
+        binding_version=binding.binding_version,
+        as_of=_at(10),
+    ) == PersistedCanonicalAccountCreationBindingV2(binding, claim)
 
 
 @pytest.mark.django_db(transaction=True)

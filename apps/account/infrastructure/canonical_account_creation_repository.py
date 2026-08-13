@@ -64,14 +64,14 @@ from apps.account.infrastructure.canonical_account_creation_consumption_models i
     _activate_canonical_account_creation_consumption_uow,
     _claim_canonical_account_creation_consumption_insert,
 )
+from apps.account.infrastructure.canonical_account_creation_maintenance_lock import (
+    acquire_canonical_account_creation_writer_lock,
+)
 from apps.account.infrastructure.canonical_account_creation_models import (
     CanonicalAccountCreationAllocationModel,
     CanonicalAccountCreationBindingModel,
     _activate_canonical_account_creation_uow,
     _claim_canonical_account_creation_insert,
-)
-from apps.account.infrastructure.canonical_account_creation_maintenance_lock import (
-    acquire_canonical_account_creation_writer_lock,
 )
 
 
@@ -249,7 +249,10 @@ class DjangoCanonicalAccountCreationRepository:
         )
         if exact is None or not exact.allocated_at <= as_of < exact.valid_until:
             return None
-        if any(value.allocation.content_hash == exact.content_hash for _, value in world.claims):
+        if any(
+            _claim_is_knowable(row, as_of) and value.allocation.content_hash == exact.content_hash
+            for row, value in world.claims
+        ):
             return None
         if any(
             row.consumption_claim_id is None and value.allocation.content_hash == exact.content_hash
@@ -318,9 +321,12 @@ class DjangoCanonicalAccountCreationRepository:
             raise CanonicalAccountCreationCorruption(
                 "legacy Binding-v1 has no unified consumption claim"
             )
-        claim = _claim_by_pk(world, claim_pk)
-        if claim is None or claim.recorded_at > as_of:
+        claim_row = _claim_row_by_pk(world, claim_pk)
+        if claim_row is None:
             raise CanonicalAccountCreationCorruption("Binding-v1 claim is unavailable")
+        if not _claim_is_knowable(claim_row[0], as_of):
+            return None
+        claim = claim_row[1]
         try:
             return PersistedCanonicalAccountCreationBinding(binding, claim)
         except (TypeError, ValueError) as error:
@@ -351,8 +357,8 @@ class DjangoCanonicalAccountCreationRepository:
         world = self._closed_consumption_world(lock=False)
         matches = tuple(
             value
-            for _, value in world.claims
-            if value.recorded_at <= as_of
+            for row, value in world.claims
+            if _claim_is_knowable(row, as_of)
             and _claim_anchor_matches_v1(
                 value,
                 claim_id=claim_id,
@@ -535,7 +541,9 @@ class DjangoCanonicalAccountCreationRepository:
             raise CanonicalAccountCreationConflict("consumption first-winner anchor differs")
 
         claim_values = _consumption_claim_values(
-            checked_claim, allocation_pk=allocation_rows[0][0].pk
+            checked_claim,
+            allocation_pk=allocation_rows[0][0].pk,
+            knowledge_at=recorded_at,
         )
         try:
             with transaction.atomic(using=self._using):
@@ -895,10 +903,19 @@ def _binding_values(
 
 
 def _consumption_claim_values(
-    value: CanonicalAccountCreationConsumptionClaim, *, allocation_pk: int | None
+    value: CanonicalAccountCreationConsumptionClaim,
+    *,
+    allocation_pk: int | None,
+    knowledge_at: datetime,
 ) -> dict[str, object]:
     if allocation_pk is None:
         raise CanonicalAccountCreationCorruption("claim allocation has no database identity")
+    try:
+        _aware(knowledge_at, "knowledge_at")
+    except (TypeError, ValueError) as error:
+        raise CanonicalAccountCreationCorruption("claim knowledge clock is invalid") from error
+    if knowledge_at < value.recorded_at:
+        raise CanonicalAccountCreationCorruption("claim knowledge clock is invalid")
     payload = encode_canonical_account_creation_consumption_claim(value)
     consumer = value.consumer
     values: dict[str, object] = {
@@ -925,6 +942,7 @@ def _consumption_claim_values(
         "physical_v2_content_hash": value.physical_v2_content_hash,
         "physical_v3_root_content_hash": value.physical_v3_root_content_hash,
         "recorded_at": value.recorded_at,
+        "knowledge_at": knowledge_at,
         "permission": value.permission,
         "status": value.status,
         "canonical_payload": payload,
@@ -1046,7 +1064,11 @@ def _restore_consumption_claim(
         raise CanonicalAccountCreationCorruption("claim allocation differs")
     _match_row_values(
         row,
-        _consumption_claim_values(value, allocation_pk=allocation_pk),
+        _consumption_claim_values(
+            value,
+            allocation_pk=allocation_pk,
+            knowledge_at=_required_claim_knowledge_at(row),
+        ),
         "consumption claim",
     )
     return value
@@ -1078,6 +1100,34 @@ def _claim_by_pk(
     world: _ConsumptionWorld, pk: int
 ) -> CanonicalAccountCreationConsumptionClaim | None:
     return next((value for row, value in world.claims if row.pk == pk), None)
+
+
+def _claim_row_by_pk(world: _ConsumptionWorld, pk: int) -> (
+    tuple[
+        CanonicalAccountCreationConsumptionClaimModel,
+        CanonicalAccountCreationConsumptionClaim,
+    ]
+    | None
+):
+    return next(((row, value) for row, value in world.claims if row.pk == pk), None)
+
+
+def _required_claim_knowledge_at(
+    row: CanonicalAccountCreationConsumptionClaimModel,
+) -> datetime:
+    value = row.knowledge_at
+    if (
+        type(value) is not datetime
+        or value.tzinfo is None
+        or value.utcoffset() is None
+        or value < row.recorded_at
+    ):
+        raise CanonicalAccountCreationCorruption("claim knowledge clock is unavailable")
+    return value
+
+
+def _claim_is_knowable(row: CanonicalAccountCreationConsumptionClaimModel, as_of: datetime) -> bool:
+    return _required_claim_knowledge_at(row) <= as_of
 
 
 def _claim_anchor_matches_v1(

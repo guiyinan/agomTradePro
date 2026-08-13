@@ -2049,6 +2049,13 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 新增database-scoped transaction advisory lock；Binding-v1与Binding-v2 repository的每个atomic writer UOW在PostgreSQL事务内取得同一signed-bigint shared lock，maintenance未来使用同key exclusive lock，避免只靠“空claim预查”宣称跨代排他。
 - Exclusive maintenance默认只允许PostgreSQL；SQLite必须显式开启test degradation，且不构成生产或并发证明。当前backfill仍在进入任何写事务前稳定阻断，因此尚未取得exclusive lock，也不存在shared→exclusive升级死锁路径。
 - 两repository与lock组件组合`18 passed`；Ruff、Black/isort、standalone strict mypy通过。尚未做真实PostgreSQL两连接阻塞/竞争测试，writer-freeze只完成代码前置，不足以解除backfill/0048阻断。
+
+### 2026-08-14：Account canonical creation consumption knowledge clock expand
+
+- 保留Claim Domain `recorded_at == consumer.recorded_at`及全部canonical payload/hash/seals不变；新增0048纯AddField migration：nullable、indexed `knowledge_at`只表达系统真实获得Claim的时点，无RunPython/RunSQL、无seed、无NOT NULL/contract。
+- v1/v2 live双写令`knowledge_at == recorded_at`；restore要求aware且不早于业务recorded clock。winner、claim anchor与allocation current-unconsumed的PIT visibility改按knowledge clock，延迟知识在`as_of < knowledge_at`时不可见，NULL/naive/clock rollback会使closed world fail closed而不是回退旧状态。
+- Inventory与dry-run preflight现在要求0048精确migration名；运维CLI的readiness语义从特定“0048 contract”改为generic future contract，保留旧flag仅作兼容alias。组件`29 passed`、命令`14 passed`、architecture 2840/0，Ruff/Black/isort/strict mypy通过。
+- 既有Claim迁移后保持NULL且不可发布；真实knowledge backfill、exclusive maintenance、NOT NULL/clock Check contract与PG迁移往返仍未完成。完整`makemigrations --check`被当前隔离环境缺Celery阻断，migration/model state已由Django5.2 component精确比对。
 - 代码现在具备dormant双代写路径，但生产各alias的0045存量尚未盘点或backfill，0048 contract与PostgreSQL v1/v2交叉竞争仍缺；因此composition/writer/pipeline继续禁用，不能宣称生产排他已闭合。
 
 ### 2026-08-13：跨 App 决策读边界与模块循环收口

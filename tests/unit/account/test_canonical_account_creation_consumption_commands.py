@@ -64,7 +64,7 @@ def test_inventory_json_is_stable_redacted_and_marks_batch_reserved(
         database="default",
         batch_size=100,
         as_json=True,
-        require_0048_ready=False,
+        require_contract_ready=False,
     )
     raw = output.getvalue().strip()
     payload = json.loads(raw)
@@ -74,7 +74,7 @@ def test_inventory_json_is_stable_redacted_and_marks_batch_reserved(
         "requested": 100,
         "semantics": "reserved_all_or_nothing",
     }
-    assert payload["contract_0048_ready"] is False
+    assert payload["contract_ready"] is False
     assert payload["writer_freeze"]["available"] is False
     assert "account_id" not in raw
     assert "PASSWORD" not in raw
@@ -94,7 +94,7 @@ def test_inventory_require_ready_blocks_postgresql_without_freeze(
             database="default",
             batch_size=500,
             as_json=True,
-            require_0048_ready=True,
+            require_contract_ready=True,
         )
     assert json.loads(output.getvalue())["outcome"] == "blocked"
 
@@ -113,7 +113,7 @@ def test_inventory_require_ready_checks_consistency_first(
             database="default",
             batch_size=500,
             as_json=True,
-            require_0048_ready=True,
+            require_contract_ready=True,
         )
 
 
@@ -242,7 +242,7 @@ def test_backfill_write_matching_hash_still_fails_closed_without_freeze(
     [
         (
             inventory_command.Command,
-            {"as_json": True, "require_0048_ready": False},
+            {"as_json": True, "require_contract_ready": False},
         ),
         (
             backfill_command.Command,

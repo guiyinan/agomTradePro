@@ -9,7 +9,7 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 _OUTPUT_SCHEMA = "canonical-account-creation-consumption-command.v1"
 _FREEZE_UNAVAILABLE = "writer_freeze_proof_unavailable"
-_PRECONDITIONS_FAILED = "contract_0048_preconditions_not_satisfied"
+_PRECONDITIONS_FAILED = "contract_preconditions_not_satisfied"
 _POSTGRESQL_REQUIRED = "production_postgresql_required"
 
 
@@ -41,7 +41,12 @@ class Command(BaseCommand):
         parser.add_argument("--database", default="default")
         parser.add_argument("--batch-size", type=int, default=500)
         parser.add_argument("--json", action="store_true", dest="as_json")
-        parser.add_argument("--require-0048-ready", action="store_true")
+        parser.add_argument(
+            "--require-contract-ready",
+            "--require-0048-ready",
+            action="store_true",
+            dest="require_contract_ready",
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
         """Inspect one alias and fail closed when production readiness is requested."""
@@ -50,7 +55,10 @@ class Command(BaseCommand):
         database = _database(options.get("database"))
         batch_size = _batch_size(options.get("batch_size"))
         as_json = _boolean(options.get("as_json"), "json")
-        require_ready = _boolean(options.get("require_0048_ready"), "require-0048-ready")
+        require_ready = _boolean(
+            options.get("require_contract_ready", options.get("require_0048_ready")),
+            "require-contract-ready",
+        )
         report = load_inventory_report(using=database)
         consistency = report.consistency
         preconditions_satisfied = (
@@ -70,8 +78,8 @@ class Command(BaseCommand):
                 "semantics": "reserved_all_or_nothing",
             },
             "command": "inventory",
-            "contract_0048_preconditions_satisfied": preconditions_satisfied,
-            "contract_0048_ready": False,
+            "contract_preconditions_satisfied": preconditions_satisfied,
+            "contract_ready": False,
             "inventory": report.canonical_payload(),
             "outcome": "blocked" if block_reason is not None else "success",
             "schema": _OUTPUT_SCHEMA,
@@ -85,7 +93,7 @@ class Command(BaseCommand):
         _write(self, payload, as_json=as_json)
         if block_reason is not None:
             raise CommandError(
-                "canonical_account_creation_consumption_0048_ready_blocked:" + block_reason
+                "canonical_account_creation_consumption_contract_ready_blocked:" + block_reason
             )
 
 
@@ -148,5 +156,5 @@ def _write(command: BaseCommand, payload: dict[str, object], *, as_json: bool) -
         return
     command.stdout.write(
         "canonical creation consumption inventory "
-        f"outcome={payload['outcome']} ready={payload['contract_0048_ready']}"
+        f"outcome={payload['outcome']} ready={payload['contract_ready']}"
     )

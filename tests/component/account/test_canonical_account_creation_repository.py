@@ -217,6 +217,8 @@ def test_binding_consumes_allocation_without_expiry_fallback_and_all_anchors_fin
         binding_version=binding.binding_version,
         as_of=_at(30),
     ) == PersistedCanonicalAccountCreationBinding(binding, claim)
+    claim_row = CanonicalAccountCreationConsumptionClaimModel.objects.get()
+    assert claim_row.knowledge_at == claim.recorded_at
     assert (
         repository.get_exact_binding(
             binding_id=binding.binding_id,
@@ -246,6 +248,38 @@ def test_binding_consumes_allocation_without_expiry_fallback_and_all_anchors_fin
                 **_claim_selector(claim, **selector)  # type: ignore[arg-type]
             )
             == claim
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_v1_pair_visibility_uses_claim_knowledge_clock_and_null_fails_closed() -> None:
+    _, binding, claim = _append_binding()
+    repository = _repository()
+    table = connection.ops.quote_name(CanonicalAccountCreationConsumptionClaimModel._meta.db_table)
+    with connection.cursor() as cursor:
+        cursor.execute(f"UPDATE {table} SET knowledge_at = %s", [_at(10)])  # noqa: S608
+
+    assert (
+        repository.get_binding_winner(
+            binding_id=binding.binding_id,
+            binding_version=binding.binding_version,
+            as_of=_at(9),
+        )
+        is None
+    )
+    assert repository.get_binding_winner(
+        binding_id=binding.binding_id,
+        binding_version=binding.binding_version,
+        as_of=_at(10),
+    ) == PersistedCanonicalAccountCreationBinding(binding, claim)
+
+    with connection.cursor() as cursor:
+        cursor.execute(f"UPDATE {table} SET knowledge_at = NULL")  # noqa: S608
+    with pytest.raises(CanonicalAccountCreationCorruption, match="knowledge clock"):
+        repository.get_binding_winner(
+            binding_id=binding.binding_id,
+            binding_version=binding.binding_version,
+            as_of=_at(30),
         )
 
 

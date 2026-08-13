@@ -171,9 +171,12 @@ class DjangoCanonicalAccountCreationConsumptionRepository:
         if selected is None:
             return None
         row, binding = selected
-        claim = _claim_by_pk(world, _fk_id(row, "consumption_claim_id"))
-        if claim is None or claim.recorded_at > as_of:
+        claim_row = _claim_row_by_pk(world, _fk_id(row, "consumption_claim_id"))
+        if claim_row is None:
             raise CanonicalAccountCreationBindingV2Corruption("Binding-v2 claim is unavailable")
+        if not _claim_is_knowable(claim_row[0], as_of):
+            return None
+        claim = claim_row[1]
         return PersistedCanonicalAccountCreationBindingV2(binding, claim)
 
     def get_consumption_claim_by_any_anchor(
@@ -199,8 +202,8 @@ class DjangoCanonicalAccountCreationConsumptionRepository:
         world = self._closed_world(lock=False)
         matches = tuple(
             value
-            for _, value in world.claims
-            if value.recorded_at <= as_of
+            for row, value in world.claims
+            if _claim_is_knowable(row, as_of)
             and _claim_anchor_matches(
                 value,
                 claim_id=claim_id,
@@ -332,7 +335,11 @@ class DjangoCanonicalAccountCreationConsumptionRepository:
                 return exact.binding, exact.claim
             raise CanonicalAccountCreationBindingV2Conflict("consumption first winner differs")
 
-        claim_values = _claim_values(checked_claim, allocation_pk=allocation_row.pk)
+        claim_values = _claim_values(
+            checked_claim,
+            allocation_pk=allocation_row.pk,
+            knowledge_at=recorded_at,
+        )
         try:
             with transaction.atomic(using=self._using):
                 claim_row = self._insert_claim(claim_values)
@@ -572,17 +579,27 @@ def _restore_claim_row(
     allocation_fk = _fk_id(row, "allocation_id")
     if allocations.get(allocation_fk) != value.allocation:
         raise CanonicalAccountCreationBindingV2Corruption("claim allocation differs")
-    _match_row(row, _claim_values(value, allocation_pk=allocation_fk), "claim")
+    knowledge_at = _required_knowledge_at(row)
+    _match_row(
+        row,
+        _claim_values(value, allocation_pk=allocation_fk, knowledge_at=knowledge_at),
+        "claim",
+    )
     return value
 
 
 def _claim_values(
-    value: CanonicalAccountCreationConsumptionClaim, *, allocation_pk: int | None
+    value: CanonicalAccountCreationConsumptionClaim,
+    *,
+    allocation_pk: int | None,
+    knowledge_at: datetime,
 ) -> dict[str, object]:
     if allocation_pk is None:
         raise CanonicalAccountCreationBindingV2Corruption(
             "claim allocation has no database identity"
         )
+    if not _is_aware(knowledge_at) or knowledge_at < value.recorded_at:
+        raise CanonicalAccountCreationBindingV2Corruption("claim knowledge clock is invalid")
     payload = encode_canonical_account_creation_consumption_claim(value)
     consumer = value.consumer
     values: dict[str, object] = {
@@ -609,6 +626,7 @@ def _claim_values(
         "physical_v2_content_hash": value.physical_v2_content_hash,
         "physical_v3_root_content_hash": value.physical_v3_root_content_hash,
         "recorded_at": value.recorded_at,
+        "knowledge_at": knowledge_at,
         "permission": value.permission,
         "status": value.status,
         "canonical_payload": payload,
@@ -759,6 +777,27 @@ def _exact_root_row(
 
 def _claim_by_pk(world: _World, pk: int | None) -> CanonicalAccountCreationConsumptionClaim | None:
     return next((value for row, value in world.claims if row.pk == pk), None)
+
+
+def _claim_row_by_pk(world: _World, pk: int | None) -> (
+    tuple[
+        CanonicalAccountCreationConsumptionClaimModel,
+        CanonicalAccountCreationConsumptionClaim,
+    ]
+    | None
+):
+    return next(((row, value) for row, value in world.claims if row.pk == pk), None)
+
+
+def _required_knowledge_at(row: CanonicalAccountCreationConsumptionClaimModel) -> datetime:
+    value = row.knowledge_at
+    if type(value) is not datetime or not _is_aware(value) or value < row.recorded_at:
+        raise CanonicalAccountCreationBindingV2Corruption("claim knowledge clock is unavailable")
+    return value
+
+
+def _claim_is_knowable(row: CanonicalAccountCreationConsumptionClaimModel, as_of: datetime) -> bool:
+    return _required_knowledge_at(row) <= as_of
 
 
 def _claim_anchor_matches(

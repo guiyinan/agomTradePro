@@ -47,16 +47,21 @@ class DjangoMigrationConsumptionBackfillPreflight:
     """Read the target alias's authoritative Django migration ledger."""
 
     def verify(self, *, using: str) -> None:
-        """Require 0047 and reject every account 0048 migration."""
+        """Require the consumption and knowledge-clock expand migrations."""
 
         connection = connections[using]
         recorder = MigrationRecorder(connection)
         applied = set(recorder.applied_migrations())
-        if ("account", "0047_canonical_account_creation_consumption_expand") not in applied:
-            raise CanonicalAccountCreationConflict("consumption backfill requires migration 0047")
-        if any(app == "account" and name.startswith("0048") for app, name in applied):
+        required = {
+            ("account", "0047_canonical_account_creation_consumption_expand"),
+            (
+                "account",
+                "0048_canonical_account_creation_consumption_knowledge_clock_expand",
+            ),
+        }
+        if not required.issubset(applied):
             raise CanonicalAccountCreationConflict(
-                "consumption backfill must precede migration 0048"
+                "consumption backfill requires migrations 0047 and 0048 knowledge expand"
             )
 
 

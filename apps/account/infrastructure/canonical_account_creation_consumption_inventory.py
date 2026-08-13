@@ -32,6 +32,7 @@ _REQUIRED_MIGRATIONS = (
     "0045_canonical_account_creation_ledger",
     "0046_allocated_physical_account_row_observation_v3_ledger",
     "0047_canonical_account_creation_consumption_expand",
+    "0048_canonical_account_creation_consumption_knowledge_clock_expand",
 )
 
 
@@ -305,7 +306,7 @@ class CanonicalAccountCreationConsumptionInventoryService:
         return tuple(
             name
             for name in migration_names
-            if name in _REQUIRED_MIGRATIONS or name.startswith("0048_")
+            if name in _REQUIRED_MIGRATIONS or name.startswith(("0049_", "0050_"))
         )
 
     def _ledger_inventories(

@@ -149,26 +149,39 @@ def test_cross_generation_unique_anchors_and_branch_clock_checks() -> None:
         )
 
 
-def test_0047_schema_state_is_pure_expand_and_matches_models() -> None:
+def test_0047_0048_schema_state_is_pure_expand_and_matches_models() -> None:
     modules = [
         import_module("apps.account.migrations.0045_canonical_account_creation_ledger"),
         import_module(
             "apps.account.migrations.0046_allocated_physical_account_row_observation_v3_ledger"
         ),
         import_module("apps.account.migrations.0047_canonical_account_creation_consumption_expand"),
+        import_module(
+            "apps.account.migrations."
+            "0048_canonical_account_creation_consumption_knowledge_clock_expand"
+        ),
     ]
-    migration = modules[-1].Migration
-    assert migration.dependencies == [
+    expand = modules[-2].Migration
+    assert expand.dependencies == [
         ("account", "0046_allocated_physical_account_row_observation_v3_ledger")
     ]
-    assert [type(operation) for operation in migration.operations] == [
+    assert [type(operation) for operation in expand.operations] == [
         migrations.CreateModel,
         migrations.CreateModel,
         migrations.AddField,
     ]
+    knowledge = modules[-1].Migration
+    assert knowledge.dependencies == [
+        ("account", "0047_canonical_account_creation_consumption_expand")
+    ]
+    assert [type(operation) for operation in knowledge.operations] == [migrations.AddField]
+    field = knowledge.operations[0].field
+    assert isinstance(field, models.DateTimeField)
+    assert field.null is True and field.db_index is True
     assert not any(
         isinstance(operation, migrations.RunPython | migrations.RunSQL)
-        for operation in migration.operations
+        for module in modules[-2:]
+        for operation in module.Migration.operations
     )
 
     state = ProjectState()

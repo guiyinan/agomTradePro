@@ -16,15 +16,15 @@ from apps.account.infrastructure.canonical_account_creation_consumption_inventor
 )
 
 
-def _record_required_migrations(*, include_contract: bool = False) -> None:
+def _record_required_migrations(*, include_knowledge: bool = True) -> None:
     MigrationRecorder.Migration.objects.filter(app="account").delete()
     names = [
         "0045_canonical_account_creation_ledger",
         "0046_allocated_physical_account_row_observation_v3_ledger",
         "0047_canonical_account_creation_consumption_expand",
     ]
-    if include_contract:
-        names.append("0048_canonical_account_creation_consumption_contract")
+    if include_knowledge:
+        names.append("0048_canonical_account_creation_consumption_knowledge_clock_expand")
     for name in names:
         MigrationRecorder.Migration.objects.get_or_create(app="account", name=name)
 
@@ -58,17 +58,19 @@ def test_empty_but_complete_schema_is_a_stable_explicit_alias_snapshot() -> None
 
 
 @pytest.mark.django_db(transaction=True)
-def test_expand_inventory_does_not_require_contract_migration() -> None:
-    _record_required_migrations(include_contract=False)
+def test_inventory_requires_knowledge_clock_expand() -> None:
+    _record_required_migrations(include_knowledge=False)
 
-    report = inventory_canonical_account_creation_consumption(using="default")
-
-    assert not any(name.startswith("0048_") for name in report.applied_migrations)
+    with pytest.raises(
+        CanonicalAccountCreationConsumptionInventoryUnavailable,
+        match="0048_canonical_account_creation_consumption_knowledge_clock_expand",
+    ):
+        inventory_canonical_account_creation_consumption(using="default")
 
 
 @pytest.mark.django_db(transaction=True)
 def test_missing_expand_migration_fails_closed_instead_of_returning_zero() -> None:
-    _record_required_migrations(include_contract=False)
+    _record_required_migrations()
     MigrationRecorder.Migration.objects.filter(app="account", name__startswith="0047_").delete()
 
     with pytest.raises(
