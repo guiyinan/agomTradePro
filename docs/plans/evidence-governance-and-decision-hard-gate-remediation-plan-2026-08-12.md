@@ -1655,6 +1655,18 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Domain/Application组合 `56 passed`；standalone strict mypy、ruff、Black/isort与architecture（2793 files / 0 violations）通过。
 - 当前仅Protocol+pure fake；0023 zero-seed ledger、raw owner adapter、Account v2 provider/composition和全writer同事务outbox仍未完成。v1仅保留historical兼容，不得作current fallback，总闸不变。
 
+### 2026-08-13：SimulatedTrading raw-bound account-row source v2 ledger
+
+- 新增独立strict codec、无v1/raw外键的单表append-only model与Application Repository实现；canonical payload与DB header双写闭合，raw binding、row fact、logical binding、clock、record与ledger seals全部restore重验。
+- private UOW/exact insert claim阻断instance/raw、QuerySet update/delete和bulk create旁路；source identity、raw binding、logical root与predecessor均first-winner，append用current-head CAS拒绝fork/orphan。
+- winner/exact/PIT/current和IntegrityError恢复都先closed-world恢复完整v2表，再按Domain selector过滤；无关行或双selector篡改不能隐身。final tombstone/inactive/expired logical head不回退。
+- `0023_simulated_account_row_source_v2_ledger`仅`CreateModel`，依赖0022，zero-seed且无`RunPython/RunSQL`；不Alter/复用0021，不回填v1或mutable account rows。
+
+验证与剩余边界：
+
+- Django 5.2 isolated component `5 passed`；Domain/Application回归 `56 passed`；codec/repository strict mypy、ruff、Black/isort、architecture（2796 files / 0 violations）与module-cycle（206 edges / 0 cycles）通过。
+- PostgreSQL并发race、真实0023 migrate/rollback、raw-ledger owner adapter、Account v2 consumer/provider和全writer同事务outbox仍未完成；production v2账本保持zero-seed，v1不作current fallback，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

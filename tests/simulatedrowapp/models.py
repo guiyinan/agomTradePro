@@ -6,8 +6,12 @@ from apps.simulated_trading.infrastructure.simulated_account_raw_observation_mod
 from apps.simulated_trading.infrastructure.simulated_account_row_source_models import (
     SimulatedAccountRowSourceModel,
 )
+from apps.simulated_trading.infrastructure.simulated_account_row_source_v2_models import (
+    SimulatedAccountRowSourceV2Model,
+)
 
 __all__ = [
     "SimulatedAccountRawObservationModel",
     "SimulatedAccountRowSourceModel",
+    "SimulatedAccountRowSourceV2Model",
 ]

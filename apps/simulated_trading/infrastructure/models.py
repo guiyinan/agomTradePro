@@ -24,6 +24,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from .simulated_account_row_source_models import SimulatedAccountRowSourceModel
+from .simulated_account_row_source_v2_models import SimulatedAccountRowSourceV2Model
 from .simulated_account_raw_observation_models import (
     SimulatedAccountRawObservationModel,
 )
