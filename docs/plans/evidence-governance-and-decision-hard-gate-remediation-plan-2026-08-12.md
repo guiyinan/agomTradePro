@@ -1487,6 +1487,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 纯Domain `25 passed`；standalone strict mypy、ruff、Black/isort、architecture（2768 files / 0 violations）与diff-check通过。
 - 尚无ID-only capture Application、append-only observation ledger、SimulatedTrading typed row provider、creation/manual-reclaim/migration provenance receipt或composition；mutable row与历史默认user继续不可签发owner evidence，总闸不变。
 
+### 2026-08-13：Account physical account-row observation Application workflow
+
+- 新增8字段ID-only capture selector，只接受observation/raw source/Account字符串/underlying整数身份；hash、nullable row user、raw account type、active、row时钟、actor、server cutoff与predecessor都不能由调用方填写。
+- consumer-owned exact physical Simulated row DTO逐项保留nullable user、原始account type/active、row created/updated、source identity/content/validity；assignment state继续固定unknown，不把当前user或real/active瞬时状态解释为owner。
+- capture在单一repository cutoff对raw row首末双读，server human-staff actor绑定first-winner replay；logical head和predecessor由repository读取并交给append CAS。exact historical PIT与closed-current reader分离，inactive/expired final head不回退旧记录。
+- Application仅依赖Domain与注入Protocol，无ORM或跨App implementation import；结果继续固定inactive/evidence-only/must-not-execute。
+
+
+- Domain/Application纯测试 `40 passed`；standalone strict mypy、ruff、Black/isort与architecture（2772 files / 0 violations）通过。
+- 当前仅Protocol+pure fake；append-only observation ledger、SimulatedTrading owner adapter/composition、真实staff actor与creation/manual-reclaim/migration provenance receipt仍未完成，owner assignment和执行总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
