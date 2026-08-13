@@ -833,6 +833,18 @@
 - 纯Domain `46 passed`；standalone strict mypy、Black/isort与diff-check通过；相邻architecture扫描为2762 files / 0 violations。
 - cost/tax ledger、两人activation/current provider和真实fee/tax owner definition producers未完成；本阶段不背书任何测试fixture费率，也不激活benchmark definition/daily valuation，总闸不变。
 
+### 2026-08-13：Portfolio benchmark cost/tax methodology ledger
+
+- 新增 strict codec、私有UOW/exact insert claim与append-only ORM；methodology identity、identity/content hash与content first-winner只允许精确幂等，save/update/delete/bulk/raw写绕过全部拒绝。
+- repository在selector前closed-world恢复全表，复核fee/tax source与rule一一对应、Decimal canonical shape、scope/jurisdiction/event/side/basis/timing/currency/precision/rounding、fail-closed与防重复策略，以及authority/header/source/rule/identity/content/ledger/clock seals，再提供historical exact/PIT。
+- fee/tax source/rule计数守恒同时由DB CHECK约束；`persisted_at == authoritative recorded_at`由DB和restore双重校验。`0026_policy_benchmark_cost_tax`只创建空表并依赖`0025`，无RunPython/RunSQL，不回填测试fixture费率、mutable配置或历史交易费用。
+- Domain没有successor/current/activation，repository也不新增这些接口；该账本只封存定义，不让显式零费率或任何规则获得执行authority。
+
+未完成与验证：
+
+- Django 5.2.16 SQLite component `12 passed`；Portfolio `makemigrations --check --dry-run`为`No changes detected`，ruff、Black/isort、architecture（2765 files / 0 violations）与diff-check通过。
+- PostgreSQL first-winner race、完整项目回归和mypy plugin未验证；真实fee/tax definition producers及统一五源两人activation/current provider仍缺，benchmark definition/daily valuation和执行总闸保持inactive。
+
 ### 2026-08-13：Portfolio inactive approval authoritative persistence clock 修复
 
 - 修复既有 transition-plan inactive approval subject/receipt 使用 ORM wall-clock `auto_now_add` 写 `persisted_at`、但restore又拿它与注入的 authoritative `recorded_at`比较而导致合法新记录自判腐败的问题；repository现在显式写入 `persisted_at == recorded_at`，restore要求精确等值。

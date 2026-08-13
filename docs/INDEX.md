@@ -549,6 +549,9 @@
 - ✅ **Portfolio benchmark cost/tax methodology Domain 合同**
   - fee/tax exact source逐条封存scope、jurisdiction、方向、基数、时点、币种、Decimal值与取整；不内嵌真实税率或费用默认
   - 显式零可封存但missing/unknown不得转零，分红entitlement只计一次；固定definition-only，ledger/activation/current与owner producers仍未完成
+- ✅ **Portfolio benchmark cost/tax methodology append-only ledger**
+  - private UOW/claim、first-winner、source/rule/Decimal/header seals与closed-world exact/PIT完成；DB同时守恒fee/tax计数和authoritative clock
+  - 0026 zero-seed、Django5.2组件12 passed、Portfolio migration no-drift；无current/activation，PG并发、owner producers与统一五源activation仍缺
 - ✅ **Portfolio inactive approval authoritative persistence clock 修复**
   - subject/receipt显式封存`persisted_at=recorded_at`并增加DB等值约束，消除wall-clock导致合法记录自判腐败
   - Django5.2隔离5 passed、Portfolio migration no-drift；不改变inactive语义或连接Broker执行
