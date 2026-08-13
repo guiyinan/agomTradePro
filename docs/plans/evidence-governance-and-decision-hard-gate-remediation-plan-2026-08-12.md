@@ -779,6 +779,18 @@
 - definition + activation Domain/Application组合 `92 passed`；standalone strict mypy、Black/isort/py_compile/diff-check通过。
 - 当前仅Protocol与pure fake。definition ledger尚在收口，activation subject/record repository、真实composition、actor interface与PostgreSQL first-winner均未完成；legacy status、benchmark和执行总闸不变。
 
+### 2026-08-13：Portfolio planning policy activation append-only ledger
+
+- 新增subject与activation双账本、strict codec、私有UOW/exact insert claim；subject/activation各自first-winner，每policy单root、每predecessor单child，append使用logical-head CAS并拒绝fork、orphan、cross-policy与非前进时钟。
+- repository先closed-world恢复全部subject/activation并复核FK、canonical payload、冗余header、identity/content、ledger和persisted clock seals，再做identity/PIT/current匹配；同时篡改selector header不能隐藏坏行。
+- exact/PIT/current-head区分历史与有效状态；最终head过期只返回None，不回退旧activation。直接save/raw/update/bulk/delete全部阻断，Domain两人审批仍按actor/user拒绝self approval。
+- `0019_planning_policy_activation`只创建两张空表，依赖0018，无RunPython/RunSQL/backfill；legacy mutable status完全未接入。
+
+未完成与验证：
+
+- Django 5.2.10 SQLite隔离组件 `15 passed`，activation Domain/Application回归 `17 passed`；model system checks、migration/runtime state、architecture `2716 files / 0 violations`、Black/isort/compileall/diff-check及codec strict mypy通过。
+- PostgreSQL root/predecessor并发race未验证；完整manage.py drift因环境缺Celery未跑，已用migration state精确对照；ruff未安装。真实composition、actor interface、legacy迁移及benchmark消费仍未完成。
+
 ### 2026-08-13：Account-owned account identity snapshot Domain 合同
 
 - 新增 Account-owned、零跨 App import 的 canonical账户identity evidence：Portfolio消费的字符串账户namespace/ID与底层unified账户namespace/整数ID分别保留，只建立provenance，不做字符串/整数转换或身份猜测。

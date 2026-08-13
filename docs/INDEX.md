@@ -531,6 +531,9 @@
 - ✅ **Portfolio planning policy activation Application workflow**
   - ID-only注册/审批使用server actor/clock、definition/subject双读、first-winner与predecessor CAS；current reader拒绝superseded、过期和selector替换
   - 仅Protocol+pure fake；definition/activation持久化、真实composition、actor interface与PG并发仍未完成
+- ✅ **Portfolio planning policy activation append-only ledger**
+  - subject+activation双账本以私有UOW/claim、single-root/predecessor CAS、closed-world restore及FK/header/hash/clock seals闭合；过期head不回退
+  - 0019 zero-seed；PG并发、完整manage.py drift、ruff、真实composition/actor与legacy迁移仍未完成
 - ✅ **Account-owned account identity snapshot Domain 合同**
   - 分离字符串Account identity与底层整数unified provenance，封存source seal、owner/real/active、TTL最早有效期；legacy默认user必须有Account reclaim receipt
   - 固定inactive；trusted provider、ID-only发行/reclaim、append-only ledger/exact-current facade均未完成，不能解除namespace blocker
