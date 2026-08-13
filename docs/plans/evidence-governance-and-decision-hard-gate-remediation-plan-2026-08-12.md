@@ -1902,6 +1902,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Django 5.2 isolated models+repository component `9 passed`，其中repository `6 passed`，覆盖roundtrip/request/exact/PIT、consume no-fallback、four anchors、allocation/binding first-winner、header/canonical tamper及双表rollback。strict mypy（隔离follow-imports）、ruff、Black/isort、py_compile、architecture（2823 files / 0 violations）与diff-check通过。
 - PostgreSQL双事务同allocation identity、request idempotency、Account claim、underlying claim、Physical root及同一消费竞争、真实0045 migrate/rollback尚未验证。更重要的是，现有Physical-v2未封存allocation exact header，claimant creation receipt未封存binding，因此账本zero-seed且pipeline/production writer/执行总闸继续禁用。
 
+### 2026-08-13：Account allocated Physical-v3 creation-root Domain
+
+- 新增独立`AllocatedPhysicalAccountRowObservationV3`，以组合而非修改/继承v2的方式完整封存exact `CanonicalAccountCreationAllocation`与exact `PhysicalAccountRowObservationV2`。固定owner/type/schema、`evidence_only/inactive/must_not_execute`，不改动0042、0045的既有payload或hash。
+- 本批只定义creation-root分支：`identity_anchor_kind=creation_allocation`，不存在binding字段；inner Physical-v2、source-v2及raw observation的predecessor必须全空，row必须live/present/non-tombstone。Account label、underlying namespace、row user和raw account type必须逐项与allocation一致，recorded/valid时钟取allocation、Physical与Account TTL的严格交集。
+- identity/content hash封存完整nested allocation与Physical-v2 canonical payload，非格式正确的header替代；PIT helper在recorded前/有效期后返回None且无fallback。root可先于durable Binding-v2产生，因此解除“Physical要封存allocation，Binding又在Physical之后产生”的循环。
+
+验证与剩余边界：
+
+- pure Domain unit `28 passed`；strict mypy、ruff、Black/isort、architecture（2824 files / 0 violations）与diff-check通过。
+- 本批不定义update/delete successor，因为它们必须先依赖尚未实现的durable `CanonicalAccountCreationBindingV2`；也尚无Application/codec/ledger/provider。旧Physical-v2/claimant receipt-v2/staff Evidence-v2仅作历史或nested技术证据，不做authoritative fallback；pipeline、production writer与执行总闸保持禁用。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
