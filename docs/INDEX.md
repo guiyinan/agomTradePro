@@ -735,6 +735,9 @@
 - ✅ **Account canonical creation allocation/binding Application**
   - Account ID由server generator产生，request first-winner跨时钟幂等；binding用ID/hash-only selector双读exact-unconsumed allocation与Physical-v2 root，并闭合四唯一锚
   - Domain+Application 9 passed、architecture 2820/0；仅Protocol+fakes，ledger、Physical allocation seal、pipeline/writer仍缺
+- ✅ **Account canonical creation strict codec**
+  - Allocation完整封存requester/service/fixed/hash/UTC-Z；Binding嵌套完整Allocation和Physical-v2 canonical payload，不压缩成caller hash
+  - unit 12 passed；exact keys/types/canonical roundtrip与tamper fail closed，0045 schema/repository与pipeline仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

@@ -1872,6 +1872,16 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Domain+Application pure unit `9 passed`；strict mypy、ruff、Black/isort、architecture（2820 files / 0 violations）与diff-check通过。
 - 本批仅Application Protocol与pure fakes；无ORM/ledger/composition，也未把allocation exact header纳入Physical-v2 canonical schema或把creation binding纳入claimant receipt。在后续新schema、allocation/binding账本及全writer同alias原子cutover前，现pipeline、production writer与执行总闸保持禁用。
 
+### 2026-08-13：Account canonical creation strict codec
+
+- Allocation codec完整编码/解码requester、allocator service、Account identity、request fingerprint、fixed authority、时钟及identity/content hashes；Binding codec嵌套完整Allocation与Physical-v2 canonical payload，解码时重建并重跑两层Domain不变量，不把上游压缩为caller提供的hash。
+- 顶层及嵌套对象使用exact keys/types、UTC `Z`与encode→decode→encode canonical相等校验；unknown/missing key、bool伪int、非canonical clock、nested allocation/physical/claim/seal替换均fail closed。
+
+验证与剩余边界：
+
+- codec unit `12 passed`；strict mypy、ruff、Black/isort与diff-check通过。
+- 本批无ORM/model/repository/migration/composition；0045 allocation/binding schema、closed-world repository/component、Physical-v2 allocation seal、claimant creation binding与全writer原子cutover仍缺，pipeline和执行总闸保持禁用。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
