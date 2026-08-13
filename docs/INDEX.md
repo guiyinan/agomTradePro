@@ -510,6 +510,9 @@
 - ✅ **Broker/Account namespace binding Application workflow**
   - ID-only注册双读Broker与Account exact-current source，强制相同owner user、real+active，由server human-staff actor和first-winner/CAS封存inactive binding
   - 当前只有协议与pure fake；两侧immutable source/provider、binding ledger、composition及PG并发均缺，pre-Risk与执行总闸继续关闭
+- ✅ **Portfolio policy benchmark snapshot Domain 合同**
+  - 以exact owner refs、严格Decimal组件、权重守恒、live inception与三源最早有效期冻结policy benchmark candidate；拒绝Float配置/临时行情洗白
+  - 固定inactive；Account/planning-policy/definition owner source、daily valuation、审批、ledger/provider与Broker issuer均未完成
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**

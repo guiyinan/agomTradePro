@@ -698,6 +698,18 @@
 - Domain+Application 纯测试 `74 passed`；standalone strict mypy 两个生产文件、Black/isort/py_compile/diff-check通过。
 - 现有 BrokerAccountBinding 和 unified account 仍是 mutable row，尚无上述两个 immutable source ledger/provider；因此真实 composition 不能签发 binding。本阶段只有协议与pure fake，仍固定inactive，后续须先补Account/Broker owner source、append-only binding ledger、人工入口和PostgreSQL并发，pre-Risk blocker与总闸不变。
 
+### 2026-08-13：Portfolio policy benchmark snapshot Domain 合同
+
+- 新增 Portfolio-owned、零跨 App import 的 policy benchmark snapshot candidate；封存 Account identity、Portfolio planning-policy activation、Portfolio benchmark definition 三个 exact source ref（owner/type/id/version/hash/recorded/validity），账户 namespace/字符串 ID、owner user、base currency、live inception/observed/recorded clock 与 predecessor。
+- benchmark components 使用 exact finite `Decimal`、唯一代码与从 0 连续 ordinal；拒绝 float、bool、NaN/Infinity、负零、重复/乱序和权重不守恒，不做自动归一、四舍五入或运行时配置洗白。本 v1 固定 `cash_weight=0`，component 权重必须精确合计 1。
+- snapshot `valid_until` 必须等于三个 owner source 的最小有效期，且只允许 `inception <= observed <= recorded < valid_until`；任一 source 在 recorded clock 尚不可知都会阻断。identity/content hash与相邻same-account successor规则已固定。
+- 当前 planning policy active row、simulated-trading FloatField benchmark配置和临时行情都不是这些owner source；不能现场hash后冒充正式policy benchmark或每日valuation。permission固定inactive，四个blocker、`activation_available=false`与`must_not_execute=true`不可升级。
+
+未完成与验证：
+
+- 纯Domain `27 passed`；standalone strict mypy、Black/isort与AST零跨App/framework import检查通过。
+- 尚缺Account identity、planning-policy activation和benchmark-definition owner合同/ledger/provider，也没有daily benchmark valuation、审批、Application/ORM或Broker issuer接线；本合同不能授予执行权限，总闸继续false。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
