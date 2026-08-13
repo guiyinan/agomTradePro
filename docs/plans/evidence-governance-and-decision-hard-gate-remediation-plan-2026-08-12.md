@@ -2030,6 +2030,13 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 验证与未完成：
 
 - Django 5.2 isolated v1 repository `6 passed`，与Binding-v2/0047组合 `17 passed`；覆盖allocation回归、pair append/replay/PIT、8类anchor、current-unconsumed、legacy占用、nested tamper、三表rollback及header/canonical fail-closed。Ruff、Black/isort、py_compile、isolated strict mypy与architecture（2835 files / 0 violations）通过。
+
+### 2026-08-14：Account canonical creation consumption 逐 alias 盘点与回填预览
+
+- 新增显式database alias的只读盘点服务；PostgreSQL使用`REPEATABLE READ READ ONLY`，SQLite明确标记只具本地降级证据。盘点要求0045/0046/0047精确migration名称，并逐表核验当前model全部列、nullability、命名Unique/Check约束和FK后才进行closed-world canonical restore。
+- 报告冻结五账本count/PK区间/authoritative clock区间、v1 null/non-null claim链接、跨generation anchor碰撞与稳定SHA-256；未知alias、伪migration名、缺列/约束/FK或任一非目标坏行均fail closed。
+- 新增Binding-v1 deterministic backfill预览：在单一一致性快照中重建候选Claim并检测全部anchor冲突，不修改旧Binding bytes或任何数据库行。由于当前Claim schema只有历史`recorded_at/persisted_at`，尚未建模真实`backfilled_at`与maintenance writer-freeze，写模式稳定阻断，避免把今天插入的Claim洗成历史时点已存在。
+- Django 5.2 isolated component `10 passed`；Ruff、Black/isort与standalone strict mypy通过。没有访问任何生产alias，未取得生产row count、zero-seed、writer freeze或0048 readiness证据；0048、回填写入和v1/v2 PostgreSQL交叉竞争继续阻断。
 - 代码现在具备dormant双代写路径，但生产各alias的0045存量尚未盘点或backfill，0048 contract与PostgreSQL v1/v2交叉竞争仍缺；因此composition/writer/pipeline继续禁用，不能宣称生产排他已闭合。
 
 ### 2026-08-13：跨 App 决策读边界与模块循环收口

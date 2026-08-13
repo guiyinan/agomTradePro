@@ -780,6 +780,9 @@
 - ✅ **Account Binding-v1 unified Claim dual-write repository**
   - 0045/0047同alias双UOW，full-world恢复v1/v2/root/claim；current-unconsumed跨generation闭合，新写强制Claim→Binding-v1 pair且legacy null-FK仅历史fail-closed兼容
   - Django5.2 v1 6 passed、组合17 passed、architecture 2835/0；逐aliasinventory/backfill、0048 contract与PG竞争仍缺，writer/pipeline禁用
+- ✅ **Account canonical creation consumption 逐alias盘点与回填预览**
+  - 精确核验0045–0047 migration、列/nullability/constraint/FK并closed-world恢复五账本；发布稳定inventory SHA与跨generation一致性计数
+  - deterministic backfill仅预览候选；缺真实backfilled-at和writer-freeze时写模式稳定阻断。Django5.2 isolated 10 passed；生产alias/0048/PG竞争未验证
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
