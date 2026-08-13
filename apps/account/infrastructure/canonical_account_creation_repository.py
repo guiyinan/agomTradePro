@@ -70,6 +70,9 @@ from apps.account.infrastructure.canonical_account_creation_models import (
     _activate_canonical_account_creation_uow,
     _claim_canonical_account_creation_insert,
 )
+from apps.account.infrastructure.canonical_account_creation_maintenance_lock import (
+    acquire_canonical_account_creation_writer_lock,
+)
 
 
 class CanonicalAccountCreationClock(Protocol):
@@ -141,6 +144,7 @@ class DjangoCanonicalAccountCreationRepository:
                 _activate_canonical_account_creation_uow(token),
                 _activate_canonical_account_creation_consumption_uow(token),
             ):
+                acquire_canonical_account_creation_writer_lock(using=self._using)
                 yield
         finally:
             self._uow = None

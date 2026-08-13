@@ -58,6 +58,9 @@ from apps.account.infrastructure.canonical_account_creation_consumption_models i
     _activate_canonical_account_creation_consumption_uow,
     _claim_canonical_account_creation_consumption_insert,
 )
+from apps.account.infrastructure.canonical_account_creation_maintenance_lock import (
+    acquire_canonical_account_creation_writer_lock,
+)
 from apps.account.infrastructure.canonical_account_creation_models import (
     CanonicalAccountCreationAllocationModel,
     CanonicalAccountCreationBindingModel,
@@ -137,6 +140,7 @@ class DjangoCanonicalAccountCreationConsumptionRepository:
                 transaction.atomic(using=self._using),
                 _activate_canonical_account_creation_consumption_uow(token),
             ):
+                acquire_canonical_account_creation_writer_lock(using=self._using)
                 yield
         finally:
             self._uow = None

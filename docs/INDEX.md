@@ -786,6 +786,9 @@
 - ✅ **Account canonical creation consumption 运维命令**
   - inventory/backfill以显式alias输出稳定单行JSON；默认dry-run且batch标记reserved，不把全事务冒充分批执行
   - PG+fresh inventory SHA仍因writer-freeze缺失阻断写入；pure 14 passed、architecture 2839/0，0048 readiness保持false
+- ✅ **Account canonical creation consumption writer-freeze 前置**
+  - v1/v2 writer UOW在PG事务内取得同key shared advisory lock；maintenance exclusive helper默认PG-only，SQLite仅显式test degradation
+  - 组合18 passed；尚无真实PG两连接竞争且backfill仍阻断，不能视为已取得生产freeze或0048授权
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

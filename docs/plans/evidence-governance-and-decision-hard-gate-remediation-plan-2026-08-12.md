@@ -2043,6 +2043,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 新增inventory与Binding-v1 backfill两个management command；都要求显式database alias并输出稳定单行JSON，batch-size目前明确标记为reserved/all-or-nothing，不伪装已实施分批事务。
 - Inventory可发布只读报告，但`--require-0048-ready`即使本地结构和计数合格也会因缺writer-freeze稳定失败。Backfill默认仅dry-run；`--write`先校验lowercase inventory SHA与PostgreSQL backend，随后仍无条件以`writer_freeze_proof_unavailable`阻断，写服务保持不可达。
 - 纯命令测试`14 passed`，Ruff、Black/isort、standalone strict mypy与architecture（2839 files / 0 violations）通过。命令不接Celery/Task Monitor，不提供0048、生产回填或writer cutover授权。
+
+### 2026-08-14：Account canonical creation consumption writer-freeze 前置
+
+- 新增database-scoped transaction advisory lock；Binding-v1与Binding-v2 repository的每个atomic writer UOW在PostgreSQL事务内取得同一signed-bigint shared lock，maintenance未来使用同key exclusive lock，避免只靠“空claim预查”宣称跨代排他。
+- Exclusive maintenance默认只允许PostgreSQL；SQLite必须显式开启test degradation，且不构成生产或并发证明。当前backfill仍在进入任何写事务前稳定阻断，因此尚未取得exclusive lock，也不存在shared→exclusive升级死锁路径。
+- 两repository与lock组件组合`18 passed`；Ruff、Black/isort、standalone strict mypy通过。尚未做真实PostgreSQL两连接阻塞/竞争测试，writer-freeze只完成代码前置，不足以解除backfill/0048阻断。
 - 代码现在具备dormant双代写路径，但生产各alias的0045存量尚未盘点或backfill，0048 contract与PostgreSQL v1/v2交叉竞争仍缺；因此composition/writer/pipeline继续禁用，不能宣称生产排他已闭合。
 
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
