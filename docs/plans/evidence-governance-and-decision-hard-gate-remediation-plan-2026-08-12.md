@@ -538,6 +538,18 @@
 - append 捕获 IntegrityError 后改为用 authorization identity/content/subject 四个唯一锚点恢复，并且只有 restored record 与 exact candidate 完全相等才允许幂等返回；不再按 ID 返回另一 first winner，也不再重新读取漂移 server clock。
 - restore 增加 `persisted_at >= recorded_at`，并新增 successor selector header 直改与 stale predecessor 测试。静态验证、standalone mypy 和 architecture（2673 files / 0 violations）通过；Django component 与真实 PostgreSQL 双事务 race 仍未执行，故不能宣称数据库并发已验证。
 
+### 2026-08-13：Portfolio inactive plan approval Application workflow
+
+- 新增 Portfolio Application-owned `TransitionPlanDefinition` 与 inactive subject，精确封存 canonical-v1 plan content hash、账户、decision snapshot、human actor、server clock 和 plan expiry；所有对象固定 `execution_permission=inactive` 与 `must_not_execute=true`。
+- register/approve 写命令只接受 subject/plan/receipt 的 ID/version，不接 caller hash、account、actor、clock 或 permission；actor由认证 composition构造注入，repository提供单一 server clock与私有 atomic。
+- register 对 trusted plan provider 双读并核 persisted subject first winner；approve 对 persisted subject和绑定 plan各双读，禁止相同 user自批，跨 server clock重试直接返回原 subject/receipt first winner，不重建时钟漂移candidate。
+- exact read按 receipt identity/hash/PIT重放 Domain hash与inactive状态；旧 `ValidateTransitionPlanUseCase`、repository approve、plan status/approved_at、Submit hard-gate和Broker均未接线，避免 caller-less legacy approval 被包装成 authoritative receipt。
+
+未完成与验证：
+
+- 本批仅Application Protocol和pure fake；还没有 Portfolio exact Django provider、独立private-UOW subject/receipt ledger、codec/migration、人工接口或PG first-winner。
+- Portfolio Application/integrity/submit聚合 `22 passed`；standalone strict mypy `0 errors`；architecture scan（2673 files / 0 violations）、Black/isort/py_compile/diff-check通过。receipt保持inactive，不能满足Broker plan approval ref。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
