@@ -754,6 +754,7 @@
 - Django5.2.10 SQLite隔离component `7 passed`，Domain回归 `8 passed`；architecture `2734 files / 0 violations`，Black/isort/compileall/diff-check通过。mypy regression=0但环境缺mypy_django_plugin，PG并发未验证。
 - 两人activation/current provider未完成；price/FX fixing、corporate-action、cost/tax其余四类methodology仍缺。benchmark definition/daily valuation不得提前active，总闸不变。
 
+
 ### 2026-08-13：Portfolio policy benchmark definition append-only ledger
 
 - 新增 definition strict codec、私有 UOW/exact insert claim 和 append-only ORM 账本；identity/content first-winner 只允许精确幂等，save/update/delete/bulk/raw 写绕过全部拒绝。
@@ -797,6 +798,28 @@
 
 - 新增及相邻纯测试 `29 passed`；Black/isort、standalone strict mypy、py_compile/diff-check与Application架构依赖测试通过，当前解释器无ruff。
 - owner Infrastructure factory/公共composition尚未接线；Portfolio inactive receipt与Broker order artifact仍缺ID-only owner reader，Plan→Order真实三源双读与签发尚不可用，总闸不变。
+
+### 2026-08-13：Portfolio inactive approval receipt ID-only owner reader
+
+- 新增Portfolio Application ID-only receipt query，只接受receipt ID/version与PIT cutoff；owner repository提供identity winner，caller不提交hash、subject/plan/account、permission或时钟，既有hash-heavy exact facade继续只作历史审计。
+- reader重验exact Domain类型、receipt/subject/plan/account/decision snapshot全部sealed anchors与content hash；`recorded_at`严格取封存`issued_at`，执行`recorded_at <= as_of < valid_until`，固定owner/capability/schema/approved state、inactive blocker、`execution_permission=inactive`和`must_not_execute=true`。
+- 空content hash或type/identity替换不能依赖Domain自动修复，统一fail closed；不提供logical current/head，只表达指定immutable receipt在cutoff已记录且未过期。
+
+未完成与验证：
+
+- 新增及相邻纯测试 `29 passed`；strict mypy、Black/isort、py_compile、AST架构与diff-check通过，当前解释器无ruff。
+- owner Infrastructure factory/composition尚未接线；Plan→Order三源仅剩Broker artifact owner reader需接真实repository，真实签发与执行总闸仍关闭。
+
+### 2026-08-13：Broker order approval artifact ID-only owner reader
+
+- 新增Broker Application ID-only artifact query，仅接受artifact ID/version与PIT cutoff；identity-winner repository返回artifact及独立sealed `recorded_at`，caller不提交hash/account/permission/clock，旧hash-heavy历史reader保持不变。
+- DTO封存identity/content hash、account/order version、approval digest、risk policy version、approved/recorded/valid clocks与固定Broker owner/type/schema、approval-evidence-only/inactive markers。严格`approved_at <= recorded_at < valid_until`和`recorded_at <= as_of < valid_until`，批准后但落库前不可见。
+- repository type/identity替换fail closed；reader无Infrastructure/composition/ORM依赖，可由Plan→Order和pre-Risk薄adapter复用。
+
+未完成与验证：
+
+- 纯测试 `20 passed`；strict mypy、ruff、Black/isort、py_compile、AST架构和diff-check通过。
+- identity-winner Infrastructure实现及owner factory/composition尚未接线；三源owner reader合同虽已齐，但真实同cutoff双读/签发未完成，总闸不变。
 
 ### 2026-08-13：Portfolio planning policy definition Domain 合同
 

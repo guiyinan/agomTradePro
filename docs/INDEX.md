@@ -537,6 +537,12 @@
 - ✅ **Portfolio exact-active transition plan order owner reader**
   - ID-only plan/version/ordinal/PIT query由Portfolio owner发布canonical-v1 row bytes/hash、account与recorded/valid clock，不自行读取时钟
   - 仅Application Protocol；factory/composition、inactive receipt与Broker artifact ID-only owner readers仍缺，真实Plan→Order签发不可用
+- ✅ **Portfolio inactive approval receipt ID-only owner reader**
+  - ID-only receipt identity/PIT query重验receipt/subject/plan/account seals与issued=recorded clock，固定inactive/must-not-execute
+  - 不替代hash-heavy历史审计，也不冒充logical current；owner factory/composition仍未接线
+- ✅ **Broker order approval artifact ID-only owner reader**
+  - ID-only artifact identity/PIT query保留approved/recorded双时钟并封存digest/risk-policy/order anchors，固定inactive
+  - identity-winner infra/factory/composition未接；三源合同齐但Plan→Order真实双读/签发仍不可用
 - ✅ **Portfolio planning policy definition Domain 合同**
   - 以policy identity、lot与五项exact Decimal、时钟和canonical hash冻结definition，明确排除mutable status/current/activation语义
   - legacy status=active不能成为benchmark或执行authority
