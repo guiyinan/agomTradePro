@@ -598,6 +598,9 @@ class BrokerExecutionIdempotencyModel(models.Model):
 from apps.broker_execution.infrastructure.order_approval_artifact_models import (  # noqa: E402,F401
     BrokerOrderApprovalArtifactModel,
 )
+from apps.broker_execution.infrastructure.pre_risk_execution_scope_models import (  # noqa: E402,F401
+    BrokerPreRiskExecutionScopeModel,
+)
 from apps.broker_execution.infrastructure.r8_monitoring_reconciliation_models import (  # noqa: E402,F401
     R8BrokerMonitoringPeriodReceiptModel,
 )

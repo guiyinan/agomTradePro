@@ -651,6 +651,18 @@
 - 纯 Domain/Application `36 passed`；standalone strict mypy 两个生产文件 `0 errors`，Black/isort/py_compile/diff-check与architecture（2688 files / 0 violations）通过；当前环境未安装ruff，项目mypy plugin仍缺失。
 - 尚无 pre-Risk append-only ORM/codec/repository、Portfolio public composition、Portfolio↔Broker account owner binding或Risk adapter。后续 Risk adapter在本scope固定inactive时必须返回None；最终Broker issuer、Research/benchmark refs、四节点exact current重验和PostgreSQL并发均未完成，总闸继续false。
 
+### 2026-08-13：Broker pre-Risk append-only persistence
+
+- 新增独立private-UOW/exact insert claim、append-only model、strict canonical codec与repository；scope identity/content first-winner、每`(broker_account_id, order_artifact_id)`单root和每predecessor单successor由唯一约束与root claim封闭，migration `0009_pre_risk_execution_scope`仅CreateModel、无RunPython/RunSQL且zero-seed。
+- repository所有安全关键读先按cutoff读取并restore完整visible ledger，逐行验证canonical payload、冗余headers、root claim、ledger seal及`persisted_at == recorded_at`，再按Domain account/order或identity/content分组；不再先信任可篡改的数据库selector。
+- full-chain current head验证单root、predecessor存在、相邻successor同账户/订单且时钟前进、无fork/cycle/disconnected；链构建不会预先丢弃过期节点，expired successor只会使current返回None，不会回退或复活仍未过期的旧root。
+- component覆盖已写入双account/order header篡改、双scope identity/content header篡改、first-winner/CAS、append-only绕行、payload/header/ledger/persistence clock、PIT与expired successor；Django 5.2.10最小schema-editor真实往返为`1 row / inactive / must_not_execute=True`，model/migration deconstruct核对为constraints/indexes/24 fields全部一致。
+
+未完成与验证：
+
+- Black/isort/py_compile/diff-check、standalone mypy（无Django stubs环境仅关闭ORM subclass Any/no-any-return）与architecture delta `0 violations`通过；默认Python无Django，完整pytest-django component未执行，PostgreSQL root/successor并发race未验证。
+- Risk active provider不能消费这个固定inactive scope：Risk port只有ID/version，而Broker current reader要求完整closed selector，且新增Risk→Broker import会与既有Broker→Risk形成循环。本阶段不增加永远None的伪adapter；等待未来独立active scope/owner facade。Portfolio账户namespace binding、Research/benchmark、最终issuer与四节点重验继续未完成，总闸false。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

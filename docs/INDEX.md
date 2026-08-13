@@ -498,6 +498,9 @@
 - ✅ **Broker pre-Risk inactive scope 合同与workflow**
   - ID-only注册在同一Broker server cutoff双读Portfolio plan/inactive receipt与Broker order artifact，并封存三源exact identity/hash/有效期及本地supersession head
   - scope固定inactive、must-not-execute并保留5个blocker；36项纯测试通过，ORM ledger、跨账户owner binding、Risk adapter和最终issuer仍未完成
+- ✅ **Broker pre-Risk append-only persistence**
+  - private-UOW账本、strict codec、root/successor first-winner及closed-world current-head restore落盘；双selector篡改不能隐藏后继，expired head不回退旧root
+  - 0009 schema-only/zero-seed，Django5.2最小往返通过；完整component/PG race未验，inactive scope不能映射为Risk active provider，最终执行总闸不变
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**
