@@ -2010,6 +2010,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Binding-v1、Binding-v2、Consumption Domain/codec聚合pure tests `85 passed`；Ruff、Black/isort、standalone strict mypy与architecture（2834 files / 0 violations）通过。
 - 本批仍仅Application Protocol+pure fakes；0045旧repository尚未实现Claim dual-write，0047 Binding-v2/Claim closed-world repository、逐alias inventory/backfill、0048 NOT NULL contract和PostgreSQL v1/v2交叉竞争仍缺。production composition/writer、pipeline与执行总闸继续禁用。
 
+### 2026-08-14：Account canonical creation Binding-v2 unified Claim repository
+
+- 新增0047 production repository，所有winner/exact/anchor/append路径先closed-world恢复allocation、0046 creation root、Binding-v1、Binding-v2与Consumption Claim，再以完整consumer重建非递归claim canonical payload；任何非目标行、FK、canonical/header/seal或claim-link篡改都会使全次读取fail closed。
+- winner返回强类型Binding-v2+Claim pair；claim anchor按identity、allocation、consumer、Account、underlying、Physical-v2及Physical-v3任一独立锚判占用。0048前的legacy Binding-v1 null-claim FK被显式视为已占用，绝不因尚未backfill而重新消费。
+- append要求private同alias transaction，先锁全allocation父行以闭合空claim并发窗口，核对exact allocation/root与所有raw anchors后按Claim→Binding-v2顺序双写；IntegrityError只允许完整pair exact replay，其余均稳定Conflict且双表回滚。
+
+验证与未完成：
+
+- Django 5.2 isolated repository component `8 passed`，与0045/0047 schema/repository组合 `17 passed`；覆盖pair roundtrip/PIT、永久exact、9类anchor、legacy占用、非目标tamper、private/nested UOW、selector substitution、claim-link tamper与事务rollback。Ruff、Black/isort、py_compile及isolated strict mypy通过。
+- 旧Binding-v1 repository仍未dual-write统一Claim；逐alias inventory/backfill、0048 NOT NULL contract与PostgreSQL v1/v2双事务竞争尚未完成。因此本repository仍为dormant production implementation，不注册composition、不启用writer/pipeline/执行总闸。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
