@@ -1576,6 +1576,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Django 5.2隔离组件 `10 passed`；既有provenance Domain/Application回归 `50 passed`；standalone strict mypy三生产文件0 issues，ruff、Black/isort、architecture（2782 files / 0 violations）与diff-check通过。
 - PostgreSQL双事务root/predecessor race、真实`0041` migrate/rollback、production physical-row provider/composition、认证签发入口及assignment consumer adapter仍未完成；账本固定inactive/evidence-only，`0013`历史默认user不得回填或自动签发，总执行闸不变。
 
+### 2026-08-13：SimulatedTrading simulated-account row source append-only ledger
+
+- 新增SimulatedTrading owner单表strict codec/model/repository，封存nullable row user、raw account type/active/presence/tombstone、row/source/TTL clocks，以及identity/content、actor、row-fact、header/ledger与persisted-clock seals。
+- 私有UOW/exact insert claim阻断direct/raw save、update/delete和bulk路径；`(source_id, source_version)`first-winner、完整logical-row selector单root、每predecessor单successor，并以current-head CAS闭合相邻revision。
+- winner/exact/PIT/current和append冲突恢复均先closed-world恢复全表后再过滤；final inactive/tombstone/expired head不回退。`0021`仅`CreateModel`、zero-seed且无`RunPython/RunSQL`，migration state与live model同构。
+
+验证与剩余边界：
+
+- Django 5.2隔离组件 `3 passed`；既有Domain/Application回归 `47 passed`；standalone strict mypy三生产文件0 issues，ruff、Black/isort、architecture（2785 files / 0 violations）与diff-check通过。
+- PostgreSQL双事务race、真实0021 migrate/rollback、统一覆盖SimulatedAccount create/update/delete的owner writer与raw observation provider未完成，因此production ledger保持zero-seed。下一可诚实阶段是owner侧Account physical-row provider：只能消费本ledger exact/current事实，空账本稳定返回None，不能从mutable ORM row临时发明hash/clock/validity。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

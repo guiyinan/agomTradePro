@@ -23,6 +23,8 @@ from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from .simulated_account_row_source_models import SimulatedAccountRowSourceModel
+
 
 class SimulatedAccountModel(models.Model):
     """
