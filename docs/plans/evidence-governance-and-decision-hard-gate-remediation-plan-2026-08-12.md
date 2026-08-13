@@ -1810,6 +1810,16 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Application unit `8 passed`，Domain+Application合跑`36 passed`；strict mypy、ruff、Black/isort、architecture（2814 files / 0 violations）与diff-check通过。
 - 本批只有Protocol与pure fakes；0044 subject/evidence账本、数据库双root唯一约束、authoritative current provider/composition及PostgreSQL竞争测试仍缺，production pipeline和全writer cutover继续禁用。
 
+### 2026-08-13：Account owner-assignment staff approval evidence v2 strict codec
+
+- 新增独立strict codec，完整嵌套编码subject、physical-row v2、claimant provenance receipt v2与最终staff Evidence，不把上游对象压缩为caller提供的header/hash。decode会重建并重新执行三层physical与receipt/Evidence Domain不变量。
+- 顶层与嵌套字段采用exact mapping/type、UTC `Z`与canonical encode→decode→encode相等校验；unknown key、非canonical datetime、bool/int替换以及physical/receipt/subject嵌套篡改均fail closed。
+
+验证与剩余边界：
+
+- codec unit `9 passed`；strict mypy、ruff、Black/isort与diff-check通过。
+- 本批没有ORM/model/repository/migration；0044双表schema、双root DB约束、closed-world repository/component/PG race与authoritative provider仍未完成，不能把codec视为可签发或可查询账本。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
