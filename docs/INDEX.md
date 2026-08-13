@@ -798,6 +798,9 @@
 - ✅ **Account owner-assignment creation claimant receipt v3 Domain**
   - 仅以durable Binding-v2为权威来源，重验allocation、allocated Physical-v3、Physical-v2/source/raw及Account/underlying全seal；creation claimant必须同时等于allocation requester和live physical row user
   - pure 16 passed、strict mypy、architecture 2841/0；固定claim-only/inactive/must-not-execute，Application/ledger、独立staff Evidence-v3、Physical-v3 successor/current provider与生产writer仍缺
+- ✅ **Account owner-assignment creation claimant receipt v3 Application**
+  - 6字段ID/hash-only签发优先重放immutable winner；新签发在单cutoff双读durable Binding-v2、exact-current Physical-v3和当前human claimant，使用server clock与predecessor CAS
+  - Domain+Application 24 passed、strict mypy、architecture 2842/0；历史exact永久可读而closed-current重验TTL/head/upstream，ledger/provider、staff Evidence-v3与production composition仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
