@@ -11,10 +11,17 @@ from django.db import connection
 from apps.account.application.canonical_account_creation import (
     CanonicalAccountCreationConflict,
     CanonicalAccountCreationCorruption,
+    PersistedCanonicalAccountCreationBinding,
 )
 from apps.account.domain.canonical_account_creation import (
     CanonicalAccountCreationAllocation,
     CanonicalAccountCreationBinding,
+)
+from apps.account.domain.canonical_account_creation_consumption import (
+    CanonicalAccountCreationConsumptionClaim,
+)
+from apps.account.infrastructure.canonical_account_creation_consumption_models import (
+    CanonicalAccountCreationConsumptionClaimModel,
 )
 from apps.account.infrastructure.canonical_account_creation_models import (
     CanonicalAccountCreationAllocationModel,
@@ -24,6 +31,7 @@ from apps.account.infrastructure.canonical_account_creation_repository import (
     DjangoCanonicalAccountCreationRepository,
 )
 from tests.unit.account.test_canonical_account_creation import _allocation, _binding
+from tests.unit.account.test_canonical_account_creation_consumption import _claim
 
 
 def _at(day: int) -> datetime:
@@ -46,23 +54,67 @@ def _append_allocation() -> CanonicalAccountCreationAllocation:
         return repository.append_allocation(value, recorded_at=value.allocated_at)
 
 
-def _append_binding() -> tuple[CanonicalAccountCreationAllocation, CanonicalAccountCreationBinding]:
+def _pair(
+    allocation: CanonicalAccountCreationAllocation | None = None,
+) -> tuple[CanonicalAccountCreationBinding, CanonicalAccountCreationConsumptionClaim]:
+    binding = _binding(allocation=allocation or _allocation())
+    return binding, _claim(consumer_generation="v1", consumer=binding)
+
+
+def _append_pair(
+    repository: DjangoCanonicalAccountCreationRepository,
+    binding: CanonicalAccountCreationBinding,
+    claim: CanonicalAccountCreationConsumptionClaim,
+) -> tuple[CanonicalAccountCreationBinding, CanonicalAccountCreationConsumptionClaim]:
+    return repository.append_binding_with_consumption_claim(
+        binding,
+        claim,
+        expected_allocation_content_hash=binding.allocation.content_hash,
+        expected_account_claim_hash=binding.account_claim_hash,
+        expected_underlying_claim_hash=binding.underlying_claim_hash,
+        expected_physical_content_hash=binding.physical_observation.content_hash,
+        expected_consumption_claim_content_hash=claim.content_hash,
+        recorded_at=binding.recorded_at,
+    )
+
+
+def _claim_selector(
+    claim: CanonicalAccountCreationConsumptionClaim,
+    **changes: object,
+) -> dict[str, object]:
+    values: dict[str, object] = {
+        "claim_id": "absent-claim",
+        "claim_version": "v9",
+        "allocation_identity_hash": "0" * 64,
+        "allocation_content_hash": "1" * 64,
+        "consumer_identity_hash": "2" * 64,
+        "consumer_content_hash": "3" * 64,
+        "account_namespace": "absent-account",
+        "account_id": "absent-id",
+        "underlying_unified_account_namespace": "absent-row",
+        "underlying_unified_account_id": 999,
+        "physical_v2_content_hash": "4" * 64,
+        "physical_v3_root_content_hash": None,
+        "as_of": _at(8),
+    }
+    values.update(changes)
+    return values
+
+
+def _append_binding() -> tuple[
+    CanonicalAccountCreationAllocation,
+    CanonicalAccountCreationBinding,
+    CanonicalAccountCreationConsumptionClaim,
+]:
     allocation = _allocation()
-    binding = _binding(allocation=allocation)
+    binding, claim = _pair(allocation)
     repository = _repository()
     with repository.atomic():
         persisted_allocation = repository.append_allocation(
             allocation, recorded_at=allocation.allocated_at
         )
-        persisted_binding = repository.append_binding(
-            binding,
-            expected_allocation_content_hash=allocation.content_hash,
-            expected_account_claim_hash=binding.account_claim_hash,
-            expected_underlying_claim_hash=binding.underlying_claim_hash,
-            expected_physical_content_hash=binding.physical_observation.content_hash,
-            recorded_at=binding.recorded_at,
-        )
-    return persisted_allocation, persisted_binding
+        persisted_binding, persisted_claim = _append_pair(repository, binding, claim)
+    return persisted_allocation, persisted_binding, persisted_claim
 
 
 @pytest.mark.django_db(transaction=True)
@@ -118,7 +170,7 @@ def test_allocation_roundtrip_request_exact_and_pit() -> None:
 @pytest.mark.django_db(transaction=True)
 def test_binding_consumes_allocation_without_expiry_fallback_and_all_anchors_find_it() -> None:
     allocation = _allocation()
-    binding = _binding(allocation=allocation)
+    binding, claim = _pair(allocation)
     repository = _repository()
     with repository.atomic():
         repository.append_allocation(allocation, recorded_at=allocation.allocated_at)
@@ -141,17 +193,8 @@ def test_binding_consumes_allocation_without_expiry_fallback_and_all_anchors_fin
         is None
     )
     with repository.atomic():
-        assert (
-            repository.append_binding(
-                binding,
-                expected_allocation_content_hash=allocation.content_hash,
-                expected_account_claim_hash=binding.account_claim_hash,
-                expected_underlying_claim_hash=binding.underlying_claim_hash,
-                expected_physical_content_hash=binding.physical_observation.content_hash,
-                recorded_at=binding.recorded_at,
-            )
-            == binding
-        )
+        assert _append_pair(repository, binding, claim) == (binding, claim)
+        assert _append_pair(repository, binding, claim) == (binding, claim)
     assert (
         repository.get_current_unconsumed_allocation(
             allocation_id=allocation.allocation_id,
@@ -169,6 +212,11 @@ def test_binding_consumes_allocation_without_expiry_fallback_and_all_anchors_fin
         )
         is None
     )
+    assert repository.get_binding_winner(
+        binding_id=binding.binding_id,
+        binding_version=binding.binding_version,
+        as_of=_at(30),
+    ) == PersistedCanonicalAccountCreationBinding(binding, claim)
     assert (
         repository.get_exact_binding(
             binding_id=binding.binding_id,
@@ -179,45 +227,25 @@ def test_binding_consumes_allocation_without_expiry_fallback_and_all_anchors_fin
         == binding
     )
 
-    selectors = [
-        (allocation.content_hash, "none", "none", "none", 999, "0" * 64),
-        (
-            "0" * 64,
-            binding.account_namespace_claim,
-            binding.account_id_claim,
-            "none",
-            999,
-            "0" * 64,
-        ),
-        (
-            "0" * 64,
-            "none",
-            "none",
-            binding.underlying_unified_account_namespace_claim,
-            binding.underlying_unified_account_id_claim,
-            "0" * 64,
-        ),
-        ("0" * 64, "none", "none", "none", 999, binding.physical_observation.content_hash),
-    ]
-    for (
-        allocation_hash,
-        account_ns,
-        account_id,
-        underlying_ns,
-        underlying_id,
-        physical_hash,
-    ) in selectors:
+    selectors = (
+        {"claim_id": claim.claim_id, "claim_version": claim.claim_version},
+        {"allocation_identity_hash": claim.allocation.identity_hash},
+        {"allocation_content_hash": claim.allocation.content_hash},
+        {"consumer_identity_hash": claim.consumer.identity_hash},
+        {"consumer_content_hash": claim.consumer.content_hash},
+        {"account_namespace": claim.account_namespace, "account_id": claim.account_id},
+        {
+            "underlying_unified_account_namespace": (claim.underlying_unified_account_namespace),
+            "underlying_unified_account_id": claim.underlying_unified_account_id,
+        },
+        {"physical_v2_content_hash": claim.physical_v2_content_hash},
+    )
+    for selector in selectors:
         assert (
-            repository.get_binding_by_any_anchor(
-                allocation_content_hash=allocation_hash,
-                account_namespace=account_ns,
-                account_id=account_id,
-                underlying_unified_account_namespace=underlying_ns,
-                underlying_unified_account_id=underlying_id,
-                physical_content_hash=physical_hash,
-                as_of=_at(8),
+            repository.get_consumption_claim_by_any_anchor(
+                **_claim_selector(claim, **selector)  # type: ignore[arg-type]
             )
-            == binding
+            == claim
         )
 
 
@@ -237,16 +265,9 @@ def test_allocation_and_binding_anchor_first_winners_conflict() -> None:
         with pytest.raises(CanonicalAccountCreationConflict, match="anchor"):
             repository.append_allocation(conflicting, recorded_at=conflicting.allocated_at)
 
-    binding = _binding(allocation=allocation)
+    binding, claim = _pair(allocation)
     with repository.atomic():
-        repository.append_binding(
-            binding,
-            expected_allocation_content_hash=allocation.content_hash,
-            expected_account_claim_hash=binding.account_claim_hash,
-            expected_underlying_claim_hash=binding.underlying_claim_hash,
-            expected_physical_content_hash=binding.physical_observation.content_hash,
-            recorded_at=binding.recorded_at,
-        )
+        _append_pair(repository, binding, claim)
         conflicting_binding = replace(
             binding,
             binding_id="binding-other",
@@ -254,17 +275,13 @@ def test_allocation_and_binding_anchor_first_winners_conflict() -> None:
             identity_hash="",
             content_hash="",
         )
+        conflicting_claim = _claim(
+            consumer_generation="v1",
+            consumer=conflicting_binding,
+            allocation=conflicting_binding.allocation,
+        )
         with pytest.raises(CanonicalAccountCreationConflict, match="anchor"):
-            repository.append_binding(
-                conflicting_binding,
-                expected_allocation_content_hash=allocation.content_hash,
-                expected_account_claim_hash=conflicting_binding.account_claim_hash,
-                expected_underlying_claim_hash=conflicting_binding.underlying_claim_hash,
-                expected_physical_content_hash=(
-                    conflicting_binding.physical_observation.content_hash
-                ),
-                recorded_at=conflicting_binding.recorded_at,
-            )
+            _append_pair(repository, conflicting_binding, conflicting_claim)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -286,7 +303,7 @@ def test_closed_world_detects_header_and_canonical_payload_tampering() -> None:
 
 @pytest.mark.django_db(transaction=True)
 def test_closed_world_detects_nested_binding_payload_tampering() -> None:
-    _, binding = _append_binding()
+    _, binding, _ = _append_binding()
     assert hasattr(binding, "content_hash")
     with connection.cursor() as cursor:
         cursor.execute(
@@ -304,19 +321,13 @@ def test_closed_world_detects_nested_binding_payload_tampering() -> None:
 @pytest.mark.django_db(transaction=True)
 def test_repository_transaction_rolls_back_both_tables() -> None:
     allocation = _allocation()
-    binding = _binding(allocation=allocation)
+    binding, claim = _pair(allocation)
     repository = _repository()
     with pytest.raises(RuntimeError, match="rollback"):
         with repository.atomic():
             repository.append_allocation(allocation, recorded_at=allocation.allocated_at)
-            repository.append_binding(
-                binding,
-                expected_allocation_content_hash=allocation.content_hash,
-                expected_account_claim_hash=binding.account_claim_hash,
-                expected_underlying_claim_hash=binding.underlying_claim_hash,
-                expected_physical_content_hash=binding.physical_observation.content_hash,
-                recorded_at=binding.recorded_at,
-            )
+            _append_pair(repository, binding, claim)
             raise RuntimeError("rollback")
     assert CanonicalAccountCreationAllocationModel.objects.count() == 0
     assert CanonicalAccountCreationBindingModel.objects.count() == 0
+    assert CanonicalAccountCreationConsumptionClaimModel.objects.count() == 0

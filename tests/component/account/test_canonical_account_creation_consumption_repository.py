@@ -37,8 +37,14 @@ from apps.account.infrastructure.canonical_account_creation_consumption_models i
 from apps.account.infrastructure.canonical_account_creation_consumption_repository import (
     DjangoCanonicalAccountCreationConsumptionRepository,
 )
+from apps.account.infrastructure.canonical_account_creation_models import (
+    CanonicalAccountCreationAllocationModel,
+    CanonicalAccountCreationBindingModel,
+    _claim_canonical_account_creation_insert,
+)
 from apps.account.infrastructure.canonical_account_creation_repository import (
     DjangoCanonicalAccountCreationRepository,
+    _binding_values,
 )
 from tests.unit.account.test_canonical_account_creation import _allocation
 from tests.unit.account.test_canonical_account_creation import _binding as _binding_v1
@@ -204,14 +210,17 @@ def test_legacy_v1_without_claim_fails_closed_as_an_occupied_anchor() -> None:
     legacy = DjangoCanonicalAccountCreationRepository(clock=_Clock())
     with legacy.atomic():
         legacy.append_allocation(allocation, recorded_at=allocation.allocated_at)
-        legacy.append_binding(
-            binding,
-            expected_allocation_content_hash=allocation.content_hash,
-            expected_account_claim_hash=binding.account_claim_hash,
-            expected_underlying_claim_hash=binding.underlying_claim_hash,
-            expected_physical_content_hash=binding.physical_observation.content_hash,
-            recorded_at=binding.recorded_at,
+        allocation_row = CanonicalAccountCreationAllocationModel._base_manager.get(
+            content_hash=allocation.content_hash
         )
+        values = _binding_values(binding, allocation_pk=allocation_row.pk)
+        token = legacy._require_uow()
+        with _claim_canonical_account_creation_insert(
+            token=token,
+            model_type=CanonicalAccountCreationBindingModel,
+            expected_values=values,
+        ):
+            CanonicalAccountCreationBindingModel._default_manager.create(**values)
 
     with pytest.raises(CanonicalAccountCreationBindingV2Conflict, match="legacy Binding-v1"):
         _repository().get_consumption_claim_by_any_anchor(
