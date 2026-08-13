@@ -513,6 +513,9 @@
 - ✅ **Portfolio policy benchmark snapshot Domain 合同**
   - 以exact owner refs、严格Decimal组件、权重守恒、live inception与三源最早有效期冻结policy benchmark candidate；拒绝Float配置/临时行情洗白
   - 固定inactive；Account/planning-policy/definition owner source、daily valuation、审批、ledger/provider与Broker issuer均未完成
+- ✅ **Broker Plan→Order binding Application workflow**
+  - ID-only注册在同一Broker cutoff双读plan ordinal row、inactive receipt和order artifact，闭合owner/type/hash/account/时钟及first-winner/CAS/current selector
+  - 三个owner public reader、binding ledger/composition与真实签发均未实现；账户namespace blocker、pre-Risk与执行总闸继续关闭
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**

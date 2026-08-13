@@ -710,6 +710,17 @@
 - 纯Domain `27 passed`；standalone strict mypy、Black/isort与AST零跨App/framework import检查通过。
 - 尚缺Account identity、planning-policy activation和benchmark-definition owner合同/ledger/provider，也没有daily benchmark valuation、审批、Application/ORM或Broker issuer接线；本合同不能授予执行权限，总闸继续false。
 
+### 2026-08-13：Broker Plan→Order binding Application workflow
+
+- 新增 Broker consumer-owned 的 exact Portfolio plan-order row、inactive receipt与Broker order artifact DTO/Protocol；写命令只接受 binding、plan/version/ordinal、receipt和artifact的ID/version，不接受hash、账户、row、时钟、permission或predecessor。
+- register 在单一Broker server cutoff对三源首末双读，逐项复核固定owner/type/schema、plan/receipt/account闭合、canonical-v1 ordinal row bytes/hash、artifact identity/content/digest与inactive markers；Portfolio字符串账户和Broker整数账户分别保留，不做转换或近似匹配。
+- predecessor只能由repository同一plan id/version/ordinal/order artifact logical head派生；first-winner与append返回必须exact，历史exact/PIT和closed-current读会闭合plan/receipt/subject/row/artifact全部selector。当前账户namespace未证明，因此Domain blocker继续保留。
+
+未完成与验证：
+
+- Domain+Application `90 passed`；standalone strict mypy、Black/isort/compileall与Application零Portfolio/Infrastructure import检查通过。
+- 三个owner public reader仍未实现：Portfolio plan provider尚未公开Application facade且需owner内派生ordinal row，receipt/artifact现有read均为hash-heavy或Infrastructure私有并丢recorded clock。当前只有协议+pure fake，没有真实composition、binding ledger或签发记录，总闸不变。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
