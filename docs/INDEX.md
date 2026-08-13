@@ -477,6 +477,9 @@
 - ✅ **Risk-owned Broker execution policy Domain 合同**
   - 冻结完整Decimal风险参数、source snapshot、activation/validity与supersession hash；拒绝把现有mutable policy临时hash成正式授权
   - 仅合同与纯测试完成，active provider/ledger仍缺，Risk authorization与Broker总闸继续关闭
+- ✅ **Broker order approval owner artifact**
+  - 以Broker自有content-addressed工件封存订单UUID/version、完整approval snapshot/digest、批准人和有效期，并重验金额与推荐lineage
+  - 工件固定inactive/must-not-execute；append-only ledger/provider与跨owner授权仍未完成，四节点总闸不变
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**

@@ -580,6 +580,17 @@
 - 新 Domain + Risk authorization + Broker inactive contract/hard-gate 聚合 `48 passed`；standalone strict mypy `0 errors`，architecture 2678 files / 0 violations，Black/isort/diff-check通过。
 - 待独立实现 source snapshot、ID-only activation、append-only policy ledger/codec/current-head provider与PG并发；生产 source bundle 必须闭合 floor/template/account override/有效global+account exceptions，fallback未持久化时必须阻断。
 
+### 2026-08-13：Broker order approval owner artifact
+
+- 新增 Broker Domain 自有的 immutable approval artifact，精确绑定 canonical `client_order_id` UUID、positive order version、完整 `OrderApprovalSnapshot`、既有 `build_approval_digest`、账户、server-authenticated 批准人 identity/user/role、批准时点和 snapshot expiry。
+- snapshot 进入工件前重验 exact enum/tuple/finite Decimal/canonical risk JSON、`estimated_amount == quantity * limit_price`、非空 recommendation lineage 及 aware validity；任一订单事实、source、actor、clock 或 seal 漂移都会改变 content hash 或失败关闭。
+- 工件固定 `activation_available=false`、`must_not_execute=true`，不读取 ORM、不接 Application/四节点 consumer，也不把旧 approval digest 冒充 Portfolio、Research、Risk 或最终 Broker execution authorization。
+
+未完成与验证：
+
+- append-only artifact ledger、exact/PIT provider、Broker pre-risk scope、跨 owner composition 和 issuer 尚未实现；create/approve/lease/submitting 总闸保持关闭。
+- 专属纯 Domain `21 passed`；standalone strict mypy、Black/isort/py_compile/diff-check通过。标准项目 pytest/mypy 仍受当前环境缺 Playwright 与 mypy Django plugin 阻断，本批没有声明 Django/PostgreSQL/生产验证。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
