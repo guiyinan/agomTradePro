@@ -645,6 +645,9 @@
 - ✅ **Account owner-assignment provenance receipt Application workflow**
   - 5字段ID-only签发以单一cutoff双读physical row，creation/manual claimant与migration staff reviewer分支闭合；issuer-bound first-winner/CAS完成
   - exact/current读拒绝superseded或row替换；仅Protocol+pure fake，ledger/provider/composition/签发入口和assignment adapter仍缺
+- ✅ **Account owner-assignment provenance receipt append-only ledger**
+  - strict codec/model/repository封存physical-row、claimant/issuer、authority/header/ledger与persisted-clock seals；private UOW/claim、first-winner、single-root/predecessor CAS完成
+  - Django5.2组件10 passed、0041 zero-seed且migration state同构；PG并发/真实migrate、provider/composition、签发入口与assignment adapter仍缺，固定inactive
 - ✅ **SimulatedTrading simulated-account row source Domain 合同**
   - owner-issued source identity/hash封存Account字符串identity、整数row provenance及nullable user/raw type/active/row clock；unknown owner且不做cast
   - tombstone、source/TTL最早有效期与PIT final不回退闭合；Application/ledger、全writer接线与Account adapter/composition仍缺

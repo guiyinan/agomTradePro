@@ -10,7 +10,9 @@ from .account_owner_assignment_evidence_models import (
     AccountOwnerAssignmentEvidenceModel,
     AccountOwnerAssignmentSubjectModel,
 )
-from .physical_account_row_observation_models import PhysicalAccountRowObservationModel
+from .account_owner_assignment_provenance_receipt_models import (
+    AccountOwnerAssignmentProvenanceReceiptModel,
+)
 from .classification_models import (
     AssetCategoryModel,
     AssetMetadataModel,
@@ -23,6 +25,7 @@ from .identity_models import (
     PortfolioObserverGrantModel,
     UserAccessTokenModel,
 )
+from .physical_account_row_observation_models import PhysicalAccountRowObservationModel
 from .portfolio_models import (
     BrokerTradeImportBatchModel,
     CapitalFlowModel,
@@ -46,6 +49,7 @@ __all__ = [
     "AccountIdentityRawSourceModel",
     "AccountIdentitySnapshotModel",
     "AccountOwnerAssignmentEvidenceModel",
+    "AccountOwnerAssignmentProvenanceReceiptModel",
     "AccountOwnerAssignmentSubjectModel",
     "AccountProfileModel",
     "AssetCategoryModel",

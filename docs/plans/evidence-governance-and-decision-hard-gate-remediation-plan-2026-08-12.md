@@ -1564,10 +1564,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Domain/Application组合 `47 passed`；增量mypy `0 regressions`，ruff、Black/isort、architecture（2779 files / 0 violations）与diff-check通过。
 - 当前仅Protocol+pure fake；append-only source ledger、统一覆盖create/update/delete的owner writer、production adapter/composition和Account physical observation映射仍未完成，任何provider缺失必须Unavailable/零写。
 
-### 2026-08-13：Account provenance persistence 时间盒收口说明
+### 2026-08-13：Account owner-assignment provenance receipt append-only ledger
 
-- `0041` provenance receipt ledger本轮未形成完整repository/migration/component闭环；两份未验证草稿已删除，不把半成品登记为完成，也不留下可被误接的ORM模型。
-- 已完成Domain/Application与physical-row ledger保持不变；provenance persistence、assignment consumer adapter和真实签发入口仍列入下一阶段。无ledger时所有production provider必须Unavailable/零写。
+- 新增单表strict codec/model/repository，完整封存receipt identity/content、physical-row exact binding、claimant/issuer、authority/header/ledger与authoritative persisted clock seals；issuer必须与Domain claimant逐字段一致。
+- 私有UOW与exact insert claim阻断direct save、raw save、update/delete、bulk路径；`(receipt_id, receipt_version)` first-winner、每`receipt_id`单root、每predecessor单successor，并以repository CAS闭合相邻链。
+- 所有winner/exact/PIT/current与append冲突恢复均先closed-world恢复全表canonical payload和冗余seals，再按Domain selector过滤。current读取返回最终recorded successor，即使其已过期也不回退旧receipt。
+- `0041_account_owner_assignment_provenance_receipt_ledger`只含`CreateModel`，zero-seed且无`RunPython/RunSQL`；迁移ModelState与live model逐字段、index、constraint同构验证通过。
+
+验证与剩余边界：
+
+- Django 5.2隔离组件 `10 passed`；既有provenance Domain/Application回归 `50 passed`；standalone strict mypy三生产文件0 issues，ruff、Black/isort、architecture（2782 files / 0 violations）与diff-check通过。
+- PostgreSQL双事务root/predecessor race、真实`0041` migrate/rollback、production physical-row provider/composition、认证签发入口及assignment consumer adapter仍未完成；账本固定inactive/evidence-only，`0013`历史默认user不得回填或自动签发，总执行闸不变。
 
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
