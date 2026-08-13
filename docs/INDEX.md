@@ -648,6 +648,9 @@
 - ✅ **SimulatedTrading simulated-account row source Domain 合同**
   - owner-issued source identity/hash封存Account字符串identity、整数row provenance及nullable user/raw type/active/row clock；unknown owner且不做cast
   - tombstone、source/TTL最早有效期与PIT final不回退闭合；Application/ledger、全writer接线与Account adapter/composition仍缺
+- ✅ **SimulatedTrading simulated-account row source Application workflow**
+  - 6字段ID-only capture只接受owner-issued typed observation，同cutoff双读、actor-bound first-winner、logical-head/predecessor CAS与exact/current闭合
+  - 禁止从pk/updated_at/now临时生成source；仅Protocol+pure fake，ledger、全writer、production adapter/composition与Account映射仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

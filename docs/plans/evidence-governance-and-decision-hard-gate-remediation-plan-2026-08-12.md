@@ -1553,6 +1553,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 纯Domain `29 passed`；standalone strict mypy、ruff、Black/isort、architecture（2780 files / 0 violations）与diff-check通过。
 - 尚无Application capture、append-only source ledger、覆盖所有SimulatedAccount create/update/delete路径的事务性writer、Account adapter/composition或历史backfill；禁止用`str(pk)`、`updated_at`、请求`now()`、临时hash/TTL冒充本source，总闸不变。
 
+### 2026-08-13：SimulatedTrading simulated-account row source Application workflow
+
+- 新增6字段ID-only capture selector，只接受source ID/version、canonical Account字符串identity与underlying整数row identity；hash、nullable row user、raw account type/active/row clocks、actor、validity和predecessor均来自typed owner observation与server边界。
+- consumer-owned raw observation必须已经携带owner-issued observation ID/version/content hash、observed_at和source validity；Application只原样封存，不允许从`updated_at`、请求`now()`、ORM pk或临时JSON计算这些authority字段。
+- capture在单一repository cutoff首末双读raw observation，server human-staff actor绑定first-winner；logical head/predecessor由repository派生并交给append CAS。historical exact PIT与closed-current reader分离，final inactive、tombstone或expired不回退旧source。
+- Application只依赖SimulatedTrading Domain与注入Protocol，无ORM或跨App implementation import；结果继续unknown-owner/inactive/evidence-only/must-not-execute。
+
+
+- Domain/Application组合 `47 passed`；增量mypy `0 regressions`，ruff、Black/isort、architecture（2779 files / 0 violations）与diff-check通过。
+- 当前仅Protocol+pure fake；append-only source ledger、统一覆盖create/update/delete的owner writer、production adapter/composition和Account physical observation映射仍未完成，任何provider缺失必须Unavailable/零写。
+
 ### 2026-08-13：Account provenance persistence 时间盒收口说明
 
 - `0041` provenance receipt ledger本轮未形成完整repository/migration/component闭环；两份未验证草稿已删除，不把半成品登记为完成，也不留下可被误接的ORM模型。
