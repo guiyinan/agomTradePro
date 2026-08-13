@@ -194,7 +194,8 @@ def test_workflow_persists_exact_source_activation_and_current_provider() -> Non
         as_of=ACTIVATED_AT,
     )
     assert projected is not None
-    assert projected.policy_content_hash == activation.content_hash
+    assert projected.policy_content_hash == activation.policy.content_hash
+    assert projected.policy_activation_hash == activation.content_hash
 
 
 @pytest.mark.django_db
@@ -335,6 +336,27 @@ def test_selector_header_tamper_cannot_revive_an_old_head() -> None:
         )
     with pytest.raises(BrokerOrderExecutionPolicyCorruption, match="headers"):
         repository.get_current_head(account_id=first.policy.account_id, as_of=SECOND_AT)
+
+
+@pytest.mark.django_db
+def test_source_identity_tuple_and_seal_tamper_cannot_hide_first_winner() -> None:
+    repository = DjangoBrokerOrderExecutionPolicyRepository(clock=FixedClock(ACTIVATED_AT))
+    source = _source()
+    with repository.atomic():
+        repository.append_source(source, recorded_at=ACTIVATED_AT)
+    row = BrokerOrderExecutionPolicySourceModel._default_manager.get()
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE risk_center_broker_execution_policy_source "
+            "SET source_snapshot_id = %s, source_identity_hash = %s WHERE id = %s",
+            ["tampered-source", "f" * 64, row.pk],
+        )
+
+    with (
+        repository.atomic(),
+        pytest.raises(BrokerOrderExecutionPolicyCorruption, match="headers"),
+    ):
+        repository.append_source(source, recorded_at=ACTIVATED_AT)
 
 
 @pytest.mark.django_db

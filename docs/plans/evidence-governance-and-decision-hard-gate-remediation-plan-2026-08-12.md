@@ -634,6 +634,11 @@
 - Risk execution policy provider此前把actor-bound `activation.content_hash`错误投影成`policy_content_hash`；现拆为`policy_content_hash=policy.content_hash`与`policy_activation_hash=activation.content_hash`，并让Risk authorization scope、canonical codec/hash全链同时绑定二者，既不丢actor seal也不混淆策略内容身份。
 - Risk/Broker hard-gate聚合`53 passed`，Black/isort/py_compile与architecture（2688 files / 0 violations）通过。完整项目migration drift复跑在Django5.2环境加载`account`时因缺`cryptography`阻断，未将该环境问题写成no-drift通过；PG并发和source identity双selector篡改的closed-world检测仍待后续修正。
 
+#### Risk policy source identity closed-world修正
+
+- source first-winner和activation source binding不再先按可篡改的冗余 identity headers筛选；repository先restore完整source ledger并核对canonical payload、identity/header/ledger seals，再按Domain identity选winner。即使数据库里同时改动source id/version与identity seal，坏行也不能从查询集合中隐身后允许原identity再次append。
+- component回归新增双selector raw tamper场景，并同步修正policy provider对`policy_content_hash`与`policy_activation_hash`的双seal断言。该修正不改变zero-seed、Risk authorization availability或Broker执行总闸。
+
 ### 2026-08-13：Broker pre-Risk inactive scope 合同与 Application workflow
 
 - 新增 Broker-owned、零跨 App import 的 `BrokerPreRiskExecutionScope`，精确封存 Portfolio plan、inactive approval receipt/subject 与 Broker order approval artifact 的 identity、version、content hash、有效期和订单批准时冻结的 Risk policy version；scope 的有效期只能等于三源窗口最小值。

@@ -262,40 +262,44 @@ class DjangoBrokerOrderExecutionPolicyRepository:
     def _exact_source_model(
         self, source: BrokerOrderExecutionPolicySourceSnapshot
     ) -> BrokerOrderExecutionPolicySourceModel | None:
-        seal = _source_identity_hash(source.source_snapshot_id, source.source_snapshot_version)
-        rows = list(
-            BrokerOrderExecutionPolicySourceModel._default_manager.using(self._using).filter(
-                Q(
-                    source_snapshot_id=source.source_snapshot_id,
-                    source_snapshot_version=source.source_snapshot_version,
-                )
-                | Q(source_identity_hash=seal)
-            )
+        rows = list(BrokerOrderExecutionPolicySourceModel._default_manager.using(self._using).all())
+        restored = tuple((row, self._restore_source(row)) for row in rows)
+        identity_matches = tuple(
+            (row, value)
+            for row, value in restored
+            if value.source_snapshot_id == source.source_snapshot_id
+            and value.source_snapshot_version == source.source_snapshot_version
         )
-        if not rows:
+        if not identity_matches:
             return None
-        matches = tuple(row for row in rows if self._restore_source(row) == source)
-        if len(rows) != 1 or len(matches) != 1:
+        exact_matches = tuple(row for row, value in identity_matches if value == source)
+        if len(identity_matches) != 1 or len(exact_matches) != 1:
             raise BrokerOrderExecutionPolicyConflict(
                 "policy source identity has another first winner"
             )
-        return matches[0]
+        return exact_matches[0]
 
     def _bound_source_model(
         self, activation: BrokerOrderExecutionPolicyActivation
     ) -> BrokerOrderExecutionPolicySourceModel:
         policy = activation.policy
-        rows = list(
-            BrokerOrderExecutionPolicySourceModel._default_manager.using(self._using).filter(
-                source_snapshot_id=policy.source_snapshot_id,
-                source_snapshot_version=policy.source_snapshot_version,
-            )
+        restored = tuple(
+            (row, self._restore_source(row))
+            for row in BrokerOrderExecutionPolicySourceModel._default_manager.using(
+                self._using
+            ).all()
         )
-        if len(rows) != 1:
+        matches = tuple(
+            (row, source)
+            for row, source in restored
+            if source.source_snapshot_id == policy.source_snapshot_id
+            and source.source_snapshot_version == policy.source_snapshot_version
+        )
+        if len(matches) != 1:
             raise BrokerOrderExecutionPolicyConflict(
                 "policy activation requires its exact registered source"
             )
-        source = self._restore_source(rows[0])
+        row, source = matches[0]
         if (
             source.content_hash != policy.source_snapshot_hash
             or source.account_id != policy.account_id
@@ -306,7 +310,7 @@ class DjangoBrokerOrderExecutionPolicyRepository:
             raise BrokerOrderExecutionPolicyConflict(
                 "policy activation does not bind the registered source"
             )
-        return rows[0]
+        return row
 
     def _exact_activation_model(
         self, activation: BrokerOrderExecutionPolicyActivation

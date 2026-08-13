@@ -492,6 +492,9 @@
 - ✅ **Broker/Risk ledger contract audit修正**
   - 对齐0008/0009 constraint state并补Broker persisted clock DB约束；Risk authorization同时绑定policy content hash与actor activation hash
   - 聚合53项与架构门禁通过；完整migration drift受当前环境缺cryptography阻断，PG并发/source selector闭集检测仍未完成
+- ✅ **Risk policy source closed-world restore**
+  - source first-winner与activation source binding先restore完整source ledger，再用Domain identity选winner；tuple+seal双篡改不能隐藏坏行或重开identity
+  - component回归已补，完整Django runtime与PostgreSQL race仍待验证；zero-seed和Broker执行总闸不变
 - ✅ **Broker pre-Risk inactive scope 合同与workflow**
   - ID-only注册在同一Broker server cutoff双读Portfolio plan/inactive receipt与Broker order artifact，并封存三源exact identity/hash/有效期及本地supersession head
   - scope固定inactive、must-not-execute并保留5个blocker；36项纯测试通过，ORM ledger、跨账户owner binding、Risk adapter和最终issuer仍未完成
