@@ -531,6 +531,13 @@
 - component 测试已覆盖 exact append/PIT/codec、私有 UOW/mutation guard、successor/current head、future/tamper、schema-only 与 stale predecessor，但当前默认及 bundled Python 均缺 Django/pytest-django，未执行测试断言或 migration forward/reverse；不能将其计为通过。
 - Black/isort/py_compile/diff-check、standalone mypy（ignore missing Django；codec/repository 0 issues）与全仓 architecture scan（2672 files / 0 violations）通过。PostgreSQL first-winner真实并发、Risk policy/scope production provider、人工审批与 Broker consumer仍未完成，总闸继续关闭。
 
+#### Persistence chain/current-head 复核修正
+
+- 只读验收发现首版 `get_current_head` 先按冗余 account/order header 过滤，坏 successor 的 selector header 被旁路篡改后可能从查询消失并复活旧 head；同时只找“未被引用”不足以证明单根、前驱存在、同链、时钟前向和全记录可达。
+- current-head 现先 restore cutoff 前全部 authorization 并验证 payload/header seal，再按 Domain scope identity 分链；强制恰好一 root、每个 predecessor 存在于同链、issued clock 严格递增、无 fork/cycle/disconnected，最后才返回唯一 logical head。
+- append 捕获 IntegrityError 后改为用 authorization identity/content/subject 四个唯一锚点恢复，并且只有 restored record 与 exact candidate 完全相等才允许幂等返回；不再按 ID 返回另一 first winner，也不再重新读取漂移 server clock。
+- restore 增加 `persisted_at >= recorded_at`，并新增 successor selector header 直改与 stale predecessor 测试。静态验证、standalone mypy 和 architecture（2673 files / 0 violations）通过；Django component 与真实 PostgreSQL 双事务 race 仍未执行，故不能宣称数据库并发已验证。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

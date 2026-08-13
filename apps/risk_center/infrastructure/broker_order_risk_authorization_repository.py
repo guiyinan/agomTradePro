@@ -161,13 +161,57 @@ class DjangoBrokerOrderRiskAuthorizationRepository:
         rows = list(
             BrokerOrderRiskAuthorizationRecordModel._default_manager.using(self._using)
             .select_related("subject")
-            .filter(account_id=account_id, order_id=order_id, recorded_at__lte=as_of)
+            .filter(recorded_at__lte=as_of)
         )
-        if not rows:
+        all_values = tuple(self._restore_record(row) for row in rows)
+        values = tuple(
+            value
+            for value in all_values
+            if value.subject.scope.account_id == account_id
+            and value.subject.scope.order_id == order_id
+        )
+        if not values:
             return None
-        values = tuple(self._restore_record(row) for row in rows)
-        superseded = {value.subject.supersedes_authorization_hash for value in values}
-        heads = tuple(value for value in values if value.content_hash not in superseded)
+        by_hash = {value.content_hash: value for value in values}
+        roots = tuple(
+            value for value in values if value.subject.supersedes_authorization_hash is None
+        )
+        if len(roots) != 1:
+            raise BrokerOrderRiskAuthorizationCorruption(
+                "Broker order risk authorization chain must have exactly one root"
+            )
+        children: dict[str, BrokerOrderRiskAuthorizationRecord] = {}
+        for value in values:
+            predecessor_hash = value.subject.supersedes_authorization_hash
+            if predecessor_hash is None:
+                continue
+            predecessor = by_hash.get(predecessor_hash)
+            if predecessor is None:
+                raise BrokerOrderRiskAuthorizationCorruption(
+                    "Broker order risk authorization chain has an orphan predecessor"
+                )
+            if predecessor.issued_at >= value.issued_at:
+                raise BrokerOrderRiskAuthorizationCorruption(
+                    "Broker order risk authorization chain clock is not monotonic"
+                )
+            if predecessor_hash in children:
+                raise BrokerOrderRiskAuthorizationCorruption(
+                    "Broker order risk authorization chain has a fork"
+                )
+            children[predecessor_hash] = value
+        reachable: set[str] = set()
+        cursor = roots[0]
+        while cursor.content_hash not in reachable:
+            reachable.add(cursor.content_hash)
+            successor = children.get(cursor.content_hash)
+            if successor is None:
+                break
+            cursor = successor
+        if len(reachable) != len(values):
+            raise BrokerOrderRiskAuthorizationCorruption(
+                "Broker order risk authorization chain is disconnected or cyclic"
+            )
+        heads = tuple(value for value in values if value.content_hash not in children)
         if len(heads) != 1:
             raise BrokerOrderRiskAuthorizationCorruption(
                 "Broker order risk authorization chain has multiple heads"
@@ -246,14 +290,12 @@ class DjangoBrokerOrderRiskAuthorizationRepository:
                 ):
                     model.save(force_insert=True, using=self._using)
         except IntegrityError:
-            winner = self.get_authorization_winner(
-                authorization_id=record.authorization_id, as_of=self.now()
-            )
+            winner = self._exact_record_model(record)
             if winner is None:
                 raise BrokerOrderRiskAuthorizationConflict(
                     "authorization append conflicted without a visible first winner"
                 ) from None
-            return winner
+            return self._restore_record(winner)
         return self._restore_record(model)
 
     def get_exact_by_hash(
@@ -324,6 +366,32 @@ class DjangoBrokerOrderRiskAuthorizationRepository:
             )
         return matches[0]
 
+    def _exact_record_model(
+        self, record: BrokerOrderRiskAuthorizationRecord
+    ) -> BrokerOrderRiskAuthorizationRecordModel | None:
+        seal = broker_order_risk_authorization_identity_hash(record.authorization_id)
+        rows = list(
+            BrokerOrderRiskAuthorizationRecordModel._default_manager.using(self._using)
+            .select_related("subject")
+            .filter(
+                Q(
+                    authorization_id=record.authorization_id,
+                    authorization_version=record.authorization_version,
+                )
+                | Q(authorization_identity_hash=seal)
+                | Q(content_hash=record.content_hash)
+                | Q(subject_hash=record.subject.content_hash)
+            )
+        )
+        if not rows:
+            return None
+        matches = tuple(row for row in rows if self._restore_record(row) == record)
+        if len(rows) != 1 or len(matches) != 1:
+            raise BrokerOrderRiskAuthorizationConflict(
+                "risk authorization uniqueness anchor has another first winner"
+            )
+        return matches[0]
+
     def _restore_subject(
         self, model: BrokerOrderRiskAuthorizationSubjectModel
     ) -> BrokerOrderRiskAuthorizationSubject:
@@ -341,6 +409,10 @@ class DjangoBrokerOrderRiskAuthorizationRepository:
             raise BrokerOrderRiskAuthorizationCorruption("risk subject identity seal is invalid")
         if model.ledger_header_hash != _subject_ledger_hash(value, model.recorded_at):
             raise BrokerOrderRiskAuthorizationCorruption("risk subject ledger seal is invalid")
+        if model.persisted_at < model.recorded_at:
+            raise BrokerOrderRiskAuthorizationCorruption(
+                "risk subject persistence clock is invalid"
+            )
         return value
 
     def _restore_record(
@@ -368,6 +440,10 @@ class DjangoBrokerOrderRiskAuthorizationRepository:
                 "risk authorization ledger seal is invalid"
             )
         if model.subject.recorded_at > model.recorded_at or value.issued_at != model.recorded_at:
+            raise BrokerOrderRiskAuthorizationCorruption(
+                "risk authorization persistence clock is invalid"
+            )
+        if model.persisted_at < model.recorded_at:
             raise BrokerOrderRiskAuthorizationCorruption(
                 "risk authorization persistence clock is invalid"
             )

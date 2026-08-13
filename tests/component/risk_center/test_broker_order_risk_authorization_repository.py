@@ -306,3 +306,45 @@ def test_append_rejects_stale_predecessor_after_head_advances() -> None:
                 expected_predecessor_hash=first.content_hash,
                 recorded_at=third_time,
             )
+
+
+@pytest.mark.django_db
+def test_successor_selector_header_tamper_cannot_revive_old_head() -> None:
+    first_time = REQUESTED_AT
+    second_time = REQUESTED_AT + timedelta(hours=1)
+    clock = FixedClock(first_time)
+    repository = DjangoBrokerOrderRiskAuthorizationRepository(clock=clock)
+    first_subject = _subject()
+    first = _record(first_subject)
+    with repository.atomic():
+        repository.append_subject(first_subject, recorded_at=first_time)
+        repository.append(first, expected_predecessor_hash=None, recorded_at=first_time)
+    clock.value = second_time
+    successor_subject = _subject(
+        subject_id="broker-risk-subject:41:order:2",
+        requested_at=second_time,
+        supersedes=first.content_hash,
+    )
+    successor = _record(
+        successor_subject,
+        authorization_id="broker-risk-authorization:41:order:2",
+        issued_at=second_time,
+    )
+    with repository.atomic():
+        repository.append_subject(successor_subject, recorded_at=second_time)
+        repository.append(
+            successor,
+            expected_predecessor_hash=first.content_hash,
+            recorded_at=second_time,
+        )
+    successor_row = BrokerOrderRiskAuthorizationRecordModel._default_manager.get(
+        content_hash=successor.content_hash
+    )
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE risk_center_broker_order_risk_authorization "
+            "SET account_id = %s WHERE id = %s",
+            [999, successor_row.pk],
+        )
+    with pytest.raises(BrokerOrderRiskAuthorizationCorruption, match="headers"):
+        repository.get_current_head(account_id=41, order_id=ORDER_ID, as_of=second_time)
