@@ -522,6 +522,9 @@
 - ✅ **Portfolio planning policy activation Domain 合同**
   - exact definition subject绑定server requester、definition identity/content/clock和前序hash，由第二名human staff按actor/user双重非自批签发configuration activation
   - 固定must-not-execute；ID-only workflow、activation账本/current provider、legacy迁移与benchmark composition仍未完成
+- ✅ **Portfolio planning policy activation Application workflow**
+  - ID-only注册/审批使用server actor/clock、definition/subject双读、first-winner与predecessor CAS；current reader拒绝superseded、过期和selector替换
+  - 仅Protocol+pure fake；definition/activation持久化、真实composition、actor interface与PG并发仍未完成
 - ✅ **Account-owned account identity snapshot Domain 合同**
   - 分离字符串Account identity与底层整数unified provenance，封存source seal、owner/real/active、TTL最早有效期；legacy默认user必须有Account reclaim receipt
   - 固定inactive；trusted provider、ID-only发行/reclaim、append-only ledger/exact-current facade均未完成，不能解除namespace blocker

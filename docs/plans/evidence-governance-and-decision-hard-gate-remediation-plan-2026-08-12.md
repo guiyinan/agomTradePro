@@ -744,6 +744,18 @@
 - PlanningPolicy definition + activation Domain组合 `83 passed`；standalone strict mypy、Black/isort/py_compile/diff-check和零跨App/framework import通过。
 - 仅Domain合同完成；definition ledger正在独立收口，activation尚无Application ID-only workflow、subject/activation ledger、exact/current provider或legacy status迁移。不得用本合同解除benchmark、plan、pre-Risk或Broker总闸。
 
+### 2026-08-13：Portfolio planning policy activation Application workflow
+
+- 新增两个ID-only写命令：subject注册只接subject/policy identity，approval只接subject/activation identity；hash、definition字段、actor与时间均来自trusted provider、server actor和repository clock。
+- 注册在同一server cutoff首末双读exact definition，读取logical current activation head并由repository派生predecessor；first-winner重放仅允许原requester，换actor、definition drift或append替换稳定fail closed。
+- approval先读取persisted subject first winner，再对subject与definition各做首末双读；第二名human staff由Domain按actor/user双重非自批校验，append以predecessor CAS闭合。跨时钟幂等只允许原approver，历史/被supersede/过期activation不会被current reader复活。
+- closed-current读要求activation ID/version/content、policy ID/version与definition content hash全selector相等，并额外核对logical head；Application无ORM、Infrastructure或跨App implementation import。
+
+未完成与验证：
+
+- definition + activation Domain/Application组合 `92 passed`；standalone strict mypy、Black/isort/py_compile/diff-check通过。
+- 当前仅Protocol与pure fake。definition ledger尚在收口，activation subject/record repository、真实composition、actor interface与PostgreSQL first-winner均未完成；legacy status、benchmark和执行总闸不变。
+
 ### 2026-08-13：Account-owned account identity snapshot Domain 合同
 
 - 新增 Account-owned、零跨 App import 的 canonical账户identity evidence：Portfolio消费的字符串账户namespace/ID与底层unified账户namespace/整数ID分别保留，只建立provenance，不做字符串/整数转换或身份猜测。
