@@ -27,6 +27,22 @@ CANONICAL_ACCOUNT_CREATION_CONSUMPTION_CLAIM_STATUS = "inactive"
 CANONICAL_ACCOUNT_CREATION_CONSUMER_GENERATIONS = ("v1", "v2")
 
 
+def resolve_canonical_account_creation_consumption_claim_identity(
+    allocation: CanonicalAccountCreationAllocation,
+    *,
+    consumer_generation: str,
+) -> tuple[str, str]:
+    """Derive one stable claim identity without accepting caller-selected tokens."""
+
+    if type(allocation) is not CanonicalAccountCreationAllocation:
+        raise TypeError("allocation must be an exact CanonicalAccountCreationAllocation")
+    allocation.__post_init__()
+    _require_token(consumer_generation, "consumer_generation")
+    if consumer_generation not in CANONICAL_ACCOUNT_CREATION_CONSUMER_GENERATIONS:
+        raise ValueError("consumer_generation must be exactly v1 or v2")
+    return f"allocation-consumption-{allocation.identity_hash}", consumer_generation
+
+
 def _require_token(value: object, field_name: str, *, maximum: int = 192) -> str:
     if type(value) is not str:
         raise TypeError(f"{field_name} must be an exact string")
@@ -320,4 +336,5 @@ __all__ = [
     "CANONICAL_ACCOUNT_CREATION_CONSUMPTION_CLAIM_SCHEMA",
     "CANONICAL_ACCOUNT_CREATION_CONSUMPTION_CLAIM_STATUS",
     "CanonicalAccountCreationConsumptionClaim",
+    "resolve_canonical_account_creation_consumption_claim_identity",
 ]

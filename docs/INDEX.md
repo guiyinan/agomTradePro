@@ -771,6 +771,9 @@
 - ✅ **Account canonical creation consumption 0047 expand schema**
   - 新Claim+Binding-v2 append-only表与旧Binding-v1 nullable claim FK，跨generation raw anchors、branch/fixed/clock checks及private guards闭合
   - Django5.2 isolated 6 passed、architecture 2834/0；仅expand/no-backfill，v1 dual-write、Binding-v2 repo、0048 contract与PG交叉竞争仍缺
+- ✅ **Account canonical creation unified Claim Application workflows**
+  - Binding-v1/v2均由allocation identity+generation确定性派生claim identity；两条路径先replay winner，再按authoritative recorded clock双读并原子append Binding+Claim pair
+  - 聚合pure 85 passed、architecture 2834/0；仅Protocol+fakes，v1/v2 repositories、逐aliasinventory/backfill、0048 contract与PG交叉竞争仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

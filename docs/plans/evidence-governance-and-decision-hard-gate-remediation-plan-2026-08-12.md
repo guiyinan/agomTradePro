@@ -1999,6 +1999,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Django 5.2 isolated new+0045 component `6 passed`，覆盖schema state与migration字段/constraint同构、zero-seed、private guard、cross-anchor unique、branch/clock DB check及旧v1 nullable expand；ruff、Black/isort、py_compile、architecture（2834 files / 0 violations）与diff-check通过。
 - nullable expand不是生产排他证明：v1 repository尚未dual-write统一Claim，既有0045数据尚未逐alias盘点或backfill，Binding-v2 repository尚未实现，0048 NOT NULL contract与PostgreSQL v1/v2交叉竞争仍缺。旧v1和新v2 writer都保持禁用，pipeline/执行总闸不变。
 
+### 2026-08-14：Account canonical creation unified Claim Application workflows
+
+- Binding-v1保持既有ID/hash-only命令和Domain/codec bytes不变；两代Consumption Claim身份都由exact allocation identity与consumer generation确定性派生，不接受caller任选claim token。两条路径都先读取并验证Binding+Claim first-winner，再访问current-unconsumed上游，确保allocation已消费或上游已过期后仍可精确重放原winner。
+- 无winner时先按server cutoff读取上游，进入repository atomic后取得authoritative `recorded_at`、按该时点重查winner并二读上游；Binding与Claim以完全相同的`recorded_at`构建。Application Protocol移除单Binding append语义，改为跨generation claim-anchor读取及Binding+Claim原子pair append，返回值仍保持原Binding对象。
+- v1 claim identity resolver、v1/v2 Persisted pair及replay校验均封存allocation、consumer、Account/underlying raw key、Physical-v2和v2 creation-root矩阵；任一claim selector、binder、source或append pair替换均fail closed。
+
+验证与未完成：
+
+- Binding-v1、Binding-v2、Consumption Domain/codec聚合pure tests `85 passed`；Ruff、Black/isort、standalone strict mypy与architecture（2834 files / 0 violations）通过。
+- 本批仍仅Application Protocol+pure fakes；0045旧repository尚未实现Claim dual-write，0047 Binding-v2/Claim closed-world repository、逐alias inventory/backfill、0048 NOT NULL contract和PostgreSQL v1/v2交叉竞争仍缺。production composition/writer、pipeline与执行总闸继续禁用。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

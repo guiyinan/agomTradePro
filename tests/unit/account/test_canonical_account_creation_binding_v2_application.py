@@ -14,6 +14,7 @@ from apps.account.application.canonical_account_creation_binding_v2 import (
     CanonicalAccountCreationBindingV2Unavailable,
     GetExactCanonicalAccountCreationBindingV2,
     GetExactCanonicalAccountCreationBindingV2Command,
+    PersistedCanonicalAccountCreationBindingV2,
 )
 from apps.account.domain.canonical_account_creation import CanonicalAccountCreationServiceRecorder
 from tests.unit.account.test_allocated_physical_account_row_observation_v3 import _root
@@ -45,6 +46,9 @@ class _Repository:
         self.clock = _at(8)
         self.value: object | None = None
         self.anchor: object | None = None
+        self.claim: object | None = None
+        self.exact_value: object | None = None
+        self.append_kwargs: dict[str, object] = {}
 
     @contextmanager
     def atomic(self) -> Iterator[None]:
@@ -56,15 +60,20 @@ class _Repository:
     def get_winner(self, **kwargs: object) -> object | None:
         return self.value
 
-    def get_by_any_anchor(self, **kwargs: object) -> object | None:
+    def get_consumption_claim_by_any_anchor(self, **kwargs: object) -> object | None:
         return self.anchor
 
     def get_exact_by_hash(self, **kwargs: object) -> object | None:
-        return self.value
+        return self.exact_value
 
-    def append(self, binding: object, **kwargs: object) -> object:
-        self.value = binding
-        return binding
+    def append_with_consumption_claim(
+        self, binding: object, claim: object, **kwargs: object
+    ) -> tuple[object, object]:
+        self.value = PersistedCanonicalAccountCreationBindingV2(binding, claim)  # type: ignore[arg-type]
+        self.claim = claim
+        self.exact_value = binding
+        self.append_kwargs = kwargs
+        return binding, claim
 
 
 class _WinnerRaceRepository(_Repository):
@@ -78,9 +87,11 @@ class _WinnerRaceRepository(_Repository):
         self.winner_reads += 1
         return None if self.winner_reads == 1 else self.winner
 
-    def append(self, binding: object, **kwargs: object) -> object:
+    def append_with_consumption_claim(
+        self, binding: object, claim: object, **kwargs: object
+    ) -> tuple[object, object]:
         self.append_calls += 1
-        return super().append(binding, **kwargs)
+        return super().append_with_consumption_claim(binding, claim, **kwargs)
 
 
 class _AdvancingClockRepository(_Repository):
@@ -120,6 +131,11 @@ def test_issue_uses_server_binder_clock_and_exact_nested_hashes() -> None:
         binder=_service(),
     ).execute(_command())
     assert value.recorded_at == repository.clock
+    assert repository.claim is not None
+    assert repository.claim.recorded_at == value.recorded_at  # type: ignore[union-attr]
+    assert repository.claim.consumer_generation == "v2"  # type: ignore[union-attr]
+    assert repository.claim.physical_v3_root_content_hash == root.content_hash  # type: ignore[union-attr]
+    assert repository.append_kwargs["recorded_at"] == value.recorded_at
     assert value.recorded_by == _service()
     assert value.creation_root_content_hash == root.content_hash
     assert value.physical_source_content_hash == root.physical_observation.source_content_hash
@@ -166,7 +182,7 @@ def test_identity_replay_and_anchor_conflict() -> None:
     use_case._creation_root_provider.value = root
     repository.clock = _at(8)
     repository.value = None
-    repository.anchor = first
+    repository.anchor = repository.claim
     with pytest.raises(CanonicalAccountCreationBindingV2Conflict, match="anchor"):
         use_case.execute(_command())
 
@@ -189,13 +205,13 @@ def test_replay_rejects_every_command_selector_substitution(
 ) -> None:
     root = _root()
     repository = _Repository()
-    winner = BindCanonicalAccountCreationV2(
+    BindCanonicalAccountCreationV2(
         allocation_provider=_Provider(root.allocation),
         creation_root_provider=_Provider(root),
         repository=repository,
         binder=_service(),
     ).execute(_command())
-    repository.value = winner
+    assert repository.value is not None
     unavailable_allocation = _Provider(None)
     unavailable_root = _Provider(None)
     use_case = BindCanonicalAccountCreationV2(
@@ -215,13 +231,13 @@ def test_replay_rejects_every_command_selector_substitution(
 def test_replay_rejects_authenticated_binder_substitution_without_live_inputs() -> None:
     root = _root()
     repository = _Repository()
-    winner = BindCanonicalAccountCreationV2(
+    BindCanonicalAccountCreationV2(
         allocation_provider=_Provider(root.allocation),
         creation_root_provider=_Provider(root),
         repository=repository,
         binder=_service(),
     ).execute(_command())
-    repository.value = winner
+    assert repository.value is not None
     unavailable_allocation = _Provider(None)
     unavailable_root = _Provider(None)
     use_case = BindCanonicalAccountCreationV2(
@@ -251,7 +267,8 @@ def test_atomic_winner_race_replays_without_second_current_input_read() -> None:
     ).execute(_command())
     allocation_provider = _Provider(root.allocation)
     creation_root_provider = _Provider(root)
-    race_repository = _WinnerRaceRepository(winner)
+    assert seed_repository.value is not None
+    race_repository = _WinnerRaceRepository(seed_repository.value)
 
     replay = BindCanonicalAccountCreationV2(
         allocation_provider=allocation_provider,

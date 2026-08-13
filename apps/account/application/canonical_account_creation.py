@@ -13,6 +13,10 @@ from apps.account.domain.canonical_account_creation import (
     CanonicalAccountCreationRequester,
     CanonicalAccountCreationServiceRecorder,
 )
+from apps.account.domain.canonical_account_creation_consumption import (
+    CanonicalAccountCreationConsumptionClaim,
+    resolve_canonical_account_creation_consumption_claim_identity,
+)
 from apps.account.domain.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2,
 )
@@ -168,19 +172,25 @@ class CanonicalAccountCreationRepository(Protocol):
 
     def get_binding_winner(
         self, *, binding_id: str, binding_version: str, as_of: datetime
-    ) -> CanonicalAccountCreationBinding | None: ...
+    ) -> PersistedCanonicalAccountCreationBinding | None: ...
 
-    def get_binding_by_any_anchor(
+    def get_consumption_claim_by_any_anchor(
         self,
         *,
+        claim_id: str,
+        claim_version: str,
+        allocation_identity_hash: str,
         allocation_content_hash: str,
+        consumer_identity_hash: str,
+        consumer_content_hash: str,
         account_namespace: str,
         account_id: str,
         underlying_unified_account_namespace: str,
         underlying_unified_account_id: int,
-        physical_content_hash: str,
+        physical_v2_content_hash: str,
+        physical_v3_root_content_hash: None,
         as_of: datetime,
-    ) -> CanonicalAccountCreationBinding | None: ...
+    ) -> CanonicalAccountCreationConsumptionClaim | None: ...
 
     def get_exact_binding(
         self,
@@ -191,16 +201,35 @@ class CanonicalAccountCreationRepository(Protocol):
         as_of: datetime,
     ) -> CanonicalAccountCreationBinding | None: ...
 
-    def append_binding(
+    def append_binding_with_consumption_claim(
         self,
         binding: CanonicalAccountCreationBinding,
+        claim: CanonicalAccountCreationConsumptionClaim,
         *,
         expected_allocation_content_hash: str,
         expected_account_claim_hash: str,
         expected_underlying_claim_hash: str,
         expected_physical_content_hash: str,
+        expected_consumption_claim_content_hash: str,
         recorded_at: datetime,
-    ) -> CanonicalAccountCreationBinding: ...
+    ) -> tuple[
+        CanonicalAccountCreationBinding,
+        CanonicalAccountCreationConsumptionClaim,
+    ]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class PersistedCanonicalAccountCreationBinding:
+    """One repository-restored atomic Binding-v1 and consumption-claim pair."""
+
+    binding: CanonicalAccountCreationBinding
+    claim: CanonicalAccountCreationConsumptionClaim
+
+    def __post_init__(self) -> None:
+        checked_binding = _binding(self.binding)
+        checked_claim = _claim(self.claim)
+        if checked_claim.consumer_generation != "v1" or checked_claim.consumer != checked_binding:
+            raise ValueError("consumption claim does not bind the exact Binding-v1")
 
 
 class AllocateCanonicalAccountCreation:
@@ -321,34 +350,30 @@ class BindCanonicalAccountCreation:
             raise TypeError("command must be exact BindCanonicalAccountCreationCommand")
         command.__post_init__()
         cutoff = _aware(self._repository.now(), "repository cutoff")
+        winner = self._repository.get_binding_winner(
+            binding_id=command.binding_id,
+            binding_version=command.binding_version,
+            as_of=cutoff,
+        )
+        if winner is not None:
+            return self._validate_binding_replay(winner, command, as_of=cutoff)
         first_allocation = self._read_allocation(command, cutoff)
         first_physical = self._read_physical(command, cutoff)
         with self._repository.atomic():
+            recorded_at = _aware(self._repository.now(), "binding recorded_at")
+            if recorded_at < cutoff:
+                raise CanonicalAccountCreationCorruption("repository clock moved backwards")
             winner = self._repository.get_binding_winner(
                 binding_id=command.binding_id,
                 binding_version=command.binding_version,
-                as_of=cutoff,
+                as_of=recorded_at,
             )
             if winner is not None:
-                return self._validate_binding_replay(winner, command)
-            anchor = self._repository.get_binding_by_any_anchor(
-                allocation_content_hash=command.expected_allocation_content_hash,
-                account_namespace=first_allocation.canonical_account_namespace,
-                account_id=first_allocation.canonical_account_id,
-                underlying_unified_account_namespace=(
-                    first_physical.underlying_unified_account_namespace
-                ),
-                underlying_unified_account_id=(first_physical.underlying_unified_account_id),
-                physical_content_hash=command.expected_physical_content_hash,
-                as_of=cutoff,
-            )
-            if anchor is not None:
-                raise CanonicalAccountCreationConflict("creation binding anchor is consumed")
-            final_allocation = self._read_allocation(command, cutoff)
-            final_physical = self._read_physical(command, cutoff)
+                return self._validate_binding_replay(winner, command, as_of=recorded_at)
+            final_allocation = self._read_allocation(command, recorded_at)
+            final_physical = self._read_physical(command, recorded_at)
             if final_allocation != first_allocation or final_physical != first_physical:
                 raise CanonicalAccountCreationConflict("creation binding source drifted")
-            recorded_at = _aware(self._repository.now(), "binding recorded_at")
             candidate = CanonicalAccountCreationBinding(
                 binding_id=command.binding_id,
                 binding_version=command.binding_version,
@@ -364,18 +389,62 @@ class BindCanonicalAccountCreation:
                 recorded_at=recorded_at,
                 valid_until=min(final_allocation.valid_until, final_physical.valid_until),
             )
-            persisted = self._repository.append_binding(
+            claim_id, claim_version = resolve_canonical_account_creation_consumption_claim_identity(
+                final_allocation,
+                consumer_generation="v1",
+            )
+            claim = CanonicalAccountCreationConsumptionClaim(
+                claim_id=claim_id,
+                claim_version=claim_version,
+                allocation=final_allocation,
+                consumer_generation="v1",
+                consumer=candidate,
+                account_namespace=candidate.account_namespace_claim,
+                account_id=candidate.account_id_claim,
+                underlying_unified_account_namespace=(
+                    candidate.underlying_unified_account_namespace_claim
+                ),
+                underlying_unified_account_id=(candidate.underlying_unified_account_id_claim),
+                physical_v2_content_hash=final_physical.content_hash,
+                physical_v3_root_content_hash=None,
+                recorded_at=recorded_at,
+            )
+            anchor = self._repository.get_consumption_claim_by_any_anchor(
+                claim_id=claim.claim_id,
+                claim_version=claim.claim_version,
+                allocation_identity_hash=final_allocation.identity_hash,
+                allocation_content_hash=final_allocation.content_hash,
+                consumer_identity_hash=candidate.identity_hash,
+                consumer_content_hash=candidate.content_hash,
+                account_namespace=claim.account_namespace,
+                account_id=claim.account_id,
+                underlying_unified_account_namespace=(claim.underlying_unified_account_namespace),
+                underlying_unified_account_id=claim.underlying_unified_account_id,
+                physical_v2_content_hash=claim.physical_v2_content_hash,
+                physical_v3_root_content_hash=None,
+                as_of=recorded_at,
+            )
+            if anchor is not None:
+                _claim(anchor)
+                raise CanonicalAccountCreationConflict(
+                    "canonical creation consumption anchor is already claimed"
+                )
+            persisted = self._repository.append_binding_with_consumption_claim(
                 candidate,
+                claim,
                 expected_allocation_content_hash=final_allocation.content_hash,
                 expected_account_claim_hash=candidate.account_claim_hash,
                 expected_underlying_claim_hash=candidate.underlying_claim_hash,
                 expected_physical_content_hash=final_physical.content_hash,
+                expected_consumption_claim_content_hash=claim.content_hash,
                 recorded_at=recorded_at,
             )
-            checked = _binding(persisted)
-            if checked != candidate:
-                raise CanonicalAccountCreationConflict("binding append first-winner differs")
-            return checked
+            checked_binding, checked_claim = _persisted_tuple(persisted)
+            if checked_binding != candidate or checked_claim != claim:
+                raise CanonicalAccountCreationConflict(
+                    "binding/consumption-claim append first-winner differs"
+                )
+            return checked_binding
 
     def _read_allocation(
         self, command: BindCanonicalAccountCreationCommand, cutoff: datetime
@@ -418,12 +487,30 @@ class BindCanonicalAccountCreation:
         return checked
 
     def _validate_binding_replay(
-        self, value: object, command: BindCanonicalAccountCreationCommand
+        self,
+        value: object,
+        command: BindCanonicalAccountCreationCommand,
+        *,
+        as_of: datetime,
     ) -> CanonicalAccountCreationBinding:
-        checked = _binding(value)
+        persisted = _persisted(value)
+        checked = persisted.binding
+        claim = persisted.claim
+        expected_claim_id, expected_claim_version = (
+            resolve_canonical_account_creation_consumption_claim_identity(
+                checked.allocation,
+                consumer_generation="v1",
+            )
+        )
+        if checked.recorded_at > as_of or claim.recorded_at > as_of:
+            raise CanonicalAccountCreationCorruption(
+                "repository returned a future binding/consumption-claim winner"
+            )
         if (
             checked.binding_id != command.binding_id
             or checked.binding_version != command.binding_version
+            or claim.claim_id != expected_claim_id
+            or claim.claim_version != expected_claim_version
             or checked.allocation.allocation_id != command.allocation_id
             or checked.allocation.allocation_version != command.allocation_version
             or checked.allocation.content_hash != command.expected_allocation_content_hash
@@ -431,8 +518,22 @@ class BindCanonicalAccountCreation:
             or checked.physical_observation.observation_version
             != command.physical_observation_version
             or checked.physical_observation.content_hash != command.expected_physical_content_hash
+            or checked.recorded_by != self._binder
+            or claim.allocation != checked.allocation
+            or claim.consumer_generation != "v1"
+            or claim.consumer != checked
+            or claim.account_namespace != checked.account_namespace_claim
+            or claim.account_id != checked.account_id_claim
+            or claim.underlying_unified_account_namespace
+            != checked.underlying_unified_account_namespace_claim
+            or claim.underlying_unified_account_id != checked.underlying_unified_account_id_claim
+            or claim.physical_v2_content_hash != checked.physical_observation.content_hash
+            or claim.physical_v3_root_content_hash is not None
+            or claim.recorded_at != checked.recorded_at
         ):
-            raise CanonicalAccountCreationConflict("binding identity first-winner differs")
+            raise CanonicalAccountCreationConflict(
+                "binding/consumption-claim identity first-winner differs"
+            )
         return checked
 
 
@@ -466,6 +567,40 @@ def _binding(value: object) -> CanonicalAccountCreationBinding:
     return value
 
 
+def _claim(value: object) -> CanonicalAccountCreationConsumptionClaim:
+    if type(value) is not CanonicalAccountCreationConsumptionClaim:
+        raise CanonicalAccountCreationCorruption("consumption claim type substitution")
+    try:
+        value.__post_init__()
+    except (TypeError, ValueError) as error:
+        raise CanonicalAccountCreationCorruption("consumption claim is corrupt") from error
+    return value
+
+
+def _persisted(value: object) -> PersistedCanonicalAccountCreationBinding:
+    if type(value) is not PersistedCanonicalAccountCreationBinding:
+        raise CanonicalAccountCreationCorruption("binding winner pair type substitution")
+    try:
+        value.__post_init__()
+    except (TypeError, ValueError) as error:
+        raise CanonicalAccountCreationCorruption("binding winner pair is corrupt") from error
+    return value
+
+
+def _persisted_tuple(
+    value: object,
+) -> tuple[CanonicalAccountCreationBinding, CanonicalAccountCreationConsumptionClaim]:
+    if type(value) is not tuple or len(value) != 2:
+        raise CanonicalAccountCreationCorruption("binding append pair type substitution")
+    binding = _binding(value[0])
+    claim = _claim(value[1])
+    try:
+        PersistedCanonicalAccountCreationBinding(binding, claim)
+    except (TypeError, ValueError) as error:
+        raise CanonicalAccountCreationCorruption("binding append pair is corrupt") from error
+    return binding, claim
+
+
 __all__ = [
     "AllocateCanonicalAccountCreation",
     "AllocateCanonicalAccountCreationCommand",
@@ -477,4 +612,5 @@ __all__ = [
     "CanonicalAccountCreationUnavailable",
     "CanonicalAccountIdGenerator",
     "ExactFinalPhysicalAccountRowObservationV2Provider",
+    "PersistedCanonicalAccountCreationBinding",
 ]

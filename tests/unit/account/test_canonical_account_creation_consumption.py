@@ -17,6 +17,7 @@ from apps.account.domain.canonical_account_creation_binding_v2 import (
 )
 from apps.account.domain.canonical_account_creation_consumption import (
     CanonicalAccountCreationConsumptionClaim,
+    resolve_canonical_account_creation_consumption_claim_identity,
 )
 from tests.unit.account.test_canonical_account_creation import (
     _allocation,
@@ -255,6 +256,27 @@ def test_strict_scalar_runtime_types_fail_closed() -> None:
         _claim(claim_id=1)
     with pytest.raises(TypeError, match="exact string"):
         _claim(physical_v2_content_hash=True)
+
+
+def test_claim_identity_is_allocation_derived_and_generation_scoped() -> None:
+    allocation = _allocation()
+    assert resolve_canonical_account_creation_consumption_claim_identity(
+        allocation, consumer_generation="v1"
+    ) == (f"allocation-consumption-{allocation.identity_hash}", "v1")
+    assert resolve_canonical_account_creation_consumption_claim_identity(
+        allocation, consumer_generation="v2"
+    ) == (f"allocation-consumption-{allocation.identity_hash}", "v2")
+
+
+def test_claim_identity_rejects_substitution_and_unknown_generation() -> None:
+    with pytest.raises(TypeError, match="exact CanonicalAccountCreationAllocation"):
+        resolve_canonical_account_creation_consumption_claim_identity(
+            object(), consumer_generation="v1"  # type: ignore[arg-type]
+        )
+    with pytest.raises(ValueError, match="exactly v1 or v2"):
+        resolve_canonical_account_creation_consumption_claim_identity(
+            _allocation(), consumer_generation="v3"
+        )
 
 
 def test_domain_module_has_only_standard_library_and_same_domain_imports() -> None:
