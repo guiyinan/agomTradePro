@@ -1946,6 +1946,16 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Physical-v3 Domain/Application、Binding-v2 Domain/Application组合纯测试`61 passed`；ruff、Black/isort、strict mypy、architecture（2827 files / 0 violations）与diff-check通过。
 - 本批仅Application Protocol与pure fakes；0046 Physical-v3 root ledger、0047跨Binding-v1/v2统一consumption claim、durable Binding-v2 ledger/provider、Physical-v3 update/delete successor、receipt/Evidence-v3与全writer同alias原子cutover仍缺。pipeline与执行总闸保持禁用。
 
+### 2026-08-14：Account durable canonical creation Binding-v2 strict codec
+
+- 新增独立Binding-v2 strict codec，完整嵌套allocation、allocated Physical-v3 root及其Physical-v2/source/raw canonical payload与service binder；不把格式正确的ID/hash投影当作上游对象，也不复用0045 Binding-v1 codec/schema。
+- 顶层与每层nested payload均执行exact keys/types、UTC `Z`、bool伪int拒绝、Domain重建和encode→decode→encode canonical相等；任一allocation/root/physical/source/raw/claim/recorder/clock/fixed authority/hash替换都fail closed。
+
+验证与未完成：
+
+- codec unit `48 passed`；ruff、Black/isort、strict mypy与diff-check通过。
+- 本批没有model/repository/migration/provider；0047统一consumption claim与Binding-v2 ledger、跨v1/v2并发、真实migrate/rollback仍缺，codec不得被视为可签发或可消费allocation的账本。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

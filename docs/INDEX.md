@@ -756,6 +756,9 @@
 - ✅ **Account allocated Physical-v3 creation-root Application**
   - ID/hash-only capture双读allocation与Physical-v2，独立service projector、winner/head/root-CAS、exact PIT/closed-current及消费后winner replay闭合
   - 四批组合61 passed、architecture 2827/0；0046 ledger、0047统一consumption claim/Binding-v2 ledger、successor与receipt/Evidence-v3仍缺
+- ✅ **Account durable canonical creation Binding-v2 strict codec**
+  - 完整嵌套allocation、Physical-v3/v2、source/raw与binder canonical payload，exact shape/type/UTC-Z/Domain重建及全层tamper fail closed
+  - codec 48 passed；无model/repository/migration，0047统一consumption claim/Binding-v2 ledger与跨v1/v2并发仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
