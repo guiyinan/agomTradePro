@@ -753,6 +753,9 @@
 - ✅ **Account durable canonical creation Binding-v2 Application**
   - ID/hash-only binding双读exact-unconsumed allocation与Physical-v3 root，以server binder/clock和identity+四锚first-winner闭合永久映射证据
   - Domain+Application 29 passed、architecture 2826/0；独立ledger/provider、跨v1/v2 allocation消费、Physical-v3账本与receipt/Evidence-v3仍缺
+- ✅ **Account allocated Physical-v3 creation-root Application**
+  - ID/hash-only capture双读allocation与Physical-v2，独立service projector、winner/head/root-CAS、exact PIT/closed-current及消费后winner replay闭合
+  - 四批组合61 passed、architecture 2827/0；0046 ledger、0047统一consumption claim/Binding-v2 ledger、successor与receipt/Evidence-v3仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
