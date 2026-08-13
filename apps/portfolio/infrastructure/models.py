@@ -26,6 +26,9 @@ from apps.portfolio.infrastructure.planning_policy_activation_models import (
 from apps.portfolio.infrastructure.planning_policy_definition_models import (
     PortfolioPlanningPolicyDefinitionModel,
 )
+from apps.portfolio.infrastructure.policy_benchmark_corporate_action_models import (
+    PortfolioPolicyBenchmarkCorporateActionModel,
+)
 from apps.portfolio.infrastructure.policy_benchmark_definition_models import (
     PortfolioPolicyBenchmarkDefinitionModel,
 )
@@ -72,6 +75,7 @@ __all__ = [
     "PortfolioPlanningPolicyActivationModel",
     "PortfolioPlanningPolicyActivationSubjectModel",
     "PortfolioPlanningPolicyDefinitionModel",
+    "PortfolioPolicyBenchmarkCorporateActionModel",
     "PortfolioPolicyBenchmarkDefinitionModel",
     "PortfolioPolicyBenchmarkFxFixingModel",
     "PortfolioPolicyBenchmarkPriceFixingModel",

@@ -810,6 +810,17 @@
 - 纯Domain `9 passed`；standalone strict mypy、Black/isort、py_compile/diff-check与architecture（2758 files / 0 violations）通过。
 - corporate-action ledger、两人activation/current provider和cost/tax methodology仍未完成；单次公司行动事实的owner ledger/provider也不在本阶段。五类exact-current activation闭合前benchmark definition/daily valuation不得active，总闸不变。
 
+### 2026-08-13：Portfolio benchmark corporate-action methodology ledger
+
+- 新增 strict codec、私有UOW/exact insert claim与append-only ORM；methodology identity、identity/content hash和content first-winner只允许精确幂等，save/update/delete/bulk/raw写绕过全部拒绝。
+- repository在selector匹配前closed-world恢复全表，逐行复核五类closed event matrix、有序source refs、IANA/DST cutoff、防重复/unknown/missing策略、authority/header/identity/content/ledger seals及`persisted_at == recorded_at`，之后才提供historical exact/PIT。
+- Domain没有successor/current/activation，repository也不增加这些接口；`0025_policy_benchmark_corporate_action`只创建一张空表并依赖`0024`，无RunPython/RunSQL，不回填mutable event payload、历史公司行动或现有行情。
+
+未完成与验证：
+
+- Django 5.2.16 SQLite component `9 passed`；Portfolio `makemigrations --check --dry-run`为`No changes detected`，ruff、Black/isort、architecture（2762 files / 0 violations）与diff-check通过。
+- PostgreSQL first-winner race、完整项目回归和mypy plugin未验证；两人activation/current provider及单次公司行动owner fact ledger/provider仍缺。账本只保存definition，不使benchmark或执行链active。
+
 ### 2026-08-13：Portfolio benchmark cost/tax methodology Domain 合同
 
 - 新增Portfolio owner的cost/tax methodology definition；不内嵌任何司法辖区税率或费用默认值，而是要求fee与tax exact owner definition逐项一一绑定并封存asset scope、jurisdiction、买卖方向、计费基数、确认时点、币种、rate/fixed/min/max形态、精度、rounding increment与mode。
