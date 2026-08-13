@@ -549,6 +549,9 @@
 - ✅ **Broker account identity snapshot Application workflow**
   - ID-only发行双读Account exact source与Broker binding/Agent facts；QMT明文只进入注入的keyed digest服务，server actor、first-winner/CAS及closed-current闭合
   - 仅Protocol+pure fake；真实facade/raw provider、key service、账本/composition、actor与PG并发仍未完成，ruff未验证
+- ✅ **Broker account identity snapshot append-only ledger**
+  - actor/Account ref/binding/Agent/keyed digest与全套seals、私有UOW/claim、single-root/predecessor CAS及closed-world exact/PIT/current闭合；0010 zero-seed
+  - Django5.2 minimal往返通过；完整组件/migration state/mypy/ruff、PG并发及真实provider/composition仍未完成
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**

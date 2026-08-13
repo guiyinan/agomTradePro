@@ -595,6 +595,9 @@ class BrokerExecutionIdempotencyModel(models.Model):
         ]
 
 
+from apps.broker_execution.infrastructure.broker_account_identity_snapshot_models import (  # noqa: E402,F401
+    BrokerAccountIdentitySnapshotModel,
+)
 from apps.broker_execution.infrastructure.order_approval_artifact_models import (  # noqa: E402,F401
     BrokerOrderApprovalArtifactModel,
 )

@@ -850,6 +850,17 @@
 - Broker account identity Domain/Application组合 `54 passed`；strict mypy、Black/isort/py_compile/diff-check与架构扫描 `2706 files / 0 violations`通过；当前环境无ruff，未验证该项。
 - 仅Protocol+pure fake；真实Account facade、Broker binding/Agent raw provider、keyed digest key service、snapshot账本/composition、actor入口与PG并发未完成，不能供namespace binding真实签发或解除总闸。
 
+### 2026-08-13：Broker account identity snapshot append-only ledger
+
+- 新增actor-bound snapshot账本、strict codec、私有UOW/exact insert claim；封存Broker整数namespace/ID、Account source完整ref、binding revision/hash/owner、Agent identity/hash/owner、keyed QMT digest、authority与全部clock/header/identity/content/ledger seals。
+- 每个Broker namespace+整数account只允许单root、每predecessor单successor；repository closed-world恢复全表后验证单链、orphan/fork/cross-account/clock，再做identity/hash/PIT/current匹配。最终expired successor不回退旧snapshot，双selector header篡改不能隐藏坏行。
+- 直接save/save_base(raw)、update/bulk update/create及instance/query delete全部阻断。`0010_broker_account_identity_snapshot`依赖0009且只CreateModel，无RunPython/RunSQL/backfill；mutable binding/Agent/QMT reference不会被自动升级。
+
+未完成与验证：
+
+- 主线Django 5.2.10 minimal SQLite zero-seed→append→exact PIT→drop往返通过；Black/isort/py_compile/diff-check通过，组件测试文件覆盖写绕过、expired head、selector tamper与closed-world异常。
+- 完整component pytest、migration state/full drift、Infrastructure strict mypy与ruff未取得最终证明；PostgreSQL并发未验证。真实Account facade、Broker raw provider、keyed digest key service、composition与actor入口仍未完成，不能接namespace binding或总闸。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
