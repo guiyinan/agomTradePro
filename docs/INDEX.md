@@ -504,6 +504,9 @@
 - ✅ **Broker/Portfolio 账户 namespace binding Domain 合同**
   - Broker整数账户与Portfolio字符串账户保持独立namespace，不以类型转换猜测同一身份；账户身份source固定归Account owner，Portfolio只消费字符串引用，两侧source seal和人工断言者均进入identity/content hash
   - 仅为inactive合同；source provider、ID-only workflow、append-only ledger、人工入口与PG并发均未完成，pre-Risk blocker和执行总闸不变
+- ✅ **Broker Plan→Order inactive binding Domain 合同**
+  - 精确绑定canonical-v1 plan/receipt/subject、稳定order ordinal与单行bytes/hash，以及Broker order artifact identity/content/digest；三方owner/type与最早有效期均被封存
+  - 不使用资产/数量近似推断且固定must-not-execute；owner providers、Application workflow、ledger和真实签发均未完成，pre-Risk blocker不变
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**

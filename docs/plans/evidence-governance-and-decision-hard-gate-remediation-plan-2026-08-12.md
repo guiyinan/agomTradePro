@@ -674,6 +674,18 @@
 - 纯 Domain `47 passed`；standalone strict mypy、Black/isort/py_compile 与源码 AST 零跨 App 依赖检查通过。
 - 当前只冻结 owner contract；尚无 Application ID-only 双读、append-only ledger、两侧真实 source provider、人工签发入口或 PostgreSQL first-winner。它不能消除 pre-Risk scope 的 namespace blocker，也不授权 Risk/Broker 执行；Plan→Order binding、benchmark、Research active aggregate、最终 issuer 与四节点重验仍待后续独立阶段，总闸继续 false。
 
+### 2026-08-13：Broker Plan→Order inactive binding Domain 合同
+
+- 新增 Broker-owned Plan→Order content-addressed seal，精确绑定 Portfolio canonical-v1 plan identity/version/hash、inactive approval receipt/subject seal、order ordinal 与该 ordinal 的 canonical-v1 单行 JSON bytes/hash，以及 Broker order approval artifact identity/content/approval digest/version。
+- 绑定固定校验 Portfolio plan owner/type、receipt owner/capability 与 Broker artifact owner/type；三份 source expiry 全部进入 content hash，binding 的 `valid_until` 必须等于三者最小值，不能由 caller 延长或缩短。
+- canonical-v1 单行继续使用历史 `json.dumps(..., sort_keys=True, separators=(",", ":"))` 字节语义，包括默认 ASCII escaping；这不会修改既有 plan-v1 hash，也不以资产、方向、数量近似推断映射。
+- successor 必须绑定 exact predecessor，并保持 plan id/version、order ordinal、Broker order artifact id 和 Broker account logical subject。permission 固定 `inactive`，`activation_available=false`、`must_not_execute=true`，仍保留 execution inactive 与账户 namespace 未验证 blocker。
+
+未完成与验证：
+
+- 纯 Domain `59 passed`；standalone strict mypy、Black/isort/py_compile与AST零跨 App import检查通过。
+- 当前仅冻结合同；尚无 owner provider、ID-only双读Application、append-only ledger或真实plan-order签发记录。它不能解除现有pre-Risk blocker；账户owner workflow、benchmark、Research active aggregate、最终issuer与四节点重验继续待办，总闸false。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
