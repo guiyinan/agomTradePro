@@ -480,6 +480,22 @@
 
 - Domain integrity/receipt 与 submit hard-gate 聚合 `15 passed`；standalone strict mypy `0 errors`；全仓 architecture scan（2667 files / 0 violations）、Black/isort/py_compile/diff-check 通过。模块循环扫描确认本批无新增跨 App import，但共享工作区当前既存总边数/预算和 `account,portfolio,simulated_trading,strategy` cycle 仍超 allowlist，未通过抬高基线掩盖。
 
+### 2026-08-13：Risk Center Broker order authorization Domain 合同
+
+- 新增 Risk Center owner 的 `BrokerOrderRiskScope`、双人 approval subject 与 authorization record；零跨 App import，独立于现有只服务 Operator Spec activation 的审批 capability，避免把 Research spec approval 语义冒充订单风险授权。
+- scope 精确绑定 account、Broker execution scope hash、Portfolio plan/hash/approval、order identity/version/hash、Risk policy id/version/hash 及四方有效期；订单 ID 必须 canonical UUID，所有 hash 只能是 lowercase SHA-256，本地 scope hash 对任一上游替换都会变化。
+- subject 必须由 human staff 请求，record 必须由另一名 human staff 批准，同时比较 actor ID 与 user ID 禁止自批；有效期只能等于 plan/order/policy/execution scope 的最小值，PIT 采用 `issued_at <= as_of < valid_until`。
+- authorization authority/capability/version 与 `permission_cap=execution_eligible` 固定；相邻 supersession 必须绑定 exact previous hash、同账户/订单并推进时钟。若风险不允许则不得签发 authorization，不能生成降级记录后仍被 Broker 当许可。
+
+未完成：
+
+- Risk policy artifact/provider、ID-only register/approve/get-exact Application、可信 server clock/双读防漂移、append-only subject/record ledger、current-head first-winner/CAS 与 PostgreSQL 并发证明。
+- 本 Domain contract 没有签发或激活运行面；Broker receipt issuer/revalidator 与四节点 exact current 校验未接入，`broker_order_evidence_integrated()` 继续为 false。
+
+验证：
+
+- Risk contract、Broker inactive contract 与 hard-gate 聚合 `33 passed`；standalone strict mypy `0 errors`；全仓 architecture scan（2668 files / 0 violations）、Black/isort/py_compile/diff-check 通过。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
