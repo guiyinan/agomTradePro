@@ -768,6 +768,18 @@
 - 纯Domain `61 passed`；standalone strict mypy、Black/isort/py_compile/diff-check与零跨App import通过。
 - 现有simulated-trading账户行仍mutable且user历史可能受默认回填污染；尚无trusted raw provider、ID-only发行workflow、reclaim receipt、append-only ledger或exact/current facade，不能作为namespace binding真实source，总闸不变。
 
+### 2026-08-13：Account-owned account identity snapshot Application workflow
+
+- 新增普通Issue与legacy Reclaim两个ID-only命令：调用方只能提交snapshot/raw source identity，reclaim额外提交receipt identity；account、owner、hash、provenance、clock与permission均由trusted providers、server actor和repository派生。
+- 普通Issue遇到legacy default-user source直接Unavailable且零写入。Reclaim必须在同一server cutoff首末双读raw source和exact Account-owned reclaim receipt；receipt需绑定raw source全部identity/hash、账户namespace/ID、底层整数ID和server actor，nullable legacy owner不会被静默信任。
+- 写入封存human-staff actor，first-winner跨时钟重放仅允许原actor；同一字符串Account identity的successor predecessor由repository logical head派生并CAS。Account字符串ID与底层整数provenance从不cast。
+- exact/PIT与closed-current reader复核完整authority/schema、provenance/receipt、underlying source、owner/real/active及logical head；superseded snapshot不复活，所有结果仍identity-evidence-only/inactive/must-not-execute。
+
+未完成与验证：
+
+- Account identity Domain/Application组合 `95 passed`；strict mypy、Black/isort/ruff/compileall/diff-check及Application无Infrastructure/跨App implementation import检查通过。
+- 当前仍只有Protocol与pure fake；simulated-trading raw adapter、manual reclaim receipt owner ledger/provider、Account snapshot账本、composition、真实actor入口和PG并发未完成，不能供Broker namespace binding真实签发。
+
 ### 2026-08-13：Broker-owned broker account identity snapshot Domain 合同
 
 - 新增 Broker-owned identity evidence，精确封存Broker整数account namespace/ID、正数owner user、固定real+active、Account-owned identity source owner/type/id/version/hash/字符串namespace/账户ID/owner/real-active，以及Broker binding revision/content与Agent identity/version/content/owner。

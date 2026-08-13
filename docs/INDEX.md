@@ -528,6 +528,9 @@
 - ✅ **Account-owned account identity snapshot Domain 合同**
   - 分离字符串Account identity与底层整数unified provenance，封存source seal、owner/real/active、TTL最早有效期；legacy默认user必须有Account reclaim receipt
   - 固定inactive；trusted provider、ID-only发行/reclaim、append-only ledger/exact-current facade均未完成，不能解除namespace blocker
+- ✅ **Account identity snapshot Application workflow**
+  - 普通Issue和legacy Reclaim均ID-only；raw/receipt双读、server actor/clock、first-winner/CAS及closed-current reader闭合，无exact reclaim receipt时零写入
+  - 仅Protocol+pure fake；raw adapter、reclaim receipt/snapshot账本、composition、真实actor与PG并发仍未完成
 - ✅ **Broker-owned broker account identity snapshot Domain 合同**
   - 封存Broker账户、Account exact source、binding/Agent owner seal与keyed QMT reference digest；Account字符串与Broker整数身份不做cast，owner/real/active必须闭合
   - 固定inactive；Account facade、Broker raw provider/digest service、ID-only发行和ledger/current reader均未完成，namespace blocker不变
