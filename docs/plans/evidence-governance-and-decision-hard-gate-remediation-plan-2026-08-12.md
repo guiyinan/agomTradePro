@@ -1978,6 +1978,16 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - pure Domain unit `30 passed`；strict mypy、ruff、Black/isort、architecture（2832 files / 0 violations）与diff-check通过。
 - 本批仅Domain；strict codec、0047 expand schema、v1 dual-write/backfill审计、Binding-v2 repository与0048 NOT NULL contract仍缺。生产是否zero-seed尚未逐alias验证，不能据本地fresh migration假设空表或直接启用v2 writer。
 
+### 2026-08-14：Account canonical creation unified Consumption Claim strict codec
+
+- 新增strict codec，完整decode nested allocation；consumer因claim canonical只持非递归ref，由repository先按ref恢复完整Binding-v1/v2，再以`decode(payload, consumer=...)`注入并逐项核对owner/type/schema/id/version/identity/content hash。
+- 顶层、allocation与consumer ref均使用exact keys/types、UTC `Z`、固定false/true语义与encode→decode→encode canonical相等；unknown/missing、bool伪int、generation/consumer替换、Account/underlying/Physical/root/clock/hash篡改均fail closed。
+
+验证与未完成：
+
+- codec unit `32 passed`；strict mypy、ruff、Black/isort与diff-check通过。
+- 本批无model/repository/migration；0047 expand、closed-world consumer恢复、v1 dual-write/backfill与0048 contract仍缺，不构成跨版本数据库排他证明。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
