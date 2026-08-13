@@ -1924,6 +1924,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - pure Domain unit `10 passed`；strict mypy、ruff、Black/isort、architecture（2825 files / 0 violations）与diff-check通过。
 - 本批仅Domain，无Application/codec/model/repository/migration/provider；Physical-v3 update/delete successor尚未实现。旧Binding-v1仅保留为创建时兼容/审计合同，不得用作durable update/delete anchor或自动升级旧receipt/Evidence-v2；pipeline/writer/执行总闸保持禁用。
 
+### 2026-08-13：Account durable canonical creation Binding-v2 Application
+
+- 新增ID/hash-only binding用例：命令只携带binding、allocation与allocated Physical-v3 root的ID/version/expected hash，不接受Account/underlying claim、binder、clock、payload或权限。Account exact-current-unconsumed allocation与Physical-v3 exact-final root均由owner provider读取。
+- 用例以单一server cutoff在原子边界前后双读两个upstream，要求allocation、root、Account/underlying双claim以及v3/v2/source/raw全部hash逐项一致；server service binder与repository authoritative clock构造candidate，identity first-winner和allocation/Account/underlying/root四锚共同闭合幂等与冲突。
+- exact reader只按`recorded_at <= as_of`发布永久identity-binding evidence的历史可知性，不用已过期allocation/root回退，也不把`inactive/bound_pending_owner_approval`解释为current owner或execution authority。旧0045 Binding-v1不进入本Protocol，也没有v1 fallback。
+
+验证与未完成：
+
+- Domain+Application纯测试`29 passed`；ruff、Black/isort、strict mypy、architecture（2826 files / 0 violations）与diff-check通过。
+- 本批仅Application Protocol与pure fakes；durable Binding-v2独立codec/ledger/provider、跨0045 Binding-v1与Binding-v2的一次性allocation消费约束、Physical-v3 Application/账本、claimant receipt-v3、staff Evidence-v3及全writer同alias原子cutover仍缺。pipeline、production writer与执行总闸保持禁用。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
