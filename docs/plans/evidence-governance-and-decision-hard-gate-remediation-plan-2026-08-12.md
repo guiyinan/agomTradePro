@@ -765,6 +765,17 @@
 - 纯Domain `10 passed`；strict mypy、Black/isort/compileall/diff-check与architecture 0 violations通过，当前环境无ruff。
 - price-fixing ledger/两人activation/current provider未完成；FX fixing、corporate-action、cost/tax三类methodology仍缺。benchmark definition和daily valuation不得提前active，总闸不变。
 
+### 2026-08-13：Portfolio benchmark price-fixing methodology ledger
+
+- 新增strict codec、私有UOW/exact insert claim与append-onlyORM；identity/content first-winner仅允许精确幂等，update/delete/bulk/raw写绕过全部阻断。
+- repository在selector匹配前closed-world恢复全表，复核source refs、IANA/DST cutoff、authority/header、identity/content/ledger/persisted clock seals，再提供historical exact/PIT；Domain没有successor/current/activation，本账本不自行发明。
+- `0022_policy_benchmark_price_fixing`仅CreateModel，依赖0021，zero-seed且无RunPython/RunSQL；不回填行情provider、mutable config或临时price facts。
+
+未完成与验证：
+
+- Django5.2.10 SQLite隔离component `8 passed`；architecture 0 violations，Black/isort/compileall/diff-check与codec strict mypy通过。项目mypy regression=0但环境缺plugin，PostgreSQL并发未验证。
+- 两人activation/current provider未完成；FX fixing、corporate-action、cost/tax三类methodology仍缺，benchmark definition/daily valuation不得提前active。
+
 
 
 ### 2026-08-13：Portfolio policy benchmark definition append-only ledger
