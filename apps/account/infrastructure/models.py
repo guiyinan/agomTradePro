@@ -20,6 +20,9 @@ from .account_owner_assignment_provenance_receipt_models import (
 from .account_owner_assignment_provenance_receipt_v2_models import (
     AccountOwnerAssignmentProvenanceReceiptV2Model,
 )
+from .account_owner_assignment_provenance_receipt_v3_models import (
+    AccountOwnerAssignmentProvenanceReceiptV3Model,
+)
 from .allocated_physical_account_row_observation_v3_models import (
     AllocatedPhysicalAccountRowObservationV3Model,
 )
@@ -73,6 +76,7 @@ __all__ = [
     "AccountOwnerAssignmentEvidenceV2Model",
     "AccountOwnerAssignmentProvenanceReceiptModel",
     "AccountOwnerAssignmentProvenanceReceiptV2Model",
+    "AccountOwnerAssignmentProvenanceReceiptV3Model",
     "AccountOwnerAssignmentSubjectModel",
     "AccountOwnerAssignmentSubjectV2Model",
     "AccountProfileModel",

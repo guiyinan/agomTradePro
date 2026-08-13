@@ -2065,6 +2065,20 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 尚无production alias inventory SHA授权实现、真实PG双连接shared/exclusive阻塞测试或实际回填签字；因此不生成NOT NULL/check contract migration，不把engine存在解释为生产可运行。
 - 代码现在具备dormant双代写路径，但生产各alias的0045存量尚未盘点或backfill，0048 contract与PostgreSQL v1/v2交叉竞争仍缺；因此composition/writer/pipeline继续禁用，不能宣称生产排他已闭合。
 
+### 2026-08-14：Account owner-assignment creation claimant receipt v3 0049账本
+
+- 新增独立0049 append-only Receipt-v3账本，完整封存durable Binding-v2、allocation、allocated Physical-v3、Physical-v2/source/raw、Account/underlying claims、claimant/issuer、authority/header/chain/record/ledger seals与authoritative persisted clock。Binding-v2使用`PROTECT`外键，successor使用self `OneToOne(PROTECT)`；root按`receipt_id`唯一，predecessor以exact content hash相邻CAS。
+- 所有read/append先恢复整个Receipt-v3表并验证每个receipt chain，再通过Consumption repository恢复完整allocation/root/v1/v2/Claim closed world；Binding-v2只有在Receipt记录时点已经由非NULL且不晚于该时点的Claim `knowledge_at`获知才可签发，查询时点不能向后洗白该前置知识。
+- 0049仅包含schema操作且zero-seed，无RunPython/RunSQL或旧v1/v2/mutable row回填。Django5.2 isolated component `7 passed`，覆盖roundtrip/PIT、private append、NULL/late knowledge、无关header篡改、IntegrityError savepoint、过期successor最终头不回退及migration边界；Ruff、Black/isort、py_compile、repository strict mypy与architecture 2846/0通过。
+- 未完成真实PostgreSQL双事务竞争、真实0049 migrate/rollback、owner provider/composition与production actor入口；账本和所有上游账本仍zero-seed，不能视为authoritative identity已上线。
+
+### 2026-08-14：Account owner-assignment staff approval Evidence v3 Domain
+
+- 新增creation-only subject与staff approval Evidence-v3。Subject重新验证exact Receipt-v3、Binding-v2与allocated Physical-v3，并把receipt/binding/creation-root identity/content、Account/underlying claim及Physical/source/raw content共11项显式seal写入canonical hash；任一重复header替换均fail closed。
+- 最终Evidence只允许独立human staff approver，按actor ID与user ID双维禁止自批；approved authoritative owner必须等于Receipt-v3 claimant。Account字符串identity与underlying整数identity使用不同domain且candidate-independent的root hashes，Evidence固定`evidence_only + inactive + must_not_execute`。
+- 本合同root-only且不接manual reclaim/migration/successor；historical exact在recorded后永久保留，current才要求subject/receipt/root TTL。Receipt-v3与Evidence-v3 pure组合`33 passed`，Ruff、strict mypy与architecture 2846/0通过。
+- 仍缺Evidence-v3 Application/codec/0050账本、authoritative current mapping facade、独立staff composition与production入口；不得把Domain对象或Receipt-v3 claimant声明直接提升为账户owner authority。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
