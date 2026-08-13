@@ -1967,6 +1967,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Django 5.2 isolated component `4 passed`，覆盖roundtrip/first-winner/PIT、完整五锚head、私有UOW/写删改旁路、closed-world header tamper以及migration字段/constraint/index同构与zero-seed；ruff、Black/isort、py_compile、隔离strict mypy、architecture（2831 files / 0 violations）及diff-check通过。
 - PostgreSQL五锚并发、真实0046 migrate/rollback与全项目回归尚未验证。更关键的0047统一consumption claim + Binding-v2 ledger仍缺，因此0046只提供创建根证据，不消费allocation，不允许pipeline/production writer或执行总闸开启。
 
+### 2026-08-14：Account canonical creation unified Consumption Claim Domain
+
+- 新增Account-owned统一消费合同，服务Binding-v1与Binding-v2共享allocation消费与Account/underlying/Physical排他。Claim完整持有并重验exact allocation与exact consumer，但canonical payload只嵌完整allocation及非递归consumer ref，避免claim↔consumer hash循环。
+- 分支矩阵固定：v1 consumer必须是exact 0045 Binding-v1且`physical_v3_root_content_hash=None`；v2 consumer必须是exact durable Binding-v2且root hash精确等于其allocated Physical-v3 creation root。两分支均重算Physical-v2 hash、Account/underlying raw keys与candidate-independent claim hashes。
+- claim与consumer强制使用同一`recorded_at`，allocation在该时点必须有效；固定`evidence_only/inactive/must_not_execute`，只证明一次性消费与永久mapping anchors，不构成owner approval、current physical状态或execution authority。
+
+验证与未完成：
+
+- pure Domain unit `30 passed`；strict mypy、ruff、Black/isort、architecture（2832 files / 0 violations）与diff-check通过。
+- 本批仅Domain；strict codec、0047 expand schema、v1 dual-write/backfill审计、Binding-v2 repository与0048 NOT NULL contract仍缺。生产是否zero-seed尚未逐alias验证，不能据本地fresh migration假设空表或直接启用v2 writer。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

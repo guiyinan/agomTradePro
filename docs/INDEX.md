@@ -762,6 +762,9 @@
 - ✅ **Account allocated Physical-v3 creation-root 0046 ledger**
   - nested allocation+Physical-v2/source/raw与projector全seals，五锚unique、private UOW、root-only CAS及closed-world exact/PIT/head/tamper闭合
   - Django5.2 isolated component 4 passed、architecture 2831/0；zero-seed，PG竞争/真实migrate与0047统一claim/Binding-v2 ledger仍缺
+- ✅ **Account canonical creation unified Consumption Claim Domain**
+  - exact allocation与Binding-v1/v2 consumer分支、非递归ref、同recorded_at、Account/underlying raw claims及Physical-v2/v3矩阵闭合
+  - pure 30 passed、architecture 2832/0；codec、0047 expand、v1 dual-write/backfill、Binding-v2 repo与0048 contract仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
