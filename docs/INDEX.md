@@ -474,6 +474,9 @@
 - ✅ **Portfolio inactive approval append-only persistence 首批**
   - 两张private-UOW append-only ledger、strict codec、exact/PIT reader与approved_at provider落盘；0017保持schema-only/zero-seed
   - 当前仍无人工入口与PostgreSQL并发证明，receipt固定inactive，不接旧approve/submit/Broker
+- ✅ **Risk-owned Broker execution policy Domain 合同**
+  - 冻结完整Decimal风险参数、source snapshot、activation/validity与supersession hash；拒绝把现有mutable policy临时hash成正式授权
+  - 仅合同与纯测试完成，active provider/ledger仍缺，Risk authorization与Broker总闸继续关闭
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**

@@ -568,6 +568,18 @@
 - Django 5.2 最小 app registry/model check 证实 receipt 同时存在 `subject_record` 与业务 subject identity 字段；SQLite schema-editor exact append/codec/PIT 往返 `True / 1 subject / 1 receipt`。两项非 ORM production 文件 standalone strict mypy 通过，architecture 2677 files / 0 violations，Black/compileall/diff-check通过。
 - 完整 `manage.py check/makemigrations --check` 被该 Django 5.2 环境缺 Celery 阻断；标准 pytest-django component、migration forward/reverse、PostgreSQL first-winner 并发和人工 actor composition 未验证。status 仍不是 canonical-v1 content hash 的一部分，receipt保持inactive，不能供执行授权。
 
+### 2026-08-13：Risk-owned Broker execution policy Domain contract
+
+- 代码复核确认现有 `AccountRiskPolicyModel`、floor/template/exception 与 `ResolvedRiskPolicy` 均为可变/即时对象，没有 exact version、统一 PIT source snapshot、content hash、activation/validity、supersession 或 execution-eligible authority；禁止用 `updated_at`、audit JSON 或临时 resolved dict hash 冒充 trusted provider。
+- 新增 Risk-owned `BrokerOrderExecutionRiskControls` 与 `BrokerOrderExecutionRiskPolicy`：完整绑定 7 项有限 Decimal 风险比例、exact bool、排序唯一 exclusions、账户、source snapshot identity/hash、recorded/activated/valid clock、predecessor 与固定 authority/schema/permission。
+- canonical JSON 使用 UTC `Z` 与 Decimal normalized text；任一 source/control/clock/authority 替换均改变 hash，successor必须绑定同账户 exact predecessor并推进 recorded clock。
+- 本批只有 Domain contract 和 pure tests，不读现有 mutable policy表、不提供 active provider/ledger/API；zero-seed状态继续让 `RegisterBrokerOrderRiskAuthorizationSubject` 返回 unavailable，Broker四节点总闸不变。
+
+未完成与验证：
+
+- 新 Domain + Risk authorization + Broker inactive contract/hard-gate 聚合 `48 passed`；standalone strict mypy `0 errors`，architecture 2678 files / 0 violations，Black/isort/diff-check通过。
+- 待独立实现 source snapshot、ID-only activation、append-only policy ledger/codec/current-head provider与PG并发；生产 source bundle 必须闭合 floor/template/account override/有效global+account exceptions，fallback未持久化时必须阻断。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
