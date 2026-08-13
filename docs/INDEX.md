@@ -741,6 +741,9 @@
 - ✅ **Account canonical creation 0045 schema**
   - Allocation/Binding双append-only表以private UOW/exact claim与全mutation guard闭合；Account ID/request幂等、allocation唯一消费及Account/underlying/Physical四锚均有DB约束
   - Django5.2 isolated component 3 passed、architecture 2822/0；0045仅CreateModel/zero-seed，repository、PG竞争及pipeline仍缺
+- ✅ **Account canonical creation repository**
+  - 全表strict restore后做allocation identity/request/exact/current-unconsumed与binding four-anchor/exact/append，逐列seals、OneToOne和时钟重验
+  - Django5.2 models+repo component 9 passed、architecture 2823/0；消费/过期不回退，PG竞争、Physical/receipt新schema及pipeline仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

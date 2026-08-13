@@ -1892,6 +1892,16 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Django 5.2 isolated model/component `3 passed`，覆盖private claim/mutation guards、关键unique/check与0045 migration state/zero-seed；py_compile、ruff、Black/isort、architecture（2822 files / 0 violations）与diff-check通过。
 - 0045只有两项CreateModel，无RunPython/RunSQL。本批尚无repository；canonical payload/header/seal restore、closed-world exact/current/first-winner、IntegrityError exact replay、真实migrate/rollback与PostgreSQL同allocation/Account/underlying/Physical竞争仍未验证，Physical allocation seal、claimant binding和pipeline/writer保持禁用。
 
+### 2026-08-13：Account canonical creation repository
+
+- 新增Django repository，精确实现Application全部Protocol：allocation identity/request/exact/current-unconsumed/append与binding identity/any-four-anchor/exact/append。每次读取、append前冲突复原都先恢复全表Allocation与Binding canonical payload，重建Domain后逐列核对requester/recorder/fixed/clock/hash/seals及OneToOne关系，再做PIT/selector。
+- current-unconsumed只在exact allocation已记录、未过期且全账本中没有任一binding消费时返回；最终消费/过期不回退。append使用同DB alias事务、private UOW/exact claim及savepoint；IntegrityError仅在所有唯一锚恢复为exact candidate时幂等返回，否则稳定conflict。Binding append同时重验allocation仍current-unconsumed且allocation/Account/underlying/Physical四锚未被占用。
+
+验证与剩余边界：
+
+- Django 5.2 isolated models+repository component `9 passed`，其中repository `6 passed`，覆盖roundtrip/request/exact/PIT、consume no-fallback、four anchors、allocation/binding first-winner、header/canonical tamper及双表rollback。strict mypy（隔离follow-imports）、ruff、Black/isort、py_compile、architecture（2823 files / 0 violations）与diff-check通过。
+- PostgreSQL双事务同allocation identity、request idempotency、Account claim、underlying claim、Physical root及同一消费竞争、真实0045 migrate/rollback尚未验证。更重要的是，现有Physical-v2未封存allocation exact header，claimant creation receipt未封存binding，因此账本zero-seed且pipeline/production writer/执行总闸继续禁用。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
