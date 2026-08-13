@@ -26,6 +26,9 @@ from .identity_models import (
     UserAccessTokenModel,
 )
 from .physical_account_row_observation_models import PhysicalAccountRowObservationModel
+from .physical_account_row_observation_v2_models import (
+    PhysicalAccountRowObservationV2Model,
+)
 from .portfolio_models import (
     BrokerTradeImportBatchModel,
     CapitalFlowModel,
@@ -65,6 +68,7 @@ __all__ = [
     "PortfolioModel",
     "PortfolioObserverGrantModel",
     "PhysicalAccountRowObservationModel",
+    "PhysicalAccountRowObservationV2Model",
     "PositionModel",
     "PositionSignalLogModel",
     "StopLossConfigModel",

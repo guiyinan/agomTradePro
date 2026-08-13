@@ -687,6 +687,9 @@
 - ✅ **Account physical-row observation v2 Application**
   - ID/hash-only capture、source exact-final/current双读面、同cutoff双读、actor first-winner、三重predecessor CAS与closed-current闭合
   - Domain/Application 43 passed；0042 ledger、owner provider/composition、全writer raw outbox仍缺，v1/provenance不fallback
+- ✅ **Account physical-row observation v2 ledger**
+  - 独立strict/closed-world账本封存Account/source/raw/actor/header seals，private UOW/claim与identity/source/root/predecessor CAS闭合
+  - Django5.2组件2 passed、0042 zero-seed；PG并发/真实migrate、owner composition与全writer outbox仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

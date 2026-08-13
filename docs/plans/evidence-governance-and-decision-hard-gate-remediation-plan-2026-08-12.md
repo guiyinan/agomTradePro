@@ -1700,6 +1700,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Account v2 Domain/Application pure tests `43 passed`；strict mypy、ruff、Black/isort通过。
 - 0042独立zero-seed ledger、Simulated owner-side v2 provider/composition、production canonical selector和全writer同事务raw outbox仍缺；既有provenance v1与执行总闸不变。
 
+### 2026-08-13：Account physical-row observation v2 ledger
+
+- 新增独立strict codec、append-only model与closed-world repository；canonical payload与Account/source/raw/row/clock/actor/record/ledger冗余seals逐项复核，任何非目标行或selector header篡改也fail closed。
+- private UOW/exact insert claim阻断direct save、update/delete、bulk/raw路径；identity first-winner、source binding、单root与单predecessor successor CAS由数据库约束和repository双层闭合，final terminal/expired head不回退。
+- `0042_physical_account_row_observation_v2_ledger`仅CreateModel、zero-seed、无RunPython/RunSQL，不修改0040 v1表或历史行。
+
+验证与剩余边界：
+
+- Django 5.2 isolated SQLite component `2 passed`；Account v2 Domain/Application与owner provider pure回归`52 passed`；ruff、Black/isort、architecture（2805 files / 0 violations）通过。
+- PostgreSQL并发race、真实0042 migrate/rollback、owner provider composition接入与全writer同事务raw outbox仍未完成；production账本保持zero-seed，provenance v1和执行总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
