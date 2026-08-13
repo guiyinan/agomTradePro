@@ -723,6 +723,9 @@
 - ✅ **Account owner-assignment staff approval evidence v2 0044 schema**
   - subject/Evidence双表、OneToOne PROTECT、private UOW/claim与全mutation guard；Account/underlying双root分别partial unique，successor predecessor unique
   - Django5.2 model component 4 passed、architecture 2816/0；closed-world repository/真实migrate/PG race与authoritative provider仍缺
+- ✅ **Account owner-assignment staff approval evidence v2 repository**
+  - full-table canonical restore后才selector；双mapping完整链/同head、predecessor CAS、exact/PIT/first-winner与IntegrityError exact幂等闭合
+  - component 9 passed、pure 45 passed、architecture 2817/0；PG四类race/真实0044 migrate与authoritative provider/composition仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

@@ -1830,6 +1830,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Django 5.2 isolated SQLite model/component `4 passed`，system check、ruff、Black/isort、architecture（2816 files / 0 violations）与diff-check通过。isolated设置刻意禁用migration modules，因此`makemigrations --check`只报告环境不支持、未作为no-drift证据。
 - 本批没有repository；canonical payload/header/seal的restore、closed-world exact/PIT/双head链、IntegrityError恢复、真实0044 migrate/rollback与PostgreSQL四类竞争仍未验证，authoritative provider与production pipeline继续禁用。
 
+### 2026-08-13：Account owner-assignment staff approval evidence v2 repository
+
+- 新增Django repository，精确实现两阶段Application的8个Protocol方法。每次subject/evidence winner、exact/PIT、Account head、underlying head与append冲突恢复都先恢复全表canonical payload并逐列复核upstream/subject/approver/mapping/fixed authority/record/ledger seals和persisted clock，再按Domain selector分链；冗余header篡改不能隐藏successor。
+- Account字符串identity与underlying整数identity分别构建完整单root链，验证predecessor存在、相邻successor、无fork/cycle/disconnect，逻辑head即使过期也不回退旧值。append要求两个方向的当前head精确相同并执行predecessor CAS；IntegrityError只在所有锚点恢复为exact candidate时幂等返回。
+- 同步修正0044 migration的nested `Q` state表示，使migration state与当前两模型约束精确一致，不改变数据库约束语义或增加数据操作。
+
+验证与剩余边界：
+
+- Django 5.2 isolated models+repository component `9 passed`，完整Domain/Application/codec pure `45 passed`；ruff、Black/isort、architecture（2817 files / 0 violations）、migration state与diff-check通过。
+- PostgreSQL双事务同Account、同underlying、交叉映射及同predecessor四类race、真实0044 migrate/rollback、authoritative current provider/composition仍未验证；因此账本zero-seed且production pipeline仍不得把caller reference视为权威，writer cutover继续禁用。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

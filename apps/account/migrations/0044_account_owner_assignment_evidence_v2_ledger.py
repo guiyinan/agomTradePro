@@ -192,16 +192,18 @@ class Migration(migrations.Migration):
                     models.CheckConstraint(
                         condition=models.Q(
                             models.Q(
-                                ("account_root_claim_hash__isnull", False),
-                                ("supersedes_content_hash__isnull", True),
-                                ("underlying_root_claim_hash__isnull", False),
+                                models.Q(
+                                    ("account_root_claim_hash__isnull", False),
+                                    ("supersedes_content_hash__isnull", True),
+                                    ("underlying_root_claim_hash__isnull", False),
+                                ),
+                                models.Q(
+                                    ("account_root_claim_hash__isnull", True),
+                                    ("supersedes_content_hash__isnull", False),
+                                    ("underlying_root_claim_hash__isnull", True),
+                                ),
+                                _connector="OR",
                             ),
-                            models.Q(
-                                ("account_root_claim_hash__isnull", True),
-                                ("supersedes_content_hash__isnull", False),
-                                ("underlying_root_claim_hash__isnull", True),
-                            ),
-                            _connector="OR",
                         ),
                         name="acct_own_v2_link_ck",
                     ),
