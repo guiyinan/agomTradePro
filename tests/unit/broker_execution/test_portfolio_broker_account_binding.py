@@ -9,14 +9,14 @@ from pathlib import Path
 import pytest
 
 from apps.broker_execution.domain.portfolio_broker_account_binding import (
+    ACCOUNT_BINDING_SOURCE_ARTIFACT_TYPE,
+    ACCOUNT_BINDING_SOURCE_OWNER,
     BROKER_ACCOUNT_BINDING_SOURCE_ARTIFACT_TYPE,
     BROKER_ACCOUNT_BINDING_SOURCE_OWNER,
     BROKER_PORTFOLIO_ACCOUNT_BINDING_BLOCKERS,
     BROKER_PORTFOLIO_ACCOUNT_BINDING_OWNER,
     BROKER_PORTFOLIO_ACCOUNT_BINDING_PERMISSION,
     BROKER_PORTFOLIO_ACCOUNT_BINDING_VERSION,
-    PORTFOLIO_ACCOUNT_BINDING_SOURCE_ARTIFACT_TYPE,
-    PORTFOLIO_ACCOUNT_BINDING_SOURCE_OWNER,
     BrokerPortfolioAccountBindingActor,
     BrokerPortfolioAccountNamespaceBinding,
     validate_broker_portfolio_account_binding_successor,
@@ -47,8 +47,8 @@ def _binding(**changes: object) -> BrokerPortfolioAccountNamespaceBinding:
         "broker_source_id": "broker-account-source-7",
         "broker_source_version": "broker-account-source.v1",
         "broker_source_content_hash": "a" * 64,
-        "portfolio_source_owner": PORTFOLIO_ACCOUNT_BINDING_SOURCE_OWNER,
-        "portfolio_source_artifact_type": PORTFOLIO_ACCOUNT_BINDING_SOURCE_ARTIFACT_TYPE,
+        "portfolio_source_owner": ACCOUNT_BINDING_SOURCE_OWNER,
+        "portfolio_source_artifact_type": ACCOUNT_BINDING_SOURCE_ARTIFACT_TYPE,
         "portfolio_source_id": "portfolio-account-source-7",
         "portfolio_source_version": "portfolio-account-source.v1",
         "portfolio_source_content_hash": "b" * 64,
@@ -91,8 +91,8 @@ def test_payload_keeps_owner_source_seals_and_explicit_inactive_flags() -> None:
     assert payload["broker_source_version"] == "broker-account-source.v1"
     assert payload["broker_source_content_hash"] == "a" * 64
     assert payload["portfolio_source_id"] == "portfolio-account-source-7"
-    assert payload["portfolio_source_owner"] == "portfolio"
-    assert payload["portfolio_source_artifact_type"] == "portfolio_account_identity_snapshot"
+    assert payload["portfolio_source_owner"] == "account"
+    assert payload["portfolio_source_artifact_type"] == "account_identity_snapshot"
     assert payload["portfolio_source_version"] == "portfolio-account-source.v1"
     assert payload["portfolio_source_content_hash"] == "b" * 64
     assert payload["asserted_by"] == {

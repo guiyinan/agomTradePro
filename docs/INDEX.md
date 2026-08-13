@@ -502,7 +502,7 @@
   - private-UOW账本、strict codec、root/successor first-winner及closed-world current-head restore落盘；双selector篡改不能隐藏后继，expired head不回退旧root
   - 0009 schema-only/zero-seed，Django5.2最小往返通过；完整component/PG race未验，inactive scope不能映射为Risk active provider，最终执行总闸不变
 - ✅ **Broker/Portfolio 账户 namespace binding Domain 合同**
-  - Broker整数账户与Portfolio字符串账户保持独立namespace，不以类型转换猜测同一身份；两侧owner/type/id/version/hash和人工断言者均进入identity/content seal
+  - Broker整数账户与Portfolio字符串账户保持独立namespace，不以类型转换猜测同一身份；账户身份source固定归Account owner，Portfolio只消费字符串引用，两侧source seal和人工断言者均进入identity/content hash
   - 仅为inactive合同；source provider、ID-only workflow、append-only ledger、人工入口与PG并发均未完成，pre-Risk blocker和执行总闸不变
 
 ### 2026-07-08

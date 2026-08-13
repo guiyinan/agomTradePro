@@ -12,8 +12,8 @@ BROKER_PORTFOLIO_ACCOUNT_BINDING_VERSION = "broker-portfolio-account-namespace-b
 BROKER_PORTFOLIO_ACCOUNT_BINDING_PERMISSION = "inactive"
 BROKER_ACCOUNT_BINDING_SOURCE_OWNER = "broker_execution"
 BROKER_ACCOUNT_BINDING_SOURCE_ARTIFACT_TYPE = "broker_account_identity_snapshot"
-PORTFOLIO_ACCOUNT_BINDING_SOURCE_OWNER = "portfolio"
-PORTFOLIO_ACCOUNT_BINDING_SOURCE_ARTIFACT_TYPE = "portfolio_account_identity_snapshot"
+ACCOUNT_BINDING_SOURCE_OWNER = "account"
+ACCOUNT_BINDING_SOURCE_ARTIFACT_TYPE = "account_identity_snapshot"
 BROKER_PORTFOLIO_ACCOUNT_BINDING_BLOCKERS = (
     "broker_account_source_provider_not_integrated",
     "portfolio_account_source_provider_not_integrated",
@@ -141,8 +141,8 @@ class BrokerPortfolioAccountNamespaceBinding:
         ):
             raise ValueError("Broker source authority or artifact type is invalid")
         if (
-            self.portfolio_source_owner != PORTFOLIO_ACCOUNT_BINDING_SOURCE_OWNER
-            or self.portfolio_source_artifact_type != PORTFOLIO_ACCOUNT_BINDING_SOURCE_ARTIFACT_TYPE
+            self.portfolio_source_owner != ACCOUNT_BINDING_SOURCE_OWNER
+            or self.portfolio_source_artifact_type != ACCOUNT_BINDING_SOURCE_ARTIFACT_TYPE
         ):
             raise ValueError("Portfolio source authority or artifact type is invalid")
         for field_name in (
@@ -283,8 +283,8 @@ __all__ = [
     "BROKER_PORTFOLIO_ACCOUNT_BINDING_OWNER",
     "BROKER_PORTFOLIO_ACCOUNT_BINDING_PERMISSION",
     "BROKER_PORTFOLIO_ACCOUNT_BINDING_VERSION",
-    "PORTFOLIO_ACCOUNT_BINDING_SOURCE_ARTIFACT_TYPE",
-    "PORTFOLIO_ACCOUNT_BINDING_SOURCE_OWNER",
+    "ACCOUNT_BINDING_SOURCE_ARTIFACT_TYPE",
+    "ACCOUNT_BINDING_SOURCE_OWNER",
     "BrokerPortfolioAccountBindingActor",
     "BrokerPortfolioAccountNamespaceBinding",
     "validate_broker_portfolio_account_binding_successor",
