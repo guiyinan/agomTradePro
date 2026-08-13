@@ -732,6 +732,17 @@
 - benchmark definition + inactive snapshot组合 `34 passed`；standalone strict mypy、Black/isort/py_compile/diff-check和零跨App/framework import通过。
 - 五类methodology目前只有consumer ref合同，尚无各owner ledger/exact provider；benchmark definition activation、daily valuation与approval也未完成。不得把现有R8 calendar、mutable component rows或临时行情直接投影成这些source。
 
+### 2026-08-13：Portfolio benchmark trading-calendar methodology Domain 合同
+
+- 新增Portfolio owner的benchmark valuation calendar methodology，而非复用R8 monitoring calendar或Data Center原始市场日历事实。合同冻结methodology identity/version、market calendar code、IANA timezone、coverage与逐日完整membership。
+- 日期必须逐日连续、ordinal从0连续；valuation day必须有local open/close/cutoff且`open < close <= cutoff`，non-valuation day三项必须全空。标准库`zoneinfo`校验DST：nonexistent local time拒绝，ambiguous time必须显式fold=1，普通时间禁止非规范fold。
+- recorded/valid clock要求发布早于coverage且有效期覆盖完整日历；identity/content hash封存全部day membership与cutoff。permission固定`methodology_definition_only`、`activation_available=false`、`must_not_execute=true`，不包含status/current/active。
+
+未完成与验证：
+
+- 纯Domain `8 passed`；strict mypy、Black/isort/compileall/diff-check与architecture `2728 files / 0 violations`通过；当前环境无ruff。
+- 尚无calendar methodology ledger/两人activation/current provider；price/FX fixing、corporate-action、cost/tax其余四类owner methodology也未建立。五类均有exact-current activation前不得激活benchmark definition或生产daily valuation，总闸不变。
+
 ### 2026-08-13：Portfolio policy benchmark definition append-only ledger
 
 - 新增 definition strict codec、私有 UOW/exact insert claim 和 append-only ORM 账本；identity/content first-winner 只允许精确幂等，save/update/delete/bulk/raw 写绕过全部拒绝。
@@ -753,6 +764,17 @@
 
 - Domain+Application `90 passed`；standalone strict mypy、Black/isort/compileall与Application零Portfolio/Infrastructure import检查通过。
 - 三个owner public reader仍未实现：Portfolio plan provider尚未公开Application facade且需owner内派生ordinal row，receipt/artifact现有read均为hash-heavy或Infrastructure私有并丢recorded clock。当前只有协议+pure fake，没有真实composition、binding ledger或签发记录，总闸不变。
+
+### 2026-08-13：Broker Plan→Order binding append-only ledger
+
+- 新增strict codec、私有UOW/exact insert claim与append-only ORM；logical subject固定为`plan id/version + order ordinal + order artifact id`，每subject单root、每predecessor单successor，append使用logical-head CAS并仅允许完整Domain对象精确幂等。
+- 账本同时封存canonical-v1原始order-row JSON字节、row content hash与canonical byte hash；repository closed-world恢复全部记录后复核三方source、raw bytes/header、identity/content/root/link/ledger/persisted clock seals，再做exact/PIT/current selector匹配。orphan/fork/cross-subject/clock倒置、双selector篡改与row字节漂移全部fail closed，expired successor不回退旧binding。
+- `0012_plan_order_binding`依赖0011，仅schema/zero-seed，无RunPython/RunSQL；仍固定inactive、保留namespace blocker，不接owner adapters/composition/API或执行闸。
+
+未完成与验证：
+
+- Domain/Application回归 `90 passed`；py_compile、Black/isort/diff-check、codec strict mypy与architecture `2728 files / 0 violations`通过。root用Django5.2.10最小schema-editor补验zero-seed、append与exact round-trip通过。
+- Django5.2环境无pytest，完整component/migration drift和PostgreSQL并发CAS未验证；三个owner public reader/composition/真实签发仍缺，pre-Risk与执行总闸不变。
 
 ### 2026-08-13：Portfolio planning policy definition Domain 合同
 
@@ -835,6 +857,17 @@
 
 - 纯Domain `27 passed`；standalone strict mypy、ruff、Black/isort、py_compile/diff-check与零跨App/framework import通过。
 - 尚无raw capture Application、append-only ledger、simulated-trading observation adapter或owner-assignment provider；`0013`默认user回填不能被当前mutable row洗白。manual reclaim receipt需在raw artifact可验证后另做两人制owner合同，总闸不变。
+
+### 2026-08-13：Account raw identity source Application workflow
+
+- 新增ID-only capture命令与consumer-owned exact unified-row observation、Account assignment-evidence DTO/Protocol；caller不能提交owner、hash、assignment state、clock、permission或predecessor。
+- Application在同一server cutoff对row observation与assignment evidence首末双读，以human-staff actor、repository authoritative clock、first-winner和logical predecessor CAS封存raw source；相同identity跨时钟仅原actor可幂等。
+- authoritative必须精确绑定正数owner与row seal；legacy-default只有exact legacy marker才可封存且owner必须为空；unknown或legacy缺marker均Unavailable并保持零写。inactive real row可诚实记录，non-real拒绝；exact/PIT/full-selector current reader均保持inactive。
+
+未完成与验证：
+
+- Application纯测试 `13 passed`，Domain+Application `40 passed`；strict mypy、ruff、Black/isort、py_compile/diff-check与AST无Django/ORM/simulated-infrastructure检查通过。
+- 尚无raw append-only ledger、simulated-trading observation adapter、assignment evidence owner provider、composition或actor interface。现mutable row仍不能直接供Account snapshot/reclaim与namespace binding签发，总闸不变。
 
 ### 2026-08-13：Account-owned account identity snapshot Application workflow
 

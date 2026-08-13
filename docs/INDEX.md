@@ -522,9 +522,15 @@
 - ✅ **Portfolio policy benchmark definition append-only ledger**
   - strict codec/private UOW、first-winner、全写绕过阻断和closed-world exact/PIT完成；0020 zero-seed且不回填mutable Float配置
   - 只提供historical exact，不冒充current/activation；PG并发、methodology providers、activation/daily valuation/approval仍未完成
+- ✅ **Portfolio benchmark trading-calendar methodology Domain 合同**
+  - 以IANA timezone、完整逐日membership、valuation session/cutoff与DST规则冻结Portfolio估值日历方法论；不复用R8 monitoring calendar或原始市场事实
+  - 固定definition-only；ledger/两人activation/current provider与其余四类methodology未完成，benchmark definition不得提前active
 - ✅ **Broker Plan→Order binding Application workflow**
   - ID-only注册在同一Broker cutoff双读plan ordinal row、inactive receipt和order artifact，闭合owner/type/hash/account/时钟及first-winner/CAS/current selector
   - 三个owner public reader、binding ledger/composition与真实签发均未实现；账户namespace blocker、pre-Risk与执行总闸继续关闭
+- ✅ **Broker Plan→Order binding append-only ledger**
+  - private UOW、四元logical subject root/predecessor CAS、canonical-v1 raw row bytes/hash与closed-world exact/PIT/current seals完成；0012 zero-seed
+  - Django5.2 minimal round-trip通过；完整component/PG并发与owner readers/composition未完成，inactive/pre-Risk/执行总闸不变
 - ✅ **Portfolio planning policy definition Domain 合同**
   - 以policy identity、lot与五项exact Decimal、时钟和canonical hash冻结definition，明确排除mutable status/current/activation语义
   - legacy status=active不能成为benchmark或执行authority
@@ -546,6 +552,9 @@
 - ✅ **Account-owned raw identity source Domain 合同**
   - 字符串Account identity与整数underlying provenance不cast；row source与authoritative/legacy-default/unknown三态assignment evidence进入canonical seal
   - 固定source-evidence-only/inactive；capture workflow、ledger、simulated adapter与assignment provider未完成，默认user回填不得冒充owner事实
+- ✅ **Account raw identity source Application workflow**
+  - ID-only capture双读row observation和assignment evidence，以server actor/clock、first-winner/CAS封存authoritative或exact legacy source；unknown零写
+  - 仅Protocol+pure fake；raw ledger、simulated adapter、assignment provider/composition未完成，Account snapshot与namespace binding仍不可真实签发
 - ✅ **Account identity snapshot Application workflow**
   - 普通Issue和legacy Reclaim均ID-only；raw/receipt双读、server actor/clock、first-winner/CAS及closed-current reader闭合，无exact reclaim receipt时零写入
   - 仅Protocol+pure fake；raw adapter、reclaim receipt/snapshot账本、composition、真实actor与PG并发仍未完成
