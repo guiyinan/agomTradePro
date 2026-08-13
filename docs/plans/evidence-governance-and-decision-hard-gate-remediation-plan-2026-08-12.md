@@ -663,6 +663,17 @@
 - Black/isort/py_compile/diff-check、standalone mypy（无Django stubs环境仅关闭ORM subclass Any/no-any-return）与architecture delta `0 violations`通过；默认Python无Django，完整pytest-django component未执行，PostgreSQL root/successor并发race未验证。
 - Risk active provider不能消费这个固定inactive scope：Risk port只有ID/version，而Broker current reader要求完整closed selector，且新增Risk→Broker import会与既有Broker→Risk形成循环。本阶段不增加永远None的伪adapter；等待未来独立active scope/owner facade。Portfolio账户namespace binding、Research/benchmark、最终issuer与四节点重验继续未完成，总闸false。
 
+### 2026-08-13：Broker/Portfolio 账户命名空间绑定 Domain 合同
+
+- 新增 Broker-owned、零跨 App import 的账户命名空间绑定合同，分别保留 Broker `int` 账户 ID 与 Portfolio `str` 账户 ID；禁止通过 `int()` / `str()` 转换猜测两个 namespace 等价。
+- binding 以独立 identity hash 和 content hash 封存 owner、identity/version、两侧 source owner/artifact type/id/version/content hash、human-staff 断言人双身份、签发/记录/有效期和 predecessor；任一 source 或 namespace 替换都会改变封印。
+- 相邻 successor 必须绑定 exact predecessor、保持同一 Broker account logical subject 并推进 recorded clock。permission 固定 `inactive`，`activation_available=false`、`must_not_execute=true`，并保留两侧 owner provider 与人工 approval 未集成三个 blocker。
+
+未完成与验证：
+
+- 纯 Domain `47 passed`；standalone strict mypy、Black/isort/py_compile 与源码 AST 零跨 App 依赖检查通过。
+- 当前只冻结 owner contract；尚无 Application ID-only 双读、append-only ledger、两侧真实 source provider、人工签发入口或 PostgreSQL first-winner。它不能消除 pre-Risk scope 的 namespace blocker，也不授权 Risk/Broker 执行；Plan→Order binding、benchmark、Research active aggregate、最终 issuer 与四节点重验仍待后续独立阶段，总闸继续 false。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
