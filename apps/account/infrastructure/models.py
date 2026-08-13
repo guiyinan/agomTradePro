@@ -20,6 +20,10 @@ from .account_owner_assignment_provenance_receipt_models import (
 from .account_owner_assignment_provenance_receipt_v2_models import (
     AccountOwnerAssignmentProvenanceReceiptV2Model,
 )
+from .canonical_account_creation_models import (
+    CanonicalAccountCreationAllocationModel,
+    CanonicalAccountCreationBindingModel,
+)
 from .classification_models import (
     AssetCategoryModel,
     AssetMetadataModel,
@@ -69,6 +73,8 @@ __all__ = [
     "AssetMetadataModel",
     "BrokerTradeImportBatchModel",
     "CapitalFlowModel",
+    "CanonicalAccountCreationAllocationModel",
+    "CanonicalAccountCreationBindingModel",
     "CurrencyModel",
     "DocumentationModel",
     "ExchangeRateModel",

@@ -1882,6 +1882,16 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - codec unit `12 passed`；strict mypy、ruff、Black/isort与diff-check通过。
 - 本批无ORM/model/repository/migration/composition；0045 allocation/binding schema、closed-world repository/component、Physical-v2 allocation seal、claimant creation binding与全writer原子cutover仍缺，pipeline和执行总闸保持禁用。
 
+### 2026-08-13：Account canonical creation 0045 schema
+
+- 新增0045 schema-only双表：Allocation表封存canonical payload、requester/allocator、fixed authority及identity/content/record/ledger seals；Binding表以OneToOne PROTECT唯一消费allocation，并封存完整canonical payload、Physical root header、binder及对应seals。两表都使用private UOW/exact insert claim，instance/QuerySet/bulk/raw update/delete路径固定阻断。
+- DB约束阻断allocation identity、canonical Account ID、`(requester actor/user, request fingerprint)`重复；Binding阻断allocation、Account claim、underlying claim和Physical content重放。fixed authority、self-service user一致、service role与`persisted_at == allocated_at/recorded_at`时钟封印也下沉到DB check。
+
+验证与剩余边界：
+
+- Django 5.2 isolated model/component `3 passed`，覆盖private claim/mutation guards、关键unique/check与0045 migration state/zero-seed；py_compile、ruff、Black/isort、architecture（2822 files / 0 violations）与diff-check通过。
+- 0045只有两项CreateModel，无RunPython/RunSQL。本批尚无repository；canonical payload/header/seal restore、closed-world exact/current/first-winner、IntegrityError exact replay、真实migrate/rollback与PostgreSQL同allocation/Account/underlying/Physical竞争仍未验证，Physical allocation seal、claimant binding和pipeline/writer保持禁用。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
