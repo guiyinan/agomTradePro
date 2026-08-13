@@ -672,6 +672,9 @@
 - ✅ **SimulatedTrading raw-bound account-row source v2 Domain**
   - 独立v2 type/schema精确封存raw authority、identity/content/predecessor hash与owner clocks；source/raw ID-version同源，禁止alias与fallback v1
   - raw/source双链successor与PIT final no-fallback闭合，pure tests 41 passed；Application、0023 ledger、v2 adapters与全writer outbox仍缺
+- ✅ **SimulatedTrading raw-bound account-row source v2 Application**
+  - ID/hash-only capture以同cutoff双读raw exact-current source，source/raw双链first-winner与predecessor CAS闭合
+  - current会重验raw final head并防止projection lag，组合56 passed；0023 ledger、v2 adapters与全writer outbox仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

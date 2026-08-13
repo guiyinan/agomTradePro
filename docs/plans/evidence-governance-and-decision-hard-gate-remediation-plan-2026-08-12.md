@@ -1643,6 +1643,18 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - pure Domain tests `41 passed`；standalone strict mypy、ruff、Black/isort与architecture（2793 files / 0 violations）通过。
 - 当前仅Domain；Application capture/exact-current raw revalidation、独立0023 zero-seed ledger、owner adapter、Account v2 consumer和全writer同事务outbox仍未完成。不允许v2查不到时fallback v1，生产仍zero-seed，总闸不变。
 
+### 2026-08-13：SimulatedTrading raw-bound account-row source v2 Application
+
+- 新增v2独立ID/hash-only capture；command只接受source/raw同源ID/version、expected raw content hash和Account/underlying选择子，row payload、hash、clock、validity与predecessor均不由caller提供。
+- consumer-owned raw DTO会重建owner Domain observation，闭合固定owner/type/schema、identity/content/predecessor hash、row facts与owner clocks；provider只能返回exact identity/hash且等于logical final raw head的PIT事实。
+- capture以单一server cutoff首末双读raw owner source，在私有UOW内处理first-winner、source logical head与predecessor CAS；root/successor同时检验source链与raw链相邻性。
+- historical exact与current读面分离；current不仅要求source为final head，还会重读其封存raw identity/hash并要求raw仍为final head。raw已前进、source投影滞后、tombstone、inactive或expired均fail closed且不回退。
+
+验证与剩余边界：
+
+- Domain/Application组合 `56 passed`；standalone strict mypy、ruff、Black/isort与architecture（2793 files / 0 violations）通过。
+- 当前仅Protocol+pure fake；0023 zero-seed ledger、raw owner adapter、Account v2 provider/composition和全writer同事务outbox仍未完成。v1仅保留historical兼容，不得作current fallback，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
