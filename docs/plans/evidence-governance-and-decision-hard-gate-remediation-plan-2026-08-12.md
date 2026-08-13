@@ -787,6 +787,17 @@
 - 纯Domain `8 passed`；strict mypy、Black/isort/compile/diff-check与architecture 0 violations通过。
 - FX ledger/两人activation/current provider未完成；corporate-action与cost/tax两类methodology仍缺。五类exact-current activation闭合前benchmark definition/daily valuation不得active。
 
+### 2026-08-13：Portfolio benchmark FX-fixing methodology ledger
+
+- 新增 strict codec、私有 UOW/exact insert claim 与 append-only ORM；methodology identity、identity/content hash 及 content first-winner只允许精确幂等，save/update/delete/bulk/raw写绕过均 fail closed。
+- repository 在 selector 匹配前 closed-world 恢复全部 row，复核完整 currency pair/方向、ordered source refs、IANA/DST cutoff、authority/header、source/identity/content/ledger seals与recorded/valid/persisted clock，再提供 historical exact/PIT；Domain没有successor/current/activation，本账本不扩张语义。
+- `0023_policy_benchmark_fx_fixing`只创建空表并依赖`0022`，无RunPython/RunSQL，不回填mutable FX配置、临时汇率或历史行情。
+
+未完成与验证：
+
+- Django 5.2.16 SQLite隔离component `7 passed`，Domain回归 `8 passed`；migration/runtime state组件比对、ruff、Black/isort、architecture（2754 files / 0 violations）与diff-check通过。
+- Portfolio app-wide `makemigrations --check`仍报告既有transition-plan inactive approval约束Q顺序漂移，未为本阶段生成无意义0024；项目mypy plugin环境缺`mypy_django_plugin`，PostgreSQL并发first-winner未验证。两人activation/current provider、corporate-action与cost/tax两类methodology仍缺，benchmark不得提前active。
+
 
 
 ### 2026-08-13：Portfolio policy benchmark definition append-only ledger
