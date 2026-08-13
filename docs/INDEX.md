@@ -816,6 +816,9 @@
 - ✅ **Account owner-assignment staff approval Evidence v3 strict codec**
   - 公开Subject/Evidence codecs完整重建Receipt-v3→Binding-v2→Physical-v3/v2→source/raw，exact keys/types、UTC-Z、fixed booleans及canonical roundtrip fail closed
   - codec 24 passed、Application组合30 passed、strict mypy；无ORM，0050必须逐行闭合上游FK与Claim knowledge
+- ✅ **Account owner-assignment staff approval Evidence v3 0050 ledger**
+  - Subject/Evidence双表以PROTECT FK封存Receipt-v3、Binding-v2、Physical-v3与独立approver；全表restore后逐行闭合FK链、0049 Receipt与Consumption Claim knowledge，双mapping分别unique root
+  - Django5.2 isolated本批4 passed、0049组合11 passed、architecture 2850/0；zero-seed，PG竞争/真实migrate、providers/composition/current mapping仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

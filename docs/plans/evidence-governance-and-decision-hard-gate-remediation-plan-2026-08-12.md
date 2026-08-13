@@ -2090,6 +2090,13 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 新增公开Subject-v3与Evidence-v3严格codec。Subject decoder完整重建Receipt-v3、Binding-v2与allocated Physical-v3；Evidence decoder再重建完整Subject和approver，不把上游对象压缩为外部header。两者均执行exact keys/types、UTC-Z、fixed booleans、Domain hash/seal重算与encode→decode→encode canonical equality。
 - codec pure `24 passed`，与Application组合`30 passed`；Ruff、Black/isort与strict mypy通过。无ORM/model/migration；0050账本必须使用公开Subject decoder，并逐行闭合Receipt→Binding→Physical FK与Consumption Claim knowledge。
 
+### 2026-08-14：Account owner-assignment staff approval Evidence v3 0050双表账本
+
+- 新增独立Subject-v3与Evidence-v3 append-only双表。Subject以`PROTECT` FK分别绑定exact Receipt-v3、Binding-v2和allocated Physical-v3，持久化11项显式upstream seals、账户/underlying selectors、claimant与receipt/root clocks；Evidence以OneToOne Subject FK封存独立staff approver、authoritative owner、双mapping root和approval clocks，不提供predecessor/successor字段。
+- Repository每次read/append先完整恢复全部Subject/Evidence canonical rows，再逐Subject调用0049 Receipt closed-world与Consumption Claim knowledge重验，并核对Receipt→Binding、Subject→Binding/root、Binding→root的每一条FK和nested Domain对象。Subject/evidence first-winner、Receipt/Subject单消费、Account/underlying各自unique root、private UOW、inner savepoint exact replay及全部mutation guards闭合；上游taxonomy统一翻译为Account corruption。
+- 0050直接依赖0049且仅schema operations，zero-seed、无RunPython/RunSQL/旧Evidence回填。Django5.2 isolated本批component `4 passed`，与0049组合`11 passed`；覆盖permanent exact、exact replay、private guard、future cutoff、无关header tamper、NULL Claim knowledge与migration边界。Ruff、Black/isort、py_compile、repository strict mypy、Django check及architecture 2850/0通过。
+- 尚未做真实0050 migrate/rollback、PostgreSQL双连接同Subject/双mapping/Receipt-successor竞争、production owner/Physical providers、staff composition与authoritative mapping facade；zero-seed且执行总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

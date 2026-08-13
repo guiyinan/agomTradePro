@@ -59,6 +59,10 @@ from .portfolio_models import (
     PositionSignalLogModel,
     TransactionModel,
 )
+from .account_owner_assignment_evidence_v3_models import (
+    AccountOwnerAssignmentEvidenceV3Model,
+    AccountOwnerAssignmentSubjectV3Model,
+)
 from .trading_config_models import (
     InvestmentRuleModel,
     MacroSizingConfigModel,
@@ -74,11 +78,13 @@ __all__ = [
     "AccountIdentitySnapshotModel",
     "AccountOwnerAssignmentEvidenceModel",
     "AccountOwnerAssignmentEvidenceV2Model",
+    "AccountOwnerAssignmentEvidenceV3Model",
     "AccountOwnerAssignmentProvenanceReceiptModel",
     "AccountOwnerAssignmentProvenanceReceiptV2Model",
     "AccountOwnerAssignmentProvenanceReceiptV3Model",
     "AccountOwnerAssignmentSubjectModel",
     "AccountOwnerAssignmentSubjectV2Model",
+    "AccountOwnerAssignmentSubjectV3Model",
     "AccountProfileModel",
     "AllocatedPhysicalAccountRowObservationV3Model",
     "AssetCategoryModel",
