@@ -568,7 +568,9 @@ class DjangoCanonicalAccountCreationRepository:
             raise CanonicalAccountCreationCorruption("appended Binding-v1/claim restore mismatch")
         return exact.binding, exact.claim
 
-    def _closed_consumption_world(self, *, lock: bool) -> _ConsumptionWorld:
+    def _closed_consumption_world(
+        self, *, lock: bool, _allow_missing_knowledge: bool = False
+    ) -> _ConsumptionWorld:
         """Restore every ledger participating in cross-generation consumption."""
 
         allocations, bindings_v1 = self._closed_world(lock=lock)
@@ -600,7 +602,15 @@ class DjangoCanonicalAccountCreationRepository:
                 raise CanonicalAccountCreationCorruption("consumer reference is ambiguous")
             consumers[key] = value
         claims = tuple(
-            (row, _restore_consumption_claim(row, allocation_by_pk, consumers))
+            (
+                row,
+                _restore_consumption_claim(
+                    row,
+                    allocation_by_pk,
+                    consumers,
+                    _allow_missing_knowledge=_allow_missing_knowledge,
+                ),
+            )
             for row in claim_query.order_by("pk")
         )
         claims_by_pk = {row.pk: value for row, value in claims}
@@ -1047,6 +1057,8 @@ def _restore_consumption_claim(
         tuple[str, str, str, str],
         CanonicalAccountCreationBinding | CanonicalAccountCreationBindingV2,
     ],
+    *,
+    _allow_missing_knowledge: bool = False,
 ) -> CanonicalAccountCreationConsumptionClaim:
     consumer = consumers.get(
         (row.consumer_owner, row.consumer_artifact_type, row.consumer_id, row.consumer_version)
@@ -1062,15 +1074,19 @@ def _restore_consumption_claim(
     allocation_pk = _required_fk_id(row, "allocation_id")
     if allocations.get(allocation_pk) != value.allocation:
         raise CanonicalAccountCreationCorruption("claim allocation differs")
-    _match_row_values(
-        row,
-        _consumption_claim_values(
+    knowledge_at = row.knowledge_at
+    if knowledge_at is None and _allow_missing_knowledge:
+        expected = _consumption_claim_values(
+            value, allocation_pk=allocation_pk, knowledge_at=value.recorded_at
+        )
+        expected.pop("knowledge_at")
+    else:
+        expected = _consumption_claim_values(
             value,
             allocation_pk=allocation_pk,
             knowledge_at=_required_claim_knowledge_at(row),
-        ),
-        "consumption claim",
-    )
+        )
+    _match_row_values(row, expected, "consumption claim")
     return value
 
 

@@ -6,10 +6,10 @@ from collections.abc import Collection, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import NoReturn, TypeVar
+from typing import NoReturn, TypeVar, cast
 
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import connections, models
 from django.db.models.base import ModelBase
 from django.db.models.signals import pre_delete
 
@@ -27,6 +27,9 @@ class _InsertClaim:
 
 
 _CLAIM: ContextVar[_InsertClaim | None] = ContextVar("canonical_creation_claim", default=None)
+_KNOWLEDGE_BACKFILL: ContextVar[object | None] = ContextVar(
+    "canonical_creation_knowledge_backfill", default=None
+)
 
 
 @contextmanager
@@ -49,6 +52,78 @@ def _claim_canonical_account_creation_insert(
         yield
     finally:
         _CLAIM.reset(reset)
+
+
+@contextmanager
+def _activate_canonical_account_creation_knowledge_backfill(
+    token: object,
+) -> Iterator[None]:
+    """Activate the private legacy-link maintenance capability."""
+
+    if _UOW.get() is not token:
+        raise ValidationError("knowledge backfill requires private creation UOW")
+    reset = _KNOWLEDGE_BACKFILL.set(token)
+    try:
+        yield
+    finally:
+        _KNOWLEDGE_BACKFILL.reset(reset)
+
+
+def _compare_and_set_canonical_account_creation_binding_claim(
+    *,
+    using: str,
+    token: object,
+    binding_pk: int,
+    claim_pk: int,
+    allocation_pk: int,
+    consumer_identity_hash: str,
+    consumer_content_hash: str,
+    claim_content_hash: str,
+) -> int:
+    """Link one legacy row only when its exact Claim consumer exists."""
+
+    if (
+        _UOW.get() is not token
+        or _KNOWLEDGE_BACKFILL.get() is not token
+        or any(
+            type(value) is not int or value <= 0 for value in (binding_pk, claim_pk, allocation_pk)
+        )
+        or any(
+            type(value) is not str
+            or len(value) != 64
+            or any(character not in "0123456789abcdef" for character in value)
+            for value in (
+                consumer_identity_hash,
+                consumer_content_hash,
+                claim_content_hash,
+            )
+        )
+    ):
+        raise ValidationError("knowledge backfill capability is unavailable")
+    connection = connections[using]
+    binding_table = connection.ops.quote_name(CanonicalAccountCreationBindingModel._meta.db_table)
+    claim_table = connection.ops.quote_name("canonical_account_creation_consumption_claim_ledger")
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"UPDATE {binding_table} SET consumption_claim_id = %s "  # noqa: S608
+            "WHERE id = %s AND allocation_id = %s AND consumption_claim_id IS NULL "
+            f"AND EXISTS (SELECT 1 FROM {claim_table} claim "  # noqa: S608
+            "WHERE claim.id = %s AND claim.allocation_id = %s "
+            "AND claim.consumer_generation = 'v1' "
+            "AND claim.consumer_identity_hash = %s "
+            "AND claim.consumer_content_hash = %s AND claim.content_hash = %s)",
+            [
+                claim_pk,
+                binding_pk,
+                allocation_pk,
+                claim_pk,
+                allocation_pk,
+                consumer_identity_hash,
+                consumer_content_hash,
+                claim_content_hash,
+            ],
+        )
+        return cast(int, cursor.rowcount)
 
 
 class CanonicalAccountCreationQuerySet(AppendOnlyQuerySet[_T]):

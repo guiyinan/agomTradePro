@@ -6,10 +6,11 @@ from collections.abc import Collection, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import NoReturn, TypeVar
+from datetime import datetime
+from typing import NoReturn, TypeVar, cast
 
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import connections, models
 from django.db.models.base import ModelBase
 from django.db.models.signals import pre_delete
 
@@ -37,6 +38,9 @@ class _ConsumptionInsertClaim:
 _ACTIVE_CONSUMPTION_CLAIM: ContextVar[_ConsumptionInsertClaim | None] = ContextVar(
     "canonical_account_creation_consumption_claim",
     default=None,
+)
+_ACTIVE_KNOWLEDGE_BACKFILL: ContextVar[object | None] = ContextVar(
+    "canonical_account_creation_knowledge_backfill", default=None
 )
 
 
@@ -75,6 +79,85 @@ def _claim_canonical_account_creation_consumption_insert(
         yield
     finally:
         _ACTIVE_CONSUMPTION_CLAIM.reset(reset)
+
+
+@contextmanager
+def _activate_canonical_account_creation_knowledge_backfill(
+    token: object,
+) -> Iterator[None]:
+    """Activate the private knowledge-clock maintenance capability."""
+
+    if _ACTIVE_CONSUMPTION_UOW.get() is not token:
+        raise ValidationError("knowledge backfill requires private consumption UOW")
+    reset = _ACTIVE_KNOWLEDGE_BACKFILL.set(token)
+    try:
+        yield
+    finally:
+        _ACTIVE_KNOWLEDGE_BACKFILL.reset(reset)
+
+
+def _compare_and_set_canonical_account_creation_claim_knowledge(
+    *,
+    using: str,
+    token: object,
+    claim_pk: int,
+    allocation_pk: int,
+    identity_hash: str,
+    content_hash: str,
+    consumer_identity_hash: str,
+    consumer_content_hash: str,
+    recorded_at: datetime,
+    knowledge_at: datetime,
+) -> int:
+    """Set one missing knowledge clock under the private maintenance capability."""
+
+    if (
+        _ACTIVE_CONSUMPTION_UOW.get() is not token
+        or _ACTIVE_KNOWLEDGE_BACKFILL.get() is not token
+        or type(claim_pk) is not int
+        or claim_pk <= 0
+        or type(allocation_pk) is not int
+        or allocation_pk <= 0
+        or any(
+            type(value) is not str
+            or len(value) != 64
+            or any(character not in "0123456789abcdef" for character in value)
+            for value in (
+                identity_hash,
+                content_hash,
+                consumer_identity_hash,
+                consumer_content_hash,
+            )
+        )
+        or type(recorded_at) is not datetime
+        or type(knowledge_at) is not datetime
+        or recorded_at.tzinfo is None
+        or recorded_at.utcoffset() is None
+        or knowledge_at.tzinfo is None
+        or knowledge_at.utcoffset() is None
+        or knowledge_at < recorded_at
+    ):
+        raise ValidationError("knowledge backfill capability is unavailable")
+    connection = connections[using]
+    table = connection.ops.quote_name(CanonicalAccountCreationConsumptionClaimModel._meta.db_table)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"UPDATE {table} SET knowledge_at = %s "  # noqa: S608
+            "WHERE id = %s AND allocation_id = %s "
+            "AND identity_hash = %s AND content_hash = %s "
+            "AND consumer_identity_hash = %s AND consumer_content_hash = %s "
+            "AND knowledge_at IS NULL",
+            [
+                knowledge_at,
+                claim_pk,
+                allocation_pk,
+                identity_hash,
+                content_hash,
+                consumer_identity_hash,
+                consumer_content_hash,
+            ],
+        )
+        return cast(int, cursor.rowcount)
 
 
 class CanonicalAccountCreationConsumptionQuerySet(AppendOnlyQuerySet[_ModelT]):

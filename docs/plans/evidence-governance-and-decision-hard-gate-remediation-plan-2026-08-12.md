@@ -2056,6 +2056,13 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - v1/v2 live双写令`knowledge_at == recorded_at`；restore要求aware且不早于业务recorded clock。winner、claim anchor与allocation current-unconsumed的PIT visibility改按knowledge clock，延迟知识在`as_of < knowledge_at`时不可见，NULL/naive/clock rollback会使closed world fail closed而不是回退旧状态。
 - Inventory与dry-run preflight现在要求0048精确migration名；运维CLI的readiness语义从特定“0048 contract”改为generic future contract，保留旧flag仅作兼容alias。组件`29 passed`、命令`14 passed`、architecture 2840/0，Ruff/Black/isort/strict mypy通过。
 - 既有Claim迁移后保持NULL且不可发布；真实knowledge backfill、exclusive maintenance、NOT NULL/clock Check contract与PG迁移往返仍未完成。完整`makemigrations --check`被当前隔离环境缺Celery阻断，migration/model state已由Django5.2 component精确比对。
+
+### 2026-08-14：Account canonical creation consumption knowledge backfill engine
+
+- Backfill service现区分三类过渡态：已链接Claim但knowledge NULL、legacy Binding-v1 FK NULL且已有exact Claim、以及完全无Claim。专用transitional closed-world只允许knowledge恰为NULL，其余canonical bytes、seals、FK与跨代anchors仍完整恢复；常规reader保持NULL即corruption。
+- 写路径不经shared writer UOW升级，而是在唯一outer transaction开头直接取得同key exclusive advisory lock；随后在锁内复核0047/0048、取得PostgreSQL `clock_timestamp()`，再以完整PK/identity/content/allocation/consumer anchors做NULL CAS。新Claim保留历史Domain recorded/persisted bytes，只把真实运行时钟写入knowledge_at；Binding-v1链接CAS还用EXISTS重验Claim generation与consumer hashes，任一rowcount异常整批回滚。
+- Service默认仍无写授权；调用方必须注入exact write-authorization，production command继续稳定阻断。SQLite写只允许显式component degradation。组合组件`34 passed`，Ruff/Black/isort、standalone strict mypy与architecture 2840/0通过。
+- 尚无production alias inventory SHA授权实现、真实PG双连接shared/exclusive阻塞测试或实际回填签字；因此不生成NOT NULL/check contract migration，不把engine存在解释为生产可运行。
 - 代码现在具备dormant双代写路径，但生产各alias的0045存量尚未盘点或backfill，0048 contract与PostgreSQL v1/v2交叉竞争仍缺；因此composition/writer/pipeline继续禁用，不能宣称生产排他已闭合。
 
 ### 2026-08-13：跨 App 决策读边界与模块循环收口

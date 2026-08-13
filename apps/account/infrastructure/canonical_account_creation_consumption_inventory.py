@@ -20,12 +20,12 @@ from apps.account.infrastructure.canonical_account_creation_consumption_models i
     CanonicalAccountCreationBindingV2Model,
     CanonicalAccountCreationConsumptionClaimModel,
 )
-from apps.account.infrastructure.canonical_account_creation_consumption_repository import (
-    DjangoCanonicalAccountCreationConsumptionRepository,
-)
 from apps.account.infrastructure.canonical_account_creation_models import (
     CanonicalAccountCreationAllocationModel,
     CanonicalAccountCreationBindingModel,
+)
+from apps.account.infrastructure.canonical_account_creation_repository import (
+    DjangoCanonicalAccountCreationRepository,
 )
 
 _REQUIRED_MIGRATIONS = (
@@ -76,6 +76,7 @@ class CanonicalAccountCreationConsumptionConsistency:
     v1_claim_non_null_count: int
     claim_v1_count: int
     claim_v2_count: int
+    claim_knowledge_null_count: int
     claim_without_binding_count: int
     binding_without_claim_count: int
     allocation_link_mismatch_count: int
@@ -99,6 +100,7 @@ class CanonicalAccountCreationConsumptionConsistency:
             "binding_without_claim_count": self.binding_without_claim_count,
             "claim_v1_count": self.claim_v1_count,
             "claim_v2_count": self.claim_v2_count,
+            "claim_knowledge_null_count": self.claim_knowledge_null_count,
             "claim_without_binding_count": self.claim_without_binding_count,
             "cross_generation_account_anchor_count": (self.cross_generation_account_anchor_count),
             "cross_generation_allocation_anchor_count": (
@@ -174,9 +176,12 @@ class CanonicalAccountCreationConsumptionInventoryService:
             with transaction.atomic(using=self._using):
                 isolation = self._configure_snapshot(connection)
                 migrations = self._validate_schema(connection)
-                world = DjangoCanonicalAccountCreationConsumptionRepository(
+                world = DjangoCanonicalAccountCreationRepository(
                     using=self._using
-                )._closed_world(lock=False)
+                )._closed_consumption_world(
+                    lock=False,
+                    _allow_missing_knowledge=True,
+                )
                 ledgers = self._ledger_inventories(connection)
                 consistency = _consistency(world)
                 draft = CanonicalAccountCreationConsumptionInventoryReport(
@@ -448,6 +453,7 @@ def _consistency(world: object) -> CanonicalAccountCreationConsumptionConsistenc
     )
     claim_v1 = sum(row.consumer_generation == "v1" for row in claim_rows)
     claim_v2 = sum(row.consumer_generation == "v2" for row in claim_rows)
+    claim_knowledge_null = sum(row.knowledge_at is None for row in claim_rows)
     v1_null = sum(_optional_positive_fk(row, "consumption_claim_id") is None for row in v1_rows)
     v1_non_null = len(v1_rows) - v1_null
     branch_count_mismatch = abs(claim_v1 - v1_non_null) + abs(claim_v2 - len(v2_rows))
@@ -460,12 +466,14 @@ def _consistency(world: object) -> CanonicalAccountCreationConsumptionConsistenc
         + cross_underlying
         + cross_physical
         + branch_count_mismatch
+        + claim_knowledge_null
     )
     return CanonicalAccountCreationConsumptionConsistency(
         v1_claim_null_count=v1_null,
         v1_claim_non_null_count=v1_non_null,
         claim_v1_count=claim_v1,
         claim_v2_count=claim_v2,
+        claim_knowledge_null_count=claim_knowledge_null,
         claim_without_binding_count=claim_without_binding,
         binding_without_claim_count=binding_without_claim,
         allocation_link_mismatch_count=allocation_link_mismatch,

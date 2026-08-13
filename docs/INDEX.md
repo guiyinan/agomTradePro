@@ -792,6 +792,9 @@
 - ✅ **Account canonical creation consumption knowledge clock expand**
   - 0048 nullable/indexed knowledge_at保留业务recorded_at与canonical bytes；live同钟，Claim pair/anchor/unconsumed PIT按真实知识时点
   - component 29 + command 14 passed、architecture 2840/0；既有NULL Claim、exclusive backfill、NOT NULL contract与PG迁移/竞争仍阻断
+- ✅ **Account canonical creation consumption knowledge backfill engine**
+  - transitional closed-world处理已有NULL Claim、legacy null-FK与缺Claim；exclusive lock内取DB clock并以完整归属anchors CAS，失败整批rollback
+  - component 34 passed、architecture 2840/0；默认无write authorization且command阻断，production SHA/PG双连接/逐alias签字仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
