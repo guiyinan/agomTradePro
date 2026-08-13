@@ -188,23 +188,25 @@ class BindCanonicalAccountCreationV2:
             raise TypeError("command must be exact BindCanonicalAccountCreationV2Command")
         command.__post_init__()
         cutoff = _aware(self._repository.now(), "repository cutoff")
+        winner = self._repository.get_winner(
+            binding_id=command.binding_id,
+            binding_version=command.binding_version,
+            as_of=cutoff,
+        )
+        if winner is not None:
+            return self._validate_replay(winner, command)
         first = self._read(command, cutoff)
         with self._repository.atomic():
             winner = self._repository.get_winner(
                 binding_id=command.binding_id, binding_version=command.binding_version, as_of=cutoff
             )
+            if winner is not None:
+                return self._validate_replay(winner, command)
             final = self._read(command, cutoff)
             if first != final:
                 raise CanonicalAccountCreationBindingV2Conflict("issuance inputs changed")
             allocation, root = final
             candidate = self._build(command, allocation, root, recorded_at=cutoff)
-            if winner is not None:
-                checked = _binding(winner)
-                if checked != candidate:
-                    raise CanonicalAccountCreationBindingV2Conflict(
-                        "binding identity winner differs"
-                    )
-                return checked
             anchor = self._repository.get_by_any_anchor(
                 allocation_content_hash=allocation.content_hash,
                 account_claim_hash=candidate.account_claim_hash,
@@ -228,6 +230,28 @@ class BindCanonicalAccountCreationV2:
             if checked != candidate:
                 raise CanonicalAccountCreationBindingV2Conflict("binding append winner differs")
             return checked
+
+    def _validate_replay(
+        self,
+        winner: CanonicalAccountCreationBindingV2,
+        command: BindCanonicalAccountCreationV2Command,
+    ) -> CanonicalAccountCreationBindingV2:
+        checked = _binding(winner)
+        allocation = checked.allocation
+        root = checked.creation_root
+        if (
+            checked.binding_id != command.binding_id
+            or checked.binding_version != command.binding_version
+            or allocation.allocation_id != command.allocation_id
+            or allocation.allocation_version != command.allocation_version
+            or allocation.content_hash != command.expected_allocation_content_hash
+            or root.observation_id != command.creation_root_observation_id
+            or root.observation_version != command.creation_root_observation_version
+            or root.content_hash != command.expected_creation_root_content_hash
+            or checked.recorded_by != self._binder
+        ):
+            raise CanonicalAccountCreationBindingV2Conflict("binding identity winner differs")
+        return checked
 
     def _read(
         self, command: BindCanonicalAccountCreationV2Command, cutoff: datetime

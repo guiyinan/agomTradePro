@@ -104,7 +104,13 @@ def test_identity_replay_and_anchor_conflict() -> None:
         binder=_service(),
     )
     first = use_case.execute(_command())
+    # A successful binding consumes the allocation. Exact retries must therefore
+    # replay the immutable winner without asking a current-unconsumed provider.
+    use_case._allocation_provider.value = None
+    use_case._creation_root_provider.value = None
     assert use_case.execute(_command()) == first
+    use_case._allocation_provider.value = root.allocation
+    use_case._creation_root_provider.value = root
     repository.value = None
     repository.anchor = first
     with pytest.raises(CanonicalAccountCreationBindingV2Conflict, match="anchor"):
