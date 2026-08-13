@@ -516,6 +516,9 @@
 - ✅ **Broker Plan→Order binding Application workflow**
   - ID-only注册在同一Broker cutoff双读plan ordinal row、inactive receipt和order artifact，闭合owner/type/hash/account/时钟及first-winner/CAS/current selector
   - 三个owner public reader、binding ledger/composition与真实签发均未实现；账户namespace blocker、pre-Risk与执行总闸继续关闭
+- ✅ **Portfolio planning policy definition Domain 合同**
+  - 以policy identity、lot与五项exact Decimal、时钟和canonical hash冻结definition，明确排除mutable status/current/activation语义
+  - 仅definition完成；append-only ledger/exact provider与两人activation仍缺，legacy status=active不能成为benchmark或执行authority
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**

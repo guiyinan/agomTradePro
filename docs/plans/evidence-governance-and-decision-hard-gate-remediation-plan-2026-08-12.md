@@ -721,6 +721,17 @@
 - Domain+Application `90 passed`；standalone strict mypy、Black/isort/compileall与Application零Portfolio/Infrastructure import检查通过。
 - 三个owner public reader仍未实现：Portfolio plan provider尚未公开Application facade且需owner内派生ordinal row，receipt/artifact现有read均为hash-heavy或Infrastructure私有并丢recorded clock。当前只有协议+pure fake，没有真实composition、binding ledger或签发记录，总闸不变。
 
+### 2026-08-13：Portfolio planning policy definition Domain 合同
+
+- 将 planning policy 的不可变定义语义从 legacy ORM `status` selector 中分离：新 Portfolio-owned definition 只封存 policy ID/version、positive buy lot size，以及 fee、slippage、minimum rebalance、max asset weight、max volume participation 五个 exact finite Decimal。
+- Decimal 使用无 exponent 的canonical plain text，拒绝float/bool、NaN/Infinity、负零与越界；max weight/participation限制在 `(0,1]`，其他三项允许exact zero但不允许负数。recorded/validity与identity/content hash全部进入合同。
+- definition 固定 `definition_only` 与 `must_not_execute=true`，刻意不包含 `status/current/activation/supersession`；旧 `PortfolioPlanningPolicyModel.status=active` 可被Admin/QuerySet改变，只能视为legacy runtime selector，不能投影成正式activation。
+
+未完成与验证：
+
+- 纯Domain `75 passed`；standalone strict mypy、Black/isort/compileall与零跨App/framework import检查通过。
+- 尚无definition append-only ledger/exact provider；完成它后才可建立两人审批的activation subject/receipt/current-head。Benchmark definition需另行覆盖日历、FX/价格fixing、公司行动、缺价/陈旧度、费用税费与评估窗口，不能用现有component+weight缩水冒充。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
