@@ -711,6 +711,9 @@
 - ✅ **Account owner-assignment claimant provenance receipt v2 ledger**
   - strict/closed-world 0043账本以private UOW、identity/root/predecessor CAS及physical/source/raw/actor/header seals闭合claimant receipt
   - Django5.2组件5 passed、migration state无漂移；PG race/真实migrate、staff approval evidence v2与authoritative provider仍缺
+- ✅ **Account owner-assignment staff approval evidence v2 Domain**
+  - subject重验完整physical-v2与claimant receipt-v2；独立human staff双维防自批，claim→authoritative/legacy→ownerless精确映射，双root、approval TTL及相邻successor闭合
+  - pure 28 passed、architecture 2813/0；两阶段Application、0044账本、authoritative current provider与PG并发仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

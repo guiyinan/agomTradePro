@@ -1788,6 +1788,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Django 5.2 isolated SQLite component `5 passed`，覆盖codec、first-winner/root/successor CAS、expiry no-fallback、全mutation guards、closed-world selector tamper与schema-only migration；migration/model state autodetect无漂移。strict mypy（隔离环境关闭Django第三方Any伪诊断）、ruff、Black/isort、architecture（2812 files / 0 violations）与diff-check通过。
 - PostgreSQL双事务root/successor race与真实0043 migrate/rollback尚未验证；owner provider/composition、独立staff approval evidence v2与authoritative canonical identity provider仍未完成，production pipeline/writer继续禁用，总闸不变。
 
+### 2026-08-13：Account owner-assignment staff approval evidence v2 Domain
+
+- 新增独立v2 subject与staff approval evidence。subject持有并重新验证完整physical-row v2与claimant provenance receipt v2，只表示待审批claim；最终Evidence必须由不同actor ID且不同user ID的当前human staff approver签署，claimant receipt本身不会被提升成authority。
+- `claimed_owner`经独立审批后才映射为`authoritative`且owner必须等于claimant；`legacy_default_claim`只映射为owner为空的`legacy_default`。Account字符串identity与underlying整数identity各有candidate-independent、domain-separated root claim，禁止双向多重映射。
+- approval TTL可以缩短但不能延长两个upstream的最早有效期；Evidence successor精确绑定前序Evidence，并在physical或receipt推进时要求其predecessor精确闭合。最终过期或失效head不回退旧Evidence，固定`evidence_only/inactive/must_not_execute`。
+
+验证与剩余边界：
+
+- pure Domain unit `28 passed`；strict mypy、ruff、Black/isort、architecture（2813 files / 0 violations）与diff-check通过。
+- 本批仅Domain；两阶段Application、0044 subject/evidence append-only账本、双向current provider与PostgreSQL并发尚未完成，因此production pipeline仍只能接收unverified canonical reference，全writer cutover与执行总闸保持禁用。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
