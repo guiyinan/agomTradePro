@@ -719,7 +719,18 @@
 未完成与验证：
 
 - benchmark definition + inactive snapshot组合 `34 passed`；standalone strict mypy、Black/isort/py_compile/diff-check和零跨App/framework import通过。
-- 五类methodology目前只有consumer ref合同，尚无各owner ledger/exact provider；benchmark definition ledger/activation、daily valuation与approval也未完成。不得把现有R8 calendar、mutable component rows或临时行情直接投影成这些source。
+- 五类methodology目前只有consumer ref合同，尚无各owner ledger/exact provider；benchmark definition activation、daily valuation与approval也未完成。不得把现有R8 calendar、mutable component rows或临时行情直接投影成这些source。
+
+### 2026-08-13：Portfolio policy benchmark definition append-only ledger
+
+- 新增 definition strict codec、私有 UOW/exact insert claim 和 append-only ORM 账本；identity/content first-winner 只允许精确幂等，save/update/delete/bulk/raw 写绕过全部拒绝。
+- repository 在按 identity/content selector 匹配前先 closed-world 恢复全表，逐行复核 canonical payload、Decimal 文本、ordered constituents/methodology refs、分段 hash、authority/header/identity/content/ledger seals，以及 recorded/valid/persisted clock；双 selector header 篡改不能让坏行隐身。
+- 只发布 historical exact/PIT 读取；definition 仍固定 `definition_only + must_not_execute`，本阶段没有自行发明 current/activation facade。`0020_policy_benchmark_definition` 仅 `CreateModel`、zero-seed，无 `RunPython/RunSQL`，不背书现有 Float 配置。
+
+未完成与验证：
+
+- Django 5.2.10 + SQLite 隔离 component `11 passed`，Domain 回归 `7 passed`；migration/runtime model state 精确一致，architecture `2723 files / 0 violations`，Black/isort/compileall/diff-check 与 codec strict mypy 通过。
+- PostgreSQL 并发 first-winner、完整项目 `makemigrations --check` 和全目标 mypy plugin/ruff 未验证；五类 methodology owner provider、definition activation、daily valuation、审批与 Broker issuer 仍未完成，总闸不变。
 
 ### 2026-08-13：Broker Plan→Order binding Application workflow
 

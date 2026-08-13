@@ -515,7 +515,10 @@
   - 固定inactive；Account/planning-policy/definition owner source、daily valuation、审批、ledger/provider与Broker issuer均未完成
 - ✅ **Portfolio policy benchmark definition Domain 合同**
   - 完整冻结成分/price identity/币种/Decimal权重、日历/价格/FX/公司行动/费用税费五类owner ref、估值cutoff/窗口/陈旧度和missing fail-closed
-  - 固定definition-only；methodology owner ledger/provider、definition activation、daily valuation与approval仍未完成
+  - 固定definition-only；methodology owner provider、definition activation、daily valuation与approval仍未完成
+- ✅ **Portfolio policy benchmark definition append-only ledger**
+  - strict codec/private UOW、first-winner、全写绕过阻断和closed-world exact/PIT完成；0020 zero-seed且不回填mutable Float配置
+  - 只提供historical exact，不冒充current/activation；PG并发、methodology providers、activation/daily valuation/approval仍未完成
 - ✅ **Broker Plan→Order binding Application workflow**
   - ID-only注册在同一Broker cutoff双读plan ordinal row、inactive receipt和order artifact，闭合owner/type/hash/account/时钟及first-winner/CAS/current selector
   - 三个owner public reader、binding ledger/composition与真实签发均未实现；账户namespace blocker、pre-Risk与执行总闸继续关闭
