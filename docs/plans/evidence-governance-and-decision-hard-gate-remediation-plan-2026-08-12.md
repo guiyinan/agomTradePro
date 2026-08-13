@@ -628,6 +628,12 @@
 - Domain/Application `25 passed`；Black/isort/py_compile/diff、makemigrations drift与architecture（2686 files / 0 violations）通过。时钟修复后的完整pytest-django component与migration forward/reverse尚未跑，PostgreSQL root/successor双事务race仍未验证。
 - 仍缺从floor/template/account override/global+account exceptions生成可信exact source snapshot的production composition；本migration不seed、不回填，故不会凭现有mutable policy自动授权。Risk authorization和Broker四节点总闸继续关闭。
 
+#### Ledger contract audit修正
+
+- 只读复核实证0008/0009后`makemigrations --check`会提出无意义constraint重建：Broker artifact model的owner/check Q deconstruct顺序与migration不同，Risk 既有authorization model同样偏离0008 state。现将model表达对齐既有migration，并把Broker `persisted_at == recorded_at`同时纳入model与0008 DB check，而非只依赖restore。
+- Risk execution policy provider此前把actor-bound `activation.content_hash`错误投影成`policy_content_hash`；现拆为`policy_content_hash=policy.content_hash`与`policy_activation_hash=activation.content_hash`，并让Risk authorization scope、canonical codec/hash全链同时绑定二者，既不丢actor seal也不混淆策略内容身份。
+- Risk/Broker hard-gate聚合`53 passed`，Black/isort/py_compile与architecture（2688 files / 0 violations）通过。完整项目migration drift复跑在Django5.2环境加载`account`时因缺`cryptography`阻断，未将该环境问题写成no-drift通过；PG并发和source identity双selector篡改的closed-world检测仍待后续修正。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

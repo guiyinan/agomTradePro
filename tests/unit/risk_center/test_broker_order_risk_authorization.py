@@ -46,6 +46,7 @@ def _scope(**changes: object) -> BrokerOrderRiskScope:
         "policy_id": "policy-1",
         "policy_version": "v1",
         "policy_content_hash": "e" * 64,
+        "policy_activation_hash": "f" * 64,
         "policy_valid_until": NOW + timedelta(hours=3),
         "execution_scope_valid_until": NOW + timedelta(hours=2),
     }

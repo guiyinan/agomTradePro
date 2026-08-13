@@ -69,6 +69,7 @@ def _policy_definition(**changes: object) -> BrokerOrderRiskPolicyDefinition:
         "policy_id": "policy-1",
         "policy_version": "v1",
         "policy_content_hash": "e" * 64,
+        "policy_activation_hash": "f" * 64,
         "account_id": 7,
         "activated_at": NOW - timedelta(minutes=1),
         "valid_until": NOW + timedelta(hours=2),

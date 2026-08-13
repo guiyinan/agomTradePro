@@ -147,17 +147,18 @@ class BrokerOrderApprovalArtifactModel(models.Model):
                 name="broker_ord_ap_art_order_uq",
             ),
             models.CheckConstraint(
-                condition=(
-                    models.Q(owner="broker_execution")
-                    & models.Q(artifact_type="live_order_approval_snapshot")
-                    & models.Q(schema="broker-live-order-approval-artifact.v1")
+                condition=models.Q(
+                    artifact_type="live_order_approval_snapshot",
+                    owner="broker_execution",
+                    schema="broker-live-order-approval-artifact.v1",
                 ),
                 name="broker_ord_ap_art_owner_ck",
             ),
             models.CheckConstraint(
-                condition=(
-                    models.Q(approved_at__lte=models.F("recorded_at"))
-                    & models.Q(recorded_at__lt=models.F("valid_until"))
+                condition=models.Q(
+                    approved_at__lte=models.F("recorded_at"),
+                    persisted_at=models.F("recorded_at"),
+                    recorded_at__lt=models.F("valid_until"),
                 ),
                 name="broker_ord_ap_art_clock_ck",
             ),

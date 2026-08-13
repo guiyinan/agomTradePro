@@ -118,6 +118,7 @@ class BrokerOrderRiskPolicyDefinition:
     policy_id: str
     policy_version: str
     policy_content_hash: str
+    policy_activation_hash: str
     account_id: int
     activated_at: datetime
     valid_until: datetime
@@ -128,6 +129,7 @@ class BrokerOrderRiskPolicyDefinition:
         _require_token(self.policy_id, "policy_id")
         _require_token(self.policy_version, "policy_version")
         _require_hash(self.policy_content_hash, "policy_content_hash")
+        _require_hash(self.policy_activation_hash, "policy_activation_hash")
         if type(self.account_id) is not int or self.account_id <= 0:
             raise ValueError("account_id must be a positive integer")
         for field_name in ("activated_at", "valid_until", "recorded_at"):
@@ -483,6 +485,7 @@ class RegisterBrokerOrderRiskAuthorizationSubject:
             policy_id=policy.policy_id,
             policy_version=policy.policy_version,
             policy_content_hash=policy.policy_content_hash,
+            policy_activation_hash=policy.policy_activation_hash,
             policy_valid_until=policy.valid_until,
             execution_scope_valid_until=source.scope_valid_until,
         )

@@ -489,6 +489,9 @@
 - ✅ **Risk execution policy append-only persistence**
   - 五源snapshot+actor-bound activation账本、strict codec、first-winner/CAS与full-chain current-head已落盘；0009 schema-only/zero-seed，Django5.2最小往返通过
   - mutable policy尚无可信source composition且PG并发未验，zero-seed不自动激活，Risk authorization与Broker总闸继续关闭
+- ✅ **Broker/Risk ledger contract audit修正**
+  - 对齐0008/0009 constraint state并补Broker persisted clock DB约束；Risk authorization同时绑定policy content hash与actor activation hash
+  - 聚合53项与架构门禁通过；完整migration drift受当前环境缺cryptography阻断，PG并发/source selector闭集检测仍未完成
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**

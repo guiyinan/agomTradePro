@@ -122,6 +122,7 @@ class BrokerOrderRiskScope:
     policy_id: str
     policy_version: str
     policy_content_hash: str
+    policy_activation_hash: str
     policy_valid_until: datetime
     execution_scope_valid_until: datetime
     content_hash: str = ""
@@ -154,6 +155,7 @@ class BrokerOrderRiskScope:
             "plan_approval_hash",
             "order_content_hash",
             "policy_content_hash",
+            "policy_activation_hash",
         ):
             _require_hash(getattr(self, field_name), field_name)
         for field_name in (
@@ -200,6 +202,7 @@ class BrokerOrderRiskScope:
             "policy_id": self.policy_id,
             "policy_version": self.policy_version,
             "policy_content_hash": self.policy_content_hash,
+            "policy_activation_hash": self.policy_activation_hash,
             "policy_valid_until": _utc_text(self.policy_valid_until),
             "execution_scope_valid_until": _utc_text(self.execution_scope_valid_until),
         }

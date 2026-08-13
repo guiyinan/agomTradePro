@@ -260,10 +260,10 @@ class BrokerOrderRiskAuthorizationRecordModel(BrokerOrderRiskAuthorizationAppend
                 name="risk_br_ord_auth_root_uq",
             ),
             models.CheckConstraint(
-                condition=(
-                    models.Q(owner="risk_center")
-                    & models.Q(capability="broker_order_risk_authorization")
-                    & models.Q(permission_cap="execution_eligible")
+                condition=models.Q(
+                    capability="broker_order_risk_authorization",
+                    owner="risk_center",
+                    permission_cap="execution_eligible",
                 ),
                 name="risk_br_ord_auth_owner_ck",
             ),

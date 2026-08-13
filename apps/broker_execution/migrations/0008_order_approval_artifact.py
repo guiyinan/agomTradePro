@@ -72,6 +72,7 @@ class Migration(migrations.Migration):
                     models.CheckConstraint(
                         condition=models.Q(
                             ("approved_at__lte", models.F("recorded_at")),
+                            ("persisted_at", models.F("recorded_at")),
                             ("recorded_at__lt", models.F("valid_until")),
                         ),
                         name="broker_ord_ap_art_clock_ck",

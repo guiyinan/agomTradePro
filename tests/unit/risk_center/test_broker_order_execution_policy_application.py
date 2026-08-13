@@ -359,7 +359,8 @@ def test_exact_provider_enforces_pit_current_head_and_expiry() -> None:
         as_of=NOW,
     )
     assert projected is not None
-    assert projected.policy_content_hash == first.content_hash
+    assert projected.policy_content_hash == first.policy.content_hash
+    assert projected.policy_activation_hash == first.content_hash
     assert projected.permission_cap == "execution_eligible"
 
     repository.clock = LATER

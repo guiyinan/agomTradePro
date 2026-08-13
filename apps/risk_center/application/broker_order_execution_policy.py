@@ -523,7 +523,8 @@ class ExactCurrentBrokerOrderRiskPolicyProvider:
         return BrokerOrderRiskPolicyDefinition(
             policy_id=policy.policy_id,
             policy_version=policy.policy_version,
-            policy_content_hash=activation.content_hash,
+            policy_content_hash=policy.content_hash,
+            policy_activation_hash=activation.content_hash,
             account_id=policy.account_id,
             activated_at=policy.activated_at,
             valid_until=policy.valid_until,

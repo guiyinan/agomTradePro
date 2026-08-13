@@ -45,6 +45,7 @@ HASH_B = "b" * 64
 HASH_C = "c" * 64
 HASH_D = "d" * 64
 HASH_E = "e" * 64
+HASH_F = "f" * 64
 
 
 @dataclass
@@ -81,6 +82,7 @@ def _scope() -> BrokerOrderRiskScope:
         policy_id="risk-policy:41",
         policy_version="1",
         policy_content_hash=HASH_E,
+        policy_activation_hash=HASH_F,
         policy_valid_until=VALID_UNTIL + timedelta(hours=1),
         execution_scope_valid_until=VALID_UNTIL,
     )
