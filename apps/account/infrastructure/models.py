@@ -23,6 +23,10 @@ from .account_owner_assignment_provenance_receipt_v2_models import (
 from .allocated_physical_account_row_observation_v3_models import (
     AllocatedPhysicalAccountRowObservationV3Model,
 )
+from .canonical_account_creation_consumption_models import (
+    CanonicalAccountCreationBindingV2Model,
+    CanonicalAccountCreationConsumptionClaimModel,
+)
 from .canonical_account_creation_models import (
     CanonicalAccountCreationAllocationModel,
     CanonicalAccountCreationBindingModel,
@@ -79,6 +83,8 @@ __all__ = [
     "CapitalFlowModel",
     "CanonicalAccountCreationAllocationModel",
     "CanonicalAccountCreationBindingModel",
+    "CanonicalAccountCreationBindingV2Model",
+    "CanonicalAccountCreationConsumptionClaimModel",
     "CurrencyModel",
     "DocumentationModel",
     "ExchangeRateModel",

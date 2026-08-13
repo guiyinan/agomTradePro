@@ -132,9 +132,7 @@ def test_zero_seed_private_claim_and_mutation_guards() -> None:
         lambda: CanonicalAccountCreationBindingModel.objects.all().delete(),
         lambda: CanonicalAccountCreationAllocationModel.objects.bulk_create([unclaimed]),
         lambda: CanonicalAccountCreationAllocationModel.objects.all().bulk_create([unclaimed]),
-        lambda: CanonicalAccountCreationBindingModel.objects.bulk_update(
-            [binding], ["status"]
-        ),
+        lambda: CanonicalAccountCreationBindingModel.objects.bulk_update([binding], ["status"]),
         lambda: binding.save_base(raw=True),
         lambda: binding.save(update_fields=["status"]),
         lambda: binding.delete(),
@@ -185,6 +183,8 @@ def test_0045_is_schema_only_and_matches_current_model_state() -> None:
     for model in (CanonicalAccountCreationAllocationModel, CanonicalAccountCreationBindingModel):
         current = ModelState.from_model(model)
         historical = state.models[("account", model._meta.model_name)]
+        if model is CanonicalAccountCreationBindingModel:
+            current.fields.pop("consumption_claim")
         current_options = {
             key: value for key, value in current.options.items() if key != "abstract"
         }

@@ -1988,6 +1988,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - codec unit `32 passed`；strict mypy、ruff、Black/isort与diff-check通过。
 - 本批无model/repository/migration；0047 expand、closed-world consumer恢复、v1 dual-write/backfill与0048 contract仍缺，不构成跨版本数据库排他证明。
 
+### 2026-08-14：Account canonical creation consumption 0047 expand schema
+
+- 新增0047纯expand migration：创建统一Consumption Claim与durable Binding-v2两张append-only表，并只给旧Binding-v1添加nullable `consumption_claim` OneToOne PROTECT FK。migration仅`CreateModel + CreateModel + AddField`，无RunPython/RunSQL、无回填且不启用v2 writer。
+- Claim表以allocation OneToOne、Account raw key、underlying raw key、Physical-v2 hash及v2条件Physical-v3 root hash提供跨generation原始锚唯一性；branch DB check固定v1无root/v2有root，fixed authority与`persisted_at == recorded_at`下沉数据库。完整claim authority字段与allocation/consumer/fixed/record/ledger seals预留给closed-world repository。
+- Binding-v2表以Claim OneToOne、allocation FK、0046 creation-root OneToOne闭合，完整封存v3/v2/source/raw hashes、Account/underlying claims、service binder与fixed/persisted clocks；model及两表均使用private UOW/exact insert claim和全mutation/delete guard。
+
+验证与未完成：
+
+- Django 5.2 isolated new+0045 component `6 passed`，覆盖schema state与migration字段/constraint同构、zero-seed、private guard、cross-anchor unique、branch/clock DB check及旧v1 nullable expand；ruff、Black/isort、py_compile、architecture（2834 files / 0 violations）与diff-check通过。
+- nullable expand不是生产排他证明：v1 repository尚未dual-write统一Claim，既有0045数据尚未逐alias盘点或backfill，Binding-v2 repository尚未实现，0048 NOT NULL contract与PostgreSQL v1/v2交叉竞争仍缺。旧v1和新v2 writer都保持禁用，pipeline/执行总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

@@ -210,6 +210,12 @@ class CanonicalAccountCreationAllocationModel(_AppendOnlyCanonicalAccountCreatio
 
 
 class CanonicalAccountCreationBindingModel(_AppendOnlyCanonicalAccountCreationModel):
+    consumption_claim = models.OneToOneField(
+        "account.CanonicalAccountCreationConsumptionClaimModel",
+        on_delete=models.PROTECT,
+        related_name="creation_binding_v1",
+        null=True,
+    )
     allocation = models.OneToOneField(
         CanonicalAccountCreationAllocationModel,
         on_delete=models.PROTECT,
