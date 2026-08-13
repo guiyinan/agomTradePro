@@ -810,6 +810,12 @@
 - ✅ **Account owner-assignment staff approval Evidence v3 Domain**
   - creation-only subject显式封存11项Receipt/Binding/root/Account/underlying/Physical/source/raw seals；独立human-staff双维防自批，authoritative owner固定等于claimant，双mapping root domain-separated且candidate-independent
   - Receipt-v3+Evidence-v3 pure 33 passed、strict mypy、architecture 2846/0；Application/codec/0050账本/current facade与production composition仍缺
+- ✅ **Account owner-assignment staff approval Evidence v3 Application**
+  - ID/hash-only Subject注册与staff审批；winner-first历史重放，单cutoff双读Receipt-v3/Physical-v3/approver，双mapping root CAS，exact永久而current重验全部upstream
+  - Domain+Application pure 47 passed、architecture 2848/0；0050双表账本、production providers/composition与PG竞争仍缺
+- ✅ **Account owner-assignment staff approval Evidence v3 strict codec**
+  - 公开Subject/Evidence codecs完整重建Receipt-v3→Binding-v2→Physical-v3/v2→source/raw，exact keys/types、UTC-Z、fixed booleans及canonical roundtrip fail closed
+  - codec 24 passed、Application组合30 passed、strict mypy；无ORM，0050必须逐行闭合上游FK与Claim knowledge
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

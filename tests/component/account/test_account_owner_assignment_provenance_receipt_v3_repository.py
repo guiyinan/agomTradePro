@@ -196,7 +196,12 @@ def test_expired_successor_remains_final_ledger_head_without_fallback() -> None:
             expected_predecessor_hash=first.receipt.content_hash,
             recorded_at=second.receipt.recorded_at,
         )
-    assert repository.get_current_head(receipt_id=first.receipt.receipt_id, as_of=_at(13)) == second
+    with patch.object(repository, "_require_binding", wraps=repository._require_binding) as check:
+        assert (
+            repository.get_current_head(receipt_id=first.receipt.receipt_id, as_of=_at(13))
+            == second
+        )
+    assert check.call_count == 2
 
 
 def test_0049_is_schema_only_zero_seed_migration() -> None:

@@ -243,13 +243,10 @@ class DjangoAccountOwnerAssignmentProvenanceReceiptV3Repository:
             ).order_by("pk")
         )
         restored = tuple((row, _restore(row)) for row in rows)
-        checked: set[int] = set()
         for row, record in restored:
-            if row.binding_id not in checked:
-                checked.add(row.binding_id)
-                self._require_binding(
-                    row.binding, record.receipt.binding, as_of=record.receipt.recorded_at
-                )
+            self._require_binding(
+                row.binding, record.receipt.binding, as_of=record.receipt.recorded_at
+            )
         for receipt_id in {record.receipt.receipt_id for _, record in restored}:
             _validate_chain(
                 tuple(item for item in restored if item[1].receipt.receipt_id == receipt_id)

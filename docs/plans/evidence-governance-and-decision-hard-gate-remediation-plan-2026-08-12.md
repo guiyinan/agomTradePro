@@ -2079,6 +2079,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 本合同root-only且不接manual reclaim/migration/successor；historical exact在recorded后永久保留，current才要求subject/receipt/root TTL。Receipt-v3与Evidence-v3 pure组合`33 passed`，Ruff、strict mypy与architecture 2846/0通过。
 - 仍缺Evidence-v3 Application/codec/0050账本、authoritative current mapping facade、独立staff composition与production入口；不得把Domain对象或Receipt-v3 claimant声明直接提升为账户owner authority。
 
+### 2026-08-14：Account owner-assignment staff approval Evidence v3 Application
+
+- 新增ID/hash-only Subject-v3注册与staff审批用例。Subject注册先重放历史first winner；新注册以单一server cutoff双读exact-current Receipt-v3与allocated Physical-v3，并封存exact durable Binding-v2及11项上游seals。审批者只来自当前authenticated human-staff provider，caller不能提交owner、approver、payload、permission或时钟。
+- 审批在同一UOW中双读subject、Receipt-v3、Physical-v3和approver；按actor ID与user ID双维禁止自批，并要求Account/underlying双mapping root同时为空后原子append root-only Evidence。winner-first重放绑定原approver，历史exact在recorded后永久读，closed-current才重验双root及Receipt/Physical当前状态；无v2 fallback或Application→Infrastructure依赖。
+- Application pure `6 passed`，Receipt-v3/Evidence-v3 Domain+Application组合`47 passed`；Ruff、Black/isort、strict mypy及architecture 2848/0通过。仍缺0050双表repository、production provider/composition、PG双root竞争与真实staff入口。
+
+### 2026-08-14：Account owner-assignment staff approval Evidence v3 strict codec
+
+- 新增公开Subject-v3与Evidence-v3严格codec。Subject decoder完整重建Receipt-v3、Binding-v2与allocated Physical-v3；Evidence decoder再重建完整Subject和approver，不把上游对象压缩为外部header。两者均执行exact keys/types、UTC-Z、fixed booleans、Domain hash/seal重算与encode→decode→encode canonical equality。
+- codec pure `24 passed`，与Application组合`30 passed`；Ruff、Black/isort与strict mypy通过。无ORM/model/migration；0050账本必须使用公开Subject decoder，并逐行闭合Receipt→Binding→Physical FK与Consumption Claim knowledge。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
