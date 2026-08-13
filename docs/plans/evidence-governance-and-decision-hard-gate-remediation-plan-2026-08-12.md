@@ -1711,6 +1711,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Django 5.2 isolated SQLite component `2 passed`；Account v2 Domain/Application与owner provider pure回归`52 passed`；ruff、Black/isort、architecture（2805 files / 0 violations）通过。
 - PostgreSQL并发race、真实0042 migrate/rollback、owner provider composition接入与全writer同事务raw outbox仍未完成；production账本保持zero-seed，provenance v1和执行总闸不变。
 
+### 2026-08-13：SimulatedTrading source v2 → Account v2 owner provider
+
+- 新增owner-side只读adapter：source v2 identity first winner必须与同PIT完整logical final head exact一致，才逐字段原样映射Account consumer DTO；ID/version/content hash、source/raw双层headers/link、row与三层时钟/validity均不改写。
+- `get_exact_final`允许inactive/tombstone终态作为Account successor输入，`get_exact_current`仅对present、active、非tombstone、未过期head返回；missing、superseded、expired/future或projection substitution均None/Corruption且不回退。
+- 独立composition仅构造read-only provider，不暴露source/raw ledger UOW、append、clock或Capture/writer graph；Account Application不import Simulated Infrastructure。
+
+验证与剩余边界：
+
+- owner provider unit tests `9 passed`；strict mypy、ruff、Black/isort、architecture（2805 files / 0 violations）与module-cycle（206 edges / 0 cycles）通过。
+- source/raw/Account v2三账本仍zero-seed；production canonical account selector、Account composition wiring与全writer同事务raw outbox仍未完成，因此provider诚实返回None，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
