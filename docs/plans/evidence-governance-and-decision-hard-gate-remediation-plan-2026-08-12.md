@@ -1667,6 +1667,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Django 5.2 isolated component `5 passed`；Domain/Application回归 `56 passed`；codec/repository strict mypy、ruff、Black/isort、architecture（2796 files / 0 violations）与module-cycle（206 edges / 0 cycles）通过。
 - PostgreSQL并发race、真实0023 migrate/rollback、raw-ledger owner adapter、Account v2 consumer/provider和全writer同事务outbox仍未完成；production v2账本保持zero-seed，v1不作current fallback，总闸不变。
 
+### 2026-08-13：SimulatedTrading raw observation → source v2 owner provider
+
+- 新增owner-side只读adapter：在同一PIT先取raw observation identity first winner，再取`(observation_id, row_pk)` logical final head；只有两者exact同一record才继续。
+- observation ID/version/content hash/row PK与recorded/observed/valid clocks逐项闭合，无改写映射为v2 consumer DTO；tombstone作为owner raw事实可读，missing、superseded、expired或future cutoff返回None且不回退。
+- raw ledger的type/selector/closed-world腐败稳定翻译为v2 corruption；composition仅构造read-only provider，不暴露`append/atomic/now`，不构造Capture或writer graph。
+
+验证与剩余边界：
+
+- owner provider unit tests `8 passed`；strict mypy、ruff、Black/isort、architecture（2798 files / 0 violations）与module-cycle（206 edges / 0 cycles）通过。
+- raw ledger与v2 source ledger均仍zero-seed；Account v2 consumer/provider、production canonical account selector与全writer同事务raw outbox仍未完成，因此provider当前诚实fail closed，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

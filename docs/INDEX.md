@@ -678,6 +678,9 @@
 - ✅ **SimulatedTrading raw-bound account-row source v2 ledger**
   - 独立strict/closed-world账本封存raw、row、logical、clock与header seals；private UOW/claim、identity/raw binding/root/predecessor CAS闭合
   - Django5.2组件5 passed、0023 zero-seed；PG并发/真实migrate、v2 adapters与全writer outbox仍缺，v1不作current fallback
+- ✅ **SimulatedTrading raw observation → source v2 owner provider**
+  - raw identity winner与logical final head双闭合，ID/version/hash/row/clocks逐项原样映射；tombstone可读但superseded/expired/future不回退
+  - read-only composition无UOW/writer，pure tests 8 passed；两账本zero-seed、Account v2 consumer与全writer raw outbox仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
