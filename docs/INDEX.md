@@ -534,6 +534,9 @@
 - ✅ **Broker Plan→Order binding append-only ledger**
   - private UOW、四元logical subject root/predecessor CAS、canonical-v1 raw row bytes/hash与closed-world exact/PIT/current seals完成；0012 zero-seed
   - Django5.2 minimal round-trip通过；完整component/PG并发与owner readers/composition未完成，inactive/pre-Risk/执行总闸不变
+- ✅ **Portfolio exact-active transition plan order owner reader**
+  - ID-only plan/version/ordinal/PIT query由Portfolio owner发布canonical-v1 row bytes/hash、account与recorded/valid clock，不自行读取时钟
+  - 仅Application Protocol；factory/composition、inactive receipt与Broker artifact ID-only owner readers仍缺，真实Plan→Order签发不可用
 - ✅ **Portfolio planning policy definition Domain 合同**
   - 以policy identity、lot与五项exact Decimal、时钟和canonical hash冻结definition，明确排除mutable status/current/activation语义
   - legacy status=active不能成为benchmark或执行authority

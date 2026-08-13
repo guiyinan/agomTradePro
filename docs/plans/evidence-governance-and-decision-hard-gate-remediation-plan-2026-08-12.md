@@ -787,6 +787,17 @@
 - Domain/Application回归 `90 passed`；py_compile、Black/isort/diff-check、codec strict mypy与architecture `2728 files / 0 violations`通过。root用Django5.2.10最小schema-editor补验zero-seed、append与exact round-trip通过。
 - Django5.2环境无pytest，完整component/migration drift和PostgreSQL并发CAS未验证；三个owner public reader/composition/真实签发仍缺，pre-Risk与执行总闸不变。
 
+### 2026-08-13：Portfolio exact-active transition plan order owner reader
+
+- 新增Portfolio Application owner reader，ID-only query仅含plan ID/version、order ordinal与调用方cutoff；provider Protocol由owner返回exact approved definition，reader不自行调用`now()`，不接受caller hash/account/row/permission。
+- Portfolio owner从canonical-v1 plan payload中投影指定ordinal的严格canonical JSON与SHA-256，并发布plan identity/content/account、recorded/valid clock及固定`portfolio/transition_plan_definition` authority；ordinal越界、未批准/未记录/已过期、type或selector替换均fail closed。
+- 本reader定义“指定immutable plan identity/version在cutoff已记录且未过期”，不声称logical latest/current head；无Infrastructure/Broker/composition/API依赖，可供Plan→Order与pre-Risk后续薄adapter复用。
+
+未完成与验证：
+
+- 新增及相邻纯测试 `29 passed`；Black/isort、standalone strict mypy、py_compile/diff-check与Application架构依赖测试通过，当前解释器无ruff。
+- owner Infrastructure factory/公共composition尚未接线；Portfolio inactive receipt与Broker order artifact仍缺ID-only owner reader，Plan→Order真实三源双读与签发尚不可用，总闸不变。
+
 ### 2026-08-13：Portfolio planning policy definition Domain 合同
 
 - 将 planning policy 的不可变定义语义从 legacy ORM `status` selector 中分离：新 Portfolio-owned definition 只封存 policy ID/version、positive buy lot size，以及 fee、slippage、minimum rebalance、max asset weight、max volume participation 五个 exact finite Decimal。
