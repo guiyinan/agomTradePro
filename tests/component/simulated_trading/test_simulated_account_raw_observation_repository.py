@@ -93,6 +93,7 @@ def test_codec_utc_round_trip_and_exact_pit_append() -> None:
         decode_simulated_account_raw_observation_record({**payload, "extra": True})
 
     repository = DjangoSimulatedAccountRawObservationRepository(clock=_Clock())
+    assert repository.database_alias == "default"
     _append(repository, record)
     assert (
         repository.get_exact_by_hash(
@@ -103,6 +104,7 @@ def test_codec_utc_round_trip_and_exact_pit_append() -> None:
         )
         == record
     )
+    assert repository.get_physical_row_head(row_pk=7, as_of=NOW) == record
 
 
 def test_successor_cas_and_final_tombstone_or_expiry_never_falls_back() -> None:
@@ -123,6 +125,13 @@ def test_successor_cas_and_final_tombstone_or_expiry_never_falls_back() -> None:
     assert (
         repository.get_current_head(
             observation_id="row-7",
+            row_pk=7,
+            as_of=NOW + timedelta(minutes=4),
+        )
+        == successor
+    )
+    assert (
+        repository.get_physical_row_head(
             row_pk=7,
             as_of=NOW + timedelta(minutes=4),
         )

@@ -693,6 +693,9 @@
 - ✅ **SimulatedTrading source v2 → Account v2 owner provider**
   - source winner/final head双闭合；exact-final传播terminal、exact-current仅live，完整source/raw/hash/clock原样映射
   - read-only composition pure 9 passed、architecture 2805/0；三账本zero-seed、Account wiring与全writer outbox仍缺
+- ✅ **SimulatedAccount raw mutation writer 安全前置**
+  - typed mutation、跨opaque-ID physical-row head、显式同alias外层事务与create/update/delete/tombstone CAS已闭合
+  - unit 11 passed、Django5.2 component 5 passed；尚未接生产writer，全部ORM/Admin/cascade一次性切换前保持zero-seed
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

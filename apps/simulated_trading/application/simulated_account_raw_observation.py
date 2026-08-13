@@ -71,6 +71,38 @@ class PersistedSimulatedAccountRawObservation:
 
 
 @dataclass(frozen=True, slots=True)
+class SimulatedAccountPhysicalRowMutation:
+    """Owner-supplied physical-row facts for one opaque mutation event."""
+
+    observation_id: str
+    mutation_version: str
+    row_pk: int
+    row_user_id: int | None
+    raw_account_type: str
+    is_active: bool
+    row_created_at: datetime
+    row_updated_at: datetime
+    observed_at: datetime
+
+    def __post_init__(self) -> None:
+        _require_token(self.observation_id, "observation_id")
+        _require_token(self.mutation_version, "mutation_version")
+        _require_token(self.raw_account_type, "raw_account_type")
+        if type(self.row_pk) is not int or self.row_pk <= 0:
+            raise ValueError("row_pk must be an exact positive integer")
+        if self.row_user_id is not None and (
+            type(self.row_user_id) is not int or self.row_user_id <= 0
+        ):
+            raise ValueError("row_user_id must be null or an exact positive integer")
+        if type(self.is_active) is not bool:
+            raise TypeError("is_active must be an exact boolean")
+        for field_name in ("row_created_at", "row_updated_at", "observed_at"):
+            _require_aware(getattr(self, field_name), field_name)
+        if not self.row_created_at <= self.row_updated_at <= self.observed_at:
+            raise ValueError("physical-row mutation clock sequence is invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class GetExactSimulatedAccountRawObservationCommand:
     """Select one immutable observation identity, hash, and PIT cutoff."""
 
@@ -103,6 +135,9 @@ class GetCurrentSimulatedAccountRawObservationCommand:
 class SimulatedAccountRawObservationRepository(Protocol):
     """Append-only owner store with historical and logical-head reads."""
 
+    @property
+    def database_alias(self) -> str: ...
+
     def atomic(self) -> AbstractContextManager[None]: ...
 
     def now(self) -> datetime: ...
@@ -119,6 +154,13 @@ class SimulatedAccountRawObservationRepository(Protocol):
         self,
         *,
         observation_id: str,
+        row_pk: int,
+        as_of: datetime,
+    ) -> PersistedSimulatedAccountRawObservation | None: ...
+
+    def get_physical_row_head(
+        self,
+        *,
         row_pk: int,
         as_of: datetime,
     ) -> PersistedSimulatedAccountRawObservation | None: ...
@@ -334,6 +376,7 @@ __all__ = [
     "GetExactSimulatedAccountRawObservationCommand",
     "PersistedSimulatedAccountRawObservation",
     "RecordSimulatedAccountRawObservation",
+    "SimulatedAccountPhysicalRowMutation",
     "SimulatedAccountRawObservationConflict",
     "SimulatedAccountRawObservationCorruption",
     "SimulatedAccountRawObservationRepository",

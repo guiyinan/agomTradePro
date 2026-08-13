@@ -1722,6 +1722,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - owner provider unit tests `9 passed`；strict mypy、ruff、Black/isort、architecture（2805 files / 0 violations）与module-cycle（206 edges / 0 cycles）通过。
 - source/raw/Account v2三账本仍zero-seed；production canonical account selector、Account composition wiring与全writer同事务raw outbox仍未完成，因此provider诚实返回None，总闸不变。
 
+### 2026-08-13：SimulatedAccount raw mutation writer 安全前置
+
+- raw Application新增typed physical-row mutation DTO与repository `database_alias/get_physical_row_head`契约；Django repository先closed-world恢复全账本，再跨opaque observation ID解析同一row的final head，防止新stream制造第二root。
+- 新增transaction-bound writer：显式要求owner外层同DB alias事务，opaque observation ID作为稳定row stream、mutation version作为retry-stable event；create/update/delete分别构造present root、present successor与tombstone successor，并通过raw first-winner/predecessor CAS追加。
+- 本批未接任何`SimulatedAccountModel`生产写入口、Admin、cascade或任务，未开启seed；缺owner外层transaction时稳定Conflict，不用post-save/on_commit或请求时钟伪造owner事实。
+
+验证与剩余边界：
+
+- raw Application/writer unit `11 passed`；Django 5.2 raw repository component `5 passed`；ruff、Black/isort通过。
+- 上线前仍需一次性原子切换所有账户create/update/reset/delete、position valuation反写、gateway/portfolio、Admin、management与User cascade，并封死QuerySet/bulk/raw旁路；部分接入会让旧raw head被误报current，因此三账本继续zero-seed，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

@@ -94,6 +94,12 @@ class DjangoSimulatedAccountRawObservationRepository:
         _require_aware(value, "raw observation clock")
         return value
 
+    @property
+    def database_alias(self) -> str:
+        """Return the database alias shared with the owner mutation UOW."""
+
+        return self._using
+
     def append(
         self,
         record: PersistedSimulatedAccountRawObservation,
@@ -242,6 +248,23 @@ class DjangoSimulatedAccountRawObservationRepository:
             for record in records
             if record.observation.observation_id == observation_id
             and record.observation.row_pk == row_pk
+        )
+        return _restore_full_chain(chain) if chain else None
+
+    def get_physical_row_head(
+        self,
+        *,
+        row_pk: int,
+        as_of: datetime,
+    ) -> PersistedSimulatedAccountRawObservation | None:
+        """Return the sole final chain head for a physical row across opaque IDs."""
+
+        _require_positive_integer(row_pk, "row_pk")
+        self._require_cutoff(as_of)
+        chain = tuple(
+            record
+            for record in self._visible_records(as_of=as_of, lock=False)
+            if record.observation.row_pk == row_pk
         )
         return _restore_full_chain(chain) if chain else None
 
