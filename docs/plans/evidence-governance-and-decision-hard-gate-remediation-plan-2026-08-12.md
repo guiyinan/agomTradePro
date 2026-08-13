@@ -1913,6 +1913,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - pure Domain unit `28 passed`；strict mypy、ruff、Black/isort、architecture（2824 files / 0 violations）与diff-check通过。
 - 本批不定义update/delete successor，因为它们必须先依赖尚未实现的durable `CanonicalAccountCreationBindingV2`；也尚无Application/codec/ledger/provider。旧Physical-v2/claimant receipt-v2/staff Evidence-v2仅作历史或nested技术证据，不做authoritative fallback；pipeline、production writer与执行总闸保持禁用。
 
+### 2026-08-13：Account durable canonical creation Binding-v2 Domain
+
+- 新增独立`CanonicalAccountCreationBindingV2`，完整持有并重验exact allocation v1与exact allocated Physical-v3 creation root，不复用0045短TTL Binding-v1。Account/underlying双claim、root v3 identity/content、inner Physical-v2、source-v2及raw observation content hashes、binder service及签发时钟全部进入canonical hash。
+- Binding-v2只要求在`recorded_at`时allocation和root v3已记录且未过期；提交后不发布`valid_until/current`能力，Account ID↔underlying row的耐久一一映射不因上游短TTL而失效或允许复用。决策当前性仍由当前Physical-v3与后续owner Evidence-v3判定。
+- root allocation、Account label、underlying ID、row user/type、v3/v2/source/raw hash及双claim任一替换都fail closed。固定`identity_binding_evidence_only/inactive/bound_pending_owner_approval/unknown`、`activation_available=false`、`must_not_execute=true`，不构成owner approval或execution authority。
+
+验证与剩余边界：
+
+- pure Domain unit `10 passed`；strict mypy、ruff、Black/isort、architecture（2825 files / 0 violations）与diff-check通过。
+- 本批仅Domain，无Application/codec/model/repository/migration/provider；Physical-v3 update/delete successor尚未实现。旧Binding-v1仅保留为创建时兼容/审计合同，不得用作durable update/delete anchor或自动升级旧receipt/Evidence-v2；pipeline/writer/执行总闸保持禁用。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

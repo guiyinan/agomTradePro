@@ -747,6 +747,9 @@
 - ✅ **Account allocated Physical-v3 creation-root Domain**
   - 独立v3 wrapper完整封存exact allocation与Physical-v2 root，强physical/source/raw三predecessor为空、live/present、label/user/type一致与三路min-validity
   - pure 28 passed、architecture 2824/0；仅creation root，durable Binding-v2/Application/ledger/update-delete successor仍缺，无v2 fallback
+- ✅ **Account durable canonical creation Binding-v2 Domain**
+  - exact allocation + allocated Physical-v3 root与Account/underlying双claim、v3/v2/source/raw hashes完整封存；映射耐久性不再绑定短TTL
+  - pure 10 passed、architecture 2825/0；固定inactive/unknown/must-not-execute，Application/ledger/provider及Physical-v3 successor仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
