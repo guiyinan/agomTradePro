@@ -106,7 +106,7 @@ class PhysicalAccountRowObservationV2Manager(AppendOnlyManager[_ModelT]):
 
 
 class PhysicalAccountRowObservationV2Model(models.Model):
-    """One immutable actor-bound Account v2 ledger record."""
+    """One immutable service-recorded Account v2 ledger record."""
 
     objects = PhysicalAccountRowObservationV2Manager()
 
@@ -157,11 +157,11 @@ class PhysicalAccountRowObservationV2Model(models.Model):
     root_claim_hash = models.CharField(max_length=64, null=True, blank=True)
     permission = models.CharField(max_length=32)
     status = models.CharField(max_length=16)
-    captured_actor_id = models.CharField(max_length=192)
-    captured_actor_user_id = models.PositiveBigIntegerField()
-    captured_actor_role = models.CharField(max_length=192)
-    captured_actor_kind = models.CharField(max_length=16)
-    captured_actor_is_staff = models.BooleanField()
+    recorded_by_id = models.CharField(max_length=192)
+    recorded_by_service_name = models.CharField(max_length=192)
+    recorded_by_role = models.CharField(max_length=192)
+    recorded_by_kind = models.CharField(max_length=16)
+    recorded_by_is_automated = models.BooleanField()
     canonical_payload = models.JSONField()
     identity_hash = models.CharField(max_length=64, unique=True)
     content_hash = models.CharField(max_length=64, unique=True)
@@ -169,7 +169,7 @@ class PhysicalAccountRowObservationV2Model(models.Model):
     source_binding_seal = models.CharField(max_length=64)
     row_seal = models.CharField(max_length=64)
     clock_seal = models.CharField(max_length=64)
-    actor_binding_seal = models.CharField(max_length=64)
+    recorder_binding_seal = models.CharField(max_length=64)
     record_seal = models.CharField(max_length=64, unique=True)
     ledger_seal = models.CharField(max_length=64, unique=True)
     persisted_at = models.DateTimeField()
@@ -218,8 +218,9 @@ class PhysicalAccountRowObservationV2Model(models.Model):
                     owner_assignment_state="unknown",
                     permission="evidence_only",
                     status="inactive",
-                    captured_actor_kind="human",
-                    captured_actor_is_staff=True,
+                    recorded_by_role="evidence_projector",
+                    recorded_by_kind="service",
+                    recorded_by_is_automated=True,
                 ),
                 name="acct_phys_v2_fixed_ck",
             ),

@@ -1,4 +1,4 @@
-"""Strict canonical codec for actor-bound Account v2 row evidence."""
+"""Strict canonical codec for service-recorded Account v2 row evidence."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import cast
 
 from apps.account.application.physical_account_row_observation_v2 import (
     PersistedPhysicalAccountRowObservationV2,
-    PhysicalAccountRowObservationActor,
+    PhysicalAccountRowObservationV2Recorder,
 )
 from apps.account.domain.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2,
@@ -21,23 +21,23 @@ class PhysicalAccountRowObservationV2CodecError(ValueError):
 def encode_physical_account_row_observation_v2_record(
     value: PersistedPhysicalAccountRowObservationV2,
 ) -> dict[str, object]:
-    """Encode one complete Account v2 observation and server actor."""
+    """Encode one complete Account v2 observation and service recorder."""
 
     PersistedPhysicalAccountRowObservationV2.__post_init__(value)
     payload = value.observation.to_payload()
-    actor = value.captured_by
+    recorder = value.recorded_by
     return {
         "observation": {
             key: item
             for key, item in payload.items()
             if key not in {"activation_available", "must_not_execute"}
         },
-        "captured_by": {
-            "actor_id": actor.actor_id,
-            "user_id": actor.user_id,
-            "role": actor.role,
-            "kind": actor.kind,
-            "is_staff": actor.is_staff,
+        "recorded_by": {
+            "recorder_id": recorder.recorder_id,
+            "service_name": recorder.service_name,
+            "role": recorder.role,
+            "kind": recorder.kind,
+            "is_automated": recorder.is_automated,
         },
     }
 
@@ -48,11 +48,11 @@ def decode_physical_account_row_observation_v2_record(
     """Decode and canonical-roundtrip-check one stored Account v2 record."""
 
     envelope = _mapping(payload, "record")
-    _exact_keys(envelope, {"observation", "captured_by"}, "record")
+    _exact_keys(envelope, {"observation", "recorded_by"}, "record")
     data = _mapping(envelope["observation"], "observation")
-    actor_data = _mapping(envelope["captured_by"], "captured_by")
+    recorder_data = _mapping(envelope["recorded_by"], "recorded_by")
     _exact_keys(data, _OBSERVATION_KEYS, "observation")
-    _exact_keys(actor_data, _ACTOR_KEYS, "captured_by")
+    _exact_keys(recorder_data, _RECORDER_KEYS, "recorded_by")
     try:
         observation = PhysicalAccountRowObservationV2(
             observation_id=_string(data["observation_id"]),
@@ -108,16 +108,16 @@ def decode_physical_account_row_observation_v2_record(
             permission=_string(data["permission"]),
             status=_string(data["status"]),
         )
-        actor = PhysicalAccountRowObservationActor(
-            actor_id=_string(actor_data["actor_id"]),
-            user_id=_integer(actor_data["user_id"]),
-            role=_string(actor_data["role"]),
-            kind=_string(actor_data["kind"]),
-            is_staff=_boolean(actor_data["is_staff"]),
+        recorder = PhysicalAccountRowObservationV2Recorder(
+            recorder_id=_string(recorder_data["recorder_id"]),
+            service_name=_string(recorder_data["service_name"]),
+            role=_string(recorder_data["role"]),
+            kind=_string(recorder_data["kind"]),
+            is_automated=_boolean(recorder_data["is_automated"]),
         )
         record = PersistedPhysicalAccountRowObservationV2(
             observation=observation,
-            captured_by=actor,
+            recorded_by=recorder,
         )
     except (KeyError, TypeError, ValueError) as error:
         raise PhysicalAccountRowObservationV2CodecError(
@@ -180,7 +180,13 @@ _OBSERVATION_KEYS = {
     "identity_hash",
     "content_hash",
 }
-_ACTOR_KEYS = {"actor_id", "user_id", "role", "kind", "is_staff"}
+_RECORDER_KEYS = {
+    "recorder_id",
+    "service_name",
+    "role",
+    "kind",
+    "is_automated",
+}
 
 
 def _mapping(value: object, field_name: str) -> dict[str, object]:

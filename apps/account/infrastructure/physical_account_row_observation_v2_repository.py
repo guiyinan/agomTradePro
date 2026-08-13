@@ -14,9 +14,9 @@ from django.utils import timezone
 
 from apps.account.application.physical_account_row_observation_v2 import (
     PersistedPhysicalAccountRowObservationV2,
-    PhysicalAccountRowObservationActor,
     PhysicalAccountRowObservationV2Conflict,
     PhysicalAccountRowObservationV2Corruption,
+    PhysicalAccountRowObservationV2Recorder,
     PhysicalAccountRowObservationV2Unavailable,
 )
 from apps.account.domain.physical_account_row_observation_v2 import (
@@ -323,7 +323,7 @@ class DjangoPhysicalAccountRowObservationV2Repository:
         observation = record.observation
         root_claim = _root_claim_hash(observation)
         source_binding = _source_binding_seal(observation)
-        actor_binding = _actor_binding_seal(record)
+        recorder_binding = _recorder_binding_seal(record)
         rows = list(PhysicalAccountRowObservationV2Model._default_manager.using(self._using).all())
         if not rows:
             return None
@@ -350,7 +350,7 @@ class DjangoPhysicalAccountRowObservationV2Repository:
                     == observation.raw_observation_version
                 )
                 or (
-                    row.actor_binding_seal == actor_binding
+                    row.recorder_binding_seal == recorder_binding
                     and value.observation.content_hash == observation.content_hash
                 )
                 or (
@@ -411,9 +411,9 @@ class DjangoPhysicalAccountRowObservationV2Repository:
             raise DjangoPhysicalAccountRowObservationV2Corruption(
                 "physical account-row v2 clock seal is invalid"
             )
-        if model.actor_binding_seal != _actor_binding_seal(record):
+        if model.recorder_binding_seal != _recorder_binding_seal(record):
             raise DjangoPhysicalAccountRowObservationV2Corruption(
-                "physical account-row v2 actor binding seal is invalid"
+                "physical account-row v2 recorder binding seal is invalid"
             )
         if model.record_seal != _record_seal(record):
             raise DjangoPhysicalAccountRowObservationV2Corruption(
@@ -603,21 +603,23 @@ def _clock_seal(observation: PhysicalAccountRowObservationV2) -> str:
     )
 
 
-def _actor_payload(actor: PhysicalAccountRowObservationActor) -> dict[str, object]:
+def _recorder_payload(
+    recorder: PhysicalAccountRowObservationV2Recorder,
+) -> dict[str, object]:
     return {
-        "actor_id": actor.actor_id,
-        "user_id": actor.user_id,
-        "role": actor.role,
-        "kind": actor.kind,
-        "is_staff": actor.is_staff,
+        "recorder_id": recorder.recorder_id,
+        "service_name": recorder.service_name,
+        "role": recorder.role,
+        "kind": recorder.kind,
+        "is_automated": recorder.is_automated,
     }
 
 
-def _actor_binding_seal(record: PersistedPhysicalAccountRowObservationV2) -> str:
+def _recorder_binding_seal(record: PersistedPhysicalAccountRowObservationV2) -> str:
     return _hash_payload(
         {
             "content_hash": record.observation.content_hash,
-            "captured_by": _actor_payload(record.captured_by),
+            "recorded_by": _recorder_payload(record.recorded_by),
         }
     )
 
@@ -644,7 +646,7 @@ def _ledger_seal(
             "source_binding_seal": _source_binding_seal(observation),
             "raw_binding_seal": _raw_binding_seal(observation),
             "clock_seal": _clock_seal(observation),
-            "actor_binding_seal": _actor_binding_seal(record),
+            "recorder_binding_seal": _recorder_binding_seal(record),
             "persisted_at": _time(recorded_at),
         }
     )
@@ -656,7 +658,7 @@ def _model_values(
     recorded_at: datetime,
 ) -> dict[str, object]:
     observation = record.observation
-    actor = record.captured_by
+    recorder = record.recorded_by
     values: dict[str, object] = {
         name: getattr(observation, name)
         for name in _OBSERVATION_HEADER_NAMES
@@ -670,17 +672,17 @@ def _model_values(
                 if observation.supersedes_content_hash is None
                 else None
             ),
-            "captured_actor_id": actor.actor_id,
-            "captured_actor_user_id": actor.user_id,
-            "captured_actor_role": actor.role,
-            "captured_actor_kind": actor.kind,
-            "captured_actor_is_staff": actor.is_staff,
+            "recorded_by_id": recorder.recorder_id,
+            "recorded_by_service_name": recorder.service_name,
+            "recorded_by_role": recorder.role,
+            "recorded_by_kind": recorder.kind,
+            "recorded_by_is_automated": recorder.is_automated,
             "canonical_payload": encode_physical_account_row_observation_v2_record(record),
             "row_seal": _row_seal(observation),
             "source_binding_seal": _source_binding_seal(observation),
             "raw_binding_seal": _raw_binding_seal(observation),
             "clock_seal": _clock_seal(observation),
-            "actor_binding_seal": _actor_binding_seal(record),
+            "recorder_binding_seal": _recorder_binding_seal(record),
             "record_seal": _record_seal(record),
             "ledger_seal": _ledger_seal(
                 record,
@@ -696,13 +698,13 @@ def _record_headers(
     record: PersistedPhysicalAccountRowObservationV2,
 ) -> tuple[object, ...]:
     observation = record.observation
-    actor = record.captured_by
+    recorder = record.recorded_by
     return tuple(getattr(observation, name) for name in _OBSERVATION_HEADER_NAMES) + (
-        actor.actor_id,
-        actor.user_id,
-        actor.role,
-        actor.kind,
-        actor.is_staff,
+        recorder.recorder_id,
+        recorder.service_name,
+        recorder.role,
+        recorder.kind,
+        recorder.is_automated,
     )
 
 
@@ -710,11 +712,11 @@ def _model_headers(
     model: PhysicalAccountRowObservationV2Model,
 ) -> tuple[object, ...]:
     return tuple(getattr(model, name) for name in _OBSERVATION_HEADER_NAMES) + (
-        model.captured_actor_id,
-        model.captured_actor_user_id,
-        model.captured_actor_role,
-        model.captured_actor_kind,
-        model.captured_actor_is_staff,
+        model.recorded_by_id,
+        model.recorded_by_service_name,
+        model.recorded_by_role,
+        model.recorded_by_kind,
+        model.recorded_by_is_automated,
     )
 
 

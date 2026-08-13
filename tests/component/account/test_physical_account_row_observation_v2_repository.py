@@ -5,14 +5,15 @@ from datetime import UTC, datetime
 import pytest
 from django.core.exceptions import ValidationError
 
-from apps.account.application.physical_account_row_observation import (
-    PhysicalAccountRowObservationActor,
-)
 from apps.account.application.physical_account_row_observation_v2 import (
     PersistedPhysicalAccountRowObservationV2,
+    PhysicalAccountRowObservationV2Recorder,
 )
 from apps.account.domain.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2,
+)
+from apps.account.infrastructure.physical_account_row_observation_v2_codec import (
+    encode_physical_account_row_observation_v2_record,
 )
 from apps.account.infrastructure.physical_account_row_observation_v2_models import (
     PhysicalAccountRowObservationV2Model,
@@ -115,8 +116,8 @@ def _record() -> PersistedPhysicalAccountRowObservationV2:
     )
     return PersistedPhysicalAccountRowObservationV2(
         observation=observation,
-        captured_by=PhysicalAccountRowObservationActor(
-            actor_id="account-recorder", user_id=9, role="operator"
+        recorded_by=PhysicalAccountRowObservationV2Recorder(
+            recorder_id="account-v2-projector", service_name="account"
         ),
     )
 
@@ -134,6 +135,20 @@ def test_append_exact_pit_and_current_head_roundtrip() -> None:
             )
             == record
         )
+    row = PhysicalAccountRowObservationV2Model.objects.get()
+    assert row.recorded_by_id == "account-v2-projector"
+    assert row.recorded_by_service_name == "account"
+    assert row.recorded_by_role == "evidence_projector"
+    assert row.recorded_by_kind == "service"
+    assert row.recorded_by_is_automated is True
+    assert len(row.recorder_binding_seal) == 64
+    assert encode_physical_account_row_observation_v2_record(record)["recorded_by"] == {
+        "recorder_id": "account-v2-projector",
+        "service_name": "account",
+        "role": "evidence_projector",
+        "kind": "service",
+        "is_automated": True,
+    }
     assert (
         repository.get_winner(
             observation_id=record.observation.observation_id,

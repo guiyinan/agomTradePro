@@ -7,9 +7,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Protocol
 
-from apps.account.application.physical_account_row_observation import (
-    PhysicalAccountRowObservationActor,
-)
 from apps.account.domain.physical_account_row_observation_v2 import (
     PHYSICAL_ACCOUNT_ROW_OBSERVATION_V2_OWNER_ASSIGNMENT_STATE,
     PHYSICAL_ACCOUNT_ROW_OBSERVATION_V2_RAW_ARTIFACT_TYPE,
@@ -67,6 +64,27 @@ class PhysicalAccountRowObservationV2Conflict(ValueError):
 
 class PhysicalAccountRowObservationV2Corruption(ValueError):
     """A provider or repository substituted raw-bound Account evidence."""
+
+
+@dataclass(frozen=True, slots=True)
+class PhysicalAccountRowObservationV2Recorder:
+    """Authenticated service identity that materializes Account v2 evidence."""
+
+    recorder_id: str
+    service_name: str
+    role: str = "evidence_projector"
+    kind: str = "service"
+    is_automated: bool = True
+
+    def __post_init__(self) -> None:
+        _require_token(self.recorder_id, "recorder_id")
+        _require_token(self.service_name, "service_name")
+        if self.role != "evidence_projector":
+            raise ValueError("recorder role is fixed")
+        if self.kind != "service":
+            raise ValueError("recorder kind is fixed")
+        if self.is_automated is not True:
+            raise ValueError("recorder is_automated is fixed")
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,18 +222,18 @@ class ExactPhysicalSimulatedAccountRowV2:
 
 @dataclass(frozen=True, slots=True)
 class PersistedPhysicalAccountRowObservationV2:
-    """Repository record pairing v2 evidence with its server actor."""
+    """Repository record pairing v2 evidence with its service recorder."""
 
     observation: PhysicalAccountRowObservationV2
-    captured_by: PhysicalAccountRowObservationActor
+    recorded_by: PhysicalAccountRowObservationV2Recorder
 
     def __post_init__(self) -> None:
         if type(self.observation) is not PhysicalAccountRowObservationV2:
             raise TypeError("observation must be an exact PhysicalAccountRowObservationV2")
         PhysicalAccountRowObservationV2.__post_init__(self.observation)
-        if type(self.captured_by) is not PhysicalAccountRowObservationActor:
-            raise TypeError("captured_by must be an exact PhysicalAccountRowObservationActor")
-        PhysicalAccountRowObservationActor.__post_init__(self.captured_by)
+        if type(self.recorded_by) is not PhysicalAccountRowObservationV2Recorder:
+            raise TypeError("recorded_by must be an exact PhysicalAccountRowObservationV2Recorder")
+        PhysicalAccountRowObservationV2Recorder.__post_init__(self.recorded_by)
 
 
 @dataclass(frozen=True, slots=True)
@@ -365,17 +383,17 @@ class CapturePhysicalAccountRowObservationV2:
         *,
         row_provider: ExactPhysicalSimulatedAccountRowV2Provider,
         repository: PhysicalAccountRowObservationV2Repository,
-        actor: PhysicalAccountRowObservationActor,
+        recorder: PhysicalAccountRowObservationV2Recorder,
         validity_period: timedelta,
     ) -> None:
-        if type(actor) is not PhysicalAccountRowObservationActor:
-            raise TypeError("actor must be an exact PhysicalAccountRowObservationActor")
-        PhysicalAccountRowObservationActor.__post_init__(actor)
+        if type(recorder) is not PhysicalAccountRowObservationV2Recorder:
+            raise TypeError("recorder must be an exact PhysicalAccountRowObservationV2Recorder")
+        PhysicalAccountRowObservationV2Recorder.__post_init__(recorder)
         if type(validity_period) is not timedelta or validity_period <= timedelta(0):
             raise ValueError("validity_period must be an exact positive timedelta")
         self._row_provider = row_provider
         self._repository = repository
-        self._actor = actor
+        self._recorder = recorder
         self._validity_period = validity_period
 
     def execute(
@@ -451,7 +469,7 @@ class CapturePhysicalAccountRowObservationV2:
                 )
             record = PersistedPhysicalAccountRowObservationV2(
                 observation=observation,
-                captured_by=self._actor,
+                recorded_by=self._recorder,
             )
             persisted = self._repository.append(
                 record,
@@ -820,7 +838,7 @@ __all__ = [
     "GetExactPhysicalAccountRowObservationV2",
     "GetExactPhysicalAccountRowObservationV2Command",
     "PersistedPhysicalAccountRowObservationV2",
-    "PhysicalAccountRowObservationActor",
+    "PhysicalAccountRowObservationV2Recorder",
     "PhysicalAccountRowObservationV2Conflict",
     "PhysicalAccountRowObservationV2Corruption",
     "PhysicalAccountRowObservationV2Repository",

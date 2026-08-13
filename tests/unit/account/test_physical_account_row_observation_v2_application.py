@@ -15,8 +15,8 @@ from apps.account.application.physical_account_row_observation_v2 import (
     GetExactPhysicalAccountRowObservationV2,
     GetExactPhysicalAccountRowObservationV2Command,
     PersistedPhysicalAccountRowObservationV2,
-    PhysicalAccountRowObservationActor,
     PhysicalAccountRowObservationV2Conflict,
+    PhysicalAccountRowObservationV2Recorder,
 )
 from apps.simulated_trading.domain.simulated_account_raw_observation import (
     SimulatedAccountRawObservation,
@@ -184,10 +184,9 @@ def _use_case(
     return CapturePhysicalAccountRowObservationV2(
         row_provider=provider,
         repository=repository,
-        actor=PhysicalAccountRowObservationActor(
-            actor_id="staff-1",
-            user_id=1,
-            role="operator",
+        recorder=PhysicalAccountRowObservationV2Recorder(
+            recorder_id="account-v2-projector",
+            service_name="account",
         ),
         validity_period=timedelta(days=5),
     )
@@ -291,3 +290,18 @@ def test_capture_command_contains_only_ids_hash_and_logical_selectors() -> None:
         "underlying_unified_account_namespace",
         "underlying_unified_account_id",
     }
+    recorder = PhysicalAccountRowObservationV2Recorder(
+        recorder_id="account-v2-projector",
+        service_name="account",
+    )
+    assert (recorder.role, recorder.kind, recorder.is_automated) == (
+        "evidence_projector",
+        "service",
+        True,
+    )
+    with pytest.raises(ValueError, match="kind is fixed"):
+        PhysicalAccountRowObservationV2Recorder(
+            recorder_id="human-1",
+            service_name="account",
+            kind="human",
+        )

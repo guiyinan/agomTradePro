@@ -1733,6 +1733,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - raw Application/writer unit `11 passed`；Django 5.2 raw repository component `5 passed`；ruff、Black/isort通过。
 - 上线前仍需一次性原子切换所有账户create/update/reset/delete、position valuation反写、gateway/portfolio、Admin、management与User cascade，并封死QuerySet/bulk/raw旁路；部分接入会让旧raw head被误报current，因此三账本继续zero-seed，总闸不变。
 
+### 2026-08-13：Account v2 自动证据 recorder 语义修正
+
+- Account physical-row v2不再复用v1 human-staff actor，改为独立fixed service recorder：`kind=service`、`is_automated=true`、`role=evidence_projector`；自动raw/source outbox无需伪造人工staff身份。
+- Persisted envelope、strict codec、0042 model/migration与repository headers/seals统一改为`recorded_by`，recorder ID/service name/role/kind/automated状态全部进入recorder binding、record与ledger seal；DB fixed constraint拒绝human或非自动recording。
+- 这只修正“谁记录技术证据”的provenance，不改变Account/source/raw owner、不声明owner assignment、不提升evidence-only/inactive权限，也不授予执行资格；v1人工actor合同保持不动。
+
+验证与剩余边界：
+
+- Account v2 Domain/Application pure `43 passed`、Django 5.2 component `2 passed`；strict mypy、ruff、Black/isort与diff-check通过。
+- 0042仍为未部署zero-seed最终schema；production pipeline、canonical identity输入与全writer原子cutover仍未完成，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
