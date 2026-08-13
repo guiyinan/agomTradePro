@@ -1609,6 +1609,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - pure Domain tests `23 passed`；strict mypy、ruff、Black/isort、py_compile与architecture（2787 files / 0 violations）通过。
 - owner Application、append-only raw ledger、exact-current provider/outbox，以及覆盖repository/gateway/portfolio writer、position valuation反写、Admin、management与delete tombstone的同事务writer均未完成；production source ledger继续zero-seed，总闸不变。
 
+### 2026-08-13：SimulatedTrading raw account-row observation Application
+
+- 新增 owner Application append/read contract：future owner writer只可提交exact Domain observation；`observation_version`固定承担owner transaction/outbox event identity，重试复用同version、另一已提交mutation必须使用新version。没有HTTP散乱row/hash/clock command。
+- persisted envelope独立封存repository authoritative `recorded_at`，不修改owner `observed_at/valid_until/content_hash`。record use case以单一server clock完成identity first-winner、logical-head predecessor CAS、root/successor校验及append返回exact复核。
+- exact PIT与closed-current read分离：tombstone/inactive可作为raw历史事实读取；current必须exact winner等于logical final head，superseded或final expired均None且不回退。
+
+验证与剩余边界：
+
+- Domain/Application组合 tests `31 passed`；strict mypy、ruff、Black/isort、py_compile与architecture（2788 files / 0 violations）通过。
+- 当前仅Protocol+pure fake；append-only raw ledger、owner exact adapter/source v2 raw-hash binding与全writer同事务outbox仍未完成，production继续zero-seed且总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
