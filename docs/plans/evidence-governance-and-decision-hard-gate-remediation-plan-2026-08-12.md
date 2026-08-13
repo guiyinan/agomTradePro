@@ -1766,6 +1766,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - pure unit `22 passed`；strict mypy、ruff、Black/isort、architecture（2808 files / 0 violations）与diff-check通过。
 - 本批仅Domain；ID/hash-only Application、0043 zero-seed ledger、独立staff approval evidence v2与authoritative canonical identity provider仍未完成，production pipeline不得接受caller自报身份，总闸不变。
 
+### 2026-08-13：Account owner-assignment claimant provenance receipt v2 Application
+
+- 新增严格6字段ID/hash-only issuance command，只接受receipt ID/version/kind与physical v2 observation ID/version/expected content hash；account、claimed owner、row payload、permission、validity和业务时钟全部由exact-current owner source、authenticated actor与server clock派生。
+- issuance在repository UOW内用同一cutoff首末双读完整physical v2，重跑Account/source/raw三层hash与selector；creation/manual/migration actor矩阵在Application入口及Domain双重校验。first-winner replay绑定原authenticated actor与logical head，successor predecessor由repository head派生并交给append CAS。
+- exact与closed-current reader均重新读取physical v2 exact-current head；upstream supersede、terminal、expiry或hash替换立即返回不可用/腐败，不回退v1或旧receipt。Application只签发claimant receipt，不发布authoritative Account identity。
+
+验证与剩余边界：
+
+- pure Application unit `9 passed`；strict mypy、ruff、Black/isort、architecture（2809 files / 0 violations）与diff-check通过。
+- 本批仍只有Protocol+pure fakes；0043 zero-seed ledger、owner provider/composition、独立staff approval evidence v2与authoritative canonical identity provider仍未完成，production pipeline与writer cutover继续禁用。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
