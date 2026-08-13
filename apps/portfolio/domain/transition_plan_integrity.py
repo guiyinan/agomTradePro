@@ -222,14 +222,19 @@ class TransitionPlanApprovalReceipt:
 
     receipt_id: str
     receipt_version: str
+    subject_id: str
+    subject_version: str
+    subject_content_hash: str
     plan_id: str
     plan_version: int
     plan_content_hash: str
     account_id: str
     decision_snapshot_id: str
+    requested_by: TransitionPlanApprovalActor
     approved_by: TransitionPlanApprovalActor
     issued_at: datetime
     valid_until: datetime
+    plan_status_at_issue: str = "APPROVED"
     content_hash: str = ""
     owner: str = _APPROVAL_OWNER
     schema: str = _APPROVAL_SCHEMA
@@ -243,6 +248,10 @@ class TransitionPlanApprovalReceipt:
         *,
         receipt_id: str,
         receipt_version: str,
+        subject_id: str,
+        subject_version: str,
+        subject_content_hash: str,
+        requested_by: TransitionPlanApprovalActor,
         plan: TransitionPlan,
         approved_by: TransitionPlanApprovalActor,
         issued_at: datetime,
@@ -257,11 +266,15 @@ class TransitionPlanApprovalReceipt:
         return cls(
             receipt_id=receipt_id,
             receipt_version=receipt_version,
+            subject_id=subject_id,
+            subject_version=subject_version,
+            subject_content_hash=subject_content_hash,
             plan_id=plan.plan_id,
             plan_version=plan.version,
             plan_content_hash=transition_plan_content_hash_v1(plan),
             account_id=plan.account_id,
             decision_snapshot_id=plan.decision_snapshot_id,
+            requested_by=requested_by,
             approved_by=approved_by,
             issued_at=issued_at,
             valid_until=plan.expires_at,
@@ -271,6 +284,8 @@ class TransitionPlanApprovalReceipt:
         for field_name in (
             "receipt_id",
             "receipt_version",
+            "subject_id",
+            "subject_version",
             "plan_id",
             "account_id",
             "decision_snapshot_id",
@@ -284,15 +299,29 @@ class TransitionPlanApprovalReceipt:
             item not in "0123456789abcdef" for item in self.plan_content_hash
         ):
             raise ValueError("plan_content_hash must be lowercase SHA-256")
+        if len(self.subject_content_hash) != 64 or any(
+            item not in "0123456789abcdef" for item in self.subject_content_hash
+        ):
+            raise ValueError("subject_content_hash must be lowercase SHA-256")
+        if type(self.requested_by) is not TransitionPlanApprovalActor:
+            raise TypeError("requested_by must be an exact TransitionPlanApprovalActor")
+        TransitionPlanApprovalActor.__post_init__(self.requested_by)
         if type(self.approved_by) is not TransitionPlanApprovalActor:
             raise TypeError("approved_by must be an exact TransitionPlanApprovalActor")
         TransitionPlanApprovalActor.__post_init__(self.approved_by)
+        if (
+            self.requested_by.actor_id == self.approved_by.actor_id
+            or self.requested_by.user_id == self.approved_by.user_id
+        ):
+            raise ValueError("plan approval requires two distinct human actors")
         _require_aware(self.issued_at, "issued_at")
         _require_aware(self.valid_until, "valid_until")
         if self.issued_at >= self.valid_until:
             raise ValueError("approval receipt validity window is invalid")
         if self.approval_state != "approved":
             raise ValueError("approval_state is fixed")
+        if self.plan_status_at_issue != "APPROVED":
+            raise ValueError("plan_status_at_issue is fixed APPROVED")
         if self.execution_permission != "inactive":
             raise ValueError("execution_permission is fixed inactive")
         if self.blocker_codes != (_APPROVAL_BLOCKER,):
@@ -315,14 +344,19 @@ class TransitionPlanApprovalReceipt:
             "schema": self.schema,
             "receipt_id": self.receipt_id,
             "receipt_version": self.receipt_version,
+            "subject_id": self.subject_id,
+            "subject_version": self.subject_version,
+            "subject_content_hash": self.subject_content_hash,
             "plan_id": self.plan_id,
             "plan_version": self.plan_version,
             "plan_content_hash": self.plan_content_hash,
             "account_id": self.account_id,
             "decision_snapshot_id": self.decision_snapshot_id,
+            "requested_by": self.requested_by.to_payload(),
             "approved_by": self.approved_by.to_payload(),
             "issued_at": _utc_text(self.issued_at),
             "valid_until": _utc_text(self.valid_until),
+            "plan_status_at_issue": self.plan_status_at_issue,
             "approval_state": self.approval_state,
             "execution_permission": self.execution_permission,
             "blocker_codes": list(self.blocker_codes),

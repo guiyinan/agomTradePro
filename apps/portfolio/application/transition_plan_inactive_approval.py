@@ -99,7 +99,7 @@ class TransitionPlanDefinition:
         """Return whether the exact plan is knowable and unexpired at a cutoff."""
 
         _require_aware(as_of, "as_of")
-        return self.recorded_at <= as_of < self.plan.expires_at
+        return bool(self.recorded_at <= as_of < self.plan.expires_at)
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,7 +186,7 @@ class TransitionPlanInactiveApprovalSubject:
         """Return whether this persisted subject is active at a cutoff."""
 
         _require_aware(as_of, "as_of")
-        return self.requested_at <= as_of < self.valid_until
+        return bool(self.requested_at <= as_of < self.valid_until)
 
     @property
     def must_not_execute(self) -> bool:
@@ -255,12 +255,25 @@ class GetExactTransitionPlanInactiveApprovalCommand:
     receipt_id: str
     receipt_version: str
     expected_content_hash: str
+    subject_id: str
+    subject_version: str
+    subject_content_hash: str
+    plan_id: str
+    plan_version: int
+    plan_content_hash: str
     as_of: datetime
 
     def __post_init__(self) -> None:
         _require_token(self.receipt_id, "receipt_id")
         _require_token(self.receipt_version, "receipt_version")
+        _require_token(self.subject_id, "subject_id")
+        _require_token(self.subject_version, "subject_version")
+        _require_token(self.plan_id, "plan_id")
+        if type(self.plan_version) is not int or self.plan_version <= 0:
+            raise ValueError("plan_version must be a positive integer")
         _require_hash(self.expected_content_hash, "expected_content_hash")
+        _require_hash(self.subject_content_hash, "subject_content_hash")
+        _require_hash(self.plan_content_hash, "plan_content_hash")
         _require_aware(self.as_of, "as_of")
 
 
@@ -336,6 +349,7 @@ class RegisterTransitionPlanInactiveApprovalSubject:
     ) -> TransitionPlanInactiveApprovalSubject:
         """Register one ID-only subject using double-read and server time."""
 
+        _validate_actor(self._actor)
         with self._repository.atomic():
             recorded_at = self._repository.now()
             _require_aware(recorded_at, "Portfolio server clock")
@@ -352,6 +366,10 @@ class RegisterTransitionPlanInactiveApprovalSubject:
                 )
             if winner is not None:
                 self._validate_subject_winner(winner, command, final, recorded_at)
+                if winner.requested_by != self._actor:
+                    raise TransitionPlanInactiveApprovalConflict(
+                        "approval subject first winner belongs to another requester"
+                    )
                 return winner
             candidate = TransitionPlanInactiveApprovalSubject.create(
                 subject_id=command.subject_id,
@@ -424,6 +442,7 @@ class ApproveTransitionPlanInactive:
     ) -> TransitionPlanApprovalReceipt:
         """Approve by IDs only using persisted subject and double-read state."""
 
+        _validate_actor(self._actor)
         with self._repository.atomic():
             recorded_at = self._repository.now()
             _require_aware(recorded_at, "Portfolio server clock")
@@ -440,14 +459,23 @@ class ApproveTransitionPlanInactive:
                 raise TransitionPlanInactiveApprovalCorruption(
                     "approval subject or transition plan changed during approval"
                 )
-            if self._actor.user_id == final_subject.requested_by.user_id:
+            if (
+                self._actor.actor_id == final_subject.requested_by.actor_id
+                or self._actor.user_id == final_subject.requested_by.user_id
+            ):
                 raise TransitionPlanInactiveApprovalUnavailable("self approval is forbidden")
             if winner is not None:
-                self._validate_receipt_winner(winner, command, final_subject, recorded_at)
+                self._validate_receipt_winner(
+                    winner, command, final_subject, self._actor, recorded_at
+                )
                 return winner
             candidate = TransitionPlanApprovalReceipt.create(
                 receipt_id=command.receipt_id,
                 receipt_version=command.receipt_version,
+                subject_id=final_subject.subject_id,
+                subject_version=final_subject.subject_version,
+                subject_content_hash=final_subject.content_hash,
+                requested_by=final_subject.requested_by,
                 plan=final_plan.plan,
                 approved_by=self._actor,
                 issued_at=recorded_at,
@@ -506,6 +534,7 @@ class ApproveTransitionPlanInactive:
         winner: TransitionPlanApprovalReceipt,
         command: ApproveTransitionPlanInactiveCommand,
         subject: TransitionPlanInactiveApprovalSubject,
+        actor: TransitionPlanApprovalActor,
         as_of: datetime,
     ) -> None:
         if type(winner) is not TransitionPlanApprovalReceipt:
@@ -514,14 +543,22 @@ class ApproveTransitionPlanInactive:
         if (
             winner.receipt_id != command.receipt_id
             or winner.receipt_version != command.receipt_version
+            or winner.subject_id != subject.subject_id
+            or winner.subject_version != subject.subject_version
+            or winner.subject_content_hash != subject.content_hash
             or winner.plan_id != subject.plan_id
             or winner.plan_version != subject.plan_version
             or winner.plan_content_hash != subject.plan_content_hash
             or winner.account_id != subject.account_id
             or winner.decision_snapshot_id != subject.decision_snapshot_id
+            or winner.requested_by != subject.requested_by
         ):
             raise TransitionPlanInactiveApprovalConflict(
                 "inactive receipt identity has another first winner"
+            )
+        if winner.approved_by != actor:
+            raise TransitionPlanInactiveApprovalConflict(
+                "inactive receipt first winner belongs to another approver"
             )
         if not winner.issued_at <= as_of < winner.valid_until:
             raise TransitionPlanInactiveApprovalUnavailable(
@@ -555,11 +592,21 @@ class GetExactTransitionPlanInactiveApproval:
             value.receipt_id != command.receipt_id
             or value.receipt_version != command.receipt_version
             or value.content_hash != command.expected_content_hash
+            or value.subject_id != command.subject_id
+            or value.subject_version != command.subject_version
+            or value.subject_content_hash != command.subject_content_hash
+            or value.plan_id != command.plan_id
+            or value.plan_version != command.plan_version
+            or value.plan_content_hash != command.plan_content_hash
         ):
             raise TransitionPlanInactiveApprovalCorruption("approval receipt identity substitution")
         if not value.issued_at <= command.as_of < value.valid_until:
             return None
-        if not value.must_not_execute or value.execution_permission != "inactive":
+        if (
+            not value.must_not_execute
+            or value.execution_permission != "inactive"
+            or value.plan_status_at_issue != "APPROVED"
+        ):
             raise TransitionPlanInactiveApprovalCorruption(
                 "approval receipt execution state substitution"
             )
@@ -591,6 +638,15 @@ def _validate_definition(
             "exact active transition plan is unavailable"
         )
     return value
+
+
+def _validate_actor(actor: TransitionPlanApprovalActor) -> None:
+    if type(actor) is not TransitionPlanApprovalActor:
+        raise TransitionPlanInactiveApprovalCorruption("approval actor type substitution")
+    try:
+        TransitionPlanApprovalActor.__post_init__(actor)
+    except (TypeError, ValueError) as error:
+        raise TransitionPlanInactiveApprovalCorruption("approval actor is invalid") from error
 
 
 __all__ = [

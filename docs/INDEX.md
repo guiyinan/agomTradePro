@@ -466,6 +466,12 @@
 
 ## 最近更新 (2026-02-20 ~ 2026-06-20)
 
+### 2026-08-13
+- ✅ **Portfolio inactive approval receipt subject seal 修正**
+  - receipt 现绑定 exact subject identity/hash、requester 与 plan selector；actor/user 双身份非自批，跨 actor replay 失败关闭
+  - `plan_status_at_issue` 仅为 inactive 审计快照，canonical-v1 hash 未绑定 lifecycle，submit 与 Broker 总闸继续关闭
+  - 详见 [Evidence 治理与决策硬闸整改计划](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md)
+
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**
   - live `healthcheck` 已恢复为全绿，`decision_data` 与 `alpha_workspace_consistency` 均为 `ok`

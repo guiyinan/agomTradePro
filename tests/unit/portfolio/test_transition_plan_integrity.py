@@ -141,15 +141,23 @@ def test_receipt_eligibility_fails_closed_on_invalid_plan(plan: TransitionPlan) 
 
 def test_inactive_approval_receipt_is_sealed_and_never_executable() -> None:
     plan = _plan()
+    requester = TransitionPlanApprovalActor(actor_id="user:18", user_id=18, role="owner")
     actor = TransitionPlanApprovalActor(actor_id="user:19", user_id=19, role="owner")
     receipt = TransitionPlanApprovalReceipt.create(
         receipt_id="plan-approval:plan-1:v1",
         receipt_version="v1",
+        subject_id="plan-approval-subject:plan-1:v1",
+        subject_version="v1",
+        subject_content_hash="a" * 64,
+        requested_by=requester,
         plan=plan,
         approved_by=actor,
         issued_at=NOW + timedelta(minutes=1),
     )
     assert receipt.plan_content_hash == transition_plan_content_hash_v1(plan)
+    assert receipt.subject_content_hash == "a" * 64
+    assert receipt.requested_by == requester
+    assert receipt.plan_status_at_issue == "APPROVED"
     assert receipt.must_not_execute is True
     assert receipt.execution_permission == "inactive"
     assert receipt.to_payload()["must_not_execute"] is True
@@ -160,10 +168,15 @@ def test_receipt_rejects_non_staff_actor_tamper_and_inverted_clock() -> None:
     with pytest.raises(ValueError, match="human staff"):
         TransitionPlanApprovalActor(actor_id="service:1", user_id=1, role="service", kind="service")
     actor = TransitionPlanApprovalActor(actor_id="user:19", user_id=19, role="owner")
+    requester = TransitionPlanApprovalActor(actor_id="user:18", user_id=18, role="owner")
     with pytest.raises(ValueError, match="validity window"):
         TransitionPlanApprovalReceipt.create(
             receipt_id="plan-approval:plan-1:v1",
             receipt_version="v1",
+            subject_id="plan-approval-subject:plan-1:v1",
+            subject_version="v1",
+            subject_content_hash="a" * 64,
+            requested_by=requester,
             plan=_plan(expires_at=NOW + timedelta(seconds=30)),
             approved_by=actor,
             issued_at=NOW + timedelta(minutes=1),
@@ -171,9 +184,30 @@ def test_receipt_rejects_non_staff_actor_tamper_and_inverted_clock() -> None:
     receipt = TransitionPlanApprovalReceipt.create(
         receipt_id="plan-approval:plan-1:v1",
         receipt_version="v1",
+        subject_id="plan-approval-subject:plan-1:v1",
+        subject_version="v1",
+        subject_content_hash="a" * 64,
+        requested_by=requester,
         plan=_plan(),
         approved_by=actor,
         issued_at=NOW + timedelta(minutes=1),
     )
     with pytest.raises(ValueError, match="content_hash"):
         replace(receipt, content_hash="b" * 64)
+
+
+def test_receipt_binds_subject_and_requires_two_distinct_actor_identities() -> None:
+    requester = TransitionPlanApprovalActor(actor_id="person:one", user_id=18, role="owner")
+    same_actor = TransitionPlanApprovalActor(actor_id="person:one", user_id=19, role="reviewer")
+    with pytest.raises(ValueError, match="two distinct"):
+        TransitionPlanApprovalReceipt.create(
+            receipt_id="plan-approval:plan-1:v1",
+            receipt_version="v1",
+            subject_id="plan-approval-subject:plan-1:v1",
+            subject_version="v1",
+            subject_content_hash="a" * 64,
+            requested_by=requester,
+            plan=_plan(),
+            approved_by=same_actor,
+            issued_at=NOW + timedelta(minutes=1),
+        )

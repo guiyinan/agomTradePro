@@ -545,10 +545,16 @@
 - register 对 trusted plan provider 双读并核 persisted subject first winner；approve 对 persisted subject和绑定 plan各双读，禁止相同 user自批，跨 server clock重试直接返回原 subject/receipt first winner，不重建时钟漂移candidate。
 - exact read按 receipt identity/hash/PIT重放 Domain hash与inactive状态；旧 `ValidateTransitionPlanUseCase`、repository approve、plan status/approved_at、Submit hard-gate和Broker均未接线，避免 caller-less legacy approval 被包装成 authoritative receipt。
 
+#### 2026-08-13 subject seal 与两人复核修正
+
+- 只读复核发现首版 receipt 只绑定 plan，没有把 persisted subject 自身封入 hash；现已补入 subject id/version/content hash、requester identity，并在 winner replay 与 exact read 中同时闭合 subject 和 plan selector，阻断同一 plan 下多 subject 互换。
+- 两人复核从只比较 `user_id` 修正为 `actor_id` 与 `user_id` 任一相同均拒绝；register/approve winner replay 只允许原 requester/approver，其他 actor 必须走独立 exact read，不能借 approve 命令取回他人的 first winner。
+- receipt 显式封存 `plan_status_at_issue=APPROVED`，但 canonical-v1 plan hash 有意不含可变 status，因此该字段只是签发时的 inactive 审计快照，不是内容寻址的 lifecycle approval event，不能用于恢复 submit/Broker 执行。
+
 未完成与验证：
 
-- 本批仅Application Protocol和pure fake；还没有 Portfolio exact Django provider、独立private-UOW subject/receipt ledger、codec/migration、人工接口或PG first-winner。
-- Portfolio Application/integrity/submit聚合 `22 passed`；standalone strict mypy `0 errors`；architecture scan（2673 files / 0 violations）、Black/isort/py_compile/diff-check通过。receipt保持inactive，不能满足Broker plan approval ref。
+- 本批仍只有 Domain/Application 与 pure fake；Portfolio exact Django provider、独立private-UOW subject/receipt ledger、codec/migration、人工接口或PG first-winner另批提交。
+- subject-seal 专属 Domain/Application `19 passed`；standalone strict mypy `0 errors`；architecture scan（2677 files / 0 violations）、Black/py_compile/diff-check通过。receipt保持inactive；缺 owner 的内容寻址 lifecycle approval event，不能满足Broker plan approval ref。
 
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 

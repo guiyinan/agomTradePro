@@ -189,6 +189,26 @@ def _approve_command() -> ApproveTransitionPlanInactiveCommand:
     )
 
 
+def _exact_command(
+    receipt: TransitionPlanApprovalReceipt,
+    subject: TransitionPlanInactiveApprovalSubject,
+    *,
+    as_of: datetime,
+) -> GetExactTransitionPlanInactiveApprovalCommand:
+    return GetExactTransitionPlanInactiveApprovalCommand(
+        receipt_id=receipt.receipt_id,
+        receipt_version=receipt.receipt_version,
+        expected_content_hash=receipt.content_hash,
+        subject_id=subject.subject_id,
+        subject_version=subject.subject_version,
+        subject_content_hash=subject.content_hash,
+        plan_id=subject.plan_id,
+        plan_version=subject.plan_version,
+        plan_content_hash=subject.plan_content_hash,
+        as_of=as_of,
+    )
+
+
 def _register(
     repository: MemoryRepository, provider: PlanProvider
 ) -> TransitionPlanInactiveApprovalSubject:
@@ -209,6 +229,9 @@ def test_id_only_register_and_approve_use_persisted_subject_and_double_reads() -
     assert len(provider.calls) == 4
     assert repository.subjects[(subject.subject_id, subject.subject_version)][0] == subject
     assert receipt.plan_content_hash == subject.plan_content_hash
+    assert receipt.subject_content_hash == subject.content_hash
+    assert receipt.requested_by == subject.requested_by
+    assert receipt.plan_status_at_issue == "APPROVED"
     assert receipt.issued_at == FIRST_CLOCK
     assert receipt.execution_permission == "inactive"
     assert receipt.must_not_execute is True
@@ -226,10 +249,10 @@ def test_retries_across_server_clocks_return_persisted_first_winners() -> None:
 
     repository.clock = SECOND_CLOCK
     retried_subject = RegisterTransitionPlanInactiveApprovalSubject(
-        plan_provider=provider, repository=repository, actor=_actor(29)
+        plan_provider=provider, repository=repository, actor=_actor(19)
     ).execute(_register_command())
     retried_receipt = ApproveTransitionPlanInactive(
-        plan_provider=provider, repository=repository, actor=_actor(30)
+        plan_provider=provider, repository=repository, actor=_actor(20)
     ).execute(_approve_command())
 
     assert retried_subject == first_subject
@@ -239,6 +262,15 @@ def test_retries_across_server_clocks_return_persisted_first_winners() -> None:
     assert retried_receipt.approved_by == _actor(20)
     assert repository.subject_appends == 1
     assert repository.receipt_appends == 1
+
+    with pytest.raises(TransitionPlanInactiveApprovalConflict, match="requester"):
+        RegisterTransitionPlanInactiveApprovalSubject(
+            plan_provider=provider, repository=repository, actor=_actor(29)
+        ).execute(_register_command())
+    with pytest.raises(TransitionPlanInactiveApprovalConflict, match="approver"):
+        ApproveTransitionPlanInactive(
+            plan_provider=provider, repository=repository, actor=_actor(30)
+        ).execute(_approve_command())
 
 
 def test_register_fails_closed_when_trusted_plan_changes_during_double_read() -> None:
@@ -267,6 +299,17 @@ def test_approve_requires_persisted_subject_and_distinct_server_actor() -> None:
         ApproveTransitionPlanInactive(
             plan_provider=provider, repository=repository, actor=_actor(19)
         ).execute(_approve_command())
+    same_actor_id = TransitionPlanApprovalActor(
+        actor_id=_actor(19).actor_id,
+        user_id=29,
+        role="portfolio_owner",
+    )
+    with pytest.raises(TransitionPlanInactiveApprovalUnavailable, match="self approval"):
+        ApproveTransitionPlanInactive(
+            plan_provider=provider,
+            repository=repository,
+            actor=same_actor_id,
+        ).execute(_approve_command())
     assert repository.receipt_appends == 0
 
 
@@ -290,29 +333,18 @@ def test_conflicting_persisted_subject_winner_is_not_rebuilt_at_retry_clock() ->
 def test_exact_read_enforces_identity_hash_pit_and_inactive_state() -> None:
     repository = MemoryRepository(FIRST_CLOCK)
     provider = PlanProvider([_definition()])
-    _register(repository, provider)
+    subject = _register(repository, provider)
     receipt = ApproveTransitionPlanInactive(
         plan_provider=provider, repository=repository, actor=_actor(20)
     ).execute(_approve_command())
     query = GetExactTransitionPlanInactiveApproval(repository)
 
+    assert query.execute(_exact_command(receipt, subject, as_of=FIRST_CLOCK)) == receipt
     assert (
         query.execute(
-            GetExactTransitionPlanInactiveApprovalCommand(
-                receipt_id=receipt.receipt_id,
-                receipt_version=receipt.receipt_version,
-                expected_content_hash=receipt.content_hash,
-                as_of=FIRST_CLOCK,
-            )
-        )
-        == receipt
-    )
-    assert (
-        query.execute(
-            GetExactTransitionPlanInactiveApprovalCommand(
-                receipt_id=receipt.receipt_id,
-                receipt_version=receipt.receipt_version,
-                expected_content_hash=receipt.content_hash,
+            _exact_command(
+                receipt,
+                subject,
                 as_of=FIRST_CLOCK - timedelta(microseconds=1),
             )
         )
@@ -333,5 +365,11 @@ def test_commands_reject_caller_controlled_payload_shapes() -> None:
             receipt_id="receipt-1",
             receipt_version="v1",
             expected_content_hash="not-a-hash",
+            subject_id="subject-1",
+            subject_version="v1",
+            subject_content_hash="a" * 64,
+            plan_id="plan-1",
+            plan_version=1,
+            plan_content_hash="b" * 64,
             as_of=FIRST_CLOCK,
         )
