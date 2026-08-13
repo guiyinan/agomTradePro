@@ -1587,6 +1587,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Django 5.2隔离组件 `3 passed`；既有Domain/Application回归 `47 passed`；standalone strict mypy三生产文件0 issues，ruff、Black/isort、architecture（2785 files / 0 violations）与diff-check通过。
 - PostgreSQL双事务race、真实0021 migrate/rollback、统一覆盖SimulatedAccount create/update/delete的owner writer与raw observation provider未完成，因此production ledger保持zero-seed。下一可诚实阶段是owner侧Account physical-row provider：只能消费本ledger exact/current事实，空账本稳定返回None，不能从mutable ORM row临时发明hash/clock/validity。
 
+### 2026-08-13：SimulatedTrading owner-side Account physical-row provider
+
+- 新增owner-side read-only adapter：同一PIT先按`source_id/source_version`读取first winner，再按完整logical-row selector读取最终head；只有两者exact相等且source仍present、非tombstone、active、未过期时，才逐字段无改写映射为Account consumer DTO。
+- final bad/expired successor、missing winner/head或winner已被supersede均返回None，不回退旧source；selector被owner repository替换时稳定报corruption。adapter不暴露append/UOW，也不从`SimulatedAccountModel.pk/updated_at`、请求clock或现场JSON发明authority字段。
+- composition保留在SimulatedTrading owner侧，避免Account反向import SimulatedTrading形成app cycle；当前zero-seed ledger下provider诚实返回None，Account capture继续零写。
+
+验证与剩余边界：
+
+- provider pure tests `3 passed`；ruff、py_compile、architecture（2786 files / 0 violations）通过。
+- owner raw observation/outbox与全create/update/delete事务writer仍未完成，故尚无production source rows；真实composition启动回归因本隔离环境缺Celery未执行。总执行闸与所有inactive权限保持不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

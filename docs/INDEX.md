@@ -657,6 +657,9 @@
 - ✅ **SimulatedTrading simulated-account row source append-only ledger**
   - strict owner ledger封存row/presence/tombstone、actor/header/ledger与persisted-clock seals；private UOW/claim、first-winner、logical-row single-root/predecessor CAS完成
   - Django5.2组件3 passed、0021 zero-seed且migration state同构；PG并发/真实migrate、全writer/raw provider仍缺，空账本稳定fail-closed
+- ✅ **SimulatedTrading owner-side Account physical-row provider**
+  - exact winner必须等于final logical head且source仍present/active/fresh才原样映射Account DTO；superseded/tombstone/expired不回退
+  - owner-side composition避免Account反向依赖；pure tests 3 passed；ledger zero-seed时稳定None，raw observation/outbox与全writer仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
