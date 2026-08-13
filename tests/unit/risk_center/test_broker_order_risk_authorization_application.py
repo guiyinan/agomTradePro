@@ -13,6 +13,8 @@ from apps.risk_center.application.broker_order_risk_authorization import (
     BrokerOrderRiskAuthorizationConflict,
     BrokerOrderRiskAuthorizationCorruption,
     BrokerOrderRiskPolicyDefinition,
+    GetCurrentBrokerOrderRiskAuthorizationForScope,
+    GetCurrentBrokerOrderRiskAuthorizationForScopeCommand,
     GetExactBrokerOrderRiskAuthorization,
     GetExactBrokerOrderRiskAuthorizationCommand,
     RegisterBrokerOrderRiskAuthorizationSubject,
@@ -194,6 +196,7 @@ def test_register_rejects_account_mismatch_and_provider_drift() -> None:
 def test_register_exact_replay_and_conflicting_first_winner() -> None:
     repository = _Repository()
     first = _register(repository)
+    repository.clock += timedelta(minutes=1)
     assert _register(repository) == first
     repository.subject = replace(first, subject_id="other", content_hash="")
     with pytest.raises(BrokerOrderRiskAuthorizationConflict):
@@ -227,6 +230,17 @@ def test_approve_rereads_owner_sources_and_forbids_self_approval() -> None:
     )
     assert record.subject == subject
     assert record.issued_at == NOW
+    repository.clock += timedelta(minutes=1)
+    assert (
+        ApproveBrokerOrderRiskAuthorization(
+            **shared, actor=_actor("user:19", 19)  # type: ignore[arg-type]
+        ).execute(
+            ApproveBrokerOrderRiskAuthorizationCommand(
+                subject_id="subject-1", authorization_id="authorization-1"
+            )
+        )
+        == record
+    )
 
 
 def test_approve_rejects_owner_source_drift_and_head_change() -> None:
@@ -286,3 +300,57 @@ def test_exact_read_revalidates_identity_hash_and_pit() -> None:
         )
         is None
     )
+
+
+def test_approve_requires_persisted_subject_first_winner() -> None:
+    repository = _Repository()
+    subject = _register(repository)
+    repository.subject = None
+    with pytest.raises(Exception, match="persisted risk authorization subject"):
+        ApproveBrokerOrderRiskAuthorization(
+            subject_provider=_SubjectProvider(subject),
+            scope_provider=_SequenceProvider(_scope_definition()),  # type: ignore[arg-type]
+            policy_provider=_SequenceProvider(_policy_definition()),  # type: ignore[arg-type]
+            repository=repository,
+            actor=_actor("user:19", 19),
+        ).execute(
+            ApproveBrokerOrderRiskAuthorizationCommand(
+                subject_id="subject-1", authorization_id="authorization-1"
+            )
+        )
+
+
+def test_current_scope_read_rejects_superseded_old_record() -> None:
+    repository = _Repository()
+    subject = _register(repository)
+    record = ApproveBrokerOrderRiskAuthorization(
+        subject_provider=_SubjectProvider(subject),
+        scope_provider=_SequenceProvider(_scope_definition()),  # type: ignore[arg-type]
+        policy_provider=_SequenceProvider(_policy_definition()),  # type: ignore[arg-type]
+        repository=repository,
+        actor=_actor("user:19", 19),
+    ).execute(
+        ApproveBrokerOrderRiskAuthorizationCommand(
+            subject_id="subject-1", authorization_id="authorization-1"
+        )
+    )
+    command = GetCurrentBrokerOrderRiskAuthorizationForScopeCommand(
+        authorization_id=record.authorization_id,
+        authorization_version=record.authorization_version,
+        expected_content_hash=record.content_hash,
+        execution_scope_id=record.subject.scope.execution_scope_id,
+        execution_scope_version=record.subject.scope.execution_scope_version,
+        execution_scope_hash=record.subject.scope.execution_scope_hash,
+        account_id=record.subject.scope.account_id,
+        plan_id=record.subject.scope.plan_id,
+        plan_version=record.subject.scope.plan_version,
+        order_id=record.subject.scope.order_id,
+        order_version=record.subject.scope.order_version,
+        policy_id=record.subject.scope.policy_id,
+        policy_version=record.subject.scope.policy_version,
+        as_of=NOW,
+    )
+    facade = GetCurrentBrokerOrderRiskAuthorizationForScope(repository)
+    assert facade.execute(command) == record
+    repository.head = replace(record, authorization_id="authorization-2", content_hash="")
+    assert facade.execute(command) is None

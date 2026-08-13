@@ -196,6 +196,46 @@ class GetExactBrokerOrderRiskAuthorizationCommand:
         _require_aware(self.as_of, "as_of")
 
 
+@dataclass(frozen=True, slots=True)
+class GetCurrentBrokerOrderRiskAuthorizationForScopeCommand:
+    """Closed selector for one current execution authorization."""
+
+    authorization_id: str
+    authorization_version: str
+    expected_content_hash: str
+    execution_scope_id: str
+    execution_scope_version: str
+    execution_scope_hash: str
+    account_id: int
+    plan_id: str
+    plan_version: str
+    order_id: str
+    order_version: str
+    policy_id: str
+    policy_version: str
+    as_of: datetime
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "authorization_id",
+            "authorization_version",
+            "execution_scope_id",
+            "execution_scope_version",
+            "plan_id",
+            "plan_version",
+            "order_id",
+            "order_version",
+            "policy_id",
+            "policy_version",
+        ):
+            _require_token(getattr(self, field_name), field_name)
+        _require_hash(self.expected_content_hash, "expected_content_hash")
+        _require_hash(self.execution_scope_hash, "execution_scope_hash")
+        if type(self.account_id) is not int or self.account_id <= 0:
+            raise ValueError("account_id must be a positive integer")
+        _require_aware(self.as_of, "as_of")
+
+
 class ExactActiveBrokerOrderExecutionScopeProvider(Protocol):
     """Broker Application public port projected at the composition root."""
 
@@ -335,6 +375,18 @@ class RegisterBrokerOrderRiskAuthorizationSubject:
                     "authorization sources changed during registration"
                 )
             scope = self._build_scope(final_scope, final_policy)
+            if winner is not None:
+                self._require_exact_subject(winner)
+                if (
+                    winner.subject_id != command.subject_id
+                    or winner.subject_version != command.subject_version
+                    or winner.scope != scope
+                    or winner.requested_by != self._actor
+                ):
+                    raise BrokerOrderRiskAuthorizationConflict(
+                        "risk authorization subject identity has another first winner"
+                    )
+                return winner
             candidate = BrokerOrderRiskAuthorizationSubject(
                 subject_id=command.subject_id,
                 subject_version=command.subject_version,
@@ -344,18 +396,19 @@ class RegisterBrokerOrderRiskAuthorizationSubject:
                 valid_until=scope.effective_valid_until,
                 supersedes_authorization_hash=head.content_hash if head else None,
             )
-            if winner is not None:
-                if winner != candidate:
-                    raise BrokerOrderRiskAuthorizationConflict(
-                        "risk authorization subject identity has another first winner"
-                    )
-                return winner
             persisted = self._repository.append_subject(candidate, recorded_at=recorded_at)
             if persisted != candidate:
                 raise BrokerOrderRiskAuthorizationConflict(
                     "concurrent risk subject first winner differs"
                 )
             return persisted
+
+    @staticmethod
+    def _require_exact_subject(value: object) -> BrokerOrderRiskAuthorizationSubject:
+        if type(value) is not BrokerOrderRiskAuthorizationSubject:
+            raise BrokerOrderRiskAuthorizationCorruption("risk subject type substitution")
+        BrokerOrderRiskAuthorizationSubject.__post_init__(value)
+        return value
 
     def _read_scope(
         self,
@@ -467,6 +520,11 @@ class ApproveBrokerOrderRiskAuthorization:
             _require_aware(recorded_at, "Risk Center server clock")
             first = self._read_subject(command, recorded_at)
             first_scope, first_policy = self._read_sources(first, recorded_at)
+            subject_winner = self._repository.get_subject_winner(
+                subject_id=command.subject_id,
+                subject_version=command.subject_version,
+                as_of=recorded_at,
+            )
             winner = self._repository.get_authorization_winner(
                 authorization_id=command.authorization_id, as_of=recorded_at
             )
@@ -481,6 +539,22 @@ class ApproveBrokerOrderRiskAuthorization:
                 raise BrokerOrderRiskAuthorizationCorruption(
                     "risk authorization subject or owner source changed during approval"
                 )
+            if subject_winner is None:
+                raise BrokerOrderRiskAuthorizationUnavailable(
+                    "persisted risk authorization subject is unavailable"
+                )
+            RegisterBrokerOrderRiskAuthorizationSubject._require_exact_subject(subject_winner)
+            if subject_winner != final:
+                raise BrokerOrderRiskAuthorizationConflict(
+                    "subject provider differs from the persisted first winner"
+                )
+            if winner is not None:
+                self._require_exact_record(winner)
+                if winner.subject != final or winner.approved_by != self._actor:
+                    raise BrokerOrderRiskAuthorizationConflict(
+                        "risk authorization identity has another first winner"
+                    )
+                return winner
             predecessor = head.content_hash if head else None
             if final.supersedes_authorization_hash != predecessor:
                 raise BrokerOrderRiskAuthorizationConflict(
@@ -493,12 +567,6 @@ class ApproveBrokerOrderRiskAuthorization:
                 issued_at=recorded_at,
                 valid_until=final.valid_until,
             )
-            if winner is not None:
-                if winner != candidate:
-                    raise BrokerOrderRiskAuthorizationConflict(
-                        "risk authorization identity has another first winner"
-                    )
-                return winner
             persisted = self._repository.append(
                 candidate,
                 expected_predecessor_hash=predecessor,
@@ -509,6 +577,15 @@ class ApproveBrokerOrderRiskAuthorization:
                     "concurrent risk authorization first winner differs"
                 )
             return persisted
+
+    @staticmethod
+    def _require_exact_record(value: object) -> BrokerOrderRiskAuthorizationRecord:
+        if type(value) is not BrokerOrderRiskAuthorizationRecord:
+            raise BrokerOrderRiskAuthorizationCorruption(
+                "risk authorization record type substitution"
+            )
+        BrokerOrderRiskAuthorizationRecord.__post_init__(value)
+        return value
 
     def _read_subject(
         self, command: ApproveBrokerOrderRiskAuthorizationCommand, as_of: datetime
@@ -606,6 +683,54 @@ class GetExactBrokerOrderRiskAuthorization:
         return value
 
 
+class GetCurrentBrokerOrderRiskAuthorizationForScope:
+    """Return only the current logical head matching a closed scope selector."""
+
+    def __init__(self, repository: BrokerOrderRiskAuthorizationRepository) -> None:
+        self._repository = repository
+
+    def execute(
+        self, command: GetCurrentBrokerOrderRiskAuthorizationForScopeCommand
+    ) -> BrokerOrderRiskAuthorizationRecord | None:
+        """Reject historical heads, aliases, and any scope substitution."""
+
+        value = GetExactBrokerOrderRiskAuthorization(self._repository).execute(
+            GetExactBrokerOrderRiskAuthorizationCommand(
+                authorization_id=command.authorization_id,
+                authorization_version=command.authorization_version,
+                expected_content_hash=command.expected_content_hash,
+                as_of=command.as_of,
+            )
+        )
+        if value is None:
+            return None
+        scope = value.subject.scope
+        if not (
+            scope.execution_scope_id == command.execution_scope_id
+            and scope.execution_scope_version == command.execution_scope_version
+            and scope.execution_scope_hash == command.execution_scope_hash
+            and scope.account_id == command.account_id
+            and scope.plan_id == command.plan_id
+            and scope.plan_version == command.plan_version
+            and scope.order_id == command.order_id
+            and scope.order_version == command.order_version
+            and scope.policy_id == command.policy_id
+            and scope.policy_version == command.policy_version
+        ):
+            raise BrokerOrderRiskAuthorizationCorruption(
+                "current authorization scope selector substitution"
+            )
+        head = self._repository.get_current_head(
+            account_id=scope.account_id,
+            order_id=scope.order_id,
+            as_of=command.as_of,
+        )
+        if head is None:
+            return None
+        ApproveBrokerOrderRiskAuthorization._require_exact_record(head)
+        return value if head == value else None
+
+
 __all__ = [
     "ApproveBrokerOrderRiskAuthorization",
     "ApproveBrokerOrderRiskAuthorizationCommand",
@@ -620,6 +745,8 @@ __all__ = [
     "ExactBrokerOrderRiskAuthorizationSubjectProvider",
     "GetExactBrokerOrderRiskAuthorization",
     "GetExactBrokerOrderRiskAuthorizationCommand",
+    "GetCurrentBrokerOrderRiskAuthorizationForScope",
+    "GetCurrentBrokerOrderRiskAuthorizationForScopeCommand",
     "RegisterBrokerOrderRiskAuthorizationSubject",
     "RegisterBrokerOrderRiskAuthorizationSubjectCommand",
 ]

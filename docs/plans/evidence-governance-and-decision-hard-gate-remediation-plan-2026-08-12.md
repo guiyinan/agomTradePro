@@ -512,6 +512,13 @@
 
 - Risk Domain/Application、Broker inactive contract 与 hard-gate 聚合 `39 passed`；standalone strict mypy `0 errors`；全仓 architecture scan（2669 files / 0 violations）、Black/isort/py_compile/diff-check 通过。
 
+#### Application first-winner/current-head 复核修正
+
+- 后续只读验收发现首版 register/approve 会用新 server clock 重建 candidate，导致跨时钟幂等 replay 不可达；现改为 winner 存在时先重放 exact type/hash 与稳定 selector/source/actor，再直接返回 immutable first winner，只有新 identity 才构造新 candidate。
+- approve 现在强制 repository subject first winner 与 trusted provider subject 完全相等；缺失或替换均拒绝，不能只信外部 subject provider。
+- 保留历史 exact identity/hash/PIT read，同时新增 current-for-scope closed selector：逐项核对 execution scope/account/plan/order/policy identity/hash，并要求返回 record 等于该 cutoff 的 logical current head；已 supersede 但未过期的旧 authorization 不再可被执行 consumer 复活。
+- 新增跨时钟 subject/approval replay、缺失 persisted subject 和 superseded old head 回归；Risk+Broker gate 聚合更新为 `41 passed`，全仓 architecture scan 为 2671 files / 0 violations。持久化 CAS 仍未完成，当前继续不可用于生产签发。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
