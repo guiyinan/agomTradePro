@@ -10,6 +10,7 @@ from .account_owner_assignment_evidence_models import (
     AccountOwnerAssignmentEvidenceModel,
     AccountOwnerAssignmentSubjectModel,
 )
+from .physical_account_row_observation_models import PhysicalAccountRowObservationModel
 from .classification_models import (
     AssetCategoryModel,
     AssetMetadataModel,
@@ -59,6 +60,7 @@ __all__ = [
     "PortfolioDailySnapshotModel",
     "PortfolioModel",
     "PortfolioObserverGrantModel",
+    "PhysicalAccountRowObservationModel",
     "PositionModel",
     "PositionSignalLogModel",
     "StopLossConfigModel",

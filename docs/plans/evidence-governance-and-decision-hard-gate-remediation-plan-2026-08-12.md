@@ -1509,6 +1509,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Domain/Application纯测试 `40 passed`；standalone strict mypy、ruff、Black/isort与architecture（2772 files / 0 violations）通过。
 - 当前仅Protocol+pure fake；append-only observation ledger、SimulatedTrading owner adapter/composition、真实staff actor与creation/manual-reclaim/migration provenance receipt仍未完成，owner assignment和执行总闸不变。
 
+### 2026-08-13：Account physical account-row observation append-only ledger
+
+- 新增strict codec、单表append-only model与私有UOW/exact insert claim；observation identity/content、raw-source identity和logical physical row root/predecessor均first-winner，append以current-head CAS拒绝fork与orphan。
+- repository在任何identity/hash/PIT/current selector前closed-world恢复全表，复核raw row/source、captured actor、canonical payload、identity/content/root/predecessor/header/ledger seals及`persisted_at == recorded_at`；双selector/header篡改不能隐藏坏行或重放旧head。
+- direct save/raw、QuerySet update/delete、bulk create/update全部阻断；historical exact与logical current分离，final inactive或expired observation不回退旧记录。`0040_physical_account_row_observation_ledger`仅CreateModel、zero-seed，无RunPython/RunSQL，不回填SimulatedAccount历史行。
+- 账本固定unknown owner、inactive/evidence-only/must-not-execute；不接SimulatedTrading adapter、provenance签发、owner assignment或Broker execution identity。
+
+
+- Django 5.2 `--no-migrations` SQLite component `21 passed`；Account `makemigrations --check --dry-run`为`No changes detected`；增量mypy `0 regressions`，ruff、Black/isort、architecture（2777 files / 0 violations）与diff-check通过。
+- 真实0040 migrate/rollback、PostgreSQL双事务root/predecessor race、SimulatedTrading typed provider/composition和生产staff actor未验证；无exact owner provenance receipt时assignment继续零写，总闸不变。
+
 ### 2026-08-13：Account owner-assignment provenance receipt Domain 合同
 
 - 新增单一closed discriminated Account receipt，统一封存`creation / manual_reclaim / migration`三类claimant-side provenance；共享identity、物理row、clock、hash和successor规则，只由branch invariant映射固定artifact type与语义，避免三套类型漂移。
