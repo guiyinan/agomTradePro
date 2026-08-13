@@ -525,6 +525,9 @@
 - ✅ **Portfolio benchmark trading-calendar methodology Domain 合同**
   - 以IANA timezone、完整逐日membership、valuation session/cutoff与DST规则冻结Portfolio估值日历方法论；不复用R8 monitoring calendar或原始市场事实
   - 固定definition-only；ledger/两人activation/current provider与其余四类methodology未完成，benchmark definition不得提前active
+- ✅ **Portfolio benchmark trading-calendar methodology append-only ledger**
+  - private UOW/claim、first-winner、逐日/DST/header seals与closed-world exact/PIT完成；0021 zero-seed且不回填R8/Data Center事实
+  - 不发明current/activation；PG并发、两人activation/current provider与其余四类methodology未完成
 - ✅ **Broker Plan→Order binding Application workflow**
   - ID-only注册在同一Broker cutoff双读plan ordinal row、inactive receipt和order artifact，闭合owner/type/hash/account/时钟及first-winner/CAS/current selector
   - 三个owner public reader、binding ledger/composition与真实签发均未实现；账户namespace blocker、pre-Risk与执行总闸继续关闭
@@ -555,6 +558,9 @@
 - ✅ **Account raw identity source Application workflow**
   - ID-only capture双读row observation和assignment evidence，以server actor/clock、first-winner/CAS封存authoritative或exact legacy source；unknown零写
   - 仅Protocol+pure fake；raw ledger、simulated adapter、assignment provider/composition未完成，Account snapshot与namespace binding仍不可真实签发
+- ✅ **Account raw identity source append-only ledger**
+  - private UOW/claim、assignment/actor/header seals、single-root/predecessor CAS与closed-world exact/PIT/current完成；0038 zero-seed/no-drift
+  - Django5.2组件11 passed；真实migrate/PG并发与simulated adapter/assignment provider/composition仍缺，mutable row不得背书
 - ✅ **Account identity snapshot Application workflow**
   - 普通Issue和legacy Reclaim均ID-only；raw/receipt双读、server actor/clock、first-winner/CAS及closed-current reader闭合，无exact reclaim receipt时零写入
   - 仅Protocol+pure fake；raw adapter、reclaim receipt/snapshot账本、composition、真实actor与PG并发仍未完成

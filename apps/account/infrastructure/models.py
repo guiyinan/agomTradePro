@@ -5,6 +5,7 @@ stable import and patch surface used by repositories, tests, and integrations.
 """
 
 from .account_identity_snapshot_models import AccountIdentitySnapshotModel
+from .account_identity_raw_source_models import AccountIdentityRawSourceModel
 from .classification_models import (
     AssetCategoryModel,
     AssetMetadataModel,
@@ -37,6 +38,7 @@ from .trading_config_models import (
 )
 
 __all__ = [
+    "AccountIdentityRawSourceModel",
     "AccountIdentitySnapshotModel",
     "AccountProfileModel",
     "AssetCategoryModel",

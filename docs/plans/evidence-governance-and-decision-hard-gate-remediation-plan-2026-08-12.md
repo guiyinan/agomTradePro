@@ -743,6 +743,17 @@
 - 纯Domain `8 passed`；strict mypy、Black/isort/compileall/diff-check与architecture `2728 files / 0 violations`通过；当前环境无ruff。
 - 尚无calendar methodology ledger/两人activation/current provider；price/FX fixing、corporate-action、cost/tax其余四类owner methodology也未建立。五类均有exact-current activation前不得激活benchmark definition或生产daily valuation，总闸不变。
 
+### 2026-08-13：Portfolio benchmark trading-calendar methodology ledger
+
+- 新增strict codec、私有UOW/exact insert claim与append-onlyORM；identity/content first-winner仅允许精确幂等，save/update/delete/bulk/raw写绕过全部阻断。
+- repository在selector匹配前closed-world恢复全表，复核完整逐日membership、DST fold、authority/header、identity/content/ledger与recorded/valid/persisted clock seals，再提供historical exact/PIT。Domain没有successor/current/activation，本账本也不自行发明这些语义。
+- `0021_policy_benchmark_trading_calendar`仅CreateModel，依赖0020，zero-seed且无RunPython/RunSQL；不回填R8 calendar或Data Center市场事实。
+
+未完成与验证：
+
+- Django5.2.10 SQLite隔离component `7 passed`，Domain回归 `8 passed`；architecture `2734 files / 0 violations`，Black/isort/compileall/diff-check通过。mypy regression=0但环境缺mypy_django_plugin，PG并发未验证。
+- 两人activation/current provider未完成；price/FX fixing、corporate-action、cost/tax其余四类methodology仍缺。benchmark definition/daily valuation不得提前active，总闸不变。
+
 ### 2026-08-13：Portfolio policy benchmark definition append-only ledger
 
 - 新增 definition strict codec、私有 UOW/exact insert claim 和 append-only ORM 账本；identity/content first-winner 只允许精确幂等，save/update/delete/bulk/raw 写绕过全部拒绝。
@@ -868,6 +879,17 @@
 
 - Application纯测试 `13 passed`，Domain+Application `40 passed`；strict mypy、ruff、Black/isort、py_compile/diff-check与AST无Django/ORM/simulated-infrastructure检查通过。
 - 尚无raw append-only ledger、simulated-trading observation adapter、assignment evidence owner provider、composition或actor interface。现mutable row仍不能直接供Account snapshot/reclaim与namespace binding签发，总闸不变。
+
+### 2026-08-13：Account raw identity source append-only ledger
+
+- 新增strict codec、私有UOW/exact insert claim与append-only ORM；source identity与字符串logical account单root/每predecessor单successor，append以repository head做CAS并仅允许完整Domain对象精确幂等。
+- repository closed-world恢复全表后复核authoritative/legacy/unknown assignment矩阵、row/evidence refs、actor binding、identity/content/root/link/header/ledger/persisted clock seals，再做exact/PIT/current selector匹配；inactive或expired successor仍是head，不回退旧source。
+- `0038_account_identity_raw_source_ledger`仅CreateModel/constraints/index，依赖0037，无RunPython/RunSQL/backfill；不把mutable simulated row或0013默认user自动变成证据。
+
+未完成与验证：
+
+- Account-only Django5.2.16 SQLite component `11 passed`；`makemigrations account --check --dry-run`显示No changes，strict mypy、ruff、Black/isort、py_compile/diff-check通过。
+- 全仓pytest启动超过60秒无输出后终止；真实0038 migrate与PostgreSQL并发race未验证。simulated adapter、assignment evidence provider、composition与actor interface仍缺，Account snapshot/reclaim和namespace binding不能真实签发。
 
 ### 2026-08-13：Account-owned account identity snapshot Application workflow
 
