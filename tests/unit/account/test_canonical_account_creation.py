@@ -60,6 +60,7 @@ def _allocation(**changes: object) -> CanonicalAccountCreationAllocation:
 def _physical(**changes: object) -> PhysicalAccountRowObservationV2:
     physical_changes = dict(changes)
     raw_is_active = physical_changes.pop("is_active", True)
+    source_account_id = physical_changes.pop("account_id", "acct-0007")
     raw = SimulatedAccountRawObservation(
         observation_id="simulated-account-row-7",
         observation_version="event-v1",
@@ -78,7 +79,7 @@ def _physical(**changes: object) -> PhysicalAccountRowObservationV2:
         source_id=raw.observation_id,
         source_version=raw.observation_version,
         account_namespace="account",
-        account_id="acct-0007",
+        account_id=source_account_id,  # type: ignore[arg-type]
         underlying_unified_account_namespace="simulated-account-row",
         underlying_unified_account_id=raw.row_pk,
         row_user_id=raw.row_user_id,

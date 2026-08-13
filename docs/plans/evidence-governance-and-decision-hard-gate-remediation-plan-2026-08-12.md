@@ -1862,6 +1862,16 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - pure Domain unit `5 passed`；strict mypy、ruff、Black/isort、architecture（2819 files / 0 violations）与diff-check通过。
 - 本批仅Domain，既有Physical-v2 canonical payload尚未封存allocation exact header，claimant creation receipt也未绑定creation binding。必须继续完成ID-only Application、allocation/binding append-only ledger、source/Physical/receipt新schema及全writer同alias原子cutover；在此之前现pipeline仍不得接受unverified caller reference，三账本zero-seed与执行总闸不变。
 
+### 2026-08-13：Account canonical creation allocation/binding Application
+
+- allocation命令仅携带allocation ID/version、request fingerprint和业务account type，不接受canonical Account ID、user、clock或权限。authenticated requester、opaque Account ID generator、allocator service、authoritative clock与validity TTL全部由composition注入；`(requester, fingerprint)` first-winner可跨时钟幂等重放，identity或request替换稳定conflict。
+- binding命令仅携带binding、allocation与Physical-v2的ID/version/expected hash。用例在同一server cutoff首末双读exact-current-unconsumed allocation与exact-final Physical-v2 root，先核对allocation/Account/underlying/physical四个唯一锚，再用四锚幂等append；已消费allocation、source漂移、selector替换或不同first winner均fail closed。
+
+验证与剩余边界：
+
+- Domain+Application pure unit `9 passed`；strict mypy、ruff、Black/isort、architecture（2820 files / 0 violations）与diff-check通过。
+- 本批仅Application Protocol与pure fakes；无ORM/ledger/composition，也未把allocation exact header纳入Physical-v2 canonical schema或把creation binding纳入claimant receipt。在后续新schema、allocation/binding账本及全writer同alias原子cutover前，现pipeline、production writer与执行总闸保持禁用。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
