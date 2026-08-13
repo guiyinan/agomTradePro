@@ -812,7 +812,7 @@
   - Receipt-v3+Evidence-v3 pure 33 passed、strict mypy、architecture 2846/0；Application/codec/0050账本/current facade与production composition仍缺
 - ✅ **Account owner-assignment staff approval Evidence v3 Application**
   - ID/hash-only Subject注册与staff审批；winner-first历史重放，单cutoff双读Receipt-v3/Physical-v3/approver，双mapping root CAS，exact永久而current重验全部upstream
-  - Domain+Application pure 47 passed、architecture 2848/0；0050双表账本、production providers/composition与PG竞争仍缺
+  - Domain+Application pure 48 passed、architecture 2848/0；winner replay不依赖当前approver且recorded clock重新复核全部输入，0050双表账本、production providers/composition与PG竞争仍缺
 - ✅ **Account owner-assignment staff approval Evidence v3 strict codec**
   - 公开Subject/Evidence codecs完整重建Receipt-v3→Binding-v2→Physical-v3/v2→source/raw，exact keys/types、UTC-Z、fixed booleans及canonical roundtrip fail closed
   - codec 24 passed、Application组合30 passed、strict mypy；无ORM，0050必须逐行闭合上游FK与Claim knowledge

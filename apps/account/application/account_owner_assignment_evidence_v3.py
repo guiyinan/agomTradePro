@@ -122,15 +122,17 @@ class GetExactAccountOwnerAssignmentEvidenceV3Command:
 
 @dataclass(frozen=True, slots=True)
 class GetCurrentAccountOwnerAssignmentEvidenceV3Command:
-    """Carry the complete expected dual-mapping evidence root."""
+    """Select one current dual-mapping evidence root by ID and content hash."""
 
-    expected_evidence: AccountOwnerAssignmentEvidenceV3
+    evidence_id: str
+    evidence_version: str
+    expected_content_hash: str
     as_of: datetime
 
     def __post_init__(self) -> None:
-        if type(self.expected_evidence) is not AccountOwnerAssignmentEvidenceV3:
-            raise TypeError("expected_evidence must be exact AccountOwnerAssignmentEvidenceV3")
-        self.expected_evidence.__post_init__()
+        _token(self.evidence_id, "evidence_id")
+        _token(self.evidence_version, "evidence_version")
+        _digest(self.expected_content_hash, "expected_content_hash")
         _aware(self.as_of, "as_of")
 
 
@@ -445,7 +447,6 @@ class ApproveAccountOwnerAssignmentEvidenceV3:
         command.__post_init__()
         with self._repository.atomic():
             cutoff = _clock(self._repository.now())
-            approver = _approver(self._approvers.get_current(as_of=cutoff))
             winner = self._repository.get_winner(
                 evidence_id=command.evidence_id,
                 evidence_version=command.evidence_version,
@@ -455,11 +456,10 @@ class ApproveAccountOwnerAssignmentEvidenceV3:
                 checked = _evidence(winner)
                 if checked.recorded_at > cutoff:
                     raise AccountOwnerAssignmentCorruption("repository returned future evidence v3")
-                if checked.approved_by != approver.to_domain() or not _evidence_matches(
-                    checked, command
-                ):
+                if not _evidence_matches(checked, command):
                     raise AccountOwnerAssignmentConflict("evidence v3 identity has another winner")
                 return checked
+            approver = _approver(self._approvers.get_current(as_of=cutoff))
             first = self._read(command, cutoff)
             first_approver = approver
             account_head, underlying_head = self._heads(first, cutoff)
@@ -486,13 +486,30 @@ class ApproveAccountOwnerAssignmentEvidenceV3:
             recorded_at = _clock(self._repository.now())
             if recorded_at < cutoff:
                 raise AccountOwnerAssignmentCorruption("repository clock moved backwards")
+            try:
+                recorded_subject = self._read(command, recorded_at)
+                recorded_approver = _approver(self._approvers.get_current(as_of=recorded_at))
+                recorded_account_head, recorded_underlying_head = self._heads(
+                    recorded_subject, recorded_at
+                )
+            except AccountOwnerAssignmentUnavailable as error:
+                raise AccountOwnerAssignmentConflict(
+                    "evidence v3 approval inputs changed"
+                ) from error
+            if (
+                recorded_subject != final
+                or recorded_approver != final_approver
+                or recorded_account_head is not None
+                or recorded_underlying_head is not None
+            ):
+                raise AccountOwnerAssignmentConflict("evidence v3 approval inputs changed")
             approval_valid_until = recorded_at + self._validity_period
             candidate = AccountOwnerAssignmentEvidenceV3(
                 evidence_id=command.evidence_id,
                 evidence_version=command.evidence_version,
-                subject=final,
-                assigned_owner_user_id=final.claimant.user_id,
-                approved_by=final_approver.to_domain(),
+                subject=recorded_subject,
+                assigned_owner_user_id=recorded_subject.claimant.user_id,
+                approved_by=recorded_approver.to_domain(),
                 approved_at=cutoff,
                 recorded_at=recorded_at,
                 approval_valid_until=approval_valid_until,
@@ -525,8 +542,13 @@ class ApproveAccountOwnerAssignmentEvidenceV3:
         if value is None:
             raise AccountOwnerAssignmentUnavailable("subject v3 is unavailable")
         subject = _subject(value)
-        if not _approve_subject_matches(subject, command):
+        if (subject.subject_id, subject.subject_version) != (
+            command.subject_id,
+            command.subject_version,
+        ):
             raise AccountOwnerAssignmentCorruption("subject v3 selector substitution")
+        if subject.content_hash != command.expected_subject_content_hash:
+            raise AccountOwnerAssignmentConflict("subject v3 identity has another winner")
         if not subject.is_current_at(cutoff):
             raise AccountOwnerAssignmentUnavailable("subject v3 is not current")
         receipt = subject.receipt
@@ -635,16 +657,15 @@ class GetCurrentAccountOwnerAssignmentEvidenceV3:
                 "command must be exact GetCurrentAccountOwnerAssignmentEvidenceV3Command"
             )
         command.__post_init__()
-        expected = command.expected_evidence
-        exact = GetExactAccountOwnerAssignmentEvidenceV3(self._repository).execute(
+        expected = GetExactAccountOwnerAssignmentEvidenceV3(self._repository).execute(
             GetExactAccountOwnerAssignmentEvidenceV3Command(
-                expected.evidence_id,
-                expected.evidence_version,
-                expected.content_hash,
+                command.evidence_id,
+                command.evidence_version,
+                command.expected_content_hash,
                 command.as_of,
             )
         )
-        if exact != expected or not expected.is_current_at(command.as_of):
+        if expected is None or not expected.is_current_at(command.as_of):
             return None
         binding = expected.subject.binding
         account = self._repository.get_account_head(
@@ -665,19 +686,22 @@ class GetCurrentAccountOwnerAssignmentEvidenceV3:
         ):
             return None
         receipt = expected.subject.receipt
-        raw_receipt = self._receipts.get_exact_current(
-            receipt_id=receipt.receipt_id,
-            receipt_version=receipt.receipt_version,
-            expected_content_hash=receipt.content_hash,
-            as_of=command.as_of,
-        )
         root = expected.subject.physical_root
-        raw_root = self._roots.get_exact_current(
-            observation_id=root.observation_id,
-            observation_version=root.observation_version,
-            expected_content_hash=root.content_hash,
-            as_of=command.as_of,
-        )
+        try:
+            raw_receipt = self._receipts.get_exact_current(
+                receipt_id=receipt.receipt_id,
+                receipt_version=receipt.receipt_version,
+                expected_content_hash=receipt.content_hash,
+                as_of=command.as_of,
+            )
+            raw_root = self._roots.get_exact_current(
+                observation_id=root.observation_id,
+                observation_version=root.observation_version,
+                expected_content_hash=root.content_hash,
+                as_of=command.as_of,
+            )
+        except AccountOwnerAssignmentUnavailable:
+            return None
         if raw_receipt is None or raw_root is None:
             return None
         return (

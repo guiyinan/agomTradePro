@@ -220,7 +220,7 @@ def test_staff_approval_double_reads_subject_upstream_and_approver() -> None:
     ).execute(_approve_command(subject))
     assert evidence.assigned_owner_user_id == receipt.claimant.user_id
     assert evidence.approved_by == _approver().to_domain()
-    assert receipts.calls == roots.calls == approvers.calls == 2
+    assert receipts.calls == roots.calls == approvers.calls == 3
     assert repository.append_root_calls == 1
 
 
@@ -265,7 +265,7 @@ def test_exact_is_permanent_but_current_revalidates_both_heads_and_upstream() ->
     replay = ApproveAccountOwnerAssignmentEvidenceV3(
         receipt_provider=_ReceiptProvider(),
         root_provider=_RootProvider(),
-        approver_provider=_ApproverProvider(_approver()),
+        approver_provider=_ApproverProvider(),
         repository=repository,
         validity_period=timedelta(days=1),
     ).execute(_approve_command(subject))
@@ -288,7 +288,14 @@ def test_exact_is_permanent_but_current_revalidates_both_heads_and_upstream() ->
             receipt_provider=_ReceiptProvider(receipt),
             root_provider=_RootProvider(receipt.binding.creation_root),
             repository=repository,
-        ).execute(GetCurrentAccountOwnerAssignmentEvidenceV3Command(evidence, current_at))
+        ).execute(
+            GetCurrentAccountOwnerAssignmentEvidenceV3Command(
+                evidence.evidence_id,
+                evidence.evidence_version,
+                evidence.content_hash,
+                current_at,
+            )
+        )
         == evidence
     )
     assert (
@@ -296,9 +303,34 @@ def test_exact_is_permanent_but_current_revalidates_both_heads_and_upstream() ->
             receipt_provider=_ReceiptProvider(),
             root_provider=_RootProvider(receipt.binding.creation_root),
             repository=repository,
-        ).execute(GetCurrentAccountOwnerAssignmentEvidenceV3Command(evidence, current_at))
+        ).execute(
+            GetCurrentAccountOwnerAssignmentEvidenceV3Command(
+                evidence.evidence_id,
+                evidence.evidence_version,
+                evidence.content_hash,
+                current_at,
+            )
+        )
         is None
     )
+
+
+def test_approval_rechecks_all_inputs_at_authoritative_recorded_clock() -> None:
+    receipt = _receipt()
+    cutoff = receipt.recorded_at + timedelta(hours=1)
+    recorded_at = cutoff + timedelta(hours=1)
+    repository = _Repository(cutoff)
+    subject = _register(repository, receipt)
+    repository.clocks = [cutoff, recorded_at]
+    with pytest.raises(AccountOwnerAssignmentConflict, match="inputs changed"):
+        ApproveAccountOwnerAssignmentEvidenceV3(
+            receipt_provider=_ReceiptProvider(receipt, receipt, None),
+            root_provider=_RootProvider(receipt.binding.creation_root),
+            approver_provider=_ApproverProvider(_approver()),
+            repository=repository,
+            validity_period=timedelta(days=1),
+        ).execute(_approve_command(subject))
+    assert repository.append_root_calls == 0
 
 
 def test_application_has_no_v2_or_infrastructure_imports() -> None:
