@@ -1359,7 +1359,19 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 未完成与验证：
 
 - raw-source Domain/Application 纯测试 `40 passed`；standalone strict mypy、Black/isort 与 diff-check 通过。当前默认 Python 缺 Django，完整 migration state/no-drift 与 Django component 未在本环境复跑。
-- 正式两人 assignment Application、single-record ledger、exact migration/manual-reclaim provenance provider、SimulatedTrading observation adapter 和 composition 仍未完成；无 exact provenance 时必须零写，总闸不变。
+- 正式两人 assignment Application 的 subject/evidence 双账本、exact migration/manual-reclaim provenance provider、SimulatedTrading observation adapter 和 composition 仍未完成；无 exact provenance 时必须零写，总闸不变。
+
+### 2026-08-13：Account owner assignment 两阶段 Application workflow
+
+- 新增 ID-only subject 注册与 staff 审批用例。注册命令只携 evidence、row observation 与 provenance receipt 的 ID/version；claimant 只能来自 exact-current Account provenance receipt，不能由命令或审批者代填。审批者只来自当前 server-authenticated human-staff actor，并按 actor ID 与 user ID 双重禁止自批。
+- Application 在同一 repository transaction 与单一 authoritative cutoff 内，对 exact row observation、provenance receipt 和 persisted subject 首末双读；provider 缺失、过期、替换、二读漂移、legacy 缺 exact migration receipt均在 append 前 fail closed。first-winner replay绑定原 claimant/approver，successor predecessor由 logical head 推导并交给 repository CAS。
+- subject 对完整 row、receipt、claimant 与时钟建立 canonical content hash，最终 Domain Evidence显式封存 `subject_content_hash`；exact/current readers补齐 exact command validation，superseded head或语义selector替换不能作为current返回。
+- 最终 Evidence仍固定 `evidence_only + inactive + must_not_execute`，该流程仅封存账户owner事实，不提供账户激活、Broker namespace绑定或执行权限。
+
+未完成与验证：
+
+- Domain/Application 纯测试 `37 passed`；standalone strict mypy、Black/isort、architecture（2754 files / 0 violations）与diff-check通过。
+- subject/evidence append-only ledger、owner-side exact creation/migration/manual-reclaim receipt ledgers/providers、SimulatedTrading row observation adapter、composition与认证Interface仍未完成；`0013`无逐账户migration receipt，legacy路径默认保持Unavailable/零写，总闸不变。
 
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 

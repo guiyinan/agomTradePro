@@ -127,6 +127,7 @@ class AccountOwnerAssignmentEvidence:
     provenance_ref_id: str
     provenance_ref_version: str
     provenance_ref_content_hash: str
+    subject_content_hash: str
     claimant: AccountOwnerAssignmentActor
     approved_by: AccountOwnerAssignmentActor
     issued_at: datetime
@@ -174,6 +175,7 @@ class AccountOwnerAssignmentEvidence:
             raise ValueError("underlying_unified_account_namespace is fixed")
         _require_hash(self.row_observation_content_hash, "row_observation_content_hash")
         _require_hash(self.provenance_ref_content_hash, "provenance_ref_content_hash")
+        _require_hash(self.subject_content_hash, "subject_content_hash")
         if self.row_observation_owner != ACCOUNT_OWNER_ASSIGNMENT_ROW_OBSERVATION_OWNER:
             raise ValueError("row_observation_owner is fixed")
         if (
@@ -312,6 +314,7 @@ class AccountOwnerAssignmentEvidence:
             "provenance_ref_id": self.provenance_ref_id,
             "provenance_ref_version": self.provenance_ref_version,
             "provenance_ref_content_hash": self.provenance_ref_content_hash,
+            "subject_content_hash": self.subject_content_hash,
             "claimant": self.claimant.to_payload(),
             "approved_by": self.approved_by.to_payload(),
             "issued_at": _utc_text(self.issued_at),

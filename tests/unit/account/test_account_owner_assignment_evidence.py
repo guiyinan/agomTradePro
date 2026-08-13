@@ -56,6 +56,7 @@ def _evidence(**changes: object) -> AccountOwnerAssignmentEvidence:
         "provenance_ref_id": "account-creation-7",
         "provenance_ref_version": "account-creation.v1",
         "provenance_ref_content_hash": "b" * 64,
+        "subject_content_hash": "9" * 64,
         "claimant": _actor("claimant", 19, "account_owner_claimant"),
         "approved_by": _actor(
             "approver",
@@ -286,6 +287,7 @@ def test_identity_and_content_hashes_are_canonical_and_caller_checked() -> None:
         "assigned_owner_user_id",
         "row_observation_content_hash",
         "provenance_ref_content_hash",
+        "subject_content_hash",
         "approved_at",
     ],
 )
@@ -306,6 +308,8 @@ def test_semantic_changes_are_sealed_by_content_hash(field_name: str) -> None:
         changed = replace(evidence, row_observation_content_hash="e" * 64, content_hash="")
     elif field_name == "provenance_ref_content_hash":
         changed = replace(evidence, provenance_ref_content_hash="f" * 64, content_hash="")
+    elif field_name == "subject_content_hash":
+        changed = replace(evidence, subject_content_hash="8" * 64, content_hash="")
     elif field_name == "approved_at":
         changed = replace(
             evidence,

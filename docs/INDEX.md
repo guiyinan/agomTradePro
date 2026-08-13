@@ -597,6 +597,9 @@
 - ✅ **Account raw-source assignment evidence 类型收口**
   - authoritative与legacy-default只接受正式`account_owner_assignment_evidence`，由state区分，不允许adapter改写旧legacy类型
   - Domain/Application/ORM/0038同步收紧且纯测试40 passed；无exact provenance仍零写，Django migration/component待复跑
+- ✅ **Account owner assignment 两阶段 Application workflow**
+  - ID-only注册/审批；claimant只来自exact Account provenance receipt，approver只来自当前staff actor，单事务单时钟双读并把subject seal绑定进最终Evidence
+  - first-winner/CAS与exact/current reader纯测试37 passed；ledger、owner receipt/provider、Simulated row adapter、composition/interface未完成，0013 legacy默认零写
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
