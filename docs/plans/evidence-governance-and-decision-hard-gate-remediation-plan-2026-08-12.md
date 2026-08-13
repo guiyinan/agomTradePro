@@ -1631,6 +1631,18 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Django 5.2 isolated component tests `5 passed`；codec/repository strict mypy、ruff、Black/isort、py_compile、migration state与architecture（2791 files / 0 violations）通过。
 - PostgreSQL并发first-winner、真实0022 migrate/rollback、raw owner exact provider/source v2和全部账户writer同事务outbox仍未完成；账本保持zero-seed，既有行不回填，总闸不变。
 
+### 2026-08-13：SimulatedTrading raw-bound account-row source v2 Domain
+
+- 新建与v1完全隔离的`simulated_account_row_v2 / simulated-account-row.v2`合同；不改v1 canonical payload、hash或ledger，v1 consumer不会误收v2。
+- v2显式封存raw observation的固定owner/type/schema、ID/version、identity/content hash、observed/valid clock和raw predecessor hash，全部进入source content hash。
+- source ID/version强制等于raw observation ID/version，`observed_at`和`source_valid_until`强制原样绑定raw clock，`valid_until`只能取raw validity与server TTL的最早时点，禁止identity alias和请求时钟洗白。
+- v2 root要求source与raw predecessor均为None；successor同时绑定前一v2 source content hash与前一raw observation content hash，两条CAS链不混用。PIT final inactive、tombstone或expired均不回退旧source。
+
+验证与剩余边界：
+
+- pure Domain tests `41 passed`；standalone strict mypy、ruff、Black/isort与architecture（2793 files / 0 violations）通过。
+- 当前仅Domain；Application capture/exact-current raw revalidation、独立0023 zero-seed ledger、owner adapter、Account v2 consumer和全writer同事务outbox仍未完成。不允许v2查不到时fallback v1，生产仍zero-seed，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
