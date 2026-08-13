@@ -710,6 +710,17 @@
 - 纯Domain `27 passed`；standalone strict mypy、Black/isort与AST零跨App/framework import检查通过。
 - 尚缺Account identity、planning-policy activation和benchmark-definition owner合同/ledger/provider，也没有daily benchmark valuation、审批、Application/ORM或Broker issuer接线；本合同不能授予执行权限，总闸继续false。
 
+### 2026-08-13：Portfolio policy benchmark definition Domain 合同
+
+- 新增完整benchmark methodology definition，而不是把现有`code + float weight`列表改名：冻结ordered constituent code、price identifier、currency与exact Decimal weight（总和严格为1），base currency、valuation timezone/cutoff、evaluation window、price/FX最大陈旧度及missing price/FX=`fail_closed`。
+- 强制五类exact owner methodology ref全部存在并按固定顺序封存：trading calendar、price fixing、FX fixing、corporate action、cost/tax；每个ref绑定owner/type/id/version/hash/recorded/validity。definition记录时全部source必须已knowable，有效期严格取五源最小值。
+- identity/content hash覆盖所有组件、方法ref、窗口/陈旧度/缺失策略与时钟。合同固定definition-only、三项blocker、`activation_available=false`、`must_not_execute=true`，刻意不包含status/active/approved字段。
+
+未完成与验证：
+
+- benchmark definition + inactive snapshot组合 `34 passed`；standalone strict mypy、Black/isort/py_compile/diff-check和零跨App/framework import通过。
+- 五类methodology目前只有consumer ref合同，尚无各owner ledger/exact provider；benchmark definition ledger/activation、daily valuation与approval也未完成。不得把现有R8 calendar、mutable component rows或临时行情直接投影成这些source。
+
 ### 2026-08-13：Broker Plan→Order binding Application workflow
 
 - 新增 Broker consumer-owned 的 exact Portfolio plan-order row、inactive receipt与Broker order artifact DTO/Protocol；写命令只接受 binding、plan/version/ordinal、receipt和artifact的ID/version，不接受hash、账户、row、时钟、permission或predecessor。
