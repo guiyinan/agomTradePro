@@ -2097,6 +2097,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 0050直接依赖0049且仅schema operations，zero-seed、无RunPython/RunSQL/旧Evidence回填。Django5.2 isolated本批component `4 passed`，与0049组合`11 passed`；覆盖permanent exact、exact replay、private guard、future cutoff、无关header tamper、NULL Claim knowledge与migration边界。Ruff、Black/isort、py_compile、repository strict mypy、Django check及architecture 2850/0通过。
 - 尚未做真实0050 migrate/rollback、PostgreSQL双连接同Subject/双mapping/Receipt-successor竞争、production owner/Physical providers、staff composition与authoritative mapping facade；zero-seed且执行总闸不变。
 
+### 2026-08-14：Account authoritative mapping v3 read-only facade
+
+- 新增纯Application只读facade，caller只提交underlying namespace/id与aware PIT。facade先读取0050最终underlying Evidence-v3 root，再仅以evidence ID/version/content hash调用current reader，要求服务端current结果与head exact equality后才投影canonical Account identity、underlying row与owner user。
+- 输出固定`identity_mapping_only + inactive + execution_allowed=false`；缺失、legacy-only无v3 head、expired、upstream superseded、双root不一致或任何非authoritative状态均返回None，不回退Evidence-v2或mutable Account row。pure `6 passed`，Ruff、Black/isort、strict mypy及architecture 2851/0通过。
+- facade尚未组装production provider；最小诚实composition可完全使用Account 0046/0047/0049/0050 repositories与Application exact/current usecases，不能反向import SimulatedTrading造成app cycle。现Receipt/Physical current command仍携完整对象，composition需exact-first适配，未来再独立收窄为ID/hash-only。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
