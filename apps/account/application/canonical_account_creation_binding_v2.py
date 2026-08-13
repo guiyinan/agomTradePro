@@ -202,17 +202,22 @@ class BindCanonicalAccountCreationV2:
             )
             if winner is not None:
                 return self._validate_replay(winner, command)
-            final = self._read(command, cutoff)
+            recorded_at = _aware(self._repository.now(), "repository recorded_at")
+            if recorded_at < cutoff:
+                raise CanonicalAccountCreationBindingV2Corruption(
+                    "repository clock moved backwards"
+                )
+            final = self._read(command, recorded_at)
             if first != final:
                 raise CanonicalAccountCreationBindingV2Conflict("issuance inputs changed")
             allocation, root = final
-            candidate = self._build(command, allocation, root, recorded_at=cutoff)
+            candidate = self._build(command, allocation, root, recorded_at=recorded_at)
             anchor = self._repository.get_by_any_anchor(
                 allocation_content_hash=allocation.content_hash,
                 account_claim_hash=candidate.account_claim_hash,
                 underlying_claim_hash=candidate.underlying_claim_hash,
                 creation_root_content_hash=root.content_hash,
-                as_of=cutoff,
+                as_of=recorded_at,
             )
             if anchor is not None:
                 raise CanonicalAccountCreationBindingV2Conflict(
@@ -224,7 +229,7 @@ class BindCanonicalAccountCreationV2:
                 expected_account_claim_hash=candidate.account_claim_hash,
                 expected_underlying_claim_hash=candidate.underlying_claim_hash,
                 expected_creation_root_content_hash=root.content_hash,
-                recorded_at=cutoff,
+                recorded_at=recorded_at,
             )
             checked = _binding(persisted)
             if checked != candidate:

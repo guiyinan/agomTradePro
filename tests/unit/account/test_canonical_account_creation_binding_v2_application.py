@@ -27,13 +27,16 @@ class _Provider:
     def __init__(self, value: object) -> None:
         self.value = value
         self.calls = 0
+        self.as_of_values: list[datetime] = []
 
     def get_current_unconsumed_allocation(self, **kwargs: object) -> object:
         self.calls += 1
+        self.as_of_values.append(kwargs["as_of"])  # type: ignore[arg-type]
         return self.value
 
     def get_exact_final(self, **kwargs: object) -> object:
         self.calls += 1
+        self.as_of_values.append(kwargs["as_of"])  # type: ignore[arg-type]
         return self.value
 
 
@@ -80,6 +83,15 @@ class _WinnerRaceRepository(_Repository):
         return super().append(binding, **kwargs)
 
 
+class _AdvancingClockRepository(_Repository):
+    def __init__(self) -> None:
+        super().__init__()
+        self.clocks = iter((_at(8), _at(9)))
+
+    def now(self) -> datetime:
+        return next(self.clocks)
+
+
 def _command() -> BindCanonicalAccountCreationV2Command:
     root = _root()
     return BindCanonicalAccountCreationV2Command(
@@ -112,6 +124,24 @@ def test_issue_uses_server_binder_clock_and_exact_nested_hashes() -> None:
     assert value.creation_root_content_hash == root.content_hash
     assert value.physical_source_content_hash == root.physical_observation.source_content_hash
     assert value.must_not_execute is True
+
+
+def test_issue_rereads_inputs_at_authoritative_recorded_clock() -> None:
+    root = _root()
+    repository = _AdvancingClockRepository()
+    allocation_provider = _Provider(root.allocation)
+    creation_root_provider = _Provider(root)
+
+    value = BindCanonicalAccountCreationV2(
+        allocation_provider=allocation_provider,
+        creation_root_provider=creation_root_provider,
+        repository=repository,
+        binder=_service(),
+    ).execute(_command())
+
+    assert value.recorded_at == _at(9)
+    assert allocation_provider.as_of_values == [_at(8), _at(9)]
+    assert creation_root_provider.as_of_values == [_at(8), _at(9)]
 
 
 def test_identity_replay_and_anchor_conflict() -> None:

@@ -286,7 +286,18 @@ class CaptureAllocatedPhysicalAccountRowObservationV3:
             )
             if winner is not None:
                 return self._validate_replay(winner, command, cutoff)
-            physical = first_physical
+            recorded_at = _aware(self._repository.now(), "repository recorded_at")
+            if recorded_at < cutoff:
+                raise AllocatedPhysicalAccountRowObservationV3Corruption(
+                    "repository clock moved backwards"
+                )
+            final_allocation = self._read_allocation(command, recorded_at)
+            final_physical = self._read_physical(command, recorded_at)
+            if final_allocation != first_allocation or final_physical != first_physical:
+                raise AllocatedPhysicalAccountRowObservationV3Conflict(
+                    "creation-root inputs changed during capture"
+                )
+            physical = final_physical
             head = self._repository.get_current_head(
                 allocation_content_hash=first_allocation.content_hash,
                 account_namespace=physical.account_namespace,
@@ -296,22 +307,11 @@ class CaptureAllocatedPhysicalAccountRowObservationV3:
                 ),
                 underlying_unified_account_id=physical.underlying_unified_account_id,
                 physical_content_hash=physical.content_hash,
-                as_of=cutoff,
+                as_of=recorded_at,
             )
-            final_allocation = self._read_allocation(command, cutoff)
-            final_physical = self._read_physical(command, cutoff)
-            if final_allocation != first_allocation or final_physical != first_physical:
-                raise AllocatedPhysicalAccountRowObservationV3Conflict(
-                    "creation-root inputs changed during capture"
-                )
             if head is not None:
                 raise AllocatedPhysicalAccountRowObservationV3Conflict(
                     "creation-root anchor already has a head"
-                )
-            recorded_at = _aware(self._repository.now(), "repository recorded_at")
-            if recorded_at < cutoff:
-                raise AllocatedPhysicalAccountRowObservationV3Corruption(
-                    "repository clock moved backwards"
                 )
             ttl_valid_until = cutoff + self._validity_period
             candidate = AllocatedPhysicalAccountRowObservationV3(

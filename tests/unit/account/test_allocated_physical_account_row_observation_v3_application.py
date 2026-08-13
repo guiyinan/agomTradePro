@@ -35,6 +35,7 @@ class _AllocationProvider:
     def __init__(self, value: CanonicalAccountCreationAllocation | None) -> None:
         self.value = value
         self.calls = 0
+        self.as_of_values: list[datetime] = []
 
     def get_exact_current_unconsumed(
         self,
@@ -45,6 +46,7 @@ class _AllocationProvider:
         as_of: datetime,
     ) -> CanonicalAccountCreationAllocation | None:
         self.calls += 1
+        self.as_of_values.append(as_of)
         return self.value
 
 
@@ -52,6 +54,7 @@ class _PhysicalProvider:
     def __init__(self, value: PhysicalAccountRowObservationV2 | None) -> None:
         self.value = value
         self.calls = 0
+        self.as_of_values: list[datetime] = []
 
     def get_exact_final(
         self,
@@ -62,6 +65,7 @@ class _PhysicalProvider:
         as_of: datetime,
     ) -> PhysicalAccountRowObservationV2 | None:
         self.calls += 1
+        self.as_of_values.append(as_of)
         return self.value
 
 
@@ -140,6 +144,15 @@ class _Repository:
         return winner
 
 
+class _AdvancingClockRepository(_Repository):
+    def __init__(self) -> None:
+        super().__init__()
+        self.clocks = iter((_at(7), _at(8)))
+
+    def now(self) -> datetime:
+        return next(self.clocks)
+
+
 def _command(
     allocation: CanonicalAccountCreationAllocation,
     physical: PhysicalAccountRowObservationV2,
@@ -185,6 +198,20 @@ def test_capture_double_reads_same_exact_inputs_and_appends_root_cas() -> None:
     assert result.physical_observation is physical
     assert allocations.calls == physicals.calls == 2
     assert repository.expected_predecessors == [None]
+
+
+def test_capture_rereads_inputs_and_head_at_authoritative_recorded_clock() -> None:
+    allocation = _allocation()
+    physical = _physical()
+    allocations = _AllocationProvider(allocation)
+    physicals = _PhysicalProvider(physical)
+    repository = _AdvancingClockRepository()
+
+    result = _use_case(allocations, physicals, repository).execute(_command(allocation, physical))
+
+    assert result.recorded_at == _at(8)
+    assert allocations.as_of_values == [_at(7), _at(8)]
+    assert physicals.as_of_values == [_at(7), _at(8)]
 
 
 def test_capture_replays_exact_first_winner_and_rejects_anchor_collision() -> None:
