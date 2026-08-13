@@ -601,6 +601,9 @@ from apps.broker_execution.infrastructure.broker_account_identity_snapshot_model
 from apps.broker_execution.infrastructure.order_approval_artifact_models import (  # noqa: E402,F401
     BrokerOrderApprovalArtifactModel,
 )
+from apps.broker_execution.infrastructure.plan_order_binding_models import (  # noqa: E402,F401
+    BrokerPlanOrderBindingModel,
+)
 from apps.broker_execution.infrastructure.portfolio_broker_account_binding_models import (  # noqa: E402,F401
     BrokerPortfolioAccountBindingModel,
 )
