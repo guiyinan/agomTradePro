@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -25,11 +26,14 @@ def _at(day: int) -> datetime:
 class _Provider:
     def __init__(self, value: object) -> None:
         self.value = value
+        self.calls = 0
 
     def get_current_unconsumed_allocation(self, **kwargs: object) -> object:
+        self.calls += 1
         return self.value
 
     def get_exact_final(self, **kwargs: object) -> object:
+        self.calls += 1
         return self.value
 
 
@@ -58,6 +62,22 @@ class _Repository:
     def append(self, binding: object, **kwargs: object) -> object:
         self.value = binding
         return binding
+
+
+class _WinnerRaceRepository(_Repository):
+    def __init__(self, winner: object) -> None:
+        super().__init__()
+        self.winner = winner
+        self.winner_reads = 0
+        self.append_calls = 0
+
+    def get_winner(self, **kwargs: object) -> object | None:
+        self.winner_reads += 1
+        return None if self.winner_reads == 1 else self.winner
+
+    def append(self, binding: object, **kwargs: object) -> object:
+        self.append_calls += 1
+        return super().append(binding, **kwargs)
 
 
 def _command() -> BindCanonicalAccountCreationV2Command:
@@ -106,15 +126,115 @@ def test_identity_replay_and_anchor_conflict() -> None:
     first = use_case.execute(_command())
     # A successful binding consumes the allocation. Exact retries must therefore
     # replay the immutable winner without asking a current-unconsumed provider.
+    repository.clock = _at(30)
     use_case._allocation_provider.value = None
     use_case._creation_root_provider.value = None
     assert use_case.execute(_command()) == first
+    assert use_case._allocation_provider.calls == 2
+    assert use_case._creation_root_provider.calls == 2
     use_case._allocation_provider.value = root.allocation
     use_case._creation_root_provider.value = root
+    repository.clock = _at(8)
     repository.value = None
     repository.anchor = first
     with pytest.raises(CanonicalAccountCreationBindingV2Conflict, match="anchor"):
         use_case.execute(_command())
+
+
+@pytest.mark.parametrize(
+    ("field_name", "replacement"),
+    (
+        ("binding_id", "substituted-binding"),
+        ("binding_version", "substituted-version"),
+        ("allocation_id", "substituted-allocation"),
+        ("allocation_version", "substituted-allocation-version"),
+        ("expected_allocation_content_hash", "a" * 64),
+        ("creation_root_observation_id", "substituted-root"),
+        ("creation_root_observation_version", "substituted-root-version"),
+        ("expected_creation_root_content_hash", "b" * 64),
+    ),
+)
+def test_replay_rejects_every_command_selector_substitution(
+    field_name: str, replacement: str
+) -> None:
+    root = _root()
+    repository = _Repository()
+    winner = BindCanonicalAccountCreationV2(
+        allocation_provider=_Provider(root.allocation),
+        creation_root_provider=_Provider(root),
+        repository=repository,
+        binder=_service(),
+    ).execute(_command())
+    repository.value = winner
+    unavailable_allocation = _Provider(None)
+    unavailable_root = _Provider(None)
+    use_case = BindCanonicalAccountCreationV2(
+        allocation_provider=unavailable_allocation,
+        creation_root_provider=unavailable_root,
+        repository=repository,
+        binder=_service(),
+    )
+
+    with pytest.raises(CanonicalAccountCreationBindingV2Conflict, match="winner differs"):
+        use_case.execute(replace(_command(), **{field_name: replacement}))
+
+    assert unavailable_allocation.calls == 0
+    assert unavailable_root.calls == 0
+
+
+def test_replay_rejects_authenticated_binder_substitution_without_live_inputs() -> None:
+    root = _root()
+    repository = _Repository()
+    winner = BindCanonicalAccountCreationV2(
+        allocation_provider=_Provider(root.allocation),
+        creation_root_provider=_Provider(root),
+        repository=repository,
+        binder=_service(),
+    ).execute(_command())
+    repository.value = winner
+    unavailable_allocation = _Provider(None)
+    unavailable_root = _Provider(None)
+    use_case = BindCanonicalAccountCreationV2(
+        allocation_provider=unavailable_allocation,
+        creation_root_provider=unavailable_root,
+        repository=repository,
+        binder=CanonicalAccountCreationServiceRecorder(
+            "substituted-binder", "canonical_account_creation_binder"
+        ),
+    )
+
+    with pytest.raises(CanonicalAccountCreationBindingV2Conflict, match="winner differs"):
+        use_case.execute(_command())
+
+    assert unavailable_allocation.calls == 0
+    assert unavailable_root.calls == 0
+
+
+def test_atomic_winner_race_replays_without_second_current_input_read() -> None:
+    root = _root()
+    seed_repository = _Repository()
+    winner = BindCanonicalAccountCreationV2(
+        allocation_provider=_Provider(root.allocation),
+        creation_root_provider=_Provider(root),
+        repository=seed_repository,
+        binder=_service(),
+    ).execute(_command())
+    allocation_provider = _Provider(root.allocation)
+    creation_root_provider = _Provider(root)
+    race_repository = _WinnerRaceRepository(winner)
+
+    replay = BindCanonicalAccountCreationV2(
+        allocation_provider=allocation_provider,
+        creation_root_provider=creation_root_provider,
+        repository=race_repository,
+        binder=_service(),
+    ).execute(_command())
+
+    assert replay == winner
+    assert race_repository.winner_reads == 2
+    assert allocation_provider.calls == 1
+    assert creation_root_provider.calls == 1
+    assert race_repository.append_calls == 0
 
 
 def test_unavailable_allocation_or_root_fails_closed() -> None:
