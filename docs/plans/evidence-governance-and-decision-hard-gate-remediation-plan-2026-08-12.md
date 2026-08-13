@@ -744,6 +744,18 @@
 - 纯Domain `61 passed`；standalone strict mypy、Black/isort/py_compile/diff-check与零跨App import通过。
 - 现有simulated-trading账户行仍mutable且user历史可能受默认回填污染；尚无trusted raw provider、ID-only发行workflow、reclaim receipt、append-only ledger或exact/current facade，不能作为namespace binding真实source，总闸不变。
 
+### 2026-08-13：Broker-owned broker account identity snapshot Domain 合同
+
+- 新增 Broker-owned identity evidence，精确封存Broker整数account namespace/ID、正数owner user、固定real+active、Account-owned identity source owner/type/id/version/hash/字符串namespace/账户ID/owner/real-active，以及Broker binding revision/content与Agent identity/version/content/owner。
+- Account字符串ID与Broker整数ID只分别保留，不做cast或相等比较；但Account source owner user、Broker binding owner、Agent owner必须全部与snapshot owner一致，任一替换失败关闭。
+- QMT broker account reference不写明文，也不接受plain SHA-256；只允许带key ID的`hmac-sha256`或`blake2b-keyed-256` digest。heartbeat、credential与连接readiness不进入identity合同，避免把短时运行状态冒充长期身份。
+- snapshot有效期严格取Account source有效期与Broker TTL最小值，封存issued/recorded、binding revision与predecessor；identity/content hash及same Broker account+owner successor规则已固定。authority=`identity_evidence_only`、permission=`inactive`、`activation_available=false`、`must_not_execute=true`。
+
+未完成与验证：
+
+- 纯Domain `34 passed`；standalone strict mypy、Black/isort/py_compile/diff-check与零跨App import通过。
+- 现有Broker binding/Agent仍mutable，尚无Account exact facade、Broker trusted raw provider、keyed digest service、ID-only issuance、append-only ledger或exact/current reader；本合同不能供namespace binding真实composition，总闸不变。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
