@@ -1476,6 +1476,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Django 5.2.16 SQLite component `12 passed`；Account `makemigrations --check --dry-run`为`No changes detected`，ruff、Black/isort、architecture（2762 files / 0 violations）与diff-check通过。
 - PostgreSQL双事务root/predecessor race、完整项目回归及全目标mypy plugin仍未验证；owner-side creation/migration/manual-reclaim receipt provider、SimulatedTrading observation adapter、composition和认证Interface均未完成。账本固定inactive/evidence-only，不解除namespace或执行总闸。
 
+### 2026-08-13：Account physical account-row observation Domain 合同
+
+- 新增Account-owned immutable physical-row observation，逐项封存canonical字符串Account identity、整数underlying row provenance、exact SimulatedTrading raw-source ref，以及row当前nullable user、原始account type、active状态与created/updated时钟；字符串与整数namespace不做cast。
+- 无论row_user_id为空或已有值，`owner_assignment_state`都固定为`unknown`；当前user、staff/system标记或历史`0013`默认回填不能被本合同解释成authoritative owner。该合同只提供后续provenance receipt/assignment workflow可精确引用的物理事实锚。
+- observed/recorded、raw-source validity和TTL进入canonical hash，validity取严格最早值；同一logical row successor必须推进observation/raw-source version和时钟并绑定前序hash。PIT final head若inactive或过期返回None，绝不回退旧active行。
+- 合同固定`evidence_only + inactive + must_not_execute`与provider blocker；它不是owner assignment evidence、账户激活或Broker execution identity。
+
+
+- 纯Domain `25 passed`；standalone strict mypy、ruff、Black/isort、architecture（2768 files / 0 violations）与diff-check通过。
+- 尚无ID-only capture Application、append-only observation ledger、SimulatedTrading typed row provider、creation/manual-reclaim/migration provenance receipt或composition；mutable row与历史默认user继续不可签发owner evidence，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

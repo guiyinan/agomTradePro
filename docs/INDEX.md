@@ -627,6 +627,9 @@
 - ✅ **Account owner assignment subject/evidence append-only ledger**
   - 两表精确封存row/provenance/claimant、OneToOne subject及subject hash；private UOW/claim、single-root/predecessor CAS和closed-world exact/PIT/current完成
   - 0039 zero-seed、Django5.2组件12 passed且Account migration no-drift；PG并发、owner receipt/provider、Simulated adapter、composition/interface仍未完成，保持inactive
+- ✅ **Account physical account-row observation Domain 合同**
+  - 精确封存Account字符串identity、Simulated整数row provenance和nullable user/type/active/row clock，永远不把当前row user解释为authoritative owner
+  - raw-source/TTL最早有效期、successor与PIT final不回退闭合；固定inactive/evidence-only，capture workflow/ledger/provider和独立provenance receipts仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
