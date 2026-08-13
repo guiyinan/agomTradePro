@@ -729,6 +729,9 @@
 - ✅ **Account authoritative mapping v2 read-only facade**
   - 以underlying namespace/id + PIT选择最终Evidence head，再重验双mapping head及physical/claimant receipt current；legacy、missing、stale均fail closed
   - pure 11 passed、architecture 2818/0；仅发布identity_mapping_only/inactive/execution=false，首次create的canonical identity bootstrap循环仍阻断pipeline/writer
+- ✅ **Account canonical creation allocation/binding Domain**
+  - Account owner在physical row产生前分配opaque canonical ID；一次性binding重验allocation、live Physical-v2 root、user/type与Account/underlying双claim
+  - pure 5 passed、architecture 2819/0；固定pending-owner-approval/inactive/must-not-execute，Application/ledger与全writer原子cutover仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

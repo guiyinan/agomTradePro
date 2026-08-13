@@ -1851,6 +1851,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - pure unit `11 passed`；strict mypy、ruff、Black/isort、architecture（2818 files / 0 violations）与diff-check通过。
 - 本批不做production composition也不修改pipeline。首次create仍有硬循环：authoritative mapping依赖已存在physical-v2，而physical-v2 pipeline又需要canonical Account reference。在Account owner发布先于physical row的canonical identity allocation/creation artifact前，不得用`str(pk)`、caller自报或本facade自证解循环；production writer、pipeline与执行总闸保持禁用。
 
+### 2026-08-13：Account canonical creation allocation/binding Domain
+
+- 新增Account-owned `CanonicalAccountCreationAllocation`：在physical row存在前由server allocator保留opaque canonical Account ID。自助请求者必须是authenticated human `account_creator`且与requested row user一致；allocation不包含尚未存在的underlying row ID，request fingerprint只用于幂等，不得生成Account ID。
+- 新增一次性`CanonicalAccountCreationBinding`：完整重验allocation与Physical-v2 live root，强制Account label、underlying row、row user、raw account type逐项一致，并产生candidate-independent Account/underlying双claim hash。非root、terminal、过期allocation或任一替换均拒绝。
+- allocation固定`identity_allocation_only`，binding固定`identity_binding_evidence_only + pending_owner_approval`；两者都是`inactive`、`activation_available=false`、`must_not_execute=true`，不代替后续claimant声明、独立staff owner approval或执行激活。
+
+验证与剩余边界：
+
+- pure Domain unit `5 passed`；strict mypy、ruff、Black/isort、architecture（2819 files / 0 violations）与diff-check通过。
+- 本批仅Domain，既有Physical-v2 canonical payload尚未封存allocation exact header，claimant creation receipt也未绑定creation binding。必须继续完成ID-only Application、allocation/binding append-only ledger、source/Physical/receipt新schema及全writer同alias原子cutover；在此之前现pipeline仍不得接受unverified caller reference，三账本zero-seed与执行总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
