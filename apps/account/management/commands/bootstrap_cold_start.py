@@ -30,7 +30,6 @@ from apps.rotation.infrastructure.models import (
     RotationTemplateModel,
 )
 from apps.sector.infrastructure.models import SectorPreferenceConfigModel
-from apps.strategy.infrastructure.models import PositionManagementRuleModel, StrategyModel
 
 ConfidenceConfigModel = django_apps.get_model("audit", "ConfidenceConfigModel")
 IndicatorThresholdConfigModel = django_apps.get_model("audit", "IndicatorThresholdConfigModel")
@@ -38,6 +37,8 @@ ScoringWeightConfigModel = django_apps.get_model("equity", "ScoringWeightConfigM
 StockScreeningRuleConfigModel = django_apps.get_model("equity", "StockScreeningRuleConfigModel")
 FactorDefinitionModel = django_apps.get_model("factor", "FactorDefinitionModel")
 FactorPortfolioConfigModel = django_apps.get_model("factor", "FactorPortfolioConfigModel")
+PositionManagementRuleModel = django_apps.get_model("strategy", "PositionManagementRuleModel")
+StrategyModel = django_apps.get_model("strategy", "StrategyModel")
 
 
 @dataclass(frozen=True)
@@ -417,9 +418,7 @@ class Command(BaseCommand):
 
     def _mcp_cold_start_ready(self) -> bool:
         rotation_ready = RotationConfigModel._default_manager.filter(name="动量轮动配置").exists()
-        macro_ready = (
-            bool(get_macro_fact_series("MCP_TEST_IND", limit=1))
-        )
+        macro_ready = bool(get_macro_fact_series("MCP_TEST_IND", limit=1))
         stock_ready = any(
             asset.asset_type is AssetType.STOCK
             for asset in get_asset_repository_port().list_active()

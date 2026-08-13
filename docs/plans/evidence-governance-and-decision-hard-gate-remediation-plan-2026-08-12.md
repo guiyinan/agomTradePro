@@ -1339,6 +1339,18 @@ Portfolio 新增独立的长期政策基准，不能复用当前配置候选或�
 
 Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤、Tracking Error、Information Ratio、换手和成本。系统只陈述指定期间是否观察到净增益，不自动宣称“有/无 alpha”。
 
+### 2026-08-13：跨 App 决策读边界与模块循环收口
+
+- Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
+- Broker order-detail 不再直接 import Research Application。Research app-root 只注册纯 legacy approval Evidence projector；Broker 对返回字段集合、hash、clock、permission 与 deny markers 做闭合校验，未注册时发布稳定 blocker `broker_order_approval_evidence_provider_unavailable`。
+- Account cold-start command 通过 Django app registry 解析 Strategy models，移除 Account→Strategy 静态依赖而不改变初始化步骤或数据。
+- 模块依赖治理基线只向下收紧到 `206` edges：`0` bidirectional pairs、`0` cycle components；Account outbound `12`、Strategy inbound `3`，所有全局和 per-app 预算均无 exceeded/stale。
+
+未完成与验证：
+
+- legacy Broker Evidence registry/projector/order-detail 局部测试 `33 passed`；app-neutral Portfolio access registry纯测试已写。Black/isort、AST/py_compile、diff-check和module-cycle guard通过。
+- 当前默认Python缺Django/Celery且pytest自动插件缺Playwright，Portfolio API与Account command的完整Django回归未在本环境执行；生产执行总闸和所有inactive合同均未改变。
+
 ## 三、实施阶段
 
 ### M0：冻结与设计收口

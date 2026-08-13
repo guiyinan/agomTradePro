@@ -8,6 +8,7 @@ from decimal import Decimal
 
 import pytest
 
+import core.integration.legacy_broker_approval_evidence as evidence_registry
 from apps.broker_execution.application.order_detail_evidence import (
     project_broker_order_detail,
 )
@@ -15,9 +16,20 @@ from apps.broker_execution.domain.services import (
     approval_digest_for_order,
     approval_snapshot_for_order,
 )
+from apps.research.broker_execution_evidence_composition import (
+    project_legacy_broker_approval_evidence,
+)
+from core.integration.legacy_broker_approval_evidence import (
+    configure_legacy_broker_approval_evidence_projector,
+)
 
 NOW = datetime(2026, 8, 13, 9, tzinfo=UTC)
 AUTHORIZATION = {"approve": True, "reject": True, "cancel": False}
+
+
+@pytest.fixture(autouse=True)
+def _register_research_projector() -> None:
+    configure_legacy_broker_approval_evidence_projector(project_legacy_broker_approval_evidence)
 
 
 def _order() -> dict[str, object]:
@@ -228,3 +240,20 @@ def test_order_detail_requires_a_trusted_aware_evaluation_clock() -> None:
             evaluated_at=NOW.replace(tzinfo=None),
             actor_authorization=AUTHORIZATION,
         )
+
+
+def test_order_detail_fails_closed_when_research_projector_is_unregistered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(evidence_registry, "_projector", None)
+
+    payload = _payload(_order())
+
+    assert payload["approval_evidence_status"] == "blocked"
+    assert payload["approval_evidence_blocker_codes"] == [
+        "broker_order_approval_evidence_provider_unavailable"
+    ]
+    assert payload["approval_evidence"] is None
+    assert payload["permission"] == "display_only"
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["must_not_execute"] is True

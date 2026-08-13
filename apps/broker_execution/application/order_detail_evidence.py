@@ -15,11 +15,10 @@ from apps.broker_execution.domain.services import (
     approval_digest_for_order,
     approval_snapshot_for_order,
 )
-from apps.research.application.broker_execution_evidence_adapter import (
-    LegacyBrokerApprovalProjection,
-    build_broker_approval_projection_legacy_evidence_summary,
+from core.integration.legacy_broker_approval_evidence import (
+    LegacyBrokerApprovalEvidenceProjectorUnavailable,
+    project_legacy_broker_approval_evidence,
 )
-from apps.research.application.evidence_summary import EvidenceSummaryDTO
 
 JsonObject = dict[str, object]
 
@@ -40,6 +39,32 @@ _FILL_FIELDS: Final = (
     "amount",
     "occurred_at",
 )
+_EVIDENCE_FIELDS: Final = frozenset(
+    {
+        "output_owner",
+        "output_artifact_type",
+        "output_artifact_id",
+        "output_artifact_version",
+        "output_content_hash",
+        "envelope_content_hash",
+        "operator_spec_content_hash",
+        "claim_kind",
+        "method_kind",
+        "research_family",
+        "governance_state",
+        "permission",
+        "blocker_codes",
+        "dependency_flags",
+        "track_record_availability",
+        "track_record_content_hash",
+        "n_eff",
+        "coverage",
+        "evaluated_at",
+        "valid_until",
+        "must_not_use_for_decision",
+        "must_not_execute",
+    }
+)
 
 
 def _require_aware(value: datetime) -> None:
@@ -49,33 +74,56 @@ def _require_aware(value: datetime) -> None:
         raise ValueError("evaluated_at must be a timezone-aware datetime")
 
 
-def _summary_payload(summary: EvidenceSummaryDTO) -> JsonObject:
-    """Serialize the immutable Evidence summary without weakening its types."""
+def _validated_evidence_payload(
+    value: Mapping[str, object], *, evaluated_at: datetime
+) -> JsonObject:
+    """Close and validate the app-neutral projector response before publication."""
 
-    return {
-        "output_owner": summary.output_owner,
-        "output_artifact_type": summary.output_artifact_type,
-        "output_artifact_id": summary.output_artifact_id,
-        "output_artifact_version": summary.output_artifact_version,
-        "output_content_hash": summary.output_content_hash,
-        "envelope_content_hash": summary.envelope_content_hash,
-        "operator_spec_content_hash": summary.operator_spec_content_hash,
-        "claim_kind": summary.claim_kind,
-        "method_kind": summary.method_kind,
-        "research_family": summary.research_family,
-        "governance_state": summary.governance_state,
-        "permission": summary.permission,
-        "blocker_codes": list(summary.blocker_codes),
-        "dependency_flags": list(summary.dependency_flags),
-        "track_record_availability": summary.track_record_availability,
-        "track_record_content_hash": summary.track_record_content_hash,
-        "n_eff": summary.n_eff,
-        "coverage": summary.coverage,
-        "evaluated_at": summary.evaluated_at.isoformat(),
-        "valid_until": summary.valid_until.isoformat(),
-        "must_not_use_for_decision": summary.must_not_use_for_decision,
-        "must_not_execute": summary.must_not_execute,
+    if type(value) is not dict or set(value) != _EVIDENCE_FIELDS:
+        raise ValueError("legacy approval Evidence response is not closed")
+    expected_values = {
+        "output_owner": "broker_execution",
+        "output_artifact_type": "order_approval_snapshot",
+        "output_artifact_version": "approval-snapshot-v1",
+        "claim_kind": "derived",
+        "method_kind": "deterministic",
+        "research_family": "legacy",
+        "governance_state": "research_only",
+        "permission": DISPLAY_ONLY,
+        "blocker_codes": ["evidence.legacy_unverified"],
+        "dependency_flags": [],
+        "track_record_availability": "unavailable",
+        "track_record_content_hash": None,
+        "n_eff": None,
+        "coverage": None,
+        "must_not_use_for_decision": True,
+        "must_not_execute": True,
     }
+    if any(value.get(key) != expected for key, expected in expected_values.items()):
+        raise ValueError("legacy approval Evidence response widened authority")
+    for field_name in (
+        "output_content_hash",
+        "envelope_content_hash",
+        "operator_spec_content_hash",
+    ):
+        field_value = value.get(field_name)
+        if type(field_value) is not str or _DIGEST_PATTERN.fullmatch(field_value) is None:
+            raise ValueError("legacy approval Evidence response contains an invalid digest")
+    if value.get("output_artifact_id") != value.get("output_content_hash"):
+        raise ValueError("legacy approval Evidence artifact identity is not content-bound")
+    if value.get("evaluated_at") != evaluated_at.isoformat():
+        raise ValueError("legacy approval Evidence response changed evaluated_at")
+    valid_until_raw = value.get("valid_until")
+    if type(valid_until_raw) is not str:
+        raise ValueError("legacy approval Evidence valid_until is invalid")
+    try:
+        valid_until = datetime.fromisoformat(valid_until_raw.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError("legacy approval Evidence valid_until is invalid") from error
+    _require_aware(valid_until)
+    if valid_until <= evaluated_at:
+        raise ValueError("legacy approval Evidence is expired")
+    return dict(value)
 
 
 def _boolean_actions(value: object) -> dict[str, bool]:
@@ -118,7 +166,7 @@ class BrokerOrderDetailResult:
     transport_blocker_codes: tuple[str, ...]
     approval_evidence_status: str
     approval_evidence_blocker_codes: tuple[str, ...]
-    approval_evidence: EvidenceSummaryDTO | None
+    approval_evidence: JsonObject | None
     permission: str = DISPLAY_ONLY
     must_not_use_for_decision: bool = True
     must_not_execute: bool = True
@@ -161,9 +209,7 @@ class BrokerOrderDetailResult:
             "approval_evidence_status": self.approval_evidence_status,
             "approval_evidence_blocker_codes": list(self.approval_evidence_blocker_codes),
             "approval_evidence": (
-                _summary_payload(self.approval_evidence)
-                if self.approval_evidence is not None
-                else None
+                dict(self.approval_evidence) if self.approval_evidence is not None else None
             ),
             "permission": self.permission,
             "must_not_use_for_decision": self.must_not_use_for_decision,
@@ -281,27 +327,35 @@ def project_broker_order_detail(
             blocker_code="broker_order_approval_evidence_invalid",
         )
 
-    projection = LegacyBrokerApprovalProjection(
-        account_id=snapshot.account_id,
-        agent_id=snapshot.agent_id,
-        asset_code=snapshot.asset_code,
-        market=snapshot.market,
-        side=snapshot.side.value,
-        order_type=snapshot.order_type.value,
-        quantity=snapshot.quantity,
-        limit_price=snapshot.limit_price,
-        estimated_amount=snapshot.estimated_amount,
-        expires_at=snapshot.expires_at,
-        risk_policy_version=snapshot.risk_policy_version,
-        risk_snapshot_json=snapshot.risk_snapshot_json,
-        approval_mode=snapshot.approval_mode,
-        source_recommendation_ids=snapshot.source_recommendation_ids,
-        source_signal_ids=snapshot.source_signal_ids,
-    )
+    projection: JsonObject = {
+        "account_id": snapshot.account_id,
+        "agent_id": snapshot.agent_id,
+        "asset_code": snapshot.asset_code,
+        "market": snapshot.market,
+        "side": snapshot.side.value,
+        "order_type": snapshot.order_type.value,
+        "quantity": snapshot.quantity,
+        "limit_price": snapshot.limit_price,
+        "estimated_amount": snapshot.estimated_amount,
+        "expires_at": snapshot.expires_at,
+        "risk_policy_version": snapshot.risk_policy_version,
+        "risk_snapshot_json": snapshot.risk_snapshot_json,
+        "approval_mode": snapshot.approval_mode,
+        "source_recommendation_ids": snapshot.source_recommendation_ids,
+        "source_signal_ids": snapshot.source_signal_ids,
+        "evaluated_at": evaluated_at,
+    }
     try:
-        summary = build_broker_approval_projection_legacy_evidence_summary(
-            projection,
+        summary = _validated_evidence_payload(
+            project_legacy_broker_approval_evidence(projection),
             evaluated_at=evaluated_at,
+        )
+    except LegacyBrokerApprovalEvidenceProjectorUnavailable:
+        return _blocked(
+            order,
+            evaluated_at=evaluated_at,
+            actor_authorization=actor_authorization,
+            blocker_code="broker_order_approval_evidence_provider_unavailable",
         )
     except (ArithmeticError, TypeError, ValueError):
         return _blocked(
@@ -310,23 +364,15 @@ def project_broker_order_detail(
             actor_authorization=actor_authorization,
             blocker_code="broker_order_approval_evidence_invalid",
         )
-    if not hmac.compare_digest(summary.output_content_hash, persisted_digest):
-        return _blocked(
-            order,
-            evaluated_at=evaluated_at,
-            actor_authorization=actor_authorization,
-            blocker_code="broker_order_approval_evidence_digest_mismatch",
-        )
-    if (
-        summary.permission != DISPLAY_ONLY
-        or summary.must_not_use_for_decision is not True
-        or summary.must_not_execute is not True
+    output_content_hash = summary["output_content_hash"]
+    if type(output_content_hash) is not str or not hmac.compare_digest(
+        output_content_hash, persisted_digest
     ):
         return _blocked(
             order,
             evaluated_at=evaluated_at,
             actor_authorization=actor_authorization,
-            blocker_code="broker_order_approval_evidence_permission_invalid",
+            blocker_code="broker_order_approval_evidence_digest_mismatch",
         )
     safe_order, lifecycle, transport_blockers = _safe_order(order)
     return BrokerOrderDetailResult(

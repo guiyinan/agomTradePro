@@ -18,6 +18,9 @@ from apps.research.application.broker_execution_evidence_adapter import (
     build_broker_approval_projection_legacy_evidence_summary,
 )
 from apps.research.application.evidence_summary import EvidenceSummaryDTO
+from apps.research.broker_execution_evidence_composition import (
+    project_legacy_broker_approval_evidence,
+)
 
 NOW = datetime(2026, 8, 13, 9, tzinfo=UTC)
 
@@ -63,6 +66,27 @@ def _summary(snapshot: OrderApprovalSnapshot, *, evaluated_at: datetime) -> Evid
         ),
         evaluated_at=evaluated_at,
     )
+
+
+def _composition_payload(snapshot: OrderApprovalSnapshot) -> dict[str, object]:
+    return {
+        "account_id": snapshot.account_id,
+        "agent_id": snapshot.agent_id,
+        "asset_code": snapshot.asset_code,
+        "market": snapshot.market,
+        "side": snapshot.side.value,
+        "order_type": snapshot.order_type.value,
+        "quantity": snapshot.quantity,
+        "limit_price": snapshot.limit_price,
+        "estimated_amount": snapshot.estimated_amount,
+        "expires_at": snapshot.expires_at,
+        "risk_policy_version": snapshot.risk_policy_version,
+        "risk_snapshot_json": snapshot.risk_snapshot_json,
+        "approval_mode": snapshot.approval_mode,
+        "source_recommendation_ids": snapshot.source_recommendation_ids,
+        "source_signal_ids": snapshot.source_signal_ids,
+        "evaluated_at": NOW,
+    }
 
 
 def test_approval_snapshot_adapter_is_content_bound_and_fail_closed() -> None:
@@ -117,3 +141,27 @@ def test_approval_snapshot_adapter_rejects_unverifiable_inputs() -> None:
 def test_approval_snapshot_adapter_rejects_naive_evaluation_clock() -> None:
     with pytest.raises(ValueError, match="evaluated_at"):
         _summary(_snapshot(), evaluated_at=NOW.replace(tzinfo=None))
+
+
+def test_research_app_root_projects_the_closed_registry_payload() -> None:
+    result = project_legacy_broker_approval_evidence(_composition_payload(_snapshot()))
+
+    assert result["output_owner"] == "broker_execution"
+    assert result["permission"] == "display_only"
+    assert result["blocker_codes"] == ["evidence.legacy_unverified"]
+    assert result["evaluated_at"] == NOW.isoformat()
+    assert result["must_not_use_for_decision"] is True
+    assert result["must_not_execute"] is True
+
+
+def test_research_app_root_rejects_open_or_substituted_payloads() -> None:
+    open_payload = _composition_payload(_snapshot())
+    open_payload["unexpected"] = "must-not-cross-boundary"
+
+    with pytest.raises(ValueError, match="not closed"):
+        project_legacy_broker_approval_evidence(open_payload)
+
+    substituted = _composition_payload(_snapshot())
+    substituted["account_id"] = True
+    with pytest.raises(ValueError, match="account_id"):
+        project_legacy_broker_approval_evidence(substituted)

@@ -19,7 +19,7 @@ from apps.portfolio.domain.entities import (
     TargetPosition,
     TransitionPlan,
 )
-from apps.simulated_trading.application.interface_services import get_account_access
+from core.integration.portfolio_account_access import check_portfolio_account_access
 
 
 class BuildTransitionPlanSerializer(serializers.Serializer[dict[str, object]]):
@@ -76,7 +76,14 @@ def _require_account_access(request: object, account_id: str, *, action: str) ->
 
     if not account_id.isdigit():
         return Response({"detail": "account_id must identify an owned account."}, status=400)
-    access = get_account_access(getattr(request, "user", None), int(account_id), action=action)
+    try:
+        access = check_portfolio_account_access(
+            getattr(request, "user", None),
+            int(account_id),
+            action,
+        )
+    except RuntimeError:
+        return Response({"detail": "Account access service is unavailable."}, status=503)
     if access.error:
         return Response({"detail": access.error}, status=access.status_code)
     return None
