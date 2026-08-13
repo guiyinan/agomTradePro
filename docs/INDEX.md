@@ -555,6 +555,9 @@
 - ✅ **Portfolio benchmark methodology bundle activation Domain 合同**
   - benchmark definition及固定顺序五源refs原子封存为单一bundle；server requester+第二staff双重非自批、root/predecessor successor与有效期闭合
   - 仅`benchmark_configuration_only`，daily valuation/Broker authority均false；Application/ledger/current provider与staff composition仍未完成
+- ✅ **Portfolio benchmark methodology bundle activation Application workflow**
+  - ID-only注册/审批以单一cutoff首末双读definition和五源graph，actor-bound first-winner、同definition logical head与predecessor CAS闭合
+  - exact/current读拒绝superseded或source替换；仅Protocol+pure fake，ledger、owner current readers、staff composition与daily valuation仍未完成
 - ✅ **Portfolio inactive approval authoritative persistence clock 修复**
   - subject/receipt显式封存`persisted_at=recorded_at`并增加DB等值约束，消除wall-clock导致合法记录自判腐败
   - Django5.2隔离5 passed、Portfolio migration no-drift；不改变inactive语义或连接Broker执行

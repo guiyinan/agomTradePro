@@ -857,6 +857,17 @@
 - 纯Domain `11 passed`；standalone strict mypy、Black/isort、architecture（2766 files / 0 violations）与diff-check通过。
 - 尚无ID-only Application双读、subject/activation ledger、exact-current provider、真实staff composition或daily valuation；统一bundle合同本身不解除benchmark definition blocker或执行总闸。
 
+### 2026-08-13：Portfolio benchmark methodology bundle activation Application workflow
+
+- 新增ID-only subject注册、第二人审批、historical exact read与closed-current read；写命令不接收hash、methodology payload、actor、permission、时钟或predecessor，全部由owner provider、server actor与repository authoritative clock提供。
+- 注册与审批在单一cutoff内对benchmark definition及固定五源methodology graph首末双读；subject和activation first-winner均绑定原actor，logical head必须属于同一definition，predecessor只由repository派生并由append CAS复核。
+- 审批在Application边界稳定拒绝同actor ID或同user ID自批；current read同时要求historical exact activation、logical current head和五源exact-current graph一致。来源消失返回不可用，identity/content替换按corruption fail closed。
+- workflow继续固定`benchmark_configuration_only`、`daily_valuation_authority=false`、`broker_execution_authority=false`和`must_not_execute=true`；不修改原methodology ref schema，也不把configuration activation解释为daily valuation或执行授权。
+
+
+- Domain/Application纯测试 `20 passed`；standalone strict mypy、Black/isort、architecture与diff-check通过。
+- 当前仅Protocol与pure fake；subject/activation append-only ledger、五类真实owner current readers、staff composition、daily valuation snapshot与PostgreSQL first-winner尚未完成，benchmark和Broker总闸保持inactive。
+
 ### 2026-08-13：Portfolio inactive approval authoritative persistence clock 修复
 
 - 修复既有 transition-plan inactive approval subject/receipt 使用 ORM wall-clock `auto_now_add` 写 `persisted_at`、但restore又拿它与注入的 authoritative `recorded_at`比较而导致合法新记录自判腐败的问题；repository现在显式写入 `persisted_at == recorded_at`，restore要求精确等值。
