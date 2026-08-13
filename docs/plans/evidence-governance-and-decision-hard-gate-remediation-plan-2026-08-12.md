@@ -1799,6 +1799,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - pure Domain unit `28 passed`；strict mypy、ruff、Black/isort、architecture（2813 files / 0 violations）与diff-check通过。
 - 本批仅Domain；两阶段Application、0044 subject/evidence append-only账本、双向current provider与PostgreSQL并发尚未完成，因此production pipeline仍只能接收unverified canonical reference，全writer cutover与执行总闸保持禁用。
 
+### 2026-08-13：Account owner-assignment staff approval evidence v2 Application
+
+- 新增两阶段Application：注册命令只携带evidence、physical-v2与claimant-receipt-v2的ID/version/expected hash；审批命令只携带evidence ID/version与expected subject hash。账户、owner、权限、payload、approver和时钟均不能由caller提交。
+- subject注册与staff审批都在repository UOW内使用同一server cutoff首末双读physical与receipt exact-current owner source。审批者由composition构造注入，必须human staff且actor ID/user ID均与claimant不同；换approver不得重放他人的first winner。
+- 审批同时读取Account字符串identity与underlying整数identity两个logical head，必须双空或精确同一record；split head稳定报corruption。append用前序content hash CAS。历史exact reader与current reader分离；current还会重验双head及两个upstream final current，supersede/terminal/expiry不回退旧Evidence且无v1 fallback。
+
+验证与剩余边界：
+
+- Application unit `8 passed`，Domain+Application合跑`36 passed`；strict mypy、ruff、Black/isort、architecture（2814 files / 0 violations）与diff-check通过。
+- 本批只有Protocol与pure fakes；0044 subject/evidence账本、数据库双root唯一约束、authoritative current provider/composition及PostgreSQL竞争测试仍缺，production pipeline和全writer cutover继续禁用。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

@@ -714,6 +714,9 @@
 - ✅ **Account owner-assignment staff approval evidence v2 Domain**
   - subject重验完整physical-v2与claimant receipt-v2；独立human staff双维防自批，claim→authoritative/legacy→ownerless精确映射，双root、approval TTL及相邻successor闭合
   - pure 28 passed、architecture 2813/0；两阶段Application、0044账本、authoritative current provider与PG并发仍缺
+- ✅ **Account owner-assignment staff approval evidence v2 Application**
+  - ID/hash-only subject注册与staff审批；两upstream同cutoff双读、双mapping head一致、actor-bound first-winner/predecessor CAS及exact/current重验闭合
+  - 组合36 passed、architecture 2814/0；0044账本、双root DB约束、authoritative provider/composition与PG并发仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
