@@ -783,6 +783,9 @@
 - ✅ **Account canonical creation consumption 逐alias盘点与回填预览**
   - 精确核验0045–0047 migration、列/nullability/constraint/FK并closed-world恢复五账本；发布稳定inventory SHA与跨generation一致性计数
   - deterministic backfill仅预览候选；缺真实backfilled-at和writer-freeze时写模式稳定阻断。Django5.2 isolated 10 passed；生产alias/0048/PG竞争未验证
+- ✅ **Account canonical creation consumption 运维命令**
+  - inventory/backfill以显式alias输出稳定单行JSON；默认dry-run且batch标记reserved，不把全事务冒充分批执行
+  - PG+fresh inventory SHA仍因writer-freeze缺失阻断写入；pure 14 passed、architecture 2839/0，0048 readiness保持false
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

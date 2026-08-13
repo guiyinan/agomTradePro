@@ -2037,6 +2037,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 报告冻结五账本count/PK区间/authoritative clock区间、v1 null/non-null claim链接、跨generation anchor碰撞与稳定SHA-256；未知alias、伪migration名、缺列/约束/FK或任一非目标坏行均fail closed。
 - 新增Binding-v1 deterministic backfill预览：在单一一致性快照中重建候选Claim并检测全部anchor冲突，不修改旧Binding bytes或任何数据库行。由于当前Claim schema只有历史`recorded_at/persisted_at`，尚未建模真实`backfilled_at`与maintenance writer-freeze，写模式稳定阻断，避免把今天插入的Claim洗成历史时点已存在。
 - Django 5.2 isolated component `10 passed`；Ruff、Black/isort与standalone strict mypy通过。没有访问任何生产alias，未取得生产row count、zero-seed、writer freeze或0048 readiness证据；0048、回填写入和v1/v2 PostgreSQL交叉竞争继续阻断。
+
+### 2026-08-14：Account canonical creation consumption 运维命令边界
+
+- 新增inventory与Binding-v1 backfill两个management command；都要求显式database alias并输出稳定单行JSON，batch-size目前明确标记为reserved/all-or-nothing，不伪装已实施分批事务。
+- Inventory可发布只读报告，但`--require-0048-ready`即使本地结构和计数合格也会因缺writer-freeze稳定失败。Backfill默认仅dry-run；`--write`先校验lowercase inventory SHA与PostgreSQL backend，随后仍无条件以`writer_freeze_proof_unavailable`阻断，写服务保持不可达。
+- 纯命令测试`14 passed`，Ruff、Black/isort、standalone strict mypy与architecture（2839 files / 0 violations）通过。命令不接Celery/Task Monitor，不提供0048、生产回填或writer cutover授权。
 - 代码现在具备dormant双代写路径，但生产各alias的0045存量尚未盘点或backfill，0048 contract与PostgreSQL v1/v2交叉竞争仍缺；因此composition/writer/pipeline继续禁用，不能宣称生产排他已闭合。
 
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
