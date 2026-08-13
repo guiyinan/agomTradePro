@@ -766,6 +766,7 @@
 - price-fixing ledger/两人activation/current provider未完成；FX fixing、corporate-action、cost/tax三类methodology仍缺。benchmark definition和daily valuation不得提前active，总闸不变。
 
 
+
 ### 2026-08-13：Portfolio policy benchmark definition append-only ledger
 
 - 新增 definition strict codec、私有 UOW/exact insert claim 和 append-only ORM 账本；identity/content first-winner 只允许精确幂等，save/update/delete/bulk/raw 写绕过全部拒绝。
@@ -831,6 +832,27 @@
 
 - 纯测试 `20 passed`；strict mypy、ruff、Black/isort、py_compile、AST架构和diff-check通过。
 - identity-winner Infrastructure实现及owner factory/composition尚未接线；三源owner reader合同虽已齐，但真实同cutoff双读/签发未完成，总闸不变。
+
+### 2026-08-13：Plan→Order Portfolio owner reader adapters/composition
+
+- 新增Portfolio owner adapters：plan reader复用`DjangoExactTransitionPlanDefinitionProvider`并原样传递exact identity/version/PIT cutoff；receipt adapter只暴露identity winner，不暴露append、writer或hash-heavy historical read。
+- 公共runtime只包含两个Application reader facade；composition模块顶层不导入Infrastructure，仅在显式Django builder内延迟装配并原样传递database alias。注入factory缺失或返回None时fail closed，不把exact historical命名为current。
+- 该runtime可供Plan→Order/pre-Risk薄adapter复用，仍只表达exact immutable source在cutoff已记录且未过期，不做跨App签发或执行授权。
+
+未完成与验证：
+
+- 纯factory与既有reader测试 `25 passed`；strict mypy、Black/isort、py_compile/diff-check及architecture delta 0 violations通过。
+- Django5.2 ORM component已编写但当前系统Python无Django/pytest-django，未执行；Broker artifact owner runtime与跨App fail-closed registry尚未接入同一composition，真实三源签发与总闸不变。
+
+### 2026-08-13：Plan→Order Broker artifact owner adapter/composition
+
+- 新增Broker identity-winner repository adapter，先全量restore sealed artifact model再按ID/version匹配；PIT严格使用权威row `recorded_at <= as_of < artifact.valid_until`，保留artifact原始`approved_at`，不调用旧hash-heavy `get_exact`。
+- 双selector SQL篡改仍会在closed-world restore/header seal处失败；naive/future cutoff fail closed。app-root factory只暴露read-only owner reader graph，不暴露append/atomic/get_exact写面。
+
+未完成与验证：
+
+- Application+composition纯测试 `22 passed`，Django5.2 SQLite隔离component `4 passed`；ruff、strict mypy、Black/isort、py_compile/diff-check通过。
+- 全仓component启动约54秒无输出后终止；跨App fail-closed registry/Plan→Order三源composition尚未实现，执行总闸不变。
 
 ### 2026-08-13：Portfolio planning policy definition Domain 合同
 

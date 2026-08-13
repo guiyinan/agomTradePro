@@ -546,6 +546,12 @@
 - ✅ **Broker order approval artifact ID-only owner reader**
   - ID-only artifact identity/PIT query保留approved/recorded双时钟并封存digest/risk-policy/order anchors，固定inactive
   - identity-winner infra/factory/composition未接；三源合同齐但Plan→Order真实双读/签发仍不可用
+- ✅ **Plan→Order Portfolio owner reader adapters/composition**
+  - plan复用owner exact provider，receipt仅暴露identity winner；read-only runtime/factory缺失fail-closed，不暴露writer或hash-heavy historical口
+  - 纯/factory25 passed；Django ORM component、Broker runtime与跨App registry/真实三源签发仍未完成
+- ✅ **Plan→Order Broker artifact owner adapter/composition**
+  - closed-world sealed restore后按identity匹配，严格使用row recorded clock且不调用hash-heavy historical get_exact；只读factory无writer能力
+  - Django5.2组件4 passed；跨App fail-closed registry/三源composition未接，inactive总闸不变
 - ✅ **Portfolio planning policy definition Domain 合同**
   - 以policy identity、lot与五项exact Decimal、时钟和canonical hash冻结definition，明确排除mutable status/current/activation语义
   - legacy status=active不能成为benchmark或执行authority
