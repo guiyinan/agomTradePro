@@ -519,6 +519,18 @@
 - 保留历史 exact identity/hash/PIT read，同时新增 current-for-scope closed selector：逐项核对 execution scope/account/plan/order/policy identity/hash，并要求返回 record 等于该 cutoff 的 logical current head；已 supersede 但未过期的旧 authorization 不再可被执行 consumer 复活。
 - 新增跨时钟 subject/approval replay、缺失 persisted subject 和 superseded old head 回归；Risk+Broker gate 聚合更新为 `41 passed`，全仓 architecture scan 为 2671 files / 0 violations。持久化 CAS 仍未完成，当前继续不可用于生产签发。
 
+### 2026-08-13：Risk Broker authorization append-only persistence
+
+- 新增 Risk Center 独立私有 UOW/token 与 exact insert claim、subject/authorization 两张 append-only ledger、strict codec 和 repository；不复用 Operator Spec approval 的私有写 authority，Model/QuerySet/bulk/raw/delete/update 旁路均 fail-closed。
+- subject 与 authorization 同时保存 canonical payload、identity hash、content hash、冗余 headers 与 ledger header hash；restore 会重建 Domain 并逐项比对，payload/header/FK/clock/authority 任一篡改都按 corruption 失败。
+- DB 约束固定单 root、每个 predecessor 单 successor、subject 单 authorization，以及 owner/capability/permission/human-staff/clock；repository append 在写前核对 logical current head，并把 expected predecessor 作为 CAS 语义，陈旧 predecessor 不得形成 fork。
+- 新增 `0008_broker_order_risk_authorizations` schema-only/zero-seed migration，不回填或伪造任何历史订单授权；Risk model export 已接入，但无 Admin/API/composition/人工入口。
+
+未完成与验证边界：
+
+- component 测试已覆盖 exact append/PIT/codec、私有 UOW/mutation guard、successor/current head、future/tamper、schema-only 与 stale predecessor，但当前默认及 bundled Python 均缺 Django/pytest-django，未执行测试断言或 migration forward/reverse；不能将其计为通过。
+- Black/isort/py_compile/diff-check、standalone mypy（ignore missing Django；codec/repository 0 issues）与全仓 architecture scan（2672 files / 0 violations）通过。PostgreSQL first-winner真实并发、Risk policy/scope production provider、人工审批与 Broker consumer仍未完成，总闸继续关闭。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
