@@ -519,6 +519,9 @@
 - ✅ **Portfolio planning policy definition Domain 合同**
   - 以policy identity、lot与五项exact Decimal、时钟和canonical hash冻结definition，明确排除mutable status/current/activation语义
   - 仅definition完成；append-only ledger/exact provider与两人activation仍缺，legacy status=active不能成为benchmark或执行authority
+- ✅ **Account-owned account identity snapshot Domain 合同**
+  - 分离字符串Account identity与底层整数unified provenance，封存source seal、owner/real/active、TTL最早有效期；legacy默认user必须有Account reclaim receipt
+  - 固定inactive；trusted provider、ID-only发行/reclaim、append-only ledger/exact-current facade均未完成，不能解除namespace blocker
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**

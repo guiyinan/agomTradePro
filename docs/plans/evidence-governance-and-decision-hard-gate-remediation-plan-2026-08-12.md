@@ -732,6 +732,18 @@
 - 纯Domain `75 passed`；standalone strict mypy、Black/isort/compileall与零跨App/framework import检查通过。
 - 尚无definition append-only ledger/exact provider；完成它后才可建立两人审批的activation subject/receipt/current-head。Benchmark definition需另行覆盖日历、FX/价格fixing、公司行动、缺价/陈旧度、费用税费与评估窗口，不能用现有component+weight缩水冒充。
 
+### 2026-08-13：Account-owned account identity snapshot Domain 合同
+
+- 新增 Account-owned、零跨 App import 的 canonical账户identity evidence：Portfolio消费的字符串账户namespace/ID与底层unified账户namespace/整数ID分别保留，只建立provenance，不做字符串/整数转换或身份猜测。
+- snapshot封存source ID/version、underlying mutable source ID/version/content hash、正数owner user、固定real+active、underlying source时钟、Account policy TTL、issued/recorded时钟与predecessor；`valid_until`必须等于underlying source与TTL的最小值。
+- provenance显式区分`authoritative`与`manual_reclaim`。曾被legacy migration默认分配user的账户只能走manual reclaim，并必须绑定Account-owned reclaim receipt owner/type/id/version/hash；当前非空user_id不能自动获得背书。
+- identity/content hash和same-account successor规则已固定；permission=`identity_evidence_only`、status=`inactive`、provider blocker、`activation_available=false`与`must_not_execute=true`不可升级。
+
+未完成与验证：
+
+- 纯Domain `61 passed`；standalone strict mypy、Black/isort/py_compile/diff-check与零跨App import通过。
+- 现有simulated-trading账户行仍mutable且user历史可能受默认回填污染；尚无trusted raw provider、ID-only发行workflow、reclaim receipt、append-only ledger或exact/current facade，不能作为namespace binding真实source，总闸不变。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
