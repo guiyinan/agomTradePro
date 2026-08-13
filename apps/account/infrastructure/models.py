@@ -4,6 +4,7 @@ Model implementations live in focused owner modules. This module remains the
 stable import and patch surface used by repositories, tests, and integrations.
 """
 
+from .account_identity_snapshot_models import AccountIdentitySnapshotModel
 from .classification_models import (
     AssetCategoryModel,
     AssetMetadataModel,
@@ -36,6 +37,7 @@ from .trading_config_models import (
 )
 
 __all__ = [
+    "AccountIdentitySnapshotModel",
     "AccountProfileModel",
     "AssetCategoryModel",
     "AssetMetadataModel",

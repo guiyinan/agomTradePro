@@ -815,6 +815,17 @@
 - Account identity Domain/Application组合 `95 passed`；strict mypy、Black/isort/ruff/compileall/diff-check及Application无Infrastructure/跨App implementation import检查通过。
 - 当前仍只有Protocol与pure fake；simulated-trading raw adapter、manual reclaim receipt owner ledger/provider、Account snapshot账本、composition、真实actor入口和PG并发未完成，不能供Broker namespace binding真实签发。
 
+### 2026-08-13：Account identity snapshot append-only ledger
+
+- 新增actor-bound snapshot账本、strict codec、私有UOW/exact insert claim；封存完整provenance、manual reclaim receipt refs、underlying source、owner/real/active、identity/content/header/actor-binding/ledger/persisted clock seals。
+- 每个字符串Account namespace/ID只允许单root、每predecessor单successor；append按logical head CAS，closed-world全表restore后再做identity/hash/PIT/current匹配，拒绝orphan/fork/selector隐藏和clock倒置。最终head过期不回退旧snapshot。
+- 直接save/save_base(raw)、update/bulk update/create及instance/query delete全部阻断。`0037_account_identity_snapshot_ledger`仅CreateModel/constraints/index，依赖0036，无RunPython/RunSQL/backfill；不会把legacy默认user或mutable simulated account自动写成可信证据。
+
+未完成与验证：
+
+- Django 5.2.10 minimal SQLite zero-seed→append→exact PIT→drop往返通过；Django5.2.16环境的Black/isort/ruff/compileall及3生产文件standalone strict mypy通过。共享完整pytest-django组件启动超过33秒无结果后按边界终止，因此组件断言尚无最终通过证明。
+- 主Python缺Django/stubs时mypy仅报6个subclass-Any环境假阳性；完整makemigrations/migrate和PostgreSQL并发未验证。raw adapter、manual reclaim receipt owner ledger/provider、composition与真实actor仍缺，不能接namespace binding。
+
 ### 2026-08-13：Broker-owned broker account identity snapshot Domain 合同
 
 - 新增 Broker-owned identity evidence，精确封存Broker整数account namespace/ID、正数owner user、固定real+active、Account-owned identity source owner/type/id/version/hash/字符串namespace/账户ID/owner/real-active，以及Broker binding revision/content与Agent identity/version/content/owner。

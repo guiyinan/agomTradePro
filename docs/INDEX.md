@@ -540,6 +540,9 @@
 - ✅ **Account identity snapshot Application workflow**
   - 普通Issue和legacy Reclaim均ID-only；raw/receipt双读、server actor/clock、first-winner/CAS及closed-current reader闭合，无exact reclaim receipt时零写入
   - 仅Protocol+pure fake；raw adapter、reclaim receipt/snapshot账本、composition、真实actor与PG并发仍未完成
+- ✅ **Account identity snapshot append-only ledger**
+  - actor/provenance/reclaim refs与全套seals、私有UOW/claim、single-root/predecessor CAS和closed-world exact/PIT/current闭合；0037 zero-seed不回填legacy行
+  - Django5.2 minimal往返通过；完整组件/PG并发/full migrate未验，raw/reclaim owner provider与composition仍缺
 - ✅ **Broker-owned broker account identity snapshot Domain 合同**
   - 封存Broker账户、Account exact source、binding/Agent owner seal与keyed QMT reference digest；Account字符串与Broker整数身份不做cast，owner/real/active必须闭合
   - 固定inactive；Account facade、Broker raw provider/digest service、ID-only发行和ledger/current reader均未完成，namespace blocker不变
