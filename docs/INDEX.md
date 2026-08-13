@@ -795,6 +795,9 @@
 - ✅ **Account canonical creation consumption knowledge backfill engine**
   - transitional closed-world处理已有NULL Claim、legacy null-FK与缺Claim；exclusive lock内取DB clock并以完整归属anchors CAS，失败整批rollback
   - component 34 passed、architecture 2840/0；默认无write authorization且command阻断，production SHA/PG双连接/逐alias签字仍缺
+- ✅ **Account owner-assignment creation claimant receipt v3 Domain**
+  - 仅以durable Binding-v2为权威来源，重验allocation、allocated Physical-v3、Physical-v2/source/raw及Account/underlying全seal；creation claimant必须同时等于allocation requester和live physical row user
+  - pure 16 passed、strict mypy、architecture 2841/0；固定claim-only/inactive/must-not-execute，Application/ledger、独立staff Evidence-v3、Physical-v3 successor/current provider与生产writer仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
