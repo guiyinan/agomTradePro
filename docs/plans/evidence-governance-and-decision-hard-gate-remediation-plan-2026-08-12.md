@@ -591,6 +591,18 @@
 - append-only artifact ledger、exact/PIT provider、Broker pre-risk scope、跨 owner composition 和 issuer 尚未实现；create/approve/lease/submitting 总闸保持关闭。
 - 专属纯 Domain `21 passed`；standalone strict mypy、Black/isort/py_compile/diff-check通过。标准项目 pytest/mypy 仍受当前环境缺 Playwright 与 mypy Django plugin 阻断，本批没有声明 Django/PostgreSQL/生产验证。
 
+### 2026-08-13：Risk execution policy Application workflow
+
+- 新增只接受 policy/source ID+version 的激活命令；账户、controls、source hashes、validity、actor、server clock与predecessor全部来自可信 source provider、认证 composition与private repository，不接受调用方提交的内容或权限。
+- source snapshot 不只封最终 controls，而是按固定顺序精确绑定 floor、template、account override、global exceptions、account exceptions 五类 component identity/version/hash/knowledge clock；snapshot validity 必须等于所有 component 窗口交集，fallback 或缺项不得伪造成完整 source。
+- 激活在单一 server cutoff 对 source 首末双读，repository logical account head 决定 predecessor；successor重放 Domain相邻链规则，immutable activation seal另行绑定 human-staff actor与policy hash。相同identity跨时钟只允许原actor取回first winner。
+- 提供给 Risk authorization 的 consumer-owned projection 只有在 exact policy identity仍为cutoff下logical current head且active时才返回；已supersede但未过期的旧policy返回None，expired head也不会回退旧版本。
+
+未完成与验证：
+
+- 本批只有Application协议与pure fake；五类source snapshot的Django生产器、append-only policy ledger/codec/repository、composition与真实PG root/successor race尚未实现，不能签发生产Risk authorization。
+- Risk policy、Risk authorization、Broker inactive contract与两层hard-gate聚合 `66 passed`；standalone strict mypy、Black/isort/py_compile、architecture（2680 files / 0 violations）与diff-check通过。标准项目pytest/mypy环境缺项仍按未验证记录，Broker总闸继续false。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

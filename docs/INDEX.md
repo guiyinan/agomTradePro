@@ -480,6 +480,9 @@
 - ✅ **Broker order approval owner artifact**
   - 以Broker自有content-addressed工件封存订单UUID/version、完整approval snapshot/digest、批准人和有效期，并重验金额与推荐lineage
   - 工件固定inactive/must-not-execute；append-only ledger/provider与跨owner授权仍未完成，四节点总闸不变
+- ✅ **Risk execution policy Application workflow**
+  - ID-only激活精确绑定五类source component、server human-staff actor、first-winner/CAS predecessor及logical-current PIT投影
+  - 当前仅pure fake协议；生产source/ledger/provider与PG并发仍缺，Risk authorization不可生产签发，Broker总闸继续关闭
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**
