@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.8.0** - 个人投研平台
-> **最后更新**: 2026-08-12
+> **最后更新**: 2026-08-13
 > **项目状态**: 生产就绪
 > **版本管理**: [VERSION.md](VERSION.md)
 
@@ -171,7 +171,7 @@
 | [production-code-remediation-plan-2026-06-26.md](archive/plans/production-code-remediation-plan-2026-06-26.md) | **投产代码整改方案（数据守门 / 初始化 / UI 闭环）** | ✅ 2026-06-26 完成并归档 |
 | [0.8.0-release-closure-plan-2026-07-05.md](archive/plans/0.8.0-release-closure-plan-2026-07-05.md) | **0.8.0 收口开发计划（发布 / 运维 / 架构减债 Top 10）** | ✅ 2026-07-05 已执行并归档 |
 | [post-0.8.0-stabilization-priority-2026-07-08.md](plans/post-0.8.0-stabilization-priority-2026-07-08.md) | **0.8.0 发布后两周稳定化实施清单（优先级 / 负责人 / 命令 / 验收）** | 进行中 |
-| [evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | **证据治理与决策硬闸改造计划** | 第一期 P0：三层inactive Domain、Risk workflow/ledger完整链验证与Portfolio ID-only inactive approval Application已完成；Risk 0008仍缺Django/PG runtime，Portfolio provider/ledger、生产Risk policy/scope、Broker issuer/四节点重验未完成，所有receipt均未激活，MCP integrated=0 |
+| [evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | **证据治理与决策硬闸改造计划** | 第一期 P0：Portfolio/Risk/Broker inactive owner contracts与ledgers、Risk policy workflow以及Broker pre-Risk ID-only scope已分阶段落盘；pre-Risk仍固定inactive，缺跨账户owner binding、Risk adapter、最终issuer/四节点重验与PG/生产证明，所有执行总闸保持关闭，MCP integrated=0 |
 | [mcp-consolidation-remediation-plan-2026-07-09.md](archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md) | **MCP 收口整改计划（统一能力注册、统一调用、legacy 退役）** | ✅ 完成并归档；持续状态由机器门禁维护 |
 | [system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md](archive/plans/system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md) | **系统级 AI Capability Catalog 与统一路由任务书** | ✅ 代码与自动化验收完成并归档 |
 | [terminal-mcp-governance-outsourcing-task-book-2026-03-19.md](archive/plans/terminal-mcp-governance-outsourcing-task-book-2026-03-19.md) | **Terminal MCP 治理与确认机制任务书** | ✅ 已实现并由 AgentProposal 持久审批架构承接 |
@@ -492,6 +492,9 @@
 - ✅ **Broker/Risk ledger contract audit修正**
   - 对齐0008/0009 constraint state并补Broker persisted clock DB约束；Risk authorization同时绑定policy content hash与actor activation hash
   - 聚合53项与架构门禁通过；完整migration drift受当前环境缺cryptography阻断，PG并发/source selector闭集检测仍未完成
+- ✅ **Broker pre-Risk inactive scope 合同与workflow**
+  - ID-only注册在同一Broker server cutoff双读Portfolio plan/inactive receipt与Broker order artifact，并封存三源exact identity/hash/有效期及本地supersession head
+  - scope固定inactive、must-not-execute并保留5个blocker；36项纯测试通过，ORM ledger、跨账户owner binding、Risk adapter和最终issuer仍未完成
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**

@@ -634,6 +634,18 @@
 - Risk execution policy provider此前把actor-bound `activation.content_hash`错误投影成`policy_content_hash`；现拆为`policy_content_hash=policy.content_hash`与`policy_activation_hash=activation.content_hash`，并让Risk authorization scope、canonical codec/hash全链同时绑定二者，既不丢actor seal也不混淆策略内容身份。
 - Risk/Broker hard-gate聚合`53 passed`，Black/isort/py_compile与architecture（2688 files / 0 violations）通过。完整项目migration drift复跑在Django5.2环境加载`account`时因缺`cryptography`阻断，未将该环境问题写成no-drift通过；PG并发和source identity双selector篡改的closed-world检测仍待后续修正。
 
+### 2026-08-13：Broker pre-Risk inactive scope 合同与 Application workflow
+
+- 新增 Broker-owned、零跨 App import 的 `BrokerPreRiskExecutionScope`，精确封存 Portfolio plan、inactive approval receipt/subject 与 Broker order approval artifact 的 identity、version、content hash、有效期和订单批准时冻结的 Risk policy version；scope 的有效期只能等于三源窗口最小值。
+- 该对象明确不是最终 execution authorization：permission 固定 `inactive`，`activation_available=false`、`must_not_execute=true`，并固定保留 Portfolio 执行审批 inactive、Broker order artifact inactive、plan/order binding 未证明、Portfolio/Broker account namespace 未证明、Risk policy identity 未绑定五个 blocker。没有把 Portfolio 字符串账户号转换成 Broker 整数账户号，也没有把历史 inactive receipt 升级为 current execution permission。
+- Application 注册命令只接受 scope、plan、receipt、order artifact 的 ID/version；在单一 Broker server cutoff 对三个 owner projection 各首末双读，验证 receipt 精确绑定 plan，并由 repository logical `(broker_account_id, order_artifact_id)` head 派生 predecessor。相同 identity 仅在 first winner 仍为当前本地候选 head 时幂等重放，其他 scope 形成 exact supersession 链。
+- 提供 historical exact/PIT reader 与带 plan/order/receipt identity+hash 的本地 current-head reader；这里的 `current` 只表示 Broker pre-Risk candidate ledger 的逻辑 head，不代表 Portfolio approval、Risk authorization 或生产执行 authority 当前有效。
+
+未完成与验证：
+
+- 纯 Domain/Application `36 passed`；standalone strict mypy 两个生产文件 `0 errors`，Black/isort/py_compile/diff-check与architecture（2688 files / 0 violations）通过；当前环境未安装ruff，项目mypy plugin仍缺失。
+- 尚无 pre-Risk append-only ORM/codec/repository、Portfolio public composition、Portfolio↔Broker account owner binding或Risk adapter。后续 Risk adapter在本scope固定inactive时必须返回None；最终Broker issuer、Research/benchmark refs、四节点exact current重验和PostgreSQL并发均未完成，总闸继续false。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
