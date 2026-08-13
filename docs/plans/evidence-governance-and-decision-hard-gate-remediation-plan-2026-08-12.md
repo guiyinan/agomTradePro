@@ -1956,6 +1956,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - codec unit `48 passed`；ruff、Black/isort、strict mypy与diff-check通过。
 - 本批没有model/repository/migration/provider；0047统一consumption claim与Binding-v2 ledger、跨v1/v2并发、真实migrate/rollback仍缺，codec不得被视为可签发或可消费allocation的账本。
 
+### 2026-08-14：Account allocated Physical-v3 creation-root 0046 ledger
+
+- 新增独立0046 schema-only单表账本，完整封存nested allocation + Physical-v2/source/raw canonical payload与独立`allocated_physical_creation_projector` recorder；identity、allocation、Account、underlying与Physical root五类锚分别由DB unique和domain-separated claim hash防重。
+- model使用private non-nestable UOW、exact insert claim及instance/QuerySet/bulk/raw mutation/delete阻断；repository在winner、head、exact/PIT与IntegrityError恢复前先restore全表，逐列复核canonical/header/allocation/physical/projector/fixed/clock/record/ledger seals。冗余Account或selector header被SQL篡改时不能隐藏坏root。
+- root-only CAS拒绝predecessor；logical head在过期后仍保持最终root，不回退或生成第二root。`persisted_at == recorded_at`由DB check与restore共同封印；0046仅CreateModel且zero-seed，不改0042/0045 canonical bytes或回填mutable row。
+
+验证与未完成：
+
+- Django 5.2 isolated component `4 passed`，覆盖roundtrip/first-winner/PIT、完整五锚head、私有UOW/写删改旁路、closed-world header tamper以及migration字段/constraint/index同构与zero-seed；ruff、Black/isort、py_compile、隔离strict mypy、architecture（2831 files / 0 violations）及diff-check通过。
+- PostgreSQL五锚并发、真实0046 migrate/rollback与全项目回归尚未验证。更关键的0047统一consumption claim + Binding-v2 ledger仍缺，因此0046只提供创建根证据，不消费allocation，不允许pipeline/production writer或执行总闸开启。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
