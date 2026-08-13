@@ -1339,6 +1339,17 @@ Portfolio 新增独立的长期政策基准，不能复用当前配置候选或�
 
 Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤、Tracking Error、Information Ratio、换手和成本。系统只陈述指定期间是否观察到净增益，不自动宣称“有/无 alpha”。
 
+### 2026-08-13：Account owner assignment evidence Domain 合同
+
+- 新增Account-owned两人制assignment evidence，显式区分字符串canonical Account identity与整数SimulatedTrading row provenance，禁止cast推断身份；raw row observation与creation/migration/manual-reclaim精确receipt均绑定owner/type/id/version/hash。
+- authoritative assignment必须由claimant本人声明并由另一名human staff按actor ID与user ID双重隔离审批；legacy-default不得声称owner，且只能绑定exact migration receipt。issued/approved/recorded/valid时钟与identity/content hash全部封存。
+- 相邻successor保持同一Account、underlying row与row-observation identity，精确绑定predecessor并推进version/clock。合同固定`evidence_only + inactive + must_not_execute`，不提供激活或执行权限。
+
+未完成与验证：
+
+- 纯Domain `25 passed`；standalone strict mypy、Black/isort、architecture（2750 files / 0 violations）与diff-check通过。项目mypy配置因环境缺`mypy_django_plugin`未直接运行。
+- 尚无ID-only Application workflow、assignment ledger/provider、simulated observation adapter、人工接口或composition；现有mutable account row与0013默认user仍不能获得owner背书，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

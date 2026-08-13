@@ -591,6 +591,9 @@
 - ✅ **Account identity snapshot append-only ledger**
   - actor/provenance/reclaim refs与全套seals、私有UOW/claim、single-root/predecessor CAS和closed-world exact/PIT/current闭合；0037 zero-seed不回填legacy行
   - Django5.2 minimal往返通过；完整组件/PG并发/full migrate未验，raw/reclaim owner provider与composition仍缺
+- ✅ **Account owner assignment evidence Domain 合同**
+  - canonical Account字符串身份与SimulatedTrading整数row provenance分离，精确绑定row observation与creation/migration/manual-reclaim receipt
+  - claimant与独立human-staff approver两人制；固定inactive/evidence-only，Application/ledger/provider/人工入口仍未完成
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
