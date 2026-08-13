@@ -464,6 +464,22 @@
 
 - 本地 contract + 既有 hard-gate 聚合 `22 passed`；standalone strict mypy `0 errors`；全仓 architecture scan（2666 files / 0 violations）、Black/isort/py_compile/diff-check 通过。未新增 Django/数据库面，因此本阶段没有声称 PostgreSQL first-winner 或生产授权证明。
 
+### 2026-08-13：Portfolio canonical plan integrity 与 inactive approval 合同
+
+- 将 `portfolio_canonical_v1` 的 payload、JSON bytes 与 SHA-256 算法从 Infrastructure 提升为 Portfolio Domain 唯一真源，严格保持既有字段、数组顺序、Decimal 字符串、原时区 offset、`ensure_ascii` 等历史字节语义，避免对存量 canonical 行做无声明 schema 漂移。
+- Portfolio repository 保存复用 Domain hash；get、idempotent replay 和 approve 会从当前 ORM payload 重建 Domain 并与 stored `immutable_payload_hash` 做 exact compare，空 hash、失配或旁路篡改均失败关闭，不做静默回填。生命周期 status 变化不进入 immutable payload hash。
+- 新增 strict receipt-eligibility 校验与 Portfolio-owned `TransitionPlanApprovalReceipt`：绑定 plan/version/hash、账户、decision snapshot、human staff actor、server time 与 plan expiry；但 `execution_permission=inactive`、`must_not_execute=true` 和稳定 blocker 固定不变，不接 ORM/API/submit/Broker。
+- `portfolio_canonical_v1` 仍没有 plan identity、decision/portfolio/target snapshot 内容哈希及完整 policy artifact；后续如补这些字段必须新增 canonical v2 family/decoder，不能覆盖 v1 算法。存量空/错 hash 只能审计后重建新 plan，不得给当前可变行补背书。
+
+未完成：
+
+- Portfolio approval append-only ledger、可信 actor/clock Application command、exact/PIT provider、两人复核与 PostgreSQL first-winner；现有 caller-less approve 不自动签发 receipt。
+- Risk Center order authorization、Broker issuer/revalidator 和四节点 exact current 校验仍未实现，Portfolio submit 与 Broker 总闸继续关闭。
+
+验证：
+
+- Domain integrity/receipt 与 submit hard-gate 聚合 `15 passed`；standalone strict mypy `0 errors`；全仓 architecture scan（2667 files / 0 violations）、Black/isort/py_compile/diff-check 通过。模块循环扫描确认本批无新增跨 App import，但共享工作区当前既存总边数/预算和 `account,portfolio,simulated_trading,strategy` cycle 仍超 allowlist，未通过抬高基线掩盖。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
