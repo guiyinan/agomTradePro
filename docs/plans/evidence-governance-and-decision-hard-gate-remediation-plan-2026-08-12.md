@@ -1820,6 +1820,16 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - codec unit `9 passed`；strict mypy、ruff、Black/isort与diff-check通过。
 - 本批没有ORM/model/repository/migration；0044双表schema、双root DB约束、closed-world repository/component/PG race与authoritative provider仍未完成，不能把codec视为可签发或可查询账本。
 
+### 2026-08-13：Account owner-assignment staff approval evidence v2 0044 schema
+
+- 新增0044 schema-only双表：subject表封存完整canonical payload及physical/receipt exact headers；Evidence通过OneToOne PROTECT精确绑定subject，并封存approval、mapping、fixed authority、record与ledger seals。两表均使用私有UOW/exact insert claim，instance/QuerySet/bulk/raw update/delete路径固定阻断。
+- Evidence root同时持有`account_root_claim_hash`与`underlying_root_claim_hash`，两列分别partial unique；successor必须两列均空并持有unique predecessor。DB check强制root/successor形态互斥、fixed v2 authority、staff approver与persisted clock；0044只有两项CreateModel且zero-seed。
+
+验证与剩余边界：
+
+- Django 5.2 isolated SQLite model/component `4 passed`，system check、ruff、Black/isort、architecture（2816 files / 0 violations）与diff-check通过。isolated设置刻意禁用migration modules，因此`makemigrations --check`只报告环境不支持、未作为no-drift证据。
+- 本批没有repository；canonical payload/header/seal的restore、closed-world exact/PIT/双head链、IntegrityError恢复、真实0044 migrate/rollback与PostgreSQL四类竞争仍未验证，authoritative provider与production pipeline继续禁用。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
