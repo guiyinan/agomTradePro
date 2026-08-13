@@ -660,6 +660,9 @@
 - ✅ **SimulatedTrading owner-side Account physical-row provider**
   - exact winner必须等于final logical head且source仍present/active/fresh才原样映射Account DTO；superseded/tombstone/expired不回退
   - owner-side composition避免Account反向依赖；pure tests 3 passed；ledger zero-seed时稳定None，raw observation/outbox与全writer仍缺
+- ✅ **SimulatedTrading raw account-row observation Domain**
+  - owner raw facts封存row/user/type/active/presence/tombstone与observed/valid clocks；root/successor/PIT final no-fallback闭合，pure tests 23 passed
+  - 固定inactive/evidence-only；Application/ledger/outbox/全writer与source v2 raw-hash binding仍缺，既有row不回填
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

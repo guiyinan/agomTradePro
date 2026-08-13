@@ -1598,6 +1598,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - provider pure tests `3 passed`；ruff、py_compile、architecture（2786 files / 0 violations）通过。
 - owner raw observation/outbox与全create/update/delete事务writer仍未完成，故尚无production source rows；真实composition启动回归因本隔离环境缺Celery未执行。总执行闸与所有inactive权限保持不变。
 
+### 2026-08-13：SimulatedTrading raw account-row observation Domain
+
+- 新增 owner-owned immutable raw observation：精确封存 observation id/version/hash、物理row PK、nullable row user、原始account type、active/presence/tombstone、row create/update clock、owner observed clock与validity；固定`evidence_only/inactive/must_not_execute`，不声明账户owner或执行权限。
+- root/successor合同要求同一observation id、row PK和row created clock，version、row updated与observed clock单调推进并精确绑定predecessor hash。PIT resolver返回最终可知raw head；最终tombstone/inactive仍保留为raw事实，最终过期则返回None且不回退旧head。
+- 本阶段不把请求clock、consumer `recorded_at/TTL`或mutable ORM `updated_at`冒充owner issuance，也不从既有行自动回填。consumer source v1虽然读取raw `content_hash`，但尚未把它封进source envelope；后续必须新增source v2精确绑定raw hash，禁止静默改写v1。
+
+验证与剩余边界：
+
+- pure Domain tests `23 passed`；strict mypy、ruff、Black/isort、py_compile与architecture（2787 files / 0 violations）通过。
+- owner Application、append-only raw ledger、exact-current provider/outbox，以及覆盖repository/gateway/portfolio writer、position valuation反写、Admin、management与delete tombstone的同事务writer均未完成；production source ledger继续zero-seed，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
