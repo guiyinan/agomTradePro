@@ -1520,6 +1520,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - provenance+physical-row Domain组合 `57 passed`；standalone strict mypy、ruff、Black/isort、architecture（2773 files / 0 violations）与diff-check通过。
 - 尚无provenance receipt Application、append-only ledger、真实creation/manual-reclaim/migration签发入口/provider或与现assignment DTO的adapter；没有exact receipt时legacy/owner assignment继续Unavailable并零写，总闸不变。
 
+### 2026-08-13：Account owner-assignment provenance receipt Application workflow
+
+- 新增5字段ID-only签发命令，只接受receipt ID/version、closed provenance kind和physical observation ID/version；hash、账户、owner、row事实、actor、clock、validity与predecessor均由trusted owner source和server边界提供。
+- exact-current Physical observation provider在同一repository cutoff首末双读；creation/manual-reclaim使用当前authenticated claimant，migration只允许当前human-staff legacy reviewer且不会声称owner。row source缺失、过期、替换或二读漂移均在append前fail closed。
+- persisted wrapper封存原authenticated issuer，跨时钟first-winner仅允许同actor replay；logical receipt head与predecessor由repository派生并以append CAS闭合。historical exact PIT和full-selector closed-current inactive readers分离，superseded/expired final head不回退。
+- Application复用Account assignment稳定错误taxonomy，只依赖Domain与注入Protocol，无ORM或跨App implementation import；所有receipt继续inactive/evidence-only/must-not-execute。
+
+
+- provenance/physical Domain+Application组合 `75 passed`；增量mypy `0 regressions`，ruff、Black/isort与diff-check通过。
+- 当前仅Protocol+pure fake；append-only provenance ledger、真实physical row owner provider/composition、认证签发入口和assignment consumer adapter仍未完成。`0013`没有逐账户receipt，legacy路径继续Unavailable/零写。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
