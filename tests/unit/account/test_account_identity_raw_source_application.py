@@ -263,11 +263,11 @@ def test_legacy_hint_without_exact_marker_evidence_writes_nothing() -> None:
     assert repository.append_calls == 0
 
 
-def test_exact_legacy_marker_captures_no_owner_claim() -> None:
+def test_exact_formal_legacy_evidence_captures_no_owner_claim() -> None:
     legacy = _evidence(
         assignment_state="legacy_default",
         assigned_owner_user_id=None,
-        artifact_type="account_legacy_default_assignment_evidence",
+        artifact_type="account_owner_assignment_evidence",
     )
     repository = _Repository()
     use_case, _, _ = _capture(repository, evidence=[legacy, legacy])

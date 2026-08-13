@@ -20,7 +20,6 @@ ACCOUNT_IDENTITY_ASSIGNMENT_STATES = (
 )
 ACCOUNT_ASSIGNMENT_EVIDENCE_OWNER = "account"
 ACCOUNT_OWNER_ASSIGNMENT_EVIDENCE_TYPE = "account_owner_assignment_evidence"
-ACCOUNT_LEGACY_DEFAULT_ASSIGNMENT_EVIDENCE_TYPE = "account_legacy_default_assignment_evidence"
 
 
 def _require_token(value: object, field_name: str, *, maximum: int = 192) -> str:
@@ -224,10 +223,7 @@ class AccountIdentityRawSource:
             return
         if self.owner_user_id is not None:
             raise ValueError("legacy_default assignment cannot claim an owner")
-        if (
-            self.assignment_evidence_artifact_type
-            != ACCOUNT_LEGACY_DEFAULT_ASSIGNMENT_EVIDENCE_TYPE
-        ):
+        if self.assignment_evidence_artifact_type != ACCOUNT_OWNER_ASSIGNMENT_EVIDENCE_TYPE:
             raise ValueError("legacy_default assignment evidence type is invalid")
 
     @property
@@ -392,7 +388,6 @@ __all__ = [
     "ACCOUNT_IDENTITY_RAW_SOURCE_PERMISSION",
     "ACCOUNT_IDENTITY_RAW_SOURCE_SCHEMA",
     "ACCOUNT_IDENTITY_RAW_SOURCE_STATUS",
-    "ACCOUNT_LEGACY_DEFAULT_ASSIGNMENT_EVIDENCE_TYPE",
     "ACCOUNT_OWNER_ASSIGNMENT_EVIDENCE_TYPE",
     "AccountIdentityRawSource",
     "resolve_account_identity_raw_source_head",

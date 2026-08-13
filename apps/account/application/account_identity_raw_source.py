@@ -11,7 +11,6 @@ from apps.account.domain.account_identity_raw_source import (
     ACCOUNT_IDENTITY_RAW_SOURCE_ARTIFACT_TYPE,
     ACCOUNT_IDENTITY_RAW_SOURCE_OWNER,
     ACCOUNT_IDENTITY_RAW_SOURCE_SCHEMA,
-    ACCOUNT_LEGACY_DEFAULT_ASSIGNMENT_EVIDENCE_TYPE,
     ACCOUNT_OWNER_ASSIGNMENT_EVIDENCE_TYPE,
     AccountIdentityRawSource,
     validate_account_identity_raw_source_successor,
@@ -186,7 +185,7 @@ class ExactAccountOwnerAssignmentEvidence:
             if type(self.assigned_owner_user_id) is not int or self.assigned_owner_user_id <= 0:
                 raise ValueError("authoritative evidence requires an exact owner")
         elif self.assignment_state == "legacy_default":
-            if self.artifact_type != ACCOUNT_LEGACY_DEFAULT_ASSIGNMENT_EVIDENCE_TYPE:
+            if self.artifact_type != ACCOUNT_OWNER_ASSIGNMENT_EVIDENCE_TYPE:
                 raise ValueError("legacy assignment evidence type is invalid")
             if self.assigned_owner_user_id is not None:
                 raise ValueError("legacy assignment evidence cannot claim an owner")

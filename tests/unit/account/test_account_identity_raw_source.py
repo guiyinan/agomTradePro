@@ -130,11 +130,11 @@ def test_authoritative_assignment_requires_exact_owner_evidence() -> None:
             _source(**{field_name: None})
 
 
-def test_legacy_default_assignment_requires_marker_evidence_but_no_owner_claim() -> None:
+def test_legacy_default_assignment_requires_formal_evidence_but_no_owner_claim() -> None:
     source = _source(
         owner_user_id=None,
         assignment_state="legacy_default",
-        assignment_evidence_artifact_type="account_legacy_default_assignment_evidence",
+        assignment_evidence_artifact_type="account_owner_assignment_evidence",
     )
 
     assert source.owner_user_id is None
@@ -187,7 +187,7 @@ def test_owner_evidence_owner_and_type_are_state_specific() -> None:
         _source(
             owner_user_id=None,
             assignment_state="legacy_default",
-            assignment_evidence_artifact_type="account_owner_assignment_evidence",
+            assignment_evidence_artifact_type="account_legacy_default_assignment_evidence",
         )
 
 

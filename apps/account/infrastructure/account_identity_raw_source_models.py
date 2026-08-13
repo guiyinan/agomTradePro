@@ -222,9 +222,7 @@ class AccountIdentityRawSourceModel(models.Model):
                         assignment_state="legacy_default",
                         owner_user_id__isnull=True,
                         assignment_evidence_owner="account",
-                        assignment_evidence_artifact_type=(
-                            "account_legacy_default_assignment_evidence"
-                        ),
+                        assignment_evidence_artifact_type="account_owner_assignment_evidence",
                         assignment_evidence_id__isnull=False,
                         assignment_evidence_version__isnull=False,
                         assignment_evidence_content_hash__isnull=False,

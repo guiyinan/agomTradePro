@@ -147,7 +147,7 @@ class Migration(migrations.Migration):
                             models.Q(
                                 (
                                     "assignment_evidence_artifact_type",
-                                    "account_legacy_default_assignment_evidence",
+                                    "account_owner_assignment_evidence",
                                 ),
                                 ("assignment_evidence_content_hash__isnull", False),
                                 ("assignment_evidence_id__isnull", False),

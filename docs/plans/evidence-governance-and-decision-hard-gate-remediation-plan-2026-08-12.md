@@ -1350,6 +1350,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 纯Domain `25 passed`；standalone strict mypy、Black/isort、architecture（2750 files / 0 violations）与diff-check通过。项目mypy配置因环境缺`mypy_django_plugin`未直接运行。
 - 尚无ID-only Application workflow、assignment ledger/provider、simulated observation adapter、人工接口或composition；现有mutable account row与0013默认user仍不能获得owner背书，总闸不变。
 
+### 2026-08-13：Account raw-source assignment evidence 类型收口
+
+- raw identity source 不再为 `legacy_default` 接受旧的专用 artifact type；authoritative 与 legacy-default 均只接受 Account owner 的正式 `account_owner_assignment_evidence`，由 `assignment_state` 表达语义差异，避免跨层 adapter 改写类型或伪造 hash/header。
+- 同步收紧 Domain、Application DTO、ORM constraint 与 zero-seed `0038` migration state；authoritative 仍必须携带正数 owner，legacy-default 仍禁止声称 owner，unknown 仍禁止携带任何 assignment evidence。
+- `0038` 尚无 seed/backfill 或生产 composition，因此本次是未激活合同的前向修正，不升级任何 mutable account row，也不为历史 `0013` 默认用户生成证据。
+
+未完成与验证：
+
+- raw-source Domain/Application 纯测试 `40 passed`；standalone strict mypy、Black/isort 与 diff-check 通过。当前默认 Python 缺 Django，完整 migration state/no-drift 与 Django component 未在本环境复跑。
+- 正式两人 assignment Application、single-record ledger、exact migration/manual-reclaim provenance provider、SimulatedTrading observation adapter 和 composition 仍未完成；无 exact provenance 时必须零写，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
