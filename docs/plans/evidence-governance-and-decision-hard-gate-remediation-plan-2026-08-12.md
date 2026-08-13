@@ -448,6 +448,22 @@
 
 - catalog + order-detail 纯测试 `40 passed`；Broker SDK `8 passed`；MCP semantic freeze PASS（18 / disabled 6 / integrated 0）；全仓 architecture scan（2665 files / 0 violations）、Black/isort/py_compile/diff-check 通过。
 
+### 2026-08-13：Broker execution authorization 本地合同冻结
+
+- 新增 Broker Domain 自有、零跨 App import 的 exact authorization artifact ref、scope 与 inactive receipt contract；固定绑定账户、Portfolio plan/approval、Broker approval snapshot、Research output/envelope/operator/track record、Risk authorization、policy benchmark 及五方有效期。
+- scope 与 receipt 使用 UTF-8 canonical JSON、UTC `Z` 和 lowercase SHA-256；订单 identity 必须是 canonical UUID，Portfolio/Risk/Research/Broker owner 与 artifact type 不可替换，最终有效期只能等于所有上游窗口的最小值。
+- receipt contract 只接受 Evidence 与 Risk 都为 `execution_eligible` 的结构，但 `activation_available=false`、`must_not_execute=true` 固定不变；相邻 supersession 必须绑定 exact previous hash、同账户/订单并推进 server clock。当前不提供 issuer、provider、store、API 或 consumer，四节点总闸继续保持关闭。
+- 代码核对确认尚缺两个 owner 真源：Portfolio Domain 的 plan content hash/approval receipt/exact provider，以及 Risk Center 的 account+plan+order scoped authorization。现有 Portfolio Infrastructure hash、Research legacy summary、Broker approval digest 与 Risk Operator Spec approval 均不能冒充这些真源。
+
+未完成：
+
+- Portfolio `TransitionPlanApprovalReceipt`、Domain canonical plan hash 和 exact/PIT provider；Risk Center `BrokerOrderRiskAuthorization`、policy/actor/validity/supersession 与 append-only first-winner ledger。
+- Broker Application 双读签发/重验、append-only repository、四节点 current/exact 校验与存量订单 `DECISION_REVIEW_REQUIRED` 迁移；没有这些交付前不得切换 `broker_order_evidence_integrated()`。
+
+验证：
+
+- 本地 contract + 既有 hard-gate 聚合 `22 passed`；standalone strict mypy `0 errors`；全仓 architecture scan（2666 files / 0 violations）、Black/isort/py_compile/diff-check 通过。未新增 Django/数据库面，因此本阶段没有声称 PostgreSQL first-winner 或生产授权证明。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
