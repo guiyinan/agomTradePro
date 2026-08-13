@@ -825,6 +825,17 @@
 - 纯Domain `61 passed`；standalone strict mypy、Black/isort/py_compile/diff-check与零跨App import通过。
 - 现有simulated-trading账户行仍mutable且user历史可能受默认回填污染；尚无trusted raw provider、ID-only发行workflow、reclaim receipt、append-only ledger或exact/current facade，不能作为namespace binding真实source，总闸不变。
 
+### 2026-08-13：Account-owned raw identity source Domain 合同
+
+- 新增 Account owner 的 raw identity source evidence，分别封存字符串 Account namespace/ID 与整数 underlying unified provenance，禁止通过类型转换推断同一身份；row source 以 owner/type/id/version/content hash 进入 canonical seal。
+- owner assignment 改为 `authoritative / legacy_default / unknown` 三态。authoritative 必须有 Account owner-assignment exact evidence与正数owner；legacy-default必须有legacy marker且不得声称owner；unknown不得携带owner/evidence，也不能被下游静默当成authoritative。
+- observed/recorded、row validity、TTL与有效期最小值全部使用aware clock；identity/content hash、相邻predecessor与同logical subject supersession已冻结。inactive/expired successor仍是链head，不允许回退旧source；合同固定`source_evidence_only + inactive + must_not_execute`。
+
+未完成与验证：
+
+- 纯Domain `27 passed`；standalone strict mypy、ruff、Black/isort、py_compile/diff-check与零跨App/framework import通过。
+- 尚无raw capture Application、append-only ledger、simulated-trading observation adapter或owner-assignment provider；`0013`默认user回填不能被当前mutable row洗白。manual reclaim receipt需在raw artifact可验证后另做两人制owner合同，总闸不变。
+
 ### 2026-08-13：Account-owned account identity snapshot Application workflow
 
 - 新增普通Issue与legacy Reclaim两个ID-only命令：调用方只能提交snapshot/raw source identity，reclaim额外提交receipt identity；account、owner、hash、provenance、clock与permission均由trusted providers、server actor和repository派生。

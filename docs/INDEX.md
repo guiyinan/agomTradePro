@@ -543,6 +543,9 @@
 - ✅ **Account-owned account identity snapshot Domain 合同**
   - 分离字符串Account identity与底层整数unified provenance，封存source seal、owner/real/active、TTL最早有效期；legacy默认user必须有Account reclaim receipt
   - 固定inactive；trusted provider、ID-only发行/reclaim、append-only ledger/exact-current facade均未完成，不能解除namespace blocker
+- ✅ **Account-owned raw identity source Domain 合同**
+  - 字符串Account identity与整数underlying provenance不cast；row source与authoritative/legacy-default/unknown三态assignment evidence进入canonical seal
+  - 固定source-evidence-only/inactive；capture workflow、ledger、simulated adapter与assignment provider未完成，默认user回填不得冒充owner事实
 - ✅ **Account identity snapshot Application workflow**
   - 普通Issue和legacy Reclaim均ID-only；raw/receipt双读、server actor/clock、first-winner/CAS及closed-current reader闭合，无exact reclaim receipt时零写入
   - 仅Protocol+pure fake；raw adapter、reclaim receipt/snapshot账本、composition、真实actor与PG并发仍未完成
