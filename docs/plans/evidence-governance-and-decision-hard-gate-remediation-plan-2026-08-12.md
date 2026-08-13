@@ -868,6 +868,17 @@
 - Domain/Application纯测试 `20 passed`；standalone strict mypy、Black/isort、architecture与diff-check通过。
 - 当前仅Protocol与pure fake；subject/activation append-only ledger、五类真实owner current readers、staff composition、daily valuation snapshot与PostgreSQL first-winner尚未完成，benchmark和Broker总闸保持inactive。
 
+### 2026-08-13：Portfolio benchmark methodology bundle activation append-only ledger
+
+- 新增subject/activation双账本、strict codec和私有UOW/exact insert claim；subject与activation identity均first-winner，每definition单root、每predecessor单successor，append以logical-head CAS拒绝fork、orphan和cross-definition替换。
+- repository在任何identity/PIT/current selector前closed-world恢复两表，逐行复核完整definition与固定五源bundle、requester/approver、FK subject、canonical payload、identity/content/header/ledger seals及`persisted_at == recorded_at`。双selector或source/header篡改不能让坏行隐身。
+- direct save/raw、QuerySet update/delete、bulk create/update等写绕过全部阻断；historical exact与logical-current读取分离，最终head过期不回退旧activation。`0027_policy_benchmark_methodology_activation`只创建两张空表，无RunPython/RunSQL/backfill。
+- 账本继续封存`benchmark_configuration_only + daily_valuation_authority=false + broker_execution_authority=false + must_not_execute=true`，不接真实owner readers、staff composition、daily valuation或Broker gate。
+
+
+- Django 5.2隔离SQLite component `13 passed`；Portfolio `makemigrations --check --dry-run`为`No changes detected`；增量mypy `0 regressions`，ruff、Black/isort、architecture（2772 files / 0 violations）与diff-check通过。
+- 完整项目迁移测试曾在建库阶段超时，改用本批两表schema-editor隔离验证；PostgreSQL双事务root/predecessor race、真实五源owner current providers与生产staff composition仍未验证，总闸保持inactive。
+
 ### 2026-08-13：Portfolio inactive approval authoritative persistence clock 修复
 
 - 修复既有 transition-plan inactive approval subject/receipt 使用 ORM wall-clock `auto_now_add` 写 `persisted_at`、但restore又拿它与注入的 authoritative `recorded_at`比较而导致合法新记录自判腐败的问题；repository现在显式写入 `persisted_at == recorded_at`，restore要求精确等值。

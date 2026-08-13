@@ -558,6 +558,9 @@
 - ✅ **Portfolio benchmark methodology bundle activation Application workflow**
   - ID-only注册/审批以单一cutoff首末双读definition和五源graph，actor-bound first-winner、同definition logical head与predecessor CAS闭合
   - exact/current读拒绝superseded或source替换；仅Protocol+pure fake，ledger、owner current readers、staff composition与daily valuation仍未完成
+- ✅ **Portfolio benchmark methodology bundle activation append-only ledger**
+  - subject+activation双账本以private UOW、per-definition root/predecessor CAS和closed-world restore封存五源/FK/actor/header/clock seals；0027 zero-seed
+  - Django5.2组件13 passed、Portfolio migration no-drift；固定configuration-only，PG并发、owner readers/staff composition与daily valuation仍缺
 - ✅ **Portfolio inactive approval authoritative persistence clock 修复**
   - subject/receipt显式封存`persisted_at=recorded_at`并增加DB等值约束，消除wall-clock导致合法记录自判腐败
   - Django5.2隔离5 passed、Portfolio migration no-drift；不改变inactive语义或连接Broker执行

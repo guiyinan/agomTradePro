@@ -38,6 +38,10 @@ from apps.portfolio.infrastructure.policy_benchmark_definition_models import (
 from apps.portfolio.infrastructure.policy_benchmark_fx_fixing_models import (
     PortfolioPolicyBenchmarkFxFixingModel,
 )
+from apps.portfolio.infrastructure.policy_benchmark_methodology_activation_models import (
+    PortfolioPolicyBenchmarkMethodologyActivationModel,
+    PortfolioPolicyBenchmarkMethodologyActivationSubjectModel,
+)
 from apps.portfolio.infrastructure.policy_benchmark_price_fixing_models import (
     PortfolioPolicyBenchmarkPriceFixingModel,
 )
@@ -82,6 +86,8 @@ __all__ = [
     "PortfolioPolicyBenchmarkCostTaxModel",
     "PortfolioPolicyBenchmarkDefinitionModel",
     "PortfolioPolicyBenchmarkFxFixingModel",
+    "PortfolioPolicyBenchmarkMethodologyActivationModel",
+    "PortfolioPolicyBenchmarkMethodologyActivationSubjectModel",
     "PortfolioPolicyBenchmarkPriceFixingModel",
     "PortfolioPolicyBenchmarkTradingCalendarModel",
     "PortfolioTransitionPlanModel",
