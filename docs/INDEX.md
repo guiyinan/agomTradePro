@@ -552,6 +552,9 @@
 - ✅ **Portfolio benchmark cost/tax methodology append-only ledger**
   - private UOW/claim、first-winner、source/rule/Decimal/header seals与closed-world exact/PIT完成；DB同时守恒fee/tax计数和authoritative clock
   - 0026 zero-seed、Django5.2组件12 passed、Portfolio migration no-drift；无current/activation，PG并发、owner producers与统一五源activation仍缺
+- ✅ **Portfolio benchmark methodology bundle activation Domain 合同**
+  - benchmark definition及固定顺序五源refs原子封存为单一bundle；server requester+第二staff双重非自批、root/predecessor successor与有效期闭合
+  - 仅`benchmark_configuration_only`，daily valuation/Broker authority均false；Application/ledger/current provider与staff composition仍未完成
 - ✅ **Portfolio inactive approval authoritative persistence clock 修复**
   - subject/receipt显式封存`persisted_at=recorded_at`并增加DB等值约束，消除wall-clock导致合法记录自判腐败
   - Django5.2隔离5 passed、Portfolio migration no-drift；不改变inactive语义或连接Broker执行

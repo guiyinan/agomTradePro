@@ -845,6 +845,18 @@
 - Django 5.2.16 SQLite component `12 passed`；Portfolio `makemigrations --check --dry-run`为`No changes detected`，ruff、Black/isort、architecture（2765 files / 0 violations）与diff-check通过。
 - PostgreSQL first-winner race、完整项目回归和mypy plugin未验证；真实fee/tax definition producers及统一五源两人activation/current provider仍缺，benchmark definition/daily valuation和执行总闸保持inactive。
 
+### 2026-08-13：Portfolio benchmark methodology bundle activation Domain 合同
+
+- 新增统一五源bundle activation，而非为calendar/price/FX/corporate-action/cost-tax建立五条可独立切换的current head；bundle按固定顺序封存benchmark definition原有五个exact methodology refs及canonical bundle hash，避免切换期间出现半新半旧组合。
+- subject精确绑定benchmark definition ID/version/identity hash/content hash/recorded/validity和完整五源bundle；requester必须server-authenticated human staff。activation由第二名server human staff签发，并按actor ID与user ID双重禁止自批。
+- root不得声明predecessor；successor保持同一definition ID logical benchmark，可替换definition version/content和五源refs，但必须精确绑定前一activation content hash，request/issue时钟严格前进。validity严格等于definition与五源最早有效期。
+- activation固定Portfolio owner/capability/schema、permission=`benchmark_configuration_only`；只声明`activates_configuration_bundle=true`，同时固定`daily_valuation_authority=false`、`broker_execution_authority=false`与`must_not_execute=true`。原`PolicyBenchmarkMethodologyRef` schema不改，activation不冒充methodology ref或改写历史definition hash。
+
+未完成与验证：
+
+- 纯Domain `11 passed`；standalone strict mypy、Black/isort、architecture（2766 files / 0 violations）与diff-check通过。
+- 尚无ID-only Application双读、subject/activation ledger、exact-current provider、真实staff composition或daily valuation；统一bundle合同本身不解除benchmark definition blocker或执行总闸。
+
 ### 2026-08-13：Portfolio inactive approval authoritative persistence clock 修复
 
 - 修复既有 transition-plan inactive approval subject/receipt 使用 ORM wall-clock `auto_now_add` 写 `persisted_at`、但restore又拿它与注入的 authoritative `recorded_at`比较而导致合法新记录自判腐败的问题；repository现在显式写入 `persisted_at == recorded_at`，restore要求精确等值。
