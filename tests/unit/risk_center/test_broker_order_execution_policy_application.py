@@ -120,7 +120,10 @@ class MemoryRepository:
 
     def __post_init__(self) -> None:
         self.records: list[BrokerOrderExecutionPolicyActivation] = []
+        self.sources: dict[tuple[str, str], BrokerOrderExecutionPolicySourceSnapshot] = {}
         self.atomic_depth = 0
+        self.source_appends = 0
+        self.source_override: BrokerOrderExecutionPolicySourceSnapshot | None = None
         self.append_calls: list[tuple[str | None, datetime]] = []
         self.append_override: BrokerOrderExecutionPolicyActivation | None = None
 
@@ -184,6 +187,20 @@ class MemoryRepository:
         self.records.append(activation)
         return activation
 
+    def append_source(
+        self,
+        source: BrokerOrderExecutionPolicySourceSnapshot,
+        *,
+        recorded_at: datetime,
+    ) -> BrokerOrderExecutionPolicySourceSnapshot:
+        assert self.atomic_depth == 1
+        assert source.recorded_at <= recorded_at < source.valid_until
+        self.source_appends += 1
+        if self.source_override is not None:
+            return self.source_override
+        key = (source.source_snapshot_id, source.source_snapshot_version)
+        return self.sources.setdefault(key, source)
+
 
 def _activate(
     repository: MemoryRepository,
@@ -218,6 +235,7 @@ def test_id_only_activation_double_reads_source_and_uses_server_clock() -> None:
     assert activation.activated_by == _actor()
     assert len(activation.content_hash) == 64
     assert repository.append_calls == [(None, NOW)]
+    assert repository.source_appends == 1
 
 
 def test_successor_predecessor_is_derived_from_repository_head() -> None:
@@ -250,6 +268,7 @@ def test_cross_clock_retry_is_idempotent_only_for_original_actor() -> None:
 
     assert _activate(repository, provider) == first
     assert len(repository.records) == 1
+    assert len(repository.sources) == 1
     with pytest.raises(BrokerOrderExecutionPolicyConflict, match="another actor"):
         _activate(repository, provider, actor=_actor(20))
 
@@ -276,6 +295,20 @@ def test_activation_fails_closed_when_source_drifts_or_is_unavailable() -> None:
 
     with pytest.raises(BrokerOrderExecutionPolicyUnavailable, match="unavailable"):
         _activate(repository, SourceProvider(None))
+
+
+def test_activation_rejects_substituted_persisted_source_first_winner() -> None:
+    repository = MemoryRepository(NOW)
+    repository.source_override = replace(
+        _source(),
+        controls=replace(_controls(), min_cash_pct=Decimal("0.06")),
+        content_hash="",
+    )
+
+    with pytest.raises(BrokerOrderExecutionPolicyConflict, match="source identity"):
+        _activate(repository, SourceProvider(_source()))
+
+    assert repository.records == []
 
 
 def test_existing_identity_must_still_bind_current_source_and_head() -> None:

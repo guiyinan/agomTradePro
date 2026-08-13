@@ -301,6 +301,14 @@ class BrokerOrderExecutionPolicyRepository(Protocol):
     ) -> BrokerOrderExecutionPolicyActivation | None:
         """Return the logical policy head knowable at the cutoff."""
 
+    def append_source(
+        self,
+        source: BrokerOrderExecutionPolicySourceSnapshot,
+        *,
+        recorded_at: datetime,
+    ) -> BrokerOrderExecutionPolicySourceSnapshot:
+        """Append or return one exact trusted source-snapshot first winner."""
+
     def append(
         self,
         activation: BrokerOrderExecutionPolicyActivation,
@@ -348,6 +356,14 @@ class ActivateBrokerOrderExecutionPolicy:
             if first != final:
                 raise BrokerOrderExecutionPolicyCorruption(
                     "execution policy source changed during activation"
+                )
+            persisted_source = self._repository.append_source(
+                final,
+                recorded_at=recorded_at,
+            )
+            if persisted_source != final:
+                raise BrokerOrderExecutionPolicyConflict(
+                    "execution policy source identity has another first winner"
                 )
             if winner is not None:
                 self._validate_winner(winner, command, final, head, recorded_at)

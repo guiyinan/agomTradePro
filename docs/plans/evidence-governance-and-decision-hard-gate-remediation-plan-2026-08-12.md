@@ -615,6 +615,19 @@
 - 纯Domain回归 `21 passed`，strict codec roundtrip、Black/isort/compile/diff与architecture（2686 files / 0 violations）通过；完整pytest-django component、migration forward/reverse与PostgreSQL first-winner并发仍未执行。
 - 这是Broker owner历史工件账本，不是Risk scope或最终Broker receipt；order-plan/policy/Evidence/benchmark绑定仍缺，create/approve/lease/submitting保持硬暂停。
 
+### 2026-08-13：Risk execution policy append-only persistence
+
+- 新增 Risk Center独立private-UOW/exact insert claim、完整五类source bundle ledger与actor-bound activation ledger；source identity只做first-winner，同内容不同source identity可合法共存，不能用content hash错误合并不同owner记录。
+- activation同时封存完整policy与activation(actor seal) canonical payload，以FK和冗余headers闭合source identity/hash、账户、controls、validity；单账户单root、每predecessor单successor，append用repository-derived current head做CAS。
+- `get_current_head` 先restore cutoff前全ledger再按Domain account分链，验证单root、同链前驱、clock前向、无fork/cycle/disconnected；identity/current PIT provider拒绝superseded旧policy，expired head不回退 predecessor。
+- Application写流程在同一atomic、source首末双读相等后先exact-idempotent append source，再创建/重放activation winner；source或activation append返回替换值都稳定Conflict。migration `0009_broker_order_execution_policies`仅CreateModel，禁止RunPython/RunSQL且zero-seed。
+- 两表`persisted_at`由private repository写authoritative transaction clock并exact等于recorded_at；Django 5.2.10最小schema-editor实测 `1 source / 1 activation / current head True`。
+
+未完成与验证：
+
+- Domain/Application `25 passed`；Black/isort/py_compile/diff、makemigrations drift与architecture（2686 files / 0 violations）通过。时钟修复后的完整pytest-django component与migration forward/reverse尚未跑，PostgreSQL root/successor双事务race仍未验证。
+- 仍缺从floor/template/account override/global+account exceptions生成可信exact source snapshot的production composition；本migration不seed、不回填，故不会凭现有mutable policy自动授权。Risk authorization和Broker四节点总闸继续关闭。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

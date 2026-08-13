@@ -486,6 +486,9 @@
 - ✅ **Broker order approval artifact append-only persistence**
   - private-UOW账本、strict codec、first-winner与历史exact/PIT reader已落盘；0008 schema-only/zero-seed，Django5.2最小SQLite往返通过
   - 仅为历史owner seal，不授予current execution permission；pre-risk scope、PG并发和四节点重验仍未完成
+- ✅ **Risk execution policy append-only persistence**
+  - 五源snapshot+actor-bound activation账本、strict codec、first-winner/CAS与full-chain current-head已落盘；0009 schema-only/zero-seed，Django5.2最小往返通过
+  - mutable policy尚无可信source composition且PG并发未验，zero-seed不自动激活，Risk authorization与Broker总闸继续关闭
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**
