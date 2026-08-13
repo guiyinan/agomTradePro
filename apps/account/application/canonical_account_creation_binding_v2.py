@@ -197,16 +197,18 @@ class BindCanonicalAccountCreationV2:
             return self._validate_replay(winner, command)
         first = self._read(command, cutoff)
         with self._repository.atomic():
-            winner = self._repository.get_winner(
-                binding_id=command.binding_id, binding_version=command.binding_version, as_of=cutoff
-            )
-            if winner is not None:
-                return self._validate_replay(winner, command)
             recorded_at = _aware(self._repository.now(), "repository recorded_at")
             if recorded_at < cutoff:
                 raise CanonicalAccountCreationBindingV2Corruption(
                     "repository clock moved backwards"
                 )
+            winner = self._repository.get_winner(
+                binding_id=command.binding_id,
+                binding_version=command.binding_version,
+                as_of=recorded_at,
+            )
+            if winner is not None:
+                return self._validate_replay(winner, command)
             final = self._read(command, recorded_at)
             if first != final:
                 raise CanonicalAccountCreationBindingV2Conflict("issuance inputs changed")

@@ -279,18 +279,18 @@ class CaptureAllocatedPhysicalAccountRowObservationV3:
         first_allocation = self._read_allocation(command, cutoff)
         first_physical = self._read_physical(command, cutoff)
         with self._repository.atomic():
-            winner = self._repository.get_winner(
-                observation_id=command.observation_id,
-                observation_version=command.observation_version,
-                as_of=cutoff,
-            )
-            if winner is not None:
-                return self._validate_replay(winner, command, cutoff)
             recorded_at = _aware(self._repository.now(), "repository recorded_at")
             if recorded_at < cutoff:
                 raise AllocatedPhysicalAccountRowObservationV3Corruption(
                     "repository clock moved backwards"
                 )
+            winner = self._repository.get_winner(
+                observation_id=command.observation_id,
+                observation_version=command.observation_version,
+                as_of=recorded_at,
+            )
+            if winner is not None:
+                return self._validate_replay(winner, command, recorded_at)
             final_allocation = self._read_allocation(command, recorded_at)
             final_physical = self._read_physical(command, recorded_at)
             if final_allocation != first_allocation or final_physical != first_physical:
