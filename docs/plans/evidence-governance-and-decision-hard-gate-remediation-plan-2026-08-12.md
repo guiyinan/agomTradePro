@@ -754,6 +754,17 @@
 - Django5.2.10 SQLite隔离component `7 passed`，Domain回归 `8 passed`；architecture `2734 files / 0 violations`，Black/isort/compileall/diff-check通过。mypy regression=0但环境缺mypy_django_plugin，PG并发未验证。
 - 两人activation/current provider未完成；price/FX fixing、corporate-action、cost/tax其余四类methodology仍缺。benchmark definition/daily valuation不得提前active，总闸不变。
 
+### 2026-08-13：Portfolio benchmark price-fixing methodology Domain 合同
+
+- 新增Portfolio owner的price-fixing methodology，固定price field为`close/nav/settlement`显式枚举、adjustment basis v1仅`unadjusted`；封存price identifier namespace、venue、IANA timezone/local cutoff与有序exact source refs。
+- source priority ordinal必须连续且每个source owner/type/id/version/hash/recorded/validity精确；`source_failure_policy=block`、`automatic_fallback=false`、positive stale threshold和`missing_price_policy=fail_closed`固定，禁止把非空旧价或自动fallback洗成成功。
+- IANA/DST local cutoff、source recorded/min-validity与methodology recorded/validity进入canonical identity/content hash；permission固定definition-only、activation false、must-not-execute，不含status/current。
+
+未完成与验证：
+
+- 纯Domain `10 passed`；strict mypy、Black/isort/compileall/diff-check与architecture 0 violations通过，当前环境无ruff。
+- price-fixing ledger/两人activation/current provider未完成；FX fixing、corporate-action、cost/tax三类methodology仍缺。benchmark definition和daily valuation不得提前active，总闸不变。
+
 
 ### 2026-08-13：Portfolio policy benchmark definition append-only ledger
 

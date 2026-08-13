@@ -528,6 +528,9 @@
 - ✅ **Portfolio benchmark trading-calendar methodology append-only ledger**
   - private UOW/claim、first-winner、逐日/DST/header seals与closed-world exact/PIT完成；0021 zero-seed且不回填R8/Data Center事实
   - 不发明current/activation；PG并发、两人activation/current provider与其余四类methodology未完成
+- ✅ **Portfolio benchmark price-fixing methodology Domain 合同**
+  - 显式close/nav/settlement+unadjusted口径、有序exact source refs、IANA cutoff与stale/missing/source failure全fail-closed
+  - 固定definition-only；ledger/两人activation/current provider及FX/corporate-action/cost-tax三类methodology未完成
 - ✅ **Broker Plan→Order binding Application workflow**
   - ID-only注册在同一Broker cutoff双读plan ordinal row、inactive receipt和order artifact，闭合owner/type/hash/account/时钟及first-winner/CAS/current selector
   - 三个owner public reader、binding ledger/composition与真实签发均未实现；账户namespace blocker、pre-Risk与执行总闸继续关闭
