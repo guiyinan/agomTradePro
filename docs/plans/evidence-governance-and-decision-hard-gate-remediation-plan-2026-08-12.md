@@ -1509,6 +1509,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Domain/Application纯测试 `40 passed`；standalone strict mypy、ruff、Black/isort与architecture（2772 files / 0 violations）通过。
 - 当前仅Protocol+pure fake；append-only observation ledger、SimulatedTrading owner adapter/composition、真实staff actor与creation/manual-reclaim/migration provenance receipt仍未完成，owner assignment和执行总闸不变。
 
+### 2026-08-13：Account owner-assignment provenance receipt Domain 合同
+
+- 新增单一closed discriminated Account receipt，统一封存`creation / manual_reclaim / migration`三类claimant-side provenance；共享identity、物理row、clock、hash和successor规则，只由branch invariant映射固定artifact type与语义，避免三套类型漂移。
+- receipt精确绑定Account-owned `physical_account_row_observation`的owner/type/id/version/identity/content hash、row validity，以及Account字符串identity和underlying整数row identity；可选helper会对完整Physical observation做exact重验。
+- creation/manual reclaim为authoritative claimant声明，assigned owner必须等于claimant user；migration只允许当前human-staff reviewer声明`legacy_default`且assigned owner恒为None。它不追认`0013`执行者、first superuser/system user或当前row user为历史owner。
+- issued/recorded/valid时钟与row有效期闭合，canonical identity/content hash、root/successor与PIT final过期不回退完成；固定`evidence_only + inactive + activation_available=false + must_not_execute=true`。第二人审批仍由后续owner-assignment Evidence workflow持有，不塞进claimant receipt形成伪两人制。
+
+
+- provenance+physical-row Domain组合 `57 passed`；standalone strict mypy、ruff、Black/isort、architecture（2773 files / 0 violations）与diff-check通过。
+- 尚无provenance receipt Application、append-only ledger、真实creation/manual-reclaim/migration签发入口/provider或与现assignment DTO的adapter；没有exact receipt时legacy/owner assignment继续Unavailable并零写，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

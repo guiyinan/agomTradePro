@@ -636,6 +636,9 @@
 - ✅ **Account physical account-row observation Application workflow**
   - 8字段ID-only capture以同一server cutoff双读raw row，actor-bound first-winner、logical-head/predecessor CAS与exact/current读闭合
   - nullable user/type/active/row clock保真且owner固定unknown；仅Protocol+pure fake，ledger、Simulated adapter/composition与provenance receipts仍缺
+- ✅ **Account owner-assignment provenance receipt Domain 合同**
+  - creation/manual-reclaim/migration共用一个closed receipt，exact绑定physical row全部seals与有效期；authoritative owner只能等于claimant
+  - migration仅由当前staff reviewer声明legacy-default且永不声称owner；固定inactive，Application/ledger/provider与assignment adapter仍缺
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
