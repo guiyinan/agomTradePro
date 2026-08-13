@@ -1406,6 +1406,18 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Domain/Application 纯测试 `37 passed`；standalone strict mypy、Black/isort、architecture（2754 files / 0 violations）与diff-check通过。
 - subject/evidence append-only ledger、owner-side exact creation/migration/manual-reclaim receipt ledgers/providers、SimulatedTrading row observation adapter、composition与认证Interface仍未完成；`0013`无逐账户migration receipt，legacy路径默认保持Unavailable/零写，总闸不变。
 
+### 2026-08-13：Account owner assignment subject/evidence append-only ledger
+
+- 新增独立subject/evidence两表账本：subject完整封存exact row observation、Account provenance receipt、claimant与requested/valid clock，并对identity、row binding、provenance binding和canonical content建立first-winner；Evidence以OneToOne FK和独立`subject_content_hash`双重绑定获批subject，不能把同一plan/account事实下的另一个申请替换进来。
+- repository只在私有UOW/exact insert claim内允许写入；save/update/delete/bulk/raw全部阻断。Evidence同一Account字符串identity、underlying整数row及row observation logical chain只允许单root和单predecessor successor，append使用current-head CAS。
+- 所有identity/hash/PIT/current读取都先closed-world恢复完整subject表，再恢复完整Evidence表并复核canonical payload、actor、provenance、FK、header/identity/content/ledger seals及`persisted_at == authoritative recorded_at`，之后才按selector和cutoff分链；过期或inactive的最终successor仍是logical head，不回退旧记录。
+- `0039_account_owner_assignment_evidence_ledger`只创建两张空表并依赖`0038`，无RunPython/RunSQL，不为mutable account row或`0013`默认user补写任何subject/Evidence。
+
+未完成与验证：
+
+- Django 5.2.16 SQLite component `12 passed`；Account `makemigrations --check --dry-run`为`No changes detected`，ruff、Black/isort、architecture（2762 files / 0 violations）与diff-check通过。
+- PostgreSQL双事务root/predecessor race、完整项目回归及全目标mypy plugin仍未验证；owner-side creation/migration/manual-reclaim receipt provider、SimulatedTrading observation adapter、composition和认证Interface均未完成。账本固定inactive/evidence-only，不解除namespace或执行总闸。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

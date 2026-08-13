@@ -609,6 +609,9 @@
 - ✅ **Account owner assignment 两阶段 Application workflow**
   - ID-only注册/审批；claimant只来自exact Account provenance receipt，approver只来自当前staff actor，单事务单时钟双读并把subject seal绑定进最终Evidence
   - first-winner/CAS与exact/current reader纯测试37 passed；ledger、owner receipt/provider、Simulated row adapter、composition/interface未完成，0013 legacy默认零写
+- ✅ **Account owner assignment subject/evidence append-only ledger**
+  - 两表精确封存row/provenance/claimant、OneToOne subject及subject hash；private UOW/claim、single-root/predecessor CAS和closed-world exact/PIT/current完成
+  - 0039 zero-seed、Django5.2组件12 passed且Account migration no-drift；PG并发、owner receipt/provider、Simulated adapter、composition/interface仍未完成，保持inactive
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
