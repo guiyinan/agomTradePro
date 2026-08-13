@@ -42,6 +42,7 @@ def _binding(**changes: object) -> BrokerPortfolioAccountNamespaceBinding:
         "broker_account_id": 7,
         "portfolio_account_namespace": "portfolio.transition_plan_account",
         "portfolio_account_id": "portfolio-account-7",
+        "owner_user_id": 19,
         "broker_source_owner": BROKER_ACCOUNT_BINDING_SOURCE_OWNER,
         "broker_source_artifact_type": BROKER_ACCOUNT_BINDING_SOURCE_ARTIFACT_TYPE,
         "broker_source_id": "broker-account-source-7",
@@ -95,6 +96,9 @@ def test_payload_keeps_owner_source_seals_and_explicit_inactive_flags() -> None:
     assert payload["portfolio_source_artifact_type"] == "account_identity_snapshot"
     assert payload["portfolio_source_version"] == "portfolio-account-source.v1"
     assert payload["portfolio_source_content_hash"] == "b" * 64
+    assert payload["owner_user_id"] == 19
+    assert payload["account_type"] == "real"
+    assert payload["source_accounts_active"] is True
     assert payload["asserted_by"] == {
         "actor_id": "user:19",
         "user_id": 19,
@@ -113,6 +117,7 @@ def test_payload_keeps_owner_source_seals_and_explicit_inactive_flags() -> None:
         ("broker_account_id", 8),
         ("portfolio_account_namespace", "portfolio.other_namespace"),
         ("portfolio_account_id", "7"),
+        ("owner_user_id", 20),
         ("broker_source_id", "broker-account-source-8"),
         ("broker_source_version", "broker-account-source.v2"),
         ("broker_source_content_hash", "c" * 64),
@@ -140,6 +145,9 @@ def test_every_material_assertion_participates_in_canonical_hash(
         {"broker_account_id": True},
         {"portfolio_account_id": 7},
         {"portfolio_account_id": " 7"},
+        {"owner_user_id": True},
+        {"account_type": "simulated"},
+        {"source_accounts_active": False},
         {"broker_source_content_hash": "A" * 64},
         {"portfolio_source_content_hash": "short"},
         {"recorded_at": datetime(2026, 8, 13, 6)},
@@ -218,6 +226,7 @@ def test_successor_binds_exact_predecessor_and_same_broker_namespace_identity() 
         {"supersedes_binding_hash": "0" * 64},
         {"broker_account_namespace": "broker_execution.other_namespace"},
         {"broker_account_id": 8},
+        {"owner_user_id": 20},
         {"recorded_at": NOW, "issued_at": NOW - timedelta(minutes=1)},
     ],
 )

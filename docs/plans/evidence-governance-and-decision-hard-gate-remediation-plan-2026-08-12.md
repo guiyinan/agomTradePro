@@ -686,6 +686,18 @@
 - 纯 Domain `59 passed`；standalone strict mypy、Black/isort/py_compile与AST零跨 App import检查通过。
 - 当前仅冻结合同；尚无 owner provider、ID-only双读Application、append-only ledger或真实plan-order签发记录。它不能解除现有pre-Risk blocker；账户owner workflow、benchmark、Research active aggregate、最终issuer与四节点重验继续待办，总闸false。
 
+### 2026-08-13：Broker/Account namespace binding Application workflow
+
+- 增加 Broker consumer-owned 两侧 exact-current source DTO/Protocol；Broker source 固定为 `broker_execution/broker_account_identity_snapshot`，Portfolio 字符串 namespace 的账户身份 source 固定归 `account/account_identity_snapshot`。写命令只接受 binding 与两侧 source 的 ID/version，不接受 account、hash、owner、状态、permission 或时钟。
+- register 在单一 Broker server cutoff 对两侧 source 首末双读，要求 exact type/identity/hash、aware validity、同一个正数 `owner_user_id`、`account_type=real` 且两侧 active；owner/account 状态由 source 提供，caller 不能升级。
+- Application 使用 server-auth human-staff actor、repository first-winner 与 predecessor CAS；相同 identity 只允许原 actor 跨时钟幂等，current inactive read 闭合两侧 owner/type/id/version/hash、namespace/account、owner user、real/active 状态和 binding hash。
+- Domain binding 同步封存 `owner_user_id`、固定 real account 与 source active 标志并纳入 content hash；successor 不得更换 Broker account 或 owner。
+
+未完成与验证：
+
+- Domain+Application 纯测试 `74 passed`；standalone strict mypy 两个生产文件、Black/isort/py_compile/diff-check通过。
+- 现有 BrokerAccountBinding 和 unified account 仍是 mutable row，尚无上述两个 immutable source ledger/provider；因此真实 composition 不能签发 binding。本阶段只有协议与pure fake，仍固定inactive，后续须先补Account/Broker owner source、append-only binding ledger、人工入口和PostgreSQL并发，pre-Risk blocker与总闸不变。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：

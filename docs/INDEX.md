@@ -507,6 +507,9 @@
 - ✅ **Broker Plan→Order inactive binding Domain 合同**
   - 精确绑定canonical-v1 plan/receipt/subject、稳定order ordinal与单行bytes/hash，以及Broker order artifact identity/content/digest；三方owner/type与最早有效期均被封存
   - 不使用资产/数量近似推断且固定must-not-execute；owner providers、Application workflow、ledger和真实签发均未完成，pre-Risk blocker不变
+- ✅ **Broker/Account namespace binding Application workflow**
+  - ID-only注册双读Broker与Account exact-current source，强制相同owner user、real+active，由server human-staff actor和first-winner/CAS封存inactive binding
+  - 当前只有协议与pure fake；两侧immutable source/provider、binding ledger、composition及PG并发均缺，pre-Risk与执行总闸继续关闭
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**

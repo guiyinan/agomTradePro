@@ -104,6 +104,7 @@ class BrokerPortfolioAccountNamespaceBinding:
     broker_account_id: int
     portfolio_account_namespace: str
     portfolio_account_id: str
+    owner_user_id: int
     broker_source_owner: str
     broker_source_artifact_type: str
     broker_source_id: str
@@ -125,6 +126,8 @@ class BrokerPortfolioAccountNamespaceBinding:
     binding_version: str = BROKER_PORTFOLIO_ACCOUNT_BINDING_VERSION
     permission: str = BROKER_PORTFOLIO_ACCOUNT_BINDING_PERMISSION
     blocker_codes: tuple[str, ...] = BROKER_PORTFOLIO_ACCOUNT_BINDING_BLOCKERS
+    account_type: str = "real"
+    source_accounts_active: bool = True
 
     def __post_init__(self) -> None:
         if self.owner != BROKER_PORTFOLIO_ACCOUNT_BINDING_OWNER:
@@ -135,6 +138,8 @@ class BrokerPortfolioAccountNamespaceBinding:
             raise ValueError("account namespace binding permission is fixed inactive")
         if self.blocker_codes != BROKER_PORTFOLIO_ACCOUNT_BINDING_BLOCKERS:
             raise ValueError("account namespace binding blocker_codes are fixed")
+        if self.account_type != "real" or self.source_accounts_active is not True:
+            raise ValueError("account namespace binding requires active real accounts")
         if (
             self.broker_source_owner != BROKER_ACCOUNT_BINDING_SOURCE_OWNER
             or self.broker_source_artifact_type != BROKER_ACCOUNT_BINDING_SOURCE_ARTIFACT_TYPE
@@ -162,6 +167,8 @@ class BrokerPortfolioAccountNamespaceBinding:
             _require_token(getattr(self, field_name), field_name)
         if type(self.broker_account_id) is not int or self.broker_account_id <= 0:
             raise TypeError("broker_account_id must be an exact positive integer")
+        if type(self.owner_user_id) is not int or self.owner_user_id <= 0:
+            raise TypeError("owner_user_id must be an exact positive integer")
         _require_hash(self.broker_source_content_hash, "broker_source_content_hash")
         _require_hash(
             self.portfolio_source_content_hash,
@@ -223,6 +230,9 @@ class BrokerPortfolioAccountNamespaceBinding:
             "broker_account_id": self.broker_account_id,
             "portfolio_account_namespace": self.portfolio_account_namespace,
             "portfolio_account_id": self.portfolio_account_id,
+            "owner_user_id": self.owner_user_id,
+            "account_type": self.account_type,
+            "source_accounts_active": self.source_accounts_active,
             "broker_source_owner": self.broker_source_owner,
             "broker_source_artifact_type": self.broker_source_artifact_type,
             "broker_source_id": self.broker_source_id,
@@ -272,6 +282,8 @@ def validate_broker_portfolio_account_binding_successor(
         raise ValueError("successor changed Broker account namespace")
     if successor.broker_account_id != previous.broker_account_id:
         raise ValueError("successor changed Broker account identity")
+    if successor.owner_user_id != previous.owner_user_id:
+        raise ValueError("successor changed account owner identity")
     if successor.recorded_at <= previous.recorded_at:
         raise ValueError("successor recorded_at must advance")
 
