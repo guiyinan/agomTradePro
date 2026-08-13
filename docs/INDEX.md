@@ -543,6 +543,9 @@
 - ✅ **Portfolio benchmark corporate-action methodology Domain 合同**
   - 闭合分红、送股、拆股、并股与配股五类v1处理；除权/支付日防重复、拆并股不制造收益，配股缺exact条款和选择证据即阻断
   - 仅接受unadjusted输入和exact-event-once，有序exact refs、IANA业务日与fail-closed策略入hash；固定definition-only，ledger/activation/current及cost-tax仍未完成
+- ✅ **Portfolio benchmark cost/tax methodology Domain 合同**
+  - fee/tax exact source逐条封存scope、jurisdiction、方向、基数、时点、币种、Decimal值与取整；不内嵌真实税率或费用默认
+  - 显式零可封存但missing/unknown不得转零，分红entitlement只计一次；固定definition-only，ledger/activation/current与owner producers仍未完成
 - ✅ **Portfolio inactive approval authoritative persistence clock 修复**
   - subject/receipt显式封存`persisted_at=recorded_at`并增加DB等值约束，消除wall-clock导致合法记录自判腐败
   - Django5.2隔离5 passed、Portfolio migration no-drift；不改变inactive语义或连接Broker执行

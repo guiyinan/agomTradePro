@@ -810,6 +810,18 @@
 - 纯Domain `9 passed`；standalone strict mypy、Black/isort、py_compile/diff-check与architecture（2758 files / 0 violations）通过。
 - corporate-action ledger、两人activation/current provider和cost/tax methodology仍未完成；单次公司行动事实的owner ledger/provider也不在本阶段。五类exact-current activation闭合前benchmark definition/daily valuation不得active，总闸不变。
 
+### 2026-08-13：Portfolio benchmark cost/tax methodology Domain 合同
+
+- 新增Portfolio owner的cost/tax methodology definition；不内嵌任何司法辖区税率或费用默认值，而是要求fee与tax exact owner definition逐项一一绑定并封存asset scope、jurisdiction、买卖方向、计费基数、确认时点、币种、rate/fixed/min/max形态、精度、rounding increment与mode。
+- 所有rate/amount使用exact finite Decimal canonical text，拒绝float/bool、NaN/Infinity、负值与负零；显式owner rule可以发布零值，但缺source、未知asset/fee/tax、缺FX或source failure绝不静默转零、估算或自动fallback。
+- 现金分红只允许在gross entitlement确认一次，支付日固定只结算、不二次收费；其他公司行动固定`exact_event_once`，already-net input和重复coverage均阻断。业务日直接复用exact benchmark trading-calendar date，币种转换只接受exact benchmark FX fixing，避免另造本地时钟或汇率语义。
+- 每条rule必须与同ordinal exact source的kind/code/asset scope/jurisdiction完全一致；有序source最早有效期进入canonical identity/content hash。permission固定definition-only、activation false、must-not-execute。
+
+未完成与验证：
+
+- 纯Domain `46 passed`；standalone strict mypy、Black/isort与diff-check通过；相邻architecture扫描为2762 files / 0 violations。
+- cost/tax ledger、两人activation/current provider和真实fee/tax owner definition producers未完成；本阶段不背书任何测试fixture费率，也不激活benchmark definition/daily valuation，总闸不变。
+
 ### 2026-08-13：Portfolio inactive approval authoritative persistence clock 修复
 
 - 修复既有 transition-plan inactive approval subject/receipt 使用 ORM wall-clock `auto_now_add` 写 `persisted_at`、但restore又拿它与注入的 authoritative `recorded_at`比较而导致合法新记录自判腐败的问题；repository现在显式写入 `persisted_at == recorded_at`，restore要求精确等值。
