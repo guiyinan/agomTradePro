@@ -540,6 +540,9 @@
 - ✅ **Portfolio benchmark FX-fixing methodology append-only ledger**
   - private UOW/claim、first-winner、source/DST/header seals与closed-world exact/PIT完成；0023 zero-seed且不回填FX配置/行情
   - Django5.2组件7 passed、Domain 8 passed；无current/activation，首次发现的transition drift已在下一阶段修复，PG并发/mypy plugin仍待收口
+- ✅ **Portfolio benchmark corporate-action methodology Domain 合同**
+  - 闭合分红、送股、拆股、并股与配股五类v1处理；除权/支付日防重复、拆并股不制造收益，配股缺exact条款和选择证据即阻断
+  - 仅接受unadjusted输入和exact-event-once，有序exact refs、IANA业务日与fail-closed策略入hash；固定definition-only，ledger/activation/current及cost-tax仍未完成
 - ✅ **Portfolio inactive approval authoritative persistence clock 修复**
   - subject/receipt显式封存`persisted_at=recorded_at`并增加DB等值约束，消除wall-clock导致合法记录自判腐败
   - Django5.2隔离5 passed、Portfolio migration no-drift；不改变inactive语义或连接Broker执行

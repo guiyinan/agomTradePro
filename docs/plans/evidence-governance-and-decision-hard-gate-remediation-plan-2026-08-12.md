@@ -798,6 +798,18 @@
 - Django 5.2.16 SQLite隔离component `7 passed`，Domain回归 `8 passed`；migration/runtime state组件比对、ruff、Black/isort、architecture（2754 files / 0 violations）与diff-check通过。
 - 本阶段首次 app-wide migration 检查暴露的既有transition approval约束/时钟问题已在下一独立阶段修复；项目mypy plugin环境缺`mypy_django_plugin`，PostgreSQL并发first-winner未验证。两人activation/current provider、corporate-action与cost/tax两类methodology仍缺，benchmark不得提前active。
 
+### 2026-08-13：Portfolio benchmark corporate-action methodology Domain 合同
+
+- 新增Portfolio owner的corporate-action methodology definition，固定闭合`cash_dividend / stock_dividend / split / reverse_split / rights_issue`五类v1事件矩阵；定义本身不承载任何单次公司行动事实，也不发布current或activation。
+- 现金分红仅在除权时确认一次应收与内部收益，支付日只结算应收、不二次计收益；送股在除权时一次确认应收股份与价格调整，支付日不二次调整；拆股/并股只调整数量和参考价且不制造收益。配股缺exact条款和投资者选择证据时固定阻断，不能推断参与或放弃。
+- 方法学只接受`unadjusted`价格输入并固定`exact_event_once`；duplicate/pre-adjusted input、未知事件、缺失行动、source failure与非交易日全部fail closed。有序exact owner refs、issuer-market本地业务日、IANA timezone/cutoff逐日DST检查及source最早有效期进入canonical identity/content hash。
+- permission固定`methodology_definition_only`、`activation_available=false`、`must_not_execute=true`；有序source列表不自动授予fallback，也不能把mutable event payload投影成正式事实。
+
+未完成与验证：
+
+- 纯Domain `9 passed`；standalone strict mypy、Black/isort、py_compile/diff-check与architecture（2758 files / 0 violations）通过。
+- corporate-action ledger、两人activation/current provider和cost/tax methodology仍未完成；单次公司行动事实的owner ledger/provider也不在本阶段。五类exact-current activation闭合前benchmark definition/daily valuation不得active，总闸不变。
+
 ### 2026-08-13：Portfolio inactive approval authoritative persistence clock 修复
 
 - 修复既有 transition-plan inactive approval subject/receipt 使用 ORM wall-clock `auto_now_add` 写 `persisted_at`、但restore又拿它与注入的 authoritative `recorded_at`比较而导致合法新记录自判腐败的问题；repository现在显式写入 `persisted_at == recorded_at`，restore要求精确等值。
