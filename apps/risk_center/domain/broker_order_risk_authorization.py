@@ -108,6 +108,7 @@ class BrokerOrderRiskScope:
     """Risk Center's exact local seal of one Broker execution scope."""
 
     account_id: int
+    execution_scope_id: str
     execution_scope_hash: str
     plan_id: str
     plan_version: str
@@ -132,6 +133,7 @@ class BrokerOrderRiskScope:
         if self.execution_scope_version != BROKER_ORDER_RISK_SCOPE_VERSION:
             raise ValueError("execution_scope_version is fixed")
         for field_name in (
+            "execution_scope_id",
             "plan_id",
             "plan_version",
             "order_id",
@@ -183,6 +185,7 @@ class BrokerOrderRiskScope:
     def _content_payload(self) -> dict[str, object]:
         return {
             "account_id": self.account_id,
+            "execution_scope_id": self.execution_scope_id,
             "execution_scope_version": self.execution_scope_version,
             "execution_scope_hash": self.execution_scope_hash,
             "plan_id": self.plan_id,
@@ -258,6 +261,12 @@ class BrokerOrderRiskAuthorizationSubject:
             "valid_until": _utc_text(self.valid_until),
             "supersedes_authorization_hash": self.supersedes_authorization_hash,
         }
+
+    def is_valid_at(self, as_of: datetime) -> bool:
+        """Return whether this subject may be approved at an exact cutoff."""
+
+        _require_aware(as_of, "as_of")
+        return self.requested_at <= as_of < self.valid_until
 
 
 @dataclass(frozen=True, slots=True)

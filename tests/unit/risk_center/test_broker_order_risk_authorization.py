@@ -32,6 +32,7 @@ def _actor(actor_id: str, user_id: int) -> BrokerOrderRiskAuthorizationActor:
 def _scope(**changes: object) -> BrokerOrderRiskScope:
     values: dict[str, object] = {
         "account_id": 7,
+        "execution_scope_id": "execution-scope-1",
         "execution_scope_hash": "a" * 64,
         "plan_id": "plan-1",
         "plan_version": "v1",

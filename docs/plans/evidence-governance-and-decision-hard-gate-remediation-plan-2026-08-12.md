@@ -496,6 +496,22 @@
 
 - Risk contract、Broker inactive contract 与 hard-gate 聚合 `33 passed`；standalone strict mypy `0 errors`；全仓 architecture scan（2668 files / 0 violations）、Black/isort/py_compile/diff-check 通过。
 
+### 2026-08-13：Risk Center Broker order authorization Application 合同
+
+- 增加 consumer-owned Broker execution scope 与 Risk policy typed provider DTO/Protocol；Risk Application 不导入 Broker/Portfolio/Research Infrastructure，跨 owner 适配留在 composition root。
+- subject register 与 authorization approve 写命令只接受 ID/version，刻意不接 caller `as_of`、account、hash、permission 或有效期；两个写用例在私有 repository atomic 内只取一次 Risk server clock，所有 scope/policy/actor/permission/validity 均来自可信 provider 和构造注入。
+- register 对 Broker scope 与 Risk policy 各做首末双读、账户闭合和 current-head predecessor 绑定；approve 除双读 subject 外还重新双读并重建当前 scope/policy，注册后任一上游被替换、过期或 supersede 均失败关闭。
+- repository Protocol 固定 immutable subject/authorization first-winner、logical account+order head、append CAS 与 exact identity/hash/PIT read；read facade 返回后再次重放 Domain hash、identity、version和 `issued <= as_of < valid_until`。
+
+未完成：
+
+- 本批使用 pure fake repository/provider 验证合同；尚无 Risk policy生产真源、Broker scope composition、Django append-only model/codec/repository、人工接口或 PostgreSQL current-head 并发 CAS。
+- Domain 追加 `execution_scope_id` 作为 ID-only selector，不改变 Broker总闸；没有上述真实 owner/provider与持久化前仍不能签发生产 authorization。
+
+验证：
+
+- Risk Domain/Application、Broker inactive contract 与 hard-gate 聚合 `39 passed`；standalone strict mypy `0 errors`；全仓 architecture scan（2669 files / 0 violations）、Black/isort/py_compile/diff-check 通过。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
