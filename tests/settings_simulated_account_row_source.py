@@ -8,9 +8,11 @@ TIME_ZONE = "UTC"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
 INSTALLED_APPS = [
+    "django.contrib.auth",
     "django.contrib.contenttypes",
     "tests.settings_simulated_account_row_source.SimulatedRowSourceTestConfig",
 ]
+MIGRATION_MODULES = {"simulated_trading": None}
 
 
 class SimulatedRowSourceTestConfig(AppConfig):

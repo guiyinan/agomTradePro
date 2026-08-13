@@ -1620,6 +1620,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Domain/Application组合 tests `31 passed`；strict mypy、ruff、Black/isort、py_compile与architecture（2788 files / 0 violations）通过。
 - 当前仅Protocol+pure fake；append-only raw ledger、owner exact adapter/source v2 raw-hash binding与全writer同事务outbox仍未完成，production继续zero-seed且总闸不变。
 
+### 2026-08-13：SimulatedTrading raw account-row observation ledger
+
+- 新增strict codec、无mutable-row FK的单表append-only ledger与Application Repository实现；canonical payload、identity/content、fixed authority、row/clock、record/ledger及persisted-clock seals均在restore时闭合校验。
+- private UOW/exact insert claim阻断instance/queryset/bulk/raw写删旁路；identity first-winner、每`(observation_id,row_pk)`单root、predecessor单successor与CAS完成。所有read先closed-world恢复全表再做selector/PIT，最终tombstone/expired logical head不回退旧版本。
+- `0022`为schema-only、zero-seed单CreateModel迁移，无RunPython/RunSQL；UTC codec把等价offset统一为canonical `Z`，`recorded_at==persisted_at`由DB constraint与restore双重校验。
+
+验证与剩余边界：
+
+- Django 5.2 isolated component tests `5 passed`；codec/repository strict mypy、ruff、Black/isort、py_compile、migration state与architecture（2791 files / 0 violations）通过。
+- PostgreSQL并发first-winner、真实0022 migrate/rollback、raw owner exact provider/source v2和全部账户writer同事务outbox仍未完成；账本保持zero-seed，既有行不回填，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
