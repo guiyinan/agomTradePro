@@ -177,6 +177,9 @@ class SimulatedAccountRowSourceV2:
             self.raw_observation_content_hash,
             "raw_observation_content_hash",
         )
+        expected_raw_content_hash = _canonical_hash(self._raw_content_payload())
+        if self.raw_observation_content_hash != expected_raw_content_hash:
+            raise ValueError("raw observation content_hash is invalid")
         if self.raw_observation_supersedes_content_hash is not None:
             _require_hash(
                 self.raw_observation_supersedes_content_hash,
@@ -275,6 +278,24 @@ class SimulatedAccountRowSourceV2:
             "schema": self.raw_observation_schema,
             "observation_id": self.raw_observation_id,
             "observation_version": self.raw_observation_version,
+        }
+
+    def _raw_content_payload(self) -> dict[str, object]:
+        return {
+            **self._raw_identity_payload(),
+            "row_pk": self.underlying_unified_account_id,
+            "row_user_id": self.row_user_id,
+            "raw_account_type": self.raw_account_type,
+            "is_active": self.is_active,
+            "row_created_at": _utc_text(self.row_created_at),
+            "row_updated_at": _utc_text(self.row_updated_at),
+            "is_present": self.is_present,
+            "is_tombstone": self.is_tombstone,
+            "observed_at": _utc_text(self.raw_observation_observed_at),
+            "valid_until": _utc_text(self.raw_observation_valid_until),
+            "supersedes_content_hash": self.raw_observation_supersedes_content_hash,
+            "permission": "evidence_only",
+            "status": "inactive",
         }
 
     def _identity_payload(self) -> dict[str, object]:

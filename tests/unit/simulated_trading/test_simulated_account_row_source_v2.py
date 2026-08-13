@@ -83,20 +83,46 @@ def _successor(
     previous: SimulatedAccountRowSourceV2,
     **changes: object,
 ) -> SimulatedAccountRowSourceV2:
+    raw_changes: dict[str, object] = {}
+    source_to_raw = {
+        "source_id": "observation_id",
+        "source_version": "observation_version",
+        "underlying_unified_account_id": "row_pk",
+        "row_user_id": "row_user_id",
+        "raw_account_type": "raw_account_type",
+        "is_active": "is_active",
+        "row_created_at": "row_created_at",
+        "row_updated_at": "row_updated_at",
+        "is_present": "is_present",
+        "is_tombstone": "is_tombstone",
+        "observed_at": "observed_at",
+        "source_valid_until": "valid_until",
+        "raw_observation_id": "observation_id",
+        "raw_observation_version": "observation_version",
+        "raw_observation_observed_at": "observed_at",
+        "raw_observation_valid_until": "valid_until",
+        "raw_observation_supersedes_content_hash": "supersedes_content_hash",
+    }
+    for source_field, raw_field in source_to_raw.items():
+        if source_field in changes:
+            raw_changes[raw_field] = changes[source_field]
     raw = _raw(
-        observation_id=previous.raw_observation_id,
-        observation_version="event-v2",
-        row_pk=previous.underlying_unified_account_id,
-        row_user_id=42,
-        raw_account_type="PAPER",
-        is_active=True,
-        row_created_at=previous.row_created_at,
-        row_updated_at=_at(5),
-        is_present=True,
-        is_tombstone=False,
-        observed_at=_at(6),
-        valid_until=_at(22),
-        supersedes_content_hash=previous.raw_observation_content_hash,
+        **{
+            "observation_id": previous.raw_observation_id,
+            "observation_version": "event-v2",
+            "row_pk": previous.underlying_unified_account_id,
+            "row_user_id": 42,
+            "raw_account_type": "PAPER",
+            "is_active": True,
+            "row_created_at": previous.row_created_at,
+            "row_updated_at": _at(5),
+            "is_present": True,
+            "is_tombstone": False,
+            "observed_at": _at(6),
+            "valid_until": _at(22),
+            "supersedes_content_hash": previous.raw_observation_content_hash,
+            **raw_changes,
+        }
     )
     values: dict[str, object] = {
         "source_id": raw.observation_id,
@@ -127,6 +153,17 @@ def _successor(
         "supersedes_content_hash": previous.content_hash,
     }
     values.update(changes)
+    values.update(
+        {
+            "raw_observation_id": raw.observation_id,
+            "raw_observation_version": raw.observation_version,
+            "raw_observation_identity_hash": raw.identity_hash,
+            "raw_observation_content_hash": raw.content_hash,
+            "raw_observation_observed_at": raw.observed_at,
+            "raw_observation_valid_until": raw.valid_until,
+            "raw_observation_supersedes_content_hash": raw.supersedes_content_hash,
+        }
+    )
     return SimulatedAccountRowSourceV2(**values)  # type: ignore[arg-type]
 
 
@@ -281,6 +318,11 @@ def test_scalar_types_tokens_hashes_presence_and_nullable_user_fail_closed() -> 
             ValueError,
             "lowercase SHA-256",
         ),
+        (
+            {"raw_observation_content_hash": "b" * 64},
+            ValueError,
+            "raw observation content_hash",
+        ),
     )
     for changes, error, message in invalid:
         with pytest.raises(error, match=message):
@@ -289,29 +331,12 @@ def test_scalar_types_tokens_hashes_presence_and_nullable_user_fail_closed() -> 
 
 def test_canonical_hash_covers_every_source_fact_and_raw_authority_binding() -> None:
     baseline = _source()
-    alternate_raw = _raw(row_user_id=42)
     variants: tuple[dict[str, object], ...] = (
         {"account_namespace": "account-v2"},
         {"account_id": "0008"},
         {"underlying_unified_account_namespace": "simulated-row-v2"},
-        {"underlying_unified_account_id": 8},
-        {"row_user_id": 42},
-        {"raw_account_type": "PAPER"},
-        {"is_active": False},
-        {
-            "row_created_at": _at(1) + timedelta(seconds=1),
-            "row_updated_at": _at(2) + timedelta(seconds=1),
-        },
-        {"row_updated_at": _at(2) + timedelta(seconds=1)},
-        {"is_present": False, "is_tombstone": True},
         {"recorded_at": _at(4) + timedelta(seconds=1)},
         {"ttl_valid_until": _at(9), "valid_until": _at(9)},
-        {
-            "raw_observation_identity_hash": alternate_raw.identity_hash,
-            "raw_observation_content_hash": alternate_raw.content_hash,
-        },
-        {"raw_observation_content_hash": "b" * 64},
-        {"raw_observation_supersedes_content_hash": "d" * 64},
         {"supersedes_content_hash": "c" * 64},
     )
 
@@ -319,6 +344,21 @@ def test_canonical_hash_covers_every_source_fact_and_raw_authority_binding() -> 
     assert len(baseline.content_hash) == 64
     for changes in variants:
         assert _source(**changes).content_hash != baseline.content_hash
+
+    raw_variants = (
+        _raw(row_pk=8),
+        _raw(row_user_id=42),
+        _raw(raw_account_type="PAPER"),
+        _raw(is_active=False),
+        _raw(
+            row_created_at=_at(1) + timedelta(seconds=1),
+            row_updated_at=_at(2) + timedelta(seconds=1),
+        ),
+        _raw(row_updated_at=_at(2) + timedelta(seconds=1)),
+        _raw(is_present=False, is_tombstone=True),
+    )
+    for raw in raw_variants:
+        assert _source(raw=raw).content_hash != baseline.content_hash
 
     payload = baseline.to_payload()
     assert {
@@ -342,7 +382,7 @@ def test_canonical_hash_covers_every_source_fact_and_raw_authority_binding() -> 
 
 def test_identity_hash_is_only_the_v2_source_id_and_version_identity() -> None:
     baseline = _source()
-    same_identity = _source(row_user_id=42)
+    same_identity = _source(raw=_raw(row_user_id=42))
     next_raw = _raw(observation_version="event-v2")
     next_identity = _source(raw=next_raw)
 
@@ -394,7 +434,7 @@ def test_root_and_successor_bind_exact_revisions_of_one_logical_row() -> None:
         validate_simulated_account_row_source_v2_root(_source(supersedes_content_hash="a" * 64))
     with pytest.raises(ValueError, match="raw observation must not declare"):
         validate_simulated_account_row_source_v2_root(
-            _source(raw_observation_supersedes_content_hash="a" * 64)
+            _source(raw=_raw(supersedes_content_hash="a" * 64))
         )
     with pytest.raises(ValueError, match="exact previous"):
         validate_simulated_account_row_source_v2_successor(

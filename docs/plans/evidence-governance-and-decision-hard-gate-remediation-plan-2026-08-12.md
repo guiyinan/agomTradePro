@@ -1678,6 +1678,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - owner provider unit tests `8 passed`；strict mypy、ruff、Black/isort、architecture（2798 files / 0 violations）与module-cycle（206 edges / 0 cycles）通过。
 - raw ledger与v2 source ledger均仍zero-seed；Account v2 consumer/provider、production canonical account selector与全writer同事务raw outbox仍未完成，因此provider当前诚实fail closed，总闸不变。
 
+### 2026-08-13：Account physical-row observation v2 Domain
+
+- 新增独立`physical_account_row_observation_v2`/`physical-account-row-observation.v2`，不修改或fallback既有v1；Account原样封存Simulated source v2与raw observation两层owner/type/schema、identity/content/predecessor hashes、知识时钟、有效期和present/tombstone事实。
+- Domain重算source与raw两层canonical content hash，修复source v2此前仅校验raw hash格式、无法证明hash与封存行事实一致的缺口；root要求Account/source/raw三重predecessor均为空，successor逐层精确绑定前序hash。
+- 三层时序与有效期固定为raw observed/valid、source recorded/effective valid、Account recorded/effective valid；final inactive、tombstone或expired均不回退旧active head，v1/v2类型替换fail closed。
+
+验证与剩余边界：
+
+- raw/source-v2/Account-v2 Domain回归`101 passed`；strict mypy、ruff、Black/isort与architecture（2799 files / 0 violations）通过。
+- Account v2 Application、0042独立zero-seed ledger、Simulated owner-side provider与全writer同事务raw outbox仍未完成；既有provenance receipt仍只消费v1，执行总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
