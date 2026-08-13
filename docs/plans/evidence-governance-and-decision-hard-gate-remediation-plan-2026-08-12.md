@@ -1777,6 +1777,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - pure Application unit `9 passed`；strict mypy、ruff、Black/isort、architecture（2809 files / 0 violations）与diff-check通过。
 - 本批仍只有Protocol+pure fakes；0043 zero-seed ledger、owner provider/composition、独立staff approval evidence v2与authoritative canonical identity provider仍未完成，production pipeline与writer cutover继续禁用。
 
+### 2026-08-13：Account owner-assignment claimant provenance receipt v2 ledger
+
+- 新增独立0043 append-only单表账本，strict codec封存完整physical/source/raw v2 row reference、claimant与authenticated issuer、fixed inactive authority、canonical payload、identity/content、row/actor/header/record/ledger seals和authoritative persisted clock；0043只CreateModel且zero-seed，不回填v1或mutable账户行。
+- repository private UOW/exact insert claim阻断直接save、raw、update、delete与bulk路径；receipt identity first-winner、每receipt ID单root及每predecessor单successor由数据库unique与Application CAS共同闭合。root claim只绑定domain-separated logical receipt ID，不含候选content/version，竞争root必碰撞。
+- exact/PIT/head与IntegrityError恢复均先按PK恢复并校验全表，再按canonical receipt selector和recorded cutoff分链；冗余ID/header双篡改不能隐藏successor并复活旧head。expired final successor不回退旧receipt。
+
+验证与剩余边界：
+
+- Django 5.2 isolated SQLite component `5 passed`，覆盖codec、first-winner/root/successor CAS、expiry no-fallback、全mutation guards、closed-world selector tamper与schema-only migration；migration/model state autodetect无漂移。strict mypy（隔离环境关闭Django第三方Any伪诊断）、ruff、Black/isort、architecture（2812 files / 0 violations）与diff-check通过。
+- PostgreSQL双事务root/successor race与真实0043 migrate/rollback尚未验证；owner provider/composition、独立staff approval evidence v2与authoritative canonical identity provider仍未完成，production pipeline/writer继续禁用，总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

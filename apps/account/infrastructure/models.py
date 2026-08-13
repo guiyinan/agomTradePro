@@ -13,6 +13,9 @@ from .account_owner_assignment_evidence_models import (
 from .account_owner_assignment_provenance_receipt_models import (
     AccountOwnerAssignmentProvenanceReceiptModel,
 )
+from .account_owner_assignment_provenance_receipt_v2_models import (
+    AccountOwnerAssignmentProvenanceReceiptV2Model,
+)
 from .classification_models import (
     AssetCategoryModel,
     AssetMetadataModel,
@@ -53,6 +56,7 @@ __all__ = [
     "AccountIdentitySnapshotModel",
     "AccountOwnerAssignmentEvidenceModel",
     "AccountOwnerAssignmentProvenanceReceiptModel",
+    "AccountOwnerAssignmentProvenanceReceiptV2Model",
     "AccountOwnerAssignmentSubjectModel",
     "AccountProfileModel",
     "AssetCategoryModel",
