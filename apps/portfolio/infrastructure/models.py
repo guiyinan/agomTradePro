@@ -29,6 +29,9 @@ from apps.portfolio.infrastructure.planning_policy_definition_models import (
 from apps.portfolio.infrastructure.policy_benchmark_definition_models import (
     PortfolioPolicyBenchmarkDefinitionModel,
 )
+from apps.portfolio.infrastructure.policy_benchmark_trading_calendar_models import (
+    PortfolioPolicyBenchmarkTradingCalendarModel,
+)
 from apps.portfolio.infrastructure.policy_models import PortfolioPlanningPolicyModel
 from apps.portfolio.infrastructure.r4_monitoring_raw_fact_models import (
     PortfolioR4MonitoringRawFactReceiptModel,
@@ -64,6 +67,7 @@ __all__ = [
     "PortfolioPlanningPolicyActivationSubjectModel",
     "PortfolioPlanningPolicyDefinitionModel",
     "PortfolioPolicyBenchmarkDefinitionModel",
+    "PortfolioPolicyBenchmarkTradingCalendarModel",
     "PortfolioTransitionPlanModel",
     "TransitionPlanInactiveApprovalReceiptModel",
     "TransitionPlanInactiveApprovalSubjectModel",
