@@ -681,6 +681,12 @@
 - ✅ **SimulatedTrading raw observation → source v2 owner provider**
   - raw identity winner与logical final head双闭合，ID/version/hash/row/clocks逐项原样映射；tombstone可读但superseded/expired/future不回退
   - read-only composition无UOW/writer，pure tests 8 passed；两账本zero-seed、Account v2 consumer与全writer raw outbox仍缺
+- ✅ **Account physical-row observation v2 Domain**
+  - 独立v2完整封存并重算Simulated source/raw双层canonical hashes，三重predecessor和三层时钟/有效期闭合
+  - Domain联跑101 passed、architecture 2799/0；Application、0042 ledger、owner provider、全writer outbox仍缺，v1不fallback
+- ✅ **Account physical-row observation v2 Application**
+  - ID/hash-only capture、source exact-final/current双读面、同cutoff双读、actor first-winner、三重predecessor CAS与closed-current闭合
+  - Domain/Application 43 passed；0042 ledger、owner provider/composition、全writer raw outbox仍缺，v1/provenance不fallback
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

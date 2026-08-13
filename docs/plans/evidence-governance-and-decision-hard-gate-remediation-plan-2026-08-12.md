@@ -1689,6 +1689,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - raw/source-v2/Account-v2 Domain回归`101 passed`；strict mypy、ruff、Black/isort与architecture（2799 files / 0 violations）通过。
 - Account v2 Application、0042独立zero-seed ledger、Simulated owner-side provider与全writer同事务raw outbox仍未完成；既有provenance receipt仍只消费v1，执行总闸不变。
 
+### 2026-08-13：Account physical-row observation v2 Application
+
+- 新增ID/hash-only capture，用consumer-owned typed DTO完整接收source v2与raw observation headers/hashes/clocks/presence；provider分离`get_exact_final`与`get_exact_current`，前者允许terminal事实进入Account successor，后者只发布live decision read。
+- Capture在同一Account server cutoff对source首末双读，first-winner replay绑定原actor，logical head派生三重predecessor并由repository CAS；exact PIT与full-observation closed-current reader分离，source/raw projection lag、substitution与final terminal均fail closed且不回退。
+- Application保持零ORM/零跨App implementation import，不复用v1 DTO或table，也不提供任何执行权限。
+
+验证与剩余边界：
+
+- Account v2 Domain/Application pure tests `43 passed`；strict mypy、ruff、Black/isort通过。
+- 0042独立zero-seed ledger、Simulated owner-side v2 provider/composition、production canonical selector和全writer同事务raw outbox仍缺；既有provenance v1与执行总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
