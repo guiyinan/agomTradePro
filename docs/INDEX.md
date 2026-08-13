@@ -483,6 +483,9 @@
 - ✅ **Risk execution policy Application workflow**
   - ID-only激活精确绑定五类source component、server human-staff actor、first-winner/CAS predecessor及logical-current PIT投影
   - 当前仅pure fake协议；生产source/ledger/provider与PG并发仍缺，Risk authorization不可生产签发，Broker总闸继续关闭
+- ✅ **Broker order approval artifact append-only persistence**
+  - private-UOW账本、strict codec、first-winner与历史exact/PIT reader已落盘；0008 schema-only/zero-seed，Django5.2最小SQLite往返通过
+  - 仅为历史owner seal，不授予current execution permission；pre-risk scope、PG并发和四节点重验仍未完成
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**

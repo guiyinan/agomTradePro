@@ -603,6 +603,18 @@
 - 本批只有Application协议与pure fake；五类source snapshot的Django生产器、append-only policy ledger/codec/repository、composition与真实PG root/successor race尚未实现，不能签发生产Risk authorization。
 - Risk policy、Risk authorization、Broker inactive contract与两层hard-gate聚合 `66 passed`；standalone strict mypy、Black/isort/py_compile、architecture（2680 files / 0 violations）与diff-check通过。标准项目pytest/mypy环境缺项仍按未验证记录，Broker总闸继续false。
 
+### 2026-08-13：Broker order approval artifact append-only persistence
+
+- 新增 Broker 独立 private-UOW/exact insert claim、append-only ORM model、strict canonical codec与repository；identity、canonical order+version、identity/content hash任一唯一锚出现不同first winner即冲突，不用 `ignore_conflicts` 或update-on-conflict吞掉分叉。
+- canonical payload与owner/type/schema、账户、order version、approval digest、actor identity/user/role、批准/有效/记录时钟、identity/content hash及ledger header seal逐项复核；QuerySet/Model/bulk/raw/update/delete路径均失败关闭。
+- exact reader只提供 historical PIT：同时要求 `recorded_at <= as_of` 与 `approved_at <= as_of < valid_until`，不会把artifact非空或未过期解释为current execution authorization。migration `0008_order_approval_artifact`只有CreateModel，禁止RunPython/RunSQL且zero-seed。
+- Django 5.2最小schema-editor往返发现并修复 `auto_now_add`数据库墙钟与authoritative repository clock漂移：`persisted_at`现由private repository显式写入并必须exact等于recorded_at；实测 `Django 5.2.10 / 1 row / exact PIT True / must_not_execute True`。
+
+未完成与验证：
+
+- 纯Domain回归 `21 passed`，strict codec roundtrip、Black/isort/compile/diff与architecture（2686 files / 0 violations）通过；完整pytest-django component、migration forward/reverse与PostgreSQL first-winner并发仍未执行。
+- 这是Broker owner历史工件账本，不是Risk scope或最终Broker receipt；order-plan/policy/Evidence/benchmark绑定仍缺，create/approve/lease/submitting保持硬暂停。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
