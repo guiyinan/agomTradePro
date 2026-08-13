@@ -1841,6 +1841,16 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Django 5.2 isolated models+repository component `9 passed`，完整Domain/Application/codec pure `45 passed`；ruff、Black/isort、architecture（2817 files / 0 violations）、migration state与diff-check通过。
 - PostgreSQL双事务同Account、同underlying、交叉映射及同predecessor四类race、真实0044 migrate/rollback、authoritative current provider/composition仍未验证；因此账本zero-seed且production pipeline仍不得把caller reference视为权威，writer cutover继续禁用。
 
+### 2026-08-13：Account authoritative mapping v2 read-only facade
+
+- 新增Account Application只读facade：caller只能提交underlying namespace/id与aware PIT cutoff。facade先读Evidence v2最终underlying head，再委托既有current reader重验Account/underlying双head、physical-v2及claimant receipt-v2的最终current状态。
+- 输出只包含canonical Account↔underlying mapping、approved owner与Evidence ID/version/content hash/validity；权限固定`identity_mapping_only`、`inactive`、`execution_allowed=false`。`legacy_default`、missing、superseded、terminal、expired或任一上游替换均返回None或稳定corruption，无v1/caller fallback。
+
+验证与剩余边界：
+
+- pure unit `11 passed`；strict mypy、ruff、Black/isort、architecture（2818 files / 0 violations）与diff-check通过。
+- 本批不做production composition也不修改pipeline。首次create仍有硬循环：authoritative mapping依赖已存在physical-v2，而physical-v2 pipeline又需要canonical Account reference。在Account owner发布先于physical row的canonical identity allocation/creation artifact前，不得用`str(pk)`、caller自报或本facade自证解循环；production writer、pipeline与执行总闸保持禁用。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
