@@ -776,6 +776,17 @@
 - Django5.2.10 SQLite隔离component `8 passed`；architecture 0 violations，Black/isort/compileall/diff-check与codec strict mypy通过。项目mypy regression=0但环境缺plugin，PostgreSQL并发未验证。
 - 两人activation/current provider未完成；FX fixing、corporate-action、cost/tax三类methodology仍缺，benchmark definition/daily valuation不得提前active。
 
+### 2026-08-13：Portfolio benchmark FX-fixing methodology Domain 合同
+
+- 新增Portfolio owner的FX-fixing methodology，精确封存base/quote currency、currency pair、`quote_per_base / base_per_quote`报价方向与显式inverse授权；v1 triangulation固定prohibited且不得携带pivot currency。
+- IANA timezone/local cutoff逐日DST校验；有序唯一exact source refs、positive stale threshold、`source_failure=block`与`missing_fx=fail_closed`固定，source最早有效期和methodology clock进入canonical identity/content hash。
+- permission固定definition-only/inactive、activation false、must-not-execute，不包含status/current；禁止自动倒数、自动三角换汇或旧非空FX洗白。
+
+未完成与验证：
+
+- 纯Domain `8 passed`；strict mypy、Black/isort/compile/diff-check与architecture 0 violations通过。
+- FX ledger/两人activation/current provider未完成；corporate-action与cost/tax两类methodology仍缺。五类exact-current activation闭合前benchmark definition/daily valuation不得active。
+
 
 
 ### 2026-08-13：Portfolio policy benchmark definition append-only ledger
