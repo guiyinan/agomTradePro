@@ -19,6 +19,9 @@ from apps.portfolio.infrastructure.optimization_research_models import (
     OptimizationResearchLifecycleEventModel,
 )
 from apps.portfolio.infrastructure.order_models import OrderIntentModel
+from apps.portfolio.infrastructure.planning_policy_definition_models import (
+    PortfolioPlanningPolicyDefinitionModel,
+)
 from apps.portfolio.infrastructure.policy_models import PortfolioPlanningPolicyModel
 from apps.portfolio.infrastructure.r4_monitoring_raw_fact_models import (
     PortfolioR4MonitoringRawFactReceiptModel,
@@ -50,6 +53,7 @@ __all__ = [
     "CanonicalPortfolioSnapshotModel",
     "PortfolioExecutionFeedbackModel",
     "PortfolioPlanningPolicyModel",
+    "PortfolioPlanningPolicyDefinitionModel",
     "PortfolioTransitionPlanModel",
     "TransitionPlanInactiveApprovalReceiptModel",
     "TransitionPlanInactiveApprovalSubjectModel",

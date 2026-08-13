@@ -730,7 +730,19 @@
 未完成与验证：
 
 - 纯Domain `75 passed`；standalone strict mypy、Black/isort/compileall与零跨App/framework import检查通过。
-- 尚无definition append-only ledger/exact provider；完成它后才可建立两人审批的activation subject/receipt/current-head。Benchmark definition需另行覆盖日历、FX/价格fixing、公司行动、缺价/陈旧度、费用税费与评估窗口，不能用现有component+weight缩水冒充。
+- Benchmark definition需另行覆盖日历、FX/价格fixing、公司行动、缺价/陈旧度、费用税费与评估窗口，不能用现有component+weight缩水冒充。
+
+### 2026-08-13：Portfolio planning policy definition append-only ledger
+
+- 新增strict canonical codec、独立Portfolio ORM model、私有UOW/exact insert claim和first-winner repository；直接save/save_base(raw)、QuerySet update/bulk update、bulk create、instance/query delete全部阻断。
+- 模型冗余封存authority/schema/permission、policy identity、全部lot/Decimal定义、recorded/valid clocks、canonical payload、identity/content hash与ledger header seal；`persisted_at`必须aware且exact等于server `recorded_at`。
+- append和exact/PIT读都先closed-world恢复整个ledger，再按Domain identity/content selector匹配；同时篡改policy tuple、identity hash和content hash不会让坏行隐身或允许二次插入。first-winner只有exact candidate可幂等返回。
+- `0018_planning_policy_definition`只创建空表，无RunPython/RunSQL/backfill；它不读取或升级legacy mutable policy，也不提供current/activation语义。
+
+未完成与验证：
+
+- Domain纯测试 `75 passed`；Django 5.2.10 SQLite隔离schema-editor zero-seed→append→exact PIT→drop往返通过；agent隔离组件 `13 passed`，migration/runtime state逐字段、索引、约束一致；Black/isort/compileall/diff-check、codec strict mypy与架构扫描 `2706 files / 0 violations`通过。
+- 完整`manage.py makemigrations --check`因Django 5.2环境缺Celery无法启动，未验证；PostgreSQL并发first-winner未验证。activation subject/record persistence、真实composition和legacy迁移仍未完成。
 
 ### 2026-08-13：Portfolio planning policy activation Domain 合同
 

@@ -518,7 +518,10 @@
   - 三个owner public reader、binding ledger/composition与真实签发均未实现；账户namespace blocker、pre-Risk与执行总闸继续关闭
 - ✅ **Portfolio planning policy definition Domain 合同**
   - 以policy identity、lot与五项exact Decimal、时钟和canonical hash冻结definition，明确排除mutable status/current/activation语义
-  - 仅definition完成；append-only ledger/exact provider与两人activation仍缺，legacy status=active不能成为benchmark或执行authority
+  - legacy status=active不能成为benchmark或执行authority
+- ✅ **Portfolio planning policy definition append-only ledger**
+  - strict codec、私有UOW/claim、全写绕过阻断、identity/content/header/clock seal及closed-world exact PIT完成；0018 zero-seed且不回填legacy行
+  - 完整manage.py drift因环境缺Celery、PostgreSQL并发未验；activation持久化/composition与legacy迁移仍未完成
 - ✅ **Portfolio planning policy activation Domain 合同**
   - exact definition subject绑定server requester、definition identity/content/clock和前序hash，由第二名human staff按actor/user双重非自批签发configuration activation
   - 固定must-not-execute；ID-only workflow、activation账本/current provider、legacy迁移与benchmark composition仍未完成
