@@ -471,6 +471,9 @@
   - receipt 现绑定 exact subject identity/hash、requester 与 plan selector；actor/user 双身份非自批，跨 actor replay 失败关闭
   - `plan_status_at_issue` 仅为 inactive 审计快照，canonical-v1 hash 未绑定 lifecycle，submit 与 Broker 总闸继续关闭
   - 详见 [Evidence 治理与决策硬闸整改计划](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md)
+- ✅ **Portfolio inactive approval append-only persistence 首批**
+  - 两张private-UOW append-only ledger、strict codec、exact/PIT reader与approved_at provider落盘；0017保持schema-only/zero-seed
+  - 当前仍无人工入口与PostgreSQL并发证明，receipt固定inactive，不接旧approve/submit/Broker
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**

@@ -40,6 +40,10 @@ from apps.portfolio.infrastructure.r8_monitoring_feedback_models import (
     PortfolioR8MonitoringFeedbackReceiptModel,
 )
 from apps.portfolio.infrastructure.transition_models import PortfolioTransitionPlanModel
+from apps.portfolio.infrastructure.transition_plan_inactive_approval_models import (
+    TransitionPlanInactiveApprovalReceiptModel,
+    TransitionPlanInactiveApprovalSubjectModel,
+)
 
 __all__ = [
     "OrderIntentModel",
@@ -47,6 +51,8 @@ __all__ = [
     "PortfolioExecutionFeedbackModel",
     "PortfolioPlanningPolicyModel",
     "PortfolioTransitionPlanModel",
+    "TransitionPlanInactiveApprovalReceiptModel",
+    "TransitionPlanInactiveApprovalSubjectModel",
     "GovernedOptimizationInputReceiptModel",
     "GovernedOptimizationResearchResultModel",
     "OptimizationResearchLifecycleEventModel",

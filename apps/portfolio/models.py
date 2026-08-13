@@ -12,6 +12,8 @@ from apps.portfolio.infrastructure.models import (
     PortfolioR5RelativeValueOutcomeModel,
     PortfolioR8MonitoringFeedbackReceiptModel,
     PortfolioTransitionPlanModel,
+    TransitionPlanInactiveApprovalReceiptModel,
+    TransitionPlanInactiveApprovalSubjectModel,
 )
 
 __all__ = [
@@ -26,4 +28,6 @@ __all__ = [
     "PortfolioR5RelativeValueOutcomeModel",
     "PortfolioR8MonitoringFeedbackReceiptModel",
     "PortfolioTransitionPlanModel",
+    "TransitionPlanInactiveApprovalReceiptModel",
+    "TransitionPlanInactiveApprovalSubjectModel",
 ]

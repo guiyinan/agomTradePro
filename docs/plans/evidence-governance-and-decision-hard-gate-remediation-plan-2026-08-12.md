@@ -556,6 +556,18 @@
 - 本批仍只有 Domain/Application 与 pure fake；Portfolio exact Django provider、独立private-UOW subject/receipt ledger、codec/migration、人工接口或PG first-winner另批提交。
 - subject-seal 专属 Domain/Application `19 passed`；standalone strict mypy `0 errors`；architecture scan（2677 files / 0 violations）、Black/py_compile/diff-check通过。receipt保持inactive；缺 owner 的内容寻址 lifecycle approval event，不能满足Broker plan approval ref。
 
+### 2026-08-13：Portfolio inactive approval append-only persistence
+
+- 新增 Portfolio 独立 private UOW/token 与 exact insert claim、subject/receipt 两张 append-only ledger、strict canonical codec、first-winner repository 与 exact identity/hash/PIT reader；Model/QuerySet/bulk/raw/delete/update 旁路均 fail-closed。
+- receipt 的 OneToOne 记录命名为 `subject_record`，与业务 `subject_id` 分离；ORM header/ledger seal 冗余核验 subject id/version/content hash、requester、approver、plan selector 与 `plan_status_at_issue`，防止 FK/JSON/header 任一替换。
+- exact definition provider 只接受 canonical、stored hash exact、当前 status=APPROVED 且 `approved_at <= as_of < expires_at` 的 plan，并以 authoritative `approved_at` 作为 definition recorded_at；不再把 plan 创建时间洗成审批发生时间。
+- migration `0017_transition_plan_inactive_approvals` 仅有两张表、约束与索引，AST 确认无 RunPython/RunSQL，zero-seed；旧 approve/submit、人工 HTTP 与 Broker 未接线。
+
+未完成与验证：
+
+- Django 5.2 最小 app registry/model check 证实 receipt 同时存在 `subject_record` 与业务 subject identity 字段；SQLite schema-editor exact append/codec/PIT 往返 `True / 1 subject / 1 receipt`。两项非 ORM production 文件 standalone strict mypy 通过，architecture 2677 files / 0 violations，Black/compileall/diff-check通过。
+- 完整 `manage.py check/makemigrations --check` 被该 Django 5.2 环境缺 Celery 阻断；标准 pytest-django component、migration forward/reverse、PostgreSQL first-winner 并发和人工 actor composition 未验证。status 仍不是 canonical-v1 content hash 的一部分，receipt保持inactive，不能供执行授权。
+
 ### 2026-08-13：M0 Transition Plan legacy writer 隔离首批
 
 已完成：
