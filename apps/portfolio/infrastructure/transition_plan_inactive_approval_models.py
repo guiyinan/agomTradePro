@@ -174,7 +174,7 @@ class TransitionPlanInactiveApprovalSubjectModel(TransitionPlanInactiveApprovalA
     canonical_payload = models.JSONField()
     content_hash = models.CharField(max_length=64, unique=True)
     ledger_header_hash = models.CharField(max_length=64, unique=True)
-    persisted_at = models.DateTimeField(auto_now_add=True)
+    persisted_at = models.DateTimeField()
 
     class Meta(TransitionPlanInactiveApprovalAppendOnlyModel.Meta):
         db_table = "portfolio_transition_inactive_approval_subject"
@@ -195,10 +195,14 @@ class TransitionPlanInactiveApprovalSubjectModel(TransitionPlanInactiveApprovalA
             ),
             models.CheckConstraint(
                 condition=(
-                    models.Q(requested_at=models.F("recorded_at"))
-                    & models.Q(recorded_at__lt=models.F("valid_until"))
+                    models.Q(recorded_at__lt=models.F("valid_until"))
+                    & models.Q(requested_at=models.F("recorded_at"))
                 ),
                 name="portfolio_tr_ap_subj_clock_ck",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(persisted_at=models.F("recorded_at")),
+                name="portfolio_tr_ap_subj_persist_ck",
             ),
         ]
 
@@ -238,7 +242,7 @@ class TransitionPlanInactiveApprovalReceiptModel(TransitionPlanInactiveApprovalA
     canonical_payload = models.JSONField()
     content_hash = models.CharField(max_length=64, unique=True)
     ledger_header_hash = models.CharField(max_length=64, unique=True)
-    persisted_at = models.DateTimeField(auto_now_add=True)
+    persisted_at = models.DateTimeField()
 
     class Meta(TransitionPlanInactiveApprovalAppendOnlyModel.Meta):
         db_table = "portfolio_transition_inactive_approval_receipt"
@@ -260,8 +264,8 @@ class TransitionPlanInactiveApprovalReceiptModel(TransitionPlanInactiveApprovalA
             models.CheckConstraint(
                 condition=(
                     models.Q(owner="portfolio")
-                    & models.Q(schema="portfolio-transition-plan-approval-receipt.v1")
                     & models.Q(plan_status_at_issue="APPROVED")
+                    & models.Q(schema="portfolio-transition-plan-approval-receipt.v1")
                 ),
                 name="portfolio_tr_ap_rcpt_owner_ck",
             ),
@@ -271,6 +275,10 @@ class TransitionPlanInactiveApprovalReceiptModel(TransitionPlanInactiveApprovalA
                     & models.Q(recorded_at__lt=models.F("valid_until"))
                 ),
                 name="portfolio_tr_ap_rcpt_clock_ck",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(persisted_at=models.F("recorded_at")),
+                name="portfolio_tr_ap_rcpt_persist_ck",
             ),
         ]
 

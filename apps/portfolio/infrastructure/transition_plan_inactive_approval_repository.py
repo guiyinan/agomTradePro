@@ -309,7 +309,7 @@ class DjangoTransitionPlanInactiveApprovalRepository:
             "subject", value.subject_id, value.subject_version
         ) or model.ledger_header_hash != _subject_ledger_hash(value, model.recorded_at):
             raise TransitionPlanInactiveApprovalCorruption("approval subject seal is invalid")
-        if model.persisted_at < model.recorded_at:
+        if model.persisted_at != model.recorded_at:
             raise TransitionPlanInactiveApprovalCorruption(
                 "approval subject persistence clock is invalid"
             )
@@ -362,7 +362,7 @@ class DjangoTransitionPlanInactiveApprovalRepository:
         if (
             model.subject_record.recorded_at > model.recorded_at
             or value.issued_at != model.recorded_at
-            or model.persisted_at < model.recorded_at
+            or model.persisted_at != model.recorded_at
         ):
             raise TransitionPlanInactiveApprovalCorruption("approval receipt clock is invalid")
         return value
@@ -435,6 +435,7 @@ def _subject_values(
         "requested_at": value.requested_at,
         "valid_until": value.valid_until,
         "recorded_at": at,
+        "persisted_at": at,
         "canonical_payload": encode_transition_plan_inactive_approval_subject(value),
         "content_hash": value.content_hash,
         "ledger_header_hash": _subject_ledger_hash(value, at),
@@ -473,6 +474,7 @@ def _receipt_values(
         "issued_at": value.issued_at,
         "valid_until": value.valid_until,
         "recorded_at": at,
+        "persisted_at": at,
         "canonical_payload": encode_transition_plan_inactive_approval_receipt(value),
         "content_hash": value.content_hash,
         "ledger_header_hash": _receipt_ledger_hash(value, subject, at),

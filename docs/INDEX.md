@@ -539,7 +539,10 @@
   - 固定definition-only；ledger/两人activation/current provider及corporate-action/cost-tax两类methodology未完成
 - ✅ **Portfolio benchmark FX-fixing methodology append-only ledger**
   - private UOW/claim、first-winner、source/DST/header seals与closed-world exact/PIT完成；0023 zero-seed且不回填FX配置/行情
-  - Django5.2组件7 passed、Domain 8 passed；无current/activation，既有transition约束drift与PG并发/mypy plugin仍待收口
+  - Django5.2组件7 passed、Domain 8 passed；无current/activation，首次发现的transition drift已在下一阶段修复，PG并发/mypy plugin仍待收口
+- ✅ **Portfolio inactive approval authoritative persistence clock 修复**
+  - subject/receipt显式封存`persisted_at=recorded_at`并增加DB等值约束，消除wall-clock导致合法记录自判腐败
+  - Django5.2隔离5 passed、Portfolio migration no-drift；不改变inactive语义或连接Broker执行
 - ✅ **Broker Plan→Order binding Application workflow**
   - ID-only注册在同一Broker cutoff双读plan ordinal row、inactive receipt和order artifact，闭合owner/type/hash/account/时钟及first-winner/CAS/current selector
   - 三个owner public reader、binding ledger/composition与真实签发均未实现；账户namespace blocker、pre-Risk与执行总闸继续关闭

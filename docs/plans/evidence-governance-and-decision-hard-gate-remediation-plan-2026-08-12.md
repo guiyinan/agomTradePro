@@ -796,7 +796,17 @@
 未完成与验证：
 
 - Django 5.2.16 SQLite隔离component `7 passed`，Domain回归 `8 passed`；migration/runtime state组件比对、ruff、Black/isort、architecture（2754 files / 0 violations）与diff-check通过。
-- Portfolio app-wide `makemigrations --check`仍报告既有transition-plan inactive approval约束Q顺序漂移，未为本阶段生成无意义0024；项目mypy plugin环境缺`mypy_django_plugin`，PostgreSQL并发first-winner未验证。两人activation/current provider、corporate-action与cost/tax两类methodology仍缺，benchmark不得提前active。
+- 本阶段首次 app-wide migration 检查暴露的既有transition approval约束/时钟问题已在下一独立阶段修复；项目mypy plugin环境缺`mypy_django_plugin`，PostgreSQL并发first-winner未验证。两人activation/current provider、corporate-action与cost/tax两类methodology仍缺，benchmark不得提前active。
+
+### 2026-08-13：Portfolio inactive approval authoritative persistence clock 修复
+
+- 修复既有 transition-plan inactive approval subject/receipt 使用 ORM wall-clock `auto_now_add` 写 `persisted_at`、但restore又拿它与注入的 authoritative `recorded_at`比较而导致合法新记录自判腐败的问题；repository现在显式写入 `persisted_at == recorded_at`，restore要求精确等值。
+- runtime model与`0017`既有constraint deconstruction顺序对齐；新增`0024_align_transition_approval_persistence_clock`仅把两列改为显式DateTimeField并增加两项数据库等值约束，不回填、不生成业务记录。
+
+未完成与验证：
+
+- Django 5.2.16 SQLite隔离 persistence `5 passed`；Portfolio `makemigrations --check --dry-run`恢复`No changes detected`，ruff、Black/isort与diff-check通过。
+- PostgreSQL migration/race及全项目回归未验证；本修复不改变inactive/must-not-execute，不连接旧审批入口或Broker执行闸。
 
 
 
