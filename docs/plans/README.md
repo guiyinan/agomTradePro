@@ -23,6 +23,7 @@
 - [`strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md`](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md)
 
 ### 数据与生产可靠性
+- [`system-audit-log-consolidation-plan-2026-08-13.md`](system-audit-log-consolidation-plan-2026-08-13.md)
 
 - [`data-center-canonical-architecture-refactor-2026-08-02.md`](data-center-canonical-architecture-refactor-2026-08-02.md)
 - [`production-data-reliability-full-remediation-2026-08-01.md`](production-data-reliability-full-remediation-2026-08-01.md)
