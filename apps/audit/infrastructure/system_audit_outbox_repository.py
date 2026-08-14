@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol, cast
@@ -22,7 +21,12 @@ from django.utils import timezone
 
 from apps.audit.domain.system_audit_event import JSONValue, SystemAuditEvent
 from apps.audit.infrastructure.system_audit_event_codec import decode, encode
-from apps.audit.infrastructure.system_audit_outbox_models import SystemAuditOutboxModel
+from apps.audit.infrastructure.system_audit_outbox_models import (
+    _UOW,
+    SystemAuditOutboxModel,
+    _activate_system_audit_outbox_uow,
+    _claim_system_audit_outbox_insert,
+)
 
 
 class SystemAuditOutboxUnavailable(Exception):
@@ -83,14 +87,10 @@ class SystemAuditOutboxClaim:
     claimed_at: datetime
     attempt_count: int
 
-
-_UOW: ContextVar[object | None] = ContextVar("system_audit_outbox_uow", default=None)
-
-
 class DjangoSystemAuditOutboxRepository:
     """Append-only outbox enqueue plus private claim-state transitions."""
 
-    __slots__ = ("_clock", "_using")
+    __slots__ = ("_clock", "_uow", "_using")
 
     def __init__(
         self,
@@ -100,19 +100,21 @@ class DjangoSystemAuditOutboxRepository:
     ) -> None:
         self._using = using
         self._clock = clock or DjangoSystemAuditOutboxClock()
+        self._uow: object | None = None
 
     @contextmanager
     def atomic(self) -> Iterator[None]:
         """Open one non-nested outbox unit of work."""
 
-        if _UOW.get() is not None:
+        if self._uow is not None or _UOW.get() is not None:
             raise SystemAuditOutboxConflict("system audit outbox UOW cannot be nested")
-        with transaction.atomic(using=self._using):
-            token = _UOW.set(object())
-            try:
+        token = object()
+        self._uow = token
+        try:
+            with transaction.atomic(using=self._using), _activate_system_audit_outbox_uow(token):
                 yield
-            finally:
-                _UOW.reset(token)
+        finally:
+            self._uow = None
 
     def now(self) -> datetime:
         """Return an aware clock or fail closed."""
@@ -171,9 +173,32 @@ class DjangoSystemAuditOutboxRepository:
             created_at=created,
             updated_at=created,
         )
+        values = {
+            "outbox_id": row.outbox_id,
+            "event_id": row.event_id,
+            "idempotency_key": row.idempotency_key,
+            "payload": row.payload,
+            "payload_hash": row.payload_hash,
+            "status": row.status,
+            "attempt_count": row.attempt_count,
+            "available_at": row.available_at,
+            "claimed_at": row.claimed_at,
+            "claimed_by": row.claimed_by,
+            "claim_token": row.claim_token,
+            "delivered_at": row.delivered_at,
+            "last_error_code": row.last_error_code,
+            "last_error_at": row.last_error_at,
+            "created_at": row.created_at,
+            "updated_at": row.updated_at,
+        }
         try:
             with transaction.atomic(using=self._using):
-                row.save(force_insert=True, using=self._using)
+                with _claim_system_audit_outbox_insert(
+                    token=self._require_uow_token(),
+                    model_type=SystemAuditOutboxModel,
+                    expected_values=values,
+                ):
+                    row.save(force_insert=True, using=self._using)
         except IntegrityError:
             winner = self._find_exact_identity(event)
             if winner is not None and winner.event == event:
@@ -403,8 +428,13 @@ class DjangoSystemAuditOutboxRepository:
             raise SystemAuditOutboxConflict("outbox claim token does not belong to worker")
 
     def _require_uow(self) -> None:
-        if _UOW.get() is None:
+        if self._uow is None or _UOW.get() is not self._uow:
             raise SystemAuditOutboxConflict("outbox mutation requires repository.atomic()")
+
+    def _require_uow_token(self) -> object:
+        self._require_uow()
+        assert self._uow is not None
+        return self._uow
 
     def _require_cutoff(self, value: datetime) -> None:
         self._require_aware(value, "as_of")

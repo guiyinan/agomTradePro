@@ -353,7 +353,7 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 
 ### 2026-08-15：M1 outbox claim/dispatcher 合同
 
-- 新增 `apps/audit/infrastructure/system_audit_outbox_repository.py`：严格恢复全表 outbox payload 与事件 codec，enqueue first-winner/idempotency replay，private non-nested UOW，due-row claim、worker/token ownership、delivered/failed 状态机和 immutable payload/hash 校验；claim/transition 只更新允许的状态列，不删除或重写事件。
+- 新增 `apps/audit/infrastructure/system_audit_outbox_repository.py`：严格恢复全表 outbox payload 与事件 codec，private exact-insert claim，enqueue first-winner/idempotency replay，private non-nested UOW，due-row claim、worker/token ownership、delivered/failed 状态机和 immutable payload/hash 校验；claim/transition 只更新允许的状态列，不删除或重写事件。
 - 新增 `apps/audit/application/system_audit_outbox_dispatcher.py`：无 ORM/外部 publisher import 的 dormant Protocol/use case，按 bounded batch 发布 `requested/claimed/delivered/failed/outcome`，publisher 异常只落稳定 `publisher_error`，业务双写和真实 publisher composition 仍关闭。
 - 隔离 component `7 passed`、dispatcher unit `3 passed`；增量 mypy `0 regressions`，与已有 outbox model 回归合计 `10 passed`。本地证据仍只覆盖 SQLite/纯 fake；PostgreSQL claim race/lease、真实 backlog 恢复、Data Center 双写、runtime wiring、生产 authority 与迁移回滚继续未验证。
 

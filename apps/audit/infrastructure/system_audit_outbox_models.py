@@ -9,7 +9,10 @@ supposed to deliver.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 from typing import NoReturn
 from uuid import uuid4
 
@@ -18,6 +21,52 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models.base import ModelBase
 from django.db.models.signals import pre_delete
+
+_UOW: ContextVar[object | None] = ContextVar("system_audit_outbox_uow", default=None)
+_CLAIM: ContextVar["_InsertClaim | None"] = ContextVar(
+    "system_audit_outbox_insert_claim", default=None
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _InsertClaim:
+    """Private capability for one exact outbox row insert."""
+
+    token: object
+    model_type: type[models.Model]
+    expected_values: tuple[tuple[str, object], ...]
+
+
+@contextmanager
+def _activate_system_audit_outbox_uow(token: object) -> Iterator[None]:
+    """Activate the repository-owned non-nestable outbox UOW."""
+
+    if _UOW.get() is not None:
+        raise ValidationError("system audit outbox UOWs may not be nested")
+    reset = _UOW.set(token)
+    try:
+        yield
+    finally:
+        _UOW.reset(reset)
+
+
+@contextmanager
+def _claim_system_audit_outbox_insert(
+    *, token: object, model_type: type[models.Model], expected_values: Mapping[str, object]
+) -> Iterator[None]:
+    """Allow one exact new outbox row inside the active private UOW."""
+
+    if _UOW.get() is not token:
+        raise ValidationError("system audit outbox insert requires a private UOW")
+    if _CLAIM.get() is not None:
+        raise ValidationError("system audit outbox insert claims may not be nested")
+    reset = _CLAIM.set(
+        _InsertClaim(token, model_type, tuple(sorted(expected_values.items())))
+    )
+    try:
+        yield
+    finally:
+        _CLAIM.reset(reset)
 
 _IMMUTABLE_FIELDS = frozenset(
     {
@@ -134,6 +183,7 @@ class SystemAuditOutboxModel(models.Model):
         """Reject any attempted rewrite of immutable outbox columns."""
 
         if self._state.adding:
+            self._require_insert_claim()
             super().save(force_insert=force_insert, using=using)
             return
         if update_fields is not None:
@@ -156,7 +206,11 @@ class SystemAuditOutboxModel(models.Model):
     ) -> None:
         """Apply the same payload guard to Django's lower-level save path."""
 
-        if not self._state.adding:
+        if self._state.adding:
+            if raw or force_update or update_fields is not None:
+                raise ValidationError("system audit outbox inserts are append-only")
+            self._require_insert_claim()
+        else:
             if update_fields is not None:
                 _reject_immutable_fields(update_fields)
             else:
@@ -168,6 +222,18 @@ class SystemAuditOutboxModel(models.Model):
             using=using,
             update_fields=update_fields,
         )
+
+    def _require_insert_claim(self) -> None:
+        """Reject direct ORM inserts that bypass repository enqueue."""
+
+        claim = _CLAIM.get()
+        if (
+            claim is None
+            or claim.token is not _UOW.get()
+            or claim.model_type is not type(self)
+            or any(getattr(self, name) != expected for name, expected in claim.expected_values)
+        ):
+            raise ValidationError("system audit outbox insert requires an exact private claim")
 
     def _assert_immutable_snapshot(self) -> None:
         if self.pk is None:
@@ -229,4 +295,11 @@ pre_delete.connect(
 )
 
 
-__all__ = ["SystemAuditOutboxModel", "SystemAuditOutboxManager", "SystemAuditOutboxQuerySet"]
+__all__ = [
+    "SystemAuditOutboxModel",
+    "SystemAuditOutboxManager",
+    "SystemAuditOutboxQuerySet",
+    "_UOW",
+    "_activate_system_audit_outbox_uow",
+    "_claim_system_audit_outbox_insert",
+]
