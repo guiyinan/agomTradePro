@@ -118,7 +118,9 @@ def _audit_pg_schema(django_db_setup: object, django_db_blocker: object) -> Iter
     """Create only the two zero-seed audit tables in the isolated test DB."""
 
     created_tables = False
-    migration = importlib.import_module("apps.audit.migrations.0011_systemauditeventmodel").Migration
+    migration = importlib.import_module(
+        "apps.audit.migrations.0011_systemauditeventmodel"
+    ).Migration
     before = ProjectState()
     after = before.clone()
     for operation in migration.operations:
@@ -258,7 +260,7 @@ def test_empty_stream_first_winner_is_postgresql_unique_and_not_sqlite_evidence(
     repository = _repository()
     first = _event(event_id="evt-empty-a", idempotency_key="fetch:empty:a")
     second = _event(event_id="evt-empty-b", idempotency_key="fetch:empty:b")
-    original_claim = system_audit_repository_module._claim_system_audit_insert
+    original_claim = getattr(system_audit_repository_module, "_claim_system_audit_insert")
 
     @contextmanager
     def _gated_claim(event_id: str, content_hash: str) -> Iterator[None]:
@@ -458,3 +460,82 @@ def test_outbox_claim_rollback_releases_lease_for_next_worker() -> None:
     assert current.claimed_by == "worker-reclaim"
     assert current.claim_token == reclaim_result.claim.claim_token
     assert current.attempt_count == 1
+
+
+def test_postgresql_backlog_snapshot_is_closed_world_and_read_only() -> None:
+    """PostgreSQL backlog observation aggregates every state without reclaiming rows."""
+
+    repository = _outbox_repository()
+    pending_event = _event(event_id="evt-pg-pending", idempotency_key="fetch:pg:pending")
+    claimed_event = _event(event_id="evt-pg-claimed", idempotency_key="fetch:pg:claimed")
+    failed_event = _event(event_id="evt-pg-failed", idempotency_key="fetch:pg:failed")
+    delivered_event = _event(event_id="evt-pg-delivered", idempotency_key="fetch:pg:delivered")
+
+    with repository.atomic():
+        pending_record = repository.enqueue(
+            pending_event,
+            created_at=NOW + timedelta(seconds=4),
+            available_at=NOW + timedelta(hours=1),
+        )
+        repository.enqueue(
+            claimed_event,
+            created_at=NOW + timedelta(seconds=1),
+            available_at=NOW + timedelta(seconds=1),
+        )
+        failed_record = repository.enqueue(
+            failed_event,
+            created_at=NOW + timedelta(seconds=2),
+            available_at=NOW + timedelta(seconds=2),
+        )
+        delivered_record = repository.enqueue(
+            delivered_event,
+            created_at=NOW + timedelta(seconds=3),
+            available_at=NOW + timedelta(seconds=3),
+        )
+
+    with repository.atomic():
+        claimed = repository.claim_due(worker_id="worker-pg-claimed", as_of=LATER, limit=1)[0]
+        failed = repository.claim_due(worker_id="worker-pg-failed", as_of=LATER, limit=1)[0]
+        repository.mark_failed(
+            outbox_id=failed.outbox_id,
+            worker_id=failed.worker_id,
+            claim_token=failed.claim_token,
+            error_code="publisher_error",
+            failed_at=LATER,
+        )
+        delivered = repository.claim_due(worker_id="worker-pg-delivered", as_of=LATER, limit=1)[0]
+        repository.mark_delivered(
+            outbox_id=delivered.outbox_id,
+            worker_id=delivered.worker_id,
+            claim_token=delivered.claim_token,
+            delivered_at=LATER,
+        )
+
+    observed_at = LATER + timedelta(minutes=5)
+    snapshot = repository.get_backlog_snapshot(as_of=observed_at)
+
+    assert snapshot.pending_count == 1
+    assert snapshot.due_pending_count == 0
+    assert snapshot.claimed_count == 1
+    assert snapshot.expired_claimed_count == 1
+    assert snapshot.failed_count == 1
+    assert snapshot.delivered_count == 1
+    assert snapshot.backlog_count == 2
+    assert snapshot.oldest_backlog_at == NOW + timedelta(seconds=1)
+    assert snapshot.oldest_claimed_at == LATER
+    assert snapshot.oldest_backlog_age_seconds == pytest.approx(359.0)
+    assert snapshot.oldest_claimed_age_seconds == pytest.approx(300.0)
+
+    pending_restored = repository.get_exact(outbox_id=pending_record.outbox_id)
+    assert pending_restored is not None
+    assert pending_restored.status == SystemAuditOutboxModel.STATUS_PENDING
+    claimed_restored = repository.get_exact(outbox_id=claimed.outbox_id)
+    assert claimed_restored is not None
+    assert claimed_restored.status == SystemAuditOutboxModel.STATUS_CLAIMED
+    assert claimed_restored.claim_token == claimed.claim_token
+    failed_restored = repository.get_exact(outbox_id=failed_record.outbox_id)
+    assert failed_restored is not None
+    assert failed_restored.status == SystemAuditOutboxModel.STATUS_FAILED
+    delivered_restored = repository.get_exact(outbox_id=delivered_record.outbox_id)
+    assert delivered_restored is not None
+    assert delivered_restored.status == SystemAuditOutboxModel.STATUS_DELIVERED

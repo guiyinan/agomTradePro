@@ -959,7 +959,7 @@
   - 仅纯 fake Application 证据；真实 publisher、批量事务、PostgreSQL lease race、backlog 观测、业务双写和生产审计仍待完成，M1 gate 不变
 - ✅ **系统级统一审计日志 M1 outbox backlog/recovery observability contract（2026-08-15）**
   - 新增只读 `SystemAuditOutboxBacklogSnapshot`/use case 与 repository 聚合读取；全表 closed-world restore 后统计 pending/claimed/failed/delivered、due pending、expired claim、oldest age；Application unit `9 passed`、repository component `7 passed`、增量 mypy `0 regressions`
-  - 仅本地读取/聚合契约；未接 Prometheus/health、publisher/runtime、自动恢复或生产告警；真实 PostgreSQL backlog/恢复观察、生产迁移回滚、Data Center 双写与 authority source 仍待完成，M1 gate 不变
+  - PostgreSQL opt-in harness 已补 backlog 聚合/只读断言，但本批未启动 disposable PostgreSQL；仅本地读取/聚合契约，未接 Prometheus/health、publisher/runtime、自动恢复或生产告警，真实 PostgreSQL backlog/恢复观察、生产迁移回滚、Data Center 双写与 authority source 仍待完成，M1 gate 不变
 - ✅ **Equity research snapshot Django runtime contract（2026-08-14）**
   - Django 5.2.12 复跑 API `15`、SDK/MCP/routing/evidence `36`、use case/gateway `26`，合计 `77 passed`
   - 仅证明 mock/fake 隔离环境的软件契约与 fail-closed 行为；真实数据覆盖、PostgreSQL 规模/故障注入、备份恢复和 readiness 仍未解除

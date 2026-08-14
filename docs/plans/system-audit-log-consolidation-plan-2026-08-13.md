@@ -396,6 +396,7 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 
 - 新增只读 Application `SystemAuditOutboxBacklogSnapshot` 与 `GetSystemAuditOutboxBacklogUseCase`，固定观察 cutoff、pending/claimed/failed/delivered 计数、due pending、expired claim、最老 backlog/claim 时钟与非负 age；不暴露 worker token，不执行 claim、lease reclaim、publish 或状态写入。
 - `DjangoSystemAuditOutboxRepository.get_backlog_snapshot()` 先对全表执行既有 strict codec/closed-world restore，再按 repository lease TTL 聚合 backlog；SQLite component 新增 pending/claimed/failed/delivered、expired claim 和无状态变更证据，Application unit `9 passed`、outbox repository component `7 passed`、增量 mypy `0 regressions`，black/isort 通过。
+- PostgreSQL opt-in harness 另加入同一 backlog 聚合的 closed-world/只读断言（pending/claimed/expired/failed/delivered 与 token/status 不变）；本批未启动 disposable PostgreSQL，因此只登记测试资产，不把未运行结果计入 PostgreSQL 证据。
 - 该批只是本地可观测性契约与聚合读取，不是 Prometheus/health endpoint、publisher/runtime wiring、生产告警或 backlog 自动恢复；真实 PostgreSQL backlog 观察窗口、生产 migration/rollback、Data Center 双写、publisher 和 authority source 仍由 registry next gate 阻断。
 
 ### M1：Audit Domain、append-only ledger 与 Query
