@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
 import django
@@ -42,14 +43,15 @@ class _Clock:
 
 
 @pytest.fixture(autouse=True)
-def _schema() -> None:
-    with connection.schema_editor() as editor:
-        editor.create_model(AccountAuthenticationContextSourceV3AnchorModel)
-        editor.create_model(AccountAuthenticationContextSourceV3Model)
-    yield
-    with connection.schema_editor() as editor:
-        editor.delete_model(AccountAuthenticationContextSourceV3Model)
-        editor.delete_model(AccountAuthenticationContextSourceV3AnchorModel)
+def _schema(django_db_blocker: object) -> Iterator[None]:
+    with django_db_blocker.unblock():  # type: ignore[attr-defined]
+        with connection.schema_editor() as editor:
+            editor.create_model(AccountAuthenticationContextSourceV3AnchorModel)
+            editor.create_model(AccountAuthenticationContextSourceV3Model)
+        yield
+        with connection.schema_editor() as editor:
+            editor.delete_model(AccountAuthenticationContextSourceV3Model)
+            editor.delete_model(AccountAuthenticationContextSourceV3AnchorModel)
 
 
 def _repository() -> DjangoAccountAuthenticationContextSourceV3Repository:

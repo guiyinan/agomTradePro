@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from datetime import UTC, datetime
 
 import django
@@ -21,14 +22,15 @@ from apps.account.infrastructure.account_owner_assignment_actor_authority_source
 
 
 @pytest.fixture(autouse=True)
-def _schema() -> None:
-    with connection.schema_editor() as editor:
-        editor.create_model(AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel)
-        editor.create_model(AccountOwnerAssignmentActorAuthoritySourceV3Model)
-    yield
-    with connection.schema_editor() as editor:
-        editor.delete_model(AccountOwnerAssignmentActorAuthoritySourceV3Model)
-        editor.delete_model(AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel)
+def _schema(django_db_blocker: object) -> Iterator[None]:
+    with django_db_blocker.unblock():  # type: ignore[attr-defined]
+        with connection.schema_editor() as editor:
+            editor.create_model(AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel)
+            editor.create_model(AccountOwnerAssignmentActorAuthoritySourceV3Model)
+        yield
+        with connection.schema_editor() as editor:
+            editor.delete_model(AccountOwnerAssignmentActorAuthoritySourceV3Model)
+            editor.delete_model(AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel)
 
 
 def test_schema_is_zero_seed_and_has_two_append_only_models() -> None:

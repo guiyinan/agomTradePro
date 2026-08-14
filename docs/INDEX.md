@@ -888,7 +888,7 @@
   - 同alias/private UOW的winner/exact/head/append先恢复全部epoch、Profile anchor/version、binding及0052 raw-source rows，逐列重验canonical payload、fixed recorder、recorder/ledger seals、Profile exact refs、raw/binding双链与全图；inner savepoint、epoch锁、predecessor CAS、exact replay和terminal/expired no-fallback闭合
   - repository component 4 passed；与Domain/codec/model组合47 passed、official增量mypy 0 regressions、architecture 2879/0；仅dormant persistence合同，未接owner UOW/mutation issuer、mutable lifecycle/production route或真实PostgreSQL空链竞争，zero-seed与execution关闭
 - ✅ **Account authority component evidence runner correction（2026-08-15）**
-  - 五组 schema-editor 组件显式持有 `django_db_blocker.unblock()`，在隔离 settings 下可由标准 pytest 复现；RBAC mutation binding model/repository、RBAC/User raw repository 与 actor raw model 合计 `38 passed`，mutation-binding repository `4 passed`
+  - 八组 schema-editor 组件显式持有 `django_db_blocker.unblock()`，在隔离 settings 下可由标准 pytest 复现；RBAC mutation binding、RBAC/User raw、actor raw、owner-assignment actor authority 与 authentication-context repository/model 合计 `50 passed`，mutation-binding repository `4 passed`
   - 这是 SQLite/no-migrations 测试边界修复，不是 PostgreSQL 空链/同 predecessor 并发证据；production lifecycle writer、mutation issuer、atomic bundle 与 execution 仍关闭
 - ✅ **Account RBAC mutation binding v3 dormant Application writer contract**
   - ID/hash-only mutation command与server-issued identity resolver注入单一typed UOW；winner-first重放不读取Profile/operator/raw source，首次写校验完整old/new Profile、human staff+canonical-admin operator、0052 raw source exact/current及source-role/subject闭合，再以final predecessor CAS append并复核winner/head
