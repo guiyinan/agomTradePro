@@ -2132,6 +2132,13 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - source Domain与actor Application、Receipt/Evidence定向pure `65 passed`；Ruff、Black/isort、2 production files strict mypy及architecture 2854/0通过。同步收紧Application：approver只接受owner source已封存的exact canonical`admin`，不再现场归一化角色别名。
 - 本批没有Application capture、strict codec、append-only ledger、Django User/RBAC/auth-context原始provider或request adapter。现mutable User/Profile/session不能现场拼hash充当source；在这些owner链路与zero-seed ledger闭合前，staff write composition和路由保持缺失，execution不开放。
 
+### 2026-08-14：Account actor authority source v3 Application workflow
+
+- 新增纯Application capture/exact/current合同。写命令只携source、principal及三项上游authority artifact的ID/version/expected content hash；authentication context、User authority与RBAC authority必须由单一原子bundle provider在同一PIT返回，禁止顺序拼接三次可撕裂的mutable读取，也不接收cookie、session key、token、CSRF或password hash。
+- 新写在同一repository UOW内先查first winner；无winner时以server cutoff首末双读完整bundle，再取authoritative recorded clock并做第三次bundle重验与final-head复核。same-session successor精确绑定前head hash并调用Domain相邻validator；terminal head不可续接，新session必须新root。winner重放不再读取当前会话、User/RBAC或recorder，撤权/过期后仍可永久幂等返回历史winner。
+- exact reader仅按recorded knowledge提供历史版本；current reader先scalar exact恢复，再同时要求source temporal window、owner bundle仍exact-current且事实未漂移、repository final head exact equality。terminal、expired、superseded或上游不可用均返回None，绝不回退旧授权。terminal source保留真实`is_authenticated`事实，授权阻断由`authority_state`完成，避免把RBAC/staff撤权伪造成会话登出。
+- Domain+Application pure `40 passed`；Ruff、Black/isort、2 production files strict mypy及architecture 2855/0通过。本批仍只有Protocol/DTO与pure fakes：无strict codec、append-only ledger/migration、真实atomic authority bundle provider、Django request adapter、staff write composition或HTTP/TUI路由；mutable User/Profile/session仍不得现场hash冒充owner artifact，execution继续关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

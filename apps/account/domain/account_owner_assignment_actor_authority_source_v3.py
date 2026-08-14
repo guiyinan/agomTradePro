@@ -142,8 +142,6 @@ class AccountOwnerAssignmentActorAuthoritySourceV3:
                 raise TypeError(f"{name} must be an exact boolean")
         if self.authority_state == "current" and (not self.is_authenticated or not self.is_active):
             raise ValueError("current authority facts must be authenticated and active")
-        if self.authority_state in TERMINAL_STATES and self.is_authenticated:
-            raise ValueError("terminal authority cannot remain authenticated")
         for name in (
             "authentication_context_identity_hash",
             "authentication_context_content_hash",

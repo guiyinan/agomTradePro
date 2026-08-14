@@ -167,7 +167,6 @@ def test_each_authority_dimension_changes_content_hash(changes: dict[str, object
         {"root_claim_hash": "0" * 64},
         {"root_claim_hash": None},
         {"supersedes_content_hash": "f" * 64},
-        {"authority_state": "revoked"},
         {"execution_allowed": True},
     ],
 )
@@ -203,7 +202,7 @@ def test_historical_knowability_survives_expiry_but_current_does_not() -> None:
 def test_same_session_successor_can_change_user_rbac_facts_and_revoke_terminally() -> None:
     previous = _source()
     successor = _successor(
-        is_authenticated=False,
+        is_authenticated=True,
         is_active=False,
         is_staff=True,
         is_superuser=True,
