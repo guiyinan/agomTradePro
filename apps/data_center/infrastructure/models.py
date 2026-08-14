@@ -914,5 +914,6 @@ SectorMembershipFactModel = _split_models.SectorMembershipFactModel
 StorageHoldModel = _split_models.StorageHoldModel
 SyncBatchModel = _split_models.SyncBatchModel
 SyncCheckpointModel = _split_models.SyncCheckpointModel
+SyncExecutionIdentityModel = _split_models.SyncExecutionIdentityModel
 SyncRunModel = _split_models.SyncRunModel
 ValuationFactModel = _split_models.ValuationFactModel

@@ -486,6 +486,24 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
   Health/RawAudit/Publication/event/outbox 双写、迁移回填或生产 PostgreSQL 证据；
   `data.fetch.*` 继续保持 `planned/not_wired`。
 
+### 2026-08-15：M1 Data Center SyncExecution identity persistence boundary
+
+- 新增严格的 Application `SyncExecutionIdentityRepositoryPort` 与
+  `PersistSyncExecutionIdentityUseCase`：持久化入口只接受完整、已由 owner 发行的
+  `run_id`/`ingested_run_id`/`batch_id`/selector/hash，不创建 UUID、不采样 clock、不接受
+  selector-only fallback；相同 canonical identity 可 exact replay，hash/context/ID 冲突
+  fail closed。
+- 新增 schema-only migration `0071_syncexecutionidentitymodel` 与 dormant
+  `SyncExecutionIdentityRepository`。identity 表没有 generated ID/clock；模型的 save/
+  save_base、QuerySet/manager update/delete/bulk shortcuts、pre_delete 均由 private
+  UOW/insert claim 拦截，repository 才能执行一次 exact insert。migration state、纯
+  Application、SQLite component 合计 `16 passed`，`makemigrations --check` 通过；component
+  使用独立内存 SQLite 设置，避免全仓 Django fixture 掩盖本切片结果。
+- 该批只完成 owner-issued identity 的持久化/不可变证据边界，**没有**接入
+  `SyncMacroUseCase` writer、共同 UOW、事实/Health/RawAudit/Publication/event/outbox
+  双写、历史回填或生产 PostgreSQL race/rollback；`data.fetch.*` 继续保持
+  `planned/not_wired`。
+
 ### 2026-08-15：M1 outbox dispatch task fail-closed contract
 
 - 新增受治理的 Celery task `apps.audit.application.tasks.dispatch_system_audit_outbox_task`，

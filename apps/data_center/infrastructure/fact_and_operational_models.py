@@ -9,13 +9,20 @@ Phase 2: Master data (AssetMasterModel, IndicatorCatalogModel) and eight fact ta
 """
 
 import uuid
-from typing import Any
+from collections.abc import Collection, Iterable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
+from typing import Any, NoReturn, TypeVar
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.base import ModelBase
+from django.db.models.signals import pre_delete
 from django.utils import timezone
 
+from apps.data_center.application.sync_identity import SyncExecutionIdentity
 from apps.data_center.domain.control_plane import (
     QuarantineRecord,
     QuarantineResolution,
@@ -41,6 +48,109 @@ from apps.data_center.domain.retention import (
     StorageHold,
 )
 from shared.numeric import safe_float
+
+_SYNC_IDENTITY_UOW: ContextVar[object | None] = ContextVar(
+    "data_center_sync_identity_uow", default=None
+)
+_SYNC_IDENTITY_CLAIM: ContextVar["_SyncIdentityInsertClaim | None"] = ContextVar(
+    "data_center_sync_identity_insert_claim", default=None
+)
+_MODEL_T = TypeVar("_MODEL_T", bound=models.Model)
+
+
+@dataclass(frozen=True, slots=True)
+class _SyncIdentityInsertClaim:
+    """Private capability for one exact identity insert."""
+
+    token: object
+    model_type: type[models.Model]
+    expected_values: tuple[tuple[str, object], ...]
+
+
+@contextmanager
+def _activate_sync_identity_uow() -> Iterator[object]:
+    """Activate the non-nestable repository capability for identity writes."""
+
+    if _SYNC_IDENTITY_UOW.get() is not None:
+        raise ValidationError("sync identity UOWs may not be nested")
+    token = object()
+    reset = _SYNC_IDENTITY_UOW.set(token)
+    try:
+        yield token
+    finally:
+        _SYNC_IDENTITY_UOW.reset(reset)
+
+
+@contextmanager
+def _claim_sync_identity_insert(
+    *, token: object, model_type: type[models.Model], expected_values: dict[str, object]
+) -> Iterator[None]:
+    """Allow one exact insert inside an active repository UOW."""
+
+    if _SYNC_IDENTITY_UOW.get() is not token:
+        raise ValidationError("sync identity insert requires a private UOW")
+    if _SYNC_IDENTITY_CLAIM.get() is not None:
+        raise ValidationError("sync identity insert claims may not be nested")
+    reset = _SYNC_IDENTITY_CLAIM.set(
+        _SyncIdentityInsertClaim(token, model_type, tuple(sorted(expected_values.items())))
+    )
+    try:
+        yield
+    finally:
+        _SYNC_IDENTITY_CLAIM.reset(reset)
+
+
+class _SyncIdentityQuerySet(models.QuerySet[_MODEL_T]):
+    """Read-capable queryset with all mutation shortcuts disabled."""
+
+    def update(self, **kwargs: object) -> NoReturn:
+        del kwargs
+        raise ValidationError("sync execution identities are append-only")
+
+    def delete(self) -> NoReturn:
+        raise ValidationError("sync execution identities are append-only")
+
+    def _raw_delete(self, using: str | None) -> NoReturn:
+        del using
+        raise ValidationError("sync execution identities are append-only")
+
+    def bulk_update(
+        self,
+        objs: Iterable[_MODEL_T],
+        fields: Iterable[str],
+        batch_size: int | None = None,
+    ) -> NoReturn:
+        del objs, fields, batch_size
+        raise ValidationError("sync execution identities are append-only")
+
+
+class _SyncIdentityManager(models.Manager[_MODEL_T]):
+    """Expose reads while rejecting bulk mutation and seeding shortcuts."""
+
+    def get_queryset(self) -> _SyncIdentityQuerySet[_MODEL_T]:
+        return _SyncIdentityQuerySet(self.model, using=self._db)
+
+    def bulk_create(
+        self,
+        objs: Iterable[_MODEL_T],
+        batch_size: int | None = None,
+        ignore_conflicts: bool = False,
+        update_conflicts: bool = False,
+        update_fields: Collection[str] | None = None,
+        unique_fields: Collection[str] | None = None,
+    ) -> NoReturn:
+        del objs, batch_size, ignore_conflicts, update_conflicts, update_fields, unique_fields
+        raise ValidationError("sync execution identities require repository persistence")
+
+    def bulk_update(
+        self,
+        objs: Iterable[_MODEL_T],
+        fields: Iterable[str],
+        batch_size: int | None = None,
+    ) -> NoReturn:
+        del objs, fields, batch_size
+        raise ValidationError("sync execution identities are append-only")
+
 
 from .pit_models import PITDatasetManifestModel, PITFactVersionModel  # noqa: F401
 from .publication_models import CanonicalPublicationModel as CanonicalPublicationModel
@@ -999,6 +1109,113 @@ class SyncBatchModel(models.Model):
             error_code=self.error_code,
             error_message=self.error_message,
         )
+
+
+class SyncExecutionIdentityModel(models.Model):
+    """Durable, server-issued identity for one future sync execution.
+
+    The table intentionally has no generated primary key, timestamp default,
+    or caller-facing selector-only create path.  A composition root must
+    supply all UUIDs and the canonical identity hash before this row can be
+    persisted; the repository only performs exact replay or fails closed.
+    """
+
+    identity_hash = models.CharField(max_length=64, primary_key=True, editable=False)
+    run_id = models.UUIDField(db_index=True)
+    ingested_run_id = models.UUIDField(db_index=True)
+    batch_id = models.UUIDField(db_index=True)
+    dataset_key = models.CharField(max_length=192, db_index=True)
+    provider_name = models.CharField(max_length=192, db_index=True)
+
+    objects = _SyncIdentityManager["SyncExecutionIdentityModel"]()
+
+    def save(
+        self,
+        *,
+        force_insert: bool | tuple[ModelBase, ...] = False,
+        force_update: bool = False,
+        using: str | None = None,
+        update_fields: Iterable[str] | None = None,
+    ) -> None:
+        """Allow only one repository-claimed insert; reject rewrites."""
+
+        if not self._state.adding or force_update or update_fields is not None:
+            raise ValidationError("sync execution identities are append-only")
+        self._require_insert_claim()
+        super().save(force_insert=force_insert, using=using)
+
+    def save_base(
+        self,
+        raw: bool = False,
+        force_insert: bool | tuple[ModelBase, ...] = False,
+        force_update: bool = False,
+        using: str | None = None,
+        update_fields: Iterable[str] | None = None,
+    ) -> None:
+        """Apply the same private capability to Django's lower-level path."""
+
+        if not self._state.adding or raw or force_update or update_fields is not None:
+            raise ValidationError("sync execution identity inserts are append-only")
+        self._require_insert_claim()
+        super().save_base(
+            raw=raw,
+            force_insert=force_insert,
+            using=using,
+        )
+
+    def _require_insert_claim(self) -> None:
+        claim = _SYNC_IDENTITY_CLAIM.get()
+        if (
+            claim is None
+            or claim.token is not _SYNC_IDENTITY_UOW.get()
+            or claim.model_type is not type(self)
+            or any(getattr(self, name) != expected for name, expected in claim.expected_values)
+        ):
+            raise ValidationError("sync execution identity insert requires an exact private claim")
+
+    def delete(self, *args: object, **kwargs: object) -> NoReturn:
+        del args, kwargs
+        raise ValidationError("sync execution identities are append-only")
+
+    class Meta:
+        db_table = "data_center_sync_execution_identity"
+        default_manager_name = "objects"
+        base_manager_name = "objects"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["run_id", "ingested_run_id", "batch_id"],
+                name="dc_sync_identity_ids_unique",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["dataset_key", "provider_name"]),
+        ]
+
+    def to_identity(self) -> SyncExecutionIdentity:
+        """Convert the strict persisted row to its validated application value."""
+
+        return SyncExecutionIdentity(
+            run_id=str(self.run_id),
+            ingested_run_id=str(self.ingested_run_id),
+            batch_id=str(self.batch_id),
+            dataset_key=self.dataset_key,
+            provider_name=self.provider_name,
+            identity_hash=self.identity_hash,
+        )
+
+
+def _reject_sync_identity_delete(sender: type[models.Model], **kwargs: object) -> None:
+    """Reject collector/raw model deletion for the identity evidence table."""
+
+    del sender, kwargs
+    raise ValidationError("sync execution identities are append-only")
+
+
+pre_delete.connect(
+    _reject_sync_identity_delete,
+    sender=SyncExecutionIdentityModel,
+    dispatch_uid="data_center_sync_execution_identity_append_only_delete",
+)
 
 
 class SyncCheckpointModel(models.Model):

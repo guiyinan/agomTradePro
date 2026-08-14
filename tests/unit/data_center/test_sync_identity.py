@@ -9,6 +9,7 @@ import pytest
 from apps.data_center.application.sync_identity import (
     IssueSyncExecutionIdentityCommand,
     IssueSyncExecutionIdentityUseCase,
+    PersistSyncExecutionIdentityUseCase,
     SyncExecutionIdentity,
     sync_execution_identity_hash,
 )
@@ -112,3 +113,39 @@ def test_use_case_rejects_issuer_selector_substitution() -> None:
                 dataset_key="macro.CN_CPI", provider_name="provider-a"
             )
         )
+
+
+def test_persistence_use_case_passes_through_complete_owner_identity() -> None:
+    identity = _identity()
+    persisted: list[SyncExecutionIdentity] = []
+
+    class Repository:
+        def persist(self, value: SyncExecutionIdentity) -> SyncExecutionIdentity:
+            persisted.append(value)
+            return value
+
+        def get_by_identity_hash(self, identity_hash: str) -> SyncExecutionIdentity | None:
+            del identity_hash
+            return None
+
+    result = PersistSyncExecutionIdentityUseCase(Repository()).execute(identity)
+
+    assert result == identity
+    assert persisted == [identity]
+
+
+def test_persistence_use_case_rejects_repository_substitution() -> None:
+    identity = _identity()
+    replacement = _identity()
+
+    class Repository:
+        def persist(self, value: SyncExecutionIdentity) -> SyncExecutionIdentity:
+            del value
+            return replacement
+
+        def get_by_identity_hash(self, identity_hash: str) -> SyncExecutionIdentity | None:
+            del identity_hash
+            return None
+
+    with pytest.raises(ValueError, match="different identity"):
+        PersistSyncExecutionIdentityUseCase(Repository()).execute(identity)

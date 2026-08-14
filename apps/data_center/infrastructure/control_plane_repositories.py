@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 from django.db import transaction
 from django.db.models import Q
 
+from apps.data_center.application.sync_identity import SyncExecutionIdentity
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     PublicationMember,
@@ -20,10 +21,15 @@ from apps.data_center.domain.control_plane import (
     SyncRun,
 )
 
+from .fact_and_operational_models import (
+    _activate_sync_identity_uow,
+    _claim_sync_identity_insert,
+)
 from .models import (
     QuarantineRecordModel,
     SyncBatchModel,
     SyncCheckpointModel,
+    SyncExecutionIdentityModel,
     SyncRunModel,
 )
 from .publication_models import (
@@ -135,6 +141,64 @@ class SyncBatchRepository:
                 "created_at"
             )
         ]
+
+
+class SyncExecutionIdentityRepository:
+    """Persist complete server-issued sync execution identities."""
+
+    def persist(self, identity: SyncExecutionIdentity) -> SyncExecutionIdentity:
+        """Idempotently persist an identity without generating any field."""
+
+        if not isinstance(identity, SyncExecutionIdentity):
+            raise TypeError("identity must be a SyncExecutionIdentity")
+        run_uuid = _uuid(identity.run_id)
+        ingested_run_uuid = _uuid(identity.ingested_run_id)
+        batch_uuid = _uuid(identity.batch_id)
+        expected_values: dict[str, object] = {
+            "identity_hash": identity.identity_hash,
+            "run_id": run_uuid,
+            "ingested_run_id": ingested_run_uuid,
+            "batch_id": batch_uuid,
+            "dataset_key": identity.dataset_key,
+            "provider_name": identity.provider_name,
+        }
+        # Keep the insert in a repository-owned savepoint so a uniqueness
+        # conflict cannot poison a caller's surrounding UOW.
+        with transaction.atomic():
+            with _activate_sync_identity_uow() as token:
+                with _claim_sync_identity_insert(
+                    token=token,
+                    model_type=SyncExecutionIdentityModel,
+                    expected_values=expected_values,
+                ):
+                    model, _ = SyncExecutionIdentityModel._default_manager.get_or_create(
+                        identity_hash=identity.identity_hash,
+                        defaults={
+                            "run_id": run_uuid,
+                            "ingested_run_id": ingested_run_uuid,
+                            "batch_id": batch_uuid,
+                            "dataset_key": identity.dataset_key,
+                            "provider_name": identity.provider_name,
+                        },
+                    )
+        persisted = model.to_identity()
+        if persisted != identity:
+            raise ValueError("sync execution identity collision or tampered row")
+        return persisted
+
+    def get_by_identity_hash(self, identity_hash: str) -> SyncExecutionIdentity | None:
+        """Return one validated identity by its canonical hash."""
+
+        if (
+            not isinstance(identity_hash, str)
+            or len(identity_hash) != 64
+            or any(character not in "0123456789abcdef" for character in identity_hash)
+        ):
+            raise ValueError("identity_hash must be a lowercase sha256 digest")
+        model = SyncExecutionIdentityModel._default_manager.filter(
+            identity_hash=identity_hash
+        ).first()
+        return model.to_identity() if model is not None else None
 
 
 class SyncCheckpointRepository:
@@ -657,5 +721,6 @@ __all__ = [
     "QuarantineRepository",
     "SyncBatchRepository",
     "SyncCheckpointRepository",
+    "SyncExecutionIdentityRepository",
     "SyncRunRepository",
 ]

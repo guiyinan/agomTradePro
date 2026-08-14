@@ -978,6 +978,9 @@
 - ✅ **系统级统一审计日志 M1 Data Center SyncExecution identity contract（2026-08-15）**
   - 纯 Application `SyncExecutionIdentity`/issuer port 固定 server-issued run/ingested-run/batch UUID 与 domain-separated identity hash；command 不接受 caller identity/clock，纯测试 `8 passed`，增量 mypy/architecture/格式门禁通过
   - 仅 dormant identity boundary；尚无 issuer persistence、SyncMacro 同 UOW、事实/Health/RawAudit/Publication/event/outbox 双写、迁移回填或 PostgreSQL 证据，`data.fetch.*` 仍 `planned/not_wired`
+- ✅ **系统级统一审计日志 M1 Data Center SyncExecution identity persistence boundary（2026-08-15）**
+  - 新增 strict `SyncExecutionIdentityRepositoryPort`/persist use case、schema-only migration `0071` 与 private insert-claim/append-only ORM guards；完整 identity exact replay，hash/context/ID 冲突 fail-closed；纯/migration/SQLite component 合计 `16 passed`，`makemigrations --check` 通过
+  - 仅 owner-issued identity persistence boundary；未接 SyncMacro writer/共同 UOW/事实/Health/RawAudit/Publication/event/outbox 双写、历史回填、生产 PostgreSQL race/rollback，`data.fetch.*` 仍 `planned/not_wired`
 - ✅ **系统级统一审计日志 M1 outbox dispatch task fail-closed contract（2026-08-15）**
   - Celery dispatch task 在 canonical publisher 未组装时于 claim 前返回 `blocked`，不使用通用 Events/memory/eager fallback；输入、blocked、composition failure `4 passed`，Celery manifest `88 registered / 22 governed files` 通过
   - 仅 dormant task/gate；无 durable publisher、claim/retry/requeue、beat schedule、业务双写、生产 broker/PG 或自动恢复证据，system-audit publisher/runtime gate 继续阻断

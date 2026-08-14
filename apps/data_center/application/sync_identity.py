@@ -62,6 +62,25 @@ class SyncExecutionIdentityIssuer(Protocol):
         """Return an already persisted identity or raise a bounded error."""
 
 
+class SyncExecutionIdentityRepositoryPort(Protocol):
+    """Persistence port for an owner-issued sync execution identity.
+
+    The port deliberately accepts a complete identity rather than selectors
+    from which a repository could invent UUIDs or clocks.  Implementations
+    must perform an exact idempotent replay or fail closed on a collision.
+    """
+
+    def persist(self, identity: SyncExecutionIdentity) -> SyncExecutionIdentity:
+        """Persist one complete identity without generating authoritative fields."""
+
+        ...
+
+    def get_by_identity_hash(self, identity_hash: str) -> SyncExecutionIdentity | None:
+        """Return the exact identity for a canonical hash, when present."""
+
+        ...
+
+
 @dataclass(frozen=True, slots=True)
 class IssueSyncExecutionIdentityCommand:
     """Request containing only non-authoritative routing selectors."""
@@ -100,6 +119,30 @@ class IssueSyncExecutionIdentityUseCase:
         return identity
 
 
+class PersistSyncExecutionIdentityUseCase:
+    """Persist a complete identity supplied by an owner-side issuer.
+
+    This use case is intentionally separate from issuing.  It does not create
+    UUIDs, derive a batch id, or sample a request clock; a future composition
+    root must provide those values from its server-side transaction context.
+    """
+
+    __slots__ = ("_repository",)
+
+    def __init__(self, repository: SyncExecutionIdentityRepositoryPort) -> None:
+        self._repository = repository
+
+    def execute(self, identity: SyncExecutionIdentity) -> SyncExecutionIdentity:
+        """Persist and return the exact owner-issued identity."""
+
+        if not isinstance(identity, SyncExecutionIdentity):
+            raise TypeError("identity must be a SyncExecutionIdentity")
+        persisted = self._repository.persist(identity)
+        if persisted != identity:
+            raise ValueError("identity repository returned a different identity")
+        return persisted
+
+
 def sync_execution_identity_hash(identity: SyncExecutionIdentity) -> str:
     """Compute the domain-separated hash of identity fields only."""
 
@@ -136,7 +179,9 @@ def _require_uuid(value: str, field_name: str) -> None:
 __all__ = [
     "IssueSyncExecutionIdentityCommand",
     "IssueSyncExecutionIdentityUseCase",
+    "PersistSyncExecutionIdentityUseCase",
     "SyncExecutionIdentity",
     "SyncExecutionIdentityIssuer",
+    "SyncExecutionIdentityRepositoryPort",
     "sync_execution_identity_hash",
 ]
