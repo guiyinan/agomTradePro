@@ -248,7 +248,7 @@ provider 健康度从“连接可用”升级为能力级状态：
 ### P1：核心数据可完整支撑个股查询
 
 - [ ] 活跃 A 股行情、估值、财务完成全量回填。
-- [x] 个股全景能力在四个入口行为一致（2026-08-13：Equity Application 唯一归并，authenticated REST、SDK、MCP 单调用与 Agent capability route 已收口；API runtime 仍需在正式 Django 5.2 环境复跑，但四入口实现差异已消除）。
+- [x] 个股全景能力在四个入口行为一致（2026-08-08：Equity Application 唯一归并；2026-08-14 在 Django 5.2.12 复跑 API/SDK/MCP/Agent 组合 `77 passed`，四入口实现与 runtime contract 均通过）。
 - [ ] provider 能力健康度、覆盖和告警生效。
 
 ### P2：防复发与生产验收闭环
@@ -264,6 +264,13 @@ provider 健康度从“连接可用”升级为能力级状态：
 - 实时实体、Redis 缓存、轮询、个股盘中仓储与 freshness 扩展回归：62 项通过。
 - 固定最小回归包：TUI 246 项、Terminal/SDK/SSL 41 项通过。
 - Django system check、迁移漂移检查、Ruff、Black、架构扫描、增量 mypy、当前数据 24 个 surface 契约和 12 个 Celery 任务契约通过。
+
+### 2026-08-14：正式 Django runtime contract 复跑
+
+- API：`python -m pytest tests/api/test_equity_research_snapshot_api.py -q --reuse-db --no-migrations`，`15 passed`。
+- SDK/MCP/routing/evidence：`sdk/tests/test_sdk/test_equity_module.py`、`sdk/tests/test_mcp/test_equity_research_snapshot_registry.py`、`tests/unit/test_ai_capability/test_equity_research_routing.py`、`tests/unit/test_mcp_evidence_output_surfaces.py`，`36 passed`。
+- Use case/gateway：`tests/unit/equity/test_research_snapshot_use_case.py`、`tests/unit/test_ai_capability/test_mcp_runtime_gateway_security.py`，`26 passed`。
+- 合计 `77 passed`。这些用例使用 mock/fake 或 no-migrations 隔离环境，证明软件边界、路由一致性与 fail-closed 行为；不证明真实生产数据覆盖、PostgreSQL 规模/故障注入、owner definition、备份恢复或 readiness 解锁。
 
 ## 10. 明确非目标
 

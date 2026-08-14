@@ -904,6 +904,9 @@
 - ✅ **AI-Native local release gate（2026-08-14）**
   - `config/ai_native/ai_native_release_gate.v1.json` 与 `scripts/check_ai_native_release_gate.py` 冻结并校验 API、SDK、MCP、TUI provenance、migration 和 test assets；定向测试 `3 passed`
   - staging evidence 与 owner/reviewer 人工双签缺失时稳定 `DENY`；首页聊天浏览器 UAT、staging 和发布证据仍未完成
+- ✅ **Equity research snapshot Django runtime contract（2026-08-14）**
+  - Django 5.2.12 复跑 API `15`、SDK/MCP/routing/evidence `36`、use case/gateway `26`，合计 `77 passed`
+  - 仅证明 mock/fake 隔离环境的软件契约与 fail-closed 行为；真实数据覆盖、PostgreSQL 规模/故障注入、备份恢复和 readiness 仍未解除
 - ✅ **Broker-owned broker account identity snapshot Domain 合同**
   - 封存Broker账户、Account exact source、binding/Agent owner seal与keyed QMT reference digest；Account字符串与Broker整数身份不做cast，owner/real/active必须闭合
   - 固定inactive；Account facade、Broker raw provider/digest service、ID-only发行和ledger/current reader均未完成，namespace blocker不变
