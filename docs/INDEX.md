@@ -837,6 +837,9 @@
 - ✅ **Account actor authority source v3 Application**
   - 单一atomic bundle provider承载auth-context/User/RBAC exact-current输入；winner-first，cutoff双读与recorded-at第三读后以same-session predecessor CAS落候选，历史exact与final-head current严格分离
   - pure 40 passed、architecture 2855/0；仅Protocol/DTO+fakes，无codec/ledger/真实authority bundle/request adapter/staff入口，terminal/expired不回退且execution继续关闭
+- ✅ **Account actor authority source v3 strict codec**
+  - 完整恢复principal/context/User/RBAC refs、facts、时钟、chain与全部domain-separated seals；exact keys/types、UTC-Z及canonical encode-equality使替换与篡改fail closed
+  - codec 28 passed、Domain/Application/codec组合68 passed；无ORM/migration，zero-seed、真实bundle provider、staff入口与execution仍关闭
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

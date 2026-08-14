@@ -2139,6 +2139,11 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - exact reader仅按recorded knowledge提供历史版本；current reader先scalar exact恢复，再同时要求source temporal window、owner bundle仍exact-current且事实未漂移、repository final head exact equality。terminal、expired、superseded或上游不可用均返回None，绝不回退旧授权。terminal source保留真实`is_authenticated`事实，授权阻断由`authority_state`完成，避免把RBAC/staff撤权伪造成会话登出。
 - Domain+Application pure `40 passed`；Ruff、Black/isort、2 production files strict mypy及architecture 2855/0通过。本批仍只有Protocol/DTO与pure fakes：无strict codec、append-only ledger/migration、真实atomic authority bundle provider、Django request adapter、staff write composition或HTTP/TUI路由；mutable User/Profile/session仍不得现场hash冒充owner artifact，execution继续关闭。
 
+### 2026-08-14：Account actor authority source v3 strict codec
+
+- 新增独立strict codec，按Domain dataclass完整字段集编码并重建principal/auth-context、User/RBAC refs、authority facts、全部aware clocks、root/predecessor、fixed semantics、identity/content及十类domain-separated seals。decoder要求exact mapping/key集合、exact scalar类型、UTC-Z microseconds，并在恢复Domain后执行encode-equality，未知/缺失字段、bool伪int、非规范时钟及任一hash/seal篡改均fail closed。
+- codec定向pure `28 passed`，Domain/Application/codec组合`68 passed`；Ruff、Black/isort及strict mypy通过。本批不含model/repository/migration，也不改变zero-seed、authority bundle provider缺失和write/execution关闭状态；codec只能验证已封存payload，不能把mutable session/User/Profile现场hash升级为owner truth。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
