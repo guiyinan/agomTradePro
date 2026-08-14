@@ -940,7 +940,7 @@
   - 事件 repository 完成 strict full-world restore、exact/first-winner/PIT/head/list 与 predecessor CAS；staff-only query DTO/Protocol 完成分页与 exact selector 重验；repository component `5 passed`、query unit `5 passed`、增量 mypy `0 regressions`
   - 仍无 outbox dispatcher、Data Center 双写、业务 runtime wiring 或生产 authority composition；SQLite/纯测试不替代 PostgreSQL 空链并发、真实迁移回滚与生产审计覆盖；专用 PostgreSQL race harness 已就绪但尚未运行
 - ✅ **系统级统一审计日志 M1 PostgreSQL 并发证据 harness（2026-08-15）**
-  - 显式 opt-in harness 修正 pytest 隔离库 fixture 顺序后，在临时 Docker `postgres:16-alpine` 的 `test_audit_test` 上完成空 stream first-winner、同 predecessor CAS、outbox claim lease ownership 与 rollback 后重新 claim，`4 passed`（169.87s）；容器已删除
+  - 显式 opt-in harness 修正 pytest 隔离库 fixture 顺序，并直接执行 migration `0011` 的 PostgreSQL forward/backward；在临时 Docker `postgres:16-alpine` 的 `test_audit_test` 上完成空 stream first-winner、同 predecessor CAS、outbox claim lease ownership 与 rollback 后重新 claim，`4 passed`（194.64s）；容器已删除
   - 仅代表本机真实 PostgreSQL 隔离库的软件证据，不代表生产 VPS/PG、完整迁移回滚、backlog/恢复、Data Center 双写、publisher/runtime wiring 或生产审计覆盖；M1 registry gate 继续阻断
 - ✅ **系统级统一审计日志 M1 staff query actor binding（2026-08-15）**
   - Staff reader context 现在要求 `actor_id == django-user:{user_id}` 才能触碰 repository，未绑定 actor 直接 fail-closed；query unit `6 passed`、增量 mypy `0 regressions`

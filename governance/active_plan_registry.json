@@ -122,7 +122,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "active",
-      "next_gate": "Obtain PostgreSQL concurrency/rollback evidence for the M1 ledger and outbox claim path before starting Data Center event dual-write or any M2 user surface.",
+      "next_gate": "Complete production PostgreSQL migration/rollback, outbox backlog/recovery observability, and publisher/runtime wiring before starting Data Center event dual-write or any M2 user surface.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",

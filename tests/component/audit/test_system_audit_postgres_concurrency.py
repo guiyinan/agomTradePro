@@ -9,6 +9,7 @@ name contains both ``audit`` and ``test``.
 
 from __future__ import annotations
 
+import importlib
 import os
 from collections.abc import Iterator, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -20,6 +21,7 @@ from urllib.parse import unquote, urlsplit
 
 import pytest
 from django.db import close_old_connections, connection, connections
+from django.db.migrations.state import ProjectState
 
 from apps.audit.domain.system_audit_event import JSONValue, SystemAuditEvent
 from apps.audit.infrastructure import system_audit_repository as system_audit_repository_module
@@ -116,6 +118,11 @@ def _audit_pg_schema(django_db_setup: object, django_db_blocker: object) -> Iter
     """Create only the two zero-seed audit tables in the isolated test DB."""
 
     created_tables = False
+    migration = importlib.import_module("apps.audit.migrations.0011_systemauditeventmodel").Migration
+    before = ProjectState()
+    after = before.clone()
+    for operation in migration.operations:
+        operation.state_forwards("audit", after)
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
         _require_postgresql_evidence()
         required_tables = {
@@ -131,8 +138,8 @@ def _audit_pg_schema(django_db_setup: object, django_db_blocker: object) -> Iter
             )
         if not present_required:
             with connection.schema_editor() as editor:
-                editor.create_model(SystemAuditEventModel)
-                editor.create_model(SystemAuditOutboxModel)
+                for operation in migration.operations:
+                    operation.database_forwards("audit", editor, before, after)
             created_tables = True
         else:
             with connection.cursor() as cursor:
@@ -149,8 +156,8 @@ def _audit_pg_schema(django_db_setup: object, django_db_blocker: object) -> Iter
     if created_tables:
         with django_db_blocker.unblock():  # type: ignore[attr-defined]
             with connection.schema_editor() as editor:
-                editor.delete_model(SystemAuditOutboxModel)
-                editor.delete_model(SystemAuditEventModel)
+                for operation in reversed(migration.operations):
+                    operation.database_backwards("audit", editor, after, before)
 
 
 @pytest.fixture(autouse=True)
