@@ -1,0 +1,296 @@
+{
+  "version": "2026-08-15.v1",
+  "updated_at": "2026-08-15",
+  "workstreams": [
+    {
+      "id": "evidence-hard-gate",
+      "title": "Evidence governance and decision hard gate",
+      "category": "strategy_research_and_evidence",
+      "priority": "P0",
+      "owner": "research+risk_center+portfolio+broker_execution+account",
+      "status": "active",
+      "next_gate": "Complete production adapters, owner-scoped approval, PostgreSQL concurrency evidence and exact execution authorization without relaxing the global execution deny.",
+      "documents": [
+        {
+          "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
+          "role": "primary"
+        },
+        {
+          "path": "docs/plans/research-integrity-and-decision-reproducibility-2026-07-21.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/research-integrity-m0-inventory-2026-07-22.md",
+          "role": "evidence"
+        }
+      ]
+    },
+    {
+      "id": "strategy-research-production",
+      "title": "Strategy research R1-R8 production closure",
+      "category": "strategy_research_and_evidence",
+      "priority": "P0",
+      "owner": "research+data_center+signal+portfolio+broker_execution",
+      "status": "production_validation",
+      "next_gate": "Register real owner definitions and canonical receipts, accumulate required PIT/OOS history, then obtain Promotion and consumer UAT evidence.",
+      "documents": [
+        {
+          "path": "docs/plans/strategy-research-capability-completion-audit-2026-08-05.md",
+          "role": "primary"
+        },
+        {
+          "path": "docs/plans/strategy-research-capability-roadmap-execution-2026-08-05.md",
+          "role": "primary"
+        },
+        {
+          "path": "docs/plans/strategy-research-production-data-closure-tracking-memo-2026-08-12.md",
+          "role": "primary"
+        },
+        {
+          "path": "docs/plans/strategy-research-r1-r2-readiness-plan-2026-08-05.md",
+          "role": "primary"
+        },
+        {
+          "path": "docs/plans/macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md",
+          "role": "primary"
+        },
+        {
+          "path": "docs/plans/strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md",
+          "role": "primary"
+        },
+        {
+          "path": "docs/plans/r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/implementation-progress-summary.md",
+          "role": "evidence"
+        }
+      ]
+    },
+    {
+      "id": "data-production-reliability",
+      "title": "Data Center canonical and production reliability closure",
+      "category": "data_and_production_reliability",
+      "priority": "P0",
+      "owner": "data_center+operational_readiness+task_monitor",
+      "status": "production_validation",
+      "next_gate": "Complete production backup, controlled backfill, reconciliation, M9/M10 cutover and observation evidence on PostgreSQL.",
+      "documents": [
+        {
+          "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
+          "role": "primary"
+        },
+        {
+          "path": "docs/plans/production-data-reliability-full-remediation-2026-08-01.md",
+          "role": "primary"
+        },
+        {
+          "path": "docs/plans/critical-reliability-test-closure-2026-07-22.md",
+          "role": "primary"
+        },
+        {
+          "path": "docs/plans/uat-remediation-2026-07-20.md",
+          "role": "primary"
+        },
+        {
+          "path": "docs/plans/data-chain-repair-plan-260421.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/governance-legacy-coverage-gaps-memo-2026-08-10.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/test-coverage-weakness-remediation-2026-07-24.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/test-coverage-weakness-remediation-progress-2026-07-24.md",
+          "role": "evidence"
+        }
+      ]
+    },
+    {
+      "id": "system-audit-consolidation",
+      "title": "System audit event consolidation",
+      "category": "data_and_production_reliability",
+      "priority": "P0/P1",
+      "owner": "audit+data_center+task_monitor",
+      "status": "active",
+      "next_gate": "Obtain PostgreSQL concurrency/rollback evidence for the M1 ledger and outbox claim path before starting Data Center event dual-write or any M2 user surface.",
+      "documents": [
+        {
+          "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "web-to-tui-m5",
+      "title": "Web to TUI M5 production closure",
+      "category": "product_interface_and_runtime",
+      "priority": "P0",
+      "owner": "terminal+operational_readiness",
+      "status": "production_validation",
+      "next_gate": "Deploy one manifest-bound candidate, complete role-based browser UAT and the 14-day observation window, then execute signed cleanup waves with rollback evidence.",
+      "documents": [
+        {
+          "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
+          "role": "primary"
+        },
+        {
+          "path": "docs/plans/web-to-tui-m5-readiness-2026-07-27.md",
+          "role": "primary"
+        },
+        {
+          "path": "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv",
+          "role": "matrix"
+        },
+        {
+          "path": "docs/plans/agomtui-portability-remediation-2026-07-21.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/web-to-tui-m5-browser-uat-evidence-2026-07-27.md",
+          "role": "evidence"
+        },
+        {
+          "path": "docs/plans/web-to-tui-m5-production-preflight-2026-07-28.md",
+          "role": "evidence"
+        },
+        {
+          "path": "docs/plans/web-to-tui-m5-production-preflight-2026-08-13.md",
+          "role": "evidence"
+        },
+        {
+          "path": "docs/plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md",
+          "role": "evidence"
+        },
+        {
+          "path": "docs/plans/web-to-tui-m5-route-closure-evidence-2026-07-27.md",
+          "role": "evidence"
+        }
+      ]
+    },
+    {
+      "id": "ai-native-release",
+      "title": "AI-Native release acceptance",
+      "category": "product_interface_and_runtime",
+      "priority": "P1",
+      "owner": "agent_runtime+terminal",
+      "status": "external_validation",
+      "next_gate": "Bind staging and production browser UAT plus independent owner/reviewer approval to the same candidate commit and release manifest.",
+      "documents": [
+        {
+          "path": "docs/plans/ai-native/README.md",
+          "role": "primary"
+        },
+        {
+          "path": "docs/plans/ai-native/execution-backlog.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/AI-native-blueprint-260315.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/AI-Native-upgrade-implement-plan-260315.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/ai-agent-runtime-refactor-plan-260319.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/homepage-chat-terminal-reuse-outsourcing-task-book-2026-03-20.md",
+          "role": "supporting"
+        }
+      ]
+    },
+    {
+      "id": "qmt-live-bridge",
+      "title": "QMT live trading bridge external acceptance",
+      "category": "external_environment",
+      "priority": "P2",
+      "owner": "broker_execution+external_broker_owner",
+      "status": "blocked_external",
+      "next_gate": "Obtain the target Windows XtQuant environment, run Phase 0 compatibility and continuous simulation, then complete controlled small-value live acceptance.",
+      "documents": [
+        {
+          "path": "docs/plans/qmt-live-trading-bridge-plan.md",
+          "role": "primary"
+        }
+      ]
+    }
+  ],
+  "review_queue": [
+    {
+      "path": "docs/plans/account-performance-260401.md",
+      "owner": "account+portfolio",
+      "status": "review_required",
+      "review_by": "2026-08-22",
+      "disposition": "Merge remaining production acceptance into the Evidence workstream or archive as superseded."
+    },
+    {
+      "path": "docs/plans/account-refactor-260327.md",
+      "owner": "account+portfolio",
+      "status": "review_required",
+      "review_by": "2026-08-22",
+      "disposition": "Reconcile against the current Account Evidence-v3 and Portfolio ownership plans, then archive superseded scope."
+    },
+    {
+      "path": "docs/plans/admin-settings-closure-260404.md",
+      "owner": "config_center+terminal",
+      "status": "review_required",
+      "review_by": "2026-08-22",
+      "disposition": "Confirm remaining TUI/config-center acceptance or archive the completed Classic settings scope."
+    },
+    {
+      "path": "docs/plans/alpha-exit-loop-2026-04-30.md",
+      "owner": "alpha+portfolio",
+      "status": "review_required",
+      "review_by": "2026-08-22",
+      "disposition": "Map any remaining exit-loop evidence to the current strategy workstream and archive duplicate implementation narrative."
+    },
+    {
+      "path": "docs/plans/alpha-homepage-upgrade-260416.md",
+      "owner": "alpha+terminal",
+      "status": "review_required",
+      "review_by": "2026-08-22",
+      "disposition": "Confirm whether the homepage scope survives Web-to-TUI migration; otherwise archive as superseded."
+    },
+    {
+      "path": "docs/plans/macro-sizing-multiplier-outsourcing-2026-03-31.md",
+      "owner": "account",
+      "status": "review_required",
+      "review_by": "2026-08-22",
+      "disposition": "Implementation, migrations, API/Admin and tests exist; reconcile acceptance evidence and archive instead of treating this as unstarted development."
+    },
+    {
+      "path": "docs/plans/post-0.8.0-stabilization-priority-2026-07-08.md",
+      "owner": "operational_readiness",
+      "status": "review_required",
+      "review_by": "2026-08-22",
+      "disposition": "Move any still-open production gates into current workstreams and archive the elapsed two-week stabilization plan."
+    },
+    {
+      "path": "docs/plans/streamlit-dashboard-upgrade-plan.md",
+      "owner": "dashboard+terminal",
+      "status": "review_required",
+      "review_by": "2026-08-22",
+      "disposition": "Confirm retained Streamlit scope under the TUI product direction or archive it as a completed historical plan."
+    },
+    {
+      "path": "docs/plans/workflow-upgrade-260326.md",
+      "owner": "portfolio+decision_rhythm",
+      "status": "review_required",
+      "review_by": "2026-08-22",
+      "disposition": "Reconcile with the canonical Transition Plan and Evidence hard-gate workstream, then archive superseded workflow design."
+    }
+  ]
+}

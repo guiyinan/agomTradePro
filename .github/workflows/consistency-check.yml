@@ -56,6 +56,9 @@ jobs:
       - name: Enforce system audit event contracts
         run: python scripts/check_audit_event_contracts.py
 
+      - name: Enforce active plan registry
+        run: python scripts/check_active_plan_registry.py
+
       - name: Enforce reliability contract ownership
         run: python scripts/check_reliability_contract_ownership.py
 

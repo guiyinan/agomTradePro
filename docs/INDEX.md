@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.8.0** - 个人投研平台
-> **最后更新**: 2026-08-13
+> **最后更新**: 2026-08-15
 > **项目状态**: 生产就绪
 > **版本管理**: [VERSION.md](VERSION.md)
 
@@ -137,6 +137,7 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
+| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划机器注册表（工作流 / owner / 状态 / 文件归属 / 限期审查）** | 7 条工作流、16 份主计划、46 个活跃文件；CI 禁止未登记 plan 漂移 |
 | [scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md](plans/scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md) | **情景硬编码治理、动态/参数/宏观情景、AI MCP 受控修改及策略方法 Quick Wins（M0-M6）** | 提案，待评审实施 |
 | [strategy-research-capability-completion-audit-2026-08-05.md](plans/strategy-research-capability-completion-audit-2026-08-05.md) | **策略研究 R1—R8 完成度审计、真实数据阻断与无数据开发队列** | 实施中；无 P0，剩余 P1 分批收口 |
 | [sentiment-awareness-enhancement-plan-2026-07-31.md](archive/plans/sentiment-awareness-enhancement-plan-2026-07-31.md) | **A 股情绪态势感知增强计划（S0-S4，交易行为情绪指标 / Pulse sentiment 维度 / 文本情绪打通 / TUI 情绪面板）** | ✅ 已完成并归档 |
@@ -172,7 +173,7 @@
 | [0.8.0-release-closure-plan-2026-07-05.md](archive/plans/0.8.0-release-closure-plan-2026-07-05.md) | **0.8.0 收口开发计划（发布 / 运维 / 架构减债 Top 10）** | ✅ 2026-07-05 已执行并归档 |
 | [post-0.8.0-stabilization-priority-2026-07-08.md](plans/post-0.8.0-stabilization-priority-2026-07-08.md) | **0.8.0 发布后两周稳定化实施清单（优先级 / 负责人 / 命令 / 验收）** | 进行中 |
 | [evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | **证据治理与决策硬闸改造计划** | 第一期 P0：Portfolio/Risk/Broker inactive owner contracts与ledgers、Risk policy workflow以及Broker pre-Risk ID-only scope已分阶段落盘；pre-Risk仍固定inactive，缺跨账户owner binding、Risk adapter、最终issuer/四节点重验与PG/生产证明，所有执行总闸保持关闭，MCP integrated=0 |
-| [system-audit-log-consolidation-plan-2026-08-13.md](plans/system-audit-log-consolidation-plan-2026-08-13.md) | **系统级统一审计日志收口计划（统一事件账本 / 数据可靠性纵向链 / 指标告警 / TUI 观测）** | M0 registry + M1 Domain/codec/schema-only 基座已落地；无 repository/query/dispatcher/业务双写，首批 Data Center fetch→publication→decision gate 仍待实施 |
+| [system-audit-log-consolidation-plan-2026-08-13.md](plans/system-audit-log-consolidation-plan-2026-08-13.md) | **系统级统一审计日志收口计划（统一事件账本 / 数据可靠性纵向链 / 指标告警 / TUI 观测）** | M0 registry + M1 Domain/codec/schema-only/repository/query/outbox-claim 合同已落地；无真实 publisher/业务双写，首批 Data Center fetch→publication→decision gate 仍待实施 |
 | [mcp-consolidation-remediation-plan-2026-07-09.md](archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md) | **MCP 收口整改计划（统一能力注册、统一调用、legacy 退役）** | ✅ 完成并归档；持续状态由机器门禁维护 |
 | [system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md](archive/plans/system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md) | **系统级 AI Capability Catalog 与统一路由任务书** | ✅ 代码与自动化验收完成并归档 |
 | [terminal-mcp-governance-outsourcing-task-book-2026-03-19.md](archive/plans/terminal-mcp-governance-outsourcing-task-book-2026-03-19.md) | **Terminal MCP 治理与确认机制任务书** | ✅ 已实现并由 AgentProposal 持久审批架构承接 |
@@ -180,7 +181,7 @@
 | [auto-advisor-prd-2026-06-25.md](archive/plans/auto-advisor-prd-2026-06-25.md) | **账户级自动投顾 PRD（持仓驱动 + 建议订单清单）** | ✅ Implemented v1，已归档 |
 | [auto-advisor-implementation-2026-06-25.md](archive/plans/auto-advisor-implementation-2026-06-25.md) | **账户级自动投顾实施文档（后端/Classic UI/TUI/测试）** | ✅ Implemented v1，已归档 |
 | [personal-auto-advisor-roadmap-2026-06-30.md](archive/plans/personal-auto-advisor-roadmap-2026-06-30.md) | **个人自用自动投顾增强路线图（风控 / 数据新鲜度 / 决策卡片 / 复盘）** | ✅ Implemented v1，已归档 |
-| [macro-sizing-multiplier-outsourcing-2026-03-31.md](plans/macro-sizing-multiplier-outsourcing-2026-03-31.md) | **宏观感知仓位系数模块外包任务书（Regime+Pulse+回撤三因子）** | 待开发 |
+| [macro-sizing-multiplier-outsourcing-2026-03-31.md](plans/macro-sizing-multiplier-outsourcing-2026-03-31.md) | **宏观感知仓位系数模块外包任务书（Regime+Pulse+回撤三因子）** | 限期审查：实现、迁移、API/Admin 与测试已存在，2026-08-22 前验收对账并归档或登记真实剩余项 |
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
 | [architecture-cycle-remediation-2026-04-26.md](archive/plans/architecture-cycle-remediation-2026-04-26.md) | **循环依赖与架构债历史整改方案（CI + AGENTS + 模块归属）** | 历史方案，已归档 |
 | [architecture-cycle-remediation-2026-07-15.md](archive/plans/architecture-cycle-remediation-2026-07-15.md) | **循环依赖回流整改与零循环收口计划** | ✅ 零双向依赖、零循环组件，已归档 |
@@ -922,6 +923,12 @@
 - ✅ **系统级统一审计日志 M1 schema-only ledger/outbox 基座（2026-08-14）**
   - 新增 `audit_system_event` 与 `audit_system_outbox` 两张 zero-seed 表及迁移 `0011`；事件/载荷的 append-only guards、outbox claim-state 边界和两套隔离 component 均通过（`3 + 3 passed`），Domain/codec 回归 `10 passed`
   - 仍无 repository/query/dispatcher/Data Center 双写或生产 runtime wiring；SQLite/schema 证据不替代 PostgreSQL 并发、真实迁移回滚、outbox 恢复、生产审计与双写覆盖
+- ✅ **系统级统一审计日志 M1 ledger repository/query 合同（2026-08-15）**
+  - 事件 repository 完成 strict full-world restore、exact/first-winner/PIT/head/list 与 predecessor CAS；staff-only query DTO/Protocol 完成分页与 exact selector 重验；repository component `5 passed`、query unit `5 passed`、增量 mypy `0 regressions`
+  - 仍无 outbox dispatcher、Data Center 双写、业务 runtime wiring 或生产 authority composition；SQLite/纯测试不替代 PostgreSQL 空链并发、真实迁移回滚与生产审计覆盖
+- ✅ **系统级统一审计日志 M1 outbox claim/dispatcher 合同（2026-08-15）**
+  - Outbox repository 完成全表 payload/codec restore、enqueue first-winner、private UOW、due claim、worker/token ownership 与 delivered/failed 状态机；dormant dispatcher Protocol/use case 输出 bounded outcome；component `7 passed`、dispatcher unit `3 passed`、增量 mypy `0 regressions`
+  - 未接真实 publisher、业务双写、Data Center runtime 或生产 composition；SQLite/纯 fake 不替代 PostgreSQL claim race/lease、backlog 恢复、真实迁移回滚和生产审计覆盖
 - ✅ **Equity research snapshot Django runtime contract（2026-08-14）**
   - Django 5.2.12 复跑 API `15`、SDK/MCP/routing/evidence `36`、use case/gateway `26`，合计 `77 passed`
   - 仅证明 mock/fake 隔离环境的软件契约与 fail-closed 行为；真实数据覆盖、PostgreSQL 规模/故障注入、备份恢复和 readiness 仍未解除

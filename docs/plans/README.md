@@ -1,45 +1,58 @@
 # 活跃计划索引
 
-> 更新日期：2026-08-14
+> 更新日期：2026-08-15
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。
 
 ## 维护规则
 
-- `docs/plans/`：存在未完成交付、真实数据、生产切换、外部验收或明确后续批次。
+- 机器唯一真源是 [`governance/active_plan_registry.json`](../../governance/active_plan_registry.json)；本页是面向人的执行投影，不单独维护另一套状态。
+- `docs/plans/`：只允许登记在机器注册表中的主计划、支撑文档、证据或限期审查项。新增未登记文件、重复归属、陈旧路径和无截止日审查项由 CI 直接拒绝。
 - `docs/archive/plans/`：仓库范围已实现，或阶段已经验收/被新计划取代；归档文档仅作历史证据，不代表当前运行状态。
 - “代码已完成但生产未验收”仍属于活跃计划，不能仅因本地测试通过而归档。
-- 归档时必须同步修正 `docs/INDEX.md` 和活跃计划中的引用，不复制第二份文档。
+- `active` 表示仍有仓库实施；`production_validation` 表示主缺口已转为真实数据/迁移/观察；`external_validation` 与 `blocked_external` 不得伪装为开发完成。
+- `review_required` 不是长期状态，只允许出现在限期审查队列；到期必须合并、归档或转入明确工作流。
+- 归档时必须同步修正注册表、`docs/INDEX.md` 和活跃计划中的引用，不复制第二份文档。
+- 提交前运行 `python scripts/check_active_plan_registry.py`。
 
-## 当前主跟踪入口
+## 当前治理快照
 
-### 策略研究与证据治理
+| 口径 | 数量 |
+|------|-----:|
+| 独立工作流 | 7 |
+| 主计划 | 16 |
+| 支撑文档、证据与矩阵 | 21 |
+| 限期审查项 | 9 |
+| 注册表覆盖的活跃文件 | 46 |
 
-- [`evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md`](evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md)
-- [`strategy-research-capability-completion-audit-2026-08-05.md`](strategy-research-capability-completion-audit-2026-08-05.md)
-- [`strategy-research-capability-roadmap-execution-2026-08-05.md`](strategy-research-capability-roadmap-execution-2026-08-05.md)
-- [`strategy-research-production-data-closure-tracking-memo-2026-08-12.md`](strategy-research-production-data-closure-tracking-memo-2026-08-12.md)
-- [`strategy-research-r1-r2-readiness-plan-2026-08-05.md`](strategy-research-r1-r2-readiness-plan-2026-08-05.md)
-- [`macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md`](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md)
-- [`strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md`](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md)
+“主计划”是执行入口，不等于独立工程量；同一工作流下的路线图、readiness 和生产跟踪不会再重复计算成多条主线。完整文件归属、owner、状态和下一退出门见机器注册表。
 
-### 数据与生产可靠性
-- [`system-audit-log-consolidation-plan-2026-08-13.md`](system-audit-log-consolidation-plan-2026-08-13.md)
+## 当前工作流
 
-- [`data-center-canonical-architecture-refactor-2026-08-02.md`](data-center-canonical-architecture-refactor-2026-08-02.md)
-- [`production-data-reliability-full-remediation-2026-08-01.md`](production-data-reliability-full-remediation-2026-08-01.md)
-- [`critical-reliability-test-closure-2026-07-22.md`](critical-reliability-test-closure-2026-07-22.md)
-- [`uat-remediation-2026-07-20.md`](uat-remediation-2026-07-20.md)
+| ID | 优先级 | 状态 | Owner | 主计划 | 下一退出门 |
+|----|--------|------|-------|--------|------------|
+| `evidence-hard-gate` | P0 | active | Research / Risk / Portfolio / Broker / Account | [Evidence hard gate](evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | 生产 adapters、owner scope、PG 并发和执行授权闭环 |
+| `strategy-research-production` | P0 | production_validation | Research / Data Center / Signal / Portfolio / Broker | [Completion audit](strategy-research-capability-completion-audit-2026-08-05.md)、[Roadmap](strategy-research-capability-roadmap-execution-2026-08-05.md)、[生产数据跟踪](strategy-research-production-data-closure-tracking-memo-2026-08-12.md)、[R1-R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md)、[R3-R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md)、[R5-R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) | 真实 owner/receipt/PIT-OOS 历史、Promotion 与 consumer UAT |
+| `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | 生产备份、回填、reconciliation、M9/M10 和观察证据 |
+| `system-audit-consolidation` | P0/P1 | active | Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | M1 ledger/query/outbox-claim 完成后才进入 Data Center 双写和 M2 用户面 |
+| `web-to-tui-m5` | P0 | production_validation | Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | manifest 候选部署、角色 UAT、14 日观察和签字 cleanup |
+| `ai-native-release` | P1 | external_validation | Agent Runtime / Terminal | [AI-Native delivery pack](ai-native/README.md) | 同候选 staging/production UAT 与 owner/reviewer 双签 |
+| `qmt-live-bridge` | P2 | blocked_external | Broker Execution / 外部券商 Owner | [QMT 实盘桥](qmt-live-trading-bridge-plan.md) | Windows XtQuant Phase 0、连续仿真和受控小额实盘 |
 
-### 产品界面与运行时
+## 限期审查队列
 
-- [`web-to-tui-migration-plan-2026-07-25.md`](web-to-tui-migration-plan-2026-07-25.md) 与 [`web-to-tui-migration-matrix-2026-07-25.csv`](web-to-tui-migration-matrix-2026-07-25.csv)
-- [`web-to-tui-m5-readiness-2026-07-27.md`](web-to-tui-m5-readiness-2026-07-27.md)
-- [`ai-native/README.md`](ai-native/README.md)
+以下文件不再作为独立开发主线计算，统一在 **2026-08-22** 前完成合并、归档或正式转入工作流：
 
-### 外部环境或真实接入阻断
+- [Account performance](account-performance-260401.md)：并入 Evidence/Portfolio 生产验收或归档。
+- [Account refactor](account-refactor-260327.md)：与当前 Account Evidence-v3/Portfolio owner 边界对账后归档旧范围。
+- [Admin settings closure](admin-settings-closure-260404.md)：确认 TUI/config-center 剩余项或归档 Classic 范围。
+- [Alpha exit loop](alpha-exit-loop-2026-04-30.md)：剩余 Evidence 并入策略工作流，重复实施叙事归档。
+- [Alpha homepage](alpha-homepage-upgrade-260416.md)：按 Web→TUI 方向确认是否仍保留。
+- [Macro sizing multiplier](macro-sizing-multiplier-outsourcing-2026-03-31.md)：实现、迁移、API/Admin 与测试均已存在；只做验收对账，不再标“待开发”。
+- [0.8.0 后稳定化](post-0.8.0-stabilization-priority-2026-07-08.md)：迁移仍有效的生产门禁后归档过期两周计划。
+- [Streamlit dashboard](streamlit-dashboard-upgrade-plan.md)：确认 TUI 方向下的保留范围或归档。
+- [Workflow upgrade](workflow-upgrade-260326.md)：与 canonical Transition Plan/Evidence 主线对账后归档被取代设计。
 
-- [`qmt-live-trading-bridge-plan.md`](qmt-live-trading-bridge-plan.md)
-- [`macro-sizing-multiplier-outsourcing-2026-03-31.md`](macro-sizing-multiplier-outsourcing-2026-03-31.md)
+审查队列只能下降；新增游离文档不会自动获得该状态。
 
 ## 未完成项执行期（重要到次要）
 
@@ -48,7 +61,7 @@
 | 第一期 | P0 | 决策证据硬门禁、策略研究生产数据、Data Center canonical 与可靠性整改 | 决策链不再消费无证据或不新鲜数据，机器门禁和生产数据证据齐全 |
 | 第二期 | P0 | Web → TUI M5 readiness、生产 preflight、浏览器 UAT、回滚演练与 route closure | cutover、UAT、回滚和路由关闭均取得最终签字或可复验证据 |
 | 第三期 | P1 | AI-Native 人工 UAT/release gate、首页聊天复用前端自动化与浏览器验收 | 任务书验收表、人工签字、自动化资产和发布门禁全部闭环 |
-| 外部阻断线 | P2 | QMT 实盘桥接、宏观 sizing multiplier 真实接入 | 外部环境、真实数据和生产接入证据到位后再转入完成验收 |
+| 外部阻断线 | P2 | QMT 实盘桥接 | 外部环境、真实数据和生产接入证据到位后再转入完成验收 |
 
 同一期内先处理会阻断投资决策正确性和生产安全的项目；仅有代码或本地测试、但缺少任务书要求的最终验收证明时，继续保留在活跃目录。
 
@@ -262,7 +275,10 @@
 | 2026-08-14 | 第三期 P1 | AI-Native local release gate / home-chat reuse | 冻结 API/SDK/MCP/TUI provenance/migration/test asset 清单；新增 `check_ai_native_release_gate.py`，本地资产与候选绑定检查通过，`test_ai_native_release_gate.py` `3 passed`；首页迁移到共享 `AgomChatWidget`，Node `33 passed`，本地 Playwright 普通提问/建议执行与取消流通过 | 仅机器门禁与本地 UI 闭环；首页真实候选/生产浏览器 UAT、staging、同候选 owner/reviewer 双签与发布证据仍缺，不能解除 P1 或生产发布闸门 |
 | 2026-08-14 | 第一期 P0 | 系统级统一审计日志 M0 事件注册表 | 新增 shadow `governance/audit_event_contracts.json` 与 `check_audit_event_contracts.py`，冻结 7 个顶层 category：20 个 Data Reliability 事件具备 owner/category/write policy/detail/reason 合同，其余 6 类保留 source-file inventory；已接入 consistency workflow 与 governance wiring；定向测试 `5 passed`、治理 wiring `29 passed`，未知 taxonomy、detail、关联字段和状态错配 fail closed | 仅机器合同与静态 inventory；Event Model、migration、outbox、运行写入口、Data Center 双写与生产审计覆盖仍未完成，M1+ 待评审 |
 | 2026-08-14 | 第一期 P0 | 系统级统一审计日志 M1 Domain/codec 最小合同 | 新增纯标准库 `SystemAuditEvent` envelope 与 strict codec：typed actor/resource/evidence refs、bounded correlations、source/recorded clocks、stream predecessor/idempotency、敏感字段和未知键 fail closed；定向 `5 passed`、增量 mypy `0 regressions` | 仅Domain/codec；无Model/migration/repository/outbox/业务双写/生产审计，M1账本与Data Center纵向链仍未启用 |
+| 2026-08-15 | 治理横切 | Active plan registry v1 | 将 46 个活跃计划文件闭集归入 7 条工作流、16 份主计划、21 份支撑/证据和 9 份限期审查；新增 owner/status/next gate 机器合同与 CI 守卫，未登记、重复、陈旧路径和无截止日审查项统一失败关闭 | 2026-08-22 前清空或正式转化 9 项审查队列；队列只能下降，不得作为长期活跃状态 |
 | 2026-08-14 | 第一期 P0 | 系统级统一审计日志 M1 schema-only ledger/outbox 基座 | 新增统一事件表与事务 outbox 表、private append-only/immutable payload guards、迁移 `0011`（恰好两个 `CreateModel`，无数据操作）；事件 component `3 passed`、outbox component `3 passed`、Domain/codec 回归 `10 passed`、增量 mypy `0 regressions`、architecture `2885/0` | 仅zero-seed schema/SQLite软件契约；无repository/query/dispatcher/Data Center双写/业务runtime wiring，PostgreSQL并发、真实迁移回滚、backlog恢复与生产审计覆盖仍未验证 |
+| 2026-08-15 | 第一期 P0 | 系统级统一审计日志 M1 ledger repository/query 合同 | 事件仓储完成同-alias private atomic append、exact claim/first-winner、stream predecessor CAS、全表 closed-world restore 与 exact/PIT/head/list；新增 staff-only Application query Protocol/DTO，非授权或 selector substitution fail closed；repository component `5 passed`，与模型合计 `8 passed`，query unit `5 passed`，增量 mypy `0 regressions`、architecture `2889/0` | 仅本地 SQLite/纯契约；outbox dispatcher、Data Center 双写、业务 runtime wiring、staff authority source、PostgreSQL 空链/并发、真实迁移回滚与生产审计覆盖仍未验证 |
+| 2026-08-15 | 第一期 P0 | 系统级统一审计日志 M1 outbox claim/dispatcher 合同 | Outbox repository 完成全表 payload/codec restore、enqueue first-winner、private UOW、due claim、token ownership 与 delivered/failed 状态机；dormant dispatcher Protocol/use case 发布 bounded outcome；component `7 passed`、dispatcher unit `3 passed`、与既有 outbox model 合计 `10 passed`、增量 mypy `0 regressions` | 仅本地 SQLite/纯 fake；未接真实 publisher、业务双写、Data Center runtime、PG claim race/lease、backlog 恢复、生产 authority 或迁移回滚 |
 
 ## 2026-08-12 整理结果
 
