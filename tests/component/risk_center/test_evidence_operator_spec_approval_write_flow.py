@@ -194,7 +194,12 @@ def test_approval_restore_rejects_subject_knowledge_clock_after_approval() -> No
         )
     clock.value = APPROVED_AT + timedelta(seconds=2)
 
-    with pytest.raises(EvidenceOperatorSpecApprovalCorruption, match="predates"):
+    # The raw timestamp edit invalidates the subject ledger seal first.  A
+    # tampered subject must never reach the later approval-ordering check.
+    with pytest.raises(
+        EvidenceOperatorSpecApprovalCorruption,
+        match="approval subject ledger seal is invalid",
+    ):
         repository.get_approval_winner(
             approval_id=approval.approval_id,
             approval_version=approval.approval_version,

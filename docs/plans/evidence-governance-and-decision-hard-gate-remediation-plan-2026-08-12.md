@@ -2254,6 +2254,11 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 定向 Application/API 单元回归 `24 passed`；四组 Django component 共收集 `10` 个测试，但在当前环境执行超过 180 秒超时，未计为通过。Data Center catalog `validated=10 datasets`、legacy fact guard、current-data `49 surfaces` 与 Celery `87 registered task(s)` 均通过。
 - 本地验证：`python scripts/check_governance_consistency.py`、`python scripts/verify_architecture.py --include-audit --format text` 均通过。生产人工审核、PostgreSQL 并发和真实数据仍未完成，Evidence/decision hard gate 与 execution 总闸保持不变。
 
+### 2026-08-14：Evidence composition Django component contract 回归
+
+- 修正 approval write-flow 测试对 raw subject timestamp tamper 的断言：subject ledger seal 失效必须先于 approval 时序检查，不能把篡改误报成 `predates` 业务时序错误；生产恢复顺序保持 fail closed，不改实现。
+- Risk Center/Research 五组隔离 component（`--no-migrations`）合计 `22 passed`。这只证明 SQLite/no-migrations 下的软件恢复与篡改合同；真实迁移、PostgreSQL 并发、生产人工审批、真实数据与 Evidence hard gate 仍未完成，execution 总闸继续关闭。
+
 ## 三、实施阶段
 
 ### M0：冻结与设计收口
