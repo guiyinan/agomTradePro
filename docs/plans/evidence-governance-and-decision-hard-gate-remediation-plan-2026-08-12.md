@@ -2144,6 +2144,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 新增独立strict codec，按Domain dataclass完整字段集编码并重建principal/auth-context、User/RBAC refs、authority facts、全部aware clocks、root/predecessor、fixed semantics、identity/content及十类domain-separated seals。decoder要求exact mapping/key集合、exact scalar类型、UTC-Z microseconds，并在恢复Domain后执行encode-equality，未知/缺失字段、bool伪int、非规范时钟及任一hash/seal篡改均fail closed。
 - codec定向pure `28 passed`，Domain/Application/codec组合`68 passed`；Ruff、Black/isort及strict mypy通过。本批不含model/repository/migration，也不改变zero-seed、authority bundle provider缺失和write/execution关闭状态；codec只能验证已封存payload，不能把mutable session/User/Profile现场hash升级为owner truth。
 
+### 2026-08-14：Account actor authority source v3 0051 schema与append guards
+
+- 新增0051 schema-only迁移，依赖0050且严格只有两个`CreateModel`、无RunPython/RunSQL/seed。独立root-lock表以`source_id + root_claim_hash`形成candidate-independent锁锚；ledger以PROTECT FK绑定该锚和self OneToOne predecessor，完整持久化Domain字段/canonical payload、service recorder、recorder binding/ledger seals及persisted clock。
+- 两表都使用private non-nestable UOW/exact insert claim，并阻断save/update/bulk/raw/delete绕写；DB约束固定inactive/attestation-only/nonexecution与automated recorder，校验authority state闭集、current必须authenticated+active、root/successor XOR、clock上下界和`persisted_at=recorded_at`。`source_id+version`、root/predecessor/content/seals保持唯一，chain index按source+recorded clock建立。
+- isolated Django5.2 model component `3 passed`；Ruff、Black/isort、pycompile、3 production files增量mypy 0 regressions及architecture 2857/0通过。本批尚无repository/closed-world restore/append CAS/IntegrityError replay，也没有PostgreSQL空root与same-predecessor双连接竞争证明；因此0051仍是zero-seed schema/guard，不是可用authority账本或production授权。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

@@ -6,6 +6,10 @@ stable import and patch surface used by repositories, tests, and integrations.
 
 from .account_identity_raw_source_models import AccountIdentityRawSourceModel
 from .account_identity_snapshot_models import AccountIdentitySnapshotModel
+from .account_owner_assignment_actor_authority_source_v3_models import (
+    AccountOwnerAssignmentActorAuthoritySourceV3Model,
+    AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel,
+)
 from .account_owner_assignment_evidence_models import (
     AccountOwnerAssignmentEvidenceModel,
     AccountOwnerAssignmentSubjectModel,
@@ -13,6 +17,10 @@ from .account_owner_assignment_evidence_models import (
 from .account_owner_assignment_evidence_v2_models import (
     AccountOwnerAssignmentEvidenceV2Model,
     AccountOwnerAssignmentSubjectV2Model,
+)
+from .account_owner_assignment_evidence_v3_models import (
+    AccountOwnerAssignmentEvidenceV3Model,
+    AccountOwnerAssignmentSubjectV3Model,
 )
 from .account_owner_assignment_provenance_receipt_models import (
     AccountOwnerAssignmentProvenanceReceiptModel,
@@ -59,10 +67,6 @@ from .portfolio_models import (
     PositionSignalLogModel,
     TransactionModel,
 )
-from .account_owner_assignment_evidence_v3_models import (
-    AccountOwnerAssignmentEvidenceV3Model,
-    AccountOwnerAssignmentSubjectV3Model,
-)
 from .trading_config_models import (
     InvestmentRuleModel,
     MacroSizingConfigModel,
@@ -74,6 +78,8 @@ from .trading_config_models import (
 )
 
 __all__ = [
+    "AccountOwnerAssignmentActorAuthoritySourceV3Model",
+    "AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel",
     "AccountIdentityRawSourceModel",
     "AccountIdentitySnapshotModel",
     "AccountOwnerAssignmentEvidenceModel",

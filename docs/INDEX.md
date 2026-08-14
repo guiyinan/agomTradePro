@@ -840,6 +840,9 @@
 - ✅ **Account actor authority source v3 strict codec**
   - 完整恢复principal/context/User/RBAC refs、facts、时钟、chain与全部domain-separated seals；exact keys/types、UTC-Z及canonical encode-equality使替换与篡改fail closed
   - codec 28 passed、Domain/Application/codec组合68 passed；无ORM/migration，zero-seed、真实bundle provider、staff入口与execution仍关闭
+- ✅ **Account actor authority source v3 0051 schema/append guards**
+  - schema-only双表引入candidate-independent source/root anchor与完整ledger，PROTECT predecessor、持久化service recorder/ledger seals、private UOW/exact claim及全mutation guards
+  - isolated Django5.2 3 passed、mypy 0 regressions、architecture 2857/0；无repository/closed-world/PG race，仍zero-seed且不构成production authorization
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
