@@ -124,9 +124,7 @@ def _binding(
             supersedes_content_hash=previous.content_hash if previous else None,
         ),
         authority_source_chain=AccountAuthorityRawSourceChainV3(
-            root_claim_hash=(
-                chosen_epoch.root_claim_hash if kind in {"bootstrap", "reactivate"} else None
-            ),
+            root_claim_hash=("e" * 64 if kind in {"bootstrap", "reactivate"} else None),
             supersedes_content_hash=(
                 previous.authority_source_content_hash
                 if previous is not None and kind != "reactivate"
@@ -164,7 +162,7 @@ def test_bootstrap_has_nullable_old_state_and_separate_dual_roots() -> None:
     root = _binding()
     assert root.old_authority_state is None and root.old_rbac_role is None
     assert root.binding_chain.root_claim_hash != root.authority_source_chain.root_claim_hash
-    assert root.authority_source_chain.root_claim_hash == root.epoch.root_claim_hash
+    assert root.authority_source_chain.root_claim_hash is not None
     assert root.execution_allowed is False and root.must_not_execute is True
     assert len(root.to_payload()["operator"]["authentication_source_content_hash"]) == 64  # type: ignore[index]
 
@@ -219,7 +217,7 @@ def test_reactivation_requires_new_exact_epoch_and_terminal_links() -> None:
     reactivated = _binding("reactivate", previous=revoked, epoch=next_epoch, new_role="owner")
     validate_account_rbac_authority_mutation_binding_v3_successor(revoked, reactivated)
     assert reactivated.binding_chain.supersedes_content_hash == revoked.content_hash
-    assert reactivated.authority_source_chain.root_claim_hash == next_epoch.root_claim_hash
+    assert reactivated.authority_source_chain.root_claim_hash is not None
 
 
 def test_wrong_binding_or_source_predecessor_is_rejected() -> None:

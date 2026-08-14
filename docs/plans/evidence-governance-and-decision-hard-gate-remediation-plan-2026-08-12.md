@@ -2223,6 +2223,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - binding逐列封存mutation kind、old/new Profile identity/version/content refs、human staff+canonical admin operator facts/source refs、service issuer、时钟、fixed inactive/attestation-only/nonexecution、canonical payload、全部Domain seals与ledger seal；Profile version表为未来owner CAS提供稳定版本，严禁使用既有Profile `updated_at`冒充历史。
 - isolated Django5.2 model/component `9 passed`；与0052 raw-source model组件合计`25 passed`，Django check、Ruff、Black/isort、official增量mypy 0 regressions、py_compile、architecture 2878/0与diff-check通过。真实PostgreSQL migrate/race、closed-world binding repository、mutation-id持久issuer/UOW、mutable Profile/User/operator lifecycle接线与生产入口仍未完成；0053保持zero-seed，旧role写入口、注册/setup/signal、staff route和execution总闸不变。
 
+### 2026-08-14：Account RBAC mutation binding v3 dormant closed-world repository
+
+- 新增同alias、private non-nestable UOW的0053 repository：winner/exact/head/append均先恢复全部epoch、Profile anchor/version、binding和0052 RBAC raw-source rows，再按`recorded_at`执行PIT selector。raw source canonical codec、fixed recorder、content-bound recorder/ledger seals、binding逐列投影、Profile exact refs与双链图均在selector前核验；坏行、缺FK、anchor/profile孤儿、fork/cycle/disconnect、source-chain substitution和未来隐藏篡改统一fail closed。
+- append要求锁定既有epoch、inner savepoint、exact predecessor CAS与IntegrityError exact replay；`get_current_head`保留terminal/expired最终head，不回退旧current。定向repository component `4 passed`，与0053 model、Domain/codec组合`47 passed`；Ruff、Black/isort、py_compile、official增量mypy 0 regressions及architecture 2879/0通过。
+- 本批仍是dormant persistence合同：0053空epoch/真实Profile version需未来同一owner UOW提供，未接mutable Profile/User/operator、mutation-id issuer、production role route或staff composition；未取得真实PostgreSQL空链/同predecessor竞争证据，zero-seed与execution总闸继续保持。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

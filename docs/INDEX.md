@@ -882,6 +882,9 @@
 - ✅ **Account RBAC mutation binding v3 0053 schema-only基座**
   - 独立epoch anchor、Profile authority anchor/version ledger与mutation binding ledger；四个CreateModel、PROTECT FK/self predecessor、old/new Profile exact refs、human operator/service issuer、binding/raw-source双链、fixed/state/clock/unique约束及全append-only guards
   - isolated Django5.2 9 passed、与0052模型组件合计25 passed、official增量mypy 0 regressions、architecture 2878/0；仅zero-seed schema，真实PostgreSQL migrate/race、closed-world repository、持久issuer/UOW、mutable lifecycle接线与生产入口仍未完成
+- ✅ **Account RBAC mutation binding v3 dormant closed-world repository**
+  - 同alias/private UOW的winner/exact/head/append先恢复全部epoch、Profile anchor/version、binding及0052 raw-source rows，逐列重验canonical payload、fixed recorder、recorder/ledger seals、Profile exact refs、raw/binding双链与全图；inner savepoint、epoch锁、predecessor CAS、exact replay和terminal/expired no-fallback闭合
+  - repository component 4 passed；与Domain/codec/model组合47 passed、official增量mypy 0 regressions、architecture 2879/0；仅dormant persistence合同，未接owner UOW/mutation issuer、mutable lifecycle/production route或真实PostgreSQL空链竞争，zero-seed与execution关闭
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

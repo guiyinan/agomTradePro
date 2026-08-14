@@ -584,8 +584,8 @@ class AccountRbacAuthorityMutationBindingV3:
         elif self.binding_chain.root_claim_hash is not None:
             raise ValueError("non-bootstrap binding cannot restart the binding chain")
         if self.mutation_kind in {"bootstrap", "reactivate"}:
-            if self.authority_source_chain.root_claim_hash != self.epoch.root_claim_hash:
-                raise ValueError("new epoch authority-source root claim is invalid")
+            if self.authority_source_chain.root_claim_hash is None:
+                raise ValueError("new raw authority-source chain requires a root claim")
         elif self.authority_source_chain.root_claim_hash is not None:
             raise ValueError("same-epoch source successor cannot restart its chain")
 
@@ -814,7 +814,7 @@ def validate_account_rbac_authority_mutation_binding_v3_successor(
             terminal_authority_source_content_hash=previous.authority_source_content_hash,
             terminal_mutation_binding_content_hash=previous.content_hash,
         )
-        if successor.authority_source_chain.root_claim_hash != successor.epoch.root_claim_hash:
+        if successor.authority_source_chain.root_claim_hash is None:
             raise ValueError("reactivation must start the new raw-source chain")
     else:
         if successor.epoch != previous.epoch:

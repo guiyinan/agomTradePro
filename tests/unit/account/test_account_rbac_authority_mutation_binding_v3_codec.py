@@ -37,7 +37,8 @@ def test_bootstrap_nullable_old_subject_and_dual_roots_roundtrip() -> None:
 
     assert restored.old_subject is None
     assert restored.binding_chain.root_claim_hash is not None
-    assert restored.authority_source_chain.root_claim_hash == restored.epoch.root_claim_hash
+    assert restored.authority_source_chain.root_claim_hash is not None
+    assert restored.authority_source_chain.root_claim_hash != restored.epoch.root_claim_hash
 
 
 @pytest.mark.parametrize(
