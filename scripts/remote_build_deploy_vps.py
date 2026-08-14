@@ -1499,6 +1499,11 @@ if ! compose run --rm --no-deps web python manage.py verify_canonical_schema --j
   exit 1
 fi
 
+if ! compose run --rm --no-deps web python manage.py initialize_data_center_catalog; then
+  echo "[ERROR] Data Center runtime catalog synchronization failed" >&2
+  exit 1
+fi
+
 if ! compose run --rm --no-deps web python manage.py check --deploy; then
   echo "[ERROR] Django production deployment checks failed" >&2
   exit 1

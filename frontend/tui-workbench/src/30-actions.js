@@ -361,7 +361,7 @@
         if (!fields.length) {
             return false;
         }
-        return fields.some((field) => rowValueForField(row, field.key, action) !== undefined);
+        return fields.some((field) => rowValueForField(row, field, action) !== undefined);
     }
 
     async function collectParams(form, action) {
@@ -474,11 +474,18 @@
     }
 
     function rowValueForField(row, fieldOrKey, action) {
-        const fieldKey = typeof fieldOrKey === "object" && fieldOrKey ? fieldOrKey.key : fieldOrKey;
+        const field = typeof fieldOrKey === "object" && fieldOrKey
+            ? fieldOrKey
+            : ((action && action.fields) || []).find((candidate) => candidate.key === fieldOrKey) || { key: fieldOrKey };
+        const fieldKey = field.key;
+        const presentation = String(field.presentation_semantic || field.semantic || "").toLowerCase();
+        if (field.input_type === "password" || ["api_token", "copyable_secret", "secret"].includes(presentation)) {
+            return undefined;
+        }
         if (!actionCompatibleWithRowSource(action, row, fieldKey)) {
             return undefined;
         }
-        for (const key of rowFieldCandidates(fieldOrKey, action)) {
+        for (const key of rowFieldCandidates(field, action)) {
             const rawKey = `__raw_${key}`;
             if (Object.prototype.hasOwnProperty.call(row, rawKey) && row[rawKey] !== undefined && row[rawKey] !== null && row[rawKey] !== "") {
                 return row[rawKey];

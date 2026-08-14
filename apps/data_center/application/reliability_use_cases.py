@@ -17,7 +17,12 @@ from apps.data_center.application.dtos import (
     SyncPriceRequest,
     SyncQuoteRequest,
 )
+from apps.data_center.application.macro_publication import PublishMacroBatchUseCase
 from apps.data_center.application.provider_capabilities import SOURCE_TYPE_CAPABILITIES
+from apps.data_center.application.publication_sync import (
+    PublishPriceBarBatchUseCase,
+    PublishQuoteSnapshotBatchUseCase,
+)
 from apps.data_center.application.query_use_cases import (
     QueryLatestQuoteUseCase,
     QueryMacroSeriesUseCase,
@@ -97,6 +102,9 @@ class RepairDecisionDataReliabilityUseCase:
         price_bar_repo: PriceBarRepositoryProtocol,
         quote_snapshot_repo: QuoteSnapshotRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
+        macro_publication_publisher: PublishMacroBatchUseCase | None = None,
+        price_publication_publisher: PublishPriceBarBatchUseCase | None = None,
+        quote_publication_publisher: PublishQuoteSnapshotBatchUseCase | None = None,
         pulse_refresher: Callable[[date], Any] | None = None,
         alpha_refresher: Callable[[date, int | None], dict[str, Any]] | None = None,
         alpha_status_reader: Callable[[date, int | None], dict[str, Any]] | None = None,
@@ -109,6 +117,9 @@ class RepairDecisionDataReliabilityUseCase:
         self._price_bar_repo = price_bar_repo
         self._quote_snapshot_repo = quote_snapshot_repo
         self._raw_audit_repo = raw_audit_repo
+        self._macro_publication_publisher = macro_publication_publisher
+        self._price_publication_publisher = price_publication_publisher
+        self._quote_publication_publisher = quote_publication_publisher
         self._pulse_refresher = pulse_refresher
         self._alpha_refresher = alpha_refresher
         self._alpha_status_reader = alpha_status_reader
@@ -254,6 +265,7 @@ class RepairDecisionDataReliabilityUseCase:
                     catalog_repo=self._indicator_catalog_repo,
                     unit_rule_repo=self._indicator_unit_rule_repo,
                     raw_audit_repo=self._raw_audit_repo,
+                    publication_publisher=self._macro_publication_publisher,
                 ).execute(
                     SyncMacroRequest(
                         provider_id=provider.id,
@@ -326,6 +338,7 @@ class RepairDecisionDataReliabilityUseCase:
                     provider_registry=self._provider_registry,
                     fact_repo=self._quote_snapshot_repo,
                     raw_audit_repo=self._raw_audit_repo,
+                    publication_publisher=self._quote_publication_publisher,
                 ).execute(
                     SyncQuoteRequest(
                         provider_id=quote_provider.id,
@@ -355,6 +368,7 @@ class RepairDecisionDataReliabilityUseCase:
                         provider_registry=self._provider_registry,
                         fact_repo=self._price_bar_repo,
                         raw_audit_repo=self._raw_audit_repo,
+                        publication_publisher=self._price_publication_publisher,
                     ).execute(
                         SyncPriceRequest(
                             provider_id=price_provider.id,

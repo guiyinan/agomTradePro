@@ -121,6 +121,18 @@ const actions = [
             { key: "new_password", label: "新密码", input_type: "password", required: true },
         ],
     }),
+    action("test.ai-config", {
+        label: "更新 AI 服务商",
+        risk: "write",
+        method: "PATCH",
+        sequence: 14,
+        fields: [
+            { key: "provider_id", label: "服务商 ID", input_type: "number", value_type: "integer", required: true },
+            { key: "api_key", label: "API Key", input_type: "password", required: false },
+            { key: "is_active", label: "启用", input_type: "select", value_type: "boolean", options: ["true", "false"], default: "true" },
+            { key: "fallback_enabled", label: "允许故障切换", input_type: "select", value_type: "boolean", options: ["true", "false"], default: "false" },
+        ],
+    }),
 ];
 
 const catalog = {
@@ -259,9 +271,11 @@ function listResult() {
                 { key: "meta", label: "元数据" },
             ],
             rows: Array.from({ length: 205 }, (_, index) => ({
+                provider_id: index + 1,
                 code: `row-${String(index + 1).padStart(3, "0")}`,
                 value: index + 1,
                 meta: { source: "test" },
+                api_key: "****",
             })),
         },
     };
@@ -616,6 +630,31 @@ test("password fields render as masked controls and keep values out of markup", 
         assert.equal(await newPassword.getAttribute("type"), "password");
         assert.equal(await currentPassword.getAttribute("value"), "");
         assert.equal(await newPassword.getAttribute("value"), "");
+    } finally {
+        await browser.close();
+    }
+});
+
+test("AI configuration preserves boolean selections and never fills masked secrets from rows", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        await page.locator('[data-row-index="0"]').click();
+        const form = page.locator('[data-action-ui-key="test.ai-config"]');
+        await form.locator('[data-fill-from-row]').click();
+        assert.equal(await form.locator('[name="provider_id"]').inputValue(), "1");
+        assert.equal(await form.locator('[name="api_key"]').inputValue(), "");
+        await form.locator('[name="is_active"]').selectOption("true");
+        await form.locator('[name="fallback_enabled"]').selectOption("false");
+        const actionRequest = page.waitForRequest((request) =>
+            request.url().includes("/actions/test.ai-config/run/"),
+        );
+        await form.locator('.tui-action-submit').click();
+        const request = await actionRequest;
+        assert.deepEqual(request.postDataJSON().params, {
+            provider_id: 1,
+            is_active: true,
+            fallback_enabled: false,
+        });
     } finally {
         await browser.close();
     }

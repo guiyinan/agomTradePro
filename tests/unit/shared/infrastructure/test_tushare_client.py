@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 from unittest.mock import Mock
 
@@ -72,7 +73,7 @@ def test_unified_relay_rejects_invalid_api_key_without_payload_fallback(
     session = _RelaySession()
     monkeypatch.setattr(session, "post", lambda *_args, **_kwargs: _RejectedRelayResponse())
     monkeypatch.setattr(
-        "apps.data_center.infrastructure.tushare_client.requests.Session",
+        "apps.data_center.infrastructure.tushare_client._create_requests_session",
         lambda: session,
     )
     client = create_tushare_pro_client(
@@ -90,7 +91,7 @@ def test_unified_relay_posts_to_exact_url_with_api_key_header(monkeypatch: Any) 
 
     session = _RelaySession()
     monkeypatch.setattr(
-        "apps.data_center.infrastructure.tushare_client.requests.Session",
+        "apps.data_center.infrastructure.tushare_client._create_requests_session",
         lambda: session,
     )
 
@@ -133,6 +134,8 @@ def test_unified_relay_posts_to_exact_url_with_api_key_header(monkeypatch: Any) 
 def test_sdk_path_mode_remains_the_default(monkeypatch: Any) -> None:
     """Existing Tushare clients must keep the SDK path transport by default."""
 
+    monkeypatch.setenv("NO_PROXY", "localhost")
+    monkeypatch.setenv("no_proxy", "127.0.0.1")
     pro = Mock()
     monkeypatch.setattr("tushare.pro_api", Mock(return_value=pro))
 
@@ -144,6 +147,8 @@ def test_sdk_path_mode_remains_the_default(monkeypatch: Any) -> None:
 
     assert result is pro
     assert pro._DataApi__http_url == "https://proxy.example.test"
+    assert os.environ["NO_PROXY"] == "localhost,proxy.example.test"
+    assert os.environ["no_proxy"] == "127.0.0.1,proxy.example.test"
 
 
 def test_request_mode_rejects_unknown_values() -> None:

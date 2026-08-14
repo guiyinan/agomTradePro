@@ -277,7 +277,11 @@ class TerminalChatView(APIView):
         except Exception:
             logger.exception("Terminal agent chat failed")
             return Response(
-                {"error": "terminal_agent_unavailable"},
+                {
+                    "error": "AI 服务调用失败，请检查服务商连通性、模型和额度后重试。",
+                    "code": "AI_PROVIDER_REQUEST_FAILED",
+                    "setup_required": False,
+                },
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 

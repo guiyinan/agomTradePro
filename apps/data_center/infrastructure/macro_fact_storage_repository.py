@@ -258,7 +258,10 @@ class MacroFactRepository:
                     observed_at=cn_market_date_start_utc(row.published_at),
                     raw_payload_hash=row.raw_payload_hash or _macro_payload_hash(row),
                     quality_status=row.quality_status,
-                    revision_number=row.revision_number,
+                    # Macro facts use a zero-based source revision for their
+                    # natural key. Publication lineage is one-based, where 1
+                    # means the first published version of that exact fact.
+                    revision_number=row.revision_number + 1,
                 )
             )
         return references

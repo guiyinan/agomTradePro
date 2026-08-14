@@ -1915,10 +1915,16 @@ def test_tui_ai_provider_mutations_confirm_and_mask_credentials(
         "ai-ops.delete-my-provider",
     ):
         assert user_actions[action_key]["confirmation_required"] is True
+        assert user_actions[action_key]["task_tier"] == "operation"
     user_create_fields = {
         field["key"]: field for field in user_actions["ai-ops.create-my-provider"]["fields"]
     }
     assert user_create_fields["api_key"]["input_type"] == "password"
+    assert user_create_fields["api_key"]["required"] is True
+    user_update_fields = {
+        field["key"]: field for field in user_actions["ai-ops.update-my-provider"]["fields"]
+    }
+    assert user_update_fields["api_key"]["required"] is False
     assert {"fallback_enabled", "description", "extra_config"} <= set(user_create_fields)
 
     client.force_login(tui_admin_user)
@@ -1934,10 +1940,17 @@ def test_tui_ai_provider_mutations_confirm_and_mask_credentials(
         "ai-ops.delete-system-provider",
     ):
         assert admin_actions[action_key]["confirmation_required"] is True
+        assert admin_actions[action_key]["task_tier"] == "operation"
     system_create_fields = {
         field["key"]: field for field in admin_actions["ai-ops.create-system-provider"]["fields"]
     }
     assert system_create_fields["api_key"]["input_type"] == "password"
+    assert system_create_fields["api_key"]["required"] is True
+    system_update_fields = {
+        field["key"]: field
+        for field in admin_actions["ai-ops.update-system-provider"]["fields"]
+    }
+    assert system_update_fields["api_key"]["required"] is False
     assert {
         "fallback_enabled",
         "daily_budget_limit",
@@ -7964,6 +7977,68 @@ def test_tui_ai_result_maps_provider_config_error_to_user_message():
 
     assert result["user_error_code"] == "AI_PROVIDER_NOT_CONFIGURED"
     assert "当前账号未配置默认 AI 服务" in result["business_summary"]
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected_code", "expected_guidance"),
+    [
+        (
+            {"code": "AI_PROVIDER_UNAVAILABLE", "error": "provider unavailable"},
+            "AI_PROVIDER_NOT_CONFIGURED",
+            "完成服务商配置",
+        ),
+        (
+            {"code": "AI_PROVIDER_REQUEST_FAILED", "error": "upstream failed"},
+            "AI_PROVIDER_REQUEST_FAILED",
+            "测试连通性",
+        ),
+        (
+            {"error": "terminal_agent_unavailable"},
+            "AI_PROVIDER_REQUEST_FAILED",
+            "测试连通性",
+        ),
+    ],
+)
+def test_tui_ai_result_maps_provider_runtime_failures_to_actionable_guidance(
+    payload,
+    expected_code,
+    expected_guidance,
+):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {"status_code": 502, "payload": payload}
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "terminal.agent_chat",
+                        "label": "发送 AI 请求",
+                        "method": "POST",
+                        "endpoint": "/api/terminal/chat/",
+                        "intent": "chat",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "ai",
+                        "fields": [],
+                        "description": "Chat.",
+                        "source": "approved:test",
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    result = service.run_action(action_key="terminal.agent_chat", params={}, user=None)
+
+    assert result["user_error_code"] == expected_code
+    next_step = next(
+        field["value"] for field in result["fields"] if field["key"] == "next_step"
+    )
+    assert expected_guidance in next_step
 
 
 def test_tui_mcp_self_service_status_model_prioritizes_canonical_access_package():
