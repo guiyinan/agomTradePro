@@ -22,9 +22,15 @@ NOW = datetime(2026, 8, 14, 12, 0, 0, 123456, tzinfo=timezone.utc)
 EVIDENCE_HASH = "a" * 64
 
 
-def make_event(*, sequence_no: int = 1, predecessor_hash: str | None = None) -> SystemAuditEvent:
+def make_event(
+    *,
+    sequence_no: int = 1,
+    predecessor_hash: str | None = None,
+    event_id: str = "evt-1",
+    idempotency_key: str = "fetch:run-1",
+) -> SystemAuditEvent:
     return SystemAuditEvent.create(
-        event_id="evt-1",
+        event_id=event_id,
         event_version="1",
         schema_version="system-audit-event.v1",
         category=AuditCategory.DATA_RELIABILITY,
@@ -59,7 +65,7 @@ def make_event(*, sequence_no: int = 1, predecessor_hash: str | None = None) -> 
         stream_id="dataset:macro.pmi",
         sequence_no=sequence_no,
         predecessor_hash=predecessor_hash,
-        idempotency_key="fetch:run-1",
+        idempotency_key=idempotency_key,
     )
 
 

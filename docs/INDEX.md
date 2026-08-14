@@ -945,6 +945,9 @@
 - ✅ **系统级统一审计日志 M1 expired-lease recovery（2026-08-15）**
   - `claim_due()` 现在按正 lease TTL 回收过期 claimed 行；新 worker 获得新 token、attempt 递增，旧 token 不能 finalize；定向 outbox model/repository/dispatcher 回归 `11 passed`、增量 mypy `0 regressions`
   - 仅证明本地 lease 状态机；mixed batch accounting、真实 PostgreSQL 双连接 race/lease、backlog 观测、业务双写和生产 publisher 仍未完成，M1 gate 不变
+- ✅ **系统级统一审计日志 M1 dispatcher mixed-batch accounting（2026-08-15）**
+  - dormant dispatcher 现在覆盖成功+失败混合批次的精确计数与 `partial` outcome，以及空批次 `noop`；dispatcher/event unit 回归 `10 passed`
+  - 仅纯 fake Application 证据；真实 publisher、批量事务、PostgreSQL lease race、backlog 观测、业务双写和生产审计仍待完成，M1 gate 不变
 - ✅ **Equity research snapshot Django runtime contract（2026-08-14）**
   - Django 5.2.12 复跑 API `15`、SDK/MCP/routing/evidence `36`、use case/gateway `26`，合计 `77 passed`
   - 仅证明 mock/fake 隔离环境的软件契约与 fail-closed 行为；真实数据覆盖、PostgreSQL 规模/故障注入、备份恢复和 readiness 仍未解除
