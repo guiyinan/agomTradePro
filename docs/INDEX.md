@@ -966,6 +966,9 @@
 - ✅ **系统级统一审计日志 M1 outbox backlog health projection wiring（2026-08-15）**
   - Audit health 现在消费只读 backlog snapshot，投影 pending/due/claimed/expired/failed/delivered 与 oldest age；recovery work 为 WARNING、异常只发布类型；unit/API `16 passed`
   - 仅 health projection wiring；Prometheus/runtime publisher、自动 reclaim、生产 migration/rollback、真实 PostgreSQL backlog 观察与 Data Center 双写仍待完成，M1 gate 不变
+- ✅ **系统级统一审计日志 M1 event/outbox atomic composition contract（2026-08-15）**
+  - 新增 dormant 同 alias coordinator，event append 与 outbox enqueue 同 outer transaction；exact retry、event substitution、outbox failure rollback 已覆盖；unit `5 passed`、SQLite component `3 passed`、增量 mypy/architecture 通过
+  - 尚未接 Data Center `data.fetch.*`、publisher/runtime 或生产 route；真实 PostgreSQL 双写竞争、migration/rollback 与业务事件仍待完成，M1 gate 不变
 - ✅ **Equity research snapshot Django runtime contract（2026-08-14）**
   - Django 5.2.12 复跑 API `15`、SDK/MCP/routing/evidence `36`、use case/gateway `26`，合计 `77 passed`
   - 仅证明 mock/fake 隔离环境的软件契约与 fail-closed 行为；真实数据覆盖、PostgreSQL 规模/故障注入、备份恢复和 readiness 仍未解除

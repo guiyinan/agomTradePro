@@ -411,6 +411,12 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 - `check_audit_health()`/health-check provider 已组装同 alias 的 outbox reader；unit/API 回归 `16 passed`，覆盖 recovery warning、healthy snapshot、观察 cutoff 和公共响应脱敏。
 - 这只是 health projection wiring，不是 Prometheus 指标、publisher/runtime、自动 reclaim、生产 migration/rollback 或真实 PostgreSQL 观察窗口；Data Center 双写和 M2 仍保持阻断。
 
+### 2026-08-15：M1 event/outbox atomic composition contract
+
+- 新增 `AppendSystemAuditEventOutboxUseCase` 与同 alias 的 `DjangoSystemAuditEventOutboxCoordinator`：事件账本 append 和 outbox enqueue 嵌在同一个 outer transaction，二者使用同一 canonical payload/content hash；exact retry 返回同一 pair，任一 outbox 异常整体回滚事件。
+- Application unit `5 passed`、SQLite schema component `3 passed`，覆盖 exact replay、writer failure、event substitution 和 outbox failure rollback；增量 mypy `0 regressions`、architecture audit `0 violations`、Black/isort 通过。
+- 该批只建立 dormant atomic composition，不接 Data Center sync、业务事件注册状态、publisher/runtime 或生产 route；`data.fetch.*` 仍保持 `not_wired`，真实 PostgreSQL race、迁移回滚、业务双写与生产审计覆盖继续阻断。
+
 ### M1：Audit Domain、append-only ledger 与 Query
 
 交付：
