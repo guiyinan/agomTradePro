@@ -906,7 +906,7 @@
   - 这是静态源码治理证据，不是生产 PostgreSQL/VPS、备份恢复、shadow reconciliation 或 M9 destructive migration 证据；生产切换继续 DENY
 - ✅ **AI-Native local release gate（2026-08-14）**
   - `config/ai_native/ai_native_release_gate.v1.json` 与 `scripts/check_ai_native_release_gate.py` 冻结并校验 API、SDK、MCP、TUI provenance、migration 和 test assets；定向测试 `3 passed`
-  - staging evidence 与 owner/reviewer 人工双签缺失时稳定 `DENY`；首页聊天浏览器 UAT、staging 和发布证据仍未完成
+  - 首页聊天已复用共享 `AgomChatWidget`，Node 前端回归 `33 passed`，本地 Playwright 普通提问/建议执行与取消流通过；真实候选/生产浏览器 UAT、staging 和 owner/reviewer 人工双签仍缺，机器 gate 继续 `DENY`
 - ✅ **系统级统一审计日志 M0 事件注册表（2026-08-14）**
   - `governance/audit_event_contracts.json` 与 `scripts/check_audit_event_contracts.py` 冻结 7 个顶层 category：20 个 Data Reliability 事件有完整合同，其余 6 类保留 source-file inventory；已接入 consistency workflow，定向测试 `5 passed`、治理 wiring `29 passed`，当前明确为 `shadow/registry_only/not_wired`
   - 尚未创建 Event Model、migration、outbox 或业务双写；未知事件仍应拒绝登记，M1+ 与生产审计覆盖继续待评审

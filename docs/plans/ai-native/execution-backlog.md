@@ -112,6 +112,12 @@ Backlog rules:
 | 088 | P1 | Frontend/QA | test | no | Run staging browser/UAT assets for the home-chat and TUI operator flows. |
 | 089 | P1 | PM | review | no | Collect independent owner/reviewer sign-off and publish the exact-candidate release evidence package. |
 
+### 2026-08-14 local frontend evidence
+
+- The dashboard home-chat implementation now uses the shared `AgomChatWidget`; duplicate inline handlers and the undefined `API_URLS.promptChat` path were removed.
+- `frontend/agomtradepro-host/tests/chat-widget.test.mjs` covers dashboard wiring and the public `sendText` path. `npm run test:tui-js` passes `33` tests.
+- A local Playwright flow covers normal prompt submission, suggestion-card execute, suggestion-card cancel, and a subsequent prompt. This is local evidence only; backlog items `088-089` still require the exact staging candidate and independent sign-off.
+
 ## Completion Rules
 
 For every backlog item:

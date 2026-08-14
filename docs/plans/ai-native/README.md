@@ -34,6 +34,10 @@ The local machine gate is frozen in [`config/ai_native/ai_native_release_gate.v1
 
 The gate deliberately remains `DENY` until a real staging evidence package and independent owner/reviewer sign-off are supplied for the same candidate commit. A local fake, fixture, or passing unit test cannot satisfy those two external gates. This is a machine-guard closure, not a P1 release approval.
 
+### 2026-08-14 local home-chat closure
+
+The dashboard now instantiates the shared `AgomChatWidget` for normal questions and quick prompts. Suggestion-card execute/cancel remains on the shared renderer, and the dashboard no longer carries a second inline chat handler or the undefined `promptChat` endpoint. The Node contract test and local Playwright flow pass; staging/production candidate binding and manual sign-off remain external gates.
+
 ## How To Use This Pack
 
 1. Complete milestones strictly in order.

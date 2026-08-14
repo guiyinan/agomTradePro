@@ -29,6 +29,7 @@ class AgomChatWidget {
         this.config = {
             containerId: options.containerId || 'chat-container',
             title: options.title || 'AI Assistant',
+            welcomeMessage: options.welcomeMessage || `Hello! I'm ${options.title || 'AI Assistant'}. How can I help you?`,
             placeholder: options.placeholder || 'Enter your question...',
             defaultProvider: options.defaultProvider || null,
             defaultModel: options.defaultModel || null,
@@ -74,7 +75,9 @@ class AgomChatWidget {
 
         this._initRenderer();
         this.render();
-        await this.loadProviders();
+        if (this.config.showProviderSelector || this.config.showModelSelector) {
+            await this.loadProviders();
+        }
         this.bindEvents();
     }
 
@@ -105,7 +108,7 @@ class AgomChatWidget {
                 <div class="agom-chat-messages" id="${this.config.containerId}-messages">
                     <div class="agom-chat-welcome">
                         <div class="welcome-icon">🤖</div>
-                        <p>Hello! I'm ${this.config.title}. How can I help you?</p>
+                        <p>${this._escapeHtml(this.config.welcomeMessage)}</p>
                     </div>
                 </div>
                 <div class="agom-chat-input-area">
@@ -349,6 +352,13 @@ class AgomChatWidget {
         }
     }
 
+    sendText(text) {
+        if (!this.elements.input || typeof text !== 'string') return Promise.resolve();
+        this.elements.input.value = text;
+        this._adjustTextareaHeight();
+        return this.sendMessage();
+    }
+
     _addUserMessage(content) {
         const messageDiv = document.createElement('div');
         messageDiv.className = 'agom-chat-message agom-chat-message-user';
@@ -526,7 +536,7 @@ class AgomChatWidget {
         this.elements.messages.innerHTML = `
             <div class="agom-chat-welcome">
                 <div class="welcome-icon">🤖</div>
-                <p>Hello! I'm ${this.config.title}. How can I help you?</p>
+                <p>${this._escapeHtml(this.config.welcomeMessage)}</p>
             </div>
         `;
     }

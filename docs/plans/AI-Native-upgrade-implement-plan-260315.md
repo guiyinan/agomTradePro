@@ -849,4 +849,5 @@
 
 - 新增 `config/ai_native/ai_native_release_gate.v1.json`，冻结 agent runtime API、SDK、MCP、TUI provenance、migration 与 test assets；新增 `scripts/check_ai_native_release_gate.py` 做文件、marker、测试资产和候选 commit 绑定检查。
 - 本地机器检查与定向测试 `tests/unit/test_ai_native_release_gate.py` 均通过（3 passed）；未提供真实 staging evidence 或独立 owner/reviewer 双签时，命令稳定输出 `DENY`，不会把本地 fixture 当作发布批准。
-- 本节只完成 machine-gate，不改变 M4/P1 的 staging 浏览器 UAT、首页聊天验收、人工签字、备份/回滚与发布候选证据要求；这些外部验收仍是 release gate 的阻断项。
+- 首页 Dashboard 已迁移到共享 `AgomChatWidget`：普通提问、快捷提问、建议卡片执行/取消共用 `/api/chat/web/`、历史与 answer-chain 渲染；新增 `chat-widget.test.mjs`，`npm run test:tui-js` 共 `33 passed`，并以 Playwright 完成本地普通提问→建议执行/取消→再次提问浏览器流。
+- 本节仍只完成 machine-gate 与本地 UI 资产收口，不改变 M4/P1 的 staging 浏览器 UAT、人工签字、备份/回滚与发布候选证据要求；首页聊天的真实候选/生产验收仍是 release gate 的阻断项。
