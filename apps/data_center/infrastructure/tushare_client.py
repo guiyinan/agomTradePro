@@ -123,10 +123,10 @@ def configure_tushare_pro_client(pro: object, http_url: str | None) -> object:
 def _append_custom_endpoint_to_no_proxy(http_url: str | None) -> None:
     """Bypass process proxies for one validated custom Tushare endpoint host.
 
-    The Tushare SDK delegates transport to ``requests``. Some production
+    The Tushare SDK delegates transport to ``requests``.  Some production
     environments inject HTTP(S) proxy variables, so the custom endpoint must
     be present in both conventional NO_PROXY spellings before the SDK module
-    is imported. The bypass is deliberately host-scoped instead of disabling
+    is imported.  The bypass is deliberately host-scoped instead of disabling
     proxy handling for unrelated outbound services in the process.
     """
 
@@ -138,9 +138,7 @@ def _append_custom_endpoint_to_no_proxy(http_url: str | None) -> None:
         return
     for variable_name in ("NO_PROXY", "no_proxy"):
         current_entries = [
-            entry.strip()
-            for entry in os.environ.get(variable_name, "").split(",")
-            if entry.strip()
+            entry.strip() for entry in os.environ.get(variable_name, "").split(",") if entry.strip()
         ]
         normalized_entries = {entry.casefold() for entry in current_entries}
         if "*" in normalized_entries or hostname.casefold() in normalized_entries:
@@ -208,9 +206,7 @@ class _UnifiedRelayClient:
             raise RuntimeError("Tushare relay response is missing data")
         columns = data.get("fields")
         items = data.get("items")
-        if not isinstance(columns, list) or not all(
-            isinstance(column, str) for column in columns
-        ):
+        if not isinstance(columns, list) or not all(isinstance(column, str) for column in columns):
             raise RuntimeError("Tushare relay response fields are invalid")
         if not isinstance(items, list):
             raise RuntimeError("Tushare relay response items are invalid")

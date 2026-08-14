@@ -91,5 +91,6 @@ MANIFESTS = [
         },
         output_schema={"type": "object", "properties": {}, "required": []},
         audit_tags=("mcp:native", "tui:published_action"),
+        enabled=False,
     ),
 ]

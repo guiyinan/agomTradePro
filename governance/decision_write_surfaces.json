@@ -1,0 +1,317 @@
+{
+  "version": 1,
+  "updated_at": "2026-08-12",
+  "status": "frozen_pending_evidence_gate",
+  "transition_plan_internal_writer_scopes": [
+    "apps/decision_rhythm/application/workspace_services.py",
+    "apps/decision_rhythm/infrastructure/recommendation_repositories.py",
+    "apps/portfolio/application/use_cases.py",
+    "apps/portfolio/infrastructure/repositories.py"
+  ],
+  "transition_plan_internal_writers": [
+    {
+      "source_symbol": "apps/decision_rhythm/application/workspace_services.py::build_transition_plan_for_account",
+      "ownership": "decision_rhythm_legacy",
+      "mutation_semantic": "transition_plan_generate_and_persist",
+      "enabled_by_default": true,
+      "replacement": "apps/portfolio/application/use_cases.py::BuildTransitionPlanUseCase.execute",
+      "required_ast_calls": [
+        "_ensure_legacy_transition_plan_write_enabled",
+        "create_portfolio_transition_plan",
+        "get_portfolio_transition_plan_repository.save"
+      ]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/application/workspace_services.py::save_transition_plan",
+      "ownership": "decision_rhythm_legacy",
+      "mutation_semantic": "transition_plan_upsert",
+      "enabled_by_default": true,
+      "replacement": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.save",
+      "required_ast_calls": [
+        "_ensure_legacy_transition_plan_write_enabled",
+        "get_portfolio_transition_plan_repository.save"
+      ]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/infrastructure/recommendation_repositories.py::ExecutionApprovalRequestRepository.create_for_transition_plan",
+      "ownership": "decision_rhythm_legacy",
+      "mutation_semantic": "approval_request_create_and_plan_status_update",
+      "enabled_by_default": true,
+      "replacement": "apps/portfolio/application/use_cases.py::ValidateTransitionPlanUseCase.execute",
+      "required_ast_calls": [
+        "ExecutionApprovalRequestModel.objects.create",
+        "PortfolioTransitionPlanModel.objects.get",
+        "_ensure_legacy_transition_plan_row",
+        "_ensure_legacy_transition_plan_write_enabled",
+        "plan_model.save",
+        "self.has_pending_request_for_plan"
+      ]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/infrastructure/recommendation_repositories.py::ExecutionApprovalRequestRepository.update_status",
+      "ownership": "decision_rhythm_legacy",
+      "mutation_semantic": "approval_status_and_transition_plan_status_update",
+      "enabled_by_default": true,
+      "replacement": "apps/portfolio/application/use_cases.py::ValidateTransitionPlanUseCase.execute",
+      "required_ast_calls": [
+        "ExecutionApprovalRequestModel.objects.select_related",
+        "_ensure_legacy_transition_plan_row",
+        "_ensure_legacy_transition_plan_write_enabled",
+        "model.save",
+        "model.transition_plan.save"
+      ]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/infrastructure/recommendation_repositories.py::PortfolioTransitionPlanRepository.save",
+      "ownership": "decision_rhythm_legacy",
+      "mutation_semantic": "transition_plan_upsert",
+      "enabled_by_default": true,
+      "replacement": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.save",
+      "required_ast_calls": [
+        "PortfolioTransitionPlanModel.objects.update_or_create",
+        "_ensure_legacy_transition_plan_row",
+        "_ensure_legacy_transition_plan_write_enabled",
+        "transition_model_to_domain"
+      ]
+    },
+    {
+      "source_symbol": "apps/decision_rhythm/infrastructure/recommendation_repositories.py::PortfolioTransitionPlanRepository.update_status",
+      "ownership": "decision_rhythm_legacy",
+      "mutation_semantic": "transition_plan_status_update",
+      "enabled_by_default": true,
+      "replacement": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.approve",
+      "required_ast_calls": [
+        "PortfolioTransitionPlanModel.objects.get",
+        "_ensure_legacy_transition_plan_row",
+        "_ensure_legacy_transition_plan_write_enabled",
+        "model.save",
+        "transition_model_to_domain"
+      ]
+    },
+    {
+      "source_symbol": "apps/portfolio/application/use_cases.py::BuildTransitionPlanUseCase.execute",
+      "ownership": "portfolio_canonical",
+      "mutation_semantic": "transition_plan_build_and_persist",
+      "enabled_by_default": true,
+      "replacement": null,
+      "required_ast_calls": [
+        "build_transition_plan",
+        "self._repository.save"
+      ]
+    },
+    {
+      "source_symbol": "apps/portfolio/application/use_cases.py::ValidateTransitionPlanUseCase.execute",
+      "ownership": "portfolio_canonical",
+      "mutation_semantic": "transition_plan_approve",
+      "enabled_by_default": true,
+      "replacement": null,
+      "required_ast_calls": [
+        "self._repository.approve"
+      ]
+    },
+    {
+      "source_symbol": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.approve",
+      "ownership": "portfolio_canonical",
+      "mutation_semantic": "transition_plan_approve",
+      "enabled_by_default": true,
+      "replacement": null,
+      "required_ast_calls": [
+        "PortfolioTransitionPlanModel._default_manager.select_for_update.get",
+        "row.save",
+        "timezone.now"
+      ]
+    },
+    {
+      "source_symbol": "apps/portfolio/infrastructure/repositories.py::PortfolioTransitionPlanRepository.save",
+      "ownership": "portfolio_canonical",
+      "mutation_semantic": "immutable_transition_plan_create",
+      "enabled_by_default": true,
+      "replacement": null,
+      "required_ast_calls": [
+        "PortfolioTransitionPlanModel._default_manager.create",
+        "PortfolioTransitionPlanModel._default_manager.select_for_update.filter",
+        "get_decision_snapshot",
+        "require_canonical_transition_plan_family"
+      ]
+    }
+  ],
+  "http_interface_scopes": [
+    "apps/broker_execution/interface",
+    "apps/decision_rhythm/interface",
+    "apps/portfolio/interface",
+    "apps/simulated_trading/interface",
+    "apps/strategy/interface"
+  ],
+  "http_surfaces": [
+    "apps/broker_execution/interface/api_views.py::AgentCommandCompleteView.post",
+    "apps/broker_execution/interface/api_views.py::AgentCommandsView.post",
+    "apps/broker_execution/interface/api_views.py::AgentEventsView.post",
+    "apps/broker_execution/interface/api_views.py::AgentHeartbeatView.post",
+    "apps/broker_execution/interface/api_views.py::AgentOrderLeaseView.post",
+    "apps/broker_execution/interface/api_views.py::AgentSnapshotView.post",
+    "apps/broker_execution/interface/api_views.py::AgentSubmittingView.post",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionAccountAccessView.post",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionAdvisorDraftView.post",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionBindingView.post",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionConnectionSyncView.post",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionCredentialRevokeView.post",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionCredentialRotateView.post",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionKillSwitchView.post",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionOrderActionView.post",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionReconciliationResolveView.post",
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionSettingsView.patch",
+    "apps/decision_rhythm/interface/command_api_views.py::SubmitBatchRequestView.post",
+    "apps/decision_rhythm/interface/command_api_views.py::SubmitDecisionRequestView.post",
+    "apps/decision_rhythm/interface/input_snapshot_api_views.py::DecisionInputSnapshotListCreateView.post",
+    "apps/decision_rhythm/interface/quota_api_views.py::ResetQuotaView.post",
+    "apps/decision_rhythm/interface/recommendation_api_views.py::RecommendationUserActionView.post",
+    "apps/decision_rhythm/interface/recommendation_api_views.py::RefreshRecommendationsView.post",
+    "apps/decision_rhythm/interface/recommendation_api_views.py::UpdateModelParamView.post",
+    "apps/decision_rhythm/interface/valuation_api_views.py::InvalidationAIDraftView.post",
+    "apps/decision_rhythm/interface/valuation_api_views.py::InvalidationTemplateView.post",
+    "apps/decision_rhythm/interface/valuation_api_views.py::ValuationRecalculateView.post",
+    "apps/decision_rhythm/interface/workflow_api_views.py::CancelDecisionRequestView.post",
+    "apps/decision_rhythm/interface/workflow_api_views.py::ExecuteDecisionRequestView.post",
+    "apps/decision_rhythm/interface/workflow_api_views.py::PrecheckDecisionView.post",
+    "apps/decision_rhythm/interface/workflow_api_views.py::UpdateQuotaConfigView.post",
+    "apps/decision_rhythm/interface/workspace_execution_api_views.py::ExecutionApproveView.post",
+    "apps/decision_rhythm/interface/workspace_execution_api_views.py::ExecutionPreviewView.post",
+    "apps/decision_rhythm/interface/workspace_execution_api_views.py::ExecutionRejectView.post",
+    "apps/decision_rhythm/interface/workspace_execution_api_views.py::TransitionPlanGenerateView.post",
+    "apps/decision_rhythm/interface/workspace_execution_api_views.py::TransitionPlanUpdateView.post",
+    "apps/portfolio/interface/api_views.py::TransitionPlanApproveView.post",
+    "apps/portfolio/interface/api_views.py::TransitionPlanListCreateView.post",
+    "apps/portfolio/interface/api_views.py::TransitionPlanSubmitView.post",
+    "apps/simulated_trading/interface/performance_views.py::AccountBackfillAPIView.post",
+    "apps/simulated_trading/interface/performance_views.py::AccountBenchmarksAPIView.put",
+    "apps/simulated_trading/interface/sdk_contract_views.py::AccountResetAPIView.post",
+    "apps/simulated_trading/interface/sdk_contract_views.py::PositionCloseAPIView.post",
+    "apps/simulated_trading/interface/tui_views.py::InspectionNotificationConfigAPIView.patch",
+    "apps/simulated_trading/interface/views.py::AccountBatchDeleteAPIView.post",
+    "apps/simulated_trading/interface/views.py::AccountDetailAPIView.delete",
+    "apps/simulated_trading/interface/views.py::AccountListAPIView.post",
+    "apps/simulated_trading/interface/views.py::AutoTradingAPIView.post",
+    "apps/simulated_trading/interface/views.py::DailyInspectionRunAPIView.post",
+    "apps/simulated_trading/interface/views.py::ManualTradeAPIView.post",
+    "apps/strategy/interface/tui_views.py::StrategyTuiCreateView.post",
+    "apps/strategy/interface/tui_views.py::StrategyTuiRuleCreateView.post",
+    "apps/strategy/interface/tui_views.py::StrategyTuiRuleUpdateView.patch",
+    "apps/strategy/interface/tui_views.py::StrategyTuiUpdateView.patch"
+  ],
+  "sdk_module_scopes": [
+    "sdk/agomtradepro/modules/broker_execution.py",
+    "sdk/agomtradepro/modules/decision_rhythm.py",
+    "sdk/agomtradepro/modules/decision_workflow.py"
+  ],
+  "sdk_mutation_surfaces": [
+    "sdk/agomtradepro/modules/broker_execution.py::BrokerExecutionModule.order_action",
+    "sdk/agomtradepro/modules/broker_execution.py::BrokerExecutionModule.resolve_reconciliation",
+    "sdk/agomtradepro/modules/broker_execution.py::BrokerExecutionModule.set_kill_switch",
+    "sdk/agomtradepro/modules/decision_rhythm.py::DecisionRhythmModule.cancel_request",
+    "sdk/agomtradepro/modules/decision_rhythm.py::DecisionRhythmModule.execute_request",
+    "sdk/agomtradepro/modules/decision_rhythm.py::DecisionRhythmModule.reset_quota",
+    "sdk/agomtradepro/modules/decision_rhythm.py::DecisionRhythmModule.submit",
+    "sdk/agomtradepro/modules/decision_rhythm.py::DecisionRhythmModule.submit_batch",
+    "sdk/agomtradepro/modules/decision_rhythm.py::DecisionRhythmModule.update_quota",
+    "sdk/agomtradepro/modules/decision_workflow.py::DecisionWorkflowModule.apply_recommendation_action",
+    "sdk/agomtradepro/modules/decision_workflow.py::DecisionWorkflowModule.generate_transition_plan",
+    "sdk/agomtradepro/modules/decision_workflow.py::DecisionWorkflowModule.precheck",
+    "sdk/agomtradepro/modules/decision_workflow.py::DecisionWorkflowModule.preview_execution",
+    "sdk/agomtradepro/modules/decision_workflow.py::DecisionWorkflowModule.refresh_recommendations",
+    "sdk/agomtradepro/modules/decision_workflow.py::DecisionWorkflowModule.update_transition_plan"
+  ],
+  "tui_published_graph": "config/tui/published/tui_operation_graph.published.json",
+  "tui_published_graph_sha256": "1d5b38416c23f7583297130d3076da9d80c4af25a4ea77721ee7b9633143f3f8",
+  "tui_decision_screen": "command-center.decision-flow",
+  "tui_decision_actions": [
+    "auto.api.get.api.dashboard.action-recommendation",
+    "auto.api.get.api.dashboard.attention-items",
+    "auto.api.get.api.dashboard.v1.alpha-decision-chain",
+    "auto.api.get.api.decision",
+    "auto.api.get.api.decision.audit",
+    "auto.api.get.api.decision.context.step1",
+    "auto.api.get.api.decision.context.step2",
+    "auto.api.get.api.decision.context.step3",
+    "auto.api.get.api.decision.context.step4",
+    "auto.api.get.api.decision.context.step5",
+    "auto.api.get.api.decision.context.step6",
+    "auto.api.get.api.decision.workspace.aggregated",
+    "auto.api.get.api.decision.workspace.conflicts",
+    "auto.api.get.api.decision.workspace.params",
+    "auto.api.get.api.decision.workspace.recommendations",
+    "auto.api.get.api.decision-ready",
+    "data_center.decision_reliability_repair",
+    "decision.execute.approve",
+    "decision.execute.preview",
+    "decision.execute.reject",
+    "decision.workspace.plan_generate",
+    "decision.workspace.plan_update",
+    "decision.workspace.recommendation_action",
+    "param.api.get.api.decision.workspace.plans.str.plan_id",
+    "param.api.get.api.valuation.snapshot.str.snapshot_id"
+  ],
+  "tui_mutation_actions": [
+    "alpha.inference.trigger_batch",
+    "alpha.qlib_data_refresh",
+    "config_center.qlib_runtime",
+    "config_center.qlib_runtime_update",
+    "config_center.training_profile_save",
+    "config_center.training_run_detail",
+    "config_center.training_run_trigger",
+    "config_center.training_runs",
+    "config_center.training_profiles",
+    "data_center.decision_reliability_repair",
+    "data_center.market_thermometer_calculate",
+    "data_center.market_thermometer_sync_inputs",
+    "data_center.sync_quotes",
+    "decision.execute.approve",
+    "decision.execute.preview",
+    "decision.execute.reject",
+    "decision.workspace.plan_generate",
+    "decision.workspace.plan_update",
+    "decision.workspace.recommendation_action",
+    "share.public.access",
+    "terminal.agent_chat",
+    "terminal.agent_stream",
+    "terminal.session.start"
+  ],
+  "mcp_position_related_write_capabilities": [
+    "account.create.position",
+    "account.create.trading_cost_config",
+    "account.import.broker_trades",
+    "account.import.capital_flows",
+    "account.import.positions",
+    "account.import.transactions",
+    "account.update.trading_cost_config",
+    "agent_proposal.execute.proposal",
+    "backtest.run.decision_replay",
+    "data_center.repair.decision_reliability",
+    "decision.cancel.request",
+    "decision.create.execution_request",
+    "decision.create.transition_plan",
+    "decision.execute.request",
+    "decision.refresh.recommendations",
+    "decision.reset.quota",
+    "decision.submit.request",
+    "decision.submit.request_batch",
+    "decision.update.recommendation_action",
+    "decision.update.transition_plan",
+    "factor.create.portfolio",
+    "strategy.bind.portfolio",
+    "strategy.execute.run",
+    "strategy.unbind.portfolio",
+    "trading.close.simulated_position",
+    "trading.create.simulated_account",
+    "trading.delete.simulated_account",
+    "trading.delete.simulated_account_batch",
+    "trading.reset.simulated_account",
+    "trading.run.simulated_daily_inspection",
+    "trading.start.simulated_auto_trading",
+    "trading.submit.simulated_order"
+  ],
+  "notes": [
+    "Inventory presence does not attest that the legacy surface already enforces an evidence receipt.",
+    "Agent protocol transitions are included because lease and submitting can cause external execution side effects.",
+    "Transition-plan internal writers freeze both the default-enabled legacy chain and its canonical replacement; inventory presence does not approve either path."
+  ]
+}

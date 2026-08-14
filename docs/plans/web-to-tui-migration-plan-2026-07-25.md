@@ -1,8 +1,8 @@
 # Web 界面 → TUI 整体迁移计划（M0-M5）
 
 > **文档日期**: 2026-07-25
-> **最后修订**: 2026-07-28
-> **状态**: 实施中；M0、M0-D、M1、M2、M3 与 M4 仓库实现已完成；M5 遥测、同任务错误率、机器 cutover gate、本地回滚演练与 108/108 主任务浏览器 UAT 已落地；候选稳定版本、14 日窗口、生产样本、缺陷窗口、生产 registry 备份与审批均未满足，当前禁止清理 Classic
+> **最后修订**: 2026-08-13
+> **状态**: 实施中；M0、M0-D、M1、M2、M3 与 M4 仓库实现已完成；M5 遥测、同任务错误率与机器 cutover gate 已落地，但历史 108/108 UAT、cleanup 和本地 rollback 未绑定当前 candidate graph/runtime snapshot，已于 2026-08-13 改判未通过；当日生产 preflight 虽确认 release 已更新且 health/ready 正常，但 OCI revision=`unknown` 且无 source manifest，仍无候选部署证明；14 日窗口、最终候选 UAT/回滚、生产样本、缺陷窗口、生产 registry 备份与审批均未满足，当前禁止清理 Classic
 > **适用对象**: 开发负责人 / 模块维护人 / AI 代理
 > **主范围**: 以 M0 的 195 个 Django 模板为初始基线，持续盘点 `core/templates/` 与 `apps/*/templates/`，并把适合迁移的用户任务迁入 TUI 工作台（`/tui/`）；迁移期新增的共用兼容组件也必须进入同一台账
 > **后端边界**: 默认保持业务语义不变；为补齐 TUI API 契约所需的 owner app 纵向切片允许纳入，但必须单独估算、提交和验收，不得把业务逻辑堆入 `terminal`
@@ -351,7 +351,13 @@ python tui-metadata-compiler/scripts/publish_tui_metadata.py \
 | 大批次难以验收和回滚 | M2/M3 默认每 wave 不超过 3 个 route page 或 1 个复杂 CRUD 工作台；跟踪表逐 wave 记录 owner 和证据 |
 | 只验证“能渲染”未验证“能完成任务” | 每个 route page 至少有一个主任务 UAT，覆盖角色、空态、错误态、写操作、刷新、键盘和 console |
 | 遥测归因错误或样本被全站流量稀释 | 只接受 telemetry catalog 中有界 task key；Classic 使用同源页面 Referer 归因入口/API 执行，TUI 使用真实 action execution；跨源/未知 key 丢弃并告警 |
-| 在 DENY 状态下提前删除 Classic | CI 的 cleanup guard 固定放行 7 个已审 M0-D 基线；检测到任何新增 `deleted` 行时，必须属于 M5-B 且完整 checker 返回 ALLOW，否则 fail closed；任何人工叙述不得覆盖机器结果 |
+| 在 DENY 状态下提前删除 Classic | CI cleanup guard 只固定放行 7 个已审 M0-D 基线；新增 `deleted` 必须重放变更前最终双签，并逐 M5-B wave 验证删除后 candidate binding、≤10 route、rollback manifest、≥48h 观察、定时周期、缺陷和错误率，否则 fail closed；任何人工叙述不得覆盖机器结果 |
+
+2026-08-13 已增加独立 M5-C 最终库存模式 `python scripts/web_template_migration_inventory.py --require-finalized`。普通 `--check` 继续只验证迁移期 196 行冻结台账；最终模式另要求物理模板精确等于 41 个 C 档路径、A/B/D lifecycle 全为 `deleted`，并拒绝已删模板残留 view/route literal、仅由已删模板消费的静态资产、无活生产代码消费者或指向非 canonical screen 的 legacy alias。当前普通检查通过；最终模式按设计失败，原因包括 148 个 A/B 模板尚未完成 lifecycle。published graph 当前 32 个 legacy alias 中另有 11 个无活生产代码引用、1 个 dangling，均须在真实流量观察与各 wave 证明后清理，不能据静态扫描提前删除。
+
+同日新增 `record_web_to_tui_cleanup_wave.py` 与结构化 schema，正式承接 M5-B 每波记录。recorder 从 immutable candidate Git snapshot 重算新增删除、连续 wave、route 数、catalog task 和 rollback commit；每次只允许新增一个 wave且 route page 为 1–10 个。它强制读取已提交的 production deployment preflight，并要求 source commit/OCI revision 精确等于删除候选；deployment attestation 必须在 candidate 之后、观察开始之前提交，48 小时窗口不得早于部署核验。telemetry、P0/P1 defect tracker 与 scheduled cycle 三类原始证据均按 exact schema 重算，caller 不能提交 `passed` 或自报日期。当前无 M5-B 删除候选，CLI 按设计返回 FAIL，不产生证据。
+
+发布工具也已在仓库侧补齐 provenance：上传构建拒绝 dirty worktree 和 `unknown`/非完整 commit，clone 构建锁定 expected commit；两种路径均要求 OCI revision exact match，并生成只读 release manifest。deploy 会在任何服务启动或 `current` 切换前核验 manifest、image ID 与 revision。相关本地回归 `44 passed`。该代码尚未部署，当前生产快照仍无法证明候选身份，因此不能据此启动或回填 M5-A。
 
 ## 8. Web 保留清单（C 档，当前 41 个）
 
@@ -414,7 +420,7 @@ M0 的主产物固定为 `docs/plans/web-to-tui-migration-matrix-2026-07-25.csv`
 只有同时满足以下条件，本计划才算完成：
 
 - [ ] §10 映射矩阵 A/B/C/D 互斥、合计与实际模板数一致，无悬空归属
-- [ ] §8 保留清单以外的模板全部删除或迁入 TUI；剩余路径与 C 档精确文件清单一致
+- [ ] §8 保留清单以外的模板全部删除或迁入 TUI；`web_template_migration_inventory.py --require-finalized` 通过，剩余路径与 C 档精确文件清单一致
 - [ ] 普通用户 8 步每日工作流与管理员治理任务全部在 TUI 内闭环，无 Classic 跳转依赖
 - [ ] 每个迁移 route page 的主任务 UAT、权限、空态、错误态和旧 URL 策略均有证据
 - [ ] TUI 全部契约/治理/JS/Playwright 检查绿，且 AGENTS.md 固定最小回归包绿

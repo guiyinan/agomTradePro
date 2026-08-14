@@ -2,6 +2,56 @@
   "schema_version": 1,
   "contracts": [
     {
+      "id": "strategy.execution_preview",
+      "surface": "POST /api/strategy/execution/evaluate/ display-only preview",
+      "source_files": [
+        "apps/strategy/application/execution_preview.py",
+        "apps/strategy/interface/execution_views.py",
+        "apps/strategy/interface/serializers.py"
+      ],
+      "required_markers": {
+        "apps/strategy/application/execution_preview.py": [
+          "market_observed_at",
+          "signal_observed_at",
+          "regime_observed_at",
+          "account_observed_at",
+          "can_execute=False",
+          "must_not_use_for_decision=True",
+          "must_not_execute=True"
+        ],
+        "apps/strategy/interface/execution_views.py": [
+          "evaluate_execution_preview(",
+          "current_price=data[\"current_price\"]",
+          "current_regime=data[\"current_regime\"]",
+          "regime_confidence=data[\"regime_confidence\"]"
+        ],
+        "apps/strategy/interface/serializers.py": [
+          "current_price = serializers.FloatField(",
+          "current_regime = serializers.CharField(",
+          "regime_confidence = serializers.FloatField(",
+          "must_not_use_for_decision = serializers.BooleanField(",
+          "must_not_execute = serializers.BooleanField("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "allow_remains_display_only",
+          "test_file": "tests/unit/strategy/test_execution_preview.py",
+          "test_function": "test_allowing_domain_preview_is_still_display_only_and_non_executable"
+        },
+        {
+          "case": "stale_sources_fail_closed",
+          "test_file": "tests/unit/strategy/test_execution_preview.py",
+          "test_function": "test_preview_rejects_each_stale_source_snapshot"
+        },
+        {
+          "case": "current_fact_provenance_required",
+          "test_file": "tests/unit/strategy/test_serializers.py",
+          "test_function": "test_execution_evaluate_requires_all_current_fact_provenance"
+        }
+      ]
+    },
+    {
       "id": "regime.current_cache_warmup",
       "surface": "Regime current cache warmup",
       "source_files": [
@@ -1114,6 +1164,169 @@
       ]
     },
     {
+      "id": "broker_execution.connection_status",
+      "surface": "Agent heartbeat -> GET /api/broker-execution/connections/ -> SDK connection status",
+      "source_files": [
+        "apps/broker_execution/application/connection_status.py",
+        "apps/broker_execution/application/query_services.py",
+        "apps/broker_execution/domain/connection_freshness.py",
+        "apps/broker_execution/infrastructure/broker_repository_access.py",
+        "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py",
+        "apps/broker_execution/interface/serializers.py",
+        "docs/api/qmt-agent-v1.schema.json",
+        "qmt_agent/executor.py",
+        "sdk/agomtradepro/modules/broker_execution.py"
+      ],
+      "required_markers": {
+        "apps/broker_execution/application/connection_status.py": [
+          "heartbeat_times_are_fresh",
+          "source_observed_at",
+          "received_at",
+          "must_not_use_for_decision",
+          "must_not_execute"
+        ],
+        "apps/broker_execution/domain/connection_freshness.py": [
+          "HEARTBEAT_FRESHNESS = timedelta(seconds=90)",
+          "source <= received <= evaluated"
+        ],
+        "apps/broker_execution/application/query_services.py": [
+          "project_connection_status(row, evaluated_at=now)",
+          "\"must_not_execute\": not any_connected"
+        ],
+        "apps/broker_execution/infrastructure/broker_repository_access.py": [
+          "\"source_observed_at\"",
+          "\"received_at\""
+        ],
+        "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py": [
+          "reported_qmt_connected",
+          "Agent heartbeat source or receipt is stale"
+        ],
+        "apps/broker_execution/interface/serializers.py": [
+          "observed_at = serializers.CharField(required=False",
+          "observed_at must include a timezone"
+        ],
+        "docs/api/qmt-agent-v1.schema.json": [
+          "Agent source observation time",
+          "fail-closed for connection and lease readiness"
+        ],
+        "qmt_agent/executor.py": [
+          "\"observed_at\": datetime.now(UTC).isoformat()"
+        ],
+        "sdk/agomtradepro/modules/broker_execution.py": [
+          "def connections(self) -> dict[str, Any]:"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "fresh_source_and_receipt_preserved",
+          "test_file": "tests/unit/broker_execution/test_connection_status.py",
+          "test_function": "test_fresh_connection_preserves_source_and_receipt_clocks"
+        },
+        {
+          "case": "source_and_receipt_fail_closed",
+          "test_file": "tests/unit/broker_execution/test_connection_status.py",
+          "test_function": "test_source_or_receipt_clock_failures_block_current_health"
+        },
+        {
+          "case": "reported_state_cannot_override_blockers",
+          "test_file": "tests/unit/broker_execution/test_connection_status.py",
+          "test_function": "test_reported_state_cannot_override_connection_blockers"
+        },
+        {
+          "case": "agent_publishes_source_clock",
+          "test_file": "tests/unit/broker_execution/test_agent.py",
+          "test_function": "test_heartbeat_publishes_agent_source_observation_time"
+        },
+        {
+          "case": "sdk_preserves_current_markers",
+          "test_file": "sdk/tests/test_sdk/test_broker_execution.py",
+          "test_function": "test_sdk_connection_read_preserves_current_data_markers"
+        },
+        {
+          "case": "mcp_remains_disabled",
+          "test_file": "tests/unit/test_mcp_evidence_output_surfaces.py",
+          "test_function": "test_decision_facing_broker_native_reads_are_disabled"
+        }
+      ]
+    },
+    {
+      "id": "broker_execution.overview_readiness",
+      "surface": "GET /api/broker-execution/ overview readiness -> SDK thin projection",
+      "source_files": [
+        "apps/broker_execution/application/overview_status.py",
+        "apps/broker_execution/application/query_services.py",
+        "apps/broker_execution/infrastructure/broker_repository_access.py",
+        "sdk/agomtradepro/modules/broker_execution.py",
+        "sdk/agomtradepro_mcp/registry/modules/owners/broker_execution_read_capabilities.py"
+      ],
+      "required_markers": {
+        "apps/broker_execution/application/overview_status.py": [
+          "def project_broker_overview(",
+          "broker_snapshot_missing_stale_or_invalid",
+          "broker_reconciliation_missing_stale_or_unbound",
+          "heartbeat_times_are_fresh(",
+          "\"must_not_execute\": readiness != \"READY\"",
+          "\"connection_evidence\": connection_facts",
+          "\"source_times\": source_times"
+        ],
+        "apps/broker_execution/application/query_services.py": [
+          "project_broker_overview(",
+          "project_connection_status(row, evaluated_at=now)",
+          "overview[\"connections\"] = connections"
+        ],
+        "apps/broker_execution/infrastructure/broker_repository_access.py": [
+          "Application owns current-readiness semantics",
+          "\"account_evidence\": account_evidence",
+          "\"open_orders\"",
+          "\"generated_at\": row.generated_at.isoformat()"
+        ],
+        "sdk/agomtradepro/modules/broker_execution.py": [
+          "def overview(self) -> dict[str, Any]:"
+        ],
+        "sdk/agomtradepro_mcp/registry/modules/owners/broker_execution_read_capabilities.py": [
+          "\"broker_execution.read.overview\"",
+          "enabled=False"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "complete_same_snapshot_graph_required",
+          "test_file": "tests/unit/broker_execution/test_overview_status.py",
+          "test_function": "test_ready_requires_complete_current_same_snapshot_evidence"
+        },
+        {
+          "case": "each_current_fact_fails_closed",
+          "test_file": "tests/unit/broker_execution/test_overview_status.py",
+          "test_function": "test_each_required_evidence_breaks_ready"
+        },
+        {
+          "case": "all_active_accounts_covered",
+          "test_file": "tests/unit/broker_execution/test_overview_status.py",
+          "test_function": "test_all_active_bindings_require_complete_evidence"
+        },
+        {
+          "case": "source_times_not_laundered",
+          "test_file": "tests/unit/broker_execution/test_overview_status.py",
+          "test_function": "test_evaluated_at_never_replaces_or_reformats_source_times"
+        },
+        {
+          "case": "application_projects_repository_facts",
+          "test_file": "tests/unit/broker_execution/test_overview_status.py",
+          "test_function": "test_query_service_projects_repository_facts_with_one_trusted_clock"
+        },
+        {
+          "case": "sdk_preserves_overview_markers",
+          "test_file": "sdk/tests/test_sdk/test_broker_execution.py",
+          "test_function": "test_sdk_reads_overview_and_order_catalog"
+        },
+        {
+          "case": "mcp_remains_disabled",
+          "test_file": "tests/unit/test_mcp_evidence_output_surfaces.py",
+          "test_function": "test_decision_facing_broker_native_reads_are_disabled"
+        }
+      ]
+    },
+    {
       "id": "broker_execution.qmt_onboarding",
       "surface": "GET /api/broker-execution/qmt-onboarding/ + TUI QMT 接入与设置",
       "source_files": [
@@ -1122,9 +1335,9 @@
       ],
       "required_markers": {
         "apps/broker_execution/application/query_services.py": [
-          "_QMT_HEARTBEAT_FRESHNESS = timedelta(seconds=90)",
-          "\"last_heartbeat_at\": agent.get(\"last_heartbeat_at\")",
-          "\"must_not_use_for_decision\": not qmt_connected"
+          "project_connection_status(agent, evaluated_at=now)",
+          "\"source_observed_at\": connection[\"source_observed_at\"]",
+          "\"must_not_use_for_decision\": connection[\"must_not_use_for_decision\"]"
         ],
         "apps/broker_execution/interface/api_views.py": [
           "class BrokerExecutionQmtOnboardingView(APIView):"
@@ -1426,10 +1639,14 @@
     },
     {
       "id": "mcp.equity_research_snapshot",
-      "surface": "MCP equity.read.research_snapshot + AI capability route",
+      "surface": "Equity Application + REST + SDK + MCP research snapshot + AI capability route",
       "source_files": [
         "apps/ai_capability/application/use_cases.py",
         "apps/ai_capability/application/financial_fact_routing.py",
+        "apps/equity/application/research_snapshot.py",
+        "apps/equity/interface/research_snapshot_views.py",
+        "apps/equity/research_snapshot_composition.py",
+        "sdk/agomtradepro/modules/equity.py",
         "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py",
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py"
       ],
@@ -1442,18 +1659,56 @@
           "EQUITY_RESEARCH_CAPABILITY_SUFFIX = \"equity.read.research_snapshot\"",
           "financial_evidence_capability_unavailable"
         ],
+        "apps/equity/application/research_snapshot.py": [
+          "class EquityResearchSnapshotUseCase:",
+          "def _payload_block_reason(",
+          "decision_readiness_blocked",
+          "equity_core_evidence_incomplete"
+        ],
+        "apps/equity/interface/research_snapshot_views.py": [
+          "class EquityResearchSnapshotAPIView(APIView):",
+          "permission_classes = [IsAuthenticated]",
+          "make_equity_research_snapshot_use_case().execute(use_case_request)"
+        ],
+        "apps/equity/research_snapshot_composition.py": [
+          "class DataCenterEquityResearchSnapshotReader:",
+          "get_published_latest_quote_payload",
+          "run_decision_readiness_checks"
+        ],
+        "sdk/agomtradepro/modules/equity.py": [
+          "def get_research_snapshot(",
+          "research-snapshot/{stock_code}/"
+        ],
         "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py": [
           "capability_key=\"equity.read.research_snapshot\"",
           "requires_confirmation=False"
         ],
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py": [
-          "def _payload_block_reason(",
-          "_UNUSABLE_CURRENT_DATA_STATUSES",
           "def _internal_handler_equity_read_research_snapshot(",
-          "decision_readiness_blocked"
+          "client.equity.get_research_snapshot("
         ]
       },
       "required_tests": [
+        {
+          "case": "application_optional_gap",
+          "test_file": "tests/unit/equity/test_research_snapshot_use_case.py",
+          "test_function": "test_optional_gaps_are_partial_but_decision_usable"
+        },
+        {
+          "case": "application_required_stale",
+          "test_file": "tests/unit/equity/test_research_snapshot_use_case.py",
+          "test_function": "test_core_section_fail_closed_for_publication_freshness_and_empty_evidence"
+        },
+        {
+          "case": "rest_auth_and_thin_delegate",
+          "test_file": "tests/api/test_equity_research_snapshot_api.py",
+          "test_function": "test_research_snapshot_delegates_normalized_defaults_to_application"
+        },
+        {
+          "case": "sdk_single_endpoint",
+          "test_file": "sdk/tests/test_sdk/test_equity_module.py",
+          "test_function": "test_get_research_snapshot_uses_canonical_endpoint_and_preserves_envelope"
+        },
         {
           "case": "chinese_research_route",
           "test_file": "tests/unit/test_ai_capability/test_equity_research_routing.py",
@@ -1465,24 +1720,9 @@
           "test_function": "test_financial_fact_query_without_evidence_capability_never_calls_chat_model"
         },
         {
-          "case": "mcp_optional_gap_visible",
+          "case": "mcp_single_sdk_call",
           "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
-          "test_function": "test_research_snapshot_keeps_optional_gaps_visible_without_fabrication"
-        },
-        {
-          "case": "mcp_global_readiness_blocked",
-          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
-          "test_function": "test_research_snapshot_obeys_global_decision_readiness"
-        },
-        {
-          "case": "mcp_stale_section_without_boolean_gate_blocked",
-          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
-          "test_function": "test_research_snapshot_blocks_stale_section_without_boolean_gate"
-        },
-        {
-          "case": "mcp_nested_stale_reliability_without_boolean_gate_blocked",
-          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
-          "test_function": "test_research_snapshot_blocks_nested_stale_reliability_without_boolean_gate"
+          "test_function": "test_research_snapshot_is_a_single_sdk_call_and_preserves_envelope"
         }
       ]
     },
@@ -2158,12 +2398,12 @@
     },
     {
       "id": "data_center.publication_gated_reads",
-      "surface": "Data Center API/SDK/MCP publication-gated decision reads",
+      "surface": "Data Center API/SDK and Equity Application publication-gated decision reads",
       "source_files": [
         "apps/data_center/interface/api_views.py",
         "apps/data_center/interface/publication_guards.py",
         "sdk/agomtradepro/modules/data_center.py",
-        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py"
+        "apps/equity/research_snapshot_composition.py"
       ],
       "required_markers": {
         "apps/data_center/interface/api_views.py": [
@@ -2180,9 +2420,11 @@
           "publication_key",
           "params[\"mode\"] = mode"
         ],
-        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py": [
-          "def _published_read(",
-          "mode=\"published\""
+        "apps/equity/research_snapshot_composition.py": [
+          "get_published_latest_quote_payload",
+          "get_published_price_bar_series",
+          "get_published_financial_facts",
+          "get_published_valuation_facts"
         ]
       },
       "required_tests": [
@@ -2202,14 +2444,14 @@
           "test_function": "test_data_center_module_can_request_publication_gated_reads"
         },
         {
-          "case": "mcp_research_uses_gate",
-          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
-          "test_function": "test_research_snapshot_keeps_optional_gaps_visible_without_fabrication"
+          "case": "equity_application_research_uses_gate",
+          "test_file": "tests/unit/equity/test_research_snapshot_use_case.py",
+          "test_function": "test_optional_gaps_are_partial_but_decision_usable"
         },
         {
-          "case": "mcp_blocked_gate_metadata_is_not_evidence",
-          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
-          "test_function": "test_research_snapshot_does_not_treat_blocked_publication_metadata_as_evidence"
+          "case": "equity_application_blocked_gate_metadata_is_not_evidence",
+          "test_file": "tests/unit/equity/test_research_snapshot_use_case.py",
+          "test_function": "test_core_section_fail_closed_for_publication_freshness_and_empty_evidence"
         }
       ]
     },

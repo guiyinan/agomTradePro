@@ -4,6 +4,12 @@
 
 **M5 清理判定：DENY。**
 
+> 2026-08-13 代码复核修正：此前仓内 108/108 UAT、108/108 cleanup 与本地 rollback
+> 仅绑定旧 Markdown 摘要，未绑定最终 candidate commit、当前 matrix、published graph、
+> schema、runtime version/build 和 runtime manifest，不能再记为通过。readiness 已改为对三类
+> 证据要求完全一致的 candidate binding；当前旧证据均显示 `binding=false` 并失败关闭。
+> 本节以下 7 月 27/28 的“通过”叙述保留为历史执行记录，不再代表当前候选 gate 状态。
+
 M0–M4 的仓库实现已完成，迁移矩阵中的 17 个 B 类 route template 已全部迁入
 TUI，B 类 backlog 为 0；但这不等于获得 Classic 删除授权。2026-07-28 只读生产
 preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952fae64565153213`，
@@ -12,21 +18,79 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
 必须由真实候选部署后的机器窗口计算。证据见
 `web-to-tui-m5-production-preflight-2026-07-28.md`。
 
+2026-08-13 再次只读 preflight 已确认生产 release 更新为 `source-20260813002655`，因此上段
+`2e399607…` 只保留为 7 月 28 日历史事实；但当前镜像 OCI revision 为 `unknown`，release 又无
+`.git`/source manifest，仍无法绑定任何候选 commit。公开 health/ready 均为 200/ok 不改变
+此结论。见 `web-to-tui-m5-production-preflight-2026-08-13.md`。
+
 ## 退出门槛快照
 
 | 门槛 | 当前证据 | 判定 |
 |---|---|---|
-| 至少 1 个稳定版本且不少于 14 个自然日 | 生产仍运行不含当前矩阵的旧提交；`stable_version`、`candidate_commit`、`released_at`、`observation_end` 尚未绑定，观察未开始 | 未通过 |
-| 计划内角色与主路径 UAT 100% | 108/108 矩阵深链 smoke 通过；71 个无需 fixture 的直读 route、9 个参数化读取 route、策略/个人 AI 服务商生命周期、Policy 创建、治理/筛选、本地详情/生命周期及 2 个受控外部 AI 流程已真实执行，去重后机器 gate 登记 108/108 | 通过 |
-| 逐 route 清理条件 100% | 六类 scope 均为 108/108；回滚映射由 3 个真实迁移提交生成，并通过当前分支 ancestry 与 evidence 一致性校验 | 通过（108/108） |
+| 至少 1 个稳定版本且不少于 14 个自然日 | 当前 release 为 `source-20260813002655`，但 OCI revision=`unknown` 且无 source manifest，不能绑定候选；`stable_version`、`candidate_commit`、`released_at`、`observation_end` 尚未建立 | 未通过 |
+| 计划内角色与主路径 UAT 100% | 历史覆盖为 108/108，但未绑定当前 candidate graph/runtime snapshot | 未通过；须对最终候选重跑并结构化回写 |
+| 逐 route 清理条件 100% | 历史六类 scope 为 108/108，但缺当前 candidate binding；cleanup recorder 尚待补齐 | 未通过 |
 | P0/P1 阻断缺陷为 0 | 尚无覆盖完整兼容窗口的缺陷报表 | 未通过 |
 | 旧入口占比 ≤ 5% 或低频例外双签 | 已实现矩阵驱动的有界 Classic/TUI 同任务指标与 14 日 PromQL；尚无生产样本 | 未通过 |
 | TUI 错误率不高于基线 0.5 个百分点 | 已把 Classic 同源 API execution 通过受审 Referer 归入固定 task，并实现 task request 对照和最小样本告警；101 个 comparable task 当前无生产窗口数据 | 未通过 |
-| wave 级 graph/runtime 与 route/template 回滚演练 | 本地隔离 reverse/restore 与 registry publish/rollback/restore 已通过，见回滚演练证据 | 通过（本地） |
+| wave 级 graph/runtime 与 route/template 回滚演练 | 旧本地演练未绑定当前 candidate graph/runtime/build，且当前静态 drill baseline 已漂移 | 未通过；须修复并重跑最终候选演练 |
 | 生产 registry 可校验备份 | 仓库外备份/恢复工具与集成测试已完成，但尚无绑定候选版本、commit、矩阵 SHA、外部 locator、完整性摘要和恢复验证的生产证据 | 未通过 |
 | owner 与独立 reviewer 切换审批 | 尚无绑定候选版本、commit、矩阵 SHA 和经摘要校验评审快照的双签 | 未通过 |
 
 ## 当前已通过的实现门禁
+
+### 2026-08-13：candidate binding 与 observation 防回填加固
+
+- 新增统一 candidate binding：稳定版本/完整 commit、matrix SHA、published graph SHA、
+  schema version、runtime version/build ID 与 runtime manifest SHA 必须完全一致。
+- readiness 现在对 UAT、cleanup、rollback 和 production registry backup 重新核对当前 binding；
+  仓内旧证据实测全部因 `binding=false` 为 FAIL，不再产生旧证据假阳性。
+- observation 启动不再接受 caller 提交 `released_at/as_of`；只能读取仓库内 HEAD 已提交且
+  byte-exact 的 production deployment preflight，核验 production release/source commit、OCI
+  image/revision、health/readiness 200/ok 响应摘要及时区感知单调时钟。health/verification 必须在
+  30 分钟内、部署不超过 24 小时，窗口从 `verified_at` 当日开始，不能回填证明前时段。
+- 更换候选会清空 UAT、cleanup、defects、telemetry、rollback/backup、review snapshot 与审批。
+- observation 合成测试 `15 passed`；candidate/readiness 相关全组在本机受慢速/临时目录权限影响
+  未取得一次完整结束证明，但旧证据实际 readiness 输出已确认 DENY。
+- UAT/cleanup/rollback candidate recorder 已实现：固定执行套件并重解析 JUnit，任何
+  failure/error/skip 都拒绝写入；rollback 只接受 drill v2 exact binding，CLI 不接受自报
+  `passed`。结构报告有独立 JSON Schema，专属测试 `5 passed`。
+- 当前 cutover candidate 未建立，candidate recorder 实测按设计 FAIL 且不写 evidence，readiness
+  仍安全 DENY。M5-B wave recorder 已补齐，但当前没有删除候选、部署 attestation 或 48h 原始
+  生产记录，不能用 candidate cleanup report 冒充每波生产观察。
+
+### 2026-08-13：candidate-bound rollback drill v2
+
+- 删除易漂移的静态 baseline/new-path 清单；从代表 wave 的 migration anchor 唯一新增提交
+  自动推导 baseline parent，candidate/ref 先解析为 immutable commit。
+- patch、artifact manifest、graph/schema contract、runtime manifest 和矩阵 rollback commit 全部从同一
+  candidate Git snapshot 重建；工作树不作为候选证据读取。
+- 真实本地隔离 reverse/forward 演练通过：31 artifacts（3 added / 18 modified / 10 unchanged），
+  graph actions `402 → 430`，runtime manifest 18 files 逐一验摘要，回滚与恢复后内容精确。
+- 针对测试 `3 passed, 1 skipped`；skip 为当前环境缺 Django 的 registry publish/rollback/restore 往返用例。
+  本地代表 wave 不替代生产 registry 备份/恢复、真实部署或全量 wave 验收，cutover 仍 DENY。
+
+### 2026-08-13：M5-C 最终库存门禁
+
+- `web_template_migration_inventory.py --require-finalized` 已与迁移期普通 `--check` 分离；普通检查语义不变。
+- 最终模式精确要求 41 个 C 档物理模板，A/B/D 全部 `deleted`，并扫描已删模板的活 view/route literal、孤儿静态资产及 published legacy alias 的 canonical target 与生产代码消费者。
+- 当前普通检查通过（196 行，A=131/B=17/C=41/D=7）；最终模式按设计 DENY，148 个 A/B 模板尚未完成 lifecycle。32 个 alias 中另有 11 个没有活生产代码引用，`capability-router.gateway` target dangling。
+- 门禁专属测试 `10 passed`；当前机器缺 Django runtime，历史 inventory rebuild 的 Django resolver 用例未纳入本次专属测试。静态引用扫描不替代生产流量证明，真实 alias 删除仍须进入逐波观察与回滚证据。
+
+### 2026-08-13：M5-B cleanup wave recorder
+
+- recorder 从 candidate Git snapshot 重算每波新增删除、连续 wave、1–10 route、telemetry task coverage 与 rollback commit，不接受 caller 自报 scope 或 `passed`。
+- 必须提供已提交的 production deployment preflight；stable version、source commit 与 OCI revision 均精确绑定删除候选，attestation commit 位于 candidate 之后且不晚于观察开始。
+- candidate observation 必须发生在 deployment verification 之后且不少于 48 小时；telemetry、P0/P1 tracker 与 scheduled cycle 原始记录分别按 exact schema 重算，窗口/候选/任务集合不一致即失败。
+- 三个 wave artifact 先写 SHA，cutover evidence 原子替换失败时回收本次 artifact；专属测试 `14 passed`，strict mypy、Black、isort、schemas、compile 与 diff check 通过。
+- 当前仓库没有 M5-B 删除候选和对应生产证据，真实 CLI 保持 FAIL；本实现只关闭 recorder 缺口，不代表任何 wave 已观察或获准删除。
+
+### 2026-08-13：发布 provenance fail-closed
+
+- source-upload 拒绝 dirty worktree 和非完整 Git SHA；git-clone 在构建前后锁定并复核 exact candidate commit。
+- 构建强制 OCI revision 等于源码 commit，并生成只读 exact-schema release manifest；deploy 在任何服务启动或 `current` 切换前复核 manifest、image ID 与 OCI revision。
+- 相关本地回归 `44 passed`，strict mypy、格式、编译和三个生成 shell 的语法检查通过；Ruff 未安装。
+- 代码整改尚未部署，当前生产仍是本页所述 OCI revision=`unknown`/无 manifest 状态。它不能替代真实候选部署、deployment attestation 或观察窗口，readiness 继续 `DENY`。
 
 - M4：17/17 个 B 类 route template 已迁移，0 backlog；完整 TUI Workbench 加操作组
   非 sticky 回归现为 `240 passed`。
@@ -85,9 +149,15 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
   旧签字；`record_web_to_tui_cutover_approval.py` 分别生成 owner/reviewer 角色绑定 attestation，
   强制不同身份、候选/矩阵/快照摘要一致和窗口结束后签署。Checker 会重建 review snapshot 并
   逐份核对 attestation；工具只记录真实审批，不能代替或伪造审批人决定。
-- Classic cleanup guard 已接入 consistency CI：固定识别 7 个 M0-D 审计基线；任何新增
-  `deleted` 行必须保留 A/B lifecycle、进入 M5-B wave，并由完整 readiness checker 返回
-  ALLOW，否则 CI 直接失败。
+- 2026-08-13 修复 cleanup guard 的 SHA 不可达循环：不再把删除后 matrix 交给变更前的
+  full readiness，而是先从 pre-cleanup candidate Git blobs 重放 final review snapshot 与外部
+  owner/reviewer attestations，再逐 M5-B wave 重建删除后 matrix/catalog/graph/runtime binding。
+- 每波强制精确删除范围、≤10 route、物理删除、legacy URL policy、独立复核、rollback manifest
+  和串行 commit lineage；外部 SHA observation ledger 还必须覆盖≥48 小时及至少一次定时周期，
+  P0/P1 全 0，基线/候选请求各≥20，错误率回退≤0.5 个百分点；前波完成观察后才能开始后波，
+  最后一波必须绑定当前 snapshot。caller 自写 `passed=true` 会因 exact schema 失败。
+- cleanup guard 针对测试 `15 passed`；当前尚无正式 cleanup wave/rollback manifest/observation
+  ledger recorder，因此真实新删除仍保持 DENY。
 - A/B route 即使在 M5-B 标为 `deleted`，仍保留在 108-route UAT/清理范围和 telemetry
   catalog 中；对应回归证明删除状态不能缩小证据分母或绕过历史任务监测。
 - 逐 route 兼容面首批证据 `2 passed`：展开 108 route 的 118 个 URL pattern，验证匿名认证

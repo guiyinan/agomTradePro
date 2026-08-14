@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -202,6 +203,7 @@ class AgentHeartbeatSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate Agent health payload."""
 
     contract_version = serializers.ChoiceField(choices=["1.0"])
+    observed_at = serializers.CharField(required=False, max_length=64)
     qmt_connected = serializers.BooleanField()
     account_ids = serializers.ListField(
         child=serializers.IntegerField(min_value=1),
@@ -211,6 +213,17 @@ class AgentHeartbeatSerializer(serializers.Serializer[dict[str, Any]]):
     qmt_version = serializers.CharField(required=False, allow_blank=True, max_length=64)
     dry_run = serializers.BooleanField(default=True)
     message = serializers.CharField(required=False, allow_blank=True, max_length=500)
+
+    def validate_observed_at(self, value: str) -> str:
+        """Require an explicit timezone without replacing the Agent source clock."""
+
+        try:
+            observed_at = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise serializers.ValidationError("observed_at must be an ISO datetime") from exc
+        if observed_at.tzinfo is None:
+            raise serializers.ValidationError("observed_at must include a timezone")
+        return observed_at.isoformat()
 
 
 class AgentLeaseSerializer(serializers.Serializer[dict[str, Any]]):

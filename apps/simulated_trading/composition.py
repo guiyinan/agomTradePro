@@ -1,5 +1,8 @@
 """Concrete dependency composition for Simulated Trading workflows."""
 
+from apps.account.application.physical_account_row_observation import (
+    ExactPhysicalSimulatedAccountRowProvider,
+)
 from apps.simulated_trading.application.performance_use_cases import (
     AccountRepositoryProtocol,
     BenchmarkComponentRepositoryProtocol,
@@ -10,6 +13,9 @@ from apps.simulated_trading.application.performance_use_cases import (
     TradeHistoryRepositoryProtocol,
     UnifiedCashFlowRepositoryProtocol,
     ValuationSnapshotRepositoryProtocol,
+)
+from apps.simulated_trading.infrastructure.account_physical_row_provider import (
+    DjangoExactPhysicalSimulatedAccountRowProvider,
 )
 from apps.simulated_trading.infrastructure.performance_repositories import (
     DjangoBenchmarkComponentRepository,
@@ -22,11 +28,22 @@ from apps.simulated_trading.infrastructure.performance_repositories import (
     DjangoUnifiedCashFlowRepository,
     DjangoValuationSnapshotRepository,
 )
+from apps.simulated_trading.infrastructure.simulated_account_row_source_repository import (
+    DjangoSimulatedAccountRowSourceRepository,
+)
 
 
 def build_performance_account_repository() -> AccountRepositoryProtocol:
     """Build the account read repository used by performance workflows."""
     return DjangoPerformanceAccountRepository()
+
+
+def build_account_physical_row_provider() -> ExactPhysicalSimulatedAccountRowProvider:
+    """Build the read-only owner adapter consumed by Account capture workflows."""
+
+    return DjangoExactPhysicalSimulatedAccountRowProvider(
+        DjangoSimulatedAccountRowSourceRepository()
+    )
 
 
 def build_observer_grant_repository() -> ObserverGrantRepositoryProtocol:

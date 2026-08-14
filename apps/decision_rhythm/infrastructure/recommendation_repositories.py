@@ -12,8 +12,11 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
+
+from core.integration.transition_plan_contracts import require_legacy_transition_plan_family
 
 from ..domain.entities import (
     ApprovalStatus,
@@ -23,8 +26,24 @@ from ..domain.entities import (
     UnifiedRecommendation,
     ValuationSnapshot,
 )
+from ..domain.exceptions import LegacyTransitionPlanWriteDisabledError
 
 logger = logging.getLogger(__name__)
+
+
+def _ensure_legacy_transition_plan_write_enabled() -> None:
+    """Reject legacy plan mutations after the canonical planner is enabled."""
+
+    if bool(getattr(settings, "PORTFOLIO_CANONICAL_PLANNER_ENABLED", False)):
+        raise LegacyTransitionPlanWriteDisabledError(
+            "legacy transition-plan writes are disabled; use the portfolio application facade"
+        )
+
+
+def _ensure_legacy_transition_plan_row(model: Any) -> None:
+    """Reject rows explicitly owned by a non-legacy payload contract."""
+
+    require_legacy_transition_plan_family(getattr(model, "plan_contract_family", None))
 
 
 def _json_safe_value(value: Any) -> Any:
@@ -359,12 +378,22 @@ class InvestmentRecommendationRepository:
 class PortfolioTransitionPlanRepository:
     """账户级调仓计划仓储。"""
 
+    @transaction.atomic
     def save(self, plan: PortfolioTransitionPlan) -> PortfolioTransitionPlan:
+        _ensure_legacy_transition_plan_write_enabled()
         from .models import PortfolioTransitionPlanModel
 
+        existing = (
+            PortfolioTransitionPlanModel.objects.select_for_update()
+            .filter(plan_id=plan.plan_id)
+            .first()
+        )
+        if existing is not None:
+            _ensure_legacy_transition_plan_row(existing)
         model, _ = PortfolioTransitionPlanModel.objects.update_or_create(
             plan_id=plan.plan_id,
             defaults={
+                "plan_contract_family": PortfolioTransitionPlanModel.CONTRACT_FAMILY_LEGACY,
                 "account_id": plan.account_id,
                 "source_recommendation_ids": _json_safe_value(plan.source_recommendation_ids),
                 "current_positions_snapshot": _json_safe_value(plan.current_positions_snapshot),
@@ -387,9 +416,8 @@ class PortfolioTransitionPlanRepository:
         try:
             from .transition_models import transition_model_to_domain
 
-            return transition_model_to_domain(
-                PortfolioTransitionPlanModel.objects.get(plan_id=plan_id)
-            )
+            model = PortfolioTransitionPlanModel.objects.get(plan_id=plan_id)
+            return transition_model_to_domain(model)
         except PortfolioTransitionPlanModel.DoesNotExist:
             return None
 
@@ -413,12 +441,15 @@ class PortfolioTransitionPlanRepository:
         status_value: str,
         approval_request_id: str | None = None,
     ) -> PortfolioTransitionPlan | None:
+        _ensure_legacy_transition_plan_write_enabled()
         from .models import PortfolioTransitionPlanModel
 
         try:
             model = PortfolioTransitionPlanModel.objects.get(plan_id=plan_id)
         except PortfolioTransitionPlanModel.DoesNotExist:
             return None
+
+        _ensure_legacy_transition_plan_row(model)
 
         model.status = status_value
         if approval_request_id is not None:
@@ -618,6 +649,9 @@ class ExecutionApprovalRequestRepository:
                     .select_for_update()
                     .get(request_id=request_id)
                 )
+                if model.transition_plan is not None:
+                    _ensure_legacy_transition_plan_row(model.transition_plan)
+                    _ensure_legacy_transition_plan_write_enabled()
                 old_status = model.approval_status
                 model.approval_status = approval_status.value
 
@@ -738,6 +772,7 @@ class ExecutionApprovalRequestRepository:
         market_price: Decimal | None,
     ) -> ExecutionApprovalRequest:
         """为账户级调仓计划创建审批请求。"""
+        _ensure_legacy_transition_plan_write_enabled()
         from uuid import uuid4
 
         from .models import ExecutionApprovalRequestModel, PortfolioTransitionPlanModel
@@ -746,6 +781,7 @@ class ExecutionApprovalRequestRepository:
             raise ValueError("当前交易计划已存在待审批请求")
 
         plan_model = PortfolioTransitionPlanModel.objects.get(plan_id=plan.plan_id)
+        _ensure_legacy_transition_plan_row(plan_model)
         active_orders = [order for order in plan.orders if order.action != "HOLD"]
         total_quantity = sum(abs(order.delta_qty) for order in active_orders) or 1
         price_lows = [order.price_band_low for order in active_orders] or [Decimal("0")]

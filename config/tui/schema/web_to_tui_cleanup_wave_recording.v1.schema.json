@@ -1,0 +1,782 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "web_to_tui_cleanup_wave_recording.v1.schema.json",
+  "title": "Web-to-TUI cleanup wave recording artifacts",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/telemetrySnapshot"
+    },
+    {
+      "$ref": "#/$defs/defectSnapshot"
+    },
+    {
+      "$ref": "#/$defs/scheduledCycleSnapshot"
+    },
+    {
+      "$ref": "#/$defs/rollbackManifest"
+    },
+    {
+      "$ref": "#/$defs/observationLedger"
+    },
+    {
+      "$ref": "#/$defs/waveRecord"
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+    },
+    "wave": {
+      "type": "string",
+      "pattern": "^M5-B-W[1-9][0-9]*$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^/\\\\].*"
+    },
+    "candidateBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "candidate_version",
+        "candidate_commit",
+        "matrix_sha256",
+        "graph_sha256",
+        "schema_version",
+        "runtime_version",
+        "runtime_build_id",
+        "runtime_manifest_sha256"
+      ],
+      "properties": {
+        "version": {
+          "const": "web-to-tui-candidate-binding.v1"
+        },
+        "candidate_version": {
+          "type": "string",
+          "pattern": "^[0-9A-Za-z][0-9A-Za-z._+-]*$"
+        },
+        "candidate_commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "matrix_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "graph_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "runtime_version": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "runtime_build_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "runtime_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end"
+      ],
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "end": {
+          "$ref": "#/$defs/timestamp"
+        }
+      }
+    },
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "system",
+        "endpoint",
+        "query_id",
+        "collected_by"
+      ],
+      "properties": {
+        "system": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "query_id": {
+          "enum": [
+            "web-to-tui-wave-error-rate-by-task.v1",
+            "web-to-tui-wave-scheduled-cycle.v1"
+          ]
+        },
+        "collected_by": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "telemetryTask": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_key",
+        "baseline_requests",
+        "baseline_errors",
+        "candidate_requests",
+        "candidate_errors"
+      ],
+      "properties": {
+        "task_key": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "baseline_requests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "baseline_errors": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidate_requests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidate_errors": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "telemetrySnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "environment",
+        "wave",
+        "candidate_binding",
+        "baseline_window",
+        "candidate_window",
+        "collected_at",
+        "collection",
+        "tasks"
+      ],
+      "properties": {
+        "version": {
+          "const": "web-to-tui-cleanup-wave-telemetry-snapshot.v1"
+        },
+        "environment": {
+          "const": "production"
+        },
+        "wave": {
+          "$ref": "#/$defs/wave"
+        },
+        "candidate_binding": {
+          "$ref": "#/$defs/candidateBinding"
+        },
+        "baseline_window": {
+          "$ref": "#/$defs/window"
+        },
+        "candidate_window": {
+          "$ref": "#/$defs/window"
+        },
+        "collected_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "collection": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/collection"
+            },
+            {
+              "properties": {
+                "query_id": {
+                  "const": "web-to-tui-wave-error-rate-by-task.v1"
+                }
+              }
+            }
+          ]
+        },
+        "tasks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/telemetryTask"
+          }
+        }
+      }
+    },
+    "defectTracker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "system",
+        "endpoint",
+        "project",
+        "query_filter",
+        "queried_by"
+      ],
+      "properties": {
+        "system": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "project": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "query_filter": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "queried_by": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "defectIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "priority",
+        "state",
+        "created_at",
+        "closed_at"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "priority": {
+          "enum": [
+            "P0",
+            "P1"
+          ]
+        },
+        "state": {
+          "enum": [
+            "open",
+            "closed"
+          ]
+        },
+        "created_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "closed_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "defectSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "environment",
+        "wave",
+        "candidate_binding",
+        "window_start",
+        "window_end",
+        "queried_at",
+        "query_scope",
+        "tracker",
+        "issues"
+      ],
+      "properties": {
+        "version": {
+          "const": "web-to-tui-cleanup-wave-defect-snapshot.v1"
+        },
+        "environment": {
+          "const": "production"
+        },
+        "wave": {
+          "$ref": "#/$defs/wave"
+        },
+        "candidate_binding": {
+          "$ref": "#/$defs/candidateBinding"
+        },
+        "window_start": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "window_end": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "queried_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "query_scope": {
+          "const": "created_or_open_during_wave_window"
+        },
+        "tracker": {
+          "$ref": "#/$defs/defectTracker"
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/defectIssue"
+          }
+        }
+      }
+    },
+    "rawCycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_key",
+        "run_id",
+        "observed_at",
+        "outcome"
+      ],
+      "properties": {
+        "task_key": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "run_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "outcome": {
+          "enum": [
+            "success",
+            "partial",
+            "noop",
+            "blocked",
+            "failed"
+          ]
+        }
+      }
+    },
+    "scheduledCycleSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "environment",
+        "wave",
+        "candidate_binding",
+        "window_start",
+        "window_end",
+        "collected_at",
+        "collection",
+        "cycles"
+      ],
+      "properties": {
+        "version": {
+          "const": "web-to-tui-cleanup-wave-scheduled-cycle-snapshot.v1"
+        },
+        "environment": {
+          "const": "production"
+        },
+        "wave": {
+          "$ref": "#/$defs/wave"
+        },
+        "candidate_binding": {
+          "$ref": "#/$defs/candidateBinding"
+        },
+        "window_start": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "window_end": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "collected_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "collection": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/collection"
+            },
+            {
+              "properties": {
+                "query_id": {
+                  "const": "web-to-tui-wave-scheduled-cycle.v1"
+                }
+              }
+            }
+          ]
+        },
+        "cycles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/rawCycle"
+          }
+        }
+      }
+    },
+    "rollbackManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "wave",
+        "authorized_candidate_commit",
+        "cleanup_candidate_commit",
+        "deleted_paths",
+        "route_rollback_commits"
+      ],
+      "properties": {
+        "version": {
+          "const": "web-to-tui-cleanup-wave-rollback-manifest.v1"
+        },
+        "wave": {
+          "$ref": "#/$defs/wave"
+        },
+        "authorized_candidate_commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "cleanup_candidate_commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "deleted_paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/repositoryPath"
+          }
+        },
+        "route_rollback_commits": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/$defs/commit"
+          }
+        }
+      }
+    },
+    "guardCycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_key",
+        "observed_at",
+        "outcome"
+      ],
+      "properties": {
+        "task_key": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "outcome": {
+          "const": "success"
+        }
+      }
+    },
+    "defectCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "new_p0",
+        "new_p1",
+        "open_p0",
+        "open_p1"
+      ],
+      "properties": {
+        "new_p0": {
+          "const": 0
+        },
+        "new_p1": {
+          "const": 0
+        },
+        "open_p0": {
+          "const": 0
+        },
+        "open_p1": {
+          "const": 0
+        }
+      }
+    },
+    "observationLedger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "wave",
+        "candidate_binding",
+        "observed_from",
+        "observed_until",
+        "scheduled_cycles",
+        "defects",
+        "error_metrics"
+      ],
+      "properties": {
+        "version": {
+          "const": "web-to-tui-cleanup-wave-observation.v1"
+        },
+        "wave": {
+          "$ref": "#/$defs/wave"
+        },
+        "candidate_binding": {
+          "$ref": "#/$defs/candidateBinding"
+        },
+        "observed_from": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "observed_until": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "scheduled_cycles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/guardCycle"
+          }
+        },
+        "defects": {
+          "$ref": "#/$defs/defectCounts"
+        },
+        "error_metrics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/telemetryTask"
+          }
+        }
+      }
+    },
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "sourceArtifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_preflight",
+        "telemetry",
+        "defects",
+        "scheduled_cycles"
+      ],
+      "properties": {
+        "deployment_preflight": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "telemetry": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "defects": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "scheduled_cycles": {
+          "$ref": "#/$defs/artifactReference"
+        }
+      }
+    },
+    "derivedSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observed_from",
+        "observed_until",
+        "observation_seconds",
+        "task_metrics",
+        "scheduled_cycles",
+        "blocking_defects"
+      ],
+      "properties": {
+        "observed_from": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "observed_until": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "observation_seconds": {
+          "type": "integer",
+          "minimum": 172800
+        },
+        "task_metrics": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scheduled_cycles": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "blocking_defects": {
+          "const": 0
+        }
+      }
+    },
+    "deploymentIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_id",
+        "source_commit",
+        "image_id",
+        "oci_revision",
+        "deployed_at",
+        "verified_at",
+        "attestation_commit",
+        "attestation_committed_at"
+      ],
+      "properties": {
+        "release_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "source_commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "image_id": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "oci_revision": {
+          "$ref": "#/$defs/commit"
+        },
+        "deployed_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "verified_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "attestation_commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "attestation_committed_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      }
+    },
+    "waveRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "wave",
+        "authorized_candidate_binding",
+        "candidate_binding",
+        "catalog_sha256",
+        "deleted_paths",
+        "route_count",
+        "matrix_owners",
+        "matrix_reviewers",
+        "verified_at",
+        "source_artifacts",
+        "rollback_manifest",
+        "observation_ledger",
+        "deployment",
+        "derived_summary"
+      ],
+      "properties": {
+        "version": {
+          "const": "web-to-tui-cleanup-wave-record.v1"
+        },
+        "wave": {
+          "$ref": "#/$defs/wave"
+        },
+        "authorized_candidate_binding": {
+          "$ref": "#/$defs/candidateBinding"
+        },
+        "candidate_binding": {
+          "$ref": "#/$defs/candidateBinding"
+        },
+        "catalog_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "deleted_paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/repositoryPath"
+          }
+        },
+        "route_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "matrix_owners": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "matrix_reviewers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "verified_at": {
+          "$ref": "#/$defs/date"
+        },
+        "source_artifacts": {
+          "$ref": "#/$defs/sourceArtifacts"
+        },
+        "rollback_manifest": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "observation_ledger": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "deployment": {
+          "$ref": "#/$defs/deploymentIdentity"
+        },
+        "derived_summary": {
+          "$ref": "#/$defs/derivedSummary"
+        }
+      }
+    }
+  }
+}

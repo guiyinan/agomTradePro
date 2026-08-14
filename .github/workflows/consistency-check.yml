@@ -78,6 +78,15 @@ jobs:
         run: |
           python scripts/check_business_configuration_hardcodes.py --mode full
 
+      - name: Enforce decision write surface freeze
+        run: python scripts/check_decision_write_surface_freeze.py
+
+      - name: Enforce Broker live-order Evidence hard gate
+        run: python scripts/check_broker_live_order_evidence_gate.py
+
+      - name: Enforce Evidence output surface inventory
+        run: python scripts/check_evidence_output_surfaces.py
+
       - name: Run governance consistency check
         run: |
           python scripts/check_governance_consistency.py \
@@ -137,6 +146,9 @@ jobs:
 
       - name: Run MCP read evidence guard
         run: python scripts/check_mcp_read_evidence.py
+
+      - name: Run MCP Evidence output semantic freeze
+        run: python scripts/check_mcp_evidence_output_surfaces.py
 
       - name: Run MCP write confirmation guard
         run: python scripts/check_mcp_write_confirmation.py

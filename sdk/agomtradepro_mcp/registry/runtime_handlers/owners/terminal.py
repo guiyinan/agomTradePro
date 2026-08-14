@@ -4,9 +4,17 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Protocol, cast
 
 _ACTION_KEY_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]+$")
+
+
+class _TerminalClient(Protocol):
+    """Narrow authenticated SDK transport used by Terminal handlers."""
+
+    def get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]: ...
+
+    def post(self, endpoint: str, json: dict[str, Any] | None = None) -> dict[str, Any]: ...
 
 
 def _validated_action_key(action_key: str) -> str:
@@ -18,12 +26,12 @@ def _validated_action_key(action_key: str) -> str:
     return normalized
 
 
-def _client():
+def _client() -> _TerminalClient:
     """Build the authenticated SDK client lazily."""
 
     from agomtradepro import AgomTradeProClient
 
-    return AgomTradeProClient()
+    return cast(_TerminalClient, AgomTradeProClient())
 
 
 def _action_schema(action_key: str) -> dict[str, Any]:
@@ -86,7 +94,10 @@ def _internal_handler_terminal_run_user_read_action(
     schema = _action_schema(action_key)
     if str(schema.get("risk") or "").lower() != "read":
         raise PermissionError("Use terminal.execute.user_action for non-read actions")
-    return _run_action(action_key, dict(params or {}), confirmed=False)
+    raise PermissionError(
+        "mcp_evidence_binding_required: published read action result bridge is disabled "
+        "until the action has an exact Evidence binding"
+    )
 
 
 def _internal_handler_terminal_execute_user_action(

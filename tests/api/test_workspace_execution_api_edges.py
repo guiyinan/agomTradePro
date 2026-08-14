@@ -4,6 +4,7 @@ from unittest.mock import patch
 import pytest
 
 from apps.decision_rhythm.domain.entities import ApprovalStatus
+from apps.decision_rhythm.domain.exceptions import LegacyTransitionPlanWriteDisabledError
 
 
 @pytest.mark.django_db
@@ -121,6 +122,50 @@ def test_workspace_execution_approve_skips_event_when_status_update_returns_none
     assert response.status_code == 200
     assert response.json()["data"] == {"request_id": "req-missing-after-update"}
     publish_event.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("action", ["approve", "reject"])
+def test_workspace_plan_approval_legacy_blocker_returns_conflict(
+    authenticated_client,
+    action: str,
+) -> None:
+    approval_request = SimpleNamespace(
+        approval_status=ApprovalStatus.PENDING,
+        market_price_at_review=None,
+    )
+
+    with (
+        patch(
+            "apps.decision_rhythm.interface.workspace_execution_api_views.get_approval_request",
+            return_value=approval_request,
+        ),
+        patch(
+            "apps.decision_rhythm.interface.workspace_execution_api_views.ExecutionApprovalService.can_approve",
+            return_value=(True, "ok"),
+        ),
+        patch(
+            "apps.decision_rhythm.interface.workspace_execution_api_views.ApprovalStatusStateMachine.validate_transition",
+            return_value=(True, "ok"),
+        ),
+        patch(
+            "apps.decision_rhythm.interface.workspace_execution_api_views.update_approval_request_status",
+            side_effect=LegacyTransitionPlanWriteDisabledError(
+                "legacy transition-plan writes are disabled"
+            ),
+        ),
+    ):
+        response = authenticated_client.post(
+            f"/api/decision/execute/{action}/",
+            {"approval_request_id": "plan-request"},
+            format="json",
+        )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "success": False,
+        "error": "legacy transition-plan writes are disabled",
+    }
 
 
 @pytest.mark.django_db

@@ -25,7 +25,13 @@ class SimulatedTradingConfig(AppConfig):
         from apps.simulated_trading.infrastructure.share_account_gateway import (
             register_simulated_trading_share_gateway,
         )
+        from core.integration.portfolio_account_access import (
+            register_portfolio_account_access_checker,
+        )
+
+        from .application.interface_services import get_account_access
 
         register_account_gateway()
         register_simulated_trading_consumer_gateways()
         register_simulated_trading_share_gateway()
+        register_portfolio_account_access_checker(get_account_access)

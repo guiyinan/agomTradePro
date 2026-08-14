@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.8.0** - 个人投研平台
-> **最后更新**: 2026-08-04
+> **最后更新**: 2026-08-13
 > **项目状态**: 生产就绪
 > **版本管理**: [VERSION.md](VERSION.md)
 
@@ -60,6 +60,7 @@
 | [architecture-remediation-result-2026-04-26.md](architecture/architecture-remediation-result-2026-04-26.md) | **架构整改结果（cycle=0 / audit=0 / MCP 契约未变）** | ✅ 2026-04-26 新增 |
 | [adr-0001-shared-infrastructure-boundaries.md](architecture/adr-0001-shared-infrastructure-boundaries.md) | **ADR：shared.infrastructure 边界判定** | ✅ 2026-05-02 新增 |
 | [adr-0006-tui-primary-interface.md](architecture/adr-0006-tui-primary-interface.md) | **ADR：TUI 作为日常任务主界面与 Web 保留清单边界** | ✅ 2026-07-26 已接受 |
+| [adr-0007-evidence-envelope-and-decision-gates.md](architecture/adr-0007-evidence-envelope-and-decision-gates.md) | **ADR：Evidence Envelope、Track Record 与决策硬闸所有权** | 2026-08-12 分阶段实施 |
 | [shared-cleanup-program-2026-05-02.md](architecture/shared-cleanup-program-2026-05-02.md) | **shared 残留清理专项** | ✅ 2026-05-02 新增 |
 | [module-cycle-regression-remediation-2026-05-02.md](architecture/module-cycle-regression-remediation-2026-05-02.md) | **模块依赖回归整改说明（cycle 回归复盘与修复）** | ✅ 2026-05-02 新增 |
 | [mcp-hosted-transport-and-identity-memo-2026-05-10.md](architecture/mcp-hosted-transport-and-identity-memo-2026-05-10.md) | **MCP 服务化演进备忘录（stdio vs HTTP/SSE、Token vs per-user OAuth）** | ✅ 2026-05-10 新增 |
@@ -139,16 +140,17 @@
 | [scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md](plans/scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md) | **情景硬编码治理、动态/参数/宏观情景、AI MCP 受控修改及策略方法 Quick Wins（M0-M6）** | 提案，待评审实施 |
 | [strategy-research-capability-completion-audit-2026-08-05.md](plans/strategy-research-capability-completion-audit-2026-08-05.md) | **策略研究 R1—R8 完成度审计、真实数据阻断与无数据开发队列** | 实施中；无 P0，剩余 P1 分批收口 |
 | [sentiment-awareness-enhancement-plan-2026-07-31.md](archive/plans/sentiment-awareness-enhancement-plan-2026-07-31.md) | **A 股情绪态势感知增强计划（S0-S4，交易行为情绪指标 / Pulse sentiment 维度 / 文本情绪打通 / TUI 情绪面板）** | ✅ 已完成并归档 |
-| [web-to-tui-migration-plan-2026-07-25.md](plans/web-to-tui-migration-plan-2026-07-25.md) | **Web 界面 → TUI 整体迁移计划（M0-M5，195 模板去向矩阵 / 图表样板 / web 保留清单）** | 实施中；M0-M4 实现完成，M5 候选尚未部署、观察未开始，当前禁止清理 Classic |
+| [web-to-tui-migration-plan-2026-07-25.md](plans/web-to-tui-migration-plan-2026-07-25.md) | **Web 界面 → TUI 整体迁移计划（M0-M5，195 模板去向矩阵 / 图表样板 / web 保留清单）** | 实施中；M0-M4 完成；M5 候选证据与最终库存门禁已加固，真实观察未开始且 final inventory DENY |
 | [web-to-tui-m0-evidence-2026-07-26.md](archive/plans/web-to-tui-m0-evidence-2026-07-26.md) | **Web → TUI M0/M0-D 证据（195 模板矩阵、7 个死模板清理、冻结门与双端基线）** | ✅ M0/M0-D 已完成并归档 |
 | [web-to-tui-m1-chart-evidence-2026-07-26.md](archive/plans/web-to-tui-m1-chart-evidence-2026-07-26.md) | **Web → TUI M1 图表样板证据（portable chart 契约、多序列/采样/可访问性、双端门禁）** | ✅ M1 已完成并归档 |
 | [web-to-tui-m2-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m2-consolidated-evidence-2026-07-26.md) | **Web → TUI M2 合并证据（W1-W20，15 份原始 wave 记录与 SHA-256 清单）** | ✅ M2 已完成并归档 |
 | [web-to-tui-m3-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m3-consolidated-evidence-2026-07-26.md) | **Web → TUI M3 合并证据（W21-W42，22 份原始 wave 记录与 SHA-256 清单）** | ✅ M3 已完成并归档 |
 | [web-to-tui-m4-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md) | **Web → TUI M4 合并证据（W43-W51，9 份原始 wave 记录与 SHA-256 清单）** | ✅ M4 已完成并归档 |
-| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；候选尚未部署，复审日待机器窗口确定 |
-| [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | ✅ 生产健康；仍运行旧提交，不计入 cutover gate |
-| [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | ✅ 本地演练通过；不解除 14 日与生产门禁 |
-| [web-to-tui-m5-browser-uat-evidence-2026-07-27.md](plans/web-to-tui-m5-browser-uat-evidence-2026-07-27.md) | **Web → TUI M5 浏览器 UAT（角色边界、矩阵深链、直读/参数读取与生命周期）** | ✅ 自动化 15/15；主任务 UAT 108/108；Classic 清理仍 DENY |
+| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；candidate/deployment/M5-B wave recorders 与 guards 已加固；真实候选部署、观察窗口和逐波生产证据待补 |
+| [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | 历史只读记录；不代表 2026-08-13 当前线上版本，不计入 cutover gate |
+| [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 当前生产 Preflight（公开探针 + 只读 release/OCI 核对）** | health/ready 正常；本地 verifier 已强制 manifest-backed source identity 且移除 Git fallback，但尚未部署，当前线上仍 revision=`unknown`/无 manifest，观察未开始 |
+| [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | 历史记录不再算当前闸门；candidate-bound 本地演练已修复，最终候选/生产备份恢复待验 |
+| [web-to-tui-m5-browser-uat-evidence-2026-07-27.md](plans/web-to-tui-m5-browser-uat-evidence-2026-07-27.md) | **Web → TUI M5 浏览器 UAT（角色边界、矩阵深链、直读/参数读取与生命周期）** | 历史自动化 15/15、主任务 108/108；未绑定最终候选，当前 gate FAIL |
 | [web-to-tui-m5-route-closure-evidence-2026-07-27.md](plans/web-to-tui-m5-route-closure-evidence-2026-07-27.md) | **Web → TUI M5 逐 Route 清理证据（认证边界、兼容目标与状态/回滚范围）** | ✅ 六类 scope 均为 108/108；不替代生产门禁 |
 | [tui-regime-display-contract-postmortem-2026-07-30.md](archive/plans/tui-regime-display-contract-postmortem-2026-07-30.md) | **TUI Regime 有数据未显示复盘（契约漂移、fail-closed 与跨层回归门禁）** | ✅ 整改完成并归档，持续执行门禁 |
 | [qmt-live-trading-bridge-plan.md](plans/qmt-live-trading-bridge-plan.md) | **QMT 本地执行桥与 VPS 实盘交易接入计划（Web / TUI / MCP / 权限 / 风控 / 对账）** | 仓库 MVP 已实现；待目标券商 Phase 0 与仿真实测 |
@@ -169,7 +171,12 @@
 | [production-code-remediation-plan-2026-06-26.md](archive/plans/production-code-remediation-plan-2026-06-26.md) | **投产代码整改方案（数据守门 / 初始化 / UI 闭环）** | ✅ 2026-06-26 完成并归档 |
 | [0.8.0-release-closure-plan-2026-07-05.md](archive/plans/0.8.0-release-closure-plan-2026-07-05.md) | **0.8.0 收口开发计划（发布 / 运维 / 架构减债 Top 10）** | ✅ 2026-07-05 已执行并归档 |
 | [post-0.8.0-stabilization-priority-2026-07-08.md](plans/post-0.8.0-stabilization-priority-2026-07-08.md) | **0.8.0 发布后两周稳定化实施清单（优先级 / 负责人 / 命令 / 验收）** | 进行中 |
-| [mcp-consolidation-remediation-plan-2026-07-09.md](plans/mcp-consolidation-remediation-plan-2026-07-09.md) | **MCP 收口整改计划（统一能力注册、统一调用、legacy 退役）** | P0 已启动 |
+| [evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | **证据治理与决策硬闸改造计划** | 第一期 P0：Portfolio/Risk/Broker inactive owner contracts与ledgers、Risk policy workflow以及Broker pre-Risk ID-only scope已分阶段落盘；pre-Risk仍固定inactive，缺跨账户owner binding、Risk adapter、最终issuer/四节点重验与PG/生产证明，所有执行总闸保持关闭，MCP integrated=0 |
+| [system-audit-log-consolidation-plan-2026-08-13.md](plans/system-audit-log-consolidation-plan-2026-08-13.md) | **系统级统一审计日志收口计划（统一事件账本 / 数据可靠性纵向链 / 指标告警 / TUI 观测）** | 提案，待评审实施；首批聚焦 Data Center fetch→publication→decision gate 全链 |
+| [mcp-consolidation-remediation-plan-2026-07-09.md](archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md) | **MCP 收口整改计划（统一能力注册、统一调用、legacy 退役）** | ✅ 完成并归档；持续状态由机器门禁维护 |
+| [system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md](archive/plans/system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md) | **系统级 AI Capability Catalog 与统一路由任务书** | ✅ 代码与自动化验收完成并归档 |
+| [terminal-mcp-governance-outsourcing-task-book-2026-03-19.md](archive/plans/terminal-mcp-governance-outsourcing-task-book-2026-03-19.md) | **Terminal MCP 治理与确认机制任务书** | ✅ 已实现并由 AgentProposal 持久审批架构承接 |
+| [terminal-refactor-plan-260709.md](archive/plans/terminal-refactor-plan-260709.md) | **Terminal Agents SDK + MCP 重构计划** | ✅ Agents SDK、SSE、MCP 与持久审批完成并归档 |
 | [auto-advisor-prd-2026-06-25.md](archive/plans/auto-advisor-prd-2026-06-25.md) | **账户级自动投顾 PRD（持仓驱动 + 建议订单清单）** | ✅ Implemented v1，已归档 |
 | [auto-advisor-implementation-2026-06-25.md](archive/plans/auto-advisor-implementation-2026-06-25.md) | **账户级自动投顾实施文档（后端/Classic UI/TUI/测试）** | ✅ Implemented v1，已归档 |
 | [personal-auto-advisor-roadmap-2026-06-30.md](archive/plans/personal-auto-advisor-roadmap-2026-06-30.md) | **个人自用自动投顾增强路线图（风控 / 数据新鲜度 / 决策卡片 / 复盘）** | ✅ Implemented v1，已归档 |
@@ -441,7 +448,7 @@
 ## 文档口径来源
 
 - 仓库级动态治理数据以 `governance/governance_baseline.json` 为机器唯一真源。
-- MCP 整改期 live 治理数据同样写入 `governance/governance_baseline.json` 的 `mcp_governance` 字段；[plans/mcp-consolidation-remediation-plan-2026-07-09.md](plans/mcp-consolidation-remediation-plan-2026-07-09.md) 的 `0.2.2` 只解释字段和验证入口，`0.2.3` 维护默认续做顺序。
+- MCP live 治理数据写入 `governance/governance_baseline.json` 的 `mcp_governance` 字段；历史整改过程见[已归档 MCP 收口计划](archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md)，当前完成证据见 [MCP Full Closure Evidence](development/mcp-full-closure-evidence-2026-07-14.md)。
 - 本索引只维护导航、清单和阅读路径，不复制业务模块数、MCP 工具数、静态测试函数数等动态治理数字。
 - 验证命令：`python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text`
 
@@ -459,6 +466,441 @@
 ---
 
 ## 最近更新 (2026-02-20 ~ 2026-06-20)
+
+### 2026-08-13
+- ✅ **Portfolio inactive approval receipt subject seal 修正**
+  - receipt 现绑定 exact subject identity/hash、requester 与 plan selector；actor/user 双身份非自批，跨 actor replay 失败关闭
+  - `plan_status_at_issue` 仅为 inactive 审计快照，canonical-v1 hash 未绑定 lifecycle，submit 与 Broker 总闸继续关闭
+  - 详见 [Evidence 治理与决策硬闸整改计划](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md)
+- ✅ **Portfolio inactive approval append-only persistence 首批**
+  - 两张private-UOW append-only ledger、strict codec、exact/PIT reader与approved_at provider落盘；0017保持schema-only/zero-seed
+  - 当前仍无人工入口与PostgreSQL并发证明，receipt固定inactive，不接旧approve/submit/Broker
+- ✅ **Risk-owned Broker execution policy Domain 合同**
+  - 冻结完整Decimal风险参数、source snapshot、activation/validity与supersession hash；拒绝把现有mutable policy临时hash成正式授权
+  - 仅合同与纯测试完成，active provider/ledger仍缺，Risk authorization与Broker总闸继续关闭
+- ✅ **Broker order approval owner artifact**
+  - 以Broker自有content-addressed工件封存订单UUID/version、完整approval snapshot/digest、批准人和有效期，并重验金额与推荐lineage
+  - 工件固定inactive/must-not-execute；append-only ledger/provider与跨owner授权仍未完成，四节点总闸不变
+- ✅ **Risk execution policy Application workflow**
+  - ID-only激活精确绑定五类source component、server human-staff actor、first-winner/CAS predecessor及logical-current PIT投影
+  - 当前仅pure fake协议；生产source/ledger/provider与PG并发仍缺，Risk authorization不可生产签发，Broker总闸继续关闭
+- ✅ **Broker order approval artifact append-only persistence**
+  - private-UOW账本、strict codec、first-winner与历史exact/PIT reader已落盘；0008 schema-only/zero-seed，Django5.2最小SQLite往返通过
+  - 仅为历史owner seal，不授予current execution permission；pre-risk scope、PG并发和四节点重验仍未完成
+- ✅ **Risk execution policy append-only persistence**
+  - 五源snapshot+actor-bound activation账本、strict codec、first-winner/CAS与full-chain current-head已落盘；0009 schema-only/zero-seed，Django5.2最小往返通过
+  - mutable policy尚无可信source composition且PG并发未验，zero-seed不自动激活，Risk authorization与Broker总闸继续关闭
+- ✅ **Broker/Risk ledger contract audit修正**
+  - 对齐0008/0009 constraint state并补Broker persisted clock DB约束；Risk authorization同时绑定policy content hash与actor activation hash
+  - 聚合53项与架构门禁通过；完整migration drift受当前环境缺cryptography阻断，PG并发/source selector闭集检测仍未完成
+- ✅ **Risk policy source closed-world restore**
+  - source first-winner与activation source binding先restore完整source ledger，再用Domain identity选winner；tuple+seal双篡改不能隐藏坏行或重开identity
+  - component回归已补，完整Django runtime与PostgreSQL race仍待验证；zero-seed和Broker执行总闸不变
+- ✅ **Broker pre-Risk inactive scope 合同与workflow**
+  - ID-only注册在同一Broker server cutoff双读Portfolio plan/inactive receipt与Broker order artifact，并封存三源exact identity/hash/有效期及本地supersession head
+  - scope固定inactive、must-not-execute并保留5个blocker；36项纯测试通过，ORM ledger、跨账户owner binding、Risk adapter和最终issuer仍未完成
+- ✅ **Broker pre-Risk append-only persistence**
+  - private-UOW账本、strict codec、root/successor first-winner及closed-world current-head restore落盘；双selector篡改不能隐藏后继，expired head不回退旧root
+  - 0009 schema-only/zero-seed，Django5.2最小往返通过；完整component/PG race未验，inactive scope不能映射为Risk active provider，最终执行总闸不变
+- ✅ **Broker/Portfolio 账户 namespace binding Domain 合同**
+  - Broker整数账户与Portfolio字符串账户保持独立namespace，不以类型转换猜测同一身份；账户身份source固定归Account owner，Portfolio只消费字符串引用，两侧source seal和人工断言者均进入identity/content hash
+  - 仅为inactive合同；source provider、ID-only workflow、append-only ledger、人工入口与PG并发均未完成，pre-Risk blocker和执行总闸不变
+- ✅ **Broker Plan→Order inactive binding Domain 合同**
+  - 精确绑定canonical-v1 plan/receipt/subject、稳定order ordinal与单行bytes/hash，以及Broker order artifact identity/content/digest；三方owner/type与最早有效期均被封存
+  - 不使用资产/数量近似推断且固定must-not-execute；owner providers、Application workflow、ledger和真实签发均未完成，pre-Risk blocker不变
+- ✅ **Broker/Account namespace binding Application workflow**
+  - ID-only注册双读Broker与Account exact-current source，强制相同owner user、real+active，由server human-staff actor和first-winner/CAS封存inactive binding
+  - 当前只有协议与pure fake；两侧immutable source/provider、binding ledger、composition及PG并发均缺，pre-Risk与执行总闸继续关闭
+- ✅ **Broker/Account namespace binding append-only ledger**
+  - strict codec/private UOW、single-root/predecessor CAS、closed-world exact/PIT/current与canonical/header/clock seals完成；0011 zero-seed
+  - Django5.2 minimal round-trip通过；完整component/PG并发与两侧真实facade/composition未完成，inactive与执行总闸不变
+- ✅ **Portfolio policy benchmark snapshot Domain 合同**
+  - 以exact owner refs、严格Decimal组件、权重守恒、live inception与三源最早有效期冻结policy benchmark candidate；拒绝Float配置/临时行情洗白
+  - 固定inactive；Account/planning-policy/definition owner source、daily valuation、审批、ledger/provider与Broker issuer均未完成
+- ✅ **Portfolio policy benchmark definition Domain 合同**
+  - 完整冻结成分/price identity/币种/Decimal权重、日历/价格/FX/公司行动/费用税费五类owner ref、估值cutoff/窗口/陈旧度和missing fail-closed
+  - 固定definition-only；methodology owner provider、definition activation、daily valuation与approval仍未完成
+- ✅ **Portfolio policy benchmark definition append-only ledger**
+  - strict codec/private UOW、first-winner、全写绕过阻断和closed-world exact/PIT完成；0020 zero-seed且不回填mutable Float配置
+  - 只提供historical exact，不冒充current/activation；PG并发、methodology providers、activation/daily valuation/approval仍未完成
+- ✅ **Portfolio benchmark trading-calendar methodology Domain 合同**
+  - 以IANA timezone、完整逐日membership、valuation session/cutoff与DST规则冻结Portfolio估值日历方法论；不复用R8 monitoring calendar或原始市场事实
+  - 固定definition-only；ledger/两人activation/current provider与其余四类methodology未完成，benchmark definition不得提前active
+- ✅ **Portfolio benchmark trading-calendar methodology append-only ledger**
+  - private UOW/claim、first-winner、逐日/DST/header seals与closed-world exact/PIT完成；0021 zero-seed且不回填R8/Data Center事实
+  - 不发明current/activation；PG并发、两人activation/current provider与其余四类methodology未完成
+- ✅ **Portfolio benchmark price-fixing methodology Domain 合同**
+  - 显式close/nav/settlement+unadjusted口径、有序exact source refs、IANA cutoff与stale/missing/source failure全fail-closed
+  - 固定definition-only；ledger/两人activation/current provider及FX/corporate-action/cost-tax三类methodology未完成
+- ✅ **Portfolio benchmark price-fixing methodology append-only ledger**
+  - private UOW/claim、first-winner、source/DST/header seals与closed-world exact/PIT完成；0022 zero-seed且不回填行情/config事实
+  - 不发明current/activation；PG并发、两人activation与FX/corporate-action/cost-tax三类methodology仍未完成
+- ✅ **Portfolio benchmark FX-fixing methodology Domain 合同**
+  - currency pair/报价方向/inverse显式闭合，IANA cutoff、exact sources、stale/missing/source failure全fail-closed；v1禁止自动三角换汇
+  - 固定definition-only；ledger/两人activation/current provider及corporate-action/cost-tax两类methodology未完成
+- ✅ **Portfolio benchmark FX-fixing methodology append-only ledger**
+  - private UOW/claim、first-winner、source/DST/header seals与closed-world exact/PIT完成；0023 zero-seed且不回填FX配置/行情
+  - Django5.2组件7 passed、Domain 8 passed；无current/activation，首次发现的transition drift已在下一阶段修复，PG并发/mypy plugin仍待收口
+- ✅ **Portfolio benchmark corporate-action methodology Domain 合同**
+  - 闭合分红、送股、拆股、并股与配股五类v1处理；除权/支付日防重复、拆并股不制造收益，配股缺exact条款和选择证据即阻断
+  - 仅接受unadjusted输入和exact-event-once，有序exact refs、IANA业务日与fail-closed策略入hash；固定definition-only，ledger/activation/current及cost-tax仍未完成
+- ✅ **Portfolio benchmark corporate-action methodology append-only ledger**
+  - private UOW/claim、first-winner、五类event/source/DST/header seals与closed-world exact/PIT完成；0025 zero-seed且不回填事件事实
+  - Django5.2组件9 passed、Portfolio migration no-drift；无current/activation，PG并发、单次行动owner facts与两人activation仍缺
+- ✅ **Portfolio benchmark cost/tax methodology Domain 合同**
+  - fee/tax exact source逐条封存scope、jurisdiction、方向、基数、时点、币种、Decimal值与取整；不内嵌真实税率或费用默认
+  - 显式零可封存但missing/unknown不得转零，分红entitlement只计一次；固定definition-only，ledger/activation/current与owner producers仍未完成
+- ✅ **Portfolio benchmark cost/tax methodology append-only ledger**
+  - private UOW/claim、first-winner、source/rule/Decimal/header seals与closed-world exact/PIT完成；DB同时守恒fee/tax计数和authoritative clock
+  - 0026 zero-seed、Django5.2组件12 passed、Portfolio migration no-drift；无current/activation，PG并发、owner producers与统一五源activation仍缺
+- ✅ **Portfolio benchmark methodology bundle activation Domain 合同**
+  - benchmark definition及固定顺序五源refs原子封存为单一bundle；server requester+第二staff双重非自批、root/predecessor successor与有效期闭合
+  - 仅`benchmark_configuration_only`，daily valuation/Broker authority均false；Application/ledger/current provider与staff composition仍未完成
+- ✅ **Portfolio benchmark methodology bundle activation Application workflow**
+  - ID-only注册/审批以单一cutoff首末双读definition和五源graph，actor-bound first-winner、同definition logical head与predecessor CAS闭合
+  - exact/current读拒绝superseded或source替换；仅Protocol+pure fake，ledger、owner current readers、staff composition与daily valuation仍未完成
+- ✅ **Portfolio benchmark methodology bundle activation append-only ledger**
+  - subject+activation双账本以private UOW、per-definition root/predecessor CAS和closed-world restore封存五源/FK/actor/header/clock seals；0027 zero-seed
+  - Django5.2组件13 passed、Portfolio migration no-drift；固定configuration-only，PG并发、owner readers/staff composition与daily valuation仍缺
+- ✅ **Portfolio inactive approval authoritative persistence clock 修复**
+  - subject/receipt显式封存`persisted_at=recorded_at`并增加DB等值约束，消除wall-clock导致合法记录自判腐败
+  - Django5.2隔离5 passed、Portfolio migration no-drift；不改变inactive语义或连接Broker执行
+- ✅ **Broker Plan→Order binding Application workflow**
+  - ID-only注册在同一Broker cutoff双读plan ordinal row、inactive receipt和order artifact，闭合owner/type/hash/account/时钟及first-winner/CAS/current selector
+  - 三个owner public reader、binding ledger/composition与真实签发均未实现；账户namespace blocker、pre-Risk与执行总闸继续关闭
+- ✅ **Broker Plan→Order binding append-only ledger**
+  - private UOW、四元logical subject root/predecessor CAS、canonical-v1 raw row bytes/hash与closed-world exact/PIT/current seals完成；0012 zero-seed
+  - Django5.2 minimal round-trip通过；完整component/PG并发与owner readers/composition未完成，inactive/pre-Risk/执行总闸不变
+- ✅ **Portfolio exact-active transition plan order owner reader**
+  - ID-only plan/version/ordinal/PIT query由Portfolio owner发布canonical-v1 row bytes/hash、account与recorded/valid clock，不自行读取时钟
+  - 仅Application Protocol；factory/composition、inactive receipt与Broker artifact ID-only owner readers仍缺，真实Plan→Order签发不可用
+- ✅ **Portfolio inactive approval receipt ID-only owner reader**
+  - ID-only receipt identity/PIT query重验receipt/subject/plan/account seals与issued=recorded clock，固定inactive/must-not-execute
+  - 不替代hash-heavy历史审计，也不冒充logical current；owner factory/composition仍未接线
+- ✅ **Broker order approval artifact ID-only owner reader**
+  - ID-only artifact identity/PIT query保留approved/recorded双时钟并封存digest/risk-policy/order anchors，固定inactive
+  - identity-winner infra/factory/composition未接；三源合同齐但Plan→Order真实双读/签发仍不可用
+- ✅ **Plan→Order Portfolio owner reader adapters/composition**
+  - plan复用owner exact provider，receipt仅暴露identity winner；read-only runtime/factory缺失fail-closed，不暴露writer或hash-heavy historical口
+  - 纯/factory25 passed；Django ORM component、Broker runtime与跨App registry/真实三源签发仍未完成
+- ✅ **Plan→Order Broker artifact owner adapter/composition**
+  - closed-world sealed restore后按identity匹配，严格使用row recorded clock且不调用hash-heavy historical get_exact；只读factory无writer能力
+  - Django5.2组件4 passed；跨App fail-closed registry/三源composition未接，inactive总闸不变
+- ✅ **Portfolio planning policy definition Domain 合同**
+  - 以policy identity、lot与五项exact Decimal、时钟和canonical hash冻结definition，明确排除mutable status/current/activation语义
+  - legacy status=active不能成为benchmark或执行authority
+- ✅ **Portfolio planning policy definition append-only ledger**
+  - strict codec、私有UOW/claim、全写绕过阻断、identity/content/header/clock seal及closed-world exact PIT完成；0018 zero-seed且不回填legacy行
+  - 完整manage.py drift因环境缺Celery、PostgreSQL并发未验；activation持久化/composition与legacy迁移仍未完成
+- ✅ **Portfolio planning policy activation Domain 合同**
+  - exact definition subject绑定server requester、definition identity/content/clock和前序hash，由第二名human staff按actor/user双重非自批签发configuration activation
+  - 固定must-not-execute；ID-only workflow、activation账本/current provider、legacy迁移与benchmark composition仍未完成
+- ✅ **Portfolio planning policy activation Application workflow**
+  - ID-only注册/审批使用server actor/clock、definition/subject双读、first-winner与predecessor CAS；current reader拒绝superseded、过期和selector替换
+  - 仅Protocol+pure fake；definition/activation持久化、真实composition、actor interface与PG并发仍未完成
+- ✅ **Portfolio planning policy activation append-only ledger**
+  - subject+activation双账本以私有UOW/claim、single-root/predecessor CAS、closed-world restore及FK/header/hash/clock seals闭合；过期head不回退
+  - 0019 zero-seed；PG并发、完整manage.py drift、ruff、真实composition/actor与legacy迁移仍未完成
+- ✅ **Account-owned account identity snapshot Domain 合同**
+  - 分离字符串Account identity与底层整数unified provenance，封存source seal、owner/real/active、TTL最早有效期；legacy默认user必须有Account reclaim receipt
+  - 固定inactive；trusted provider、ID-only发行/reclaim、append-only ledger/exact-current facade均未完成，不能解除namespace blocker
+- ✅ **Account-owned raw identity source Domain 合同**
+  - 字符串Account identity与整数underlying provenance不cast；row source与authoritative/legacy-default/unknown三态assignment evidence进入canonical seal
+  - 固定source-evidence-only/inactive；capture workflow、ledger、simulated adapter与assignment provider未完成，默认user回填不得冒充owner事实
+- ✅ **Account raw identity source Application workflow**
+  - ID-only capture双读row observation和assignment evidence，以server actor/clock、first-winner/CAS封存authoritative或exact legacy source；unknown零写
+  - 仅Protocol+pure fake；raw ledger、simulated adapter、assignment provider/composition未完成，Account snapshot与namespace binding仍不可真实签发
+- ✅ **Account raw identity source append-only ledger**
+  - private UOW/claim、assignment/actor/header seals、single-root/predecessor CAS与closed-world exact/PIT/current完成；0038 zero-seed/no-drift
+  - Django5.2组件11 passed；真实migrate/PG并发与simulated adapter/assignment provider/composition仍缺，mutable row不得背书
+- ✅ **Account identity snapshot Application workflow**
+  - 普通Issue和legacy Reclaim均ID-only；raw/receipt双读、server actor/clock、first-winner/CAS及closed-current reader闭合，无exact reclaim receipt时零写入
+  - 仅Protocol+pure fake；raw adapter、reclaim receipt/snapshot账本、composition、真实actor与PG并发仍未完成
+- ✅ **Account identity snapshot append-only ledger**
+  - actor/provenance/reclaim refs与全套seals、私有UOW/claim、single-root/predecessor CAS和closed-world exact/PIT/current闭合；0037 zero-seed不回填legacy行
+  - Django5.2 minimal往返通过；完整组件/PG并发/full migrate未验，raw/reclaim owner provider与composition仍缺
+- ✅ **Account owner assignment evidence Domain 合同**
+  - canonical Account字符串身份与SimulatedTrading整数row provenance分离，精确绑定row observation与creation/migration/manual-reclaim receipt
+  - claimant与独立human-staff approver两人制；固定inactive/evidence-only，Application/ledger/provider/人工入口仍未完成
+- ✅ **Account raw-source assignment evidence 类型收口**
+  - authoritative与legacy-default只接受正式`account_owner_assignment_evidence`，由state区分，不允许adapter改写旧legacy类型
+  - Domain/Application/ORM/0038同步收紧且纯测试40 passed；无exact provenance仍零写，Django migration/component待复跑
+- ✅ **Account owner assignment 两阶段 Application workflow**
+  - ID-only注册/审批；claimant只来自exact Account provenance receipt，approver只来自当前staff actor，单事务单时钟双读并把subject seal绑定进最终Evidence
+  - first-winner/CAS与exact/current reader纯测试37 passed；ledger、owner receipt/provider、Simulated row adapter、composition/interface未完成，0013 legacy默认零写
+- ✅ **Account owner assignment subject/evidence append-only ledger**
+  - 两表精确封存row/provenance/claimant、OneToOne subject及subject hash；private UOW/claim、single-root/predecessor CAS和closed-world exact/PIT/current完成
+  - 0039 zero-seed、Django5.2组件12 passed且Account migration no-drift；PG并发、owner receipt/provider、Simulated adapter、composition/interface仍未完成，保持inactive
+- ✅ **Account physical account-row observation Domain 合同**
+  - 精确封存Account字符串identity、Simulated整数row provenance和nullable user/type/active/row clock，永远不把当前row user解释为authoritative owner
+  - raw-source/TTL最早有效期、successor与PIT final不回退闭合；固定inactive/evidence-only，capture workflow/ledger/provider和独立provenance receipts仍缺
+- ✅ **Account physical account-row observation Application workflow**
+  - 8字段ID-only capture以同一server cutoff双读raw row，actor-bound first-winner、logical-head/predecessor CAS与exact/current读闭合
+  - nullable user/type/active/row clock保真且owner固定unknown；仅Protocol+pure fake，ledger、Simulated adapter/composition与provenance receipts仍缺
+- ✅ **Account physical account-row observation append-only ledger**
+  - 单表private UOW、raw-source/logical-row first-winner与root/predecessor CAS，closed-world restore封存actor/header/identity/content/clock seals；0040 zero-seed
+  - Django5.2组件21 passed、Account no-drift；真实migration/PG并发、Simulated adapter/composition与provenance签发仍缺，owner保持unknown
+- ✅ **Account owner-assignment provenance receipt Domain 合同**
+  - creation/manual-reclaim/migration共用一个closed receipt，exact绑定physical row全部seals与有效期；authoritative owner只能等于claimant
+  - migration仅由当前staff reviewer声明legacy-default且永不声称owner；固定inactive，Application/ledger/provider与assignment adapter仍缺
+- ✅ **Account owner-assignment provenance receipt Application workflow**
+  - 5字段ID-only签发以单一cutoff双读physical row，creation/manual claimant与migration staff reviewer分支闭合；issuer-bound first-winner/CAS完成
+  - exact/current读拒绝superseded或row替换；仅Protocol+pure fake，ledger/provider/composition/签发入口和assignment adapter仍缺
+- ✅ **Account owner-assignment provenance receipt append-only ledger**
+  - strict codec/model/repository封存physical-row、claimant/issuer、authority/header/ledger与persisted-clock seals；private UOW/claim、first-winner、single-root/predecessor CAS完成
+  - Django5.2组件10 passed、0041 zero-seed且migration state同构；PG并发/真实migrate、provider/composition、签发入口与assignment adapter仍缺，固定inactive
+- ✅ **SimulatedTrading simulated-account row source Domain 合同**
+  - owner-issued source identity/hash封存Account字符串identity、整数row provenance及nullable user/raw type/active/row clock；unknown owner且不做cast
+  - tombstone、source/TTL最早有效期与PIT final不回退闭合；Application/ledger、全writer接线与Account adapter/composition仍缺
+- ✅ **SimulatedTrading simulated-account row source Application workflow**
+  - 6字段ID-only capture只接受owner-issued typed observation，同cutoff双读、actor-bound first-winner、logical-head/predecessor CAS与exact/current闭合
+  - 禁止从pk/updated_at/now临时生成source；仅Protocol+pure fake，ledger、全writer、production adapter/composition与Account映射仍缺
+- ✅ **SimulatedTrading simulated-account row source append-only ledger**
+  - strict owner ledger封存row/presence/tombstone、actor/header/ledger与persisted-clock seals；private UOW/claim、first-winner、logical-row single-root/predecessor CAS完成
+  - Django5.2组件3 passed、0021 zero-seed且migration state同构；PG并发/真实migrate、全writer/raw provider仍缺，空账本稳定fail-closed
+- ✅ **SimulatedTrading owner-side Account physical-row provider**
+  - exact winner必须等于final logical head且source仍present/active/fresh才原样映射Account DTO；superseded/tombstone/expired不回退
+  - owner-side composition避免Account反向依赖；pure tests 3 passed；ledger zero-seed时稳定None，raw observation/outbox与全writer仍缺
+- ✅ **SimulatedTrading raw account-row observation Domain**
+  - owner raw facts封存row/user/type/active/presence/tombstone与observed/valid clocks；root/successor/PIT final no-fallback闭合，pure tests 23 passed
+  - 固定inactive/evidence-only；Application/ledger/outbox/全writer与source v2 raw-hash binding仍缺，既有row不回填
+- ✅ **SimulatedTrading raw account-row observation Application**
+  - exact Domain-only record、version=owner mutation/outbox identity；server recorded clock、first-winner/predecessor CAS与exact/current闭合，组合31 passed
+  - 仅Protocol+pure fake；raw ledger、owner adapter/source v2与全writer同事务outbox仍缺，production zero-seed
+- ✅ **SimulatedTrading raw account-row observation ledger**
+  - strict无FK账本、private UOW/claim、first-winner、logical-row root/predecessor CAS与closed-world PIT/head闭合；Django5.2组件5 passed、0022 zero-seed
+  - PG并发/真实migrate、owner provider/source v2与全writer同事务outbox仍缺，既有行不回填
+- ✅ **SimulatedTrading raw-bound account-row source v2 Domain**
+  - 独立v2 type/schema精确封存raw authority、identity/content/predecessor hash与owner clocks；source/raw ID-version同源，禁止alias与fallback v1
+  - raw/source双链successor与PIT final no-fallback闭合，pure tests 41 passed；Application、0023 ledger、v2 adapters与全writer outbox仍缺
+- ✅ **SimulatedTrading raw-bound account-row source v2 Application**
+  - ID/hash-only capture以同cutoff双读raw exact-current source，source/raw双链first-winner与predecessor CAS闭合
+  - current会重验raw final head并防止projection lag，组合56 passed；0023 ledger、v2 adapters与全writer outbox仍缺
+- ✅ **SimulatedTrading raw-bound account-row source v2 ledger**
+  - 独立strict/closed-world账本封存raw、row、logical、clock与header seals；private UOW/claim、identity/raw binding/root/predecessor CAS闭合
+  - Django5.2组件5 passed、0023 zero-seed；PG并发/真实migrate、v2 adapters与全writer outbox仍缺，v1不作current fallback
+- ✅ **SimulatedTrading raw observation → source v2 owner provider**
+  - raw identity winner与logical final head双闭合，ID/version/hash/row/clocks逐项原样映射；tombstone可读但superseded/expired/future不回退
+  - read-only composition无UOW/writer，pure tests 8 passed；两账本zero-seed、Account v2 consumer与全writer raw outbox仍缺
+- ✅ **Account physical-row observation v2 Domain**
+  - 独立v2完整封存并重算Simulated source/raw双层canonical hashes，三重predecessor和三层时钟/有效期闭合
+  - Domain联跑101 passed、architecture 2799/0；Application、0042 ledger、owner provider、全writer outbox仍缺，v1不fallback
+- ✅ **Account physical-row observation v2 Application**
+  - ID/hash-only capture、source exact-final/current双读面、同cutoff双读、actor first-winner、三重predecessor CAS与closed-current闭合
+  - Domain/Application 43 passed；0042 ledger、owner provider/composition、全writer raw outbox仍缺，v1/provenance不fallback
+- ✅ **Account physical-row observation v2 ledger**
+  - 独立strict/closed-world账本封存Account/source/raw/actor/header seals，private UOW/claim与identity/source/root/predecessor CAS闭合
+  - Django5.2组件2 passed、0042 zero-seed；PG并发/真实migrate、owner composition与全writer outbox仍缺
+- ✅ **SimulatedTrading source v2 → Account v2 owner provider**
+  - source winner/final head双闭合；exact-final传播terminal、exact-current仅live，完整source/raw/hash/clock原样映射
+  - read-only composition pure 9 passed、architecture 2805/0；三账本zero-seed、Account wiring与全writer outbox仍缺
+- ✅ **SimulatedAccount raw mutation writer 安全前置**
+  - typed mutation、跨opaque-ID physical-row head、显式同alias外层事务与create/update/delete/tombstone CAS已闭合
+  - unit 11 passed、Django5.2 component 5 passed；尚未接生产writer，全部ORM/Admin/cascade一次性切换前保持zero-seed
+- ✅ **Account v2 自动证据 recorder 语义修正**
+  - v2 capture改用fixed service/evidence_projector，codec/0042/header与recorder/record/ledger seals全链闭合，不伪造human staff
+  - pure 43 passed、component 2 passed；仅技术provenance修正，不提升owner/permission，pipeline与writer cutover仍缺
+- ✅ **SimulatedAccount 三账本 Evidence Pipeline 安全前置**
+  - 未激活pipeline要求调用方同alias外层事务，固定raw→source-v2→Account-v2并原样传递hash/tombstone；unverified canonical-form identity不做str/int cast
+  - unit 8 passed、architecture 2807/0；未接production writer，Account owner authoritative provider与一次性全writer cutover仍缺
+- ✅ **Account owner-assignment claimant provenance receipt v2 Domain**
+  - 独立v2精确绑定physical/source/raw三层hash、clock与presence；claimed-owner/legacy-default只代表human claim，live-row签发且final失效不回退
+  - pure 22 passed、architecture 2808/0；Application/0043/staff approval evidence v2与authoritative provider仍缺
+- ✅ **Account owner-assignment claimant provenance receipt v2 Application**
+  - 6字段ID/hash-only签发、physical-v2同cutoff双读、actor-bound first-winner/head CAS；exact/current重验upstream且无v1 fallback
+  - pure 9 passed、architecture 2809/0；0043/provider/staff approval evidence v2与authoritative identity仍缺
+- ✅ **Account owner-assignment claimant provenance receipt v2 ledger**
+  - strict/closed-world 0043账本以private UOW、identity/root/predecessor CAS及physical/source/raw/actor/header seals闭合claimant receipt
+  - Django5.2组件5 passed、migration state无漂移；PG race/真实migrate、staff approval evidence v2与authoritative provider仍缺
+- ✅ **Account owner-assignment staff approval evidence v2 Domain**
+  - subject重验完整physical-v2与claimant receipt-v2；独立human staff双维防自批，claim→authoritative/legacy→ownerless精确映射，双root、approval TTL及相邻successor闭合
+  - pure 28 passed、architecture 2813/0；两阶段Application、0044账本、authoritative current provider与PG并发仍缺
+- ✅ **Account owner-assignment staff approval evidence v2 Application**
+  - ID/hash-only subject注册与staff审批；两upstream同cutoff双读、双mapping head一致、actor-bound first-winner/predecessor CAS及exact/current重验闭合
+  - 组合36 passed、architecture 2814/0；0044账本、双root DB约束、authoritative provider/composition与PG并发仍缺
+- ✅ **Account owner-assignment staff approval evidence v2 strict codec**
+  - 完整嵌套subject/physical-v2/claimant-receipt-v2/Evidence，以exact shape/type、UTC-Z及canonical roundtrip闭合篡改检测
+  - codec 9 passed；0044双表/双root/closed-world repository/component与authoritative provider仍缺
+- ✅ **Account owner-assignment staff approval evidence v2 0044 schema**
+  - subject/Evidence双表、OneToOne PROTECT、private UOW/claim与全mutation guard；Account/underlying双root分别partial unique，successor predecessor unique
+  - Django5.2 model component 4 passed、architecture 2816/0；closed-world repository/真实migrate/PG race与authoritative provider仍缺
+- ✅ **Account owner-assignment staff approval evidence v2 repository**
+  - full-table canonical restore后才selector；双mapping完整链/同head、predecessor CAS、exact/PIT/first-winner与IntegrityError exact幂等闭合
+  - component 9 passed、pure 45 passed、architecture 2817/0；PG四类race/真实0044 migrate与authoritative provider/composition仍缺
+- ✅ **Account authoritative mapping v2 read-only facade**
+  - 以underlying namespace/id + PIT选择最终Evidence head，再重验双mapping head及physical/claimant receipt current；legacy、missing、stale均fail closed
+  - pure 11 passed、architecture 2818/0；仅发布identity_mapping_only/inactive/execution=false，首次create的canonical identity bootstrap循环仍阻断pipeline/writer
+- ✅ **Account canonical creation allocation/binding Domain**
+  - Account owner在physical row产生前分配opaque canonical ID；一次性binding重验allocation、live Physical-v2 root、user/type与Account/underlying双claim
+  - pure 5 passed、architecture 2819/0；固定pending-owner-approval/inactive/must-not-execute，Application/ledger与全writer原子cutover仍缺
+- ✅ **Account canonical creation allocation/binding Application**
+  - Account ID由server generator产生，request first-winner跨时钟幂等；binding用ID/hash-only selector双读exact-unconsumed allocation与Physical-v2 root，并闭合四唯一锚
+  - Domain+Application 9 passed、architecture 2820/0；仅Protocol+fakes，ledger、Physical allocation seal、pipeline/writer仍缺
+- ✅ **Account canonical creation strict codec**
+  - Allocation完整封存requester/service/fixed/hash/UTC-Z；Binding嵌套完整Allocation和Physical-v2 canonical payload，不压缩成caller hash
+  - unit 12 passed；exact keys/types/canonical roundtrip与tamper fail closed，0045 schema/repository与pipeline仍缺
+- ✅ **Account canonical creation 0045 schema**
+  - Allocation/Binding双append-only表以private UOW/exact claim与全mutation guard闭合；Account ID/request幂等、allocation唯一消费及Account/underlying/Physical四锚均有DB约束
+  - Django5.2 isolated component 3 passed、architecture 2822/0；0045仅CreateModel/zero-seed，repository、PG竞争及pipeline仍缺
+- ✅ **Account canonical creation repository**
+  - 全表strict restore后做allocation identity/request/exact/current-unconsumed与binding four-anchor/exact/append，逐列seals、OneToOne和时钟重验
+  - Django5.2 models+repo component 9 passed、architecture 2823/0；消费/过期不回退，PG竞争、Physical/receipt新schema及pipeline仍缺
+- ✅ **Account allocated Physical-v3 creation-root Domain**
+  - 独立v3 wrapper完整封存exact allocation与Physical-v2 root，强physical/source/raw三predecessor为空、live/present、label/user/type一致与三路min-validity
+  - pure 28 passed、architecture 2824/0；仅creation root，durable Binding-v2/Application/ledger/update-delete successor仍缺，无v2 fallback
+- ✅ **Account durable canonical creation Binding-v2 Domain**
+  - exact allocation + allocated Physical-v3 root与Account/underlying双claim、v3/v2/source/raw hashes完整封存；映射耐久性不再绑定短TTL
+  - pure 10 passed、architecture 2825/0；固定inactive/unknown/must-not-execute，Application/ledger/provider及Physical-v3 successor仍缺
+- ✅ **Account durable canonical creation Binding-v2 Application**
+  - ID/hash-only binding双读exact-unconsumed allocation与Physical-v3 root，以server binder/clock和identity+四锚first-winner闭合永久映射证据
+  - Domain+Application 29 passed、architecture 2826/0；独立ledger/provider、跨v1/v2 allocation消费、Physical-v3账本与receipt/Evidence-v3仍缺
+- ✅ **Account allocated Physical-v3 creation-root Application**
+  - ID/hash-only capture双读allocation与Physical-v2，独立service projector、winner/head/root-CAS、exact PIT/closed-current及消费后winner replay闭合
+  - 四批组合61 passed、architecture 2827/0；0046 ledger、0047统一consumption claim/Binding-v2 ledger、successor与receipt/Evidence-v3仍缺
+- ✅ **Account durable canonical creation Binding-v2 strict codec**
+  - 完整嵌套allocation、Physical-v3/v2、source/raw与binder canonical payload，exact shape/type/UTC-Z/Domain重建及全层tamper fail closed
+  - codec 48 passed；无model/repository/migration，0047统一consumption claim/Binding-v2 ledger与跨v1/v2并发仍缺
+- ✅ **Account allocated Physical-v3 creation-root 0046 ledger**
+  - nested allocation+Physical-v2/source/raw与projector全seals，五锚unique、private UOW、root-only CAS及closed-world exact/PIT/head/tamper闭合
+  - Django5.2 isolated component 4 passed、architecture 2831/0；zero-seed，PG竞争/真实migrate与0047统一claim/Binding-v2 ledger仍缺
+- ✅ **Account canonical creation unified Consumption Claim Domain**
+  - exact allocation与Binding-v1/v2 consumer分支、非递归ref、同recorded_at、Account/underlying raw claims及Physical-v2/v3矩阵闭合
+  - pure 30 passed、architecture 2832/0；codec、0047 expand、v1 dual-write/backfill、Binding-v2 repo与0048 contract仍缺
+- ✅ **Account canonical creation unified Consumption Claim strict codec**
+  - nested allocation完整恢复，consumer按非递归ref注入核对；exact shape/type/UTC-Z/canonical roundtrip与全selector/hash tamper fail closed
+  - codec 32 passed；无model/repository/migration，0047 expand、closed-world restore、v1 dual-write/backfill与0048 contract仍缺
+- ✅ **Account canonical creation consumption 0047 expand schema**
+  - 新Claim+Binding-v2 append-only表与旧Binding-v1 nullable claim FK，跨generation raw anchors、branch/fixed/clock checks及private guards闭合
+  - Django5.2 isolated 6 passed、architecture 2834/0；仅expand/no-backfill，v1 dual-write、Binding-v2 repo、0048 contract与PG交叉竞争仍缺
+- ✅ **Account canonical creation unified Claim Application workflows**
+  - Binding-v1/v2均由allocation identity+generation确定性派生claim identity；两条路径先replay winner，再按authoritative recorded clock双读并原子append Binding+Claim pair
+  - 聚合pure 85 passed、architecture 2834/0；仅Protocol+fakes，v1/v2 repositories、逐aliasinventory/backfill、0048 contract与PG交叉竞争仍缺
+- ✅ **Account Binding-v2 unified Claim repository**
+  - closed-world恢复allocation/root/v1/v2/claim并验证全headers/seals；allocation parent锁、Claim→Binding-v2同事务双写、legacy null-claim占用与exact pair replay闭合
+  - Django5.2 isolated repo 8 passed、组合17 passed；v1 repo dual-write、逐aliasinventory/backfill、0048 contract与PG交叉竞争仍缺，writer/pipeline禁用
+- ✅ **Account Binding-v1 unified Claim dual-write repository**
+  - 0045/0047同alias双UOW，full-world恢复v1/v2/root/claim；current-unconsumed跨generation闭合，新写强制Claim→Binding-v1 pair且legacy null-FK仅历史fail-closed兼容
+  - Django5.2 v1 6 passed、组合17 passed、architecture 2835/0；逐aliasinventory/backfill、0048 contract与PG竞争仍缺，writer/pipeline禁用
+- ✅ **Account canonical creation consumption 逐alias盘点与回填预览**
+  - 精确核验0045–0047 migration、列/nullability/constraint/FK并closed-world恢复五账本；发布稳定inventory SHA与跨generation一致性计数
+  - deterministic backfill仅预览候选；缺真实backfilled-at和writer-freeze时写模式稳定阻断。Django5.2 isolated 10 passed；生产alias/0048/PG竞争未验证
+- ✅ **Account canonical creation consumption 运维命令**
+  - inventory/backfill以显式alias输出稳定单行JSON；默认dry-run且batch标记reserved，不把全事务冒充分批执行
+  - PG+fresh inventory SHA仍因writer-freeze缺失阻断写入；pure 14 passed、architecture 2839/0，0048 readiness保持false
+- ✅ **Account canonical creation consumption writer-freeze 前置**
+  - v1/v2 writer UOW在PG事务内取得同key shared advisory lock；maintenance exclusive helper默认PG-only，SQLite仅显式test degradation
+  - 组合18 passed；尚无真实PG两连接竞争且backfill仍阻断，不能视为已取得生产freeze或0048授权
+- ✅ **Account canonical creation consumption knowledge clock expand**
+  - 0048 nullable/indexed knowledge_at保留业务recorded_at与canonical bytes；live同钟，Claim pair/anchor/unconsumed PIT按真实知识时点
+  - component 29 + command 14 passed、architecture 2840/0；既有NULL Claim、exclusive backfill、NOT NULL contract与PG迁移/竞争仍阻断
+- ✅ **Account canonical creation consumption knowledge backfill engine**
+  - transitional closed-world处理已有NULL Claim、legacy null-FK与缺Claim；exclusive lock内取DB clock并以完整归属anchors CAS，失败整批rollback
+  - component 34 passed、architecture 2840/0；默认无write authorization且command阻断，production SHA/PG双连接/逐alias签字仍缺
+- ✅ **Account owner-assignment creation claimant receipt v3 Domain**
+  - 仅以durable Binding-v2为权威来源，重验allocation、allocated Physical-v3、Physical-v2/source/raw及Account/underlying全seal；creation claimant必须同时等于allocation requester和live physical row user
+  - pure 16 passed、strict mypy、architecture 2841/0；固定claim-only/inactive/must-not-execute，Application/ledger、独立staff Evidence-v3、Physical-v3 successor/current provider与生产writer仍缺
+- ✅ **Account owner-assignment creation claimant receipt v3 Application**
+  - 6字段ID/hash-only签发优先重放immutable winner；新签发在单cutoff双读durable Binding-v2、exact-current Physical-v3和当前human claimant，使用server clock与predecessor CAS
+  - Domain+Application 24 passed、strict mypy、architecture 2842/0；历史exact永久可读而closed-current重验TTL/head/upstream，ledger/provider、staff Evidence-v3与production composition仍缺
+- ✅ **Account owner-assignment creation claimant receipt v3 strict codec**
+  - exact Receipt-v3 record完整嵌套并重建Binding-v2→allocation→Physical-v3→Physical-v2→source/raw；exact keys/types、UTC-Z、claimant/issuer、fixed booleans/hash与canonical roundtrip均fail closed
+  - codec 17 passed、strict mypy；0049独立zero-seed账本、provider/composition、staff Evidence-v3与PG并发仍缺
+- ✅ **Account owner-assignment creation claimant receipt v3 0049 ledger**
+  - append-only账本完整封存Binding-v2/Claim knowledge、allocation/Physical-v3/v2/source/raw、actor与chain seals；全Receipt及Consumption closed-world后才按PIT选择，late knowledge不得洗白历史签发
+  - Django5.2 isolated component 7 passed、architecture 2846/0；zero-seed，PG竞争/真实migrate、provider/composition与production actor入口仍缺
+- ✅ **Account owner-assignment staff approval Evidence v3 Domain**
+  - creation-only subject显式封存11项Receipt/Binding/root/Account/underlying/Physical/source/raw seals；独立human-staff双维防自批，authoritative owner固定等于claimant，双mapping root domain-separated且candidate-independent
+  - Receipt-v3+Evidence-v3 pure 33 passed、strict mypy、architecture 2846/0；Application/codec/0050账本/current facade与production composition仍缺
+- ✅ **Account owner-assignment staff approval Evidence v3 Application**
+  - ID/hash-only Subject注册与staff审批；winner-first历史重放，单cutoff双读Receipt-v3/Physical-v3/approver，双mapping root CAS，exact永久而current重验全部upstream
+  - Domain+Application pure 48 passed、architecture 2848/0；winner replay不依赖当前approver且recorded clock重新复核全部输入，0050双表账本、production providers/composition与PG竞争仍缺
+- ✅ **Account owner-assignment staff approval Evidence v3 strict codec**
+  - 公开Subject/Evidence codecs完整重建Receipt-v3→Binding-v2→Physical-v3/v2→source/raw，exact keys/types、UTC-Z、fixed booleans及canonical roundtrip fail closed
+  - codec 24 passed、Application组合30 passed、strict mypy；无ORM，0050必须逐行闭合上游FK与Claim knowledge
+- ✅ **Account owner-assignment staff approval Evidence v3 0050 ledger**
+  - Subject/Evidence双表以PROTECT FK封存Receipt-v3、Binding-v2、Physical-v3与独立approver；全表restore后逐行闭合FK链、0049 Receipt与Consumption Claim knowledge，双mapping分别unique root
+  - Django5.2 isolated本批4 passed、0049组合11 passed、architecture 2850/0；zero-seed，PG竞争/真实migrate、providers/composition/current mapping仍缺
+- ✅ **Account authoritative mapping v3 read-only facade**
+  - underlying selector先取0050 Evidence-v3 head，再以ID/version/hash重验current exact equality；只发布identity_mapping_only/inactive/execution=false，legacy/missing/stale均None且无v2 fallback
+  - pure 6 passed、architecture 2851/0；production Account-only exact-first composition、staff provider与PG证明仍缺
+- ✅ **Account Evidence-v3 Account-only只读composition**
+  - 同alias组装0046/0047/0049/0050 readers，Physical/Receipt以scalar exact selector恢复完整Domain后再做current复核；无Simulated反向依赖、v1 fallback或writer/approval surface
+  - pure组合18 passed、Django5.2空账本组件1 passed、architecture 2852/0；全账本仍zero-seed，staff写入口、knowledge contract、PG竞争与全writer cutover未完成
+- ✅ **Account Physical/Receipt-v3 current ID/hash-only边界**
+  - current command仅接ID/version/content hash/PIT，服务端exact恢复canonical对象后再派生最终head、TTL与upstream selectors；composition不再拼接caller Domain对象
+  - 定向pure 41 passed、0049/0050/composition组件链12 passed、architecture 2852/0；无schema/write变化，production authority前置与execution总闸不变
+- ✅ **Account owner-assignment v3 actor authority Application合同**
+  - request principal仅作selector，每次读取重新验证exact-current active/user/RBAC authority；claimant为nonstaff/nonsuperuser，approver为staff+Account admin，撤权/过期fail closed
+  - 定向pure 32 passed、architecture 2853/0；仅Protocol/DTO+fakes，Django authority source、request adapter、write composition与路由均未实现
+- ✅ **Account actor authority source v3 Domain**
+  - Account独立封存opaque principal/auth-context、User/RBAC exact refs、actor/facts、三有效上界与domain-separated seals；successor锁同session/actor并禁止source clock回填，terminal撤权不可恢复
+  - source+Application+Receipt/Evidence pure 65 passed、architecture 2854/0；无capture/codec/ledger/raw providers，请求写入口与execution继续关闭
+- ✅ **Account actor authority source v3 Application**
+  - 单一atomic bundle provider承载auth-context/User/RBAC exact-current输入；winner-first，cutoff双读与recorded-at第三读后以same-session predecessor CAS落候选，历史exact与final-head current严格分离
+  - pure 40 passed、architecture 2855/0；仅Protocol/DTO+fakes，无codec/ledger/真实authority bundle/request adapter/staff入口，terminal/expired不回退且execution继续关闭
+- ✅ **Account actor authority source v3 strict codec**
+  - 完整恢复principal/context/User/RBAC refs、facts、时钟、chain与全部domain-separated seals；exact keys/types、UTC-Z及canonical encode-equality使替换与篡改fail closed
+  - codec 28 passed、Domain/Application/codec组合68 passed；无ORM/migration，zero-seed、真实bundle provider、staff入口与execution仍关闭
+- ✅ **Account actor authority source v3 0051 schema/append guards**
+  - schema-only双表引入candidate-independent source/root anchor与完整ledger，PROTECT predecessor、持久化service recorder/ledger seals、private UOW/exact claim及全mutation guards
+  - isolated Django5.2 3 passed、mypy 0 regressions、architecture 2857/0；无repository/closed-world/PG race，仍zero-seed且不构成production authorization
+- ✅ **Account actor authority source v3 0051 repository**
+  - source/root anchor串行化、whole-append savepoint、first-winner/predecessor CAS与全表closed-world恢复；codec、recorder/content binding及ledger seals逐项闭合，terminal/expired final head不回退
+  - isolated model+repo 7 passed、strict mypy、architecture 2858/0；PG双连接race与三项raw authority sources/atomic bundle仍缺，zero-seed且execution关闭
+- ✅ **Account actor authority raw-source v3 Domain primitives**
+  - Account Domain内复用exact identity、aware observation/knowledge/validity clock、root/predecessor XOR、UTC-Z/domain hash及fixed inactive/nonexecution header，不混合三种业务artifact
+  - pure 10 passed、architecture 2859/0；仅primitives，auth-context/User/RBAC concrete artifacts与ledgers/atomic provider仍缺
+- ✅ **Account auth-context/User/RBAC raw authority source v3 Domains**
+  - 三种独立artifact分别封存secret-free认证上下文、User active/staff/superuser及7-role canonical RBAC；各自domain-separated identity/root/seals、successor与terminal no-fallback语义
+  - primitives+三Domain pure 85 passed、strict mypy、architecture 2862/0；无codec/ledger/immutable Django writers/atomic bundle/request adapter，staff与execution仍关闭
+- ✅ **Account auth-context/User/RBAC raw authority source v3 strict codecs**
+  - 三个独立codec完整恢复nested identity/clock/chain、专属facts、fixed semantics与全部seals；exact shape/types、UTC-Z、role/state及canonical equality使替换fail closed
+  - codec 100 passed、三Domain+codec组合175 passed、architecture 2865/0；无raw ledger/writer/atomic bundle，staff与execution仍关闭
+- ✅ **Account actor authority raw-source v3 Application primitives**
+  - 统一ID/hash/PIT scalar selector、fixed automated service recorder及三类稳定异常，不引用ORM或任一具体raw artifact
+  - pure 22 passed、Ruff/strict mypy/AST边界通过；尚无concrete reader/repository/capture/ledger/bundle/request adapter
+- ✅ **Account auth-context/User/RBAC raw authority v3 Application readers**
+  - 三个typed Persisted/repository/exact/current合同闭合ID/hash/PIT、final head与recorder；未来或替换Corruption，terminal/expired/superseded不回退
+  - 定向29 passed、Domain/codec/Application组合236 passed、architecture 2869/0；尚无Django repo/capture/version allocator/atomic bundle
+- ✅ **Account auth-context/User/RBAC raw authority v3 0052 schema/guards**
+  - 三套独立anchor+concrete ledger完整投影facts/seals/recorder并以PROTECT链、fixed/state/clock/root/role约束及private nonnested UOW封住旁路；无generic discriminator或mutable auth FK
+  - Django5.2与0051组件19 passed、增量mypy 0 regressions、architecture 2870/0；仍zero-seed且无repo/PG race/lifecycle writer/atomic bundle
+- ✅ **Account auth-context/User/RBAC raw authority v3 0052 repositories**
+  - 三个concrete repo锁定candidate-independent anchor并以whole-append savepoint、strict codec/recorder/ledger full-world restore和predecessor CAS闭合single-root链；terminal/expired head不回退
+  - repo 14 passed、与0052 model合计30 passed、architecture 2873/0；PG race/production migrate/lifecycle writer/version allocator/atomic bundle仍未完成
+- ✅ **Account RBAC authority mutation v3 dormant fact-outbox合同**
+  - 单一Application UOW合同要求stable mutation identity、Profile lock/CAS、0052 winner/head/append与server clock处于同alias事务；winner-first历史重放不读取当前Profile，首次写和append后均复核Profile/head
+  - expired final仍是唯一合法predecessor，只有revoked阻断同epoch后继；pure 13 passed、architecture 2874/0。无concrete UOW或生产入口，且没有issuer、mutation kind、exact old/new Profile hash及持久mutation→source绑定，不能称mutation receipt，0052保持zero-seed
+- ✅ **Account RBAC mutation binding v3 Domain合同**
+  - Domain封存exact Profile old/new refs、human staff+canonical admin operator authority与service recorder，并将bootstrap/role_change/revoke/reactivate、initial/reactivation epoch、binding/raw-source双链和PIT exact selector分域闭合
+  - pure 16 passed、strict mypy/official增量门禁通过、architecture 2875/0；无codec/0053 schema/repository/Profile version ledger/concrete UOW，现存mutable Profile不得回填历史，旧写入口和execution继续关闭
+- ✅ **Account RBAC mutation binding v3 strict codec**
+  - codec完整恢复epoch、old/new Profile、human operator、service issuer、binding/raw-source双链与全部seals；exact keys/types、UTC-Z、Domain重验和canonical encode-equality使替换与跨链篡改fail closed
+  - codec 18 passed、official增量mypy 0 regressions、architecture 2876/0；仅payload封存，不证明mutable来源真实性，0053 schema/repository/UOW/lifecycle writer与execution仍关闭
+- ✅ **Account RBAC mutation binding v3 Application读合同**
+  - ID/version/hash/PIT selector与typed repository Protocol闭合Exact历史和Current最终head/TTL；terminal/expired/superseded不回退，future或selector/hash/type替换fail closed
+  - pure 4 passed、official增量mypy 0 regressions、architecture 2877/0；仍无Django repository、0053 schema、capture/Profile UOW或生产入口，zero-seed与execution关闭
+- ✅ **Account RBAC mutation binding v3 0053 schema-only基座**
+  - 独立epoch anchor、Profile authority anchor/version ledger与mutation binding ledger；四个CreateModel、PROTECT FK/self predecessor、old/new Profile exact refs、human operator/service issuer、binding/raw-source双链、fixed/state/clock/unique约束及全append-only guards
+  - isolated Django5.2 9 passed、与0052模型组件合计25 passed、official增量mypy 0 regressions、architecture 2878/0；仅zero-seed schema，真实PostgreSQL migrate/race、closed-world repository、持久issuer/UOW、mutable lifecycle接线与生产入口仍未完成
+- ✅ **Account RBAC mutation binding v3 dormant closed-world repository**
+  - 同alias/private UOW的winner/exact/head/append先恢复全部epoch、Profile anchor/version、binding及0052 raw-source rows，逐列重验canonical payload、fixed recorder、recorder/ledger seals、Profile exact refs、raw/binding双链与全图；inner savepoint、epoch锁、predecessor CAS、exact replay和terminal/expired no-fallback闭合
+  - repository component 4 passed；与Domain/codec/model组合47 passed、official增量mypy 0 regressions、architecture 2879/0；仅dormant persistence合同，未接owner UOW/mutation issuer、mutable lifecycle/production route或真实PostgreSQL空链竞争，zero-seed与execution关闭
+- ✅ **Account RBAC mutation binding v3 dormant Application writer contract**
+  - ID/hash-only mutation command与server-issued identity resolver注入单一typed UOW；winner-first重放不读取Profile/operator/raw source，首次写校验完整old/new Profile、human staff+canonical-admin operator、0052 raw source exact/current及source-role/subject闭合，再以final predecessor CAS append并复核winner/head
+  - writer unit 7 passed；与既有Domain/codec/read contract/0053 model+repository组合54 passed、official增量mypy 0 regressions、architecture 2879/0；仍无concrete Profile mutation receipt/version issuer、mutable lifecycle同alias实现、跨epoch reactivation PG闭环或production route，execution继续关闭
+- ✅ **跨 App 决策读边界与模块循环收口**
+  - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
+  - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
+- ✅ **Broker-owned broker account identity snapshot Domain 合同**
+  - 封存Broker账户、Account exact source、binding/Agent owner seal与keyed QMT reference digest；Account字符串与Broker整数身份不做cast，owner/real/active必须闭合
+  - 固定inactive；Account facade、Broker raw provider/digest service、ID-only发行和ledger/current reader均未完成，namespace blocker不变
+- ✅ **Broker account identity snapshot Application workflow**
+  - ID-only发行双读Account exact source与Broker binding/Agent facts；QMT明文只进入注入的keyed digest服务，server actor、first-winner/CAS及closed-current闭合
+  - 仅Protocol+pure fake；真实facade/raw provider、key service、账本/composition、actor与PG并发仍未完成，ruff未验证
+- ✅ **Broker account identity snapshot append-only ledger**
+  - actor/Account ref/binding/Agent/keyed digest与全套seals、私有UOW/claim、single-root/predecessor CAS及closed-world exact/PIT/current闭合；0010 zero-seed
+  - Django5.2 minimal往返通过；完整组件/migration state/mypy/ruff、PG并发及真实provider/composition仍未完成
 
 ### 2026-07-08
 - ✅ **发布后稳定化检查点更新**
@@ -623,4 +1065,4 @@
 ---
 
 **文档维护**: AgomTradePro Team
-**最后更新**: 2026-08-04
+**最后更新**: 2026-08-12

@@ -35,3 +35,6 @@ def test_broker_execution_write_catalog_projection_requires_governance() -> None
         assert manifest.requires_confirmation is True
         assert manifest.idempotency == "required"
         assert "mcp:native" in manifest.audit_tags
+    assert registry["broker_execution.approve.order"].enabled is False
+    assert registry["broker_execution.reject.order"].enabled is True
+    assert registry["broker_execution.request.cancel"].enabled is True

@@ -55,9 +55,29 @@ def test_execution_evaluate_rejects_nonfinite_and_nonpositive_financial_inputs()
     assert not nonfinite_serializer.is_valid()
     assert "current_price" in nonfinite_serializer.errors
     assert not nonpositive_serializer.is_valid()
-    assert {"account_equity", "current_position_value"} <= set(
-        nonpositive_serializer.errors
-    )
+    assert {"account_equity", "current_position_value"} <= set(nonpositive_serializer.errors)
+
+
+def test_execution_evaluate_requires_all_current_fact_provenance() -> None:
+    serializer = ExecutionEvaluateInputSerializer(data={"symbol": "000001.SZ", "side": "buy"})
+
+    assert not serializer.is_valid()
+    assert {
+        "current_price",
+        "signal_strength",
+        "signal_direction",
+        "signal_confidence",
+        "current_regime",
+        "regime_confidence",
+        "market_observed_at",
+        "signal_observed_at",
+        "regime_observed_at",
+        "account_observed_at",
+        "account_equity",
+        "current_position_value",
+        "daily_pnl_pct",
+        "daily_trade_count",
+    } <= set(serializer.errors)
 
 
 def test_strategy_detail_rules_count_is_an_integer() -> None:

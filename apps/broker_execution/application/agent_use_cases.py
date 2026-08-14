@@ -5,6 +5,11 @@ from __future__ import annotations
 from typing import Any, cast
 
 from .alert_forwarding import forward_operational_alerts
+from .evidence_gate import (
+    blocked_lease_result,
+    broker_order_evidence_integrated,
+    require_broker_order_evidence,
+)
 from .ports import BrokerExecutionRepositoryProtocol
 from .repository_provider import get_broker_execution_repository
 from .use_case_errors import BrokerExecutionValidationError
@@ -88,6 +93,8 @@ class LeaseAgentOrdersUseCase:
             minimum=10,
             maximum=120,
         )
+        if not broker_order_evidence_integrated():
+            return blocked_lease_result()
         return self.repository.lease_agent_orders(
             agent_pk=agent_pk,
             allowed_account_ids=allowed_account_ids,
@@ -113,6 +120,8 @@ class AcknowledgeSubmittingUseCase:
         normalized_lease_token = str(lease_token or "").strip()
         if not normalized_order_id or not normalized_lease_token:
             raise BrokerExecutionValidationError("client_order_id and lease_token are required")
+        if not broker_order_evidence_integrated():
+            require_broker_order_evidence(checkpoint="submitting")
         return self.repository.acknowledge_submitting(
             agent_pk=agent_pk,
             allowed_account_ids=allowed_account_ids,

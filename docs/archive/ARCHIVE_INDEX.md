@@ -1,6 +1,6 @@
 # 文档归档索引
 
-> **归档日期**: 2026-02-26
+> **归档日期**: 2026-08-12
 > **说明**: 本目录存放已完成的过程性文档，供历史参考
 
 ---
@@ -115,6 +115,13 @@
 - `architecture-cycle-remediation-2026-07-15.md`（最终实现零双向依赖、零强连通循环组件）
 - `tui-ia-consolidation-2026-07-20.md`（AgomTradePro 主计划已实施；跨仓兼容后续由独立可移植性计划承接）
 
+#### AI、Terminal 与 MCP 收口
+
+- `mcp-consolidation-remediation-plan-2026-07-09.md`（统一 core surface、governed capability、legacy disposition 与写能力门禁已完成）
+- `system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md`（Catalog、自动采集、统一路由、权限与审计已完成）
+- `terminal-mcp-governance-outsourcing-task-book-2026-03-19.md`（旧命令治理目标已完成，并由持久化 AgentProposal 审批架构承接）
+- `terminal-refactor-plan-260709.md`（Agents SDK、MCP stdio、SSE 与持久审批已完成）
+
 ---
 
 ### 7. 过程性文档批量归档 (process/)
@@ -162,4 +169,4 @@
 ---
 
 **归档维护**: AgomTradePro Team
-**最后更新**: 2026-04-26
+**最后更新**: 2026-08-12

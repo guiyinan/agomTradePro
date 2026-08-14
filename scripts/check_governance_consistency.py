@@ -121,7 +121,7 @@ DYNAMIC_GOVERNANCE_DOCS = (
     "docs/development/tui-workbench.md",
     "docs/governance/ARCHITECTURE_GUARDRAILS.md",
     "docs/governance/DEVELOPMENT_BANLIST.md",
-    "docs/plans/mcp-consolidation-remediation-plan-2026-07-09.md",
+    "docs/archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md",
     "docs/mcp/mcp-technical-and-development-standard.md",
     "docs/mcp/mcp_guide.md",
     "docs/modules/ai_capability/ai-capability-guide.md",
@@ -1178,6 +1178,10 @@ def check_ci_governance_wiring() -> tuple[list[Violation], dict]:
     )
     consistency_tokens = (
         "scripts/check_current_data_contracts.py",
+        "scripts/check_broker_live_order_evidence_gate.py",
+        "scripts/check_decision_write_surface_freeze.py",
+        "scripts/check_evidence_output_surfaces.py",
+        "scripts/check_mcp_evidence_output_surfaces.py",
         "scripts/check_governance_consistency.py",
         "--baseline governance/governance_baseline.json",
         "--write-report reports/consistency/governance-consistency.json",

@@ -16,6 +16,19 @@ from pathlib import Path
 from typing import Any, TypedDict, cast
 from urllib.parse import urlparse
 
+if __package__:
+    from scripts.web_to_tui_candidate_binding import (
+        CandidateBinding,
+        binding_matches,
+        build_candidate_binding,
+    )
+else:
+    from web_to_tui_candidate_binding import (  # type: ignore[no-redef]
+        CandidateBinding,
+        binding_matches,
+        build_candidate_binding,
+    )
+
 module_prefix = "scripts." if __package__ else ""
 defect_evidence_builder: Any = importlib.import_module(
     f"{module_prefix}build_web_to_tui_defect_evidence"
@@ -28,6 +41,8 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MATRIX = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
 DEFAULT_CATALOG = ROOT / "config/tui/migration/web_to_tui_telemetry.v1.json"
 DEFAULT_EVIDENCE = ROOT / "config/tui/migration/web_to_tui_cutover_evidence.v1.json"
+DEFAULT_GRAPH = ROOT / "config/tui/published/tui_operation_graph.published.json"
+DEFAULT_RUNTIME_MANIFEST = ROOT / "config/tui/agomtui-runtime.manifest.json"
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 BACKUP_LOCATION_SCHEMES = frozenset({"artifact", "s3", "sftp", "https"})
@@ -194,18 +209,18 @@ def _candidate_commit_is_ancestor(value: object) -> bool:
     return result.returncode == 0
 
 
-def _candidate_contains_matrix(
+def _candidate_contains_source(
     value: object,
     *,
-    matrix_path: Path,
-    matrix_sha256: str,
+    source_path: Path,
+    source_sha256: str,
 ) -> bool:
-    """Return whether a commit stores the exact migration matrix under review."""
+    """Return whether a commit stores one exact source from the candidate binding."""
 
     if not _candidate_commit_is_ancestor(value):
         return False
     try:
-        relative = matrix_path.resolve().relative_to(ROOT.resolve()).as_posix()
+        relative = source_path.resolve().relative_to(ROOT.resolve()).as_posix()
     except ValueError:
         return False
     result = subprocess.run(
@@ -214,7 +229,7 @@ def _candidate_contains_matrix(
         capture_output=True,
         check=False,
     )
-    return result.returncode == 0 and hashlib.sha256(result.stdout).hexdigest() == matrix_sha256
+    return result.returncode == 0 and hashlib.sha256(result.stdout).hexdigest() == source_sha256
 
 
 def _valid_backup_location(value: object) -> bool:
@@ -296,6 +311,7 @@ def _route_cleanup_gate(
     cleanup: dict[str, Any],
     required_routes: set[str],
     *,
+    candidate_binding: CandidateBinding,
     evidence_root: Path,
 ) -> GateResult:
     """Require per-route closure evidence before any Classic cleanup is allowed."""
@@ -308,6 +324,7 @@ def _route_cleanup_gate(
         )
         is not None
     )
+    binding_ok = binding_matches(cleanup.get("candidate_binding"), candidate_binding)
     passed_routes = _string_set(cleanup.get("passed_route_pages"))
     scope_values = _mapping(cleanup.get("scope_coverage"))
     scope_schema_ok = set(scope_values) == REQUIRED_ROUTE_CLOSURE_SCOPES
@@ -365,7 +382,14 @@ def _route_cleanup_gate(
         for row in rows.values()
     )
 
-    passed = bool(evidence_ok and passed_routes_ok and scope_ok and rollback_ok and lifecycle_ok)
+    passed = bool(
+        binding_ok
+        and evidence_ok
+        and passed_routes_ok
+        and scope_ok
+        and rollback_ok
+        and lifecycle_ok
+    )
     return GateResult(
         "route_cleanup_readiness",
         passed,
@@ -375,6 +399,7 @@ def _route_cleanup_gate(
         f"rollback={str(rollback_ok).lower()}; "
         f"rollback_matrix={str(rollback_matrix_ok).lower()}; "
         f"lifecycle={str(lifecycle_ok).lower()}; "
+        f"candidate_binding={str(binding_ok).lower()}; "
         f"evidence={str(evidence_ok).lower()}",
     )
 
@@ -718,6 +743,8 @@ def evaluate_readiness(
     catalog_path: Path,
     evidence_path: Path,
     as_of: date,
+    graph_path: Path = DEFAULT_GRAPH,
+    runtime_manifest_path: Path = DEFAULT_RUNTIME_MANIFEST,
     evidence_root: Path = ROOT,
 ) -> ReadinessResult:
     """Evaluate every M5 cutover requirement against current evidence."""
@@ -746,13 +773,29 @@ def evaluate_readiness(
     candidate_commit = str(candidate.get("candidate_commit") or "").strip()
     released_at = _parse_date(candidate.get("released_at"))
     observation_end = _parse_date(candidate.get("observation_end"))
-    candidate_source_ok = _candidate_contains_matrix(
-        candidate_commit,
+    expected_binding = build_candidate_binding(
+        stable_version=stable_version,
+        candidate_commit=candidate_commit,
         matrix_path=matrix_path,
-        matrix_sha256=matrix_sha256,
+        graph_path=graph_path,
+        runtime_manifest_path=runtime_manifest_path,
+    )
+    candidate_binding_ok = binding_matches(candidate.get("binding"), expected_binding)
+    candidate_source_ok = all(
+        _candidate_contains_source(
+            candidate_commit,
+            source_path=path,
+            source_sha256=digest,
+        )
+        for path, digest in (
+            (matrix_path, expected_binding["matrix_sha256"]),
+            (graph_path, expected_binding["graph_sha256"]),
+            (runtime_manifest_path, expected_binding["runtime_manifest_sha256"]),
+        )
     )
     stable_window_ok = bool(
         stable_version
+        and candidate_binding_ok
         and candidate_source_ok
         and released_at
         and observation_end
@@ -764,7 +807,8 @@ def evaluate_readiness(
             "stable_version_window",
             stable_window_ok,
             f"version={stable_version or 'missing'}; "
-            f"commit={'verified_with_matrix' if candidate_source_ok else 'missing_or_source_mismatch'}; "
+            f"commit={'verified_with_snapshot' if candidate_source_ok else 'missing_or_source_mismatch'}; "
+            f"binding={str(candidate_binding_ok).lower()}; "
             f"released_at={released_at}; "
             f"observation_end={observation_end}; minimum_days=14",
         )
@@ -782,13 +826,15 @@ def evaluate_readiness(
     passed_routes = _string_set(uat.get("passed_route_pages"))
     missing_routes = routes - passed_routes
     extra_routes = passed_routes - routes
-    uat_ok = uat_evidence_ok and not missing_routes and not extra_routes
+    uat_binding_ok = binding_matches(uat.get("candidate_binding"), expected_binding)
+    uat_ok = uat_binding_ok and uat_evidence_ok and not missing_routes and not extra_routes
     gates.append(
         GateResult(
             "route_task_uat",
             uat_ok,
             f"covered={len(routes) - len(missing_routes)}/{len(routes)}; "
-            f"extras={len(extra_routes)}; evidence={str(uat_evidence_ok).lower()}",
+            f"extras={len(extra_routes)}; binding={str(uat_binding_ok).lower()}; "
+            f"evidence={str(uat_evidence_ok).lower()}",
         )
     )
     gates.append(
@@ -796,6 +842,7 @@ def evaluate_readiness(
             matrix_path,
             _mapping(evidence.get("cleanup")),
             routes,
+            candidate_binding=expected_binding,
             evidence_root=evidence_root,
         )
     )
@@ -886,8 +933,10 @@ def evaluate_readiness(
         rollback.get("evidence_sha256"),
         root=evidence_root,
     )
+    rollback_binding_ok = binding_matches(rollback.get("candidate_binding"), expected_binding)
     rollback_ok = bool(
-        rollback.get("passed") is True
+        rollback_binding_ok
+        and rollback.get("passed") is True
         and rollback.get("environment") in {"local", "preproduction"}
         and _parse_date(rollback.get("performed_at"))
         and rollback_path
@@ -896,7 +945,9 @@ def evaluate_readiness(
         GateResult(
             "rollback_drill",
             rollback_ok,
-            f"environment={rollback.get('environment')}; evidence={rollback_evidence or 'missing'}",
+            f"environment={rollback.get('environment')}; "
+            f"binding={str(rollback_binding_ok).lower()}; "
+            f"evidence={rollback_evidence or 'missing'}",
         )
     )
 
@@ -924,11 +975,16 @@ def evaluate_readiness(
         and _valid_sha256(production_backup.get("bundle_sha256"))
         and _valid_sha256(production_backup.get("payload_sha256"))
         and _valid_sha256(production_backup.get("graph_hash"))
+        and str(production_backup.get("graph_hash") or "").strip()
+        == expected_binding["graph_sha256"]
         and backup_generation is not None
         and backup_generation > 0
         and str(production_backup.get("schema_version") or "").strip()
+        == expected_binding["schema_version"]
         and str(production_backup.get("runtime_version") or "").strip()
+        == expected_binding["runtime_version"]
         and str(production_backup.get("runtime_build_id") or "").strip()
+        == expected_binding["runtime_build_id"]
         and str(production_backup.get("candidate_version") or "").strip() == stable_version
         and str(production_backup.get("candidate_commit") or "").strip() == candidate_commit
         and str(production_backup.get("source_sha256") or "").strip() == evidence_sha
@@ -1036,6 +1092,8 @@ def main() -> None:
     parser.add_argument("--matrix", type=Path, default=DEFAULT_MATRIX)
     parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
     parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
+    parser.add_argument("--graph", type=Path, default=DEFAULT_GRAPH)
+    parser.add_argument("--runtime-manifest", type=Path, default=DEFAULT_RUNTIME_MANIFEST)
     parser.add_argument("--as-of", type=date.fromisoformat, default=date.today())
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--require-allow", action="store_true")
@@ -1046,6 +1104,8 @@ def main() -> None:
         catalog_path=args.catalog.resolve(),
         evidence_path=args.evidence.resolve(),
         as_of=args.as_of,
+        graph_path=args.graph.resolve(),
+        runtime_manifest_path=args.runtime_manifest.resolve(),
     )
     if args.json:
         print(json.dumps(asdict(result), ensure_ascii=False, indent=2))

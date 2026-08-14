@@ -3096,6 +3096,13 @@ Data Center Public Port → 业务 Application 聚合 → REST DTO → SDK/MCP/T
 
 回滚：回退入口版本，不回退数据事实与质量门。
 
+2026-08-13 M8 Equity research snapshot 四入口收口：
+
+- 归并 owner 从 MCP runtime handler 上移到 `apps/equity/application/research_snapshot.py`；identity、quote、history、valuation、financial、news、capital flow 与 strict readiness 均由注入端口读取，核心分区 stale/blocked/empty/exception 统一 fail closed，optional 缺失只产生 `partial`。
+- 顶层 composition 只使用 Data Center publication-only Public Port 与 core strict readiness；新增 authenticated GET REST 和 SDK 方法，MCP 由 7 次独立调用改为一次 SDK 调用，Agent 继续走同一 capability，四入口不再各自解释 freshness。
+- current-data machine contract 已把 Application/REST/SDK/MCP/Agent 链和精确测试登记为 46 个 surface 之一；纯 Application + SDK/MCP 聚合 `39 passed`，architecture boundary/audit 0。
+- 明确未完成：当前本机没有项目声明的 Django 5.2 + DRF + Celery 完整 runtime，专属 API tests 已写但未执行；本批只完成 Equity snapshot 这一复合查询，不代表 M8 全域 SDK/MCP/Terminal/TUI 已退出全部独立事实实现，也不代表 Evidence integrated。
+
 ### M9：遗留停止与破坏性清理
 
 目标：消灭双真源，而不是隐藏它。

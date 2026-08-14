@@ -6,8 +6,19 @@ from typing import Any
 from django.db import models
 from django.utils import timezone
 
+from core.integration.transition_plan_contracts import (
+    CANONICAL_TRANSITION_PLAN_FAMILY,
+    LEGACY_TRANSITION_PLAN_FAMILY,
+)
+
 
 class PortfolioTransitionPlanModel(models.Model):
+    CONTRACT_FAMILY_LEGACY = LEGACY_TRANSITION_PLAN_FAMILY
+    CONTRACT_FAMILY_CANONICAL = CANONICAL_TRANSITION_PLAN_FAMILY
+    CONTRACT_FAMILY_CHOICES = [
+        (CONTRACT_FAMILY_LEGACY, "Decision Rhythm legacy v1"),
+        (CONTRACT_FAMILY_CANONICAL, "Portfolio canonical v1"),
+    ]
     STATUS_CHOICES = [
         ("DRAFT", "草稿"),
         ("READY_FOR_APPROVAL", "可提交审批"),
@@ -38,6 +49,14 @@ class PortfolioTransitionPlanModel(models.Model):
     )
     approval_request_id = models.CharField(
         max_length=64, blank=True, default="", help_text="关联审批请求 ID"
+    )
+    plan_contract_family = models.CharField(
+        max_length=40,
+        choices=CONTRACT_FAMILY_CHOICES,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Transition-plan payload contract family; NULL denotes unclassified legacy data",
     )
     idempotency_key = models.CharField(max_length=128, null=True, blank=True, unique=True)
     decision_snapshot_id = models.CharField(max_length=64, blank=True, db_index=True)

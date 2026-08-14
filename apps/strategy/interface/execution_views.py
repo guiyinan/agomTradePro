@@ -17,7 +17,13 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest, JsonResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
+from apps.strategy.application.execution_preview import (
+    ExecutionPreviewPolicy,
+    ExecutionPreviewRequest,
+    evaluate_execution_preview,
+)
 from apps.strategy.application.interface_services import (
     execute_strategy_for_assignments,
     get_strategy_queryset_for_owner,
@@ -27,11 +33,6 @@ from apps.strategy.application.script_engine import (
     ScriptAPI,
     ScriptExecutionEnvironment,
     SecurityMode,
-)
-from apps.strategy.domain.services import (
-    DecisionPolicyEngine,
-    PreTradeRiskGate,
-    SizingEngine,
 )
 from apps.strategy.interface.serializers import (
     ExecutionEvaluateInputSerializer,
@@ -223,7 +224,7 @@ def execution_evaluate(request: HttpRequest) -> JsonResponse:
         )
 
     data = cast(dict[str, Any], input_serializer.validated_data)
-    decision_engine = DecisionPolicyEngine(
+    policy = ExecutionPreviewPolicy(
         signal_threshold=float(getattr(settings, "DECISION_SIGNAL_THRESHOLD", 0.6)),
         confidence_threshold=float(getattr(settings, "DECISION_CONFIDENCE_THRESHOLD", 0.7)),
         regime_alignment_required=bool(
@@ -231,81 +232,56 @@ def execution_evaluate(request: HttpRequest) -> JsonResponse:
         ),
         max_daily_loss_pct=float(getattr(settings, "RISK_MAX_DAILY_LOSS_PCT", 5.0)),
         max_daily_trades=int(getattr(settings, "RISK_MAX_DAILY_TRADES", 10)),
-    )
-    sizing_engine = SizingEngine(
-        default_method=str(getattr(settings, "SIZING_DEFAULT_METHOD", "fixed_fraction")),
+        sizing_method=str(getattr(settings, "SIZING_DEFAULT_METHOD", "fixed_fraction")),
         risk_per_trade_pct=float(getattr(settings, "SIZING_RISK_PER_TRADE_PCT", 1.0)),
-        max_position_pct=float(getattr(settings, "SIZING_MAX_POSITION_PCT", 20.0)),
+        sizing_max_position_pct=float(getattr(settings, "SIZING_MAX_POSITION_PCT", 20.0)),
+        risk_max_single_position_pct=float(getattr(settings, "RISK_MAX_SINGLE_POSITION_PCT", 20.0)),
         min_qty=int(getattr(settings, "SIZING_MIN_QTY", 1)),
-    )
-    risk_gate = PreTradeRiskGate(
-        max_single_position_pct=float(getattr(settings, "RISK_MAX_SINGLE_POSITION_PCT", 20.0)),
-        max_daily_trades=int(getattr(settings, "RISK_MAX_DAILY_TRADES", 10)),
-        max_daily_loss_pct=float(getattr(settings, "RISK_MAX_DAILY_LOSS_PCT", 5.0)),
         min_volume=int(getattr(settings, "RISK_MIN_VOLUME", 100_000)),
+        market_max_age_seconds=int(
+            getattr(settings, "EXECUTION_PREVIEW_MARKET_MAX_AGE_SECONDS", 300)
+        ),
+        signal_max_age_seconds=int(
+            getattr(settings, "EXECUTION_PREVIEW_SIGNAL_MAX_AGE_SECONDS", 900)
+        ),
+        regime_max_age_seconds=int(
+            getattr(settings, "EXECUTION_PREVIEW_REGIME_MAX_AGE_SECONDS", 86_400)
+        ),
+        account_max_age_seconds=int(
+            getattr(settings, "EXECUTION_PREVIEW_ACCOUNT_MAX_AGE_SECONDS", 300)
+        ),
     )
-
-    signal_direction = data.get("signal_direction") or (
-        "bullish" if data["side"] == "buy" else "bearish"
-    )
-    current_price = data.get("current_price")
-    if current_price is None:
-        current_price = 100.0
-
-    decision_action, reason_codes, reason_text, valid_until_seconds = decision_engine.evaluate(
-        signal_strength=data["signal_strength"],
-        signal_direction=signal_direction,
-        signal_confidence=data["signal_confidence"],
-        regime=data.get("target_regime") or "Unknown",
-        regime_confidence=0.8,
-        daily_pnl_pct=data["daily_pnl_pct"],
-        daily_trade_count=data["daily_trade_count"],
-        volatility_z=data.get("volatility_z"),
-        target_regime=data.get("target_regime"),
-    )
-    target_notional, qty, expected_risk_pct, sizing_method, sizing_explain = (
-        sizing_engine.calculate(
-            method=data.get("sizing_method")
-            or str(getattr(settings, "SIZING_DEFAULT_METHOD", "fixed_fraction")),
-            account_equity=data["account_equity"],
-            current_price=current_price,
-            stop_loss_price=data.get("stop_loss_price"),
-            atr=data.get("atr"),
-            current_position_value=data["current_position_value"],
-        )
-    )
-    passed, violations, warnings, _ = risk_gate.check(
-        symbol=data["symbol"],
-        side=data["side"],
-        qty=qty,
-        price=current_price,
-        account_equity=data["account_equity"],
-        current_position_value=data["current_position_value"],
-        daily_trade_count=data["daily_trade_count"],
-        daily_pnl_pct=data["daily_pnl_pct"],
-        avg_volume=data.get("avg_volume"),
-    )
-
-    output = {
-        "decision_action": decision_action,
-        "decision_reasons": reason_codes,
-        "decision_text": reason_text,
-        "decision_confidence": data["signal_confidence"],
-        "valid_until_seconds": valid_until_seconds,
-        "target_notional": target_notional,
-        "qty": qty,
-        "expected_risk_pct": expected_risk_pct,
-        "sizing_method": sizing_method,
-        "sizing_explain": sizing_explain,
-        "risk_snapshot": {
-            "daily_trade_count": data["daily_trade_count"],
-            "daily_pnl_pct": data["daily_pnl_pct"],
-            "violations": violations,
-            "warnings": warnings,
-        },
-        "can_execute": decision_action == "allow" and passed,
-        "requires_confirmation": decision_action == "watch",
-    }
+    try:
+        output = evaluate_execution_preview(
+            ExecutionPreviewRequest(
+                symbol=data["symbol"],
+                side=data["side"],
+                current_price=data["current_price"],
+                signal_strength=data["signal_strength"],
+                signal_direction=data["signal_direction"],
+                signal_confidence=data["signal_confidence"],
+                current_regime=data["current_regime"],
+                regime_confidence=data["regime_confidence"],
+                account_equity=data["account_equity"],
+                current_position_value=data["current_position_value"],
+                daily_pnl_pct=data["daily_pnl_pct"],
+                daily_trade_count=data["daily_trade_count"],
+                market_observed_at=data["market_observed_at"],
+                signal_observed_at=data["signal_observed_at"],
+                regime_observed_at=data["regime_observed_at"],
+                account_observed_at=data["account_observed_at"],
+                stop_loss_price=data.get("stop_loss_price"),
+                atr=data.get("atr"),
+                target_regime=data.get("target_regime"),
+                volatility_z=data.get("volatility_z"),
+                avg_volume=data.get("avg_volume"),
+                sizing_method=data.get("sizing_method"),
+            ),
+            policy=policy,
+            evaluated_at=timezone.now(),
+        ).to_payload()
+    except ValueError as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=400)
     output_serializer = ExecutionEvaluateOutputSerializer(data=output)
     output_serializer.is_valid(raise_exception=True)
     return JsonResponse(

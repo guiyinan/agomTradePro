@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any, TypeVar
 from uuid import UUID
@@ -11,6 +11,7 @@ from uuid import UUID
 from django.db.models import Count, Min, Model, Q, QuerySet, Sum
 from django.utils import timezone
 
+from apps.broker_execution.domain.connection_freshness import heartbeat_times_are_fresh
 from apps.broker_execution.domain.entities import LiveOrderStatus
 from apps.broker_execution.domain.rules import (
     target_status_for_order_action,
@@ -384,11 +385,10 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
         return payload
 
     def build_overview(self, *, user_id: int, is_admin: bool) -> dict[str, Any]:
+        """Collect scoped source facts; Application owns current-readiness semantics."""
+
         orders = self._user_scope(
             LiveOrderModel._default_manager.all(), user_id=user_id, is_admin=is_admin
-        )
-        agents = self._user_scope(
-            BrokerAgentModel._default_manager.all(), user_id=user_id, is_admin=is_admin
         )
         reconciliations = self._user_scope(
             ReconciliationRunModel._default_manager.all(), user_id=user_id, is_admin=is_admin
@@ -406,6 +406,14 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
             user_id=user_id,
             is_admin=is_admin,
         )
+        bindings = BrokerAccountBindingModel._default_manager.select_related("agent").filter(
+            is_active=True,
+            agent__is_active=True,
+        )
+        if not is_admin:
+            bindings = bindings.filter(
+                Q(user_id=user_id) | Q(account_id__in=self._authorized_account_ids(user_id=user_id))
+            )
         order_counts = {
             row["status"]: row["count"]
             for row in orders.values("status").annotate(count=Count("id"))
@@ -413,9 +421,8 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
         pending_statuses = [LiveOrderStatus.WAITING_APPROVAL.value, LiveOrderStatus.READY.value]
         exception_statuses = [
             LiveOrderStatus.SUBMITTING.value,
-            LiveOrderStatus.BROKER_REJECTED.value,
             LiveOrderStatus.RECONCILIATION_REQUIRED.value,
-            LiveOrderStatus.FAILED.value,
+            LiveOrderStatus.CANCEL_PENDING.value,
         ]
         pending = orders.filter(status__in=pending_statuses).aggregate(
             count=Count("id"),
@@ -425,9 +432,6 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
         active_kill_switches = list(
             controls.filter(kill_switch_active=True).values("account_id", "reason", "changed_at")
         )
-        any_online = agents.filter(
-            status=BrokerAgentModel.STATUS_ONLINE, qmt_connected=True, is_active=True
-        ).exists()
         unresolved = reconciliations.exclude(status__in=["resolved", "completed"]).aggregate(
             runs=Count("id"),
             order=Sum("order_difference_count"),
@@ -435,20 +439,69 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
             cash=Sum("cash_difference_count"),
             position=Sum("position_difference_count"),
         )
-        if active_kill_switches:
-            readiness = "STOPPED"
-        elif not any_online:
-            readiness = "OFFLINE"
-        elif (
-            orders.filter(status__in=exception_statuses).exists()
-            or int(unresolved["runs"] or 0) > 0
-            or alerts.filter(status="open", severity__in=["P0", "P1"]).exists()
-        ):
-            readiness = "REVIEW"
-        else:
-            readiness = "READY"
+        binding_rows = list(bindings)
+        account_evidence: list[dict[str, Any]] = []
+        for binding in binding_rows:
+            snapshot = (
+                BrokerAccountSnapshotModel._default_manager.filter(
+                    agent=binding.agent,
+                    account_id=binding.account_id,
+                )
+                .order_by("-captured_at", "-pk")
+                .first()
+            )
+            reconciliation = (
+                reconciliations.filter(account_id=binding.account_id)
+                .order_by("-started_at", "-pk")
+                .first()
+            )
+            reconciliation_summary = (
+                reconciliation.summary
+                if reconciliation is not None and isinstance(reconciliation.summary, dict)
+                else {}
+            )
+            account_evidence.append(
+                {
+                    "account_id": binding.account_id,
+                    "snapshot": (
+                        {
+                            "id": snapshot.pk,
+                            "captured_at": snapshot.captured_at.isoformat(),
+                            "created_at": snapshot.created_at.isoformat(),
+                        }
+                        if snapshot is not None
+                        else None
+                    ),
+                    "reconciliation": (
+                        {
+                            "id": reconciliation.pk,
+                            "status": reconciliation.status,
+                            "started_at": reconciliation.started_at.isoformat(),
+                            "completed_at": (
+                                reconciliation.completed_at.isoformat()
+                                if reconciliation.completed_at is not None
+                                else None
+                            ),
+                            "snapshot_id": reconciliation_summary.get("snapshot_id"),
+                            "snapshot_captured_at": reconciliation_summary.get(
+                                "snapshot_captured_at"
+                            ),
+                        }
+                        if reconciliation is not None
+                        else None
+                    ),
+                }
+            )
+        open_order_statuses = [
+            LiveOrderStatus.WAITING_APPROVAL.value,
+            LiveOrderStatus.READY.value,
+            LiveOrderStatus.LEASED.value,
+            LiveOrderStatus.SUBMITTING.value,
+            LiveOrderStatus.PARTIALLY_FILLED.value,
+            LiveOrderStatus.CANCEL_PENDING.value,
+            LiveOrderStatus.RECONCILIATION_REQUIRED.value,
+        ]
         return {
-            "today_readiness": readiness,
             "kill_switch": {
                 "active": bool(active_kill_switches),
                 "controls": [
@@ -460,12 +513,26 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
                     for row in active_kill_switches
                 ],
             },
-            "connections": {
-                "total": agents.filter(is_active=True).count(),
-                "online": agents.filter(
-                    status="online", qmt_connected=True, is_active=True
-                ).count(),
-            },
+            "bindings": [
+                {
+                    "account_id": binding.account_id,
+                    "agent_id": binding.agent.agent_id,
+                    "auto_execution_enabled": binding.auto_execution_enabled,
+                    "max_snapshot_age_seconds": binding.max_snapshot_age_seconds,
+                    "is_active": binding.is_active,
+                }
+                for binding in binding_rows
+            ],
+            "account_evidence": account_evidence,
+            "open_orders": [
+                {
+                    "account_id": order.account_id,
+                    "status": order.status,
+                    "expires_at": order.expires_at.isoformat() if order.expires_at else None,
+                    "updated_at": order.updated_at.isoformat(),
+                }
+                for order in orders.filter(status__in=open_order_statuses).order_by("account_id")
+            ],
             "pending_approvals": {
                 "count": int(pending["count"] or 0),
                 "estimated_amount": _decimal_text(pending["amount"] or Decimal("0")),
@@ -503,10 +570,10 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
                     "status": row.status,
                     "metrics": row.metrics or {},
                     "summary": row.summary or {},
+                    "generated_at": row.generated_at.isoformat(),
                 }
                 for row in reports[:20]
             ],
-            "generated_at": timezone.now().isoformat(),
         }
 
     def get_account_readiness_evidence(self, *, user_id: int, account_id: int) -> dict[str, Any]:
@@ -524,6 +591,19 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
                 "account_id": account_id,
             }
         now = timezone.now()
+        try:
+            source_observed_at = datetime.fromisoformat(
+                str((binding.agent.health_snapshot or {}).get("source_observed_at") or "").replace(
+                    "Z", "+00:00"
+                )
+            )
+        except ValueError:
+            source_observed_at = None
+        connection_fresh = heartbeat_times_are_fresh(
+            source_observed_at=source_observed_at,
+            received_at=binding.agent.last_heartbeat_at,
+            evaluated_at=now,
+        )
         snapshot = (
             BrokerAccountSnapshotModel._default_manager.filter(
                 agent=binding.agent, account_id=account_id
@@ -550,6 +630,7 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
             binding.auto_execution_enabled
             and binding.agent.status == BrokerAgentModel.STATUS_ONLINE
             and binding.agent.qmt_connected
+            and connection_fresh
             and snapshot_fresh
             and not stopped
             and not unresolved.exists()
@@ -560,8 +641,9 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
         if (
             binding.agent.status != BrokerAgentModel.STATUS_ONLINE
             or not binding.agent.qmt_connected
+            or not connection_fresh
         ):
-            blockers.append("qmt_agent_offline")
+            blockers.append("qmt_agent_offline_or_stale")
         if not snapshot_fresh:
             blockers.append("broker_snapshot_stale_or_missing")
         if stopped:
@@ -574,6 +656,15 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
             "account_id": account_id,
             "agent_id": binding.agent.agent_id,
             "qmt_connected": binding.agent.qmt_connected,
+            "connection_fresh": connection_fresh,
+            "connection_source_observed_at": (
+                source_observed_at.isoformat() if source_observed_at is not None else None
+            ),
+            "connection_received_at": (
+                binding.agent.last_heartbeat_at.isoformat()
+                if binding.agent.last_heartbeat_at is not None
+                else None
+            ),
             "auto_execution_enabled": binding.auto_execution_enabled,
             "snapshot_fresh": snapshot_fresh,
             "snapshot_captured_at": snapshot.captured_at.isoformat() if snapshot else None,
@@ -635,18 +726,30 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
         for agent in queryset:
             row = {
                 "agent_id": agent.agent_id,
-                "user_id": agent.user_id,
                 "display_name": agent.display_name,
                 "status": agent.status,
                 "qmt_connected": agent.qmt_connected,
+                "reported_qmt_connected": (
+                    bool(agent.health_snapshot.get("reported_qmt_connected"))
+                    if isinstance(agent.health_snapshot, dict)
+                    else agent.qmt_connected
+                ),
                 "agent_version": agent.agent_version,
                 "last_heartbeat_at": (
                     agent.last_heartbeat_at.isoformat() if agent.last_heartbeat_at else None
                 ),
+                "received_at": (
+                    agent.last_heartbeat_at.isoformat() if agent.last_heartbeat_at else None
+                ),
+                "source_observed_at": (
+                    agent.health_snapshot.get("source_observed_at")
+                    if isinstance(agent.health_snapshot, dict)
+                    else None
+                ),
                 "is_active": agent.is_active,
                 "bindings": [
                     {
-                        "user_id": binding.user_id,
+                        **({"user_id": binding.user_id} if is_admin else {}),
                         "agent_id": agent.agent_id,
                         "account_id": binding.account_id,
                         "broker_account_mask": binding.broker_account_mask,
@@ -671,6 +774,7 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
                 ],
             }
             if is_admin:
+                row["user_id"] = agent.user_id
                 row["credentials"] = [
                     {
                         "credential_id": str(credential.credential_id),

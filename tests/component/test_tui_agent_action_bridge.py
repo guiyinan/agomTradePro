@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from agomtradepro_mcp.registry.runtime_handlers.owners import terminal as terminal_handlers
 from django.urls import reverse
 
+from agomtradepro_mcp.registry.runtime_handlers.owners import terminal as terminal_handlers
 from apps.terminal.application.tui_workbench import TuiWorkbenchService
 
 
@@ -100,7 +100,7 @@ def test_agent_action_search_and_schema_api_require_authenticated_user(
 
 
 @pytest.mark.django_db
-def test_mcp_bridge_runs_real_published_read_action(
+def test_mcp_bridge_blocks_real_published_read_action_without_evidence_binding(
     client,
     django_user_model,
     monkeypatch,
@@ -127,10 +127,8 @@ def test_mcp_bridge_runs_real_published_read_action(
 
     monkeypatch.setattr(terminal_handlers, "_client", lambda: DjangoClientAdapter())
 
-    result = terminal_handlers._internal_handler_terminal_run_user_read_action(
-        "auto.api.get.api.health",
-        {},
-    )
-
-    assert result["response"]["status_code"] == 200
-    assert result["confirmation_required"] is False
+    with pytest.raises(PermissionError, match="mcp_evidence_binding_required"):
+        terminal_handlers._internal_handler_terminal_run_user_read_action(
+            "auto.api.get.api.health",
+            {},
+        )

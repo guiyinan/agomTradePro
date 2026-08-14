@@ -571,17 +571,16 @@ class ExecutionEvaluateInputSerializer(serializers.Serializer[dict[str, Any]]):
 
     current_price = serializers.FloatField(
         help_text="当前价格",
-        required=False,
         min_value=1e-12,
     )
     signal_strength = serializers.FloatField(
-        help_text="信号强度 (0-1)", default=0.6, min_value=0.0, max_value=1.0
+        help_text="信号强度 (0-1)", min_value=0.0, max_value=1.0
     )
     signal_direction = serializers.ChoiceField(
-        choices=["bullish", "bearish", "neutral"], help_text="信号方向", default="bullish"
+        choices=["bullish", "bearish", "neutral"], help_text="信号方向"
     )
     signal_confidence = serializers.FloatField(
-        help_text="信号置信度 (0-1)", default=0.8, min_value=0.0, max_value=1.0
+        help_text="信号置信度 (0-1)", min_value=0.0, max_value=1.0
     )
     stop_loss_price = serializers.FloatField(
         help_text="止损价",
@@ -594,25 +593,34 @@ class ExecutionEvaluateInputSerializer(serializers.Serializer[dict[str, Any]]):
         required=False,
         max_length=50,
     )
+    current_regime = serializers.CharField(
+        help_text="当前Regime",
+        max_length=50,
+    )
+    regime_confidence = serializers.FloatField(
+        help_text="当前Regime置信度",
+        min_value=0.0,
+        max_value=1.0,
+    )
+    market_observed_at = serializers.DateTimeField(help_text="行情源观测时间")
+    signal_observed_at = serializers.DateTimeField(help_text="信号源观测时间")
+    regime_observed_at = serializers.DateTimeField(help_text="Regime源观测时间")
+    account_observed_at = serializers.DateTimeField(help_text="账户快照观测时间")
     account_equity = serializers.FloatField(
         help_text="账户权益",
-        default=100000.0,
         min_value=1e-12,
     )
     current_position_value = serializers.FloatField(
         help_text="当前持仓市值",
-        default=0.0,
         min_value=0.0,
     )
     daily_pnl_pct = serializers.FloatField(
         help_text="当日盈亏比例",
-        default=0.0,
         min_value=-100.0,
         max_value=100.0,
     )
     daily_trade_count = serializers.IntegerField(
         help_text="当日交易次数",
-        default=0,
         min_value=0,
         max_value=100_000,
     )
@@ -638,6 +646,7 @@ class ExecutionEvaluateInputSerializer(serializers.Serializer[dict[str, Any]]):
             "current_price",
             "signal_strength",
             "signal_confidence",
+            "regime_confidence",
             "stop_loss_price",
             "atr",
             "account_equity",
@@ -687,3 +696,14 @@ class ExecutionEvaluateOutputSerializer(serializers.Serializer[dict[str, Any]]):
     # 执行状态
     can_execute = serializers.BooleanField(help_text="是否可以执行")
     requires_confirmation = serializers.BooleanField(help_text="是否需要人工确认")
+    research_only = serializers.BooleanField(help_text="是否仅用于研究展示")
+    governance_state = serializers.ChoiceField(choices=["research_only"], help_text="治理状态")
+    permission = serializers.ChoiceField(choices=["display_only"], help_text="有效权限")
+    blocker_codes = serializers.ListField(child=serializers.CharField(), help_text="稳定阻断码")
+    must_not_use_for_decision = serializers.BooleanField(help_text="禁止用于决策")
+    must_not_execute = serializers.BooleanField(help_text="禁止执行")
+    evaluated_at = serializers.DateTimeField(help_text="评估时间")
+    market_observed_at = serializers.DateTimeField(help_text="行情源观测时间")
+    signal_observed_at = serializers.DateTimeField(help_text="信号源观测时间")
+    regime_observed_at = serializers.DateTimeField(help_text="Regime源观测时间")
+    account_observed_at = serializers.DateTimeField(help_text="账户快照观测时间")

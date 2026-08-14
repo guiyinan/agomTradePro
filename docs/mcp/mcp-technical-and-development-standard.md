@@ -115,7 +115,7 @@ MCP 不得承担以下职责：
 6. server 默认即处于 `core-only` surface；如需兼容验证 raw tools，必须显式设置 `AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=true`。
 7. `apps/ai_capability` 已引入显式 `semantic_key`，用于表达“同一业务语义”的 API/MCP/terminal capability 映射关系。
 8. 路由层已开始按 `semantic_key` 做去重：`web/chat` 优先非 MCP，`terminal/agent` 可优先 governed MCP capability。
-9. 当前 governed capability、replacement、legacy 和 unsupported contract 的 live 数量统一读取 `governance/governance_baseline.json`；已迁移清单与默认续做入口以 [MCP 收口整改计划](../plans/mcp-consolidation-remediation-plan-2026-07-09.md) 的 `0.2.2 唯一机器真源字段与验证入口` 与 `0.2.3 当前默认续做顺序` 为准。
+9. 当前 governed capability、replacement、legacy 和 unsupported contract 的 live 数量统一读取 `governance/governance_baseline.json`；历史迁移过程见[已归档 MCP 收口整改计划](../archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md)，当前状态由 registry、guard scripts 和机器基线共同判定。
 10. 当前 write-like governed capability 全部按 preview-first confirmation 收口：首次调用先返回预览，确认后才进入真实写入。
 11. 当前 write-like governed capability 全部要求 `idempotency_key`，dispatcher 会拒绝缺失幂等键的请求，并对同键重复请求执行 pending/completed replay 抑制。
 12. seed governed capability 在 `core-only` 模式下已具备内部 executor fallback，不要求把 raw tool 再暴露给模型侧顶层 surface。

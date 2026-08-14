@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from datetime import datetime
 from decimal import Decimal
+from typing import cast
 
 from .entities import LiveOrderSide, LiveOrderType, OrderApprovalSnapshot
 from .rules import build_approval_digest
@@ -31,8 +33,8 @@ def _sorted_string_items(value: object, *, field_name: str) -> tuple[str, ...]:
     return tuple(sorted(str(item) for item in value))
 
 
-def approval_digest_for_order(order: dict[str, object]) -> str:
-    """Build the immutable approval digest from an order projection."""
+def approval_snapshot_for_order(order: Mapping[str, object]) -> OrderApprovalSnapshot:
+    """Build the single canonical approval snapshot from an order projection."""
 
     expires_at = order.get("expires_at")
     if isinstance(expires_at, datetime):
@@ -47,7 +49,7 @@ def approval_digest_for_order(order: dict[str, object]) -> str:
         separators=(",", ":"),
         allow_nan=False,
     )
-    snapshot = OrderApprovalSnapshot(
+    return OrderApprovalSnapshot(
         account_id=_required_int(order.get("account_id"), field_name="account_id"),
         agent_id=str(order.get("agent_id") or ""),
         asset_code=str(order["asset_code"]),
@@ -70,4 +72,12 @@ def approval_digest_for_order(order: dict[str, object]) -> str:
             field_name="source_signal_ids",
         ),
     )
-    return build_approval_digest(snapshot)
+
+
+def approval_digest_for_order(order: Mapping[str, object]) -> str:
+    """Build the immutable approval digest from the canonical snapshot."""
+
+    return cast(str, build_approval_digest(approval_snapshot_for_order(order)))
+
+
+__all__ = ["approval_digest_for_order", "approval_snapshot_for_order"]

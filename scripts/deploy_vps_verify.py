@@ -459,16 +459,91 @@ print(f"module={qlib.__file__}")
 
 
 def build_release_identity_command(target_dir: str) -> str:
-    """Report source identity from the release and running web image."""
+    """Report source identity from the release and running web image.
+
+    Source-upload releases intentionally do not contain ``.git``.  Their
+    immutable release manifest is the source identity.  The manifest must
+    agree with the running image's OCI revision and image ID before the caller
+    can treat the result as a deployment identity.
+    """
 
     compose_ps = build_compose_command(target_dir, "ps", "-q", "web")
+    manifest_path = f"{target_dir.rstrip('/')}/current/.agom-release-manifest.json"
+    manifest_python = r"""import json
+import re
+import stat
+import sys
+from pathlib import Path
+
+manifest_path = Path(sys.argv[1])
+image_id = sys.argv[2]
+image_sha = sys.argv[3]
+if manifest_path.is_symlink() or not manifest_path.is_file():
+    raise SystemExit("release manifest must be a regular file")
+if stat.S_IMODE(manifest_path.stat().st_mode) != 0o444:
+    raise SystemExit("release manifest must be read-only (0444)")
+try:
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+    raise SystemExit(f"release manifest is unreadable: {exc}") from exc
+if not isinstance(manifest, dict):
+    raise SystemExit("release manifest must be a JSON object")
+expected_keys = {
+    "version",
+    "release_tag",
+    "source_commit",
+    "image_tag",
+    "image_id",
+    "build_started_at",
+    "build_finished_at",
+    "source_mode",
+}
+if set(manifest) != expected_keys:
+    raise SystemExit("release manifest fields are incomplete")
+if type(manifest["version"]) is not int or manifest["version"] != 1:
+    raise SystemExit("release manifest version is unsupported")
+release_tag = manifest["release_tag"]
+image_tag = manifest["image_tag"]
+if not isinstance(release_tag, str) or re.fullmatch(r"[0-9]{14}", release_tag) is None:
+    raise SystemExit("release manifest release tag is invalid")
+if image_tag != f"agomtradepro-web:{release_tag}":
+    raise SystemExit("release manifest image tag is invalid")
+source_mode = manifest["source_mode"]
+if source_mode not in {"source-upload", "git-clone"}:
+    raise SystemExit("release manifest source mode is unsupported")
+timestamp_pattern = r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"
+if any(
+    not isinstance(manifest[key], str)
+    or re.fullmatch(timestamp_pattern, manifest[key]) is None
+    for key in ("build_started_at", "build_finished_at")
+):
+    raise SystemExit("release manifest build timestamps are invalid")
+if manifest["build_finished_at"] < manifest["build_started_at"]:
+    raise SystemExit("release manifest build timestamps are not monotonic")
+source_commit = manifest["source_commit"]
+manifest_image_id = manifest["image_id"]
+if not isinstance(source_commit, str) or re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
+    raise SystemExit("release manifest source commit is invalid")
+if not isinstance(manifest_image_id, str) or re.fullmatch(r"sha256:[0-9a-f]{64}", manifest_image_id) is None:
+    raise SystemExit("release manifest image ID is invalid")
+if manifest_image_id != image_id:
+    raise SystemExit("release manifest image ID does not match running image")
+if image_sha != source_commit:
+    raise SystemExit("release manifest source commit does not match image revision")
+print(f"git_sha={source_commit}")
+print(f"image_sha={image_sha}")
+print(f"image_id={image_id}")
+    """.strip()
+    quoted_manifest = shlex.quote(manifest_path)
     return (
         f"cd {shlex.quote(target_dir)}/current && "
-        "git_sha=$(git rev-parse HEAD) && "
         f"cid=$({compose_ps}) && "
+        '[ -n "$cid" ] && '
         "image_id=$(docker inspect -f '{{.Image}}' \"$cid\") && "
         'image_sha=$(docker image inspect -f \'{{index .Config.Labels "org.opencontainers.image.revision"}}\' "$image_id") && '
-        'printf "git_sha=%s\\nimage_sha=%s\\nimage_id=%s\\n" "$git_sha" "$image_sha" "$image_id"'
+        f'python3 - {quoted_manifest} "$image_id" "$image_sha" <<\'PY\'\n'
+        f"{manifest_python}\n"
+        "PY\n"
     )
 
 

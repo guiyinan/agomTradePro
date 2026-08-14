@@ -16,12 +16,29 @@ def test_terminal_action_bridge_manifests_are_registered() -> None:
     assert "terminal.search.user_actions" in registry
     assert "terminal.read.user_action_schema" in registry
     assert "terminal.read.user_action_result" in registry
+    assert registry["terminal.read.user_action_result"].enabled is False
     write_manifest = registry["terminal.execute.user_action"]
     assert write_manifest.requires_confirmation is True
     assert write_manifest.idempotency == "required"
 
 
-def test_terminal_action_handlers_search_schema_and_run_read(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_decision_facing_broker_native_reads_are_not_discoverable() -> None:
+    registry = CapabilityRegistryLoader().build_registry()
+    blocked = {
+        "broker_execution.read.overview",
+        "broker_execution.read.order_catalog",
+        "broker_execution.read.order_detail",
+        "broker_execution.read.connection_status",
+        "broker_execution.read.reconciliation_catalog",
+        "broker_execution.read.audit_catalog",
+    }
+
+    assert all(registry[key].enabled is False for key in blocked)
+
+
+def test_terminal_action_handlers_search_schema_and_block_unbound_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     calls = []
 
     class Client:
@@ -43,14 +60,12 @@ def test_terminal_action_handlers_search_schema_and_run_read(monkeypatch: pytest
     monkeypatch.setattr("agomtradepro.AgomTradeProClient", Client)
 
     search = terminal._internal_handler_terminal_search_user_actions(query="持仓", limit=100)
-    result = terminal._internal_handler_terminal_run_user_read_action(
-        "account.positions", {"limit": 5}
-    )
+    with pytest.raises(PermissionError, match="mcp_evidence_binding_required"):
+        terminal._internal_handler_terminal_run_user_read_action("account.positions", {"limit": 5})
 
     assert search["returned_count"] == 1
-    assert result["business_summary"] == "持仓读取完成"
     assert calls[0][2]["limit"] == 20
-    assert calls[-1][2]["confirmed"] is False
+    assert all(call[0] != "POST" for call in calls)
 
 
 def test_terminal_write_action_handler_previews_and_rejects_read_risk(
@@ -146,11 +161,6 @@ def test_core_dispatcher_confirms_terminal_write_action(
             "terminal.read.user_action_schema",
             "terminal_read_user_action_schema",
             {"action_key": "account.positions"},
-        ),
-        (
-            "terminal.read.user_action_result",
-            "terminal_run_user_read_action",
-            {"action_key": "account.positions", "params": {}},
         ),
     ],
 )

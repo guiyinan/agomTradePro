@@ -19,6 +19,35 @@ from apps.portfolio.infrastructure.optimization_research_models import (
     OptimizationResearchLifecycleEventModel,
 )
 from apps.portfolio.infrastructure.order_models import OrderIntentModel
+from apps.portfolio.infrastructure.planning_policy_activation_models import (
+    PortfolioPlanningPolicyActivationModel,
+    PortfolioPlanningPolicyActivationSubjectModel,
+)
+from apps.portfolio.infrastructure.planning_policy_definition_models import (
+    PortfolioPlanningPolicyDefinitionModel,
+)
+from apps.portfolio.infrastructure.policy_benchmark_corporate_action_models import (
+    PortfolioPolicyBenchmarkCorporateActionModel,
+)
+from apps.portfolio.infrastructure.policy_benchmark_cost_tax_models import (
+    PortfolioPolicyBenchmarkCostTaxModel,
+)
+from apps.portfolio.infrastructure.policy_benchmark_definition_models import (
+    PortfolioPolicyBenchmarkDefinitionModel,
+)
+from apps.portfolio.infrastructure.policy_benchmark_fx_fixing_models import (
+    PortfolioPolicyBenchmarkFxFixingModel,
+)
+from apps.portfolio.infrastructure.policy_benchmark_methodology_activation_models import (
+    PortfolioPolicyBenchmarkMethodologyActivationModel,
+    PortfolioPolicyBenchmarkMethodologyActivationSubjectModel,
+)
+from apps.portfolio.infrastructure.policy_benchmark_price_fixing_models import (
+    PortfolioPolicyBenchmarkPriceFixingModel,
+)
+from apps.portfolio.infrastructure.policy_benchmark_trading_calendar_models import (
+    PortfolioPolicyBenchmarkTradingCalendarModel,
+)
 from apps.portfolio.infrastructure.policy_models import PortfolioPlanningPolicyModel
 from apps.portfolio.infrastructure.r4_monitoring_raw_fact_models import (
     PortfolioR4MonitoringRawFactReceiptModel,
@@ -40,13 +69,30 @@ from apps.portfolio.infrastructure.r8_monitoring_feedback_models import (
     PortfolioR8MonitoringFeedbackReceiptModel,
 )
 from apps.portfolio.infrastructure.transition_models import PortfolioTransitionPlanModel
+from apps.portfolio.infrastructure.transition_plan_inactive_approval_models import (
+    TransitionPlanInactiveApprovalReceiptModel,
+    TransitionPlanInactiveApprovalSubjectModel,
+)
 
 __all__ = [
     "OrderIntentModel",
     "CanonicalPortfolioSnapshotModel",
     "PortfolioExecutionFeedbackModel",
     "PortfolioPlanningPolicyModel",
+    "PortfolioPlanningPolicyActivationModel",
+    "PortfolioPlanningPolicyActivationSubjectModel",
+    "PortfolioPlanningPolicyDefinitionModel",
+    "PortfolioPolicyBenchmarkCorporateActionModel",
+    "PortfolioPolicyBenchmarkCostTaxModel",
+    "PortfolioPolicyBenchmarkDefinitionModel",
+    "PortfolioPolicyBenchmarkFxFixingModel",
+    "PortfolioPolicyBenchmarkMethodologyActivationModel",
+    "PortfolioPolicyBenchmarkMethodologyActivationSubjectModel",
+    "PortfolioPolicyBenchmarkPriceFixingModel",
+    "PortfolioPolicyBenchmarkTradingCalendarModel",
     "PortfolioTransitionPlanModel",
+    "TransitionPlanInactiveApprovalReceiptModel",
+    "TransitionPlanInactiveApprovalSubjectModel",
     "GovernedOptimizationInputReceiptModel",
     "GovernedOptimizationResearchResultModel",
     "OptimizationResearchLifecycleEventModel",

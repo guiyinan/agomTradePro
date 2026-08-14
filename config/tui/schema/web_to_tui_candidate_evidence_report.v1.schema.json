@@ -1,0 +1,339 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "web_to_tui_candidate_evidence_report.v1.schema.json",
+  "title": "Web-to-TUI candidate evidence report",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/uatReport"
+    },
+    {
+      "$ref": "#/$defs/cleanupReport"
+    },
+    {
+      "$ref": "#/$defs/rollbackReport"
+    }
+  ],
+  "$defs": {
+    "candidateBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "candidate_version",
+        "candidate_commit",
+        "matrix_sha256",
+        "graph_sha256",
+        "schema_version",
+        "runtime_version",
+        "runtime_build_id",
+        "runtime_manifest_sha256"
+      ],
+      "properties": {
+        "version": {
+          "const": "web-to-tui-candidate-binding.v1"
+        },
+        "candidate_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "candidate_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+        },
+        "matrix_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "graph_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "schema_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runtime_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runtime_build_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runtime_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "testCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classname",
+        "name",
+        "status",
+        "duration_seconds"
+      ],
+      "properties": {
+        "classname": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "const": "passed"
+        },
+        "duration_seconds": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "suite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "cases"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/testCase"
+          }
+        }
+      }
+    },
+    "baseReport": {
+      "type": "object",
+      "required": [
+        "version",
+        "candidate_binding",
+        "recorded_at",
+        "summary"
+      ],
+      "properties": {
+        "candidate_binding": {
+          "$ref": "#/$defs/candidateBinding"
+        },
+        "recorded_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "summary": {
+          "type": "object"
+        }
+      }
+    },
+    "uatReport": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseReport"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "candidate_binding",
+            "recorded_at",
+            "suite",
+            "route_results",
+            "summary"
+          ],
+          "properties": {
+            "version": {
+              "const": "web-to-tui-candidate-uat-report.v1"
+            },
+            "candidate_binding": {
+              "$ref": "#/$defs/candidateBinding"
+            },
+            "recorded_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "suite": {
+              "$ref": "#/$defs/suite"
+            },
+            "route_results": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "template_path",
+                  "status"
+                ],
+                "properties": {
+                  "template_path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "status": {
+                    "const": "passed"
+                  }
+                }
+              }
+            },
+            "summary": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "cleanupReport": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseReport"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "candidate_binding",
+            "recorded_at",
+            "suite",
+            "uat_evidence_sha256",
+            "route_results",
+            "summary"
+          ],
+          "properties": {
+            "version": {
+              "const": "web-to-tui-candidate-cleanup-report.v1"
+            },
+            "candidate_binding": {
+              "$ref": "#/$defs/candidateBinding"
+            },
+            "recorded_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "suite": {
+              "$ref": "#/$defs/suite"
+            },
+            "uat_evidence_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "route_results": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "template_path",
+                  "status",
+                  "scopes",
+                  "rollback_commit"
+                ],
+                "properties": {
+                  "template_path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "status": {
+                    "const": "passed"
+                  },
+                  "scopes": {
+                    "type": "array",
+                    "minItems": 6,
+                    "maxItems": 6,
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "primary_task",
+                        "permission",
+                        "empty_state",
+                        "error_state",
+                        "legacy_url",
+                        "rollback"
+                      ]
+                    }
+                  },
+                  "rollback_commit": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+                  }
+                }
+              }
+            },
+            "summary": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "rollbackReport": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseReport"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "candidate_binding",
+            "recorded_at",
+            "drill",
+            "summary"
+          ],
+          "properties": {
+            "version": {
+              "const": "web-to-tui-candidate-rollback-report.v1"
+            },
+            "candidate_binding": {
+              "$ref": "#/$defs/candidateBinding"
+            },
+            "recorded_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "drill": {
+              "type": "object",
+              "required": [
+                "version",
+                "ok",
+                "wave",
+                "candidate_binding",
+                "migration_anchor_path",
+                "migration_commit",
+                "baseline_commit",
+                "matrix_rollback_commits",
+                "artifact_manifest",
+                "transition_counts",
+                "patch_sha256",
+                "baseline_graph_hash",
+                "candidate_graph_hash",
+                "candidate_contract",
+                "candidate_runtime",
+                "rollback_seconds",
+                "restore_seconds",
+                "total_seconds",
+                "working_tree_read_as_candidate",
+                "working_tree_unchanged"
+              ]
+            },
+            "summary": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

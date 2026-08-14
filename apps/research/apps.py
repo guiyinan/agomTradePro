@@ -7,6 +7,9 @@ class ResearchConfig(AppConfig):
     verbose_name = "Research Registry"
 
     def ready(self) -> None:
+        from core.integration.legacy_broker_approval_evidence import (
+            configure_legacy_broker_approval_evidence_projector,
+        )
         from core.integration.r1_forecast_trial_evidence import (
             configure_r1_forecast_trial_evidence_factory,
         )
@@ -22,6 +25,9 @@ class ResearchConfig(AppConfig):
                 decision="approved",
             ).exists()
         )
+        from .broker_execution_evidence_composition import (
+            project_legacy_broker_approval_evidence,
+        )
         from .r1_forecast_trial_evidence_composition import (
             build_r1_forecast_trial_evidence_provider,
         )
@@ -29,3 +35,4 @@ class ResearchConfig(AppConfig):
         configure_r1_forecast_trial_evidence_factory(
             lambda using: build_r1_forecast_trial_evidence_provider(using=using)
         )
+        configure_legacy_broker_approval_evidence_projector(project_legacy_broker_approval_evidence)

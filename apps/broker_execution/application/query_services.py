@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-from typing import Any
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any, cast
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
-from .authorization import require_action
+from apps.broker_execution.domain.entities import LiveOrderStatus
+
+from .audit_projection import project_broker_audit_event
+from .authorization import action_permissions, require_action
+from .connection_status import project_connection_status
+from .order_catalog import project_broker_order_catalog_item
+from .order_detail_evidence import project_broker_order_detail
+from .overview_status import OverviewRawFacts, project_broker_overview
 from .ports import BrokerExecutionRepositoryProtocol
+from .reconciliation_projection import project_broker_reconciliation
 from .repository_provider import get_broker_execution_repository
 from .use_case_errors import (
     BrokerExecutionNotFoundError,
@@ -16,8 +25,6 @@ from .use_case_errors import (
 )
 
 _MAX_QUERY_LIMIT = 500
-_QMT_HEARTBEAT_FRESHNESS = timedelta(seconds=90)
-_QMT_MAX_FUTURE_SKEW = timedelta(minutes=5)
 
 
 def _server_address(value: str) -> str:
@@ -73,23 +80,6 @@ def _setup_guide() -> str:
     )
 
 
-def _heartbeat_is_fresh(value: object) -> bool:
-    """Return whether a persisted heartbeat is recent and timezone-aware."""
-
-    if not isinstance(value, str) or not value.strip():
-        return False
-    try:
-        observed_at = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
-    except ValueError:
-        return False
-    if observed_at.tzinfo is None:
-        return False
-    now = datetime.now(UTC)
-    return (
-        now - _QMT_HEARTBEAT_FRESHNESS <= observed_at.astimezone(UTC) <= now + _QMT_MAX_FUTURE_SKEW
-    )
-
-
 def _bounded_limit(value: int) -> int:
     """Validate a query limit before it reaches persistence."""
 
@@ -109,14 +99,15 @@ def _optional_account_id(value: int | None) -> int | None:
 
 
 def _optional_status(value: str | None) -> str | None:
-    """Normalize a bounded optional order status."""
+    """Normalize an optional canonical order status."""
 
     if value is None:
         return None
     normalized = value.strip()
-    if not normalized or len(normalized) > 32:
+    try:
+        return LiveOrderStatus(normalized).value
+    except (AttributeError, ValueError):
         raise BrokerExecutionValidationError("status is invalid")
-    return normalized
 
 
 def _client_order_id(value: str | UUID) -> str:
@@ -136,16 +127,38 @@ class BrokerExecutionQueryService:
     def __init__(
         self,
         repository: BrokerExecutionRepositoryProtocol | None = None,
+        *,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
         self.repository = (
             repository if repository is not None else get_broker_execution_repository()
         )
+        self.clock = clock or (lambda: datetime.now(UTC))
+
+    def _now(self) -> datetime:
+        """Return one trusted, timezone-aware evaluation clock."""
+
+        now = self.clock()
+        if now.tzinfo is None:
+            raise BrokerExecutionValidationError("evaluation clock must be timezone-aware")
+        return now.astimezone(UTC)
 
     def overview(self, *, actor: Any) -> dict[str, Any]:
         """Return the current user's execution readiness overview."""
 
         user_id, _role, is_admin = require_action(actor, "view")
-        return self.repository.build_overview(user_id=user_id, is_admin=is_admin)
+        overview = self.repository.build_overview(user_id=user_id, is_admin=is_admin)
+        rows = self.repository.list_connections(user_id=user_id, is_admin=is_admin)
+        now = self._now()
+        connections = [project_connection_status(row, evaluated_at=now) for row in rows]
+        overview["connections"] = connections
+        return cast(
+            dict[str, Any],
+            project_broker_overview(
+                cast(OverviewRawFacts, overview),
+                evaluated_at=now,
+            ),
+        )
 
     def orders(
         self,
@@ -155,17 +168,56 @@ class BrokerExecutionQueryService:
         status: str | None = None,
         limit: int = 100,
     ) -> dict[str, Any]:
-        """Return a scoped order catalog."""
+        """Return a scoped, actor-aware, display-only order catalog."""
 
         user_id, _role, is_admin = require_action(actor, "view")
+        normalized_account_id = _optional_account_id(account_id)
         rows = self.repository.list_orders(
             user_id=user_id,
             is_admin=is_admin,
-            account_id=_optional_account_id(account_id),
+            account_id=normalized_account_id,
             status=_optional_status(status),
             limit=_bounded_limit(limit),
         )
-        return {"orders": rows, "total_count": len(rows)}
+        now = self._now()
+        role_permissions = action_permissions(actor)
+        access_cache: dict[tuple[int, str], bool] = {}
+        orders: list[dict[str, object]] = []
+        for row in rows:
+            raw_account_id = row.get("account_id")
+            valid_account_id = (
+                raw_account_id if type(raw_account_id) is int and raw_account_id > 0 else None
+            )
+            actor_authorization: dict[str, bool] = {}
+            for action in ("approve", "reject", "cancel"):
+                cache_key = (valid_account_id or 0, action)
+                if valid_account_id is None or not bool(role_permissions.get(action)):
+                    actor_authorization[action] = False
+                    continue
+                if cache_key not in access_cache:
+                    access_cache[cache_key] = self.repository.has_account_access(
+                        user_id=user_id,
+                        is_admin=is_admin,
+                        account_id=valid_account_id,
+                        action=action,
+                    )
+                actor_authorization[action] = access_cache[cache_key]
+            orders.append(
+                project_broker_order_catalog_item(
+                    row,
+                    evaluated_at=now,
+                    actor_authorization=actor_authorization,
+                ).to_payload()
+            )
+        return {
+            "evaluated_at": now.isoformat(),
+            "orders": orders,
+            "total_count": len(orders),
+            "permission": "display_only",
+            "blocker_codes": ["broker_order_catalog_display_only"],
+            "must_not_use_for_decision": True,
+            "must_not_execute": True,
+        }
 
     def order_detail(
         self,
@@ -183,14 +235,41 @@ class BrokerExecutionQueryService:
         )
         if order is None:
             raise BrokerExecutionNotFoundError("Live order does not exist")
-        return order
+        role_permissions = action_permissions(actor)
+        account_id = _optional_account_id(cast(int | None, order.get("account_id")))
+        if account_id is None:
+            raise BrokerExecutionValidationError("order account_id is missing")
+        actor_authorization = {
+            action: bool(role_permissions.get(action))
+            and self.repository.has_account_access(
+                user_id=user_id,
+                is_admin=is_admin,
+                account_id=account_id,
+                action=action,
+            )
+            for action in ("approve", "reject", "cancel")
+        }
+        return project_broker_order_detail(
+            order,
+            evaluated_at=self._now(),
+            actor_authorization=actor_authorization,
+        ).to_payload()
 
     def connections(self, *, actor: Any) -> dict[str, Any]:
-        """Return persisted Agent/QMT connection snapshots."""
+        """Return source-time-preserving, freshness-derived connection health."""
 
         user_id, _role, is_admin = require_action(actor, "view")
         rows = self.repository.list_connections(user_id=user_id, is_admin=is_admin)
-        return {"connections": rows, "total_count": len(rows)}
+        now = self._now()
+        connections = [project_connection_status(row, evaluated_at=now) for row in rows]
+        any_connected = any(bool(item["qmt_connected"]) for item in connections)
+        return {
+            "evaluated_at": now.isoformat(),
+            "connections": connections,
+            "total_count": len(connections),
+            "must_not_use_for_decision": not any_connected,
+            "must_not_execute": not any_connected,
+        }
 
     def qmt_onboarding(
         self,
@@ -203,6 +282,7 @@ class BrokerExecutionQueryService:
         actor_id, _role, is_admin = require_action(actor, "manage_binding")
         normalized_server_address = _server_address(server_address)
         persisted = self.repository.list_connections(user_id=actor_id, is_admin=is_admin)
+        now = self._now()
         connections: list[dict[str, Any]] = []
         settings: list[dict[str, Any]] = []
         for agent in persisted:
@@ -213,24 +293,24 @@ class BrokerExecutionQueryService:
                 for binding in bindings
                 if isinstance(binding, dict) and bool(binding.get("is_active"))
             ]
-            heartbeat_fresh = _heartbeat_is_fresh(agent.get("last_heartbeat_at"))
-            reported_qmt_connected = bool(agent.get("qmt_connected"))
-            qmt_connected = bool(
-                reported_qmt_connected
-                and heartbeat_fresh
-                and str(agent.get("status") or "").lower() == "online"
-            )
+            connection = project_connection_status(agent, evaluated_at=now)
+            qmt_connected = bool(connection["qmt_connected"])
             connections.append(
                 {
                     "agent_id": str(agent.get("agent_id") or ""),
                     "display_name": str(agent.get("display_name") or ""),
                     "status": str(agent.get("status") or ""),
                     "qmt_connected": qmt_connected,
-                    "reported_qmt_connected": reported_qmt_connected,
+                    "reported_qmt_connected": connection["reported_qmt_connected"],
                     "agent_version": str(agent.get("agent_version") or ""),
-                    "last_heartbeat_at": agent.get("last_heartbeat_at"),
-                    "heartbeat_fresh": heartbeat_fresh,
-                    "must_not_use_for_decision": not qmt_connected,
+                    "source_observed_at": connection["source_observed_at"],
+                    "received_at": connection["received_at"],
+                    "last_heartbeat_at": connection["last_heartbeat_at"],
+                    "heartbeat_fresh": connection["heartbeat_fresh"],
+                    "freshness_status": connection["freshness_status"],
+                    "blocker_codes": connection["blocker_codes"],
+                    "must_not_use_for_decision": connection["must_not_use_for_decision"],
+                    "must_not_execute": connection["must_not_execute"],
                     "blocking_reason": (
                         "" if qmt_connected else "QMT 未连接或 Agent 心跳已超过 90 秒"
                     ),
@@ -306,7 +386,7 @@ class BrokerExecutionQueryService:
         return {"access_grants": rows, "access_grant_count": len(rows)}
 
     def reconciliations(self, *, actor: Any, limit: int = 100) -> dict[str, Any]:
-        """Return persisted reconciliation runs."""
+        """Return typed, current, display-only reconciliation evidence."""
 
         user_id, _role, is_admin = require_action(actor, "view")
         rows = self.repository.list_reconciliations(
@@ -314,10 +394,19 @@ class BrokerExecutionQueryService:
             is_admin=is_admin,
             limit=_bounded_limit(limit),
         )
-        return {"runs": rows, "total_count": len(rows)}
+        now = self._now()
+        runs = [project_broker_reconciliation(row, evaluated_at=now).to_payload() for row in rows]
+        return {
+            "evaluated_at": now.isoformat(),
+            "runs": runs,
+            "total_count": len(runs),
+            "permission": "display_only",
+            "must_not_use_for_decision": True,
+            "must_not_execute": True,
+        }
 
     def audits(self, *, actor: Any, limit: int = 100) -> dict[str, Any]:
-        """Return user-visible execution audit events."""
+        """Return typed, redacted, display-only execution audit events."""
 
         user_id, _role, is_admin = require_action(actor, "view")
         rows = self.repository.list_audits(
@@ -325,4 +414,13 @@ class BrokerExecutionQueryService:
             is_admin=is_admin,
             limit=_bounded_limit(limit),
         )
-        return {"events": rows, "total_count": len(rows)}
+        now = self._now()
+        events = [project_broker_audit_event(row, evaluated_at=now).to_payload() for row in rows]
+        return {
+            "evaluated_at": now.isoformat(),
+            "events": events,
+            "total_count": len(events),
+            "permission": "display_only",
+            "must_not_execute": True,
+            "must_not_use_for_decision": True,
+        }

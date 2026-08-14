@@ -10,6 +10,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from scripts.build_web_to_tui_defect_evidence import build_defect_evidence
 from scripts.build_web_to_tui_production_telemetry import (
     APPROVED_QUERIES,
@@ -25,6 +27,7 @@ from scripts.check_web_to_tui_cutover_readiness import (
     required_task_keys,
 )
 from scripts.record_web_to_tui_cutover_approval import build_approval_attestation
+from scripts.web_to_tui_candidate_binding import build_candidate_binding
 
 ROOT = Path(__file__).resolve().parents[2]
 MATRIX_PATH = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
@@ -141,6 +144,13 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
     raw_catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
     candidate_commit = _repository_head()
     source_sha256 = catalog["source_sha256"]
+    candidate_binding = build_candidate_binding(
+        stable_version="0.9.0-rc1",
+        candidate_commit=candidate_commit,
+        matrix_path=MATRIX_PATH,
+        graph_path=ROOT / "config/tui/published/tui_operation_graph.published.json",
+        runtime_manifest_path=ROOT / "config/tui/agomtui-runtime.manifest.json",
+    )
     readiness_evidence, readiness_sha256 = _write_fixture(
         evidence_root,
         "readiness.md",
@@ -162,10 +172,10 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
         "bundle_sha256": "b" * 64,
         "payload_sha256": "c" * 64,
         "registry_generation": 42,
-        "graph_hash": "d" * 64,
-        "schema_version": "tui-metadata.v3",
-        "runtime_version": "agomtui-runtime-0.2.0",
-        "runtime_build_id": "agomtui-runtime-0.2.0+test",
+        "graph_hash": candidate_binding["graph_sha256"],
+        "schema_version": candidate_binding["schema_version"],
+        "runtime_version": candidate_binding["runtime_version"],
+        "runtime_build_id": candidate_binding["runtime_build_id"],
         "candidate_version": "0.9.0-rc1",
         "candidate_commit": candidate_commit,
         "source_sha256": source_sha256,
@@ -242,6 +252,10 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
         "review_snapshot": {"evidence": None, "sha256": None},
         "approvals": {"owner": None, "reviewer": None},
     }
+    payload["candidate"]["binding"] = candidate_binding
+    payload["uat"]["candidate_binding"] = candidate_binding
+    payload["cleanup"]["candidate_binding"] = candidate_binding
+    payload["rollback"]["candidate_binding"] = candidate_binding
 
     defect_snapshot = {
         "version": "web-to-tui-blocking-defect-snapshot.v1",
@@ -372,7 +386,7 @@ def _evaluate(tmp_path: Path, payload: dict[str, Any]):
 
 
 def test_checked_in_evidence_is_explicitly_denied() -> None:
-    """Complete route closure must not override incomplete production evidence."""
+    """Historical route proof without a candidate snapshot must fail closed."""
 
     from datetime import date
 
@@ -388,11 +402,14 @@ def test_checked_in_evidence_is_explicitly_denied() -> None:
     assert result.required_route_pages == 108
     assert result.required_tasks == 101
     assert gates["source_consistency"].passed is True
-    assert gates["route_task_uat"].passed is True
+    assert gates["route_task_uat"].passed is False
     assert "covered=108/108" in gates["route_task_uat"].detail
-    assert gates["route_cleanup_readiness"].passed is True
+    assert "binding=false" in gates["route_task_uat"].detail
+    assert gates["route_cleanup_readiness"].passed is False
     assert "covered=108/108" in gates["route_cleanup_readiness"].detail
-    assert gates["rollback_drill"].passed is True
+    assert "candidate_binding=false" in gates["route_cleanup_readiness"].detail
+    assert gates["rollback_drill"].passed is False
+    assert "binding=false" in gates["rollback_drill"].detail
 
 
 def test_text_evidence_digest_normalizes_windows_line_endings(tmp_path: Path) -> None:
@@ -419,6 +436,33 @@ def test_complete_independent_evidence_allows_cutover(tmp_path: Path) -> None:
 
     assert result.decision == "ALLOW"
     assert all(gate.passed for gate in result.gates)
+
+
+@pytest.mark.parametrize(
+    ("section", "gate_key"),
+    (
+        ("uat", "route_task_uat"),
+        ("cleanup", "route_cleanup_readiness"),
+        ("rollback", "rollback_drill"),
+    ),
+)
+def test_candidate_bound_gates_reject_stale_source_snapshot(
+    tmp_path: Path,
+    section: str,
+    gate_key: str,
+) -> None:
+    """A valid old result cannot pass after graph/runtime identity changes."""
+
+    payload = _complete_evidence(tmp_path)
+    payload[section]["candidate_binding"] = {
+        **payload[section]["candidate_binding"],
+        "graph_sha256": "e" * 64,
+    }
+
+    result = _evaluate(tmp_path, payload)
+
+    assert result.decision == "DENY"
+    assert next(gate for gate in result.gates if gate.key == gate_key).passed is False
 
 
 def test_candidate_commit_must_resolve_in_repository(tmp_path: Path) -> None:

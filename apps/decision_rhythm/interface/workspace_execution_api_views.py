@@ -24,6 +24,7 @@ from ..application.workspace_services import (
     save_transition_plan,
     update_approval_request_status,
 )
+from ..domain.exceptions import LegacyTransitionPlanWriteDisabledError
 from ..domain.valuation_entities import ApprovalStatus, ExecutionApprovalRequest
 from ..domain.valuation_services import ExecutionApprovalService
 from ..domain.workflow_services import ApprovalStatusStateMachine
@@ -385,11 +386,17 @@ class ExecutionApproveView(APIView):
             return Response({"success": False, "error": reason}, status=status.HTTP_400_BAD_REQUEST)
 
         # 更新状态（会同步到 UnifiedRecommendation 和 InvestmentRecommendation）
-        updated = update_approval_request_status(
-            request_id=request_id,
-            approval_status=ApprovalStatus.APPROVED,
-            reviewer_comments=reviewer_comments,
-        )
+        try:
+            updated = update_approval_request_status(
+                request_id=request_id,
+                approval_status=ApprovalStatus.APPROVED,
+                reviewer_comments=reviewer_comments,
+            )
+        except LegacyTransitionPlanWriteDisabledError as exc:
+            return Response(
+                {"success": False, "error": str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
 
         # 发布决策批准事件（触发 Candidate 状态同步）
         if updated is not None:
@@ -465,11 +472,17 @@ class ExecutionRejectView(APIView):
             return Response({"success": False, "error": reason}, status=status.HTTP_400_BAD_REQUEST)
 
         # 更新状态（会同步到 UnifiedRecommendation 和 InvestmentRecommendation）
-        updated = update_approval_request_status(
-            request_id=request_id,
-            approval_status=ApprovalStatus.REJECTED,
-            reviewer_comments=reviewer_comments,
-        )
+        try:
+            updated = update_approval_request_status(
+                request_id=request_id,
+                approval_status=ApprovalStatus.REJECTED,
+                reviewer_comments=reviewer_comments,
+            )
+        except LegacyTransitionPlanWriteDisabledError as exc:
+            return Response(
+                {"success": False, "error": str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
 
         # 发布决策拒绝事件
         if updated is not None:

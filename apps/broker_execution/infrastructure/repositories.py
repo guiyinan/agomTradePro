@@ -9,6 +9,10 @@ from django.db import transaction
 from django.db.models import Model, Sum
 from django.utils import timezone
 
+from apps.broker_execution.application.evidence_gate import (
+    broker_order_evidence_integrated,
+    require_broker_order_evidence,
+)
 from apps.broker_execution.application.use_case_errors import (
     BrokerExecutionConflictError,
     BrokerExecutionPermissionError,
@@ -54,6 +58,9 @@ class DjangoBrokerExecutionRepository(
         request_digest: str,
     ) -> dict[str, Any]:
         """Persist one bounded order intent assigned to the account's active Agent."""
+
+        if not broker_order_evidence_integrated():
+            require_broker_order_evidence(checkpoint="create")
 
         action = "create_live_order"
         replay = self._replay_or_conflict(

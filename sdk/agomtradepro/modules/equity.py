@@ -402,6 +402,37 @@ class EquityModule(BaseModule):
                     result[key] = source[key]
         return result
 
+    def get_research_snapshot(
+        self,
+        stock_code: str,
+        *,
+        history_limit: int = 252,
+        financial_limit: int = 20,
+        valuation_limit: int = 252,
+        news_limit: int = 20,
+        capital_flow_limit: int = 60,
+    ) -> dict[str, Any]:
+        """Return one canonical equity research snapshot without recomposition.
+
+        The REST endpoint owns identity resolution, section reliability, freshness,
+        and the aggregate decision-use gate.  The SDK preserves that envelope so
+        every downstream transport observes the same conclusion.
+        """
+
+        response = self._get(
+            f"research-snapshot/{stock_code}/",
+            params={
+                "history_limit": history_limit,
+                "financial_limit": financial_limit,
+                "valuation_limit": valuation_limit,
+                "news_limit": news_limit,
+                "capital_flow_limit": capital_flow_limit,
+            },
+        )
+        if not isinstance(response, dict):
+            raise ValueError("equity research snapshot response must be an object")
+        return dict(response)
+
     def get_sector_stocks(self, sector: str) -> list[dict[str, Any]]:
         """
         获取行业股票列表

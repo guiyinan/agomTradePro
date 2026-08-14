@@ -42,6 +42,27 @@ def _order() -> dict:
     }
 
 
+def test_heartbeat_publishes_agent_source_observation_time(tmp_path: Path) -> None:
+    config = SimpleNamespace(
+        kill_switch_file=tmp_path / "STOP",
+        system_account_id=7,
+        dry_run=True,
+    )
+    api = _Api()
+    broker = FakeQmtAdapter("success")
+    broker.connect()
+    state = AgentStateStore(tmp_path / "agent.sqlite3")
+    executor = QmtAgentExecutor(config=config, api=api, broker=broker, state=state)
+
+    executor.heartbeat()
+
+    endpoint, payload = api.calls[0]
+    assert endpoint == "heartbeat/"
+    assert payload["contract_version"] == "1.0"
+    assert payload["observed_at"].endswith("+00:00")
+    state.close()
+
+
 def test_agent_records_submitting_before_broker_and_does_not_duplicate(tmp_path: Path) -> None:
     config = SimpleNamespace(
         kill_switch_file=tmp_path / "STOP",

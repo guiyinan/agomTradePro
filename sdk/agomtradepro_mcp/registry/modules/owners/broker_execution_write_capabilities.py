@@ -16,6 +16,7 @@ def _write(
     properties: dict[str, Any],
     required: list[str],
     required_roles: tuple[str, ...] = (),
+    enabled: bool = True,
 ) -> CapabilityManifest:
     return CapabilityManifest(
         capability_key=key,
@@ -48,6 +49,7 @@ def _write(
             "mcp:native",
         ),
         legacy_tool_names=(),
+        enabled=enabled,
     )
 
 
@@ -66,6 +68,7 @@ MANIFESTS = [
         properties=_ORDER_FIELDS,
         required=["client_order_id", "reason", "expected_version"],
         required_roles=("admin", "owner", "investment_manager", "trader"),
+        enabled=False,
     ),
     _write(
         key="broker_execution.reject.order",
@@ -124,7 +127,12 @@ MANIFESTS = [
             "run_id": {"type": "integer", "minimum": 1},
             "resolution": {
                 "type": "string",
-                "enum": ["accept_broker_fact", "manual_adjustment", "verified_no_change", "escalate"],
+                "enum": [
+                    "accept_broker_fact",
+                    "manual_adjustment",
+                    "verified_no_change",
+                    "escalate",
+                ],
             },
             "reason": {"type": "string", "minLength": 1},
         },

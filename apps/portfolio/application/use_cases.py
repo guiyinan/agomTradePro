@@ -68,7 +68,7 @@ class ValidateTransitionPlanUseCase:
 
 
 class SubmitApprovedPlanUseCase:
-    """Return an immutable approved execution handoff."""
+    """Block execution handoff until an exact Evidence contract is integrated."""
 
     def __init__(self, repository: TransitionPlanGateway):
         self._repository = repository
@@ -81,4 +81,4 @@ class SubmitApprovedPlanUseCase:
             raise ValueError("only approved plans may be submitted for execution")
         if plan.expires_at <= datetime.now(UTC):
             raise ValueError("approved transition plan has expired")
-        return plan
+        raise ValueError("portfolio transition execution is blocked until Evidence is integrated")

@@ -15,11 +15,25 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+try:
+    from scripts.web_to_tui_candidate_binding import CandidateBinding
+except ModuleNotFoundError:  # pragma: no cover - direct script execution
+    from web_to_tui_candidate_binding import CandidateBinding
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MATRIX_PATH = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
 DEFAULT_EVIDENCE_PATH = ROOT / "config/tui/migration/web_to_tui_cutover_evidence.v1.json"
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 MIGRATED_DESTINATIONS = {"A", "B"}
+MIGRATED_STATUSES = {"migrated", "deleted"}
+REQUIRED_CLEANUP_SCOPES = (
+    "primary_task",
+    "permission",
+    "empty_state",
+    "error_state",
+    "legacy_url",
+    "rollback",
+)
 
 
 class RollbackCatalogError(RuntimeError):
@@ -35,7 +49,7 @@ def _required_route_rows(matrix_path: Path) -> list[dict[str, str]]:
             for row in csv.DictReader(handle)
             if row.get("template_role") == "route_page"
             and row.get("destination_class") in MIGRATED_DESTINATIONS
-            and row.get("status") == "migrated"
+            and row.get("status") in MIGRATED_STATUSES
         ]
     template_paths = [str(row.get("template_path") or "").strip() for row in rows]
     if not template_paths or any(not path for path in template_paths):
@@ -127,20 +141,44 @@ def synchronize_evidence(
     cleanup["route_rollback_commits"] = dict(sorted(catalog.items()))
 
     scope_sets: list[set[str]] = []
-    for scope_name in (
-        "primary_task",
-        "permission",
-        "empty_state",
-        "error_state",
-        "legacy_url",
-        "rollback",
-    ):
+    for scope_name in REQUIRED_CLEANUP_SCOPES:
         scope = scopes.get(scope_name)
         if not isinstance(scope, dict):
             raise RollbackCatalogError(f"cutover evidence is missing {scope_name} scope")
         scope_sets.append(_scope_routes(scope, required))
     fully_closed = set.intersection(*scope_sets) if scope_sets else set()
     cleanup["passed_route_pages"] = sorted(fully_closed)
+    return evidence
+
+
+def synchronize_candidate_evidence(
+    evidence: dict[str, Any],
+    catalog: dict[str, str],
+    *,
+    candidate_binding: CandidateBinding,
+    report_path: str,
+    report_sha256: str,
+) -> dict[str, Any]:
+    """Replace cleanup projection with one recorder-derived candidate snapshot."""
+
+    cleanup = evidence.get("cleanup")
+    if not isinstance(cleanup, dict):
+        raise RollbackCatalogError("cutover evidence is missing cleanup")
+    required_routes = sorted(catalog)
+    cleanup.clear()
+    cleanup.update(
+        {
+            "candidate_binding": candidate_binding,
+            "evidence": report_path,
+            "evidence_sha256": report_sha256,
+            "passed_route_pages": required_routes,
+            "scope_coverage": {
+                scope: {"all_required": True, "route_pages": []}
+                for scope in REQUIRED_CLEANUP_SCOPES
+            },
+            "route_rollback_commits": dict(sorted(catalog.items())),
+        }
+    )
     return evidence
 
 

@@ -6,16 +6,27 @@ import hashlib
 import json
 import math
 from dataclasses import asdict, is_dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any, Protocol, cast
 
 from ..domain.rules import InvalidOrderTransitionError, target_status_for_order_action
 from .authorization import require_action
+from .evidence_gate import (
+    BROKER_ORDER_EVIDENCE_BLOCK_MESSAGE,
+    BROKER_ORDER_EVIDENCE_BLOCKER,
+    broker_order_evidence_integrated,
+    require_broker_order_evidence,
+)
 from .ports import BrokerExecutionRepositoryProtocol
 from .query_services import BrokerExecutionQueryService
 from .repository_provider import get_broker_execution_repository
-from .use_case_errors import BrokerExecutionValidationError
+from .use_case_errors import BrokerExecutionConflictError, BrokerExecutionValidationError
+
+ADVISOR_EVIDENCE_BLOCKER = "advisor_order_intent_evidence_not_integrated"
+ADVISOR_EVIDENCE_BLOCK_MESSAGE = (
+    "Advisor live-order draft creation is blocked until Evidence is integrated"
+)
 
 
 def _request_digest(payload: dict[str, Any]) -> str:
@@ -120,6 +131,8 @@ class CreateLiveOrderFromExecutionPlanUseCase:
         """Validate source/risk evidence before creating WAITING_APPROVAL."""
 
         user_id, role, is_admin = require_action(actor, "create_draft")
+        if not broker_order_evidence_integrated():
+            require_broker_order_evidence(checkpoint="create")
         required = {
             "account_id",
             "asset_code",
@@ -285,7 +298,7 @@ class CreateLiveOrderFromExecutionPlanUseCase:
 
 
 class CreateLiveOrdersFromAdvisorExecutionPlanUseCase:
-    """Convert the auto-advisor's read-only plan into governed approval drafts."""
+    """Fail closed before an unbound advisor intent can become a live-order draft."""
 
     def __init__(self, order_creator: Any | None = None) -> None:
         self.order_creator = order_creator or CreateLiveOrderFromExecutionPlanUseCase()
@@ -297,61 +310,10 @@ class CreateLiveOrdersFromAdvisorExecutionPlanUseCase:
         execution_plan: dict[str, Any],
         idempotency_prefix: str,
     ) -> dict[str, Any]:
-        """Create only actionable advisor intents; every draft is risk-checked again."""
+        """Reject direct callers until exact Evidence binding is implemented."""
 
-        if execution_plan.get("status") != "READY_FOR_CONFIRMATION":
-            raise BrokerExecutionValidationError("Advisor execution plan is not actionable")
-        prefix = str(idempotency_prefix or "").strip()
-        if not prefix:
-            raise BrokerExecutionValidationError("idempotency_prefix is required")
-        created: list[dict[str, Any]] = []
-        for item in execution_plan.get("orders") or []:
-            side = str(item.get("side") or "").upper()
-            normalized_side = (
-                "BUY" if side in {"BUY", "ADD"} else "SELL" if side in {"REDUCE", "EXIT"} else ""
-            )
-            if not normalized_side:
-                continue
-            price = item.get("estimated_price")
-            if price in (None, ""):
-                price_band = item.get("price_band") or {}
-                price = (
-                    price_band.get("high") if normalized_side == "BUY" else price_band.get("low")
-                )
-            if price in (None, ""):
-                raise BrokerExecutionValidationError("Advisor order has no executable limit price")
-            valid_until = item.get("valid_until")
-            try:
-                expires_at = datetime.fromisoformat(str(valid_until).replace("Z", "+00:00"))
-                if expires_at.tzinfo is None:
-                    expires_at = expires_at.replace(tzinfo=UTC)
-            except (TypeError, ValueError):
-                expires_at = datetime.now(UTC) + timedelta(minutes=30)
-            order_intent_id = str(item.get("order_intent_id") or "").strip()
-            if not order_intent_id:
-                raise BrokerExecutionValidationError("Advisor order_intent_id is required")
-            source_recommendation_ids = list(item.get("source_recommendation_ids") or [])
-            if not source_recommendation_ids:
-                raise BrokerExecutionValidationError(
-                    "Advisor order requires source recommendation evidence"
-                )
-            created.append(
-                self.order_creator.execute(
-                    actor=actor,
-                    plan={
-                        "account_id": int(item["account_id"]),
-                        "asset_code": item["asset_code"],
-                        "side": normalized_side,
-                        "quantity": item["suggested_quantity"],
-                        "limit_price": price,
-                        "expires_at": expires_at.isoformat(),
-                        "source_recommendation_ids": source_recommendation_ids,
-                        "source_signal_ids": list(item.get("source_signal_ids") or []),
-                    },
-                    idempotency_key=f"{prefix}:{order_intent_id}",
-                )
-            )
-        return {"created_orders": created, "created_count": len(created)}
+        del actor, execution_plan, idempotency_prefix
+        raise BrokerExecutionConflictError(ADVISOR_EVIDENCE_BLOCK_MESSAGE)
 
 
 def _advisor_plan_digest(execution_plan: dict[str, Any]) -> str:
@@ -438,32 +400,23 @@ class PreviewOrCreateAdvisorLiveOrdersUseCase:
         digest = _advisor_plan_digest(execution_plan)
         preview = {
             "preview_only": True,
+            "commit_allowed": False,
             "confirmation_required": True,
             "actor_role": role,
             "account_id": int(account_id),
             "plan_digest": digest,
             "orders_count": int(execution_plan.get("orders_count") or 0),
             "orders": list(execution_plan.get("orders") or []),
-            "warning": "Commit creates risk-checked drafts; every order still requires approval.",
+            "display_only": True,
+            "must_not_use_for_decision": True,
+            "must_not_execute": True,
+            "blocker_codes": [ADVISOR_EVIDENCE_BLOCKER],
+            "warning": ADVISOR_EVIDENCE_BLOCK_MESSAGE,
         }
         if preview_only:
             return preview
-        if not idempotency_key:
-            raise BrokerExecutionValidationError("idempotency_key is required")
-        if not expected_plan_digest or expected_plan_digest != digest:
-            raise BrokerExecutionValidationError(
-                "The advisor execution plan changed after preview; preview it again"
-            )
-        result = self.order_creator.execute(
-            actor=actor,
-            execution_plan=execution_plan,
-            idempotency_prefix=str(idempotency_key),
-        )
-        return {
-            "preview_only": False,
-            "plan_digest": digest,
-            **result,
-        }
+        del expected_plan_digest, idempotency_key
+        raise BrokerExecutionConflictError(ADVISOR_EVIDENCE_BLOCK_MESSAGE)
 
 
 class PreviewOrMutateOrderUseCase:
@@ -559,8 +512,22 @@ class PreviewOrMutateOrderUseCase:
                 ),
             },
         }
+        if normalized_action == "approve":
+            preview.update(
+                {
+                    "commit_allowed": False,
+                    "display_only": True,
+                    "must_not_use_for_decision": True,
+                    "must_not_execute": True,
+                    "blocker_codes": [BROKER_ORDER_EVIDENCE_BLOCKER],
+                    "warning": BROKER_ORDER_EVIDENCE_BLOCK_MESSAGE,
+                }
+            )
         if preview_only:
             return preview
+        if normalized_action == "approve":
+            if not broker_order_evidence_integrated():
+                require_broker_order_evidence(checkpoint="approve")
         if not idempotency_key or not str(idempotency_key).strip():
             raise BrokerExecutionValidationError("idempotency_key is required")
         if expected_version is None:

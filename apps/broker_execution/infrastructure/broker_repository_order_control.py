@@ -8,6 +8,10 @@ from django.db import IntegrityError, transaction
 from django.db.models import Model
 from django.utils import timezone
 
+from apps.broker_execution.application.evidence_gate import (
+    broker_order_evidence_integrated,
+    require_broker_order_evidence,
+)
 from apps.broker_execution.application.use_case_errors import (
     BrokerExecutionConflictError,
     BrokerExecutionNotFoundError,
@@ -82,6 +86,8 @@ class BrokerExecutionOrderControlMixin(BrokerExecutionRepositoryMixinSupport):
         idempotency_key: str,
         request_digest: str,
     ) -> dict[str, Any]:
+        if action == "approve" and not broker_order_evidence_integrated():
+            require_broker_order_evidence(checkpoint="approve")
         idempotency_action = f"order:{action}"
         replay = self._replay_or_conflict(
             user_id=user_id,
