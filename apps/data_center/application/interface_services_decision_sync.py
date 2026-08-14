@@ -302,15 +302,35 @@ def make_decision_repair_use_case(
 ) -> RepairDecisionDataReliabilityUseCase:
     """Build the decision reliability repair use case."""
 
+    macro_repository = _make_macro_fact_repository()
+    price_repository = PriceBarRepository()
+    quote_repository = QuoteSnapshotRepository()
+    publication_repository = CanonicalPublicationRepository()
+    policy_repository = PublicationPolicyRepository()
     return RepairDecisionDataReliabilityUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
-        macro_fact_repo=_make_macro_fact_repository(),
+        macro_fact_repo=macro_repository,
         indicator_catalog_repo=_make_indicator_catalog_repo(),
         indicator_unit_rule_repo=_make_indicator_unit_rule_repo(),
-        price_bar_repo=PriceBarRepository(),
-        quote_snapshot_repo=QuoteSnapshotRepository(),
+        price_bar_repo=price_repository,
+        quote_snapshot_repo=quote_repository,
         raw_audit_repo=_make_raw_audit_repo(),
+        macro_publication_publisher=PublishMacroBatchUseCase(
+            fact_repository=macro_repository,
+            publication_repository=publication_repository,
+            policy_repository=policy_repository,
+        ),
+        price_publication_publisher=PublishPriceBarBatchUseCase(
+            fact_repository=price_repository,
+            publication_repository=publication_repository,
+            policy_repository=policy_repository,
+        ),
+        quote_publication_publisher=PublishQuoteSnapshotBatchUseCase(
+            fact_repository=quote_repository,
+            publication_repository=publication_repository,
+            policy_repository=policy_repository,
+        ),
         pulse_refresher=_build_pulse_refresher(),
         alpha_refresher=_build_alpha_refresher(user),
         alpha_status_reader=_build_alpha_status_reader(user),

@@ -432,6 +432,8 @@ class TushareQlibBuilder:
                 start_date=(target_date - timedelta(days=140)).strftime("%Y%m%d"),
                 end_date=target_date.strftime("%Y%m%d"),
             )
+        except PermissionError:
+            raise
         except Exception as exc:
             logger.warning(
                 "Failed to fetch index_weight for %s: %s",
@@ -528,6 +530,8 @@ class TushareQlibBuilder:
                     start_date=start_date.strftime("%Y%m%d"),
                     end_date=end_date.strftime("%Y%m%d"),
                 )
+            except PermissionError:
+                raise
             except Exception as exc:
                 logger.warning(
                     "Failed to fetch daily for %s: %s",
@@ -565,6 +569,8 @@ class TushareQlibBuilder:
                     start_date=start_date.strftime("%Y%m%d"),
                     end_date=end_date.strftime("%Y%m%d"),
                 )
+            except PermissionError:
+                raise
             except Exception as exc:
                 logger.warning(
                     "Failed to fetch adj_factor for %s: %s",
@@ -616,6 +622,8 @@ class TushareQlibBuilder:
                 start_date=start_date.strftime("%Y%m%d"),
                 end_date=end_date.strftime("%Y%m%d"),
             )
+        except PermissionError:
+            raise
         except Exception as exc:
             logger.warning(
                 "Failed to fetch index_daily for %s: %s",
@@ -1009,6 +1017,8 @@ class TushareQlibBuilder:
         for attempt in range(1, retries + 1):
             try:
                 return func(*args, **kwargs)
+            except PermissionError:
+                raise
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
                 if attempt >= retries:
