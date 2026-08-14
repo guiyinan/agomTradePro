@@ -1,7 +1,7 @@
 # Web 界面 → TUI 整体迁移计划（M0-M5）
 
 > **文档日期**: 2026-07-25
-> **最后修订**: 2026-08-13
+> **最后修订**: 2026-08-14
 > **状态**: 实施中；M0、M0-D、M1、M2、M3 与 M4 仓库实现已完成；M5 遥测、同任务错误率与机器 cutover gate 已落地，但历史 108/108 UAT、cleanup 和本地 rollback 未绑定当前 candidate graph/runtime snapshot，已于 2026-08-13 改判未通过；当日生产 preflight 虽确认 release 已更新且 health/ready 正常，但 OCI revision=`unknown` 且无 source manifest，仍无候选部署证明；14 日窗口、最终候选 UAT/回滚、生产样本、缺陷窗口、生产 registry 备份与审批均未满足，当前禁止清理 Classic
 > **适用对象**: 开发负责人 / 模块维护人 / AI 代理
 > **主范围**: 以 M0 的 195 个 Django 模板为初始基线，持续盘点 `core/templates/` 与 `apps/*/templates/`，并把适合迁移的用户任务迁入 TUI 工作台（`/tui/`）；迁移期新增的共用兼容组件也必须进入同一台账
@@ -59,6 +59,18 @@ M0 初始基线的 195 个文件不等于 195 个可独立访问的页面。M0 �
 - 图表能力是 B 类页面（~25 个模板）迁移的前置条件，必须先建立生产样例（见 M1）。
 - `GET /tui/` shell 页脚当前保留 "Classic 界面" 链接，作为迁移期兼容出口。
 
+#### 2.4.1 TUI 可操作性缺口（P0 优先整改）
+
+TUI 不能以“能读取列表/详情”作为主任务完成。凡是用户任务本身包含创建、编辑、删除、审批、绑定、切换或触发，TUI 必须提供用户可见、可填写、可提交的真实入口；仅把 `POST/PATCH/DELETE` action 放进后台元数据、让用户手填对象 ID，或只提供查看按钮，都不算任务闭环。
+
+本项作为跨 M2/M3 的独立 `R0` 优先整改，不等待 M5 cutover：
+
+- 第一批固定检查 `execution.accounts`、`ai-ops.providers`、`policy.workbench`、`research.signals`；优先复用已经存在的 owner-app API，不凭空新增 terminal 业务逻辑。
+- 每个可变更列表必须在 IA registry 与 runtime injection 同时发布 `row_actions`；创建类操作必须有显式 create affordance（可填写表单的 dashboard prompt 或等价入口），编辑/删除/审批/绑定必须把行字段映射到 action 参数，禁止只展示泛化 action 菜单。
+- 每个 mutation action 必须保留后端的权限、对象归属、确认/重新认证、审计语义，并声明写后 receipt/result 与受影响 panel refresh；前端隐藏不是权限边界。
+- `config/tui/ia/tui_information_architecture.v1.json`、runtime injection、published graph/registry 与浏览器契约测试必须保持一致；静态 graph 中不存在而 runtime 才注入的写入口，必须列入 deferred/promotion 证据，不能冒充已完成。
+- R0 的验收是“用户能完成主任务”，至少覆盖普通用户、owner/object 与 staff/admin 角色，以及空态、参数填写、确认、写后刷新/回执和错误恢复；只验证 action 存在或 GET smoke 不通过。
+
 ### 2.5 机器唯一真源
 
 - IA registry：`config/tui/ia/tui_information_architecture.v1.json`
@@ -94,7 +106,7 @@ M1/M4 如修改通用 schema、runtime 或 renderer，必须同步满足可移�
 3. **批准后冻结新 web 业务页面**。新业务能力默认只做 TUI screen。C 档保留流程、错误页、基座和 TUI shell 的必要维护不受限；确需新增 web 页面时，必须在 PR 中写明用户群、TUI 不适用原因、owner、保留期限并更新 §8，禁止借缺陷修复扩展新的 Classic 主任务。
 4. **后端按 owner app 补齐**。迁移优先消费既有 `/api/` JSON 端点；端点缺失时，在数据所属 app 内按 Domain → Application → Infrastructure → Interface 的依赖方向补 Application UseCase、Repository 与 DRF 契约，单独提交和测试。**不得**在 `terminal` app 写领域逻辑，不得为 TUI 新开 HTML/HTMX 片段端点。
 5. **单日一个主线**。每批迁移独立分支（`dev/feat-tui-migration-<批次>`）、独立 commit 组、独立可回滚；不得与 mypy 收口、部署修复、治理文档混在同一批次。
-6. **权限按角色和对象归属控制**。普通用户可以执行本人有权操作的 `write` action；`unsafe/admin` action 必须继续执行后端授权、确认、必要的重新认证与审计。前端隐藏不是权限边界。
+6. **权限按角色和对象归属控制**。普通用户可以执行本人有权操作的 `write` action；`unsafe/admin` action 必须继续执行后端授权、确认、必要的重新认证与审计。前端隐藏不是权限边界。任何依赖 mutation 的迁移任务不得以只读列表/详情替代，必须发布可见的 create/edit/delete/approve/bind 入口、对象归属字段、写后 receipt 与 affected-panel refresh；未满足者不得标记为 route parity 或 `ready_for_cutover`。
 7. **兼容期双轨且有量化退出门槛**。已迁域的 web 页面在兼容期内保留，展示弃用提示并提供目标 TUI deep link。M5-A 观测可在实现完成后启动；只有连续一个稳定版本同时满足“核心任务 UAT 全过、完整窗口无 P0/P1 阻断缺陷、错误率无显著回退、旧入口访问量低于批准阈值、回滚观察期已满”后，才允许进入 M5-B 清理。
 8. **旧 URL 有显式处置**。映射矩阵必须为每个 route page 指定 `redirect_to_tui`、`retain`、`remove_410` 或 `remove_404`；需要跳转时保留可安全映射的查询参数、用户上下文和目标 screen/action，不得让书签静默落到 TUI 首页。
 9. **回滚单位是可验证子批**。每批记录 published graph hash、schema version、runtime build id、registry generation、代码 commit 和兼容矩阵。TUI 侧仅在旧 graph 与当前 runtime/schema 兼容时重发旧 baseline；否则同时回滚对应 runtime/schema。模板、路由和前端增量分别用独立 commit 回滚，不直接修改 DB payload。
@@ -151,14 +163,33 @@ M1/M4 如修改通用 schema、runtime 或 renderer，必须同步满足可移�
 | 退出决策 | 样板评审后明确 M4 可直接复用的 renderer、仍需新增的能力、允许的临时降级和禁止迁移的图表类型；未通过则不得启动 M4 |
 | 回滚 | 样板 metadata、host adapter、通用 runtime/schema 分 commit；按记录的兼容矩阵回滚，不允许只重发与当前 runtime 不兼容的旧 graph |
 
+### R0：TUI Actionability Remediation（P0，跨 M2/M3）
+
+| 项 | 内容 |
+|---|---|
+| 入口条件 | 以当前 IA、runtime injection 与已存在的 owner-app write action 为基线；不等待 M5 生产 cutover，也不解除后端权限/确认/审计闸门 |
+| 第一批 | `execution.accounts`：显式创建账户入口并保留账户行级详情/删除；`ai-ops.providers`：显式创建服务商入口，并在服务商行提供查看/编辑/切换/删除；随后补 `policy.workbench` 的审批/驳回与 `research.signals` 的候选/信号行级操作 |
+| 实施边界 | 先改 IA registry 与 runtime metadata，再补 TUI metadata/浏览器回归；已有 API 缺口必须回 owner app 按四层补齐，不把业务逻辑塞进 `terminal`；静态 published graph 与 runtime-only action 的差异必须有 promotion/deferred 证据 |
+| 验收 | 每个第一批 screen 至少有一个可见 create/edit/delete/approve/bind 入口；表单能填写真实字段，row action 参数来自行字段，写后刷新/回执可见；普通用户、owner/object、staff/admin 权限与确认/重新认证、错误态、空态均有可复现测试；`npm run check:tui`、`npm run test:tui-js`、TUI Workbench 定向 pytest 与浏览器主任务 UAT 全绿 |
+| 当前进度 | **进行中**：已落地 `execution.accounts` 创建 prompt、`ai-ops.providers` 创建 prompt 与查看/编辑/切换/删除 row actions；本批继续落地 `policy.workbench` 创建与审核行操作、`research.signals` 创建与治理行操作；仍需核对静态 published graph promotion |
+| 回滚 | IA、runtime injection、前端与测试分离提交；任何 action key、参数映射或权限回退均按 R0 子批回滚，不进入 M5-B 清理 |
+
+#### R0 执行记录（2026-08-14）
+
+- 已修改 `config/tui/ia/tui_information_architecture.v1.json`：`execution.accounts` 新增创建账户 dashboard prompt；`ai-ops.providers` 新增创建服务商 prompt，并为服务商列表绑定查看、编辑、启停、删除四个行级动作。动作均复用已有 runtime API，不新增 terminal 业务逻辑。
+- 本批继续修改同一 IA：`policy.workbench` 新增创建政策事件 prompt，并为待审事件绑定查看、批准、拒绝、回滚、临时豁免行操作；`research.signals` 新增创建投资信号 prompt，并为活跃信号绑定编辑、批准、拒绝、证伪、删除行操作。拒绝/回滚/证伪的理由字段分别从行数据映射到可继续填写的理由输入，不绕过后端确认与权限。
+- 已新增 `tests/unit/test_tui_actionability_contract.py`，验证 IA 行字段映射、create action 的 POST/effect，以及 runtime 注入后 canonical screen 的 action 绑定。
+- 已验证：该定向 pytest `4 passed`；已有 Beta Gate/rotation/policy metadata 回归 `3 passed`；`npm run check:tui` 通过；`npm run test:tui-js` `31 passed`；Black、isort、`git diff --check` 通过。
+- 未完成/未验证：静态 published graph 对 runtime-only write action 的 promotion 证据；模拟账户完整 Django 生命周期测试本轮运行超过 124 秒超时，不能视为通过；当前环境没有 `ruff` 可执行文件。
+
 ### M2：第一批 A 类（表单/CRUD/配置）
 
 | 项 | 内容 |
 |---|---|
-| 入口条件 | M0 完成；目标子批 API gap 已关闭；目标 screen/action 数量不突破 IA action-density 预算 |
+| 入口条件 | M0 完成；目标子批 API gap 已关闭；目标 screen/action 数量不突破 IA action-density 预算；R0 已为本 wave 的 mutation 任务补齐可见 create/edit/delete/approve/bind 入口 |
 | 范围 | account（资料/Token/用户管理/模拟账户）、policy（事件 CRUD、RSS 管理）、ai_provider（管理/配额/日志）、alpha_trigger、beta_gate、decision_rhythm 配额、rotation 配置、prompt、signal、backtest 配置；按“一个主任务 + 一个 owner app 子域”拆 wave，每个 wave 独立 commit 组和证据 |
 | 单 wave 上限 | 默认不超过 3 个 route page 或 1 个复杂 CRUD 工作台；超出时必须在跟踪表说明无法继续拆分的原因 |
-| 验收 | 每个目标 screen 满足设计标准；普通用户 write、admin/unsafe、确认、重新认证、对象归属与审计均有契约测试；写后刷新和 receipt 可见；旧页显示弃用提示与准确 deep link；最小回归包和该 app 的 API/浏览器任务测试全绿 |
+| 验收 | 每个目标 screen 满足设计标准；普通用户 write、admin/unsafe、确认、重新认证、对象归属与审计均有契约测试；写后刷新和 receipt 可见；列表行可直接进入对应 mutation，而不是让用户手填 ID；旧页显示弃用提示与准确 deep link；最小回归包和该 app 的 API/浏览器任务测试全绿 |
 | 回滚 | 按 wave revert；metadata/runtime/API 依据兼容矩阵联动回滚 |
 
 ### M3：第二批 A 类（列表/详情/工作台）
@@ -385,6 +416,7 @@ python tui-metadata-compiler/scripts/publish_tui_metadata.py \
 |---|---|---|---|
 | M0 / M0-D | 195 模板基线、矩阵、冻结与 7 个死模板清理 | 已完成 | `../archive/plans/web-to-tui-m0-evidence-2026-07-26.md` |
 | M1 | 图表契约样板 | 已完成 | `../archive/plans/web-to-tui-m1-chart-evidence-2026-07-26.md` |
+| R0 | TUI actionability：已有 write action 显性化、create/edit/delete/approve/bind 入口、写后刷新与回归 | 实施中；已落 `execution.accounts`、`ai-ops.providers`、`policy.workbench`、`research.signals` 元数据入口 | IA registry、runtime injection、TUI Workbench 定向测试与本节整改记录 |
 | M2 | W1–W20，配置、CRUD 与治理任务 | 已完成 | `../archive/plans/web-to-tui-m2-consolidated-evidence-2026-07-26.md` |
 | M3 | W21–W42，长尾工作台与运维任务 | 已完成 | `../archive/plans/web-to-tui-m3-consolidated-evidence-2026-07-26.md` |
 | M4 | W43–W51，图表与分析任务 | 已完成 | `../archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md` |
@@ -422,6 +454,7 @@ M0 的主产物固定为 `docs/plans/web-to-tui-migration-matrix-2026-07-25.csv`
 - [ ] §10 映射矩阵 A/B/C/D 互斥、合计与实际模板数一致，无悬空归属
 - [ ] §8 保留清单以外的模板全部删除或迁入 TUI；`web_template_migration_inventory.py --require-finalized` 通过，剩余路径与 C 档精确文件清单一致
 - [ ] 普通用户 8 步每日工作流与管理员治理任务全部在 TUI 内闭环，无 Classic 跳转依赖
+- [ ] R0 actionability 通过：凡声明为表单/CRUD/治理/配置的迁移任务，均可在 TUI 内完成创建、填写、编辑、删除、审批、绑定或触发；不得仅以 GET/read smoke 或后台 action metadata 存在作为通过依据，并有行级参数映射、权限/确认、写后 receipt 与 affected-panel refresh 证据
 - [ ] 每个迁移 route page 的主任务 UAT、权限、空态、错误态和旧 URL 策略均有证据
 - [ ] TUI 全部契约/治理/JS/Playwright 检查绿，且 AGENTS.md 固定最小回归包绿
 - [ ] 最终 graph 同时通过 AgomTradePro validator；涉及通用 schema/runtime 时也通过 AgomTUI 双端兼容门禁
