@@ -433,6 +433,35 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
   Publication 与 event/outbox 还没有共同 UOW。故治理 registry 仍保持
   `planned/not_wired`，不得把本地 builder 测试宣称为业务双写或生产审计覆盖。
 
+### 2026-08-15：M1 bounded outbox backlog Prometheus projection contract
+
+- `apps/audit/infrastructure/metrics.py` 新增固定 `owner=audit` 标签的
+  `system_audit_outbox_pending`、`system_audit_outbox_oldest_age_seconds` 及
+  due/claimed/expired/failed/delivered gauges；投影只接受已验证的
+  `SystemAuditOutboxBacklogSnapshot`，不接受任意资源、用户、run 或错误文本作为标签。
+- `record_system_audit_outbox_backlog()` 是纯指标 sink，不读取数据库、不 claim/renew/publish，
+  空 backlog 的 oldest age 明确投影为 `0.0`；metrics safety 与 backlog Application contract
+  定向回归 `23 passed`。
+- 本批保持 dormant：没有把 `/metrics/` scrape 绑定到数据库 reader，也没有接 health scheduler、
+  Celery task、publisher sink 或 failed-row retry；因此不能宣称 Prometheus runtime observation、
+  自动恢复、生产告警或 PostgreSQL backlog 观察已完成。Data Center 双写仍保持
+  `planned/not_wired`，生产 migration/rollback 与 publisher/runtime gate 继续阻断。
+
+### 2026-08-15：M1 Data Center RawAudit identity boundary
+
+- `RawAudit` 现在可携带稳定 `raw_audit_id`、服务端批次 `run_id`、`ingested_run_id` 与
+  canonical `content_hash`；新增 `RawAuditReference` 只接受完整 identity、lowercase
+  SHA-256 和两级批次关联，历史缺字段行无法提升为统一 fetch event。
+- `RawAuditRepository.log()` 在持久化前重算 content hash，拒绝 caller 提供的错误 hash，
+  通过 UUID 边界拒绝非法批次身份；`0070_rawaudit_identity_and_content_hash` 仅增加
+  nullable 字段，不回填历史行、不把数据库主键伪造成批次身份。定向 RawAudit/SyncMacro/
+  Macro publication 回归 `15 passed`，`makemigrations --check`、Django check、增量 mypy
+  均通过。
+- 该批只建立可供未来事件引用的 identity-bearing evidence boundary，**没有**给
+  `SyncMacroUseCase` 接入 run issuer、共同 UOW、事实/Health/RawAudit/Publication/event/outbox
+  双写；`data.fetch.*` 仍保持 `planned/not_wired`，生产 migration/backfill 与 PostgreSQL
+  双写证据继续阻断。
+
 ### M1：Audit Domain、append-only ledger 与 Query
 
 交付：

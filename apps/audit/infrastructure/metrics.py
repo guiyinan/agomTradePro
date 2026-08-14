@@ -28,7 +28,18 @@ import math
 from collections.abc import Sequence
 from typing import NotRequired, TypedDict
 
-from prometheus_client import REGISTRY, CollectorRegistry, Counter, Histogram, generate_latest
+from prometheus_client import (
+    REGISTRY,
+    CollectorRegistry,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
+
+from apps.audit.application.system_audit_outbox_observability import (
+    SystemAuditOutboxBacklogSnapshot,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +91,22 @@ def _safe_histogram(
         raise
 
 
+def _safe_gauge(
+    name: str,
+    description: str,
+    labelnames: Sequence[str],
+) -> Gauge:
+    """Safely create a Gauge, returning an existing one if registered."""
+
+    try:
+        return Gauge(name, description, labelnames)
+    except ValueError:
+        for collector in REGISTRY._names_to_collectors.values():
+            if isinstance(collector, Gauge) and collector._name == name:
+                return collector
+        raise
+
+
 def _observe_latency(
     *,
     module: str,
@@ -127,6 +154,80 @@ audit_write_operations_total = _safe_counter(
     "Total audit write operations by status",
     ["module", "status", "source"],
 )
+
+
+# Transactional outbox backlog projection.  The owner label is intentionally
+# fixed by ``record_system_audit_outbox_backlog``; callers cannot publish
+# arbitrary IDs or resource names as Prometheus labels.
+system_audit_outbox_pending = _safe_gauge(
+    "system_audit_outbox_pending",
+    "Number of pending system-audit outbox rows",
+    ["owner"],
+)
+system_audit_outbox_oldest_age_seconds = _safe_gauge(
+    "system_audit_outbox_oldest_age_seconds",
+    "Age in seconds of the oldest recoverable system-audit outbox row",
+    ["owner"],
+)
+system_audit_outbox_due_pending = _safe_gauge(
+    "system_audit_outbox_due_pending",
+    "Number of due pending system-audit outbox rows",
+    ["owner"],
+)
+system_audit_outbox_claimed = _safe_gauge(
+    "system_audit_outbox_claimed",
+    "Number of currently claimed system-audit outbox rows",
+    ["owner"],
+)
+system_audit_outbox_expired_claimed = _safe_gauge(
+    "system_audit_outbox_expired_claimed",
+    "Number of expired claimed system-audit outbox rows",
+    ["owner"],
+)
+system_audit_outbox_failed = _safe_gauge(
+    "system_audit_outbox_failed",
+    "Number of terminal failed system-audit outbox rows",
+    ["owner"],
+)
+system_audit_outbox_delivered = _safe_gauge(
+    "system_audit_outbox_delivered",
+    "Number of delivered system-audit outbox rows",
+    ["owner"],
+)
+
+
+def record_system_audit_outbox_backlog(
+    snapshot: SystemAuditOutboxBacklogSnapshot,
+) -> None:
+    """Project one validated backlog snapshot into bounded Prometheus gauges.
+
+    This is deliberately a projection sink, not a database reader or a
+    scheduler.  A future health/metrics composition may call it after reading
+    the application backlog use case; until then it remains dormant and does
+    not claim that runtime backlog observation is wired.
+    """
+
+    if not isinstance(snapshot, SystemAuditOutboxBacklogSnapshot):
+        logger.warning("Skipped invalid system audit outbox backlog metric snapshot")
+        return
+    try:
+        labels = {"owner": "audit"}
+        system_audit_outbox_pending.labels(**labels).set(snapshot.pending_count)
+        system_audit_outbox_oldest_age_seconds.labels(**labels).set(
+            snapshot.oldest_backlog_age_seconds or 0.0
+        )
+        system_audit_outbox_due_pending.labels(**labels).set(snapshot.due_pending_count)
+        system_audit_outbox_claimed.labels(**labels).set(snapshot.claimed_count)
+        system_audit_outbox_expired_claimed.labels(**labels).set(snapshot.expired_claimed_count)
+        system_audit_outbox_failed.labels(**labels).set(snapshot.failed_count)
+        system_audit_outbox_delivered.labels(**labels).set(snapshot.delivered_count)
+    except Exception as exc:
+        # Metrics are best-effort and must never turn a health projection into
+        # a business failure.  Do not publish exception text or credentials.
+        logger.warning(
+            "Failed to record system audit outbox backlog metric (error_type=%s)",
+            type(exc).__name__,
+        )
 
 
 def record_audit_write_success(
@@ -306,6 +407,13 @@ def export_metrics() -> str:
             audit_write_failure_total,
             audit_write_operations_total,
             audit_write_latency_seconds,
+            system_audit_outbox_pending,
+            system_audit_outbox_oldest_age_seconds,
+            system_audit_outbox_due_pending,
+            system_audit_outbox_claimed,
+            system_audit_outbox_expired_claimed,
+            system_audit_outbox_failed,
+            system_audit_outbox_delivered,
         ):
             registry.register(collector)
 

@@ -966,6 +966,12 @@
 - ✅ **系统级统一审计日志 M1 outbox backlog health projection wiring（2026-08-15）**
   - Audit health 现在消费只读 backlog snapshot，投影 pending/due/claimed/expired/failed/delivered 与 oldest age；recovery work 为 WARNING、异常只发布类型；unit/API `16 passed`
   - 仅 health projection wiring；Prometheus/runtime publisher、自动 reclaim、生产 migration/rollback、真实 PostgreSQL backlog 观察与 Data Center 双写仍待完成，M1 gate 不变
+- ✅ **系统级统一审计日志 M1 bounded outbox backlog Prometheus projection contract（2026-08-15）**
+  - 新增固定 `owner=audit` 的 pending/oldest-age/due/claimed/expired/failed/delivered gauges；仅接收已验证 backlog snapshot，不读库、不 claim、不 publish、不暴露高基数或敏感标签；metrics safety + backlog Application 回归 `23 passed`
+  - 仅 dormant projection sink，尚未接 `/metrics/` scrape、health scheduler、Celery、publisher 或 failed-row retry；生产 migration/rollback、PostgreSQL backlog 观察/恢复、Data Center 双写仍待完成，M1 gate 不变
+- ✅ **系统级统一审计日志 M1 Data Center RawAudit identity boundary（2026-08-15）**
+  - `RawAudit` 新增稳定 row identity、run/ingested-run 关联与 canonical content hash；历史缺字段行向 fetch event 的提升 fail-closed；迁移 `0070` 仅 nullable expand、不回填；RawAudit/SyncMacro/Macro publication `15 passed`
+  - 仅 evidence boundary；尚未接服务端 run issuer、共同 UOW、事实/Health/RawAudit/Publication/event/outbox 双写或 PostgreSQL 生产证据，`data.fetch.*` 仍 `planned/not_wired`
 - ✅ **系统级统一审计日志 M1 event/outbox atomic composition contract（2026-08-15）**
   - 新增 dormant 同 alias coordinator，event append 与 outbox enqueue 同 outer transaction；exact retry、event substitution、outbox failure rollback 已覆盖；unit `5 passed`、SQLite component `3 passed`、增量 mypy/architecture 通过
   - 尚未接 Data Center `data.fetch.*`、publisher/runtime 或生产 route；真实 PostgreSQL 双写竞争、migration/rollback 与业务事件仍待完成，M1 gate 不变
