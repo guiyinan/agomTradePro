@@ -831,6 +831,9 @@
 - ✅ **Account owner-assignment v3 actor authority Application合同**
   - request principal仅作selector，每次读取重新验证exact-current active/user/RBAC authority；claimant为nonstaff/nonsuperuser，approver为staff+Account admin，撤权/过期fail closed
   - 定向pure 32 passed、architecture 2853/0；仅Protocol/DTO+fakes，Django authority source、request adapter、write composition与路由均未实现
+- ✅ **Account actor authority source v3 Domain**
+  - Account独立封存opaque principal/auth-context、User/RBAC exact refs、actor/facts、三有效上界与domain-separated seals；successor锁同session/actor并禁止source clock回填，terminal撤权不可恢复
+  - source+Application+Receipt/Evidence pure 65 passed、architecture 2854/0；无capture/codec/ledger/raw providers，请求写入口与execution继续关闭
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证

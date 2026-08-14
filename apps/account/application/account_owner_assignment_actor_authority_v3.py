@@ -10,7 +10,6 @@ from apps.account.application.account_owner_assignment_evidence import (
     AccountOwnerAssignmentCorruption,
     AccountOwnerAssignmentServerActor,
 )
-from apps.account.application.rbac import normalize_role
 
 
 def _token(value: object, name: str) -> None:
@@ -41,7 +40,12 @@ def _aware(value: object, name: str) -> datetime:
 
 @dataclass(frozen=True, slots=True)
 class AuthenticatedAccountPrincipalV3:
-    """Bind one server-authenticated request principal to an exact session seal."""
+    """Bind a request principal to non-secret, owner-issued auth evidence.
+
+    The context digest must identify sealed authentication evidence. It must not
+    be derived directly from a session key, cookie, token, CSRF value, or
+    password hash.
+    """
 
     principal_id: str
     user_id: int
@@ -163,11 +167,7 @@ class CurrentAccountOwnerAssignmentApproverProviderV3:
         """Return a current staff admin or fail closed after an authority re-read."""
 
         authority = _read_authority(self.principal, self.authority_reader, as_of)
-        if (
-            authority is None
-            or not authority.is_staff
-            or normalize_role(authority.rbac_role) != "admin"
-        ):
+        if authority is None or not authority.is_staff or authority.rbac_role != "admin":
             return None
         return AccountOwnerAssignmentServerActor(
             actor_id=authority.actor_id,

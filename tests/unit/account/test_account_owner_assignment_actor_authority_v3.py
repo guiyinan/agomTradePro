@@ -103,6 +103,8 @@ def test_approver_requires_current_active_staff_admin_and_revalidates_role() -> 
         _authority(is_staff=False, rbac_role="admin"),
         _authority(is_staff=True, rbac_role="owner"),
         _authority(is_staff=True, rbac_role="investment_manager"),
+        _authority(is_staff=True, rbac_role="管理员"),
+        _authority(is_staff=True, rbac_role="ADMIN"),
     ],
 )
 def test_approver_rejects_nonstaff_or_nonadmin(authority: CurrentAccountActorAuthorityV3) -> None:

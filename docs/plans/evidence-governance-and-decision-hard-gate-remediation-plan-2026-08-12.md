@@ -2124,6 +2124,14 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - actor authority与Receipt/Evidence Application定向pure `32 passed`；Ruff、Black/isort、strict mypy及architecture 2853/0通过。Domain/Application双维防自批仍为最终两人边界。
 - 本批仅Protocol/DTO/provider规则与fakes，不含Django ORM authority reader、request principal adapter、write composition或HTTP/TUI入口。mutable User/Profile row不能被现场hash冒充owner-issued exact authority；在正式Account actor source与专属审批权限适配完成前，不得接写路由或称production staff authorization已上线。
 
+### 2026-08-14：Account owner-assignment actor authority source v3 Domain
+
+- 新增Account-owned纯Domain actor-authority source，独立于账户owner identity。合同封存source identity、opaque principal与非敏感authentication-context exact refs/hashes、User/RBAC source refs/hashes、stable actor ID、authenticated/active/staff/superuser/canonical role facts，以及principal/source/TTL三重有效期。cookie、session key、token、CSRF或password hash均不进入字段，context hash只能引用未来owner-issued sealed authentication evidence。
+- 固定`attestation_only + inactive + execution_allowed=false + must_not_execute=true`。identity/content及principal/context/user/RBAC/facts/clock/chain/fixed/record seals均domain-separated；root claim绑定actor_id。同session successor固定principal/user/context/actor并精确绑定前序hash，且要求`previous.recorded_at < successor.source_recorded_at <= issued_at <= recorded_at`，阻断后来写入的回填事实。
+- terminal revoked/deactivated记录不可再接successor；新session/context不能接旧链。Domain仅提供historical knowable与单记录`is_temporally_current_at`，明确不声称logical head；repository未来必须以final head判current，terminal/expired不得回退旧授权。
+- source Domain与actor Application、Receipt/Evidence定向pure `65 passed`；Ruff、Black/isort、2 production files strict mypy及architecture 2854/0通过。同步收紧Application：approver只接受owner source已封存的exact canonical`admin`，不再现场归一化角色别名。
+- 本批没有Application capture、strict codec、append-only ledger、Django User/RBAC/auth-context原始provider或request adapter。现mutable User/Profile/session不能现场拼hash充当source；在这些owner链路与zero-seed ledger闭合前，staff write composition和路由保持缺失，execution不开放。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
