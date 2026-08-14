@@ -2212,6 +2212,11 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 新增strict canonical codec，完整嵌套恢复epoch、old/new Profile refs、human operator authority、service issuer、binding/raw-source双链与全部transition/source/clock/chain/fixed/record seals；exact key集合、bool/int、UTC-Z microseconds、Domain重验与encode equality使未知键、替换、跨链篡改和非canonical时间 fail closed。
 - codec unit`18 passed`，Ruff、Black/isort、strict mypy、official增量mypy 0 regressions及architecture 2876/0通过。codec只证明payload封存形状，不证明operator source或mutable Profile真实性；尚无0053 schema/repository/UOW/lifecycle writer，zero-seed与execution总闸保持不变。
 
+### 2026-08-14：Account RBAC mutation binding v3 Application读合同
+
+- 新增ID/version/hash/PIT selector、Persisted binding wrapper与typed repository Protocol；Exact reader只返回`recorded_at <= as_of`的同一mutation/source/hash，Current reader再要求`new_authority_state=current`、TTL窗口与最终head exact equality。revoked/expired/superseded不回退，future row、selector/hash/type替换统一Corruption。
+- 定向pure`4 passed`、Ruff、Black/isort、strict mypy、official增量mypy 0 regressions及architecture 2877/0通过。仍是dormant read/persistence合同：无binding codec之外的Django repository、0053 schema、capture/issuer/profile UOW或生产入口，zero-seed与execution继续关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
