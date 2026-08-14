@@ -2173,6 +2173,11 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 未知/缺失/非字符串key、非mapping、非规范时钟、root/predecessor XOR、fixed semantics、role/state及任一hash/seal篡改均fail closed。codec测试合计`100 passed`，三Domain+codec组合`175 passed`；Ruff、Black/isort、3 production files strict mypy及architecture 2865/0通过。
 - 本批仍无raw models/repositories/migrations或immutable Django writers。strict codec只验证已有owner payload，不能把live session/User/Profile读取转换为可审计的observed/recorded/valid evidence；atomic aggregate provider、request adapter、staff composition与execution继续关闭。
 
+### 2026-08-14：Account actor authority raw-source v3 Application primitives
+
+- 新增三种raw authority source共用的纯Application边界：统一Unavailable/Conflict/Corruption taxonomy、只含`source_id/source_version/expected_content_hash/as_of`的exact/current标量selector，以及固定`service/account_actor_authority_raw_recorder/automated`语义的frozen recorder。公共模块不引用任一具体Domain artifact，也不包含provider、capture command、repository或ORM。
+- 定向pure `22 passed`；Ruff、Black/isort、strict mypy及AST Application边界检查通过。该小批只冻结后续三个typed read/repository合同的共同语言；没有采集mutable session/User/Profile、没有生成source version/clock/facts，也没有raw ledger、atomic bundle、request adapter或staff write入口，execution继续关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
