@@ -1,0 +1,515 @@
+"""Closed-world claim repository for the system-audit transactional outbox.
+
+The repository owns only outbox persistence and bounded claim-state changes.  It
+does not publish to Data Center, Celery, Kafka, or any other runtime consumer.
+Every selector restores the complete table first so a malformed unrelated row
+cannot be hidden by a filtered query.  PostgreSQL lease/race evidence remains a
+separate deployment gate; the isolated component tests are structural only.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Protocol, cast
+from uuid import UUID, uuid4
+
+from django.db import IntegrityError, transaction
+from django.utils import timezone
+
+from apps.audit.domain.system_audit_event import JSONValue, SystemAuditEvent
+from apps.audit.infrastructure.system_audit_event_codec import decode, encode
+from apps.audit.infrastructure.system_audit_outbox_models import SystemAuditOutboxModel
+
+
+class SystemAuditOutboxUnavailable(Exception):
+    """The requested outbox row is absent or not claimable."""
+
+
+class SystemAuditOutboxConflict(Exception):
+    """A first-winner, claim-token, or state transition conflict occurred."""
+
+
+class SystemAuditOutboxCorruption(Exception):
+    """Persisted outbox state cannot be restored as one closed world."""
+
+
+class SystemAuditOutboxClock(Protocol):
+    """Authoritative clock for outbox mutation timestamps."""
+
+    def now(self) -> datetime:
+        """Return one timezone-aware timestamp."""
+
+
+class DjangoSystemAuditOutboxClock:
+    """Django timezone-backed clock used by a composition root."""
+
+    def now(self) -> datetime:
+        """Return the current timezone-aware timestamp."""
+
+        return timezone.now()
+
+
+@dataclass(frozen=True, slots=True)
+class SystemAuditOutboxRecord:
+    """Strictly restored outbox row and its immutable audit event."""
+
+    outbox_id: UUID
+    event: SystemAuditEvent
+    status: str
+    attempt_count: int
+    available_at: datetime
+    claimed_at: datetime | None
+    claimed_by: str | None
+    claim_token: str | None
+    delivered_at: datetime | None
+    last_error_code: str | None
+    last_error_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class SystemAuditOutboxClaim:
+    """One claimed event handed to an injected publisher."""
+
+    outbox_id: UUID
+    event: SystemAuditEvent
+    worker_id: str
+    claim_token: str
+    claimed_at: datetime
+    attempt_count: int
+
+
+_UOW: ContextVar[object | None] = ContextVar("system_audit_outbox_uow", default=None)
+
+
+class DjangoSystemAuditOutboxRepository:
+    """Append-only outbox enqueue plus private claim-state transitions."""
+
+    __slots__ = ("_clock", "_using")
+
+    def __init__(
+        self,
+        *,
+        using: str = "default",
+        clock: SystemAuditOutboxClock | None = None,
+    ) -> None:
+        self._using = using
+        self._clock = clock or DjangoSystemAuditOutboxClock()
+
+    @contextmanager
+    def atomic(self) -> Iterator[None]:
+        """Open one non-nested outbox unit of work."""
+
+        if _UOW.get() is not None:
+            raise SystemAuditOutboxConflict("system audit outbox UOW cannot be nested")
+        with transaction.atomic(using=self._using):
+            token = _UOW.set(object())
+            try:
+                yield
+            finally:
+                _UOW.reset(token)
+
+    def now(self) -> datetime:
+        """Return an aware clock or fail closed."""
+
+        value = self._clock.now()
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise SystemAuditOutboxCorruption("system audit outbox clock is naive")
+        return value
+
+    def enqueue(
+        self,
+        event: SystemAuditEvent,
+        *,
+        available_at: datetime | None = None,
+        created_at: datetime | None = None,
+    ) -> SystemAuditOutboxRecord:
+        """Insert one event, or return the exact idempotent first winner."""
+
+        self._require_uow()
+        try:
+            event.validate_hashes()
+        except (TypeError, ValueError) as error:
+            raise SystemAuditOutboxCorruption("outbox event candidate is invalid") from error
+        created = created_at or self.now()
+        self._require_aware(created, "created_at")
+        available = available_at or created
+        self._require_aware(available, "available_at")
+        if available < created:
+            raise SystemAuditOutboxConflict("outbox availability precedes creation")
+
+        state = self._state(lock=True)
+        identity_matches = tuple(item for item in state if item.event.event_id == event.event_id)
+        idempotency_matches = tuple(
+            item for item in state if item.event.idempotency_key == event.idempotency_key
+        )
+        for matches in (identity_matches, idempotency_matches):
+            if len(matches) > 1:
+                raise SystemAuditOutboxCorruption("outbox first-winner identity is ambiguous")
+        existing = (
+            identity_matches[0]
+            if identity_matches
+            else (idempotency_matches[0] if idempotency_matches else None)
+        )
+        if existing is not None:
+            if existing.event != event:
+                raise SystemAuditOutboxConflict("outbox identity already has another payload")
+            return existing.record
+
+        row = SystemAuditOutboxModel(
+            outbox_id=uuid4(),
+            event_id=event.event_id,
+            idempotency_key=event.idempotency_key,
+            payload=dict(encode(event)),
+            payload_hash=event.content_hash,
+            available_at=available,
+            created_at=created,
+            updated_at=created,
+        )
+        try:
+            with transaction.atomic(using=self._using):
+                row.save(force_insert=True, using=self._using)
+        except IntegrityError:
+            winner = self._find_exact_identity(event)
+            if winner is not None and winner.event == event:
+                return winner
+            raise SystemAuditOutboxConflict("outbox enqueue lost its first-winner race") from None
+        return self._restore(row)
+
+    def get_exact(self, *, outbox_id: UUID) -> SystemAuditOutboxRecord | None:
+        """Restore one row after validating the entire outbox table."""
+
+        state = self._state()
+        matches = tuple(item for item in state if item.outbox_id == outbox_id)
+        if len(matches) > 1:
+            raise SystemAuditOutboxCorruption("outbox primary identity is ambiguous")
+        return matches[0].record if matches else None
+
+    def claim_due(
+        self,
+        *,
+        worker_id: str,
+        as_of: datetime,
+        limit: int,
+    ) -> tuple[SystemAuditOutboxClaim, ...]:
+        """Atomically claim pending rows due at ``as_of`` for one worker."""
+
+        self._require_uow()
+        self._require_text(worker_id, "worker_id", max_length=128)
+        if not isinstance(limit, int) or isinstance(limit, bool) or not 0 < limit <= 100:
+            raise SystemAuditOutboxConflict("outbox claim limit is outside 1..100")
+        self._require_cutoff(as_of)
+        state = self._state(lock=True)
+        due = [
+            item
+            for item in state
+            if item.status == SystemAuditOutboxModel.STATUS_PENDING and item.available_at <= as_of
+        ][:limit]
+        claims: list[SystemAuditOutboxClaim] = []
+        for item in due:
+            row = item._row
+            token = uuid4().hex
+            row.status = SystemAuditOutboxModel.STATUS_CLAIMED
+            row.attempt_count = item.attempt_count + 1
+            row.claimed_at = as_of
+            row.claimed_by = worker_id
+            row.claim_token = token
+            row.updated_at = as_of
+            row.save(
+                update_fields=[
+                    "status",
+                    "attempt_count",
+                    "claimed_at",
+                    "claimed_by",
+                    "claim_token",
+                    "updated_at",
+                ],
+                using=self._using,
+            )
+            claims.append(
+                SystemAuditOutboxClaim(
+                    outbox_id=item.outbox_id,
+                    event=item.event,
+                    worker_id=worker_id,
+                    claim_token=token,
+                    claimed_at=as_of,
+                    attempt_count=item.attempt_count + 1,
+                )
+            )
+        return tuple(claims)
+
+    def mark_delivered(
+        self,
+        *,
+        outbox_id: UUID,
+        worker_id: str,
+        claim_token: str,
+        delivered_at: datetime,
+    ) -> SystemAuditOutboxRecord:
+        """Commit a claimed row as delivered with exact token ownership."""
+
+        self._require_uow()
+        self._require_claim_owner(worker_id, claim_token)
+        self._require_cutoff(delivered_at)
+        item = self._locked_item(outbox_id)
+        self._require_claimed(item, worker_id, claim_token)
+        if item.claimed_at is None or delivered_at < item.claimed_at:
+            raise SystemAuditOutboxConflict("delivery clock precedes claim")
+        row = item._row
+        row.status = SystemAuditOutboxModel.STATUS_DELIVERED
+        row.delivered_at = delivered_at
+        row.updated_at = delivered_at
+        row.save(update_fields=["status", "delivered_at", "updated_at"], using=self._using)
+        return self._restore(row)
+
+    def mark_failed(
+        self,
+        *,
+        outbox_id: UUID,
+        worker_id: str,
+        claim_token: str,
+        error_code: str,
+        failed_at: datetime,
+    ) -> SystemAuditOutboxRecord:
+        """Commit a claimed row as terminal failed without leaking exception text."""
+
+        self._require_uow()
+        self._require_claim_owner(worker_id, claim_token)
+        self._require_text(error_code, "error_code", max_length=128)
+        self._require_cutoff(failed_at)
+        item = self._locked_item(outbox_id)
+        self._require_claimed(item, worker_id, claim_token)
+        if item.claimed_at is None or failed_at < item.claimed_at:
+            raise SystemAuditOutboxConflict("failure clock precedes claim")
+        row = item._row
+        row.status = SystemAuditOutboxModel.STATUS_FAILED
+        row.last_error_code = error_code
+        row.last_error_at = failed_at
+        row.updated_at = failed_at
+        row.save(
+            update_fields=["status", "last_error_code", "last_error_at", "updated_at"],
+            using=self._using,
+        )
+        return self._restore(row)
+
+    def _find_exact_identity(self, event: SystemAuditEvent) -> SystemAuditOutboxRecord | None:
+        state = self._state(lock=True)
+        matches = tuple(
+            item
+            for item in state
+            if item.event.event_id == event.event_id
+            or item.event.idempotency_key == event.idempotency_key
+        )
+        if len(matches) > 1:
+            raise SystemAuditOutboxCorruption("outbox identity collision is ambiguous")
+        return matches[0].record if matches else None
+
+    def _locked_item(self, outbox_id: UUID) -> "_StateRow":
+        state = self._state(lock=True)
+        matches = tuple(item for item in state if item.outbox_id == outbox_id)
+        if not matches:
+            raise SystemAuditOutboxUnavailable("outbox row is absent")
+        if len(matches) > 1:
+            raise SystemAuditOutboxCorruption("outbox row identity is ambiguous")
+        return matches[0]
+
+    def _state(self, *, lock: bool = False) -> tuple["_StateRow", ...]:
+        manager = SystemAuditOutboxModel._default_manager.using(self._using)
+        rows = manager.select_for_update() if lock else manager
+        restored = tuple(_StateRow(self._restore(row), row) for row in rows.all())
+        _validate_closed_world(restored)
+        return restored
+
+    def _restore(self, row: SystemAuditOutboxModel) -> SystemAuditOutboxRecord:
+        try:
+            payload = cast(Mapping[str, JSONValue], row.payload)
+            event = decode(payload)
+        except (TypeError, ValueError) as error:
+            raise SystemAuditOutboxCorruption(
+                "outbox canonical payload cannot be restored"
+            ) from error
+        if encode(event) != row.payload:
+            raise SystemAuditOutboxCorruption("outbox canonical payload is not exact")
+        if (
+            event.event_id != row.event_id
+            or event.idempotency_key != row.idempotency_key
+            or event.content_hash != row.payload_hash
+        ):
+            raise SystemAuditOutboxCorruption(
+                "outbox identity or payload hash does not match event"
+            )
+        if row.updated_at < row.created_at:
+            raise SystemAuditOutboxCorruption("outbox updated clock precedes created clock")
+        for name in ("available_at", "created_at", "updated_at"):
+            self._require_aware(getattr(row, name), name)
+        for name in ("claimed_at", "delivered_at", "last_error_at"):
+            value = getattr(row, name)
+            if value is not None:
+                self._require_aware(value, name)
+        if row.status == SystemAuditOutboxModel.STATUS_PENDING:
+            if (
+                row.claimed_at is not None
+                or row.claimed_by is not None
+                or row.claim_token is not None
+            ):
+                raise SystemAuditOutboxCorruption("pending outbox row still has claim state")
+            if row.delivered_at is not None:
+                raise SystemAuditOutboxCorruption("pending outbox row is already delivered")
+        elif row.status == SystemAuditOutboxModel.STATUS_CLAIMED:
+            if not row.claimed_at or not row.claimed_by or not row.claim_token:
+                raise SystemAuditOutboxCorruption("claimed outbox row is missing claim state")
+            if row.delivered_at is not None:
+                raise SystemAuditOutboxCorruption("claimed outbox row is already delivered")
+        elif row.status == SystemAuditOutboxModel.STATUS_DELIVERED:
+            if (
+                not row.claimed_at
+                or not row.claimed_by
+                or not row.claim_token
+                or not row.delivered_at
+            ):
+                raise SystemAuditOutboxCorruption("delivered outbox row is missing terminal state")
+        elif row.status == SystemAuditOutboxModel.STATUS_FAILED:
+            if not row.claimed_at or not row.claimed_by or not row.claim_token:
+                raise SystemAuditOutboxCorruption("failed outbox row is missing claim state")
+            if not row.last_error_code or not row.last_error_at:
+                raise SystemAuditOutboxCorruption("failed outbox row is missing failure state")
+        else:
+            raise SystemAuditOutboxCorruption("outbox status is not canonical")
+        return SystemAuditOutboxRecord(
+            outbox_id=row.outbox_id,
+            event=event,
+            status=row.status,
+            attempt_count=row.attempt_count,
+            available_at=row.available_at,
+            claimed_at=row.claimed_at,
+            claimed_by=row.claimed_by,
+            claim_token=row.claim_token,
+            delivered_at=row.delivered_at,
+            last_error_code=row.last_error_code,
+            last_error_at=row.last_error_at,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+
+    def _require_claimed(self, item: "_StateRow", worker_id: str, claim_token: str) -> None:
+        if item.status != SystemAuditOutboxModel.STATUS_CLAIMED:
+            raise SystemAuditOutboxConflict("outbox row is no longer claimed")
+        if item.claimed_by != worker_id or item.claim_token != claim_token:
+            raise SystemAuditOutboxConflict("outbox claim token does not belong to worker")
+
+    def _require_uow(self) -> None:
+        if _UOW.get() is None:
+            raise SystemAuditOutboxConflict("outbox mutation requires repository.atomic()")
+
+    def _require_cutoff(self, value: datetime) -> None:
+        self._require_aware(value, "as_of")
+        if value > self.now():
+            raise SystemAuditOutboxUnavailable("future outbox cutoff is forbidden")
+
+    @staticmethod
+    def _require_aware(value: datetime, field: str) -> None:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise SystemAuditOutboxCorruption(f"outbox {field} is naive")
+
+    @staticmethod
+    def _require_text(value: str, field: str, *, max_length: int) -> None:
+        if not isinstance(value, str) or not value or len(value) > max_length:
+            raise SystemAuditOutboxConflict(f"outbox {field} is invalid")
+
+    @staticmethod
+    def _require_claim_owner(worker_id: str, claim_token: str) -> None:
+        if not isinstance(worker_id, str) or not worker_id:
+            raise SystemAuditOutboxConflict("outbox worker id is invalid")
+        if not isinstance(claim_token, str) or not claim_token:
+            raise SystemAuditOutboxConflict("outbox claim token is invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class _StateRow:
+    record: SystemAuditOutboxRecord
+    _row: SystemAuditOutboxModel
+
+    @property
+    def outbox_id(self) -> UUID:
+        return self.record.outbox_id
+
+    @property
+    def event(self) -> SystemAuditEvent:
+        return self.record.event
+
+    @property
+    def status(self) -> str:
+        return self.record.status
+
+    @property
+    def attempt_count(self) -> int:
+        return self.record.attempt_count
+
+    @property
+    def available_at(self) -> datetime:
+        return self.record.available_at
+
+    @property
+    def claimed_at(self) -> datetime | None:
+        return self.record.claimed_at
+
+    @property
+    def claimed_by(self) -> str | None:
+        return self.record.claimed_by
+
+    @property
+    def claim_token(self) -> str | None:
+        return self.record.claim_token
+
+    @property
+    def delivered_at(self) -> datetime | None:
+        return self.record.delivered_at
+
+    @property
+    def last_error_code(self) -> str | None:
+        return self.record.last_error_code
+
+    @property
+    def last_error_at(self) -> datetime | None:
+        return self.record.last_error_at
+
+    @property
+    def created_at(self) -> datetime:
+        return self.record.created_at
+
+    @property
+    def updated_at(self) -> datetime:
+        return self.record.updated_at
+
+
+def _validate_closed_world(state: tuple[_StateRow, ...]) -> None:
+    """Reject duplicate identities and impossible claim-state combinations."""
+
+    event_ids: set[str] = set()
+    idempotency_keys: set[str] = set()
+    for item in state:
+        if item.event.event_id in event_ids:
+            raise SystemAuditOutboxCorruption("outbox event identity is duplicated")
+        if item.event.idempotency_key in idempotency_keys:
+            raise SystemAuditOutboxCorruption("outbox idempotency key is duplicated")
+        event_ids.add(item.event.event_id)
+        idempotency_keys.add(item.event.idempotency_key)
+        if item.updated_at < item.created_at:
+            raise SystemAuditOutboxCorruption("outbox clock order is invalid")
+
+
+__all__ = [
+    "DjangoSystemAuditOutboxClock",
+    "DjangoSystemAuditOutboxRepository",
+    "SystemAuditOutboxClaim",
+    "SystemAuditOutboxClock",
+    "SystemAuditOutboxConflict",
+    "SystemAuditOutboxCorruption",
+    "SystemAuditOutboxRecord",
+    "SystemAuditOutboxUnavailable",
+]

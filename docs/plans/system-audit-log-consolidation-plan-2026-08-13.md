@@ -1,6 +1,6 @@
 # AgomTradePro 系统级统一审计日志收口计划
 
-> 状态：**M0 机器合同与 M1 Domain/codec/schema-only 基座已落盘；M1 repository/query/dispatcher、业务双写及 M2+ 待评审实施**
+> 状态：**M0 机器合同与 M1 Domain/codec/schema-only/repository/query/outbox-claim 合同已落盘；业务双写及 M2+ 待评审实施**
 > 创建日期：2026-08-13
 > 优先级：P0（数据可靠性纵向链路）+ P1（其余系统审计面）
 > 建议 Owner：`audit`（统一事件账本）/ 各业务 App（事件语义）/ `task_monitor`（聚合告警）
@@ -345,6 +345,18 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 - 隔离 Django 5.2 SQLite component：事件模型 `3 passed`、outbox 模型 `3 passed`；unit Domain/codec 回归 `10 passed`；增量 mypy `0 regressions`，architecture `2885 files / 0 violations`，治理一致性与 audit registry guard 通过。
 - 本批仍不提供 repository、query、dispatcher、Data Center 双写、业务 runtime wiring 或生产数据迁移；SQLite 只证明 schema/guard 软件契约，PostgreSQL 并发、真实 migration/rollback、outbox backlog/恢复和生产审计覆盖继续未验证，所有业务写入口与 execution gate 保持原状。
 
+### 2026-08-15：M1 ledger repository 与 staff-only query 合同
+
+- 新增 `apps/audit/infrastructure/system_audit_repository.py`：同 alias private atomic append、exact insert claim、first-winner replay、stream predecessor CAS、strict codec/逐列 header 恢复、全表 closed-world predecessor 图校验，以及 exact/PIT/list/head 读取；future/损坏/替换状态 fail closed，expired 语义不回退旧链。隔离 component `5 passed`，与模型 guards 合计 `8 passed`。
+- 新增 `apps/audit/application/system_audit_query.py`：不依赖 ORM 的 staff-only reader context、ID/version/hash/PIT exact command、stream 分页 DTO 与 repository Protocol；非 staff 在触碰 repository 前拒绝，repository selector substitution/无序结果 fail closed；纯 unit `5 passed`，增量 mypy `0 regressions`，architecture `2887 files / 0 violations`。
+- 本批仍未提供 outbox dispatcher/claim worker、Data Center 双写、业务 runtime wiring 或生产 composition；SQLite component 不证明 PostgreSQL 空链并发/first-winner，真实 migration/rollback、backlog 恢复、staff authority source 与生产审计覆盖继续未验证。
+
+### 2026-08-15：M1 outbox claim/dispatcher 合同
+
+- 新增 `apps/audit/infrastructure/system_audit_outbox_repository.py`：严格恢复全表 outbox payload 与事件 codec，enqueue first-winner/idempotency replay，private non-nested UOW，due-row claim、worker/token ownership、delivered/failed 状态机和 immutable payload/hash 校验；claim/transition 只更新允许的状态列，不删除或重写事件。
+- 新增 `apps/audit/application/system_audit_outbox_dispatcher.py`：无 ORM/外部 publisher import 的 dormant Protocol/use case，按 bounded batch 发布 `requested/claimed/delivered/failed/outcome`，publisher 异常只落稳定 `publisher_error`，业务双写和真实 publisher composition 仍关闭。
+- 隔离 component `7 passed`、dispatcher unit `3 passed`；增量 mypy `0 regressions`，与已有 outbox model 回归合计 `10 passed`。本地证据仍只覆盖 SQLite/纯 fake；PostgreSQL claim race/lease、真实 backlog 恢复、Data Center 双写、runtime wiring、生产 authority 与迁移回滚继续未验证。
+
 ### M1：Audit Domain、append-only ledger 与 Query
 
 交付：
@@ -354,7 +366,7 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 - transactional outbox 与 dispatcher claim contract。
 - staff-only Application Query DTO；暂不新增最终 TUI screen。
 
-退出条件：纯 Domain、codec、schema-only SQLite component 和 PostgreSQL 并发/不可变性测试通过；repository、query、dispatcher 与业务双写仍需独立批次，无跨层 ORM 或 App 循环依赖。
+退出条件：纯 Domain、codec、schema-only SQLite component 和 PostgreSQL 并发/不可变性测试通过；dispatcher claim contract 与业务双写仍需独立批次，无跨层 ORM 或 App 循环依赖。
 
 ### M2：Data Reliability 纵向试点
 
