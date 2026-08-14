@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from apps.data_center.domain.entities import (
     ProductionCoverageUniverseConfig,
     ProviderConfig,
     RawAudit,
+    raw_audit_content_hash,
 )
 from apps.data_center.infrastructure.models import (
     ProductionCoverageUniverseConfigModel,
@@ -159,10 +162,18 @@ class RawAuditRepository:
             parser_version=m.parser_version,
             payload_size_bytes=int(m.payload_size_bytes),
             retention_until=m.retention_until,
+            raw_audit_id=str(m.pk),
+            run_id=str(m.run_id) if m.run_id else "",
             ingested_run_id=str(m.ingested_run_id) if m.ingested_run_id else "",
+            content_hash=m.content_hash or "",
         )
 
     def log(self, audit: RawAudit) -> RawAudit:
+        content_hash = raw_audit_content_hash(audit)
+        if audit.content_hash and audit.content_hash != content_hash:
+            raise ValueError("RawAudit.content_hash does not match canonical audit content")
+        run_id = UUID(audit.run_id) if audit.run_id else None
+        ingested_run_id = UUID(audit.ingested_run_id) if audit.ingested_run_id else None
         m = RawAuditModel.objects.create(
             provider_name=audit.provider_name,
             capability=audit.capability,
@@ -180,7 +191,9 @@ class RawAuditRepository:
             parser_version=audit.parser_version,
             payload_size_bytes=audit.payload_size_bytes,
             retention_until=audit.retention_until,
-            ingested_run_id=audit.ingested_run_id or None,
+            run_id=run_id,
+            ingested_run_id=ingested_run_id,
+            content_hash=content_hash,
         )
         return self._from_model(m)
 

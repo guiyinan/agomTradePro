@@ -7,6 +7,8 @@ No Django, pandas, or external library imports allowed here.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
@@ -969,7 +971,28 @@ class RawAudit:
     parser_version: str = ""
     payload_size_bytes: int = 0
     retention_until: datetime | None = None
+    raw_audit_id: str = ""
+    run_id: str = ""
     ingested_run_id: str = ""
+    content_hash: str = ""
+
+    def exact_reference(self) -> "RawAuditReference":
+        """Return an event-safe reference, rejecting unbound legacy rows.
+
+        Existing raw-audit rows may legitimately lack the newer batch
+        identity/hash fields.  They remain readable, but cannot be promoted
+        to a unified fetch event until an owner-issued ``run_id`` and
+        ``ingested_run_id`` are present and the repository has returned the
+        persisted content hash.
+        """
+
+        return RawAuditReference(
+            raw_audit_id=self.raw_audit_id,
+            version="1",
+            content_hash=self.content_hash,
+            run_id=self.run_id,
+            ingested_run_id=self.ingested_run_id,
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -989,5 +1012,73 @@ class RawAudit:
             "parser_version": self.parser_version,
             "payload_size_bytes": self.payload_size_bytes,
             "retention_until": self.retention_until.isoformat() if self.retention_until else None,
+            "raw_audit_id": self.raw_audit_id,
+            "run_id": self.run_id,
             "ingested_run_id": self.ingested_run_id,
+            "content_hash": self.content_hash,
         }
+
+
+@dataclass(frozen=True)
+class RawAuditReference:
+    """Stable, content-bound evidence reference for one persisted RawAudit."""
+
+    raw_audit_id: str
+    version: str
+    content_hash: str
+    run_id: str
+    ingested_run_id: str
+
+    def __post_init__(self) -> None:
+        for name in ("raw_audit_id", "version", "run_id", "ingested_run_id"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip() or len(value) > 256:
+                raise ValueError(f"RawAuditReference.{name} must be a bounded non-empty string")
+        if (
+            not isinstance(self.content_hash, str)
+            or len(self.content_hash) != 64
+            or any(character not in "0123456789abcdef" for character in self.content_hash)
+        ):
+            raise ValueError("RawAuditReference.content_hash must be a lowercase sha256 digest")
+
+
+def raw_audit_content_hash(audit: RawAudit) -> str:
+    """Hash immutable raw-audit content without including its database id.
+
+    The database primary key is assigned after the content is assembled.  It
+    is therefore a stable row identity, while this digest binds the exact
+    persisted audit payload and correlation fields independently of that
+    identity.  No value is inferred for missing historical correlations.
+    """
+
+    payload = {
+        "provider_name": audit.provider_name,
+        "capability": audit.capability,
+        "request_params": audit.request_params,
+        "status": audit.status,
+        "row_count": audit.row_count,
+        "latency_ms": audit.latency_ms,
+        "error_message": audit.error_message,
+        "fetched_at": audit.fetched_at.isoformat(),
+        "extra": audit.extra,
+        "request_params_hash": audit.request_params_hash,
+        "response_payload_hash": audit.response_payload_hash,
+        "schema_fingerprint": audit.schema_fingerprint,
+        "redacted": audit.redacted,
+        "parser_version": audit.parser_version,
+        "payload_size_bytes": audit.payload_size_bytes,
+        "retention_until": (
+            audit.retention_until.isoformat() if audit.retention_until is not None else None
+        ),
+        "run_id": audit.run_id,
+        "ingested_run_id": audit.ingested_run_id,
+    }
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
