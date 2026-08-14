@@ -580,3 +580,10 @@ class OperationLogModel(models.Model):
 
     def __str__(self) -> str:
         return f"{self.timestamp} | {self.username} | {self.mcp_tool_name or self.operation_type} | {self.response_status}"
+
+
+# M1 canonical system audit ledger (schema-only; repository/outbox are a later step).
+from apps.audit.infrastructure.system_audit_models import SystemAuditEventModel  # noqa: E402,F401
+from apps.audit.infrastructure.system_audit_outbox_models import (  # noqa: E402,F401
+    SystemAuditOutboxModel,
+)

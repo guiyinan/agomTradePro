@@ -1,6 +1,6 @@
 # AgomTradePro 系统级统一审计日志收口计划
 
-> 状态：**M0 机器合同与 M1 Domain/codec 最小合同已落盘；M1 ledger/outbox/query 及 M2+ 待评审实施**
+> 状态：**M0 机器合同与 M1 Domain/codec/schema-only 基座已落盘；M1 repository/query/dispatcher、业务双写及 M2+ 待评审实施**
 > 创建日期：2026-08-13
 > 优先级：P0（数据可靠性纵向链路）+ P1（其余系统审计面）
 > 建议 Owner：`audit`（统一事件账本）/ 各业务 App（事件语义）/ `task_monitor`（聚合告警）
@@ -338,6 +338,13 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 - 新增 strict canonical codec：完整 key set、UTC-Z 微秒时间、bool/int 分离、敏感 detail key 拒绝、domain-separated identity/content SHA-256、篡改与非 canonical payload fail closed；`tests/unit/audit/test_system_audit_event.py` `5 passed`，增量 mypy `0 regressions`，architecture `2883 files / 0 violations`。
 - 本批不创建 Django Model/migration/repository/outbox，不读取 registry 外部文件，也不接任何运行写入口；因此只证明 Domain/codec 合同，不代表统一事件账本已启用或 Data Center 已双写。
 
+### 2026-08-14：M1 schema-only ledger/outbox 基座
+
+- 新增 `apps/audit/infrastructure/system_audit_models.py` 与 `system_audit_outbox_models.py`：统一事件表和事务 outbox 表均为 zero-seed、append-only/immutable payload 边界；事件表只允许未来 repository 通过私有 non-nested UOW + exact insert claim 写入，outbox 只允许未来 dispatcher 更新 claim 状态，payload/identity/idempotency/创建时钟不可改写或删除。
+- 新增迁移 `apps/audit/migrations/0011_systemauditeventmodel.py`，仅包含两个 `CreateModel`，无 `RunPython`、`RunSQL`、默认记录或现场 User/Profile 回填；`makemigrations audit --check --dry-run` 返回 `No changes detected`。
+- 隔离 Django 5.2 SQLite component：事件模型 `3 passed`、outbox 模型 `3 passed`；unit Domain/codec 回归 `10 passed`；增量 mypy `0 regressions`，architecture `2885 files / 0 violations`，治理一致性与 audit registry guard 通过。
+- 本批仍不提供 repository、query、dispatcher、Data Center 双写、业务 runtime wiring 或生产数据迁移；SQLite 只证明 schema/guard 软件契约，PostgreSQL 并发、真实 migration/rollback、outbox backlog/恢复和生产审计覆盖继续未验证，所有业务写入口与 execution gate 保持原状。
+
 ### M1：Audit Domain、append-only ledger 与 Query
 
 交付：
@@ -347,7 +354,7 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 - transactional outbox 与 dispatcher claim contract。
 - staff-only Application Query DTO；暂不新增最终 TUI screen。
 
-退出条件：纯 Domain、codec、SQLite component 和 PostgreSQL 并发/不可变性测试通过；无跨层 ORM 或 App 循环依赖。
+退出条件：纯 Domain、codec、schema-only SQLite component 和 PostgreSQL 并发/不可变性测试通过；repository、query、dispatcher 与业务双写仍需独立批次，无跨层 ORM 或 App 循环依赖。
 
 ### M2：Data Reliability 纵向试点
 
