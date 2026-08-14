@@ -29,7 +29,7 @@ from apps.risk_center.interface.evidence_operator_spec_approval_serializers impo
     ApproveOperatorSpecSerializer,
     RegisterOperatorSpecApprovalSubjectSerializer,
 )
-from core.integration.evidence_operator_spec_approval import (
+from apps.risk_center.evidence_operator_spec_approval_composition import (
     build_evidence_operator_spec_approval_write_runtime,
 )
 

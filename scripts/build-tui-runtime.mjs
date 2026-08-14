@@ -1,7 +1,8 @@
 import { build, transform } from "esbuild";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
+import { readdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -88,7 +89,26 @@ if (check) {
 
 const manifestPath = resolve(root, "config/tui/agomtui-runtime.manifest.json");
 const files = {};
-for (const relative of [
+const relativePath = (absolutePath) => relative(root, absolutePath).replaceAll("\\", "/");
+const sortedPythonFiles = async (directory, prefix) => {
+    const entries = await readdir(directory, { withFileTypes: true });
+    return entries
+        .filter((entry) => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith(".py"))
+        .sort((left, right) => left.name.localeCompare(right.name))
+        .map((entry) => resolve(directory, entry.name));
+};
+const metadataApplicationFiles = await sortedPythonFiles(
+    resolve(root, "apps/terminal/application"),
+    "tui_metadata",
+);
+const metadataInfrastructureDirectory = resolve(root, "apps/terminal/infrastructure");
+const metadataInfrastructureFiles = [
+    resolve(metadataInfrastructureDirectory, "tui_information_architecture.py"),
+    resolve(metadataInfrastructureDirectory, "tui_metadata_repository.py"),
+    resolve(metadataInfrastructureDirectory, "tui_metadata_signals.py"),
+    ...(await sortedPythonFiles(metadataInfrastructureDirectory, "tui_metadata_runtime_")),
+];
+for (const absolutePath of [
     "config/tui/schema/tui_metadata.schema.v3.json",
     "frontend/agomtui-runtime/src/api.js",
     "frontend/agomtui-runtime/src/dashboard-layout.js",
@@ -102,9 +122,14 @@ for (const relative of [
     "static/js/agomtui-runtime-core.js",
     "static/js/tui-workbench.js",
     "static/css/tui-workbench.css",
-]) {
-    const body = normalizeRuntimeContent(await readFile(resolve(root, relative)));
-    files[relative] = createHash("sha256").update(body).digest("hex");
+].map((path) => resolve(root, path)).concat(
+    resolve(root, "config/tui/ia/tui_information_architecture.v1.json"),
+    metadataApplicationFiles,
+    metadataInfrastructureFiles,
+)) {
+    const path = relativePath(absolutePath);
+    const body = normalizeRuntimeContent(await readFile(absolutePath));
+    files[path] = createHash("sha256").update(body).digest("hex");
 }
 const buildHash = createHash("sha256")
     .update(Object.entries(files).map(([path, sha]) => `${path}:${sha}`).join("\n"))

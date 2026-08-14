@@ -92,6 +92,12 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
 - 相关本地回归 `44 passed`，strict mypy、格式、编译和三个生成 shell 的语法检查通过；Ruff 未安装。
 - 代码整改尚未部署，当前生产仍是本页所述 OCI revision=`unknown`/无 manifest 状态。它不能替代真实候选部署、deployment attestation 或观察窗口，readiness 继续 `DENY`。
 
+### 2026-08-14：后端 TUI contract 纳入 release provenance
+
+- `scripts/build-tui-runtime.mjs` 现在把 declarative IA、Application metadata、IA loader、metadata repository/signals 以及全部 `tui_metadata_runtime_*.py` 纳入 runtime manifest 的逐文件 SHA-256。可写 action 只要改变后端 IA/runtime contract，manifest/build hash 就会变化，候选证据无法继续复用旧绑定。
+- `tests/unit/test_tui_runtime_manifest_contract.py` 固定关键 IA、policy/signal/account self-service injection 与 server-side loader 覆盖，并逐文件重算 manifest digest；本地 `21 passed`（含 observation/candidate recorder）。`npm run build:tui` 已重新生成 manifest，`npm run check:tui` 待提交后再复核。
+- 这只是本地 provenance/候选绑定收口，不是部署或观察窗口证据。当前生产仍为 revision=`unknown`、无合格 manifest、无 attestation，真实候选部署、14 日窗口、telemetry、backup 与双签继续 `DENY`。
+
 - M4：17/17 个 B 类 route template 已迁移，0 backlog；完整 TUI Workbench 加操作组
   非 sticky 回归现为 `240 passed`。
 - AGENTS.md 固定其余三组最小回归：`35 passed`；IA 与归一化幂等：

@@ -2247,6 +2247,13 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - legacy Broker Evidence registry/projector/order-detail 局部测试 `33 passed`；app-neutral Portfolio access registry纯测试已写。Black/isort、AST/py_compile、diff-check和module-cycle guard通过。
 - 当前默认Python缺Django/Celery且pytest自动插件缺Playwright，Portfolio API与Account command的完整Django回归未在本环境执行；生产执行总闸和所有inactive合同均未改变。
 
+### 2026-08-14：Evidence composition boundary 与 governance consistency 收口
+
+- 将 Operator Spec approval 的 concrete Django 组装移入 Risk Center-owned `apps/risk_center/evidence_operator_spec_approval_composition.py`，将 lifecycle 的 concrete 组装移入 Research-owned `apps/research/evidence_operator_spec_lifecycle_composition.py`。`core/integration` 仅保留不含 infrastructure import 的兼容导出，Risk Center Interface 直接依赖自己的 composition root。
+- 这修复了 governance consistency 唯一失败项 `core_integration_infrastructure_import_growth`（旧的 0→4 concrete imports），不抬高 baseline、不把跨 App ORM 组装下沉到 Application；架构边界与审计扫描均为 0 violations。
+- 定向 Application/API 单元回归 `24 passed`；四组 Django component 共收集 `10` 个测试，但在当前环境执行超过 180 秒超时，未计为通过。Data Center catalog `validated=10 datasets`、legacy fact guard、current-data `49 surfaces` 与 Celery `87 registered task(s)` 均通过。
+- 本地验证：`python scripts/check_governance_consistency.py`、`python scripts/verify_architecture.py --include-audit --format text` 均通过。生产人工审核、PostgreSQL 并发和真实数据仍未完成，Evidence/decision hard gate 与 execution 总闸保持不变。
+
 ## 三、实施阶段
 
 ### M0：冻结与设计收口

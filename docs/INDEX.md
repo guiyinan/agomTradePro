@@ -892,6 +892,12 @@
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
+- ✅ **Evidence composition boundary / governance consistency 收口（2026-08-14）**
+  - Operator Spec approval/lifecycle concrete Django 组装移入 Risk Center/Research owner composition，`core/integration` 仅保留无 infrastructure import 的兼容导出
+  - governance consistency 与 architecture audit 均 0 violations；Data Center catalog、legacy fact、current-data 与 Celery guards 通过。四组 Django component 共收集10项但当前环境执行超时，生产人工审核、PostgreSQL 并发与真实数据仍未完成
+- ✅ **Web→TUI backend contract provenance（2026-08-14）**
+  - runtime manifest 逐文件覆盖 IA、Application metadata、IA loader、repository/signals 与全部 `tui_metadata_runtime_*.py`；manifest digest contract 与 observation/candidate recorder 定向回归合计 21 passed
+  - 仅完成本地候选 provenance；生产仍 revision=`unknown`/无 manifest，M5 观察窗口继续 DENY
 - ✅ **Broker-owned broker account identity snapshot Domain 合同**
   - 封存Broker账户、Account exact source、binding/Agent owner seal与keyed QMT reference digest；Account字符串与Broker整数身份不做cast，owner/real/active必须闭合
   - 固定inactive；Account facade、Broker raw provider/digest service、ID-only发行和ledger/current reader均未完成，namespace blocker不变
