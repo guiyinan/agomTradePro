@@ -2117,6 +2117,13 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - Application/Evidence/composition/mapping定向pure `41 passed`；0049/0050与真实composition组件链`12 passed`；Ruff、Black/isort、3 production files strict mypy及architecture 2852/0通过。
 - 无schema/migration变化，也未扩大到write/approval。zero-seed、staff认证入口、knowledge backfill/contract、PostgreSQL竞争与SimulatedAccount全writer cutover仍是production authority前置，execution总闸不变。
 
+### 2026-08-14：Account owner-assignment v3 actor authority Application合同
+
+- 新增纯Application请求principal与exact-current Account actor authority合同。principal只携server-authenticated principal ID、user ID、authentication-context hash及有效窗；每次`get_current(as_of)`都重新调用注入的authority reader，不缓存或冻结`request.user` actor，因此Receipt/Evidence workflow的cutoff/recorded-at二读仍能发现撤权、停用、会话失效或RBAC漂移。
+- claimant仅接受current authenticated+active且nonstaff/nonsuperuser authority，并固定投影`account_owner_claimant`；approver必须同时为current active staff与normalized Account admin，固定投影`account_owner_assignment_approver`。selector/hash/future-recorded替换报公共corruption，诚实的revoked/inactive/expired返回None。
+- actor authority与Receipt/Evidence Application定向pure `32 passed`；Ruff、Black/isort、strict mypy及architecture 2853/0通过。Domain/Application双维防自批仍为最终两人边界。
+- 本批仅Protocol/DTO/provider规则与fakes，不含Django ORM authority reader、request principal adapter、write composition或HTTP/TUI入口。mutable User/Profile row不能被现场hash冒充owner-issued exact authority；在正式Account actor source与专属审批权限适配完成前，不得接写路由或称production staff authorization已上线。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

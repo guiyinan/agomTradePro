@@ -828,6 +828,9 @@
 - ✅ **Account Physical/Receipt-v3 current ID/hash-only边界**
   - current command仅接ID/version/content hash/PIT，服务端exact恢复canonical对象后再派生最终head、TTL与upstream selectors；composition不再拼接caller Domain对象
   - 定向pure 41 passed、0049/0050/composition组件链12 passed、architecture 2852/0；无schema/write变化，production authority前置与execution总闸不变
+- ✅ **Account owner-assignment v3 actor authority Application合同**
+  - request principal仅作selector，每次读取重新验证exact-current active/user/RBAC authority；claimant为nonstaff/nonsuperuser，approver为staff+Account admin，撤权/过期fail closed
+  - 定向pure 32 passed、architecture 2853/0；仅Protocol/DTO+fakes，Django authority source、request adapter、write composition与路由均未实现
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
