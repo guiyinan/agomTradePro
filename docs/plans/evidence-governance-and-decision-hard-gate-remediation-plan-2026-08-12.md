@@ -2103,6 +2103,13 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 输出固定`identity_mapping_only + inactive + execution_allowed=false`；缺失、legacy-only无v3 head、expired、upstream superseded、双root不一致或任何非authoritative状态均返回None，不回退Evidence-v2或mutable Account row。pure `6 passed`，Ruff、Black/isort、strict mypy及architecture 2851/0通过。
 - facade尚未组装production provider；最小诚实composition可完全使用Account 0046/0047/0049/0050 repositories与Application exact/current usecases，不能反向import SimulatedTrading造成app cycle。现Receipt/Physical current command仍携完整对象，composition需exact-first适配，未来再独立收窄为ID/hash-only。
 
+### 2026-08-14：Account Evidence-v3 Account-only只读composition
+
+- 新增Account app-root只读组装点，统一以同一database alias组装0047/0048 durable Binding-v2、0046 allocated Physical-v3、0049 Receipt-v3与0050 Evidence-v3 repositories。Physical-v3与Receipt-v3均先用ID/version/hash读取exact Domain对象，再交给现有full-object current use case复核最终逻辑头；不存在scalar签名冒充或v1 fallback。
+- Binding/Physical专属异常在只读边界翻译为公共Account owner-assignment taxonomy：Unavailable保持不可用，Conflict/Corruption统一fail closed为Corruption。最终只公开current Evidence-v3 reader与authoritative mapping v3 facade，不公开atomic、append、actor或approval能力，也不import SimulatedTrading，避免形成反向app依赖。
+- composition与mapping pure组合`18 passed`；真实Django5.2空账本组件`1 passed`，证明zero-seed 0046/0047/0049/0050图稳定返回None；Ruff、Black/isort、strict mypy与architecture 2852/0通过。
+- 这只完成production可构造的只读图，不代表存在authority数据。所有相关账本仍zero-seed；真实staff认证/审批写入口、SimulatedAccount全writer同事务cutover、knowledge backfill/contract、PostgreSQL迁移与双连接竞争仍未完成，execution总闸不变。Receipt/Physical current command的full-object形状保留为后续独立API收窄债务。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

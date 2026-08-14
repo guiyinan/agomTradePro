@@ -822,6 +822,9 @@
 - ✅ **Account authoritative mapping v3 read-only facade**
   - underlying selector先取0050 Evidence-v3 head，再以ID/version/hash重验current exact equality；只发布identity_mapping_only/inactive/execution=false，legacy/missing/stale均None且无v2 fallback
   - pure 6 passed、architecture 2851/0；production Account-only exact-first composition、staff provider与PG证明仍缺
+- ✅ **Account Evidence-v3 Account-only只读composition**
+  - 同alias组装0046/0047/0049/0050 readers，Physical/Receipt以scalar exact selector恢复完整Domain后再做current复核；无Simulated反向依赖、v1 fallback或writer/approval surface
+  - pure组合18 passed、Django5.2空账本组件1 passed、architecture 2852/0；全账本仍zero-seed，staff写入口、knowledge contract、PG竞争与全writer cutover未完成
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
