@@ -112,12 +112,12 @@ def _require_postgresql_evidence() -> None:
 
 
 @pytest.fixture(scope="module", autouse=True)
-def _audit_pg_schema(django_db_blocker: object) -> Iterator[None]:
+def _audit_pg_schema(django_db_setup: object, django_db_blocker: object) -> Iterator[None]:
     """Create only the two zero-seed audit tables in the isolated test DB."""
 
-    _require_postgresql_evidence()
     created_tables = False
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
+        _require_postgresql_evidence()
         required_tables = {
             SystemAuditEventModel._meta.db_table,
             SystemAuditOutboxModel._meta.db_table,
