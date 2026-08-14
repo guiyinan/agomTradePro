@@ -363,6 +363,12 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 - `DjangoSystemAuditOutboxRepository` 的 claim/delivered/failed 只能在同一 private UOW 中取得精确行、字段和值绑定的 transition capability 后写入；直接 ORM 状态修改测试改为 fail-closed。定向模型/repository/dispatcher 回归 `10 passed`，增量 mypy `0 regressions`。
 - 该批只关闭“可绕过 repository 改状态”的本地软件契约；expired claimed lease reclaim、mixed batch/failure accounting、真实 PostgreSQL race/lease、backlog recovery、业务双写和生产 publisher 仍未完成，不能据此解除 M1 PostgreSQL gate。
 
+### 2026-08-15：M1 outbox expired-lease recovery
+
+- `DjangoSystemAuditOutboxRepository.claim_due()` 现在接受正的 `lease_duration`（默认 5 分钟）：pending 且到期的行照常首次领取，claimed 且 `claimed_at + lease_duration <= as_of` 的行可由新 worker 在同一锁/UOW 中重新领取；每次回收都会生成新 token、递增 attempt，旧 worker 的 token 稳定冲突，避免 worker 崩溃造成永久 `claimed`。
+- component 新增 lease 未到期不回收、到期回收、旧 token 不能 finalize、新 token 可完成的闭环；outbox repository/model/dispatcher 定向回归 `11 passed`，增量 mypy `0 regressions`，仍未把 SQLite 结果计为 PostgreSQL race 证据。
+- lease TTL 仍是 repository 配置而非生产调度证明；mixed batch/failure accounting、真正 PostgreSQL 双连接竞争、backlog 观测/告警、真实 publisher、业务双写和生产迁移继续未完成。
+
 ### 2026-08-15：PostgreSQL 并发证据 harness（opt-in，证据待运行）
 
 - 新增 `tests/component/audit/test_system_audit_postgres_concurrency.py` 与独立 `tests/settings_audit_postgres_concurrency.py`；覆盖空 stream first-winner、同 predecessor CAS、outbox claim lease ownership，以及 claim transaction rollback 后的重新 claim。

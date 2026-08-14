@@ -104,6 +104,48 @@ def test_claim_token_and_state_transitions_fail_closed() -> None:
     assert record.status == SystemAuditOutboxModel.STATUS_PENDING
 
 
+def test_expired_claim_is_reclaimed_with_new_token_and_attempt() -> None:
+    repository = _repository()
+    event = make_event()
+    with repository.atomic():
+        repository.enqueue(event, created_at=NOW, available_at=NOW)
+        first_claim = repository.claim_due(worker_id="worker-1", as_of=LATER, limit=1)[0]
+
+    lease_expiry = LATER + timedelta(minutes=5)
+    with repository.atomic():
+        assert (
+            repository.claim_due(
+                worker_id="worker-2",
+                as_of=lease_expiry - timedelta(seconds=1),
+                limit=1,
+            )
+            == ()
+        )
+        reclaimed = repository.claim_due(
+            worker_id="worker-2",
+            as_of=lease_expiry,
+            limit=1,
+        )[0]
+        assert reclaimed.outbox_id == first_claim.outbox_id
+        assert reclaimed.claim_token != first_claim.claim_token
+        assert reclaimed.attempt_count == first_claim.attempt_count + 1
+        with pytest.raises(SystemAuditOutboxConflict, match="token"):
+            repository.mark_delivered(
+                outbox_id=first_claim.outbox_id,
+                worker_id=first_claim.worker_id,
+                claim_token=first_claim.claim_token,
+                delivered_at=lease_expiry,
+            )
+        delivered = repository.mark_delivered(
+            outbox_id=reclaimed.outbox_id,
+            worker_id=reclaimed.worker_id,
+            claim_token=reclaimed.claim_token,
+            delivered_at=lease_expiry,
+        )
+    assert delivered.status == SystemAuditOutboxModel.STATUS_DELIVERED
+    assert delivered.attempt_count == 2
+
+
 def test_full_table_restore_rejects_payload_tamper() -> None:
     repository = _repository()
     event = make_event()

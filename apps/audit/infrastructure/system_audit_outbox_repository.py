@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Protocol, cast
 from uuid import UUID, uuid4
 
@@ -92,16 +92,20 @@ class SystemAuditOutboxClaim:
 class DjangoSystemAuditOutboxRepository:
     """Append-only outbox enqueue plus private claim-state transitions."""
 
-    __slots__ = ("_clock", "_uow", "_using")
+    __slots__ = ("_clock", "_lease_duration", "_uow", "_using")
 
     def __init__(
         self,
         *,
         using: str = "default",
         clock: SystemAuditOutboxClock | None = None,
+        lease_duration: timedelta = timedelta(minutes=5),
     ) -> None:
+        if not isinstance(lease_duration, timedelta) or lease_duration <= timedelta(0):
+            raise ValueError("lease_duration must be positive")
         self._using = using
         self._clock = clock or DjangoSystemAuditOutboxClock()
+        self._lease_duration = lease_duration
         self._uow: object | None = None
 
     @contextmanager
@@ -224,7 +228,13 @@ class DjangoSystemAuditOutboxRepository:
         as_of: datetime,
         limit: int,
     ) -> tuple[SystemAuditOutboxClaim, ...]:
-        """Atomically claim pending rows due at ``as_of`` for one worker."""
+        """Atomically claim due rows and reclaim expired worker leases.
+
+        A claimed row whose lease has expired is eligible for a new worker and
+        receives a fresh token.  The previous token therefore cannot finalize
+        the row after a worker timeout; the claim remains protected by the
+        same row lock and private transition capability as a first claim.
+        """
 
         self._require_uow()
         self._require_text(worker_id, "worker_id", max_length=128)
@@ -235,7 +245,12 @@ class DjangoSystemAuditOutboxRepository:
         due = [
             item
             for item in state
-            if item.status == SystemAuditOutboxModel.STATUS_PENDING and item.available_at <= as_of
+            if (item.status == SystemAuditOutboxModel.STATUS_PENDING and item.available_at <= as_of)
+            or (
+                item.status == SystemAuditOutboxModel.STATUS_CLAIMED
+                and item.claimed_at is not None
+                and item.claimed_at + self._lease_duration <= as_of
+            )
         ][:limit]
         claims: list[SystemAuditOutboxClaim] = []
         for item in due:
