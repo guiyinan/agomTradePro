@@ -160,6 +160,110 @@ def test_full_table_restore_rejects_payload_tamper() -> None:
         repository.get_exact(outbox_id=record.outbox_id)
 
 
+def test_full_table_restore_rejects_available_before_created_tamper() -> None:
+    repository = _repository()
+    with repository.atomic():
+        record = repository.enqueue(event=make_event(), created_at=NOW, available_at=NOW)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE audit_system_outbox SET available_at = %s WHERE outbox_id = %s",
+            [NOW - timedelta(seconds=1), record.outbox_id.hex],
+        )
+    with pytest.raises(SystemAuditOutboxCorruption, match="available clock"):
+        repository.get_exact(outbox_id=record.outbox_id)
+
+
+def test_full_table_restore_rejects_claim_clock_before_created_tamper() -> None:
+    repository = _repository()
+    with repository.atomic():
+        record = repository.enqueue(event=make_event(), created_at=NOW, available_at=NOW)
+        claim = repository.claim_due(worker_id="worker-1", as_of=LATER, limit=1)[0]
+    tampered = NOW - timedelta(seconds=1)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE audit_system_outbox "
+            "SET claimed_at = %s, updated_at = %s WHERE outbox_id = %s",
+            [tampered, LATER, record.outbox_id.hex],
+        )
+    assert claim.outbox_id == record.outbox_id
+    with pytest.raises(SystemAuditOutboxCorruption, match="claim clock"):
+        repository.get_exact(outbox_id=record.outbox_id)
+
+
+def test_full_table_restore_rejects_terminal_clock_before_claim_tamper() -> None:
+    repository = _repository()
+    delivered_event = make_event(
+        event_id="evt-delivery-clock", idempotency_key="fetch:delivery-clock"
+    )
+    failed_event = make_event(event_id="evt-failure-clock", idempotency_key="fetch:failure-clock")
+    with repository.atomic():
+        delivered_record = repository.enqueue(
+            event=delivered_event, created_at=NOW, available_at=NOW
+        )
+        delivered_claim = repository.claim_due(worker_id="worker-delivery", as_of=LATER, limit=1)[0]
+        repository.mark_delivered(
+            outbox_id=delivered_claim.outbox_id,
+            worker_id=delivered_claim.worker_id,
+            claim_token=delivered_claim.claim_token,
+            delivered_at=LATER,
+        )
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE audit_system_outbox "
+            "SET delivered_at = %s, updated_at = %s WHERE outbox_id = %s",
+            [NOW, LATER, delivered_record.outbox_id.hex],
+        )
+    with pytest.raises(SystemAuditOutboxCorruption, match="delivery clock"):
+        repository.get_exact(outbox_id=delivered_record.outbox_id)
+
+    with connection.cursor() as cursor:
+        cursor.execute("DELETE FROM audit_system_outbox")
+    with repository.atomic():
+        failed_record = repository.enqueue(event=failed_event, created_at=NOW, available_at=NOW)
+        failed_claim = repository.claim_due(worker_id="worker-failure", as_of=LATER, limit=1)[0]
+        repository.mark_failed(
+            outbox_id=failed_claim.outbox_id,
+            worker_id=failed_claim.worker_id,
+            claim_token=failed_claim.claim_token,
+            error_code="publisher_error",
+            failed_at=LATER,
+        )
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE audit_system_outbox "
+            "SET last_error_at = %s, updated_at = %s WHERE outbox_id = %s",
+            [NOW, LATER, failed_record.outbox_id.hex],
+        )
+    with pytest.raises(SystemAuditOutboxCorruption, match="failure clock"):
+        repository.get_exact(outbox_id=failed_record.outbox_id)
+
+
+def test_full_table_restore_rejects_terminal_state_left_on_pending_row() -> None:
+    repository = _repository()
+    with repository.atomic():
+        record = repository.enqueue(event=make_event(), created_at=NOW, available_at=NOW)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE audit_system_outbox SET last_error_code = %s " "WHERE outbox_id = %s",
+            ["publisher_error", record.outbox_id.hex],
+        )
+    with pytest.raises(SystemAuditOutboxCorruption, match="terminal state|failure code"):
+        repository.get_exact(outbox_id=record.outbox_id)
+
+
+def test_full_table_restore_rejects_pending_updated_clock_tamper() -> None:
+    repository = _repository()
+    with repository.atomic():
+        record = repository.enqueue(event=make_event(), created_at=NOW, available_at=NOW)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE audit_system_outbox SET updated_at = %s WHERE outbox_id = %s",
+            [LATER, record.outbox_id.hex],
+        )
+    with pytest.raises(SystemAuditOutboxCorruption, match="updated clock"):
+        repository.get_exact(outbox_id=record.outbox_id)
+
+
 def test_private_uow_and_invalid_claim_limit_are_enforced() -> None:
     repository = _repository()
     with pytest.raises(SystemAuditOutboxConflict, match="atomic"):

@@ -457,6 +457,27 @@ class DjangoSystemAuditOutboxRepository:
             value = getattr(row, name)
             if value is not None:
                 self._require_aware(value, name)
+        if row.available_at < row.created_at:
+            raise SystemAuditOutboxCorruption("outbox available clock precedes created clock")
+        if row.claimed_at is not None:
+            if row.claimed_at < row.created_at:
+                raise SystemAuditOutboxCorruption("outbox claim clock precedes created clock")
+            if row.claimed_at > row.updated_at:
+                raise SystemAuditOutboxCorruption("outbox claim clock exceeds updated clock")
+        if row.delivered_at is not None:
+            if row.claimed_at is None or row.delivered_at < row.claimed_at:
+                raise SystemAuditOutboxCorruption("outbox delivery clock precedes claim clock")
+            if row.delivered_at != row.updated_at:
+                raise SystemAuditOutboxCorruption(
+                    "outbox delivery clock does not equal updated clock"
+                )
+        if row.last_error_at is not None:
+            if row.claimed_at is None or row.last_error_at < row.claimed_at:
+                raise SystemAuditOutboxCorruption("outbox failure clock precedes claim clock")
+            if row.last_error_at != row.updated_at:
+                raise SystemAuditOutboxCorruption(
+                    "outbox failure clock does not equal updated clock"
+                )
         if row.status == SystemAuditOutboxModel.STATUS_PENDING:
             if (
                 row.claimed_at is not None
@@ -464,13 +485,25 @@ class DjangoSystemAuditOutboxRepository:
                 or row.claim_token is not None
             ):
                 raise SystemAuditOutboxCorruption("pending outbox row still has claim state")
-            if row.delivered_at is not None:
-                raise SystemAuditOutboxCorruption("pending outbox row is already delivered")
+            if row.delivered_at is not None or row.last_error_at is not None:
+                raise SystemAuditOutboxCorruption("pending outbox row has terminal state")
+            if row.last_error_code is not None:
+                raise SystemAuditOutboxCorruption("pending outbox row has failure code")
+            if row.updated_at != row.created_at:
+                raise SystemAuditOutboxCorruption(
+                    "pending outbox row updated clock does not equal created clock"
+                )
         elif row.status == SystemAuditOutboxModel.STATUS_CLAIMED:
             if not row.claimed_at or not row.claimed_by or not row.claim_token:
                 raise SystemAuditOutboxCorruption("claimed outbox row is missing claim state")
-            if row.delivered_at is not None:
-                raise SystemAuditOutboxCorruption("claimed outbox row is already delivered")
+            if row.updated_at != row.claimed_at:
+                raise SystemAuditOutboxCorruption(
+                    "claimed outbox row updated clock does not equal claim clock"
+                )
+            if row.delivered_at is not None or row.last_error_at is not None:
+                raise SystemAuditOutboxCorruption("claimed outbox row has terminal state")
+            if row.last_error_code is not None:
+                raise SystemAuditOutboxCorruption("claimed outbox row has failure code")
         elif row.status == SystemAuditOutboxModel.STATUS_DELIVERED:
             if (
                 not row.claimed_at
@@ -479,11 +512,15 @@ class DjangoSystemAuditOutboxRepository:
                 or not row.delivered_at
             ):
                 raise SystemAuditOutboxCorruption("delivered outbox row is missing terminal state")
+            if row.last_error_at is not None or row.last_error_code is not None:
+                raise SystemAuditOutboxCorruption("delivered outbox row has failure state")
         elif row.status == SystemAuditOutboxModel.STATUS_FAILED:
             if not row.claimed_at or not row.claimed_by or not row.claim_token:
                 raise SystemAuditOutboxCorruption("failed outbox row is missing claim state")
             if not row.last_error_code or not row.last_error_at:
                 raise SystemAuditOutboxCorruption("failed outbox row is missing failure state")
+            if row.delivered_at is not None:
+                raise SystemAuditOutboxCorruption("failed outbox row is already delivered")
         else:
             raise SystemAuditOutboxCorruption("outbox status is not canonical")
         return SystemAuditOutboxRecord(
