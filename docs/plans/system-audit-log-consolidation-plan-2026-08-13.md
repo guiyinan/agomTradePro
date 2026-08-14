@@ -417,6 +417,22 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 - Application unit `5 passed`、SQLite schema component `3 passed`，覆盖 exact replay、writer failure、event substitution 和 outbox failure rollback；增量 mypy `0 regressions`、architecture audit `0 violations`、Black/isort 通过。
 - 该批只建立 dormant atomic composition，不接 Data Center sync、业务事件注册状态、publisher/runtime 或生产 route；`data.fetch.*` 仍保持 `not_wired`，真实 PostgreSQL race、迁移回滚、业务双写与生产审计覆盖继续阻断。
 
+### 2026-08-15：M1 Data Center fetch-event envelope contract
+
+- 新增 `apps/data_center/application/data_fetch_audit.py`：以 typed
+  `DataFetchAuditObservation` 和 `build_data_fetch_audit_event()` 固定
+  `data.fetch.completed/noop/failed` 的 outcome、reason、provider/capability/dataset、
+  `run_id/ingested_run_id` 与 RawAudit exact evidence ref；事件 ID/idempotency key
+  由批次身份稳定派生，stream sequence/predecessor 必须由同 alias coordinator 提供，
+  不允许 builder 现场伪造。
+- 定向 unit `8 passed`，增量 mypy `0 regressions`，architecture/audit `0 violations`，
+  Black/isort/diff-check 通过。
+- 这只是 Data Center Application envelope 合同，**没有**给现有
+  `SyncMacroUseCase` 接入 writer：当前同步请求没有稳定 `run_id/ingested_run_id`，
+  RawAudit 也没有可直接复用的 content-bound identity；事实、Provider Health、RawAudit、
+  Publication 与 event/outbox 还没有共同 UOW。故治理 registry 仍保持
+  `planned/not_wired`，不得把本地 builder 测试宣称为业务双写或生产审计覆盖。
+
 ### M1：Audit Domain、append-only ledger 与 Query
 
 交付：
