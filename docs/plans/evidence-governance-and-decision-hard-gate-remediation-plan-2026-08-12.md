@@ -2161,6 +2161,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 在Account Domain内新增仅供三种owner raw authority artifacts复用的frozen/slots primitives：exact source ID/version、`observed_at <= recorded_at < valid_until` aware clock、root/predecessor XOR chain，以及canonical UTC-Z、domain-separated hash和固定inactive/attestation-only/nonexecution header validator。业务语义未下沉`shared/`，也没有用单一kind+nullable矩阵混合auth-context/User/RBAC三种不同撤权规则。
 - pure `10 passed`；Ruff、Black/isort、strict mypy及architecture 2859/0通过。该模块不是raw source artifact、ledger、provider或request adapter；下一步仍须分别定义auth-context、User authority与RBAC authority concrete Domains，之后才可建立各自zero-seed ledgers与atomic aggregate provider。mutable session/User/Profile现场hash继续禁止。
 
+### 2026-08-14：Account auth-context/User/RBAC raw authority source v3 Domains
+
+- 新增三个独立Account-owned concrete artifacts并复用raw-source primitives，不使用nullable discriminator。Authentication Context封存opaque source/session identity、principal/user/stable actor、真实authenticated/revoked事实与authenticated clock，字段集合显式排除cookie/session key/token/CSRF/password；User Authority封存active/staff/superuser与current/deactivated；RBAC Authority只接受现Account schema的7个canonical roles与current/revoked，不import或现场调用Application role normalization。
+- 三种artifact均固定inactive/attestation-only/nonexecution，identity/root hash显式包含owner/artifact/schema并按各自domain分离；完整principal/user/RBAC/facts/clock/chain/fixed/record/content seals和canonical nested payload。相邻successor精确绑定前序content、固定各自root identity并推进version/observation/record clock；auth-context还冻结authenticated_at。revoked/deactivated为terminal，historical knowable永久而temporal-current明确不代表ledger head。
+- primitives+三Domain pure `85 passed`；Ruff、Black/isort、3 production files strict mypy及architecture 2862/0通过。本批仍无strict codecs、append-only raw ledgers、Django immutable source writers、atomic bundle provider或request adapter；不能从mutable session/User/Profile即席构造这些Domain对象，也未启用staff composition、route或execution。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

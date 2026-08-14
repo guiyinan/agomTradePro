@@ -849,6 +849,9 @@
 - ✅ **Account actor authority raw-source v3 Domain primitives**
   - Account Domain内复用exact identity、aware observation/knowledge/validity clock、root/predecessor XOR、UTC-Z/domain hash及fixed inactive/nonexecution header，不混合三种业务artifact
   - pure 10 passed、architecture 2859/0；仅primitives，auth-context/User/RBAC concrete artifacts与ledgers/atomic provider仍缺
+- ✅ **Account auth-context/User/RBAC raw authority source v3 Domains**
+  - 三种独立artifact分别封存secret-free认证上下文、User active/staff/superuser及7-role canonical RBAC；各自domain-separated identity/root/seals、successor与terminal no-fallback语义
+  - primitives+三Domain pure 85 passed、strict mypy、architecture 2862/0；无codec/ledger/immutable Django writers/atomic bundle/request adapter，staff与execution仍关闭
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
