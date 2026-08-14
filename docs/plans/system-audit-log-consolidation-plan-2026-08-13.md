@@ -351,6 +351,11 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 - 新增 `apps/audit/application/system_audit_query.py`：不依赖 ORM 的 staff-only reader context、ID/version/hash/PIT exact command、stream 分页 DTO 与 repository Protocol；非 staff 在触碰 repository 前拒绝，repository selector substitution/无序结果 fail closed；纯 unit `5 passed`，增量 mypy `0 regressions`，architecture `2887 files / 0 violations`。
 - 本批仍未提供 outbox dispatcher/claim worker、Data Center 双写、业务 runtime wiring 或生产 composition；SQLite component 不证明 PostgreSQL 空链并发/first-winner，真实 migration/rollback、backlog 恢复、staff authority source 与生产审计覆盖继续未验证。
 
+### 2026-08-15：M1 staff query actor binding
+
+- `SystemAuditReaderContext.can_read` 现在除 authenticated/staff 外，还必须满足 `actor_id == django-user:{user_id}`；不允许把任意 service/actor 字符串与 staff 标志拼成可读上下文。该约束只校验请求上下文的内部绑定，不冒充权威 RBAC/authority source。
+- 新增未绑定 actor 的 repository-before-call fail-closed 回归，query unit `6 passed`，增量 mypy `0 regressions`。具体 authenticated user、staff/RBAC authority source、owner scope 与生产 composition 仍待后续。
+
 ### 2026-08-15：M1 outbox claim/dispatcher 合同
 
 - 新增 `apps/audit/infrastructure/system_audit_outbox_repository.py`：严格恢复全表 outbox payload 与事件 codec，private exact-insert claim，enqueue first-winner/idempotency replay，private non-nested UOW，due-row claim、worker/token ownership、delivered/failed 状态机和 immutable payload/hash 校验；claim/transition 只更新允许的状态列，不删除或重写事件。

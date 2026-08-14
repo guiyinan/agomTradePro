@@ -44,9 +44,19 @@ class SystemAuditReaderContext:
 
     @property
     def can_read(self) -> bool:
-        """Return whether this request-scoped context is staff-authenticated."""
+        """Return whether this context is staff-authenticated and user-bound.
 
-        return self.is_authenticated and self.is_staff
+        The application contract does not decide the eventual RBAC policy, but
+        it must never treat an arbitrary service/actor string as the staff
+        user represented by ``user_id``.  Concrete composition still has to
+        source these facts from the authoritative authentication provider.
+        """
+
+        return (
+            self.is_authenticated
+            and self.is_staff
+            and self.actor_id == f"django-user:{self.user_id}"
+        )
 
 
 class SystemAuditQueryRepository(Protocol):

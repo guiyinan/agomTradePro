@@ -125,6 +125,21 @@ def test_non_staff_reader_is_denied_before_repository_call() -> None:
         )
 
 
+def test_staff_reader_with_unbound_actor_is_denied_before_repository_call() -> None:
+    class ExplodingRepository(FakeRepository):
+        def list_events(self, **kwargs: object) -> tuple[SystemAuditEvent, ...]:
+            raise AssertionError("repository must not be called")
+
+    with pytest.raises(SystemAuditQueryUnavailable, match="staff"):
+        ListSystemAuditEventsUseCase(ExplodingRepository(())).execute(
+            ListSystemAuditEventsCommand(
+                stream_id="dataset:macro.pmi",
+                as_of=NOW,
+                reader=replace(_reader(), actor_id="service:collector"),
+            )
+        )
+
+
 def test_exact_reader_rechecks_identity_version_and_hash() -> None:
     event = make_event()
     use_case = GetSystemAuditEventUseCase(FakeRepository((event,)))
