@@ -533,7 +533,7 @@ if image_sha != source_commit:
 print(f"git_sha={source_commit}")
 print(f"image_sha={image_sha}")
 print(f"image_id={image_id}")
-    """
+    """.strip()
     quoted_manifest = shlex.quote(manifest_path)
     return (
         f"cd {shlex.quote(target_dir)}/current && "
@@ -542,7 +542,7 @@ print(f"image_id={image_id}")
         "image_id=$(docker inspect -f '{{.Image}}' \"$cid\") && "
         'image_sha=$(docker image inspect -f \'{{index .Config.Labels "org.opencontainers.image.revision"}}\' "$image_id") && '
         f'python3 - {quoted_manifest} "$image_id" "$image_sha" <<\'PY\'\n'
-        f"{manifest_python}"
+        f"{manifest_python}\n"
         "PY\n"
     )
 

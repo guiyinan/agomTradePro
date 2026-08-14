@@ -303,3 +303,4 @@ def test_release_identity_supports_manifest_backed_source_uploads_fail_closed():
     assert "manifest image ID does not match running image" in identity
     assert "manifest source commit does not match image revision" in identity
     assert "git rev-parse HEAD" not in identity
+    assert "\nPY\n" in identity
