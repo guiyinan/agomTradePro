@@ -975,6 +975,12 @@
 - ✅ **系统级统一审计日志 M1 Data Center RawAudit identity boundary（2026-08-15）**
   - `RawAudit` 新增稳定 row identity、run/ingested-run 关联与 canonical content hash；历史缺字段行向 fetch event 的提升 fail-closed；迁移 `0070` 仅 nullable expand、不回填；RawAudit/SyncMacro/Macro publication `15 passed`
   - 仅 evidence boundary；尚未接服务端 run issuer、共同 UOW、事实/Health/RawAudit/Publication/event/outbox 双写或 PostgreSQL 生产证据，`data.fetch.*` 仍 `planned/not_wired`
+- ✅ **系统级统一审计日志 M1 Data Center SyncExecution identity contract（2026-08-15）**
+  - 纯 Application `SyncExecutionIdentity`/issuer port 固定 server-issued run/ingested-run/batch UUID 与 domain-separated identity hash；command 不接受 caller identity/clock，纯测试 `8 passed`，增量 mypy/architecture/格式门禁通过
+  - 仅 dormant identity boundary；尚无 issuer persistence、SyncMacro 同 UOW、事实/Health/RawAudit/Publication/event/outbox 双写、迁移回填或 PostgreSQL 证据，`data.fetch.*` 仍 `planned/not_wired`
+- ✅ **系统级统一审计日志 M1 outbox dispatch task fail-closed contract（2026-08-15）**
+  - Celery dispatch task 在 canonical publisher 未组装时于 claim 前返回 `blocked`，不使用通用 Events/memory/eager fallback；输入、blocked、composition failure `4 passed`，Celery manifest `88 registered / 22 governed files` 通过
+  - 仅 dormant task/gate；无 durable publisher、claim/retry/requeue、beat schedule、业务双写、生产 broker/PG 或自动恢复证据，system-audit publisher/runtime gate 继续阻断
 - ✅ **系统级统一审计日志 M1 event/outbox atomic composition contract（2026-08-15）**
   - 新增 dormant 同 alias coordinator，event append 与 outbox enqueue 同 outer transaction；exact retry、event substitution、outbox failure rollback 已覆盖；unit `5 passed`、SQLite component `3 passed`、增量 mypy/architecture 通过
   - 尚未接 Data Center `data.fetch.*`、publisher/runtime 或生产 route；真实 PostgreSQL 双写竞争、migration/rollback 与业务事件仍待完成，M1 gate 不变

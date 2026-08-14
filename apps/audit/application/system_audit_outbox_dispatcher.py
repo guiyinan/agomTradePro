@@ -19,6 +19,10 @@ from apps.audit.domain.system_audit_event import SystemAuditEvent
 class SystemAuditOutboxDispatchUnavailable(Exception):
     """The dispatcher cannot claim or finalize a requested outbox row."""
 
+    def __init__(self, message: str, *, reason_code: str = "dispatch_unavailable") -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+
 
 class SystemAuditOutboxDispatchConflict(Exception):
     """A claim token or transition no longer belongs to this dispatcher."""
@@ -110,6 +114,36 @@ class DispatchSystemAuditOutboxResult:
         return "success" if self.delivered else "noop"
 
 
+@dataclass(frozen=True, slots=True)
+class BlockedSystemAuditOutboxDispatchResult:
+    """Stable result for a dispatch request blocked before any claim."""
+
+    requested: int
+    reason_code: str
+    claimed: int = 0
+    delivered: int = 0
+    failed: int = 0
+
+    @property
+    def outcome(self) -> str:
+        """Return the business outcome required for a blocked task."""
+
+        return "blocked"
+
+    def as_task_result(self) -> dict[str, object]:
+        """Return bounded Celery task fields without exception text."""
+
+        return {
+            "outcome": self.outcome,
+            "success": False,
+            "reason_code": self.reason_code,
+            "requested": self.requested,
+            "claimed": self.claimed,
+            "delivered": self.delivered,
+            "failed": self.failed,
+        }
+
+
 class DispatchSystemAuditOutboxUseCase:
     """Claim and publish a bounded batch without wiring a real publisher."""
 
@@ -196,6 +230,7 @@ class DispatchSystemAuditOutboxUseCase:
 
 
 __all__ = [
+    "BlockedSystemAuditOutboxDispatchResult",
     "DispatchSystemAuditOutboxCommand",
     "DispatchSystemAuditOutboxResult",
     "DispatchSystemAuditOutboxUseCase",

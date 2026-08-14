@@ -11,6 +11,9 @@ from django.utils import timezone
 from apps.audit.infrastructure.providers import DjangoAuditRepository as DjangoAuditRepository
 
 if TYPE_CHECKING:
+    from apps.audit.application.system_audit_outbox_dispatcher import (
+        DispatchSystemAuditOutboxUseCase,
+    )
     from apps.audit.infrastructure.failure_counter import AuditFailureCounter
     from apps.audit.infrastructure.system_audit_outbox_repository import (
         DjangoSystemAuditOutboxRepository,
@@ -33,6 +36,35 @@ def get_audit_outbox_repository(*, using: str = "default") -> DjangoSystemAuditO
     )
 
     return DjangoSystemAuditOutboxRepository(using=using)
+
+
+def get_system_audit_outbox_dispatcher() -> DispatchSystemAuditOutboxUseCase:
+    """Return a safe dispatcher or raise an application-level blocked reason."""
+
+    from apps.audit.application.system_audit_outbox_dispatcher import (
+        DispatchSystemAuditOutboxUseCase,
+        SystemAuditOutboxDispatchUnavailable,
+    )
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        SystemAuditOutboxPublisherUnavailable,
+    )
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        get_system_audit_outbox_dispatcher as _impl,
+    )
+
+    try:
+        dispatcher: DispatchSystemAuditOutboxUseCase = _impl()
+    except SystemAuditOutboxPublisherUnavailable as exc:
+        raise SystemAuditOutboxDispatchUnavailable(
+            "system audit outbox publisher is not wired",
+            reason_code=exc.reason_code,
+        ) from None
+    if not isinstance(dispatcher, DispatchSystemAuditOutboxUseCase):
+        raise SystemAuditOutboxDispatchUnavailable(
+            "system audit outbox dispatcher composition is invalid",
+            reason_code="invalid_dispatch_composition",
+        )
+    return dispatcher
 
 
 def project_audit_outbox_backlog_metrics() -> bool:

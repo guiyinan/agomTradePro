@@ -18,12 +18,32 @@
     "apps/alpha/application/tasks.py",
     "apps/backtest/application/tasks.py",
     "apps/broker_execution/application/tasks.py",
+    "apps/audit/application/tasks.py",
     "apps/operational_readiness/application/tasks.py",
     "apps/pulse/application/tasks.py",
     "apps/signal/application/tasks.py",
     "apps/task_monitor/application/tasks.py"
   ],
   "tasks": [
+    {
+      "task_path": "apps.audit.application.tasks.dispatch_system_audit_outbox_task",
+      "source_file": "apps/audit/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/audit/test_outbox_dispatch_task_contracts.py",
+          "test_function": "test_dispatch_task_rejects_invalid_limit_before_composition"
+        },
+        "blocked": {
+          "test_file": "tests/unit/audit/test_outbox_dispatch_task_contracts.py",
+          "test_function": "test_dispatch_task_returns_blocked_before_any_claim_when_sink_is_unavailable"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/audit/test_outbox_dispatch_task_contracts.py",
+          "test_function": "test_dispatch_task_redacts_unexpected_composition_failure"
+        }
+      }
+    },
     {
       "task_path": "apps.task_monitor.application.backup_tasks.backup_database_task",
       "source_file": "apps/task_monitor/application/backup_tasks.py",

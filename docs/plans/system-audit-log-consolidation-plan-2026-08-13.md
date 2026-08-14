@@ -474,6 +474,30 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
   双写；`data.fetch.*` 仍保持 `planned/not_wired`，生产 migration/backfill 与 PostgreSQL
   双写证据继续阻断。
 
+### 2026-08-15：M1 Data Center SyncExecution identity contract
+
+- 新增纯 Application `SyncExecutionIdentity` 与 `SyncExecutionIdentityIssuer` port，固定
+  server-issued `run_id`、`ingested_run_id`、`batch_id`、dataset/provider selector 及
+  domain-separated identity hash；`IssueSyncExecutionIdentityCommand` 只接受路由字段，
+  不接受 caller UUID、request clock、随机 fallback 或 hash。
+- `raw_audit_correlation` 原样返回 run/ingested-run pair；8 个纯单元测试、增量 mypy、
+  architecture、Black/isort/diff-check 均通过。
+- 该批仍是 dormant boundary：没有实现 issuer persistence、SyncMacro 共同 UOW、事实/
+  Health/RawAudit/Publication/event/outbox 双写、迁移回填或生产 PostgreSQL 证据；
+  `data.fetch.*` 继续保持 `planned/not_wired`。
+
+### 2026-08-15：M1 outbox dispatch task fail-closed contract
+
+- 新增受治理的 Celery task `apps.audit.application.tasks.dispatch_system_audit_outbox_task`，
+  在 canonical durable publisher 尚未组装时于 claim 前返回 `outcome=blocked`；不导入通用
+  Events bus、不使用 memory/eager fallback、不伪造 `delivered`。输入、composition failure
+  与 blocked 结果均为 bounded counters/reason code。
+- 新增显式 `publisher_not_wired` infrastructure gate、blocked result DTO 与 4 个 task
+  contract tests；`check_celery_task_contracts.py` 通过（88 registered tasks，22 governed
+  files），定向 task tests `4 passed`。
+- 这不是 publisher/runtime wiring 或自动恢复：没有 claim、retry/requeue、beat schedule、
+  业务双写或生产 broker/PG 证据；system-audit 的 production publisher/runtime gate 继续阻断。
+
 ### M1：Audit Domain、append-only ledger 与 Query
 
 交付：
