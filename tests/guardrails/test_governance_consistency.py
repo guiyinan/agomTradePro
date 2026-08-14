@@ -130,7 +130,7 @@ def test_guardrail_governance_consistency_has_no_regressions():
         ".github/workflows/consistency-check.yml"
     )
     assert ci_governance_wiring["architecture_required_token_count"] > 0
-    assert ci_governance_wiring["consistency_required_token_count"] == 6
+    assert ci_governance_wiring["consistency_required_token_count"] == 9
 
     core_integration_debt = sections["core_integration_debt"]["data"]
     assert (

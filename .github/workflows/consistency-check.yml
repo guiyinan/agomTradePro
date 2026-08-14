@@ -53,6 +53,9 @@ jobs:
         run: |
           python scripts/check_current_data_contracts.py
 
+      - name: Enforce system audit event contracts
+        run: python scripts/check_audit_event_contracts.py
+
       - name: Enforce reliability contract ownership
         run: python scripts/check_reliability_contract_ownership.py
 
