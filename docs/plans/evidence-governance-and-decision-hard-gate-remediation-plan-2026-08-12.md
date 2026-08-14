@@ -2229,6 +2229,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - append要求锁定既有epoch、inner savepoint、exact predecessor CAS与IntegrityError exact replay；`get_current_head`保留terminal/expired最终head，不回退旧current。定向repository component `4 passed`，与0053 model、Domain/codec组合`47 passed`；Ruff、Black/isort、py_compile、official增量mypy 0 regressions及architecture 2879/0通过。
 - 本批仍是dormant persistence合同：0053空epoch/真实Profile version需未来同一owner UOW提供，未接mutable Profile/User/operator、mutation-id issuer、production role route或staff composition；未取得真实PostgreSQL空链/同predecessor竞争证据，zero-seed与execution总闸继续保持。
 
+### 2026-08-14：Account RBAC mutation binding v3 dormant Application writer contract
+
+- 新增ID/hash-only `AccountRbacAuthorityMutationBindingV3Command`、server-issued identity resolver与单一typed `AccountRbacAuthorityMutationBindingV3UnitOfWork`。写用例在同一注入UOW内先取server clock并解析稳定mutation/epoch identity，再查first winner；命中时只重验已持久binding并直接replay，不读取Profile、operator或live raw source。未命中时按final predecessor（过期但非revoked head仍可续接）读取完整old/new Profile refs、human staff+canonical-admin operator authority与0052 raw RBAC source exact/current，校验source role/subject/epoch闭合，构造完整Persisted binding并以predecessor CAS append，随后复核winner/head。
+- 定向writer unit `7 passed`；与既有Domain/codec/read contract/0053 model+repository组合 `54 passed`；Ruff、Black/isort、py_compile、official增量mypy `0 regressions`、architecture `2879/0` 与diff-check通过。Application仅依赖Protocol/Domain，未导入ORM或Infrastructure。
+- 本批明确仍为dormant orchestration contract：没有concrete Profile mutation receipt/version issuer、mutable User/Profile/operator lifecycle的同alias实现、0053跨epoch reactivation的PostgreSQL闭环或任何production route/composition；命令不得自行伪造source identity、facts或clock。生产写入口、staff approval、bundle/provider与execution总闸继续关闭，真实PostgreSQL空链/竞争仍待独立验收。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
