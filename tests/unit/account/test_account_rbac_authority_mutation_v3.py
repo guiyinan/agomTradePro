@@ -128,7 +128,7 @@ def test_winner_replay_has_zero_profile_reads() -> None:
     assert uow.profile_reads == 0
 
 
-def test_terminal_or_expired_head_blocks_before_profile_mutation() -> None:
+def test_terminal_head_blocks_before_profile_mutation() -> None:
     uow = _Uow()
     terminal = _source(source_id="profile-rbac:41", authority_state="revoked", rbac_role="owner")
     uow.records = [
@@ -142,6 +142,19 @@ def test_terminal_or_expired_head_blocks_before_profile_mutation() -> None:
             SetAccountRbacAuthorityRoleV3Command(41, "m2", "admin")
         )
     assert uow.profile.rbac_role == "owner"
+
+
+def test_expired_final_head_remains_the_only_valid_successor_predecessor() -> None:
+    uow = _Uow()
+    writer = SetAccountRbacAuthorityRoleV3(uow)
+    root = writer.execute(SetAccountRbacAuthorityRoleV3Command(41, "m1", "admin"))
+    uow.times = [NOW + timedelta(minutes=6), NOW + timedelta(minutes=6, seconds=2)]
+    uow.observed_at = NOW + timedelta(minutes=6, seconds=1)
+
+    successor = writer.execute(SetAccountRbacAuthorityRoleV3Command(41, "m2", "risk"))
+
+    assert successor.chain.supersedes_content_hash == root.content_hash
+    assert successor.rbac_role == "risk"
 
 
 @pytest.mark.parametrize("failure", ["clock", "append"])

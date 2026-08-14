@@ -171,10 +171,8 @@ class SetAccountRbacAuthorityRoleV3:
             head = head_record.source if head_record else None
             profile = self._profile(command.target_user_id)
             if head is not None:
-                if head.authority_state != "current" or not head.is_temporally_current_at(cutoff):
-                    raise AccountActorAuthorityRawSourceV3Conflict(
-                        "RBAC head is terminal or expired"
-                    )
+                if head.authority_state != "current":
+                    raise AccountActorAuthorityRawSourceV3Conflict("RBAC head is terminal")
                 if (head.user_id, head.actor_id, head.rbac_role) != (
                     profile.user_id,
                     profile.actor_id,

@@ -2200,7 +2200,7 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 
 - 新增纯Application编排合同，并只注入一个`AccountRbacAuthorityMutationV3UnitOfWork`。该UOW未来必须在同alias、同一事务内统一拥有稳定mutation→source identity解析、Profile锁/CAS、0052 winner/head/append和server clock；用例先查first winner，历史exact replay不再读取当前Profile，首次写才核Profile与final head、执行CAS、构造Domain root/successor并在append后复核winner/head/Profile。
 - command只接target user、server-issued mutation ID与七角色closed-set中的exact role；拒绝大小写、别名、首尾空白和fallback normalization。当前实现明确标记dormant，不存在concrete UOW、composition或生产调用点。
-- 定向pure`12 passed`，Ruff、Black/isort、strict mypy及architecture 2874/0通过。该artifact目前只是authority fact-outbox编排合同，不是owner mutation provenance receipt：尚未持久化证明mutation ID→source ID/version映射，也未封存issuer、mutation kind或exact old/new Profile hashes；不得接Profile写入口、注册/setup/signal或staff route，0052继续zero-seed，atomic bundle与execution总闸仍关闭。
+- final head即使TTL已过仍是唯一合法predecessor，可由owner追加fresh successor；只有revoked terminal阻断同epoch后继，current读取仍对expired head返回None且不回退。定向pure`13 passed`，Ruff、Black/isort、strict mypy及architecture 2874/0通过。该artifact目前只是authority fact-outbox编排合同，不是owner mutation provenance receipt：尚未持久化证明mutation ID→source ID/version映射，也未封存issuer、mutation kind或exact old/new Profile hashes；不得接Profile写入口、注册/setup/signal或staff route，0052继续zero-seed，atomic bundle与execution总闸仍关闭。
 
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 

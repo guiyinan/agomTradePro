@@ -869,7 +869,7 @@
   - repo 14 passed、与0052 model合计30 passed、architecture 2873/0；PG race/production migrate/lifecycle writer/version allocator/atomic bundle仍未完成
 - ✅ **Account RBAC authority mutation v3 dormant fact-outbox合同**
   - 单一Application UOW合同要求stable mutation identity、Profile lock/CAS、0052 winner/head/append与server clock处于同alias事务；winner-first历史重放不读取当前Profile，首次写和append后均复核Profile/head
-  - pure 12 passed、architecture 2874/0；无concrete UOW或生产入口，且没有issuer、mutation kind、exact old/new Profile hash及持久mutation→source绑定，不能称mutation receipt，0052保持zero-seed
+  - expired final仍是唯一合法predecessor，只有revoked阻断同epoch后继；pure 13 passed、architecture 2874/0。无concrete UOW或生产入口，且没有issuer、mutation kind、exact old/new Profile hash及持久mutation→source绑定，不能称mutation receipt，0052保持zero-seed
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
