@@ -2150,6 +2150,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 两表都使用private non-nestable UOW/exact insert claim，并阻断save/update/bulk/raw/delete绕写；DB约束固定inactive/attestation-only/nonexecution与automated recorder，校验authority state闭集、current必须authenticated+active、root/successor XOR、clock上下界和`persisted_at=recorded_at`。`source_id+version`、root/predecessor/content/seals保持唯一，chain index按source+recorded clock建立。
 - isolated Django5.2 model component `3 passed`；Ruff、Black/isort、pycompile、3 production files增量mypy 0 regressions及architecture 2857/0通过。本批尚无repository/closed-world restore/append CAS/IntegrityError replay，也没有PostgreSQL空root与same-predecessor双连接竞争证明；因此0051仍是zero-seed schema/guard，不是可用authority账本或production授权。
 
+### 2026-08-14：Account actor authority source v3 0051 repository
+
+- 新增Django repository，精确实现Application atomic/clock/first-winner/exact PIT/final-head/append协议。首次append在private UOW内以exact claim创建candidate-independent source/root anchor，再`select_for_update`该anchor；append整体位于inner savepoint，因CAS/校验失败即使被调用方在外层UOW捕获，也不会提交孤儿anchor。same-source successor以final predecessor content hash做CAS，IntegrityError只接受完整Persisted record exact replay。
+- 每次selector先恢复整张ledger和全部anchors，再应用recorded-at PIT。restore以strict codec重建Domain，逐列核canonical payload、service recorder、content-bound recorder seal、ledger seal与persisted clock；逐source验证single root、anchor root claim、PROTECT predecessor、相邻Domain successor、无fork/cycle/orphan/disconnect。`get_current_head`始终返回最终knowable head，即使terminal或expired，也不回退旧current。
+- isolated Django5.2 model+repository component `7 passed`，覆盖zero-seed/root replay/PIT/exact、terminal successor/expiry no-fallback、private UOW/CAS及caller-caught rollback、无关selector前full-table tamper；Ruff、Black/isort、pycompile、focused strict mypy及architecture 2858/0通过。真实PostgreSQL空root/same-predecessor双连接race、真实owner auth/User/RBAC ledgers与atomic bundle provider仍未完成，因此0051继续zero-seed且staff/write/execution入口关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
