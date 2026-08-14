@@ -447,6 +447,18 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
   自动恢复、生产告警或 PostgreSQL backlog 观察已完成。Data Center 双写仍保持
   `planned/not_wired`，生产 migration/rollback 与 publisher/runtime gate 继续阻断。
 
+### 2026-08-15：M4 `/metrics/` lazy backlog projection wiring
+
+- `apps/audit/application/repository_provider.py` 新增只读 projection facade：固定使用
+  `default` 数据库 alias、`django.utils.timezone.now()` 作为观察 cutoff，调用既有 backlog
+  Application use case 后投影到 bounded gauges；读库、strict restore 或 metric sink 异常只记录
+  `error_type` 并返回 `False`。
+- `core/urls.py::metrics_view` 在生成通用 Prometheus payload 前 lazy 调用该 facade；导入或投影
+  失败均被隔离，通用 `/metrics/` 仍返回 200，且不把异常文本、连接串、token 或高基数 ID 写入日志/label。
+- provider + `/metrics/` view 定向回归与既有指标测试 `33 passed`，增量 mypy `0 regressions`，
+  architecture audit `0 violations`。本批不接 publisher、Celery、retry/requeue、Task Monitor
+  或 Data Center 双写；生产 PostgreSQL/backlog 观察与真实告警仍待完成。
+
 ### 2026-08-15：M1 Data Center RawAudit identity boundary
 
 - `RawAudit` 现在可携带稳定 `raw_audit_id`、服务端批次 `run_id`、`ingested_run_id` 与

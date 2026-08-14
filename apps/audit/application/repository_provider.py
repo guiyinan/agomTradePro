@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
+
+from django.utils import timezone
 
 from apps.audit.infrastructure.providers import DjangoAuditRepository as DjangoAuditRepository
 
@@ -12,6 +16,8 @@ if TYPE_CHECKING:
         DjangoSystemAuditOutboxRepository,
     )
 
+logger = logging.getLogger(__name__)
+
 
 def get_audit_repository() -> DjangoAuditRepository:
     """Return the configured audit repository implementation."""
@@ -19,14 +25,47 @@ def get_audit_repository() -> DjangoAuditRepository:
     return DjangoAuditRepository()
 
 
-def get_audit_outbox_repository() -> DjangoSystemAuditOutboxRepository:
+def get_audit_outbox_repository(*, using: str = "default") -> DjangoSystemAuditOutboxRepository:
     """Return the read-only system-audit outbox repository implementation."""
 
     from apps.audit.infrastructure.system_audit_outbox_repository import (
         DjangoSystemAuditOutboxRepository,
     )
 
-    return DjangoSystemAuditOutboxRepository()
+    return DjangoSystemAuditOutboxRepository(using=using)
+
+
+def project_audit_outbox_backlog_metrics() -> bool:
+    """Project the default-alias outbox snapshot for the shared metrics scrape.
+
+    The metrics endpoint is a read-only observation surface.  This facade
+    fixes the database alias and observation clock so callers cannot project a
+    fabricated tenant, timestamp, or high-cardinality label.  Any repository,
+    codec, or metric projection failure is reduced to a stable warning and a
+    ``False`` result; it must never prevent generic Prometheus metrics from
+    being served.
+    """
+
+    from apps.audit.application.system_audit_outbox_observability import (
+        GetSystemAuditOutboxBacklogCommand,
+        GetSystemAuditOutboxBacklogUseCase,
+    )
+    from apps.audit.infrastructure.metrics import record_system_audit_outbox_backlog
+
+    try:
+        observed_at: datetime = timezone.now()
+        reader = get_audit_outbox_repository(using="default")
+        snapshot = GetSystemAuditOutboxBacklogUseCase(reader).execute(
+            GetSystemAuditOutboxBacklogCommand(as_of=observed_at)
+        )
+        record_system_audit_outbox_backlog(snapshot)
+        return True
+    except Exception as exc:
+        logger.warning(
+            "Failed to project audit outbox metrics (error_type=%s)",
+            type(exc).__name__,
+        )
+        return False
 
 
 def record_audit_write_success(**kwargs: Any) -> None:

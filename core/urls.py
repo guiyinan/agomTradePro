@@ -2,6 +2,8 @@
 URL configuration for AgomTradePro project.
 """
 
+import logging
+
 from django.contrib import admin
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import include, path
@@ -79,6 +81,8 @@ from core.views_decision_funnel import (
     funnel_step5_view,
     funnel_step6_view,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # API 根路径视图
@@ -593,9 +597,21 @@ def metrics_view(request: HttpRequest) -> HttpResponse:
         api_request_total{method="GET",endpoint="/api/regime/",status_code="200",view_name="RegimeViewSet"} 123.0
         ...
     """
-    # 检查权限（可选：生产环境建议添加认证）
-    # 可以通过 IP 白名单、Token 或 Basic Auth 保护
     del request
+
+    # Keep the audit dependency lazy: the generic metrics endpoint must remain
+    # usable during migrations, partial deployments, and audit-table outages.
+    try:
+        from apps.audit.application.repository_provider import (
+            project_audit_outbox_backlog_metrics,
+        )
+
+        project_audit_outbox_backlog_metrics()
+    except Exception as exc:
+        logger.warning(
+            "Failed to project audit outbox metrics before scrape (error_type=%s)",
+            type(exc).__name__,
+        )
 
     response = HttpResponse(generate_latest(), content_type=CONTENT_TYPE_LATEST)
 

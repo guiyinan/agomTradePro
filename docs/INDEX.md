@@ -969,6 +969,9 @@
 - ✅ **系统级统一审计日志 M1 bounded outbox backlog Prometheus projection contract（2026-08-15）**
   - 新增固定 `owner=audit` 的 pending/oldest-age/due/claimed/expired/failed/delivered gauges；仅接收已验证 backlog snapshot，不读库、不 claim、不 publish、不暴露高基数或敏感标签；metrics safety + backlog Application 回归 `23 passed`
   - 仅 dormant projection sink，尚未接 `/metrics/` scrape、health scheduler、Celery、publisher 或 failed-row retry；生产 migration/rollback、PostgreSQL backlog 观察/恢复、Data Center 双写仍待完成，M1 gate 不变
+- ✅ **系统级统一审计日志 M4 `/metrics/` lazy backlog projection wiring（2026-08-15）**
+  - Audit application provider 固定 `default` alias 与 aware `timezone.now()` cutoff，`metrics_view` lazy 调用并在 reader/restore/projection 异常时保持通用 scrape 200；provider/view/指标回归 `33 passed`，异常日志仅含类型且 owner label 仍固定为 `audit`
+  - 这是单进程 scrape-time 的只读 projection wiring，不是生产 PostgreSQL backlog 观察、自动恢复、publisher/Celery/retry 或告警闭环；Data Center 双写仍保持 `planned/not_wired`，M4/M1 gate 不变
 - ✅ **系统级统一审计日志 M1 Data Center RawAudit identity boundary（2026-08-15）**
   - `RawAudit` 新增稳定 row identity、run/ingested-run 关联与 canonical content hash；历史缺字段行向 fetch event 的提升 fail-closed；迁移 `0070` 仅 nullable expand、不回填；RawAudit/SyncMacro/Macro publication `15 passed`
   - 仅 evidence boundary；尚未接服务端 run issuer、共同 UOW、事实/Health/RawAudit/Publication/event/outbox 双写或 PostgreSQL 生产证据，`data.fetch.*` 仍 `planned/not_wired`
