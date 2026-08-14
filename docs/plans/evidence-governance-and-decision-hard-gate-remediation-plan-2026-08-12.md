@@ -2184,6 +2184,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - GetExact仅在repository返回的版本已由`recorded_at`可知且ID/version/hash完全匹配时永久返回；repository泄漏未来行、类型或selector替换均为Corruption。GetCurrent在exact基础上要求temporal current及最终Persisted head完全相等；source、同version hash或recorder替换为Corruption，revoked/deactivated、expired或superseded均None且不回退旧head。
 - 三合同定向pure `29 passed`，primitives+三个Domains/codecs/Application组合`236 passed`；Ruff、Black/isort、3 production files strict mypy及architecture 2869/0通过。仍无raw Django models/repositories/migration、mutable source capture、version allocator或atomic bundle；append仅为Dormant Protocol surface，staff/request/execution均未开放。
 
+### 2026-08-14：Account auth-context/User/RBAC raw authority v3 0052 schema与guards
+
+- 新增0052 schema-only迁移并依赖0051；建立三套彼此独立的candidate-independent source/root anchor与concrete ledger，共六个`CreateModel`，随后仅追加同批FK、索引与约束操作，无RunPython/RunSQL/seed/backfill。没有使用kind+nullable discriminator，也没有FK到mutable Session/User/Profile；fresh schema六表均为zero-seed。
+- 三种ledger分别完整投影strict Domain的identity/clock/chain、专属facts与seal，并共同封存fixed header、canonical payload、自动service recorder、content-bound recorder seal、ledger seal及persisted clock。anchor PROTECT、self predecessor OneToOne PROTECT；数据库约束固定artifact/state/clock/root-XOR、positive user、RBAC 7-role allowlist、source identity与root/predecessor uniqueness。私有非嵌套UOW/exact claim与save/save_base/raw/queryset/bulk/delete guards覆盖六个模型，字段集合显式排除session key/data、cookie、CSRF、password/hash与token。
+- isolated Django5.2与0051模型组件合计`19 passed`；Django check、Ruff、Black/isort、official增量mypy 0 regressions及architecture 2870/0通过。`makemigrations --check`只报告既有Physical-v2 constraint state重投影，无0052 drift。尚无三个Django repositories/closed-world restore/CAS replay、真实PostgreSQL migrate/race、immutable lifecycle writers或atomic bundle，0052保持zero-seed且staff/request/execution关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
