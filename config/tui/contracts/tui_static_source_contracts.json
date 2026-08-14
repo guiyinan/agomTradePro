@@ -2431,7 +2431,7 @@
       "id": "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source:004",
       "source": "workbench_js",
       "relation": "contains",
-      "value": "return fields.some((field) => rowValueForField(row, field.key, action) !== undefined);",
+      "value": "return fields.some((field) => rowValueForField(row, field, action) !== undefined);",
       "legacy_tests": [
         "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source"
       ]
@@ -2440,7 +2440,7 @@
       "id": "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source:005",
       "source": "workbench_js",
       "relation": "contains",
-      "value": "const value = rowValueForField(row, field.key, action);",
+      "value": "const value = rowValueForField(row, field, action);",
       "legacy_tests": [
         "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source"
       ]

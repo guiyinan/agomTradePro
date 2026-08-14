@@ -77,6 +77,8 @@ R1 行级编辑整改（2026-08-15）已在 Workbench 运行时完成：对 `POS
 
 同日补齐权限 affordance 收口：`_screen_dashboard_panels` 现在以当前用户已通过权限过滤的 `visible_action_keys` 再投影 `row_actions`，普通用户不再看到无法执行的 Beta Gate、Rotation、Signal 等管理员写按钮；管理员行操作保持不变。`tests/unit/test_tui_workbench.py` 新增普通用户/管理员双向断言，定向回归 `2 passed`。该修复只收紧展示边界，不替代后端权限、角色化浏览器 UAT、写后 receipt/refresh 或 M5 生产证据。
 
+2026-08-15 R1 direct-action 语义收口：Workbench 现在只在行操作存在可见 `body` 字段时打开表单；只有 path/query 行身份的 approve/delete/toggle/批量命令继续直接执行，避免把不可编辑的标识字段误显示为冗余表单。浏览器契约为 `22 passed`，`npm run build:tui`、`npm run check:tui` 通过；该本地语义修复仍不替代角色化浏览器 UAT、写后 receipt/refresh 或生产证据。
+
 ### 2.5 机器唯一真源
 
 - IA registry：`config/tui/ia/tui_information_architecture.v1.json`

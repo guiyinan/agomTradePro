@@ -644,7 +644,14 @@
         if (!["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
             return false;
         }
-        return (action?.fields || []).some((field) => field.input_type !== "hidden");
+        // Path/query identity fields are already supplied by the row action.
+        // Only an explicit visible body field means the user has extra input
+        // to review or change before the mutation is sent.
+        return (action?.fields || []).some(
+            (field) =>
+                field.input_type !== "hidden" &&
+                String(field.binding || "body").trim().toLowerCase() === "body",
+        );
     }
 
     function fillDashboardRowActionForm(form, action, row, params) {

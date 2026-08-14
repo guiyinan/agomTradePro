@@ -912,6 +912,9 @@
   - Workbench 对带可见字段的非 GET 行操作先打开/聚焦 action form，按行身份与可匹配字段预填；用户修改并提交后才发送 PATCH/POST，approve/delete/toggle/批量等无额外字段动作仍直接执行
   - 覆盖 `policy.workbench-override`、`signal.update`、`beta-gate.config-update`、`rotation.asset-update`、`rotation.config-update`、`rotation.account-config-update`、`ai-ops.update-my-provider`、`data-center.provider-update` 及用户治理 `identity-access.reject-user`、`identity-access.set-user-role` 等编辑/更新入口；R0 guard 绿色不替代行级提交路径证据
   - 新增浏览器契约覆盖“点击编辑不立即发请求、修改后携带 ID+body 提交”；并锁定 IA/runtime 编辑 row action 必须有可见字段与行上下文；TUI JS `34 passed`、Python actionability `9 passed`、`npm run check:tui` 通过。仍未替代最终候选角色化 UAT、写后回执、人工审批与生产证据
+- ✅ **Web→TUI R1 direct row-action semantics（2026-08-15）**
+  - 只有存在可见 `body` 字段的行操作才打开表单；仅含 path/query identity 的 approve/delete/toggle/批量命令直接执行，避免冗余的只读标识表单；浏览器契约 `22 passed`，`npm run build:tui`、`npm run check:tui` 通过
+  - 仍只证明本地交互判定，角色化浏览器 UAT、写后 receipt/refresh、人工审批、生产审计和 M5 candidate evidence 继续待完成
 - ✅ **Web→TUI role-filtered row affordance closure（2026-08-15）**
   - Dashboard 行操作现在按当前用户已通过权限过滤的 action 集合投影；普通用户不再看到无法执行的 Signal/Beta Gate/Rotation 管理员写按钮，管理员行操作保持
   - `tests/unit/test_tui_workbench.py` 覆盖普通用户与管理员双向投影，定向回归 `2 passed`；该项只收紧展示边界，不替代后端权限、角色化浏览器 UAT、写后回执或 M5 生产证据

@@ -110,6 +110,9 @@ const actions = [
         risk: "admin",
         method: "POST",
         screen_key: "test.user-governance",
+        fields: [
+            { key: "user_id", label: "用户 ID", input_type: "number", required: true, binding: "path" },
+        ],
         sequence: 12,
     }),
     action("test.edit-row", {
@@ -119,8 +122,8 @@ const actions = [
         effect: "update",
         screen_key: "test.edit-dashboard",
         fields: [
-            { key: "user_id", label: "用户 ID", input_type: "number", required: true },
-            { key: "username", label: "用户名", input_type: "text", required: true },
+            { key: "user_id", label: "用户 ID", input_type: "number", required: true, binding: "path" },
+            { key: "username", label: "用户名", input_type: "text", required: true, binding: "body" },
         ],
         sequence: 13,
     }),
