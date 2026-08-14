@@ -40,6 +40,16 @@ _NON_MUTATING_POST_COMMANDS = {
     "data-center.provider-test",
 }
 
+_KNOWN_ROW_EDIT_ACTIONS = {
+    "signal.update",
+    "beta-gate.config-update",
+    "rotation.asset-update",
+    "rotation.config-update",
+    "rotation.account-config-update",
+    "ai-ops.update-my-provider",
+    "data-center.provider-update",
+}
+
 
 def _ia_screen(screen_key: str) -> dict[str, Any]:
     payload = json.loads(_IA_PATH.read_text(encoding="utf-8"))
@@ -259,3 +269,35 @@ def test_edit_row_actions_map_required_fields_for_form_prefill() -> None:
                     f"{descriptor.get('action_key')} row action must map required form fields "
                     "so the edit form can be opened with the row identity"
                 )
+
+
+def test_known_row_edit_actions_have_visible_fields_and_row_context() -> None:
+    """The named IA edit buttons must be real form-backed row mutations."""
+
+    payload = PublishedTuiMetadataRepository()._load_published_file()
+    actions = {action["key"]: action for action in payload["actions"]}
+    ia_payload = json.loads(_IA_PATH.read_text(encoding="utf-8"))
+    observed: set[str] = set()
+    for screen in ia_payload["published_screens"]:
+        for panel in screen.get("dashboard_panels", []):
+            columns = {str(column.get("key")) for column in panel.get("columns", [])}
+            for descriptor in panel.get("row_actions", []):
+                action_key = str(descriptor.get("action_key") or "")
+                if action_key not in _KNOWN_ROW_EDIT_ACTIONS:
+                    continue
+                observed.add(action_key)
+                action = actions.get(action_key)
+                assert action is not None, f"{action_key} is missing from runtime metadata"
+                assert str(action.get("method", "GET")).upper() in {"PATCH", "PUT", "POST"}
+                assert str(action.get("effect") or "").lower() == "update"
+                visible_fields = {
+                    str(field.get("key"))
+                    for field in action.get("fields", [])
+                    if field.get("input_type") != "hidden"
+                }
+                assert visible_fields, f"{action_key} has no editable form fields"
+                assert descriptor.get("param_map"), f"{action_key} has no row identity mapping"
+                assert visible_fields & columns or visible_fields & set(
+                    descriptor.get("param_map", {})
+                ), f"{action_key} cannot prefill any visible row/form value"
+    assert observed == _KNOWN_ROW_EDIT_ACTIONS
