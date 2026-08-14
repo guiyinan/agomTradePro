@@ -1,6 +1,6 @@
 # AgomTradePro 系统级统一审计日志收口计划
 
-> 状态：**M0 机器合同已落盘；M1+ 待评审实施**
+> 状态：**M0 机器合同与 M1 Domain/codec 最小合同已落盘；M1 ledger/outbox/query 及 M2+ 待评审实施**
 > 创建日期：2026-08-13
 > 优先级：P0（数据可靠性纵向链路）+ P1（其余系统审计面）
 > 建议 Owner：`audit`（统一事件账本）/ 各业务 App（事件语义）/ `task_monitor`（聚合告警）
@@ -331,6 +331,12 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 - 新增 `governance/audit_event_contracts.json`，冻结 7 个顶层 category 的 M0 分母：首批 20 个 Data Reliability 事件具备 owner、write policy、severity、outcome、required correlations、detail schema、reason code 与测试引用；其余 6 类以 source-file inventory 标记 `inventory_only/pending`。所有事件条目明确为 `planned/not_wired`，不冒充运行覆盖。
 - 新增 `scripts/check_audit_event_contracts.py` 与 `tests/unit/test_audit_event_contracts.py`，守卫重复/未知 event type、非法 reason/detail schema、未登记关联字段、缺失测试文件，以及 `active`/`wired` 状态不一致；已接入 `.github/workflows/consistency-check.yml` 与治理 wiring 自检；定向测试 `4 passed`、治理 wiring `29 passed`，命令在当前 shadow registry 下稳定返回 `OK`。
 - 该批只完成机器合同与静态 inventory，不创建 Event Model、migration、outbox、运行写入口或生产配置；Data Reliability 事件仍未接入统一账本，M1 继续待评审。
+
+### 2026-08-14：M1 Audit Domain/codec 最小合同
+
+- 新增纯标准库 `SystemAuditEvent` envelope：固定 category/outcome/severity/write policy，typed actor/resource/evidence refs，bounded correlations，source observation/recorded clocks，stream sequence/predecessor 与 idempotency key。
+- 新增 strict canonical codec：完整 key set、UTC-Z 微秒时间、bool/int 分离、敏感 detail key 拒绝、domain-separated identity/content SHA-256、篡改与非 canonical payload fail closed；`tests/unit/audit/test_system_audit_event.py` `5 passed`，增量 mypy `0 regressions`，architecture `2883 files / 0 violations`。
+- 本批不创建 Django Model/migration/repository/outbox，不读取 registry 外部文件，也不接任何运行写入口；因此只证明 Domain/codec 合同，不代表统一事件账本已启用或 Data Center 已双写。
 
 ### M1：Audit Domain、append-only ledger 与 Query
 
