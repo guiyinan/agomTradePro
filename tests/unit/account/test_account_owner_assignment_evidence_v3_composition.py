@@ -64,11 +64,10 @@ def _physical_provider(
     return provider
 
 
-def test_physical_provider_resolves_exact_before_current() -> None:
+def test_physical_provider_delegates_id_hash_selector_to_current_reader() -> None:
     root = _receipt().binding.creation_root
-    exact = _Reader([root])
     current = _Reader([root])
-    provider = _physical_provider(exact, current)
+    provider = _physical_provider(_NeverReader(), current)
 
     assert (
         provider.get_exact_current(
@@ -79,12 +78,13 @@ def test_physical_provider_resolves_exact_before_current() -> None:
         )
         == root
     )
-    assert len(exact.commands) == len(current.commands) == 1
+    assert len(current.commands) == 1
+    assert not hasattr(current.commands[0], "expected_observation")
 
 
-def test_physical_provider_zero_rows_returns_none_without_current_read() -> None:
+def test_physical_provider_propagates_none_from_current_reader() -> None:
     root = _receipt().binding.creation_root
-    provider = _physical_provider(_Reader([None]), _NeverReader())
+    provider = _physical_provider(_NeverReader(), _Reader([None]))
 
     assert (
         provider.get_exact_current(
@@ -146,14 +146,12 @@ def test_binding_provider_translates_taxonomy(source: Exception, target: type[Ex
         )
 
 
-def test_receipt_provider_resolves_exact_before_current() -> None:
+def test_receipt_provider_delegates_id_hash_selector_to_current_reader() -> None:
     receipt = _receipt()
     provider = object.__new__(
         composition.AccountExactCurrentAccountOwnerAssignmentProvenanceReceiptV3Provider
     )
-    exact = _Reader([receipt])
     current = _Reader([receipt])
-    provider._exact = exact
     provider._current = current
 
     assert (
@@ -165,16 +163,16 @@ def test_receipt_provider_resolves_exact_before_current() -> None:
         )
         == receipt
     )
-    assert len(exact.commands) == len(current.commands) == 1
+    assert len(current.commands) == 1
+    assert not hasattr(current.commands[0], "expected_receipt")
 
 
-def test_receipt_provider_zero_rows_returns_none_without_current_read() -> None:
+def test_receipt_provider_propagates_none_from_current_reader() -> None:
     receipt = _receipt()
     provider = object.__new__(
         composition.AccountExactCurrentAccountOwnerAssignmentProvenanceReceiptV3Provider
     )
-    provider._exact = _Reader([None])
-    provider._current = _NeverReader()
+    provider._current = _Reader([None])
 
     assert (
         provider.get_exact_current(

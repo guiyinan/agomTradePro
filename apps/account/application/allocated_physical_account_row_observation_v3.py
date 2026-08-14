@@ -106,17 +106,17 @@ class GetExactAllocatedPhysicalAccountRowObservationV3Command:
 
 @dataclass(frozen=True, slots=True)
 class GetCurrentAllocatedPhysicalAccountRowObservationV3Command:
-    """Closed selector for one exact creation-root logical head."""
+    """ID/hash-only selector for one exact creation-root logical head."""
 
-    expected_observation: AllocatedPhysicalAccountRowObservationV3
+    observation_id: str
+    observation_version: str
+    expected_content_hash: str
     as_of: datetime
 
     def __post_init__(self) -> None:
-        if type(self.expected_observation) is not AllocatedPhysicalAccountRowObservationV3:
-            raise TypeError(
-                "expected_observation must be an exact " "AllocatedPhysicalAccountRowObservationV3"
-            )
-        AllocatedPhysicalAccountRowObservationV3.__post_init__(self.expected_observation)
+        _token(self.observation_id, "observation_id")
+        _token(self.observation_version, "observation_version")
+        _digest(self.expected_content_hash, "expected_content_hash")
         _aware(self.as_of, "as_of")
 
 
@@ -156,7 +156,7 @@ class PersistedAllocatedPhysicalAccountRowObservationV3:
         AllocatedPhysicalAccountRowObservationV3.__post_init__(self.observation)
         if type(self.recorded_by) is not AllocatedPhysicalAccountRowObservationV3Recorder:
             raise TypeError(
-                "recorded_by must be an exact " "AllocatedPhysicalAccountRowObservationV3Recorder"
+                "recorded_by must be an exact AllocatedPhysicalAccountRowObservationV3Recorder"
             )
         self.recorded_by.__post_init__()
 
@@ -265,7 +265,7 @@ class CaptureAllocatedPhysicalAccountRowObservationV3:
 
         if type(command) is not CaptureAllocatedPhysicalAccountRowObservationV3Command:
             raise TypeError(
-                "command must be an exact " "CaptureAllocatedPhysicalAccountRowObservationV3Command"
+                "command must be an exact CaptureAllocatedPhysicalAccountRowObservationV3Command"
             )
         command.__post_init__()
         cutoff = _aware(self._repository.now(), "repository cutoff")
@@ -450,8 +450,7 @@ class GetExactAllocatedPhysicalAccountRowObservationV3:
     ) -> AllocatedPhysicalAccountRowObservationV3 | None:
         if type(command) is not GetExactAllocatedPhysicalAccountRowObservationV3Command:
             raise TypeError(
-                "command must be an exact "
-                "GetExactAllocatedPhysicalAccountRowObservationV3Command"
+                "command must be an exact GetExactAllocatedPhysicalAccountRowObservationV3Command"
             )
         command.__post_init__()
         value = self._repository.get_exact_by_hash(
@@ -486,20 +485,18 @@ class GetCurrentAllocatedPhysicalAccountRowObservationV3:
     ) -> AllocatedPhysicalAccountRowObservationV3 | None:
         if type(command) is not GetCurrentAllocatedPhysicalAccountRowObservationV3Command:
             raise TypeError(
-                "command must be an exact "
-                "GetCurrentAllocatedPhysicalAccountRowObservationV3Command"
+                "command must be an exact GetCurrentAllocatedPhysicalAccountRowObservationV3Command"
             )
         command.__post_init__()
-        expected = command.expected_observation
-        exact = GetExactAllocatedPhysicalAccountRowObservationV3(self._repository).execute(
+        expected = GetExactAllocatedPhysicalAccountRowObservationV3(self._repository).execute(
             GetExactAllocatedPhysicalAccountRowObservationV3Command(
-                observation_id=expected.observation_id,
-                observation_version=expected.observation_version,
-                expected_content_hash=expected.content_hash,
+                observation_id=command.observation_id,
+                observation_version=command.observation_version,
+                expected_content_hash=command.expected_content_hash,
                 as_of=command.as_of,
             )
         )
-        if exact is None or exact != expected:
+        if expected is None:
             return None
         physical = expected.physical_observation
         head = self._repository.get_current_head(

@@ -7,6 +7,7 @@ import pytest
 
 from apps.account.application.allocated_physical_account_row_observation_v3 import (
     AllocatedPhysicalAccountRowObservationV3Conflict,
+    AllocatedPhysicalAccountRowObservationV3Corruption,
     AllocatedPhysicalAccountRowObservationV3Recorder,
     AllocatedPhysicalAccountRowObservationV3Unavailable,
     CaptureAllocatedPhysicalAccountRowObservationV3,
@@ -295,7 +296,9 @@ def test_exact_pit_and_closed_current_require_exact_hash_and_head() -> None:
     )
     current = GetCurrentAllocatedPhysicalAccountRowObservationV3(repository).execute(
         GetCurrentAllocatedPhysicalAccountRowObservationV3Command(
-            expected_observation=observation,
+            observation_id=observation.observation_id,
+            observation_version=observation.observation_version,
+            expected_content_hash=observation.content_hash,
             as_of=_at(8),
         )
     )
@@ -312,3 +315,41 @@ def test_exact_pit_and_closed_current_require_exact_hash_and_head() -> None:
         )
         is None
     )
+
+
+def test_current_selector_is_id_hash_only_and_expired_terminal_head_does_not_fallback() -> None:
+    allocation = _allocation()
+    physical = _physical()
+    repository = _Repository()
+    observation = _use_case(
+        _AllocationProvider(allocation),
+        _PhysicalProvider(physical),
+        repository,
+    ).execute(_command(allocation, physical))
+    command = GetCurrentAllocatedPhysicalAccountRowObservationV3Command(
+        observation.observation_id,
+        observation.observation_version,
+        observation.content_hash,
+        observation.valid_until,
+    )
+
+    assert GetCurrentAllocatedPhysicalAccountRowObservationV3(repository).execute(command) is None
+    assert not hasattr(command, "expected_observation")
+
+
+def test_current_selector_rejects_invalid_id_hash_and_cutoff() -> None:
+    with pytest.raises(ValueError, match="canonical token"):
+        GetCurrentAllocatedPhysicalAccountRowObservationV3Command(
+            " observation", "v3", "a" * 64, _at(8)
+        )
+    with pytest.raises(ValueError, match="SHA-256"):
+        GetCurrentAllocatedPhysicalAccountRowObservationV3Command(
+            "observation", "v3", "not-a-hash", _at(8)
+        )
+    with pytest.raises(
+        AllocatedPhysicalAccountRowObservationV3Corruption,
+        match="timezone-aware",
+    ):
+        GetCurrentAllocatedPhysicalAccountRowObservationV3Command(
+            "observation", "v3", "a" * 64, datetime(2026, 8, 8, 12)
+        )

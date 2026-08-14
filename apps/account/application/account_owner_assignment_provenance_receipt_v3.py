@@ -109,15 +109,17 @@ class GetExactAccountOwnerAssignmentProvenanceReceiptV3Command:
 
 @dataclass(frozen=True, slots=True)
 class GetCurrentAccountOwnerAssignmentProvenanceReceiptV3Command:
-    """Carry the complete expected closed-current receipt head."""
+    """Select one expected closed-current receipt using only identity and hash."""
 
-    expected_receipt: AccountOwnerAssignmentProvenanceReceiptV3
+    receipt_id: str
+    receipt_version: str
+    expected_content_hash: str
     as_of: datetime
 
     def __post_init__(self) -> None:
-        if type(self.expected_receipt) is not AccountOwnerAssignmentProvenanceReceiptV3:
-            raise TypeError("expected_receipt must be an exact v3 receipt")
-        self.expected_receipt.__post_init__()
+        _token(self.receipt_id, "receipt_id")
+        _token(self.receipt_version, "receipt_version")
+        _digest(self.expected_content_hash, "expected_content_hash")
         _aware(self.as_of, "as_of")
 
 
@@ -509,17 +511,17 @@ class GetCurrentAccountOwnerAssignmentProvenanceReceiptV3:
         if type(command) is not GetCurrentAccountOwnerAssignmentProvenanceReceiptV3Command:
             raise TypeError("command must be an exact v3 current command")
         command.__post_init__()
-        expected = command.expected_receipt
         exact = self._exact.execute(
             GetExactAccountOwnerAssignmentProvenanceReceiptV3Command(
-                expected.receipt_id,
-                expected.receipt_version,
-                expected.content_hash,
+                command.receipt_id,
+                command.receipt_version,
+                command.expected_content_hash,
                 command.as_of,
             )
         )
-        if exact != expected:
+        if exact is None:
             return None
+        expected = exact
         if not expected.is_current_at(command.as_of):
             return None
         try:

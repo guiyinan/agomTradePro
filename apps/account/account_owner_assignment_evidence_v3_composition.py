@@ -17,8 +17,6 @@ from apps.account.application.account_owner_assignment_mapping_v3 import (
 from apps.account.application.account_owner_assignment_provenance_receipt_v3 import (
     GetCurrentAccountOwnerAssignmentProvenanceReceiptV3,
     GetCurrentAccountOwnerAssignmentProvenanceReceiptV3Command,
-    GetExactAccountOwnerAssignmentProvenanceReceiptV3,
-    GetExactAccountOwnerAssignmentProvenanceReceiptV3Command,
 )
 from apps.account.application.allocated_physical_account_row_observation_v3 import (
     AllocatedPhysicalAccountRowObservationV3Conflict,
@@ -129,19 +127,16 @@ class AccountExactCurrentAllocatedPhysicalAccountRowObservationV3Provider:
         expected_content_hash: str,
         as_of: datetime,
     ) -> AllocatedPhysicalAccountRowObservationV3 | None:
-        """Resolve the hash-only selector before checking the current logical head."""
+        """Delegate the scalar selector to the server-owned closed-current reader."""
 
-        exact = self.get_exact(
-            observation_id=observation_id,
-            observation_version=observation_version,
-            expected_content_hash=expected_content_hash,
-            as_of=as_of,
-        )
-        if exact is None:
-            return None
         try:
             return self._current.execute(
-                GetCurrentAllocatedPhysicalAccountRowObservationV3Command(exact, as_of)
+                GetCurrentAllocatedPhysicalAccountRowObservationV3Command(
+                    observation_id,
+                    observation_version,
+                    expected_content_hash,
+                    as_of,
+                )
             )
         except AllocatedPhysicalAccountRowObservationV3Unavailable as error:
             raise AccountOwnerAssignmentUnavailable(str(error)) from error
@@ -161,9 +156,6 @@ class AccountExactCurrentAccountOwnerAssignmentProvenanceReceiptV3Provider:
         binding_provider: AccountExactCanonicalAccountCreationBindingV2Provider,
         root_provider: AccountExactCurrentAllocatedPhysicalAccountRowObservationV3Provider,
     ) -> None:
-        self._exact = GetExactAccountOwnerAssignmentProvenanceReceiptV3(
-            repository=repository, binding_provider=binding_provider
-        )
         self._current = GetCurrentAccountOwnerAssignmentProvenanceReceiptV3(
             repository=repository,
             binding_provider=binding_provider,
@@ -178,17 +170,15 @@ class AccountExactCurrentAccountOwnerAssignmentProvenanceReceiptV3Provider:
         expected_content_hash: str,
         as_of: datetime,
     ) -> AccountOwnerAssignmentProvenanceReceiptV3 | None:
-        """Resolve an immutable receipt before checking TTL, root, and final head."""
+        """Delegate the scalar selector to the server-owned closed-current reader."""
 
-        exact = self._exact.execute(
-            GetExactAccountOwnerAssignmentProvenanceReceiptV3Command(
-                receipt_id, receipt_version, expected_content_hash, as_of
-            )
-        )
-        if exact is None:
-            return None
         return self._current.execute(
-            GetCurrentAccountOwnerAssignmentProvenanceReceiptV3Command(exact, as_of)
+            GetCurrentAccountOwnerAssignmentProvenanceReceiptV3Command(
+                receipt_id,
+                receipt_version,
+                expected_content_hash,
+                as_of,
+            )
         )
 
 

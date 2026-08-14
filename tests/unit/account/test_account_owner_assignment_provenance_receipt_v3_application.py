@@ -23,6 +23,9 @@ from apps.account.application.account_owner_assignment_provenance_receipt_v3 imp
     IssueAccountOwnerAssignmentProvenanceReceiptV3Command,
     PersistedAccountOwnerAssignmentProvenanceReceiptV3,
 )
+from apps.account.domain.account_owner_assignment_provenance_receipt_v3 import (
+    AccountOwnerAssignmentProvenanceReceiptV3,
+)
 from apps.account.domain.allocated_physical_account_row_observation_v3 import (
     AllocatedPhysicalAccountRowObservationV3,
 )
@@ -136,6 +139,18 @@ def _issuer(
         claimant_provider=claimant_provider,
         repository=repository,
         validity_period=timedelta(days=2),
+    )
+
+
+def _current_command(
+    receipt: object, as_of: datetime
+) -> GetCurrentAccountOwnerAssignmentProvenanceReceiptV3Command:
+    checked = cast(AccountOwnerAssignmentProvenanceReceiptV3, receipt)
+    return GetCurrentAccountOwnerAssignmentProvenanceReceiptV3Command(
+        checked.receipt_id,
+        checked.receipt_version,
+        checked.content_hash,
+        as_of,
     )
 
 
@@ -280,16 +295,13 @@ def test_closed_current_requires_receipt_ttl_final_head_and_exact_current_root()
         binding_provider=BindingProvider([binding]),
         root_provider=RootProvider([binding.creation_root]),
     )
-    assert (
-        reader.execute(GetCurrentAccountOwnerAssignmentProvenanceReceiptV3Command(receipt, _at(10)))
-        == receipt
-    )
+    assert reader.execute(_current_command(receipt, _at(10))) == receipt
     assert (
         GetCurrentAccountOwnerAssignmentProvenanceReceiptV3(
             repository=repository,
             binding_provider=BindingProvider([binding]),
             root_provider=RootProvider([None]),
-        ).execute(GetCurrentAccountOwnerAssignmentProvenanceReceiptV3Command(receipt, _at(10)))
+        ).execute(_current_command(receipt, _at(10)))
         is None
     )
     assert (
@@ -297,9 +309,29 @@ def test_closed_current_requires_receipt_ttl_final_head_and_exact_current_root()
             repository=repository,
             binding_provider=BindingProvider([binding]),
             root_provider=RootProvider([binding.creation_root]),
-        ).execute(GetCurrentAccountOwnerAssignmentProvenanceReceiptV3Command(receipt, _at(11)))
+        ).execute(_current_command(receipt, _at(11)))
         is None
     )
+
+
+def test_current_command_is_id_hash_only_and_server_restores_exact_receipt() -> None:
+    binding, repository, _, _, _, receipt = _issue()
+    command = _current_command(receipt, _at(10))
+    assert set(command.__dataclass_fields__) == {
+        "receipt_id",
+        "receipt_version",
+        "expected_content_hash",
+        "as_of",
+    }
+    repository.exact = None
+    head_calls_before = repository.head_calls
+    reader = GetCurrentAccountOwnerAssignmentProvenanceReceiptV3(
+        repository=repository,
+        binding_provider=BindingProvider([binding]),
+        root_provider=RootProvider([binding.creation_root]),
+    )
+    assert reader.execute(command) is None
+    assert repository.head_calls == head_calls_before
 
 
 def test_application_has_no_orm_infrastructure_or_prior_receipt_fallback() -> None:

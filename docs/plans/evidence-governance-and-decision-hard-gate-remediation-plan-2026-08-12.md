@@ -2110,6 +2110,13 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - composition与mapping pure组合`18 passed`；真实Django5.2空账本组件`1 passed`，证明zero-seed 0046/0047/0049/0050图稳定返回None；Ruff、Black/isort、strict mypy与architecture 2852/0通过。
 - 这只完成production可构造的只读图，不代表存在authority数据。所有相关账本仍zero-seed；真实staff认证/审批写入口、SimulatedAccount全writer同事务cutover、knowledge backfill/contract、PostgreSQL迁移与双连接竞争仍未完成，execution总闸不变。Receipt/Physical current command的full-object形状保留为后续独立API收窄债务。
 
+### 2026-08-14：Account Physical/Receipt-v3 current ID/hash-only边界
+
+- 将allocated Physical-v3与claimant Receipt-v3的current commands从caller提交完整Domain对象收窄为`id + version + expected_content_hash + as_of`。Application在服务端先执行exact PIT恢复并重验canonical对象，再从该对象派生logical-head、TTL、Binding与Physical selectors；caller不能再注入expected object。
+- Account-only composition同步改为把scalar selector直接交给current readers；Physical provider仍保留独立exact方法供Receipt协议使用，Receipt current构造器仍保留Binding-v2 provider依赖。final terminal/expired/superseded head仍返回None且不回退旧版本。
+- Application/Evidence/composition/mapping定向pure `41 passed`；0049/0050与真实composition组件链`12 passed`；Ruff、Black/isort、3 production files strict mypy及architecture 2852/0通过。
+- 无schema/migration变化，也未扩大到write/approval。zero-seed、staff认证入口、knowledge backfill/contract、PostgreSQL竞争与SimulatedAccount全writer cutover仍是production authority前置，execution总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
