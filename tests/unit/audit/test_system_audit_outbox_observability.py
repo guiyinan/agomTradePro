@@ -65,6 +65,12 @@ def test_snapshot_rejects_naive_observation_clock() -> None:
         _snapshot(as_of=datetime.now())
 
 
+@pytest.mark.parametrize("field", ["oldest_backlog_at", "oldest_claimed_at"])
+def test_snapshot_rejects_future_age_clock(field: str) -> None:
+    with pytest.raises(ValueError, match="after as_of"):
+        _snapshot(**{field: NOW + timedelta(seconds=1)})
+
+
 def test_backlog_use_case_preserves_exact_observation_cutoff() -> None:
     snapshot = _snapshot()
 

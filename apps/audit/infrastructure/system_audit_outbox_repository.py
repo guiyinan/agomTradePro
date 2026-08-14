@@ -235,6 +235,19 @@ class DjangoSystemAuditOutboxRepository:
 
         self._require_cutoff(as_of)
         state = self._state()
+        for item in state:
+            for field in (
+                "created_at",
+                "updated_at",
+                "claimed_at",
+                "delivered_at",
+                "last_error_at",
+            ):
+                value = getattr(item, field)
+                if value is not None and value > as_of:
+                    raise SystemAuditOutboxCorruption(
+                        f"outbox {field} is after backlog observation cutoff"
+                    )
         pending = tuple(
             item for item in state if item.status == SystemAuditOutboxModel.STATUS_PENDING
         )

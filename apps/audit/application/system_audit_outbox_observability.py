@@ -64,8 +64,12 @@ class SystemAuditOutboxBacklogSnapshot:
             raise ValueError("claimed rows require oldest_claimed_at")
         if self.oldest_backlog_at is not None:
             _require_aware(self.oldest_backlog_at, "oldest_backlog_at")
+            if self.oldest_backlog_at > self.as_of:
+                raise ValueError("oldest_backlog_at cannot be after as_of")
         if self.oldest_claimed_at is not None:
             _require_aware(self.oldest_claimed_at, "oldest_claimed_at")
+            if self.oldest_claimed_at > self.as_of:
+                raise ValueError("oldest_claimed_at cannot be after as_of")
 
     @property
     def backlog_count(self) -> int:
@@ -132,7 +136,7 @@ def _require_aware(value: datetime, field: str) -> None:
 def _age_seconds(as_of: datetime, observed_at: datetime | None) -> float | None:
     if observed_at is None:
         return None
-    return max(0.0, (as_of - observed_at).total_seconds())
+    return (as_of - observed_at).total_seconds()
 
 
 __all__ = [

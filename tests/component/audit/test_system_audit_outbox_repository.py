@@ -362,3 +362,24 @@ def test_backlog_snapshot_marks_expired_claims_without_reclaiming_them() -> None
     assert restored is not None
     assert restored.claim_token == claim.claim_token
     assert restored.status == SystemAuditOutboxModel.STATUS_CLAIMED
+
+
+def test_backlog_snapshot_rejects_future_persisted_clock() -> None:
+    repository = _repository()
+    event = make_event(event_id="evt-future", idempotency_key="fetch:future")
+    with repository.atomic():
+        record = repository.enqueue(event, created_at=NOW, available_at=NOW)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE audit_system_outbox "
+            "SET created_at = %s, available_at = %s, updated_at = %s "
+            "WHERE outbox_id = %s",
+            [
+                LATER + timedelta(seconds=1),
+                LATER + timedelta(seconds=1),
+                LATER + timedelta(seconds=1),
+                record.outbox_id.hex,
+            ],
+        )
+    with pytest.raises(SystemAuditOutboxCorruption, match="after backlog observation cutoff"):
+        repository.get_backlog_snapshot(as_of=LATER)

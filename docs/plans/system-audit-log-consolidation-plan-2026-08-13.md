@@ -402,7 +402,7 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 ### 2026-08-15：M1 outbox closed-world clock/state hardening
 
 - 收紧 outbox restore：`available_at`、claim、delivery/failure、`updated_at` 的时序必须闭合；pending/claimed/delivered/failed 各状态不得残留另一状态的 terminal/claim 字段，避免 raw SQL 篡改后被 backlog 聚合静默接受。
-- 新增 SQLite raw-tamper component 覆盖 available/claim/delivery/failure 时钟倒置、pending terminal 残留和 pending `updated_at` 漂移；outbox model/repository/dispatcher 相关回归 `29 passed`，增量 mypy `0 regressions`，black/isort 通过。
+- 新增 SQLite raw-tamper component 覆盖 available/claim/delivery/failure 时钟倒置、pending terminal 残留、pending `updated_at` 漂移和 future observation cutoff；outbox model/repository/dispatcher 相关回归 `32 passed`，增量 mypy `0 regressions`，black/isort 通过。
 - 该批只加强本地 closed-world fail-closed；不替代 PostgreSQL 双连接竞争、生产 backlog 观察窗口、publisher/runtime wiring、自动恢复或生产审计覆盖。
 
 ### M1：Audit Domain、append-only ledger 与 Query
