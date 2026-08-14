@@ -3,8 +3,10 @@ Unit tests for Macro Sizing Multiplier domain services.
 Pure Python — no Django ORM dependency.
 """
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import cast
 
 import pytest
 
@@ -106,6 +108,37 @@ def test_macro_sizing_config_rejects_empty_tier_sets() -> None:
             ],
             market_temperature_tiers=[
                 MarketTemperatureTier(band="cold", factor=1),
+            ],
+        )
+
+
+@pytest.mark.parametrize("field", ["pulse_tiers", "drawdown_tiers", "market_temperature_tiers"])
+def test_macro_sizing_config_rejects_each_empty_tier_set(field: str) -> None:
+    config = build_default_config()
+    with pytest.raises(ValueError, match=field):
+        if field == "pulse_tiers":
+            replace(config, pulse_tiers=[])
+        elif field == "drawdown_tiers":
+            replace(config, drawdown_tiers=[])
+        else:
+            replace(config, market_temperature_tiers=[])
+
+
+@pytest.mark.parametrize("version", [0, -1, True, "1"])
+def test_macro_sizing_config_rejects_invalid_version(version: object) -> None:
+    config = build_default_config()
+    with pytest.raises(ValueError, match="version"):
+        replace(config, version=cast(int, version))
+
+
+def test_macro_sizing_config_rejects_duplicate_temperature_bands() -> None:
+    config = build_default_config()
+    with pytest.raises(ValueError, match="band"):
+        replace(
+            config,
+            market_temperature_tiers=[
+                MarketTemperatureTier(band="Cold", factor=1),
+                MarketTemperatureTier(band=" cold ", factor=0.9),
             ],
         )
 
@@ -329,6 +362,21 @@ class TestMacroSizingConfigTierLookup:
 
     def test_market_temperature_block_lookup(self, config: MacroSizingConfig):
         assert config.should_block_new_position("extreme") is True
+
+    def test_unknown_market_temperature_uses_neutral_defaults(self, config: MacroSizingConfig):
+        assert config.get_market_temperature_factor("unknown") == 1.0
+        assert config.should_block_new_position("unknown") is False
+
+    def test_unmatched_thresholds_use_safe_fallbacks(self):
+        config = MacroSizingConfig(
+            regime_tiers=[RegimeTier(min_confidence=0.5, factor=0.8)],
+            pulse_tiers=[PulseTier(min_composite=0.5, max_composite=1, factor=0.8)],
+            warning_factor=0.4,
+            drawdown_tiers=[DrawdownTier(min_drawdown=0.5, factor=0.2)],
+        )
+        assert config.get_regime_factor(0.1) == 0.8
+        assert config.get_pulse_factor(0.1, warning=False) == 0.8
+        assert config.get_drawdown_factor(0.1) == 1.0
 
 
 # ── MacroSizingContext dataclass ────────────────────────────────────────

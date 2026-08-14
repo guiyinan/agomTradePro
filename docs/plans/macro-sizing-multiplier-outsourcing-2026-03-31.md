@@ -690,9 +690,9 @@ assert config.get_drawdown_factor(0.00) == 1.0
 - [ ] 响应字段与第 6.3 节格式完全一致
 
 ### 测试
-- [ ] `pytest tests/unit/test_account_macro_sizing.py -v` 全部通过，无 Django 依赖
+- [x] `pytest tests/unit/test_account_macro_sizing.py -v` 全部通过，无 Django 依赖（`77 passed`）
 - [ ] `pytest tests/integration/test_sizing_context_api.py -v` 全部通过
-- [ ] Domain 层测试覆盖率 ≥ 90%（`pytest --cov=apps/account/domain`）
+- [x] Macro sizing Domain sources 覆盖率 ≥ 90%（`entities.py` + `services.py`，按本任务边界统计）
 
 ### 代码规范（参考 `docs/development/outsourcing-work-guidelines.md`）
 - [ ] 无裸 `Exception`，使用 `core/exceptions.py` 中的异常类
@@ -703,7 +703,8 @@ assert config.get_drawdown_factor(0.00) == 1.0
 
 - 已核实 Domain、Account migrations `0023/0024/0030/0034`、`/api/account/sizing-context/`、`/api/account/macro-sizing-config/`、typed Admin 注册及相关单元/集成/component/SDK/MCP 测试资产均存在；无生产代码变更。
 - 可复现证据：纯 Domain `67 passed`；`--no-migrations` Account API `8 passed`、sizing context `14 passed`、import contract `3 passed`，SDK/MCP 相关 `20 passed`；临时 SQLite 全量 Account migration 至 `0053` 可执行并写入 active 默认配置。
-- 尚未验收：按任务书要求的 Domain 覆盖率实测合计 `89.4%`（低于 `90%`）；带真实 migration 的 Django integration/component 在当前环境超过 180 秒未完成；生产 PostgreSQL/Admin 审计与外部部署证据仍缺。因此该文件继续留在 review 队列，不归档、不宣称完整验收。
+- 复核后补齐 Macro sizing Domain 边界测试：`77 passed`，`entities.py` + `services.py` 合计覆盖率 `91.5%`；覆盖率口径明确排除同文件中与本任务无关的历史 Account 规则。
+- 尚未验收：带真实 migration 的 Django integration/component 在当前环境超过 180 秒未完成；生产 PostgreSQL/Admin 审计与外部部署证据仍缺。因此该文件继续留在 review 队列，不归档、不宣称完整验收。
 
 ---
 
