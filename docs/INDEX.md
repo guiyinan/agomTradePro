@@ -929,10 +929,10 @@
   - 仍无 repository/query/dispatcher/Data Center 双写或生产 runtime wiring；SQLite/schema 证据不替代 PostgreSQL 并发、真实迁移回滚、outbox 恢复、生产审计与双写覆盖
 - ✅ **系统级统一审计日志 M1 ledger repository/query 合同（2026-08-15）**
   - 事件 repository 完成 strict full-world restore、exact/first-winner/PIT/head/list 与 predecessor CAS；staff-only query DTO/Protocol 完成分页与 exact selector 重验；repository component `5 passed`、query unit `5 passed`、增量 mypy `0 regressions`
-  - 仍无 outbox dispatcher、Data Center 双写、业务 runtime wiring 或生产 authority composition；SQLite/纯测试不替代 PostgreSQL 空链并发、真实迁移回滚与生产审计覆盖
+  - 仍无 outbox dispatcher、Data Center 双写、业务 runtime wiring 或生产 authority composition；SQLite/纯测试不替代 PostgreSQL 空链并发、真实迁移回滚与生产审计覆盖；专用 PostgreSQL race harness 已就绪但尚未运行
 - ✅ **系统级统一审计日志 M1 outbox claim/dispatcher 合同（2026-08-15）**
   - Outbox repository 完成全表 payload/codec restore、private exact-insert claim、enqueue first-winner、private UOW、due claim、worker/token ownership 与 delivered/failed 状态机；dormant dispatcher Protocol/use case 输出 bounded outcome；component `7 passed`、dispatcher unit `3 passed`、增量 mypy `0 regressions`
-  - 未接真实 publisher、业务双写、Data Center runtime 或生产 composition；SQLite/纯 fake 不替代 PostgreSQL claim race/lease、backlog 恢复、真实迁移回滚和生产审计覆盖
+  - 未接真实 publisher、业务双写、Data Center runtime 或生产 composition；SQLite/纯 fake 不替代 PostgreSQL claim race/lease、backlog 恢复、真实迁移回滚和生产审计覆盖；专用 harness 默认 `4 skipped`，未把 SQLite 计为 PostgreSQL 证据
 - ✅ **Equity research snapshot Django runtime contract（2026-08-14）**
   - Django 5.2.12 复跑 API `15`、SDK/MCP/routing/evidence `36`、use case/gateway `26`，合计 `77 passed`
   - 仅证明 mock/fake 隔离环境的软件契约与 fail-closed 行为；真实数据覆盖、PostgreSQL 规模/故障注入、备份恢复和 readiness 仍未解除

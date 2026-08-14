@@ -357,6 +357,13 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 - 新增 `apps/audit/application/system_audit_outbox_dispatcher.py`：无 ORM/外部 publisher import 的 dormant Protocol/use case，按 bounded batch 发布 `requested/claimed/delivered/failed/outcome`，publisher 异常只落稳定 `publisher_error`，业务双写和真实 publisher composition 仍关闭。
 - 隔离 component `7 passed`、dispatcher unit `3 passed`；增量 mypy `0 regressions`，与已有 outbox model 回归合计 `10 passed`。本地证据仍只覆盖 SQLite/纯 fake；PostgreSQL claim race/lease、真实 backlog 恢复、Data Center 双写、runtime wiring、生产 authority 与迁移回滚继续未验证。
 
+### 2026-08-15：PostgreSQL 并发证据 harness（opt-in，证据待运行）
+
+- 新增 `tests/component/audit/test_system_audit_postgres_concurrency.py` 与独立 `tests/settings_audit_postgres_concurrency.py`；覆盖空 stream first-winner、同 predecessor CAS、outbox claim lease ownership，以及 claim transaction rollback 后的重新 claim。
+- harness 默认沿用 SQLite 配置时只 `skip`；只有同时设置 `AGOM_AUDIT_PG_CONCURRENCY_EVIDENCE=1`、专用 `AGOM_AUDIT_PG_TEST_DATABASE_URL` 并显式选择独立 settings 才可运行。URL 必须是 PostgreSQL 且数据库名同时含 `audit`/`test`；运行库必须是 pytest 隔离库，禁止回退 `DATABASE_URL` 或复用生产配置。
+- 运行示例（仅针对本机/测试服务的 disposable database）：`$env:AGOM_AUDIT_PG_CONCURRENCY_EVIDENCE="1"; $env:AGOM_AUDIT_PG_TEST_DATABASE_URL="postgresql://<user>:<password>@127.0.0.1:5432/agom_audit_test"; $env:DJANGO_SETTINGS_MODULE="tests.settings_audit_postgres_concurrency"; pytest tests/component/audit/test_system_audit_postgres_concurrency.py -q`。不设置这些变量不得把默认 SQLite 结果解释成 PostgreSQL 证据。
+- 本地无专用 PostgreSQL URL，本批仅验证默认安全行为（`4 skipped`）；四项 PostgreSQL race/rollback 结果、真实迁移回滚和生产覆盖仍保持未验证，不能据此宣称并发 gate 已通过。
+
 ### M1：Audit Domain、append-only ledger 与 Query
 
 交付：
