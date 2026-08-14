@@ -946,8 +946,14 @@ def _legacy_alias_violations(
     root: Path,
     *,
     graph_path: Path,
+    ia_path: Path | None = None,
 ) -> tuple[list[str], list[str]]:
-    """Return dangling and source-unreferenced published legacy screen aliases."""
+    """Return dangling and source-unreferenced published legacy screen aliases.
+
+    The published operation graph contains the static screen set. Runtime IA
+    screens are injected after that graph is published, so aliases targeting
+    those canonical runtime screens must not be reported as dangling.
+    """
 
     payload = json.loads(graph_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -968,6 +974,22 @@ def _legacy_alias_violations(
         for screen in screens_value
         if isinstance(screen, dict) and str(screen.get("key") or "").strip()
     }
+    resolved_ia_path = (
+        ia_path or root / "config" / "tui" / "ia" / "tui_information_architecture.v1.json"
+    )
+    if resolved_ia_path.is_file():
+        ia_payload = json.loads(resolved_ia_path.read_text(encoding="utf-8"))
+        if not isinstance(ia_payload, dict):
+            raise ValueError("TUI information architecture must be a JSON object")
+        for ia_key in ("published_screens", "runtime_screens"):
+            ia_screens = ia_payload.get(ia_key)
+            if not isinstance(ia_screens, list):
+                raise ValueError(f"TUI information architecture lacks {ia_key}")
+            screen_keys.update(
+                str(screen.get("key") or "").strip()
+                for screen in ia_screens
+                if isinstance(screen, dict) and str(screen.get("key") or "").strip()
+            )
     dangling = sorted(
         source
         for source, target in aliases.items()

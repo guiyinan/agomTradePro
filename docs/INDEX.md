@@ -894,10 +894,13 @@
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
 - ✅ **Evidence composition boundary / governance consistency 收口（2026-08-14）**
   - Operator Spec approval/lifecycle concrete Django 组装移入 Risk Center/Research owner composition，`core/integration` 仅保留无 infrastructure import 的兼容导出
-  - governance consistency 与 architecture audit 均 0 violations；Data Center catalog、legacy fact、current-data 与 Celery guards 通过。四组 Django component 共收集10项但当前环境执行超时，生产人工审核、PostgreSQL 并发与真实数据仍未完成
+  - governance consistency 与 architecture audit 均 0 violations；Data Center catalog、legacy fact、current-data 与 Celery guards 通过。五组 Django component 在 `--no-migrations` 下 `22 passed`；这不替代真实 migration、生产人工审核、PostgreSQL 并发与真实数据
 - ✅ **Web→TUI backend contract provenance（2026-08-14）**
   - runtime manifest 逐文件覆盖 IA、Application metadata、IA loader、repository/signals 与全部 `tui_metadata_runtime_*.py`；manifest digest contract 与 observation/candidate recorder 定向回归合计 21 passed
   - 仅完成本地候选 provenance；生产仍 revision=`unknown`/无 manifest，M5 观察窗口继续 DENY
+- ✅ **Web→TUI M5-C alias target checker correction（2026-08-14）**
+  - 最终库存检查器同时读取 published graph 与 IA `published_screens`/`runtime_screens`，因此 runtime 注入的 `capability-router.mcp-center` 会被正确视为 canonical target；`capability-router.gateway` dangling 误报已消除
+  - 11 个无活生产代码消费者的 dead alias 仍需真实流量观察、逐 wave 与回滚证据后再清理；M5 final 仍 DENY
 - ✅ **Data Center architecture inventory source snapshot（2026-08-14）**
   - 重新生成并复核架构清单：cross-App ORM 48、current-data surface 4225、data-write decorators 58、runtime config references 49；Data Center/Provider 外部直连、legacy fact 与待审外部 HTTP 均为 0
   - 这是静态源码治理证据，不是生产 PostgreSQL/VPS、备份恢复、shadow reconciliation 或 M9 destructive migration 证据；生产切换继续 DENY

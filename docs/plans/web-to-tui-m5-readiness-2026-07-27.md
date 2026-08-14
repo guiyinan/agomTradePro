@@ -74,7 +74,7 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
 
 - `web_template_migration_inventory.py --require-finalized` 已与迁移期普通 `--check` 分离；普通检查语义不变。
 - 最终模式精确要求 41 个 C 档物理模板，A/B/D 全部 `deleted`，并扫描已删模板的活 view/route literal、孤儿静态资产及 published legacy alias 的 canonical target 与生产代码消费者。
-- 当前普通检查通过（196 行，A=131/B=17/C=41/D=7）；最终模式按设计 DENY，148 个 A/B 模板尚未完成 lifecycle。32 个 alias 中另有 11 个没有活生产代码引用，`capability-router.gateway` target dangling。
+- 当前普通检查通过（196 行，A=131/B=17/C=41/D=7）；最终模式按设计 DENY，148 个 A/B 模板尚未完成 lifecycle。32 个 alias 中另有 11 个没有活生产代码引用；检查器已纳入 IA `published_screens`/`runtime_screens`，因此 `capability-router.gateway` → `capability-router.mcp-center` 不再被误报为 dangling。11 个 dead alias 仍须真实流量观察与逐 wave 证明后清理。
 - 门禁专属测试 `10 passed`；当前机器缺 Django runtime，历史 inventory rebuild 的 Django resolver 用例未纳入本次专属测试。静态引用扫描不替代生产流量证明，真实 alias 删除仍须进入逐波观察与回滚证据。
 
 ### 2026-08-13：M5-B cleanup wave recorder

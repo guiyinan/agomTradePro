@@ -45,6 +45,23 @@ def _write_graph(root: Path, aliases: dict[str, str] | None = None) -> Path:
     return graph_path
 
 
+def _write_ia(root: Path, *, runtime_keys: list[str]) -> Path:
+    """Write the minimal IA source used to test runtime canonical screens."""
+
+    ia_path = root / "config/tui/ia/tui_information_architecture.v1.json"
+    ia_path.parent.mkdir(parents=True, exist_ok=True)
+    ia_path.write_text(
+        json.dumps(
+            {
+                "published_screens": [{"key": "canonical.screen"}],
+                "runtime_screens": [{"key": key} for key in runtime_keys],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return ia_path
+
+
 def _retained_rows(root: Path) -> list[dict[str, str]]:
     """Create the exact 41 physical C templates required at M5-C."""
 
@@ -109,7 +126,7 @@ def test_current_alias_inventory_exposes_known_m5_c_debt() -> None:
 
     assert len(payload["legacy_screen_aliases"]) == 32
     assert len(dead) == 11
-    assert dangling == ["capability-router.gateway"]
+    assert dangling == []
 
 
 def test_exact_41_template_c_scope_is_finalized(tmp_path: Path) -> None:
@@ -274,3 +291,25 @@ def test_alias_target_must_be_a_canonical_published_screen(tmp_path: Path) -> No
 
     with pytest.raises(ValueError, match=r"dangling_aliases=\['legacy.one'\]"):
         _validate(tmp_path, rows, graph_path=graph_path)
+
+
+def test_runtime_ia_screen_is_a_canonical_alias_target(tmp_path: Path) -> None:
+    """Runtime IA screens are canonical even when absent from graph screens."""
+
+    rows = _retained_rows(tmp_path)
+    source = tmp_path / "apps/example/application/navigation.py"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text('SCREEN = "legacy.runtime"\n', encoding="utf-8")
+    graph_path = _write_graph(tmp_path, {"legacy.runtime": "runtime.screen"})
+    ia_path = _write_ia(tmp_path, runtime_keys=["runtime.screen"])
+
+    dangling, dead = _legacy_alias_violations(
+        tmp_path,
+        graph_path=graph_path,
+        ia_path=ia_path,
+    )
+
+    assert dangling == []
+    assert dead == []
+
+    _validate(tmp_path, rows, graph_path=graph_path)
