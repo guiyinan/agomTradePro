@@ -2167,6 +2167,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 三种artifact均固定inactive/attestation-only/nonexecution，identity/root hash显式包含owner/artifact/schema并按各自domain分离；完整principal/user/RBAC/facts/clock/chain/fixed/record/content seals和canonical nested payload。相邻successor精确绑定前序content、固定各自root identity并推进version/observation/record clock；auth-context还冻结authenticated_at。revoked/deactivated为terminal，historical knowable永久而temporal-current明确不代表ledger head。
 - primitives+三Domain pure `85 passed`；Ruff、Black/isort、3 production files strict mypy及architecture 2862/0通过。本批仍无strict codecs、append-only raw ledgers、Django immutable source writers、atomic bundle provider或request adapter；不能从mutable session/User/Profile即席构造这些Domain对象，也未启用staff composition、route或execution。
 
+### 2026-08-14：Account auth-context/User/RBAC raw authority source v3 strict codecs
+
+- 为三种concrete raw authority artifacts分别新增strict codec；每个codec完整编码/恢复nested identity、clock、chain及所有专属facts、fixed header、identity/content与domain seals。decoder要求top/nested exact mapping与key集合、exact scalar类型（bool/int不互认）、canonical UTC-Z microseconds，恢复后调用各自Domain重验并要求encode equality；RBAC role不做fallback/normalize。
+- 未知/缺失/非字符串key、非mapping、非规范时钟、root/predecessor XOR、fixed semantics、role/state及任一hash/seal篡改均fail closed。codec测试合计`100 passed`，三Domain+codec组合`175 passed`；Ruff、Black/isort、3 production files strict mypy及architecture 2865/0通过。
+- 本批仍无raw models/repositories/migrations或immutable Django writers。strict codec只验证已有owner payload，不能把live session/User/Profile读取转换为可审计的observed/recorded/valid evidence；atomic aggregate provider、request adapter、staff composition与execution继续关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

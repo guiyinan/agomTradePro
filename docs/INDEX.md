@@ -852,6 +852,9 @@
 - ✅ **Account auth-context/User/RBAC raw authority source v3 Domains**
   - 三种独立artifact分别封存secret-free认证上下文、User active/staff/superuser及7-role canonical RBAC；各自domain-separated identity/root/seals、successor与terminal no-fallback语义
   - primitives+三Domain pure 85 passed、strict mypy、architecture 2862/0；无codec/ledger/immutable Django writers/atomic bundle/request adapter，staff与execution仍关闭
+- ✅ **Account auth-context/User/RBAC raw authority source v3 strict codecs**
+  - 三个独立codec完整恢复nested identity/clock/chain、专属facts、fixed semantics与全部seals；exact shape/types、UTC-Z、role/state及canonical equality使替换fail closed
+  - codec 100 passed、三Domain+codec组合175 passed、architecture 2865/0；无raw ledger/writer/atomic bundle，staff与execution仍关闭
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
