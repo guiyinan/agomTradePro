@@ -357,6 +357,12 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 - 新增 `apps/audit/application/system_audit_outbox_dispatcher.py`：无 ORM/外部 publisher import 的 dormant Protocol/use case，按 bounded batch 发布 `requested/claimed/delivered/failed/outcome`，publisher 异常只落稳定 `publisher_error`，业务双写和真实 publisher composition 仍关闭。
 - 隔离 component `7 passed`、dispatcher unit `3 passed`；增量 mypy `0 regressions`，与已有 outbox model 回归合计 `10 passed`。本地证据仍只覆盖 SQLite/纯 fake；PostgreSQL claim race/lease、真实 backlog 恢复、Data Center 双写、runtime wiring、生产 authority 与迁移回滚继续未验证。
 
+### 2026-08-15：M1 outbox transition guard 收口
+
+- 收紧 `apps/audit/infrastructure/system_audit_outbox_models.py`：现有行的 `save/save_base`、QuerySet/manager `update/bulk_update` 均不能绕过 repository 私有 state-transition capability；payload、identity、idempotency 和创建时钟继续不可变，删除仍被阻断。
+- `DjangoSystemAuditOutboxRepository` 的 claim/delivered/failed 只能在同一 private UOW 中取得精确行、字段和值绑定的 transition capability 后写入；直接 ORM 状态修改测试改为 fail-closed。定向模型/repository/dispatcher 回归 `10 passed`，增量 mypy `0 regressions`。
+- 该批只关闭“可绕过 repository 改状态”的本地软件契约；expired claimed lease reclaim、mixed batch/failure accounting、真实 PostgreSQL race/lease、backlog recovery、业务双写和生产 publisher 仍未完成，不能据此解除 M1 PostgreSQL gate。
+
 ### 2026-08-15：PostgreSQL 并发证据 harness（opt-in，证据待运行）
 
 - 新增 `tests/component/audit/test_system_audit_postgres_concurrency.py` 与独立 `tests/settings_audit_postgres_concurrency.py`；覆盖空 stream first-winner、同 predecessor CAS、outbox claim lease ownership，以及 claim transaction rollback 后的重新 claim。

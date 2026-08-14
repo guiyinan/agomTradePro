@@ -1,10 +1,9 @@
-"""Schema-only transactional outbox storage for system audit events.
+"""Transactional outbox storage with repository-owned state transitions.
 
-The outbox deliberately has no dispatcher or repository in this batch.  Its
-event identity and payload are immutable after insertion; only bounded claim
-state may be changed by the future dispatcher.  Keeping that distinction in
-the ORM model prevents a retry worker from silently rewriting the event it is
-supposed to deliver.
+The event identity and payload are immutable after insertion.  Claim and
+delivery state is mutable only through a private capability issued by the
+outbox repository, so a direct ORM save/update/bulk-update cannot bypass the
+state machine that owns worker and claim-token checks.
 """
 
 from __future__ import annotations
@@ -26,6 +25,9 @@ _UOW: ContextVar[object | None] = ContextVar("system_audit_outbox_uow", default=
 _CLAIM: ContextVar["_InsertClaim | None"] = ContextVar(
     "system_audit_outbox_insert_claim", default=None
 )
+_STATE_MUTATION: ContextVar["_StateMutationClaim | None"] = ContextVar(
+    "system_audit_outbox_state_mutation", default=None
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +36,17 @@ class _InsertClaim:
 
     token: object
     model_type: type[models.Model]
+    expected_values: tuple[tuple[str, object], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _StateMutationClaim:
+    """Private capability for one exact repository-owned state transition."""
+
+    token: object
+    model_type: type[models.Model]
+    outbox_id: object
+    fields: frozenset[str]
     expected_values: tuple[tuple[str, object], ...]
 
 
@@ -60,13 +73,46 @@ def _claim_system_audit_outbox_insert(
         raise ValidationError("system audit outbox insert requires a private UOW")
     if _CLAIM.get() is not None:
         raise ValidationError("system audit outbox insert claims may not be nested")
-    reset = _CLAIM.set(
-        _InsertClaim(token, model_type, tuple(sorted(expected_values.items())))
-    )
+    reset = _CLAIM.set(_InsertClaim(token, model_type, tuple(sorted(expected_values.items()))))
     try:
         yield
     finally:
         _CLAIM.reset(reset)
+
+
+@contextmanager
+def _claim_system_audit_outbox_state_mutation(
+    *,
+    token: object,
+    model_type: type[models.Model],
+    outbox_id: object,
+    fields: Iterable[str],
+    expected_values: Mapping[str, object],
+) -> Iterator[None]:
+    """Allow one exact mutable-state save inside the active private UOW."""
+
+    if _UOW.get() is not token:
+        raise ValidationError("system audit outbox state mutation requires a private UOW")
+    if _STATE_MUTATION.get() is not None:
+        raise ValidationError("system audit outbox state mutations may not be nested")
+    field_names = frozenset(fields)
+    if not field_names:
+        raise ValidationError("system audit outbox state mutation requires explicit fields")
+    unsupported = field_names.difference(_STATE_FIELDS)
+    if unsupported:
+        names = ", ".join(sorted(unsupported))
+        raise ValidationError(f"system audit outbox state fields are not transitionable: {names}")
+    expected = tuple(sorted(expected_values.items()))
+    if frozenset(name for name, _ in expected) != field_names:
+        raise ValidationError("system audit outbox state values do not match fields")
+    reset = _STATE_MUTATION.set(
+        _StateMutationClaim(token, model_type, outbox_id, field_names, expected)
+    )
+    try:
+        yield
+    finally:
+        _STATE_MUTATION.reset(reset)
+
 
 _IMMUTABLE_FIELDS = frozenset(
     {
@@ -79,6 +125,20 @@ _IMMUTABLE_FIELDS = frozenset(
     }
 )
 
+_STATE_FIELDS = frozenset(
+    {
+        "status",
+        "attempt_count",
+        "claimed_at",
+        "claimed_by",
+        "claim_token",
+        "delivered_at",
+        "last_error_code",
+        "last_error_at",
+        "updated_at",
+    }
+)
+
 
 def _reject_immutable_fields(fields: Iterable[str]) -> None:
     changed = _IMMUTABLE_FIELDS.intersection(fields)
@@ -88,11 +148,12 @@ def _reject_immutable_fields(fields: Iterable[str]) -> None:
 
 
 class SystemAuditOutboxQuerySet(models.QuerySet["SystemAuditOutboxModel"]):
-    """Permit claim-state updates but reject payload and deletion shortcuts."""
+    """Reject ORM update shortcuts; the repository owns state transitions."""
 
     def update(self, **kwargs: object) -> int:
         _reject_immutable_fields(kwargs)
-        return super().update(**kwargs)
+        del kwargs
+        raise ValidationError("system audit outbox state changes require repository transition")
 
     def bulk_update(
         self,
@@ -102,7 +163,8 @@ class SystemAuditOutboxQuerySet(models.QuerySet["SystemAuditOutboxModel"]):
     ) -> int:
         field_names = tuple(fields)
         _reject_immutable_fields(field_names)
-        return super().bulk_update(objs, field_names, batch_size=batch_size)
+        del objs, field_names, batch_size
+        raise ValidationError("system audit outbox state changes require repository transition")
 
     def delete(self) -> NoReturn:
         raise ValidationError("system audit outbox rows cannot be deleted")
@@ -126,7 +188,8 @@ class SystemAuditOutboxManager(models.Manager["SystemAuditOutboxModel"]):
     ) -> int:
         field_names = tuple(fields)
         _reject_immutable_fields(field_names)
-        return super().bulk_update(objs, field_names, batch_size=batch_size)
+        del objs, field_names, batch_size
+        raise ValidationError("system audit outbox state changes require repository transition")
 
 
 class SystemAuditOutboxModel(models.Model):
@@ -187,13 +250,17 @@ class SystemAuditOutboxModel(models.Model):
             super().save(force_insert=force_insert, using=using)
             return
         if update_fields is not None:
-            _reject_immutable_fields(update_fields)
+            field_names = tuple(update_fields)
+            _reject_immutable_fields(field_names)
+            self._assert_immutable_snapshot()
+            self._require_state_mutation(field_names)
         else:
             self._assert_immutable_snapshot()
+            self._require_state_mutation(None)
         super().save(
             force_update=force_update,
             using=using,
-            update_fields=update_fields,
+            update_fields=field_names if update_fields is not None else None,
         )
 
     def save_base(
@@ -212,15 +279,19 @@ class SystemAuditOutboxModel(models.Model):
             self._require_insert_claim()
         else:
             if update_fields is not None:
-                _reject_immutable_fields(update_fields)
+                field_names = tuple(update_fields)
+                _reject_immutable_fields(field_names)
+                self._assert_immutable_snapshot()
+                self._require_state_mutation(field_names)
             else:
                 self._assert_immutable_snapshot()
+                self._require_state_mutation(None)
         super().save_base(
             raw=raw,
             force_insert=force_insert,
             force_update=force_update,
             using=using,
-            update_fields=update_fields,
+            update_fields=field_names if update_fields is not None else None,
         )
 
     def _require_insert_claim(self) -> None:
@@ -242,6 +313,23 @@ class SystemAuditOutboxModel(models.Model):
         for field_name in _IMMUTABLE_FIELDS - {"outbox_id"}:
             if getattr(stored, field_name) != getattr(self, field_name):
                 raise ValidationError(f"system audit outbox field is immutable: {field_name}")
+
+    def _require_state_mutation(self, fields: Iterable[str] | None) -> None:
+        """Require the repository capability for every existing-row save."""
+
+        claim = _STATE_MUTATION.get()
+        if claim is None:
+            raise ValidationError("system audit outbox state changes require repository transition")
+        if (
+            claim.token is not _UOW.get()
+            or claim.model_type is not type(self)
+            or claim.outbox_id != self.outbox_id
+        ):
+            raise ValidationError("system audit outbox state mutation claim does not match row")
+        if fields is None or frozenset(fields) != claim.fields:
+            raise ValidationError("system audit outbox state mutation fields do not match claim")
+        if any(getattr(self, name) != expected for name, expected in claim.expected_values):
+            raise ValidationError("system audit outbox state mutation values do not match claim")
 
     def delete(self, *args: object, **kwargs: object) -> NoReturn:
         del args, kwargs
@@ -300,6 +388,7 @@ __all__ = [
     "SystemAuditOutboxManager",
     "SystemAuditOutboxQuerySet",
     "_UOW",
+    "_claim_system_audit_outbox_state_mutation",
     "_activate_system_audit_outbox_uow",
     "_claim_system_audit_outbox_insert",
 ]

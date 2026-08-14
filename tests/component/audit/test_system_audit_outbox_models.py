@@ -52,9 +52,7 @@ def _row(*, payload: dict[str, object] | None = None) -> SystemAuditOutboxModel:
 
 
 def _insert(row: SystemAuditOutboxModel) -> SystemAuditOutboxModel:
-    values = {
-        field.name: getattr(row, field.name) for field in SystemAuditOutboxModel._meta.fields
-    }
+    values = {field.name: getattr(row, field.name) for field in SystemAuditOutboxModel._meta.fields}
     token = object()
     with _activate_system_audit_outbox_uow(token):
         with _claim_system_audit_outbox_insert(
@@ -84,7 +82,7 @@ def test_schema_is_zero_seeded_and_contains_claim_state() -> None:
     } <= fields
 
 
-def test_payload_identity_and_delete_are_guarded_but_claim_state_can_change() -> None:
+def test_payload_identity_delete_and_direct_state_mutation_are_guarded() -> None:
     row = _row()
     with pytest.raises(ValidationError, match="exact private claim"):
         row.save()
@@ -96,13 +94,23 @@ def test_payload_identity_and_delete_are_guarded_but_claim_state_can_change() ->
     with pytest.raises(ValidationError, match="immutable"):
         SystemAuditOutboxModel.objects.filter(pk=row.pk).update(payload={"tampered": True})
 
+    row = SystemAuditOutboxModel.objects.get(pk=row.pk)
     claimed_at = NOW + timedelta(seconds=1)
     row.status = SystemAuditOutboxModel.STATUS_CLAIMED
     row.claimed_at = claimed_at
     row.claimed_by = "dispatcher-1"
+    row.claim_token = "claim-token"
     row.updated_at = claimed_at
-    row.save(update_fields=["status", "claimed_at", "claimed_by", "updated_at"])
-    assert SystemAuditOutboxModel.objects.get(pk=row.pk).status == "claimed"
+    with pytest.raises(ValidationError, match="require repository transition"):
+        row.save(update_fields=["status", "claimed_at", "claimed_by", "claim_token", "updated_at"])
+    with pytest.raises(ValidationError, match="require repository transition"):
+        row.save_base(update_fields=["status"])
+    with pytest.raises(ValidationError, match="require repository transition"):
+        SystemAuditOutboxModel.objects.filter(pk=row.pk).update(status="claimed")
+    with pytest.raises(ValidationError, match="require repository transition"):
+        SystemAuditOutboxModel.objects.bulk_update([row], ["status"])
+    with pytest.raises(ValidationError, match="require repository transition"):
+        SystemAuditOutboxModel.objects.filter(pk=row.pk).bulk_update([row], ["status"])
 
     with pytest.raises(ValidationError, match="cannot be deleted"):
         row.delete()

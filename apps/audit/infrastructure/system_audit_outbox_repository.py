@@ -26,6 +26,7 @@ from apps.audit.infrastructure.system_audit_outbox_models import (
     SystemAuditOutboxModel,
     _activate_system_audit_outbox_uow,
     _claim_system_audit_outbox_insert,
+    _claim_system_audit_outbox_state_mutation,
 )
 
 
@@ -86,6 +87,7 @@ class SystemAuditOutboxClaim:
     claim_token: str
     claimed_at: datetime
     attempt_count: int
+
 
 class DjangoSystemAuditOutboxRepository:
     """Append-only outbox enqueue plus private claim-state transitions."""
@@ -245,16 +247,16 @@ class DjangoSystemAuditOutboxRepository:
             row.claimed_by = worker_id
             row.claim_token = token
             row.updated_at = as_of
-            row.save(
-                update_fields=[
+            self._save_state(
+                row,
+                fields=(
                     "status",
                     "attempt_count",
                     "claimed_at",
                     "claimed_by",
                     "claim_token",
                     "updated_at",
-                ],
-                using=self._using,
+                ),
             )
             claims.append(
                 SystemAuditOutboxClaim(
@@ -289,7 +291,7 @@ class DjangoSystemAuditOutboxRepository:
         row.status = SystemAuditOutboxModel.STATUS_DELIVERED
         row.delivered_at = delivered_at
         row.updated_at = delivered_at
-        row.save(update_fields=["status", "delivered_at", "updated_at"], using=self._using)
+        self._save_state(row, fields=("status", "delivered_at", "updated_at"))
         return self._restore(row)
 
     def mark_failed(
@@ -316,11 +318,23 @@ class DjangoSystemAuditOutboxRepository:
         row.last_error_code = error_code
         row.last_error_at = failed_at
         row.updated_at = failed_at
-        row.save(
-            update_fields=["status", "last_error_code", "last_error_at", "updated_at"],
-            using=self._using,
+        self._save_state(
+            row,
+            fields=("status", "last_error_code", "last_error_at", "updated_at"),
         )
         return self._restore(row)
+
+    def _save_state(self, row: SystemAuditOutboxModel, *, fields: tuple[str, ...]) -> None:
+        """Persist one state transition through the model's private capability."""
+
+        with _claim_system_audit_outbox_state_mutation(
+            token=self._require_uow_token(),
+            model_type=SystemAuditOutboxModel,
+            outbox_id=row.outbox_id,
+            fields=fields,
+            expected_values={field: getattr(row, field) for field in fields},
+        ):
+            row.save(update_fields=fields, using=self._using)
 
     def _find_exact_identity(self, event: SystemAuditEvent) -> SystemAuditOutboxRecord | None:
         state = self._state(lock=True)

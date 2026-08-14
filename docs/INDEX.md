@@ -939,6 +939,9 @@
 - ✅ **系统级统一审计日志 M1 outbox claim/dispatcher 合同（2026-08-15）**
   - Outbox repository 完成全表 payload/codec restore、private exact-insert claim、enqueue first-winner、private UOW、due claim、worker/token ownership 与 delivered/failed 状态机；dormant dispatcher Protocol/use case 输出 bounded outcome；component `7 passed`、dispatcher unit `3 passed`、增量 mypy `0 regressions`
   - 未接真实 publisher、业务双写、Data Center runtime 或生产 composition；SQLite/纯 fake 不替代 PostgreSQL claim race/lease、backlog 恢复、真实迁移回滚和生产审计覆盖；专用 harness 默认 `4 skipped`，未把 SQLite 计为 PostgreSQL 证据
+- ✅ **系统级统一审计日志 M1 outbox transition guard（2026-08-15）**
+  - Outbox 现有行的 ORM `save/save_base`、QuerySet/manager `update/bulk_update` 均要求 repository 私有 transition capability，直接状态绕过会 fail-closed；定向模型/repository/dispatcher 回归 `10 passed`、增量 mypy `0 regressions`
+  - 仅关闭本地状态绕过写入；expired lease reclaim、mixed batch accounting、真实 PostgreSQL race/lease、backlog 恢复、业务双写和生产 publisher 仍待完成，M1 gate 不变
 - ✅ **Equity research snapshot Django runtime contract（2026-08-14）**
   - Django 5.2.12 复跑 API `15`、SDK/MCP/routing/evidence `36`、use case/gateway `26`，合计 `77 passed`
   - 仅证明 mock/fake 隔离环境的软件契约与 fail-closed 行为；真实数据覆盖、PostgreSQL 规模/故障注入、备份恢复和 readiness 仍未解除
