@@ -1947,8 +1947,7 @@ def test_tui_ai_provider_mutations_confirm_and_mask_credentials(
     assert system_create_fields["api_key"]["input_type"] == "password"
     assert system_create_fields["api_key"]["required"] is True
     system_update_fields = {
-        field["key"]: field
-        for field in admin_actions["ai-ops.update-system-provider"]["fields"]
+        field["key"]: field for field in admin_actions["ai-ops.update-system-provider"]["fields"]
     }
     assert system_update_fields["api_key"]["required"] is False
     assert {
@@ -2037,6 +2036,64 @@ def test_tui_signal_management_actions_respect_role_and_confirmation(
     create_fields = {field["key"]: field for field in admin_actions["signal.create"]["fields"]}
     assert create_fields["invalidation_logic"]["required"] is True
     assert create_fields["asset_class"]["input_type"] == "text"
+
+    user_panels = {
+        panel["key"]: panel for panel in user_response.json()["screen"]["dashboard_panels"]
+    }
+    assert (
+        not {row["action_key"] for row in user_panels["active-signals"]["row_actions"]}
+        & mutation_keys
+    )
+
+    admin_panels = {
+        panel["key"]: panel for panel in admin_response.json()["screen"]["dashboard_panels"]
+    }
+    assert mutation_keys - {"signal.create", "signal.batch-check"} <= {
+        row["action_key"] for row in admin_panels["active-signals"]["row_actions"]
+    }
+
+
+def test_tui_strategy_row_actions_follow_role_filtered_actions(
+    client,
+    tui_user,
+    tui_admin_user,
+):
+    """Admin-only strategy row buttons must not leak into a regular screen."""
+
+    client.force_login(tui_user)
+    user_response = client.get("/api/tui/screens/macro-regime.strategy/")
+    assert user_response.status_code == 200
+    user_panels = {
+        panel["key"]: panel for panel in user_response.json()["screen"]["dashboard_panels"]
+    }
+    hidden_mutations = {
+        "beta-gate.config-update",
+        "beta-gate.rollback",
+        "beta-gate.config-delete",
+        "rotation.asset-update",
+        "rotation.asset-delete",
+        "rotation.config-activate",
+        "rotation.config-deactivate",
+        "rotation.config-generate_signal",
+        "rotation.config-delete",
+    }
+    assert not (
+        {row["action_key"] for row in user_panels["beta-gate-configs"]["row_actions"]}
+        & hidden_mutations
+    )
+    assert not (
+        {row["action_key"] for row in user_panels["rotation-assets"]["row_actions"]}
+        & hidden_mutations
+    )
+
+    client.force_login(tui_admin_user)
+    admin_response = client.get("/api/tui/screens/macro-regime.strategy/")
+    assert admin_response.status_code == 200
+    admin_panels = {
+        panel["key"]: panel for panel in admin_response.json()["screen"]["dashboard_panels"]
+    }
+    assert admin_panels["beta-gate-configs"]["row_actions"]
+    assert admin_panels["rotation-assets"]["row_actions"]
 
 
 def test_tui_dashboard_screen_hides_alpha_history_detail_without_history_rows(
@@ -8035,9 +8092,7 @@ def test_tui_ai_result_maps_provider_runtime_failures_to_actionable_guidance(
     result = service.run_action(action_key="terminal.agent_chat", params={}, user=None)
 
     assert result["user_error_code"] == expected_code
-    next_step = next(
-        field["value"] for field in result["fields"] if field["key"] == "next_step"
-    )
+    next_step = next(field["value"] for field in result["fields"] if field["key"] == "next_step")
     assert expected_guidance in next_step
 
 

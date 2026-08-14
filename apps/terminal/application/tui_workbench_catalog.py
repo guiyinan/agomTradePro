@@ -170,6 +170,13 @@ class TuiWorkbenchCatalogMixin:
                 target_screen = ""
             if action_key and action_key not in visible_action_keys and not target_screen:
                 continue
+            row_actions = panel.get("row_actions")
+            if isinstance(row_actions, list):
+                panel["row_actions"] = [
+                    dict(row_action)
+                    for row_action in row_actions
+                    if str(row_action.get("action_key") or "") in visible_action_keys
+                ]
             projected.append(panel)
         return projected
 

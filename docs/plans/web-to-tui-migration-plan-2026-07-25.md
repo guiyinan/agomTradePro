@@ -75,6 +75,8 @@ TUI 不能以“能读取列表/详情”作为主任务完成。凡是用户任
 
 R1 行级编辑整改（2026-08-15）已在 Workbench 运行时完成：对 `POST/PUT/PATCH/DELETE` 且带可见字段的 `row_action`，点击后先定位并打开左侧 action form，按 `param_map` 填入行身份、按字段候选填入可用行值，用户修改并提交后才发送请求；无可见字段的审批/删除/切换/整批命令仍保持直接执行。用户治理列表新增 `identity-access.reject-user` 的拒绝原因表单与 `identity-access.set-user-role` 的角色编辑行入口，角色字段从当前行预填且允许修改。浏览器契约新增“点击编辑不立即 PATCH、修改后携带 ID+body 提交”测试，TUI JS 总计 `34 passed`；Python actionability contract 为 `9 passed`，并新增通用 runtime row-edit identity/form-context guard。剩余仍是最终候选角色化 UAT、写后回执/审计和生产证据，不把本地浏览器 harness 当作 M5 放行。
 
+同日补齐权限 affordance 收口：`_screen_dashboard_panels` 现在以当前用户已通过权限过滤的 `visible_action_keys` 再投影 `row_actions`，普通用户不再看到无法执行的 Beta Gate、Rotation、Signal 等管理员写按钮；管理员行操作保持不变。`tests/unit/test_tui_workbench.py` 新增普通用户/管理员双向断言，定向回归 `2 passed`。该修复只收紧展示边界，不替代后端权限、角色化浏览器 UAT、写后 receipt/refresh 或 M5 生产证据。
+
 ### 2.5 机器唯一真源
 
 - IA registry：`config/tui/ia/tui_information_architecture.v1.json`
