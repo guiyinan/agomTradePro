@@ -12,6 +12,12 @@ from apps.account.infrastructure.account_owner_assignment_actor_authority_source
     AccountOwnerAssignmentActorAuthoritySourceV3Model,
     AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel,
 )
+from apps.account.infrastructure.account_rbac_authority_mutation_binding_v3_models import (
+    AccountRbacAuthorityMutationBindingV3Model,
+    AccountRbacAuthorityMutationEpochV3AnchorModel,
+    AccountRbacAuthorityProfileV3AnchorModel,
+    AccountRbacAuthorityProfileV3VersionModel,
+)
 
 __all__ = [
     "AccountAuthenticationContextSourceV3AnchorModel",
@@ -22,4 +28,8 @@ __all__ = [
     "AccountUserAuthoritySourceV3Model",
     "AccountOwnerAssignmentActorAuthoritySourceV3Model",
     "AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel",
+    "AccountRbacAuthorityMutationBindingV3Model",
+    "AccountRbacAuthorityMutationEpochV3AnchorModel",
+    "AccountRbacAuthorityProfileV3AnchorModel",
+    "AccountRbacAuthorityProfileV3VersionModel",
 ]

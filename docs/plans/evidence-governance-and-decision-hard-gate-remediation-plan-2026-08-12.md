@@ -2217,6 +2217,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 新增ID/version/hash/PIT selector、Persisted binding wrapper与typed repository Protocol；Exact reader只返回`recorded_at <= as_of`的同一mutation/source/hash，Current reader再要求`new_authority_state=current`、TTL窗口与最终head exact equality。revoked/expired/superseded不回退，future row、selector/hash/type替换统一Corruption。
 - 定向pure`4 passed`、Ruff、Black/isort、strict mypy、official增量mypy 0 regressions及architecture 2877/0通过。仍是dormant read/persistence合同：无binding codec之外的Django repository、0053 schema、capture/issuer/profile UOW或生产入口，zero-seed与execution继续关闭。
 
+### 2026-08-14：Account RBAC mutation binding v3 0053 schema-only基座
+
+- 新增0053 schema-only迁移（依赖0052），建立独立RBAC source epoch anchor、exact Profile authority anchor/version ledger与mutation binding ledger；migration含四个`CreateModel`及必要FK/索引/约束操作，无RunPython/RunSQL/默认记录/存量回填。binding以PROTECT FK闭合epoch与0052 raw RBAC source，self OneToOne predecessor防分叉，并分别持久化binding-chain与raw-authority-chain refs。
+- binding逐列封存mutation kind、old/new Profile identity/version/content refs、human staff+canonical admin operator facts/source refs、service issuer、时钟、fixed inactive/attestation-only/nonexecution、canonical payload、全部Domain seals与ledger seal；Profile version表为未来owner CAS提供稳定版本，严禁使用既有Profile `updated_at`冒充历史。
+- isolated Django5.2 model/component `9 passed`；与0052 raw-source model组件合计`25 passed`，Django check、Ruff、Black/isort、official增量mypy 0 regressions、py_compile、architecture 2878/0与diff-check通过。真实PostgreSQL migrate/race、closed-world binding repository、mutation-id持久issuer/UOW、mutable Profile/User/operator lifecycle接线与生产入口仍未完成；0053保持zero-seed，旧role写入口、注册/setup/signal、staff route和execution总闸不变。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

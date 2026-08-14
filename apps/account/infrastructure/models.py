@@ -39,6 +39,12 @@ from .account_owner_assignment_provenance_receipt_v2_models import (
 from .account_owner_assignment_provenance_receipt_v3_models import (
     AccountOwnerAssignmentProvenanceReceiptV3Model,
 )
+from .account_rbac_authority_mutation_binding_v3_models import (
+    AccountRbacAuthorityMutationBindingV3Model,
+    AccountRbacAuthorityMutationEpochV3AnchorModel,
+    AccountRbacAuthorityProfileV3AnchorModel,
+    AccountRbacAuthorityProfileV3VersionModel,
+)
 from .allocated_physical_account_row_observation_v3_models import (
     AllocatedPhysicalAccountRowObservationV3Model,
 )
@@ -106,6 +112,10 @@ __all__ = [
     "AccountOwnerAssignmentSubjectV2Model",
     "AccountOwnerAssignmentSubjectV3Model",
     "AccountProfileModel",
+    "AccountRbacAuthorityMutationBindingV3Model",
+    "AccountRbacAuthorityMutationEpochV3AnchorModel",
+    "AccountRbacAuthorityProfileV3AnchorModel",
+    "AccountRbacAuthorityProfileV3VersionModel",
     "AllocatedPhysicalAccountRowObservationV3Model",
     "AssetCategoryModel",
     "AssetMetadataModel",

@@ -879,6 +879,9 @@
 - ✅ **Account RBAC mutation binding v3 Application读合同**
   - ID/version/hash/PIT selector与typed repository Protocol闭合Exact历史和Current最终head/TTL；terminal/expired/superseded不回退，future或selector/hash/type替换fail closed
   - pure 4 passed、official增量mypy 0 regressions、architecture 2877/0；仍无Django repository、0053 schema、capture/Profile UOW或生产入口，zero-seed与execution关闭
+- ✅ **Account RBAC mutation binding v3 0053 schema-only基座**
+  - 独立epoch anchor、Profile authority anchor/version ledger与mutation binding ledger；四个CreateModel、PROTECT FK/self predecessor、old/new Profile exact refs、human operator/service issuer、binding/raw-source双链、fixed/state/clock/unique约束及全append-only guards
+  - isolated Django5.2 9 passed、与0052模型组件合计25 passed、official增量mypy 0 regressions、architecture 2878/0；仅zero-seed schema，真实PostgreSQL migrate/race、closed-world repository、持久issuer/UOW、mutable lifecycle接线与生产入口仍未完成
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
