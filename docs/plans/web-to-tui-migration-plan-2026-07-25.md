@@ -73,7 +73,7 @@ TUI 不能以“能读取列表/详情”作为主任务完成。凡是用户任
 
 2026-08-14 本地 R0 复核已补上运行时通用门禁：归一化 runtime graph 共 887 个 action，其中 277 个为 write/admin；所有写入 action 都必须使用非 GET 方法并声明 `create/update/delete/toggle/approve/reject/execute` effect，缺少可见字段的动作只能来自显式登记的 8 个整批执行/默认导入命令；4 个 `POST/read` 预览/测试命令也必须显式登记且保留输入字段。`tests/unit/test_tui_actionability_contract.py` 为 `5 passed`，`npm run test:tui-js` 为 `33 passed`。这证明代码层不会把应填写/修改/创建的入口降级成只读卡片，但不替代最终候选上的角色化浏览器 UAT、写后回执和生产审计证据。
 
-R1 行级编辑整改（2026-08-15）已在 Workbench 运行时完成：对 `POST/PUT/PATCH/DELETE` 且带可见字段的 `row_action`，点击后先定位并打开左侧 action form，按 `param_map` 填入行身份、按字段候选填入可用行值，用户修改并提交后才发送请求；无可见字段的审批/删除/切换/整批命令仍保持直接执行。用户治理列表新增 `identity-access.reject-user` 的拒绝原因表单与 `identity-access.set-user-role` 的角色编辑行入口，角色字段从当前行预填且允许修改。浏览器契约新增“点击编辑不立即 PATCH、修改后携带 ID+body 提交”测试，TUI JS 总计 `34 passed`；Python actionability contract 为 `8 passed`。剩余仍是最终候选角色化 UAT、写后回执/审计和生产证据，不把本地浏览器 harness 当作 M5 放行。
+R1 行级编辑整改（2026-08-15）已在 Workbench 运行时完成：对 `POST/PUT/PATCH/DELETE` 且带可见字段的 `row_action`，点击后先定位并打开左侧 action form，按 `param_map` 填入行身份、按字段候选填入可用行值，用户修改并提交后才发送请求；无可见字段的审批/删除/切换/整批命令仍保持直接执行。用户治理列表新增 `identity-access.reject-user` 的拒绝原因表单与 `identity-access.set-user-role` 的角色编辑行入口，角色字段从当前行预填且允许修改。浏览器契约新增“点击编辑不立即 PATCH、修改后携带 ID+body 提交”测试，TUI JS 总计 `34 passed`；Python actionability contract 为 `9 passed`，并新增通用 runtime row-edit identity/form-context guard。剩余仍是最终候选角色化 UAT、写后回执/审计和生产证据，不把本地浏览器 harness 当作 M5 放行。
 
 ### 2.5 机器唯一真源
 

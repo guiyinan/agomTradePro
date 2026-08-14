@@ -331,3 +331,48 @@ def test_runtime_user_access_row_edits_expose_body_fields_before_submission() ->
         assert rows[action_key].get("param_map", {}).get("user_id") == "user_id"
         if action_key == "identity-access.set-user-role":
             assert rows[action_key]["param_map"].get("rbac_role") == "rbac_role"
+
+
+def test_all_runtime_edit_rows_keep_identity_and_form_context() -> None:
+    """Generic runtime rows must reach the editable form before any request."""
+
+    payload = PublishedTuiMetadataRepository()._load_published_file()
+    actions = {str(action["key"]): action for action in payload["actions"]}
+    observed: set[str] = set()
+
+    for screen in payload["screens"]:
+        for panel in screen.get("dashboard_panels", []):
+            for descriptor in panel.get("row_actions", []):
+                action_key = str(descriptor.get("action_key") or "")
+                action = actions.get(action_key)
+                if action is None:
+                    continue
+                method = str(action.get("method", "GET")).upper()
+                effect = str(action.get("effect") or "").lower()
+                risk = str(action.get("risk") or "read").lower()
+                if (
+                    method not in _MUTATING_METHODS
+                    or risk not in {"write", "admin"}
+                    or effect != "update"
+                ):
+                    continue
+                visible_body_fields = {
+                    str(field.get("key"))
+                    for field in action.get("fields", [])
+                    if field.get("binding") == "body" and field.get("input_type") != "hidden"
+                }
+                if not visible_body_fields:
+                    continue
+
+                observed.add(action_key)
+                param_map = descriptor.get("param_map") or {}
+                assert param_map, (
+                    f"{action_key} has editable body fields but no row identity; "
+                    "the workbench cannot open the correct form"
+                )
+                assert all(
+                    isinstance(name, str) and name and isinstance(source, str) and source
+                    for name, source in param_map.items()
+                ), f"{action_key} row identity mapping must use non-empty string fields"
+
+    assert observed, "runtime metadata must contain at least one editable row action"
