@@ -2190,6 +2190,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 三种ledger分别完整投影strict Domain的identity/clock/chain、专属facts与seal，并共同封存fixed header、canonical payload、自动service recorder、content-bound recorder seal、ledger seal及persisted clock。anchor PROTECT、self predecessor OneToOne PROTECT；数据库约束固定artifact/state/clock/root-XOR、positive user、RBAC 7-role allowlist、source identity与root/predecessor uniqueness。私有非嵌套UOW/exact claim与save/save_base/raw/queryset/bulk/delete guards覆盖六个模型，字段集合显式排除session key/data、cookie、CSRF、password/hash与token。
 - isolated Django5.2与0051模型组件合计`19 passed`；Django check、Ruff、Black/isort、official增量mypy 0 regressions及architecture 2870/0通过。`makemigrations --check`只报告既有Physical-v2 constraint state重投影，无0052 drift。尚无三个Django repositories/closed-world restore/CAS replay、真实PostgreSQL migrate/race、immutable lifecycle writers或atomic bundle，0052保持zero-seed且staff/request/execution关闭。
 
+### 2026-08-14：Account auth-context/User/RBAC raw authority v3 0052 repositories
+
+- 为三套0052 concrete ledgers分别新增Django repository并精确实现各自Application Protocol。每个repository以显式alias、private nonnested atomic和whole-append savepoint工作；root append在inner savepoint exact-create candidate-independent anchor后`select_for_update`，再锁定并恢复该artifact全部anchors/rows，避免空链双root与调用方捕获失败后遗留孤儿anchor。
+- closed-world在任何winner/exact/head/append selector前以strict codec恢复canonical Domain，逐列核facts/fixed/seals、完整历史service recorder、content-bound recorder seal、ledger seal和persisted clock；图校验single root、anchor binding、PROTECT predecessor、Domain adjacent successor、无fork/cycle/orphan/disconnect及terminal无后继。PIT只以recorded-at可知性筛选，logical head即使revoked/deactivated/expired仍返回最终head，由Application current reader返回None，绝不回退旧授权。
+- 三repo component合计`14 passed`；与0052 model组件合跑`30 passed`，覆盖root/replay/exact/PIT、successor与terminal no-fallback、无关行raw SQL tamper、private/nested UOW、wrong CAS和caller-caught rollback。Ruff、Black/isort、official增量mypy 0 regressions及architecture 2873/0通过。真实PostgreSQL空root/same-predecessor双连接race、0052实际生产migrate、Django lifecycle writers、source version allocator与atomic bundle provider仍未完成；三账继续zero-seed且staff/request/execution关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

@@ -864,6 +864,9 @@
 - ✅ **Account auth-context/User/RBAC raw authority v3 0052 schema/guards**
   - 三套独立anchor+concrete ledger完整投影facts/seals/recorder并以PROTECT链、fixed/state/clock/root/role约束及private nonnested UOW封住旁路；无generic discriminator或mutable auth FK
   - Django5.2与0051组件19 passed、增量mypy 0 regressions、architecture 2870/0；仍zero-seed且无repo/PG race/lifecycle writer/atomic bundle
+- ✅ **Account auth-context/User/RBAC raw authority v3 0052 repositories**
+  - 三个concrete repo锁定candidate-independent anchor并以whole-append savepoint、strict codec/recorder/ledger full-world restore和predecessor CAS闭合single-root链；terminal/expired head不回退
+  - repo 14 passed、与0052 model合计30 passed、architecture 2873/0；PG race/production migrate/lifecycle writer/version allocator/atomic bundle仍未完成
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
