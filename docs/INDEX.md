@@ -904,6 +904,7 @@
   - 仅证明本地“可填写/可提交”门禁；最终候选角色化浏览器 UAT、写后回执、人工审批和生产审计证据仍未满足，M5 继续 DENY
 - ✅ **Web→TUI R1 row-level edit form closure（2026-08-14）**
   - Workbench 对带可见字段的非 GET 行操作先打开/聚焦 action form，按行身份与可匹配字段预填；用户修改并提交后才发送 PATCH/POST，approve/delete/toggle/批量等无额外字段动作仍直接执行
+  - 覆盖 `signal.update`、`beta-gate.config-update`、`rotation.asset-update`、`rotation.config-update`、`rotation.account-config-update`、`ai-ops.update-my-provider`、`data-center.provider-update` 等编辑/更新入口；R0 guard 绿色不替代行级提交路径证据
   - 新增浏览器契约覆盖“点击编辑不立即发请求、修改后携带 ID+body 提交”；TUI JS `34 passed`、Python actionability `6 passed`、`npm run check:tui` 通过。仍未替代最终候选角色化 UAT、写后回执、人工审批与生产证据
 - ✅ **Web→TUI M5-C alias target checker correction（2026-08-14）**
   - 最终库存检查器同时读取 published graph 与 IA `published_screens`/`runtime_screens`，因此 runtime 注入的 `capability-router.mcp-center` 会被正确视为 canonical target；`capability-router.gateway` dangling 误报已消除
