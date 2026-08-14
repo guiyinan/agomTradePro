@@ -41,6 +41,7 @@ _NON_MUTATING_POST_COMMANDS = {
 }
 
 _KNOWN_ROW_EDIT_ACTIONS = {
+    "policy.workbench-override",
     "signal.update",
     "beta-gate.config-update",
     "rotation.asset-update",
