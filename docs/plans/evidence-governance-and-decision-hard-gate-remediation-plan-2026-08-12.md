@@ -2196,6 +2196,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - closed-world在任何winner/exact/head/append selector前以strict codec恢复canonical Domain，逐列核facts/fixed/seals、完整历史service recorder、content-bound recorder seal、ledger seal和persisted clock；图校验single root、anchor binding、PROTECT predecessor、Domain adjacent successor、无fork/cycle/orphan/disconnect及terminal无后继。PIT只以recorded-at可知性筛选，logical head即使revoked/deactivated/expired仍返回最终head，由Application current reader返回None，绝不回退旧授权。
 - 三repo component合计`14 passed`；与0052 model组件合跑`30 passed`，覆盖root/replay/exact/PIT、successor与terminal no-fallback、无关行raw SQL tamper、private/nested UOW、wrong CAS和caller-caught rollback。Ruff、Black/isort、official增量mypy 0 regressions及architecture 2873/0通过。真实PostgreSQL空root/same-predecessor双连接race、0052实际生产migrate、Django lifecycle writers、source version allocator与atomic bundle provider仍未完成；三账继续zero-seed且staff/request/execution关闭。
 
+### 2026-08-14：Account RBAC authority mutation v3 dormant fact-outbox合同
+
+- 新增纯Application编排合同，并只注入一个`AccountRbacAuthorityMutationV3UnitOfWork`。该UOW未来必须在同alias、同一事务内统一拥有稳定mutation→source identity解析、Profile锁/CAS、0052 winner/head/append和server clock；用例先查first winner，历史exact replay不再读取当前Profile，首次写才核Profile与final head、执行CAS、构造Domain root/successor并在append后复核winner/head/Profile。
+- command只接target user、server-issued mutation ID与七角色closed-set中的exact role；拒绝大小写、别名、首尾空白和fallback normalization。当前实现明确标记dormant，不存在concrete UOW、composition或生产调用点。
+- 定向pure`12 passed`，Ruff、Black/isort、strict mypy及architecture 2874/0通过。该artifact目前只是authority fact-outbox编排合同，不是owner mutation provenance receipt：尚未持久化证明mutation ID→source ID/version映射，也未封存issuer、mutation kind或exact old/new Profile hashes；不得接Profile写入口、注册/setup/signal或staff route，0052继续zero-seed，atomic bundle与execution总闸仍关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
