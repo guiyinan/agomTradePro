@@ -47,7 +47,7 @@
 - [Admin settings closure](admin-settings-closure-260404.md)：确认 TUI/config-center 剩余项或归档 Classic 范围。
 - [Alpha exit loop](alpha-exit-loop-2026-04-30.md)：剩余 Evidence 并入策略工作流，重复实施叙事归档。
 - [Alpha homepage](alpha-homepage-upgrade-260416.md)：按 Web→TUI 方向确认是否仍保留。
-- [Macro sizing multiplier](macro-sizing-multiplier-outsourcing-2026-03-31.md)：实现、迁移、API/Admin 与测试均已存在；只做验收对账，不再标“待开发”。
+- [Macro sizing multiplier](macro-sizing-multiplier-outsourcing-2026-03-31.md)：实现、迁移、API/Admin 与测试资产均已存在；复核为 Domain 覆盖率 `89.4%`、migration-backed integration 超时，继续留在 review 队列，不宣称完整验收。
 - [0.8.0 后稳定化](post-0.8.0-stabilization-priority-2026-07-08.md)：迁移仍有效的生产门禁后归档过期两周计划。
 - [Streamlit dashboard](streamlit-dashboard-upgrade-plan.md)：确认 TUI 方向下的保留范围或归档。
 - [Workflow upgrade](workflow-upgrade-260326.md)：与 canonical Transition Plan/Evidence 主线对账后归档被取代设计。

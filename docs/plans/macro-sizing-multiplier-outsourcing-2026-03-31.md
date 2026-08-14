@@ -699,6 +699,12 @@ assert config.get_drawdown_factor(0.00) == 1.0
 - [ ] black + isort + ruff 格式化通过
 - [ ] Commit 信息符合规范，例：`feat: add macro sizing multiplier domain service`
 
+### 2026-08-15：验收对账复核
+
+- 已核实 Domain、Account migrations `0023/0024/0030/0034`、`/api/account/sizing-context/`、`/api/account/macro-sizing-config/`、typed Admin 注册及相关单元/集成/component/SDK/MCP 测试资产均存在；无生产代码变更。
+- 可复现证据：纯 Domain `67 passed`；`--no-migrations` Account API `8 passed`、sizing context `14 passed`、import contract `3 passed`，SDK/MCP 相关 `20 passed`；临时 SQLite 全量 Account migration 至 `0053` 可执行并写入 active 默认配置。
+- 尚未验收：按任务书要求的 Domain 覆盖率实测合计 `89.4%`（低于 `90%`）；带真实 migration 的 Django integration/component 在当前环境超过 180 秒未完成；生产 PostgreSQL/Admin 审计与外部部署证据仍缺。因此该文件继续留在 review 队列，不归档、不宣称完整验收。
+
 ---
 
 ## 12. 不在本期范围
