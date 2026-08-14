@@ -19,6 +19,9 @@ from uuid import UUID, uuid4
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from apps.audit.application.system_audit_outbox_observability import (
+    SystemAuditOutboxBacklogSnapshot,
+)
 from apps.audit.domain.system_audit_event import JSONValue, SystemAuditEvent
 from apps.audit.infrastructure.system_audit_event_codec import decode, encode
 from apps.audit.infrastructure.system_audit_outbox_models import (
@@ -220,6 +223,55 @@ class DjangoSystemAuditOutboxRepository:
         if len(matches) > 1:
             raise SystemAuditOutboxCorruption("outbox primary identity is ambiguous")
         return matches[0].record if matches else None
+
+    def get_backlog_snapshot(self, *, as_of: datetime) -> SystemAuditOutboxBacklogSnapshot:
+        """Aggregate a credential-free backlog view without changing state.
+
+        The complete outbox is restored before aggregation, preserving the
+        repository's closed-world corruption checks.  Pending and claimed
+        rows form the recoverable backlog; failed and delivered rows remain
+        visible as terminal counters but are not mixed into that backlog.
+        """
+
+        self._require_cutoff(as_of)
+        state = self._state()
+        pending = tuple(
+            item for item in state if item.status == SystemAuditOutboxModel.STATUS_PENDING
+        )
+        claimed = tuple(
+            item for item in state if item.status == SystemAuditOutboxModel.STATUS_CLAIMED
+        )
+        failed_count = sum(
+            1 for item in state if item.status == SystemAuditOutboxModel.STATUS_FAILED
+        )
+        delivered_count = sum(
+            1 for item in state if item.status == SystemAuditOutboxModel.STATUS_DELIVERED
+        )
+        expired_claimed_count = sum(
+            1
+            for item in claimed
+            if item.claimed_at is not None and item.claimed_at + self._lease_duration <= as_of
+        )
+        backlog = pending + claimed
+        oldest_backlog_at = min(
+            (item.created_at for item in backlog),
+            default=None,
+        )
+        oldest_claimed_at = min(
+            (item.claimed_at for item in claimed if item.claimed_at is not None),
+            default=None,
+        )
+        return SystemAuditOutboxBacklogSnapshot(
+            as_of=as_of,
+            pending_count=len(pending),
+            due_pending_count=sum(1 for item in pending if item.available_at <= as_of),
+            claimed_count=len(claimed),
+            expired_claimed_count=expired_claimed_count,
+            failed_count=failed_count,
+            delivered_count=delivered_count,
+            oldest_backlog_at=oldest_backlog_at,
+            oldest_claimed_at=oldest_claimed_at,
+        )
 
     def claim_due(
         self,

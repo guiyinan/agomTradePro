@@ -288,6 +288,7 @@
 | 2026-08-15 | 第一期 P0 | 系统级统一审计日志 M1 outbox transition guard | 现有 outbox 行的 `save/save_base`、QuerySet/manager `update/bulk_update` 不能绕过 repository 私有 state-transition capability；payload/identity 仍不可变，定向模型/repository/dispatcher 回归 `10 passed`、增量 mypy `0 regressions` | 仅关闭本地状态绕过写入；expired lease reclaim、mixed batch accounting、真实 PostgreSQL race/lease、backlog recovery、业务双写与生产 publisher 仍未完成 |
 | 2026-08-15 | 第一期 P0 | 系统级统一审计日志 M1 expired-lease recovery | `claim_due()` 以正 lease TTL 回收过期 claimed 行；新 worker 获得新 token、attempt 递增，旧 token 不能 finalize；定向 outbox model/repository/dispatcher 回归 `11 passed`、增量 mypy `0 regressions` | 仅本地 lease 状态机证据；mixed batch accounting、真实 PostgreSQL 双连接 race/lease、backlog 观测、业务双写与生产 publisher 仍待完成 |
 | 2026-08-15 | 第一期 P0 | 系统级统一审计日志 M1 dispatcher mixed-batch accounting | dormant dispatcher 现在有成功+失败混合批次的精确计数与 `partial` outcome，以及空批次 `noop`；dispatcher/event unit 回归 `10 passed` | 仅纯 fake Application 证据；真实 publisher、批量事务、PostgreSQL lease race、backlog 观测、业务双写与生产审计仍未完成 |
+| 2026-08-15 | 第一期 P0 | 系统级统一审计日志 M1 outbox backlog/recovery observability contract | 新增只读 `SystemAuditOutboxBacklogSnapshot`/use case 与 repository 聚合读取；全表 closed-world restore 后统计 pending/claimed/failed/delivered、due pending、expired claim、oldest age；Application unit `9 passed`、repository component `7 passed`、增量 mypy `0 regressions`，black/isort 通过 | 仅本地读取/聚合契约；未接 Prometheus/health、publisher/runtime、自动恢复或生产告警；真实 PostgreSQL backlog/恢复观察、生产迁移回滚、Data Center 双写与 authority source 仍待完成 |
 
 ## 2026-08-12 整理结果
 

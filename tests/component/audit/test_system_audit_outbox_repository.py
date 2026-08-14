@@ -171,3 +171,90 @@ def test_private_uow_and_invalid_claim_limit_are_enforced() -> None:
         with pytest.raises(SystemAuditOutboxConflict, match="nested"):
             with repository.atomic():
                 pass
+
+
+def test_backlog_snapshot_aggregates_recovery_states_without_mutating_rows() -> None:
+    repository = _repository()
+    pending_event = make_event(event_id="evt-pending", idempotency_key="fetch:pending")
+    claimed_event = make_event(event_id="evt-claimed", idempotency_key="fetch:claimed")
+    failed_event = make_event(event_id="evt-failed", idempotency_key="fetch:failed")
+    delivered_event = make_event(event_id="evt-delivered", idempotency_key="fetch:delivered")
+
+    with repository.atomic():
+        repository.enqueue(
+            pending_event,
+            created_at=NOW + timedelta(seconds=4),
+            available_at=NOW + timedelta(hours=1),
+        )
+        failed_record = repository.enqueue(
+            failed_event,
+            created_at=NOW + timedelta(seconds=2),
+            available_at=NOW + timedelta(seconds=2),
+        )
+        failed_claim = repository.claim_due(worker_id="worker-failed", as_of=LATER, limit=1)[0]
+        assert failed_claim.outbox_id == failed_record.outbox_id
+        repository.mark_failed(
+            outbox_id=failed_claim.outbox_id,
+            worker_id=failed_claim.worker_id,
+            claim_token=failed_claim.claim_token,
+            error_code="publisher_error",
+            failed_at=LATER,
+        )
+
+    with repository.atomic():
+        repository.enqueue(
+            claimed_event,
+            created_at=NOW + timedelta(seconds=1),
+            available_at=NOW + timedelta(seconds=1),
+        )
+        claimed = repository.claim_due(worker_id="worker-claimed", as_of=LATER, limit=1)[0]
+        assert claimed.event == claimed_event
+
+    with repository.atomic():
+        delivered_record = repository.enqueue(
+            delivered_event,
+            created_at=NOW + timedelta(seconds=3),
+            available_at=NOW + timedelta(seconds=3),
+        )
+        delivered_claim = repository.claim_due(worker_id="worker-delivered", as_of=LATER, limit=1)[
+            0
+        ]
+        assert delivered_claim.outbox_id == delivered_record.outbox_id
+        repository.mark_delivered(
+            outbox_id=delivered_claim.outbox_id,
+            worker_id=delivered_claim.worker_id,
+            claim_token=delivered_claim.claim_token,
+            delivered_at=LATER,
+        )
+
+    snapshot = repository.get_backlog_snapshot(as_of=LATER)
+
+    assert snapshot.pending_count == 1
+    assert snapshot.due_pending_count == 0
+    assert snapshot.claimed_count == 1
+    assert snapshot.expired_claimed_count == 0
+    assert snapshot.failed_count == 1
+    assert snapshot.delivered_count == 1
+    assert snapshot.backlog_count == 2
+    assert snapshot.oldest_backlog_at == NOW + timedelta(seconds=1)
+    assert snapshot.oldest_claimed_at == LATER
+    assert snapshot.oldest_backlog_age_seconds == pytest.approx(59.0)
+    assert snapshot.oldest_claimed_age_seconds == pytest.approx(0.0)
+    assert repository.get_exact(outbox_id=failed_record.outbox_id) is not None
+
+
+def test_backlog_snapshot_marks_expired_claims_without_reclaiming_them() -> None:
+    repository = _repository()
+    event = make_event(event_id="evt-expired", idempotency_key="fetch:expired")
+    with repository.atomic():
+        record = repository.enqueue(event, created_at=NOW, available_at=NOW)
+        claim = repository.claim_due(worker_id="worker-1", as_of=LATER, limit=1)[0]
+
+    observed = repository.get_backlog_snapshot(as_of=LATER + timedelta(minutes=5))
+
+    assert observed.claimed_count == 1
+    assert observed.expired_claimed_count == 1
+    restored = repository.get_exact(outbox_id=record.outbox_id)
+    assert restored is not None
+    assert restored.claim_token == claim.claim_token
+    assert restored.status == SystemAuditOutboxModel.STATUS_CLAIMED
