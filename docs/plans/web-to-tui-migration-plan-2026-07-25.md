@@ -71,6 +71,8 @@ TUI 不能以“能读取列表/详情”作为主任务完成。凡是用户任
 - `config/tui/ia/tui_information_architecture.v1.json`、runtime injection、published graph/registry 与浏览器契约测试必须保持一致；静态 graph 中不存在而 runtime 才注入的写入口，必须列入 deferred/promotion 证据，不能冒充已完成。
 - R0 的验收是“用户能完成主任务”，至少覆盖普通用户、owner/object 与 staff/admin 角色，以及空态、参数填写、确认、写后刷新/回执和错误恢复；只验证 action 存在或 GET smoke 不通过。
 
+2026-08-14 本地 R0 复核已补上运行时通用门禁：归一化 runtime graph 共 887 个 action，其中 277 个为 write/admin；所有写入 action 都必须使用非 GET 方法并声明 `create/update/delete/toggle/approve/reject/execute` effect，缺少可见字段的动作只能来自显式登记的 8 个整批执行/默认导入命令；4 个 `POST/read` 预览/测试命令也必须显式登记且保留输入字段。`tests/unit/test_tui_actionability_contract.py` 为 `5 passed`，`npm run test:tui-js` 为 `33 passed`。这证明代码层不会把应填写/修改/创建的入口降级成只读卡片，但不替代最终候选上的角色化浏览器 UAT、写后回执和生产审计证据。
+
 ### 2.5 机器唯一真源
 
 - IA registry：`config/tui/ia/tui_information_architecture.v1.json`

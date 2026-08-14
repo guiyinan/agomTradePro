@@ -898,6 +898,9 @@
 - ✅ **Web→TUI backend contract provenance（2026-08-14）**
   - runtime manifest 逐文件覆盖 IA、Application metadata、IA loader、repository/signals 与全部 `tui_metadata_runtime_*.py`；manifest digest contract 与 observation/candidate recorder 定向回归合计 21 passed
   - 仅完成本地候选 provenance；生产仍 revision=`unknown`/无 manifest，M5 观察窗口继续 DENY
+- ✅ **Web→TUI R0 actionability audit（2026-08-14）**
+  - 归一化 runtime graph 的 277 个 write/admin action 均需真实写方法与 mutation effect；创建/编辑/删除/审批入口必须有可见字段，8 个无输入整批命令与 4 个 POST/read 预览/测试命令分别显式登记；`test_tui_actionability_contract.py` `5 passed`、TUI JS `33 passed`
+  - 仅证明本地“可填写/可提交”门禁；最终候选角色化浏览器 UAT、写后回执、人工审批和生产审计证据仍未满足，M5 继续 DENY
 - ✅ **Web→TUI M5-C alias target checker correction（2026-08-14）**
   - 最终库存检查器同时读取 published graph 与 IA `published_screens`/`runtime_screens`，因此 runtime 注入的 `capability-router.mcp-center` 会被正确视为 canonical target；`capability-router.gateway` dangling 误报已消除
   - 11 个无活生产代码消费者的 dead alias 仍需真实流量观察、逐 wave 与回滚证据后再清理；M5 final 仍 DENY

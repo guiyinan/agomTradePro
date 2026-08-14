@@ -18,6 +18,28 @@ _IA_PATH = (
     / "tui_information_architecture.v1.json"
 )
 
+_MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+_MUTATION_EFFECTS = {"approve", "create", "delete", "execute", "reject", "toggle", "update"}
+# These commands intentionally operate on a complete/default set rather than
+# collecting user-entered fields.  Keeping the allow-list explicit prevents a
+# future create/update action from silently degrading into a view-only card.
+_NO_INPUT_MUTATIONS = {
+    "capability-router.sync-mcp-tools",
+    "equity.pool-refresh",
+    "equity.valuation-config-clear-cache",
+    "hedge.alert-monitor",
+    "hedge.snapshot-update-all",
+    "rotation.asset-import",
+    "signal.batch-check",
+    "task-monitor.scheduler-bootstrap",
+}
+_NON_MUTATING_POST_COMMANDS = {
+    "audit.threshold-update-preview",
+    "audit.validation-preview",
+    "data-center.market-thermometer-import-preview",
+    "data-center.provider-test",
+}
+
 
 def _ia_screen(screen_key: str) -> dict[str, Any]:
     payload = json.loads(_IA_PATH.read_text(encoding="utf-8"))
@@ -178,3 +200,35 @@ def test_normalized_runtime_metadata_binds_mutations_to_visible_rows() -> None:
     assert signal_actions["signal.update"]["method"] == "PATCH"
     assert signal_actions["signal.approve"]["method"] == "POST"
     assert signal_actions["signal.delete"]["method"] == "DELETE"
+
+
+def test_runtime_mutations_are_submit_ready_or_explicit_no_input_commands() -> None:
+    """Every write/admin action must be a real submit action, not a read-only card."""
+
+    payload = PublishedTuiMetadataRepository()._load_published_file()
+    for action in payload["actions"]:
+        method = str(action.get("method", "GET")).upper()
+        risk = str(action.get("risk", "read")).lower()
+        if method not in _MUTATING_METHODS or risk not in {"write", "admin"}:
+            continue
+
+        action_key = str(action["key"])
+        effect = str(action.get("effect") or "").lower()
+        if effect == "read":
+            assert (
+                action_key in _NON_MUTATING_POST_COMMANDS
+            ), f"{action_key} is a POST/read action without an explicit command classification"
+            assert action.get(
+                "fields"
+            ), f"{action_key} is an input-bearing preview/test command but exposes no fields"
+            continue
+        assert effect in _MUTATION_EFFECTS, (
+            f"{action_key} is mutating but has no supported effect; "
+            "a read-only action must not masquerade as a write"
+        )
+        fields = action.get("fields") or []
+        if not fields:
+            assert action_key in _NO_INPUT_MUTATIONS, (
+                f"{action_key} is a mutating action without visible input fields; "
+                "add a form field or explicitly classify it as a no-input command"
+            )
