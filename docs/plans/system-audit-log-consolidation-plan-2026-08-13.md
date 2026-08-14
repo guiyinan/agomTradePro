@@ -364,6 +364,11 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 - 运行示例（仅针对本机/测试服务的 disposable database）：`$env:AGOM_AUDIT_PG_CONCURRENCY_EVIDENCE="1"; $env:AGOM_AUDIT_PG_TEST_DATABASE_URL="postgresql://<user>:<password>@127.0.0.1:5432/agom_audit_test"; $env:DJANGO_SETTINGS_MODULE="tests.settings_audit_postgres_concurrency"; pytest tests/component/audit/test_system_audit_postgres_concurrency.py -q`。不设置这些变量不得把默认 SQLite 结果解释成 PostgreSQL 证据。
 - 本地无专用 PostgreSQL URL，本批仅验证默认安全行为（`4 skipped`）；四项 PostgreSQL race/rollback 结果、真实迁移回滚和生产覆盖仍保持未验证，不能据此宣称并发 gate 已通过。
 
+### 2026-08-15：M1 migration forward/backward 本地证据
+
+- 新增 `tests/component/audit/test_system_audit_migration.py`，以迁移 `0011_systemauditeventmodel` 的 `ProjectState` 和真实 SQLite `SchemaEditor` 执行两个 `CreateModel` 的 forward/backward，断言 `audit_system_event` 与 `audit_system_outbox` 均能创建并完整回滚；系统审计 component 回归 `16 passed`。
+- 该批只关闭本地 schema operation 的回滚盲区，不等价于完整历史 migration chain、PostgreSQL DDL/rollback 或生产数据库演练；registry 的 PostgreSQL concurrency/rollback gate、outbox backlog recovery、Data Center 双写和 M2 仍保持阻断。
+
 ### M1：Audit Domain、append-only ledger 与 Query
 
 交付：
