@@ -898,6 +898,9 @@
 - ✅ **Web→TUI backend contract provenance（2026-08-14）**
   - runtime manifest 逐文件覆盖 IA、Application metadata、IA loader、repository/signals 与全部 `tui_metadata_runtime_*.py`；manifest digest contract 与 observation/candidate recorder 定向回归合计 21 passed
   - 仅完成本地候选 provenance；生产仍 revision=`unknown`/无 manifest，M5 观察窗口继续 DENY
+- ✅ **Data Center architecture inventory source snapshot（2026-08-14）**
+  - 重新生成并复核架构清单：cross-App ORM 48、current-data surface 4225、data-write decorators 58、runtime config references 49；Data Center/Provider 外部直连、legacy fact 与待审外部 HTTP 均为 0
+  - 这是静态源码治理证据，不是生产 PostgreSQL/VPS、备份恢复、shadow reconciliation 或 M9 destructive migration 证据；生产切换继续 DENY
 - ✅ **Broker-owned broker account identity snapshot Domain 合同**
   - 封存Broker账户、Account exact source、binding/Agent owner seal与keyed QMT reference digest；Account字符串与Broker整数身份不做cast，owner/real/active必须闭合
   - 固定inactive；Account facade、Broker raw provider/digest service、ID-only发行和ledger/current reader均未完成，namespace blocker不变

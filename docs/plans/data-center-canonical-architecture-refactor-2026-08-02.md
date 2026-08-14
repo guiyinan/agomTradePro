@@ -4862,3 +4862,10 @@ Git SHA / 镜像 / migration：
 - 静态入口结果：确定性入口总账为 1108 项，`active_public=656`、`adjacent_operational=319`、`compatibility=133`、`candidate-review=0`；`system_settings_compatibility=0`。架构库存为 cross-App ORM 49、current surface 3432、data-write decorators 58、runtime parameter references 49，Data Center infrastructure 外部直连、Provider 外部直连、legacy fact 引用均为 0。
 - 本地证据：`0015` lifecycle 2 passed；入口 inventory 17 passed；配置/Provider/Account/Backup/MCP 定向组合持续通过；current-data 46 surfaces、Celery 31 tasks、runtime config 40 definitions/29 materialized、SystemSettings field contract、secret owner、Django check/migration check、Ruff/Black/isort、architecture delta、module cycle 与 governance consistency 均通过。
 - 发布边界：本批先保留历史列/表，不生成 destructive DeleteModel/RemoveField；原因是生产必须先执行 `0015` 并保留可恢复窗口。代码提交、GitHub CI、生产 PostgreSQL custom backup 下载校验和 VPS 部署证据在后续步骤补记；CI 全绿前不部署。
+
+## 144. 2026-08-14：架构库存与治理 source snapshot 刷新
+
+- 重新运行 `python scripts/data_center_architecture_inventory.py --write`，把治理清单与当前提交态源码重新对齐；随后以无写入模式再次运行同一脚本复核生成结果。
+- 当前静态计数为：`approved_non_data_http_imports=4`、`cross_app_orm_imports=48`、`current_surface_references=4225`、`data_write_task_decorators=58`、`runtime_parameter_references=49`；`direct_data_center_imports_outside_data_center=0`、`provider_imports_outside_data_center=0`、`legacy_fact_references=0`、`external_http_imports_for_review=0`。
+- 本地门禁复核：`check_governance_consistency.py`、`verify_architecture.py --include-audit --format text`、Data Center catalog/legacy-fact/current-data/Celery contract guards 均通过；本次只刷新 source inventory，不改变运行时数据、不回填生产表、不删除 retained legacy schema。
+- 解释边界：`cross_app_orm_imports` 与 `current_surface_references` 是静态源码计数，不能替代 PostgreSQL 生产 snapshot、VPS 部署版本、备份/恢复、shadow reconciliation、writer quiescence 或 M9 destructive migration 证据；在这些证据齐备前，Data Center 生产切换与旧表删除继续保持 DENY。

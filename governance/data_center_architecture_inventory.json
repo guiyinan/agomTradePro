@@ -35,8 +35,8 @@
   ],
   "counts": {
     "approved_non_data_http_imports": 4,
-    "cross_app_orm_imports": 49,
-    "current_surface_references": 3668,
+    "cross_app_orm_imports": 48,
+    "current_surface_references": 4225,
     "data_write_task_decorators": 58,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -78,11 +78,6 @@
     {
       "import": "apps.sector.infrastructure.models",
       "line": 32,
-      "path": "apps/account/management/commands/bootstrap_cold_start.py"
-    },
-    {
-      "import": "apps.strategy.infrastructure.models",
-      "line": 33,
       "path": "apps/account/management/commands/bootstrap_cold_start.py"
     },
     {
@@ -293,6 +288,706 @@
   ],
   "current_surface_references": [
     {
+      "line": 1,
+      "path": "apps/account/account_owner_assignment_evidence_v3_composition.py",
+      "text": "\"\"\"Account-owned read composition for current owner-assignment evidence v3.\"\"\""
+    },
+    {
+      "line": 74,
+      "path": "apps/account/account_owner_assignment_evidence_v3_composition.py",
+      "text": "\"\"\"Read one exact durable binding without any current fallback.\"\"\""
+    },
+    {
+      "line": 91,
+      "path": "apps/account/account_owner_assignment_evidence_v3_composition.py",
+      "text": "\"\"\"Adapt the Account Physical-v3 ledger to exact and exact-current reads.\"\"\""
+    },
+    {
+      "line": 130,
+      "path": "apps/account/account_owner_assignment_evidence_v3_composition.py",
+      "text": "\"\"\"Delegate the scalar selector to the server-owned closed-current reader.\"\"\""
+    },
+    {
+      "line": 150,
+      "path": "apps/account/account_owner_assignment_evidence_v3_composition.py",
+      "text": "\"\"\"Adapt Receipt-v3 exact/current use cases to the hash-only evidence port.\"\"\""
+    },
+    {
+      "line": 173,
+      "path": "apps/account/account_owner_assignment_evidence_v3_composition.py",
+      "text": "\"\"\"Delegate the scalar selector to the server-owned closed-current reader.\"\"\""
+    },
+    {
+      "line": 188,
+      "path": "apps/account/account_owner_assignment_evidence_v3_composition.py",
+      "text": "\"\"\"Build the Account-only closed-current Evidence-v3 reader.\"\"\""
+    },
+    {
+      "line": 225,
+      "path": "apps/account/account_owner_assignment_evidence_v3_composition.py",
+      "text": "current = GetCurrentAccountOwnerAssignmentEvidenceV3("
+    },
+    {
+      "line": 231,
+      "path": "apps/account/account_owner_assignment_evidence_v3_composition.py",
+      "text": "head_reader=evidence_repository, current_reader=current"
+    },
+    {
+      "line": 10,
+      "path": "apps/account/application/account_actor_authority_raw_source_primitives_v3.py",
+      "text": "\"\"\"The requested exact or exact-current raw authority source is unavailable.\"\"\""
+    },
+    {
+      "line": 51,
+      "path": "apps/account/application/account_actor_authority_raw_source_primitives_v3.py",
+      "text": "\"\"\"Select one exact version for replay or exact-current head verification.\"\"\""
+    },
+    {
+      "line": 127,
+      "path": "apps/account/application/account_authentication_context_source_v3.py",
+      "text": "\"repository returned a future current head\""
+    },
+    {
+      "line": 130,
+      "path": "apps/account/application/account_authentication_context_source_v3.py",
+      "text": "raise AccountActorAuthorityRawSourceV3Corruption(\"current-head source substitution\")"
+    },
+    {
+      "line": 135,
+      "path": "apps/account/application/account_authentication_context_source_v3.py",
+      "text": "raise AccountActorAuthorityRawSourceV3Corruption(\"current-head hash substitution\")"
+    },
+    {
+      "line": 137,
+      "path": "apps/account/application/account_authentication_context_source_v3.py",
+      "text": "raise AccountActorAuthorityRawSourceV3Corruption(\"current-head recorder substitution\")"
+    },
+    {
+      "line": 50,
+      "path": "apps/account/application/account_identity_raw_source.py",
+      "text": "\"\"\"Required exact-current source or assignment evidence is unavailable.\"\"\""
+    },
+    {
+      "line": 133,
+      "path": "apps/account/application/account_identity_raw_source.py",
+      "text": "\"\"\"Return whether this exact row observation is current at a cutoff.\"\"\""
+    },
+    {
+      "line": 200,
+      "path": "apps/account/application/account_identity_raw_source.py",
+      "text": "\"\"\"Return whether this exact assignment evidence is current at a cutoff.\"\"\""
+    },
+    {
+      "line": 360,
+      "path": "apps/account/application/account_identity_raw_source.py",
+      "text": "\"\"\"Load one exact-current physical account row observation.\"\"\""
+    },
+    {
+      "line": 433,
+      "path": "apps/account/application/account_identity_raw_source.py",
+      "text": "\"\"\"Capture raw source evidence only from two exact-current providers.\"\"\""
+    },
+    {
+      "line": 548,
+      "path": "apps/account/application/account_identity_raw_source.py",
+      "text": "\"exact current unified account row observation is unavailable\""
+    },
+    {
+      "line": 560,
+      "path": "apps/account/application/account_identity_raw_source.py",
+      "text": "\"exact current unified account row observation is unavailable\""
+    },
+    {
+      "line": 681,
+      "path": "apps/account/application/account_identity_raw_source.py",
+      "text": "\"account identity raw source is no longer the logical current head\""
+    },
+    {
+      "line": 50,
+      "path": "apps/account/application/account_identity_snapshot.py",
+      "text": "\"\"\"Required exact-current Account identity evidence is unavailable.\"\"\""
+    },
+    {
+      "line": 136,
+      "path": "apps/account/application/account_identity_snapshot.py",
+      "text": "\"\"\"Return whether the exact raw source is knowable and current.\"\"\""
+    },
+    {
+      "line": 200,
+      "path": "apps/account/application/account_identity_snapshot.py",
+      "text": "\"\"\"Return whether the exact reclaim receipt is knowable and current.\"\"\""
+    },
+    {
+      "line": 282,
+      "path": "apps/account/application/account_identity_snapshot.py",
+      "text": "\"\"\"Closed logical-current selector for inactive identity evidence.\"\"\""
+    },
+    {
+      "line": 339,
+      "path": "apps/account/application/account_identity_snapshot.py",
+      "text": "raise ValueError(\"current selector requires an active real account\")"
+    },
+    {
+      "line": 345,
+      "path": "apps/account/application/account_identity_snapshot.py",
+      "text": "raise ValueError(\"current selector account authority is invalid\")"
+    },
+    {
+      "line": 377,
+      "path": "apps/account/application/account_identity_snapshot.py",
+      "text": "raise ValueError(\"current selector provenance_kind is invalid\")"
+    },
+    {
+      "line": 382,
+      "path": "apps/account/application/account_identity_snapshot.py",
+      "text": "\"\"\"Load one exact current Account-consumer raw account projection.\"\"\""
+    },
+    {
+      "line": 395,
+      "path": "apps/account/application/account_identity_snapshot.py",
+      "text": "\"\"\"Load one exact current Account-owned manual reclaim receipt.\"\"\""
+    },
+    {
+      "line": 601,
+      "path": "apps/account/application/account_identity_snapshot.py",
+      "text": "\"exact current raw account identity source is unavailable\""
+    },
+    {
+      "line": 613,
+      "path": "apps/account/application/account_identity_snapshot.py",
+      "text": "\"exact current raw account identity source is unavailable\""
+    },
+    {
+      "line": 752,
+      "path": "apps/account/application/account_identity_snapshot.py",
+      "text": "\"account identity snapshot is no longer the logical current head\""
+    },
+    {
+      "line": 909,
+      "path": "apps/account/application/account_identity_snapshot.py",
+      "text": "\"account identity snapshot current selector substitution\""
+    },
+    {
+      "line": 18,
+      "path": "apps/account/application/account_owner_assignment_actor_authority_source_v3.py",
+      "text": "\"\"\"An exact-current authority input is unavailable.\"\"\""
+    },
+    {
+      "line": 166,
+      "path": "apps/account/application/account_owner_assignment_actor_authority_source_v3.py",
+      "text": "\"\"\"Select three exact-current authority inputs using IDs and hashes only.\"\"\""
+    },
+    {
+      "line": 439,
+      "path": "apps/account/application/account_owner_assignment_actor_authority_source_v3.py",
+      "text": "else (\"deactivated\" if not user.is_active else \"current\")"
+    },
+    {
+      "line": 518,
+      "path": "apps/account/application/account_owner_assignment_actor_authority_source_v3.py",
+      "text": "\"exact-current authority input is unavailable\""
+    },
+    {
+      "line": 606,
+      "path": "apps/account/application/account_owner_assignment_actor_authority_source_v3.py",
+      "text": "raise TypeError(\"command must be an exact authority current command\")"
+    },
+    {
+      "line": 67,
+      "path": "apps/account/application/account_owner_assignment_actor_authority_v3.py",
+      "text": "\"\"\"Return whether the exact request authentication remains current.\"\"\""
+    },
+    {
+      "line": 75,
+      "path": "apps/account/application/account_owner_assignment_actor_authority_v3.py",
+      "text": "\"\"\"Exact-current Account-owned user and RBAC authority projection.\"\"\""
+    },
+    {
+      "line": 115,
+      "path": "apps/account/application/account_owner_assignment_actor_authority_v3.py",
+      "text": "\"\"\"Revalidate one authenticated principal against current Account authority.\"\"\""
+    },
+    {
+      "line": 140,
+      "path": "apps/account/application/account_owner_assignment_actor_authority_v3.py",
+      "text": "\"\"\"Return a current claimant or fail closed after an authority re-read.\"\"\""
+    },
+    {
+      "line": 167,
+      "path": "apps/account/application/account_owner_assignment_actor_authority_v3.py",
+      "text": "\"\"\"Return a current staff admin or fail closed after an authority re-read.\"\"\""
+    },
+    {
+      "line": 71,
+      "path": "apps/account/application/account_owner_assignment_evidence.py",
+      "text": "\"\"\"An exact current subject, row, receipt, or evidence is unavailable.\"\"\""
+    },
+    {
+      "line": 176,
+      "path": "apps/account/application/account_owner_assignment_evidence.py",
+      "text": "\"\"\"Return whether this exact row is knowable and current.\"\"\""
+    },
+    {
+      "line": 300,
+      "path": "apps/account/application/account_owner_assignment_evidence.py",
+      "text": "\"\"\"Return whether this exact receipt is knowable and current.\"\"\""
+    },
+    {
+      "line": 369,
+      "path": "apps/account/application/account_owner_assignment_evidence.py",
+      "text": "\"\"\"Return whether this registered subject is current at a cutoff.\"\"\""
+    },
+    {
+      "line": 452,
+      "path": "apps/account/application/account_owner_assignment_evidence.py",
+      "text": "\"\"\"Load one exact-current Account row observation.\"\"\""
+    },
+    {
+      "line": 457,
+      "path": "apps/account/application/account_owner_assignment_evidence.py",
+      "text": "\"\"\"Return one exact-current observation at the server cutoff.\"\"\""
+    },
+    {
+      "line": 461,
+      "path": "apps/account/application/account_owner_assignment_evidence.py",
+      "text": "\"\"\"Load one exact-current Account-owned provenance receipt.\"\"\""
+    },
+    {
+      "line": 466,
+      "path": "apps/account/application/account_owner_assignment_evidence.py",
+      "text": "\"\"\"Return one exact-current receipt at the server cutoff.\"\"\""
+    },
+    {
+      "line": 778,
+      "path": "apps/account/application/account_owner_assignment_evidence.py",
+      "text": "\"current owner-assignment definition no longer matches the subject\""
+    },
+    {
+      "line": 864,
+      "path": "apps/account/application/account_owner_assignment_evidence.py",
+      "text": "\"owner-assignment evidence is no longer the logical current head\""
+    },
+    {
+      "line": 28,
+      "path": "apps/account/application/account_owner_assignment_evidence_v2.py",
+      "text": "\"\"\"Required current owner evidence is unavailable.\"\"\""
+    },
+    {
+      "line": 122,
+      "path": "apps/account/application/account_owner_assignment_evidence_v2.py",
+      "text": "\"\"\"Closed semantic selector for an exact current dual-mapping head.\"\"\""
+    },
+    {
+      "line": 148,
+      "path": "apps/account/application/account_owner_assignment_evidence_v2.py",
+      "text": "\"\"\"Load one exact current claimant receipt v2 head.\"\"\""
+    },
+    {
+      "line": 259,
+      "path": "apps/account/application/account_owner_assignment_evidence_v2.py",
+      "text": "raise AccountOwnerAssignmentEvidenceV2Unavailable(\"claimant receipt is not current\")"
+    },
+    {
+      "line": 513,
+      "path": "apps/account/application/account_owner_assignment_evidence_v2.py",
+      "text": "raise AccountOwnerAssignmentEvidenceV2Unavailable(\"subject is not current\")"
+    },
+    {
+      "line": 568,
+      "path": "apps/account/application/account_owner_assignment_evidence_v2.py",
+      "text": "\"\"\"Read immutable evidence historically without granting current authority.\"\"\""
+    },
+    {
+      "line": 600,
+      "path": "apps/account/application/account_owner_assignment_evidence_v2.py",
+      "text": "\"\"\"Return current evidence only after both upstream and mapping heads revalidate.\"\"\""
+    },
+    {
+      "line": 125,
+      "path": "apps/account/application/account_owner_assignment_evidence_v3.py",
+      "text": "\"\"\"Select one current dual-mapping evidence root by ID and content hash.\"\"\""
+    },
+    {
+      "line": 140,
+      "path": "apps/account/application/account_owner_assignment_evidence_v3.py",
+      "text": "\"\"\"Read one exact-current creation claimant Receipt-v3 head.\"\"\""
+    },
+    {
+      "line": 153,
+      "path": "apps/account/application/account_owner_assignment_evidence_v3.py",
+      "text": "\"\"\"Read one exact-current allocated Physical-v3 head.\"\"\""
+    },
+    {
+      "line": 230,
+      "path": "apps/account/application/account_owner_assignment_evidence_v3.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"exact-current Receipt-v3 is unavailable\")"
+    },
+    {
+      "line": 244,
+      "path": "apps/account/application/account_owner_assignment_evidence_v3.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"Receipt-v3 is not current\")"
+    },
+    {
+      "line": 257,
+      "path": "apps/account/application/account_owner_assignment_evidence_v3.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"exact-current Physical-v3 is unavailable\")"
+    },
+    {
+      "line": 271,
+      "path": "apps/account/application/account_owner_assignment_evidence_v3.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"Physical-v3 is not current\")"
+    },
+    {
+      "line": 297,
+      "path": "apps/account/application/account_owner_assignment_evidence_v3.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"current human staff approver is unavailable\")"
+    },
+    {
+      "line": 305,
+      "path": "apps/account/application/account_owner_assignment_evidence_v3.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"current human staff approver is ineligible\")"
+    },
+    {
+      "line": 553,
+      "path": "apps/account/application/account_owner_assignment_evidence_v3.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"subject v3 is not current\")"
+    },
+    {
+      "line": 605,
+      "path": "apps/account/application/account_owner_assignment_evidence_v3.py",
+      "text": "\"\"\"Read immutable evidence historically without current-upstream requirements.\"\"\""
+    },
+    {
+      "line": 637,
+      "path": "apps/account/application/account_owner_assignment_evidence_v3.py",
+      "text": "\"\"\"Return only the exact dual-head evidence with current Receipt-v3/Physical-v3.\"\"\""
+    },
+    {
+      "line": 129,
+      "path": "apps/account/application/account_owner_assignment_mapping_v2.py",
+      "text": "\"\"\"Publish only a current, staff-approved owner mapping; never a legacy default.\"\"\""
+    },
+    {
+      "line": 173,
+      "path": "apps/account/application/account_owner_assignment_mapping_v2.py",
+      "text": "current = _evidence(raw_current)"
+    },
+    {
+      "line": 174,
+      "path": "apps/account/application/account_owner_assignment_mapping_v2.py",
+      "text": "if current != head:"
+    },
+    {
+      "line": 176,
+      "path": "apps/account/application/account_owner_assignment_mapping_v2.py",
+      "text": "\"current mapping reader substituted the evidence head\""
+    },
+    {
+      "line": 178,
+      "path": "apps/account/application/account_owner_assignment_mapping_v2.py",
+      "text": "if current.assignment_state == \"legacy_default\":"
+    },
+    {
+      "line": 180,
+      "path": "apps/account/application/account_owner_assignment_mapping_v2.py",
+      "text": "if current.assignment_state != \"authoritative\" or current.assigned_owner_user_id is None:"
+    },
+    {
+      "line": 182,
+      "path": "apps/account/application/account_owner_assignment_mapping_v2.py",
+      "text": "\"current mapping has no authoritative owner\""
+    },
+    {
+      "line": 189,
+      "path": "apps/account/application/account_owner_assignment_mapping_v2.py",
+      "text": "assigned_owner_user_id=current.assigned_owner_user_id,"
+    },
+    {
+      "line": 190,
+      "path": "apps/account/application/account_owner_assignment_mapping_v2.py",
+      "text": "evidence_id=current.evidence_id,"
+    },
+    {
+      "line": 191,
+      "path": "apps/account/application/account_owner_assignment_mapping_v2.py",
+      "text": "evidence_version=current.evidence_version,"
+    },
+    {
+      "line": 192,
+      "path": "apps/account/application/account_owner_assignment_mapping_v2.py",
+      "text": "evidence_content_hash=current.content_hash,"
+    },
+    {
+      "line": 193,
+      "path": "apps/account/application/account_owner_assignment_mapping_v2.py",
+      "text": "valid_until=current.valid_until,"
+    },
+    {
+      "line": 125,
+      "path": "apps/account/application/account_owner_assignment_mapping_v3.py",
+      "text": "\"\"\"Revalidate both mapping heads and every exact-current v3 upstream artifact.\"\"\""
+    },
+    {
+      "line": 133,
+      "path": "apps/account/application/account_owner_assignment_mapping_v3.py",
+      "text": "\"\"\"Publish only a current staff-approved v3 owner mapping, without fallback.\"\"\""
+    },
+    {
+      "line": 179,
+      "path": "apps/account/application/account_owner_assignment_mapping_v3.py",
+      "text": "current = _evidence(raw_current)"
+    },
+    {
+      "line": 180,
+      "path": "apps/account/application/account_owner_assignment_mapping_v3.py",
+      "text": "if current != head:"
+    },
+    {
+      "line": 182,
+      "path": "apps/account/application/account_owner_assignment_mapping_v3.py",
+      "text": "\"current Evidence-v3 reader substituted the mapping head\""
+    },
+    {
+      "line": 184,
+      "path": "apps/account/application/account_owner_assignment_mapping_v3.py",
+      "text": "if current.assignment_state != \"authoritative\":"
+    },
+    {
+      "line": 193,
+      "path": "apps/account/application/account_owner_assignment_mapping_v3.py",
+      "text": "assigned_owner_user_id=current.assigned_owner_user_id,"
+    },
+    {
+      "line": 194,
+      "path": "apps/account/application/account_owner_assignment_mapping_v3.py",
+      "text": "evidence_id=current.evidence_id,"
+    },
+    {
+      "line": 195,
+      "path": "apps/account/application/account_owner_assignment_mapping_v3.py",
+      "text": "evidence_version=current.evidence_version,"
+    },
+    {
+      "line": 196,
+      "path": "apps/account/application/account_owner_assignment_mapping_v3.py",
+      "text": "evidence_content_hash=current.content_hash,"
+    },
+    {
+      "line": 197,
+      "path": "apps/account/application/account_owner_assignment_mapping_v3.py",
+      "text": "valid_until=current.valid_until,"
+    },
+    {
+      "line": 64,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt.py",
+      "text": "\"\"\"Required exact-current row or receipt is unavailable.\"\"\""
+    },
+    {
+      "line": 147,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt.py",
+      "text": "\"\"\"Load one exact-current Account-owned physical-row observation.\"\"\""
+    },
+    {
+      "line": 345,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt.py",
+      "text": "\"exact current physical row is unavailable\""
+    },
+    {
+      "line": 361,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt.py",
+      "text": "\"exact current physical row is unavailable\""
+    },
+    {
+      "line": 452,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt.py",
+      "text": "\"provenance receipt is no longer the logical current head\""
+    },
+    {
+      "line": 57,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v2.py",
+      "text": "\"\"\"The exact-current physical v2 row or receipt is unavailable.\"\"\""
+    },
+    {
+      "line": 132,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v2.py",
+      "text": "\"\"\"Closed full-receipt selector for the final current claimant head.\"\"\""
+    },
+    {
+      "line": 212,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v2.py",
+      "text": "\"\"\"Double-read one full exact-current physical v2 row and CAS-append a claim.\"\"\""
+    },
+    {
+      "line": 458,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v2.py",
+      "text": "\"\"\"Read exact claimant evidence only while its physical v2 row is current.\"\"\""
+    },
+    {
+      "line": 472,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v2.py",
+      "text": "\"\"\"Revalidate the exact-current upstream row; never fall back to v1.\"\"\""
+    },
+    {
+      "line": 522,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v2.py",
+      "text": "raise TypeError(\"command must be an exact v2 current command\")"
+    },
+    {
+      "line": 578,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v2.py",
+      "text": "\"exact-current physical v2 row is unavailable\""
+    },
+    {
+      "line": 600,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v2.py",
+      "text": "\"exact-current physical v2 row is unavailable\""
+    },
+    {
+      "line": 112,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v3.py",
+      "text": "\"\"\"Select one expected closed-current receipt using only identity and hash.\"\"\""
+    },
+    {
+      "line": 140,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v3.py",
+      "text": "\"\"\"Read only an exact-current allocated Physical-v3 creation root.\"\"\""
+    },
+    {
+      "line": 324,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v3.py",
+      "text": "\"current claimant does not own the creation allocation\""
+    },
+    {
+      "line": 490,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v3.py",
+      "text": "\"\"\"Read only the closed logical head with exact-current upstream evidence.\"\"\""
+    },
+    {
+      "line": 512,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v3.py",
+      "text": "raise TypeError(\"command must be an exact v3 current command\")"
+    },
+    {
+      "line": 602,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v3.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"exact-current Physical-v3 is unavailable\")"
+    },
+    {
+      "line": 612,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v3.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"exact-current Physical-v3 is unavailable\")"
+    },
+    {
+      "line": 620,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v3.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"current human claimant is unavailable\")"
+    },
+    {
+      "line": 628,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v3.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"current human claimant is not eligible\")"
+    },
+    {
+      "line": 245,
+      "path": "apps/account/application/account_rbac_authority_mutation_binding_v3.py",
+      "text": "\"\"\"Return the exact-current raw source matching the requested hash.\"\"\""
+    },
+    {
+      "line": 416,
+      "path": "apps/account/application/account_rbac_authority_mutation_binding_v3.py",
+      "text": "elif predecessor.new_authority_state != \"current\":"
+    },
+    {
+      "line": 503,
+      "path": "apps/account/application/account_rbac_authority_mutation_binding_v3.py",
+      "text": "\"exact/current RBAC raw source changed during binding\""
+    },
+    {
+      "line": 532,
+      "path": "apps/account/application/account_rbac_authority_mutation_binding_v3.py",
+      "text": "\"bootstrap\": \"current\","
+    },
+    {
+      "line": 533,
+      "path": "apps/account/application/account_rbac_authority_mutation_binding_v3.py",
+      "text": "\"role_change\": \"current\","
+    },
+    {
+      "line": 535,
+      "path": "apps/account/application/account_rbac_authority_mutation_binding_v3.py",
+      "text": "\"reactivate\": \"current\","
+    },
+    {
+      "line": 937,
+      "path": "apps/account/application/account_rbac_authority_mutation_binding_v3.py",
+      "text": "\"\"\"Verify exact history, final-head equality, and current authority state.\"\"\""
+    },
+    {
+      "line": 944,
+      "path": "apps/account/application/account_rbac_authority_mutation_binding_v3.py",
+      "text": "exact.new_authority_state == \"current\""
+    },
+    {
+      "line": 158,
+      "path": "apps/account/application/account_rbac_authority_mutation_v3.py",
+      "text": "\"\"\"Return exact replay or atomically record one current-role mutation.\"\"\""
+    },
+    {
+      "line": 174,
+      "path": "apps/account/application/account_rbac_authority_mutation_v3.py",
+      "text": "if head.authority_state != \"current\":"
+    },
+    {
+      "line": 255,
+      "path": "apps/account/application/account_rbac_authority_mutation_v3.py",
+      "text": "\"current\","
+    },
+    {
+      "line": 326,
+      "path": "apps/account/application/account_rbac_authority_mutation_v3.py",
+      "text": "authority_state=\"current\","
+    },
+    {
+      "line": 132,
+      "path": "apps/account/application/account_rbac_authority_source_v3.py",
+      "text": "\"repository returned a future RBAC current head\""
+    },
+    {
+      "line": 133,
+      "path": "apps/account/application/account_user_authority_source_v3.py",
+      "text": "\"user-authority current-head source substitution\""
+    },
+    {
+      "line": 140,
+      "path": "apps/account/application/account_user_authority_source_v3.py",
+      "text": "\"user-authority current-head hash substitution\""
+    },
+    {
+      "line": 144,
+      "path": "apps/account/application/account_user_authority_source_v3.py",
+      "text": "\"user-authority current-head recorder substitution\""
+    },
+    {
+      "line": 22,
+      "path": "apps/account/application/allocated_physical_account_row_observation_v3.py",
+      "text": "\"\"\"One exact-current creation-root input is unavailable.\"\"\""
+    },
+    {
+      "line": 165,
+      "path": "apps/account/application/allocated_physical_account_row_observation_v3.py",
+      "text": "\"\"\"Load one exact-current allocation not yet consumed by a durable binding.\"\"\""
+    },
+    {
+      "line": 359,
+      "path": "apps/account/application/allocated_physical_account_row_observation_v3.py",
+      "text": "\"allocation is not exact-current-unconsumed\""
+    },
+    {
+      "line": 459,
+      "path": "apps/account/application/canonical_account_creation.py",
+      "text": "raise CanonicalAccountCreationUnavailable(\"allocation is not current-unconsumed\")"
+    },
+    {
       "line": 12,
       "path": "apps/account/application/config_summary_service.py",
       "text": "\"\"\"Return account profile and access-token summary for one user.\"\"\""
@@ -483,6 +1178,81 @@
       "text": "if self.freshness == \"realtime\" and self.observed_at is None:"
     },
     {
+      "line": 56,
+      "path": "apps/account/application/physical_account_row_observation.py",
+      "text": "\"\"\"Required exact-current physical row evidence is unavailable.\"\"\""
+    },
+    {
+      "line": 148,
+      "path": "apps/account/application/physical_account_row_observation.py",
+      "text": "\"\"\"Return whether this exact physical row is current at one cutoff.\"\"\""
+    },
+    {
+      "line": 297,
+      "path": "apps/account/application/physical_account_row_observation.py",
+      "text": "raise ValueError(\"physical account row current selector authority is invalid\")"
+    },
+    {
+      "line": 306,
+      "path": "apps/account/application/physical_account_row_observation.py",
+      "text": "\"\"\"Build a closed current selector from trusted immutable evidence.\"\"\""
+    },
+    {
+      "line": 340,
+      "path": "apps/account/application/physical_account_row_observation.py",
+      "text": "\"\"\"Load one exact-current physical SimulatedAccount row projection.\"\"\""
+    },
+    {
+      "line": 542,
+      "path": "apps/account/application/physical_account_row_observation.py",
+      "text": "\"exact current physical simulated account row is unavailable\""
+    },
+    {
+      "line": 563,
+      "path": "apps/account/application/physical_account_row_observation.py",
+      "text": "\"exact current physical simulated account row is unavailable\""
+    },
+    {
+      "line": 631,
+      "path": "apps/account/application/physical_account_row_observation.py",
+      "text": "\"physical account row observation is no longer the logical current head\""
+    },
+    {
+      "line": 292,
+      "path": "apps/account/application/physical_account_row_observation_v2.py",
+      "text": "\"\"\"Closed current selector carrying every expected sealed fact.\"\"\""
+    },
+    {
+      "line": 412,
+      "path": "apps/account/application/physical_account_row_observation_v2.py",
+      "text": "first = self._read_source(command, cutoff, current=False)"
+    },
+    {
+      "line": 427,
+      "path": "apps/account/application/physical_account_row_observation_v2.py",
+      "text": "final = self._read_source(command, cutoff, current=False)"
+    },
+    {
+      "line": 493,
+      "path": "apps/account/application/physical_account_row_observation_v2.py",
+      "text": "current: bool,"
+    },
+    {
+      "line": 496,
+      "path": "apps/account/application/physical_account_row_observation_v2.py",
+      "text": "self._row_provider.get_exact_current if current else self._row_provider.get_exact_final"
+    },
+    {
+      "line": 518,
+      "path": "apps/account/application/physical_account_row_observation_v2.py",
+      "text": "require_current=current,"
+    },
+    {
+      "line": 635,
+      "path": "apps/account/application/physical_account_row_observation_v2.py",
+      "text": "\"\"\"Return a live Account v2 head only while its source remains current.\"\"\""
+    },
+    {
       "line": 189,
       "path": "apps/account/application/portfolio_api_contracts.py",
       "text": "\"\"\"Build portfolio summary statistics.\"\"\""
@@ -628,6 +1398,176 @@
       "text": "logger.exception(\"Failed to load latest pulse for macro sizing context\")"
     },
     {
+      "line": 17,
+      "path": "apps/account/domain/account_owner_assignment_actor_authority_source_v3.py",
+      "text": "AUTHORITY_STATES = frozenset({\"current\", *TERMINAL_STATES})"
+    },
+    {
+      "line": 143,
+      "path": "apps/account/domain/account_owner_assignment_actor_authority_source_v3.py",
+      "text": "if self.authority_state == \"current\" and (not self.is_authenticated or not self.is_active):"
+    },
+    {
+      "line": 144,
+      "path": "apps/account/domain/account_owner_assignment_actor_authority_source_v3.py",
+      "text": "raise ValueError(\"current authority facts must be authenticated and active\")"
+    },
+    {
+      "line": 330,
+      "path": "apps/account/domain/account_owner_assignment_actor_authority_source_v3.py",
+      "text": "self.authority_state == \"current\""
+    },
+    {
+      "line": 125,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v2.py",
+      "text": "\"\"\"Require both upstream values and this subject to remain current.\"\"\""
+    },
+    {
+      "line": 302,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v2.py",
+      "text": "\"\"\"Return only an unexpired final value whose complete subject remains current.\"\"\""
+    },
+    {
+      "line": 73,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v3.py",
+      "text": "\"\"\"Seal one exact creation claim and its still-current physical creation root.\"\"\""
+    },
+    {
+      "line": 177,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v3.py",
+      "text": "raise ValueError(\"subject v3 requires current receipt and Physical v3\")"
+    },
+    {
+      "line": 206,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v3.py",
+      "text": "\"\"\"Require the subject and both short-lived upstream values to remain current.\"\"\""
+    },
+    {
+      "line": 338,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v3.py",
+      "text": "raise ValueError(\"evidence v3 requires a current subject when recorded\")"
+    },
+    {
+      "line": 357,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v3.py",
+      "text": "for name, current, expected in ("
+    },
+    {
+      "line": 361,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v3.py",
+      "text": "if not current:"
+    },
+    {
+      "line": 364,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v3.py",
+      "text": "_digest(current, name)"
+    },
+    {
+      "line": 365,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v3.py",
+      "text": "if current != expected:"
+    },
+    {
+      "line": 395,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v3.py",
+      "text": "\"\"\"Require this approval and its complete subject to remain current.\"\"\""
+    },
+    {
+      "line": 131,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt.py",
+      "text": "claimant is a current staff reviewer attesting only that the row has a legacy"
+    },
+    {
+      "line": 169,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v3.py",
+      "text": "raise ValueError(\"creation root must be current when receipt is recorded\")"
+    },
+    {
+      "line": 23,
+      "path": "apps/account/domain/account_rbac_authority_mutation_binding_v3.py",
+      "text": "AUTHORITY_STATES = frozenset({\"current\", \"revoked\"})"
+    },
+    {
+      "line": 531,
+      "path": "apps/account/domain/account_rbac_authority_mutation_binding_v3.py",
+      "text": "\"bootstrap\": (None, \"current\"),"
+    },
+    {
+      "line": 532,
+      "path": "apps/account/domain/account_rbac_authority_mutation_binding_v3.py",
+      "text": "\"role_change\": (\"current\", \"current\"),"
+    },
+    {
+      "line": 533,
+      "path": "apps/account/domain/account_rbac_authority_mutation_binding_v3.py",
+      "text": "\"revoke\": (\"current\", \"revoked\"),"
+    },
+    {
+      "line": 534,
+      "path": "apps/account/domain/account_rbac_authority_mutation_binding_v3.py",
+      "text": "\"reactivate\": (\"revoked\", \"current\"),"
+    },
+    {
+      "line": 32,
+      "path": "apps/account/domain/account_rbac_authority_source_v3.py",
+      "text": "ACCOUNT_RBAC_AUTHORITY_STATES = frozenset({\"current\", \"revoked\"})"
+    },
+    {
+      "line": 221,
+      "path": "apps/account/domain/account_rbac_authority_source_v3.py",
+      "text": "return self.authority_state == \"current\" and recorded_at <= as_of < valid_until"
+    },
+    {
+      "line": 24,
+      "path": "apps/account/domain/account_user_authority_source_v3.py",
+      "text": "AUTHORITY_STATES = frozenset({\"current\", \"deactivated\"})"
+    },
+    {
+      "line": 117,
+      "path": "apps/account/domain/account_user_authority_source_v3.py",
+      "text": "if self.is_active != (self.authority_state == \"current\"):"
+    },
+    {
+      "line": 213,
+      "path": "apps/account/domain/account_user_authority_source_v3.py",
+      "text": "self.authority_state == \"current\""
+    },
+    {
+      "line": 441,
+      "path": "apps/account/domain/canonical_account_creation.py",
+      "text": "for field_name, current, expected in ("
+    },
+    {
+      "line": 445,
+      "path": "apps/account/domain/canonical_account_creation.py",
+      "text": "if not current:"
+    },
+    {
+      "line": 447,
+      "path": "apps/account/domain/canonical_account_creation.py",
+      "text": "elif _digest(current, field_name) != expected:"
+    },
+    {
+      "line": 201,
+      "path": "apps/account/domain/canonical_account_creation_binding_v2.py",
+      "text": "for field_name, current, expected in ("
+    },
+    {
+      "line": 209,
+      "path": "apps/account/domain/canonical_account_creation_binding_v2.py",
+      "text": "if not current:"
+    },
+    {
+      "line": 212,
+      "path": "apps/account/domain/canonical_account_creation_binding_v2.py",
+      "text": "_require_hash(current, field_name)"
+    },
+    {
+      "line": 213,
+      "path": "apps/account/domain/canonical_account_creation_binding_v2.py",
+      "text": "if current != expected:"
+    },
+    {
       "line": 182,
       "path": "apps/account/domain/interfaces.py",
       "text": "\"\"\"Update position current price and recalculate P&L.\"\"\""
@@ -703,6 +1643,146 @@
       "text": "return max(0.0, (peak - current) / peak)"
     },
     {
+      "line": 335,
+      "path": "apps/account/infrastructure/account_actor_authority_raw_source_models_v3.py",
+      "text": "models.Q(authority_state=\"current\", is_active=True)"
+    },
+    {
+      "line": 414,
+      "path": "apps/account/infrastructure/account_actor_authority_raw_source_models_v3.py",
+      "text": "condition=models.Q(authority_state__in=(\"current\", \"revoked\")),"
+    },
+    {
+      "line": 52,
+      "path": "apps/account/infrastructure/account_authentication_context_source_v3_repository.py",
+      "text": "\"\"\"Return the current aware time.\"\"\""
+    },
+    {
+      "line": 359,
+      "path": "apps/account/infrastructure/account_authentication_context_source_v3_repository.py",
+      "text": "current_row, current = root_row, root"
+    },
+    {
+      "line": 368,
+      "path": "apps/account/infrastructure/account_authentication_context_source_v3_repository.py",
+      "text": "current.source, successor.source"
+    },
+    {
+      "line": 375,
+      "path": "apps/account/infrastructure/account_authentication_context_source_v3_repository.py",
+      "text": "current_row, current = next_row, successor"
+    },
+    {
+      "line": 62,
+      "path": "apps/account/infrastructure/account_identity_raw_source_repository.py",
+      "text": "\"\"\"Return current Django time.\"\"\""
+    },
+    {
+      "line": 112,
+      "path": "apps/account/infrastructure/account_identity_raw_source_repository.py",
+      "text": "current = self._current_head("
+    },
+    {
+      "line": 118,
+      "path": "apps/account/infrastructure/account_identity_raw_source_repository.py",
+      "text": "current_hash = current.source.content_hash if current is not None else None"
+    },
+    {
+      "line": 127,
+      "path": "apps/account/infrastructure/account_identity_raw_source_repository.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 129,
+      "path": "apps/account/infrastructure/account_identity_raw_source_repository.py",
+      "text": "validate_account_identity_raw_source_successor(current.source, source)"
+    },
+    {
+      "line": 590,
+      "path": "apps/account/infrastructure/account_identity_raw_source_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 591,
+      "path": "apps/account/infrastructure/account_identity_raw_source_repository.py",
+      "text": "while current.source.content_hash not in visited:"
+    },
+    {
+      "line": 592,
+      "path": "apps/account/infrastructure/account_identity_raw_source_repository.py",
+      "text": "visited.add(current.source.content_hash)"
+    },
+    {
+      "line": 593,
+      "path": "apps/account/infrastructure/account_identity_raw_source_repository.py",
+      "text": "successor = successor_by_predecessor.get(current.source.content_hash)"
+    },
+    {
+      "line": 596,
+      "path": "apps/account/infrastructure/account_identity_raw_source_repository.py",
+      "text": "current = successor"
+    },
+    {
+      "line": 599,
+      "path": "apps/account/infrastructure/account_identity_raw_source_repository.py",
+      "text": "return current"
+    },
+    {
+      "line": 62,
+      "path": "apps/account/infrastructure/account_identity_snapshot_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 130,
+      "path": "apps/account/infrastructure/account_identity_snapshot_repository.py",
+      "text": "current = self._current_head("
+    },
+    {
+      "line": 136,
+      "path": "apps/account/infrastructure/account_identity_snapshot_repository.py",
+      "text": "actual_predecessor = current.snapshot.content_hash if current is not None else None"
+    },
+    {
+      "line": 141,
+      "path": "apps/account/infrastructure/account_identity_snapshot_repository.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 144,
+      "path": "apps/account/infrastructure/account_identity_snapshot_repository.py",
+      "text": "current.snapshot,"
+    },
+    {
+      "line": 641,
+      "path": "apps/account/infrastructure/account_identity_snapshot_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 642,
+      "path": "apps/account/infrastructure/account_identity_snapshot_repository.py",
+      "text": "while current.snapshot.content_hash not in visited:"
+    },
+    {
+      "line": 643,
+      "path": "apps/account/infrastructure/account_identity_snapshot_repository.py",
+      "text": "visited.add(current.snapshot.content_hash)"
+    },
+    {
+      "line": 644,
+      "path": "apps/account/infrastructure/account_identity_snapshot_repository.py",
+      "text": "successor = successor_by_predecessor.get(current.snapshot.content_hash)"
+    },
+    {
+      "line": 647,
+      "path": "apps/account/infrastructure/account_identity_snapshot_repository.py",
+      "text": "current = successor"
+    },
+    {
+      "line": 652,
+      "path": "apps/account/infrastructure/account_identity_snapshot_repository.py",
+      "text": "return current"
+    },
+    {
       "line": 485,
       "path": "apps/account/infrastructure/account_interface_administration_repository.py",
       "text": "\"\"\"Atomically consume one current backup token and generate its archive.\"\"\""
@@ -733,6 +1813,176 @@
       "text": "\"summary = client.dashboard.get_summary()\","
     },
     {
+      "line": 257,
+      "path": "apps/account/infrastructure/account_owner_assignment_actor_authority_source_v3_models.py",
+      "text": "models.Q(authority_state__in=(\"current\", \"revoked\", \"deactivated\"))"
+    },
+    {
+      "line": 259,
+      "path": "apps/account/infrastructure/account_owner_assignment_actor_authority_source_v3_models.py",
+      "text": "~models.Q(authority_state=\"current\")"
+    },
+    {
+      "line": 50,
+      "path": "apps/account/infrastructure/account_owner_assignment_actor_authority_source_v3_repository.py",
+      "text": "\"\"\"Return the current aware time.\"\"\""
+    },
+    {
+      "line": 421,
+      "path": "apps/account/infrastructure/account_owner_assignment_actor_authority_source_v3_repository.py",
+      "text": "current_row, current = root_row, root"
+    },
+    {
+      "line": 434,
+      "path": "apps/account/infrastructure/account_owner_assignment_actor_authority_source_v3_repository.py",
+      "text": "current.source, successor.source"
+    },
+    {
+      "line": 441,
+      "path": "apps/account/infrastructure/account_owner_assignment_actor_authority_source_v3_repository.py",
+      "text": "current_row, current = next_row, successor"
+    },
+    {
+      "line": 66,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 248,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_repository.py",
+      "text": "current = self._current_head("
+    },
+    {
+      "line": 257,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_repository.py",
+      "text": "actual_predecessor = current.content_hash if current is not None else None"
+    },
+    {
+      "line": 260,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_repository.py",
+      "text": "\"owner-assignment evidence current head changed\""
+    },
+    {
+      "line": 262,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_repository.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 264,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_repository.py",
+      "text": "validate_account_owner_assignment_successor(current, checked)"
+    },
+    {
+      "line": 957,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 958,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_repository.py",
+      "text": "while current.content_hash not in visited:"
+    },
+    {
+      "line": 959,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_repository.py",
+      "text": "visited.add(current.content_hash)"
+    },
+    {
+      "line": 960,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_repository.py",
+      "text": "successor = successor_by_predecessor.get(current.content_hash)"
+    },
+    {
+      "line": 963,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_repository.py",
+      "text": "current = successor"
+    },
+    {
+      "line": 968,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_repository.py",
+      "text": "return current"
+    },
+    {
+      "line": 620,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_v2_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 621,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_v2_repository.py",
+      "text": "while current.content_hash not in visited:"
+    },
+    {
+      "line": 622,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_v2_repository.py",
+      "text": "visited.add(current.content_hash)"
+    },
+    {
+      "line": 623,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_v2_repository.py",
+      "text": "following = successor.get(current.content_hash)"
+    },
+    {
+      "line": 626,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_v2_repository.py",
+      "text": "current = following"
+    },
+    {
+      "line": 629,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_v2_repository.py",
+      "text": "return current"
+    },
+    {
+      "line": 52,
+      "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_repository.py",
+      "text": "\"\"\"Return current Django time.\"\"\""
+    },
+    {
+      "line": 117,
+      "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_repository.py",
+      "text": "current = self._current_head(receipt_id=receipt.receipt_id, as_of=recorded_at, lock=True)"
+    },
+    {
+      "line": 118,
+      "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_repository.py",
+      "text": "actual_predecessor = current.receipt.content_hash if current is not None else None"
+    },
+    {
+      "line": 123,
+      "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_repository.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 126,
+      "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_repository.py",
+      "text": "current.receipt, receipt"
+    },
+    {
+      "line": 232,
+      "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v2_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 233,
+      "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v2_repository.py",
+      "text": "while current.receipt.content_hash not in {r.receipt.content_hash for r in ordered}:"
+    },
+    {
+      "line": 234,
+      "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v2_repository.py",
+      "text": "ordered.append(current)"
+    },
+    {
+      "line": 235,
+      "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v2_repository.py",
+      "text": "next_record = successor.get(current.receipt.content_hash)"
+    },
+    {
+      "line": 238,
+      "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v2_repository.py",
+      "text": "current = next_record"
+    },
+    {
       "line": 206,
       "path": "apps/account/infrastructure/account_profile_repository.py",
       "text": "current = parent"
@@ -756,6 +2006,111 @@
       "line": 290,
       "path": "apps/account/infrastructure/account_profile_repository.py",
       "text": "\"\"\"Return the latest exchange rate for one currency pair.\"\"\""
+    },
+    {
+      "line": 455,
+      "path": "apps/account/infrastructure/account_rbac_authority_mutation_binding_v3_models.py",
+      "text": "condition=models.Q(new_authority_state__in=(\"current\", \"revoked\")),"
+    },
+    {
+      "line": 474,
+      "path": "apps/account/infrastructure/account_rbac_authority_mutation_binding_v3_models.py",
+      "text": "| models.Q(old_authority_state__in=(\"current\", \"revoked\")),"
+    },
+    {
+      "line": 507,
+      "path": "apps/account/infrastructure/account_rbac_authority_mutation_binding_v3_models.py",
+      "text": "old_authority_state=\"current\","
+    },
+    {
+      "line": 79,
+      "path": "apps/account/infrastructure/account_rbac_authority_mutation_binding_v3_repository.py",
+      "text": "\"\"\"Return the current aware server time.\"\"\""
+    },
+    {
+      "line": 583,
+      "path": "apps/account/infrastructure/account_rbac_authority_mutation_binding_v3_repository.py",
+      "text": "current_row, current = root_row, root"
+    },
+    {
+      "line": 591,
+      "path": "apps/account/infrastructure/account_rbac_authority_mutation_binding_v3_repository.py",
+      "text": "validate_account_rbac_authority_source_v3_successor(current, successor)"
+    },
+    {
+      "line": 597,
+      "path": "apps/account/infrastructure/account_rbac_authority_mutation_binding_v3_repository.py",
+      "text": "current_row, current = next_row, successor"
+    },
+    {
+      "line": 647,
+      "path": "apps/account/infrastructure/account_rbac_authority_mutation_binding_v3_repository.py",
+      "text": "current_row, current = root_row, root"
+    },
+    {
+      "line": 656,
+      "path": "apps/account/infrastructure/account_rbac_authority_mutation_binding_v3_repository.py",
+      "text": "current.binding, successor.binding"
+    },
+    {
+      "line": 663,
+      "path": "apps/account/infrastructure/account_rbac_authority_mutation_binding_v3_repository.py",
+      "text": "current_row, current = next_row, successor"
+    },
+    {
+      "line": 55,
+      "path": "apps/account/infrastructure/account_rbac_authority_source_v3_repository.py",
+      "text": "\"\"\"Return the current aware server time.\"\"\""
+    },
+    {
+      "line": 364,
+      "path": "apps/account/infrastructure/account_rbac_authority_source_v3_repository.py",
+      "text": "current_row, current = root_row, root"
+    },
+    {
+      "line": 373,
+      "path": "apps/account/infrastructure/account_rbac_authority_source_v3_repository.py",
+      "text": "current.source, successor.source"
+    },
+    {
+      "line": 380,
+      "path": "apps/account/infrastructure/account_rbac_authority_source_v3_repository.py",
+      "text": "current_row, current = next_row, successor"
+    },
+    {
+      "line": 55,
+      "path": "apps/account/infrastructure/account_user_authority_source_v3_repository.py",
+      "text": "\"\"\"Return the current aware server time.\"\"\""
+    },
+    {
+      "line": 366,
+      "path": "apps/account/infrastructure/account_user_authority_source_v3_repository.py",
+      "text": "current_row, current = root_row, root"
+    },
+    {
+      "line": 375,
+      "path": "apps/account/infrastructure/account_user_authority_source_v3_repository.py",
+      "text": "current.source, next_record.source"
+    },
+    {
+      "line": 382,
+      "path": "apps/account/infrastructure/account_user_authority_source_v3_repository.py",
+      "text": "current_row, current = next_row, next_record"
+    },
+    {
+      "line": 66,
+      "path": "apps/account/infrastructure/allocated_physical_account_row_observation_v3_repository.py",
+      "text": "\"\"\"Return current Django time.\"\"\""
+    },
+    {
+      "line": 21,
+      "path": "apps/account/infrastructure/canonical_account_creation_maintenance_lock.py",
+      "text": "\"\"\"Acquire the shared writer lock for the current database transaction."
+    },
+    {
+      "line": 43,
+      "path": "apps/account/infrastructure/canonical_account_creation_maintenance_lock.py",
+      "text": "\"\"\"Acquire the exclusive maintenance lock for the current transaction."
     },
     {
       "line": 181,
@@ -881,6 +2236,116 @@
       "line": 183,
       "path": "apps/account/infrastructure/market_price_service.py",
       "text": "trade_date.isoformat() if trade_date is not None else \"latest\","
+    },
+    {
+      "line": 62,
+      "path": "apps/account/infrastructure/physical_account_row_observation_repository.py",
+      "text": "\"\"\"Return current Django time.\"\"\""
+    },
+    {
+      "line": 127,
+      "path": "apps/account/infrastructure/physical_account_row_observation_repository.py",
+      "text": "current = self._current_head("
+    },
+    {
+      "line": 136,
+      "path": "apps/account/infrastructure/physical_account_row_observation_repository.py",
+      "text": "actual_predecessor = current.observation.content_hash if current is not None else None"
+    },
+    {
+      "line": 141,
+      "path": "apps/account/infrastructure/physical_account_row_observation_repository.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 144,
+      "path": "apps/account/infrastructure/physical_account_row_observation_repository.py",
+      "text": "current.observation,"
+    },
+    {
+      "line": 725,
+      "path": "apps/account/infrastructure/physical_account_row_observation_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 726,
+      "path": "apps/account/infrastructure/physical_account_row_observation_repository.py",
+      "text": "while current.observation.content_hash not in visited:"
+    },
+    {
+      "line": 727,
+      "path": "apps/account/infrastructure/physical_account_row_observation_repository.py",
+      "text": "visited.add(current.observation.content_hash)"
+    },
+    {
+      "line": 728,
+      "path": "apps/account/infrastructure/physical_account_row_observation_repository.py",
+      "text": "successor = successor_by_predecessor.get(current.observation.content_hash)"
+    },
+    {
+      "line": 731,
+      "path": "apps/account/infrastructure/physical_account_row_observation_repository.py",
+      "text": "current = successor"
+    },
+    {
+      "line": 736,
+      "path": "apps/account/infrastructure/physical_account_row_observation_repository.py",
+      "text": "return current"
+    },
+    {
+      "line": 62,
+      "path": "apps/account/infrastructure/physical_account_row_observation_v2_repository.py",
+      "text": "\"\"\"Return current Django time.\"\"\""
+    },
+    {
+      "line": 127,
+      "path": "apps/account/infrastructure/physical_account_row_observation_v2_repository.py",
+      "text": "current = self._current_head("
+    },
+    {
+      "line": 136,
+      "path": "apps/account/infrastructure/physical_account_row_observation_v2_repository.py",
+      "text": "actual_predecessor = current.observation.content_hash if current is not None else None"
+    },
+    {
+      "line": 141,
+      "path": "apps/account/infrastructure/physical_account_row_observation_v2_repository.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 144,
+      "path": "apps/account/infrastructure/physical_account_row_observation_v2_repository.py",
+      "text": "current.observation,"
+    },
+    {
+      "line": 815,
+      "path": "apps/account/infrastructure/physical_account_row_observation_v2_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 816,
+      "path": "apps/account/infrastructure/physical_account_row_observation_v2_repository.py",
+      "text": "while current.observation.content_hash not in visited:"
+    },
+    {
+      "line": 817,
+      "path": "apps/account/infrastructure/physical_account_row_observation_v2_repository.py",
+      "text": "visited.add(current.observation.content_hash)"
+    },
+    {
+      "line": 818,
+      "path": "apps/account/infrastructure/physical_account_row_observation_v2_repository.py",
+      "text": "successor = successor_by_predecessor.get(current.observation.content_hash)"
+    },
+    {
+      "line": 821,
+      "path": "apps/account/infrastructure/physical_account_row_observation_v2_repository.py",
+      "text": "current = successor"
+    },
+    {
+      "line": 826,
+      "path": "apps/account/infrastructure/physical_account_row_observation_v2_repository.py",
+      "text": "return current"
     },
     {
       "line": 807,
@@ -1063,7 +2528,12 @@
       "text": "\"current\": {"
     },
     {
-      "line": 398,
+      "line": 63,
+      "path": "apps/account/management/commands/backfill_canonical_account_creation_consumption_v1.py",
+      "text": "raise CommandError(\"expected inventory hash does not match current inventory\")"
+    },
+    {
+      "line": 399,
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "text": "\"sentiment-refresh-current-index\","
     },
@@ -4173,29 +5643,304 @@
       "text": "\"summary\": response.summary,"
     },
     {
-      "line": 145,
+      "line": 139,
+      "path": "apps/broker_execution/application/audit_projection.py",
+      "text": "\"summary\": {"
+    },
+    {
+      "line": 148,
+      "path": "apps/broker_execution/application/audit_projection.py",
+      "text": "\"summary\": {"
+    },
+    {
+      "line": 59,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "\"\"\"Consumer-owned projection of an exact current Account identity source.\"\"\""
+    },
+    {
+      "line": 93,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "raise ValueError(\"Account source must be exact active and current\")"
+    },
+    {
+      "line": 100,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "\"\"\"Return whether this exact current source is knowable and unexpired.\"\"\""
+    },
+    {
+      "line": 129,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "\"\"\"Trusted current Broker binding and Agent facts with an opaque QMT reference.\"\"\""
+    },
+    {
+      "line": 169,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "raise ValueError(\"Broker binding and Agent projection must be current\")"
+    },
+    {
+      "line": 282,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "raise ValueError(\"current selector requires an exact active real Account\")"
+    },
+    {
+      "line": 296,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "\"\"\"Return one exact current Account identity at the cutoff.\"\"\""
+    },
+    {
+      "line": 300,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "\"\"\"Broker-owned trusted projection port for current binding and Agent facts.\"\"\""
+    },
+    {
+      "line": 309,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "\"\"\"Return exact current Broker binding and Agent raw facts.\"\"\""
+    },
+    {
+      "line": 390,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "\"\"\"Double-read exact current sources and persist one inactive first winner.\"\"\""
+    },
+    {
+      "line": 494,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "\"exact current Account identity source is unavailable\""
+    },
+    {
+      "line": 506,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "\"exact current Account identity source is unavailable\""
+    },
+    {
+      "line": 518,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "\"exact current Broker binding and Agent source is unavailable\""
+    },
+    {
+      "line": 530,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "\"exact current Broker binding and Agent source is unavailable\""
+    },
+    {
+      "line": 610,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "\"Broker account identity is no longer the logical current head\""
+    },
+    {
+      "line": 704,
+      "path": "apps/broker_execution/application/broker_account_identity_snapshot.py",
+      "text": "raise BrokerAccountIdentitySnapshotCorruption(\"snapshot current selector substitution\")"
+    },
+    {
+      "line": 1,
+      "path": "apps/broker_execution/application/connection_status.py",
+      "text": "\"\"\"Current Agent/QMT connection projection with source-time preservation.\"\"\""
+    },
+    {
+      "line": 193,
+      "path": "apps/broker_execution/application/order_catalog.py",
+      "text": "\"\"\"One bounded order summary with non-authoritative action hints.\"\"\""
+    },
+    {
+      "line": 230,
+      "path": "apps/broker_execution/application/order_catalog.py",
+      "text": "\"\"\"Return the safe order summary and governed read markers.\"\"\""
+    },
+    {
+      "line": 349,
+      "path": "apps/broker_execution/application/order_detail_evidence.py",
+      "text": "summary = _validated_evidence_payload("
+    },
+    {
+      "line": 367,
+      "path": "apps/broker_execution/application/order_detail_evidence.py",
+      "text": "output_content_hash = summary[\"output_content_hash\"]"
+    },
+    {
+      "line": 386,
+      "path": "apps/broker_execution/application/order_detail_evidence.py",
+      "text": "approval_evidence=summary,"
+    },
+    {
+      "line": 35,
+      "path": "apps/broker_execution/application/overview_status.py",
+      "text": "\"\"\"Latest persisted Broker snapshot for one account.\"\"\""
+    },
+    {
+      "line": 43,
+      "path": "apps/broker_execution/application/overview_status.py",
+      "text": "\"\"\"Latest persisted reconciliation run for one account.\"\"\""
+    },
+    {
+      "line": 54,
+      "path": "apps/broker_execution/application/overview_status.py",
+      "text": "\"\"\"Latest snapshot and reconciliation evidence for one account.\"\"\""
+    },
+    {
+      "line": 62,
+      "path": "apps/broker_execution/application/overview_status.py",
+      "text": "\"\"\"One non-terminal order included in current readiness.\"\"\""
+    },
+    {
+      "line": 71,
+      "path": "apps/broker_execution/application/overview_status.py",
+      "text": "\"\"\"Current kill-switch display payload.\"\"\""
+    },
+    {
+      "line": 78,
+      "path": "apps/broker_execution/application/overview_status.py",
+      "text": "\"\"\"Current alert display payload.\"\"\""
+    },
+    {
+      "line": 161,
+      "path": "apps/broker_execution/application/overview_status.py",
+      "text": "\"\"\"Publish READY only for one complete and current execution evidence graph.\"\"\""
+    },
+    {
+      "line": 73,
+      "path": "apps/broker_execution/application/plan_order_binding.py",
+      "text": "\"\"\"An immutable identity or logical-current subject has another winner.\"\"\""
+    },
+    {
+      "line": 281,
+      "path": "apps/broker_execution/application/plan_order_binding.py",
+      "text": "\"\"\"Closed selector for one exact inactive logical-current binding.\"\"\""
+    },
+    {
+      "line": 373,
+      "path": "apps/broker_execution/application/plan_order_binding.py",
+      "text": "\"\"\"Private append-only binding store and exact PIT/current read port.\"\"\""
+    },
+    {
+      "line": 675,
+      "path": "apps/broker_execution/application/plan_order_binding.py",
+      "text": "\"binding identity is no longer the logical current head\""
+    },
+    {
+      "line": 686,
+      "path": "apps/broker_execution/application/plan_order_binding.py",
+      "text": "raise BrokerPlanOrderBindingCorruption(\"binding current head is not active\")"
+    },
+    {
+      "line": 799,
+      "path": "apps/broker_execution/application/plan_order_binding.py",
+      "text": "raise BrokerPlanOrderBindingCorruption(\"binding current selector substitution\")"
+    },
+    {
+      "line": 48,
+      "path": "apps/broker_execution/application/portfolio_broker_account_binding.py",
+      "text": "\"\"\"An exact current owner source or inactive binding is unavailable.\"\"\""
+    },
+    {
+      "line": 61,
+      "path": "apps/broker_execution/application/portfolio_broker_account_binding.py",
+      "text": "\"\"\"Consumer-owned projection of one exact current Broker account source.\"\"\""
+    },
+    {
+      "line": 103,
+      "path": "apps/broker_execution/application/portfolio_broker_account_binding.py",
+      "text": "\"\"\"Return whether the exact owner source is knowable and current.\"\"\""
+    },
+    {
+      "line": 152,
+      "path": "apps/broker_execution/application/portfolio_broker_account_binding.py",
+      "text": "\"\"\"Return whether the exact owner source is knowable and current.\"\"\""
+    },
+    {
+      "line": 253,
+      "path": "apps/broker_execution/application/portfolio_broker_account_binding.py",
+      "text": "raise ValueError(\"current selector requires active real source accounts\")"
+    },
+    {
+      "line": 265,
+      "path": "apps/broker_execution/application/portfolio_broker_account_binding.py",
+      "text": "\"\"\"Return one exact current Broker account source.\"\"\""
+    },
+    {
+      "line": 274,
+      "path": "apps/broker_execution/application/portfolio_broker_account_binding.py",
+      "text": "\"\"\"Return one exact current Account-owned Portfolio-namespace source.\"\"\""
+    },
+    {
+      "line": 321,
+      "path": "apps/broker_execution/application/portfolio_broker_account_binding.py",
+      "text": "\"\"\"Seal one inactive assertion from two exact-current owner sources.\"\"\""
+    },
+    {
+      "line": 436,
+      "path": "apps/broker_execution/application/portfolio_broker_account_binding.py",
+      "text": "\"exact current Broker account source is unavailable\""
+    },
+    {
+      "line": 450,
+      "path": "apps/broker_execution/application/portfolio_broker_account_binding.py",
+      "text": "\"exact current Broker account source is unavailable\""
+    },
+    {
+      "line": 462,
+      "path": "apps/broker_execution/application/portfolio_broker_account_binding.py",
+      "text": "\"exact current Account-owned Portfolio namespace source is unavailable\""
+    },
+    {
+      "line": 478,
+      "path": "apps/broker_execution/application/portfolio_broker_account_binding.py",
+      "text": "\"exact current Account-owned Portfolio namespace source is unavailable\""
+    },
+    {
+      "line": 553,
+      "path": "apps/broker_execution/application/portfolio_broker_account_binding.py",
+      "text": "\"account namespace binding is no longer the logical current head\""
+    },
+    {
+      "line": 650,
+      "path": "apps/broker_execution/application/portfolio_broker_account_binding.py",
+      "text": "\"account namespace binding current selector substitution\""
+    },
+    {
+      "line": 47,
+      "path": "apps/broker_execution/application/pre_risk_execution_scope.py",
+      "text": "\"\"\"An immutable identity or logical current head has another winner.\"\"\""
+    },
+    {
+      "line": 565,
+      "path": "apps/broker_execution/application/pre_risk_execution_scope.py",
+      "text": "\"pre-Risk scope identity is no longer the logical current head\""
+    },
+    {
+      "line": 646,
+      "path": "apps/broker_execution/application/pre_risk_execution_scope.py",
+      "text": "raise BrokerPreRiskScopeCorruption(\"pre-Risk current selector substitution\")"
+    },
+    {
+      "line": 147,
       "path": "apps/broker_execution/application/query_services.py",
       "text": "\"\"\"Return the current user's execution readiness overview.\"\"\""
     },
     {
-      "line": 261,
+      "line": 341,
       "path": "apps/broker_execution/application/query_services.py",
       "text": "summary = \"先完成 Agent 与系统账户绑定，再创建一次性凭证。\""
     },
     {
-      "line": 265,
+      "line": 345,
       "path": "apps/broker_execution/application/query_services.py",
       "text": "summary = \"服务端配置已存在，但尚未收到 QMT 已连接状态。\""
     },
     {
-      "line": 269,
+      "line": 349,
       "path": "apps/broker_execution/application/query_services.py",
       "text": "summary = \"至少一个本地 Agent 已报告 QMT 连接，继续核对门禁并完成仿真。\""
     },
     {
-      "line": 273,
+      "line": 353,
       "path": "apps/broker_execution/application/query_services.py",
       "text": "\"summary\": summary,"
+    },
+    {
+      "line": 389,
+      "path": "apps/broker_execution/application/query_services.py",
+      "text": "\"\"\"Return typed, current, display-only reconciliation evidence.\"\"\""
     },
     {
       "line": 264,
@@ -4213,34 +5958,89 @@
       "text": "if _shared_uow_key(current) != self._expected_uow_key:"
     },
     {
-      "line": 249,
+      "line": 1,
+      "path": "apps/broker_execution/application/reconciliation_projection.py",
+      "text": "\"\"\"Typed, fail-closed projection for current broker reconciliation runs.\"\"\""
+    },
+    {
+      "line": 161,
+      "path": "apps/broker_execution/application/reconciliation_projection.py",
+      "text": "\"summary\": {},"
+    },
+    {
+      "line": 194,
+      "path": "apps/broker_execution/application/reconciliation_projection.py",
+      "text": "summary_raw = raw.get(\"summary\")"
+    },
+    {
+      "line": 196,
+      "path": "apps/broker_execution/application/reconciliation_projection.py",
+      "text": "raise ValueError(\"summary must be an object\")"
+    },
+    {
+      "line": 207,
+      "path": "apps/broker_execution/application/reconciliation_projection.py",
+      "text": "raise ValueError(\"summary schema is not exact\")"
+    },
+    {
+      "line": 210,
+      "path": "apps/broker_execution/application/reconciliation_projection.py",
+      "text": "raise ValueError(\"summary source is invalid\")"
+    },
+    {
+      "line": 218,
+      "path": "apps/broker_execution/application/reconciliation_projection.py",
+      "text": "summary: JsonObject = {"
+    },
+    {
+      "line": 231,
+      "path": "apps/broker_execution/application/reconciliation_projection.py",
+      "text": "summary[\"resolution\"] = resolution"
+    },
+    {
+      "line": 273,
+      "path": "apps/broker_execution/application/reconciliation_projection.py",
+      "text": "\"summary\": summary,"
+    },
+    {
+      "line": 262,
       "path": "apps/broker_execution/application/use_cases.py",
       "text": "risk_snapshot[\"violations\"].append(\"latest market quote is unavailable\")"
     },
     {
-      "line": 251,
+      "line": 264,
       "path": "apps/broker_execution/application/use_cases.py",
       "text": "risk_snapshot[\"violations\"].append(\"latest market quote is stale\")"
     },
     {
-      "line": 259,
+      "line": 272,
       "path": "apps/broker_execution/application/use_cases.py",
       "text": "\"latest market price must be positive and finite\""
     },
     {
-      "line": 389,
+      "line": 351,
       "path": "apps/broker_execution/application/use_cases.py",
       "text": "\"\"\"Generate the current server-side advisor sheet and create governed drafts.\"\"\""
     },
     {
-      "line": 432,
+      "line": 394,
       "path": "apps/broker_execution/application/use_cases.py",
       "text": "\"The current advisor sheet has no executable orders\""
     },
     {
-      "line": 541,
+      "line": 494,
       "path": "apps/broker_execution/application/use_cases.py",
       "text": "\"summary\": {"
+    },
+    {
+      "line": 1,
+      "path": "apps/broker_execution/domain/connection_freshness.py",
+      "text": "\"\"\"Pure source/receipt clock rules for Broker Agent current health.\"\"\""
+    },
+    {
+      "line": 16,
+      "path": "apps/broker_execution/domain/connection_freshness.py",
+      "text": "\"\"\"Return true only when both aware clocks are current and correctly ordered.\"\"\""
     },
     {
       "line": 474,
@@ -4288,37 +6088,107 @@
       "text": "current_status = LiveOrderStatus(current)"
     },
     {
-      "line": 505,
+      "line": 50,
+      "path": "apps/broker_execution/infrastructure/broker_account_identity_snapshot_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 120,
+      "path": "apps/broker_execution/infrastructure/broker_account_identity_snapshot_repository.py",
+      "text": "current = self._current_head("
+    },
+    {
+      "line": 126,
+      "path": "apps/broker_execution/infrastructure/broker_account_identity_snapshot_repository.py",
+      "text": "actual_predecessor = current.snapshot.content_hash if current is not None else None"
+    },
+    {
+      "line": 131,
+      "path": "apps/broker_execution/infrastructure/broker_account_identity_snapshot_repository.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 133,
+      "path": "apps/broker_execution/infrastructure/broker_account_identity_snapshot_repository.py",
+      "text": "validate_broker_account_identity_snapshot_successor(current.snapshot, snapshot)"
+    },
+    {
+      "line": 641,
+      "path": "apps/broker_execution/infrastructure/broker_account_identity_snapshot_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 642,
+      "path": "apps/broker_execution/infrastructure/broker_account_identity_snapshot_repository.py",
+      "text": "while current.snapshot.content_hash not in visited:"
+    },
+    {
+      "line": 643,
+      "path": "apps/broker_execution/infrastructure/broker_account_identity_snapshot_repository.py",
+      "text": "visited.add(current.snapshot.content_hash)"
+    },
+    {
+      "line": 644,
+      "path": "apps/broker_execution/infrastructure/broker_account_identity_snapshot_repository.py",
+      "text": "successor = successors.get(current.snapshot.content_hash)"
+    },
+    {
+      "line": 647,
+      "path": "apps/broker_execution/infrastructure/broker_account_identity_snapshot_repository.py",
+      "text": "current = successor"
+    },
+    {
+      "line": 650,
+      "path": "apps/broker_execution/infrastructure/broker_account_identity_snapshot_repository.py",
+      "text": "return current"
+    },
+    {
+      "line": 388,
+      "path": "apps/broker_execution/infrastructure/broker_repository_access.py",
+      "text": "\"\"\"Collect scoped source facts; Application owns current-readiness semantics.\"\"\""
+    },
+    {
+      "line": 459,
+      "path": "apps/broker_execution/infrastructure/broker_repository_access.py",
+      "text": "reconciliation.summary"
+    },
+    {
+      "line": 460,
+      "path": "apps/broker_execution/infrastructure/broker_repository_access.py",
+      "text": "if reconciliation is not None and isinstance(reconciliation.summary, dict)"
+    },
+    {
+      "line": 572,
       "path": "apps/broker_execution/infrastructure/broker_repository_access.py",
       "text": "\"summary\": row.summary or {},"
     },
     {
-      "line": 726,
+      "line": 830,
       "path": "apps/broker_execution/infrastructure/broker_repository_access.py",
       "text": "\"summary\": run.summary or {},"
     },
     {
-      "line": 358,
+      "line": 407,
       "path": "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py",
       "text": "raise BrokerExecutionConflictError(\"Order exceeds the current single-order limit\")"
     },
     {
-      "line": 381,
+      "line": 430,
       "path": "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py",
       "text": "\"Current live orders exceed the configured daily limit\""
     },
     {
-      "line": 424,
+      "line": 473,
       "path": "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py",
       "text": "current = self._order_payload(order)"
     },
     {
-      "line": 425,
+      "line": 474,
       "path": "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py",
       "text": "if order.approval_digest != approval_digest_for_order(current):"
     },
     {
-      "line": 101,
+      "line": 107,
       "path": "apps/broker_execution/infrastructure/broker_repository_order_control.py",
       "text": "\"Order changed after preview; preview the current version again\""
     },
@@ -4378,12 +6248,187 @@
       "text": "summary = models.JSONField(default=dict, blank=True)"
     },
     {
+      "line": 53,
+      "path": "apps/broker_execution/infrastructure/order_approval_artifact_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 133,
+      "path": "apps/broker_execution/infrastructure/order_approval_artifact_repository.py",
+      "text": "\"\"\"Return an exact historical artifact; never imply current execution permission.\"\"\""
+    },
+    {
+      "line": 49,
+      "path": "apps/broker_execution/infrastructure/plan_order_binding_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 112,
+      "path": "apps/broker_execution/infrastructure/plan_order_binding_repository.py",
+      "text": "current = self._current_head(value, as_of=recorded_at, lock=True)"
+    },
+    {
+      "line": 113,
+      "path": "apps/broker_execution/infrastructure/plan_order_binding_repository.py",
+      "text": "actual_predecessor = current.content_hash if current is not None else None"
+    },
+    {
+      "line": 116,
+      "path": "apps/broker_execution/infrastructure/plan_order_binding_repository.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 118,
+      "path": "apps/broker_execution/infrastructure/plan_order_binding_repository.py",
+      "text": "validate_plan_order_binding_successor(current, value)"
+    },
+    {
+      "line": 553,
+      "path": "apps/broker_execution/infrastructure/plan_order_binding_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 554,
+      "path": "apps/broker_execution/infrastructure/plan_order_binding_repository.py",
+      "text": "while current.content_hash not in visited:"
+    },
+    {
+      "line": 555,
+      "path": "apps/broker_execution/infrastructure/plan_order_binding_repository.py",
+      "text": "visited.add(current.content_hash)"
+    },
+    {
+      "line": 556,
+      "path": "apps/broker_execution/infrastructure/plan_order_binding_repository.py",
+      "text": "successor = successors.get(current.content_hash)"
+    },
+    {
+      "line": 559,
+      "path": "apps/broker_execution/infrastructure/plan_order_binding_repository.py",
+      "text": "current = successor"
+    },
+    {
+      "line": 562,
+      "path": "apps/broker_execution/infrastructure/plan_order_binding_repository.py",
+      "text": "return current"
+    },
+    {
+      "line": 48,
+      "path": "apps/broker_execution/infrastructure/portfolio_broker_account_binding_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 116,
+      "path": "apps/broker_execution/infrastructure/portfolio_broker_account_binding_repository.py",
+      "text": "current = self._current_head("
+    },
+    {
+      "line": 122,
+      "path": "apps/broker_execution/infrastructure/portfolio_broker_account_binding_repository.py",
+      "text": "actual_predecessor = current.content_hash if current is not None else None"
+    },
+    {
+      "line": 125,
+      "path": "apps/broker_execution/infrastructure/portfolio_broker_account_binding_repository.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 127,
+      "path": "apps/broker_execution/infrastructure/portfolio_broker_account_binding_repository.py",
+      "text": "validate_broker_portfolio_account_binding_successor(current, value)"
+    },
+    {
+      "line": 570,
+      "path": "apps/broker_execution/infrastructure/portfolio_broker_account_binding_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 571,
+      "path": "apps/broker_execution/infrastructure/portfolio_broker_account_binding_repository.py",
+      "text": "while current.content_hash not in visited:"
+    },
+    {
+      "line": 572,
+      "path": "apps/broker_execution/infrastructure/portfolio_broker_account_binding_repository.py",
+      "text": "visited.add(current.content_hash)"
+    },
+    {
+      "line": 573,
+      "path": "apps/broker_execution/infrastructure/portfolio_broker_account_binding_repository.py",
+      "text": "successor = successors.get(current.content_hash)"
+    },
+    {
+      "line": 576,
+      "path": "apps/broker_execution/infrastructure/portfolio_broker_account_binding_repository.py",
+      "text": "current = successor"
+    },
+    {
+      "line": 579,
+      "path": "apps/broker_execution/infrastructure/portfolio_broker_account_binding_repository.py",
+      "text": "return current"
+    },
+    {
+      "line": 60,
+      "path": "apps/broker_execution/infrastructure/pre_risk_execution_scope_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 124,
+      "path": "apps/broker_execution/infrastructure/pre_risk_execution_scope_repository.py",
+      "text": "current = self._current_head("
+    },
+    {
+      "line": 130,
+      "path": "apps/broker_execution/infrastructure/pre_risk_execution_scope_repository.py",
+      "text": "actual_predecessor = current.content_hash if current is not None else None"
+    },
+    {
+      "line": 133,
+      "path": "apps/broker_execution/infrastructure/pre_risk_execution_scope_repository.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 135,
+      "path": "apps/broker_execution/infrastructure/pre_risk_execution_scope_repository.py",
+      "text": "validate_pre_risk_scope_successor(current, scope)"
+    },
+    {
+      "line": 498,
+      "path": "apps/broker_execution/infrastructure/pre_risk_execution_scope_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 499,
+      "path": "apps/broker_execution/infrastructure/pre_risk_execution_scope_repository.py",
+      "text": "while current.content_hash not in visited:"
+    },
+    {
+      "line": 500,
+      "path": "apps/broker_execution/infrastructure/pre_risk_execution_scope_repository.py",
+      "text": "visited.add(current.content_hash)"
+    },
+    {
+      "line": 501,
+      "path": "apps/broker_execution/infrastructure/pre_risk_execution_scope_repository.py",
+      "text": "successor = successor_by_predecessor.get(current.content_hash)"
+    },
+    {
+      "line": 504,
+      "path": "apps/broker_execution/infrastructure/pre_risk_execution_scope_repository.py",
+      "text": "current = successor"
+    },
+    {
+      "line": 507,
+      "path": "apps/broker_execution/infrastructure/pre_risk_execution_scope_repository.py",
+      "text": "return current"
+    },
+    {
       "line": 138,
       "path": "apps/broker_execution/interface/api_views.py",
       "text": "\"\"\"Preview or create live drafts from the current server-generated advisor sheet.\"\"\""
     },
     {
-      "line": 72,
+      "line": 73,
       "path": "apps/broker_execution/interface/serializers.py",
       "text": "\"\"\"Validate current advisor-sheet draft generation.\"\"\""
     },
@@ -5013,7 +7058,7 @@
       "text": "skipped_payload = latest.to_dict()"
     },
     {
-      "line": 472,
+      "line": 492,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "\"\"\"Build the current valuation batch sync use case.\"\"\""
     },
@@ -7298,7 +9343,7 @@
       "text": "self.stdout.write(self.style.SUCCESS(summary))"
     },
     {
-      "line": 316,
+      "line": 343,
       "path": "apps/data_center/management/commands/repair_decision_data_reliability.py",
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
@@ -7528,12 +9573,12 @@
       "text": "\"\"\"Refresh the latest pulse snapshot through the owning pulse use case.\"\"\""
     },
     {
-      "line": 83,
+      "line": 93,
       "path": "apps/decision_rhythm/application/workspace_services.py",
       "text": "\"\"\"Adapter for recommendation generation over current simulated holdings.\"\"\""
     },
     {
-      "line": 400,
+      "line": 410,
       "path": "apps/decision_rhythm/application/workspace_services.py",
       "text": "\"\"\"Update approval status and return the latest request.\"\"\""
     },
@@ -7613,12 +9658,12 @@
       "text": "\"\"\"Return latest weekly quota usage.\"\"\""
     },
     {
-      "line": 374,
+      "line": 403,
       "path": "apps/decision_rhythm/infrastructure/recommendation_repositories.py",
       "text": "\"summary\": _json_safe_value(plan.summary),"
     },
     {
-      "line": 65,
+      "line": 69,
       "path": "apps/decision_rhythm/infrastructure/transition_models.py",
       "text": "summary=dict(model.summary or {}),"
     },
@@ -7703,7 +9748,7 @@
       "text": "\"source\": getattr(current, \"data_source\", \"V2_CALCULATION\") or \"V2_CALCULATION\","
     },
     {
-      "line": 227,
+      "line": 228,
       "path": "apps/decision_rhythm/interface/workspace_execution_api_views.py",
       "text": "\"summary\": plan.summary,"
     },
@@ -8501,6 +10546,11 @@
       "line": 149,
       "path": "apps/equity/interface/views.py",
       "text": "\"\"\"GET /api/equity/valuation-data/quality-latest/\"\"\""
+    },
+    {
+      "line": 39,
+      "path": "apps/equity/research_snapshot_composition.py",
+      "text": "\"\"\"Return one publication-gated latest quote.\"\"\""
     },
     {
       "line": 250,
@@ -10568,6 +12618,101 @@
       "text": "\"\"\"Exact PIT read accepting no latest/current semantics.\"\"\""
     },
     {
+      "line": 96,
+      "path": "apps/portfolio/application/planning_policy_activation.py",
+      "text": "\"\"\"Closed selector for an exact current activation.\"\"\""
+    },
+    {
+      "line": 324,
+      "path": "apps/portfolio/application/planning_policy_activation.py",
+      "text": "\"activation identity is no longer the current head\""
+    },
+    {
+      "line": 384,
+      "path": "apps/portfolio/application/planning_policy_activation.py",
+      "text": "\"\"\"Read only exact, valid, logical-current activation state.\"\"\""
+    },
+    {
+      "line": 418,
+      "path": "apps/portfolio/application/planning_policy_activation.py",
+      "text": "current = _validate_activation(head)"
+    },
+    {
+      "line": 419,
+      "path": "apps/portfolio/application/planning_policy_activation.py",
+      "text": "if current.content_hash != checked.content_hash:"
+    },
+    {
+      "line": 421,
+      "path": "apps/portfolio/application/planning_policy_activation.py",
+      "text": "if current != checked:"
+    },
+    {
+      "line": 118,
+      "path": "apps/portfolio/application/policy_benchmark_methodology_activation.py",
+      "text": "\"\"\"Closed selector for one exact logical-current bundle activation.\"\"\""
+    },
+    {
+      "line": 131,
+      "path": "apps/portfolio/application/policy_benchmark_methodology_activation.py",
+      "text": "\"\"\"Portfolio-owned exact-current benchmark definition reader.\"\"\""
+    },
+    {
+      "line": 140,
+      "path": "apps/portfolio/application/policy_benchmark_methodology_activation.py",
+      "text": "\"\"\"Return the exact logical-current definition at the cutoff.\"\"\""
+    },
+    {
+      "line": 144,
+      "path": "apps/portfolio/application/policy_benchmark_methodology_activation.py",
+      "text": "\"\"\"Portfolio-owned exact-current methodology definition reader.\"\"\""
+    },
+    {
+      "line": 154,
+      "path": "apps/portfolio/application/policy_benchmark_methodology_activation.py",
+      "text": "\"\"\"Return one exact logical-current methodology reference.\"\"\""
+    },
+    {
+      "line": 379,
+      "path": "apps/portfolio/application/policy_benchmark_methodology_activation.py",
+      "text": "\"activation winner is no longer the logical current head\""
+    },
+    {
+      "line": 386,
+      "path": "apps/portfolio/application/policy_benchmark_methodology_activation.py",
+      "text": "\"activation subject no longer binds the current head\""
+    },
+    {
+      "line": 454,
+      "path": "apps/portfolio/application/policy_benchmark_methodology_activation.py",
+      "text": "\"\"\"Read one exact logical-current activation with a still-current source graph.\"\"\""
+    },
+    {
+      "line": 473,
+      "path": "apps/portfolio/application/policy_benchmark_methodology_activation.py",
+      "text": "raise TypeError(\"command must be exact current read command\")"
+    },
+    {
+      "line": 522,
+      "path": "apps/portfolio/application/policy_benchmark_methodology_activation.py",
+      "text": "\"exact current benchmark definition is unavailable\""
+    },
+    {
+      "line": 546,
+      "path": "apps/portfolio/application/policy_benchmark_methodology_activation.py",
+      "text": "f\"exact current {expected.artifact_type} is unavailable\""
+    },
+    {
+      "line": 559,
+      "path": "apps/portfolio/application/policy_benchmark_methodology_activation.py",
+      "text": "\"methodology definition is not current\""
+    },
+    {
+      "line": 633,
+      "path": "apps/portfolio/application/policy_benchmark_methodology_activation.py",
+      "text": "\"logical current head definition substitution\""
+    },
+    {
       "line": 269,
       "path": "apps/portfolio/application/r4_monitoring_raw_fact_receipt.py",
       "text": "expected: tuple[object, ...], current: tuple[object, ...]"
@@ -10641,6 +12786,16 @@
       "line": 208,
       "path": "apps/portfolio/application/r8_monitoring_feedback_registry.py",
       "text": "if _shared_uow(current) != self._expected_uow_key:"
+    },
+    {
+      "line": 66,
+      "path": "apps/portfolio/application/transition_plan_inactive_approval.py",
+      "text": "\"\"\"An exact current plan, subject, or receipt is unavailable.\"\"\""
+    },
+    {
+      "line": 159,
+      "path": "apps/portfolio/application/transition_plan_order_reader.py",
+      "text": "\"\"\"Project one owner-canonical order row without implying latest-plan state.\"\"\""
     },
     {
       "line": 42,
@@ -10858,6 +13013,26 @@
       "text": "\"\"\"Verify a complete ordered chain and derive its current state.\"\"\""
     },
     {
+      "line": 200,
+      "path": "apps/portfolio/domain/policy_benchmark_price_fixing.py",
+      "text": "current = first"
+    },
+    {
+      "line": 201,
+      "path": "apps/portfolio/domain/policy_benchmark_price_fixing.py",
+      "text": "while current <= last:"
+    },
+    {
+      "line": 202,
+      "path": "apps/portfolio/domain/policy_benchmark_price_fixing.py",
+      "text": "_resolve_local(current, clock, zone)"
+    },
+    {
+      "line": 203,
+      "path": "apps/portfolio/domain/policy_benchmark_price_fixing.py",
+      "text": "current += timedelta(days=1)"
+    },
+    {
       "line": 27,
       "path": "apps/portfolio/domain/services.py",
       "text": "current: PortfolioSnapshot,"
@@ -10983,6 +13158,46 @@
       "text": "raise ValueError(\"lifecycle event does not extend the current chain\")"
     },
     {
+      "line": 53,
+      "path": "apps/portfolio/infrastructure/planning_policy_activation_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 53,
+      "path": "apps/portfolio/infrastructure/planning_policy_definition_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 54,
+      "path": "apps/portfolio/infrastructure/policy_benchmark_corporate_action_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 54,
+      "path": "apps/portfolio/infrastructure/policy_benchmark_cost_tax_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 54,
+      "path": "apps/portfolio/infrastructure/policy_benchmark_definition_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 55,
+      "path": "apps/portfolio/infrastructure/policy_benchmark_methodology_activation_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 52,
+      "path": "apps/portfolio/infrastructure/policy_benchmark_price_fixing_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 54,
+      "path": "apps/portfolio/infrastructure/policy_benchmark_trading_calendar_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
       "line": 55,
       "path": "apps/portfolio/infrastructure/r4_monitoring_raw_fact_repository.py",
       "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
@@ -11008,32 +13223,37 @@
       "text": "\"R5 outcome differs from its current exact owner graph\""
     },
     {
-      "line": 90,
+      "line": 87,
       "path": "apps/portfolio/infrastructure/repositories.py",
       "text": "summary={\"cash_before\": str(plan.cash_before), \"cash_after\": str(plan.cash_after)},"
     },
     {
-      "line": 146,
+      "line": 156,
       "path": "apps/portfolio/infrastructure/repositories.py",
       "text": "cash_before=Decimal(str((row.summary or {}).get(\"cash_before\", \"0\"))),"
     },
     {
-      "line": 147,
+      "line": 157,
       "path": "apps/portfolio/infrastructure/repositories.py",
       "text": "cash_after=Decimal(str((row.summary or {}).get(\"cash_after\", \"0\"))),"
     },
     {
-      "line": 31,
+      "line": 42,
       "path": "apps/portfolio/infrastructure/transition_models.py",
       "text": "summary = models.JSONField(default=dict, help_text=\"计划摘要\")"
     },
     {
-      "line": 94,
+      "line": 50,
+      "path": "apps/portfolio/infrastructure/transition_plan_inactive_approval_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 116,
       "path": "apps/portfolio/interface/api_views.py",
       "text": "current = PortfolioSnapshot("
     },
     {
-      "line": 105,
+      "line": 127,
       "path": "apps/portfolio/interface/api_views.py",
       "text": "current=current,"
     },
@@ -12908,6 +15128,46 @@
       "text": "\"\"\"Return current artifact attestation or ``None``.\"\"\""
     },
     {
+      "line": 212,
+      "path": "apps/research/application/evidence_operator_spec_lifecycle.py",
+      "text": "\"\"\"Restore the latest knowable chain head, active or expired.\"\"\""
+    },
+    {
+      "line": 369,
+      "path": "apps/research/application/evidence_operator_spec_lifecycle.py",
+      "text": "\"operator specification does not supersede the exact current head\""
+    },
+    {
+      "line": 61,
+      "path": "apps/research/application/evidence_summary.py",
+      "text": "\"\"\"Build a summary only from an exact, internally consistent graph.\"\"\""
+    },
+    {
+      "line": 64,
+      "path": "apps/research/application/evidence_summary.py",
+      "text": "raise ValueError(\"Evidence summary operator specification does not match envelope\")"
+    },
+    {
+      "line": 73,
+      "path": "apps/research/application/evidence_summary.py",
+      "text": "raise ValueError(\"Evidence summary is missing the envelope Track Record\")"
+    },
+    {
+      "line": 76,
+      "path": "apps/research/application/evidence_summary.py",
+      "text": "raise ValueError(\"Evidence summary Track Record does not match envelope\")"
+    },
+    {
+      "line": 78,
+      "path": "apps/research/application/evidence_summary.py",
+      "text": "raise ValueError(\"Evidence summary Track Record targets a different output\")"
+    },
+    {
+      "line": 128,
+      "path": "apps/research/application/evidence_summary.py",
+      "text": "raise ValueError(\"Evidence summary requires an exact legacy wrapper\")"
+    },
+    {
       "line": 126,
       "path": "apps/research/application/r2_market_structure_research_control_preflight.py",
       "text": "raise TypeError(\"R2 latest-complete trial type differs\")"
@@ -13448,6 +15708,126 @@
       "text": "\"\"\"Return a bounded deterministic page without latest/current fallback.\"\"\""
     },
     {
+      "line": 40,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"\"\"Translate one closed Broker payload into a legacy Evidence summary.\"\"\""
+    },
+    {
+      "line": 61,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "summary = build_broker_approval_projection_legacy_evidence_summary("
+    },
+    {
+      "line": 66,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"output_owner\": summary.output_owner,"
+    },
+    {
+      "line": 67,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"output_artifact_type\": summary.output_artifact_type,"
+    },
+    {
+      "line": 68,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"output_artifact_id\": summary.output_artifact_id,"
+    },
+    {
+      "line": 69,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"output_artifact_version\": summary.output_artifact_version,"
+    },
+    {
+      "line": 70,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"output_content_hash\": summary.output_content_hash,"
+    },
+    {
+      "line": 71,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"envelope_content_hash\": summary.envelope_content_hash,"
+    },
+    {
+      "line": 72,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"operator_spec_content_hash\": summary.operator_spec_content_hash,"
+    },
+    {
+      "line": 73,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"claim_kind\": summary.claim_kind,"
+    },
+    {
+      "line": 74,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"method_kind\": summary.method_kind,"
+    },
+    {
+      "line": 75,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"research_family\": summary.research_family,"
+    },
+    {
+      "line": 76,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"governance_state\": summary.governance_state,"
+    },
+    {
+      "line": 77,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"permission\": summary.permission,"
+    },
+    {
+      "line": 78,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"blocker_codes\": list(summary.blocker_codes),"
+    },
+    {
+      "line": 79,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"dependency_flags\": list(summary.dependency_flags),"
+    },
+    {
+      "line": 80,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"track_record_availability\": summary.track_record_availability,"
+    },
+    {
+      "line": 81,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"track_record_content_hash\": summary.track_record_content_hash,"
+    },
+    {
+      "line": 82,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"n_eff\": summary.n_eff,"
+    },
+    {
+      "line": 83,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"coverage\": summary.coverage,"
+    },
+    {
+      "line": 84,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"evaluated_at\": summary.evaluated_at.isoformat(),"
+    },
+    {
+      "line": 85,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"valid_until\": summary.valid_until.isoformat(),"
+    },
+    {
+      "line": 86,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"must_not_use_for_decision\": summary.must_not_use_for_decision,"
+    },
+    {
+      "line": 87,
+      "path": "apps/research/broker_execution_evidence_composition.py",
+      "text": "\"must_not_execute\": summary.must_not_execute,"
+    },
+    {
       "line": 5,
       "path": "apps/research/domain/advanced_state_model.py",
       "text": "publish current state, authorize decisions, or replace the canonical Regime."
@@ -13898,6 +16278,66 @@
       "text": "publishes a current state, authorizes a decision, or replaces canonical Regime."
     },
     {
+      "line": 40,
+      "path": "apps/research/infrastructure/evidence_operator_spec_definition_provider.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 54,
+      "path": "apps/research/infrastructure/evidence_operator_spec_lifecycle_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 322,
+      "path": "apps/research/infrastructure/evidence_operator_spec_lifecycle_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 323,
+      "path": "apps/research/infrastructure/evidence_operator_spec_lifecycle_repository.py",
+      "text": "visited = {current.content_hash}"
+    },
+    {
+      "line": 324,
+      "path": "apps/research/infrastructure/evidence_operator_spec_lifecycle_repository.py",
+      "text": "while current.content_hash in children:"
+    },
+    {
+      "line": 325,
+      "path": "apps/research/infrastructure/evidence_operator_spec_lifecycle_repository.py",
+      "text": "candidates = children[current.content_hash]"
+    },
+    {
+      "line": 328,
+      "path": "apps/research/infrastructure/evidence_operator_spec_lifecycle_repository.py",
+      "text": "current = candidates[0]"
+    },
+    {
+      "line": 329,
+      "path": "apps/research/infrastructure/evidence_operator_spec_lifecycle_repository.py",
+      "text": "if current.content_hash in visited:"
+    },
+    {
+      "line": 333,
+      "path": "apps/research/infrastructure/evidence_operator_spec_lifecycle_repository.py",
+      "text": "visited.add(current.content_hash)"
+    },
+    {
+      "line": 338,
+      "path": "apps/research/infrastructure/evidence_operator_spec_lifecycle_repository.py",
+      "text": "return current"
+    },
+    {
+      "line": 55,
+      "path": "apps/research/infrastructure/evidence_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server time.\"\"\""
+    },
+    {
+      "line": 62,
+      "path": "apps/research/infrastructure/evidence_repository.py",
+      "text": "\"\"\"Return the current server time.\"\"\""
+    },
+    {
       "line": 91,
       "path": "apps/research/infrastructure/r1_forecast_trial_evidence_repository.py",
       "text": "\"\"\"Return one exact knowable/active receipt, never a latest fallback.\"\"\""
@@ -14093,6 +16533,81 @@
       "text": "\"\"\"Read-only runtime with no mutation, current, consumer, or execution port.\"\"\""
     },
     {
+      "line": 323,
+      "path": "apps/risk_center/application/broker_order_execution_policy.py",
+      "text": "\"\"\"Activate one Risk-owned policy using IDs and trusted current state only.\"\"\""
+    },
+    {
+      "line": 470,
+      "path": "apps/risk_center/application/broker_order_execution_policy.py",
+      "text": "\"execution policy identity is no longer the current head\""
+    },
+    {
+      "line": 483,
+      "path": "apps/risk_center/application/broker_order_execution_policy.py",
+      "text": "\"\"\"Project only exact, active, logical-current policies for authorization.\"\"\""
+    },
+    {
+      "line": 495,
+      "path": "apps/risk_center/application/broker_order_execution_policy.py",
+      "text": "\"\"\"Return the authorization DTO only when the exact policy is current.\"\"\""
+    },
+    {
+      "line": 514,
+      "path": "apps/risk_center/application/broker_order_execution_policy.py",
+      "text": "current = _validate_activation(head)"
+    },
+    {
+      "line": 515,
+      "path": "apps/risk_center/application/broker_order_execution_policy.py",
+      "text": "if current.policy.content_hash != policy.content_hash:"
+    },
+    {
+      "line": 517,
+      "path": "apps/risk_center/application/broker_order_execution_policy.py",
+      "text": "if current != activation:"
+    },
+    {
+      "line": 203,
+      "path": "apps/risk_center/application/broker_order_risk_authorization.py",
+      "text": "\"\"\"Closed selector for one current execution authorization.\"\"\""
+    },
+    {
+      "line": 251,
+      "path": "apps/risk_center/application/broker_order_risk_authorization.py",
+      "text": "\"\"\"Return the exact active current scope at one server cutoff.\"\"\""
+    },
+    {
+      "line": 264,
+      "path": "apps/risk_center/application/broker_order_risk_authorization.py",
+      "text": "\"\"\"Return the exact active current policy at one server cutoff.\"\"\""
+    },
+    {
+      "line": 302,
+      "path": "apps/risk_center/application/broker_order_risk_authorization.py",
+      "text": "\"\"\"Return the unique current logical authorization head.\"\"\""
+    },
+    {
+      "line": 316,
+      "path": "apps/risk_center/application/broker_order_risk_authorization.py",
+      "text": "\"\"\"Append with current-head compare-and-swap.\"\"\""
+    },
+    {
+      "line": 564,
+      "path": "apps/risk_center/application/broker_order_risk_authorization.py",
+      "text": "\"risk authorization subject no longer binds current head\""
+    },
+    {
+      "line": 690,
+      "path": "apps/risk_center/application/broker_order_risk_authorization.py",
+      "text": "\"\"\"Return only the current logical head matching a closed scope selector.\"\"\""
+    },
+    {
+      "line": 724,
+      "path": "apps/risk_center/application/broker_order_risk_authorization.py",
+      "text": "\"current authorization scope selector substitution\""
+    },
+    {
       "line": 1,
       "path": "apps/risk_center/application/config_summary_service.py",
       "text": "\"\"\"Config Center summary for risk center.\"\"\""
@@ -14161,6 +16676,66 @@
       "line": 419,
       "path": "apps/risk_center/application/trade_guard.py",
       "text": "violations.append(f\"{label} breached: current={value:.4f}, limit={numeric_limit:.4f}\")"
+    },
+    {
+      "line": 52,
+      "path": "apps/risk_center/infrastructure/broker_order_execution_policy_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 58,
+      "path": "apps/risk_center/infrastructure/broker_order_execution_policy_repository.py",
+      "text": "\"\"\"Private append store and strict identity/current/PIT reader.\"\"\""
+    },
+    {
+      "line": 222,
+      "path": "apps/risk_center/infrastructure/broker_order_execution_policy_repository.py",
+      "text": "\"\"\"Append one actor-bound activation using current-head CAS.\"\"\""
+    },
+    {
+      "line": 232,
+      "path": "apps/risk_center/infrastructure/broker_order_execution_policy_repository.py",
+      "text": "current = self.get_current_head(account_id=policy.account_id, as_of=recorded_at)"
+    },
+    {
+      "line": 233,
+      "path": "apps/risk_center/infrastructure/broker_order_execution_policy_repository.py",
+      "text": "if (current.policy.content_hash if current else None) != expected_predecessor_hash:"
+    },
+    {
+      "line": 234,
+      "path": "apps/risk_center/infrastructure/broker_order_execution_policy_repository.py",
+      "text": "raise BrokerOrderExecutionPolicyConflict(\"policy current head changed\")"
+    },
+    {
+      "line": 54,
+      "path": "apps/risk_center/infrastructure/broker_order_risk_authorization_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 260,
+      "path": "apps/risk_center/infrastructure/broker_order_risk_authorization_repository.py",
+      "text": "\"\"\"Append one authorization using current-head compare-and-swap.\"\"\""
+    },
+    {
+      "line": 269,
+      "path": "apps/risk_center/infrastructure/broker_order_risk_authorization_repository.py",
+      "text": "current = self.get_current_head("
+    },
+    {
+      "line": 274,
+      "path": "apps/risk_center/infrastructure/broker_order_risk_authorization_repository.py",
+      "text": "if (current.content_hash if current else None) != expected_predecessor_hash:"
+    },
+    {
+      "line": 275,
+      "path": "apps/risk_center/infrastructure/broker_order_risk_authorization_repository.py",
+      "text": "raise BrokerOrderRiskAuthorizationConflict(\"authorization current head changed\")"
+    },
+    {
+      "line": 54,
+      "path": "apps/risk_center/infrastructure/evidence_operator_spec_approval_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
     },
     {
       "line": 655,
@@ -15938,6 +18513,41 @@
       "text": "last_updated=latest.observed_at.isoformat() if latest.observed_at else None,"
     },
     {
+      "line": 339,
+      "path": "apps/simulated_trading/application/simulated_account_raw_observation.py",
+      "text": "\"current raw observation selector substitution\""
+    },
+    {
+      "line": 132,
+      "path": "apps/simulated_trading/application/simulated_account_row_source.py",
+      "text": "\"\"\"Return whether the issued observation is current at one cutoff.\"\"\""
+    },
+    {
+      "line": 268,
+      "path": "apps/simulated_trading/application/simulated_account_row_source.py",
+      "text": "raise ValueError(\"simulated account row current selector authority is invalid\")"
+    },
+    {
+      "line": 565,
+      "path": "apps/simulated_trading/application/simulated_account_row_source.py",
+      "text": "\"simulated account row source is no longer the logical current head\""
+    },
+    {
+      "line": 431,
+      "path": "apps/simulated_trading/application/simulated_account_row_source_v2.py",
+      "text": "\"v2 source is no longer the logical current head\""
+    },
+    {
+      "line": 551,
+      "path": "apps/simulated_trading/application/simulated_account_row_source_v2.py",
+      "text": "raise SimulatedAccountRowSourceV2Unavailable(\"exact current raw observation is unavailable\")"
+    },
+    {
+      "line": 570,
+      "path": "apps/simulated_trading/application/simulated_account_row_source_v2.py",
+      "text": "raise SimulatedAccountRowSourceV2Unavailable(\"exact current raw observation is unavailable\")"
+    },
+    {
       "line": 59,
       "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "summary = result.get(\"summary\", {})"
@@ -16033,6 +18643,11 @@
       "text": "\"\"\"Persisted performance values exposed with an account summary.\"\"\""
     },
     {
+      "line": 18,
+      "path": "apps/simulated_trading/infrastructure/account_physical_row_provider.py",
+      "text": "\"\"\"Map only an exact current owner-ledger head into the Account DTO.\"\"\""
+    },
+    {
       "line": 585,
       "path": "apps/simulated_trading/infrastructure/account_portfolio_repository.py",
       "text": "\"\"\"Build summary statistics for one portfolio.\"\"\""
@@ -16058,12 +18673,12 @@
       "text": "\"summary\": dict(proposal.summary or {}),"
     },
     {
-      "line": 439,
+      "line": 445,
       "path": "apps/simulated_trading/infrastructure/models.py",
       "text": "summary = models.JSONField(\"巡检汇总\", default=dict, blank=True)"
     },
     {
-      "line": 672,
+      "line": 678,
       "path": "apps/simulated_trading/infrastructure/models.py",
       "text": "summary = models.JSONField("
     },
@@ -16071,6 +18686,171 @@
       "line": 123,
       "path": "apps/simulated_trading/infrastructure/position_repository.py",
       "text": "\"\"\"Update open positions and account totals from latest prices.\"\"\""
+    },
+    {
+      "line": 60,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_raw_observation_repository.py",
+      "text": "\"\"\"Return current Django time.\"\"\""
+    },
+    {
+      "line": 131,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_raw_observation_repository.py",
+      "text": "current = self._current_head(observation, as_of=recorded_at, lock=True)"
+    },
+    {
+      "line": 132,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_raw_observation_repository.py",
+      "text": "actual = current.observation.content_hash if current is not None else None"
+    },
+    {
+      "line": 137,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_raw_observation_repository.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 140,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_raw_observation_repository.py",
+      "text": "current.observation, observation"
+    },
+    {
+      "line": 615,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_raw_observation_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 616,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_raw_observation_repository.py",
+      "text": "while current.observation.content_hash not in visited:"
+    },
+    {
+      "line": 617,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_raw_observation_repository.py",
+      "text": "visited.add(current.observation.content_hash)"
+    },
+    {
+      "line": 618,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_raw_observation_repository.py",
+      "text": "successor = successors.get(current.observation.content_hash)"
+    },
+    {
+      "line": 621,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_raw_observation_repository.py",
+      "text": "current = successor"
+    },
+    {
+      "line": 626,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_raw_observation_repository.py",
+      "text": "return current"
+    },
+    {
+      "line": 61,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_repository.py",
+      "text": "\"\"\"Return current Django time.\"\"\""
+    },
+    {
+      "line": 126,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_repository.py",
+      "text": "current = self._current_head(source, as_of=recorded_at, lock=True)"
+    },
+    {
+      "line": 127,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_repository.py",
+      "text": "actual_predecessor = current.source.content_hash if current is not None else None"
+    },
+    {
+      "line": 132,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_repository.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 135,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_repository.py",
+      "text": "current.source,"
+    },
+    {
+      "line": 669,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 670,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_repository.py",
+      "text": "while current.source.content_hash not in visited:"
+    },
+    {
+      "line": 671,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_repository.py",
+      "text": "visited.add(current.source.content_hash)"
+    },
+    {
+      "line": 672,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_repository.py",
+      "text": "successor = successor_by_predecessor.get(current.source.content_hash)"
+    },
+    {
+      "line": 675,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_repository.py",
+      "text": "current = successor"
+    },
+    {
+      "line": 678,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_repository.py",
+      "text": "return current"
+    },
+    {
+      "line": 60,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "text": "\"\"\"Return current Django time.\"\"\""
+    },
+    {
+      "line": 125,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "text": "current = self._current_head(source, as_of=recorded_at, lock=True)"
+    },
+    {
+      "line": 126,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "text": "actual_predecessor = current.source.content_hash if current is not None else None"
+    },
+    {
+      "line": 131,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "text": "if current is not None:"
+    },
+    {
+      "line": 134,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "text": "current.source,"
+    },
+    {
+      "line": 661,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "line": 662,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "text": "while current.source.content_hash not in visited:"
+    },
+    {
+      "line": 663,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "text": "visited.add(current.source.content_hash)"
+    },
+    {
+      "line": 664,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "text": "successor = successor_by_predecessor.get(current.source.content_hash)"
+    },
+    {
+      "line": 667,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "text": "current = successor"
+    },
+    {
+      "line": 670,
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "text": "return current"
     },
     {
       "line": 532,
@@ -17878,12 +20658,12 @@
       "text": "\"action_key\": \"auto.api.get.api.asset-analysis.current-weight\","
     },
     {
-      "line": 639,
+      "line": 643,
       "path": "apps/terminal/interface/api_views.py",
       "text": "\"\"\"Expose the unified TUI operator home summary.\"\"\""
     },
     {
-      "line": 698,
+      "line": 702,
       "path": "apps/terminal/interface/api_views.py",
       "text": "\"\"\"Run a published safe action for the current user.\"\"\""
     },

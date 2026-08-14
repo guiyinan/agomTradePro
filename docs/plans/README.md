@@ -255,6 +255,7 @@
 | 2026-08-13 | 第二期 P0 | Web→TUI release provenance fail-closed | 发布工具拒绝 dirty/unknown source，clone 锁定 exact commit；构建强制 OCI revision 并生成只读 release manifest，deploy 在启动服务/切换 current 前复核 manifest+image；相关 `44 passed` | 尚未部署；当前生产仍为 revision=`unknown`/无 manifest，须经授权部署干净候选并重新 preflight |
 | 2026-08-14 | 第二期 P0 | Web→TUI release provenance verifier 对齐 source-upload | 本地 `deploy_vps_verify` 身份检查强制读取只读 `.agom-release-manifest.json`，校验字段白名单、源码 commit、OCI revision 与镜像 ID，并移除 Git fallback；构建/部署脚本继续核验 release/image 标识、构建时间和 source mode；`50 passed`、增量 mypy 通过 | 未部署；当前生产仍为 revision=`unknown`/无 manifest，未生成 attestation，M5 观察窗口继续 DENY |
 | 2026-08-14 | 第二期 P0 | Web→TUI backend contract provenance | runtime manifest 逐文件覆盖 IA、Application metadata、IA loader、repository/signals 与全部 `tui_metadata_runtime_*.py`；manifest digest contract `1 passed`，与 observation/candidate recorder 定向回归合计 `21 passed`，`npm run build:tui` 已重生成 | 只完成本地候选 provenance；生产仍 revision=`unknown`/无 manifest，未部署、未生成 attestation，14日窗口/telemetry/backup/双签继续 DENY |
+| 2026-08-14 | 第一期 P0 | Data Center architecture inventory source snapshot | 重新生成并复核 `governance/data_center_architecture_inventory.json`；静态计数为 `cross_app_orm_imports=48`、`current_surface_references=4225`、`data_write_task_decorators=58`、`runtime_parameter_references=49`，Data Center/Provider 外部直连、legacy fact 与待审外部 HTTP 均为 `0`；governance、architecture、catalog、legacy-fact、current-data、Celery guards 通过 | 仅源码治理快照；不代表生产 PostgreSQL/VPS 数据、备份恢复、shadow reconciliation、writer quiescence 或 M9 destructive migration，生产切换继续 DENY |
 
 ## 2026-08-12 整理结果
 
