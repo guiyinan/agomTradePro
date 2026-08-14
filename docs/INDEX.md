@@ -873,6 +873,9 @@
 - ✅ **Account RBAC mutation binding v3 Domain合同**
   - Domain封存exact Profile old/new refs、human staff+canonical admin operator authority与service recorder，并将bootstrap/role_change/revoke/reactivate、initial/reactivation epoch、binding/raw-source双链和PIT exact selector分域闭合
   - pure 16 passed、strict mypy/official增量门禁通过、architecture 2875/0；无codec/0053 schema/repository/Profile version ledger/concrete UOW，现存mutable Profile不得回填历史，旧写入口和execution继续关闭
+- ✅ **Account RBAC mutation binding v3 strict codec**
+  - codec完整恢复epoch、old/new Profile、human operator、service issuer、binding/raw-source双链与全部seals；exact keys/types、UTC-Z、Domain重验和canonical encode-equality使替换与跨链篡改fail closed
+  - codec 18 passed、official增量mypy 0 regressions、architecture 2876/0；仅payload封存，不证明mutable来源真实性，0053 schema/repository/UOW/lifecycle writer与execution仍关闭
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
