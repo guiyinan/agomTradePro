@@ -38,8 +38,12 @@ from apps.account.domain.account_rbac_authority_mutation_binding_v3 import (
     AccountRbacAuthoritySourceEpochV3,
     validate_account_rbac_authority_mutation_binding_v3_successor,
 )
-from apps.account.domain.account_rbac_authority_source_v3 import AccountRbacAuthoritySourceV3
+from apps.account.domain.account_rbac_authority_source_v3 import (
+    AccountRbacAuthoritySourceV3,
+    validate_account_rbac_authority_source_v3_successor,
+)
 from apps.account.infrastructure.account_actor_authority_raw_source_models_v3 import (
+    AccountRbacAuthoritySourceV3AnchorModel,
     AccountRbacAuthoritySourceV3Model,
 )
 from apps.account.infrastructure.account_rbac_authority_mutation_binding_v3_codec import (
@@ -464,9 +468,18 @@ class DjangoAccountRbacAuthorityMutationBindingV3Repository:
     def _validate_all_raw_sources(self, *, lock: bool) -> dict[str, AccountRbacAuthoritySourceV3]:
         """Restore every raw RBAC row before a binding selector can hide tamper."""
 
+        anchor_query = AccountRbacAuthoritySourceV3AnchorModel._base_manager.using(
+            self._using
+        ).all()
         query = AccountRbacAuthoritySourceV3Model._base_manager.using(self._using).all()
         if lock:
+            anchor_query = anchor_query.select_for_update()
             query = query.select_for_update()
+        anchors = tuple(anchor_query.order_by("pk"))
+        anchor_by_pk = {_pk(anchor): anchor for anchor in anchors}
+        raw_rows: dict[
+            int, list[tuple[AccountRbacAuthoritySourceV3Model, AccountRbacAuthoritySourceV3]]
+        ] = {}
         restored: dict[str, AccountRbacAuthoritySourceV3] = {}
         for row in query.order_by("pk"):
             try:
@@ -534,11 +547,58 @@ class DjangoAccountRbacAuthorityMutationBindingV3Repository:
                 )
                 if row.ledger_seal != expected_ledger_seal:
                     raise ValueError("raw RBAC ledger seal mismatch")
+                if row.anchor_id not in anchor_by_pk:
+                    raise ValueError("raw RBAC source has no exact anchor")
                 restored[source.content_hash] = source
+                raw_rows.setdefault(int(row.anchor_id), []).append((row, source))
             except (AccountRbacAuthoritySourceV3CodecError, TypeError, ValueError) as error:
                 raise AccountRbacAuthorityRawSourceV3Corruption(
                     "raw RBAC source closed-world restore failed"
                 ) from error
+        for anchor in anchors:
+            chain = raw_rows.get(_pk(anchor), [])
+            if not chain:
+                raise AccountRbacAuthorityRawSourceV3Corruption("orphan raw RBAC anchor")
+            if any(source.identity.source_id != anchor.source_id for _, source in chain):
+                raise AccountRbacAuthorityRawSourceV3Corruption(
+                    "raw RBAC anchor source identity differs"
+                )
+            roots = tuple(item for item in chain if item[0].predecessor_id is None)
+            if len(roots) != 1:
+                raise AccountRbacAuthorityRawSourceV3Corruption(
+                    "raw RBAC source chain must have one root"
+                )
+            root_row, root = roots[0]
+            if root.chain.root_claim_hash != anchor.root_claim_hash:
+                raise AccountRbacAuthorityRawSourceV3Corruption(
+                    "raw RBAC anchor root claim differs"
+                )
+            by_predecessor: dict[
+                int, list[tuple[AccountRbacAuthoritySourceV3Model, AccountRbacAuthoritySourceV3]]
+            ] = {}
+            for item in chain:
+                if item[0].predecessor_id is not None:
+                    by_predecessor.setdefault(int(item[0].predecessor_id), []).append(item)
+            visited = {_pk(root_row)}
+            current_row, current = root_row, root
+            while successors := by_predecessor.get(_pk(current_row), []):
+                if len(successors) != 1:
+                    raise AccountRbacAuthorityRawSourceV3Corruption("raw RBAC source chain forks")
+                next_row, successor = successors[0]
+                if _pk(next_row) in visited:
+                    raise AccountRbacAuthorityRawSourceV3Corruption("raw RBAC source chain cycles")
+                try:
+                    validate_account_rbac_authority_source_v3_successor(current, successor)
+                except (TypeError, ValueError) as error:
+                    raise AccountRbacAuthorityRawSourceV3Corruption(
+                        "raw RBAC source successor is invalid"
+                    ) from error
+                visited.add(_pk(next_row))
+                current_row, current = next_row, successor
+            if len(visited) != len(chain):
+                raise AccountRbacAuthorityRawSourceV3Corruption(
+                    "raw RBAC source chain disconnected"
+                )
         return restored
 
     def _validate_graph(
