@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "gate_id": "ai-native-release-gate.v1",
+  "purpose": "Freeze local AI-Native API, SDK, MCP, TUI, migration and verification assets before human/staging release approval.",
+  "required_assets": [
+    {
+      "id": "agent_runtime_api",
+      "paths": [
+        "apps/agent_runtime/interface/api_urls.py",
+        "apps/agent_runtime/interface/views.py",
+        "apps/agent_runtime/interface/serializers.py"
+      ],
+      "markers": ["agent_runtime", "proposal"]
+    },
+    {
+      "id": "agent_runtime_sdk",
+      "paths": [
+        "sdk/agomtradepro/client.py",
+        "sdk/agomtradepro/modules/agent_runtime.py",
+        "sdk/agomtradepro/modules/agent_context.py",
+        "sdk/agomtradepro/modules/agent_proposal.py"
+      ],
+      "markers": ["AgentRuntimeModule", "AgentContextModule", "AgentProposalModule"]
+    },
+    {
+      "id": "agent_runtime_mcp",
+      "paths": [
+        "sdk/agomtradepro_mcp/server.py",
+        "sdk/agomtradepro_mcp/tools/agent_runtime_tools.py",
+        "sdk/agomtradepro_mcp/tools/agent_task_tools.py",
+        "sdk/agomtradepro_mcp/tools/agent_proposal_tools.py"
+      ],
+      "markers": ["agent_runtime", "proposal"]
+    },
+    {
+      "id": "tui_operator_provenance",
+      "paths": [
+        "config/tui/agomtui-runtime.manifest.json",
+        "config/tui/ia/tui_information_architecture.v1.json",
+        "tests/unit/test_tui_runtime_manifest_contract.py",
+        "tests/playwright/tests/uat/test_web_to_tui_m5.py"
+      ],
+      "markers": ["upstream_commit", "files"]
+    },
+    {
+      "id": "runtime_migrations",
+      "paths": [
+        "apps/agent_runtime/migrations/0001_initial.py",
+        "apps/agent_runtime/migrations/0003_reproducible_execution_evidence.py"
+      ],
+      "markers": ["Migration", "operations"]
+    }
+  ],
+  "required_tests": [
+    "tests/unit/test_agent_runtime_m4_regression.py",
+    "tests/unit/test_agent_runtime_m3_sdk.py",
+    "tests/unit/test_agent_runtime_m3_mcp.py",
+    "tests/unit/test_tui_runtime_manifest_contract.py",
+    "tests/api/test_agent_runtime_api.py",
+    "tests/acceptance/test_sdk_connection.py",
+    "tests/acceptance/test_mcp_server.py"
+  ],
+  "evidence_requirements": {
+    "staging": {
+      "environment": "staging",
+      "status": "PASS",
+      "required_fields": ["environment", "status", "candidate_commit", "test_manifest_sha256"]
+    },
+    "manual_signoff": {
+      "status": "APPROVED",
+      "required_fields": ["status", "candidate_commit", "owner", "reviewer"]
+    }
+  },
+  "deny_until": [
+    "staging_evidence",
+    "manual_signoff"
+  ]
+}

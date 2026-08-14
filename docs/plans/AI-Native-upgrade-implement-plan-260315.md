@@ -844,3 +844,9 @@
   - 默认外包团队不得自行引入新的 workflow 引擎或第三方 Agent 编排平台，除非甲方书面确认
   - 默认高风险动作的最终裁决权始终在后端，不在 prompt 或 MCP 客户端
   - 默认外包团队需提交全部自动化测试与验收脚本，不接受“人工点点能用”作为交付标准
+
+## 2026-08-14 本地 Release Gate 收口记录
+
+- 新增 `config/ai_native/ai_native_release_gate.v1.json`，冻结 agent runtime API、SDK、MCP、TUI provenance、migration 与 test assets；新增 `scripts/check_ai_native_release_gate.py` 做文件、marker、测试资产和候选 commit 绑定检查。
+- 本地机器检查与定向测试 `tests/unit/test_ai_native_release_gate.py` 均通过（3 passed）；未提供真实 staging evidence 或独立 owner/reviewer 双签时，命令稳定输出 `DENY`，不会把本地 fixture 当作发布批准。
+- 本节只完成 machine-gate，不改变 M4/P1 的 staging 浏览器 UAT、首页聊天验收、人工签字、备份/回滚与发布候选证据要求；这些外部验收仍是 release gate 的阻断项。

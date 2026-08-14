@@ -28,6 +28,12 @@ These files are intended for:
 - [vendor-baseline-contract.md](../../archive/plans/ai-native/vendor-baseline-contract.md) - vendor baseline, scope, ownership, state machine, freeze rules
 - [test-matrix.md](../../archive/plans/ai-native/test-matrix.md) - test requirements per milestone
 
+## P1 Release Gate (2026-08-14)
+
+The local machine gate is frozen in [`config/ai_native/ai_native_release_gate.v1.json`](../../../config/ai_native/ai_native_release_gate.v1.json) and evaluated by [`scripts/check_ai_native_release_gate.py`](../../../scripts/check_ai_native_release_gate.py). It checks that the current API, SDK, MCP, TUI provenance, migration, and verification assets are present and marker-aligned.
+
+The gate deliberately remains `DENY` until a real staging evidence package and independent owner/reviewer sign-off are supplied for the same candidate commit. A local fake, fixture, or passing unit test cannot satisfy those two external gates. This is a machine-guard closure, not a P1 release approval.
+
 ## How To Use This Pack
 
 1. Complete milestones strictly in order.

@@ -106,6 +106,11 @@ Backlog rules:
 | 082 | M4 | DevOps | doc | no | Produce staging rollout, migration, smoke, and rollback guide. |
 | 083 | M4 | PM | review | no | Run staging UAT and collect sign-off evidence. |
 | 084 | M4 | PM | review | no | Produce final release gate package. |
+| 085 | P1 | Release | contract | no | Freeze the machine-readable AI-Native API/SDK/MCP/TUI/migration/test asset manifest. |
+| 086 | P1 | Release | build | no | Implement the fail-closed local release-gate checker and candidate binding. |
+| 087 | P1 | QA | test | no | Test complete local assets, missing assets, missing staging evidence, and missing manual sign-off. |
+| 088 | P1 | Frontend/QA | test | no | Run staging browser/UAT assets for the home-chat and TUI operator flows. |
+| 089 | P1 | PM | review | no | Collect independent owner/reviewer sign-off and publish the exact-candidate release evidence package. |
 
 ## Completion Rules
 
@@ -121,6 +126,7 @@ For every backlog item:
 - Tasks `031-044` must be paired with tests `045-049`
 - Tasks `050-064` must be paired with tests `065-071`
 - Tasks `072-077` must be paired with tests `078-084`
+- Tasks `085-086` must be paired with test `087`; tasks `088-089` remain external staging/manual gates.
 
 ## What The Vendor Must Not Do
 
