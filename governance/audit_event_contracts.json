@@ -41,6 +41,56 @@
     "publication_id",
     "evidence_ref"
   ],
+  "inventory": [
+    {
+      "category": "system.operation",
+      "owner": "audit",
+      "status": "inventory_only",
+      "event_contract_status": "pending",
+      "source_files": ["apps/audit/infrastructure/models.py", "apps/audit/interface/api_urls.py"],
+      "next_stage": "M3"
+    },
+    {
+      "category": "system.security",
+      "owner": "account",
+      "status": "inventory_only",
+      "event_contract_status": "pending",
+      "source_files": ["apps/account/interface/views.py", "apps/audit/interface/authentication.py"],
+      "next_stage": "M3"
+    },
+    {
+      "category": "system.configuration",
+      "owner": "config_center",
+      "status": "inventory_only",
+      "event_contract_status": "pending",
+      "source_files": ["apps/config_center/application/tasks.py", "apps/data_center/application/tasks.py"],
+      "next_stage": "M3"
+    },
+    {
+      "category": "system.task",
+      "owner": "task_monitor",
+      "status": "inventory_only",
+      "event_contract_status": "pending",
+      "source_files": ["apps/task_monitor/application/tasks.py", "apps/task_monitor/application/backup_tasks.py"],
+      "next_stage": "M3"
+    },
+    {
+      "category": "decision.governance",
+      "owner": "risk_center",
+      "status": "inventory_only",
+      "event_contract_status": "pending",
+      "source_files": ["apps/risk_center/application/evidence_operator_spec_approval.py", "apps/portfolio/application/governed_optimization.py"],
+      "next_stage": "M3"
+    },
+    {
+      "category": "execution.control",
+      "owner": "broker_execution",
+      "status": "inventory_only",
+      "event_contract_status": "pending",
+      "source_files": ["apps/broker_execution/application/authorization.py", "apps/broker_execution/application/agent_use_cases.py"],
+      "next_stage": "M3"
+    }
+  ],
   "events": [
     {
       "event_type": "data.fetch.completed",

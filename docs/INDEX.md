@@ -908,7 +908,7 @@
   - `config/ai_native/ai_native_release_gate.v1.json` 与 `scripts/check_ai_native_release_gate.py` 冻结并校验 API、SDK、MCP、TUI provenance、migration 和 test assets；定向测试 `3 passed`
   - staging evidence 与 owner/reviewer 人工双签缺失时稳定 `DENY`；首页聊天浏览器 UAT、staging 和发布证据仍未完成
 - ✅ **系统级统一审计日志 M0 事件注册表（2026-08-14）**
-  - `governance/audit_event_contracts.json` 与 `scripts/check_audit_event_contracts.py` 冻结 20 个 Data Reliability 事件的 taxonomy、owner、write policy、detail schema、reason 与 correlation 合同，并接入 consistency workflow；定向测试 `4 passed`、治理 wiring `29 passed`，当前明确为 `shadow/registry_only/not_wired`
+  - `governance/audit_event_contracts.json` 与 `scripts/check_audit_event_contracts.py` 冻结 7 个顶层 category：20 个 Data Reliability 事件有完整合同，其余 6 类保留 source-file inventory；已接入 consistency workflow，定向测试 `5 passed`、治理 wiring `29 passed`，当前明确为 `shadow/registry_only/not_wired`
   - 尚未创建 Event Model、migration、outbox 或业务双写；未知事件仍应拒绝登记，M1+ 与生产审计覆盖继续待评审
 - ✅ **Equity research snapshot Django runtime contract（2026-08-14）**
   - Django 5.2.12 复跑 API `15`、SDK/MCP/routing/evidence `36`、use case/gateway `26`，合计 `77 passed`

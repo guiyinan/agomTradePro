@@ -23,6 +23,15 @@ def test_registry_is_valid() -> None:
     assert registry["status"] == "shadow"
     assert registry["implementation_status"] == "registry_only"
     assert len(registry["events"]) >= 20
+    assert len(registry["inventory"]) == 6
+    assert {item["category"] for item in registry["inventory"]} == {
+        "system.operation",
+        "system.security",
+        "system.configuration",
+        "system.task",
+        "decision.governance",
+        "execution.control",
+    }
 
 
 def test_duplicate_event_type_and_unknown_reason_are_rejected() -> None:
@@ -58,3 +67,14 @@ def test_registry_file_is_json_and_contains_only_contract_data() -> None:
     assert payload["status"] == "shadow"
     assert payload["implementation_status"] == "registry_only"
     assert all(event["implementation_status"] == "not_wired" for event in payload["events"])
+
+
+def test_inventory_source_file_is_required() -> None:
+    """An inventory-only category cannot point at a missing source file."""
+
+    registry = load_registry(DEFAULT_REGISTRY_PATH)
+    registry["inventory"][0]["source_files"] = ["apps/audit/does_not_exist.py"]
+
+    violations = validate_registry(registry, project_root=ROOT)
+
+    assert any(violation.code == "inventory_source_missing" for violation in violations)

@@ -109,7 +109,88 @@ def validate_registry(
         violations.append(_violation("events", "events must be a non-empty list", "events"))
         return violations
 
+    inventory = registry.get("inventory")
+    if not isinstance(inventory, list) or not inventory:
+        violations.append(
+            _violation("inventory", "inventory must be a non-empty list", "inventory")
+        )
+        inventory = []
+    seen_inventory_categories: set[str] = set()
+    for index, item in enumerate(inventory):
+        path = f"inventory[{index}]"
+        if not isinstance(item, dict):
+            violations.append(_violation("inventory", "inventory entry must be an object", path))
+            continue
+        category = item.get("category")
+        if not isinstance(category, str) or category not in (
+            allowed_categories if isinstance(allowed_categories, list) else []
+        ):
+            violations.append(
+                _violation("inventory_category", "category is not allowlisted", f"{path}.category")
+            )
+        elif category in seen_inventory_categories:
+            violations.append(
+                _violation(
+                    "duplicate_inventory_category",
+                    "inventory category is duplicated",
+                    f"{path}.category",
+                )
+            )
+        else:
+            seen_inventory_categories.add(category)
+        owner = item.get("owner")
+        if not isinstance(owner, str) or _OWNER_PATTERN.fullmatch(owner) is None:
+            violations.append(
+                _violation("inventory_owner", "owner is not canonical", f"{path}.owner")
+            )
+        if item.get("status") != "inventory_only":
+            violations.append(
+                _violation(
+                    "inventory_status",
+                    "inventory status must be inventory_only",
+                    f"{path}.status",
+                )
+            )
+        if item.get("event_contract_status") != "pending":
+            violations.append(
+                _violation(
+                    "inventory_event_status",
+                    "inventory event_contract_status must be pending",
+                    f"{path}.event_contract_status",
+                )
+            )
+        source_files = item.get("source_files")
+        if not _is_string_list(source_files) or not source_files:
+            violations.append(
+                _violation(
+                    "inventory_sources",
+                    "source_files must be non-empty",
+                    f"{path}.source_files",
+                )
+            )
+        else:
+            for source_file in source_files:
+                source_path = project_root / source_file
+                if (
+                    Path(source_file).is_absolute()
+                    or ".." in Path(source_file).parts
+                    or not source_path.is_file()
+                ):
+                    violations.append(
+                        _violation(
+                            "inventory_source_missing",
+                            "source_files must point to existing repository files",
+                            f"{path}.source_files",
+                        )
+                    )
+        next_stage = item.get("next_stage")
+        if not isinstance(next_stage, str) or re.fullmatch(r"M[0-9]+", next_stage) is None:
+            violations.append(
+                _violation("inventory_stage", "next_stage must be M<number>", f"{path}.next_stage")
+            )
+
     seen_event_types: set[str] = set()
+    seen_event_categories: set[str] = set()
     for index, event in enumerate(events):
         path = f"events[{index}]"
         if not isinstance(event, dict):
@@ -129,10 +210,14 @@ def validate_registry(
             seen_event_types.add(event_type)
 
         category = event.get("category")
-        if category not in (allowed_categories if isinstance(allowed_categories, list) else []):
+        if not isinstance(category, str) or category not in (
+            allowed_categories if isinstance(allowed_categories, list) else []
+        ):
             violations.append(
                 _violation("category", "category is not allowlisted", f"{path}.category")
             )
+        else:
+            seen_event_categories.add(category)
         owner = event.get("owner")
         if not isinstance(owner, str) or _OWNER_PATTERN.fullmatch(owner) is None:
             violations.append(_violation("event_owner", "owner is not canonical", f"{path}.owner"))
@@ -257,6 +342,22 @@ def validate_registry(
                 "active registry must declare implementation_status=wired",
                 "implementation_status",
             )
+        )
+    allowlisted_categories = (
+        set(allowed_categories) if isinstance(allowed_categories, list) else set()
+    )
+    covered_categories = seen_event_categories | seen_inventory_categories
+    for category in sorted(allowlisted_categories - covered_categories):
+        violations.append(
+            _violation(
+                "category_uncovered",
+                "every allowlisted category needs an event contract or inventory entry",
+                category,
+            )
+        )
+    for category in sorted(covered_categories - allowlisted_categories):
+        violations.append(
+            _violation("category_unknown", "event/inventory category is not allowlisted", category)
         )
     return violations
 
