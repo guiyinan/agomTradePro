@@ -899,6 +899,9 @@
 - ✅ **Web→TUI backend contract provenance（2026-08-14）**
   - runtime manifest 逐文件覆盖 IA、Application metadata、IA loader、repository/signals 与全部 `tui_metadata_runtime_*.py`；manifest digest contract 与 observation/candidate recorder 定向回归合计 21 passed
   - 仅完成本地候选 provenance；生产仍 revision=`unknown`/无 manifest，M5 观察窗口继续 DENY
+- ✅ **Web→TUI M5 readiness recheck（2026-08-15）**
+  - `check_web_to_tui_cutover_readiness.py --json` 返回 `DENY`；matrix/catalog/evidence SHA 一致，108/108 route/task 静态覆盖与 rollback scope 证据存在
+  - candidate commit/version 绑定、14 日 observation、production telemetry（`0/101`）、production rollback/registry backup 与 owner/reviewer 双签仍缺；不执行 cleanup/cutover
 - ✅ **Web→TUI R0 actionability audit（2026-08-14）**
   - 归一化 runtime graph 的 277 个 write/admin action 均需真实写方法与 mutation effect；创建/编辑/删除/审批入口必须有可见字段，8 个无输入整批命令与 4 个 POST/read 预览/测试命令分别显式登记；`test_tui_actionability_contract.py` `5 passed`、TUI JS `33 passed`
   - 仅证明本地“可填写/可提交”门禁；最终候选角色化浏览器 UAT、写后回执、人工审批和生产审计证据仍未满足，M5 继续 DENY
