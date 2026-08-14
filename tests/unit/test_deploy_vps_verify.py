@@ -287,3 +287,19 @@ def test_verification_commands_cover_identity_backup_resources_and_healthcheck()
     assert "celery -A core inspect ping" in rollback
     assert "publish-tui-release.sh" in rollback
     assert "Automatic rollback publish" in rollback
+
+
+def test_release_identity_supports_manifest_backed_source_uploads_fail_closed():
+    identity = deploy_vps_verify.build_release_identity_command("/opt/agomtradepro")
+
+    assert ".agom-release-manifest.json" in identity
+    assert "release manifest must be a regular file" in identity
+    assert "release manifest must be read-only (0444)" in identity
+    assert "set(manifest) != expected_keys" in identity
+    assert "release manifest release tag is invalid" in identity
+    assert "release manifest image tag is invalid" in identity
+    assert "release manifest source mode is unsupported" in identity
+    assert "release manifest build timestamps are not monotonic" in identity
+    assert "manifest image ID does not match running image" in identity
+    assert "manifest source commit does not match image revision" in identity
+    assert "git rev-parse HEAD" not in identity

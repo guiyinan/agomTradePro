@@ -47,3 +47,9 @@
 - 相关本地回归 `44 passed`，strict mypy、Black、isort、compileall、生成 shell 的 `sh -n` 与 diff check 均通过；Ruff 在当前环境未安装。
 
 这一步只证明下一次发布能够 fail closed 地形成候选溯源，不改变上文当前生产快照。当前线上 OCI revision 仍是 `unknown`，也没有合格 manifest；在获得发布授权、部署干净候选并重新取得结构化 preflight 前，M5 仍为 `DENY`。
+
+## 2026-08-14 本地验证器收口
+
+`scripts/deploy_vps_verify.py` 现已与 source-upload/git-clone 两种发布模式的只读 `.agom-release-manifest.json` 身份合同对齐：身份检查要求普通 `0444` manifest，并严格核验字段集合、源码 commit、OCI revision 与镜像 ID；不再以 release 目录中的 Git worktree 作为 fallback。发布脚本本身继续在构建/部署阶段核验 release/image 标识、构建时间和 source mode。`tests/unit/test_deploy_vps_verify.py` 与 `tests/unit/test_remote_build_deploy_vps.py` 合计 `50 passed`，增量 mypy 通过。
+
+这仍只是下一次发布的本地 fail-closed 能力，不是生产证明。当前线上仍为 `revision=unknown` 且无合格 manifest；未执行部署、未生成新的 production attestation，M5 观察窗口仍未开始并继续 `DENY`。

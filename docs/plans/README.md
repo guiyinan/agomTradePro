@@ -251,6 +251,7 @@
 | 2026-08-13 | 第二期 P0 | Web→TUI current production preflight | 公开 health/ready 为 200/ok；当前 release=`source-20260813002655`，但 OCI revision=`unknown` 且 release 无 Git/source manifest，不能绑定 candidate，观察仍未开始 | 修复 release provenance，重新部署干净最终候选，并在部署后生成结构化 attestation |
 | 2026-08-13 | 第二期 P0 | Web→TUI M5-B cleanup wave recorder | 从 candidate Git snapshot 重算单波删除/≤10 route/task/rollback；强制已提交且 commit+OCI 精确绑定的 deployment preflight，以及部署后 48h telemetry/defect/scheduled-cycle 原始证据；`14 passed` | 当前无删除候选和生产证据，CLI 保持 FAIL；待候选部署后逐波实际执行 |
 | 2026-08-13 | 第二期 P0 | Web→TUI release provenance fail-closed | 发布工具拒绝 dirty/unknown source，clone 锁定 exact commit；构建强制 OCI revision 并生成只读 release manifest，deploy 在启动服务/切换 current 前复核 manifest+image；相关 `44 passed` | 尚未部署；当前生产仍为 revision=`unknown`/无 manifest，须经授权部署干净候选并重新 preflight |
+| 2026-08-14 | 第二期 P0 | Web→TUI release provenance verifier 对齐 source-upload | 本地 `deploy_vps_verify` 身份检查强制读取只读 `.agom-release-manifest.json`，校验字段白名单、源码 commit、OCI revision 与镜像 ID，并移除 Git fallback；构建/部署脚本继续核验 release/image 标识、构建时间和 source mode；`50 passed`、增量 mypy 通过 | 未部署；当前生产仍为 revision=`unknown`/无 manifest，未生成 attestation，M5 观察窗口继续 DENY |
 
 ## 2026-08-12 整理结果
 
