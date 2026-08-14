@@ -2156,6 +2156,11 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 每次selector先恢复整张ledger和全部anchors，再应用recorded-at PIT。restore以strict codec重建Domain，逐列核canonical payload、service recorder、content-bound recorder seal、ledger seal与persisted clock；逐source验证single root、anchor root claim、PROTECT predecessor、相邻Domain successor、无fork/cycle/orphan/disconnect。`get_current_head`始终返回最终knowable head，即使terminal或expired，也不回退旧current。
 - isolated Django5.2 model+repository component `7 passed`，覆盖zero-seed/root replay/PIT/exact、terminal successor/expiry no-fallback、private UOW/CAS及caller-caught rollback、无关selector前full-table tamper；Ruff、Black/isort、pycompile、focused strict mypy及architecture 2858/0通过。真实PostgreSQL空root/same-predecessor双连接race、真实owner auth/User/RBAC ledgers与atomic bundle provider仍未完成，因此0051继续zero-seed且staff/write/execution入口关闭。
 
+### 2026-08-14：Account actor authority raw-source v3 Domain primitives
+
+- 在Account Domain内新增仅供三种owner raw authority artifacts复用的frozen/slots primitives：exact source ID/version、`observed_at <= recorded_at < valid_until` aware clock、root/predecessor XOR chain，以及canonical UTC-Z、domain-separated hash和固定inactive/attestation-only/nonexecution header validator。业务语义未下沉`shared/`，也没有用单一kind+nullable矩阵混合auth-context/User/RBAC三种不同撤权规则。
+- pure `10 passed`；Ruff、Black/isort、strict mypy及architecture 2859/0通过。该模块不是raw source artifact、ledger、provider或request adapter；下一步仍须分别定义auth-context、User authority与RBAC authority concrete Domains，之后才可建立各自zero-seed ledgers与atomic aggregate provider。mutable session/User/Profile现场hash继续禁止。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
