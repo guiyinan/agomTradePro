@@ -2235,6 +2235,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 定向writer unit `7 passed`；与既有Domain/codec/read contract/0053 model+repository组合 `54 passed`；Ruff、Black/isort、py_compile、official增量mypy `0 regressions`、architecture `2879/0` 与diff-check通过。Application仅依赖Protocol/Domain，未导入ORM或Infrastructure。
 - 本批明确仍为dormant orchestration contract：没有concrete Profile mutation receipt/version issuer、mutable User/Profile/operator lifecycle的同alias实现、0053跨epoch reactivation的PostgreSQL闭环或任何production route/composition；命令不得自行伪造source identity、facts或clock。生产写入口、staff approval、bundle/provider与execution总闸继续关闭，真实PostgreSQL空链/竞争仍待独立验收。
 
+### 2026-08-15：Account authority component evidence runner correction
+
+- 复核发现 RBAC mutation binding、RBAC/User raw authority 与 actor raw model 的 schema-editor component 原先没有显式持有 pytest-django 的数据库解锁边界，直接按仓库默认 settings 运行会出现 `Database access not allowed`，不能把历史计数当作可复现证据。
+- 五组测试统一改为在 fixture 内注入 `django_db_blocker.unblock()`，不依赖 pytest-django 自动建表，保持自建 schema 的 zero-seed 语义；使用 `--ds=tests.settings_account_actor_authority_source_v3 --confcutdir=tests/component/account` 重跑，合计 `38 passed`，其中 mutation-binding repository `4 passed`。
+- 该批只修复 SQLite/no-migrations 组件证据边界，不新增 production writer、不回填 0052/0053、也不宣称 PostgreSQL 空链/同 predecessor race；真实 lifecycle mutation issuer、Profile version UOW、atomic bundle、owner/operator scope 与 execution 继续关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

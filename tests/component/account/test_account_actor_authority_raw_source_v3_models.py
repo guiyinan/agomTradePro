@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import os
+from collections.abc import Iterator
 from datetime import UTC, datetime
 
 import django
@@ -152,18 +153,19 @@ def _claimed_insert(row: models.Model) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _schema() -> None:
-    with connection.schema_editor() as editor:
-        for model_type in ANCHORS:
-            editor.create_model(model_type)
-        for model_type in LEDGERS:
-            editor.create_model(model_type)
-    yield
-    with connection.schema_editor() as editor:
-        for model_type in reversed(LEDGERS):
-            editor.delete_model(model_type)
-        for model_type in reversed(ANCHORS):
-            editor.delete_model(model_type)
+def _schema(django_db_blocker: object) -> Iterator[None]:
+    with django_db_blocker.unblock():  # type: ignore[attr-defined]
+        with connection.schema_editor() as editor:
+            for model_type in ANCHORS:
+                editor.create_model(model_type)
+            for model_type in LEDGERS:
+                editor.create_model(model_type)
+        yield
+        with connection.schema_editor() as editor:
+            for model_type in reversed(LEDGERS):
+                editor.delete_model(model_type)
+            for model_type in reversed(ANCHORS):
+                editor.delete_model(model_type)
 
 
 def test_schema_has_three_independent_non_json_only_anchor_ledgers() -> None:

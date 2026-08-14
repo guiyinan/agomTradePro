@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
 import django
@@ -82,14 +83,15 @@ def _record(source: AccountRbacAuthoritySourceV3) -> PersistedAccountRbacAuthori
 
 
 @pytest.fixture(autouse=True)
-def _schema() -> None:
-    with connection.schema_editor() as editor:
-        editor.create_model(AccountRbacAuthoritySourceV3AnchorModel)
-        editor.create_model(AccountRbacAuthoritySourceV3Model)
-    yield
-    with connection.schema_editor() as editor:
-        editor.delete_model(AccountRbacAuthoritySourceV3Model)
-        editor.delete_model(AccountRbacAuthoritySourceV3AnchorModel)
+def _schema(django_db_blocker: object) -> Iterator[None]:
+    with django_db_blocker.unblock():  # type: ignore[attr-defined]
+        with connection.schema_editor() as editor:
+            editor.create_model(AccountRbacAuthoritySourceV3AnchorModel)
+            editor.create_model(AccountRbacAuthoritySourceV3Model)
+        yield
+        with connection.schema_editor() as editor:
+            editor.delete_model(AccountRbacAuthoritySourceV3Model)
+            editor.delete_model(AccountRbacAuthoritySourceV3AnchorModel)
 
 
 def _repository() -> DjangoAccountRbacAuthoritySourceV3Repository:

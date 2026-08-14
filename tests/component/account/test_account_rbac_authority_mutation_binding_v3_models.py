@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import os
+from collections.abc import Iterator
 from datetime import UTC, datetime
 
 import django
@@ -36,14 +37,15 @@ NEW_MODELS = (
 
 
 @pytest.fixture(autouse=True)
-def _schema() -> None:
-    with connection.schema_editor() as editor:
-        for model_type in (*RAW_MODELS, *NEW_MODELS):
-            editor.create_model(model_type)
-    yield
-    with connection.schema_editor() as editor:
-        for model_type in reversed((*RAW_MODELS, *NEW_MODELS)):
-            editor.delete_model(model_type)
+def _schema(django_db_blocker: object) -> Iterator[None]:
+    with django_db_blocker.unblock():  # type: ignore[attr-defined]
+        with connection.schema_editor() as editor:
+            for model_type in (*RAW_MODELS, *NEW_MODELS):
+                editor.create_model(model_type)
+        yield
+        with connection.schema_editor() as editor:
+            for model_type in reversed((*RAW_MODELS, *NEW_MODELS)):
+                editor.delete_model(model_type)
 
 
 def _claim_insert(row: models.Model) -> None:
