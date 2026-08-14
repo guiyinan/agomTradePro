@@ -2178,6 +2178,12 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 新增三种raw authority source共用的纯Application边界：统一Unavailable/Conflict/Corruption taxonomy、只含`source_id/source_version/expected_content_hash/as_of`的exact/current标量selector，以及固定`service/account_actor_authority_raw_recorder/automated`语义的frozen recorder。公共模块不引用任一具体Domain artifact，也不包含provider、capture command、repository或ORM。
 - 定向pure `22 passed`；Ruff、Black/isort、strict mypy及AST Application边界检查通过。该小批只冻结后续三个typed read/repository合同的共同语言；没有采集mutable session/User/Profile、没有生成source version/clock/facts，也没有raw ledger、atomic bundle、request adapter或staff write入口，execution继续关闭。
 
+### 2026-08-14：Account auth-context/User/RBAC raw authority v3 Application read contracts
+
+- 为三个concrete raw artifacts分别新增纯Application Persisted wrapper、typed Repository Protocol与scalar GetExact/GetCurrent readers。Protocol冻结private atomic/server clock、identity first-winner、source logical final head、exact hash PIT、predecessor CAS append形状，但本批不提供capture command、provider或实现；Persisted wrapper将exact Domain source与固定自动service recorder一起重验。
+- GetExact仅在repository返回的版本已由`recorded_at`可知且ID/version/hash完全匹配时永久返回；repository泄漏未来行、类型或selector替换均为Corruption。GetCurrent在exact基础上要求temporal current及最终Persisted head完全相等；source、同version hash或recorder替换为Corruption，revoked/deactivated、expired或superseded均None且不回退旧head。
+- 三合同定向pure `29 passed`，primitives+三个Domains/codecs/Application组合`236 passed`；Ruff、Black/isort、3 production files strict mypy及architecture 2869/0通过。仍无raw Django models/repositories/migration、mutable source capture、version allocator或atomic bundle；append仅为Dormant Protocol surface，staff/request/execution均未开放。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
