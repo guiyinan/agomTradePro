@@ -71,6 +71,13 @@ RUNTIME_USER_ACCESS_GOVERNANCE_SCREEN: dict[str, Any] = {
                     "refresh_panel_key": "user-access-list",
                 },
                 {
+                    "action_key": "identity-access.set-user-role",
+                    "label_template": "设置 {username} 角色",
+                    "param_map": {"user_id": "user_id", "rbac_role": "rbac_role"},
+                    "result_panel_key": "user-access-receipt",
+                    "refresh_panel_key": "user-access-list",
+                },
+                {
                     "action_key": "identity-access.reset-user",
                     "label_template": "重置 {username} 的准入状态",
                     "param_map": {"user_id": "user_id"},

@@ -50,6 +50,10 @@ _KNOWN_ROW_EDIT_ACTIONS = {
     "ai-ops.update-my-provider",
     "data-center.provider-update",
 }
+_KNOWN_RUNTIME_ROW_EDIT_ACTIONS = {
+    "identity-access.reject-user",
+    "identity-access.set-user-role",
+}
 
 
 def _ia_screen(screen_key: str) -> dict[str, Any]:
@@ -302,3 +306,28 @@ def test_known_row_edit_actions_have_visible_fields_and_row_context() -> None:
                     descriptor.get("param_map", {})
                 ), f"{action_key} cannot prefill any visible row/form value"
     assert observed == _KNOWN_ROW_EDIT_ACTIONS
+
+
+def test_runtime_user_access_row_edits_expose_body_fields_before_submission() -> None:
+    """Injected admin row actions must expose reason/role fields, not only user IDs."""
+
+    screen = _runtime_screen("identity-access.user-governance")
+    actions = _runtime_actions("identity-access.user-governance")
+    panel = _panel(screen, "user-access-list")
+    rows = {str(row.get("action_key")): row for row in panel.get("row_actions", [])}
+    assert set(rows) >= _KNOWN_RUNTIME_ROW_EDIT_ACTIONS
+
+    for action_key in _KNOWN_RUNTIME_ROW_EDIT_ACTIONS:
+        action = actions.get(action_key)
+        assert action is not None, f"{action_key} is missing from runtime metadata"
+        assert str(action.get("method", "GET")).upper() == "POST"
+        assert str(action.get("effect") or "").lower() == "update"
+        body_fields = {
+            str(field.get("key"))
+            for field in action.get("fields", [])
+            if field.get("binding") == "body" and field.get("input_type") != "hidden"
+        }
+        assert body_fields, f"{action_key} has no visible body field for the row form"
+        assert rows[action_key].get("param_map", {}).get("user_id") == "user_id"
+        if action_key == "identity-access.set-user-role":
+            assert rows[action_key]["param_map"].get("rbac_role") == "rbac_role"
