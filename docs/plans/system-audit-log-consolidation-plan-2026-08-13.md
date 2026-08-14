@@ -405,6 +405,12 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 - 新增 SQLite raw-tamper component 覆盖 available/claim/delivery/failure 时钟倒置、pending terminal 残留、pending `updated_at` 漂移和 future observation cutoff；outbox model/repository/dispatcher 相关回归 `32 passed`，增量 mypy `0 regressions`，black/isort 通过。
 - 该批只加强本地 closed-world fail-closed；不替代 PostgreSQL 双连接竞争、生产 backlog 观察窗口、publisher/runtime wiring、自动恢复或生产审计覆盖。
 
+### 2026-08-15：M1 outbox backlog health projection wiring
+
+- `AuditHealthChecker` 现在可注入只读 `SystemAuditOutboxBacklogReader`，并把 pending/due/claimed/expired/failed/delivered 与 oldest-age 投影为 `audit_outbox_backlog` health check；expired claim 或 failed row 标记 `WARNING`，读失败只发布受控 `ERROR` 类型，不暴露 token、payload 或连接串。
+- `check_audit_health()`/health-check provider 已组装同 alias 的 outbox reader；unit/API 回归 `16 passed`，覆盖 recovery warning、healthy snapshot、观察 cutoff 和公共响应脱敏。
+- 这只是 health projection wiring，不是 Prometheus 指标、publisher/runtime、自动 reclaim、生产 migration/rollback 或真实 PostgreSQL 观察窗口；Data Center 双写和 M2 仍保持阻断。
+
 ### M1：Audit Domain、append-only ledger 与 Query
 
 交付：

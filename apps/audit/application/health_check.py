@@ -16,9 +16,17 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
+from apps.audit.application.system_audit_outbox_observability import (
+    SystemAuditOutboxBacklogReader,
+    SystemAuditOutboxBacklogSnapshot,
+)
 from apps.audit.domain.interfaces import AuditRepositoryProtocol
 
-from .repository_provider import get_audit_failure_counter, get_audit_repository
+from .repository_provider import (
+    get_audit_failure_counter,
+    get_audit_outbox_repository,
+    get_audit_repository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +49,10 @@ class FailureCounterProtocol(Protocol):
     def get_failure_count(self) -> int: ...
 
     def reset(self) -> None: ...
+
+
+class OutboxBacklogReaderProtocol(SystemAuditOutboxBacklogReader, Protocol):
+    """Read-only outbox backlog dependency used by the health projection."""
 
 
 @dataclass(frozen=True)
@@ -130,6 +142,7 @@ class AuditHealthChecker:
         error_threshold: int | None = None,
         audit_repo: AuditRepositoryProtocol | None = None,
         failure_counter: FailureCounterProtocol | None = None,
+        outbox_reader: OutboxBacklogReaderProtocol | None = None,
     ) -> None:
         """
         初始化健康检查器
@@ -162,6 +175,7 @@ class AuditHealthChecker:
             raise ValueError("error_threshold must be an integer greater than warning_threshold")
         self.audit_repo = audit_repo or get_audit_repository()
         self.failure_counter = failure_counter or get_audit_failure_counter()
+        self.outbox_reader = outbox_reader
 
     def check_all(self) -> AuditHealthReport:
         """
@@ -180,6 +194,9 @@ class AuditHealthChecker:
 
         # 3. 检查审计表可访问性
         checks.append(self._check_audit_tables_accessible())
+
+        if self.outbox_reader is not None:
+            checks.append(self._check_outbox_backlog())
 
         # 获取审计模块指标
         metrics = self._get_audit_metrics()
@@ -203,6 +220,58 @@ class AuditHealthChecker:
             metrics=metrics,
             generated_at=datetime.now(UTC),
         )
+
+    def _check_outbox_backlog(self) -> HealthCheckResult:
+        """Project a credential-free outbox snapshot into health status."""
+
+        as_of = datetime.now(UTC)
+        try:
+            reader = self.outbox_reader
+            if reader is None:
+                raise RuntimeError("outbox backlog reader is not configured")
+            snapshot = reader.get_backlog_snapshot(as_of=as_of)
+            if not isinstance(snapshot, SystemAuditOutboxBacklogSnapshot):
+                raise TypeError("outbox backlog reader returned an invalid snapshot")
+            if snapshot.as_of != as_of:
+                raise ValueError("outbox backlog reader substituted the health cutoff")
+
+            has_recovery_work = snapshot.expired_claimed_count > 0 or snapshot.failed_count > 0
+            status = "WARNING" if has_recovery_work else "OK"
+            message = (
+                "Audit outbox requires recovery attention"
+                if has_recovery_work
+                else "Audit outbox backlog is healthy"
+            )
+            return HealthCheckResult(
+                component="audit_outbox_backlog",
+                status=status,
+                message=message,
+                details={
+                    "as_of": snapshot.as_of.isoformat(),
+                    "pending_count": snapshot.pending_count,
+                    "due_pending_count": snapshot.due_pending_count,
+                    "claimed_count": snapshot.claimed_count,
+                    "expired_claimed_count": snapshot.expired_claimed_count,
+                    "failed_count": snapshot.failed_count,
+                    "delivered_count": snapshot.delivered_count,
+                    "oldest_backlog_age_seconds": snapshot.oldest_backlog_age_seconds,
+                    "oldest_claimed_age_seconds": snapshot.oldest_claimed_age_seconds,
+                },
+                checked_at=as_of,
+            )
+        except Exception as exc:
+            logger.error(
+                "Audit outbox backlog check failed: %s",
+                type(exc).__name__,
+                exc_info=True,
+            )
+            return HealthCheckResult(
+                component="audit_outbox_backlog",
+                status="ERROR",
+                message="Audit outbox backlog check failed",
+                details={"error_type": type(exc).__name__},
+                checked_at=as_of,
+            )
 
     def _check_failure_counter(self) -> HealthCheckResult:
         """
@@ -396,6 +465,7 @@ def get_health_checker(
     return AuditHealthChecker(
         warning_threshold=warning_threshold,
         error_threshold=error_threshold,
+        outbox_reader=get_audit_outbox_repository(),
     )
 
 
@@ -416,6 +486,7 @@ def check_audit_health(
     checker = AuditHealthChecker(
         warning_threshold=warning_threshold,
         error_threshold=error_threshold,
+        outbox_reader=get_audit_outbox_repository(),
     )
     return checker.check_all()
 

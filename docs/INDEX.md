@@ -173,7 +173,7 @@
 | [0.8.0-release-closure-plan-2026-07-05.md](archive/plans/0.8.0-release-closure-plan-2026-07-05.md) | **0.8.0 收口开发计划（发布 / 运维 / 架构减债 Top 10）** | ✅ 2026-07-05 已执行并归档 |
 | [post-0.8.0-stabilization-priority-2026-07-08.md](plans/post-0.8.0-stabilization-priority-2026-07-08.md) | **0.8.0 发布后两周稳定化实施清单（优先级 / 负责人 / 命令 / 验收）** | 进行中 |
 | [evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | **证据治理与决策硬闸改造计划** | 第一期 P0：Portfolio/Risk/Broker inactive owner contracts与ledgers、Risk policy workflow以及Broker pre-Risk ID-only scope已分阶段落盘；pre-Risk仍固定inactive，缺跨账户owner binding、Risk adapter、最终issuer/四节点重验与PG/生产证明，所有执行总闸保持关闭，MCP integrated=0 |
-| [system-audit-log-consolidation-plan-2026-08-13.md](plans/system-audit-log-consolidation-plan-2026-08-13.md) | **系统级统一审计日志收口计划（统一事件账本 / 数据可靠性纵向链 / 指标告警 / TUI 观测）** | M0 registry + M1 Domain/codec/schema-only/repository/query/outbox-claim 合同已落地；无真实 publisher/业务双写，首批 Data Center fetch→publication→decision gate 仍待实施 |
+| [system-audit-log-consolidation-plan-2026-08-13.md](plans/system-audit-log-consolidation-plan-2026-08-13.md) | **系统级统一审计日志收口计划（统一事件账本 / 数据可靠性纵向链 / 指标告警 / TUI 观测）** | M0 registry + M1 Domain/codec/schema-only/repository/query/outbox-claim 与 health backlog projection 已落地；无真实 publisher/业务双写，首批 Data Center fetch→publication→decision gate 仍待实施 |
 | [mcp-consolidation-remediation-plan-2026-07-09.md](archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md) | **MCP 收口整改计划（统一能力注册、统一调用、legacy 退役）** | ✅ 完成并归档；持续状态由机器门禁维护 |
 | [system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md](archive/plans/system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md) | **系统级 AI Capability Catalog 与统一路由任务书** | ✅ 代码与自动化验收完成并归档 |
 | [terminal-mcp-governance-outsourcing-task-book-2026-03-19.md](archive/plans/terminal-mcp-governance-outsourcing-task-book-2026-03-19.md) | **Terminal MCP 治理与确认机制任务书** | ✅ 已实现并由 AgentProposal 持久审批架构承接 |
@@ -963,6 +963,9 @@
 - ✅ **系统级统一审计日志 M1 outbox closed-world clock/state hardening（2026-08-15）**
   - restore 现在闭合 available/claim/delivery/failure/updated 时序，拒绝各状态残留的跨状态字段，并对 future observation cutoff fail-closed；raw-tamper component 与 outbox model/repository/dispatcher 回归 `32 passed`、增量 mypy `0 regressions`
   - 仅加强本地 fail-closed；PostgreSQL 双连接竞争、生产 backlog 观察、publisher/runtime、自动恢复、生产迁移回滚与生产审计覆盖仍待完成，M1 gate 不变
+- ✅ **系统级统一审计日志 M1 outbox backlog health projection wiring（2026-08-15）**
+  - Audit health 现在消费只读 backlog snapshot，投影 pending/due/claimed/expired/failed/delivered 与 oldest age；recovery work 为 WARNING、异常只发布类型；unit/API `16 passed`
+  - 仅 health projection wiring；Prometheus/runtime publisher、自动 reclaim、生产 migration/rollback、真实 PostgreSQL backlog 观察与 Data Center 双写仍待完成，M1 gate 不变
 - ✅ **Equity research snapshot Django runtime contract（2026-08-14）**
   - Django 5.2.12 复跑 API `15`、SDK/MCP/routing/evidence `36`、use case/gateway `26`，合计 `77 passed`
   - 仅证明 mock/fake 隔离环境的软件契约与 fail-closed 行为；真实数据覆盖、PostgreSQL 规模/故障注入、备份恢复和 readiness 仍未解除

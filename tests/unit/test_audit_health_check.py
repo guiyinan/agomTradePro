@@ -7,6 +7,9 @@ from rest_framework.test import APIRequestFactory
 
 from apps.audit.application import health_check
 from apps.audit.application.health_check import AuditHealthChecker
+from apps.audit.application.system_audit_outbox_observability import (
+    SystemAuditOutboxBacklogSnapshot,
+)
 from apps.audit.infrastructure.failure_counter import FailureRecord, FailureStats
 from apps.audit.interface.views import AuditHealthCheckView
 
@@ -40,6 +43,26 @@ class _FakeFailureCounter:
 
     def reset(self) -> None:
         self._stats = FailureStats()
+
+
+class _FakeOutboxReader:
+    def __init__(self, snapshot: SystemAuditOutboxBacklogSnapshot):
+        self.snapshot = snapshot
+        self.calls = 0
+
+    def get_backlog_snapshot(self, *, as_of: datetime) -> SystemAuditOutboxBacklogSnapshot:
+        self.calls += 1
+        return SystemAuditOutboxBacklogSnapshot(
+            as_of=as_of,
+            pending_count=self.snapshot.pending_count,
+            due_pending_count=self.snapshot.due_pending_count,
+            claimed_count=self.snapshot.claimed_count,
+            expired_claimed_count=self.snapshot.expired_claimed_count,
+            failed_count=self.snapshot.failed_count,
+            delivered_count=self.snapshot.delivered_count,
+            oldest_backlog_at=(as_of if self.snapshot.backlog_count else None),
+            oldest_claimed_at=(as_of if self.snapshot.claimed_count else None),
+        )
 
 
 def test_database_health_check_uses_repository_probe():
@@ -83,6 +106,66 @@ def test_check_all_reports_warning_and_metrics_from_injected_dependencies():
     assert report.metrics["total_failures"] == 12
     assert report.metrics["failure_rate"] == 0.375
     assert "recent_failures" not in report.checks[0].details
+
+
+def test_outbox_backlog_health_check_is_read_only_and_warns_for_recovery_work() -> None:
+    now = datetime.now(UTC)
+    reader = _FakeOutboxReader(
+        SystemAuditOutboxBacklogSnapshot(
+            as_of=now,
+            pending_count=2,
+            due_pending_count=1,
+            claimed_count=1,
+            expired_claimed_count=1,
+            failed_count=1,
+            delivered_count=3,
+            oldest_backlog_at=now,
+            oldest_claimed_at=now,
+        )
+    )
+    checker = AuditHealthChecker(
+        audit_repo=_FakeAuditRepository(),
+        failure_counter=_FakeFailureCounter(FailureStats()),
+        outbox_reader=reader,
+    )
+
+    result = checker._check_outbox_backlog()
+
+    assert result.component == "audit_outbox_backlog"
+    assert result.status == "WARNING"
+    assert result.details["expired_claimed_count"] == 1
+    assert result.details["failed_count"] == 1
+    assert reader.calls == 1
+
+
+def test_check_all_includes_healthy_outbox_backlog_when_reader_is_injected() -> None:
+    now = datetime.now(UTC)
+    reader = _FakeOutboxReader(
+        SystemAuditOutboxBacklogSnapshot(
+            as_of=now,
+            pending_count=0,
+            due_pending_count=0,
+            claimed_count=0,
+            expired_claimed_count=0,
+            failed_count=0,
+            delivered_count=2,
+            oldest_backlog_at=None,
+            oldest_claimed_at=None,
+        )
+    )
+    checker = AuditHealthChecker(
+        audit_repo=_FakeAuditRepository(),
+        failure_counter=_FakeFailureCounter(FailureStats()),
+        outbox_reader=reader,
+    )
+
+    report = checker.check_all()
+
+    outbox_check = next(
+        check for check in report.checks if check.component == "audit_outbox_backlog"
+    )
+    assert outbox_check.status == "OK"
+    assert reader.calls == 1
 
 
 def test_zero_warning_threshold_is_respected() -> None:
@@ -210,6 +293,23 @@ def test_public_health_api_exposes_only_safe_probe_details(
                         reason="postgresql://user:secret@internal/db",
                     )
                 ],
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        health_check,
+        "get_audit_outbox_repository",
+        lambda: _FakeOutboxReader(
+            SystemAuditOutboxBacklogSnapshot(
+                as_of=datetime.now(UTC),
+                pending_count=0,
+                due_pending_count=0,
+                claimed_count=0,
+                expired_claimed_count=0,
+                failed_count=0,
+                delivered_count=0,
+                oldest_backlog_at=None,
+                oldest_claimed_at=None,
             )
         ),
     )

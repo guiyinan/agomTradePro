@@ -8,12 +8,25 @@ from apps.audit.infrastructure.providers import DjangoAuditRepository as DjangoA
 
 if TYPE_CHECKING:
     from apps.audit.infrastructure.failure_counter import AuditFailureCounter
+    from apps.audit.infrastructure.system_audit_outbox_repository import (
+        DjangoSystemAuditOutboxRepository,
+    )
 
 
 def get_audit_repository() -> DjangoAuditRepository:
     """Return the configured audit repository implementation."""
 
     return DjangoAuditRepository()
+
+
+def get_audit_outbox_repository() -> DjangoSystemAuditOutboxRepository:
+    """Return the read-only system-audit outbox repository implementation."""
+
+    from apps.audit.infrastructure.system_audit_outbox_repository import (
+        DjangoSystemAuditOutboxRepository,
+    )
+
+    return DjangoSystemAuditOutboxRepository()
 
 
 def record_audit_write_success(**kwargs: Any) -> None:
