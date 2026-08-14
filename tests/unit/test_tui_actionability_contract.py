@@ -232,3 +232,30 @@ def test_runtime_mutations_are_submit_ready_or_explicit_no_input_commands() -> N
                 f"{action_key} is a mutating action without visible input fields; "
                 "add a form field or explicitly classify it as a no-input command"
             )
+
+
+def test_edit_row_actions_map_required_fields_for_form_prefill() -> None:
+    """Update rows must carry their identity into the form before the user edits."""
+
+    payload = PublishedTuiMetadataRepository()._load_published_file()
+    actions = {action["key"]: action for action in payload["actions"]}
+    ia_payload = json.loads(_IA_PATH.read_text(encoding="utf-8"))
+    for screen in ia_payload["published_screens"]:
+        for panel in screen.get("dashboard_panels", []):
+            for descriptor in panel.get("row_actions", []):
+                action = actions.get(descriptor.get("action_key"))
+                if not action:
+                    continue
+                method = str(action.get("method", "GET")).upper()
+                effect = str(action.get("effect") or "").lower()
+                if method not in _MUTATING_METHODS or effect not in {"create", "update"}:
+                    continue
+                required_fields = {
+                    field["key"]
+                    for field in action.get("fields", [])
+                    if field.get("required") and field.get("input_type") != "hidden"
+                }
+                assert required_fields <= set(descriptor.get("param_map", {})), (
+                    f"{descriptor.get('action_key')} row action must map required form fields "
+                    "so the edit form can be opened with the row identity"
+                )

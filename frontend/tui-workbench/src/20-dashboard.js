@@ -627,6 +627,7 @@
                     data-dashboard-row-action
                     data-row-action-key="${escapeHtml(descriptor.action_key)}"
                     data-row-action-params="${escapeHtml(JSON.stringify(params))}"
+                    data-row-action-row="${escapeHtml(JSON.stringify(row))}"
                     aria-label="${escapeHtml(label)}"
                     title="${escapeHtml(label)}"
                 >${escapeHtml(action?.label || "操作")}</button>
@@ -636,6 +637,64 @@
 
     function interpolateRowActionLabel(template, row) {
         return String(template || "操作").replace(/\{([^{}]+)\}/g, (_match, key) => String(row?.[key] ?? "-"));
+    }
+
+    function dashboardRowActionNeedsForm(action) {
+        const method = String(action?.method || "GET").trim().toUpperCase();
+        if (!["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+            return false;
+        }
+        return (action?.fields || []).some((field) => field.input_type !== "hidden");
+    }
+
+    function fillDashboardRowActionForm(form, action, row, params) {
+        let filled = 0;
+        (action?.fields || []).forEach((field) => {
+            const element = formFieldElement(form, field.key);
+            if (!element || field.input_type === "password") {
+                return;
+            }
+            let value = Object.prototype.hasOwnProperty.call(params, field.key)
+                ? params[field.key]
+                : rowValueForField(row, field, action);
+            if (value === undefined || value === null) {
+                return;
+            }
+            if (typeof value === "object") {
+                value = JSON.stringify(value, null, 2);
+            }
+            if (element.type === "checkbox") {
+                element.checked = Boolean(value);
+            } else {
+                element.value = String(value);
+            }
+            filled += 1;
+        });
+        return filled;
+    }
+
+    function openDashboardRowActionForm(action, panel, descriptor, row, params) {
+        const form = actionFormElement(action);
+        if (!form) {
+            setStatus(`请先打开“${action?.label || "编辑任务"}”表单`);
+            return true;
+        }
+        state.selectedRowContext = rowContextWithSource(row);
+        form.dataset.dashboardPanelKey = panel.key || "";
+        form.dataset.dashboardResultPanelKey = descriptor.result_panel_key || "";
+        form.dataset.dashboardRefreshPanelKey = descriptor.refresh_panel_key || "";
+        form.hidden = false;
+        form.closest("details")?.setAttribute("open", "");
+        form.closest(".tui-action-group")?.removeAttribute("hidden");
+        const filled = fillDashboardRowActionForm(form, action, row, params);
+        form.scrollIntoView({ block: "nearest" });
+        form.querySelector("input:not([type='hidden']),select,textarea")?.focus();
+        setStatus(
+            filled
+                ? `已从当前行填充 ${filled} 项，请修改后提交`
+                : `请填写“${action?.label || "编辑任务"}”后提交`,
+        );
+        return true;
     }
 
     function bindDashboardRowActions(root, panel) {
@@ -654,14 +713,19 @@
                     setStatus("行操作参数不可用");
                     return;
                 }
-                button.disabled = true;
                 try {
                     const action = currentAction(button.dataset.rowActionKey);
-                    const method = String(action?.method || "GET").trim().toUpperCase();
-                    const refreshesDashboard = !["GET", "HEAD", "OPTIONS"].includes(method);
                     const descriptor = (panel.row_actions || []).find(
                         (item) => item.action_key === button.dataset.rowActionKey,
                     ) || {};
+                    if (dashboardRowActionNeedsForm(action)) {
+                        const row = JSON.parse(button.dataset.rowActionRow || "{}");
+                        openDashboardRowActionForm(action, panel, descriptor, row, params);
+                        return;
+                    }
+                    button.disabled = true;
+                    const method = String(action?.method || "GET").trim().toUpperCase();
+                    const refreshesDashboard = !["GET", "HEAD", "OPTIONS"].includes(method);
                     const resultPanelKey = String(descriptor.result_panel_key || "").trim();
                     const refreshPanelKey = String(descriptor.refresh_panel_key || "").trim();
                     if (resultPanelKey || refreshPanelKey) {

@@ -1232,7 +1232,20 @@
         }
         state.lastFormTriggerRef = actionRef;
         state.lastFormTriggerAt = now;
-        runAction(actionRef, form);
+        const options = {};
+        const dashboardResultPanelKey = String(form?.dataset?.dashboardResultPanelKey || "").trim();
+        const dashboardRefreshPanelKey = String(form?.dataset?.dashboardRefreshPanelKey || "").trim();
+        const dashboardPanelKey = String(form?.dataset?.dashboardPanelKey || "").trim();
+        if (dashboardResultPanelKey) {
+            options.dashboardResultPanelKey = dashboardResultPanelKey;
+        }
+        if (dashboardRefreshPanelKey) {
+            options.dashboardRefreshPanelKey = dashboardRefreshPanelKey;
+        }
+        if (dashboardPanelKey) {
+            options.dashboardPanelKey = dashboardPanelKey;
+        }
+        runAction(actionRef, form, options);
     }
 
     async function fetchJson(url, options) {

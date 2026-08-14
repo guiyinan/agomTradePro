@@ -46,6 +46,7 @@ function action(key, options = {}) {
         view_type: options.view_type || "detail",
         risk: options.risk || "read",
         fields: options.fields || [],
+        effect: options.effect || "",
         description: options.description || "",
         task_tier: options.task_tier || "operation",
         task_group: options.task_group || "测试任务",
@@ -111,11 +112,23 @@ const actions = [
         screen_key: "test.user-governance",
         sequence: 12,
     }),
+    action("test.edit-row", {
+        label: "编辑用户",
+        risk: "write",
+        method: "PATCH",
+        effect: "update",
+        screen_key: "test.edit-dashboard",
+        fields: [
+            { key: "user_id", label: "用户 ID", input_type: "number", required: true },
+            { key: "username", label: "用户名", input_type: "text", required: true },
+        ],
+        sequence: 13,
+    }),
     action("test.password", {
         label: "修改密码",
         risk: "write",
         method: "POST",
-        sequence: 13,
+        sequence: 14,
         fields: [
             { key: "current_password", label: "当前密码", input_type: "password", required: true },
             { key: "new_password", label: "新密码", input_type: "password", required: true },
@@ -125,7 +138,7 @@ const actions = [
         label: "更新 AI 服务商",
         risk: "write",
         method: "PATCH",
-        sequence: 14,
+        sequence: 15,
         fields: [
             { key: "provider_id", label: "服务商 ID", input_type: "number", value_type: "integer", required: true },
             { key: "api_key", label: "API Key", input_type: "password", required: false },
@@ -148,6 +161,7 @@ const catalog = {
                 { key: "test.grid", label: "测试表格", view_type: "datagrid", action_count: actions.length },
                 { key: "test.dashboard", label: "测试概览", view_type: "status", action_count: 2 },
                 { key: "test.user-governance", label: "用户准入治理", view_type: "datagrid", action_count: 2 },
+                { key: "test.edit-dashboard", label: "可编辑用户列表", view_type: "datagrid", action_count: 2 },
             ],
         }],
     }],
@@ -258,6 +272,40 @@ const userGovernanceScreen = {
     actions: actions.filter((item) => ["test.user-list", "test.approve-user"].includes(item.key)),
 };
 
+const editableDashboardScreen = {
+    module: { key: "test", label: "测试模块" },
+    screen: {
+        key: "test.edit-dashboard",
+        label: "可编辑用户列表",
+        summary: "验证编辑行操作先打开表单。",
+        view_type: "datagrid",
+        status: "online",
+        audience: "admin",
+        entry_state: { mode: "dashboard" },
+        workflow: {},
+        dashboard_panels: [{
+            key: "editable-users",
+            title: "用户列表",
+            kind: "datagrid",
+            user_priority: "p0",
+            presentation_semantic: "primary_list",
+            action_key: "test.user-list",
+            columns: [
+                { key: "user_id", label: "用户 ID" },
+                { key: "username", label: "用户名" },
+            ],
+            row_actions: [{
+                action_key: "test.edit-row",
+                label_template: "编辑 {username}",
+                param_map: { user_id: "user_id" },
+                refresh_panel_key: "editable-users",
+            }],
+        }],
+        user_experience: { primary_task: "编辑用户", primary_outcome: "提交修改后的用户资料" },
+    },
+    actions: actions.filter((item) => ["test.user-list", "test.edit-row"].includes(item.key)),
+};
+
 function listResult() {
     return {
         action: actions.find((item) => item.key === "test.list"),
@@ -346,6 +394,10 @@ async function openHarness(url = "https://app.test/", options = {}) {
         }
         if (url.pathname === "/api/tui/screens/test.user-governance/") {
             await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(userGovernanceScreen) });
+            return;
+        }
+        if (url.pathname === "/api/tui/screens/test.edit-dashboard/") {
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(editableDashboardScreen) });
             return;
         }
         if (url.pathname.includes("/actions/test.user-list/run/")) {
@@ -785,6 +837,45 @@ test("admin governance row action shows a receipt and refreshes the source panel
         await page.locator('[data-dashboard-panel="receipt"]').getByText("已批准 pending-user").waitFor();
         await page.waitForFunction(() => document.querySelectorAll('[data-dashboard-row-action]').length === 1);
         assert.equal(listRequests, 2);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("editable dashboard row action opens a form before sending the update", async () => {
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.edit-dashboard",
+        { waitForInitialRows: false },
+    );
+    try {
+        let updateRequests = 0;
+        page.on("request", (request) => {
+            if (request.url().includes("/actions/test.edit-row/run/")) {
+                updateRequests += 1;
+            }
+        });
+
+        const edit = page.locator('[data-dashboard-row-action][aria-label="编辑 pending-user"]');
+        await edit.waitFor({ state: "visible" });
+        await edit.click();
+        await page.waitForTimeout(150);
+        assert.equal(updateRequests, 0);
+
+        const form = page.locator('form[data-action-ui-key="test.edit-row"]');
+        await form.waitFor({ state: "visible" });
+        assert.equal(await form.locator('[name="user_id"]').inputValue(), "42");
+        assert.equal(await form.locator('[name="username"]').inputValue(), "pending-user");
+        await form.locator('[name="username"]').fill("updated-user");
+
+        const updateRequest = page.waitForRequest(
+            (request) => request.url().includes("/actions/test.edit-row/run/"),
+        );
+        await form.locator(".tui-action-submit").click();
+        const request = await updateRequest;
+        assert.deepEqual(request.postDataJSON().params, {
+            user_id: 42,
+            username: "updated-user",
+        });
     } finally {
         await browser.close();
     }
