@@ -2202,6 +2202,11 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - command只接target user、server-issued mutation ID与七角色closed-set中的exact role；拒绝大小写、别名、首尾空白和fallback normalization。当前实现明确标记dormant，不存在concrete UOW、composition或生产调用点。
 - final head即使TTL已过仍是唯一合法predecessor，可由owner追加fresh successor；只有revoked terminal阻断同epoch后继，current读取仍对expired head返回None且不回退。定向pure`13 passed`，Ruff、Black/isort、strict mypy及architecture 2874/0通过。该artifact目前只是authority fact-outbox编排合同，不是owner mutation provenance receipt：尚未持久化证明mutation ID→source ID/version映射，也未封存issuer、mutation kind或exact old/new Profile hashes；不得接Profile写入口、注册/setup/signal或staff route，0052继续zero-seed，atomic bundle与execution总闸仍关闭。
 
+### 2026-08-14：Account RBAC mutation binding v3 Domain合同
+
+- 新增纯Domain binding基座：Profile exact old/new refs（profile id/version/content hash）、独立authenticated active staff + canonical `admin` human operator authority ref、固定automated service recorder，以及`bootstrap|role_change|revoke|reactivate`四类状态机。epoch初始/重新激活链、binding ledger chain与raw authority-source chain分域封存；source identity/content/record三重hash、operator/issuer/clock/chain seals与PIT exact selector均闭合，固定inactive/attestation-only/nonexecution。
+- pure`16 passed`、Ruff/Black/isort、strict mypy、official增量mypy 0 regressions及architecture 2875/0通过。仍仅是Domain合同：没有codec、0053模型/迁移、closed-world repository、mutation-id持久issuer、Profile anchor/version ledger或同alias concrete UOW；现存Profile不得用updated_at补历史，旧role写入口/注册/setup/signal与所有staff routes继续保持未接，execution仍关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
