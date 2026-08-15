@@ -944,6 +944,9 @@
 - ✅ **Evidence owner/tenant authority source Application readers（2026-08-15）**
   - dormant pure Application readers 只接受 source ID/version、expected content hash 与 aware PIT；exact 保留历史可知记录，current 要求 exact 与 final logical head 完全相等，terminal/expired/superseded 不回退；相关 source/codec/Domain/facade 回归合计 `52 passed`
   - 仅 read contract，未创建 ledger/repository/provider、未读取 mutable User/session/tenant rows、未接人工授权或 production route；真实 owner/tenant source 与 Evidence hard gate、写入和 execution 继续关闭
+- ✅ **EVID-02 Evidence scope PostgreSQL concurrency harness（2026-08-15）**
+  - 新增专用 settings 与 opt-in component，覆盖空 root first-winner、同 predecessor successor 单赢家和 rollback/no-orphan；数据库必须是本地/测试 PostgreSQL 且名称含 `evidence`/`test`，拒绝非空库、SQLite、VPS/生产 host
+  - 默认回归 `3 skipped`；本轮 Docker daemon 未响应，尚未获得 disposable PostgreSQL 实际通过证据，因此 EVID-02 仍 planned，不能解除 owner/tenant lifecycle、production composition 或执行总闸
 - ✅ **Evidence owner/tenant authority source schema-only ledger（2026-08-15）**
   - 新增零种子 `research_evidence_scope_source_v1` append-only ORM 表与 `0028` migration；逐列保存 scope/artifact projection、canonical payload、identity/content hashes、root/successor/predecessor、PIT clocks 和 fixed read-only/non-execution flags，ORM shortcut 与 delete 全部 fail closed
   - isolated component `4 passed`，source 读/codec/Domain/facade 合计 `56 passed`，Django check、migration drift、增量 mypy、architecture audit、Black/isort、compile 通过；仅 schema/guard contract，未接 repository/provider/生产 route

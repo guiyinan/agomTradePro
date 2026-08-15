@@ -2502,3 +2502,13 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 不新增 Classic Django 业务页面、不新增 raw MCP tool、不创建 Docker 文件。
 - 不把 Evidence 业务规则放入 `shared/`；Research 定义合同，Data Center/Audit 提供证据，Risk Center/Portfolio执行门禁，TUI负责强制展示。
 - 历史 replay 与 live OOS 严格隔离，任何旧数据都不自动获得新证据等级。
+
+## 2026-08-15 EVID-02 PostgreSQL 并发 harness 边界
+
+- 新增 `tests/settings_evidence_scope_source_v1_postgres.py` 与
+  `tests/component/research/test_evidence_scope_source_v1_postgres_concurrency.py`，仅针对
+  `EvidenceScopeSourceV1` ledger 提供显式 opt-in 的 PostgreSQL 证据 harness。
+- harness 覆盖空链 root first-winner、同 predecessor successor 单赢家，以及异常回滚后无残留行；URL
+  必须是本地/测试服务且数据库名同时含 `evidence` 与 `test`，非空库、SQLite、VPS/生产 host 均拒绝。
+- 默认运行保持 `3 skipped`；本轮未取得 disposable PostgreSQL 实际运行证据（Docker daemon 当前未能响应），
+  因此 `EVID-02` 仍为 planned，不能把 SQLite 或测试收集结果写成 PostgreSQL 并发通过。
