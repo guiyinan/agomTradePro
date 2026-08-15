@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from django.conf import settings
+from django.db import transaction
 
 from apps.data_center.application.control_plane import RollbackCanonicalPublicationUseCase
 from apps.data_center.application.pit_use_cases import (
@@ -16,6 +17,7 @@ from apps.data_center.application.pit_use_cases import (
 from apps.data_center.application.research_data_foundation import (
     ResearchDataFoundationFacade,
 )
+from apps.data_center.domain.control_plane import SyncBatch, SyncCheckpoint, SyncRun
 from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.domain.protocols import ProviderConfigRepositoryProtocol
 from apps.data_center.infrastructure.archive_repositories import (
@@ -133,6 +135,7 @@ __all__ = [
     "SyncBatchRepository",
     "SyncCheckpointRepository",
     "SyncRunRepository",
+    "persist_sync_control_plane_snapshot",
     "StorageHoldRepository",
     "ValuationFactRepository",
     "build_provider_registry_for_repo",
@@ -453,6 +456,24 @@ def get_sync_checkpoint_repository() -> SyncCheckpointRepository:
     """Return the resumable checkpoint repository."""
 
     return SyncCheckpointRepository()
+
+
+def persist_sync_control_plane_snapshot(
+    run: SyncRun,
+    batch: SyncBatch,
+    checkpoint: SyncCheckpoint,
+) -> None:
+    """Persist one run, batch, and checkpoint as an atomic snapshot.
+
+    The transaction belongs to this composition root so application tasks
+    remain independent of Django transaction primitives while the three
+    repositories still share one durable commit boundary.
+    """
+
+    with transaction.atomic():
+        get_sync_run_repository().save(run)
+        get_sync_batch_repository().save(batch)
+        get_sync_checkpoint_repository().save(checkpoint)
 
 
 def get_quarantine_repository() -> QuarantineRepository:

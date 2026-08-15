@@ -16,11 +16,14 @@ def _patch_control_plane_repositories(mocker):
     """Keep unit tests in-memory while exercising the durable save calls."""
 
     repositories = {name: mocker.Mock() for name in ("run", "batch", "checkpoint")}
-    for name, repository in repositories.items():
-        mocker.patch(
-            f"apps.data_center.application.tasks.get_sync_{name}_repository",
-            return_value=repository,
-        )
+    snapshot = mocker.patch(
+        "apps.data_center.application.tasks.persist_sync_control_plane_snapshot"
+    )
+    snapshot.side_effect = lambda run, batch, checkpoint: (
+        repositories["run"].save(run),
+        repositories["batch"].save(batch),
+        repositories["checkpoint"].save(checkpoint),
+    )
     return repositories
 
 

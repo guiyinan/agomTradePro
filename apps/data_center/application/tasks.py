@@ -23,9 +23,7 @@ from apps.data_center.composition import (
     get_retention_policy_repository,
     get_retention_run_repository,
     get_storage_hold_repository,
-    get_sync_batch_repository,
-    get_sync_checkpoint_repository,
-    get_sync_run_repository,
+    persist_sync_control_plane_snapshot,
 )
 from apps.data_center.domain.control_plane import (
     SyncBatch,
@@ -254,9 +252,10 @@ def _persist_backfill_control_plane(
         recorded_at=finished_at,
         error_code=error_code,
     )
-    get_sync_run_repository().save(run)
-    get_sync_batch_repository().save(batch)
-    get_sync_checkpoint_repository().save(durable_checkpoint)
+    # The composition root owns the transaction spanning all three durable
+    # control-plane repositories. A retry therefore cannot leave a run or
+    # batch without its matching checkpoint after a process/database failure.
+    persist_sync_control_plane_snapshot(run, batch, durable_checkpoint)
 
 
 def _resolve_market_thermometer_as_of_date(raw_as_of_date: str = "") -> date:

@@ -147,6 +147,28 @@ def test_backfill_persists_run_batch_and_checkpoint_rows(mocker) -> None:
 
 
 @pytest.mark.django_db
+def test_backfill_control_plane_snapshot_rolls_back_if_checkpoint_persistence_fails(
+    mocker,
+) -> None:
+    """A failed checkpoint write must not leave an orphan run or batch row."""
+
+    _patch_fake_backfill_dependencies(mocker)
+    checkpoint_repository = mocker.Mock()
+    checkpoint_repository.save.side_effect = RuntimeError("checkpoint store unavailable")
+    mocker.patch(
+        "apps.data_center.composition.get_sync_checkpoint_repository",
+        return_value=checkpoint_repository,
+    )
+
+    with pytest.raises(RuntimeError, match="checkpoint store unavailable"):
+        backfill_active_a_share_core_data_batch_task.run(batch_size=1)
+
+    assert SyncRunModel._default_manager.count() == 0
+    assert SyncBatchModel._default_manager.count() == 0
+    assert SyncCheckpointModel._default_manager.count() == 0
+
+
+@pytest.mark.django_db
 def test_postgresql_backfill_first_run_and_same_parameter_retry_are_idempotent(mocker) -> None:
     """A retry reuses one run, batch and checkpoint for the same request window."""
 
