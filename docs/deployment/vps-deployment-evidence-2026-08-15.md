@@ -232,6 +232,30 @@ registry、服务启动和健康复核均通过。
 | candidate binding | `web-to-tui-candidate-binding.v1`; matrix SHA `bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`; published graph SHA `fc4c19fbb0fc90e931a16223fffd9a4bd782e380afb86893a499874e6b644c84` |
 | runtime binding | schema `tui-metadata.v3`; runtime `0.2.0`; build `agomtui-runtime-0.2.0+a2553996be22`; manifest SHA `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854` |
 
+## 当前候选部署（2026-08-15 23:05 release）
+
+为 `dev/next-development` 提交 `45281620a8739ee666a1b20e6c6511c0b8101111` 执行标准
+`git-clone`、`-Upgrade`、code-only 发布；远端 PostgreSQL/Redis 数据卷保留，Celery enabled。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260815230537` |
+| current release | `/opt/agomtradepro/releases/source-20260815230537` |
+| source commit | `45281620a8739ee666a1b20e6c6511c0b8101111` |
+| image | `agomtradepro-web:20260815230537` |
+| image ID | `sha256:77fffa7e224b103d44d19d79acfc41ea297ab4f9acccd675716def4d24dbe07b` |
+| OCI/source binding | release manifest source commit、image revision 与 `45281620a8739ee666a1b20e6c6511c0b8101111` 完全一致 |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260815230537.json`（本地下载副本） |
+| pre-deploy backup | `/opt/agomtradepro/backups/database/postgres-20260815-171200.dump` |
+| mode | `ACTION=upgrade`、code-only、`WIPE_DOCKER=0`、`WIPE_VOLUMES=0`、Celery enabled |
+| candidate binding | matrix SHA `bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`; graph SHA `fc4c19fbb0fc90e931a16223fffd9a4bd782e380afb86893a499874e6b644c84`; runtime manifest SHA `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854` |
+| migration proof | remote `audit` migrations show `[X] 0012_systemauditevent_scope` |
+
+部署后复核：Django `check` 0 issues；HTTPS `/api/health/` HTTP 200；web/Celery worker/beat、
+PostgreSQL、Redis、Caddy、RSSHub healthy/running；TUI registry check matched；Qlib `pyqlib=0.9.7`
+且错误 `qlib` distribution absent；Celery ping OK。该部署不等于角色化生产 UAT、写后回执、
+14 日 telemetry/defect、registry backup/restore、rollback 或双签完成。
+
 部署复核：HTTPS `/api/health/` 返回 HTTP 200；web healthy，Celery worker/beat、PostgreSQL、
 Redis、RSSHub 运行；account migrations 无待应用项，canonical schema、Django deploy check、
 TUI registry publish/check、Qlib `pyqlib=0.9.7`（错误 `qlib` distribution 缺失）和 Celery ping

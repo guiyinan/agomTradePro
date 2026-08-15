@@ -450,6 +450,14 @@ python tui-metadata-compiler/scripts/publish_tui_metadata.py \
 迁移、TUI registry、Qlib、Celery 和备份证据已追加至同一 VPS 部署记录。该候选仍只建立
 provenance，不自动开始 14 日窗口或角色化 UAT；M5-A 继续 `DENY`。
 
+## 当前候选（2026-08-15 23:05）
+
+最新 `dev/next-development@45281620a8739ee666a1b20e6c6511c0b8101111` 已部署为 release
+`20260815230537`，并验证 `audit.0012_systemauditevent_scope`、Django check、HTTPS health、
+TUI registry 与 release manifest/OCI/source binding。该候选仅更新 provenance/schema 运行证据；
+角色化浏览器 UAT、写后回执/刷新、14 日 telemetry、registry backup/restore、rollback 与双签
+仍缺，M5 继续 `DENY`。
+
 ## 10. M0 映射矩阵契约
 
 M0 的主产物固定为 `docs/plans/web-to-tui-migration-matrix-2026-07-25.csv`；本文只记录契约和阶段结果，不内嵌动态清单。该文件以 195 行为初始基线，当前因迁移期共用兼容 partial 增至 196 行；新增、删除或移动模板必须在同一改动中更新矩阵并通过 inventory check。每行至少包含：

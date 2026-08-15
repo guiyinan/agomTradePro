@@ -211,8 +211,8 @@ python scripts/start_web_to_tui_observation.py \
   --released-at <YYYY-MM-DD> --write
 ```
 
-当前 M5 实现已绑定并部署候选 `dev/next-development@1835ce0ee42f220756066a21890bcec2b8f1f3e9`，
-release 为 `20260815221000`；完整 provenance、健康、迁移和 TUI registry 证据见
+当前 M5 实现已绑定并部署候选 `dev/next-development@45281620a8739ee666a1b20e6c6511c0b8101111`，
+release 为 `20260815230537`；完整 provenance、健康、迁移和 TUI registry 证据见
 `docs/deployment/vps-deployment-evidence-2026-08-15.md`。这只建立了候选身份，不自动开始观察窗口；
 该命令仍必须 fail closed，不能用当前 `HEAD`、本地文档状态或旧生产版本冒充稳定候选。
 
@@ -284,7 +284,7 @@ Classic/TUI 错误率对照、可校验且已 dry-run 恢复的生产 registry �
 
 ### 2026-08-15 当前候选部署复核
 
-`20260815221000` 为 code-only、保留数据卷、Celery enabled 的 `-Upgrade` 发布；source commit、
+`20260815230537` 为 code-only、保留数据卷、Celery enabled 的 `-Upgrade` 发布；source commit、
 OCI/image、release manifest、health/ready、migrations、canonical schema、TUI registry、Qlib
 和 Celery ping 均已复核。候选仍未完成角色化浏览器 UAT、写后 receipt/refresh、生产 registry backup、
 14 日 telemetry/defect window、rollback drill 与 owner/reviewer 双签，因此 M5-A 继续 `DENY`，
@@ -296,3 +296,12 @@ OCI/image、release manifest、health/ready、migrations、canonical schema、TU
 `stable_version_window` 未绑定版本/commit、`route_task_uat` 与 cleanup 尚未绑定候选、
 production telemetry 为 `0/101`、production registry backup/restore 与 owner/reviewer
 attestations 均缺失。该快照只证明门禁按设计拒绝提前 cutover，不替代生产观察或审批。
+
+### 2026-08-15 23:05 当前候选部署复核
+
+最新候选 `dev/next-development@45281620a8739ee666a1b20e6c6511c0b8101111` 已以
+code-only、保留数据卷、Celery enabled 的 `-Upgrade` 发布为 `20260815230537`；远端已验证
+`audit.0012_systemauditevent_scope`，Django check 0 issues、HTTPS health 200、容器健康、
+TUI registry 与 release manifest/OCI/source 绑定一致。candidate binding 的 matrix/graph/runtime
+hash 未漂移；该发布仍不提供角色化浏览器账号、写后 receipt/refresh、生产 14 日 telemetry、
+registry backup/restore、rollback drill 或 owner/reviewer 双签，因此 M5 继续 `DENY`。

@@ -804,3 +804,11 @@ scope 已进入 Domain identity/content payload 与 strict codec，`SystemAuditE
 该 slice 只建立 scope linkage contract，不提供 tenant/owner immutable lifecycle、server-issued scope
 provider、Data Center 同-alias authority bundle、durable publisher 或 production backfill；历史 NULL
 scope 不会被静默补值，AUD-01/AUD-02 仍保持阻断。
+
+## 实施记录（2026-08-15 23:05，AUD-01 scope contract candidate deployment）
+
+包含 `0012_systemauditevent_scope` 的 `dev/next-development@45281620a8739ee666a1b20e6c6511c0b8101111`
+已部署为 release `20260815230537`。远端 `audit` migration 显示 `0012` 已应用，Django check 0
+issues、HTTPS health 200、TUI registry、release manifest/OCI/source、Celery 和容器健康均通过。
+这只验证 schema contract 在当前候选上可迁移/启动；没有 tenant/owner immutable lifecycle、server-issued
+scope provider、同-alias authority bundle、durable publisher 或 production audit runtime，AUD-01 仍阻断。
