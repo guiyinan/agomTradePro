@@ -443,7 +443,7 @@ python tui-metadata-compiler/scripts/publish_tui_metadata.py \
 
 ### 2026-08-15 候选部署证据
 
-`dev/next-development@304ce86baa9177cfec27ae59fffb477c2d7ac5dc` 已部署为 release `20260815125858`；image ID、OCI revision、只读 release manifest、health、Celery/Caddy、account `0037`–`0053` migrations 与 TUI registry active hash 均已在 [`VPS 候选部署证据`](../deployment/vps-deployment-evidence-2026-08-15.md) 中固定。该次发布使用现有生产依赖镜像的 code-only overlay，因为标准 BuildKit 在 pyqlib 安装阶段被取消；这不是全量依赖重建或 M5 放行证据。M5-A 仍为 `DENY`，不得清理 Classic、回填 14 日窗口或宣称写入闭环完成。
+`dev/next-development@96ce6ee43b06e6eb6ad51528ff8ee783a4bf0952` 已部署为后续 release `20260815144517`；image ID、OCI revision、只读 release manifest、health、Celery/Caddy、account `0037`–`0053` migrations 与 TUI registry active hash 均已在 [`VPS 候选部署证据`](../deployment/vps-deployment-evidence-2026-08-15.md) 中固定。本次使用标准 `git-clone` 构建并完成 `pyqlib=0.9.7` 身份校验，同时修复并部署 TUI AI provider failure guidance。该证据不是角色化浏览器 UAT、14 日观察或 M5 放行证据。M5-A 仍为 `DENY`，不得清理 Classic、回填 14 日窗口或宣称写入闭环完成。
 
 ## 10. M0 映射矩阵契约
 
