@@ -1027,6 +1027,12 @@
 - ✅ **DATA-01 latest PostgreSQL backup refresh（2026-08-15）**
   - 候选 `a76db97d` 部署前以 `-DownloadLatest` 下载并校验 `postgres-20260815-093506.dump`（`140095243` bytes，SHA-256 `a1e7092aacc1241525ba52a083395f3d38bb0b88c7b8f6436b3ad508f4520bc0`）；远端 `pg_restore --list`、尺寸与本地校验通过，prune 未启用
   - 仍不等于 restore/rebuild、维护态回滚、回填或 reconciliation；DATA-01 继续 awaiting，不解锁 DATA-02/03
+- ✅ **DATA-01 post-deploy backup refresh（2026-08-15）**
+  - 最新候选 `ae1e5e532` / release `20260815162419` 部署后重新下载并校验 `postgres-20260815-103019.dump`（`140112628` bytes，SHA-256 `46dd5003de2943ac23d8ab599c24454e3e770b7828b088857be355fa4f5a364d`）；远端 `pg_restore --list`、完整下载、尺寸与本地校验通过
+  - 仅恢复点证据；没有 restore/rebuild、维护态回滚、回填或 reconciliation，DATA-01 继续 awaiting，不解锁 DATA-02/03
+- ✅ **VPS candidate deployment with account migration/data-center fixes（2026-08-15）**
+  - `ae1e5e532` 以 release `20260815162419` 完成 git-clone/provenance 校验和代码-only upgrade；health/ready HTTP 200，web/worker/beat/PostgreSQL/Redis/RSSHub 正常，迁移步骤无待应用项，canonical schema `missing_migrations=[]`/`missing_tables=[]`，TUI/Qlib/Celery 复核通过
+  - `/api/ready/` 仍有 Alpha/Qlib、workspace 与市场温度计 freshness warnings；不解除 decision-data、TUI M5、DATA-01/02/03 或 AUD-01 gate
 - ✅ **DATA-02 backfill control-plane PostgreSQL preflight contract（2026-08-15）**
   - 新增 PostgreSQL-only fake-provider 控制面预演：重试幂等、唯一 `run/batch/checkpoint` 和 partial 计数契约；本地 SQLite 仅 `1 passed, 2 skipped`，任务单元 `8 passed`，PostgreSQL-only 尚待 CI/一次性服务执行，不能作为生产回填或锁证据
 - ✅ **DATA-02 control-plane atomic snapshot rollback（2026-08-15）**

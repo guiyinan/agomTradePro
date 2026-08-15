@@ -93,3 +93,46 @@ Alpha/Qlib provider degraded、workspace recommendation stale，以及市场温�
 该候选只更新部署身份与运行复核，不解除 M5 角色化浏览器 UAT、写后回执、14 日观察、
 restore/rebuild，也不解除 AUD-01 durable publisher、authenticated scoped authority
 和生产 runtime wiring 门禁。
+
+## 后续候选部署（2026-08-15 16:24 release）
+
+为纳入 Account Physical v2 migration-state drift 修复（`0054`）与 DATA-02 控制面
+run/batch/checkpoint 原子快照修复，`dev/next-development@ae1e5e532e51b67731563b21b2224372752ee15b`
+再次以 `-Upgrade`、代码-only、保留数据卷方式部署。远端 git-clone 构建、provenance
+校验、迁移步骤、canonical schema check 与服务启动均完成。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260815162419` |
+| current release | `/opt/agomtradepro/releases/source-20260815162419` |
+| source commit | `ae1e5e532e51b67731563b21b2224372752ee15b` |
+| image | `agomtradepro-web:20260815162419` |
+| image ID | `sha256:619a0f24a5ada39a2aa3f8af1391a7143026784bae56fbdc8f69a88a0a513a77` |
+| OCI/source binding | release manifest 与 OCI revision 均绑定到 `ae1e5e532e51b67731563b21b2224372752ee15b` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260815162419.json`（本地下载副本） |
+| pre-deploy backup | `/opt/agomtradepro/backups/database/postgres-20260815-103019.dump` |
+
+独立复核：`GET https://demo.agomtrade.pro/api/health/` 在 2026-08-15T08:39:04Z
+返回 HTTP 200 `status=ok`；`/api/ready/` 在 2026-08-15T08:39:14Z 返回 HTTP 200，
+database/Redis/Celery（1 worker）/critical data 均 `ok`。web healthy，Celery
+worker/beat、PostgreSQL、Redis、RSSHub 运行，TUI registry publish/check、Qlib
+`pyqlib=0.9.7`（错误 `qlib` distribution 缺失）和 Celery ping 均通过；部署输出的
+迁移步骤无待应用项，canonical schema `missing_migrations=[]`、`missing_tables=[]`。
+
+本次 `/api/ready/` 仍明确报告 Alpha/Qlib provider degraded、workspace recommendation
+stale、market thermometer 部分组件 stale；这些 warning 不能写成 decision-data gate
+或 M5 完成证据。该候选也不解除 DATA-01 restore/rebuild/维护态回滚、DATA-02 生产回填与
+coverage/reconciliation、AUD-01 publisher/authority/runtime wiring 或 TUI 角色化 UAT。
+
+## 恢复点（2026-08-15 16:24 candidate）
+
+部署后用 `scripts/backup-vps-postgres.ps1 -DownloadLatest` 重新下载并验证远端 custom-format
+归档：
+
+- 远端：`/opt/agomtradepro/backups/database/postgres-20260815-103019.dump`
+- 本地：`backups/vps-postgres/postgres-20260815-103019.dump`
+- 大小：`140112628` bytes
+- SHA-256：`46dd5003de2943ac23d8ab599c24454e3e770b7828b088857be355fa4f5a364d`
+- 远端 `pg_restore --list`、SFTP 完整下载、尺寸与本地 SHA-256 均通过；prune 未启用
+
+这仍只是恢复点证据，不是 restore/rebuild、RTO/RPO 或维护态回滚演练。

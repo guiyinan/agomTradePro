@@ -316,6 +316,26 @@ provider 健康度从“连接可用”升级为能力级状态：
 migration、回填、reconciliation、切读或清理旧链。`DATA-01` 继续 `awaiting_production`，
 `DATA-02/03` 不因本次备份解锁。
 
+## 实施记录（2026-08-15，latest candidate deployment and backup）
+
+`dev/next-development@ae1e5e532e51b67731563b21b2224372752ee15b` 以 release
+`20260815162419` 完成代码-only `-Upgrade` 部署，纳入 Account Physical v2 migration
+state 修复（`0054`）和 DATA-02 控制面原子快照修复。远端 git-clone/provenance、迁移步骤、
+canonical schema check 与服务启动通过；web healthy，Celery worker/beat、PostgreSQL、
+Redis、RSSHub 运行；HTTPS health/ready 均 HTTP 200，Celery ping 为 1 node，TUI
+publish/check 与 Qlib `pyqlib=0.9.7` 复核通过。部署报告保存在
+`dist/remote-build-reports/remote-build-report-20260815162419.json`。
+
+部署后再次下载并校验 PostgreSQL custom-format 恢复点：
+`postgres-20260815-103019.dump`，`140112628` bytes，SHA-256
+`46dd5003de2943ac23d8ab599c24454e3e770b7828b088857be355fa4f5a364d`；远端
+`pg_restore --list`、SFTP 完整下载、尺寸与本地 SHA-256 均通过。
+
+边界保持不变：`/api/ready/` 的 Alpha/Qlib provider、workspace recommendation 与市场
+温度计 freshness warnings 仍存在；本次部署不证明 decision-data gate、TUI 角色化浏览器
+UAT、DATA-01 restore/rebuild/维护态回滚、DATA-02 生产回填/coverage/reconciliation，
+也不解除 AUD-01 durable publisher/authority/runtime wiring。
+
 同日候选部署身份为 release `20260815152834`、image
 `sha256:12c5ce84ecd2d072846bb7777e6e0345e3ed83e98333bdf80ca35108d2a5c385`，health/ready
 与服务复核通过；ready 中 Alpha/Qlib 与 workspace freshness warnings 继续按数据合同保留，
