@@ -2526,6 +2526,11 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 默认运行保持 `3 skipped`；本轮未取得 disposable PostgreSQL 实际运行证据（Docker daemon 当前未能响应），
   因此 `EVID-02` 仍为 planned，不能把 SQLite 或测试收集结果写成 PostgreSQL 并发通过。
 
+2026-08-15 追加尝试使用本机 `127.0.0.1:5432` 的临时 PostgreSQL 服务创建受约束的
+`evidence_scope_test_20260815` 数据库；连接在 3 秒超时窗口内失败，数据库未创建，harness
+未运行。该结果只确认当前本机 PostgreSQL/Docker 工具链仍不可用，不改变 `EVID-02` 的
+planned 状态，也不将任何 SQLite、VPS 或生产库结果计为并发证据。
+
 ## 2026-08-15 EVID-01 scope grant integrity hardening
 
 `EvidenceScopeAuthorizer` 现在在接受 provider 返回的 grant 后重新执行完整的
