@@ -450,6 +450,7 @@ class TuiWorkbenchSpecializedResultMixin:
     def _map_user_facing_ai_error(self, payload: dict[str, Any], reply: str) -> tuple[str, str]:
         code = str(payload.get("code") or "").strip().upper()
         text = reply or ""
+        raw_error = str(payload.get("error") or "").strip().lower()
         if "System fallback quota is not configured for this user." in text:
             return (
                 "AI_PROVIDER_NOT_CONFIGURED",
@@ -475,7 +476,7 @@ class TuiWorkbenchSpecializedResultMixin:
                 "AI_PROVIDER_NOT_CONFIGURED",
                 "当前账号没有可用的 AI 服务，请先完成服务商配置并测试连通性。",
             )
-        if code == "AI_PROVIDER_REQUEST_FAILED" or text == "terminal_agent_unavailable":
+        if code == "AI_PROVIDER_REQUEST_FAILED" or raw_error == "terminal_agent_unavailable":
             return (
                 "AI_PROVIDER_REQUEST_FAILED",
                 "AI 服务调用失败，请检查服务商连通性、默认模型和额度后重试。",

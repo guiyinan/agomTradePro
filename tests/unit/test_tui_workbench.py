@@ -8042,7 +8042,7 @@ def test_tui_ai_result_maps_provider_config_error_to_user_message():
         (
             {"code": "AI_PROVIDER_UNAVAILABLE", "error": "provider unavailable"},
             "AI_PROVIDER_NOT_CONFIGURED",
-            "完成服务商配置",
+            "默认 AI 服务配置",
         ),
         (
             {"code": "AI_PROVIDER_REQUEST_FAILED", "error": "upstream failed"},
@@ -8092,7 +8092,9 @@ def test_tui_ai_result_maps_provider_runtime_failures_to_actionable_guidance(
     result = service.run_action(action_key="terminal.agent_chat", params={}, user=None)
 
     assert result["user_error_code"] == expected_code
-    next_step = next(field["value"] for field in result["fields"] if field["key"] == "next_step")
+    next_step = next(
+        field["value"] for field in result["view_model"]["fields"] if field["key"] == "next_step"
+    )
     assert expected_guidance in next_step
 
 
