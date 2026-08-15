@@ -292,3 +292,5 @@ R7 result persistence 已完成 Research `0007` evidence graph、input receipt/r
 终核另关闭R6 qualification历史PIT被未来事件污染的问题：cutoff现于ORM阶段下推，旧PIT忽略未来损坏行，新PIT仍fail-closed；repository unit `5 passed`、public runtime component `2 passed`，mypy 0 regression。软件P0/P1终核为0，剩余项均需真实Publication/PIT/OOS/Promotion/owner/consumer证据。
 
 完成路线图仍需为上表每项取得代码、迁移/台账、研究证据、运行时行为和 Promotion/回滚的直接证明；“测试全绿”只证明已覆盖合同，不替代真实数据和样本外结果。
+
+2026-08-16 STRAT-01 readiness 防伪补强：`OwnerMechanismAttestation` 类型边界现在强制要求 requirement 属于显式机制 allowlist，直接 Application 组合不能把 outcome/snapshot/reconciliation requirement 伪装成静态机制证据；新增三项拒绝回归，Research readiness/runtime focused `27 passed`。本地软件门禁保持 fail-closed，不改变 R1–R8 的 `blocked` 状态，也不替代真实 owner、Publication、PIT/OOS、Promotion 或 consumer 验收。

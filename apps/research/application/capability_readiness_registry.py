@@ -11,6 +11,7 @@ from apps.research.domain.capability_readiness import (
     ReadinessRequirement,
     ReadinessState,
     ResearchCapability,
+    is_mechanism_attestable_requirement,
     requirement_owner,
     requirements_for,
 )
@@ -29,6 +30,8 @@ class OwnerMechanismAttestation:
     def __post_init__(self) -> None:
         """Validate the attestation using the canonical evidence contract."""
 
+        if not is_mechanism_attestable_requirement(self.requirement):
+            raise ValueError(f"{self.requirement.value} is not mechanism-attestable")
         ReadinessEvidence(
             requirement=self.requirement,
             owner=self.owner,

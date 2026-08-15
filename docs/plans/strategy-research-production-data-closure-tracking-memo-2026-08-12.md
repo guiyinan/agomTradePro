@@ -140,6 +140,14 @@
 - 若发现 owner 语义不足，优先修正 source contract，不得现场猜测或由下游 assessment 反充。
 - 未完成项必须保留明确 blocker、owner、下一动作和预计验证方式。
 
+## 11. 2026-08-16 本地机制证据 allowlist 防绕过收口
+
+本批只修复 STRAT-01 readiness 的本地防伪边界，不登记任何真实 owner、definition、policy、PIT/OOS、receipt 或生产数据：
+
+- `OwnerMechanismAttestation` 现在在 Application composition 类型边界直接复用 `is_mechanism_attestable_requirement`，拒绝将 live-data、outcome、snapshot 或 reconciliation requirement 包装成静态“机制证据”。此前 JSON manifest loader 已有同一校验，但直接构造类型可绕过 loader；本修复关闭该绕过路径。
+- 新增 `test_mechanism_attestation_type_rejects_live_data_requirements`，覆盖 scenario outcome history、Portfolio canonical snapshot 和 execution feedback 三类不可机制化 requirement；STRAT readiness/runtime 回归 `27 passed`。
+- 该切片只证明机制 allowlist 的 fail-closed contract；R1–R8 真实 owner/definition/policy/calendar/scope、PIT/OOS 历史、canonical receipts、Promotion 与 consumer/UAT 仍缺，`STRAT-01`/`STRAT-02` 状态不变。
+
 ## 10. 2026-08-15 本地 readiness 防伪收口
 
 本批只加强软件侧的 readiness 边界，不构造任何生产 owner、definition、policy 或历史数据：

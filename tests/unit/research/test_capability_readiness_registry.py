@@ -93,6 +93,29 @@ def test_static_manifest_rejects_live_data_and_outcome_attestations(
         load_governed_mechanism_attestations(manifest)
 
 
+@pytest.mark.parametrize(
+    "requirement",
+    (
+        ReadinessRequirement.COMPLETE_SCENARIO_OUTCOME_HISTORY,
+        ReadinessRequirement.PORTFOLIO_CANONICAL_SNAPSHOT,
+        ReadinessRequirement.EXECUTION_FEEDBACK_RECONCILED,
+    ),
+)
+def test_mechanism_attestation_type_rejects_live_data_requirements(
+    requirement: ReadinessRequirement,
+) -> None:
+    """Direct composition cannot bypass the static mechanism allowlist."""
+
+    with pytest.raises(ValueError, match="not mechanism-attestable"):
+        OwnerMechanismAttestation(
+            requirement=requirement,
+            owner=requirement_owner(requirement),
+            observed_at=NOW,
+            valid_until=NOW + timedelta(days=1),
+            evidence_ref="repo://mechanism/should-not-attest-live-data",
+        )
+
+
 def test_current_governed_manifest_contains_only_explicit_mechanisms() -> None:
     attestations = load_governed_mechanism_attestations()
 
