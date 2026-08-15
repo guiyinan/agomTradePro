@@ -136,3 +136,33 @@ coverage/reconciliation、AUD-01 publisher/authority/runtime wiring 或 TUI 角�
 - 远端 `pg_restore --list`、SFTP 完整下载、尺寸与本地 SHA-256 均通过；prune 未启用
 
 这仍只是恢复点证据，不是 restore/rebuild、RTO/RPO 或维护态回滚演练。
+
+## 当前候选部署（2026-08-15 18:28 release）
+
+为部署当前 `dev/next-development`（含 AUD-01 canonical receipt exact-tree hardening），
+再次执行标准 `git-clone`、`-Upgrade`、代码-only 发布并保留远端 PostgreSQL 数据卷。部署脚本
+在切换前生成远端 PostgreSQL/Redis 备份，迁移与 canonical schema 检查通过，未应用新的 migration。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260815182857` |
+| current release | `/opt/agomtradepro/releases/source-20260815182857` |
+| source commit | `cf68dc1e972ecd6e0ae002e4d4f96ff07ef86542` |
+| image | `agomtradepro-web:20260815182857` |
+| image ID | `sha256:e04018272c08ef2dec2ffa98619e99ad689649c06da5964cbe93a9493602a552` |
+| OCI/source binding | release manifest source commit、image revision 与 `cf68dc1e972ecd6e0ae002e4d4f96ff07ef86542` 完全一致 |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260815182857.json`（本地下载副本） |
+| pre-deploy backup | `/opt/agomtradepro/backups/database/postgres-20260815-123539.dump`；manifest `/opt/agomtradepro/backups/meta/manifest-20260815-123539.txt` |
+| mode | `ACTION=upgrade`、code-only、`WIPE_DOCKER=0`、`WIPE_VOLUMES=0`、Celery enabled |
+
+部署后独立复核：`GET https://demo.agomtrade.pro/api/health/` 于
+`2026-08-15T10:44:06Z` 返回 HTTP 200 `status=ok`；`/api/ready/` 于
+`2026-08-15T10:44:16Z` 返回 HTTP 200 `status=ok`，database/Redis/Celery/critical data
+均为 `ok`，web、Celery worker/beat、PostgreSQL、Redis、RSSHub 均运行，Caddy TLS 检查通过。
+TUI registry publish/check、`pyqlib=0.9.7`（错误 `qlib` distribution 缺失）、Celery ping、
+account migration 与 canonical schema 复核均通过。
+
+`/api/ready/` 仍报告 Alpha/Qlib provider degraded、workspace recommendation stale，以及
+market thermometer 的部分组件 stale；这些 warning 继续禁止 decision-data gate、M5 角色化
+UAT 或 14 日观察窗口被写成完成证据。部署身份更新也不解除 AUD-01 durable publisher、
+authenticated scoped authority、runtime wiring、DATA-01 restore/rebuild 或 rollback 门禁。

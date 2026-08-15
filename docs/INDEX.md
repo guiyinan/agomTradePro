@@ -149,7 +149,7 @@
 | [web-to-tui-m4-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md) | **Web → TUI M4 合并证据（W43-W51，9 份原始 wave 记录与 SHA-256 清单）** | ✅ M4 已完成并归档 |
 | [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；candidate/deployment/M5-B wave recorders 与 guards 已加固；真实候选部署、观察窗口和逐波生产证据待补 |
 | [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | 历史只读记录；不代表 2026-08-13 当前线上版本，不计入 cutover gate |
-| [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 当前生产 Preflight（公开探针 + release/OCI 核对）** | 2026-08-15 后续候选 `20260815152834` / `a76db97d` 已完成标准 git-clone 构建、manifest/OCI/health/ready 复核；M5 仍 DENY，角色化 UAT、观察窗口和写后审计待补 |
+| [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 当前生产 Preflight（公开探针 + release/OCI 核对）** | 2026-08-15 当前候选 `20260815182857` / `cf68dc1e9` 已完成标准 git-clone 构建、manifest/OCI/health/ready 复核；M5 仍 DENY，角色化 UAT、观察窗口和写后审计待补 |
 | [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | 历史记录不再算当前闸门；candidate-bound 本地演练已修复，最终候选/生产备份恢复待验 |
 | [web-to-tui-m5-browser-uat-evidence-2026-07-27.md](plans/web-to-tui-m5-browser-uat-evidence-2026-07-27.md) | **Web → TUI M5 浏览器 UAT（角色边界、矩阵深链、直读/参数读取与生命周期）** | 历史自动化 15/15、主任务 108/108；未绑定最终候选，当前 gate FAIL |
 | [web-to-tui-m5-route-closure-evidence-2026-07-27.md](plans/web-to-tui-m5-route-closure-evidence-2026-07-27.md) | **Web → TUI M5 逐 Route 清理证据（认证边界、兼容目标与状态/回滚范围）** | ✅ 六类 scope 均为 108/108；不替代生产门禁 |
@@ -1031,6 +1031,9 @@
 - ✅ **系统级统一审计日志 AUD-01 authority boundary hardening（2026-08-15）**
   - authority cutoff 严格要求 aware `datetime`；provider 异常或错误类型结果统一脱敏为 `authority_unavailable`，不泄露数据库/RBAC异常；定向 unit `15 passed`，增量 mypy/architecture/Black/isort/diff-check 通过
   - 仍未接真实 authenticated scoped authority、durable publisher/receipt sink、beat/retry、PostgreSQL/VPS 证据；`AUD-01` 未解除，`AUD-02` 继续等待
+- ✅ **当前候选部署与运行取证（AUD-01/TUI，2026-08-15）**
+  - `dev/next-development@cf68dc1e9` 已部署为 release `20260815182857`；manifest/OCI/source 绑定一致，HTTPS health/ready、容器、迁移、canonical schema、TUI registry、Qlib、Celery 复核通过，部署前 PostgreSQL 备份成功
+  - `/api/ready/` 仍报告 Alpha/Qlib degraded、workspace recommendation stale 和 market thermometer partial-stale warnings；只更新候选身份与运行证据，不解除 AUD-01、M5、DATA-01 或相关 rollback/观察门禁
 - ✅ **系统级统一审计日志 AUD-01 canonical receipt exact-tree hardening（2026-08-15）**
   - receipt 在 JSON 编码前递归校验容器/标量类型、序列顺序与 key 类型；tuple/list、嵌套非原生 mapping 和标量类型替换统一 fail-closed 为 `publisher_contract_violation`；composition/dispatcher/dispatch 定向回归 `30 passed`，audit contract、增量 mypy、architecture、Black/isort、compile/diff-check 通过
   - 仅本地 receipt 合同加固（当前环境未安装 ruff 模块）；runtime 仍固定 `publisher_not_wired`，没有 durable publisher/receipt sink、authenticated scoped lifecycle、beat/retry/PG/VPS 证据，`AUD-01` 未解除，`AUD-02` 继续等待

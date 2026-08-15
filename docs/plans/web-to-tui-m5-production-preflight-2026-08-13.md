@@ -77,3 +77,17 @@ Qlib/Celery 复核通过；ready 仍有 Alpha/Qlib 与 workspace freshness warni
 本候选只替换了可复核的部署身份并携带 AUD-01 本地合同加固，不改变 M5 判定：角色化
 浏览器 UAT、写后 receipt/refresh、14 日观察、cleanup/rollback 双签仍缺，M5 继续
 `DENY`。详细备份与运行证据见部署证据文档的“后续候选部署”节。
+
+### 2026-08-15 当前候选：`cf68dc1e9` / release `20260815182857`
+
+当前 `dev/next-development` 已再次完成标准 `git-clone` 代码-only upgrade 部署，release
+manifest、OCI revision 与 source commit `cf68dc1e972ecd6e0ae002e4d4f96ff07ef86542` 完全一致，
+image ID 为 `sha256:e04018272c08ef2dec2ffa98619e99ad689649c06da5964cbe93a9493602a552`。部署后
+HTTPS `/api/health/` 与 `/api/ready/` 均 HTTP 200，web/Celery/PostgreSQL/Redis/RSSHub/Caddy、
+TUI registry、canonical schema、migrations、Qlib 与 Celery ping 复核通过；详细报告见
+[`docs/deployment/vps-deployment-evidence-2026-08-15.md`](../deployment/vps-deployment-evidence-2026-08-15.md)
+及 `dist/remote-build-reports/remote-build-report-20260815182857.json`。
+
+`/api/ready/` 仍保留 Alpha/Qlib degraded、workspace recommendation stale 和 market
+thermometer partial-stale warnings；本次只更新候选身份与运行证据，不启动 M5 角色化浏览器
+UAT、14 日观察或 cleanup/rollback 双签，也不解除 AUD-01、DATA-01 等生产门禁。

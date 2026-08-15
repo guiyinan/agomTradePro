@@ -734,3 +734,17 @@ compile 与 diff-check 均通过（当前环境未安装 ruff 模块）。
 该 slice 仍只是 publisher receipt 的本地合同加固：runtime 固定返回 `publisher_not_wired`，
 没有 durable publisher/receipt sink、authenticated scoped authority lifecycle、beat/retry/requeue、
 生产 PostgreSQL/VPS 观察或 AUD-02 Data Center 同 UOW；AUD-01 继续保持 planned，AUD-02 继续等待。
+
+## 实施记录（2026-08-15，AUD-01 当前候选部署复核）
+
+包含上述 exact-tree receipt hardening 的 `dev/next-development@cf68dc1e972ecd6e0ae002e4d4f96ff07ef86542`
+已以标准 `git-clone`、代码-only、保留数据卷的 `-Upgrade` 模式部署为 release
+`20260815182857`；release manifest、OCI revision 与 image ID 绑定一致。部署报告为
+`dist/remote-build-reports/remote-build-report-20260815182857.json`，web/Celery worker/beat、
+PostgreSQL、Redis、RSSHub、Caddy、迁移、canonical schema、TUI registry、Qlib 与 Celery ping
+均复核通过，独立 HTTPS health/ready 均 HTTP 200。
+
+ready 响应仍原样保留 Alpha/Qlib provider degraded、workspace recommendation stale 与
+market thermometer partial-stale warnings；本次只证明候选身份和运行健康，不代表 durable
+publisher/receipt sink、authenticated scoped authority、beat/retry/requeue、AUD-02 Data Center
+双写、M5 UAT、DATA-01 restore/rebuild 或生产回滚已完成。AUD-01 仍未解除。
