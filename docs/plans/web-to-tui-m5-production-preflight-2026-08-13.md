@@ -53,3 +53,14 @@
 `scripts/deploy_vps_verify.py` 现已与 source-upload/git-clone 两种发布模式的只读 `.agom-release-manifest.json` 身份合同对齐：身份检查要求普通 `0444` manifest，并严格核验字段集合、源码 commit、OCI revision 与镜像 ID；不再以 release 目录中的 Git worktree 作为 fallback。发布脚本本身继续在构建/部署阶段核验 release/image 标识、构建时间和 source mode。`tests/unit/test_deploy_vps_verify.py` 与 `tests/unit/test_remote_build_deploy_vps.py` 合计 `50 passed`，增量 mypy 通过。
 
 这仍只是下一次发布的本地 fail-closed 能力，不是生产证明。当前线上仍为 `revision=unknown` 且无合格 manifest；未执行部署、未生成新的 production attestation，M5 观察窗口仍未开始并继续 `DENY`。
+
+## 2026-08-15 候选部署复核
+
+上述 8 月 13 日快照保留为历史事实。随后已部署候选 `dev/next-development@304ce86baa9177cfec27ae59fffb477c2d7ac5dc`，并在部署后重新取得可独立核对的 release manifest、image ID 与 OCI revision：
+
+- release tag `20260815125858`，current 为 `/opt/agomtradepro/releases/source-20260815125858`；image ID 为 `sha256:72ea6d5b6ea55ae8501a757ba9b1876a914224f29cf8312907efe7d961caf5aa`，OCI revision 与 commit 完全一致。
+- `/api/health/` 返回 `status=ok`；web、Celery worker/beat、PostgreSQL、Redis、Caddy 均通过部署后运行检查；Qlib 为 `0.9.7`。
+- `account` migration `0037`–`0053`、canonical schema、`check --deploy` 和 TUI registry publish/check 均通过；TUI registry `21` 的 active source hash 与 expected hash 一致。
+- 部署前 PostgreSQL custom-format 备份已生成：`postgres-20260815-073132.dump`，139155008 bytes，SHA-256 `ce0e72418640ad154ae95fe67d93e1443839ad181cc3ec9bf0bbfc23b2d2b20e`。
+
+详细结构化记录见 [`docs/deployment/vps-deployment-evidence-2026-08-15.md`](../deployment/vps-deployment-evidence-2026-08-15.md)。本次由于标准 BuildKit 在 pyqlib 安装阶段被取消，实际采用已有生产依赖镜像的 code-only overlay；这证明候选源码身份与运行健康，不替代全量可重复依赖构建、角色化浏览器 UAT、写后回执、14 日观察和 restore/rebuild 演练。因此 M5 仍保持 `DENY`，观察窗口只允许从本次 verified_at 之后开始，不能回填历史窗口。

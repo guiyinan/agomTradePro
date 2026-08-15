@@ -439,7 +439,11 @@ python tui-metadata-compiler/scripts/publish_tui_metadata.py \
 | M2 | W1–W20，配置、CRUD 与治理任务 | 已完成 | `../archive/plans/web-to-tui-m2-consolidated-evidence-2026-07-26.md` |
 | M3 | W21–W42，长尾工作台与运维任务 | 已完成 | `../archive/plans/web-to-tui-m3-consolidated-evidence-2026-07-26.md` |
 | M4 | W43–W51，图表与分析任务 | 已完成 | `../archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md` |
-| M5 | 108-route UAT/closure、回滚与生产 cutover | M5-A DENY；候选未部署 | `web-to-tui-m5-readiness-2026-07-27.md` 及其引用的机器证据 |
+| M5 | 108-route UAT/closure、回滚与生产 cutover | M5-A DENY；2026-08-15 候选已部署并完成 provenance/health 复核，角色化 UAT、观察窗口和写后审计仍未完成 | [`docs/deployment/vps-deployment-evidence-2026-08-15.md`](../deployment/vps-deployment-evidence-2026-08-15.md) 与 `web-to-tui-m5-readiness-2026-07-27.md` |
+
+### 2026-08-15 候选部署证据
+
+`dev/next-development@304ce86baa9177cfec27ae59fffb477c2d7ac5dc` 已部署为 release `20260815125858`；image ID、OCI revision、只读 release manifest、health、Celery/Caddy、account `0037`–`0053` migrations 与 TUI registry active hash 均已在 [`VPS 候选部署证据`](../deployment/vps-deployment-evidence-2026-08-15.md) 中固定。该次发布使用现有生产依赖镜像的 code-only overlay，因为标准 BuildKit 在 pyqlib 安装阶段被取消；这不是全量依赖重建或 M5 放行证据。M5-A 仍为 `DENY`，不得清理 Classic、回填 14 日窗口或宣称写入闭环完成。
 
 ## 10. M0 映射矩阵契约
 

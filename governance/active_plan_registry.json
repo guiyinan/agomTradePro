@@ -137,7 +137,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "Deploy one manifest-bound candidate, complete role-based browser UAT and the 14-day observation window, then execute signed cleanup waves with rollback evidence.",
+      "next_gate": "Against candidate 304ce86baa9177cfec27ae59fffb477c2d7ac5dc / release 20260815125858, complete role-based browser UAT and the 14-day observation window, then execute signed cleanup waves with rollback evidence.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",

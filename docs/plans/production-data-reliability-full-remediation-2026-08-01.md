@@ -291,3 +291,13 @@ provider 健康度从“连接可用”升级为能力级状态：
 - 归档目录受 Git ignore 保护，未把生产数据库内容提交进仓库；未执行旧备份清理。
 
 边界保持不变：备份证据不等于恢复演练。维护态切换、restore/rebuild 演练、受控回填与 reconciliation、性能/锁预算和最终解除维护或回滚仍未完成，`DATA-01` 继续保持 `awaiting_production`，不得据此解锁 `DATA-02/03` 或任何破坏性操作。
+
+## 实施记录（2026-08-15，VPS candidate deployment evidence）
+
+在取得新的部署前恢复点后，`dev/next-development@304ce86baa9177cfec27ae59fffb477c2d7ac5dc` 已以 release `20260815125858` 部署到 `demo.agomtrade.pro`。本次只使用 `ACTION=upgrade`、`INCLUDE_SQLITE=0`、`WIPE_DOCKER=0`、`WIPE_VOLUMES=0`，保留现有 PostgreSQL/Redis volumes；部署前 custom-format PostgreSQL 备份为 `postgres-20260815-073132.dump`（139155008 bytes，SHA-256 `ce0e72418640ad154ae95fe67d93e1443839ad181cc3ec9bf0bbfc23b2d2b20e`）。
+
+- release manifest 为只读 `0444`，image ID `sha256:72ea6d5b6ea55ae8501a757ba9b1876a914224f29cf8312907efe7d961caf5aa`，OCI revision 与 40 位 source commit 完全一致。
+- PostgreSQL migration `account.0037`–`0053`、`verify_canonical_schema`、Data Center catalog、`manage.py check --deploy`、collectstatic、AI capability sync 和 TUI registry publish/check 均通过；web/Celery/Caddy/Redis/PostgreSQL 健康，`pyqlib=0.9.7`，Celery `inspect ping` 为 `1 node online`。
+- 公开 health 独立复核返回 `status=ok`。完整机器摘要见 [`docs/deployment/vps-deployment-evidence-2026-08-15.md`](../deployment/vps-deployment-evidence-2026-08-15.md)。
+
+标准远端 BuildKit 在 `pyqlib==0.9.7` 安装阶段发生 context cancel，未切换服务；实际候选是以既有生产 image `20260813021923`（已确认包含 `pyqlib 0.9.7`）为依赖基底的 code-only overlay。因此本记录证明源码身份、迁移和运行健康，不证明全量依赖的可重复重建，也不证明全市场数据覆盖、shadow reconciliation、restore/rebuild、维护态回滚或 readiness 解锁。`DATA-02/03`、P1 全量回填和最终生产验收继续保持阻断。
