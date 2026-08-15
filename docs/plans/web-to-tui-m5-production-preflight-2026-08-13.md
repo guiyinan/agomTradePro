@@ -91,3 +91,19 @@ TUI registry、canonical schema、migrations、Qlib 与 Celery ping 复核通过
 `/api/ready/` 仍保留 Alpha/Qlib degraded、workspace recommendation stale 和 market
 thermometer partial-stale warnings；本次只更新候选身份与运行证据，不启动 M5 角色化浏览器
 UAT、14 日观察或 cleanup/rollback 双签，也不解除 AUD-01、DATA-01 等生产门禁。
+
+### 2026-08-15 当前候选：`11594964f` / release `20260815200756`
+
+当前 `dev/next-development` 已再次以标准 `git-clone`、`fresh`、code-only 模式部署，
+远端数据卷保留且 Celery enabled。release manifest、OCI revision 与 source commit
+`11594964f589c5f0ec3bf6a541d61d471b79b67f` 完全一致；image ID 为
+`sha256:2983bd567f4cb86a52ce48d7a1c3f2162fec4cddbaddb007975375b9448052af`。
+部署后从 VPS 独立复核 HTTPS health/ready 均 HTTP 200，容器、迁移、canonical schema、
+TUI registry、Qlib 和 Celery 检查通过；部署前 PostgreSQL 备份为
+`postgres-20260815-141446.dump`。详细报告见部署证据文档及
+`dist/remote-build-reports/remote-build-report-20260815200756.json`。
+
+`/api/ready/` 仍报告 Alpha/Qlib provider degraded、workspace recommendation stale、
+Alpha rank source stale 与 market thermometer partial-stale；本次只更新候选身份与运行证据，
+不启动角色化浏览器 UAT、写后回执、14 日观察或 cleanup/rollback 双签，也不解除 EVID-01、
+AUD-01、DATA-01 等生产门禁。

@@ -166,3 +166,34 @@ account migration 与 canonical schema 复核均通过。
 market thermometer 的部分组件 stale；这些 warning 继续禁止 decision-data gate、M5 角色化
 UAT 或 14 日观察窗口被写成完成证据。部署身份更新也不解除 AUD-01 durable publisher、
 authenticated scoped authority、runtime wiring、DATA-01 restore/rebuild 或 rollback 门禁。
+
+## 当前候选部署（2026-08-15 20:07 release）
+
+为部署当前 `dev/next-development`（含 EVID-01 scope provider 异常边界加固），执行标准
+`git-clone`、`fresh`、代码-only 发布；远端数据卷保留，未带入本地 SQLite，Celery enabled。
+构建、迁移、canonical schema、TUI registry、服务启动和 provenance 校验均通过。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260815200756` |
+| current release | `/opt/agomtradepro/releases/source-20260815200756` |
+| source commit | `11594964f589c5f0ec3bf6a541d61d471b79b67f` |
+| image | `agomtradepro-web:20260815200756` |
+| image ID | `sha256:2983bd567f4cb86a52ce48d7a1c3f2162fec4cddbaddb007975375b9448052af` |
+| OCI/source binding | release manifest source commit、image revision 与上述完整 commit 一致 |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260815200756.json`（本地下载副本） |
+| pre-deploy backup | `/opt/agomtradepro/backups/database/postgres-20260815-141446.dump`；manifest `/opt/agomtradepro/backups/meta/manifest-20260815-141446.txt` |
+| mode | `ACTION=fresh`、code-only、项目 Docker cleanup、`WIPE_VOLUMES=0`、Celery enabled |
+
+部署后独立复核：从 VPS 执行 HTTPS `GET https://demo.agomtrade.pro/api/health/` 与
+`/api/ready/` 均 HTTP 200，时间分别为 `2026-08-15T12:24:40Z` 与
+`2026-08-15T12:25:33Z`；Caddyfile 首行保留 `demo.agomtrade.pro {`，Caddy 自动 TLS 日志正常。
+web、Celery worker/beat、PostgreSQL、Redis、RSSHub 运行且 web/PostgreSQL/Redis/RSSHub healthy；
+`pyqlib=0.9.7`，错误 `qlib` distribution 缺失，Celery ping 为 `1 node online`。迁移无待应用项，
+canonical schema、Django deploy check 与 TUI registry publish/check 通过。
+
+`/api/ready/` 继续保留 Alpha/Qlib provider degraded、workspace recommendation stale、
+Alpha rank source stale 和 market thermometer partial-stale warnings；这些 warning 不得写成
+decision-data gate 或 M5 完成证据。该候选只更新部署身份与运行复核，不解除 EVID-01 immutable
+owner/tenant authority、AUD-01 durable publisher/authority/runtime、M5 角色化浏览器 UAT/14 日
+观察、DATA-01 restore/rebuild 或 rollback 双签门禁。
