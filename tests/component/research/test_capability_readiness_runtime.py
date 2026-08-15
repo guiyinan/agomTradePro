@@ -7,6 +7,8 @@ from pathlib import Path
 
 from apps.research.composition import make_evaluate_capability_readiness
 from apps.research.domain.capability_readiness import (
+    R1_REQUIREMENTS,
+    R2_REQUIREMENTS,
     ReadinessDecision,
     ReadinessRequirement,
     ReadinessState,
@@ -40,6 +42,25 @@ def test_r3_runtime_attests_research_mechanisms_but_not_data_or_model_readiness(
     assert states[ReadinessRequirement.SPLIT_AND_EMBARGO_POLICY] is ReadinessState.VERIFIED
     assert states[ReadinessRequirement.TARGET_MACRO_VINTAGES_PIT] is (ReadinessState.UNVERIFIED)
     assert states[ReadinessRequirement.MACRO_FACTOR_BENCHMARK] is ReadinessState.MISSING
+
+
+def test_r1_runtime_cannot_promote_mechanism_manifest_to_verified_readiness() -> None:
+    """R1 remains blocked until owner/data evidence exists for every requirement."""
+
+    states = _states(ResearchCapability.INDUSTRY_EARNINGS_FORECAST)
+
+    assert tuple(states) == R1_REQUIREMENTS
+    assert all(state is not ReadinessState.VERIFIED for state in states.values())
+    assert states[ReadinessRequirement.FORECAST_EVALUATION_SPEC] is ReadinessState.MISSING
+
+
+def test_r2_runtime_keeps_all_production_flow_requirements_unverified() -> None:
+    """R2 Data Center implementation presence cannot impersonate live evidence."""
+
+    states = _states(ResearchCapability.MARKET_STRUCTURE_INVESTOR_FLOW)
+
+    assert tuple(states) == R2_REQUIREMENTS
+    assert all(state is ReadinessState.UNVERIFIED for state in states.values())
 
 
 def test_r7_runtime_keeps_binding_outcomes_and_samples_blocked() -> None:
