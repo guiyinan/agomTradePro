@@ -301,3 +301,22 @@ provider 健康度从“连接可用”升级为能力级状态：
 - 公开 health 独立复核返回 `status=ok`。完整机器摘要见 [`docs/deployment/vps-deployment-evidence-2026-08-15.md`](../deployment/vps-deployment-evidence-2026-08-15.md)。
 
 本次标准远端 `git-clone` 构建成功并独立核验 `pyqlib=0.9.7`，但本记录仍不证明全市场数据覆盖、shadow reconciliation、restore/rebuild、维护态回滚或 readiness 解锁。`DATA-02/03`、P1 全量回填和最终生产验收继续保持阻断。
+
+## 实施记录（2026-08-15，latest candidate backup refresh）
+
+最新候选 `dev/next-development@a76db97d4322fd7f6a2323f4f567873e8c53199c` 部署前再次生成并
+验证 PostgreSQL custom-format 归档：远端
+`/opt/agomtradepro/backups/database/postgres-20260815-093506.dump`，本地
+`backups/vps-postgres/postgres-20260815-093506.dump`，大小 `140095243` bytes，SHA-256
+`a1e7092aacc1241525ba52a083395f3d38bb0b88c7b8f6436b3ad508f4520bc0`。远端
+`pg_restore --list`、SFTP 完整下载、尺寸与本地 SHA-256 均由
+`scripts/backup-vps-postgres.ps1 -DownloadLatest` 校验通过；远端 prune 未启用。
+
+这只刷新了 DATA-01 的恢复点，不是 restore/rebuild 或维护态回滚演练；没有执行 destructive
+migration、回填、reconciliation、切读或清理旧链。`DATA-01` 继续 `awaiting_production`，
+`DATA-02/03` 不因本次备份解锁。
+
+同日候选部署身份为 release `20260815152834`、image
+`sha256:12c5ce84ecd2d072846bb7777e6e0345e3ed83e98333bdf80ca35108d2a5c385`，health/ready
+与服务复核通过；ready 中 Alpha/Qlib 与 workspace freshness warnings 继续按数据合同保留，
+不作为 decision-data gate 完成证据。

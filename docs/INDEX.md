@@ -1021,6 +1021,9 @@
   - 仅完成本地合同与阻断边界；runtime 仍固定 `publisher_not_wired`，没有 durable sink、authenticated scoped lifecycle、beat/retry/PG/VPS 证据，AUD-01 未解除，AUD-02 继续等待
 - ✅ **DATA-01 production PostgreSQL backup evidence refresh（2026-08-15）**
   - `scripts/backup-vps-postgres.ps1` 重新取得并验证 custom-format 归档（`139057048` bytes，SHA-256 `a8f005eb3a461f28d21689ecef6d5aee89b59a353d06944b79e08c82662839cc`）；仅完成备份子步骤，维护态/恢复/回滚/回填仍未通过，DATA-01 继续 awaiting
+- ✅ **DATA-01 latest PostgreSQL backup refresh（2026-08-15）**
+  - 候选 `a76db97d` 部署前以 `-DownloadLatest` 下载并校验 `postgres-20260815-093506.dump`（`140095243` bytes，SHA-256 `a1e7092aacc1241525ba52a083395f3d38bb0b88c7b8f6436b3ad508f4520bc0`）；远端 `pg_restore --list`、尺寸与本地校验通过，prune 未启用
+  - 仍不等于 restore/rebuild、维护态回滚、回填或 reconciliation；DATA-01 继续 awaiting，不解锁 DATA-02/03
 - ✅ **DATA-02 backfill control-plane PostgreSQL preflight contract（2026-08-15）**
   - 新增 PostgreSQL-only fake-provider 控制面预演：重试幂等、唯一 `run/batch/checkpoint` 和 partial 计数契约；本地 SQLite 仅 `1 passed, 2 skipped`，任务单元 `8 passed`，PostgreSQL-only 尚待 CI/一次性服务执行，不能作为生产回填或锁证据
 - ✅ **Equity research snapshot Django runtime contract（2026-08-14）**
