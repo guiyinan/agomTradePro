@@ -402,3 +402,18 @@ Docker restore/snapshot match，因此 `DATA-01` 仍为 `awaiting_production`，
 回填任务的 run、batch、checkpoint 现在由 Data Center composition root 在同一事务中提交；Application task 不直接持有 Django transaction。新增故障注入组件测试证明 checkpoint 持久化失败时三张控制面表全部回滚（`2 passed, 2 skipped`），任务单元 `8 passed`；architecture、增量 mypy、Celery contract、Black/isort 和 diff-check 均通过。
 
 这只是本地控制面原子性证据，不是 PostgreSQL 并发/锁预算、生产回填、coverage/reconciliation 或 DATA-01 维护态/恢复演练。`DATA-01` 仍为 `awaiting_production`，因此 `DATA-02/03` 继续锁定。
+
+## 实施记录（2026-08-15，当前候选部署后 backup refresh 20:07）
+
+当前候选 `dev/next-development@11594964f589c5f0ec3bf6a541d61d471b79b67f` 部署后，
+再次运行 `scripts/backup-vps-postgres.ps1 -DownloadLatest` 并完成远端与本地校验：
+
+- 远端：`/opt/agomtradepro/backups/database/postgres-20260815-141446.dump`。
+- 本地：`backups/vps-postgres/postgres-20260815-141446.dump`，大小 `140206603` bytes。
+- 远端 `pg_restore --list`、SFTP 完整下载、尺寸和本地 SHA-256 均通过；SHA-256：
+  `d3134e5c5551ec92c77724b6567d5db788e59129a3ca799ab0be9cfdad122249`。
+- 远端 prune 未启用，未执行恢复、回填、切读或 destructive migration。
+
+本条只新增一个可验证恢复点，不等于 restore/rebuild、RTO/RPO、维护态 rollback 或
+reconciliation。由于本机隔离恢复仍受 Docker/客户端工具链约束，`DATA-01` 继续
+`awaiting_production`，不解锁 `DATA-02/03`。
