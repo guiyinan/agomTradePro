@@ -717,3 +717,14 @@ assert config.get_drawdown_factor(0.00) == 1.0
 | 仓位优化器（Kelly / 风险平价） | 复杂度较高，下一期评估 |
 | MacroSizingConfig 前端编辑页 | Django Admin 已足够，不新建前端页面 |
 | Pulse 指标数据源配置 | 已有 PulseConfig，不重复 |
+
+## 2026-08-15：归档与残余验收转移
+
+本任务书的仓库实现资产已经存在，故不再作为独立开发主线；Domain、migration、API、Admin
+和测试资产的验收对账已记录在上方。尚未完成的真实 migration-backed integration、生产
+PostgreSQL/Admin 审计和部署验收，不得被本次归档解释为已通过。
+
+残余验收并入 Evidence hard-gate 的 `EVID-03`/Portfolio sizing consumer：SizingContext
+输出已登记为 direct 且 `not_evidence_integrated_hard_blocked`，后续必须补 source
+observation/identity/content hash、config/version binding、owner scope、freshness 和
+exact-current revalidation；不得以请求时 `calculated_at` 冒充源观测时间。

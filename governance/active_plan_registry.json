@@ -265,20 +265,6 @@
       "disposition": "Confirm whether the homepage scope survives Web-to-TUI migration; otherwise archive as superseded."
     },
     {
-      "path": "docs/plans/macro-sizing-multiplier-outsourcing-2026-03-31.md",
-      "owner": "account",
-      "status": "review_required",
-      "review_by": "2026-08-22",
-      "disposition": "Implementation, migrations, API/Admin and tests exist; reconcile acceptance evidence and archive instead of treating this as unstarted development."
-    },
-    {
-      "path": "docs/plans/post-0.8.0-stabilization-priority-2026-07-08.md",
-      "owner": "operational_readiness",
-      "status": "review_required",
-      "review_by": "2026-08-22",
-      "disposition": "Move any still-open production gates into current workstreams and archive the elapsed two-week stabilization plan."
-    },
-    {
       "path": "docs/plans/streamlit-dashboard-upgrade-plan.md",
       "owner": "dashboard+terminal",
       "status": "review_required",

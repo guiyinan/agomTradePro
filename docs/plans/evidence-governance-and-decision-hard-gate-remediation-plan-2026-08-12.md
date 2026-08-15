@@ -2350,6 +2350,16 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
   grant projection hash。可信 owner/tenant immutable lifecycle/provider composition、PostgreSQL
   空链并发、production composition、Evidence hard gate、写入和 execution 继续关闭。
 
+### 2026-08-15：Macro sizing residual output moved into Evidence EVID-03
+
+- 原 Macro sizing 外包任务书的实现资产已完成仓库范围对账，但其 `SizingContextOutput` 同时
+  影响直接仓位建议，现登记进 `governance/evidence_output_surfaces.json`：
+  `position_impact=direct`、`current_gate_state=not_evidence_integrated_hard_blocked`。当前
+  required fields 仅冻结现有 output shape，不把 `calculated_at` 误认成 source observation。
+- `EVID-03` 后续必须由可信 source/provider 补齐 source observation time、identity/content
+  hash、config/version binding、owner scope、freshness 与 exact-current revalidation；在这些
+  证据具备前，SizingContext 不得进入 Evidence-governed input、审批或 execution path。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-08-13",
+  "updated_at": "2026-08-15",
   "status": "r1_r8_output_denominator_expanded",
   "allowed_claim_kinds": [
     "derived",
@@ -193,6 +193,21 @@
     }
   ],
   "surfaces": [
+    {
+      "source_symbol": "apps/account/application/use_cases.py::SizingContextOutput",
+      "owner_app": "account",
+      "output_kind": "risk_gate_state",
+      "claim_kind": "derived",
+      "method_kind": "deterministic",
+      "position_impact": "direct",
+      "current_gate_state": "not_evidence_integrated_hard_blocked",
+      "required_fields": [
+        "as_of_date",
+        "multiplier_result",
+        "portfolio_id",
+        "warnings"
+      ]
+    },
     {
       "source_symbol": "apps/alpha/application/dtos.py::AlphaResultDTO",
       "owner_app": "alpha",

@@ -17,10 +17,29 @@ from scripts.check_evidence_output_surfaces import (
 
 def test_repository_evidence_output_inventory_is_exact() -> None:
     assert validate_inventory(load_inventory()) == {
-        "surface_count": 65,
-        "direct_position_surface_count": 14,
+        "surface_count": 66,
+        "direct_position_surface_count": 15,
         "marked_surface_count": 53,
         "dynamic_surface_count": 18,
+    }
+
+
+def test_account_sizing_output_is_direct_but_hard_blocked_until_evidence_binding() -> None:
+    inventory = load_inventory()
+    sizing = next(
+        surface
+        for surface in inventory.surfaces
+        if surface.source_symbol.endswith("::SizingContextOutput")
+    )
+
+    assert sizing.owner_app == "account"
+    assert sizing.position_impact == "direct"
+    assert sizing.current_gate_state == "not_evidence_integrated_hard_blocked"
+    assert sizing.required_fields == {
+        "as_of_date",
+        "multiplier_result",
+        "portfolio_id",
+        "warnings",
     }
 
 

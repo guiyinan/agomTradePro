@@ -1,6 +1,6 @@
 # 文档归档索引
 
-> **归档日期**: 2026-08-12
+> **归档日期**: 2026-08-15
 > **说明**: 本目录存放已完成的过程性文档，供历史参考
 
 ---
@@ -114,6 +114,11 @@
 
 - `architecture-cycle-remediation-2026-07-15.md`（最终实现零双向依赖、零强连通循环组件）
 - `tui-ia-consolidation-2026-07-20.md`（AgomTradePro 主计划已实施；跨仓兼容后续由独立可移植性计划承接）
+
+#### 2026-08-15 限期审查队列收口
+
+- `macro-sizing-multiplier-outsourcing-2026-03-31.md`（实现资产已存在；source freshness、config/version/hash、owner scope 与 exact-current 残余验收转入 Evidence `EVID-03`）
+- `post-0.8.0-stabilization-priority-2026-07-08.md`（过期两周排期归档；未完成生产门禁按 S1-S10 转入当前 Data / Strategy / Evidence / TUI 工作流）
 
 #### AI、Terminal 与 MCP 收口
 

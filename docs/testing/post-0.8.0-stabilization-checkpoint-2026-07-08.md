@@ -2,7 +2,7 @@
 
 > **Date**: `2026-07-08`
 > **Scope**: post-`0.8.0` stabilization checkpoint after live Alpha/workspace readiness repairs
-> **Source plan**: [../plans/post-0.8.0-stabilization-priority-2026-07-08.md](../plans/post-0.8.0-stabilization-priority-2026-07-08.md)
+> **Source plan**: [../archive/plans/post-0.8.0-stabilization-priority-2026-07-08.md](../archive/plans/post-0.8.0-stabilization-priority-2026-07-08.md)
 
 ## Summary
 
