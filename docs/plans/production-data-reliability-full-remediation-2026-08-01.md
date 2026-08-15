@@ -320,3 +320,9 @@ migration、回填、reconciliation、切读或清理旧链。`DATA-01` 继续 `
 `sha256:12c5ce84ecd2d072846bb7777e6e0345e3ed83e98333bdf80ca35108d2a5c385`，health/ready
 与服务复核通过；ready 中 Alpha/Qlib 与 workspace freshness warnings 继续按数据合同保留，
 不作为 decision-data gate 完成证据。
+
+## 实施记录（2026-08-15，DATA-02 control-plane atomic snapshot）
+
+回填任务的 run、batch、checkpoint 现在由 Data Center composition root 在同一事务中提交；Application task 不直接持有 Django transaction。新增故障注入组件测试证明 checkpoint 持久化失败时三张控制面表全部回滚（`2 passed, 2 skipped`），任务单元 `8 passed`；architecture、增量 mypy、Celery contract、Black/isort 和 diff-check 均通过。
+
+这只是本地控制面原子性证据，不是 PostgreSQL 并发/锁预算、生产回填、coverage/reconciliation 或 DATA-01 维护态/恢复演练。`DATA-01` 仍为 `awaiting_production`，因此 `DATA-02/03` 继续锁定。

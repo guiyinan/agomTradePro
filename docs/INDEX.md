@@ -1029,6 +1029,9 @@
   - 仍不等于 restore/rebuild、维护态回滚、回填或 reconciliation；DATA-01 继续 awaiting，不解锁 DATA-02/03
 - ✅ **DATA-02 backfill control-plane PostgreSQL preflight contract（2026-08-15）**
   - 新增 PostgreSQL-only fake-provider 控制面预演：重试幂等、唯一 `run/batch/checkpoint` 和 partial 计数契约；本地 SQLite 仅 `1 passed, 2 skipped`，任务单元 `8 passed`，PostgreSQL-only 尚待 CI/一次性服务执行，不能作为生产回填或锁证据
+- ✅ **DATA-02 control-plane atomic snapshot rollback（2026-08-15）**
+  - run、batch、checkpoint 三个持久化调用由 Data Center composition root 统一包在同一事务；注入 checkpoint 写入失败时三张表均保持零行；组件 `2 passed, 2 skipped`、任务单元 `8 passed`，architecture/mypy/Celery/格式门禁通过
+  - 仅本地事务/回滚证据；PostgreSQL-only 并发与锁预算、生产回填、coverage/reconciliation 仍未取得，`DATA-02/03` 继续 waiting
 - ✅ **Equity research snapshot Django runtime contract（2026-08-14）**
   - Django 5.2.12 复跑 API `15`、SDK/MCP/routing/evidence `36`、use case/gateway `26`，合计 `77 passed`
   - 仅证明 mock/fake 隔离环境的软件契约与 fail-closed 行为；真实数据覆盖、PostgreSQL 规模/故障注入、备份恢复和 readiness 仍未解除
