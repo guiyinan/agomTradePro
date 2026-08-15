@@ -241,6 +241,7 @@ def test_selector_provider_errors_map_to_scope_taxonomy(
     [
         (EvidenceScopeSourceV1Unavailable("missing"), EvidenceScopeUnavailable),
         (EvidenceScopeSourceV1Corruption("bad"), EvidenceScopeCorruption),
+        (RuntimeError("tenant database secret"), EvidenceScopeUnavailable),
     ],
 )
 def test_reader_errors_map_to_scope_taxonomy(
@@ -256,6 +257,20 @@ def test_reader_errors_map_to_scope_taxonomy(
             reader=reader,
             selectors=_Selectors(_selector(source)),
         ).get_current_scope(artifact=source.artifact, as_of=AS_OF)
+
+
+def test_unexpected_reader_failure_is_sanitized() -> None:
+    source = _source()
+    reader = _Reader(source)
+    reader.error = RuntimeError("database password must not escape")
+
+    with pytest.raises(EvidenceScopeUnavailable, match="scope source is unavailable") as exc:
+        EvidenceScopeSourceV1Provider(
+            reader=reader,
+            selectors=_Selectors(_selector(source)),
+        ).get_current_scope(artifact=source.artifact, as_of=AS_OF)
+
+    assert "database password" not in str(exc.value)
 
 
 def test_source_hash_tamper_is_scope_corruption() -> None:

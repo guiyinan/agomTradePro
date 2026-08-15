@@ -75,6 +75,17 @@ class _EchoProvider:
         return _grant(artifact)
 
 
+class _ExplodingProvider:
+    def get_current_scope(
+        self,
+        *,
+        artifact: ArtifactRef,
+        as_of: datetime,
+    ) -> EvidenceScopeGrant:
+        del artifact, as_of
+        raise RuntimeError("database credentials must not escape")
+
+
 class _Reads:
     def __init__(self) -> None:
         self.calls: list[str] = []
@@ -134,6 +145,19 @@ def test_scope_hash_tamper_is_corruption() -> None:
             artifact=_artifact(),
             as_of=AS_OF,
         )
+
+
+def test_authorizer_sanitizes_unexpected_provider_failures() -> None:
+    with pytest.raises(
+        EvidenceScopeUnavailable,
+        match="current evidence scope is unavailable",
+    ) as exc:
+        EvidenceScopeAuthorizer(_ExplodingProvider()).require(
+            artifact=_artifact(),
+            as_of=AS_OF,
+        )
+
+    assert "database credentials" not in str(exc.value)
 
 
 def test_scoped_facade_authorizes_all_three_reads_before_repository_calls() -> None:

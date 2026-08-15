@@ -2371,6 +2371,19 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
   execution 保持关闭。下一阶段必须先建立可信 owner/tenant source lifecycle/provider 与其
   deployment/PG 证据，再组装 production read path。
 
+### 2026-08-15：EVID-01 authority provider exception boundary hardening
+
+- 复核发现 owner-scoped scope authorizer 以及 dormant ScopeSourceV1 selector/reader adapter
+  对未知数据库、RBAC 或 provider 异常没有统一分类；这会让内部错误穿透 scoped facade，不能
+  满足 authority unavailable 时稳定 fail-closed 的边界。现已将未知 `Exception` 统一转换为
+  脱敏的 `EvidenceScopeUnavailable`，已知 corruption/unavailable 仍保持既有分类，不捕获
+  `BaseException`，也不把异常当作授权成功或 fallback。
+- 新增 selector、reader、authorizer 的异常回归与消息脱敏断言；scope-source 单元集为
+  `68 passed`，Black/isort、增量 mypy、architecture/audit delta 与 diff-check 通过。
+- 这只是本地异常边界加固，不是 owner/tenant authority source：仍没有 immutable lifecycle、
+  server-issued selector、同 alias atomic bundle、生产 composition、PostgreSQL race/rollback、
+  人工授权或 production route；EVID-01、Evidence hard gate、写入和 execution 继续关闭。
+
 ### 2026-08-15：Macro sizing residual output moved into Evidence EVID-03
 
 - 原 Macro sizing 外包任务书的实现资产已完成仓库范围对账，但其 `SizingContextOutput` 同时

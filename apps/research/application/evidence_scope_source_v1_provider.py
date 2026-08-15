@@ -96,6 +96,11 @@ class EvidenceScopeSourceV1Provider(EvidenceScopeProvider):
             raise EvidenceScopeCorruption(
                 "scope selector provider returned invalid data"
             ) from error
+        except Exception:
+            # A concrete selector source may call User/RBAC/tenant storage.
+            # Keep infrastructure failures opaque and fail closed as an
+            # unavailable authority rather than widening the read scope.
+            raise EvidenceScopeUnavailable("scope selector is unavailable") from None
         if selector is None:
             return None
         if type(selector) is not EvidenceScopeSourceV1Selector:
@@ -116,6 +121,9 @@ class EvidenceScopeSourceV1Provider(EvidenceScopeProvider):
             raise EvidenceScopeCorruption("scope source is corrupt") from error
         except (TypeError, ValueError) as error:
             raise EvidenceScopeCorruption("scope source selector is invalid") from error
+        except Exception:
+            # Do not expose database/provider details through this boundary.
+            raise EvidenceScopeUnavailable("scope source is unavailable") from None
         if source is None:
             return None
         if type(source) is not EvidenceScopeSourceV1:

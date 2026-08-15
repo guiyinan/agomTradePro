@@ -103,7 +103,15 @@ class EvidenceScopeAuthorizer:
             raise TypeError("artifact must be an exact ArtifactRef")
         if type(as_of) is not datetime or as_of.tzinfo is None:
             raise TypeError("as_of must be timezone-aware")
-        grant = self._provider.get_current_scope(artifact=artifact, as_of=as_of)
+        try:
+            grant = self._provider.get_current_scope(artifact=artifact, as_of=as_of)
+        except (EvidenceScopeUnavailable, EvidenceScopeCorruption):
+            raise
+        except Exception:
+            # Provider implementations may reach a database or RBAC service.
+            # Do not let implementation details escape the owner-scoped read
+            # boundary; an unavailable authority is safer than a broad read.
+            raise EvidenceScopeUnavailable("current evidence scope is unavailable") from None
         if grant is None:
             raise EvidenceScopeUnavailable("current evidence scope is unavailable")
         if type(grant) is not EvidenceScopeGrant:
