@@ -171,6 +171,19 @@ def test_query_commands_reject_naive_clocks_and_invalid_reader_identity() -> Non
         )
 
 
+@pytest.mark.parametrize("field", ["actor_id", "role"])
+@pytest.mark.parametrize("value", ["bad value", "x" * 193])
+def test_reader_context_rejects_noncanonical_identity_tokens(field: str, value: str) -> None:
+    with pytest.raises(ValueError, match="bounded canonical token"):
+        SystemAuditReaderContext(
+            actor_id=value if field == "actor_id" else "django-user:7",
+            user_id=7,
+            is_authenticated=True,
+            is_staff=True,
+            role=value if field == "role" else "admin",
+        )
+
+
 def test_unsorted_repository_result_fails_closed() -> None:
     first = make_event()
     repository = FakeRepository((first, first))

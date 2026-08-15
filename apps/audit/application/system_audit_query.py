@@ -14,6 +14,19 @@ from typing import Protocol
 from apps.audit.domain.system_audit_event import SystemAuditEvent
 
 
+def _require_token(value: object, field: str) -> None:
+    """Require one bounded, whitespace-free query identity token."""
+
+    if (
+        type(value) is not str
+        or not value
+        or len(value) > 192
+        or value.strip() != value
+        or any(character.isspace() for character in value)
+    ):
+        raise ValueError(f"{field} must be a bounded canonical token")
+
+
 class SystemAuditQueryUnavailable(Exception):
     """The caller is not eligible or the requested PIT is unavailable."""
 
@@ -33,14 +46,12 @@ class SystemAuditReaderContext:
     role: str
 
     def __post_init__(self) -> None:
-        if not isinstance(self.actor_id, str) or not self.actor_id:
-            raise ValueError("audit reader actor_id must be a non-empty string")
+        _require_token(self.actor_id, "audit reader actor_id")
         if not isinstance(self.user_id, int) or isinstance(self.user_id, bool) or self.user_id <= 0:
             raise ValueError("audit reader user_id must be a positive integer")
         if not isinstance(self.is_authenticated, bool) or not isinstance(self.is_staff, bool):
             raise TypeError("audit reader authentication flags must be bools")
-        if not isinstance(self.role, str) or not self.role:
-            raise ValueError("audit reader role must be a non-empty string")
+        _require_token(self.role, "audit reader role")
 
     @property
     def can_read(self) -> bool:

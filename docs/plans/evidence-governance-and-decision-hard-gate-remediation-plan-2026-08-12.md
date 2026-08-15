@@ -2583,3 +2583,8 @@ route；`EVID-01`、Evidence hard gate、写入和 execution 继续关闭。
 query fail-closed 语义不变。该 slice 只收紧本地 composition contract；没有 authenticated
 authority source、tenant/owner lifecycle、durable publisher、production route 或审计运行时接入，
 `AUD-01` 与 AUD-02/03 依赖状态不变。
+
+同一边界已同步到 `SystemAuditReaderContext` 的直接 query contract：actor 与 role selector
+不能通过空白或超长值绕过 canonical context 构造。query unit `14 passed`，与 composition、
+outbox dispatch/metrics runtime 聚合回归 `46 passed`；这仍只是 dormant read contract，不能替代
+真实 authenticated/RBAC authority source。
