@@ -2337,6 +2337,19 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
   空链并发/回滚证据，也没有可信 owner/tenant immutable lifecycle、User/session/tenant 取证、
   人工授权或 production composition；Evidence hard gate、写入和 execution 总闸继续关闭。
 
+### 2026-08-15：Evidence owner/tenant authority source dormant provider adapter
+
+- 新增 `EvidenceScopeSourceV1Provider`。它只接受服务端签发的 source ID/version/content hash
+  selector，并通过既有 current Application reader 完整重验 exact source、artifact identity、
+  recorded PIT、temporal validity 与最终 head，之后才投影为 `EvidenceScopeGrant`；缺 selector、
+  source/artifact substitution、reader unavailable/corruption、revoked/expired source 均 fail
+  closed。provider unit `15 passed`，source Domain/codec/Application/schema/repository/facade 组合
+  回归 `79 passed`。
+- 该 adapter 是 dormant Application contract，不读取 mutable Django User、session、tenant 或
+  request，不生成 selector，不提供 writer、人工授权或 route，也不把 source content hash 冒充
+  grant projection hash。可信 owner/tenant immutable lifecycle/provider composition、PostgreSQL
+  空链并发、production composition、Evidence hard gate、写入和 execution 继续关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

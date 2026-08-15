@@ -937,6 +937,9 @@
 - ✅ **Evidence owner/tenant authority source repository（2026-08-15）**
   - public exact/PIT/current-head reader 与 private atomic append store 已完成；selector/append 前全表 canonical restore、逐列 header/chain 校验、root/successor predecessor CAS、exact replay、terminal/expired no-fallback、tamper/rollback fail closed；repository `6 passed`，schema+repository `10 passed`，组合回归 `66 passed`
   - 仅本地 repository/schema contract；PostgreSQL 空链并发、可信 owner/tenant immutable lifecycle/provider、production composition、人工授权和 route 仍未完成，Evidence hard gate、写入和 execution 继续关闭
+- ✅ **Evidence owner/tenant authority source dormant provider adapter（2026-08-15）**
+  - `EvidenceScopeSourceV1Provider` 只接受服务端 selector，先走 current reader 完整重验 source identity/content/artifact/PIT/current，再投影现有 `EvidenceScopeGrant`；缺 selector、source substitution、terminal/expired、reader unavailable/corruption 均 fail closed；provider `15 passed`，组合回归 `79 passed`
+  - 仅 dormant Application adapter，未读取 mutable User/session/tenant、未创建可信 selector lifecycle/provider composition、未接 API/人工授权/production route；PostgreSQL 并发、Evidence hard gate、写入和 execution 继续关闭
 - ✅ **Web→TUI M5-C alias target checker correction（2026-08-14）**
   - 最终库存检查器同时读取 published graph 与 IA `published_screens`/`runtime_screens`，因此 runtime 注入的 `capability-router.mcp-center` 会被正确视为 canonical target；`capability-router.gateway` dangling 误报已消除
   - 11 个无活生产代码消费者的 dead alias 仍需真实流量观察、逐 wave 与回滚证据后再清理；M5 final 仍 DENY
