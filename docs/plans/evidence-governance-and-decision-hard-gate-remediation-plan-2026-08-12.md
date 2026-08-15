@@ -2619,3 +2619,18 @@ backfill，不证明 authority 已存在；对应 scope-provider 与 actor-autho
 下一真实依赖固定为：不可变 tenant/owner lifecycle、authenticated staff/tenant/owner provider、
 Research/Portfolio/Risk/Broker 同源 exact bundle，以及合格 staging/production PostgreSQL
 并发与回滚证据。完成这些前，EVID-01/EVID-03、AUD-01、写入和 execution 总闸保持关闭。
+
+## 2026-08-16：EVID-01 当前候选 authority inventory 复核
+
+在当前 production candidate `e167ab2fc748e4c93d2622f93fa8cc75442b2bb6` /
+release `20260816004134` 上，通过只读 PostgreSQL 查询复核了 0050–0053 migration 与
+authority 账本行数。0050、0051、0052、0053 均已应用；auth-context、User/RBAC raw
+authority、actor source、Evidence scope、subject/evidence/receipt 账本均为 `0` 行。
+机器摘要见
+[`evid-01-authority-inventory-2026-08-16.json`](../deployment/evid-01-authority-inventory-2026-08-16.json)。
+
+这确认当前部署是 schema-ready/zero-seed，而不是已经存在可用的 owner/tenant authority。
+不得从 mutable User/Profile/session/request、数据库 alias 或现场 hash 推导或回填 authority；
+EVID-01、Evidence hard gate、写入和 execution 继续保持关闭。下一真实交付仍是 owner-issued
+immutable lifecycle、authenticated scoped provider、同 alias exact bundle、人工授权和
+production PostgreSQL 并发/回滚证据。
