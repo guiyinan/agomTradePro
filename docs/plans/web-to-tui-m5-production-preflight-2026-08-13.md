@@ -64,3 +64,16 @@
 - 部署前 PostgreSQL custom-format 备份已生成：`postgres-20260815-085317.dump`，140079790 bytes，SHA-256 `f72ea2cff4ff2c137425069a404936e6d24ed8a301533f49bdea943d0334535e`。
 
 详细结构化记录见 [`docs/deployment/vps-deployment-evidence-2026-08-15.md`](../deployment/vps-deployment-evidence-2026-08-15.md)。本次使用标准 `git-clone` 构建并独立验证 `pyqlib=0.9.7`；TUI AI provider failure guidance 修复已随该 release 部署。该证据仍不替代角色化浏览器 UAT、写后回执、14 日观察和 restore/rebuild 演练。因此 M5 仍保持 `DENY`，观察窗口只允许从本次 verified_at 之后开始，不能回填历史窗口。
+
+### 2026-08-15 后续候选：AUD-01 fail-closed 修复
+
+随后候选 `dev/next-development@a76db97d4322fd7f6a2323f4f567873e8c53199c` 已完成同样的
+标准 `git-clone` 代码-only upgrade 部署：release `20260815152834`，image
+`agomtradepro-web:20260815152834`，image ID
+`sha256:12c5ce84ecd2d072846bb7777e6e0345e3ed83e98333bdf80ca35108d2a5c385`，OCI/source
+revision 完全一致。HTTPS health/ready、容器、迁移、canonical schema、TUI registry、
+Qlib/Celery 复核通过；ready 仍有 Alpha/Qlib 与 workspace freshness warnings。
+
+本候选只替换了可复核的部署身份并携带 AUD-01 本地合同加固，不改变 M5 判定：角色化
+浏览器 UAT、写后 receipt/refresh、14 日观察、cleanup/rollback 双签仍缺，M5 继续
+`DENY`。详细备份与运行证据见部署证据文档的“后续候选部署”节。

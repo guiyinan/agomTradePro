@@ -64,3 +64,32 @@
 - Data Center 全市场覆盖、shadow reconciliation、性能/锁预算和真实恢复演练仍未完成。
 - AUD-01 durable publisher、authenticated scoped authority 与生产运行时接线仍未完成；本次部署不解除相关 gate。
 - overlay 依赖基底的全量可重复构建仍需单独取得成功证据。
+
+## 后续候选部署（2026-08-15 15:28 release）
+
+为纳入 `AUD-01` malformed receipt fail-closed 修复，重新以
+`dev/next-development@a76db97d4322fd7f6a2323f4f567873e8c53199c` 运行同一套
+`-Upgrade`、代码-only、保留数据卷的 VPS 部署。远端 `git-clone` 构建与 provenance
+校验成功，且已完成服务重启后的独立复核。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260815152834` |
+| current release | `/opt/agomtradepro/releases/source-20260815152834` |
+| source commit | `a76db97d4322fd7f6a2323f4f567873e8c53199c` |
+| image | `agomtradepro-web:20260815152834` |
+| image ID | `sha256:12c5ce84ecd2d072846bb7777e6e0345e3ed83e98333bdf80ca35108d2a5c385` |
+| OCI/source binding | release manifest source commit 与 OCI revision 均等于 `a76db97d4322fd7f6a2323f4f567873e8c53199c` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260815152834.json`（本地下载副本） |
+| backup | `/opt/agomtradepro/backups/database/postgres-20260815-093506.dump`；manifest `/opt/agomtradepro/backups/meta/manifest-20260815-093506.txt` |
+
+复核结果：HTTPS `/api/health/` 与 `/api/ready/` 均 HTTP 200；web healthy，Celery
+worker/beat、PostgreSQL、Redis、RSSHub 均运行；account migrations 无待应用项，
+canonical schema、Django deploy check、TUI publish/check、Qlib `pyqlib=0.9.7`
+（错误 `qlib` distribution 缺失）和 Celery ping 均通过。`/api/ready/` 仍报告
+Alpha/Qlib provider degraded、workspace recommendation stale，以及市场温度计部分
+组件 stale；这些 warning 不得被写成 decision-data 或 M5 完成证据。
+
+该候选只更新部署身份与运行复核，不解除 M5 角色化浏览器 UAT、写后回执、14 日观察、
+restore/rebuild，也不解除 AUD-01 durable publisher、authenticated scoped authority
+和生产 runtime wiring 门禁。
