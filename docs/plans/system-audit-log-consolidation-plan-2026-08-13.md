@@ -709,3 +709,14 @@ pytest tests/unit/test_internal_ssl_redirect.py -q
 5. Metrics/Alert、TUI、双写切换分别作为独立提交组，避免功能、治理、界面和生产切换混在一个批次。
 
 本计划完成前，现有运行日志、RawAudit、OperationLog、Provider Health、Publication、Task Monitor 和 `/metrics/` 均继续保留；任何一项现有证据或硬闸不得仅因“统一审计正在建设”而提前退役或放宽。
+
+## 实施记录（2026-08-15，AUD-01 authority boundary hardening）
+
+在既有 AUD-01 composition preflight contract 基础上，`get_system_audit_reader_context()` 现在
+在触碰 provider 前严格拒绝非 `datetime` 或 naive cutoff；provider 抛出异常或返回错误类型时，
+统一转为稳定的 `authority_unavailable`，不把数据库、RBAC 或其他内部异常内容泄露到读取边界。
+
+定向 `tests/unit/audit/test_system_audit_composition.py` 为 `15 passed`；增量 mypy、architecture
+audit、Black、isort 与 diff-check 通过。该 slice 仍不创建 authority source，也不改变
+`publisher_not_wired` runtime gate；真实 authenticated scoped lifecycle、durable publisher/receipt
+sink、beat/retry、PostgreSQL/VPS 证据和 AUD-02 Data Center 同 UOW 继续未完成。

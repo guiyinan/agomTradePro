@@ -1022,6 +1022,9 @@
 - ✅ **系统级统一审计日志 AUD-01 composition preflight contract（2026-08-15）**
   - 新增纯 Application publisher/authority boundary：publisher 必须返回 exact event-preservation receipt，authority 必须来自注入 provider；dispatcher 对 envelope substitution、generic/memory 风格返回值与未绑定 authority 均 fail closed；audit 定向回归 `20 passed`
   - 仅完成本地合同与阻断边界；runtime 仍固定 `publisher_not_wired`，没有 durable sink、authenticated scoped lifecycle、beat/retry/PG/VPS 证据，AUD-01 未解除，AUD-02 继续等待
+- ✅ **系统级统一审计日志 AUD-01 authority boundary hardening（2026-08-15）**
+  - authority cutoff 严格要求 aware `datetime`；provider 异常或错误类型结果统一脱敏为 `authority_unavailable`，不泄露数据库/RBAC异常；定向 unit `15 passed`，增量 mypy/architecture/Black/isort/diff-check 通过
+  - 仍未接真实 authenticated scoped authority、durable publisher/receipt sink、beat/retry、PostgreSQL/VPS 证据；`AUD-01` 未解除，`AUD-02` 继续等待
 - ✅ **DATA-01 production PostgreSQL backup evidence refresh（2026-08-15）**
   - `scripts/backup-vps-postgres.ps1` 重新取得并验证 custom-format 归档（`139057048` bytes，SHA-256 `a8f005eb3a461f28d21689ecef6d5aee89b59a353d06944b79e08c82662839cc`）；仅完成备份子步骤，维护态/恢复/回滚/回填仍未通过，DATA-01 继续 awaiting
 - ✅ **DATA-01 latest PostgreSQL backup refresh（2026-08-15）**
