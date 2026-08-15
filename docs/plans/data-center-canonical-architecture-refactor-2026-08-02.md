@@ -1617,6 +1617,17 @@ CI 观察结论：
 
 这只刷新了 DATA-01 的 backup evidence，不代表生产恢复、维护态/回滚演练或 Data Center canonical 切换已通过。下一项可在不连接生产、不改变 registry 状态的前提下做 DATA-02 software-preflight：使用一次性本地 PostgreSQL 与 fake provider 跑真实回填控制面编排，核对 `run_id/batch_id/checkpoint/outcome` 和重试幂等；生产回填、全量 coverage、legacy reconciliation 与 M9/M10 仍保持锁定。
 
+## 实施记录（2026-08-15，DATA-02 control-plane PostgreSQL preflight contract）
+
+为 DATA-02 补充了 PostgreSQL-only 的控制面预演用例，仍复用真实回填任务、composition repository 和三张 `SyncRun`/`SyncBatch`/`SyncCheckpoint` 表；fake provider 只作为测试输入，不写入生产或 registry：
+
+- 首次成功批次与相同参数重试必须保持一组稳定的 `run_id/batch_id/checkpoint`，不产生第二批次。
+- 单一 price provider 失败必须持久化 `partial`，并保持 `requested/succeeded/failed/stored`、错误列表和 checkpoint 状态一致。
+- 本机默认 SQLite 仅作结构性回归：`python -m pytest tests/component/data_center/test_core_data_backfill_control_plane.py -q --confcutdir=tests/component/data_center --no-migrations --reuse-db` 得到 `1 passed, 2 skipped`；新增用例因非 PostgreSQL 明确跳过。回填任务单元回归 `python -m pytest tests/unit/data_center/test_core_data_backfill_task.py -q --confcutdir=tests/unit` 得到 `8 passed`。
+- PostgreSQL-only 用例尚未在本机或生产运行；它们需要 CI 的一次性 PostgreSQL 服务，不能把 SQLite skip 当成并发、锁、真实 PostgreSQL 事务或生产回填证据。
+
+因此这只是 DATA-02 的 software-preflight contract，不改变 `DATA-01=awaiting`、`DATA-02=waiting`，不解锁生产回填、legacy/canonical reconciliation、coverage、M9/M10 或任何破坏性操作。
+
 ## 实施记录（2026-08-04，Tushare 不可用时的 AKShare 回填验证）
 
 本批次不修改旧链、不伪造估值；在已验证 PostgreSQL 备份之后，使用同一套可恢复的核心 A 股回填入口显式指定 `source=akshare`，验证暂时不依赖 Tushare 时系统仍能运行。
