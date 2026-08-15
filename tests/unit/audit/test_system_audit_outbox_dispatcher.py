@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -133,6 +134,23 @@ def test_dispatch_rejects_publisher_without_exact_preservation_receipt() -> None
 
     assert (result.claimed, result.delivered, result.failed) == (1, 0, 1)
     assert result.outcome == "failed"
+    assert repository.failed[0]["error_code"] == "publisher_contract_violation"
+
+
+def test_dispatch_classifies_noncanonical_receipt_payload_as_contract_failure() -> None:
+    class MalformedPayloadPublisher:
+        def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
+            receipt = CanonicalSystemAuditPublishReceipt.from_event(event)
+            return replace(receipt, canonical_payload={"invalid": object()})
+
+    repository = Repository(_claim())
+    result = DispatchSystemAuditOutboxUseCase(
+        repository,
+        MalformedPayloadPublisher(),
+        UnitOfWork(),
+    ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
+
+    assert (result.claimed, result.delivered, result.failed) == (1, 0, 1)
     assert repository.failed[0]["error_code"] == "publisher_contract_violation"
 
 

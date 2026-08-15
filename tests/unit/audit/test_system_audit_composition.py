@@ -104,6 +104,9 @@ def test_publish_receipt_preserves_all_event_identity_and_payload() -> None:
     with pytest.raises(SystemAuditPublisherContractViolation):
         replace(receipt, canonical_payload=payload).validate_for(event)
 
+    with pytest.raises(SystemAuditPublisherContractViolation, match="non-canonical"):
+        replace(receipt, canonical_payload={"invalid": object()}).validate_for(event)
+
 
 def test_publish_receipt_rejects_bool_for_sequence_number() -> None:
     event = make_event()

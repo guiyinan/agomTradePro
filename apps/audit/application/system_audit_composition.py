@@ -108,6 +108,14 @@ class CanonicalSystemAuditPublishReceipt:
         if not isinstance(event, SystemAuditEvent):
             raise SystemAuditPublisherContractViolation("publisher event type was substituted")
         expected = self.from_event(event)
+        try:
+            payload_matches = _canonical_bytes(self.canonical_payload) == _canonical_bytes(
+                expected.canonical_payload
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise SystemAuditPublisherContractViolation(
+                "publisher receipt contained a non-canonical payload"
+            ) from exc
         if (
             self.event_id != expected.event_id
             or self.event_version != expected.event_version
@@ -117,8 +125,7 @@ class CanonicalSystemAuditPublishReceipt:
             or self.sequence_no != expected.sequence_no
             or self.predecessor_hash != expected.predecessor_hash
             or self.idempotency_key != expected.idempotency_key
-            or _canonical_bytes(self.canonical_payload)
-            != _canonical_bytes(expected.canonical_payload)
+            or not payload_matches
         ):
             raise SystemAuditPublisherContractViolation(
                 "publisher receipt did not preserve the canonical event"
