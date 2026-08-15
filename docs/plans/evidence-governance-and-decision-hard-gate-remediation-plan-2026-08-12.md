@@ -2360,6 +2360,17 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
   grant projection hash。可信 owner/tenant immutable lifecycle/provider composition、PostgreSQL
   空链并发、production composition、Evidence hard gate、写入和 execution 继续关闭。
 
+### 2026-08-15：EVID-01 下一 slice exit audit
+
+- 对 ScopeSourceV1 的 Domain、strict codec、Application reader、zero-seed ledger、closed-world
+  repository 与 dormant provider，以及 Account actor-authority raw ledgers 做了闭环审计。
+- 结论：当前仓库没有比 dormant provider 更强、且不依赖真实 immutable owner/tenant lifecycle
+  selector issuer、同 alias atomic bundle 和 PostgreSQL 空链/current-head 竞争证据的安全下一小批。
+  不新增只按 alias 组装的胶水，避免把零种子账本包装成 production authority。
+- EVID-01 继续 active；production owner/tenant read、人工授权、Evidence hard gate、写入和
+  execution 保持关闭。下一阶段必须先建立可信 owner/tenant source lifecycle/provider 与其
+  deployment/PG 证据，再组装 production read path。
+
 ### 2026-08-15：Macro sizing residual output moved into Evidence EVID-03
 
 - 原 Macro sizing 外包任务书的实现资产已完成仓库范围对账，但其 `SizingContextOutput` 同时
