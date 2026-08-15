@@ -2525,3 +2525,16 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
   必须是本地/测试服务且数据库名同时含 `evidence` 与 `test`，非空库、SQLite、VPS/生产 host 均拒绝。
 - 默认运行保持 `3 skipped`；本轮未取得 disposable PostgreSQL 实际运行证据（Docker daemon 当前未能响应），
   因此 `EVID-02` 仍为 planned，不能把 SQLite 或测试收集结果写成 PostgreSQL 并发通过。
+
+## 2026-08-15 EVID-01 scope grant integrity hardening
+
+`EvidenceScopeAuthorizer` 现在在接受 provider 返回的 grant 后重新执行完整的
+`EvidenceScopeGrant` invariant，再核对 content hash；provider 不能通过替换 permission、
+identity 或 scope 字段并重算 hash 来绕过 `read_only`/scope 合同。scope ID、version、actor、
+tenant、account token 也统一要求严格字符串、无空白且长度不超过 192。
+
+新增 permission substitution（重算 hash）和非法 token 回归。EVID scope/source/facade 全套
+回归 `74 passed`，增量 mypy 无 regressions，Black/isort/diff-check 通过。该 slice 仍只是
+本地 fail-closed authority boundary；没有 immutable owner/tenant lifecycle、真实 provider、
+PostgreSQL 并发、人工授权或 production route，`EVID-01` 与 Evidence hard gate、写入和
+execution 继续关闭。
