@@ -448,3 +448,22 @@ SHA-256 校验后才原子替换目标文件，最终失败会清理 partial。�
 
 这修复并证明了 DATA-01 的“可验证备份下载”子步骤，但不等于 restore/rebuild、RTO/RPO、
 维护态 rollback 或 reconciliation。`DATA-01` 继续 `awaiting_production`，不解锁 `DATA-02/03`。
+
+## 实施记录（2026-08-16，VPS 隔离 restore rehearsal）
+
+针对当前候选 `e167ab2fc748e4c93d2622f93fa8cc75442b2bb6` 的部署前归档，在 VPS PostgreSQL
+容器内创建受控临时库 `agomtradepro_restore_verify_20260816_01`，以 `pg_restore` 完整恢复，
+再由 web 容器按 `verify_postgres_backup_restore.py` 的全表快照合同比较源库与恢复库。归档
+`/opt/agomtradepro/backups/database/postgres-20260815-184803.dump`（`140318641` bytes，
+SHA-256 `4760a38fdfc7ef8570323cfb5dde92ab01eb933cd60d4f6dd08700fc34772752`）的
+`pg_restore --list` 与实际 `pg_restore` 均返回 `0`。
+
+- 恢复库与源库均为 `536` 张 public 表、`71` 项 Data Center migrations；schema SHA 均为
+  `4390158a547a52f9c4cefa327b67d65680469b06c18491da65a10cb08a9934ce`。
+- 当前源快照仍有 `10` 张表和 `4` 个 sequence 与归档恢复库不同；这是备份创建后生产源继续写入造成的
+  live-source drift，不能被写成字节级快照一致。原始摘要保存在
+  [`vps-restore-rehearsal-2026-08-16.json`](../deployment/vps-restore-rehearsal-2026-08-16.json)。
+- 临时库在成功/失败路径均清理，复核后剩余同前缀临时库为 `0`；没有改动生产数据库、schema、迁移或业务行。
+
+本条证明了 VPS 上实际 restore 与结构/schema 对比链路可运行，但不证明备份时点的内容一致、RTO/RPO、
+维护态 rollback 或 reconciliation；`DATA-01` 仍为 `awaiting_production`，不解锁 `DATA-02/03`。

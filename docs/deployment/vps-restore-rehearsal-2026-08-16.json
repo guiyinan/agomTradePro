@@ -1,0 +1,35 @@
+{
+  "version": "vps-postgres-restore-rehearsal.v1",
+  "environment": "production",
+  "observed_at": "2026-08-15T17:34:05Z",
+  "source_release": "e167ab2fc748e4c93d2622f93fa8cc75442b2bb6",
+  "source_release_version": "20260816004134",
+  "backup": {
+    "remote_path": "/opt/agomtradepro/backups/database/postgres-20260815-184803.dump",
+    "size_bytes": 140318641,
+    "sha256": "4760a38fdfc7ef8570323cfb5dde92ab01eb933cd60d4f6dd08700fc34772752",
+    "pg_restore_list_exit_code": 0
+  },
+  "restore": {
+    "database": "agomtradepro_restore_verify_20260816_01",
+    "pg_restore_exit_code": 0,
+    "table_count": 536,
+    "data_center_migration_count": 71,
+    "schema_sha256": "4390158a547a52f9c4cefa327b67d65680469b06c18491da65a10cb08a9934ce",
+    "temporary_database_removed": true,
+    "remaining_matching_temporary_databases": []
+  },
+  "comparison": {
+    "table_set_match": true,
+    "migration_set_match": true,
+    "schema_match": true,
+    "changed_table_count": 10,
+    "sequence_difference_count": 4,
+    "outcome": "restore_completed_current_source_drift"
+  },
+  "boundary": [
+    "The source snapshot was taken after the backup was created; changed rows and sequences therefore show live-source drift, not a byte-level comparison at backup time.",
+    "No production database, schema, migration, or business row was modified.",
+    "This proves an isolated VPS restore and structural/schema match only; it does not prove RTO/RPO, maintenance rollback, or reconciliation."
+  ]
+}
