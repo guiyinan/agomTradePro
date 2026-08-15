@@ -1611,6 +1611,12 @@ CI 观察结论：
 - `ready` 的核心探针只证明当前决策样本可用，不等于 D0-D9 全量生产数据就绪；Alpha workspace 仍报告滞后 warning。
 - 下一阶段必须先完成 D0-D9 覆盖回填与 legacy/canonical 对账，保存至少行情 3 个交易日+周末、宏观 2 个调度周期的观察证据，再执行停旧写、切读和 M9 清理。
 
+## 实施记录（2026-08-15，DATA-01 backup evidence refresh）
+
+生产 PostgreSQL 备份按当前运维脚本重新取得并验证：`scripts/backup-vps-postgres.ps1` 成功完成远端 custom-format 归档、`pg_restore --list`、原子下载和本地 SHA-256 校验。归档为 `/opt/agomtradepro/backups/database/postgres-20260815T030811Z.dump`，本地副本为 `backups/vps-postgres/postgres-20260815T030811Z.dump`，大小 `139057048` bytes，SHA-256 为 `a8f005eb3a461f28d21689ecef6d5aee89b59a353d06944b79e08c82662839cc`。
+
+这只刷新了 DATA-01 的 backup evidence，不代表生产恢复、维护态/回滚演练或 Data Center canonical 切换已通过。下一项可在不连接生产、不改变 registry 状态的前提下做 DATA-02 software-preflight：使用一次性本地 PostgreSQL 与 fake provider 跑真实回填控制面编排，核对 `run_id/batch_id/checkpoint/outcome` 和重试幂等；生产回填、全量 coverage、legacy reconciliation 与 M9/M10 仍保持锁定。
+
 ## 实施记录（2026-08-04，Tushare 不可用时的 AKShare 回填验证）
 
 本批次不修改旧链、不伪造估值；在已验证 PostgreSQL 备份之后，使用同一套可恢复的核心 A 股回填入口显式指定 `source=akshare`，验证暂时不依赖 Tushare 时系统仍能运行。

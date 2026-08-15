@@ -279,3 +279,15 @@ provider 健康度从“连接可用”升级为能力级状态：
 - 不用模型常识或搜索结果填补系统数据缺口。
 - 不把基础服务存活等同于数据可用于投资决策。
 - 不在未完成备份、维护阻断和回滚基线前删除生产快照。
+
+## 实施记录（2026-08-15，DATA-01 production backup evidence）
+
+本批次只完成 DATA-01 的生产备份子步骤；没有进入维护态，没有执行 destructive migration、回填、切读或清理旧链。
+
+- 运行 `scripts/backup-vps-postgres.ps1` 成功创建并下载 PostgreSQL custom-format 归档。
+- 远端归档：`/opt/agomtradepro/backups/database/postgres-20260815T030811Z.dump`。
+- 本地归档：`backups/vps-postgres/postgres-20260815T030811Z.dump`；大小 `139057048` bytes。
+- 远端 `pg_restore --list`、下载后的尺寸校验和本地 SHA-256 均通过；SHA-256：`a8f005eb3a461f28d21689ecef6d5aee89b59a353d06944b79e08c82662839cc`。
+- 归档目录受 Git ignore 保护，未把生产数据库内容提交进仓库；未执行旧备份清理。
+
+边界保持不变：备份证据不等于恢复演练。维护态切换、restore/rebuild 演练、受控回填与 reconciliation、性能/锁预算和最终解除维护或回滚仍未完成，`DATA-01` 继续保持 `awaiting_production`，不得据此解锁 `DATA-02/03` 或任何破坏性操作。
