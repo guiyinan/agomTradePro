@@ -360,6 +360,22 @@ schema 与 Data Center migration 对比合同由
 restore/rebuild、RTO 或回滚通过证据。`DATA-01` 继续 `awaiting_production`，维护态、
 生产恢复/重建、回滚演练、回填和 reconciliation 仍未完成，也不解锁 `DATA-02/03`。
 
+## 实施记录（2026-08-15，当前候选部署后 backup refresh）
+
+当前候选 `dev/next-development@cf68dc1e972ecd6e0ae002e4d4f96ff07ef86542` 部署完成后，
+运行 `scripts/backup-vps-postgres.ps1 -DownloadLatest` 下载并复核最新 PostgreSQL
+custom-format 归档：
+
+- 远端：`/opt/agomtradepro/backups/database/postgres-20260815-123539.dump`。
+- 本地：`backups/vps-postgres/postgres-20260815-123539.dump`，大小 `140176474` bytes。
+- 远端 `pg_restore --list`、SFTP 完整下载、尺寸和本地 SHA-256 均通过；SHA-256：
+  `e1c0821543a36f19d2ea292d9c4fdc544003010579ccef5df9175d083a2e2e2f`。
+- 远端 prune 未启用，未执行任何恢复、回填、切读或 destructive migration。
+
+这只新增恢复点证据，不等于 restore/rebuild、RTO/RPO、维护态 rollback 或 reconciliation。
+由于本机仍缺少 `pg_restore`/`psql` 客户端且此前 Docker 本地恢复链路超时，`DATA-01` 继续
+`awaiting_production`，不解锁 `DATA-02/03`。
+
 ## 实施记录（2026-08-15，DATA-02 control-plane atomic snapshot）
 
 回填任务的 run、batch、checkpoint 现在由 Data Center composition root 在同一事务中提交；Application task 不直接持有 Django transaction。新增故障注入组件测试证明 checkpoint 持久化失败时三张控制面表全部回滚（`2 passed, 2 skipped`），任务单元 `8 passed`；architecture、增量 mypy、Celery contract、Black/isort 和 diff-check 均通过。

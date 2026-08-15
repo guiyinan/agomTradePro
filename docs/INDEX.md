@@ -1048,6 +1048,9 @@
 - ✅ **DATA-01 local restore/rebuild verification attempt（2026-08-15）**
   - 既有恢复脚本合同单测 `10 passed`；临时 PostgreSQL 容器在 `initdb` bootstrap 超时，专用本地数据库的归档传输又被 Docker Desktop API 超时阻断，未执行 `pg_restore`/快照对比；专用数据库和临时文件已清理，未写 VPS
   - 不产生 restore/rebuild、RTO 或回滚通过证据；DATA-01 继续 awaiting，不解锁 DATA-02/03
+- ✅ **DATA-01 当前候选部署后 backup refresh（2026-08-15）**
+  - `cf68dc1e9` 部署后以 `scripts/backup-vps-postgres.ps1 -DownloadLatest` 下载并验证 `postgres-20260815-123539.dump`，`140176474` bytes，SHA-256 `e1c0821543a36f19d2ea292d9c4fdc544003010579ccef5df9175d083a2e2e2f`；远端 `pg_restore --list`、SFTP、尺寸与本地校验通过
+  - 仍只是恢复点；本机缺 `pg_restore`/`psql` 且 Docker restore 链路此前超时，没有 restore/rebuild、维护态回滚、回填或 reconciliation，DATA-01 继续 awaiting
 - ✅ **VPS candidate deployment with account migration/data-center fixes（2026-08-15）**
   - `ae1e5e532` 以 release `20260815162419` 完成 git-clone/provenance 校验和代码-only upgrade；health/ready HTTP 200，web/worker/beat/PostgreSQL/Redis/RSSHub 正常，迁移步骤无待应用项，canonical schema `missing_migrations=[]`/`missing_tables=[]`，TUI/Qlib/Celery 复核通过
   - `/api/ready/` 仍有 Alpha/Qlib、workspace 与市场温度计 freshness warnings；不解除 decision-data、TUI M5、DATA-01/02/03 或 AUD-01 gate
