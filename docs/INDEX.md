@@ -928,6 +928,9 @@
 - ✅ **Web→TUI role-filtered row affordance closure（2026-08-15）**
   - Dashboard 行操作现在按当前用户已通过权限过滤的 action 集合投影；普通用户不再看到无法执行的 Signal/Beta Gate/Rotation 管理员写按钮，管理员行操作保持
   - `tests/unit/test_tui_workbench.py` 覆盖普通用户与管理员双向投影，定向回归 `2 passed`；该项只收紧展示边界，不替代后端权限、角色化浏览器 UAT、写后回执或 M5 生产证据
+- ✅ **STRAT-01/02 readiness runtime preflight guard（2026-08-15）**
+  - `test_capability_readiness_runtime.py` 现在明确锁定 R1 六项生产要求为 `UNVERIFIED`、Forecast specification 为 `MISSING`，以及 R2 五项生产要求为 `UNVERIFIED`，防止机制 manifest 被误报为 production readiness
+  - 定向组件回归 `8 passed`；这是本地 fail-closed 防伪证据，不是 owner/definition/policy、PIT/OOS 历史、canonical receipt、对账或 Promotion 证据，`STRAT-01` 与 `STRAT-02` 仍保持阻断
 - ✅ **Evidence owner/tenant scope read contract（2026-08-15）**
   - 纯 Application scope grant/provider/authorizer 在三类 exact read 触碰 repository 前执行 artifact-level gate；缺失、future/stale、revoked、替换和 hash tamper fail closed，`11 passed`
   - 新增强制注入 authorizer 的 `ScopedEvidenceReadFacade`，避免未来 owner-scoped composition 忘记安装 scope gate；旧 staff-only facade 保持兼容

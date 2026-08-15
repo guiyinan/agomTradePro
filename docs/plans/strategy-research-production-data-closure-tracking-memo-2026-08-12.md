@@ -140,3 +140,11 @@
 - 若发现 owner 语义不足，优先修正 source contract，不得现场猜测或由下游 assessment 反充。
 - 未完成项必须保留明确 blocker、owner、下一动作和预计验证方式。
 
+## 10. 2026-08-15 本地 readiness 防伪收口
+
+本批只加强软件侧的 readiness 边界，不构造任何生产 owner、definition、policy 或历史数据：
+
+- `tests/component/research/test_capability_readiness_runtime.py` 新增 R1/R2 运行时断言，确认 R1 的六项生产要求仍全部保持 `UNVERIFIED`，Forecast Baseline 的真实 specification 仍为 `MISSING`，R2 的五项生产要求仍全部保持 `UNVERIFIED`。
+- 定向组件回归为 `8 passed`；断言验证的是“机制 manifest 不能升级为 production readiness”，不是能力已经具备。
+- `STRAT-01` 继续等待真实 R1–R8 owner/definition/policy/calendar/scope 登记；`STRAT-02` 继续等待 `STRAT-01` 与 `DATA-02`，不因本地测试变绿而提前解锁 PIT/OOS receipts、对账或 Promotion。
+
