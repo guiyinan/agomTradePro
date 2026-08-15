@@ -91,6 +91,44 @@ def test_invalid_cutoff_is_blocked_before_provider_read() -> None:
         )
 
 
+def test_authority_provider_failure_is_redacted_and_fail_closed() -> None:
+    class FailingProvider(Provider):
+        def get_current(self, *, as_of: datetime) -> SystemAuditAuthoritySnapshot | None:
+            del as_of
+            raise RuntimeError("database password must not escape")
+
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        get_system_audit_reader_context(FailingProvider(_authority()), as_of=NOW)
+
+    assert exc_info.value.reason_code == "authority_unavailable"
+    assert "password" not in str(exc_info.value)
+
+
+def test_invalid_authority_provider_result_is_fail_closed() -> None:
+    class InvalidProvider:
+        def get_current(self, *, as_of: datetime) -> object:
+            del as_of
+            return object()
+
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        get_system_audit_reader_context(InvalidProvider(), as_of=NOW)
+
+    assert exc_info.value.reason_code == "authority_unavailable"
+
+
+@pytest.mark.parametrize("cutoff", [None, "2026-08-15T12:00:00Z", object()])
+def test_non_datetime_cutoff_is_blocked_before_provider_read(cutoff: object) -> None:
+    class ExplodingProvider(Provider):
+        def get_current(self, *, as_of: datetime) -> SystemAuditAuthoritySnapshot | None:
+            del as_of
+            raise AssertionError("provider must not run")
+
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        get_system_audit_reader_context(ExplodingProvider(_authority()), as_of=cutoff)  # type: ignore[arg-type]
+
+    assert exc_info.value.reason_code == "authority_cutoff_invalid"
+
+
 def test_publish_receipt_preserves_all_event_identity_and_payload() -> None:
     event = make_event()
     receipt = CanonicalSystemAuditPublishReceipt.from_event(event)

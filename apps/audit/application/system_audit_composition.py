@@ -208,13 +208,21 @@ def get_system_audit_reader_context(
             "system audit authority provider is not wired",
             reason_code="authority_not_wired",
         )
-    if as_of.tzinfo is None or as_of.utcoffset() is None:
+    if not isinstance(as_of, datetime) or as_of.tzinfo is None or as_of.utcoffset() is None:
         raise SystemAuditCompositionUnavailable(
             "system audit authority cutoff must be timezone-aware",
             reason_code="authority_cutoff_invalid",
         )
-    snapshot = provider.get_current(as_of=as_of)
-    if snapshot is None or not snapshot.can_read:
+    try:
+        snapshot = provider.get_current(as_of=as_of)
+        is_eligible = isinstance(snapshot, SystemAuditAuthoritySnapshot) and snapshot.can_read
+    except Exception:
+        # Do not leak provider/database/RBAC details through this boundary.
+        # A failed authority lookup is indistinguishable from unavailable or
+        # unscoped authority until a real composition root supplies policy.
+        is_eligible = False
+        snapshot = None
+    if not is_eligible or snapshot is None:
         raise SystemAuditCompositionUnavailable(
             "system audit authority is unavailable or not scoped",
             reason_code="authority_unavailable",
