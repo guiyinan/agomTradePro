@@ -1,0 +1,232 @@
+"""Fail-closed contracts for future system-audit composition.
+
+This module deliberately contains no Django, Celery, generic event-bus, or
+external-sink implementation.  It gives the eventual runtime composition a
+typed boundary: a publisher must return an exact receipt for the immutable
+event it accepted, and a query authority must come from an injected
+authoritative provider rather than caller-supplied actor flags.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Mapping, Protocol
+
+from apps.audit.application.system_audit_query import SystemAuditReaderContext
+from apps.audit.domain.system_audit_event import JSONValue, SystemAuditEvent
+
+_DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+class SystemAuditCompositionUnavailable(Exception):
+    """A required publisher or authority provider is not wired."""
+
+    def __init__(self, message: str, *, reason_code: str) -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+
+
+class SystemAuditPublisherContractViolation(Exception):
+    """A publisher did not preserve the canonical audit envelope exactly."""
+
+
+def _canonical_bytes(payload: Mapping[str, JSONValue]) -> bytes:
+    """Serialize a JSON payload with strict, deterministic scalar semantics."""
+
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _require_digest(value: str, field: str) -> None:
+    if not isinstance(value, str) or _DIGEST_RE.fullmatch(value) is None:
+        raise ValueError(f"{field} must be a lowercase sha256 digest")
+
+
+@dataclass(frozen=True, slots=True)
+class CanonicalSystemAuditPublishReceipt:
+    """Durable-sink receipt that proves exact event preservation."""
+
+    event_id: str
+    event_version: str
+    identity_hash: str
+    content_hash: str
+    stream_id: str
+    sequence_no: int
+    predecessor_hash: str | None
+    idempotency_key: str
+    canonical_payload: Mapping[str, JSONValue]
+
+    @classmethod
+    def from_event(cls, event: SystemAuditEvent) -> "CanonicalSystemAuditPublishReceipt":
+        """Build the test/reference receipt for an unchanged event."""
+
+        return cls(
+            event_id=event.event_id,
+            event_version=event.event_version,
+            identity_hash=event.identity_hash,
+            content_hash=event.content_hash,
+            stream_id=event.stream_id,
+            sequence_no=event.sequence_no,
+            predecessor_hash=event.predecessor_hash,
+            idempotency_key=event.idempotency_key,
+            canonical_payload=event.to_payload(),
+        )
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("event_id", self.event_id),
+            ("event_version", self.event_version),
+            ("stream_id", self.stream_id),
+            ("idempotency_key", self.idempotency_key),
+        ):
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"{name} must be a non-empty string")
+        _require_digest(self.identity_hash, "identity_hash")
+        _require_digest(self.content_hash, "content_hash")
+        if self.predecessor_hash is not None:
+            _require_digest(self.predecessor_hash, "predecessor_hash")
+        if (
+            not isinstance(self.sequence_no, int)
+            or isinstance(self.sequence_no, bool)
+            or self.sequence_no < 1
+        ):
+            raise ValueError("sequence_no must be a positive integer")
+        if not isinstance(self.canonical_payload, Mapping):
+            raise TypeError("canonical_payload must be a mapping")
+
+    def validate_for(self, event: SystemAuditEvent) -> None:
+        """Reject any identity, chain, hash, or payload substitution."""
+
+        if not isinstance(event, SystemAuditEvent):
+            raise SystemAuditPublisherContractViolation("publisher event type was substituted")
+        expected = self.from_event(event)
+        if (
+            self.event_id != expected.event_id
+            or self.event_version != expected.event_version
+            or self.identity_hash != expected.identity_hash
+            or self.content_hash != expected.content_hash
+            or self.stream_id != expected.stream_id
+            or self.sequence_no != expected.sequence_no
+            or self.predecessor_hash != expected.predecessor_hash
+            or self.idempotency_key != expected.idempotency_key
+            or _canonical_bytes(self.canonical_payload)
+            != _canonical_bytes(expected.canonical_payload)
+        ):
+            raise SystemAuditPublisherContractViolation(
+                "publisher receipt did not preserve the canonical event"
+            )
+        try:
+            event.validate_hashes()
+        except (TypeError, ValueError) as exc:
+            raise SystemAuditPublisherContractViolation(
+                "publisher received an invalid canonical event"
+            ) from exc
+
+
+class CanonicalSystemAuditPublisher(Protocol):
+    """Future durable publisher port; generic or memory sinks do not qualify."""
+
+    def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
+        """Persist exactly one event and return an exact preservation receipt."""
+
+
+@dataclass(frozen=True, slots=True)
+class SystemAuditAuthoritySnapshot:
+    """Authoritative, request-independent facts used for a scoped read."""
+
+    actor_id: str
+    user_id: int
+    tenant_id: str
+    owner_id: str
+    authority_content_hash: str
+    is_authenticated: bool
+    is_staff: bool
+    role: str
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("actor_id", self.actor_id),
+            ("tenant_id", self.tenant_id),
+            ("owner_id", self.owner_id),
+            ("role", self.role),
+        ):
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"{name} must be a non-empty string")
+        if not isinstance(self.user_id, int) or isinstance(self.user_id, bool) or self.user_id <= 0:
+            raise ValueError("user_id must be a positive integer")
+        if not isinstance(self.is_authenticated, bool) or not isinstance(self.is_staff, bool):
+            raise TypeError("authority flags must be bools")
+        _require_digest(self.authority_content_hash, "authority_content_hash")
+
+    @property
+    def can_read(self) -> bool:
+        """Return the minimum staff/user binding required by the query contract."""
+
+        return (
+            self.is_authenticated
+            and self.is_staff
+            and self.actor_id == f"django-user:{self.user_id}"
+        )
+
+
+class SystemAuditAuthorityProvider(Protocol):
+    """Injected source of current, immutable authority facts."""
+
+    def get_current(self, *, as_of: datetime) -> SystemAuditAuthoritySnapshot | None:
+        """Return authoritative facts at ``as_of`` or ``None`` when unavailable."""
+
+
+def get_system_audit_reader_context(
+    provider: SystemAuditAuthorityProvider | None,
+    *,
+    as_of: datetime,
+) -> SystemAuditReaderContext:
+    """Project provider-backed authority into the existing query context.
+
+    This is intentionally not wired to a request or route.  A missing provider,
+    stale/unscoped snapshot, or non-staff snapshot blocks before repository
+    access; callers cannot manufacture authority through this function.
+    """
+
+    if provider is None:
+        raise SystemAuditCompositionUnavailable(
+            "system audit authority provider is not wired",
+            reason_code="authority_not_wired",
+        )
+    if as_of.tzinfo is None or as_of.utcoffset() is None:
+        raise SystemAuditCompositionUnavailable(
+            "system audit authority cutoff must be timezone-aware",
+            reason_code="authority_cutoff_invalid",
+        )
+    snapshot = provider.get_current(as_of=as_of)
+    if snapshot is None or not snapshot.can_read:
+        raise SystemAuditCompositionUnavailable(
+            "system audit authority is unavailable or not scoped",
+            reason_code="authority_unavailable",
+        )
+    return SystemAuditReaderContext(
+        actor_id=snapshot.actor_id,
+        user_id=snapshot.user_id,
+        is_authenticated=snapshot.is_authenticated,
+        is_staff=snapshot.is_staff,
+        role=snapshot.role,
+    )
+
+
+__all__ = [
+    "CanonicalSystemAuditPublishReceipt",
+    "CanonicalSystemAuditPublisher",
+    "SystemAuditAuthorityProvider",
+    "SystemAuditAuthoritySnapshot",
+    "SystemAuditCompositionUnavailable",
+    "SystemAuditPublisherContractViolation",
+    "get_system_audit_reader_context",
+]

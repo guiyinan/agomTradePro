@@ -516,6 +516,20 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 - 这不是 publisher/runtime wiring 或自动恢复：没有 claim、retry/requeue、beat schedule、
   业务双写或生产 broker/PG 证据；system-audit 的 production publisher/runtime gate 继续阻断。
 
+### 2026-08-15：AUD-01 composition preflight contract
+
+- 新增纯 Application `system_audit_composition` boundary。未来 durable publisher 必须返回
+  `CanonicalSystemAuditPublishReceipt`，逐项保留 event id/version、identity/content hash、
+  stream predecessor、sequence、idempotency key 与 canonical payload；dispatcher 遇到缺失、
+  替换或 generic/memory 风格返回值时，以 `publisher_contract_violation` 失败关闭。
+- 新增注入式 `SystemAuditAuthorityProvider` 与严格 snapshot 投影。缺 provider、非认证、非
+  staff、actor/user 未绑定或无效 cutoff 均在 repository 前以稳定 `authority_*` reason code
+  阻断；该合同不接受 caller 自带 actor/role，也没有 route/ORM 侧伪造 authority。
+- 这仍是本地 composition preflight，不是 production publisher/runtime wiring：现有 runtime
+  gate 继续返回 `publisher_not_wired`，没有 durable sink、beat/retry/requeue、authenticated
+  scoped lifecycle、生产 PostgreSQL/VPS migration/rollback/observation；AUD-01 未解除，
+  AUD-02 继续等待依赖。
+
 ### M1：Audit Domain、append-only ledger 与 Query
 
 交付：

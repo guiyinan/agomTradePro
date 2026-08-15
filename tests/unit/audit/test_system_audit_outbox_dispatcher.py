@@ -5,6 +5,9 @@ from uuid import UUID
 
 import pytest
 
+from apps.audit.application.system_audit_composition import (
+    CanonicalSystemAuditPublishReceipt,
+)
 from apps.audit.application.system_audit_outbox_dispatcher import (
     DispatchSystemAuditOutboxCommand,
     DispatchSystemAuditOutboxUseCase,
@@ -34,10 +37,11 @@ class Publisher:
         self.fail = fail
         self.fail_event_ids = fail_event_ids or set()
 
-    def publish(self, event: object) -> None:
+    def publish(self, event: object) -> CanonicalSystemAuditPublishReceipt:
         if self.fail or getattr(event, "event_id", None) in self.fail_event_ids:
             raise RuntimeError("secret publisher detail must not escape")
         self.events.append(event)
+        return CanonicalSystemAuditPublishReceipt.from_event(event)
 
 
 class Repository:
@@ -110,6 +114,26 @@ def test_dispatch_publisher_failure_is_bounded_and_marks_failed() -> None:
     assert (result.claimed, result.delivered, result.failed) == (1, 0, 1)
     assert result.outcome == "failed"
     assert repository.failed[0]["error_code"] == "publisher_error"
+
+
+def test_dispatch_rejects_publisher_without_exact_preservation_receipt() -> None:
+    """Generic/memory-style publishers cannot turn a claim into delivered."""
+
+    class NonCanonicalPublisher:
+        def publish(self, event: object) -> None:
+            del event
+            return None
+
+    repository = Repository(_claim())
+    result = DispatchSystemAuditOutboxUseCase(
+        repository,
+        NonCanonicalPublisher(),
+        UnitOfWork(),
+    ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
+
+    assert (result.claimed, result.delivered, result.failed) == (1, 0, 1)
+    assert result.outcome == "failed"
+    assert repository.failed[0]["error_code"] == "publisher_contract_violation"
 
 
 def test_dispatch_mixed_batch_reports_partial_and_keeps_each_transition() -> None:

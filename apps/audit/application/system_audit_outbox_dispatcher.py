@@ -13,6 +13,10 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
+from apps.audit.application.system_audit_composition import (
+    CanonicalSystemAuditPublishReceipt,
+    SystemAuditPublisherContractViolation,
+)
 from apps.audit.domain.system_audit_event import SystemAuditEvent
 
 
@@ -29,10 +33,10 @@ class SystemAuditOutboxDispatchConflict(Exception):
 
 
 class SystemAuditOutboxPublisher(Protocol):
-    """Injected side-effect boundary; no concrete publisher is wired here."""
+    """Injected durable side-effect boundary with exact-preservation receipt."""
 
-    def publish(self, event: SystemAuditEvent) -> None:
-        """Publish one immutable event or raise a bounded implementation error."""
+    def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
+        """Publish one immutable event and return an exact preservation receipt."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,7 +182,28 @@ class DispatchSystemAuditOutboxUseCase:
         failed = 0
         for item in claimed:
             try:
-                self._publisher.publish(item.event)
+                receipt = self._publisher.publish(item.event)
+                if not isinstance(receipt, CanonicalSystemAuditPublishReceipt):
+                    raise SystemAuditPublisherContractViolation(
+                        "publisher returned no canonical preservation receipt"
+                    )
+                receipt.validate_for(item.event)
+            except SystemAuditPublisherContractViolation:
+                failed += 1
+                try:
+                    with self._unit_of_work:
+                        self._repository.mark_failed(
+                            outbox_id=item.outbox_id,
+                            worker_id=item.worker_id,
+                            claim_token=item.claim_token,
+                            error_code="publisher_contract_violation",
+                            failed_at=command.as_of,
+                        )
+                except Exception as error:
+                    raise SystemAuditOutboxDispatchConflict(
+                        "outbox publisher-contract failure transition was not committed"
+                    ) from error
+                continue
             except Exception:
                 failed += 1
                 try:

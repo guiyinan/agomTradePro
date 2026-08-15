@@ -173,7 +173,7 @@
 | [0.8.0-release-closure-plan-2026-07-05.md](archive/plans/0.8.0-release-closure-plan-2026-07-05.md) | **0.8.0 收口开发计划（发布 / 运维 / 架构减债 Top 10）** | ✅ 2026-07-05 已执行并归档 |
 | [post-0.8.0-stabilization-priority-2026-07-08.md](archive/plans/post-0.8.0-stabilization-priority-2026-07-08.md) | **0.8.0 发布后两周稳定化实施清单（优先级 / 负责人 / 命令 / 验收）** | ✅ 已归档；未完成生产门禁已转入当前 Data / Strategy / Evidence / TUI 工作流 |
 | [evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | **证据治理与决策硬闸改造计划** | 第一期 P0：Portfolio/Risk/Broker inactive owner contracts与ledgers、Risk policy workflow以及Broker pre-Risk ID-only scope已分阶段落盘；pre-Risk仍固定inactive，缺跨账户owner binding、Risk adapter、最终issuer/四节点重验与PG/生产证明，所有执行总闸保持关闭，MCP integrated=0 |
-| [system-audit-log-consolidation-plan-2026-08-13.md](plans/system-audit-log-consolidation-plan-2026-08-13.md) | **系统级统一审计日志收口计划（统一事件账本 / 数据可靠性纵向链 / 指标告警 / TUI 观测）** | M0 registry + M1 Domain/codec/schema-only/repository/query/outbox-claim、health backlog projection 与 Data Center fetch-event envelope 已落地；无真实 publisher/业务双写，首批 Data Center fetch→publication→decision gate 仍待实施 |
+| [system-audit-log-consolidation-plan-2026-08-13.md](plans/system-audit-log-consolidation-plan-2026-08-13.md) | **系统级统一审计日志收口计划（统一事件账本 / 数据可靠性纵向链 / 指标告警 / TUI 观测）** | M0 registry + M1 Domain/codec/schema-only/repository/query/outbox-claim、health backlog projection、Data Center fetch-event envelope 与 AUD-01 composition preflight contract 已落地；runtime 仍 `publisher_not_wired`，无真实 publisher/业务双写，首批 Data Center fetch→publication→decision gate 仍待实施 |
 | [mcp-consolidation-remediation-plan-2026-07-09.md](archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md) | **MCP 收口整改计划（统一能力注册、统一调用、legacy 退役）** | ✅ 完成并归档；持续状态由机器门禁维护 |
 | [system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md](archive/plans/system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md) | **系统级 AI Capability Catalog 与统一路由任务书** | ✅ 代码与自动化验收完成并归档 |
 | [terminal-mcp-governance-outsourcing-task-book-2026-03-19.md](archive/plans/terminal-mcp-governance-outsourcing-task-book-2026-03-19.md) | **Terminal MCP 治理与确认机制任务书** | ✅ 已实现并由 AgentProposal 持久审批架构承接 |
@@ -1015,6 +1015,9 @@
 - ✅ **系统级统一审计日志 M1 event/outbox atomic composition contract（2026-08-15）**
   - 新增 dormant 同 alias coordinator，event append 与 outbox enqueue 同 outer transaction；exact retry、event substitution、outbox failure rollback 已覆盖；unit `5 passed`、SQLite component `3 passed`、增量 mypy/architecture 通过
   - 尚未接 Data Center `data.fetch.*`、publisher/runtime 或生产 route；真实 PostgreSQL 双写竞争、migration/rollback 与业务事件仍待完成，M1 gate 不变
+- ✅ **系统级统一审计日志 AUD-01 composition preflight contract（2026-08-15）**
+  - 新增纯 Application publisher/authority boundary：publisher 必须返回 exact event-preservation receipt，authority 必须来自注入 provider；dispatcher 对 envelope substitution、generic/memory 风格返回值与未绑定 authority 均 fail closed；audit 定向回归 `20 passed`
+  - 仅完成本地合同与阻断边界；runtime 仍固定 `publisher_not_wired`，没有 durable sink、authenticated scoped lifecycle、beat/retry/PG/VPS 证据，AUD-01 未解除，AUD-02 继续等待
 - ✅ **Equity research snapshot Django runtime contract（2026-08-14）**
   - Django 5.2.12 复跑 API `15`、SDK/MCP/routing/evidence `36`、use case/gateway `26`，合计 `77 passed`
   - 仅证明 mock/fake 隔离环境的软件契约与 fail-closed 行为；真实数据覆盖、PostgreSQL 规模/故障注入、备份恢复和 readiness 仍未解除
