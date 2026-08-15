@@ -197,3 +197,7 @@ Alpha rank source stale 和 market thermometer partial-stale warnings；这些 w
 decision-data gate 或 M5 完成证据。该候选只更新部署身份与运行复核，不解除 EVID-01 immutable
 owner/tenant authority、AUD-01 durable publisher/authority/runtime、M5 角色化浏览器 UAT/14 日
 观察、DATA-01 restore/rebuild 或 rollback 双签门禁。
+
+本机随后尝试 Playwright 访问同一 HTTPS TUI 入口，仍收到 `net::ERR_CONNECTION_CLOSED`；
+这只能记录为本地外部浏览器传输阻断，不能替代角色化 UAT。当前没有使用生产凭据，也没有执行
+登录、写操作、写后回执或权限角色验证。
