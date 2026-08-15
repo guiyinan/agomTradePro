@@ -10,7 +10,7 @@ import shlex
 import sys
 from collections.abc import Callable
 from pathlib import Path, PurePosixPath
-from typing import Any, Callable
+from typing import Any
 
 MARKER_PREFIX = "AGOM_BACKUP_"
 
