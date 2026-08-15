@@ -201,3 +201,6 @@ owner/tenant authority、AUD-01 durable publisher/authority/runtime、M5 角色�
 本机随后尝试 Playwright 访问同一 HTTPS TUI 入口，仍收到 `net::ERR_CONNECTION_CLOSED`；
 这只能记录为本地外部浏览器传输阻断，不能替代角色化 UAT。当前没有使用生产凭据，也没有执行
 登录、写操作、写后回执或权限角色验证。
+
+从 VPS 发出的未认证 `GET /api/tui/` 返回 HTTP `403`；这只证明匿名访问边界仍在，不能计入
+普通用户、owner、operator 或 admin 的角色化 screen/action UAT。
