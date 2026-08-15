@@ -302,3 +302,16 @@ def test_provider_rejects_invalid_request_boundary(
         ).get_current_scope(
             artifact=artifact, as_of=as_of
         )  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("field", ["source_id", "source_version"])
+def test_selector_rejects_overlong_identity_tokens(field: str) -> None:
+    values = {
+        "source_id": "scope-source-1",
+        "source_version": "v1",
+        "expected_content_hash": "a" * 64,
+    }
+    values[field] = "x" * 193
+
+    with pytest.raises(ValueError, match="bounded canonical token"):
+        EvidenceScopeSourceV1Selector(**values)  # type: ignore[arg-type]

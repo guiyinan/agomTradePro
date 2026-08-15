@@ -2559,3 +2559,15 @@ tenant、account token 也统一要求严格字符串、无空白且长度不超
 本地 fail-closed authority boundary；没有 immutable owner/tenant lifecycle、真实 provider、
 PostgreSQL 并发、人工授权或 production route，`EVID-01` 与 Evidence hard gate、写入和
 execution 继续关闭。
+
+## 2026-08-15 EVID-01 Application selector boundary hardening
+
+统一 `EvidenceScopeSourceV1` Application reader 与 dormant provider selector 的 identity/version
+令牌边界：`source_id`、`source_version` 必须是无空白、非空且不超过 192 字符的 bounded canonical
+token。这样入口校验与 Domain、codec、repository 及 ORM `max_length=192` 保持一致；超长 selector
+在读取或投影 grant 前即 fail closed，不会依赖后续层级补救。
+
+新增 Application command 与 provider selector 的超长令牌回归；scope source Application/provider
+聚焦回归 `78 passed`，Black/isort、增量 mypy、治理一致性和 diff-check 通过。此项只是本地输入
+边界加固，不创建 selector issuer、immutable owner/tenant lifecycle、production composition 或
+route；`EVID-01`、Evidence hard gate、写入和 execution 继续关闭。

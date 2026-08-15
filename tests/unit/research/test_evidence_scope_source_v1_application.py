@@ -196,3 +196,17 @@ def test_future_repository_row_is_corruption() -> None:
 
     with pytest.raises(EvidenceScopeSourceV1Corruption):
         GetExactEvidenceScopeSourceV1(repository).execute(command)
+
+
+@pytest.mark.parametrize("field", ["source_id", "source_version"])
+def test_commands_reject_overlong_selector_tokens(field: str) -> None:
+    values = {
+        "source_id": "scope-source-1",
+        "source_version": "v1",
+        "expected_content_hash": "a" * 64,
+        "as_of": AS_OF,
+    }
+    values[field] = "x" * 193
+
+    with pytest.raises(ValueError, match="bounded canonical token"):
+        GetExactEvidenceScopeSourceV1Command(**values)  # type: ignore[arg-type]

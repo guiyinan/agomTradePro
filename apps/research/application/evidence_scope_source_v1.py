@@ -27,10 +27,11 @@ def _token(value: object, name: str) -> None:
     if (
         type(value) is not str
         or not value
+        or len(value) > 192
         or value.strip() != value
         or any(character.isspace() for character in value)
     ):
-        raise ValueError(f"{name} must be a canonical token")
+        raise ValueError(f"{name} must be a bounded canonical token")
 
 
 def _digest(value: object, name: str) -> None:
