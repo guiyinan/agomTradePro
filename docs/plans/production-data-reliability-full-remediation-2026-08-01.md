@@ -376,6 +376,27 @@ custom-format 归档：
 由于本机仍缺少 `pg_restore`/`psql` 客户端且此前 Docker 本地恢复链路超时，`DATA-01` 继续
 `awaiting_production`，不解锁 `DATA-02/03`。
 
+## 实施记录（2026-08-15，DATA-01 只读源快照与恢复工具链修复）
+
+本批通过 VPS SSH 在 web 容器内以 `REPEATABLE READ READ ONLY` 取得生产源库快照：
+public schema 共 `536` 张表，Data Center migrations `71` 项，schema 指纹为
+`9306657014b2861f1095e2f4132f37074ebf7c0debb79d95d6d98d0d1c4291ab`；快照只读，
+没有执行任何生产写入。随后用归档
+`backups/vps-postgres/postgres-20260815-123539.dump` 在本机 home-lab 的临时库做恢复尝试。
+
+恢复链路的两个实际限制已定位：从 stdin 使用 `pg_restore --jobs=4` 会被 PostgreSQL
+明确拒绝（parallel restore from standard input is not supported）；改为单 worker 后，
+Docker Desktop 上的 restore 进程超过 10 分钟仍未完成，隔离数据库随后由维护连接终止并删除；
+另一次 `docker cp` 归档传输也因 Docker API 长时间无响应被停止。所有临时数据库均以
+`agom_restore_verify_*` 前缀清理，未连接或写入 VPS。
+
+为消除“主机没有 libpq 客户端”这一工具层阻断，`scripts/verify_postgres_backup_restore.py`
+现在提供显式 `--pg-restore-container <image>` 后端：使用短生命周期 `.pgpass` 挂载，
+密码不进入 Docker 参数；默认 host `pg_restore` 行为不变。契约回归由
+`tests/unit/test_verify_postgres_backup_restore.py` `12 passed` 覆盖，但尚未取得实际
+Docker restore/snapshot match，因此 `DATA-01` 仍为 `awaiting_production`，不解锁
+`DATA-02/03`，也不宣称 RTO/RPO 或 rollback 证据完成。
+
 ## 实施记录（2026-08-15，DATA-02 control-plane atomic snapshot）
 
 回填任务的 run、batch、checkpoint 现在由 Data Center composition root 在同一事务中提交；Application task 不直接持有 Django transaction。新增故障注入组件测试证明 checkpoint 持久化失败时三张控制面表全部回滚（`2 passed, 2 skipped`），任务单元 `8 passed`；architecture、增量 mypy、Celery contract、Black/isort 和 diff-check 均通过。

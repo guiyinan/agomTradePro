@@ -11,10 +11,12 @@ import re
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TypedDict
+from tempfile import TemporaryDirectory
+from typing import Iterator, TypedDict
 from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit
 from uuid import uuid4
 
@@ -107,6 +109,32 @@ class PostgresTarget:
             self.user,
         ]
 
+    def client_connection_args_for_container(self) -> list[str]:
+        """Return CLI arguments that reach a host-local database container.
+
+        Docker Desktop containers cannot use their own loopback interface to
+        reach a PostgreSQL server published on the Windows host.  The Docker
+        provided ``host.docker.internal`` name is substituted only for
+        loopback targets when the optional container client is selected.
+        Remote database hosts are left untouched.
+        """
+
+        return [
+            "--host",
+            self.container_host(),
+            "--port",
+            str(self.port),
+            "--username",
+            self.user,
+        ]
+
+    def container_host(self) -> str:
+        """Return the hostname visible from an optional Docker client."""
+
+        return (
+            "host.docker.internal" if self.host in {"localhost", "127.0.0.1", "::1"} else self.host
+        )
+
 
 def parse_postgres_target(database_url: str) -> PostgresTarget:
     """Validate and parse one PostgreSQL URL for an isolated restore rehearsal."""
@@ -140,18 +168,89 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def validate_custom_dump(path: Path, target: PostgresTarget) -> int:
+def _pgpass_value(value: str) -> str:
+    """Escape one secret-free ``.pgpass`` field without allowing line breaks."""
+
+    if "\n" in value or "\r" in value:
+        raise ValueError("PostgreSQL credentials cannot contain line breaks")
+    return value.replace("\\", "\\\\").replace(":", "\\:")
+
+
+@contextmanager
+def _pg_restore_invocation(
+    path: Path,
+    target: PostgresTarget,
+    *,
+    container_image: str | None,
+) -> Iterator[tuple[list[str], dict[str, str], str]]:
+    """Yield a pg_restore command prefix, environment, and dump argument.
+
+    The default uses the host ``pg_restore`` binary.  An explicit Docker image
+    keeps the fallback opt-in and portable for Windows hosts without libpq
+    client tools.  The database password is placed in a short-lived mounted
+    ``.pgpass`` file rather than in Docker arguments or process output.
+    """
+
+    if not container_image:
+        yield ["pg_restore"], target.client_environment(), str(path)
+        return
+    image = container_image.strip()
+    if not image:
+        raise ValueError("pg_restore container image must not be blank")
+    dump_path = path.resolve()
+    with TemporaryDirectory(prefix="agom-pg-restore-") as temporary:
+        passfile = Path(temporary) / "pgpass"
+        container_dump = "/tmp/agom-postgres-restore.dump"
+        container_passfile = "/tmp/agom-postgres-restore.pgpass"
+        passfile_user = _pgpass_value(target.user)
+        passfile_password = _pgpass_value(target.password)
+        passfile.write_text(
+            f"*:*:*:{passfile_user}:{passfile_password}\n",
+            encoding="utf-8",
+        )
+        try:
+            passfile.chmod(0o600)
+        except OSError:
+            # Windows ACLs are enforced by the temporary directory and Docker
+            # Desktop; a POSIX mode bit is best-effort on that host.
+            pass
+        command = [
+            "docker",
+            "run",
+            "--rm",
+            "--volume",
+            f"{dump_path}:{container_dump}:ro",
+            "--volume",
+            f"{passfile}:{container_passfile}:ro",
+            "--env",
+            f"PGPASSFILE={container_passfile}",
+            image,
+            "pg_restore",
+        ]
+        environment = os.environ.copy()
+        environment.pop("PGPASSWORD", None)
+        yield command, environment, container_dump
+
+
+def validate_custom_dump(
+    path: Path,
+    target: PostgresTarget,
+    *,
+    container_image: str | None = None,
+) -> int:
     """Fail closed unless pg_restore can enumerate a non-empty custom dump."""
 
     if not path.is_file() or path.stat().st_size < 1:
         raise ValueError("postgres backup dump is missing or empty")
-    completed = subprocess.run(
-        ["pg_restore", "--list", str(path)],
-        env=target.client_environment(),
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    with _pg_restore_invocation(path, target, container_image=container_image) as invocation:
+        command_prefix, environment, dump_argument = invocation
+        completed = subprocess.run(
+            [*command_prefix, "--list", dump_argument],
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
     entries = [line for line in completed.stdout.splitlines() if line and not line.startswith(";")]
     if not entries:
         raise ValueError("postgres backup dump contains no restore entries")
@@ -258,17 +357,14 @@ def _sequence_fingerprints(
         if not sequence_names:
             return {}
         sequence_queries = [
-            sql.SQL(
-                "SELECT {}::text AS sequence_name, last_value, is_called FROM {}"
-            ).format(
+            sql.SQL("SELECT {}::text AS sequence_name, last_value, is_called FROM {}").format(
                 sql.Literal(sequence_name),
                 sql.Identifier("public", sequence_name),
             )
             for sequence_name in sequence_names
         ]
         cursor.execute(
-            sql.SQL(" UNION ALL ").join(sequence_queries)
-            + sql.SQL(" ORDER BY sequence_name")
+            sql.SQL(" UNION ALL ").join(sequence_queries) + sql.SQL(" ORDER BY sequence_name")
         )
         fingerprints: dict[str, SequenceFingerprint] = {}
         for row in cursor.fetchall():
@@ -320,9 +416,7 @@ def snapshot_database(database_url: str) -> DatabaseSnapshot:
     }
 
 
-def compare_snapshots(
-    source: DatabaseSnapshot, restored: DatabaseSnapshot
-) -> SnapshotDifference:
+def compare_snapshots(source: DatabaseSnapshot, restored: DatabaseSnapshot) -> SnapshotDifference:
     """Return exact, machine-readable differences for restore failures."""
 
     source_tables = set(source["tables"])
@@ -400,26 +494,39 @@ def drop_restore_database(target: PostgresTarget, restore_database: str) -> None
             )
 
 
-def restore_dump(path: Path, target: PostgresTarget, restore_database: str) -> None:
+def restore_dump(
+    path: Path,
+    target: PostgresTarget,
+    restore_database: str,
+    *,
+    container_image: str | None = None,
+) -> None:
     """Restore with ownership/ACL isolation and stop on the first error."""
 
-    subprocess.run(
-        [
-            "pg_restore",
-            *target.client_connection_args(),
-            "--dbname",
-            restore_database,
-            "--no-owner",
-            "--no-acl",
-            "--jobs=4",
-            "--exit-on-error",
-            str(path),
-        ],
-        env=target.client_environment(),
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    with _pg_restore_invocation(path, target, container_image=container_image) as invocation:
+        command_prefix, environment, dump_argument = invocation
+        connection_args = (
+            target.client_connection_args_for_container()
+            if container_image
+            else target.client_connection_args()
+        )
+        subprocess.run(
+            [
+                *command_prefix,
+                *connection_args,
+                "--dbname",
+                restore_database,
+                "--no-owner",
+                "--no-acl",
+                "--jobs=4",
+                "--exit-on-error",
+                dump_argument,
+            ],
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
 
 
 def write_report(path: Path, report: dict[str, object]) -> None:
@@ -445,6 +552,14 @@ def build_parser() -> argparse.ArgumentParser:
         default="reports/quality/postgres-backup-restore/evidence.json",
     )
     parser.add_argument("--restore-database", default="")
+    parser.add_argument(
+        "--pg-restore-container",
+        default=os.getenv("PG_RESTORE_CONTAINER", ""),
+        help=(
+            "Optional PostgreSQL image used for pg_restore when the host lacks "
+            "libpq client tools; remains disabled by default."
+        ),
+    )
     return parser
 
 
@@ -476,11 +591,27 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("restore database must use the controlled verification prefix")
         restore_database = restore_candidate
         dump_path = Path(args.dump_path).resolve()
-        restore_entries = validate_custom_dump(dump_path, target)
+        restore_container = str(args.pg_restore_container).strip() or None
+        if restore_container is None:
+            restore_entries = validate_custom_dump(dump_path, target)
+        else:
+            restore_entries = validate_custom_dump(
+                dump_path,
+                target,
+                container_image=restore_container,
+            )
         source_snapshot = snapshot_database(target.url)
         restore_started = time.monotonic()
         recreate_restore_database(target, restore_database)
-        restore_dump(dump_path, target, restore_database)
+        if restore_container is None:
+            restore_dump(dump_path, target, restore_database)
+        else:
+            restore_dump(
+                dump_path,
+                target,
+                restore_database,
+                container_image=restore_container,
+            )
         restore_seconds = round(time.monotonic() - restore_started, 3)
         verification_started = time.monotonic()
         restored_snapshot = snapshot_database(target.url_for_database(restore_database))
@@ -497,6 +628,7 @@ def main(argv: list[str] | None = None) -> int:
                 "dump_path": str(dump_path),
                 "dump_size_bytes": dump_path.stat().st_size,
                 "dump_sha256": sha256_file(dump_path),
+                "pg_restore_client": restore_container or "host",
                 "restore_entries": restore_entries,
                 "source_snapshot": source_snapshot,
                 "restored_snapshot": restored_snapshot,

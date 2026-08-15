@@ -92,6 +92,69 @@ def test_restore_uses_parallel_fail_closed_client_without_password(
     assert "secret" not in observed
 
 
+def test_container_restore_client_keeps_password_out_of_docker_arguments(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_script()
+    dump = tmp_path / "postgres-current.dump"
+    dump.write_bytes(b"custom-dump")
+    target = module.parse_postgres_target("postgresql://agom:secret@localhost:5544/agom_ci")
+    observed: list[str] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
+        observed.extend(command)
+        assert kwargs["check"] is True
+        environment = kwargs["env"]
+        assert isinstance(environment, dict)
+        assert "PGPASSWORD" not in environment
+        return SimpleNamespace(stdout="")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    module.restore_dump(
+        dump,
+        target,
+        "agom_ci_restore_verify_deadbeef",
+        container_image="postgres:18.4",
+    )
+
+    assert observed[:4] == ["docker", "run", "--rm", "--volume"]
+    assert "postgres:18.4" in observed
+    assert "host.docker.internal" in observed
+    assert "PGPASSFILE=/tmp/agom-postgres-restore.pgpass" in observed
+    assert "secret" not in observed
+
+
+def test_container_dump_validation_preserves_exact_list_contract(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_script()
+    dump = tmp_path / "postgres-current.dump"
+    dump.write_bytes(b"custom-dump")
+    target = module.parse_postgres_target("postgresql://agom:secret@db.internal/agom_ci")
+    observed: list[str] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
+        observed.extend(command)
+        assert kwargs["check"] is True
+        return SimpleNamespace(stdout="; header\n1; TABLE DATA public sample agom\n")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    assert module.validate_custom_dump(dump, target, container_image="postgres:18.4") == 1
+    assert observed[:3] == ["docker", "run", "--rm"]
+    assert observed[-2:] == ["--list", "/tmp/agom-postgres-restore.dump"]
+    assert "secret" not in observed
+
+
+def test_pgpass_value_escapes_delimiters_and_rejects_line_breaks() -> None:
+    module = _load_script()
+
+    assert module._pgpass_value(r"p:a\\ss") == r"p\:a\\\\ss"
+    with pytest.raises(ValueError, match="line breaks"):
+        module._pgpass_value("bad\npassword")
+
+
 def test_constraint_normalization_collapses_postgres_dump_reparse_casts() -> None:
     module = _load_script()
     source = (
