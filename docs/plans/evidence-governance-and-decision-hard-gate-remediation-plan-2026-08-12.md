@@ -2531,6 +2531,22 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 未运行。该结果只确认当前本机 PostgreSQL/Docker 工具链仍不可用，不改变 `EVID-02` 的
 planned 状态，也不将任何 SQLite、VPS 或生产库结果计为并发证据。
 
+随后本机隔离 PostgreSQL 容器恢复可用后，修正 harness 缺少
+`pytest.mark.django_db(transaction=True)` 的测试隔离声明，并让两个 successor 候选保持
+同一 artifact identity、仅以不同 validity 窗口形成合法内容竞争。使用专用数据库
+`evidence_scope_test_20260815`（容器 `postgres:18.4`，数据库创建前为空，测试后已删除）运行：
+
+```text
+AGOM_EVIDENCE_SCOPE_PG_CONCURRENCY_EVIDENCE=1
+AGOM_EVIDENCE_SCOPE_PG_TEST_DATABASE_URL=postgresql://<local-test-user>@127.0.0.1:5432/evidence_scope_test_20260815
+python -m pytest tests/component/research/test_evidence_scope_source_v1_postgres_concurrency.py -q --create-db --confcutdir=tests/component/research -p no:cacheprovider
+... 3 passed in 207.58s ...
+```
+
+这是真实本机 PostgreSQL 的空 root first-winner、同 predecessor 单 successor 和 rollback/no-orphan
+软件证据；不接触 VPS/生产库，也不证明生产 alias、owner/tenant lifecycle、人工授权、
+publisher/runtime 或 execution gate。`EVID-02` 因此仍为 planned，仅关闭该本地 harness 子项。
+
 ## 2026-08-15 EVID-01 scope grant integrity hardening
 
 `EvidenceScopeAuthorizer` 现在在接受 provider 返回的 grant 后重新执行完整的

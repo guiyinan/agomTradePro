@@ -22,9 +22,7 @@ import pytest
 _EVIDENCE_FLAG = "AGOM_EVIDENCE_SCOPE_PG_CONCURRENCY_EVIDENCE"
 _EVIDENCE_URL = "AGOM_EVIDENCE_SCOPE_PG_TEST_DATABASE_URL"
 
-os.environ.setdefault(
-    "DJANGO_SETTINGS_MODULE", "tests.settings_evidence_scope_source_v1_postgres"
-)
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings_evidence_scope_source_v1_postgres")
 django.setup()
 
 from django.db import close_old_connections, connection, connections
@@ -40,6 +38,8 @@ from apps.research.infrastructure.evidence_scope_source_v1_repository import (
     EvidenceScopeSourceV1Conflict,
     _build_evidence_scope_source_v1_store,
 )
+
+pytestmark = pytest.mark.django_db(transaction=True)
 
 NOW = datetime(2026, 8, 15, 12, 0, 0, 123456, tzinfo=UTC)
 
@@ -164,6 +164,7 @@ def _source(
     version: str = "v1",
     previous: EvidenceScopeSourceV1 | None = None,
     artifact: ArtifactRef | None = None,
+    validity: timedelta = timedelta(hours=1),
 ) -> EvidenceScopeSourceV1:
     exact_artifact = artifact or _artifact("operator-a")
     recorded_at = NOW if previous is None else previous.recorded_at + timedelta(minutes=1)
@@ -177,7 +178,7 @@ def _source(
         artifact=exact_artifact,
         status="active",
         recorded_at=recorded_at,
-        valid_until=recorded_at + timedelta(hours=1),
+        valid_until=recorded_at + validity,
         root_claim_hash=(
             root_claim_hash_for_evidence_scope_source_v1(
                 source_id="scope-source-pg-1",
@@ -253,8 +254,8 @@ def test_same_predecessor_race_has_one_successor() -> None:
     store = _build_evidence_scope_source_v1_store(clock=_Clock())
     with store.atomic():
         store.append_root(root)
-    first = _source(version="v2", previous=root, artifact=_artifact("operator-a"))
-    second = _source(version="v2", previous=root, artifact=_artifact("operator-b"))
+    first = _source(version="v2", previous=root, validity=timedelta(hours=1))
+    second = _source(version="v2", previous=root, validity=timedelta(hours=2))
     barrier = Barrier(2)
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = (
