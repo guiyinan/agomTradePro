@@ -210,3 +210,33 @@ Caddy 443，并用 Playwright 请求 `https://demo.agom.pro:8443/tui/`；TLS 握
 `net::ERR_SSL_PROTOCOL_ERROR`，隧道随后关闭。该探针没有使用生产凭据，也没有执行登录或
 写操作；因此仍只保留匿名 403 与浏览器传输阻断证据，角色化浏览器 UAT、写后回执和 14 日
 观察窗口继续未完成。
+
+## 当前候选部署（2026-08-15 22:10 release）
+
+为部署 `dev/next-development` 当前提交（包含 AUD-01 provider-issued query context
+boundary），执行标准 `git-clone`、`-Upgrade`、code-only 发布；远端 PostgreSQL/Redis 数据卷
+保留，未恢复本地 SQLite，Celery enabled。构建、provenance、迁移、canonical schema、TUI
+registry、服务启动和健康复核均通过。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260815221000` |
+| current release | `/opt/agomtradepro/releases/source-20260815221000` |
+| source commit | `1835ce0ee42f220756066a21890bcec2b8f1f3e9` |
+| image | `agomtradepro-web:20260815221000` |
+| image ID | `sha256:ef43c80ee8b5130775f152dfea0a7cdc62a93a8853ab4ccb8ba258ae83877ad1` |
+| OCI/source binding | release manifest source commit、image revision 与 `1835ce0ee42f220756066a21890bcec2b8f1f3e9` 完全一致 |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260815221000.json`（本地下载副本） |
+| pre-deploy backup | `/opt/agomtradepro/backups/database/postgres-20260815-161622.dump`；manifest `/opt/agomtradepro/backups/meta/manifest-20260815-161622.txt` |
+| mode | `ACTION=upgrade`、code-only、`WIPE_DOCKER=0`、`WIPE_VOLUMES=0`、Celery enabled |
+
+部署复核：HTTPS `/api/health/` 返回 HTTP 200；web healthy，Celery worker/beat、PostgreSQL、
+Redis、RSSHub 运行；account migrations 无待应用项，canonical schema、Django deploy check、
+TUI registry publish/check、Qlib `pyqlib=0.9.7`（错误 `qlib` distribution 缺失）和 Celery ping
+均通过。TUI 本地 preflight 的 `check:tui` 与 34 项浏览器契约也通过；这不等于生产角色化
+浏览器 UAT。
+
+`/api/ready/` 继续保留 Alpha/Qlib provider degraded、workspace recommendation stale 和
+market thermometer partial-stale warnings；本次候选只更新 AUD-01 Application context 的
+运行身份与健康证据，不解除 authenticated scoped authority、durable publisher/runtime wiring、
+M5 角色化 UAT/14 日观察、DATA-01 restore/rebuild 或 rollback 双签门禁。

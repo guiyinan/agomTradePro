@@ -211,9 +211,10 @@ python scripts/start_web_to_tui_observation.py \
   --released-at <YYYY-MM-DD> --write
 ```
 
-本地 M5 实现已形成可审计提交，但尚未推送或部署为候选；生产仍运行
-`2e399607977fea260436992952fae64565153213`。该命令必须 fail closed，不能用当前 `HEAD`、
-本地文档状态或旧生产版本冒充稳定候选。
+当前 M5 实现已绑定并部署候选 `dev/next-development@1835ce0ee42f220756066a21890bcec2b8f1f3e9`，
+release 为 `20260815221000`；完整 provenance、健康、迁移和 TUI registry 证据见
+`docs/deployment/vps-deployment-evidence-2026-08-15.md`。这只建立了候选身份，不自动开始观察窗口；
+该命令仍必须 fail closed，不能用当前 `HEAD`、本地文档状态或旧生产版本冒充稳定候选。
 
 观察窗口结束并把不含密钥的 issue-tracker 快照存入仓库后，先 dry-run，再写入 evidence：
 
@@ -272,3 +273,11 @@ Classic/TUI 两侧各 20 个 task request 的错误率样本要求。
 Classic/TUI 错误率对照、可校验且已 dry-run 恢复的生产 registry 备份、回滚演练记录，
 以及绑定同一版本/commit/矩阵 SHA 的 owner 与独立 reviewer 审批和所有低频例外双签。
 任一项缺失，M5 继续保持 DENY。
+
+### 2026-08-15 当前候选部署复核
+
+`20260815221000` 为 code-only、保留数据卷、Celery enabled 的 `-Upgrade` 发布；source commit、
+OCI/image、release manifest、health/ready、migrations、canonical schema、TUI registry、Qlib
+和 Celery ping 均已复核。候选仍未完成角色化浏览器 UAT、写后 receipt/refresh、生产 registry backup、
+14 日 telemetry/defect window、rollback drill 与 owner/reviewer 双签，因此 M5-A 继续 `DENY`，
+不得据此清理 Classic 或宣称 TUI production write closure。

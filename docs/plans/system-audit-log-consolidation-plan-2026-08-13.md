@@ -776,3 +776,17 @@ capability 构造为可读上下文；直接手工构造的同形对象即使字
 authority provider、tenant/owner lifecycle 或 audit event ledger 的 tenant/owner 过滤列，也
 没有接 durable publisher、route、beat/retry 或 production runtime；因此 `AUD-01` 仍保持
 `planned`，`AUD-02/03` 继续等待依赖。
+
+## 实施记录（2026-08-15，AUD-01 当前候选部署复核）
+
+提交 `dev/next-development@1835ce0ee42f220756066a21890bcec2b8f1f3e9` 以标准 git-clone、
+code-only、`-Upgrade` 模式部署为 release `20260815221000`；远端数据卷保留。部署报告为
+`dist/remote-build-reports/remote-build-report-20260815221000.json`，image 为
+`sha256:ef43c80ee8b5130775f152dfea0a7cdc62a93a8853ab4ccb8ba258ae83877ad1`，切换前 PostgreSQL
+备份为 `/opt/agomtradepro/backups/database/postgres-20260815-161622.dump`。health、迁移、
+canonical schema、TUI registry、Qlib、Celery/Caddy 复核通过。
+
+该部署只证明候选身份和运行健康；`/api/ready/` 的 Alpha/Qlib、workspace freshness 与 market
+thermometer warnings 原样保留。没有 authenticated tenant/owner authority、event scope/linkage
+columns、durable publisher、beat/retry 或 production audit runtime，AUD-01 仍保持 `planned`，
+AUD-02/03 继续等待依赖。
