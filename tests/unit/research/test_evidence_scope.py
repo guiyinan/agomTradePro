@@ -6,7 +6,10 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from apps.research.application.evidence_reads import EvidenceReadFacade
+from apps.research.application.evidence_reads import (
+    EvidenceReadFacade,
+    ScopedEvidenceReadFacade,
+)
 from apps.research.application.evidence_scope import (
     EvidenceScopeAuthorizer,
     EvidenceScopeCorruption,
@@ -182,4 +185,26 @@ def test_scoped_facade_does_not_touch_repository_when_scope_is_missing() -> None
         is None
     )
 
+    assert reads.calls == []
+
+
+def test_scoped_facade_requires_authorizer_at_construction() -> None:
+    reads = _Reads()
+
+    with pytest.raises(TypeError):
+        ScopedEvidenceReadFacade(reads, scope_authorizer=object())  # type: ignore[arg-type]
+
+    facade = ScopedEvidenceReadFacade(
+        reads,
+        scope_authorizer=EvidenceScopeAuthorizer(_Provider(None)),
+    )
+    assert (
+        facade.get_operator_spec(
+            operator_id="operator-1",
+            operator_version="v1",
+            expected_content_hash="a" * 64,
+            as_of=AS_OF,
+        )
+        is None
+    )
     assert reads.calls == []

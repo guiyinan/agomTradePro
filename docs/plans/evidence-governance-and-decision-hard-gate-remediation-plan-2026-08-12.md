@@ -2250,7 +2250,9 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - `EvidenceReadFacade` 现在可通过显式注入的 authorizer，在三类 exact read 触碰
   repository 前执行 artifact-level scope gate；未注入时保持既有 staff-only compatibility
   path，未新增路由、ORM、User/Profile 查询或任何写/执行权限。scope contract unit 与
-  既有 facade 回归 `11 passed`，增量 mypy/architecture/format/py_compile 通过。
+  既有 facade 回归 `12 passed`；新增强制注入 authorizer 的 `ScopedEvidenceReadFacade`，
+  避免 owner-scoped composition 忘记安装 gate；增量 mypy/architecture/format/py_compile
+  通过。
 - 这只是 owner/tenant scope 的本地 Application 合同，不是生产 owner provider、租户
   真源、PostgreSQL current-head/并发证明或人工授权；当前 API 仍 staff-only，Evidence
   hard gate、审批、写入和 execution 总闸继续关闭。

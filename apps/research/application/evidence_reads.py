@@ -183,4 +183,27 @@ class EvidenceReadFacade:
         return True
 
 
-__all__ = ["EvidenceReadFacade", "EvidenceReadRepository"]
+class ScopedEvidenceReadFacade(EvidenceReadFacade):
+    """Owner/tenant-scoped exact-read facade with a mandatory authorizer.
+
+    The legacy ``EvidenceReadFacade`` remains available for the existing
+    staff-only compatibility surface.  New owner-scoped composition must use
+    this class so omitting the scope provider is impossible at construction.
+    """
+
+    __slots__ = ()
+
+    def __init__(
+        self,
+        repository: EvidenceReadRepository,
+        *,
+        scope_authorizer: EvidenceScopeAuthorizer,
+    ) -> None:
+        """Create a facade that cannot perform an unscoped repository read."""
+
+        if type(scope_authorizer) is not EvidenceScopeAuthorizer:
+            raise TypeError("scope_authorizer must be an exact EvidenceScopeAuthorizer")
+        super().__init__(repository, scope_authorizer=scope_authorizer)
+
+
+__all__ = ["EvidenceReadFacade", "EvidenceReadRepository", "ScopedEvidenceReadFacade"]

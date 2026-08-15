@@ -920,6 +920,7 @@
   - `tests/unit/test_tui_workbench.py` 覆盖普通用户与管理员双向投影，定向回归 `2 passed`；该项只收紧展示边界，不替代后端权限、角色化浏览器 UAT、写后回执或 M5 生产证据
 - ✅ **Evidence owner/tenant scope read contract（2026-08-15）**
   - 纯 Application scope grant/provider/authorizer 在三类 exact read 触碰 repository 前执行 artifact-level gate；缺失、future/stale、revoked、替换和 hash tamper fail closed，`11 passed`
+  - 新增强制注入 authorizer 的 `ScopedEvidenceReadFacade`，避免未来 owner-scoped composition 忘记安装 scope gate；旧 staff-only facade 保持兼容
   - 仅本地合同，未接生产 owner/tenant source、人工授权、PostgreSQL 并发或写/执行路径；API 继续 staff-only，Evidence hard gate 未解锁
 - ✅ **Web→TUI M5-C alias target checker correction（2026-08-14）**
   - 最终库存检查器同时读取 published graph 与 IA `published_screens`/`runtime_screens`，因此 runtime 注入的 `capability-router.mcp-center` 会被正确视为 canonical target；`capability-router.gateway` dangling 误报已消除
