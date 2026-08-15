@@ -339,9 +339,12 @@ def get_system_audit_reader_context(
             "system audit authority is unavailable or not scoped",
             reason_code="authority_unavailable",
         )
-    return SystemAuditReaderContext(
+    return SystemAuditReaderContext._from_authority(
         actor_id=snapshot.actor_id,
         user_id=snapshot.user_id,
+        tenant_id=snapshot.tenant_id,
+        owner_id=snapshot.owner_id,
+        authority_content_hash=snapshot.authority_content_hash,
         is_authenticated=snapshot.is_authenticated,
         is_staff=snapshot.is_staff,
         role=snapshot.role,

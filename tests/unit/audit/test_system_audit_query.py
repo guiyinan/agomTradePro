@@ -53,9 +53,12 @@ class FakeRepository:
 
 
 def _reader(*, staff: bool = True) -> SystemAuditReaderContext:
-    return SystemAuditReaderContext(
+    return SystemAuditReaderContext._from_authority(
         actor_id="django-user:7",
         user_id=7,
+        tenant_id="tenant:primary",
+        owner_id="owner:research",
+        authority_content_hash="a" * 64,
         is_authenticated=True,
         is_staff=staff,
         role="admin",
@@ -165,6 +168,9 @@ def test_query_commands_reject_naive_clocks_and_invalid_reader_identity() -> Non
         SystemAuditReaderContext(
             actor_id="django-user:7",
             user_id=True,
+            tenant_id="tenant:primary",
+            owner_id="owner:research",
+            authority_content_hash="a" * 64,
             is_authenticated=True,
             is_staff=True,
             role="admin",
@@ -178,9 +184,35 @@ def test_reader_context_rejects_noncanonical_identity_tokens(field: str, value: 
         SystemAuditReaderContext(
             actor_id=value if field == "actor_id" else "django-user:7",
             user_id=7,
+            tenant_id="tenant:primary",
+            owner_id="owner:research",
+            authority_content_hash="a" * 64,
             is_authenticated=True,
             is_staff=True,
             role=value if field == "role" else "admin",
+        )
+
+
+def test_direct_reader_context_is_not_provider_issued() -> None:
+    context = SystemAuditReaderContext(
+        actor_id="django-user:7",
+        user_id=7,
+        tenant_id="tenant:primary",
+        owner_id="owner:research",
+        authority_content_hash="a" * 64,
+        is_authenticated=True,
+        is_staff=True,
+        role="admin",
+    )
+
+    assert context.can_read is False
+    with pytest.raises(SystemAuditQueryUnavailable):
+        ListSystemAuditEventsUseCase(FakeRepository(())).execute(
+            ListSystemAuditEventsCommand(
+                stream_id="dataset:macro.pmi",
+                as_of=NOW,
+                reader=context,
+            )
         )
 
 

@@ -90,9 +90,27 @@ def test_authority_snapshot_rejects_noncanonical_scope_tokens(field: str, value:
 def test_authority_provider_is_the_only_source_for_reader_context() -> None:
     context = get_system_audit_reader_context(Provider(_authority()), as_of=NOW)
     assert context.can_read is True
-    assert (context.actor_id, context.user_id, context.is_staff) == (
+    assert (
+        context.actor_id,
+        context.user_id,
+        context.tenant_id,
+        context.owner_id,
+        context.authority_content_hash,
+        context.is_staff,
+    ) == (
         "django-user:7",
         7,
+        "tenant:primary",
+        "owner:research",
+        system_audit_authority_content_hash(
+            actor_id="django-user:7",
+            user_id=7,
+            tenant_id="tenant:primary",
+            owner_id="owner:research",
+            is_authenticated=True,
+            is_staff=True,
+            role="audit_reader",
+        ),
         True,
     )
 

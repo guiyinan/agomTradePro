@@ -763,3 +763,16 @@ diff-check 通过。
 该 slice 只证明 provider snapshot 的本地完整性边界，不提供 authenticated provider、
 tenant/owner RBAC、route composition 或 durable publisher；runtime 仍固定
 `publisher_not_wired`，AUD-01 保持 `planned`，AUD-02 继续等待依赖。
+
+## 实施记录（2026-08-15，AUD-01 provider-issued query context boundary）
+
+`SystemAuditReaderContext` 现在只能由 Audit authority composition 通过私有 provider-issued
+capability 构造为可读上下文；直接手工构造的同形对象即使字段看似合法，也会在 use case 入口
+稳定阻断为 `authority_unavailable`。reader context 同时保留并校验 `tenant_id`、`owner_id`
+和 authority content hash，composition 不再丢失这些 scope/integrity 字段。query 与 composition
+定向回归为 `39 passed`，增量 mypy、Black/isort 与 diff-check 通过。
+
+该 slice 只封 Application 内的 provider-issued context 边界：尚未提供真实 authenticated
+authority provider、tenant/owner lifecycle 或 audit event ledger 的 tenant/owner 过滤列，也
+没有接 durable publisher、route、beat/retry 或 production runtime；因此 `AUD-01` 仍保持
+`planned`，`AUD-02/03` 继续等待依赖。

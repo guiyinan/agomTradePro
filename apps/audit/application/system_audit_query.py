@@ -7,11 +7,15 @@ does not turn an authenticated request into an audit authority by itself.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Protocol
 
 from apps.audit.domain.system_audit_event import SystemAuditEvent
+
+_DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+_READER_CONTEXT_CAPABILITY = object()
 
 
 def _require_token(value: object, field: str) -> None:
@@ -27,6 +31,13 @@ def _require_token(value: object, field: str) -> None:
         raise ValueError(f"{field} must be a bounded canonical token")
 
 
+def _require_digest(value: object, field: str) -> None:
+    """Require one lowercase SHA-256 authority digest."""
+
+    if type(value) is not str or _DIGEST_RE.fullmatch(value) is None:
+        raise ValueError(f"{field} must be a lowercase SHA-256 digest")
+
+
 class SystemAuditQueryUnavailable(Exception):
     """The caller is not eligible or the requested PIT is unavailable."""
 
@@ -37,21 +48,56 @@ class SystemAuditQueryCorruption(Exception):
 
 @dataclass(frozen=True, slots=True)
 class SystemAuditReaderContext:
-    """Request-scoped staff identity used only for read authorization."""
+    """Provider-issued staff scope used only for read authorization."""
 
     actor_id: str
     user_id: int
+    tenant_id: str
+    owner_id: str
+    authority_content_hash: str
     is_authenticated: bool
     is_staff: bool
     role: str
+    _capability: object = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         _require_token(self.actor_id, "audit reader actor_id")
         if not isinstance(self.user_id, int) or isinstance(self.user_id, bool) or self.user_id <= 0:
             raise ValueError("audit reader user_id must be a positive integer")
+        _require_token(self.tenant_id, "audit reader tenant_id")
+        _require_token(self.owner_id, "audit reader owner_id")
+        _require_digest(self.authority_content_hash, "audit reader authority_content_hash")
         if not isinstance(self.is_authenticated, bool) or not isinstance(self.is_staff, bool):
             raise TypeError("audit reader authentication flags must be bools")
         _require_token(self.role, "audit reader role")
+
+    @classmethod
+    def _from_authority(
+        cls,
+        *,
+        actor_id: str,
+        user_id: int,
+        tenant_id: str,
+        owner_id: str,
+        authority_content_hash: str,
+        is_authenticated: bool,
+        is_staff: bool,
+        role: str,
+    ) -> "SystemAuditReaderContext":
+        """Issue a context only for the authority composition boundary."""
+
+        context = cls(
+            actor_id=actor_id,
+            user_id=user_id,
+            tenant_id=tenant_id,
+            owner_id=owner_id,
+            authority_content_hash=authority_content_hash,
+            is_authenticated=is_authenticated,
+            is_staff=is_staff,
+            role=role,
+        )
+        object.__setattr__(context, "_capability", _READER_CONTEXT_CAPABILITY)
+        return context
 
     @property
     def can_read(self) -> bool:
@@ -64,7 +110,8 @@ class SystemAuditReaderContext:
         """
 
         return (
-            self.is_authenticated
+            self._capability is _READER_CONTEXT_CAPABILITY
+            and self.is_authenticated
             and self.is_staff
             and self.actor_id == f"django-user:{self.user_id}"
         )
