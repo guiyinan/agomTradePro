@@ -467,3 +467,20 @@ SHA-256 `4760a38fdfc7ef8570323cfb5dde92ab01eb933cd60d4f6dd08700fc34772752`）的
 
 本条证明了 VPS 上实际 restore 与结构/schema 对比链路可运行，但不证明备份时点的内容一致、RTO/RPO、
 维护态 rollback 或 reconciliation；`DATA-01` 仍为 `awaiting_production`，不解锁 `DATA-02/03`。
+
+## 实施记录（2026-08-16，当前候选 backup 下载复核）
+
+在不切换 release、不停止服务且不写生产数据库的前提下，再次运行
+`scripts/backup-vps-postgres.ps1 -DownloadLatest`，复核当前候选
+`e167ab2fc748e4c93d2622f93fa8cc75442b2bb6` 的既有 custom-format 归档：
+
+- 远端：`/opt/agomtradepro/backups/database/postgres-20260815-184803.dump`。
+- 本地：`backups/vps-postgres/postgres-20260815-184803.dump`，大小 `140318641` bytes。
+- 远端 `pg_restore --list`、SFTP 完整下载、尺寸与本地 SHA-256 均通过；SHA-256：
+  `4760a38fdfc7ef8570323cfb5dde92ab01eb933cd60d4f6dd08700fc34772752`。
+- 远端 prune 未启用；没有恢复、回填、切读或 destructive migration。
+
+该条只确认 DATA-01 的备份下载/校验子步骤，并与运行摘要
+[`vps-runtime-verification-2026-08-16.json`](../deployment/vps-runtime-verification-2026-08-16.json)
+保持同一候选绑定；不等于维护态 rollback、RTO/RPO 或 reconciliation。`DATA-01` 继续
+`awaiting_production`，不解锁 `DATA-02/03`。
