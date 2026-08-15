@@ -108,6 +108,15 @@ Alpha rank source stale 与 market thermometer partial-stale；本次只更新�
 不启动角色化浏览器 UAT、写后回执、14 日观察或 cleanup/rollback 双签，也不解除 EVID-01、
 AUD-01、DATA-01 等生产门禁。
 
+### 2026-08-16 观察窗口已绑定但仍 DENY
+
+部署 attestation 已提交并通过 `start_web_to_tui_observation.py` 的 dry-run 与 `--write`；
+当前候选绑定为 `20260816004134/e167ab2fc748e4c93d2622f93fa8cc75442b2bb6`，窗口为
+`2026-08-15..2026-08-29`，attestation SHA-256 为
+`a8bd41a0372bf587239fafc33c4c2e478c6a94a02cce4be8cb3cfa98ed7dd3b`。写入动作按工具设计
+清除了上一候选的 route UAT/cleanup/telemetry/rollback/backup 证据，避免跨候选继承；当前
+机器门禁仍为 `DENY`，未执行任何生产角色登录、生产写操作或 cleanup。
+
 ### 2026-08-15 本地角色边界回归
 
 在 disposable SQLite 与 `core.settings.playwright` 下运行

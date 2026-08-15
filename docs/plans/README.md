@@ -373,6 +373,7 @@
 
 | 2026-08-16 | 第一期 P1 | 系统级统一审计日志 AUD-01 authority freshness/PIT contract | Authority snapshot 新增 provider-issued source identity/version、active/revoked state、`recorded_at/valid_until`，全部纳入 canonical hash；composition 与 query context 在实际 PIT 执行 `recorded_at <= as_of < valid_until`，future/expired/revoked fail-closed；audit composition/query `44 passed`，dispatcher/dispatch 合计 `56 passed`，增量 mypy/Black/isort/py_compile/governance/architecture 通过 | 仅本地 freshness/PIT 合同；无 authenticated tenant/owner lifecycle、source issuer、durable publisher/receipt sink、beat/retry 或生产 PostgreSQL/VPS authority 证据，`AUD-01` 与 `AUD-02` 仍阻断 |
 | 2026-08-16 | 第二期 P0 | Web→TUI 当前候选部署与身份复核 | `dev/next-development@e167ab2fc748e4c93d2622f93fa8cc75442b2bb6` 以 code-only、保留数据卷、Celery enabled 的 `-Upgrade` 发布为 `20260816004134`；release/OCI/source、health/ready、迁移、canonical schema、TUI registry、Qlib、Celery 和部署前 PostgreSQL backup/`pg_restore --list` 通过；candidate consistency guard 已同步到新身份 | 仅更新当前候选并证明部署启动；角色化浏览器 UAT、写后 receipt/refresh、14 日 telemetry/defect、registry backup/restore、rollback drill 与 owner/reviewer 双签仍缺，M5 继续 DENY |
+| 2026-08-16 | 第二期 P1 | Web→TUI M5 observation window binding | 已提交 deployment preflight attestation（SHA `a8bd41a0372bf587239fafc33c4c2e478c6a94a02cce4be8cb3cfa98ed7dd3b`），`start_web_to_tui_observation.py --write` 绑定候选 `20260816004134/e167ab2fc...` 与窗口 `2026-08-15..2026-08-29`；机器 readiness 仍 `DENY`，新候选 UAT `0/108`、telemetry `0/101` | 仅开始不跨候选继承的观察窗口；未完成角色化生产 UAT、写后回执/刷新、14 日 telemetry、cleanup/rollback、registry backup/restore 或 owner/reviewer 双签 |
 
 ## 2026-08-12 整理结果
 

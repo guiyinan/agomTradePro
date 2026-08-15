@@ -300,3 +300,10 @@ Alpha rank source stale 与 market thermometer partial-stale warnings。该候�
 代码身份、部署启动、schema/backup/health 和本地 TUI 契约，不证明 authenticated tenant/owner
 authority、durable publisher/receipt sink、生产角色化浏览器 UAT、写后回执/刷新、14 日 telemetry、
 registry restore、rollback 或 owner/reviewer 双签；AUD-01、EVID-01 和 TUI M5 gate 继续阻断。
+
+部署后已提交并验证 Web→TUI deployment preflight attestation
+`docs/deployment/web-to-tui-deployment-preflight-20260816004134.json`（SHA-256
+`a8bd41a0372bf587239fafc33c4c2e478c6a94a02cce4be8cb3cfa98ed7dd3b`），并由观察启动器写入
+候选窗口 `2026-08-15..2026-08-29`。该动作仅记录观察起点；新候选尚无角色化 UAT、写后
+receipt/refresh、生产 telemetry、rollback、registry restore 或 owner/reviewer 双签，机器
+cutover gate 仍返回 `DENY`。

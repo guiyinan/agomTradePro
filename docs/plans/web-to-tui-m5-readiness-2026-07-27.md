@@ -318,3 +318,14 @@ health/ready、容器健康、TUI registry、Qlib 与 Celery ping 均通过；�
 telemetry/defect、registry backup/restore、rollback drill 或 owner/reviewer 双签完成；因此
 M5-A 继续 `DENY`，不得据此清理 Classic 或宣称 TUI production write closure。`/api/ready/`
 仍原样保留 Alpha/Qlib provider、workspace、Alpha rank 与 market thermometer warnings。
+
+### 2026-08-16 观察窗口起点
+
+使用已提交的 `docs/deployment/web-to-tui-deployment-preflight-20260816004134.json`，
+`python scripts/start_web_to_tui_observation.py --write` 严格校验并绑定当前候选，写入
+`config/tui/migration/web_to_tui_cutover_evidence.v1.json` 的观察窗口
+`2026-08-15..2026-08-29`；deployment attestation SHA-256 为
+`a8bd41a0372bf587239fafc33c4c2e478c6a94a02cce4be8cb3cfa98ed7dd3b`。候选切换时按设计清空
+未在该候选上重新验证的 UAT、cleanup、telemetry、defect、rollback 和 registry backup
+区块；截至当前 readiness 仍为 `DENY`（UAT `0/108`、telemetry `0/101`、rollback/backup/
+审批均缺失）。观察起点不等于角色化生产 UAT、写后回执、稳定窗口完成或 cutover 授权。
