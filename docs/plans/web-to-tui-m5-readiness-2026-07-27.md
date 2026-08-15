@@ -281,3 +281,10 @@ OCI/image、release manifest、health/ready、migrations、canonical schema、TU
 和 Celery ping 均已复核。候选仍未完成角色化浏览器 UAT、写后 receipt/refresh、生产 registry backup、
 14 日 telemetry/defect window、rollback drill 与 owner/reviewer 双签，因此 M5-A 继续 `DENY`，
 不得据此清理 Classic 或宣称 TUI production write closure。
+
+同日 `python scripts/check_web_to_tui_cutover_readiness.py --json` 的机器快照仍为
+`decision=DENY`：source consistency 已通过（matrix/catalog/evidence SHA
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded` 一致），但
+`stable_version_window` 未绑定版本/commit、`route_task_uat` 与 cleanup 尚未绑定候选、
+production telemetry 为 `0/101`、production registry backup/restore 与 owner/reviewer
+attestations 均缺失。该快照只证明门禁按设计拒绝提前 cutover，不替代生产观察或审批。
