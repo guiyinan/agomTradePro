@@ -117,6 +117,11 @@ class EvidenceScopeAuthorizer:
         if type(grant) is not EvidenceScopeGrant:
             raise EvidenceScopeCorruption("scope provider returned an invalid grant type")
         try:
+            # Re-run the complete immutable value-object contract at the
+            # authority boundary.  A provider must not be able to substitute
+            # a permission or identity field and make that substitution look
+            # valid merely by recomputing the content hash.
+            grant.__post_init__()
             if grant.content_hash != evidence_scope_grant_hash(grant):
                 raise EvidenceScopeCorruption("scope grant content hash substitution")
         except (TypeError, ValueError) as error:
@@ -154,8 +159,14 @@ def evidence_scope_grant_hash(grant: EvidenceScopeGrant) -> str:
 
 
 def _require_token(value: object, field_name: str) -> None:
-    if not isinstance(value, str) or not value or value.strip() != value:
-        raise ValueError(f"{field_name} must be a non-empty canonical token")
+    if (
+        type(value) is not str
+        or not value
+        or value.strip() != value
+        or len(value) > 192
+        or any(character.isspace() for character in value)
+    ):
+        raise ValueError(f"{field_name} must be a bounded canonical token")
 
 
 def _require_hash(value: object, field_name: str) -> None:

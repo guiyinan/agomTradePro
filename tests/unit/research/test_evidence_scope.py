@@ -15,6 +15,7 @@ from apps.research.application.evidence_scope import (
     EvidenceScopeCorruption,
     EvidenceScopeGrant,
     EvidenceScopeUnavailable,
+    evidence_scope_grant_hash,
 )
 from apps.research.domain.evidence_contracts import ArtifactRef
 
@@ -145,6 +146,36 @@ def test_scope_hash_tamper_is_corruption() -> None:
             artifact=_artifact(),
             as_of=AS_OF,
         )
+
+
+def test_authorizer_rejects_permission_substitution_even_with_recomputed_hash() -> None:
+    grant = _grant()
+    object.__setattr__(grant, "permission", "write")
+    object.__setattr__(grant, "content_hash", evidence_scope_grant_hash(grant))
+
+    with pytest.raises(EvidenceScopeCorruption):
+        EvidenceScopeAuthorizer(_Provider(grant)).require(
+            artifact=_artifact(),
+            as_of=AS_OF,
+        )
+
+
+@pytest.mark.parametrize(
+    "field_name, value",
+    [
+        ("scope_id", "scope id"),
+        ("scope_version", " scope-v1"),
+        ("actor_id", "actor\tid"),
+        ("tenant_id", "tenant-" + ("x" * 192)),
+        ("account_id", "account\nid"),
+    ],
+)
+def test_scope_grant_rejects_noncanonical_identity_tokens(
+    field_name: str,
+    value: str,
+) -> None:
+    with pytest.raises(ValueError, match="bounded canonical token"):
+        _grant(**{field_name: value})
 
 
 def test_authorizer_sanitizes_unexpected_provider_failures() -> None:
