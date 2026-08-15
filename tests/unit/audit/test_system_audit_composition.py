@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import UserDict
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -24,6 +24,8 @@ NOW = datetime(2026, 8, 15, 12, 0, tzinfo=UTC)
 
 def _authority(**changes: object) -> SystemAuditAuthoritySnapshot:
     values: dict[str, object] = {
+        "source_id": "authority:7",
+        "source_version": "v1",
         "actor_id": "django-user:7",
         "user_id": 7,
         "tenant_id": "tenant:primary",
@@ -31,9 +33,14 @@ def _authority(**changes: object) -> SystemAuditAuthoritySnapshot:
         "is_authenticated": True,
         "is_staff": True,
         "role": "audit_reader",
+        "authority_state": "active",
+        "recorded_at": NOW - timedelta(minutes=5),
+        "valid_until": NOW + timedelta(minutes=5),
     }
     values.update(changes)
     values["authority_content_hash"] = system_audit_authority_content_hash(
+        source_id=values["source_id"],
+        source_version=values["source_version"],
         actor_id=values["actor_id"],
         user_id=values["user_id"],
         tenant_id=values["tenant_id"],
@@ -41,6 +48,9 @@ def _authority(**changes: object) -> SystemAuditAuthoritySnapshot:
         is_authenticated=values["is_authenticated"],
         is_staff=values["is_staff"],
         role=values["role"],
+        authority_state=values["authority_state"],
+        recorded_at=values["recorded_at"],
+        valid_until=values["valid_until"],
     )
     return SystemAuditAuthoritySnapshot(**values)
 
@@ -103,6 +113,8 @@ def test_authority_provider_is_the_only_source_for_reader_context() -> None:
         "tenant:primary",
         "owner:research",
         system_audit_authority_content_hash(
+            source_id="authority:7",
+            source_version="v1",
             actor_id="django-user:7",
             user_id=7,
             tenant_id="tenant:primary",
@@ -110,14 +122,48 @@ def test_authority_provider_is_the_only_source_for_reader_context() -> None:
             is_authenticated=True,
             is_staff=True,
             role="audit_reader",
+            authority_state="active",
+            recorded_at=NOW - timedelta(minutes=5),
+            valid_until=NOW + timedelta(minutes=5),
         ),
         True,
     )
 
 
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"recorded_at": NOW + timedelta(minutes=1)},
+        {"valid_until": NOW},
+        {"authority_state": "revoked"},
+    ],
+)
+def test_authority_snapshot_requires_active_current_validity_window(
+    changes: dict[str, object],
+) -> None:
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        get_system_audit_reader_context(Provider(_authority(**changes)), as_of=NOW)
+
+    assert exc_info.value.reason_code == "authority_unavailable"
+
+
+def test_authority_snapshot_valid_window_is_preserved_in_reader_context() -> None:
+    snapshot = _authority()
+    context = get_system_audit_reader_context(Provider(snapshot), as_of=NOW)
+
+    assert context.authority_source_id == snapshot.source_id
+    assert context.authority_source_version == snapshot.source_version
+    assert context.authority_recorded_at == snapshot.recorded_at
+    assert context.authority_valid_until == snapshot.valid_until
+    assert context.can_read_at(NOW) is True
+    assert context.can_read_at(snapshot.valid_until) is False
+
+
 def test_authority_snapshot_hash_binds_all_scope_facts() -> None:
     snapshot = _authority()
     substituted = snapshot.__class__(
+        source_id=snapshot.source_id,
+        source_version=snapshot.source_version,
         actor_id=snapshot.actor_id,
         user_id=snapshot.user_id,
         tenant_id="tenant:other",
@@ -126,6 +172,9 @@ def test_authority_snapshot_hash_binds_all_scope_facts() -> None:
         is_authenticated=snapshot.is_authenticated,
         is_staff=snapshot.is_staff,
         role=snapshot.role,
+        authority_state=snapshot.authority_state,
+        recorded_at=snapshot.recorded_at,
+        valid_until=snapshot.valid_until,
     )
 
     with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:

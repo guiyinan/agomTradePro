@@ -816,3 +816,18 @@ scope provider、同-alias authority bundle、durable publisher 或 production a
 同一候选的 VPS 只读 inventory 在 `2026-08-15T15:30:22Z` 返回 audit event total/scoped/unscoped
 均为 `0`；这证明本次 migration 没有 seed/backfill，不证明 production publisher、authority source
 或 Data Center 双写已完成。
+
+## 实施记录（2026-08-16，AUD-01 authority freshness/PIT contract）
+
+`SystemAuditAuthoritySnapshot` 现在要求 provider-issued `source_id/source_version`、
+`authority_state`、`recorded_at` 和 `valid_until`；这些字段与 actor/user/tenant/owner、认证/staff
+事实一起进入 canonical authority content hash。composition 在 reader context 投影前同时执行
+hash 完整性、active 状态和 `recorded_at <= as_of < valid_until` 校验，未来签发、过期或 revoked
+snapshot 均统一阻断为 `authority_unavailable`。`SystemAuditReaderContext` 保留来源和有效窗口，
+query use case 在实际 PIT 再调用 `can_read_at()`，避免一个曾经有效的 context 被复用于过期 as-of。
+
+Audit composition/query 定向回归 `44 passed`，与 dispatcher/dispatch task 合计 `56 passed`；
+增量 mypy（2 个 production files）、Black/isort、py_compile、diff-check、governance 与
+architecture audit 均通过。该 slice 仍只提供本地 freshness/PIT 合同：没有 authenticated
+tenant/owner lifecycle、source issuer、durable publisher/receipt sink、beat/retry、生产
+PostgreSQL/VPS authority 观察；`publisher_not_wired` 和 AUD-01 gate 继续保持阻断。

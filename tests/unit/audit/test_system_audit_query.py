@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -60,8 +60,15 @@ class FakeRepository:
         )
 
 
-def _reader(*, staff: bool = True) -> SystemAuditReaderContext:
+def _reader(
+    *,
+    staff: bool = True,
+    authority_recorded_at: datetime = NOW,
+    authority_valid_until: datetime | None = None,
+) -> SystemAuditReaderContext:
     return SystemAuditReaderContext._from_authority(
+        authority_source_id="authority:7",
+        authority_source_version="v1",
         actor_id="django-user:7",
         user_id=7,
         tenant_id="tenant:primary",
@@ -70,6 +77,9 @@ def _reader(*, staff: bool = True) -> SystemAuditReaderContext:
         is_authenticated=True,
         is_staff=staff,
         role="admin",
+        authority_state="active",
+        authority_recorded_at=authority_recorded_at,
+        authority_valid_until=authority_valid_until or NOW.replace(hour=13),
     )
 
 
@@ -175,6 +185,8 @@ def test_query_commands_reject_naive_clocks_and_invalid_reader_identity() -> Non
         )
     with pytest.raises(ValueError, match="positive integer"):
         SystemAuditReaderContext(
+            authority_source_id="authority:7",
+            authority_source_version="v1",
             actor_id="django-user:7",
             user_id=True,
             tenant_id="tenant:primary",
@@ -183,6 +195,9 @@ def test_query_commands_reject_naive_clocks_and_invalid_reader_identity() -> Non
             is_authenticated=True,
             is_staff=True,
             role="admin",
+            authority_state="active",
+            authority_recorded_at=NOW,
+            authority_valid_until=NOW.replace(hour=13),
         )
 
 
@@ -191,6 +206,8 @@ def test_query_commands_reject_naive_clocks_and_invalid_reader_identity() -> Non
 def test_reader_context_rejects_noncanonical_identity_tokens(field: str, value: str) -> None:
     with pytest.raises(ValueError, match="bounded canonical token"):
         SystemAuditReaderContext(
+            authority_source_id="authority:7",
+            authority_source_version="v1",
             actor_id=value if field == "actor_id" else "django-user:7",
             user_id=7,
             tenant_id="tenant:primary",
@@ -199,11 +216,16 @@ def test_reader_context_rejects_noncanonical_identity_tokens(field: str, value: 
             is_authenticated=True,
             is_staff=True,
             role=value if field == "role" else "admin",
+            authority_state="active",
+            authority_recorded_at=NOW,
+            authority_valid_until=NOW.replace(hour=13),
         )
 
 
 def test_direct_reader_context_is_not_provider_issued() -> None:
     context = SystemAuditReaderContext(
+        authority_source_id="authority:7",
+        authority_source_version="v1",
         actor_id="django-user:7",
         user_id=7,
         tenant_id="tenant:primary",
@@ -212,6 +234,9 @@ def test_direct_reader_context_is_not_provider_issued() -> None:
         is_authenticated=True,
         is_staff=True,
         role="admin",
+        authority_state="active",
+        authority_recorded_at=NOW,
+        authority_valid_until=NOW.replace(hour=13),
     )
 
     assert context.can_read is False
@@ -221,6 +246,25 @@ def test_direct_reader_context_is_not_provider_issued() -> None:
                 stream_id="dataset:macro.pmi",
                 as_of=NOW,
                 reader=context,
+            )
+        )
+
+
+def test_reader_context_expired_at_query_pit_is_denied_before_repository() -> None:
+    class ExplodingRepository(FakeRepository):
+        def list_events(self, **kwargs: object) -> tuple[SystemAuditEvent, ...]:
+            raise AssertionError("repository must not be called")
+
+    expired = _reader(
+        authority_recorded_at=NOW - timedelta(minutes=1),
+        authority_valid_until=NOW,
+    )
+    with pytest.raises(SystemAuditQueryUnavailable):
+        ListSystemAuditEventsUseCase(ExplodingRepository(())).execute(
+            ListSystemAuditEventsCommand(
+                stream_id="dataset:macro.pmi",
+                as_of=NOW,
+                reader=expired,
             )
         )
 

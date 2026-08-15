@@ -15,6 +15,7 @@ from typing import Protocol
 from apps.audit.domain.system_audit_event import AuditScopeRef, SystemAuditEvent
 
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+_AUTHORITY_STATES = frozenset({"active", "revoked"})
 _READER_CONTEXT_CAPABILITY = object()
 
 
@@ -38,6 +39,13 @@ def _require_digest(value: object, field: str) -> None:
         raise ValueError(f"{field} must be a lowercase SHA-256 digest")
 
 
+def _require_aware_datetime(value: object, field: str) -> None:
+    """Require a timezone-aware authority clock value."""
+
+    if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError(f"{field} must be timezone-aware")
+
+
 class SystemAuditQueryUnavailable(Exception):
     """The caller is not eligible or the requested PIT is unavailable."""
 
@@ -50,6 +58,8 @@ class SystemAuditQueryCorruption(Exception):
 class SystemAuditReaderContext:
     """Provider-issued staff scope used only for read authorization."""
 
+    authority_source_id: str
+    authority_source_version: str
     actor_id: str
     user_id: int
     tenant_id: str
@@ -58,9 +68,14 @@ class SystemAuditReaderContext:
     is_authenticated: bool
     is_staff: bool
     role: str
+    authority_state: str
+    authority_recorded_at: datetime
+    authority_valid_until: datetime
     _capability: object = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
+        _require_token(self.authority_source_id, "audit reader authority_source_id")
+        _require_token(self.authority_source_version, "audit reader authority_source_version")
         _require_token(self.actor_id, "audit reader actor_id")
         if not isinstance(self.user_id, int) or isinstance(self.user_id, bool) or self.user_id <= 0:
             raise ValueError("audit reader user_id must be a positive integer")
@@ -70,11 +85,22 @@ class SystemAuditReaderContext:
         if not isinstance(self.is_authenticated, bool) or not isinstance(self.is_staff, bool):
             raise TypeError("audit reader authentication flags must be bools")
         _require_token(self.role, "audit reader role")
+        _require_token(self.authority_state, "audit reader authority_state")
+        if self.authority_state not in _AUTHORITY_STATES:
+            raise ValueError("audit reader authority_state must be active or revoked")
+        _require_aware_datetime(self.authority_recorded_at, "audit reader authority_recorded_at")
+        _require_aware_datetime(self.authority_valid_until, "audit reader authority_valid_until")
+        if self.authority_recorded_at >= self.authority_valid_until:
+            raise ValueError(
+                "audit reader authority_recorded_at must be before authority_valid_until"
+            )
 
     @classmethod
     def _from_authority(
         cls,
         *,
+        authority_source_id: str,
+        authority_source_version: str,
         actor_id: str,
         user_id: int,
         tenant_id: str,
@@ -83,10 +109,15 @@ class SystemAuditReaderContext:
         is_authenticated: bool,
         is_staff: bool,
         role: str,
+        authority_state: str,
+        authority_recorded_at: datetime,
+        authority_valid_until: datetime,
     ) -> "SystemAuditReaderContext":
         """Issue a context only for the authority composition boundary."""
 
         context = cls(
+            authority_source_id=authority_source_id,
+            authority_source_version=authority_source_version,
             actor_id=actor_id,
             user_id=user_id,
             tenant_id=tenant_id,
@@ -95,6 +126,9 @@ class SystemAuditReaderContext:
             is_authenticated=is_authenticated,
             is_staff=is_staff,
             role=role,
+            authority_state=authority_state,
+            authority_recorded_at=authority_recorded_at,
+            authority_valid_until=authority_valid_until,
         )
         object.__setattr__(context, "_capability", _READER_CONTEXT_CAPABILITY)
         return context
@@ -111,10 +145,18 @@ class SystemAuditReaderContext:
 
         return (
             self._capability is _READER_CONTEXT_CAPABILITY
+            and self.authority_state == "active"
             and self.is_authenticated
             and self.is_staff
             and self.actor_id == f"django-user:{self.user_id}"
         )
+
+    def can_read_at(self, as_of: datetime) -> bool:
+        """Return whether this provider-issued context is valid at a PIT."""
+
+        if not isinstance(as_of, datetime) or as_of.tzinfo is None or as_of.utcoffset() is None:
+            return False
+        return self.authority_recorded_at <= as_of < self.authority_valid_until and self.can_read
 
     @property
     def scope(self) -> AuditScopeRef:
@@ -207,7 +249,7 @@ class ListSystemAuditEventsUseCase:
     def execute(self, command: ListSystemAuditEventsCommand) -> ListSystemAuditEventsResult:
         """Return only the staff-authorized, knowable stream prefix."""
 
-        if not command.reader.can_read:
+        if not command.reader.can_read_at(command.as_of):
             raise SystemAuditQueryUnavailable(
                 "system audit reads require an authenticated staff reader"
             )
@@ -251,7 +293,7 @@ class GetSystemAuditEventUseCase:
     def execute(self, command: GetSystemAuditEventCommand) -> SystemAuditEvent | None:
         """Return an exact event, preserving ``None`` for a missing PIT row."""
 
-        if not command.reader.can_read:
+        if not command.reader.can_read_at(command.as_of):
             raise SystemAuditQueryUnavailable(
                 "system audit reads require an authenticated staff reader"
             )

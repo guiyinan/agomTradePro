@@ -20,6 +20,7 @@ from apps.audit.application.system_audit_query import SystemAuditReaderContext
 from apps.audit.domain.system_audit_event import JSONValue, SystemAuditEvent
 
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+_AUTHORITY_STATES = frozenset({"active", "revoked"})
 
 
 def _require_token(value: object, field: str) -> None:
@@ -61,6 +62,8 @@ def _canonical_bytes(payload: Mapping[str, JSONValue]) -> bytes:
 
 def system_audit_authority_content_hash(
     *,
+    source_id: str,
+    source_version: str,
     actor_id: str,
     user_id: int,
     tenant_id: str,
@@ -68,6 +71,9 @@ def system_audit_authority_content_hash(
     is_authenticated: bool,
     is_staff: bool,
     role: str,
+    authority_state: str,
+    recorded_at: datetime,
+    valid_until: datetime,
 ) -> str:
     """Return the canonical digest for one provider-issued authority snapshot.
 
@@ -78,14 +84,29 @@ def system_audit_authority_content_hash(
     """
 
     for name, value in (
+        ("source_id", source_id),
+        ("source_version", source_version),
         ("actor_id", actor_id),
         ("tenant_id", tenant_id),
         ("owner_id", owner_id),
         ("role", role),
+        ("authority_state", authority_state),
     ):
         _require_token(value, name)
+    if authority_state not in _AUTHORITY_STATES:
+        raise ValueError("authority_state must be active or revoked")
+    _require_aware_datetime(recorded_at, "recorded_at")
+    _require_aware_datetime(valid_until, "valid_until")
+    if recorded_at >= valid_until:
+        raise ValueError("recorded_at must be before valid_until")
+    if not isinstance(user_id, int) or isinstance(user_id, bool) or user_id <= 0:
+        raise ValueError("user_id must be a positive integer")
+    if not isinstance(is_authenticated, bool) or not isinstance(is_staff, bool):
+        raise TypeError("authority flags must be bools")
 
     payload: Mapping[str, JSONValue] = {
+        "source_id": source_id,
+        "source_version": source_version,
         "actor_id": actor_id,
         "user_id": user_id,
         "tenant_id": tenant_id,
@@ -93,6 +114,9 @@ def system_audit_authority_content_hash(
         "is_authenticated": is_authenticated,
         "is_staff": is_staff,
         "role": role,
+        "authority_state": authority_state,
+        "recorded_at": recorded_at.isoformat(),
+        "valid_until": valid_until.isoformat(),
     }
     return hashlib.sha256(
         b"audit.system-audit-authority.v1\0" + _canonical_bytes(payload)
@@ -141,6 +165,13 @@ def _exact_payload_equal(left: object, right: object) -> bool:
 def _require_digest(value: str, field: str) -> None:
     if not isinstance(value, str) or _DIGEST_RE.fullmatch(value) is None:
         raise ValueError(f"{field} must be a lowercase sha256 digest")
+
+
+def _require_aware_datetime(value: object, field: str) -> None:
+    """Require a timezone-aware authority clock value."""
+
+    if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError(f"{field} must be timezone-aware")
 
 
 @dataclass(frozen=True, slots=True)
@@ -245,6 +276,8 @@ class CanonicalSystemAuditPublisher(Protocol):
 class SystemAuditAuthoritySnapshot:
     """Authoritative, request-independent facts used for a scoped read."""
 
+    source_id: str
+    source_version: str
     actor_id: str
     user_id: int
     tenant_id: str
@@ -253,25 +286,39 @@ class SystemAuditAuthoritySnapshot:
     is_authenticated: bool
     is_staff: bool
     role: str
+    authority_state: str
+    recorded_at: datetime
+    valid_until: datetime
 
     def __post_init__(self) -> None:
         for name, value in (
+            ("source_id", self.source_id),
+            ("source_version", self.source_version),
             ("actor_id", self.actor_id),
             ("tenant_id", self.tenant_id),
             ("owner_id", self.owner_id),
             ("role", self.role),
+            ("authority_state", self.authority_state),
         ):
             _require_token(value, name)
         if not isinstance(self.user_id, int) or isinstance(self.user_id, bool) or self.user_id <= 0:
             raise ValueError("user_id must be a positive integer")
         if not isinstance(self.is_authenticated, bool) or not isinstance(self.is_staff, bool):
             raise TypeError("authority flags must be bools")
+        if self.authority_state not in _AUTHORITY_STATES:
+            raise ValueError("authority_state must be active or revoked")
+        _require_aware_datetime(self.recorded_at, "recorded_at")
+        _require_aware_datetime(self.valid_until, "valid_until")
+        if self.recorded_at >= self.valid_until:
+            raise ValueError("recorded_at must be before valid_until")
         _require_digest(self.authority_content_hash, "authority_content_hash")
 
     def validate_integrity(self) -> None:
         """Reject a provider snapshot whose scope facts do not match its hash."""
 
         expected = system_audit_authority_content_hash(
+            source_id=self.source_id,
+            source_version=self.source_version,
             actor_id=self.actor_id,
             user_id=self.user_id,
             tenant_id=self.tenant_id,
@@ -279,16 +326,29 @@ class SystemAuditAuthoritySnapshot:
             is_authenticated=self.is_authenticated,
             is_staff=self.is_staff,
             role=self.role,
+            authority_state=self.authority_state,
+            recorded_at=self.recorded_at,
+            valid_until=self.valid_until,
         )
         if expected != self.authority_content_hash:
             raise ValueError("authority snapshot content hash mismatch")
+
+    def validate_at(self, as_of: datetime) -> None:
+        """Require this snapshot to be active and knowable at ``as_of``."""
+
+        _require_aware_datetime(as_of, "authority cutoff")
+        if self.authority_state != "active":
+            raise ValueError("authority snapshot is not active")
+        if not self.recorded_at <= as_of < self.valid_until:
+            raise ValueError("authority snapshot is outside its validity window")
 
     @property
     def can_read(self) -> bool:
         """Return the minimum staff/user binding required by the query contract."""
 
         return (
-            self.is_authenticated
+            self.authority_state == "active"
+            and self.is_authenticated
             and self.is_staff
             and self.actor_id == f"django-user:{self.user_id}"
         )
@@ -327,6 +387,7 @@ def get_system_audit_reader_context(
         snapshot = provider.get_current(as_of=as_of)
         if isinstance(snapshot, SystemAuditAuthoritySnapshot):
             snapshot.validate_integrity()
+            snapshot.validate_at(as_of)
         is_eligible = isinstance(snapshot, SystemAuditAuthoritySnapshot) and snapshot.can_read
     except Exception:
         # Do not leak provider/database/RBAC details through this boundary.
@@ -340,6 +401,8 @@ def get_system_audit_reader_context(
             reason_code="authority_unavailable",
         )
     return SystemAuditReaderContext._from_authority(
+        authority_source_id=snapshot.source_id,
+        authority_source_version=snapshot.source_version,
         actor_id=snapshot.actor_id,
         user_id=snapshot.user_id,
         tenant_id=snapshot.tenant_id,
@@ -348,6 +411,9 @@ def get_system_audit_reader_context(
         is_authenticated=snapshot.is_authenticated,
         is_staff=snapshot.is_staff,
         role=snapshot.role,
+        authority_state=snapshot.authority_state,
+        authority_recorded_at=snapshot.recorded_at,
+        authority_valid_until=snapshot.valid_until,
     )
 
 
