@@ -831,3 +831,17 @@ Audit composition/query 定向回归 `44 passed`，与 dispatcher/dispatch task 
 architecture audit 均通过。该 slice 仍只提供本地 freshness/PIT 合同：没有 authenticated
 tenant/owner lifecycle、source issuer、durable publisher/receipt sink、beat/retry、生产
 PostgreSQL/VPS authority 观察；`publisher_not_wired` 和 AUD-01 gate 继续保持阻断。
+
+## 实施记录（2026-08-16，AUD-01 durable delivery receipt contract）
+
+`CanonicalSystemAuditPublishReceipt` 现在除完整保留 event identity、stream predecessor、
+idempotency 和 canonical payload 外，还要求 bounded `sink_id`、`delivery_id` 与 timezone-aware
+`published_at`。publication clock 早于 event `recorded_at`、缺失 delivery proof、或 sink/delivery
+token 非 canonical 时，dispatcher 统一按 `publisher_contract_violation` 失败关闭，不能仅凭事件
+字段相等把内存/泛型返回值计为 delivered。负向测试覆盖缺失 proof、clock 倒退和既有 payload/type
+替换；AUD composition/dispatcher/task 定向回归 `46 passed`，增量 mypy、Black/isort、py_compile、
+diff-check 与 governance consistency 通过。
+
+该 slice 只是本地 receipt 合同强化：没有创建 durable sink、publisher runtime、beat/retry/requeue、
+authenticated authority provider 或生产 PostgreSQL 投递证明；runtime 仍固定
+`publisher_not_wired`，AUD-01 不解除，AUD-02 继续等待。

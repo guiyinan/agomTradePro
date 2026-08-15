@@ -42,7 +42,12 @@ class Publisher:
         if self.fail or getattr(event, "event_id", None) in self.fail_event_ids:
             raise RuntimeError("secret publisher detail must not escape")
         self.events.append(event)
-        return CanonicalSystemAuditPublishReceipt.from_event(event)
+        return CanonicalSystemAuditPublishReceipt.from_event(
+            event,
+            sink_id="test-sink",
+            delivery_id=f"delivery:{event.event_id}",
+            published_at=NOW,
+        )
 
 
 class Repository:
@@ -137,10 +142,32 @@ def test_dispatch_rejects_publisher_without_exact_preservation_receipt() -> None
     assert repository.failed[0]["error_code"] == "publisher_contract_violation"
 
 
+def test_dispatch_rejects_receipt_without_durable_delivery_proof() -> None:
+    class EventOnlyPublisher:
+        def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
+            return CanonicalSystemAuditPublishReceipt.from_event(event)
+
+    repository = Repository(_claim())
+    result = DispatchSystemAuditOutboxUseCase(
+        repository,
+        EventOnlyPublisher(),
+        UnitOfWork(),
+    ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
+
+    assert (result.claimed, result.delivered, result.failed) == (1, 0, 1)
+    assert result.outcome == "failed"
+    assert repository.failed[0]["error_code"] == "publisher_contract_violation"
+
+
 def test_dispatch_classifies_noncanonical_receipt_payload_as_contract_failure() -> None:
     class MalformedPayloadPublisher:
         def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
-            receipt = CanonicalSystemAuditPublishReceipt.from_event(event)
+            receipt = CanonicalSystemAuditPublishReceipt.from_event(
+                event,
+                sink_id="test-sink",
+                delivery_id=f"delivery:{event.event_id}",
+                published_at=NOW,
+            )
             return replace(receipt, canonical_payload={"invalid": object()})
 
     repository = Repository(_claim())
@@ -157,7 +184,12 @@ def test_dispatch_classifies_noncanonical_receipt_payload_as_contract_failure() 
 def test_dispatch_classifies_type_coerced_receipt_payload_as_contract_failure() -> None:
     class TypeCoercingPublisher:
         def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
-            receipt = CanonicalSystemAuditPublishReceipt.from_event(event)
+            receipt = CanonicalSystemAuditPublishReceipt.from_event(
+                event,
+                sink_id="test-sink",
+                delivery_id=f"delivery:{event.event_id}",
+                published_at=NOW,
+            )
             payload = dict(receipt.canonical_payload)
             payload["reason_codes"] = tuple(payload["reason_codes"])
             return replace(receipt, canonical_payload=payload)

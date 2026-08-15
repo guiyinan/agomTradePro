@@ -176,7 +176,13 @@ def _require_aware_datetime(value: object, field: str) -> None:
 
 @dataclass(frozen=True, slots=True)
 class CanonicalSystemAuditPublishReceipt:
-    """Durable-sink receipt that proves exact event preservation."""
+    """Durable-sink receipt that proves exact event and delivery preservation.
+
+    The delivery fields are deliberately optional at construction time so a
+    malformed or legacy-shaped publisher result can cross the typed boundary
+    and be rejected deterministically by :meth:`validate_for`.  A receipt is
+    not deliverable evidence until all three fields are present and valid.
+    """
 
     event_id: str
     event_version: str
@@ -187,10 +193,25 @@ class CanonicalSystemAuditPublishReceipt:
     predecessor_hash: str | None
     idempotency_key: str
     canonical_payload: Mapping[str, JSONValue]
+    sink_id: str | None = None
+    delivery_id: str | None = None
+    published_at: datetime | None = None
 
     @classmethod
-    def from_event(cls, event: SystemAuditEvent) -> "CanonicalSystemAuditPublishReceipt":
-        """Build the test/reference receipt for an unchanged event."""
+    def from_event(
+        cls,
+        event: SystemAuditEvent,
+        *,
+        sink_id: str | None = None,
+        delivery_id: str | None = None,
+        published_at: datetime | None = None,
+    ) -> "CanonicalSystemAuditPublishReceipt":
+        """Build an exact receipt, optionally without delivery proof.
+
+        Omitting the delivery arguments is useful for constructing a negative
+        contract fixture.  Such a receipt must fail ``validate_for`` and can
+        never be accepted by the outbox dispatcher.
+        """
 
         return cls(
             event_id=event.event_id,
@@ -202,6 +223,9 @@ class CanonicalSystemAuditPublishReceipt:
             predecessor_hash=event.predecessor_hash,
             idempotency_key=event.idempotency_key,
             canonical_payload=event.to_payload(),
+            sink_id=sink_id,
+            delivery_id=delivery_id,
+            published_at=published_at,
         )
 
     def __post_init__(self) -> None:
@@ -225,6 +249,32 @@ class CanonicalSystemAuditPublishReceipt:
             raise ValueError("sequence_no must be a positive integer")
         if not isinstance(self.canonical_payload, Mapping):
             raise TypeError("canonical_payload must be a mapping")
+        if self.sink_id is not None and not isinstance(self.sink_id, str):
+            raise TypeError("sink_id must be a string when provided")
+        if self.delivery_id is not None and not isinstance(self.delivery_id, str):
+            raise TypeError("delivery_id must be a string when provided")
+        if self.published_at is not None:
+            _require_aware_datetime(self.published_at, "published_at")
+
+    def _validate_delivery_proof(self, event: SystemAuditEvent) -> None:
+        """Require bounded sink/delivery identities and a post-event clock."""
+
+        if self.sink_id is None or self.delivery_id is None or self.published_at is None:
+            raise SystemAuditPublisherContractViolation(
+                "publisher receipt did not include durable delivery proof"
+            )
+        try:
+            _require_token(self.sink_id, "sink_id")
+            _require_token(self.delivery_id, "delivery_id")
+            _require_aware_datetime(self.published_at, "published_at")
+        except (TypeError, ValueError) as exc:
+            raise SystemAuditPublisherContractViolation(
+                "publisher receipt contained invalid durable delivery proof"
+            ) from exc
+        if self.published_at < event.recorded_at:
+            raise SystemAuditPublisherContractViolation(
+                "publisher publication clock precedes the event clock"
+            )
 
     def validate_for(self, event: SystemAuditEvent) -> None:
         """Reject any identity, chain, hash, or payload substitution."""
@@ -257,6 +307,7 @@ class CanonicalSystemAuditPublishReceipt:
             raise SystemAuditPublisherContractViolation(
                 "publisher receipt did not preserve the canonical event"
             )
+        self._validate_delivery_proof(event)
         try:
             event.validate_hashes()
         except (TypeError, ValueError) as exc:

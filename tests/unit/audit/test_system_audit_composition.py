@@ -244,7 +244,12 @@ def test_non_datetime_cutoff_is_blocked_before_provider_read(cutoff: object) -> 
 
 def test_publish_receipt_preserves_all_event_identity_and_payload() -> None:
     event = make_event()
-    receipt = CanonicalSystemAuditPublishReceipt.from_event(event)
+    receipt = CanonicalSystemAuditPublishReceipt.from_event(
+        event,
+        sink_id="test-sink",
+        delivery_id="delivery:evt-1",
+        published_at=event.recorded_at,
+    )
     receipt.validate_for(event)
 
     with pytest.raises(SystemAuditPublisherContractViolation):
@@ -257,6 +262,22 @@ def test_publish_receipt_preserves_all_event_identity_and_payload() -> None:
 
     with pytest.raises(SystemAuditPublisherContractViolation, match="non-canonical"):
         replace(receipt, canonical_payload={"invalid": object()}).validate_for(event)
+
+
+def test_publish_receipt_requires_durable_sink_identity_and_publication_clock() -> None:
+    event = make_event()
+    without_proof = CanonicalSystemAuditPublishReceipt.from_event(event)
+    with pytest.raises(SystemAuditPublisherContractViolation, match="delivery proof"):
+        without_proof.validate_for(event)
+
+    valid = CanonicalSystemAuditPublishReceipt.from_event(
+        event,
+        sink_id="test-sink",
+        delivery_id="delivery:evt-1",
+        published_at=event.recorded_at,
+    )
+    with pytest.raises(SystemAuditPublisherContractViolation, match="precedes"):
+        replace(valid, published_at=event.recorded_at - timedelta(seconds=1)).validate_for(event)
 
 
 @pytest.mark.parametrize(
@@ -274,7 +295,12 @@ def test_publish_receipt_rejects_non_exact_nested_payload_types(
     replacement: Callable[[dict[str, object]], dict[str, object]],
 ) -> None:
     event = make_event()
-    receipt = CanonicalSystemAuditPublishReceipt.from_event(event)
+    receipt = CanonicalSystemAuditPublishReceipt.from_event(
+        event,
+        sink_id="test-sink",
+        delivery_id="delivery:evt-1",
+        published_at=event.recorded_at,
+    )
     payload = dict(receipt.canonical_payload)
     changed = replacement(payload)
 
@@ -285,4 +311,12 @@ def test_publish_receipt_rejects_non_exact_nested_payload_types(
 def test_publish_receipt_rejects_bool_for_sequence_number() -> None:
     event = make_event()
     with pytest.raises(ValueError, match="sequence_no"):
-        replace(CanonicalSystemAuditPublishReceipt.from_event(event), sequence_no=True)
+        replace(
+            CanonicalSystemAuditPublishReceipt.from_event(
+                event,
+                sink_id="test-sink",
+                delivery_id="delivery:evt-1",
+                published_at=event.recorded_at,
+            ),
+            sequence_no=True,
+        )
