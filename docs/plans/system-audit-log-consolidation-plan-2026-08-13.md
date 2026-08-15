@@ -530,6 +530,19 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
   scoped lifecycle、生产 PostgreSQL/VPS migration/rollback/observation；AUD-01 未解除，
   AUD-02 继续等待依赖。
 
+### 2026-08-15：AUD-01 canonical receipt malformed-payload hardening
+
+- `CanonicalSystemAuditPublishReceipt.validate_for()` 现在把不可 canonical JSON 编码的
+  publisher payload（例如嵌入不可序列化对象）统一转换为
+  `SystemAuditPublisherContractViolation`；dispatcher 稳定记录
+  `publisher_contract_violation`，不再把 publisher contract 破坏误报成普通
+  `publisher_error`。
+- composition/dispatcher 定向回归 `25 passed`；Black、isort、增量 mypy、architecture
+  与 audit contract checks 均通过。
+- 这只是 fail-closed 合同加固：runtime 仍固定 `publisher_not_wired`，没有 durable
+  publisher/receipt sink、authenticated scoped lifecycle、beat/retry/requeue 或生产
+  PostgreSQL/VPS 证据；AUD-01 未解除，AUD-02 继续等待依赖。
+
 ### M1：Audit Domain、append-only ledger 与 Query
 
 交付：
