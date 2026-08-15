@@ -266,6 +266,15 @@ AgomTradePro 侧新增 actionability guard：读取 compact `config/tui/publishe
 - `black --check`、`isort --check-only`、`py_compile` 和 `git diff --check` 通过。
 - 该 guard 只约束本仓库的 runtime source boundary，不修复 AgomTUI 外部仓库的 schema/validator；下游 `check-usability`、双仓库同步、最终候选部署、角色化 UAT 和 M5 观察窗口仍未完成。
 
+## 实施记录（2026-08-16，本地写入口与角色 affordance 复核）
+
+对当前 `dev/next-development@e167ab2fc748e4c93d2622f93fa8cc75442b2bb6` 候选重新核对了 Workbench 的行操作闭环：带可见 `body` 字段的非 GET 行操作先打开表单，identity 字段按行预填，提交前不发请求；只有 approve/delete/toggle/批量等无额外输入动作保持直执行。`_screen_dashboard_panels` 同时按当前用户的 `visible_action_keys` 过滤 `row_actions`，普通用户不再看到无法执行的管理员 Signal/Beta Gate/Rotation 按钮。
+
+- `python -m pytest tests/unit/test_tui_actionability_contract.py -q --confcutdir=tests/unit -p no:cacheprovider`：`10 passed`。
+- `python -m pytest tests/unit/test_tui_workbench.py -q -k 'signal_management_actions_respect_role_and_confirmation or strategy_row_actions_follow_role_filtered_actions' --confcutdir=tests/unit -p no:cacheprovider`：`2 passed`。
+- 当前候选 registry/readiness/deployment evidence 身份一致；M5 readiness 仍为 `DENY`，因为角色化生产浏览器 UAT、写后 receipt/refresh、14 日 telemetry、cleanup/rollback、registry backup/restore 与 owner/reviewer 双签均未提供。
+- 这次复核不改变 AgomTUI 外部仓库：其 schema/validator portability、双仓库同步与 `check-usability` 仍须在下游仓库独立修复和验证；本地测试也不等同于 VPS 角色化 UAT。
+
 ## 八、完成定义
 
 - TUI IA 主计划在 AgomTradePro 本地完成，普通用户 13 屏、管理员 16 屏、8 步链全绿。
