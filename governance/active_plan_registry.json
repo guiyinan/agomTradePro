@@ -292,5 +292,336 @@
       "review_by": "2026-08-22",
       "disposition": "Reconcile with the canonical Transition Plan and Evidence hard-gate workstream, then archive superseded workflow design."
     }
-  ]
+  ],
+  "closure_backlog": {
+    "version": "2026-08-15.v1",
+    "legacy_unchecked_count": 139,
+    "legacy_unchecked_by_workstream": {
+      "evidence-hard-gate": 0,
+      "strategy-research-production": 37,
+      "data-production-reliability": 65,
+      "system-audit-consolidation": 13,
+      "web-to-tui-m5": 13,
+      "ai-native-release": 0,
+      "qmt-live-bridge": 11
+    },
+    "legacy_sources": [
+      {
+        "path": "docs/plans/strategy-research-production-data-closure-tracking-memo-2026-08-12.md",
+        "unchecked_count": 36,
+        "closure_unit_ids": [
+          "STRAT-01",
+          "STRAT-02",
+          "STRAT-03"
+        ]
+      },
+      {
+        "path": "docs/plans/macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md",
+        "unchecked_count": 1,
+        "closure_unit_ids": [
+          "STRAT-02"
+        ]
+      },
+      {
+        "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
+        "unchecked_count": 60,
+        "closure_unit_ids": [
+          "DATA-01",
+          "DATA-02",
+          "DATA-03"
+        ]
+      },
+      {
+        "path": "docs/plans/production-data-reliability-full-remediation-2026-08-01.md",
+        "unchecked_count": 4,
+        "closure_unit_ids": [
+          "DATA-01",
+          "DATA-02",
+          "DATA-03"
+        ]
+      },
+      {
+        "path": "docs/plans/critical-reliability-test-closure-2026-07-22.md",
+        "unchecked_count": 1,
+        "closure_unit_ids": [
+          "DATA-03"
+        ]
+      },
+      {
+        "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
+        "unchecked_count": 13,
+        "closure_unit_ids": [
+          "AUD-01",
+          "AUD-02",
+          "AUD-03"
+        ]
+      },
+      {
+        "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
+        "unchecked_count": 13,
+        "closure_unit_ids": [
+          "TUI-01",
+          "TUI-02"
+        ]
+      },
+      {
+        "path": "docs/plans/qmt-live-trading-bridge-plan.md",
+        "unchecked_count": 11,
+        "closure_unit_ids": [
+          "QMT-01",
+          "QMT-02"
+        ]
+      }
+    ],
+    "waves": [
+      {
+        "id": 0,
+        "title": "Plan inventory closure",
+        "rule": "Dispose of the review queue without opening a new implementation line."
+      },
+      {
+        "id": 1,
+        "title": "Decision safety and audit foundation",
+        "rule": "Run one major repository line at a time; Evidence is the primary line and Audit is the next bounded line."
+      },
+      {
+        "id": 2,
+        "title": "Production data and research acceptance",
+        "rule": "Do not start destructive cutover before backup, rollback and reconciliation evidence exist."
+      },
+      {
+        "id": 3,
+        "title": "Candidate release and user acceptance",
+        "rule": "Bind deployment, browser UAT, telemetry and sign-off to one immutable candidate."
+      },
+      {
+        "id": 4,
+        "title": "Externally unblocked broker acceptance",
+        "rule": "Start only after the broker supplies a working XtQuant environment and permission."
+      }
+    ],
+    "units": [
+      {
+        "id": "GOV-01",
+        "workstream_id": "review-queue",
+        "wave": 0,
+        "priority": "P1",
+        "execution_mode": "governance",
+        "status": "planned",
+        "title": "Dispose of the nine time-bounded legacy plans",
+        "depends_on": [],
+        "exit_gate": "Every review item is merged into a canonical unit, archived as superseded, or promoted to a registered workstream by 2026-08-22."
+      },
+      {
+        "id": "EVID-01",
+        "workstream_id": "evidence-hard-gate",
+        "wave": 1,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "active",
+        "title": "Close owner-scoped Evidence authority and production composition",
+        "depends_on": [],
+        "exit_gate": "Exact user, tenant and owner authority is mandatory and fail-closed at every production Evidence read and approval composition boundary."
+      },
+      {
+        "id": "EVID-02",
+        "workstream_id": "evidence-hard-gate",
+        "wave": 1,
+        "priority": "P0",
+        "execution_mode": "production",
+        "status": "planned",
+        "title": "Prove append-only approval and current-head behavior on PostgreSQL",
+        "depends_on": [],
+        "exit_gate": "Human approval, first-winner, successor, current-head and rollback behavior have repeatable PostgreSQL concurrency evidence."
+      },
+      {
+        "id": "EVID-03",
+        "workstream_id": "evidence-hard-gate",
+        "wave": 1,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Wire priority adapters and exact pre-execution revalidation",
+        "depends_on": [
+          "EVID-01",
+          "EVID-02"
+        ],
+        "exit_gate": "Priority Research, Portfolio and Broker consumers use canonical Evidence and exact-current authorization without relaxing the global deny."
+      },
+      {
+        "id": "AUD-01",
+        "workstream_id": "system-audit-consolidation",
+        "wave": 1,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Assemble the canonical audit publisher, runtime and authority source",
+        "depends_on": [],
+        "exit_gate": "The fail-closed dispatcher uses one production publisher and authenticated scoped authority composition with no memory or generic-event fallback."
+      },
+      {
+        "id": "AUD-02",
+        "workstream_id": "system-audit-consolidation",
+        "wave": 1,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Wire Data Center fetch events in the same unit of work",
+        "depends_on": [
+          "AUD-01"
+        ],
+        "exit_gate": "Fetch, validation, failover, persistence and publication events use the canonical event/outbox transaction and can be replayed without silent loss."
+      },
+      {
+        "id": "AUD-03",
+        "workstream_id": "system-audit-consolidation",
+        "wave": 2,
+        "priority": "P0/P1",
+        "execution_mode": "production",
+        "status": "waiting_dependency",
+        "title": "Complete production audit migration and operational acceptance",
+        "depends_on": [
+          "AUD-02"
+        ],
+        "exit_gate": "Migration and rollback, backlog recovery observation, bounded metrics, alerts, admin TUI, archive/restore and production sign-off are evidenced."
+      },
+      {
+        "id": "DATA-01",
+        "workstream_id": "data-production-reliability",
+        "wave": 2,
+        "priority": "P0",
+        "execution_mode": "production",
+        "status": "awaiting_production",
+        "title": "Create verified backup and rehearse maintenance rollback",
+        "depends_on": [],
+        "exit_gate": "A production custom-format backup is downloaded and hash-verified, and maintenance plus rollback procedures are rehearsed before destructive work."
+      },
+      {
+        "id": "DATA-02",
+        "workstream_id": "data-production-reliability",
+        "wave": 2,
+        "priority": "P0",
+        "execution_mode": "production",
+        "status": "waiting_dependency",
+        "title": "Run controlled backfill and canonical reconciliation",
+        "depends_on": [
+          "DATA-01"
+        ],
+        "exit_gate": "The production universe is backfilled with observation-time preservation and reconciled against canonical sources within governed tolerances."
+      },
+      {
+        "id": "DATA-03",
+        "workstream_id": "data-production-reliability",
+        "wave": 2,
+        "priority": "P0",
+        "execution_mode": "production",
+        "status": "waiting_dependency",
+        "title": "Execute M9/M10 cutover and observation",
+        "depends_on": [
+          "DATA-02"
+        ],
+        "exit_gate": "Canonical reads, readiness, smoke checks and the observation window pass before maintenance mode is removed."
+      },
+      {
+        "id": "STRAT-01",
+        "workstream_id": "strategy-research-production",
+        "wave": 2,
+        "priority": "P0",
+        "execution_mode": "production",
+        "status": "awaiting_production",
+        "title": "Register real R1-R8 owner definitions and policies",
+        "depends_on": [],
+        "exit_gate": "Canonical owner, definition, policy, calendar, scope, sample-window and qualification bindings exist for every promoted capability."
+      },
+      {
+        "id": "STRAT-02",
+        "workstream_id": "strategy-research-production",
+        "wave": 2,
+        "priority": "P0",
+        "execution_mode": "production",
+        "status": "waiting_dependency",
+        "title": "Accumulate PIT/OOS history and canonical receipts",
+        "depends_on": [
+          "STRAT-01",
+          "DATA-02"
+        ],
+        "exit_gate": "Required PIT/OOS windows, receipts, lineage and reconciliation evidence are complete without fixture or synthetic substitution."
+      },
+      {
+        "id": "STRAT-03",
+        "workstream_id": "strategy-research-production",
+        "wave": 2,
+        "priority": "P0",
+        "execution_mode": "production",
+        "status": "waiting_dependency",
+        "title": "Complete Promotion and consumer UAT",
+        "depends_on": [
+          "STRAT-02",
+          "EVID-03"
+        ],
+        "exit_gate": "Promotion, permission, consumer behavior and rollback UAT pass against the same canonical receipts and Evidence contracts."
+      },
+      {
+        "id": "TUI-01",
+        "workstream_id": "web-to-tui-m5",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "production",
+        "status": "awaiting_production",
+        "title": "Deploy one manifest-bound candidate and run role UAT",
+        "depends_on": [],
+        "exit_gate": "One immutable commit, version, OCI revision and matrix SHA is deployed and completes role-based browser UAT with write receipts."
+      },
+      {
+        "id": "TUI-02",
+        "workstream_id": "web-to-tui-m5",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "production",
+        "status": "waiting_dependency",
+        "title": "Complete observation, signed cleanup waves and rollback evidence",
+        "depends_on": [
+          "TUI-01"
+        ],
+        "exit_gate": "The 14-day telemetry window, registry backup, wave observation, rollback drill and owner/reviewer sign-off all bind to the candidate."
+      },
+      {
+        "id": "AI-01",
+        "workstream_id": "ai-native-release",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "external",
+        "status": "waiting_dependency",
+        "title": "Complete AI-Native staging and production acceptance",
+        "depends_on": [
+          "TUI-01"
+        ],
+        "exit_gate": "Real staging and production browser evidence plus independent owner/reviewer approval bind to the same candidate commit."
+      },
+      {
+        "id": "QMT-01",
+        "workstream_id": "qmt-live-bridge",
+        "wave": 4,
+        "priority": "P2",
+        "execution_mode": "external",
+        "status": "blocked_external",
+        "title": "Obtain XtQuant permission and pass Phase 0 on the target host",
+        "depends_on": [],
+        "exit_gate": "The broker supplies an approved XtQuant environment where the read probe and compatibility matrix pass."
+      },
+      {
+        "id": "QMT-02",
+        "workstream_id": "qmt-live-bridge",
+        "wave": 4,
+        "priority": "P2",
+        "execution_mode": "external",
+        "status": "blocked_external",
+        "title": "Complete continuous simulation and controlled small-value live acceptance",
+        "depends_on": [
+          "QMT-01"
+        ],
+        "exit_gate": "Order, cancel, callback, reconnect, reconciliation, emergency stop and rollback evidence pass before live enablement."
+      }
+    ]
+  }
 }

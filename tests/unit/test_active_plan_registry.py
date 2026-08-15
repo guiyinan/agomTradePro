@@ -31,6 +31,7 @@ def _write_fixture_repository(root: Path) -> tuple[Path, Path]:
     index_path.write_text(
         "# Plans\n\n"
         "Registry: governance/active_plan_registry.json\n\n"
+        "Canonical backlog: closure_backlog\n\n"
         "Workstream: `example`\n",
         encoding="utf-8",
     )
@@ -57,6 +58,39 @@ def _write_fixture_repository(root: Path) -> tuple[Path, Path]:
                     }
                 ],
                 "review_queue": [],
+                "closure_backlog": {
+                    "version": "test.v1",
+                    "legacy_unchecked_count": 0,
+                    "legacy_unchecked_by_workstream": {"example": 0},
+                    "waves": [
+                        {"id": 0, "title": "Governance", "rule": "Review stale plans."},
+                        {"id": 1, "title": "Delivery", "rule": "Deliver the example."},
+                    ],
+                    "units": [
+                        {
+                            "id": "GOV-01",
+                            "workstream_id": "review-queue",
+                            "wave": 0,
+                            "priority": "P1",
+                            "execution_mode": "governance",
+                            "status": "planned",
+                            "title": "Review stale plans",
+                            "depends_on": [],
+                            "exit_gate": "Review is complete.",
+                        },
+                        {
+                            "id": "EXAMPLE-01",
+                            "workstream_id": "example",
+                            "wave": 1,
+                            "priority": "P0",
+                            "execution_mode": "repository",
+                            "status": "active",
+                            "title": "Deliver example",
+                            "depends_on": [],
+                            "exit_gate": "Example is complete.",
+                        },
+                    ],
+                },
             }
         ),
         encoding="utf-8",
@@ -77,6 +111,7 @@ def test_repository_active_plan_registry_is_closed_world():
     assert report.primary_plan_count == 16
     assert report.supporting_document_count == 21
     assert report.review_queue_count == 9
+    assert report.closure_unit_count == 18
     assert report.registered_path_count == report.active_path_count == 46
 
 
@@ -116,3 +151,23 @@ def test_registry_rejects_duplicate_and_stale_paths(tmp_path: Path):
     codes = {violation.code for violation in report.violations}
     assert "duplicate_path" in codes
     assert "stale_registered_path" in codes
+
+
+def test_registry_rejects_legacy_checkbox_and_dependency_drift(tmp_path: Path):
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    (tmp_path / "docs" / "plans" / "primary.md").write_text(
+        "# Primary\n\n- [ ] Newly added legacy item\n",
+        encoding="utf-8",
+    )
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["closure_backlog"]["units"][1]["depends_on"] = ["MISSING-99"]
+    payload["closure_backlog"]["units"][1]["status"] = "waiting_dependency"
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    codes = {violation.code for violation in report.violations}
+    assert "legacy_count_drift" in codes
+    assert "legacy_total_drift" in codes
+    assert "unknown_closure_dependency" in codes

@@ -137,7 +137,7 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划机器注册表（工作流 / owner / 状态 / 文件归属 / 限期审查）** | 7 条工作流、16 份主计划、46 个活跃文件；CI 禁止未登记 plan 漂移 |
+| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划与 canonical closure backlog 机器真源（工作流 / owner / 状态 / 依赖 / 唯一退出门 / 文件归属 / 限期审查）** | 139 个历史未勾选细项已去重为 18 个工作包；7 条工作流、16 份主计划、46 个活跃文件；CI 禁止待办、依赖和 plan 漂移 |
 | [scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md](plans/scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md) | **情景硬编码治理、动态/参数/宏观情景、AI MCP 受控修改及策略方法 Quick Wins（M0-M6）** | 提案，待评审实施 |
 | [strategy-research-capability-completion-audit-2026-08-05.md](plans/strategy-research-capability-completion-audit-2026-08-05.md) | **策略研究 R1—R8 完成度审计、真实数据阻断与无数据开发队列** | 实施中；无 P0，剩余 P1 分批收口 |
 | [sentiment-awareness-enhancement-plan-2026-07-31.md](archive/plans/sentiment-awareness-enhancement-plan-2026-07-31.md) | **A 股情绪态势感知增强计划（S0-S4，交易行为情绪指标 / Pulse sentiment 维度 / 文本情绪打通 / TUI 情绪面板）** | ✅ 已完成并归档 |
@@ -928,6 +928,9 @@
 - ✅ **Evidence owner/tenant authority source strict codec（2026-08-15）**
   - strict codec 完整重建 `EvidenceScopeSourceV1` 与 nested `ArtifactRef`，exact keys/types、UTC-Z microseconds、root/successor/fixed semantics、identity/content hash roundtrip 和 tamper fail closed；scope/source/facade codec 合计 `42 passed`
   - 仅 canonical persistence contract，未创建 ledger/repository/provider 或生产 owner/tenant 接线；Evidence hard gate、人工授权、写入和 execution 继续关闭
+- ✅ **Evidence owner/tenant authority source Application readers（2026-08-15）**
+  - dormant pure Application readers 只接受 source ID/version、expected content hash 与 aware PIT；exact 保留历史可知记录，current 要求 exact 与 final logical head 完全相等，terminal/expired/superseded 不回退；相关 source/codec/Domain/facade 回归合计 `52 passed`
+  - 仅 read contract，未创建 ledger/repository/provider、未读取 mutable User/session/tenant rows、未接人工授权或 production route；真实 owner/tenant source 与 Evidence hard gate、写入和 execution 继续关闭
 - ✅ **Web→TUI M5-C alias target checker correction（2026-08-14）**
   - 最终库存检查器同时读取 published graph 与 IA `published_screens`/`runtime_screens`，因此 runtime 注入的 `capability-router.mcp-center` 会被正确视为 canonical target；`capability-router.gateway` dangling 误报已消除
   - 11 个无活生产代码消费者的 dead alias 仍需真实流量观察、逐 wave 与回滚证据后再清理；M5 final 仍 DENY

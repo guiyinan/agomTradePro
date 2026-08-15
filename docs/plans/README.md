@@ -6,11 +6,14 @@
 ## 维护规则
 
 - 机器唯一真源是 [`governance/active_plan_registry.json`](../../governance/active_plan_registry.json)；本页是面向人的执行投影，不单独维护另一套状态。
+- 注册表中的 `closure_backlog` 是 review queue 与 7 条工作流的 canonical 分阶段收口单元；本页只解释其执行顺序，不复制机器状态。
 - `docs/plans/`：只允许登记在机器注册表中的主计划、支撑文档、证据或限期审查项。新增未登记文件、重复归属、陈旧路径和无截止日审查项由 CI 直接拒绝。
 - `docs/archive/plans/`：仓库范围已实现，或阶段已经验收/被新计划取代；归档文档仅作历史证据，不代表当前运行状态。
 - “代码已完成但生产未验收”仍属于活跃计划，不能仅因本地测试通过而归档。
 - `active` 表示仍有仓库实施；`production_validation` 表示主缺口已转为真实数据/迁移/观察；`external_validation` 与 `blocked_external` 不得伪装为开发完成。
 - `review_required` 不是长期状态，只允许出现在限期审查队列；到期必须合并、归档或转入明确工作流。
+- 唯一可执行待办是注册表内的 `closure_backlog.units`。主计划里的历史 `- [ ]` 仅作需求与验收来源，不再直接计数、排期或领取；新增细项必须归入既有 closure unit，或先通过注册表评审新增唯一 unit。
+- 同一 closure unit 的测试、文档、生产证据和回滚要求是一个验收包，不能拆成多份 plan 重复计算；依赖未完成的 unit 不得抢跑。
 - 归档时必须同步修正注册表、`docs/INDEX.md` 和活跃计划中的引用，不复制第二份文档。
 - 提交前运行 `python scripts/check_active_plan_registry.py`。
 
@@ -23,8 +26,10 @@
 | 支撑文档、证据与矩阵 | 21 |
 | 限期审查项 | 9 |
 | 注册表覆盖的活跃文件 | 46 |
+| 历史未勾选细项 | 139（非执行口径） |
+| 去重后 canonical closure units | 18 |
 
-“主计划”是执行入口，不等于独立工程量；同一工作流下的路线图、readiness 和生产跟踪不会再重复计算成多条主线。完整文件归属、owner、状态和下一退出门见机器注册表。
+“主计划”是需求和证据入口，不等于独立工程量；同一工作流下的路线图、readiness 和生产跟踪不会再重复计算成多条主线。完整文件归属、owner、状态、依赖和唯一退出门见机器注册表的 `closure_backlog`。
 
 ## 当前工作流
 
@@ -54,16 +59,32 @@
 
 审查队列只能下降；新增游离文档不会自动获得该状态。
 
-## 未完成项执行期（重要到次要）
+## 去重后的收口 Backlog
 
-| 期次 | 优先级 | 主线 | 退出条件 |
-|------|--------|------|----------|
-| 第一期 | P0 | 决策证据硬门禁、策略研究生产数据、Data Center canonical 与可靠性整改 | 决策链不再消费无证据或不新鲜数据，机器门禁和生产数据证据齐全 |
-| 第二期 | P0 | Web → TUI M5 readiness、生产 preflight、浏览器 UAT、回滚演练与 route closure | cutover、UAT、回滚和路由关闭均取得最终签字或可复验证据 |
-| 第三期 | P1 | AI-Native 人工 UAT/release gate、首页聊天复用前端自动化与浏览器验收 | 任务书验收表、人工签字、自动化资产和发布门禁全部闭环 |
-| 外部阻断线 | P2 | QMT 实盘桥接 | 外部环境、真实数据和生产接入证据到位后再转入完成验收 |
+139 个历史未勾选细项按共同产物、共同依赖和共同验收证据折叠为以下 **18 个唯一工作包**。状态只在机器注册表更新；本表不形成第二套待办。
 
-同一期内先处理会阻断投资决策正确性和生产安全的项目；仅有代码或本地测试、但缺少任务书要求的最终验收证明时，继续保留在活跃目录。
+| 波次 | Canonical unit | 类型 | 状态 | 依赖 | 唯一交付 |
+|------|----------------|------|------|------|----------|
+| W0 | `GOV-01` | governance | planned | — | 9 份限期审查 plan 全部合并、归档或正式转入工作流 |
+| W1 | `EVID-01` | repository | active | — | owner/user/tenant scoped Evidence authority 与生产 composition |
+| W1 | `EVID-02` | production | planned | — | approval/current-head 的 PostgreSQL first-winner、并发和回滚证据 |
+| W1 | `EVID-03` | repository | waiting | EVID-01/02 | Research/Portfolio/Broker adapters 与执行前 exact-current 重验 |
+| W1 | `AUD-01` | repository | planned | — | canonical publisher/runtime/authority composition |
+| W1 | `AUD-02` | repository | waiting | AUD-01 | Data Center fetch event 与 event/outbox 同 UOW 双写和重放 |
+| W2 | `AUD-03` | production | waiting | AUD-02 | migration/rollback、backlog 观察、告警、TUI、archive/restore 与签字 |
+| W2 | `DATA-01` | production | awaiting | — | 校验备份、维护态与回滚预演 |
+| W2 | `DATA-02` | production | waiting | DATA-01 | 受控回填与 canonical reconciliation |
+| W2 | `DATA-03` | production | waiting | DATA-02 | M9/M10 切换、readiness/smoke 与观察窗口 |
+| W2 | `STRAT-01` | production | awaiting | — | R1–R8 真实 owner/definition/policy/calendar/scope 登记 |
+| W2 | `STRAT-02` | production | waiting | STRAT-01/DATA-02 | PIT/OOS 历史、canonical receipts 与对账证据 |
+| W2 | `STRAT-03` | production | waiting | STRAT-02/EVID-03 | Promotion、权限、consumer 与回滚 UAT |
+| W3 | `TUI-01` | production | awaiting | — | manifest 绑定候选部署和角色化浏览器 UAT |
+| W3 | `TUI-02` | production | waiting | TUI-01 | 14 日 telemetry、registry backup、cleanup waves、回滚与双签 |
+| W3 | `AI-01` | external | waiting | TUI-01 | 同候选 staging/production 真实 UAT 与独立双签 |
+| W4 | `QMT-01` | external | blocked | — | 券商 XtQuant 权限和目标机 Phase 0 |
+| W4 | `QMT-02` | external | blocked | QMT-01 | 连续仿真和受控小额实盘验收 |
+
+执行纪律：W1 先完成决策安全主线；遵守“一条大主线加一个小收口”，Evidence 为当前大主线，`GOV-01` 可作为小收口，Audit 不与 Evidence 同时扩边。W2 的破坏性生产动作必须从 `DATA-01` 开始；W3 所有证据绑定同一不可变候选；W4 在券商解除阻断前不占用仓库开发排期。
 
 ## 分阶段执行记录
 
@@ -278,6 +299,7 @@
 | 2026-08-15 | 第一期 P0 | Evidence owner/tenant scope read contract | 新增纯 Application `EvidenceScopeGrant`/trusted provider/authorizer 与强制注入 authorizer 的 `ScopedEvidenceReadFacade`；三类 exact read 在 repository 前执行 artifact-level scope gate，缺失、future/stale、revoked、替换和 hash tamper 均 fail closed；unit+facade `12 passed`，mypy/architecture/format/py_compile 通过 | 仅本地授权合同；未接生产 owner/tenant provider、真实 scope source、PostgreSQL current-head/并发或人工授权；API 仍 staff-only，Evidence hard gate、写入和 execution 继续关闭 |
 | 2026-08-15 | 第一期 P0 | Evidence owner/tenant authority source contract | 新增纯 Domain `EvidenceScopeSourceV1`，固定 owner/tenant/account/actor/artifact exact refs、read-only/non-execution、root/successor、PIT 与 revoked/expired no-fallback；scope Domain/Application/facade `30 passed`，增量 mypy/architecture/format/compile 通过 | 仅 immutable source 语义合同；未创建 ledger/provider、未读取 User/session/tenant ORM、未接 API/人工授权/production route，Evidence hard gate、写入和 execution 继续关闭 |
 | 2026-08-15 | 第一期 P0 | Evidence owner/tenant authority source strict codec | strict codec 完整重建 `EvidenceScopeSourceV1`/`ArtifactRef`，exact keys/types、UTC-Z microseconds、root/successor/fixed semantics、identity/content hash roundtrip 与 tamper fail closed；scope/source/facade codec `42 passed`，增量 mypy/architecture/Black/isort/compile 通过 | 仅 canonical persistence contract；未创建 ledger/repository/provider、未接真实 owner/tenant source、API/人工授权或 production route，Evidence hard gate、写入和 execution 继续关闭 |
+| 2026-08-15 | 第一期 P0 | Evidence owner/tenant authority source Application readers | 新增 dormant pure Application exact/current readers；命令仅接受 source ID/version、expected content hash 与 aware PIT，exact 读取保留历史记录，current 先 exact 再要求 final logical head 与 scope identity/content 完全一致，terminal/expired/superseded 不回退；source Application/codec/Domain/facade 合计 `52 passed`，增量 mypy/architecture/Black/isort/compile 通过 | 仅 read contract；未创建 ledger/repository/provider、未读取 mutable User/session/tenant rows、未接人工授权或 production route，真实 owner/tenant source 与 Evidence hard gate、写入和 execution 继续关闭 |
 | 2026-08-14 | 第一期 P0 | Data Center architecture inventory source snapshot | 重新生成并复核 `governance/data_center_architecture_inventory.json`；静态计数为 `cross_app_orm_imports=48`、`current_surface_references=4225`、`data_write_task_decorators=58`、`runtime_parameter_references=49`，Data Center/Provider 外部直连、legacy fact 与待审外部 HTTP 均为 `0`；governance、architecture、catalog、legacy-fact、current-data、Celery guards 通过 | 仅源码治理快照；不代表生产 PostgreSQL/VPS 数据、备份恢复、shadow reconciliation、writer quiescence 或 M9 destructive migration，生产切换继续 DENY |
 | 2026-08-14 | 第三期 P1 | AI-Native local release gate / home-chat reuse | 冻结 API/SDK/MCP/TUI provenance/migration/test asset 清单；新增 `check_ai_native_release_gate.py`，本地资产与候选绑定检查通过，`test_ai_native_release_gate.py` `3 passed`；首页迁移到共享 `AgomChatWidget`，Node `33 passed`，本地 Playwright 普通提问/建议执行与取消流通过 | 仅机器门禁与本地 UI 闭环；首页真实候选/生产浏览器 UAT、staging、同候选 owner/reviewer 双签与发布证据仍缺，不能解除 P1 或生产发布闸门 |
 | 2026-08-14 | 第一期 P0 | 系统级统一审计日志 M0 事件注册表 | 新增 shadow `governance/audit_event_contracts.json` 与 `check_audit_event_contracts.py`，冻结 7 个顶层 category：20 个 Data Reliability 事件具备 owner/category/write policy/detail/reason 合同，其余 6 类保留 source-file inventory；已接入 consistency workflow 与 governance wiring；定向测试 `5 passed`、治理 wiring `29 passed`，未知 taxonomy、detail、关联字段和状态错配 fail closed | 仅机器合同与静态 inventory；Event Model、migration、outbox、运行写入口、Data Center 双写与生产审计覆盖仍未完成，M1+ 待评审 |

@@ -2286,6 +2286,23 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
   mutable User/session/tenant rows，也未接 API、人工授权或 production route；Evidence hard
   gate、写入和 execution 继续关闭。
 
+### 2026-08-15：Evidence owner/tenant authority source Application readers
+
+- 新增 dormant pure Application `GetExactEvidenceScopeSourceV1` 与
+  `GetCurrentEvidenceScopeSourceV1` readers。命令只接受 source ID/version、expected content
+  hash 与 aware PIT；repository port 要求先完成全表 canonical restore，再返回 exact row 或
+  final logical head。exact reader 重新校验 Domain、selector、content hash 与 recorded PIT，
+  因而保留 recorded knowledge 之后的历史读取，即使 source validity window 已过期。
+- current reader 先做 exact read，再要求 temporal current、final head、稳定 scope identity
+  与完整对象/hash 相等；缺失、过期、revoked、已被 successor 替换的候选均返回 `None`，不
+  回退旧 active predecessor；future row、类型替换、scope substitution 或 Domain/hash
+  tamper 统一 fail closed。source Application/codec/Domain/facade 定向回归 `52 passed`，
+  增量 mypy `0 regressions`、architecture audit `0 violations`、Black/isort、compile 与
+  diff-check 通过。
+- 这是只读 Application 合同，不是 concrete repository 或可信 source provider。当前没有
+  owner/tenant immutable ledger、User/session/tenant ORM 取证、PostgreSQL current-head/并发
+  证明、人工授权或 production route；Evidence hard gate、写入和 execution 总闸继续关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
