@@ -428,3 +428,23 @@ reconciliation。由于本机隔离恢复仍受 Docker/客户端工具链约束�
 
 该次尝试不计为 backup evidence，也不更新可用恢复点。`DATA-01` 仍为 `awaiting_production`，
 restore/rebuild、维护态 rollback、RTO/RPO、回填和 reconciliation 继续锁定。
+
+## 实施记录（2026-08-16，DATA-01 SFTP 断线续传修复与恢复点刷新）
+
+针对上一条在约 `4194304` bytes 处断线的问题，`scripts/backup-vps-postgres.py` 现以
+bounded retry 保留 `.partial`，在每次新 SFTP/SSH 会话中从已写入偏移继续读取；只有精确尺寸和
+SHA-256 校验后才原子替换目标文件，最终失败会清理 partial。新增断线恢复与重试耗尽测试，
+`tests/unit/test_backup_vps_postgres.py` 为 `8 passed`，脚本 `py_compile`、Black、isort 和
+`git diff --check` 均通过（本地环境没有 Ruff 模块）。
+
+在当前候选 `dev/next-development@45281620a8739ee666a1b20e6c6511c0b8101111` 的 VPS 归档上，
+重新运行 `scripts/backup-vps-postgres.ps1 -DownloadLatest` 成功：
+
+- 远端：`/opt/agomtradepro/backups/database/postgres-20260815T154338Z.dump`。
+- 本地：`backups/vps-postgres/postgres-20260815T154338Z.dump`，大小 `140279578` bytes。
+- 远端 `pg_restore --list`、SFTP 完整下载、尺寸与本地 SHA-256 均通过；SHA-256：
+  `eddb840c0c15d3041bf29a32471c8b6c03be0bd32a0ccf23d438647c46c2615e`。
+- 远端 prune 未启用；本次只读取/下载恢复点，没有 restore、回填、切读或 destructive migration。
+
+这修复并证明了 DATA-01 的“可验证备份下载”子步骤，但不等于 restore/rebuild、RTO/RPO、
+维护态 rollback 或 reconciliation。`DATA-01` 继续 `awaiting_production`，不解锁 `DATA-02/03`。

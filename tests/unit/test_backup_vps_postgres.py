@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 from pathlib import Path
 
@@ -12,6 +13,70 @@ SPEC = importlib.util.spec_from_file_location("backup_vps_postgres", SCRIPT_PATH
 assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+
+
+class _FakeChannel:
+    def settimeout(self, _timeout: int) -> None:
+        return None
+
+
+class _FakeRemoteFile:
+    def __init__(self, content: bytes, fail_after: int | None = None) -> None:
+        self._content = content
+        self._fail_after = fail_after
+        self._failed = False
+        self._offset = 0
+
+    def __enter__(self) -> "_FakeRemoteFile":
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+    def prefetch(self, **_kwargs: object) -> None:
+        return None
+
+    def seek(self, offset: int) -> None:
+        self._offset = offset
+
+    def read(self, size: int) -> bytes:
+        if self._fail_after is not None and not self._failed and self._offset >= self._fail_after:
+            self._failed = True
+            raise RuntimeError("simulated SFTP connection drop")
+        block = self._content[self._offset : self._offset + size]
+        self._offset += len(block)
+        return block
+
+
+class _FakeSftp:
+    def __init__(self, content: bytes, fail_after: int | None = None) -> None:
+        self._content = content
+        self._fail_after = fail_after
+
+    def get_channel(self) -> _FakeChannel:
+        return _FakeChannel()
+
+    def open(self, _remote_path: str, _mode: str) -> _FakeRemoteFile:
+        return _FakeRemoteFile(self._content, self._fail_after)
+
+    def close(self) -> None:
+        return None
+
+
+class _FakeSsh:
+    def __init__(self, content: bytes, failing: bool = False) -> None:
+        self._content = content
+        self._failing = failing
+        self.open_count = 0
+
+    def open_sftp(self) -> _FakeSftp:
+        self.open_count += 1
+        fail_after = 4 * 1024 * 1024 if self._failing and self.open_count == 1 else None
+        return _FakeSftp(self._content, fail_after)
+
+
+def _sha256_bytes(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
 
 
 def test_parse_markers_ignores_unrelated_output() -> None:
@@ -62,3 +127,46 @@ def test_remote_script_uses_custom_dump_and_restore_validation() -> None:
     assert "--format=custom" in script
     assert "pg_restore --list" in script
     assert "docker volume prune" not in script
+
+
+def test_download_verified_resumes_after_sftp_drop(tmp_path: Path) -> None:
+    """Resume from the verified partial offset after a transient stream drop."""
+    content = bytes(range(256)) * (5 * 1024 * 1024 // 256)
+    ssh = _FakeSsh(content, failing=True)
+    reconnected_ssh = _FakeSsh(content, failing=False)
+
+    destination = MODULE._download_verified(
+        ssh=ssh,
+        remote_path="/opt/agomtradepro/backups/postgres-resume.dump",
+        expected_hash=_sha256_bytes(content),
+        expected_size=len(content),
+        output_dir=tmp_path,
+        max_attempts=3,
+        reconnect=lambda: reconnected_ssh,
+    )
+
+    assert destination.read_bytes() == content
+    assert destination.with_suffix(".dump.sha256").read_text(encoding="ascii")
+    assert not destination.with_name(f".{destination.name}.partial").exists()
+    assert ssh.open_count == 1
+    assert reconnected_ssh.open_count == 1
+
+
+def test_download_verified_cleans_partial_after_retry_exhaustion(tmp_path: Path) -> None:
+    """Never leave a misleading partial archive after bounded retries fail."""
+    content = b"archive-content"
+    ssh = _FakeSsh(content, failing=True)
+
+    with pytest.raises(RuntimeError, match="SFTP download failed"):
+        MODULE._download_verified(
+            ssh=ssh,
+            remote_path="/opt/agomtradepro/backups/postgres-fail.dump",
+            expected_hash=_sha256_bytes(content),
+            expected_size=len(content) + 1,
+            output_dir=tmp_path,
+            max_attempts=2,
+        )
+
+    destination = tmp_path / "postgres-fail.dump"
+    assert not destination.exists()
+    assert not destination.with_name(f".{destination.name}.partial").exists()

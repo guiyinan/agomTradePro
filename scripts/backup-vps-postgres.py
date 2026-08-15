@@ -9,7 +9,7 @@ import os
 import shlex
 import sys
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, Callable
 
 MARKER_PREFIX = "AGOM_BACKUP_"
 
@@ -153,8 +153,13 @@ def _download_verified(
     expected_hash: str,
     expected_size: int,
     output_dir: Path,
+    *,
+    max_attempts: int = 5,
+    reconnect: Callable[[], Any] | None = None,
 ) -> Path:
-    """Download an archive atomically and verify its size and SHA-256."""
+    """Download an archive atomically, resuming bounded SFTP retries."""
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be positive")
     archive_name = _validated_archive_name(remote_path)
     output_dir.mkdir(parents=True, exist_ok=True)
     destination = output_dir / archive_name
@@ -172,27 +177,62 @@ def _download_verified(
             print(f"[INFO] Download progress: {percent}%")
             last_percent = percent
 
-    sftp = ssh.open_sftp()
-    try:
-        sftp.get_channel().settimeout(60)
-        transferred = 0
-        with sftp.open(remote_path, "rb") as remote_handle, partial.open("wb") as local_handle:
-            # Paramiko's default one-request-at-a-time reads are very slow on
-            # high-latency VPS links. Prefetch keeps the transfer pipelined;
-            # older Paramiko versions fall back to the bounded read loop.
-            try:
-                remote_handle.prefetch(
-                    file_size=expected_size,
-                    max_concurrent_requests=64,
-                )
-            except (AttributeError, OSError):
-                pass
-            while block := remote_handle.read(1024 * 1024):
-                local_handle.write(block)
-                transferred += len(block)
-                progress(transferred, expected_size)
-    finally:
-        sftp.close()
+    active_ssh = ssh
+    transferred = 0
+    for attempt in range(1, max_attempts + 1):
+        sftp: Any | None = None
+        try:
+            transferred = partial.stat().st_size if partial.exists() else 0
+            if transferred > expected_size:
+                partial.unlink(missing_ok=True)
+                transferred = 0
+            sftp = active_ssh.open_sftp()
+            sftp.get_channel().settimeout(60)
+            with sftp.open(remote_path, "rb") as remote_handle:
+                remote_handle.seek(transferred)
+                # Paramiko's default one-request-at-a-time reads are very
+                # slow on high-latency VPS links. Prefetch only the first
+                # stream; resumed streams use an explicit offset so the
+                # partial file remains the source of truth.
+                if transferred == 0:
+                    try:
+                        remote_handle.prefetch(
+                            file_size=expected_size,
+                            max_concurrent_requests=64,
+                        )
+                    except (AttributeError, OSError):
+                        pass
+                with partial.open("ab") as local_handle:
+                    while transferred < expected_size:
+                        block = remote_handle.read(min(1024 * 1024, expected_size - transferred))
+                        if not block:
+                            raise RuntimeError("SFTP stream ended before the expected archive size")
+                        remaining = expected_size - transferred
+                        if len(block) > remaining:
+                            raise RuntimeError("SFTP stream exceeded the expected archive size")
+                        local_handle.write(block)
+                        transferred += len(block)
+                        progress(transferred, expected_size)
+            break
+        except Exception as exc:
+            if attempt >= max_attempts:
+                partial.unlink(missing_ok=True)
+                raise RuntimeError(f"SFTP download failed after {attempt} attempts: {exc}") from exc
+            transferred = partial.stat().st_size if partial.exists() else 0
+            _info(
+                "SFTP download interrupted; "
+                f"retrying ({attempt + 1}/{max_attempts}) from {transferred} bytes"
+            )
+            if reconnect is not None:
+                try:
+                    active_ssh = reconnect()
+                except Exception as reconnect_error:
+                    _info(
+                        f"SFTP reconnect failed; retrying the current connection: {reconnect_error}"
+                    )
+        finally:
+            if sftp is not None:
+                sftp.close()
 
     try:
         actual_size = partial.stat().st_size
@@ -290,12 +330,27 @@ def main() -> int:
             raise RuntimeError("Remote backup returned an invalid size")
 
         _info(f"Remote archive validated: {remote_path} ({expected_size} bytes)")
+
+        def reconnect() -> Any:
+            nonlocal ssh
+            if ssh is not None:
+                ssh.close()
+            ssh = _connect_ssh(
+                host=host,
+                port=args.port,
+                user=user,
+                password=password,
+                timeout=args.timeout,
+            )
+            return ssh
+
         destination = _download_verified(
             ssh=ssh,
             remote_path=remote_path,
             expected_hash=expected_hash,
             expected_size=expected_size,
             output_dir=Path(args.output_dir).expanduser().resolve(),
+            reconnect=reconnect,
         )
         _info(f"Local archive: {destination}")
         _info(f"SHA-256: {expected_hash}")
