@@ -107,3 +107,11 @@ TUI registry、Qlib 和 Celery 检查通过；部署前 PostgreSQL 备份为
 Alpha rank source stale 与 market thermometer partial-stale；本次只更新候选身份与运行证据，
 不启动角色化浏览器 UAT、写后回执、14 日观察或 cleanup/rollback 双签，也不解除 EVID-01、
 AUD-01、DATA-01 等生产门禁。
+
+### 2026-08-15 本地角色边界回归
+
+在 disposable SQLite 与 `core.settings.playwright` 下运行
+`tests/playwright/tests/uat/test_web_to_tui_m5.py::test_operator_group_can_open_queue_but_regular_user_cannot`：
+`1 passed`。该回归证明 operator 可进入 AI 任务队列而普通用户不可见；它是本地浏览器/权限边界
+证据，不是 VPS 角色账号、写入回执、人工审批或生产 M5 UAT。候选生产角色化浏览器验证、写后
+receipt/refresh、14 日观察和双签门禁继续保持 `DENY`。
