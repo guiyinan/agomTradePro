@@ -2609,6 +2609,12 @@ production slice：
   first-winner/rollback harness 只证明 disposable local PostgreSQL 软件行为，不计作 VPS/生产
   alias 证据。
 
+在当前候选 `dev/next-development@45281620a8739ee666a1b20e6c6511c0b8101111` / release
+`20260815230537` 上，远端只读 inventory 进一步确认 auth-context、User authority、RBAC
+authority、actor bundle 与 Evidence scope source ledger 均为 `0` 行。这证明 schema 没有 seed/
+backfill，不证明 authority 已存在；对应 scope-provider 与 actor-authority application 回归为
+`29 passed`，仍是 dormant read contract。
+
 因此本轮不新增一层只按 alias 拼装的胶水，也不接 Broker issuer、execution consumer 或生产路由。
 下一真实依赖固定为：不可变 tenant/owner lifecycle、authenticated staff/tenant/owner provider、
 Research/Portfolio/Risk/Broker 同源 exact bundle，以及合格 staging/production PostgreSQL
