@@ -341,6 +341,25 @@ UAT、DATA-01 restore/rebuild/维护态回滚、DATA-02 生产回填/coverage/re
 与服务复核通过；ready 中 Alpha/Qlib 与 workspace freshness warnings 继续按数据合同保留，
 不作为 decision-data gate 完成证据。
 
+## 实施记录（2026-08-15，DATA-01 本地 restore/rebuild 尝试）
+
+本批尝试使用已有严格脚本
+`scripts/verify_postgres_backup_restore.py` 对部署后归档
+`backups/vps-postgres/postgres-20260815-103019.dump` 做本地隔离恢复。脚本的
+custom-format 校验、受控 `*_restore_verify_*` 数据库命名、恢复后表行数/内容 hash/规范
+schema 与 Data Center migration 对比合同由
+`tests/unit/test_verify_postgres_backup_restore.py` `10 passed` 覆盖。
+
+实际恢复没有取得可采信结果：新的 `postgres:16-alpine`/`postgres:18.4` 临时容器均在
+`initdb` bootstrap 阶段超时，随后已删除；改用现有本地 home-lab PostgreSQL 仅创建了
+专用数据库 `agomtradepro_restore_source_20260815`，归档传输因 Docker Desktop API
+长时间无响应超时，未执行 `pg_restore` 或快照比较。专用数据库和临时归档文件随后已按
+精确名称清理；未连接或写入 VPS 数据库。
+
+因此本记录只证明“恢复脚本合同可测试、恢复尝试被本机 Docker 阻断”，不产生
+restore/rebuild、RTO 或回滚通过证据。`DATA-01` 继续 `awaiting_production`，维护态、
+生产恢复/重建、回滚演练、回填和 reconciliation 仍未完成，也不解锁 `DATA-02/03`。
+
 ## 实施记录（2026-08-15，DATA-02 control-plane atomic snapshot）
 
 回填任务的 run、batch、checkpoint 现在由 Data Center composition root 在同一事务中提交；Application task 不直接持有 Django transaction。新增故障注入组件测试证明 checkpoint 持久化失败时三张控制面表全部回滚（`2 passed, 2 skipped`），任务单元 `8 passed`；architecture、增量 mypy、Celery contract、Black/isort 和 diff-check 均通过。
