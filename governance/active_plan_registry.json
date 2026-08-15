@@ -137,7 +137,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "Against candidate cf68dc1e972ecd6e0ae002e4d4f96ff07ef86542 / release 20260815182857, complete role-based browser UAT and the 14-day observation window, then execute signed cleanup waves with rollback evidence.",
+      "next_gate": "Against candidate 1835ce0ee42f220756066a21890bcec2b8f1f3e9 / release 20260815221000, complete role-based browser UAT and the 14-day observation window, then execute signed cleanup waves with rollback evidence.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",

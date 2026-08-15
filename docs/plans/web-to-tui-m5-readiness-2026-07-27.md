@@ -216,6 +216,14 @@ release 为 `20260815221000`；完整 provenance、健康、迁移和 TUI regist
 `docs/deployment/vps-deployment-evidence-2026-08-15.md`。这只建立了候选身份，不自动开始观察窗口；
 该命令仍必须 fail closed，不能用当前 `HEAD`、本地文档状态或旧生产版本冒充稳定候选。
 
+该候选的静态 binding 为 `web-to-tui-candidate-binding.v1`：matrix SHA
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`，published graph SHA
+`fc4c19fbb0fc90e931a16223fffd9a4bd782e380afb86893a499874e6b644c84`，runtime schema
+`tui-metadata.v3` / version `0.2.0` / build
+`agomtui-runtime-0.2.0+a2553996be22`，manifest SHA
+`a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854`。这些值只用于
+候选身份一致性校验，不代表角色化生产 UAT、写后回执或观察窗口已经完成。
+
 观察窗口结束并把不含密钥的 issue-tracker 快照存入仓库后，先 dry-run，再写入 evidence：
 
 ```bash

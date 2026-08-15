@@ -229,6 +229,8 @@ registry、服务启动和健康复核均通过。
 | deployment report | `dist/remote-build-reports/remote-build-report-20260815221000.json`（本地下载副本） |
 | pre-deploy backup | `/opt/agomtradepro/backups/database/postgres-20260815-161622.dump`；manifest `/opt/agomtradepro/backups/meta/manifest-20260815-161622.txt` |
 | mode | `ACTION=upgrade`、code-only、`WIPE_DOCKER=0`、`WIPE_VOLUMES=0`、Celery enabled |
+| candidate binding | `web-to-tui-candidate-binding.v1`; matrix SHA `bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`; published graph SHA `fc4c19fbb0fc90e931a16223fffd9a4bd782e380afb86893a499874e6b644c84` |
+| runtime binding | schema `tui-metadata.v3`; runtime `0.2.0`; build `agomtui-runtime-0.2.0+a2553996be22`; manifest SHA `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854` |
 
 部署复核：HTTPS `/api/health/` 返回 HTTP 200；web healthy，Celery worker/beat、PostgreSQL、
 Redis、RSSHub 运行；account migrations 无待应用项，canonical schema、Django deploy check、
