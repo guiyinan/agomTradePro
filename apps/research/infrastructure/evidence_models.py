@@ -6,7 +6,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import NoReturn, TypeVar
+from typing import NoReturn, Self, TypeVar
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -78,7 +78,7 @@ class EvidenceAppendOnlyQuerySet(AppendOnlyQuerySet[_ModelT]):
     def _update(self, values: list[tuple[object, object, object]]) -> NoReturn:
         raise ValidationError("Research evidence cannot be updated.")
 
-    def _raw_delete(self, using: str) -> NoReturn:
+    def _raw_delete(self, using: str | None) -> NoReturn:
         raise ValidationError("Research evidence cannot be deleted.")
 
 
@@ -103,10 +103,11 @@ class EvidenceAppendOnlyManager(AppendOnlyManager[_ModelT]):
 class EvidenceAppendOnlyModel(models.Model):
     """Permit only one exact insert claimed by the private repository token."""
 
-    objects: EvidenceAppendOnlyManager[models.Model] = EvidenceAppendOnlyManager()
+    objects: EvidenceAppendOnlyManager[Self] = EvidenceAppendOnlyManager()
 
     class Meta:
         abstract = True
+        app_label = "research"
         base_manager_name = "objects"
         default_manager_name = "objects"
 
@@ -287,6 +288,107 @@ class EvidenceEnvelopeModel(EvidenceAppendOnlyModel):
         ]
 
 
+class EvidenceScopeSourceV1Model(EvidenceAppendOnlyModel):
+    """Zero-seed append-only projection for the dormant scope-source contract.
+
+    The model stores the strict Domain scalar projection and canonical payload,
+    but does not provide a capture/provider path.  Repository restore must
+    still reconstitute :class:`EvidenceScopeSourceV1` and validate every
+    scalar, hash, chain link, and fixed semantic before a selector is applied.
+    """
+
+    source_id = models.CharField(max_length=192)
+    source_version = models.CharField(max_length=192)
+    owner_id = models.CharField(max_length=192)
+    tenant_id = models.CharField(max_length=192)
+    account_id = models.CharField(max_length=192)
+    actor_id = models.CharField(max_length=192)
+    artifact_owner = models.CharField(max_length=192)
+    artifact_type = models.CharField(max_length=192)
+    artifact_id = models.CharField(max_length=192)
+    artifact_version = models.CharField(max_length=192)
+    artifact_content_hash = models.CharField(max_length=64, db_index=True)
+    status = models.CharField(max_length=16)
+    recorded_at = models.DateTimeField(db_index=True)
+    valid_until = models.DateTimeField(db_index=True)
+    root_claim_hash = models.CharField(max_length=64, null=True, blank=True)
+    supersedes_content_hash = models.CharField(max_length=64, null=True, blank=True)
+    predecessor = models.OneToOneField(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="successor",
+    )
+    identity_hash = models.CharField(max_length=64, unique=True)
+    content_hash = models.CharField(max_length=64, unique=True)
+    source_owner = models.CharField(max_length=192)
+    source_artifact_type = models.CharField(max_length=192)
+    source_schema = models.CharField(max_length=192)
+    permission = models.CharField(max_length=32)
+    must_not_execute = models.BooleanField()
+    execution_allowed = models.BooleanField()
+    canonical_payload = models.JSONField()
+    persisted_at = models.DateTimeField()
+
+    class Meta(EvidenceAppendOnlyModel.Meta):
+        db_table = "research_evidence_scope_source_v1"
+        indexes = [
+            models.Index(fields=("source_id", "recorded_at"), name="res_ev_scope_src_pit_ix")
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("source_id", "source_version"),
+                name="res_ev_scope_src_identity_uq",
+            ),
+            models.UniqueConstraint(
+                fields=("root_claim_hash",),
+                name="res_ev_scope_src_root_uq",
+            ),
+            models.UniqueConstraint(
+                fields=("supersedes_content_hash",),
+                name="res_ev_scope_src_pred_uq",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(recorded_at__lt=models.F("valid_until"))
+                    & models.Q(persisted_at=models.F("recorded_at"))
+                ),
+                name="res_ev_scope_src_clock_ck",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=("active", "revoked")),
+                name="res_ev_scope_src_status_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(source_owner="research")
+                    & models.Q(source_artifact_type="evidence_scope_source")
+                    & models.Q(source_schema="research.evidence_scope_source.v1")
+                    & models.Q(permission="read_only")
+                    & models.Q(must_not_execute=True)
+                    & models.Q(execution_allowed=False)
+                ),
+                name="res_ev_scope_src_fixed_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(root_claim_hash__isnull=False)
+                        & models.Q(supersedes_content_hash__isnull=True)
+                        & models.Q(predecessor__isnull=True)
+                    )
+                    | (
+                        models.Q(root_claim_hash__isnull=True)
+                        & models.Q(supersedes_content_hash__isnull=False)
+                        & models.Q(predecessor__isnull=False)
+                    )
+                ),
+                name="res_ev_scope_src_chain_ck",
+            ),
+        ]
+
+
 def _reject_evidence_pre_delete(
     sender: type[models.Model],
     instance: models.Model,
@@ -298,7 +400,12 @@ def _reject_evidence_pre_delete(
     raise ValidationError("Research evidence cannot be deleted.")
 
 
-for _model in (EvidenceOperatorSpecModel, EvidenceTrackRecordModel, EvidenceEnvelopeModel):
+for _model in (
+    EvidenceOperatorSpecModel,
+    EvidenceTrackRecordModel,
+    EvidenceEnvelopeModel,
+    EvidenceScopeSourceV1Model,
+):
     pre_delete.connect(
         _reject_evidence_pre_delete,
         sender=_model,
@@ -310,5 +417,6 @@ for _model in (EvidenceOperatorSpecModel, EvidenceTrackRecordModel, EvidenceEnve
 __all__ = [
     "EvidenceEnvelopeModel",
     "EvidenceOperatorSpecModel",
+    "EvidenceScopeSourceV1Model",
     "EvidenceTrackRecordModel",
 ]

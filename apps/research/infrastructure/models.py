@@ -173,21 +173,22 @@ class PromotionDecision(models.Model):
         return super().save(*args, **kwargs)
 
 
+from apps.research.infrastructure.evidence_models import (  # noqa: E402,F401
+    EvidenceEnvelopeModel,
+    EvidenceOperatorSpecModel,
+    EvidenceScopeSourceV1Model,
+    EvidenceTrackRecordModel,
+)
+from apps.research.infrastructure.evidence_operator_spec_lifecycle_models import (  # noqa: E402,F401
+    ActivatedEvidenceOperatorSpecModel,
+    EvidenceOperatorSpecApprovalReceiptModel,
+)
 from apps.research.infrastructure.r1_forecast_promotion_models import (  # noqa: E402,F401
     R1ForecastPromotionDecisionBundleModel,
     R1ForecastPromotionPolicyModel,
     R1PromotionDecisionReceiptModel,
     R1PromotionLifecycleEventBundleModel,
     R1PromotionLifecycleReceiptModel,
-)
-from apps.research.infrastructure.evidence_models import (  # noqa: E402,F401
-    EvidenceEnvelopeModel,
-    EvidenceOperatorSpecModel,
-    EvidenceTrackRecordModel,
-)
-from apps.research.infrastructure.evidence_operator_spec_lifecycle_models import (  # noqa: E402,F401
-    ActivatedEvidenceOperatorSpecModel,
-    EvidenceOperatorSpecApprovalReceiptModel,
 )
 from apps.research.infrastructure.r2_market_structure_promotion_models import (  # noqa: E402,F401
     R2MarketStructurePromotionDecisionModel,

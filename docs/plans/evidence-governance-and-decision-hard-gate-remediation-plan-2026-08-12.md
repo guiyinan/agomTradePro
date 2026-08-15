@@ -2303,6 +2303,23 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
   owner/tenant immutable ledger、User/session/tenant ORM 取证、PostgreSQL current-head/并发
   证明、人工授权或 production route；Evidence hard gate、写入和 execution 总闸继续关闭。
 
+### 2026-08-15：Evidence owner/tenant authority source schema-only ledger
+
+- 新增零种子 `research_evidence_scope_source_v1` append-only ORM 基座与
+  `apps/research/migrations/0028_evidence_scope_source_v1.py`。表逐列保存 Domain/codec 所需的
+  scope identity、nested artifact ref、status、recorded/valid clocks、root/supersedes 与
+  predecessor、fixed read-only/non-execution flags、canonical payload 及 identity/content
+  hashes；数据库约束固定 clock、status、fixed header 与 root/successor XOR，predecessor 使用
+  `PROTECT`，所有 save/update/bulk/raw/delete shortcut 继续由 Research evidence guard 拒绝。
+- migration 只有一个 `CreateModel`，没有 `RunPython`、`RunSQL` 或默认/现场数据；隔离 SQLite
+  schema component `4 passed`，source Application/codec/Domain/facade 与该基座合计 `56 passed`，
+  `manage.py check`、`makemigrations --check`、增量 mypy `0 regressions`、architecture audit
+  `0 violations`、Black/isort、compile 与 diff-check 通过。
+- 这是持久化 schema/guard contract，不是可用的 source provider 或写入闭环。当前没有
+  repository full-world restore/append CAS、可信 owner/tenant immutable lifecycle、
+  User/session/tenant 取证、PostgreSQL current-head/并发、人工授权或 production route；
+  Evidence hard gate、写入和 execution 总闸继续关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
