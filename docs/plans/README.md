@@ -372,6 +372,7 @@
 | 2026-08-15 | 第二期 P0 | DATA-01 当前候选 backup refresh failure evidence | 当前候选 `45281620a8739ee666a1b20e6c6511c0b8101111` 的远端归档 `postgres-20260815T154338Z.dump`（`140279578` bytes）在 VPS 端 `pg_restore --list` 通过，但 SFTP 下载约 `4194304` bytes 后连接被关闭；未生成完整本地归档/SHA，partial 已清理 | 这不是新恢复点；`DATA-01` 继续 awaiting，restore/rebuild、维护态 rollback、RTO/RPO、回填与 reconciliation 仍锁定 |
 
 | 2026-08-16 | 第一期 P1 | 系统级统一审计日志 AUD-01 authority freshness/PIT contract | Authority snapshot 新增 provider-issued source identity/version、active/revoked state、`recorded_at/valid_until`，全部纳入 canonical hash；composition 与 query context 在实际 PIT 执行 `recorded_at <= as_of < valid_until`，future/expired/revoked fail-closed；audit composition/query `44 passed`，dispatcher/dispatch 合计 `56 passed`，增量 mypy/Black/isort/py_compile/governance/architecture 通过 | 仅本地 freshness/PIT 合同；无 authenticated tenant/owner lifecycle、source issuer、durable publisher/receipt sink、beat/retry 或生产 PostgreSQL/VPS authority 证据，`AUD-01` 与 `AUD-02` 仍阻断 |
+| 2026-08-16 | 第二期 P0 | Web→TUI 当前候选部署与身份复核 | `dev/next-development@e167ab2fc748e4c93d2622f93fa8cc75442b2bb6` 以 code-only、保留数据卷、Celery enabled 的 `-Upgrade` 发布为 `20260816004134`；release/OCI/source、health/ready、迁移、canonical schema、TUI registry、Qlib、Celery 和部署前 PostgreSQL backup/`pg_restore --list` 通过；candidate consistency guard 已同步到新身份 | 仅更新当前候选并证明部署启动；角色化浏览器 UAT、写后 receipt/refresh、14 日 telemetry/defect、registry backup/restore、rollback drill 与 owner/reviewer 双签仍缺，M5 继续 DENY |
 
 ## 2026-08-12 整理结果
 

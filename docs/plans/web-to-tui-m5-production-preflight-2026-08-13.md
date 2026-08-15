@@ -115,3 +115,20 @@ AUD-01、DATA-01 等生产门禁。
 `1 passed`。该回归证明 operator 可进入 AI 任务队列而普通用户不可见；它是本地浏览器/权限边界
 证据，不是 VPS 角色账号、写入回执、人工审批或生产 M5 UAT。候选生产角色化浏览器验证、写后
 receipt/refresh、14 日观察和双签门禁继续保持 `DENY`。
+
+### 2026-08-16 当前候选：`e167ab2fc` / release `20260816004134`
+
+当前 `dev/next-development` 已以标准 `git-clone`、`-Upgrade`、code-only 模式部署，远端
+数据卷保留且 Celery enabled。release manifest、OCI revision 与 source commit
+`e167ab2fc748e4c93d2622f93fa8cc75442b2bb6` 完全一致；image ID 为
+`sha256:151801bdbacecc8bc8d3f19c43817be1ff58ed06981cbdba9a49692289bbc0ac`。部署后 HTTPS
+health/ready 均 HTTP 200，容器、迁移、canonical schema、TUI registry、Qlib 和 Celery
+检查通过；部署前 PostgreSQL 备份 `postgres-20260815-184803.dump` 为 `140318641` bytes，
+SHA-256 为 `4760a38fdfc7ef8570323cfb5dde92ab01eb933cd60d4f6dd08700fc34772752`，并由
+PostgreSQL 16 container `pg_restore --list` exit `0` 验证。详细报告见部署证据文档及
+`dist/remote-build-reports/remote-build-report-20260816004134.json`。
+
+`/api/ready/` 仍报告 Alpha/Qlib provider degraded、workspace recommendation stale、
+Alpha rank source stale 与 market thermometer partial-stale；本次只更新候选身份与运行证据，
+不启动角色化浏览器 UAT、写后回执、14 日观察或 cleanup/rollback 双签，也不解除 EVID-01、
+AUD-01、DATA-01 等生产门禁。

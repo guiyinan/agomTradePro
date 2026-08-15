@@ -267,3 +267,36 @@ TUI registry publish/check、Qlib `pyqlib=0.9.7`（错误 `qlib` distribution �
 market thermometer partial-stale warnings；本次候选只更新 AUD-01 Application context 的
 运行身份与健康证据，不解除 authenticated scoped authority、durable publisher/runtime wiring、
 M5 角色化 UAT/14 日观察、DATA-01 restore/rebuild 或 rollback 双签门禁。
+
+## 当前候选部署（2026-08-16 00:41 release）
+
+包含 AUD-01 authority freshness/PIT contract 的 `dev/next-development@e167ab2fc748e4c93d2622f93fa8cc75442b2bb6`
+执行标准 `git-clone`、`-Upgrade`、code-only 发布；远端 PostgreSQL/Redis 数据卷保留，未恢复
+本地 SQLite，Celery enabled。部署前验证了工作区 clean、GitHub 分支已推送、TUI runtime
+`check:tui` 与 34 项 JavaScript 浏览器契约通过。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260816004134` |
+| current release | `/opt/agomtradepro/releases/source-20260816004134` |
+| source commit | `e167ab2fc748e4c93d2622f93fa8cc75442b2bb6` |
+| image | `agomtradepro-web:20260816004134` |
+| image ID | `sha256:151801bdbacecc8bc8d3f19c43817be1ff58ed06981cbdba9a49692289bbc0ac` |
+| build window | `2026-08-15T16:41:38Z` → `2026-08-15T16:48:00Z` |
+| OCI/source binding | release manifest source commit、image revision 与 `e167ab2fc748e4c93d2622f93fa8cc75442b2bb6` 完全一致 |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260816004134.json`（本地下载副本） |
+| pre-deploy backup | `/opt/agomtradepro/backups/database/postgres-20260815-184803.dump`；size `140318641` bytes；SHA-256 `4760a38fdfc7ef8570323cfb5dde92ab01eb933cd60d4f6dd08700fc34772752` |
+| backup proof | PostgreSQL 16 container `pg_restore --list` exit `0`；archive header `2026-08-15 16:48:04 UTC` |
+| mode | `ACTION=upgrade`、code-only、`WIPE_DOCKER=0`、`WIPE_VOLUMES=0`、Celery enabled |
+| migration proof | remote audit migration `0012_systemauditevent_scope` applied；deploy reported `No migrations to apply` and canonical schema check `{"missing_migrations": [], "missing_tables": [], "ok": true}` |
+
+部署后只读复核：Caddy 首行仍为 `demo.agomtrade.pro {`，HTTPS `/api/health/` HTTP 200，
+HTTPS `/api/ready/` HTTP 200；web healthy，Celery worker/beat、PostgreSQL、Redis、RSSHub
+运行且 Celery ping `1 node online`；TUI registry check matched；Qlib `pyqlib=0.9.7`、错误
+`qlib` distribution absent，module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py`。
+
+`/api/ready/` 仍原样报告 Alpha/Qlib provider degraded、workspace recommendation stale、
+Alpha rank source stale 与 market thermometer partial-stale warnings。该候选只证明当前
+代码身份、部署启动、schema/backup/health 和本地 TUI 契约，不证明 authenticated tenant/owner
+authority、durable publisher/receipt sink、生产角色化浏览器 UAT、写后回执/刷新、14 日 telemetry、
+registry restore、rollback 或 owner/reviewer 双签；AUD-01、EVID-01 和 TUI M5 gate 继续阻断。

@@ -15,8 +15,8 @@ MATRIX_PATH = ROOT / "docs" / "plans" / "web-to-tui-migration-matrix-2026-07-25.
 GRAPH_PATH = ROOT / "config" / "tui" / "published" / "tui_operation_graph.published.json"
 RUNTIME_MANIFEST_PATH = ROOT / "config" / "tui" / "agomtui-runtime.manifest.json"
 
-CANDIDATE_VERSION = "20260815230537"
-CANDIDATE_COMMIT = "45281620a8739ee666a1b20e6c6511c0b8101111"
+CANDIDATE_VERSION = "20260816004134"
+CANDIDATE_COMMIT = "e167ab2fc748e4c93d2622f93fa8cc75442b2bb6"
 
 
 def test_current_candidate_identity_is_consistent_across_registry_and_evidence() -> None:

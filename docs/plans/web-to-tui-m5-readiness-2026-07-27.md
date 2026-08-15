@@ -305,3 +305,16 @@ code-only、保留数据卷、Celery enabled 的 `-Upgrade` 发布为 `202608152
 TUI registry 与 release manifest/OCI/source 绑定一致。candidate binding 的 matrix/graph/runtime
 hash 未漂移；该发布仍不提供角色化浏览器账号、写后 receipt/refresh、生产 14 日 telemetry、
 registry backup/restore、rollback drill 或 owner/reviewer 双签，因此 M5 继续 `DENY`。
+
+### 2026-08-16 00:41 当前候选部署复核
+
+最新候选 `dev/next-development@e167ab2fc748e4c93d2622f93fa8cc75442b2bb6` 已以
+code-only、保留数据卷、Celery enabled 的 `-Upgrade` 发布为 `20260816004134`；远端验证
+release manifest/OCI/source 绑定、`audit.0012_systemauditevent_scope`、Django check、HTTPS
+health/ready、容器健康、TUI registry、Qlib 与 Celery ping 均通过；部署前 PostgreSQL 归档
+`postgres-20260815-184803.dump` 的尺寸、SHA-256 和 `pg_restore --list` 也通过。
+
+该候选仅替换当前身份绑定，不代表角色化浏览器 UAT、写后 receipt/refresh、生产 14 日
+telemetry/defect、registry backup/restore、rollback drill 或 owner/reviewer 双签完成；因此
+M5-A 继续 `DENY`，不得据此清理 Classic 或宣称 TUI production write closure。`/api/ready/`
+仍原样保留 Alpha/Qlib provider、workspace、Alpha rank 与 market thermometer warnings。
