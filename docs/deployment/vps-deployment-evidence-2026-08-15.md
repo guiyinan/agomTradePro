@@ -204,3 +204,9 @@ owner/tenant authority、AUD-01 durable publisher/authority/runtime、M5 角色�
 
 从 VPS 发出的未认证 `GET /api/tui/` 返回 HTTP `403`；这只证明匿名访问边界仍在，不能计入
 普通用户、owner、operator 或 admin 的角色化 screen/action UAT。
+
+为排除本机到公网入口的单一路由问题，本机又通过一次临时 SSH 本地端口转发访问同一
+Caddy 443，并用 Playwright 请求 `https://demo.agom.pro:8443/tui/`；TLS 握手返回
+`net::ERR_SSL_PROTOCOL_ERROR`，隧道随后关闭。该探针没有使用生产凭据，也没有执行登录或
+写操作；因此仍只保留匿名 403 与浏览器传输阻断证据，角色化浏览器 UAT、写后回执和 14 日
+观察窗口继续未完成。
