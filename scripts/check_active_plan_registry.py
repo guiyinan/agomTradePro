@@ -28,6 +28,7 @@ ALLOWED_ROLES = {"primary", "supporting", "evidence", "matrix"}
 ALLOWED_EXECUTION_MODES = {"repository", "production", "external", "governance"}
 ALLOWED_UNIT_STATUSES = {
     "active",
+    "completed",
     "planned",
     "waiting_dependency",
     "awaiting_production",

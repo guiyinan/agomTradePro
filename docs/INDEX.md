@@ -137,7 +137,7 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划与 canonical closure backlog 机器真源（工作流 / owner / 状态 / 依赖 / 唯一退出门 / 文件归属 / 限期审查）** | 139 个历史未勾选细项已去重为 18 个工作包；7 条工作流、16 份主计划、46 个活跃文件；CI 禁止待办、依赖和 plan 漂移 |
+| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划与 canonical closure backlog 机器真源（工作流 / owner / 状态 / 依赖 / 唯一退出门 / 文件归属 / 限期审查）** | 139 个历史未勾选细项已去重为 18 个工作包；7 条工作流、16 份主计划、37 个活跃文件；GOV-01 审查队列已清空，CI 禁止待办、依赖和 plan 漂移 |
 | [scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md](plans/scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md) | **情景硬编码治理、动态/参数/宏观情景、AI MCP 受控修改及策略方法 Quick Wins（M0-M6）** | 提案，待评审实施 |
 | [strategy-research-capability-completion-audit-2026-08-05.md](plans/strategy-research-capability-completion-audit-2026-08-05.md) | **策略研究 R1—R8 完成度审计、真实数据阻断与无数据开发队列** | 实施中；无 P0，剩余 P1 分批收口 |
 | [sentiment-awareness-enhancement-plan-2026-07-31.md](archive/plans/sentiment-awareness-enhancement-plan-2026-07-31.md) | **A 股情绪态势感知增强计划（S0-S4，交易行为情绪指标 / Pulse sentiment 维度 / 文本情绪打通 / TUI 情绪面板）** | ✅ 已完成并归档 |
@@ -182,7 +182,13 @@
 | [auto-advisor-implementation-2026-06-25.md](archive/plans/auto-advisor-implementation-2026-06-25.md) | **账户级自动投顾实施文档（后端/Classic UI/TUI/测试）** | ✅ Implemented v1，已归档 |
 | [personal-auto-advisor-roadmap-2026-06-30.md](archive/plans/personal-auto-advisor-roadmap-2026-06-30.md) | **个人自用自动投顾增强路线图（风控 / 数据新鲜度 / 决策卡片 / 复盘）** | ✅ Implemented v1，已归档 |
 | [macro-sizing-multiplier-outsourcing-2026-03-31.md](archive/plans/macro-sizing-multiplier-outsourcing-2026-03-31.md) | **宏观感知仓位系数模块外包任务书（Regime+Pulse+回撤三因子）** | ✅ 实现资产已归档；source freshness、config/version/hash、owner scope 与 exact-current 残余验收转入 Evidence `EVID-03` |
-| [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
+| [streamlit-dashboard-upgrade-plan.md](archive/plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级方案（兼容 sidecar 历史计划） | ✅ 2026-08-15 已归档；当前用户任务由 TUI 承接 |
+| [account-performance-260401.md](archive/plans/account-performance-260401.md) | 统一账户业绩与估值历史实施计划 | ✅ 2026-08-15 已归档；生产 owner scope、freshness/hash 与 PostgreSQL 验收转入 Evidence |
+| [account-refactor-260327.md](archive/plans/account-refactor-260327.md) | 真实仓/模拟仓统一账本历史实施计划 | ✅ 2026-08-15 已归档；legacy 迁移、owner/provenance 与回滚转入 Evidence/Data 门禁 |
+| [admin-settings-closure-260404.md](archive/plans/admin-settings-closure-260404.md) | 设置中心与管理控制台 Classic 收口计划 | ✅ 2026-08-15 已归档；角色 UAT、观察与清理转入 Web→TUI M5 |
+| [alpha-exit-loop-2026-04-30.md](archive/plans/alpha-exit-loop-2026-04-30.md) | Alpha BUY→TRACK→SELL 退出闭环方案 | ✅ 2026-08-15 已归档；Strategy/Evidence 继续管理生产证明 |
+| [alpha-homepage-upgrade-260416.md](archive/plans/alpha-homepage-upgrade-260416.md) | 账户驱动 Alpha 首页历史方案 | ✅ 2026-08-15 已归档；首页/TUI 迁移与 PIT/OOS 归入现有门禁 |
+| [workflow-upgrade-260326.md](archive/plans/workflow-upgrade-260326.md) | 决策工作台 Transition Plan 历史设计 | ✅ 2026-08-15 已归档；当前真源为 Decision Workspace/Evidence 文档 |
 | [architecture-cycle-remediation-2026-04-26.md](archive/plans/architecture-cycle-remediation-2026-04-26.md) | **循环依赖与架构债历史整改方案（CI + AGENTS + 模块归属）** | 历史方案，已归档 |
 | [architecture-cycle-remediation-2026-07-15.md](archive/plans/architecture-cycle-remediation-2026-07-15.md) | **循环依赖回流整改与零循环收口计划** | ✅ 零双向依赖、零循环组件，已归档 |
 | [repository-debt-remediation-closure-2026-07-19.md](archive/plans/repository-debt-remediation-closure-2026-07-19.md) | **仓库架构与治理债务总收口（大文件 / provider / 依赖 / 卫生 / 类型）** | ✅ 2026-07-19 已完成并归档 |

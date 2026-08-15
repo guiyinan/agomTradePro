@@ -228,57 +228,7 @@
       ]
     }
   ],
-  "review_queue": [
-    {
-      "path": "docs/plans/account-performance-260401.md",
-      "owner": "account+portfolio",
-      "status": "review_required",
-      "review_by": "2026-08-22",
-      "disposition": "Merge remaining production acceptance into the Evidence workstream or archive as superseded."
-    },
-    {
-      "path": "docs/plans/account-refactor-260327.md",
-      "owner": "account+portfolio",
-      "status": "review_required",
-      "review_by": "2026-08-22",
-      "disposition": "Reconcile against the current Account Evidence-v3 and Portfolio ownership plans, then archive superseded scope."
-    },
-    {
-      "path": "docs/plans/admin-settings-closure-260404.md",
-      "owner": "config_center+terminal",
-      "status": "review_required",
-      "review_by": "2026-08-22",
-      "disposition": "Confirm remaining TUI/config-center acceptance or archive the completed Classic settings scope."
-    },
-    {
-      "path": "docs/plans/alpha-exit-loop-2026-04-30.md",
-      "owner": "alpha+portfolio",
-      "status": "review_required",
-      "review_by": "2026-08-22",
-      "disposition": "Map any remaining exit-loop evidence to the current strategy workstream and archive duplicate implementation narrative."
-    },
-    {
-      "path": "docs/plans/alpha-homepage-upgrade-260416.md",
-      "owner": "alpha+terminal",
-      "status": "review_required",
-      "review_by": "2026-08-22",
-      "disposition": "Confirm whether the homepage scope survives Web-to-TUI migration; otherwise archive as superseded."
-    },
-    {
-      "path": "docs/plans/streamlit-dashboard-upgrade-plan.md",
-      "owner": "dashboard+terminal",
-      "status": "review_required",
-      "review_by": "2026-08-22",
-      "disposition": "Confirm retained Streamlit scope under the TUI product direction or archive it as a completed historical plan."
-    },
-    {
-      "path": "docs/plans/workflow-upgrade-260326.md",
-      "owner": "portfolio+decision_rhythm",
-      "status": "review_required",
-      "review_by": "2026-08-22",
-      "disposition": "Reconcile with the canonical Transition Plan and Evidence hard-gate workstream, then archive superseded workflow design."
-    }
-  ],
+  "review_queue": [],
   "closure_backlog": {
     "version": "2026-08-15.v1",
     "legacy_unchecked_count": 139,
@@ -393,10 +343,10 @@
         "wave": 0,
         "priority": "P1",
         "execution_mode": "governance",
-        "status": "planned",
-        "title": "Dispose of the nine time-bounded legacy plans",
+        "status": "completed",
+        "title": "Dispose of the seven remaining time-bounded legacy plans",
         "depends_on": [],
-        "exit_gate": "Every review item is merged into a canonical unit, archived as superseded, or promoted to a registered workstream by 2026-08-22."
+        "exit_gate": "All seven remaining review items were archived or mapped to canonical workstreams on 2026-08-15; the review queue is empty and no new implementation line was opened."
       },
       {
         "id": "EVID-01",

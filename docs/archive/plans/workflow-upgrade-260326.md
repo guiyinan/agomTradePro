@@ -1,5 +1,7 @@
 # 决策工作台实施计划：收敛为“账户级调仓计划 -> 审批执行”，审计移出主流程
 
+> **2026-08-15 计划收口**：当前叙事真源已收敛到 `docs/api/decision-workspace-v2.md` 与 `docs/development/decision-unified-workflow.md`，本文归档为被取代的历史设计。legacy writers、owner-bound receipt、exact-current pre-execution revalidation 和 approval/execute production gate 转入 `evidence-hard-gate`（`EVID-03`），Promotion/consumer UAT 继续归 `strategy-research-production`（`STRAT-03`）；归档不代表执行授权已开放。
+
 ## Summary
 
 本次实施分两部分同步完成：

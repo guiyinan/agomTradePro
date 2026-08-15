@@ -111,9 +111,9 @@ def test_repository_active_plan_registry_is_closed_world():
     assert report.workstream_count == 7
     assert report.primary_plan_count == 16
     assert report.supporting_document_count == 21
-    assert report.review_queue_count == 9
+    assert report.review_queue_count == 0
     assert report.closure_unit_count == 18
-    assert report.registered_path_count == report.active_path_count == 46
+    assert report.registered_path_count == report.active_path_count == 37
 
 
 def test_registry_rejects_unregistered_active_plan(tmp_path: Path):

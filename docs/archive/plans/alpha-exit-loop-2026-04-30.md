@@ -1,5 +1,7 @@
 # `docs/plans/alpha-exit-loop-2026-04-30.md`
 
+> **2026-08-15 计划收口**：退出 advisor、BUY→TRACK→SELL、invalidation 和 dashboard exit-watch 的实施资产及测试已存在，本文归档为历史实施方案。真实数据、Evidence exact-current 重验、执行授权与生产 UAT 转入 `strategy-research-production`（`STRAT-02/03`）和 `evidence-hard-gate`（`EVID-03`）；归档不解除实盘全局 deny。
+
 ## Summary
 
 为“Alpha 知道买什么后，系统如何知道什么时候卖”补一份可直接实施的方案文档，目标路径默认定为 `docs/plans/alpha-exit-loop-2026-04-30.md`。  

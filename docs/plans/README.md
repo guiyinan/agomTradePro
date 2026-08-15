@@ -24,8 +24,8 @@
 | 独立工作流 | 7 |
 | 主计划 | 16 |
 | 支撑文档、证据与矩阵 | 21 |
-| 限期审查项 | 7 |
-| 注册表覆盖的活跃文件 | 44 |
+| 限期审查项 | 0 |
+| 注册表覆盖的活跃文件 | 37 |
 | 历史未勾选细项 | 139（非执行口径） |
 | 去重后 canonical closure units | 18 |
 
@@ -45,22 +45,23 @@
 
 ## 限期审查队列
 
-以下文件不再作为独立开发主线计算，统一在 **2026-08-22** 前完成合并、归档或正式转入工作流：
+**2026-08-15 已清空。** 剩余 7 项均已逐项对账、在原文写入收口说明并移入 [`../archive/plans/`](../archive/plans/)，未新开实现线：
 
-- [Account performance](account-performance-260401.md)：并入 Evidence/Portfolio 生产验收或归档。
-- [Account refactor](account-refactor-260327.md)：与当前 Account Evidence-v3/Portfolio owner 边界对账后归档旧范围。
-- [Admin settings closure](admin-settings-closure-260404.md)：确认 TUI/config-center 剩余项或归档 Classic 范围。
-- [Alpha exit loop](alpha-exit-loop-2026-04-30.md)：剩余 Evidence 并入策略工作流，重复实施叙事归档。
-- [Alpha homepage](alpha-homepage-upgrade-260416.md)：按 Web→TUI 方向确认是否仍保留。
-- [Streamlit dashboard](streamlit-dashboard-upgrade-plan.md)：确认 TUI 方向下的保留范围或归档。
-- [Workflow upgrade](workflow-upgrade-260326.md)：与 canonical Transition Plan/Evidence 主线对账后归档被取代设计。
+- Account performance → `evidence-hard-gate`（`EVID-01/EVID-03`）的 owner scope、source freshness/hash、真实估值回填与 PostgreSQL 验收。
+- Account refactor → `evidence-hard-gate`（`EVID-01`）；破坏性账本迁移另受 `DATA-01/02/03` 约束。
+- Admin settings → `web-to-tui-m5`（`TUI-01/TUI-02`）的角色 UAT、保留页清理和观察窗口；Config Center 生产 profile 仍归 Data Center。
+- Alpha exit loop → `strategy-research-production`（`STRAT-02/03`）与 Evidence `EVID-03`。
+- Alpha homepage → `web-to-tui-m5` 的 Alpha/TUI 迁移与角色 UAT，PIT/OOS 与 owner/receipt 仍归 Strategy/Evidence。
+- Streamlit dashboard → 归档为兼容 sidecar 历史方案，当前用户任务由 TUI 承接，不再保留独立 cutover 线。
+- Workflow upgrade → 当前 Decision Workspace/Transition Plan 文档为真源；legacy writer、receipt、exact-current 和执行门禁归 Evidence `EVID-03`，Promotion/UAT 归 `STRAT-03`。
 
-审查队列只能下降；新增游离文档不会自动获得该状态。
+审查队列已清空；后续不得重新创建同类游离计划，残余工作必须进入上述 canonical closure unit。
 
 本轮已归档两项旧计划：
 
 - [Macro sizing multiplier（归档）](../archive/plans/macro-sizing-multiplier-outsourcing-2026-03-31.md)：实现资产已存在，残余 source freshness、config/version/hash、owner scope 与 exact-current 验收转入 Evidence `EVID-03`。
 - [0.8.0 后稳定化（归档）](../archive/plans/post-0.8.0-stabilization-priority-2026-07-08.md)：过期两周排期保留为历史来源，未完成生产门禁按 S1-S10 映射至当前 Data / Strategy / Evidence / TUI 工作流。
+- [2026-08-15 review queue 七项（归档）](../archive/ARCHIVE_INDEX.md#2026-08-15-review-queue-七项收口)：实施资产、取代关系和未完成生产证据已逐项登记；`GOV-01` 已完成。
 
 ## 去重后的收口 Backlog
 
@@ -68,7 +69,7 @@
 
 | 波次 | Canonical unit | 类型 | 状态 | 依赖 | 唯一交付 |
 |------|----------------|------|------|------|----------|
-| W0 | `GOV-01` | governance | planned | — | 9 份限期审查 plan 全部合并、归档或正式转入工作流 |
+| W0 | `GOV-01` | governance | completed | — | 7 份剩余限期审查 plan 已全部归档或转入 canonical workstream；队列清空 |
 | W1 | `EVID-01` | repository | active | — | owner/user/tenant scoped Evidence authority 与生产 composition |
 | W1 | `EVID-02` | production | planned | — | approval/current-head 的 PostgreSQL first-winner、并发和回滚证据 |
 | W1 | `EVID-03` | repository | waiting | EVID-01/02 | Research/Portfolio/Broker adapters 与执行前 exact-current 重验 |

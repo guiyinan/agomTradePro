@@ -1,5 +1,7 @@
 # 统一真实仓/模拟仓到账户类型账本，并同步对齐 API / 文档 / MCP / SDK
 
+> **2026-08-15 计划收口**：统一账本的历史实施叙事已被当前 Account Evidence-v3、Portfolio owner 和 canonical API 边界取代，本文归档。遗留 `apps/account` 写路径下线、实际迁移覆盖/回滚、owner/provenance composition 与 legacy 数据生产证明转入 `evidence-hard-gate`（`EVID-01`）；任何破坏性数据动作还必须绑定 `DATA-01/02/03`，不另开 Account migration 线。本归档不代表这些生产门禁已完成。
+
 ## Summary
 - 统一目标账本为 `apps.simulated_trading` 现有账户体系：账户级 `account_type=real|simulated`，不再长期维护 `apps/account` 与 `apps/simulated_trading` 两套持仓/交易账本。
 - `apps/account` 继续承担账户聚合、观察员权限、账户配置与对外入口职责，但其持仓/交易读写改为调用统一账本服务。

@@ -1,5 +1,7 @@
 # Unified Account Performance And Valuation
 
+> **2026-08-15 计划收口**：本实施计划的代码资产已落在 `apps/simulated_trading`（业绩/估值域、统一账户模型、API、迁移和测试）。原计划不再作为独立活跃主线，已归档。真实数据回填、benchmark/valuation 的 owner scope、source freshness/hash、exact-current 与 PostgreSQL 生产验收转入 `evidence-hard-gate` 的 `EVID-01/EVID-03`，并继续受 Portfolio consumer 与生产数据门禁约束；本归档不代表生产验收已完成。
+
 ## Summary
 - 不新拆 app。这个能力属于“账户/投资组合”的业务边界，但代码主归口放在统一账户源头 `apps/simulated_trading`，因为当前真实盘与模拟盘已经在这里汇总为 `account_type=real|simulated` 的统一账户模型；`apps/account` 只保留兼容入口和页面接入。
 - 首版同时覆盖真实盘和模拟盘，统一支持：

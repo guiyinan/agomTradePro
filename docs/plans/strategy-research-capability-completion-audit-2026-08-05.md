@@ -4,6 +4,10 @@
 > 审计基线：`dev/refactor-scenario-governance-quick-wins` / 2026-08-11 完整复审与软件续批
 > 权威目标：[策略研究能力后续开发备忘](../business/strategy-research-capability-roadmap-memo-2026-08-04.md)
 
+## 2026-08-15 旧计划收口映射
+
+`alpha-exit-loop` 与 `alpha-homepage` 已归档为历史实施方案；其尚未完成的真实数据、PIT/OOS、owner/receipt、Promotion 与 consumer UAT 继续由本工作流的 `STRAT-02/STRAT-03` 管理。归档只消除重复叙事，不改变 research-only、production blocked 与执行授权边界。
+
 ## 1. 审计结论
 
 上一批完成了 readiness、research-only 合同和 13 项限定交叉复核整改，但不能据此推断完整路线图已经实现。本次由三组 Luna Max 分别审计 R1—R3、R4—R6、R7—R8，并按备忘中的目标、启动条件、最低验收和全局研究纪律逐项核对。

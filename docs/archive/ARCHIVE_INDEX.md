@@ -120,6 +120,18 @@
 - `macro-sizing-multiplier-outsourcing-2026-03-31.md`（实现资产已存在；source freshness、config/version/hash、owner scope 与 exact-current 残余验收转入 Evidence `EVID-03`）
 - `post-0.8.0-stabilization-priority-2026-07-08.md`（过期两周排期归档；未完成生产门禁按 S1-S10 转入当前 Data / Strategy / Evidence / TUI 工作流）
 
+#### 2026-08-15 review queue 七项收口
+
+- `account-performance-260401.md`：统一业绩/估值实现资产已存在；真实回填、owner scope、freshness/hash、exact-current 与 PostgreSQL 生产验收转入 Evidence `EVID-01/EVID-03`。
+- `account-refactor-260327.md`：统一账本历史实施叙事被 Account Evidence-v3/Portfolio owner 边界取代；legacy 写路径、迁移覆盖/回滚和 provenance composition 转入 Evidence `EVID-01`，破坏性数据动作绑定 `DATA-01/02/03`。
+- `admin-settings-closure-260404.md`：Classic admin/settings shell 收口归档；角色 UAT、保留页清理、观察窗口转入 Web→TUI `TUI-01/TUI-02`，Config Center 生产 profile 仍归 Data Center。
+- `alpha-exit-loop-2026-04-30.md`：退出 advisor 与 BUY→TRACK→SELL 实施方案归档；真实数据、Evidence exact-current、执行授权和 UAT 转入 `STRAT-02/03` 与 `EVID-03`。
+- `alpha-homepage-upgrade-260416.md`：Classic Alpha 首页方案由 `research.signals`/TUI 迁移取代；角色 UAT 转入 `TUI-01/TUI-02`，PIT/OOS 与 owner/receipt 转入 Strategy/Evidence。
+- `streamlit-dashboard-upgrade-plan.md`：保留为兼容 sidecar 历史方案；独立 reverse-proxy/SSO/cutover 线取消，Regime/equity/signal 用户任务由 TUI 承接。
+- `workflow-upgrade-260326.md`：旧漏斗设计被 Decision Workspace/Transition Plan 文档取代；legacy writer、receipt、exact-current 和执行门禁转入 Evidence `EVID-03`，Promotion/UAT 转入 `STRAT-03`。
+
+上述七项均已在原文写入收口说明，未被误标为生产通过；残余工作只能通过现有 canonical closure unit 继续推进。
+
 #### AI、Terminal 与 MCP 收口
 
 - `mcp-consolidation-remediation-plan-2026-07-09.md`（统一 core surface、governed capability、legacy disposition 与写能力门禁已完成）
@@ -174,4 +186,4 @@
 ---
 
 **归档维护**: AgomTradePro Team
-**最后更新**: 2026-08-12
+**最后更新**: 2026-08-15

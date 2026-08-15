@@ -1,5 +1,7 @@
 # Streamlit Dashboard Upgrade Plan
 
+> **2026-08-15 计划收口**：Streamlit 仅保留为兼容 sidecar/历史方案，不再作为独立产品线。Regime、equity curve、signal 等用户任务由 TUI 产品方向承接；Streamlit 代码、`/api/dashboard/v1/*` 与依赖可暂留兼容，但 reverse-proxy/SSO/cutover 不再在本计划下推进。本文归档，当前候选部署、角色 UAT、观察窗口和清理受 `web-to-tui-m5`（`TUI-01/TUI-02`）管理。
+
 ## 1. Goal
 
 Upgrade the dashboard experience from Django Admin + HTMX patterns to an interactive Streamlit UI focused on:

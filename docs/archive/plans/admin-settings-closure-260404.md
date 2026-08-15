@@ -1,5 +1,7 @@
 # 设置中心 / 管理控制台 后续收口计划
 
+> **2026-08-15 计划收口**：Classic admin/settings shell 的独立收口范围已完成并归档。`/settings/`、`/admin-console/`、Config Center 与 MCP 管理入口的剩余角色化浏览器 UAT、保留页清理和 14 日观察转入 `web-to-tui-m5` 的 `TUI-01/TUI-02`；Config Center 生产 profile/观察继续受 Data Center canonical workstream 约束。本归档不代表生产候选门禁已解除。
+
 ## Summary
 
 本轮已经完成的收口：

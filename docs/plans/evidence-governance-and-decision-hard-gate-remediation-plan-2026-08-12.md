@@ -2,6 +2,16 @@
 
 > 执行状态（2026-08-13）：**M0 进行中，外部写面、Transition Plan 内部 writer、65 个显式高风险输出及 18 个动态 query/GET/presenter 面已冻结；M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与首批 legacy adapters 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、写入面的完整项目 runtime/component 证明、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
 
+### 2026-08-15：旧计划收口后的 Evidence 接管范围
+
+`GOV-01` 已清空旧计划审查队列，但不关闭生产证据门禁。以下残余由本计划继续承接：
+
+- 账户业绩/估值与统一账本：`account-performance`、`account-refactor` 的 owner scope、source freshness/identity/content hash、exact-current、真实回填与 rollback 证明归 `EVID-01/EVID-03`；破坏性迁移同时受 `DATA-01/02/03` 约束。
+- 决策工作台与 Alpha 退出：`workflow-upgrade`、`alpha-exit-loop` 的 legacy writer、Transition Plan receipt、执行前重验与审批授权归 `EVID-03`，不因旧实施计划归档而开放执行。
+- Alpha 首页及用户面：`alpha-homepage` 的 PIT/OOS、owner/receipt 与 consumer 证明继续由 Strategy/Evidence 处理；页面迁移和角色化 UAT 由 `web-to-tui-m5` 处理。
+
+上述映射只调整计划归属，不把本地 API、缓存或单元测试升级为可信生产 Evidence；全局 execution deny、owner/tenant authority 与 PostgreSQL 证据要求保持不变。
+
 ## 0. 分阶段实施记录
 
 ### 2026-08-12：M0 基线与 M1 Domain / persistence 首批

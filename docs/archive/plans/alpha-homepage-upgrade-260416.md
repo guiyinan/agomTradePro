@@ -1,5 +1,7 @@
 # 首页 Alpha 改造成“账户驱动候选 + 可执行建议 + 历史回溯”方案
 
+> **2026-08-15 计划收口**：旧 Classic 首页改造方案由当前 `research.signals`/TUI 迁移结果取代，本文归档。首页残余 dashboard/TUI 角色 UAT 转入 `web-to-tui-m5`（`TUI-01/TUI-02`），真实 PIT/OOS、owner/receipt 与 consumer 证明转入 `strategy-research-production` 和 Evidence；本归档不代表这些生产门禁已完成。
+
 ## Summary
 当前首页 Alpha 固定查 `csi300`，这会把“研究排名”和“账户可执行建议”混在一起。目标改成：
 

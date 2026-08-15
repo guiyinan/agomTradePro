@@ -8,6 +8,16 @@
 > **后端边界**: 默认保持业务语义不变；为补齐 TUI API 契约所需的 owner app 纵向切片允许纳入，但必须单独估算、提交和验收，不得把业务逻辑堆入 `terminal`
 > **目标**: 普通用户与日常运维的主任务在 TUI 内完成；web 模板收敛为一份显式且可机器核对的保留清单；迁移全程可观测、可回滚、每批独立收口
 
+## 2026-08-15 计划归属收口
+
+旧 `admin-settings`、`alpha-homepage` 与 `streamlit-dashboard` 计划已归档，不再形成平行实现线。其余工作统一归本计划的 `TUI-01/TUI-02`：
+
+- 设置中心/管理控制台的保留页清理、角色化浏览器 UAT、候选绑定和 14 日观察；
+- Alpha 首页/研究信号任务的 TUI 迁移与角色 affordance；
+- Streamlit 仅作为兼容 sidecar 保留，不再推进独立 reverse-proxy/SSO/cutover。
+
+本节只记录产品迁移归属；真实 owner/receipt、PIT/OOS 和执行授权仍由 Strategy/Evidence 门禁负责，M5 生产候选 gate 仍未解除。
+
 ## 1. 背景与动机
 
 1. 现有 web 界面为 195 个 Django 模板、约 7.6 万行 HTML，其中 **114 个模板（58%）含无 `src` 的内联 `<script>`**。这部分逻辑既不被 Python 测试覆盖，也不在任何前端工程内，是当前最大的 UI 测试盲区。
