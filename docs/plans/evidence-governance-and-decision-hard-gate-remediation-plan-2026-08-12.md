@@ -2405,6 +2405,20 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
 - 修正 approval write-flow 测试对 raw subject timestamp tamper 的断言：subject ledger seal 失效必须先于 approval 时序检查，不能把篡改误报成 `predates` 业务时序错误；生产恢复顺序保持 fail closed，不改实现。
 - Risk Center/Research 五组隔离 component（`--no-migrations`）合计 `22 passed`。这只证明 SQLite/no-migrations 下的软件恢复与篡改合同；真实迁移、PostgreSQL 并发、生产人工审批、真实数据与 Evidence hard gate 仍未完成，execution 总闸继续关闭。
 
+### 2026-08-15：Account Physical v2 migration-state drift correction
+
+- VPS candidate deploy exposed a repeatable Django warning that account models had changes
+  not reflected in migrations. `python manage.py makemigrations --check --dry-run` reproduced
+  one drift: `acct_phys_v2_fixed_ck` was structurally equivalent but serialized differently
+  between `PhysicalAccountRowObservationV2Model` and migration `0042`.
+- Added schema-only `account.0054_normalize_physical_v2_fixed_constraint` (remove/add the
+  same named CHECK; no data operation, seed or backfill). `makemigrations --check --dry-run`
+  now reports `No changes detected`; `manage.py check` passes. Isolated SQLite forward,
+  reverse and re-forward of `0054` all passed.
+- This removes the model-state warning for the next deployment, but does not claim that
+  production PostgreSQL migration/rollback or Evidence owner authority is complete; the
+  production hard gate and execution deny remain unchanged.
+
 ## 三、实施阶段
 
 ### M0：冻结与设计收口

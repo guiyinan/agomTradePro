@@ -900,6 +900,9 @@
 - ✅ **Account RBAC mutation binding v3 dormant Application writer contract**
   - ID/hash-only mutation command与server-issued identity resolver注入单一typed UOW；winner-first重放不读取Profile/operator/raw source，首次写校验完整old/new Profile、human staff+canonical-admin operator、0052 raw source exact/current及source-role/subject闭合，再以final predecessor CAS append并复核winner/head
   - writer unit 7 passed；与既有Domain/codec/read contract/0053 model+repository组合54 passed、official增量mypy 0 regressions、architecture 2879/0；仍无concrete Profile mutation receipt/version issuer、mutable lifecycle同alias实现、跨epoch reactivation PG闭环或production route，execution继续关闭
+- ✅ **Account Physical v2 migration-state drift correction（2026-08-15）**
+  - VPS deploy warning 已复现为 `acct_phys_v2_fixed_ck` 的 model/migration serialization drift；新增 schema-only `0054_normalize_physical_v2_fixed_constraint`，`makemigrations --check --dry-run` 为 `No changes detected`，Django check 通过，isolated SQLite forward/reverse/re-forward 通过
+  - 仅修复 migration state warning；下一候选仍需真实 PostgreSQL migration/rollback 观察，Evidence owner authority、生产 lifecycle 与 execution gate 不变
 - ✅ **跨 App 决策读边界与模块循环收口**
   - Portfolio账户访问和legacy Broker Evidence均经app-neutral registry，provider缺失稳定fail-closed；Account冷启动移除Strategy静态依赖
   - module guard收紧为206 edges、0双向依赖、0循环组件且全预算绿色；默认环境缺Django/Celery/Playwright的完整回归仍列为未验证
