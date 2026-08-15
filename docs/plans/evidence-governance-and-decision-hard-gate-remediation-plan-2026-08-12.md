@@ -2588,3 +2588,28 @@ authority source、tenant/owner lifecycle、durable publisher、production route
 不能通过空白或超长值绕过 canonical context 构造。query unit `14 passed`，与 composition、
 outbox dispatch/metrics runtime 聚合回归 `46 passed`；这仍只是 dormant read contract，不能替代
 真实 authenticated/RBAC authority source。
+
+## 2026-08-15：Evidence hard-gate next-slice exit audit
+
+对当前最高优先级的 Evidence/Broker 执行链做了只读复核，结论是本地没有可以安全开启终态的
+production slice：
+
+- `apps/broker_execution/application/evidence_gate.py` 的
+  `broker_order_evidence_integrated()` 仍固定为 `False`，create/approve/lease/submitting
+  四个节点继续 fail closed；这是当前保护行为，不是待绕过的测试门槛。
+- `governance/evidence_output_surfaces.json` 的 66 个 surface 中，15 个直接影响仓位的
+  surface 仍为 `integrated=0`；`SizingContextOutput`、`AdvisorOrderIntent`、TransitionPlan
+  与 OrderDraft 没有可证明的 owner-scoped canonical Evidence/consumer binding。
+- Risk Center 的本地 policy/approval ledger 与 SQLite component 不能替代 production
+  composition；没有真实 Risk policy source、Broker execution scope、Portfolio exact plan/
+  approval、Research execution-eligible Envelope/TrackRecord provider，且相关 production
+  composition 尚未注册。
+- Account owner/tenant authority 仍是 dormant、zero-seed raw ledger。禁止从 mutable
+  User/Profile/session/request、数据库 alias 或现场 hash 推导 authority；本机 PostgreSQL
+  first-winner/rollback harness 只证明 disposable local PostgreSQL 软件行为，不计作 VPS/生产
+  alias 证据。
+
+因此本轮不新增一层只按 alias 拼装的胶水，也不接 Broker issuer、execution consumer 或生产路由。
+下一真实依赖固定为：不可变 tenant/owner lifecycle、authenticated staff/tenant/owner provider、
+Research/Portfolio/Risk/Broker 同源 exact bundle，以及合格 staging/production PostgreSQL
+并发与回滚证据。完成这些前，EVID-01/EVID-03、AUD-01、写入和 execution 总闸保持关闭。
