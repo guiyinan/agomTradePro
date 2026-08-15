@@ -8,6 +8,7 @@ import hashlib
 import os
 import shlex
 import sys
+from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable
 
