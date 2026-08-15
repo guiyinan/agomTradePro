@@ -922,6 +922,9 @@
   - 纯 Application scope grant/provider/authorizer 在三类 exact read 触碰 repository 前执行 artifact-level gate；缺失、future/stale、revoked、替换和 hash tamper fail closed，`11 passed`
   - 新增强制注入 authorizer 的 `ScopedEvidenceReadFacade`，避免未来 owner-scoped composition 忘记安装 scope gate；旧 staff-only facade 保持兼容
   - 仅本地合同，未接生产 owner/tenant source、人工授权、PostgreSQL 并发或写/执行路径；API 继续 staff-only，Evidence hard gate 未解锁
+- ✅ **Evidence owner/tenant authority source contract（2026-08-15）**
+  - 纯 Domain `EvidenceScopeSourceV1` 固定 owner/tenant/account/actor/artifact exact refs、read-only/non-execution 语义、root/successor、PIT 与 revoked/expired no-fallback；source 不读取 Django User/session，也不现场 hash mutable rows，Research scope 合计 `30 passed`
+  - 仅 source 语义合同，未创建 ledger/provider、未接 API/ORM/人工授权或 production route；真实 owner/tenant source、PostgreSQL current-head/并发与 Evidence hard gate 继续关闭
 - ✅ **Web→TUI M5-C alias target checker correction（2026-08-14）**
   - 最终库存检查器同时读取 published graph 与 IA `published_screens`/`runtime_screens`，因此 runtime 注入的 `capability-router.mcp-center` 会被正确视为 canonical target；`capability-router.gateway` dangling 误报已消除
   - 11 个无活生产代码消费者的 dead alias 仍需真实流量观察、逐 wave 与回滚证据后再清理；M5 final 仍 DENY

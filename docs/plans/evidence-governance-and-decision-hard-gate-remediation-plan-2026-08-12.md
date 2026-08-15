@@ -2257,6 +2257,22 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
   真源、PostgreSQL current-head/并发证明或人工授权；当前 API 仍 staff-only，Evidence
   hard gate、审批、写入和 execution 总闸继续关闭。
 
+### 2026-08-15：Evidence owner/tenant authority source contract
+
+- 新增纯 Domain `EvidenceScopeSourceV1`，把未来可信 scope source 的最小不可变语义
+  固定为 owner、tenant、account、actor 与 exact artifact refs；permission 固定为
+  `read_only`，`must_not_execute=true`、`execution_allowed=false`，source content/hash
+  不得包含 session/cookie/token/password 等秘密，也不读取 mutable User/Profile/session。
+- source 以 candidate-independent root claim 开始，successor 必须绑定 exact predecessor、
+  保持 scope identity 不漂移并推进 recorded clock；历史 PIT 只按 recorded knowledge 读取，
+  temporal current 受 active/valid window 约束，revoked/expired 不回退旧版本。纯 scope
+  Domain/Application/facade 回归 `30 passed`，增量 mypy、architecture、Black/isort、compile
+  与 diff-check 通过。
+- 这只是 source 语义合同；没有创建 owner/tenant ledger、真实 provider、PostgreSQL
+  current-head/并发证明、人工授权或 production route。现有 Django User/session、Account
+  owner mapping 与 inactive authority ledger 均不能冒充真源，Evidence hard gate、写入和
+  execution 继续关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
