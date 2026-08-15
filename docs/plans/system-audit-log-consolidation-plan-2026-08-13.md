@@ -812,3 +812,7 @@ scope 不会被静默补值，AUD-01/AUD-02 仍保持阻断。
 issues、HTTPS health 200、TUI registry、release manifest/OCI/source、Celery 和容器健康均通过。
 这只验证 schema contract 在当前候选上可迁移/启动；没有 tenant/owner immutable lifecycle、server-issued
 scope provider、同-alias authority bundle、durable publisher 或 production audit runtime，AUD-01 仍阻断。
+
+同一候选的 VPS 只读 inventory 在 `2026-08-15T15:30:22Z` 返回 audit event total/scoped/unscoped
+均为 `0`；这证明本次 migration 没有 seed/backfill，不证明 production publisher、authority source
+或 Data Center 双写已完成。

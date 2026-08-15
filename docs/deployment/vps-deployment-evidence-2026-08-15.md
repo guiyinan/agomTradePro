@@ -250,6 +250,7 @@ registry、服务启动和健康复核均通过。
 | mode | `ACTION=upgrade`、code-only、`WIPE_DOCKER=0`、`WIPE_VOLUMES=0`、Celery enabled |
 | candidate binding | matrix SHA `bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`; graph SHA `fc4c19fbb0fc90e931a16223fffd9a4bd782e380afb86893a499874e6b644c84`; runtime manifest SHA `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854` |
 | migration proof | remote `audit` migrations show `[X] 0012_systemauditevent_scope` |
+| audit scope inventory | remote read-only ORM count at `2026-08-15T15:30:22Z`: total `0`, scoped `0`, unscoped `0`; no backfill or seed observed |
 
 部署后复核：Django `check` 0 issues；HTTPS `/api/health/` HTTP 200；web/Celery worker/beat、
 PostgreSQL、Redis、Caddy、RSSHub healthy/running；TUI registry check matched；Qlib `pyqlib=0.9.7`
