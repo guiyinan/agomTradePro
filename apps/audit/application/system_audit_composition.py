@@ -74,7 +74,7 @@ def system_audit_authority_content_hash(
         "role": role,
     }
     return hashlib.sha256(
-        b"account.system-audit-authority.v1\0" + _canonical_bytes(payload)
+        b"audit.system-audit-authority.v1\0" + _canonical_bytes(payload)
     ).hexdigest()
 
 
