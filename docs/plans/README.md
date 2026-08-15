@@ -368,6 +368,8 @@
 | 2026-08-15 | 第一期 P0 | Evidence hard-gate next-slice exit audit | 只读复核 Broker/Evidence 最高优先链：`broker_order_evidence_integrated()` 仍固定 `False`，15 个直接仓位 surface `integrated=0`；本地 Risk ledger、Account zero-seed authority 与 disposable PostgreSQL harness 均不能替代 production composition/alias 证据 | 不新增 alias 胶水或 production writer；下一真实依赖为 immutable tenant/owner lifecycle、authenticated scoped provider、Research/Portfolio/Risk/Broker 同源 exact bundle，以及 staging/production PostgreSQL 并发/回滚证据；EVID-01/EVID-03、AUD-01、写入与 execution 继续关闭 |
 | 2026-08-15 | 第一期 P0 | EVID-01 authority lifecycle/provider exit audit | 当前候选 `45281620a8739ee666a1b20e6c6511c0b8101111` / `20260815230537` 远端只读 inventory 显示 auth-context、User/RBAC authority、actor bundle、Evidence scope ledger 均为 `0` 行；scope-provider/actor-authority application 回归 `29 passed`，仅证明 dormant contract | 没有 immutable tenant/owner lifecycle、server-issued selector、同 alias atomic bundle 或生产 authority composition；不得从 mutable User/session/alias/现场 hash 推导 authority，EVID-01、写入与 execution 保持关闭 |
 
+| 2026-08-15 | 第二期 P0 | DATA-01 当前候选 backup refresh failure evidence | 当前候选 `45281620a8739ee666a1b20e6c6511c0b8101111` 的远端归档 `postgres-20260815T154338Z.dump`（`140279578` bytes）在 VPS 端 `pg_restore --list` 通过，但 SFTP 下载约 `4194304` bytes 后连接被关闭；未生成完整本地归档/SHA，partial 已清理 | 这不是新恢复点；`DATA-01` 继续 awaiting，restore/rebuild、维护态 rollback、RTO/RPO、回填与 reconciliation 仍锁定 |
+
 ## 2026-08-12 整理结果
 
 - 归档 50 份已完成文档：原批次 44 份，加上零循环整改、TUI IA，以及经代码与自动化证据复核完成的 MCP、Capability Catalog 和 Terminal 三条历史任务主线。

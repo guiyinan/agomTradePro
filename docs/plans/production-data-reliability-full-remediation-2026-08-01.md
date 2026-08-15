@@ -417,3 +417,14 @@ Docker restore/snapshot match，因此 `DATA-01` 仍为 `awaiting_production`，
 本条只新增一个可验证恢复点，不等于 restore/rebuild、RTO/RPO、维护态 rollback 或
 reconciliation。由于本机隔离恢复仍受 Docker/客户端工具链约束，`DATA-01` 继续
 `awaiting_production`，不解锁 `DATA-02/03`。
+
+## 实施记录（2026-08-15，当前候选 backup refresh 失败）
+
+针对当前候选 `dev/next-development@45281620a8739ee666a1b20e6c6511c0b8101111`，再次尝试
+`scripts/backup-vps-postgres.ps1 -DownloadLatest`。远端归档
+`/opt/agomtradepro/backups/database/postgres-20260815T154338Z.dump`（`140279578` bytes）
+在 VPS 端 `pg_restore --list` 校验通过，但 Paramiko SFTP 在下载约 `4194304` bytes 后
+收到 `Server connection dropped`；本地未生成完整归档或 SHA-256，残留 partial 已清理。
+
+该次尝试不计为 backup evidence，也不更新可用恢复点。`DATA-01` 仍为 `awaiting_production`，
+restore/rebuild、维护态 rollback、RTO/RPO、回填和 reconciliation 继续锁定。
