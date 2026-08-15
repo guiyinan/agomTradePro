@@ -50,6 +50,8 @@ def _row(event: SystemAuditEvent) -> SystemAuditEventModel:
         category=event.category.value,
         event_type=event.event_type,
         owner=event.owner,
+        scope_tenant_id=event.scope.tenant_id if event.scope is not None else None,
+        scope_owner_id=event.scope.owner_id if event.scope is not None else None,
         write_policy=event.write_policy.value,
         outcome=event.outcome.value,
         severity=event.severity.value,

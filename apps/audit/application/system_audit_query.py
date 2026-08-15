@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Protocol
 
-from apps.audit.domain.system_audit_event import SystemAuditEvent
+from apps.audit.domain.system_audit_event import AuditScopeRef, SystemAuditEvent
 
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 _READER_CONTEXT_CAPABILITY = object()
@@ -116,11 +116,23 @@ class SystemAuditReaderContext:
             and self.actor_id == f"django-user:{self.user_id}"
         )
 
+    @property
+    def scope(self) -> AuditScopeRef:
+        """Return the explicit tenant/owner selector bound to this context."""
+
+        return AuditScopeRef(tenant_id=self.tenant_id, owner_id=self.owner_id)
+
 
 class SystemAuditQueryRepository(Protocol):
     """Minimal repository surface required by the query use cases."""
 
-    def list_events(self, *, stream_id: str, as_of: datetime) -> tuple[SystemAuditEvent, ...]:
+    def list_events(
+        self,
+        *,
+        stream_id: str,
+        as_of: datetime,
+        scope: AuditScopeRef,
+    ) -> tuple[SystemAuditEvent, ...]:
         """Return the complete knowable stream prefix in sequence order."""
 
     def get_exact_by_hash(
@@ -130,6 +142,7 @@ class SystemAuditQueryRepository(Protocol):
         event_version: str,
         expected_content_hash: str,
         as_of: datetime,
+        scope: AuditScopeRef,
     ) -> SystemAuditEvent | None:
         """Return one exact historical event or ``None`` at the PIT."""
 
@@ -201,6 +214,7 @@ class ListSystemAuditEventsUseCase:
         events = self._repository.list_events(
             stream_id=command.stream_id,
             as_of=command.as_of,
+            scope=command.reader.scope,
         )
         if any(event.stream_id != command.stream_id for event in events):
             raise SystemAuditQueryCorruption("repository returned an event from another stream")
@@ -209,6 +223,8 @@ class ListSystemAuditEventsUseCase:
             for previous, current in zip(events, events[1:])
         ):
             raise SystemAuditQueryCorruption("repository returned an unsorted audit stream")
+        if any(event.scope != command.reader.scope for event in events):
+            raise SystemAuditQueryCorruption("repository returned an event outside the audit scope")
         visible = tuple(
             event
             for event in events
@@ -244,11 +260,13 @@ class GetSystemAuditEventUseCase:
             event_version=command.event_version,
             expected_content_hash=command.expected_content_hash,
             as_of=command.as_of,
+            scope=command.reader.scope,
         )
         if event is not None and (
             event.event_id != command.event_id
             or event.event_version != command.event_version
             or event.content_hash != command.expected_content_hash
+            or event.scope != command.reader.scope
         ):
             raise SystemAuditQueryCorruption("repository substituted the exact audit selector")
         return event

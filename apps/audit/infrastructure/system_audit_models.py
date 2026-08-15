@@ -106,6 +106,11 @@ class SystemAuditEventModel(models.Model):
     category = models.CharField(max_length=64)
     event_type = models.CharField(max_length=128)
     owner = models.CharField(max_length=64)
+    # Event-contract ``owner`` is not a tenant/user scope.  These nullable
+    # columns preserve historical rows while scoped reads fail closed until
+    # an explicit linkage exists.
+    scope_tenant_id = models.CharField(max_length=192, null=True, blank=True)
+    scope_owner_id = models.CharField(max_length=192, null=True, blank=True)
     write_policy = models.CharField(max_length=32)
     outcome = models.CharField(max_length=32)
     severity = models.CharField(max_length=16)
@@ -237,6 +242,13 @@ class SystemAuditEventModel(models.Model):
                 ),
                 name="audit_event_root_successor_predecessor",
             ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(scope_tenant_id__isnull=True, scope_owner_id__isnull=True)
+                    | models.Q(scope_tenant_id__isnull=False, scope_owner_id__isnull=False)
+                ),
+                name="audit_event_scope_pair",
+            ),
         ]
         indexes = [
             models.Index(
@@ -247,6 +259,10 @@ class SystemAuditEventModel(models.Model):
                 name="audit_event_cat_outcome_idx",
             ),
             models.Index(fields=["actor_id", "recorded_at"], name="audit_event_actor_recorded_idx"),
+            models.Index(
+                fields=["scope_tenant_id", "scope_owner_id", "recorded_at"],
+                name="audit_event_scope_recorded_idx",
+            ),
         ]
 
 

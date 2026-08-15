@@ -12,6 +12,7 @@ from apps.audit.domain.system_audit_event import (
     AuditEvidenceRef,
     AuditOutcome,
     AuditResourceRef,
+    AuditScopeRef,
     AuditSeverity,
     AuditWritePolicy,
     SystemAuditEvent,
@@ -28,6 +29,7 @@ def make_event(
     predecessor_hash: str | None = None,
     event_id: str = "evt-1",
     idempotency_key: str = "fetch:run-1",
+    scope: AuditScopeRef | None = AuditScopeRef("tenant:primary", "owner:research"),
 ) -> SystemAuditEvent:
     return SystemAuditEvent.create(
         event_id=event_id,
@@ -66,6 +68,7 @@ def make_event(
         sequence_no=sequence_no,
         predecessor_hash=predecessor_hash,
         idempotency_key=idempotency_key,
+        scope=scope,
     )
 
 
@@ -111,3 +114,22 @@ def test_codec_rejects_unknown_keys_and_hash_tamper() -> None:
     tampered["detail"] = {"rows": 3, "source_status": "valid", "nested": {"ok": True}}
     with pytest.raises(ValueError, match="hash"):
         decode(tampered)
+
+
+def test_scope_is_canonical_and_legacy_unscoped_payload_remains_explicit() -> None:
+    scoped = make_event()
+    legacy = make_event(scope=None)
+
+    assert decode(encode(scoped)).scope == AuditScopeRef("tenant:primary", "owner:research")
+    assert decode(encode(legacy)).scope is None
+
+    tampered = dict(encode(scoped))
+    tampered["scope"] = {"tenant_id": "tenant:other", "owner_id": "owner:research"}
+    with pytest.raises(ValueError, match="hash"):
+        decode(tampered)
+
+
+@pytest.mark.parametrize("value", ["", "tenant with space", " tenant:primary", "x" * 193])
+def test_scope_tokens_reject_noncanonical_values(value: str) -> None:
+    with pytest.raises(ValueError, match="bounded canonical token"):
+        AuditScopeRef(value, "owner:research")

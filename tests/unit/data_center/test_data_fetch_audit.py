@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from apps.audit.domain.system_audit_event import AuditOutcome
+from apps.audit.domain.system_audit_event import AuditOutcome, AuditScopeRef
 from apps.data_center.application.data_fetch_audit import (
     DataFetchAuditObservation,
     build_data_fetch_audit_event,
@@ -26,6 +26,7 @@ def _observation(**changes: object) -> DataFetchAuditObservation:
         "row_count": 2,
         "occurred_at": NOW,
         "recorded_at": NOW,
+        "scope": AuditScopeRef("tenant:primary", "owner:research"),
     }
     values.update(changes)
     return DataFetchAuditObservation(**values)  # type: ignore[arg-type]

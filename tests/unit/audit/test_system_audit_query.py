@@ -14,7 +14,7 @@ from apps.audit.application.system_audit_query import (
     SystemAuditQueryUnavailable,
     SystemAuditReaderContext,
 )
-from apps.audit.domain.system_audit_event import SystemAuditEvent
+from apps.audit.domain.system_audit_event import AuditScopeRef, SystemAuditEvent
 from tests.unit.audit.test_system_audit_event import make_event
 
 NOW = datetime(2026, 8, 14, 12, 0, 0, 123456, tzinfo=UTC)
@@ -24,11 +24,17 @@ class FakeRepository:
     def __init__(self, events: tuple[SystemAuditEvent, ...]) -> None:
         self.events = events
 
-    def list_events(self, *, stream_id: str, as_of: datetime) -> tuple[SystemAuditEvent, ...]:
+    def list_events(
+        self,
+        *,
+        stream_id: str,
+        as_of: datetime,
+        scope: AuditScopeRef,
+    ) -> tuple[SystemAuditEvent, ...]:
         return tuple(
             event
             for event in self.events
-            if event.stream_id == stream_id and event.recorded_at <= as_of
+            if event.stream_id == stream_id and event.recorded_at <= as_of and event.scope == scope
         )
 
     def get_exact_by_hash(
@@ -38,6 +44,7 @@ class FakeRepository:
         event_version: str,
         expected_content_hash: str,
         as_of: datetime,
+        scope: AuditScopeRef,
     ) -> SystemAuditEvent | None:
         return next(
             (
@@ -47,6 +54,7 @@ class FakeRepository:
                 and event.event_version == event_version
                 and event.content_hash == expected_content_hash
                 and event.recorded_at <= as_of
+                and event.scope == scope
             ),
             None,
         )
@@ -100,6 +108,7 @@ def test_staff_stream_query_is_paged_and_pit_bounded() -> None:
         sequence_no=2,
         predecessor_hash=first.content_hash,
         idempotency_key="fetch:run-1:second",
+        scope=first.scope,
     )
     result = ListSystemAuditEventsUseCase(FakeRepository((first, second))).execute(
         ListSystemAuditEventsCommand(

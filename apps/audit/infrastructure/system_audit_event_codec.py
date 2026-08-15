@@ -12,6 +12,7 @@ from apps.audit.domain.system_audit_event import (
     AuditEvidenceRef,
     AuditOutcome,
     AuditResourceRef,
+    AuditScopeRef,
     AuditSeverity,
     AuditWritePolicy,
     JSONValue,
@@ -54,6 +55,8 @@ _TOP_KEYS = frozenset(
         "content_hash",
     }
 )
+_SCOPED_TOP_KEYS = _TOP_KEYS | {"scope"}
+_SCOPE_KEYS = frozenset({"tenant_id", "owner_id"})
 _ACTOR_KEYS = frozenset({"actor_type", "actor_id", "actor_display"})
 _CORRELATION_KEYS = frozenset(
     {
@@ -132,7 +135,17 @@ def decode(payload: Mapping[str, JSONValue]) -> SystemAuditEvent:
     """Decode an exact event payload and fail closed on any substitution."""
 
     value = _mapping(payload, "event")
-    _exact(value, _TOP_KEYS, "event")
+    if frozenset(value) not in {_TOP_KEYS, _SCOPED_TOP_KEYS}:
+        raise ValueError("event has unknown or missing keys")
+    scope_value = value.get("scope")
+    scope = None
+    if scope_value is not None:
+        scope_map = _mapping(scope_value, "scope")
+        _exact(scope_map, _SCOPE_KEYS, "scope")
+        scope = AuditScopeRef(
+            tenant_id=_text(scope_map["tenant_id"], "scope.tenant_id"),
+            owner_id=_text(scope_map["owner_id"], "scope.owner_id"),
+        )
     actor_value = _mapping(value["actor"], "actor")
     _exact(actor_value, _ACTOR_KEYS, "actor")
     actor = AuditActorRef(
@@ -215,6 +228,7 @@ def decode(payload: Mapping[str, JSONValue]) -> SystemAuditEvent:
         idempotency_key=_text(value["idempotency_key"], "idempotency_key"),
         identity_hash=_text(value["identity_hash"], "identity_hash"),
         content_hash=_text(value["content_hash"], "content_hash"),
+        scope=scope,
     )
     event.validate_hashes()
     if encode(event) != value:

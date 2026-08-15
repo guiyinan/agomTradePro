@@ -18,7 +18,7 @@ from typing import Protocol, cast
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.audit.domain.system_audit_event import JSONValue, SystemAuditEvent
+from apps.audit.domain.system_audit_event import AuditScopeRef, JSONValue, SystemAuditEvent
 from apps.audit.infrastructure.system_audit_event_codec import decode, encode
 from apps.audit.infrastructure.system_audit_models import (
     _UOW,
@@ -124,6 +124,7 @@ class DjangoSystemAuditEventRepository:
         event_version: str,
         expected_content_hash: str,
         as_of: datetime,
+        scope: AuditScopeRef | None = None,
     ) -> SystemAuditEvent | None:
         """Return one historical event only when identity, hash and PIT match."""
 
@@ -136,33 +137,48 @@ class DjangoSystemAuditEventRepository:
             and item.event.event_version == event_version
             and item.event.content_hash == expected_content_hash
         )
-        if len(matches) > 1:
+        visible = self._scope_visible(matches, scope=scope)
+        if len(visible) > 1:
             raise SystemAuditCorruption("system audit exact selector is ambiguous")
-        if not matches or matches[0].recorded_at > as_of:
+        if not visible or visible[0].recorded_at > as_of:
             return None
-        return matches[0]
+        return visible[0]
 
-    def get_current_head(self, *, stream_id: str, as_of: datetime) -> SystemAuditEvent | None:
+    def get_current_head(
+        self,
+        *,
+        stream_id: str,
+        as_of: datetime,
+        scope: AuditScopeRef | None = None,
+    ) -> SystemAuditEvent | None:
         """Return the final visible stream head without expired/future fallback."""
 
         self._require_cutoff(as_of)
+        stream = tuple(item.event for item in self._state() if item.event.stream_id == stream_id)
         visible = tuple(
-            item.event
-            for item in self._state()
-            if item.event.stream_id == stream_id and item.event.recorded_at <= as_of
+            event
+            for event in self._scope_visible(stream, scope=scope)
+            if event.recorded_at <= as_of
         )
         if not visible:
             return None
         return max(visible, key=lambda value: value.sequence_no)
 
-    def list_events(self, *, stream_id: str, as_of: datetime) -> tuple[SystemAuditEvent, ...]:
+    def list_events(
+        self,
+        *,
+        stream_id: str,
+        as_of: datetime,
+        scope: AuditScopeRef | None = None,
+    ) -> tuple[SystemAuditEvent, ...]:
         """Return the visible stream prefix in sequence order."""
 
         self._require_cutoff(as_of)
+        stream = tuple(item.event for item in self._state() if item.event.stream_id == stream_id)
         events = tuple(
-            item.event
-            for item in self._state()
-            if item.event.stream_id == stream_id and item.event.recorded_at <= as_of
+            event
+            for event in self._scope_visible(stream, scope=scope)
+            if event.recorded_at <= as_of
         )
         return tuple(sorted(events, key=lambda value: value.sequence_no))
 
@@ -183,6 +199,8 @@ class DjangoSystemAuditEventRepository:
             raise SystemAuditUnavailable("future system audit recorded_at is forbidden")
         if event.recorded_at != recorded_at:
             raise SystemAuditConflict("event recorded_at must equal repository clock")
+        if event.scope is None:
+            raise SystemAuditConflict("system audit append requires an explicit scope")
         try:
             event.validate_hashes()
         except (TypeError, ValueError) as error:
@@ -265,6 +283,24 @@ class DjangoSystemAuditEventRepository:
             raise SystemAuditCorruption("system audit persisted clock is invalid")
         return event
 
+    def _scope_visible(
+        self,
+        events: tuple[SystemAuditEvent, ...],
+        *,
+        scope: AuditScopeRef | None,
+    ) -> tuple[SystemAuditEvent, ...]:
+        """Apply an explicit scope without treating event ``owner`` as scope."""
+
+        if scope is None:
+            return events
+        visible: list[SystemAuditEvent] = []
+        for event in events:
+            if event.scope is None:
+                raise SystemAuditUnavailable("scoped audit read encountered a missing scope")
+            if event.scope == scope:
+                visible.append(event)
+        return tuple(visible)
+
 
 def _model_values(event: SystemAuditEvent) -> dict[str, object]:
     """Project one Domain event into every persisted scalar/JSON column."""
@@ -277,6 +313,8 @@ def _model_values(event: SystemAuditEvent) -> dict[str, object]:
         "category": event.category.value,
         "event_type": event.event_type,
         "owner": event.owner,
+        "scope_tenant_id": event.scope.tenant_id if event.scope is not None else None,
+        "scope_owner_id": event.scope.owner_id if event.scope is not None else None,
         "write_policy": event.write_policy.value,
         "outcome": event.outcome.value,
         "severity": event.severity.value,
@@ -330,6 +368,8 @@ def _model_values_keys() -> tuple[str, ...]:
         "category",
         "event_type",
         "owner",
+        "scope_tenant_id",
+        "scope_owner_id",
         "write_policy",
         "outcome",
         "severity",

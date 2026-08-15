@@ -181,6 +181,39 @@ class AuditResourceRef:
 
 
 @dataclass(frozen=True, slots=True)
+class AuditScopeRef:
+    """Explicit tenant/owner linkage for one audit event.
+
+    ``SystemAuditEvent.owner`` remains the registered event-contract owner
+    (the application responsible for the event).  It is deliberately not a
+    tenant or user scope.  This value object is the only canonical event
+    linkage that a scoped reader may use for authorization filtering.
+    """
+
+    tenant_id: str
+    owner_id: str
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("scope.tenant_id", self.tenant_id),
+            ("scope.owner_id", self.owner_id),
+        ):
+            if (
+                not isinstance(value, str)
+                or not value
+                or len(value) > 192
+                or value.strip() != value
+                or any(character.isspace() for character in value)
+            ):
+                raise ValueError(f"{name} must be a bounded canonical token")
+
+    def to_payload(self) -> Mapping[str, JSONValue]:
+        """Return the exact canonical JSON representation."""
+
+        return {"tenant_id": self.tenant_id, "owner_id": self.owner_id}
+
+
+@dataclass(frozen=True, slots=True)
 class AuditEvidenceRef:
     """Exact owner/type/version/hash pointer to professional evidence."""
 
@@ -285,6 +318,9 @@ class SystemAuditEvent:
     idempotency_key: str
     identity_hash: str
     content_hash: str
+    # ``None`` is retained only so legacy rows can be restored and then
+    # rejected by scoped reads.  New repository appends require a scope.
+    scope: AuditScopeRef | None = None
 
     @classmethod
     def create(
@@ -320,6 +356,7 @@ class SystemAuditEvent:
         sequence_no: int,
         predecessor_hash: str | None,
         idempotency_key: str,
+        scope: AuditScopeRef | None = None,
     ) -> "SystemAuditEvent":
         normalized_reasons = tuple(reason_codes)
         normalized_refs = tuple(evidence_refs)
@@ -356,6 +393,7 @@ class SystemAuditEvent:
             idempotency_key=idempotency_key,
             identity_hash="0" * 64,
             content_hash="0" * 64,
+            scope=scope,
         )
         payload = provisional._canonical_payload()
         identity_hash = _digest(
@@ -419,11 +457,13 @@ class SystemAuditEvent:
             if value is not None:
                 _require_text(value, name, max_length=256)
         _validate_json(self.detail)
+        if self.scope is not None and not isinstance(self.scope, AuditScopeRef):
+            raise ValueError("scope must be an AuditScopeRef or None")
         _require_digest(self.identity_hash, "identity_hash")
         _require_digest(self.content_hash, "content_hash")
 
     def _identity_payload(self) -> Mapping[str, JSONValue]:
-        return {
+        payload: dict[str, JSONValue] = {
             "event_id": self.event_id,
             "event_version": self.event_version,
             "schema_version": self.schema_version,
@@ -431,9 +471,12 @@ class SystemAuditEvent:
             "event_type": self.event_type,
             "owner": self.owner,
         }
+        if self.scope is not None:
+            payload["scope"] = self.scope.to_payload()
+        return payload
 
     def _canonical_payload(self) -> Mapping[str, JSONValue]:
-        return {
+        payload: dict[str, JSONValue] = {
             **self._identity_payload(),
             "write_policy": self.write_policy.value,
             "outcome": self.outcome.value,
@@ -460,6 +503,9 @@ class SystemAuditEvent:
             "predecessor_hash": self.predecessor_hash,
             "idempotency_key": self.idempotency_key,
         }
+        if self.scope is not None:
+            payload["scope"] = self.scope.to_payload()
+        return payload
 
     def to_payload(self) -> Mapping[str, JSONValue]:
         """Return a complete canonical payload including both hashes."""

@@ -790,3 +790,17 @@ canonical schema、TUI registry、Qlib、Celery/Caddy 复核通过。
 thermometer warnings 原样保留。没有 authenticated tenant/owner authority、event scope/linkage
 columns、durable publisher、beat/retry 或 production audit runtime，AUD-01 仍保持 `planned`，
 AUD-02/03 继续等待依赖。
+
+## 实施记录（2026-08-15，AUD-01 explicit event scope linkage contract）
+
+新增 `AuditScopeRef(tenant_id, owner_id)` 作为事件唯一的 canonical tenant/主体 scope；
+`SystemAuditEvent.owner` 明确继续表示事件 taxonomy/producer owner，禁止被解释成主体 owner。
+scope 已进入 Domain identity/content payload 与 strict codec，`SystemAuditEventModel` 以成对 nullable
+列和 schema-only migration `0012` 保存，repository/query 以 exact scope selector 过滤；scoped read
+遇到历史 NULL scope、scope substitution 或 scope hash 不一致时 fail closed，append 没有显式 scope
+直接阻断。scope pair、legacy round-trip、tamper、query selector 和本地 model/repository 回归已通过，
+`manage.py check`、`makemigrations --check --dry-run`、增量 mypy（6 files）和 governance checks 均通过。
+
+该 slice 只建立 scope linkage contract，不提供 tenant/owner immutable lifecycle、server-issued scope
+provider、Data Center 同-alias authority bundle、durable publisher 或 production backfill；历史 NULL
+scope 不会被静默补值，AUD-01/AUD-02 仍保持阻断。

@@ -210,6 +210,7 @@ def _event(
         capability=base.capability,
         publication_id=base.publication_id,
         evidence_refs=base.evidence_refs,
+        scope=base.scope,
         detail_schema=base.detail_schema,
         detail=detail if detail is not None else base.detail,
         stream_id=stream_id,

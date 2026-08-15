@@ -20,6 +20,7 @@ from apps.audit.domain.system_audit_event import (
     AuditEvidenceRef,
     AuditOutcome,
     AuditResourceRef,
+    AuditScopeRef,
     AuditSeverity,
     AuditWritePolicy,
     JSONValue,
@@ -82,6 +83,7 @@ class DataFetchAuditObservation:
     occurred_at: datetime
     observed_at: datetime | None = None
     error_class: str | None = None
+    scope: AuditScopeRef | None = None
 
     def __post_init__(self) -> None:
         for name in (
@@ -211,6 +213,7 @@ def build_data_fetch_audit_event(
             f"data-fetch:{observation.run_id}:{observation.ingested_run_id}:"
             f"{observation.dataset_key}"
         ),
+        scope=observation.scope,
     )
 
 
