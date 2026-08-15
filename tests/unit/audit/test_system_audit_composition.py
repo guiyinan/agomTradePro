@@ -15,6 +15,7 @@ from apps.audit.application.system_audit_composition import (
     SystemAuditCompositionUnavailable,
     SystemAuditPublisherContractViolation,
     get_system_audit_reader_context,
+    system_audit_authority_content_hash,
 )
 from tests.unit.audit.test_system_audit_event import make_event
 
@@ -27,12 +28,20 @@ def _authority(**changes: object) -> SystemAuditAuthoritySnapshot:
         "user_id": 7,
         "tenant_id": "tenant:primary",
         "owner_id": "owner:research",
-        "authority_content_hash": "a" * 64,
         "is_authenticated": True,
         "is_staff": True,
         "role": "audit_reader",
     }
     values.update(changes)
+    values["authority_content_hash"] = system_audit_authority_content_hash(
+        actor_id=values["actor_id"],
+        user_id=values["user_id"],
+        tenant_id=values["tenant_id"],
+        owner_id=values["owner_id"],
+        is_authenticated=values["is_authenticated"],
+        is_staff=values["is_staff"],
+        role=values["role"],
+    )
     return SystemAuditAuthoritySnapshot(**values)
 
 
@@ -79,6 +88,34 @@ def test_authority_provider_is_the_only_source_for_reader_context() -> None:
         7,
         True,
     )
+
+
+def test_authority_snapshot_hash_binds_all_scope_facts() -> None:
+    snapshot = _authority()
+    substituted = snapshot.__class__(
+        actor_id=snapshot.actor_id,
+        user_id=snapshot.user_id,
+        tenant_id="tenant:other",
+        owner_id=snapshot.owner_id,
+        authority_content_hash=snapshot.authority_content_hash,
+        is_authenticated=snapshot.is_authenticated,
+        is_staff=snapshot.is_staff,
+        role=snapshot.role,
+    )
+
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        get_system_audit_reader_context(Provider(substituted), as_of=NOW)
+
+    assert exc_info.value.reason_code == "authority_unavailable"
+
+
+def test_authority_snapshot_hash_rejects_provider_issued_placeholder() -> None:
+    snapshot = replace(_authority(), authority_content_hash="a" * 64)
+
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        get_system_audit_reader_context(Provider(snapshot), as_of=NOW)
+
+    assert exc_info.value.reason_code == "authority_unavailable"
 
 
 def test_invalid_cutoff_is_blocked_before_provider_read() -> None:

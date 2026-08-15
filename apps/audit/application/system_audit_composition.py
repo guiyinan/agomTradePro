@@ -9,6 +9,7 @@ authoritative provider rather than caller-supplied actor flags.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -43,6 +44,38 @@ def _canonical_bytes(payload: Mapping[str, JSONValue]) -> bytes:
         separators=(",", ":"),
         allow_nan=False,
     ).encode("utf-8")
+
+
+def system_audit_authority_content_hash(
+    *,
+    actor_id: str,
+    user_id: int,
+    tenant_id: str,
+    owner_id: str,
+    is_authenticated: bool,
+    is_staff: bool,
+    role: str,
+) -> str:
+    """Return the canonical digest for one provider-issued authority snapshot.
+
+    The digest binds every non-secret fact that the composition boundary uses
+    for staff/user and tenant/owner scope.  It is not an authentication
+    provider and does not create authority; it only lets the boundary reject
+    a snapshot whose scope fields were substituted after issuance.
+    """
+
+    payload: Mapping[str, JSONValue] = {
+        "actor_id": actor_id,
+        "user_id": user_id,
+        "tenant_id": tenant_id,
+        "owner_id": owner_id,
+        "is_authenticated": is_authenticated,
+        "is_staff": is_staff,
+        "role": role,
+    }
+    return hashlib.sha256(
+        b"account.system-audit-authority.v1\0" + _canonical_bytes(payload)
+    ).hexdigest()
 
 
 def _exact_payload_equal(left: object, right: object) -> bool:
@@ -215,6 +248,21 @@ class SystemAuditAuthoritySnapshot:
             raise TypeError("authority flags must be bools")
         _require_digest(self.authority_content_hash, "authority_content_hash")
 
+    def validate_integrity(self) -> None:
+        """Reject a provider snapshot whose scope facts do not match its hash."""
+
+        expected = system_audit_authority_content_hash(
+            actor_id=self.actor_id,
+            user_id=self.user_id,
+            tenant_id=self.tenant_id,
+            owner_id=self.owner_id,
+            is_authenticated=self.is_authenticated,
+            is_staff=self.is_staff,
+            role=self.role,
+        )
+        if expected != self.authority_content_hash:
+            raise ValueError("authority snapshot content hash mismatch")
+
     @property
     def can_read(self) -> bool:
         """Return the minimum staff/user binding required by the query contract."""
@@ -257,6 +305,8 @@ def get_system_audit_reader_context(
         )
     try:
         snapshot = provider.get_current(as_of=as_of)
+        if isinstance(snapshot, SystemAuditAuthoritySnapshot):
+            snapshot.validate_integrity()
         is_eligible = isinstance(snapshot, SystemAuditAuthoritySnapshot) and snapshot.can_read
     except Exception:
         # Do not leak provider/database/RBAC details through this boundary.
@@ -285,5 +335,6 @@ __all__ = [
     "SystemAuditAuthoritySnapshot",
     "SystemAuditCompositionUnavailable",
     "SystemAuditPublisherContractViolation",
+    "system_audit_authority_content_hash",
     "get_system_audit_reader_context",
 ]

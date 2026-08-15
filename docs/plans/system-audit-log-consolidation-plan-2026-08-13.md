@@ -748,3 +748,18 @@ ready 响应仍原样保留 Alpha/Qlib provider degraded、workspace recommendat
 market thermometer partial-stale warnings；本次只证明候选身份和运行健康，不代表 durable
 publisher/receipt sink、authenticated scoped authority、beat/retry/requeue、AUD-02 Data Center
 双写、M5 UAT、DATA-01 restore/rebuild 或生产回滚已完成。AUD-01 仍未解除。
+
+## 实施记录（2026-08-15，AUD-01 authority snapshot integrity contract）
+
+`SystemAuditAuthoritySnapshot.authority_content_hash` 现在通过
+`system_audit_authority_content_hash()` 使用 domain-separated canonical digest 绑定
+`actor_id`、`user_id`、`tenant_id`、`owner_id`、认证/staff 标志与 role；
+`get_system_audit_reader_context()` 在投影 reader context 前调用
+`validate_integrity()`，scope/身份字段被替换或 provider 继续返回占位 digest 时统一
+fail-closed 为 `authority_unavailable`。composition 定向回归 `20 passed`，与 query、
+dispatcher、dispatch task 合计 `38 passed`；增量 mypy、architecture、Black/isort 与
+diff-check 通过。
+
+该 slice 只证明 provider snapshot 的本地完整性边界，不提供 authenticated provider、
+tenant/owner RBAC、route composition 或 durable publisher；runtime 仍固定
+`publisher_not_wired`，AUD-01 保持 `planned`，AUD-02 继续等待依赖。
