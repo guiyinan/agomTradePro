@@ -2273,6 +2273,19 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
   owner mapping 与 inactive authority ledger 均不能冒充真源，Evidence hard gate、写入和
   execution 继续关闭。
 
+### 2026-08-15：Evidence owner/tenant authority source strict codec
+
+- 新增 strict `EvidenceScopeSourceV1` codec，完整重建 source 与 nested `ArtifactRef`；
+  payload 使用 exact key set/type、canonical UTC `Z` microseconds 和 lowercase SHA-256，
+  `identity_hash`/`content_hash`、root/successor、fixed read-only/non-execution semantics
+  均由 Domain 重算并复验。未知键、缺键、bool/int 替换、非 canonical 时钟、nested ref、
+  chain/hash/fixed tamper 和非 mapping payload 全部 fail closed。
+- scope/source/facade codec 回归 `42 passed`；4 个生产文件增量 mypy 无回归，architecture
+  audit `0 violations`，Black/isort、compile 和 diff-check 通过。
+- 该批仍只是 canonical persistence contract，未创建 ledger/repository/provider，未读取
+  mutable User/session/tenant rows，也未接 API、人工授权或 production route；Evidence hard
+  gate、写入和 execution 继续关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。
