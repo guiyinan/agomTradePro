@@ -720,3 +720,17 @@ pytest tests/unit/test_internal_ssl_redirect.py -q
 audit、Black、isort 与 diff-check 通过。该 slice 仍不创建 authority source，也不改变
 `publisher_not_wired` runtime gate；真实 authenticated scoped lifecycle、durable publisher/receipt
 sink、beat/retry、PostgreSQL/VPS 证据和 AUD-02 Data Center 同 UOW 继续未完成。
+
+## 实施记录（2026-08-15，AUD-01 canonical receipt exact-tree hardening）
+
+`CanonicalSystemAuditPublishReceipt.validate_for()` 现在在 canonical JSON 编码前进行递归的
+exact-tree 比对：容器类型、标量类型、序列顺序和字符串 key 类型必须与原始
+`SystemAuditEvent.to_payload()` 完全一致；tuple/list 替换、嵌套非原生 mapping 与标量类型
+替换均 fail closed，仍统一抛出 `SystemAuditPublisherContractViolation`，dispatcher 记录稳定的
+`publisher_contract_violation` 而不是普通 `publisher_error`。新增 composition/dispatcher 覆盖后，
+AUD 定向回归为 `30 passed`；audit event contract、增量 mypy、architecture、Black/isort、
+compile 与 diff-check 均通过（当前环境未安装 ruff 模块）。
+
+该 slice 仍只是 publisher receipt 的本地合同加固：runtime 固定返回 `publisher_not_wired`，
+没有 durable publisher/receipt sink、authenticated scoped authority lifecycle、beat/retry/requeue、
+生产 PostgreSQL/VPS 观察或 AUD-02 Data Center 同 UOW；AUD-01 继续保持 planned，AUD-02 继续等待。

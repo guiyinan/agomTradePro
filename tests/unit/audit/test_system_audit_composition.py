@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import UserDict
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -144,6 +146,29 @@ def test_publish_receipt_preserves_all_event_identity_and_payload() -> None:
 
     with pytest.raises(SystemAuditPublisherContractViolation, match="non-canonical"):
         replace(receipt, canonical_payload={"invalid": object()}).validate_for(event)
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    [
+        lambda payload: {**payload, "reason_codes": tuple(payload["reason_codes"])},
+        lambda payload: {
+            **payload,
+            "detail": UserDict(payload["detail"]),
+        },
+        lambda payload: {**payload, "sequence_no": str(payload["sequence_no"])},
+    ],
+)
+def test_publish_receipt_rejects_non_exact_nested_payload_types(
+    replacement: Callable[[dict[str, object]], dict[str, object]],
+) -> None:
+    event = make_event()
+    receipt = CanonicalSystemAuditPublishReceipt.from_event(event)
+    payload = dict(receipt.canonical_payload)
+    changed = replacement(payload)
+
+    with pytest.raises(SystemAuditPublisherContractViolation, match="canonical"):
+        replace(receipt, canonical_payload=changed).validate_for(event)
 
 
 def test_publish_receipt_rejects_bool_for_sequence_number() -> None:

@@ -13,7 +13,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Mapping, Protocol
+from typing import Mapping, Protocol, cast
 
 from apps.audit.application.system_audit_query import SystemAuditReaderContext
 from apps.audit.domain.system_audit_event import JSONValue, SystemAuditEvent
@@ -43,6 +43,45 @@ def _canonical_bytes(payload: Mapping[str, JSONValue]) -> bytes:
         separators=(",", ":"),
         allow_nan=False,
     ).encode("utf-8")
+
+
+def _exact_payload_equal(left: object, right: object) -> bool:
+    """Compare canonical payload trees without JSON coercion.
+
+    ``json.dumps`` deliberately normalizes several Python representations (for
+    example, tuples to arrays and boolean/integer keys in some contexts).  A
+    publisher receipt must preserve the event's in-memory canonical tree, so
+    container and scalar types are checked before values are compared.  Mapping
+    key order remains canonicalized by ``sort_keys=True``; key types, sequence
+    order, and nested container types do not.
+    """
+
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        if type(left) is not dict:
+            return False
+        left_dict = cast(dict[object, object], left)
+        right_dict = cast(dict[object, object], right)
+        if not all(type(key) is str for key in left_dict):
+            return False
+        if not all(type(key) is str for key in right_dict):
+            return False
+        if left_dict.keys() != right_dict.keys():
+            return False
+        return all(_exact_payload_equal(left_dict[key], right_dict[key]) for key in left_dict)
+    if isinstance(left, list) or isinstance(left, tuple):
+        if type(left) not in (list, tuple):
+            return False
+        left_sequence = cast(list[object] | tuple[object, ...], left)
+        right_sequence = cast(list[object] | tuple[object, ...], right)
+        return len(left_sequence) == len(right_sequence) and all(
+            _exact_payload_equal(left_item, right_item)
+            for left_item, right_item in zip(left_sequence, right_sequence)
+        )
+    if left is None or isinstance(left, (str, bool, int, float)):
+        return left == right
+    return False
 
 
 def _require_digest(value: str, field: str) -> None:
@@ -109,8 +148,11 @@ class CanonicalSystemAuditPublishReceipt:
             raise SystemAuditPublisherContractViolation("publisher event type was substituted")
         expected = self.from_event(event)
         try:
-            payload_matches = _canonical_bytes(self.canonical_payload) == _canonical_bytes(
-                expected.canonical_payload
+            receipt_bytes = _canonical_bytes(self.canonical_payload)
+            expected_bytes = _canonical_bytes(expected.canonical_payload)
+            payload_matches = (
+                _exact_payload_equal(self.canonical_payload, expected.canonical_payload)
+                and receipt_bytes == expected_bytes
             )
         except (TypeError, ValueError, OverflowError) as exc:
             raise SystemAuditPublisherContractViolation(

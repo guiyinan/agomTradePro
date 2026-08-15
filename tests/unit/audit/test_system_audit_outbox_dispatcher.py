@@ -154,6 +154,25 @@ def test_dispatch_classifies_noncanonical_receipt_payload_as_contract_failure() 
     assert repository.failed[0]["error_code"] == "publisher_contract_violation"
 
 
+def test_dispatch_classifies_type_coerced_receipt_payload_as_contract_failure() -> None:
+    class TypeCoercingPublisher:
+        def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
+            receipt = CanonicalSystemAuditPublishReceipt.from_event(event)
+            payload = dict(receipt.canonical_payload)
+            payload["reason_codes"] = tuple(payload["reason_codes"])
+            return replace(receipt, canonical_payload=payload)
+
+    repository = Repository(_claim())
+    result = DispatchSystemAuditOutboxUseCase(
+        repository,
+        TypeCoercingPublisher(),
+        UnitOfWork(),
+    ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
+
+    assert (result.claimed, result.delivered, result.failed) == (1, 0, 1)
+    assert repository.failed[0]["error_code"] == "publisher_contract_violation"
+
+
 def test_dispatch_mixed_batch_reports_partial_and_keeps_each_transition() -> None:
     first = _claim()
     second = _claim(
