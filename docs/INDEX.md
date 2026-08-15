@@ -272,6 +272,7 @@
 | [VPS_BUNDLE_DEPLOYMENT.md](deployment/VPS_BUNDLE_DEPLOYMENT.md) | VPS Bundle 一体化部署与迁移指南（含 Postgres/Redis 迁移） | ✅ 新增 |
 | [vps-deployment-evidence-2026-08-15.md](deployment/vps-deployment-evidence-2026-08-15.md) | 2026-08-15 候选部署、provenance、备份与运行复核证据 | ✅ 2026-08-15 |
 | [evid-01-authority-inventory-2026-08-16.json](deployment/evid-01-authority-inventory-2026-08-16.json) | e167 候选只读 authority migration/zero-seed inventory | ✅ 2026-08-16 |
+| [vps-runtime-verification-2026-08-16.json](deployment/vps-runtime-verification-2026-08-16.json) | e167 候选只读 release/health/container/Qlib/Celery 复核 | ✅ 2026-08-16 |
 | [DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) | Docker 部署指南 | 完整 |
 | [postgres_windows_docker.md](deployment/postgres_windows_docker.md) | Windows PostgreSQL Docker 配置 | 完整 |
 | [database_configuration.md](deployment/database_configuration.md) | 数据库配置 | 完整 |

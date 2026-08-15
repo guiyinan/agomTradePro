@@ -1,0 +1,39 @@
+{
+  "version": "vps-runtime-verification.v1",
+  "captured_at": "2026-08-15T18:10:14.269379Z",
+  "environment": "production",
+  "read_only": true,
+  "candidate": {
+    "stable_version": "20260816004134",
+    "source_commit": "e167ab2fc748e4c93d2622f93fa8cc75442b2bb6",
+    "release": "agomtradepro-web:20260816004134",
+    "image_id": "sha256:151801bdbacecc8bc8d3f19c43817be1ff58ed06981cbdba9a49692289bbc0ac"
+  },
+  "checks": {
+    "caddy_domain": "demo.agomtrade.pro",
+    "health_http_status": 200,
+    "tls_certificate": "valid",
+    "containers": "web, celery_worker, celery_beat, postgres, redis, caddy and rsshub running; web healthy",
+    "django_system_check": "0 issues (1 silenced)",
+    "migrations": "no missing migrations",
+    "canonical_schema": "ok",
+    "tui_metadata_registry": "published and matched",
+    "qlib": {
+      "pyqlib": "0.9.7",
+      "wrong_qlib_distribution": "absent",
+      "module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py"
+    },
+    "backup": "/opt/agomtradepro/backups/database/postgres-20260815-184803.dump",
+    "celery": {
+      "worker": "running",
+      "beat": "running",
+      "ping": "1 node online"
+    }
+  },
+  "outcome": "runtime_verified_candidate",
+  "limitations": [
+    "This is a read-only post-deploy verification of the existing candidate; no deployment or data mutation was performed.",
+    "It does not prove authenticated role-based browser UAT, write-after-refresh receipts, owner/reviewer sign-off, or the 14-day observation window.",
+    "It does not prove immutable authority lifecycle, durable audit publisher, or execution authorization; those gates remain fail-closed."
+  ]
+}

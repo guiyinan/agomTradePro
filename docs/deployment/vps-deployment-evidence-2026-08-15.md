@@ -309,3 +309,19 @@ registry restore、rollback 或 owner/reviewer 双签；AUD-01、EVID-01 和 TUI
 候选窗口 `2026-08-15..2026-08-29`。该动作仅记录观察起点；新候选尚无角色化 UAT、写后
 receipt/refresh、生产 telemetry、rollback、registry restore 或 owner/reviewer 双签，机器
 cutover gate 仍返回 `DENY`。
+
+## 2026-08-16 当前候选只读运行复核
+
+未重新部署文档提交；针对仍在观察窗口内的 `e167ab2fc748e4c93d2622f93fa8cc75442b2bb6` /
+`20260816004134` 候选执行部署后只读验证。结构化摘要见
+[`vps-runtime-verification-2026-08-16.json`](vps-runtime-verification-2026-08-16.json)。
+
+复核结果：Caddy domain `demo.agomtrade.pro` 与 TLS 有效，HTTPS health HTTP 200；web、
+Celery worker/beat、PostgreSQL、Redis、Caddy、RSSHub 均运行且 web healthy；Django check 0
+issues（1 silenced），migration/canonical schema 无缺失，TUI registry published/matched；
+`pyqlib=0.9.7`、错误 `qlib` distribution absent，Celery ping 为 `1 node online`。
+
+这次复核是只读的，没有重建镜像、切换 release、写数据库或执行登录/写操作。它补强当前候选
+的运行身份与启动证据，但不证明角色化浏览器 UAT、写后 receipt/refresh、immutable authority
+lifecycle、durable publisher、14 日 telemetry、registry restore、rollback 或 owner/reviewer
+双签；AUD-01、EVID-01 与 TUI M5 的 production gate 继续保持 fail-closed。
