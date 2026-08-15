@@ -80,6 +80,13 @@ def test_authority_snapshot_rejects_missing_scope(field: str) -> None:
         _authority(**{field: ""})
 
 
+@pytest.mark.parametrize("field", ["actor_id", "tenant_id", "owner_id", "role"])
+@pytest.mark.parametrize("value", ["bad value", "x" * 193])
+def test_authority_snapshot_rejects_noncanonical_scope_tokens(field: str, value: str) -> None:
+    with pytest.raises(ValueError, match="bounded canonical token"):
+        _authority(**{field: value})
+
+
 def test_authority_provider_is_the_only_source_for_reader_context() -> None:
     context = get_system_audit_reader_context(Provider(_authority()), as_of=NOW)
     assert context.can_read is True

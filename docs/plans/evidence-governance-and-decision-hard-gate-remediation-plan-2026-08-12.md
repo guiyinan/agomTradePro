@@ -2571,3 +2571,15 @@ token。这样入口校验与 Domain、codec、repository 及 ORM `max_length=19
 聚焦回归 `78 passed`，Black/isort、增量 mypy、治理一致性和 diff-check 通过。此项只是本地输入
 边界加固，不创建 selector issuer、immutable owner/tenant lifecycle、production composition 或
 route；`EVID-01`、Evidence hard gate、写入和 execution 继续关闭。
+
+## 2026-08-15 AUD-01 authority snapshot token boundary hardening
+
+`SystemAuditAuthoritySnapshot` 的 actor、tenant、owner 与 role 现在共享 bounded canonical token
+边界：必须非空、无首尾/内部空白且不超过 192 字符；authority content hash 在序列化前也执行
+同一校验。这样 scope identity 不能通过异常空白或超长值进入 provider-issued snapshot，再由
+重算 hash 掩盖输入不规范。
+
+新增空白/超长 token 回归并保持 authority/provider 未接线、publisher `publisher_not_wired` 和
+query fail-closed 语义不变。该 slice 只收紧本地 composition contract；没有 authenticated
+authority source、tenant/owner lifecycle、durable publisher、production route 或审计运行时接入，
+`AUD-01` 与 AUD-02/03 依赖状态不变。

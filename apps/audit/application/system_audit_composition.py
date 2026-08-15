@@ -22,6 +22,19 @@ from apps.audit.domain.system_audit_event import JSONValue, SystemAuditEvent
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
+def _require_token(value: object, field: str) -> None:
+    """Require one bounded, whitespace-free authority identity token."""
+
+    if (
+        type(value) is not str
+        or not value
+        or len(value) > 192
+        or value.strip() != value
+        or any(character.isspace() for character in value)
+    ):
+        raise ValueError(f"{field} must be a bounded canonical token")
+
+
 class SystemAuditCompositionUnavailable(Exception):
     """A required publisher or authority provider is not wired."""
 
@@ -63,6 +76,14 @@ def system_audit_authority_content_hash(
     provider and does not create authority; it only lets the boundary reject
     a snapshot whose scope fields were substituted after issuance.
     """
+
+    for name, value in (
+        ("actor_id", actor_id),
+        ("tenant_id", tenant_id),
+        ("owner_id", owner_id),
+        ("role", role),
+    ):
+        _require_token(value, name)
 
     payload: Mapping[str, JSONValue] = {
         "actor_id": actor_id,
@@ -240,8 +261,7 @@ class SystemAuditAuthoritySnapshot:
             ("owner_id", self.owner_id),
             ("role", self.role),
         ):
-            if not isinstance(value, str) or not value:
-                raise ValueError(f"{name} must be a non-empty string")
+            _require_token(value, name)
         if not isinstance(self.user_id, int) or isinstance(self.user_id, bool) or self.user_id <= 0:
             raise ValueError("user_id must be a positive integer")
         if not isinstance(self.is_authenticated, bool) or not isinstance(self.is_staff, bool):
