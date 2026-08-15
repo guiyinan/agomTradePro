@@ -62,6 +62,7 @@ def _write_fixture_repository(root: Path) -> tuple[Path, Path]:
                     "version": "test.v1",
                     "legacy_unchecked_count": 0,
                     "legacy_unchecked_by_workstream": {"example": 0},
+                    "legacy_sources": [],
                     "waves": [
                         {"id": 0, "title": "Governance", "rule": "Review stale plans."},
                         {"id": 1, "title": "Delivery", "rule": "Deliver the example."},
@@ -170,4 +171,5 @@ def test_registry_rejects_legacy_checkbox_and_dependency_drift(tmp_path: Path):
     codes = {violation.code for violation in report.violations}
     assert "legacy_count_drift" in codes
     assert "legacy_total_drift" in codes
+    assert "legacy_source_coverage" in codes
     assert "unknown_closure_dependency" in codes

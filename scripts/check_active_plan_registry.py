@@ -516,6 +516,7 @@ def evaluate_registry(
     }
     unit_ids: list[str] = []
     unit_workstreams: list[str] = []
+    unit_workstream_by_id: dict[str, str] = {}
     unit_waves: dict[str, int] = {}
     unit_dependencies: dict[str, tuple[str, ...]] = {}
     allowed_unit_workstreams = set(workstream_ids) | {"review-queue"}
@@ -551,6 +552,7 @@ def evaluate_registry(
             )
         elif isinstance(workstream_id, str):
             unit_workstreams.append(workstream_id)
+            unit_workstream_by_id[unit_id] = workstream_id
         wave_value = unit.get("wave")
         if (
             not isinstance(wave_value, int)
@@ -642,6 +644,114 @@ def evaluate_registry(
             )
         )
     known_unit_ids = set(unit_ids)
+    legacy_sources_value = closure_backlog.get("legacy_sources")
+    legacy_sources = legacy_sources_value if isinstance(legacy_sources_value, list) else []
+    if not isinstance(legacy_sources_value, list):
+        violations.append(
+            Violation(
+                "legacy_sources_type",
+                "closure_backlog.legacy_sources",
+                "legacy_sources must be a list",
+            )
+        )
+    declared_legacy_source_paths: list[str] = []
+    for position, raw_source in enumerate(legacy_sources):
+        location = f"closure_backlog.legacy_sources[{position}]"
+        if not isinstance(raw_source, dict):
+            violations.append(
+                Violation("legacy_source_type", location, "legacy source must be an object")
+            )
+            continue
+        source = cast(dict[str, object], raw_source)
+        if set(source) != {"path", "unchecked_count", "closure_unit_ids"}:
+            violations.append(
+                Violation(
+                    "legacy_source_keys",
+                    location,
+                    "legacy source keys must be path, unchecked_count and closure_unit_ids",
+                )
+            )
+        path_value = source.get("path")
+        if not isinstance(path_value, str) or path_value not in primary_path_owners:
+            violations.append(
+                Violation(
+                    "legacy_source_path",
+                    location,
+                    "path must reference a registered primary plan",
+                )
+            )
+            continue
+        declared_legacy_source_paths.append(path_value)
+        actual_count = actual_unchecked_by_primary_path.get(path_value, 0)
+        unchecked_count = source.get("unchecked_count")
+        if (
+            not isinstance(unchecked_count, int)
+            or isinstance(unchecked_count, bool)
+            or unchecked_count != actual_count
+        ):
+            violations.append(
+                Violation(
+                    "legacy_source_count_drift",
+                    path_value,
+                    f"declared {unchecked_count!r}, found {actual_count}",
+                )
+            )
+        closure_unit_ids_value = source.get("closure_unit_ids")
+        closure_unit_ids: list[object] = (
+            closure_unit_ids_value if isinstance(closure_unit_ids_value, list) else []
+        )
+        if (
+            not isinstance(closure_unit_ids_value, list)
+            or not closure_unit_ids
+            or any(not isinstance(unit_id, str) for unit_id in closure_unit_ids)
+            or len(closure_unit_ids) != len(set(cast(list[str], closure_unit_ids)))
+        ):
+            violations.append(
+                Violation(
+                    "legacy_source_units",
+                    path_value,
+                    "closure_unit_ids must be a non-empty unique list of unit IDs",
+                )
+            )
+            continue
+        source_workstream = primary_path_owners[path_value]
+        for closure_unit_id in cast(list[str], closure_unit_ids):
+            if closure_unit_id not in known_unit_ids:
+                violations.append(
+                    Violation(
+                        "legacy_source_unknown_unit",
+                        path_value,
+                        f"closure unit {closure_unit_id!r} is not registered",
+                    )
+                )
+            elif unit_workstream_by_id.get(closure_unit_id) != source_workstream:
+                violations.append(
+                    Violation(
+                        "legacy_source_cross_workstream",
+                        path_value,
+                        f"closure unit {closure_unit_id!r} belongs to another workstream",
+                    )
+                )
+    if len(declared_legacy_source_paths) != len(set(declared_legacy_source_paths)):
+        violations.append(
+            Violation(
+                "duplicate_legacy_source",
+                "closure_backlog.legacy_sources",
+                "legacy source paths must be unique",
+            )
+        )
+    actual_nonzero_source_paths = {
+        path for path, count in actual_unchecked_by_primary_path.items() if count > 0
+    }
+    if set(declared_legacy_source_paths) != actual_nonzero_source_paths:
+        violations.append(
+            Violation(
+                "legacy_source_coverage",
+                "closure_backlog.legacy_sources",
+                "every primary plan with unchecked items must be mapped exactly once",
+            )
+        )
+
     for unit_id, dependencies in unit_dependencies.items():
         for dependency in dependencies:
             if dependency not in known_unit_ids:
