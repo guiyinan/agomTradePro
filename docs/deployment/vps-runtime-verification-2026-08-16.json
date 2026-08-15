@@ -23,7 +23,15 @@
       "wrong_qlib_distribution": "absent",
       "module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py"
     },
-    "backup": "/opt/agomtradepro/backups/database/postgres-20260815-184803.dump",
+    "backup": {
+      "remote_path": "/opt/agomtradepro/backups/database/postgres-20260815-184803.dump",
+      "local_path": "backups/vps-postgres/postgres-20260815-184803.dump",
+      "bytes": 140318641,
+      "sha256": "4760a38fdfc7ef8570323cfb5dde92ab01eb933cd60d4f6dd08700fc34772752",
+      "remote_pg_restore_list": "passed",
+      "download_mode": "download_latest",
+      "download_and_local_hash": "passed"
+    },
     "celery": {
       "worker": "running",
       "beat": "running",

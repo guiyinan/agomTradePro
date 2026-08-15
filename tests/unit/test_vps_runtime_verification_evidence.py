@@ -38,3 +38,8 @@ def test_vps_runtime_verification_is_bound_to_current_candidate() -> None:
     assert artifact["checks"]["canonical_schema"] == "ok"
     assert artifact["checks"]["tui_metadata_registry"] == "published and matched"
     assert artifact["checks"]["qlib"]["wrong_qlib_distribution"] == "absent"
+    backup = artifact["checks"]["backup"]
+    assert backup["bytes"] == 140318641
+    assert backup["sha256"] == "4760a38fdfc7ef8570323cfb5dde92ab01eb933cd60d4f6dd08700fc34772752"
+    assert backup["remote_pg_restore_list"] == "passed"
+    assert backup["download_and_local_hash"] == "passed"

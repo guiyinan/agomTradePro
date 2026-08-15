@@ -325,3 +325,9 @@ issues（1 silenced），migration/canonical schema 无缺失，TUI registry pub
 的运行身份与启动证据，但不证明角色化浏览器 UAT、写后 receipt/refresh、immutable authority
 lifecycle、durable publisher、14 日 telemetry、registry restore、rollback 或 owner/reviewer
 双签；AUD-01、EVID-01 与 TUI M5 的 production gate 继续保持 fail-closed。
+
+同一复核周期又以 `scripts/backup-vps-postgres.ps1 -DownloadLatest` 重新下载并验证了该候选的
+PostgreSQL custom-format 归档：远端 `pg_restore --list` 通过，完整下载 `140318641` bytes，
+本地 SHA-256 与远端记录一致（`4760a38fdfc7ef8570323cfb5dde92ab01eb933cd60d4f6dd08700fc34772752`）。
+这只证明备份下载/校验子步骤，不解除 DATA-01 的 restore/rebuild、维护态 rollback、RTO/RPO 或
+reconciliation 门禁。
