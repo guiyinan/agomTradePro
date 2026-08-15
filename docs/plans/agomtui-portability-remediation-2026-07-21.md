@@ -258,6 +258,14 @@ Pop-Location
 
 可用的运行时回滚开关继续使用：`TUI_OPTIMIZED_BOOTSTRAP_ENABLED`、`TUI_RUNTIME_CACHE_ENABLED`；回滚不允许关闭权限、确认、验密或审计。
 
+## 实施记录（2026-08-15，本地 runtime graph compatibility guard）
+
+AgomTradePro 侧新增 actionability guard：读取 compact `config/tui/published/tui_operation_graph.published.json` 后，必须经过 `PublishedTuiMetadataRepository._load_published_file()` 的 runtime injection，才能作为宿主图使用。测试同时断言 runtime 图保留 mutation fields 与 dashboard `row_actions`，避免把静态只读图直接当作最终 TUI payload。
+
+- `python -m pytest tests/unit/test_tui_actionability_contract.py -q --confcutdir=tests/unit`：`10 passed`。
+- `black --check`、`isort --check-only`、`py_compile` 和 `git diff --check` 通过。
+- 该 guard 只约束本仓库的 runtime source boundary，不修复 AgomTUI 外部仓库的 schema/validator；下游 `check-usability`、双仓库同步、最终候选部署、角色化 UAT 和 M5 观察窗口仍未完成。
+
 ## 八、完成定义
 
 - TUI IA 主计划在 AgomTradePro 本地完成，普通用户 13 屏、管理员 16 屏、8 步链全绿。

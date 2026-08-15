@@ -17,6 +17,13 @@ _IA_PATH = (
     / "ia"
     / "tui_information_architecture.v1.json"
 )
+_PUBLISHED_OPERATION_GRAPH_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "config"
+    / "tui"
+    / "published"
+    / "tui_operation_graph.published.json"
+)
 
 _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _MUTATION_EFFECTS = {"approve", "create", "delete", "execute", "reject", "toggle", "update"}
@@ -77,6 +84,74 @@ def _runtime_actions(screen_key: str) -> dict[str, dict[str, Any]]:
         for action in payload["actions"]
         if action.get("screen_key") == screen_key
     }
+
+
+def test_runtime_payload_does_not_degrade_to_static_read_only_graph() -> None:
+    """The local runtime payload must retain mutation fields and row actions."""
+
+    static_payload = json.loads(_PUBLISHED_OPERATION_GRAPH_PATH.read_text(encoding="utf-8"))
+    runtime_payload = PublishedTuiMetadataRepository(
+        published_path=_PUBLISHED_OPERATION_GRAPH_PATH
+    )._load_published_file()
+
+    static_actions = {str(action["key"]): action for action in static_payload["actions"]}
+    runtime_actions = {str(action["key"]): action for action in runtime_payload["actions"]}
+    runtime_mutations = [
+        action
+        for action in runtime_actions.values()
+        if str(action.get("method", "GET")).upper() in _MUTATING_METHODS
+        and str(action.get("risk", "read")).lower() in {"write", "admin"}
+    ]
+    runtime_row_actions = [
+        row_action
+        for screen in runtime_payload["screens"]
+        for panel in screen.get("dashboard_panels", [])
+        for row_action in panel.get("row_actions", [])
+    ]
+
+    assert runtime_actions
+    assert runtime_mutations
+    assert any(
+        any(
+            str(field.get("input_type", "hidden")).lower() != "hidden"
+            for field in action.get("fields", [])
+        )
+        for action in runtime_mutations
+    )
+    assert runtime_row_actions
+    runtime_mutation_keys = {str(action["key"]) for action in runtime_mutations}
+    assert any(
+        str(row_action.get("action_key", "")) in runtime_mutation_keys
+        for row_action in runtime_row_actions
+    )
+
+    # The current published graph is intentionally a compact source graph.  If
+    # it remains read-only, normalization must expand it before /api/tui uses
+    # it; if it later becomes complete, the runtime assertions above still
+    # protect the same contract without requiring a permanent diff.
+    static_row_actions = [
+        row_action
+        for screen in static_payload["screens"]
+        for panel in screen.get("dashboard_panels", [])
+        for row_action in panel.get("row_actions", [])
+    ]
+    if not static_row_actions:
+        assert runtime_row_actions
+    if not any(
+        any(
+            str(field.get("input_type", "hidden")).lower() != "hidden"
+            for field in action.get("fields", [])
+        )
+        for action in static_actions.values()
+        if str(action.get("method", "GET")).upper() in _MUTATING_METHODS
+    ):
+        assert any(
+            any(
+                str(field.get("input_type", "hidden")).lower() != "hidden"
+                for field in action.get("fields", [])
+            )
+            for action in runtime_mutations
+        )
 
 
 def test_ia_declares_visible_create_and_provider_row_mutations() -> None:
