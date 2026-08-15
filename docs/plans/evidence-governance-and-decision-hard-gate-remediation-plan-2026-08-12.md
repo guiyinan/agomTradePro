@@ -2320,6 +2320,23 @@ Audit 展示扣成本 TWR、主动收益、波动、下行风险、最大回撤�
   User/session/tenant 取证、PostgreSQL current-head/并发、人工授权或 production route；
   Evidence hard gate、写入和 execution 总闸继续关闭。
 
+### 2026-08-15：Evidence owner/tenant authority source repository
+
+- 新增 `DjangoEvidenceScopeSourceV1Repository` 与 private
+  `_DjangoEvidenceScopeSourceV1Store`。public exact/PIT/current-head 读取和 private root/successor
+  append 都先恢复整张 ledger，再执行 selector；strict codec、逐列 header、scope identity、
+  predecessor FK、单 root/无 fork/orphan/cycle/disconnect、successor Domain validator 和
+  recorded PIT 均 fail closed。current-head 即使 terminal/expired 也返回最终 head，Application
+  再返回 `None`，不会回退旧 active predecessor。
+- private store 只在 repository-owned atomic 与 evidence insert claim 内写入；root/successor
+  predecessor CAS、unique collision exact replay、不同内容 conflict、失败事务回滚均有 component
+  证据。repository component `6 passed`，与 schema `10 passed`，source Application/codec/Domain/
+  facade/plan registry 组合回归 `66 passed`；增量 mypy `0 regressions`、architecture audit
+  `0 violations`、Black/isort、compile 与 diff-check 通过。
+- 该批仍只是本地 repository/schema contract，不是生产 source provider。尚未取得 PostgreSQL
+  空链并发/回滚证据，也没有可信 owner/tenant immutable lifecycle、User/session/tenant 取证、
+  人工授权或 production composition；Evidence hard gate、写入和 execution 总闸继续关闭。
+
 ### 2026-08-13：跨 App 决策读边界与模块循环收口
 
 - Portfolio transition-plan API 不再直接 import SimulatedTrading Application；账户访问由 owner 在启动时注册到 app-neutral registry。registry 缺失时稳定返回 `503`，不会因解耦而绕过账户权限。

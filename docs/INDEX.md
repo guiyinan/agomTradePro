@@ -934,6 +934,9 @@
 - ✅ **Evidence owner/tenant authority source schema-only ledger（2026-08-15）**
   - 新增零种子 `research_evidence_scope_source_v1` append-only ORM 表与 `0028` migration；逐列保存 scope/artifact projection、canonical payload、identity/content hashes、root/successor/predecessor、PIT clocks 和 fixed read-only/non-execution flags，ORM shortcut 与 delete 全部 fail closed
   - isolated component `4 passed`，source 读/codec/Domain/facade 合计 `56 passed`，Django check、migration drift、增量 mypy、architecture audit、Black/isort、compile 通过；仅 schema/guard contract，未接 repository/provider/生产 route
+- ✅ **Evidence owner/tenant authority source repository（2026-08-15）**
+  - public exact/PIT/current-head reader 与 private atomic append store 已完成；selector/append 前全表 canonical restore、逐列 header/chain 校验、root/successor predecessor CAS、exact replay、terminal/expired no-fallback、tamper/rollback fail closed；repository `6 passed`，schema+repository `10 passed`，组合回归 `66 passed`
+  - 仅本地 repository/schema contract；PostgreSQL 空链并发、可信 owner/tenant immutable lifecycle/provider、production composition、人工授权和 route 仍未完成，Evidence hard gate、写入和 execution 继续关闭
 - ✅ **Web→TUI M5-C alias target checker correction（2026-08-14）**
   - 最终库存检查器同时读取 published graph 与 IA `published_screens`/`runtime_screens`，因此 runtime 注入的 `capability-router.mcp-center` 会被正确视为 canonical target；`capability-router.gateway` dangling 误报已消除
   - 11 个无活生产代码消费者的 dead alias 仍需真实流量观察、逐 wave 与回滚证据后再清理；M5 final 仍 DENY
