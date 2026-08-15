@@ -211,8 +211,8 @@ python scripts/start_web_to_tui_observation.py \
   --released-at <YYYY-MM-DD> --write
 ```
 
-当前 M5 实现已绑定并部署候选 `dev/next-development@45281620a8739ee666a1b20e6c6511c0b8101111`，
-release 为 `20260815230537`；完整 provenance、健康、迁移和 TUI registry 证据见
+当前 M5 实现已绑定并部署候选 `dev/next-development@e167ab2fc748e4c93d2622f93fa8cc75442b2bb6`，
+release 为 `20260816004134`；完整 provenance、健康、迁移和 TUI registry 证据见
 `docs/deployment/vps-deployment-evidence-2026-08-15.md`。这只建立了候选身份，不自动开始观察窗口；
 该命令仍必须 fail closed，不能用当前 `HEAD`、本地文档状态或旧生产版本冒充稳定候选。
 
@@ -313,6 +313,12 @@ code-only、保留数据卷、Celery enabled 的 `-Upgrade` 发布为 `202608160
 release manifest/OCI/source 绑定、`audit.0012_systemauditevent_scope`、Django check、HTTPS
 health/ready、容器健康、TUI registry、Qlib 与 Celery ping 均通过；部署前 PostgreSQL 归档
 `postgres-20260815-184803.dump` 的尺寸、SHA-256 和 `pg_restore --list` 也通过。
+
+该候选的完整 runtime binding 为 `web-to-tui-candidate-binding.v1`：matrix SHA
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`，published graph SHA
+`fc4c19fbb0fc90e931a16223fffd9a4bd782e380afb86893a499874e6b644c84`，schema
+`tui-metadata.v3` / runtime `0.2.0` / build `agomtui-runtime-0.2.0+a2553996be22`，
+manifest SHA `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854`。
 
 该候选仅替换当前身份绑定，不代表角色化浏览器 UAT、写后 receipt/refresh、生产 14 日
 telemetry/defect、registry backup/restore、rollback drill 或 owner/reviewer 双签完成；因此

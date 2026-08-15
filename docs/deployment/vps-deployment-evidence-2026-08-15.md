@@ -288,6 +288,8 @@ M5 角色化 UAT/14 日观察、DATA-01 restore/rebuild 或 rollback 双签门�
 | pre-deploy backup | `/opt/agomtradepro/backups/database/postgres-20260815-184803.dump`；size `140318641` bytes；SHA-256 `4760a38fdfc7ef8570323cfb5dde92ab01eb933cd60d4f6dd08700fc34772752` |
 | backup proof | PostgreSQL 16 container `pg_restore --list` exit `0`；archive header `2026-08-15 16:48:04 UTC` |
 | mode | `ACTION=upgrade`、code-only、`WIPE_DOCKER=0`、`WIPE_VOLUMES=0`、Celery enabled |
+| candidate binding | `web-to-tui-candidate-binding.v1`; matrix SHA `bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`; published graph SHA `fc4c19fbb0fc90e931a16223fffd9a4bd782e380afb86893a499874e6b644c84` |
+| runtime binding | schema `tui-metadata.v3`; runtime `0.2.0`; build `agomtui-runtime-0.2.0+a2553996be22`; manifest SHA `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854` |
 | migration proof | remote audit migration `0012_systemauditevent_scope` applied；deploy reported `No migrations to apply` and canonical schema check `{"missing_migrations": [], "missing_tables": [], "ok": true}` |
 
 部署后只读复核：Caddy 首行仍为 `demo.agomtrade.pro {`，HTTPS `/api/health/` HTTP 200，

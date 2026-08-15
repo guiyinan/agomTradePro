@@ -11,20 +11,27 @@ ROOT = Path(__file__).resolve().parents[2]
 REGISTRY_PATH = ROOT / "governance" / "active_plan_registry.json"
 READINESS_PATH = ROOT / "docs" / "plans" / "web-to-tui-m5-readiness-2026-07-27.md"
 DEPLOYMENT_PATH = ROOT / "docs" / "deployment" / "vps-deployment-evidence-2026-08-15.md"
+PREFLIGHT_PATH = (
+    ROOT / "docs" / "deployment" / "web-to-tui-deployment-preflight-20260816004134.json"
+)
+CUTOVER_PATH = ROOT / "config" / "tui" / "migration" / "web_to_tui_cutover_evidence.v1.json"
 MATRIX_PATH = ROOT / "docs" / "plans" / "web-to-tui-migration-matrix-2026-07-25.csv"
 GRAPH_PATH = ROOT / "config" / "tui" / "published" / "tui_operation_graph.published.json"
 RUNTIME_MANIFEST_PATH = ROOT / "config" / "tui" / "agomtui-runtime.manifest.json"
-
-CANDIDATE_VERSION = "20260816004134"
-CANDIDATE_COMMIT = "e167ab2fc748e4c93d2622f93fa8cc75442b2bb6"
 
 
 def test_current_candidate_identity_is_consistent_across_registry_and_evidence() -> None:
     """Prevent stale release or runtime identity from reopening the cutover gate."""
 
+    preflight = json.loads(PREFLIGHT_PATH.read_text(encoding="utf-8"))
+    release = preflight["release"]
+    candidate_version = str(release["stable_version"])
+    candidate_commit = str(release["source_commit"])
+    assert str(preflight["oci_image"]["revision"]) == candidate_commit
+
     binding = build_candidate_binding(
-        stable_version=CANDIDATE_VERSION,
-        candidate_commit=CANDIDATE_COMMIT,
+        stable_version=candidate_version,
+        candidate_commit=candidate_commit,
         matrix_path=MATRIX_PATH,
         graph_path=GRAPH_PATH,
         runtime_manifest_path=RUNTIME_MANIFEST_PATH,
@@ -32,11 +39,24 @@ def test_current_candidate_identity_is_consistent_across_registry_and_evidence()
     registry = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
     workstream = next(item for item in registry["workstreams"] if item["id"] == "web-to-tui-m5")
     next_gate = str(workstream["next_gate"])
-    assert CANDIDATE_COMMIT in next_gate
-    assert CANDIDATE_VERSION in next_gate
+    assert candidate_commit in next_gate
+    assert candidate_version in next_gate
 
     readiness = READINESS_PATH.read_text(encoding="utf-8")
     deployment = DEPLOYMENT_PATH.read_text(encoding="utf-8")
+    readiness_current = readiness.split("### 2026-08-16 00:41 当前候选部署复核", 1)[1]
+    deployment_current = deployment.split("## 当前候选部署（2026-08-16 00:41 release）", 1)[1]
+    assert candidate_commit in readiness_current
+    assert candidate_version in readiness_current
+    assert candidate_commit in deployment_current
+    assert candidate_version in deployment_current
+
+    cutover = json.loads(CUTOVER_PATH.read_text(encoding="utf-8"))
+    cutover_candidate = cutover["candidate"]
+    assert cutover_candidate["candidate_commit"] == candidate_commit
+    assert cutover_candidate["stable_version"] == candidate_version
+    assert cutover_candidate["deployment_preflight"]["source_commit"] == candidate_commit
+    assert cutover_candidate["deployment_preflight"]["release_id"] == candidate_version
     for value in binding.values():
-        assert f"`{value}`" in readiness or value in readiness
-        assert f"`{value}`" in deployment or value in deployment
+        assert f"`{value}`" in readiness_current or value in readiness_current
+        assert f"`{value}`" in deployment_current or value in deployment_current
