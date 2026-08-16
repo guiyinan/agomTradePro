@@ -496,3 +496,23 @@ architecture guard 聚合回归 `46 passed`，增量 mypy regression 为 `0`，`
 该条只收紧本地 reconciliation 持久化/重放合同。当前 Django reconciliation DB 用例在本地
 全仓测试运行时未取得稳定完成结果，因此不计为数据库 component 证据；生产 PostgreSQL
 reconciliation、维护态 rollback、RTO/RPO 与 DATA-01 前置仍未完成，`DATA-01/02/03` 状态不变。
+
+## 实施记录（2026-08-16，restore evidence input immutability）
+
+恢复工具现在把归档本身视为不可替换的证据输入：`scripts/verify_postgres_backup_restore.py`
+在格式校验前记录 SHA-256，在校验完成和恢复完成后再次核对；归档在任一阶段被替换时分别以
+`postgres_backup_changed_during_validation` 或 `postgres_backup_changed_during_restore` fail
+closed，并把 before/after digest 写入 evidence JSON。`tests/unit/test_verify_postgres_backup_restore.py`
+定向回归 `14 passed`，增量 mypy regression 为 `0`，Black 与 diff-check 通过。
+
+同日按备份流程取得并下载当前 VPS custom-format 归档：
+
+- 远端：`/opt/agomtradepro/backups/database/postgres-20260816-100924.dump`。
+- 本地：`backups/vps-postgres/postgres-20260816-100924.dump`，大小 `140804438` bytes。
+- 远端 `pg_restore --list`、SFTP 完整下载、尺寸和本地 SHA-256 均通过；SHA-256：
+  `06e52b33c637c17cae4c9f0223246e0e09af84254717196d904f67044e7b2cba`。
+- 远端 prune 未启用；没有 restore、回填、切读或 destructive migration。
+
+该批完成的是恢复工具的输入工件一致性与新的可验证备份恢复点，不是 restore/rebuild、RTO/RPO、
+维护态 rollback 或 reconciliation 通过证据；`DATA-01` 继续 `awaiting_production`，不解锁
+`DATA-02/03`。

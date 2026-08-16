@@ -1059,6 +1059,10 @@
 - ✅ **DATA-01 当前候选部署后 backup refresh（2026-08-15）**
   - `cf68dc1e9` 部署后以 `scripts/backup-vps-postgres.ps1 -DownloadLatest` 下载并验证 `postgres-20260815-123539.dump`，`140176474` bytes，SHA-256 `e1c0821543a36f19d2ea292d9c4fdc544003010579ccef5df9175d083a2e2e2f`；远端 `pg_restore --list`、SFTP、尺寸与本地校验通过
   - 仍只是恢复点；本机缺 `pg_restore`/`psql` 且 Docker restore 链路此前超时，没有 restore/rebuild、维护态回滚、回填或 reconciliation，DATA-01 继续 awaiting
+- ✅ **DATA-01 restore evidence input immutability + current backup refresh（2026-08-16）**
+  - `scripts/verify_postgres_backup_restore.py` 现在在格式校验前、恢复前后固定 dump SHA-256，并对归档替换稳定 fail-closed；unit `14 passed`、增量 mypy 0
+  - 当前 VPS custom-format backup 已完整下载并校验：`postgres-20260816-100924.dump`，`140804438` bytes，SHA-256 `06e52b33c637c17cae4c9f0223246e0e09af84254717196d904f67044e7b2cba`
+  - 仍不等于 restore/rebuild、维护态回滚、RTO/RPO、回填或 reconciliation；DATA-01 继续 awaiting，不解锁 DATA-02/03
 - ✅ **VPS candidate deployment with account migration/data-center fixes（2026-08-15）**
   - `ae1e5e532` 以 release `20260815162419` 完成 git-clone/provenance 校验和代码-only upgrade；health/ready HTTP 200，web/worker/beat/PostgreSQL/Redis/RSSHub 正常，迁移步骤无待应用项，canonical schema `missing_migrations=[]`/`missing_tables=[]`，TUI/Qlib/Celery 复核通过
   - `/api/ready/` 仍有 Alpha/Qlib、workspace 与市场温度计 freshness warnings；不解除 decision-data、TUI M5、DATA-01/02/03 或 AUD-01 gate
