@@ -331,3 +331,29 @@ PostgreSQL custom-format 归档：远端 `pg_restore --list` 通过，完整下�
 本地 SHA-256 与远端记录一致（`4760a38fdfc7ef8570323cfb5dde92ab01eb933cd60d4f6dd08700fc34772752`）。
 这只证明备份下载/校验子步骤，不解除 DATA-01 的 restore/rebuild、维护态 rollback、RTO/RPO 或
 reconciliation 门禁。
+
+## 2026-08-16 00:46 当前候选部署与观测
+
+本次按用户要求先发布已验证代码，再进入只读观测。`dev/next-development@516f4e228699231831222613ffe56b9f6b5f0713`
+使用标准 `git-clone`、`-Upgrade`、code-only 模式发布，保留 PostgreSQL/Redis 数据卷并启用 Celery。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260816082603` |
+| release dir | `/opt/agomtradepro/releases/source-20260816082603` |
+| source commit | `516f4e228699231831222613ffe56b9f6b5f0713` |
+| image | `agomtradepro-web:20260816082603` |
+| image ID | `sha256:6bb3bec1d83b165c902654d031d636fc60374567aa4afec2cc927dd055832d8a` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260816082603.json` |
+| mode | `ACTION=upgrade`、code-only、数据卷保留、Celery enabled |
+| migration/schema | `account.0035`–`account.0054` applied；`verify_canonical_schema`=`{"missing_migrations": [], "missing_tables": [], "ok": true}` |
+| HTTPS | `demo.agomtrade.pro` Caddy domain；`/api/health/` 与 `/api/ready/` HTTP `200` |
+| containers | web healthy；celery worker/beat、PostgreSQL、Redis、Caddy、RSSHub running；Celery ping `1 node online` |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| runtime observation | health SHA `c528a9827687047b8c99e903db7f383ae0985d4dfa99019f0f3de6e6beb1cf47`；ready SHA `6ce355d88dc8d794c877cc2ae905413f2a59cfd6479f28ea9b0f722ce0d3a75f` |
+
+`/api/ready/` 仍原样报告 Alpha/Qlib provider degraded、workspace recommendation stale、Alpha rank
+source stale 与 market thermometer partial-stale warnings；这些是数据新鲜度观察项，不被部署成功掩盖。
+本次仅做启动/健康/版本/迁移/运行时只读复核，没有登录、角色化浏览器 UAT 或业务写入。角色化
+UAT、写后 receipt/refresh、14 日 telemetry/defect、registry backup/restore、rollback drill、
+owner/reviewer 双签以及 AUD-01/EVID-01 durable authority/publisher 仍未完成，相关 gate 继续 fail-closed。

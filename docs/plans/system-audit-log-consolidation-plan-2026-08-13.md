@@ -845,3 +845,17 @@ diff-check 与 governance consistency 通过。
 该 slice 只是本地 receipt 合同强化：没有创建 durable sink、publisher runtime、beat/retry/requeue、
 authenticated authority provider 或生产 PostgreSQL 投递证明；runtime 仍固定
 `publisher_not_wired`，AUD-01 不解除，AUD-02 继续等待。
+
+## 实施记录（2026-08-16，AUD-01 scoped authority composition preflight）
+
+新增 `apps/audit/application/system_audit_authority_provider.py`：以 server-issued 的 Account
+actor source 与 tenant/owner scope source selector 组成 exact bundle，逐项校验 source
+identity/version/content hash、actor/user/tenant/owner 一致性、active/staff/authenticated 状态、
+PIT 时钟和 final validity；缺 selector、替换、过期、future 或 reader 异常均返回 `None`，由既有
+reader boundary 映射为稳定 `authority_unavailable`，不会触碰 outbox claim。纯测试 `6 passed`，
+增量 mypy、governance 与 diff-check 通过。
+
+该 slice 只补 typed composition/preflight，不读取 Django User/Profile/session，也没有现场 hash、
+request actor、generic/memory fallback 或生产 writer。真实 immutable authority source、scope
+lifecycle、durable publisher/receipt sink、beat/retry、production PostgreSQL 观察仍未接线，
+因此 `AUD-01` 继续阻断。

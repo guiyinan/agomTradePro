@@ -335,3 +335,20 @@ M5-A 继续 `DENY`，不得据此清理 Classic 或宣称 TUI production write c
 未在该候选上重新验证的 UAT、cleanup、telemetry、defect、rollback 和 registry backup
 区块；截至当前 readiness 仍为 `DENY`（UAT `0/108`、telemetry `0/101`、rollback/backup/
 审批均缺失）。观察起点不等于角色化生产 UAT、写后回执、稳定窗口完成或 cutover 授权。
+
+### 2026-08-16 00:46 当前候选部署复核
+
+最新候选 `dev/next-development@516f4e228699231831222613ffe56b9f6b5f0713` 已以
+code-only、保留数据卷、Celery enabled 的 `-Upgrade` 发布为 `20260816082603`；远端验证
+release manifest/OCI/source 绑定、`account.0054`、Django deploy check、HTTPS
+health/ready、容器健康、TUI registry、Qlib 与 Celery ping 均通过。部署报告为
+`dist/remote-build-reports/remote-build-report-20260816082603.json`，image ID 为
+`sha256:6bb3bec1d83b165c902654d031d636fc60374567aa4afec2cc927dd055832d8a`。
+
+本次只读部署观测在 `2026-08-16T00:44:32Z` 复核：HTTPS `/api/health/` 与 `/api/ready/`
+均返回 `200`；`/api/ready/` 仍报告 Alpha/Qlib provider degraded、workspace recommendation
+stale、Alpha rank source stale 与 market thermometer partial-stale warnings。该候选的
+结构化部署 preflight 为
+`docs/deployment/web-to-tui-deployment-preflight-20260816082603.json`，只绑定代码身份和
+运行启动，不包含角色化浏览器账号、写后 receipt/refresh、14 日 telemetry、registry
+backup/restore、rollback 或 owner/reviewer 双签；M5-A 继续 `DENY`。
