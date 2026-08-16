@@ -63,6 +63,14 @@ def _legacy_encrypt(value: str, key: str) -> str:
     return Fernet(fernet_key).encrypt(value.encode("utf-8")).decode("utf-8")
 
 
+def _canonical_encrypt(value: str, key: str) -> str:
+    """Build the encrypted:v1 representation accepted by the cutover guard."""
+
+    fernet_key = base64.urlsafe_b64encode(hashlib.sha256(key.encode("utf-8")).digest())
+    token = Fernet(fernet_key).encrypt(value.encode("utf-8"))
+    return "encrypted:v1:" + base64.urlsafe_b64encode(token).decode("ascii")
+
+
 @pytest.mark.django_db(transaction=True)
 @override_settings(
     AGOMTRADEPRO_ENCRYPTION_KEY="runtime-retirement-test-key",
@@ -146,9 +154,10 @@ def test_remaining_runtime_groups_materialize_once_with_canonical_precedence() -
             value_json=True,
             source="admin",
         )
+        canonical_archive = _canonical_encrypt("archive-secret", "runtime-retirement-test-key")
         Secret.objects.create(
             secret_ref="config_center.backup.archive_password",
-            encrypted_value="canonical-secret-ciphertext",
+            encrypted_value=canonical_archive,
         )
         State.objects.create(state_id=1, download_token_digest="b" * 64)
 
@@ -190,7 +199,7 @@ def test_remaining_runtime_groups_materialize_once_with_canonical_precedence() -
         assert values["backup.smtp_password"].secret_ref == "config_center.backup.smtp_password"
         assert (
             Secret.objects.get(secret_ref="config_center.backup.archive_password").encrypted_value
-            == "canonical-secret-ciphertext"
+            == canonical_archive
         )
         assert Secret.objects.get(
             secret_ref="config_center.backup.smtp_password"
