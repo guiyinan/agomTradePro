@@ -709,12 +709,8 @@ def test_tui_dashboard_alpha_publishes_ranking_and_history_tasks(client, tui_use
     runtime = PublishedTuiMetadataRepository().load_published()
     runtime_actions = {action["key"]: action for action in runtime["actions"]}
     assert runtime_actions["dashboard.beta-market-summary"]["view_model"]["rows_path"] == ("rows")
-    assert runtime_actions["dashboard.alpha-ranking"]["view_model"]["rows_path"] == (
-        "data.items"
-    )
-    assert runtime_actions["dashboard.alpha-ranking"]["view_model"]["total_path"] == (
-        "data.count"
-    )
+    assert runtime_actions["dashboard.alpha-ranking"]["view_model"]["rows_path"] == "items"
+    assert runtime_actions["dashboard.alpha-ranking"]["view_model"]["total_path"] == "count"
     assert (
         "股票池规模不等于选股结果"
         in runtime_actions["dashboard.alpha-ranking"]["view_model"]["empty_message"]
@@ -733,6 +729,42 @@ def test_tui_dashboard_alpha_publishes_ranking_and_history_tasks(client, tui_use
         "no_buy_reason_summary",
     ]
     assert runtime_actions["dashboard.alpha-history"]["view_model"]["rows_path"] == "data"
+
+
+def test_tui_dashboard_alpha_does_not_turn_pool_size_into_placeholder_picks(tui_user):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "success": True,
+                    "data": {
+                        "items": [],
+                        "count": 0,
+                        "pool": {"pool_size": 314},
+                        "meta": {"requested_pool_size": 314, "effective_pool_size": 314},
+                        "contract": {
+                            "must_not_use_for_decision": True,
+                            "blocked_reason": "当前股票池只用于研究。",
+                        },
+                    },
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=PublishedTuiMetadataRepository(),
+        action_executor=FakeExecutor(),
+    )
+
+    payload = service.run_action(
+        action_key="dashboard.alpha-ranking",
+        params={},
+        user=tui_user,
+    )
+
+    assert payload["view_model"]["rows"] == []
+    assert payload["view_model"]["pager"]["total_rows"] == 0
+    assert "股票池规模不等于选股结果" in payload["view_model"]["empty_message"]
 
 
 def test_tui_dashboard_overview_upgrades_allocation_and_performance_to_charts(
