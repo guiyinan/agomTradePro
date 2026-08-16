@@ -38,6 +38,15 @@ class ReconciliationEvidenceRepository:
 
         evidence_uuid = _evidence_uuid(evidence.evidence_id)
         defaults = build_reconciliation_defaults(evidence)
+        existing = ReconciliationEvidenceModel._default_manager.filter(
+            evidence_id=evidence_uuid
+        ).first()
+        if existing is not None:
+            if not _row_matches_evidence(existing, defaults):
+                raise ValueError(
+                    "reconciliation evidence identity already contains a different snapshot"
+                )
+            return existing.to_domain()
         try:
             with transaction.atomic():
                 row = ReconciliationEvidenceModel._default_manager.create(
