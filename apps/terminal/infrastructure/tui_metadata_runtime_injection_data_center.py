@@ -244,6 +244,22 @@ _THERMOMETER_CONFIG_FIELDS: list[dict[str, Any]] = [
 
 RUNTIME_DATA_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
     _action(
+        key="operational-readiness.release-identity",
+        label="查看当前部署版本",
+        endpoint="/api/operational-readiness/release-identity/",
+        intent="read_verified_release_identity",
+        view_type="detail",
+        description="核对当前运行镜像、Git 提交与只读发布清单是否一致。",
+        task_group="00 发布版本",
+        sequence=1,
+        fields=[],
+        view_model={
+            "kind": "detail",
+            "title_path": "data.short_commit",
+            "status_path": "data.status_label",
+        },
+    ),
+    _action(
         key="data-center.governance-overview",
         label="宏观数据治理证据",
         endpoint="/api/data-center/tui/governance/",

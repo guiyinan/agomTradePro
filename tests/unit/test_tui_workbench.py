@@ -3090,6 +3090,7 @@ def test_tui_data_center_screen_returns_overview_panels(client, tui_admin_user):
     assert payload["screen"]["default_action_key"] == "auto.api.get.api.health"
     panels = payload["screen"]["dashboard_panels"]
     assert [panel["action_key"] for panel in panels] == [
+        "operational-readiness.release-identity",
         "auto.api.get.api.health",
         "auto.api.get.api.data-center",
         "auto.api.get.api.data-center.providers",
@@ -3098,6 +3099,8 @@ def test_tui_data_center_screen_returns_overview_panels(client, tui_admin_user):
         "task-monitor.task-list",
     ]
     action_keys = [action["key"] for action in payload["actions"]]
+    actions = {action["key"]: action for action in payload["actions"]}
+    assert actions["operational-readiness.release-identity"]["label"] == "查看当前部署版本"
     assert "auto.api.get.api.data-center" in action_keys
     assert "data-center.tushare-create" in action_keys
     assert "data-center.provider-update" in action_keys
