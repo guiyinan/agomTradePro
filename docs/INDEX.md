@@ -147,7 +147,7 @@
 | [web-to-tui-m2-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m2-consolidated-evidence-2026-07-26.md) | **Web → TUI M2 合并证据（W1-W20，15 份原始 wave 记录与 SHA-256 清单）** | ✅ M2 已完成并归档 |
 | [web-to-tui-m3-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m3-consolidated-evidence-2026-07-26.md) | **Web → TUI M3 合并证据（W21-W42，22 份原始 wave 记录与 SHA-256 清单）** | ✅ M3 已完成并归档 |
 | [web-to-tui-m4-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md) | **Web → TUI M4 合并证据（W43-W51，9 份原始 wave 记录与 SHA-256 清单）** | ✅ M4 已完成并归档 |
-| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；候选 `e29e15b09b47e07d9724b9cbc750ae2882310693` / `20260816151607` 已部署并开始只读观察，角色 UAT、写后回执、14 日窗口与回滚/备份证据仍待补 |
+| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；候选 `fc145423c4de04cae20c3a6a2e94780505aa5938` / `20260816170851` 已部署并开始只读观察，角色 UAT、写后回执、14 日窗口与回滚/备份证据仍待补 |
 | [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | 历史只读记录；不代表 2026-08-13 当前线上版本，不计入 cutover gate |
 | [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 当前生产 Preflight（公开探针 + release/OCI 核对）** | 2026-08-15 当前候选 `20260815182857` / `cf68dc1e9` 已完成标准 git-clone 构建、manifest/OCI/health/ready 复核；M5 仍 DENY，角色化 UAT、观察窗口和写后审计待补 |
 | [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | 历史记录不再算当前闸门；candidate-bound 本地演练已修复，最终候选/生产备份恢复待验 |
@@ -270,9 +270,9 @@
 |------|------|------|
 | [TEST_PACKAGE_RELEASE_WORKFLOW.md](deployment/TEST_PACKAGE_RELEASE_WORKFLOW.md) | 标准流程：测试->打包->发布->回滚（含门禁） | ✅ 新增 |
 | [VPS_BUNDLE_DEPLOYMENT.md](deployment/VPS_BUNDLE_DEPLOYMENT.md) | VPS Bundle 一体化部署与迁移指南（含 Postgres/Redis 迁移） | ✅ 新增 |
-| [vps-deployment-evidence-2026-08-15.md](deployment/vps-deployment-evidence-2026-08-15.md) | 2026-08-15 候选部署、provenance、备份与运行复核证据 | ✅ 2026-08-15 |
+| [vps-deployment-evidence-2026-08-15.md](deployment/vps-deployment-evidence-2026-08-15.md) | 候选部署、provenance、备份与运行复核证据（最新 `20260816170851`） | ✅ 2026-08-16 |
 | [evid-01-authority-inventory-2026-08-16.json](deployment/evid-01-authority-inventory-2026-08-16.json) | e167 候选只读 authority migration/zero-seed inventory | ✅ 2026-08-16 |
-| [vps-runtime-verification-2026-08-16.json](deployment/vps-runtime-verification-2026-08-16.json) | e167 候选只读 release/health/container/Qlib/Celery 复核 | ✅ 2026-08-16 |
+| [vps-runtime-verification-2026-08-16-1721.json](deployment/vps-runtime-verification-2026-08-16-1721.json) | `fc145423c4de` / `20260816170851` 候选只读 release/health/container/Qlib/Celery 复核 | ✅ 2026-08-16 |
 | [DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) | Docker 部署指南 | 完整 |
 | [postgres_windows_docker.md](deployment/postgres_windows_docker.md) | Windows PostgreSQL Docker 配置 | 完整 |
 | [database_configuration.md](deployment/database_configuration.md) | 数据库配置 | 完整 |
@@ -465,7 +465,7 @@
 ## 2026-08-16 当前收口状态
 
 - 计划与机器状态的唯一导航入口是 [`docs/plans/README.md`](plans/README.md) 与 [`governance/active_plan_registry.json`](../governance/active_plan_registry.json)；本索引不复制动态 closure 数字。
-- AUD-01 的 durable-publisher preflight contract 与 release identity guard 已合入并部署到当前候选 `07d5d1d338c70ebc1d347663b48b09b38335fce5` / `20260816160127`；远端只读运行证据见 [`vps-runtime-verification-2026-08-16-1624.json`](deployment/vps-runtime-verification-2026-08-16-1624.json)。
+- AUD-01 的 durable-publisher preflight contract 与 release identity guard 已合入并部署到当前候选 `fc145423c4de04cae20c3a6a2e94780505aa5938` / `20260816170851`；远端只读运行证据见 [`vps-runtime-verification-2026-08-16-1721.json`](deployment/vps-runtime-verification-2026-08-16-1721.json)。
 - 候选部署健康、迁移、schema、TUI registry、Qlib、Celery 与 HTTPS 已复核；角色化浏览器 UAT、写后 receipt/refresh、14 日 telemetry、生产 publisher/authority、数据恢复/回滚与 QMT/AI 外部验收仍按 registry 保持阻断。
 
 ---

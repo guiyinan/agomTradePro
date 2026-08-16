@@ -12,7 +12,7 @@ REGISTRY_PATH = ROOT / "governance" / "active_plan_registry.json"
 READINESS_PATH = ROOT / "docs" / "plans" / "web-to-tui-m5-readiness-2026-07-27.md"
 DEPLOYMENT_PATH = ROOT / "docs" / "deployment" / "vps-deployment-evidence-2026-08-15.md"
 PREFLIGHT_PATH = (
-    ROOT / "docs" / "deployment" / "web-to-tui-deployment-preflight-20260816160127.json"
+    ROOT / "docs" / "deployment" / "web-to-tui-deployment-preflight-20260816170851.json"
 )
 CUTOVER_PATH = ROOT / "config" / "tui" / "migration" / "web_to_tui_cutover_evidence.v1.json"
 MATRIX_PATH = ROOT / "docs" / "plans" / "web-to-tui-migration-matrix-2026-07-25.csv"

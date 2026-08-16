@@ -433,6 +433,39 @@ runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest SHA
 `98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。观察窗口为
 `2026-08-16..2026-08-30`，不跨候选继承 UAT、telemetry 或 cleanup 证据。
 
+## 2026-08-16 17:21 当前候选部署与观测
+
+当前 `dev/next-development@fc145423c4de04cae20c3a6a2e94780505aa5938` 已使用标准
+`git-clone`、`-Upgrade`、code-only 模式发布为 release `20260816170851`，保留
+PostgreSQL/Redis 数据卷并启用 Celery。首次部署尝试在远端预部署备份钩子阶段返回
+`Exit=-1` 且无 stderr，未切换运行容器；随后独立下载并校验远端最新 custom-format
+备份，再以该恢复点重试并显式跳过重复钩子，部署成功。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260816170851` |
+| release dir | `/opt/agomtradepro/releases/source-20260816170851` |
+| source commit | `fc145423c4de04cae20c3a6a2e94780505aa5938` |
+| image | `agomtradepro-web:20260816170851` |
+| image ID | `sha256:04d08b5d3e1b1032abfbbefbeb4d9df0f4a6f8c33c706981056c1f36031112eb` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260816170851.json` |
+| mode | `ACTION=upgrade`、code-only、数据卷保留、Celery enabled；重复预备份钩子跳过，原因已记录在结构化摘要 |
+| migration/schema | `No migrations to apply`；canonical schema `missing_migrations=[]`、`missing_tables=[]` |
+| HTTPS | `demo.agomtrade.pro` Caddy domain；TLS valid；`/api/health/` 与 `/api/ready/` HTTP `200` |
+| containers | web healthy；celery worker/beat、PostgreSQL、Redis、Caddy、RSSHub、runtime namespace running；Celery ping `1 node online` |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| runtime observation | health SHA `374ce1945abfd549b08ce103c5155004f5f83317b08a4e9b5ac16e7ed3b6a469`；ready SHA `7874fdb8c615d532d0da953a4d2f7df0d3d6511e0d3d8c6fb717706bda2f7007` |
+| backup | `/opt/agomtradepro/backups/database/postgres-20260816-110120.dump`；`140820006` bytes；SHA256 `43f7b2fb8d0d565831021a1cd0a8fb7adda2809954c3df343597c8f884452565`；`pg_restore --list` `7167` entries |
+
+结构化只读摘要见 `docs/deployment/vps-runtime-verification-2026-08-16-1721.json`。
+`/api/ready/` 仍报告 `alpha_qlib_provider_degraded`、`workspace_recommendations_stale`、
+`workspace_alpha_rank_source_stale` 与 `market_thermometer_partial_stale`；这些 freshness
+warnings 没有被部署成功掩盖。本次没有登录、角色化浏览器 UAT 或业务写入；写后
+receipt/refresh、14 日 telemetry/defect、registry backup/restore、rollback drill、
+owner/reviewer 双签以及 AUD-01/EVID-01 durable authority/publisher 仍未完成，相关 gate
+继续 fail-closed。PostgreSQL archive 仅完成下载、SHA 与 `pg_restore --list` 检查，没有
+restore/rebuild、RTO/RPO 或 rollback drill。
+
 ## 2026-08-16 15:34 当前候选部署与观测
 
 本次部署包含 TUI release identity、reviewed metadata artifacts 与 AUD-01 durable-publisher contract guard，再进入只读观测。`dev/next-development@e29e15b09b47e07d9724b9cbc750ae2882310693`

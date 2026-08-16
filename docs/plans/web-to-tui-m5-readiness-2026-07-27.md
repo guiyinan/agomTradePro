@@ -491,3 +491,34 @@ M5-A 继续 `DENY`。PostgreSQL custom-format archive 仅完成 SHA 与 `pg_rest
 `tui-metadata.v3` / runtime `0.2.0` / build `agomtui-runtime-0.2.0+8e5b1ff43be5`、
 manifest `98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。该候选仅
 重置并开始 `2026-08-16..2026-08-30` 观察窗口，不跨候选继承任何 UAT 或 telemetry 结果。
+
+### 2026-08-16 17:21 当前候选部署复核
+
+最新候选 `dev/next-development@fc145423c4de04cae20c3a6a2e94780505aa5938` 已以
+code-only、保留 PostgreSQL/Redis 数据卷、Celery enabled 的 `-Upgrade` 发布为
+`20260816170851`。远端 release manifest 显示 release dir
+`/opt/agomtradepro/releases/source-20260816170851`，OCI image ID 为
+`sha256:04d08b5d3e1b1032abfbbefbeb4d9df0f4a6f8c33c706981056c1f36031112eb`；
+preflight 见 `docs/deployment/web-to-tui-deployment-preflight-20260816170851.json`，
+SHA `8639dc3a443e67fd44d51bc74b0f574b93f8a62493078167b1f63d0a2a2b5c7a`。
+
+只读观测时间为 `2026-08-16T09:21:08Z`：HTTPS `/api/health/` 与 `/api/ready/`
+均返回 `200`；health response SHA 为
+`374ce1945abfd549b08ce103c5155004f5f83317b08a4e9b5ac16e7ed3b6a469`，ready response SHA 为
+`7874fdb8c615d532d0da953a4d2f7df0d3d6511e0d3d8c6fb717706bda2f7007`。迁移、canonical schema、
+Django deploy check、TUI registry、release identity、Celery ping 与 Qlib module 复核通过；
+结构化运行摘要见 `docs/deployment/vps-runtime-verification-2026-08-16-1721.json`。
+
+首次部署预备份钩子返回空错误且未切换运行容器；随后独立下载并校验
+`/opt/agomtradepro/backups/database/postgres-20260816-110120.dump`（`140820006` bytes，
+SHA `43f7b2fb8d0d565831021a1cd0a8fb7adda2809954c3df343597c8f884452565`，远端
+`pg_restore --list` `7167` entries），再重试成功。`/api/ready/` 仍报告
+`alpha_qlib_provider_degraded`、`workspace_recommendations_stale`、
+`workspace_alpha_rank_source_stale` 与 `market_thermometer_partial_stale`。
+
+本次只证明当前代码/运行身份与只读健康观测；没有登录或业务写入，角色化浏览器 UAT、写后
+receipt/refresh、14 日 telemetry、registry backup/restore、rollback 或 owner/reviewer 双签
+仍缺，M5-A 继续 `DENY`。PostgreSQL archive 仅完成 SHA 与 `pg_restore --list` 检查，没有
+restore/rebuild、RTO/RPO 或 rollback drill。候选 binding 的 matrix/graph/runtime manifest
+与上一候选相同，仅 source commit/release/image 更新；观察窗口从该候选重新开始，不跨候选
+继承 UAT 或 telemetry。
