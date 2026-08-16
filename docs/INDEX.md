@@ -149,7 +149,7 @@
 | [web-to-tui-m4-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md) | **Web → TUI M4 合并证据（W43-W51，9 份原始 wave 记录与 SHA-256 清单）** | ✅ M4 已完成并归档 |
 | [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；候选 `5a13125bb84eb1b20e623d7c1388a0d7632294cb` / `20260816181141` 已部署并开始只读观察，角色 UAT、写后回执、14 日窗口与回滚/备份证据仍待补 |
 | [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | 历史只读记录；不代表 2026-08-13 当前线上版本，不计入 cutover gate |
-| [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 当前生产 Preflight（公开探针 + release/OCI 核对）** | 2026-08-15 当前候选 `20260815182857` / `cf68dc1e9` 已完成标准 git-clone 构建、manifest/OCI/health/ready 复核；M5 仍 DENY，角色化 UAT、观察窗口和写后审计待补 |
+| [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 当前生产 Preflight（公开探针 + release/OCI 核对）** | 当前候选 `20260816181141` / `5a13125bb84e` 已完成标准 git-clone 构建、manifest/OCI/health/ready 复核；M5 仍 DENY，角色化 UAT、观察窗口和写后审计待补 |
 | [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | 历史记录不再算当前闸门；candidate-bound 本地演练已修复，最终候选/生产备份恢复待验 |
 | [web-to-tui-m5-browser-uat-evidence-2026-07-27.md](plans/web-to-tui-m5-browser-uat-evidence-2026-07-27.md) | **Web → TUI M5 浏览器 UAT（角色边界、矩阵深链、直读/参数读取与生命周期）** | 历史自动化 15/15、主任务 108/108；未绑定最终候选，当前 gate FAIL |
 | [web-to-tui-m5-route-closure-evidence-2026-07-27.md](plans/web-to-tui-m5-route-closure-evidence-2026-07-27.md) | **Web → TUI M5 逐 Route 清理证据（认证边界、兼容目标与状态/回滚范围）** | ✅ 六类 scope 均为 108/108；不替代生产门禁 |
@@ -1051,6 +1051,15 @@
 - ✅ **系统级统一审计日志 AUD-01 canonical receipt exact-tree hardening（2026-08-15）**
   - receipt 在 JSON 编码前递归校验容器/标量类型、序列顺序与 key 类型；tuple/list、嵌套非原生 mapping 和标量类型替换统一 fail-closed 为 `publisher_contract_violation`；composition/dispatcher/dispatch 定向回归 `30 passed`，audit contract、增量 mypy、architecture、Black/isort、compile/diff-check 通过
   - 仅本地 receipt 合同加固（当前环境未安装 ruff 模块）；runtime 仍固定 `publisher_not_wired`，没有 durable publisher/receipt sink、authenticated scoped lifecycle、beat/retry/PG/VPS 证据，`AUD-01` 未解除，`AUD-02` 继续等待
+- ✅ **系统级统一审计日志 AUD-01 preflight-to-receipt sink binding（2026-08-16）**
+  - preflight 仅执行一次并把已验证 `sink_id` 绑定到每条 delivery receipt；sink substitution、publisher contract drift fail-closed；composition/dispatcher `47 passed`，task/authority `10 passed`，增量 mypy/architecture/governance 通过
+  - 仍无 durable publisher/receipt sink、authenticated scoped authority、Celery beat/retry、Data Center 同 UOW 或 PostgreSQL/VPS 投递证据，runtime 继续 `publisher_not_wired`，`AUD-01` 未解除
+- ✅ **EVID-01 nested artifact invariant hardening（2026-08-16）**
+  - scoped grant boundary 对嵌套 `ArtifactRef` 重新执行完整 invariant，provider 原地篡改并重算 grant hash 时 fail-closed；scope/source/provider/facade `71 passed`，增量 mypy/architecture/governance 通过
+  - 仅本地 owner-scoped boundary；immutable owner/tenant lifecycle、人工授权、PostgreSQL 生产证据与 Evidence hard gate 仍缺，`EVID-01` 状态不变
+- ✅ **DATA-02 primary-key collision identity guard（2026-08-16）**
+  - control-plane upsert 在自然键未命中而 primary key 冲突时按完整 lookup+identity 复核，稳定拒绝 batch/checkpoint 身份替换；`test_control_plane.py` `12 passed`，增量 mypy/Black/isort/diff-check 通过
+  - 仅本地幂等合同；未连接生产 PostgreSQL、未执行 restore/backfill/reconciliation/rollback，`DATA-01/02/03` 状态不变
 - ✅ **DATA-01 production PostgreSQL backup evidence refresh（2026-08-15）**
   - `scripts/backup-vps-postgres.ps1` 重新取得并验证 custom-format 归档（`139057048` bytes，SHA-256 `a8f005eb3a461f28d21689ecef6d5aee89b59a353d06944b79e08c82662839cc`）；仅完成备份子步骤，维护态/恢复/回滚/回填仍未通过，DATA-01 继续 awaiting
 - ✅ **DATA-01 latest PostgreSQL backup refresh（2026-08-15）**
