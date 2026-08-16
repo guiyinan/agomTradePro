@@ -13,8 +13,41 @@ _SOURCE = "approved:runtime-dashboard-alpha"
 
 RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
     {
+        "key": "dashboard.beta-market-summary",
+        "label": "查看 Beta 市场结论",
+        "endpoint": "/api/dashboard/tui/beta-market-summary/",
+        "method": "GET",
+        "intent": "read_beta_market_summary_before_alpha_selection",
+        "risk": "read",
+        "audience": "authenticated",
+        "screen_key": _SCREEN,
+        "module_key": _MODULE,
+        "view_type": "datagrid",
+        "description": "先确认 Regime、Pulse、A股情绪与风险预算，再查看 Alpha 选股清单。",
+        "source": _SOURCE,
+        "task_group": "01 Beta 市场态势",
+        "sequence": 210,
+        "task_tier": "primary",
+        "fields": [],
+        "view_model": {
+            "kind": "datagrid",
+            "rows_path": "rows",
+            "total_path": "total",
+            "columns": [
+                {"key": "beta_conclusion", "label": "Beta 结论"},
+                {"key": "regime", "label": "市场环境"},
+                {"key": "market_sentiment", "label": "A股情绪"},
+                {"key": "sentiment_index", "label": "情绪指数（-3~+3）"},
+                {"key": "equity_weight_percent", "label": "权益建议（%）"},
+                {"key": "risk_budget_percent", "label": "风险预算（%）"},
+                {"key": "alpha_usage", "label": "Alpha 使用方式"},
+                {"key": "observed_at", "label": "观测日期"},
+            ],
+        },
+    },
+    {
         "key": "dashboard.alpha-ranking",
-        "label": "查看完整 Alpha 排名",
+        "label": "查看 Alpha 选股清单",
         "endpoint": "/api/dashboard/alpha/stocks/",
         "method": "GET",
         "intent": "read_dashboard_alpha_ranking",
@@ -23,9 +56,9 @@ RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
         "screen_key": _SCREEN,
         "module_key": _MODULE,
         "view_type": "datagrid",
-        "description": "按通用或组合口径查看完整 Alpha 排名及新鲜度、池范围和证伪摘要。",
+        "description": "查看 Alpha 排名、Beta/风控校验、建议仓位、入选理由与不行动理由。",
         "source": _SOURCE,
-        "task_group": "02 Alpha 候选",
+        "task_group": "02 Alpha 选股",
         "sequence": 240,
         "task_tier": "operation",
         "fields": [
@@ -66,8 +99,7 @@ RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
                 "required": False,
                 "default": "price_covered",
                 "options": [
-                    {"value": value, "label": label}
-                    for value, label in ALPHA_POOL_MODE_CHOICES
+                    {"value": value, "label": label} for value, label in ALPHA_POOL_MODE_CHOICES
                 ],
             },
             {
@@ -77,7 +109,7 @@ RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
                 "input_type": "number",
                 "value_type": "integer",
                 "required": False,
-                "default": 200,
+                "default": 10,
                 "min": 1,
                 "max": 500,
             },
@@ -90,10 +122,10 @@ RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
                 {"key": "code", "label": "证券代码"},
                 {"key": "name", "label": "名称"},
                 {"key": "alpha_score", "label": "Alpha"},
-                {"key": "confidence", "label": "置信度"},
-                {"key": "stage_label", "label": "阶段"},
-                {"key": "source", "label": "来源"},
-                {"key": "asof_date", "label": "评分日"},
+                {"key": "gate_status", "label": "约束结果"},
+                {"key": "suggested_position_pct", "label": "建议仓位（%）"},
+                {"key": "buy_reason_summary", "label": "入选理由"},
+                {"key": "no_buy_reason_summary", "label": "不行动理由"},
             ],
         },
     },

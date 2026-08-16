@@ -696,16 +696,38 @@ def test_tui_dashboard_alpha_publishes_ranking_and_history_tasks(client, tui_use
     assert response.status_code == 200
     actions = {action["key"]: action for action in response.json()["actions"]}
     assert {
+        "dashboard.beta-market-summary",
         "dashboard.alpha-ranking",
         "dashboard.alpha-history",
         "dashboard.alpha-history-detail",
     } <= set(actions)
+    assert response.json()["screen"]["default_action_key"] == "dashboard.beta-market-summary"
     ranking_fields = {field["key"]: field for field in actions["dashboard.alpha-ranking"]["fields"]}
     assert ranking_fields["format"]["default"] == "json"
     assert ranking_fields["alpha_scope"]["options"] == ["general", "portfolio"]
+    assert ranking_fields["top_n"]["default"] == 10
     runtime = PublishedTuiMetadataRepository().load_published()
     runtime_actions = {action["key"]: action for action in runtime["actions"]}
+    assert runtime_actions["dashboard.beta-market-summary"]["view_model"]["rows_path"] == ("rows")
     assert runtime_actions["dashboard.alpha-ranking"]["view_model"]["rows_path"] == ("data.items")
+    assert runtime_actions["dashboard.alpha-ranking"]["view_model"]["total_path"] == ("data.count")
+    assert (
+        "股票池规模不等于选股结果"
+        in runtime_actions["dashboard.alpha-ranking"]["view_model"]["empty_message"]
+    )
+    assert [
+        column["key"]
+        for column in runtime_actions["dashboard.alpha-ranking"]["view_model"]["columns"]
+    ] == [
+        "rank",
+        "code",
+        "name",
+        "alpha_score",
+        "gate_status",
+        "suggested_position_pct",
+        "buy_reason_summary",
+        "no_buy_reason_summary",
+    ]
     assert runtime_actions["dashboard.alpha-history"]["view_model"]["rows_path"] == "data"
 
 
@@ -1719,7 +1741,7 @@ def test_tui_catalog_promotes_smoke_checked_tools_into_business_screens(client, 
         "research.asset-lab": "auto.api.get.api.asset-analysis.pool-summary",
         "ai-ops.providers": "auto.api.get.api.ai.me.providers",
         "execution.audit": "auto.api.get.api.audit.health",
-        "research.signals": "alpha-trigger.candidate-actionable",
+        "research.signals": "dashboard.beta-market-summary",
     }
 
     for screen_key, default_action_key in expected_defaults.items():
@@ -1838,7 +1860,7 @@ def test_tui_agent_runtime_and_alpha_trigger_defaults_prefer_non_empty_entrypoin
 
     alpha_response = client.get("/api/tui/screens/research.alpha-triggers/")
     alpha_payload = alpha_response.json()
-    assert alpha_payload["screen"]["default_action_key"] == "alpha-trigger.candidate-actionable"
+    assert alpha_payload["screen"]["default_action_key"] == "dashboard.beta-market-summary"
 
     providers_response = client.get("/api/tui/screens/ai-ops.providers/")
     providers_payload = providers_response.json()
@@ -3090,9 +3112,11 @@ def test_tui_alpha_triggers_screen_returns_overview_panels(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["screen"]["default_action_key"] == "alpha-trigger.candidate-actionable"
+    assert payload["screen"]["default_action_key"] == "dashboard.beta-market-summary"
     panels = payload["screen"]["dashboard_panels"]
     assert [panel["action_key"] for panel in panels] == [
+        "dashboard.beta-market-summary",
+        "dashboard.alpha-ranking",
         "alpha-trigger.candidate-actionable",
         "signal.active",
     ]

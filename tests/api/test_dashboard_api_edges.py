@@ -61,6 +61,33 @@ def test_dashboard_tui_overview_projects_allocation_and_performance_rows(
 
 
 @pytest.mark.django_db
+def test_dashboard_beta_market_summary_exposes_decision_blockers(
+    client,
+    auth_user,
+    monkeypatch,
+):
+    client.force_login(auth_user)
+    monkeypatch.setattr(
+        "apps.dashboard.interface.tui_views.build_beta_market_summary_payload",
+        lambda: {
+            "beta_conclusion": "暂不判断：关键市场数据未通过校验。",
+            "decision_status": "不可用于决策",
+            "alpha_usage": "Alpha 仅供研究，暂不形成可执行建议。",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "Pulse 数据已过期。",
+        },
+    )
+
+    response = client.get("/api/dashboard/tui/beta-market-summary/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["rows"][0]["decision_status"] == "不可用于决策"
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["blocked_reason"] == "Pulse 数据已过期。"
+
+
+@pytest.mark.django_db
 def test_dashboard_allocation_rejects_invalid_account_id(client, auth_user):
     client.force_login(auth_user)
 

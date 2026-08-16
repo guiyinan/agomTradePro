@@ -8,11 +8,12 @@ from dataclasses import dataclass
 from datetime import date
 from importlib import import_module
 from time import perf_counter
-from typing import Any
+from typing import Any, cast
 
 from django.core.exceptions import ImproperlyConfigured
 
 from apps.dashboard.application.alpha_homepage import AlphaHomepageQuery
+from apps.dashboard.application.beta_market_summary import build_beta_market_summary_row
 from apps.dashboard.application.queries import (
     AlphaDecisionChainData,
     AlphaDecisionChainQuery,
@@ -26,6 +27,8 @@ from apps.dashboard.application.repository_provider import (
     get_portfolio_repository,
 )
 from apps.dashboard.application.use_cases import DashboardData, GetDashboardDataUseCase
+from apps.regime.domain.action_mapper import RegimeActionRecommendation
+from apps.regime.domain.entities import RegimeNavigatorOutput
 
 logger = logging.getLogger(__name__)
 _DASHBOARD_INTERFACE_PERF_WARNING_MS = 2500
@@ -303,6 +306,28 @@ def load_phase1_macro_components(
         navigator=navigator,
         pulse=pulse,
         action=action,
+    )
+
+
+def build_beta_market_summary_payload(
+    *,
+    as_of_date: date | None = None,
+) -> dict[str, object]:
+    """Build the current Beta conclusion used before reading Alpha candidates."""
+
+    from apps.sentiment.application.current_sentiment import resolve_current_sentiment
+
+    target_date = as_of_date or date.today()
+    components = load_phase1_macro_components(
+        as_of_date=target_date,
+        refresh_if_stale=False,
+    )
+    sentiment = resolve_current_sentiment(as_of_date=target_date)
+    return build_beta_market_summary_row(
+        as_of_date=target_date,
+        navigator=cast(RegimeNavigatorOutput | None, components.navigator),
+        action=cast(RegimeActionRecommendation | None, components.action),
+        sentiment=sentiment,
     )
 
 

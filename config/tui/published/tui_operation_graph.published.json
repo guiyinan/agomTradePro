@@ -309,10 +309,10 @@
       "default_action_key": "regime.current",
       "user_experience": {
         "journey": "workspace",
-        "primary_task": "确认当前宏观象限与战术脉搏。",
-        "primary_outcome": "形成当天环境判断。",
+        "primary_task": "确认当前宏观象限、战术脉搏与A股情绪。",
+        "primary_outcome": "形成当天 Beta 市场态势判断。",
         "empty_state_hint": "无数据时检查数据新鲜度与同步状态。",
-        "next_step_hint": "进入政策与热点补充政策上下文。"
+        "next_step_hint": "进入 Beta 态势与 Alpha 选股查看今天的股票清单。"
       },
       "business_context": {
         "objective": "形成无后视偏差的环境判断。",
@@ -490,6 +490,14 @@
             {
               "key": "gate_effective",
               "label": "已生效"
+            },
+            {
+              "key": "review_notes",
+              "label": "审核理由"
+            },
+            {
+              "key": "rollback_reason",
+              "label": "回滚理由"
             }
           ],
           "row_actions": []
@@ -579,45 +587,79 @@
         },
         "next": {
           "key": "research.signals",
-          "label": "信号与候选"
+          "label": "Beta 态势与 Alpha 选股"
         }
       }
     },
     {
       "key": "research.signals",
-      "label": "信号与候选",
+      "label": "Beta 态势与 Alpha 选股",
       "module_key": "daily-decisions",
       "group": "daily",
       "audience": "authenticated",
-      "summary": "确认有效信号、Alpha 候选、触发器和情绪过滤。",
+      "summary": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。",
       "view_type": "datagrid",
       "default_action_key": "alpha.scores",
       "user_experience": {
         "journey": "workspace",
-        "primary_task": "筛出今天最值得推进的有效候选。",
-        "primary_outcome": "得到候选优先级与信号依据。",
-        "empty_state_hint": "无候选时核对信号、触发器与情绪过滤条件。",
-        "next_step_hint": "进入账户与持仓做执行前检查。"
+        "primary_task": "先确认 Beta 市场态势，再筛出今天最值得研究的 Alpha 股票。",
+        "primary_outcome": "得到市场参与结论、Alpha 股票清单及每只股票的入选或阻断理由。",
+        "empty_state_hint": "无候选时先看 Beta 数据可用性，再检查 Alpha 评分日、股票池和触发条件。",
+        "next_step_hint": "仅对通过 Beta 与风控约束的股票进入账户和持仓检查。"
       },
       "business_context": {
-        "objective": "把信号收敛成可行动候选。",
-        "decision_output": "有效信号和候选清单。",
+        "objective": "把 Beta 市场态势与 Alpha 横截面选股收敛为一条可解释判断链。",
+        "decision_output": "Beta 结论、Alpha 排名、建议仓位、入选理由和不行动理由。",
         "checkpoints": [
-          "可行动候选",
-          "活跃信号",
-          "Alpha 分数",
-          "情绪过滤"
+          "Beta 市场结论",
+          "Alpha 选股清单",
+          "约束与建议仓位",
+          "触发候选与证伪条件"
         ]
       },
       "dashboard_panels": [
         {
           "key": "active-signals",
-          "title": "活跃信号",
+          "title": "四、活跃信号与证伪条件",
           "kind": "datagrid",
           "action_key": "signal.active",
           "user_priority": "p0",
-          "presentation_semantic": "primary_list",
+          "presentation_semantic": "supporting_list",
           "empty_message": "当前没有活跃信号。",
+          "columns": [
+            {
+              "key": "id",
+              "label": "信号 ID"
+            },
+            {
+              "key": "asset_code",
+              "label": "标的代码"
+            },
+            {
+              "key": "direction",
+              "label": "方向"
+            },
+            {
+              "key": "logic_desc",
+              "label": "投资逻辑"
+            },
+            {
+              "key": "invalidation_logic",
+              "label": "证伪逻辑"
+            },
+            {
+              "key": "target_regime",
+              "label": "目标环境"
+            },
+            {
+              "key": "status",
+              "label": "状态"
+            },
+            {
+              "key": "rejection_reason",
+              "label": "处理理由"
+            }
+          ],
           "row_actions": []
         }
       ],
@@ -629,8 +671,8 @@
         "name": "每日投研流程",
         "step": 5,
         "total": 8,
-        "label": "信号与候选",
-        "role": "确认候选",
+        "label": "Beta 态势与 Alpha 选股",
+        "role": "先判断市场，再确认股票清单",
         "previous": {
           "key": "command-center.decision-flow",
           "label": "每日决策流"
@@ -701,7 +743,7 @@
         "role": "执行前检查",
         "previous": {
           "key": "research.signals",
-          "label": "信号与候选"
+          "label": "Beta 态势与 Alpha 选股"
         },
         "next": {
           "key": "macro-regime.strategy",
@@ -973,6 +1015,32 @@
           "user_priority": "p0",
           "presentation_semantic": "primary_list",
           "empty_message": "尚未配置个人 AI 服务商。",
+          "columns": [
+            {
+              "key": "id",
+              "label": "服务商 ID"
+            },
+            {
+              "key": "name",
+              "label": "名称"
+            },
+            {
+              "key": "provider_type_label",
+              "label": "类型"
+            },
+            {
+              "key": "default_model",
+              "label": "默认模型"
+            },
+            {
+              "key": "is_active",
+              "label": "启用"
+            },
+            {
+              "key": "priority",
+              "label": "优先级"
+            }
+          ],
           "row_actions": []
         },
         {
@@ -1553,7 +1621,7 @@
       "intent": "browse_alpha_scores",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "view_model": {
         "rows_path": "stocks"
@@ -1568,7 +1636,7 @@
       "intent": "read_alpha_provider_state",
       "screen_key": "research.signals",
       "view_type": "status",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 来源状态",
       "sequence": 200,
@@ -1583,7 +1651,7 @@
       "intent": "read_alpha_health",
       "screen_key": "research.signals",
       "view_type": "status",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 Alpha 健康",
       "sequence": 300,
@@ -1596,7 +1664,7 @@
       "intent": "browse_active_signals",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 有效信号",
       "sequence": 100,
@@ -1786,7 +1854,7 @@
       "intent": "read_signal_stats",
       "screen_key": "research.signals",
       "view_type": "status",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 信号统计",
       "sequence": 200,
@@ -1977,7 +2045,7 @@
       "intent": "read_unified_signal_summary",
       "screen_key": "research.signals",
       "view_type": "detail",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 统一信号",
       "sequence": 300
@@ -2568,7 +2636,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 Alpha 候选",
       "sequence": 200,
@@ -2581,7 +2649,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 Alpha 候选",
       "sequence": 200,
@@ -2594,7 +2662,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "05 Alpha 运维",
       "sequence": 500,
@@ -2607,7 +2675,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "05 Alpha 运维",
       "sequence": 500,
@@ -5380,7 +5448,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 信号检查",
       "sequence": 100,
@@ -5393,7 +5461,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 信号检查",
       "sequence": 100,
@@ -5406,7 +5474,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 信号检查",
       "sequence": 100,
@@ -5419,7 +5487,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 筛选器",
       "sequence": 100,
@@ -5432,7 +5500,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 筛选器",
       "sequence": 100
@@ -5444,7 +5512,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 筛选器",
       "sequence": 100
@@ -10848,7 +10916,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "04 情绪",
       "sequence": 400,
@@ -10861,7 +10929,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "04 情绪",
       "sequence": 400
@@ -10873,7 +10941,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "04 情绪",
       "sequence": 400
@@ -15575,7 +15643,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15601,7 +15669,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -20603,7 +20671,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 触发器",
       "sequence": 300,
@@ -20616,7 +20684,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 触发器",
       "sequence": 300
@@ -20628,7 +20696,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 触发器",
       "sequence": 300,
@@ -20641,7 +20709,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 候选池",
       "sequence": 100,
@@ -20654,7 +20722,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 候选池",
       "sequence": 100
@@ -20666,7 +20734,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 候选池",
       "sequence": 100,
@@ -20679,7 +20747,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 观察列表",
       "sequence": 200,
@@ -20692,7 +20760,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 Alpha 候选",
       "sequence": 200,
@@ -20705,7 +20773,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "04 绩效",
       "sequence": 400
@@ -20756,7 +20824,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -20782,7 +20850,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -20808,7 +20876,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -22314,7 +22382,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 信号检查",
       "sequence": 100,
@@ -22351,7 +22419,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "04 情绪",
       "sequence": 400,
@@ -23795,7 +23863,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -25576,12 +25644,12 @@
       "write_like_or_heavy": 11,
       "internal_debug_or_docs": 27
     },
-    "business_promoted_actions": 438,
+    "business_promoted_actions": 430,
     "approved_operation_actions": 23,
     "operator_first_default_actions": 1,
     "user_facing_design_annotations": 0,
-    "pruned_redundant_screen_actions": 8,
-    "pruned_runtime_only_dashboard_panels": 25,
+    "pruned_redundant_screen_actions": 0,
+    "pruned_runtime_only_dashboard_panels": 43,
     "pruned_empty_screens": 0
   },
   "publication_note": "Publish-ready TUI metadata generated from reviewed baseline plus direct safe-read tool candidates.",

@@ -812,6 +812,50 @@
       ]
     },
     {
+      "id": "dashboard.beta_alpha_workbench.current",
+      "surface": "TUI Beta market conclusion before Alpha stock selection",
+      "source_files": [
+        "apps/dashboard/application/beta_market_summary.py",
+        "apps/dashboard/application/interface_services.py",
+        "apps/dashboard/interface/tui_views.py"
+      ],
+      "required_markers": {
+        "apps/dashboard/application/beta_market_summary.py": [
+          "def build_beta_market_summary_row(",
+          "\"sentiment_decision_status\":",
+          "\"must_not_use_for_decision\": beta_blocked",
+          "\"observed_at\":"
+        ],
+        "apps/dashboard/application/interface_services.py": [
+          "def build_beta_market_summary_payload(",
+          "resolve_current_sentiment(as_of_date=target_date)",
+          "refresh_if_stale=False"
+        ],
+        "apps/dashboard/interface/tui_views.py": [
+          "class DashboardBetaMarketTuiView(APIView):",
+          "build_beta_market_summary_payload()",
+          "row.get(\"must_not_use_for_decision\", True)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "fresh_beta_context_guides_alpha_usage",
+          "test_file": "tests/unit/dashboard/test_beta_market_summary.py",
+          "test_function": "test_beta_market_summary_explains_how_to_use_alpha_when_context_is_ready"
+        },
+        {
+          "case": "blocked_beta_context_keeps_stale_sentiment_diagnostic",
+          "test_file": "tests/unit/dashboard/test_beta_market_summary.py",
+          "test_function": "test_beta_market_summary_blocks_action_but_preserves_stale_sentiment_diagnostics"
+        },
+        {
+          "case": "tui_api_exposes_decision_blockers",
+          "test_file": "tests/api/test_dashboard_api_edges.py",
+          "test_function": "test_dashboard_beta_market_summary_exposes_decision_blockers"
+        }
+      ]
+    },
+    {
       "id": "sentiment.current",
       "surface": "Latest sentiment -> Fund, Asset Analysis, Pulse and TUI decision consumers",
       "source_files": [

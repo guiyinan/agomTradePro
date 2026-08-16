@@ -219,3 +219,24 @@ def test_macro_overview_publishes_independent_sentiment_panels() -> None:
     assert panels["sentiment-trend"]["kind"] == "chart"
     assert panels["sentiment-trend"]["action_key"] == "sentiment.awareness-trend"
     assert panels["sentiment-trend"]["empty_message"] == "暂无可用的情绪趋势数据。"
+
+
+def test_research_signals_publishes_beta_then_alpha_user_journey() -> None:
+    payload = _runtime_payload()
+    screen = next(item for item in payload["screens"] if item["key"] == "research.signals")
+    panels = screen["dashboard_panels"]
+
+    assert screen["label"] == "Beta 态势与 Alpha 选股"
+    assert screen["default_action_key"] == "dashboard.beta-market-summary"
+    assert [panel["key"] for panel in panels] == [
+        "beta-market-summary",
+        "alpha-stock-ranking",
+        "actionable-candidates",
+        "active-signals",
+        "signal-create",
+    ]
+    assert panels[0]["user_priority"] == "p0"
+    assert panels[1]["action_key"] == "dashboard.alpha-ranking"
+    assert "入选理由" in [column["label"] for column in panels[1]["columns"]]
+    assert "不行动理由" in [column["label"] for column in panels[1]["columns"]]
+    assert "不等同于完整 Alpha 排名" in panels[2]["note"]

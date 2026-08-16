@@ -10,7 +10,31 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.dashboard.application.interface_services import build_dashboard_data
+from apps.dashboard.application.interface_services import (
+    build_beta_market_summary_payload,
+    build_dashboard_data,
+)
+
+
+class DashboardBetaMarketTuiView(APIView):
+    """Return the decision-safe Beta conclusion shown before Alpha selection."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        """Return one portable row for the Beta-to-Alpha research workflow."""
+
+        del request
+        row = build_beta_market_summary_payload()
+        return Response(
+            {
+                "success": True,
+                "rows": [row],
+                "total": 1,
+                "must_not_use_for_decision": bool(row.get("must_not_use_for_decision", True)),
+                "blocked_reason": str(row.get("blocked_reason") or ""),
+            }
+        )
 
 
 class DashboardTuiOverviewView(APIView):

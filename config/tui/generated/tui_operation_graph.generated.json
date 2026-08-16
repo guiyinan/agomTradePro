@@ -45,13 +45,6 @@
       "group": "system",
       "summary": "管理员维护数据、AI 与 MCP 运行面。",
       "audience": "admin"
-    },
-    {
-      "key": "api-library",
-      "label": "编译期工具候选",
-      "group": "system",
-      "summary": "仅用于候选图审核；发布时必须归并到 IA registry 定义的任务屏。",
-      "audience": "admin"
     }
   ],
   "screens": [
@@ -316,10 +309,10 @@
       "default_action_key": "regime.current",
       "user_experience": {
         "journey": "workspace",
-        "primary_task": "确认当前宏观象限与战术脉搏。",
-        "primary_outcome": "形成当天环境判断。",
+        "primary_task": "确认当前宏观象限、战术脉搏与A股情绪。",
+        "primary_outcome": "形成当天 Beta 市场态势判断。",
         "empty_state_hint": "无数据时检查数据新鲜度与同步状态。",
-        "next_step_hint": "进入政策与热点补充政策上下文。"
+        "next_step_hint": "进入 Beta 态势与 Alpha 选股查看今天的股票清单。"
       },
       "business_context": {
         "objective": "形成无后视偏差的环境判断。",
@@ -497,6 +490,14 @@
             {
               "key": "gate_effective",
               "label": "已生效"
+            },
+            {
+              "key": "review_notes",
+              "label": "审核理由"
+            },
+            {
+              "key": "rollback_reason",
+              "label": "回滚理由"
             }
           ],
           "row_actions": []
@@ -586,45 +587,79 @@
         },
         "next": {
           "key": "research.signals",
-          "label": "信号与候选"
+          "label": "Beta 态势与 Alpha 选股"
         }
       }
     },
     {
       "key": "research.signals",
-      "label": "信号与候选",
+      "label": "Beta 态势与 Alpha 选股",
       "module_key": "daily-decisions",
       "group": "daily",
       "audience": "authenticated",
-      "summary": "确认有效信号、Alpha 候选、触发器和情绪过滤。",
+      "summary": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。",
       "view_type": "datagrid",
       "default_action_key": "alpha.scores",
       "user_experience": {
         "journey": "workspace",
-        "primary_task": "筛出今天最值得推进的有效候选。",
-        "primary_outcome": "得到候选优先级与信号依据。",
-        "empty_state_hint": "无候选时核对信号、触发器与情绪过滤条件。",
-        "next_step_hint": "进入账户与持仓做执行前检查。"
+        "primary_task": "先确认 Beta 市场态势，再筛出今天最值得研究的 Alpha 股票。",
+        "primary_outcome": "得到市场参与结论、Alpha 股票清单及每只股票的入选或阻断理由。",
+        "empty_state_hint": "无候选时先看 Beta 数据可用性，再检查 Alpha 评分日、股票池和触发条件。",
+        "next_step_hint": "仅对通过 Beta 与风控约束的股票进入账户和持仓检查。"
       },
       "business_context": {
-        "objective": "把信号收敛成可行动候选。",
-        "decision_output": "有效信号和候选清单。",
+        "objective": "把 Beta 市场态势与 Alpha 横截面选股收敛为一条可解释判断链。",
+        "decision_output": "Beta 结论、Alpha 排名、建议仓位、入选理由和不行动理由。",
         "checkpoints": [
-          "可行动候选",
-          "活跃信号",
-          "Alpha 分数",
-          "情绪过滤"
+          "Beta 市场结论",
+          "Alpha 选股清单",
+          "约束与建议仓位",
+          "触发候选与证伪条件"
         ]
       },
       "dashboard_panels": [
         {
           "key": "active-signals",
-          "title": "活跃信号",
+          "title": "四、活跃信号与证伪条件",
           "kind": "datagrid",
           "action_key": "signal.active",
           "user_priority": "p0",
-          "presentation_semantic": "primary_list",
+          "presentation_semantic": "supporting_list",
           "empty_message": "当前没有活跃信号。",
+          "columns": [
+            {
+              "key": "id",
+              "label": "信号 ID"
+            },
+            {
+              "key": "asset_code",
+              "label": "标的代码"
+            },
+            {
+              "key": "direction",
+              "label": "方向"
+            },
+            {
+              "key": "logic_desc",
+              "label": "投资逻辑"
+            },
+            {
+              "key": "invalidation_logic",
+              "label": "证伪逻辑"
+            },
+            {
+              "key": "target_regime",
+              "label": "目标环境"
+            },
+            {
+              "key": "status",
+              "label": "状态"
+            },
+            {
+              "key": "rejection_reason",
+              "label": "处理理由"
+            }
+          ],
           "row_actions": []
         }
       ],
@@ -636,8 +671,8 @@
         "name": "每日投研流程",
         "step": 5,
         "total": 8,
-        "label": "信号与候选",
-        "role": "确认候选",
+        "label": "Beta 态势与 Alpha 选股",
+        "role": "先判断市场，再确认股票清单",
         "previous": {
           "key": "command-center.decision-flow",
           "label": "每日决策流"
@@ -708,7 +743,7 @@
         "role": "执行前检查",
         "previous": {
           "key": "research.signals",
-          "label": "信号与候选"
+          "label": "Beta 态势与 Alpha 选股"
         },
         "next": {
           "key": "macro-regime.strategy",
@@ -980,6 +1015,32 @@
           "user_priority": "p0",
           "presentation_semantic": "primary_list",
           "empty_message": "尚未配置个人 AI 服务商。",
+          "columns": [
+            {
+              "key": "id",
+              "label": "服务商 ID"
+            },
+            {
+              "key": "name",
+              "label": "名称"
+            },
+            {
+              "key": "provider_type_label",
+              "label": "类型"
+            },
+            {
+              "key": "default_model",
+              "label": "默认模型"
+            },
+            {
+              "key": "is_active",
+              "label": "启用"
+            },
+            {
+              "key": "priority",
+              "label": "优先级"
+            }
+          ],
           "row_actions": []
         },
         {
@@ -1097,108 +1158,6 @@
         "primary_operation_limit": 5,
         "task_group_limit": 4
       }
-    },
-    {
-      "key": "api-library.workflow",
-      "label": "决策与工作流工具",
-      "module_key": "api-library",
-      "group": "system",
-      "summary": "已发布的决策上下文、仪表盘和日常工作流工具。",
-      "view_type": "datagrid",
-      "user_experience": {
-        "journey": "toolbox",
-        "primary_task": "已发布的决策上下文、仪表盘和日常工作流工具。",
-        "primary_outcome": "已发布的决策上下文、仪表盘和日常工作流工具。",
-        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
-        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
-      },
-      "default_action_key": "auto.api.get.api.dashboard.auto-advisor-console",
-      "audience": "authenticated"
-    },
-    {
-      "key": "api-library.macro",
-      "label": "环境与策略工具",
-      "module_key": "api-library",
-      "group": "system",
-      "summary": "已发布的宏观环境、策略、节奏和市场状态工具。",
-      "view_type": "datagrid",
-      "user_experience": {
-        "journey": "toolbox",
-        "primary_task": "已发布的宏观环境、策略、节奏和市场状态工具。",
-        "primary_outcome": "已发布的宏观环境、策略、节奏和市场状态工具。",
-        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
-        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
-      },
-      "default_action_key": "auto.api.get.api.strategy.allocation-policies.active",
-      "audience": "authenticated"
-    },
-    {
-      "key": "api-library.research",
-      "label": "研究与信号工具",
-      "module_key": "api-library",
-      "group": "system",
-      "summary": "已发布的研究、因子、信号、回测和标的分析工具。",
-      "view_type": "datagrid",
-      "user_experience": {
-        "journey": "toolbox",
-        "primary_task": "已发布的研究、因子、信号、回测和标的分析工具。",
-        "primary_outcome": "已发布的研究、因子、信号、回测和标的分析工具。",
-        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
-        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
-      },
-      "default_action_key": "auto.api.get.api.factor.portfolio",
-      "audience": "authenticated"
-    },
-    {
-      "key": "api-library.account",
-      "label": "账户与组合工具",
-      "module_key": "api-library",
-      "group": "system",
-      "summary": "已发布的账户、组合、资产和模拟交易工具。",
-      "view_type": "datagrid",
-      "user_experience": {
-        "journey": "toolbox",
-        "primary_task": "已发布的账户、组合、资产和模拟交易工具。",
-        "primary_outcome": "已发布的账户、组合、资产和模拟交易工具。",
-        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
-        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
-      },
-      "default_action_key": "auto.api.get.api.account.currencies.base",
-      "audience": "authenticated"
-    },
-    {
-      "key": "api-library.system",
-      "label": "系统与 AI 工具",
-      "module_key": "api-library",
-      "group": "system",
-      "summary": "已发布的系统健康、AI 能力、终端和数据中心工具。",
-      "view_type": "datagrid",
-      "user_experience": {
-        "journey": "toolbox",
-        "primary_task": "已发布的系统健康、AI 能力、终端和数据中心工具。",
-        "primary_outcome": "已发布的系统健康、AI 能力、终端和数据中心工具。",
-        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
-        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
-      },
-      "default_action_key": "auto.api.get.api.broker-execution",
-      "audience": "authenticated"
-    },
-    {
-      "key": "api-library.parameterized",
-      "label": "带条件查询",
-      "module_key": "api-library",
-      "group": "system",
-      "summary": "需要输入对象编号、代码或主键后才能执行的详情工具。",
-      "view_type": "datagrid",
-      "user_experience": {
-        "journey": "toolbox",
-        "primary_task": "需要输入对象编号、代码或主键后才能执行的详情工具。",
-        "primary_outcome": "需要输入对象编号、代码或主键后才能执行的详情工具。",
-        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
-        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
-      },
-      "default_action_key": "param.api.get.api.ai-capabilities.capabilities.str.capability_key",
-      "audience": "authenticated"
     }
   ],
   "actions": [
@@ -1662,7 +1621,7 @@
       "intent": "browse_alpha_scores",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "view_model": {
         "rows_path": "stocks"
@@ -1677,7 +1636,7 @@
       "intent": "read_alpha_provider_state",
       "screen_key": "research.signals",
       "view_type": "status",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 来源状态",
       "sequence": 200,
@@ -1692,7 +1651,7 @@
       "intent": "read_alpha_health",
       "screen_key": "research.signals",
       "view_type": "status",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 Alpha 健康",
       "sequence": 300,
@@ -1705,7 +1664,7 @@
       "intent": "browse_active_signals",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 有效信号",
       "sequence": 100,
@@ -1895,7 +1854,7 @@
       "intent": "read_signal_stats",
       "screen_key": "research.signals",
       "view_type": "status",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 信号统计",
       "sequence": 200,
@@ -2086,7 +2045,7 @@
       "intent": "read_unified_signal_summary",
       "screen_key": "research.signals",
       "view_type": "detail",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 统一信号",
       "sequence": 300
@@ -2677,7 +2636,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 Alpha 候选",
       "sequence": 200,
@@ -2690,7 +2649,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 Alpha 候选",
       "sequence": 200,
@@ -2703,7 +2662,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "05 Alpha 运维",
       "sequence": 500,
@@ -2716,7 +2675,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "05 Alpha 运维",
       "sequence": 500,
@@ -5489,7 +5448,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 信号检查",
       "sequence": 100,
@@ -5502,7 +5461,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 信号检查",
       "sequence": 100,
@@ -5515,7 +5474,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 信号检查",
       "sequence": 100,
@@ -5528,7 +5487,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 筛选器",
       "sequence": 100,
@@ -5541,7 +5500,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 筛选器",
       "sequence": 100
@@ -5553,7 +5512,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 筛选器",
       "sequence": 100
@@ -10957,7 +10916,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "04 情绪",
       "sequence": 400,
@@ -10970,7 +10929,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "04 情绪",
       "sequence": 400
@@ -10982,7 +10941,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "04 情绪",
       "sequence": 400
@@ -15684,7 +15643,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15710,7 +15669,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -20712,7 +20671,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 触发器",
       "sequence": 300,
@@ -20725,7 +20684,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 触发器",
       "sequence": 300
@@ -20737,7 +20696,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 触发器",
       "sequence": 300,
@@ -20750,7 +20709,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 候选池",
       "sequence": 100,
@@ -20763,7 +20722,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 候选池",
       "sequence": 100
@@ -20775,7 +20734,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 候选池",
       "sequence": 100,
@@ -20788,7 +20747,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 观察列表",
       "sequence": 200,
@@ -20801,7 +20760,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 Alpha 候选",
       "sequence": 200,
@@ -20814,7 +20773,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "04 绩效",
       "sequence": 400
@@ -20865,7 +20824,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -20891,7 +20850,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -20917,7 +20876,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -21234,7 +21193,7 @@
       "fields": [
         {
           "key": "id",
-          "label": "ID",
+          "label": "模板 ID",
           "input_type": "number",
           "required": false,
           "value_type": "integer",
@@ -22423,7 +22382,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 信号检查",
       "sequence": 100,
@@ -22460,7 +22419,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "04 情绪",
       "sequence": 400,
@@ -23904,7 +23863,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
+      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -25550,457 +25509,66 @@
     },
     {
       "key": "auto.api.get.api.decision-ready",
-      "label": "Decision Ready",
+      "label": "决策 Ready",
       "endpoint": "/api/decision-ready/",
       "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "API endpoint: GET api/decision-ready/",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.decision.advisor.sheet",
-      "label": "Decision Advisor Sheet",
-      "endpoint": "/api/decision/advisor/sheet/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.workflow",
-      "view_type": "auto",
-      "description": "Handle GET /api/decision/advisor/sheet/?account_id=<id>.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.account.positions",
-      "label": "Account Positions",
-      "endpoint": "/api/account/positions/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.account",
-      "view_type": "auto",
-      "description": "Position API endpoints backed by the unified ledger.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.account.volatility",
-      "label": "Account Volatility",
-      "endpoint": "/api/account/volatility/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.account",
-      "view_type": "auto",
-      "description": "API endpoint: GET api/account/volatility/",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.account.currencies.base",
-      "label": "Account Currencies Base",
-      "endpoint": "/api/account/currencies/base/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.account",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "id",
-          "label": "ID",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入ID",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "code",
-          "label": "代码",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入代码",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "name",
-          "label": "Name",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Name",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "symbol",
-          "label": "代码",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入代码",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "is_base",
-          "label": "Is Base",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Is Base",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "is_active",
-          "label": "Is Active",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Is Active",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "precision",
-          "label": "Precision",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Precision",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Created At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "updated_at",
-          "label": "Updated At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Updated At",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "币种 API ViewSet (只读)\n\n- GET /api/account/currencies/ - 获取币种列表\n- GET /api/account/currencies/{id}/ - 获取币种详情\n- GET /api/account/currencies/base/ - 获取基准货币",
-      "source": "api-collector:candidate"
+      "screen_key": "command-center.decision-flow",
+      "view_type": "detail",
+      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "常用任务",
+      "sequence": 900,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.strategy.allocation-policies.active",
-      "label": "Strategy Allocation Policies Active",
+      "label": "策略 全部ocation Policie 当前",
       "endpoint": "/api/strategy/allocation-policies/active/",
       "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.macro",
-      "view_type": "auto",
-      "description": "Read the active policy without mutating governance state.",
-      "source": "api-collector:candidate"
+      "screen_key": "macro-regime.strategy",
+      "view_type": "status",
+      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "常用任务",
+      "sequence": 900,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.strategy.allocation-policies.versions",
-      "label": "Strategy Allocation Policies Versions",
+      "label": "策略 全部ocation Policie Version",
       "endpoint": "/api/strategy/allocation-policies/versions/",
       "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.macro",
-      "view_type": "auto",
-      "description": "Return newest-first immutable version summaries.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.factor.portfolio",
-      "label": "Factor Portfolio",
-      "endpoint": "/api/factor/portfolio/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.research",
-      "view_type": "auto",
-      "description": "ViewSet for non-model factor actions.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.risk-center",
-      "label": "Risk Center",
-      "endpoint": "/api/risk-center/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "API endpoint: GET api/risk-center/",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.risk-center.floor",
-      "label": "Risk Center Floor",
-      "endpoint": "/api/risk-center/floor/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "API endpoint: GET api/risk-center/floor/",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.risk-center.templates",
-      "label": "Risk Center Templates",
-      "endpoint": "/api/risk-center/templates/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "API endpoint: GET api/risk-center/templates/",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.risk-center.account-policies",
-      "label": "Risk Center Account Policies",
-      "endpoint": "/api/risk-center/account-policies/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "API endpoint: GET api/risk-center/account-policies/",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.risk-center.exceptions",
-      "label": "Risk Center Exceptions",
-      "endpoint": "/api/risk-center/exceptions/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "API endpoint: GET api/risk-center/exceptions/",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.risk-center.effective-policy",
-      "label": "Risk Center Effective Policy",
-      "endpoint": "/api/risk-center/effective-policy/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "API endpoint: GET api/risk-center/effective-policy/",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.risk-center.daily-report",
-      "label": "Risk Center Daily Report",
-      "endpoint": "/api/risk-center/daily-report/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "API endpoint: GET api/risk-center/daily-report/",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.risk-center.stress-scenarios",
-      "label": "Risk Center Stress Scenarios",
-      "endpoint": "/api/risk-center/stress-scenarios/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "List repository-backed scenario definitions and selected revisions.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.risk-center.stress-scenario-sets.active",
-      "label": "Risk Center Stress Scenario Sets Active",
-      "endpoint": "/api/risk-center/stress-scenario-sets/active/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "Return the sole active set revision for a production scope.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.risk-center.stress-scenario-sets.impact-preview",
-      "label": "Risk Center Stress Scenario Sets Impact Preview",
-      "endpoint": "/api/risk-center/stress-scenario-sets/impact-preview/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "Fail closed until canonical portfolio and research evidence ports are wired.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.risk-center.research.market-state",
-      "label": "Risk Center Research Market State",
-      "endpoint": "/api/risk-center/research/market-state/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "Fail closed until canonical portfolio and research evidence ports are wired.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.risk-center.research.decision-scorecard",
-      "label": "Risk Center Research Decision Scorecard",
-      "endpoint": "/api/risk-center/research/decision-scorecard/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "Fail closed until canonical portfolio and research evidence ports are wired.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.risk-center.research.strategy-brief",
-      "label": "Risk Center Research Strategy Brief",
-      "endpoint": "/api/risk-center/research/strategy-brief/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "Fail closed until canonical portfolio and research evidence ports are wired.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.dashboard.auto-advisor-console",
-      "label": "Dashboard Auto Advisor Console",
-      "endpoint": "/api/dashboard/auto-advisor-console/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.workflow",
-      "view_type": "auto",
-      "description": "Homepage auto-advisor console payload.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.dashboard.auto-advisor-query",
-      "label": "Dashboard Auto Advisor Query",
-      "endpoint": "/api/dashboard/auto-advisor-query/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.workflow",
-      "view_type": "auto",
-      "description": "Deterministic personal auto-advisor Q&A payload.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.dashboard.auto-advisor-weekly-report",
-      "label": "Dashboard Auto Advisor Weekly Report",
-      "endpoint": "/api/dashboard/auto-advisor-weekly-report/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.workflow",
-      "view_type": "auto",
-      "description": "Personal weekly auto-advisor report payload.\n\nGET is read-only and returns a generated report payload.\nPOST generates the report and persists it with diary, notification, and audit outputs.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.broker-execution",
-      "label": "Broker Execution",
-      "endpoint": "/api/broker-execution/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "Return strict persisted-only live execution readiness.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.broker-execution.orders",
-      "label": "Broker Execution Orders",
-      "endpoint": "/api/broker-execution/orders/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "Return a scoped live-order catalog.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.broker-execution.connections",
-      "label": "Broker Execution Connections",
-      "endpoint": "/api/broker-execution/connections/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "Return strict persisted-only Agent/QMT connection snapshots.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.broker-execution.reconciliations",
-      "label": "Broker Execution Reconciliations",
-      "endpoint": "/api/broker-execution/reconciliations/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "Return strict persisted reconciliation runs.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.broker-execution.audit",
-      "label": "Broker Execution Audit",
-      "endpoint": "/api/broker-execution/audit/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "Return scoped append-only audit events.",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.broker-execution.account-access",
-      "label": "Broker Execution Account Access",
-      "endpoint": "/api/broker-execution/account-access/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "Admin-only account grant management with preview and audit.",
-      "source": "api-collector:candidate"
+      "screen_key": "macro-regime.strategy",
+      "view_type": "status",
+      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "常用任务",
+      "sequence": 900,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.data-center.providers.status",
-      "label": "Data Center Providers Status",
+      "label": "数据中心 服务商 状态",
       "endpoint": "/api/data-center/providers/status/",
       "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "API endpoint: GET api/data-center/providers/status/",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "auto.api.get.api.metrics",
-      "label": "Metrics",
-      "endpoint": "/api/metrics/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "api-library.system",
-      "view_type": "auto",
-      "description": "API endpoint: GET api/metrics/",
-      "source": "api-collector:candidate"
-    },
-    {
-      "key": "param.api.get.api.alpha.factor-exposure.str.stock_code",
-      "label": "Alpha / Factor Exposure / 详情",
-      "endpoint": "/api/alpha/factor-exposure/<str:stock_code>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "stock_code",
-          "label": "Stock Code",
-          "input_type": "text",
-          "required": true,
-          "default": "",
-          "placeholder": "输入Stock Code",
-          "binding": "path",
-          "value_type": "string",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "输入必要条件后只读查看：Alpha / Factor Exposure / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
+      "screen_key": "api-library.data-center",
+      "view_type": "status",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 数据中心",
+      "sequence": 100,
+      "task_tier": "support",
+      "result_semantics": [
+        "primary_status"
+      ]
     },
     {
       "key": "param.api.get.api.strategy.allocation-policies.versions.int.version",
-      "label": "策略 / Allocation Policies / Versions / 详情",
+      "label": "策略 / 全部ocation Policie / Version / 详情",
       "endpoint": "/api/strategy/allocation-policies/versions/<int:version>/",
       "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
+      "screen_key": "macro-regime.strategy",
+      "view_type": "status",
       "fields": [
         {
           "key": "version",
@@ -26014,368 +25582,19 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "输入必要条件后只读查看：策略 / Allocation Policies / Versions / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.equity.regime-correlation.stock_code",
-      "label": "股票 / Regime Correlation / 详情",
-      "endpoint": "/api/equity/regime-correlation/<stock_code>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "stock_code",
-          "label": "Stock Code",
-          "input_type": "text",
-          "required": true,
-          "default": "",
-          "placeholder": "输入Stock Code",
-          "binding": "path",
-          "value_type": "string",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "输入必要条件后只读查看：股票 / Regime Correlation / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.equity.valuation.stock_code",
-      "label": "股票 / 估值 / 详情",
-      "endpoint": "/api/equity/valuation/<stock_code>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "stock_code",
-          "label": "Stock Code",
-          "input_type": "text",
-          "required": true,
-          "default": "",
-          "placeholder": "输入Stock Code",
-          "binding": "path",
-          "value_type": "string",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "输入必要条件后只读查看：股票 / 估值 / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.equity.financials.stock_code",
-      "label": "股票 / Financials / 详情",
-      "endpoint": "/api/equity/financials/<stock_code>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "stock_code",
-          "label": "Stock Code",
-          "input_type": "text",
-          "required": true,
-          "default": "",
-          "placeholder": "输入Stock Code",
-          "binding": "path",
-          "value_type": "string",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "输入必要条件后只读查看：股票 / Financials / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.equity.valuation-repair.stock_code.....history",
-      "label": "股票 / Valuation Repair / ]+) / History",
-      "endpoint": "/api/equity/valuation-repair/<stock_code>[^/]+)/history/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "stock_code",
-          "label": "Stock Code",
-          "input_type": "text",
-          "required": true,
-          "default": "",
-          "placeholder": "输入Stock Code",
-          "binding": "path",
-          "value_type": "string",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "输入必要条件后只读查看：股票 / Valuation Repair / ]+) / History。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.equity.valuation-repair.stock_code",
-      "label": "股票 / Valuation Repair / ]+)",
-      "endpoint": "/api/equity/valuation-repair/<stock_code>[^/]+)/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "stock_code",
-          "label": "Stock Code",
-          "input_type": "text",
-          "required": true,
-          "default": "",
-          "placeholder": "输入Stock Code",
-          "binding": "path",
-          "value_type": "string",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "输入必要条件后只读查看：股票 / Valuation Repair / ]+)。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.equity.intraday.stock_code",
-      "label": "股票 / Intraday / 详情",
-      "endpoint": "/api/equity/intraday/<stock_code>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "stock_code",
-          "label": "Stock Code",
-          "input_type": "text",
-          "required": true,
-          "default": "",
-          "placeholder": "输入Stock Code",
-          "binding": "path",
-          "value_type": "string",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "输入必要条件后只读查看：股票 / Intraday / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.equity.technical.stock_code",
-      "label": "股票 / Technical / 详情",
-      "endpoint": "/api/equity/technical/<stock_code>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "stock_code",
-          "label": "Stock Code",
-          "input_type": "text",
-          "required": true,
-          "default": "",
-          "placeholder": "输入Stock Code",
-          "binding": "path",
-          "value_type": "string",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "输入必要条件后只读查看：股票 / Technical / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.sector.score.sector_identifier",
-      "label": "板块 / Score / 详情",
-      "endpoint": "/api/sector/score/<sector_identifier>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "sector_identifier",
-          "label": "Sector Identifier",
-          "input_type": "text",
-          "required": true,
-          "default": "",
-          "placeholder": "输入Sector Identifier",
-          "binding": "path",
-          "value_type": "string",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "输入必要条件后只读查看：板块 / Score / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.realtime.alerts.int.alert_id",
-      "label": "Realtime / Alerts / 详情",
-      "endpoint": "/api/realtime/alerts/<int:alert_id>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "alert_id",
-          "label": "Alert Id",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入Alert Id",
-          "binding": "path",
-          "value_type": "integer",
-          "presentation_semantic": "primary_selector"
-        }
-      ],
-      "description": "输入必要条件后只读查看：Realtime / Alerts / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.risk-center.templates.int.template_id",
-      "label": "Risk Center / 模板 / 详情",
-      "endpoint": "/api/risk-center/templates/<int:template_id>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "template_id",
-          "label": "Template Id",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入Template Id",
-          "binding": "path",
-          "value_type": "integer",
-          "presentation_semantic": "primary_selector"
-        }
-      ],
-      "description": "输入必要条件后只读查看：Risk Center / 模板 / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.risk-center.account-policies.by-account.int.account_id",
-      "label": "Risk Center / Account Policies / 按账户 / 详情",
-      "endpoint": "/api/risk-center/account-policies/by-account/<int:account_id>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "account_id",
-          "label": "账户 ID",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入账户 ID",
-          "binding": "path",
-          "value_type": "integer",
-          "presentation_semantic": "primary_selector"
-        }
-      ],
-      "description": "输入必要条件后只读查看：Risk Center / Account Policies / 按账户 / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.risk-center.stress-scenarios.str.scenario_key",
-      "label": "Risk Center / Stress Scenarios / 详情",
-      "endpoint": "/api/risk-center/stress-scenarios/<str:scenario_key>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "scenario_key",
-          "label": "Scenario Key",
-          "input_type": "text",
-          "required": true,
-          "default": "",
-          "placeholder": "输入Scenario Key",
-          "binding": "path",
-          "value_type": "string",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "输入必要条件后只读查看：Risk Center / Stress Scenarios / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.broker-execution.orders.uuid.client_order_id",
-      "label": "Broker Execution / Orders / 详情",
-      "endpoint": "/api/broker-execution/orders/<uuid:client_order_id>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "client_order_id",
-          "label": "Client Order Id",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入Client Order Id",
-          "binding": "path",
-          "value_type": "integer",
-          "presentation_semantic": "primary_selector"
-        }
-      ],
-      "description": "输入必要条件后只读查看：Broker Execution / Orders / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.ai-capabilities.capabilities.str.capability_key",
-      "label": "Ai Capabilities / Capabilities / 详情",
-      "endpoint": "/api/ai-capabilities/capabilities/<str:capability_key>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "capability_key",
-          "label": "Capability Key",
-          "input_type": "text",
-          "required": true,
-          "default": "",
-          "placeholder": "输入Capability Key",
-          "binding": "path",
-          "value_type": "string",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "输入必要条件后只读查看：Ai Capabilities / Capabilities / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
+      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "source": "approved:parameterized-promoted",
+      "task_group": "05 条件查询",
+      "sequence": 500,
+      "task_tier": "advanced"
     },
     {
       "key": "param.api.get.api.data-center.pit-manifests.str.manifest_id",
-      "label": "数据中心 / Pit Manifests / 详情",
+      "label": "数据中心 / Pit Manifest / 详情",
       "endpoint": "/api/data-center/pit-manifests/<str:manifest_id>/",
       "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
+      "screen_key": "api-library.data-center",
+      "view_type": "status",
       "fields": [
         {
           "key": "manifest_id",
@@ -26389,35 +25608,11 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "输入必要条件后只读查看：数据中心 / Pit Manifests / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
-    },
-    {
-      "key": "param.api.get.api.portfolio.transition-plans.str.plan_id",
-      "label": "Portfolio / Transition Plans / 详情",
-      "endpoint": "/api/portfolio/transition-plans/<str:plan_id>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.parameterized",
-      "view_type": "auto",
-      "fields": [
-        {
-          "key": "plan_id",
-          "label": "计划 ID",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入计划 ID",
-          "binding": "path",
-          "value_type": "integer",
-          "presentation_semantic": "primary_selector"
-        }
-      ],
-      "description": "输入必要条件后只读查看：Portfolio / Transition Plans / 详情。",
-      "source": "api-collector:parameterized-candidate",
-      "task_group": "需要输入",
-      "sequence": 800
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "source": "approved:parameterized-promoted",
+      "task_group": "09 条件查询",
+      "sequence": 900,
+      "task_tier": "advanced"
     }
   ],
   "promotion_review": {
@@ -26448,7 +25643,14 @@
       "path_parameters": 13,
       "write_like_or_heavy": 11,
       "internal_debug_or_docs": 27
-    }
+    },
+    "business_promoted_actions": 438,
+    "approved_operation_actions": 23,
+    "operator_first_default_actions": 1,
+    "user_facing_design_annotations": 0,
+    "pruned_redundant_screen_actions": 8,
+    "pruned_runtime_only_dashboard_panels": 43,
+    "pruned_empty_screens": 0
   },
   "publication_note": "Publish-ready TUI metadata generated from reviewed baseline plus direct safe-read tool candidates.",
   "schema_version": "tui-metadata.v3",

@@ -12,7 +12,10 @@ from apps.dashboard.interface import (
     portfolio_views,
     workflow_views,
 )
-from apps.dashboard.interface.tui_views import DashboardTuiOverviewView
+from apps.dashboard.interface.tui_views import (
+    DashboardBetaMarketTuiView,
+    DashboardTuiOverviewView,
+)
 
 app_name = "dashboard_api"
 
@@ -45,6 +48,7 @@ def dashboard_api_root(request: HttpRequest) -> JsonResponse:
                 "v1_signal_status": "/api/dashboard/v1/signal-status/",
                 "v1_alpha_decision_chain": "/api/dashboard/v1/alpha-decision-chain/",
                 "alpha_stocks": "/api/dashboard/alpha/stocks/",
+                "beta_market_summary": "/api/dashboard/tui/beta-market-summary/",
                 "alpha_refresh": "/api/dashboard/alpha/refresh/",
                 "alpha_exit_panel": "/api/dashboard/alpha/exit-panel/",
                 "alpha_history": "/api/dashboard/alpha/history/",
@@ -65,6 +69,11 @@ def dashboard_api_root(request: HttpRequest) -> JsonResponse:
 urlpatterns = [
     path("", dashboard_api_root, name="api_root"),
     path("tui/overview/", DashboardTuiOverviewView.as_view(), name="tui_overview"),
+    path(
+        "tui/beta-market-summary/",
+        DashboardBetaMarketTuiView.as_view(),
+        name="tui_beta_market_summary",
+    ),
     path("attention-items/", macro_views.attention_items_htmx, name="attention_items"),
     path("regime-status/", macro_views.regime_status_htmx, name="regime_status"),
     path("pulse-card/", macro_views.pulse_card_htmx, name="pulse_card"),

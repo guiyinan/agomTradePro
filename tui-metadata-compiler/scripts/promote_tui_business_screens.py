@@ -2754,6 +2754,12 @@ def _prune_runtime_only_dashboard_panels(payload: dict[str, Any]) -> int:
                     kept_row_actions.append(row_action)
                 panel["row_actions"] = kept_row_actions
             kept_panels.append(panel)
+        if kept_panels and not any(
+            isinstance(panel, dict) and panel.get("user_priority") == "p0" for panel in kept_panels
+        ):
+            first_panel = kept_panels[0]
+            if isinstance(first_panel, dict):
+                first_panel["user_priority"] = "p0"
         screen["dashboard_panels"] = kept_panels
     return removed
 
