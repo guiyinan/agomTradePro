@@ -17,6 +17,7 @@ from apps.broker_execution.domain.rules import (
     target_status_for_order_action,
 )
 
+from .broker_repository_audit_access import BrokerExecutionAuditAccessMixin
 from .broker_repository_contract import BrokerExecutionRepositoryMixinSupport
 from .models import (
     BrokerAccountAccessModel,
@@ -39,7 +40,7 @@ def _decimal_text(value: Decimal | None) -> str | None:
     return str(value) if value is not None else None
 
 
-class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
+class BrokerExecutionAccessMixin(BrokerExecutionAuditAccessMixin):
     """Scoped access checks and read-model projections."""
 
     @staticmethod
@@ -789,86 +790,3 @@ class BrokerExecutionAccessMixin(BrokerExecutionRepositoryMixinSupport):
                 ]
             rows.append(row)
         return rows
-
-    def list_account_access_grants(self, *, actor_id: int) -> list[dict[str, Any]]:
-        """Return account grants for the already-authorized administrator."""
-
-        return [
-            {
-                "id": grant.pk,
-                "user_id": grant.user_id,
-                "username": grant.user.username,
-                "account_id": grant.account_id,
-                "can_approve": grant.can_approve,
-                "can_trade": grant.can_trade,
-                "is_active": grant.is_active,
-                "granted_by": (grant.granted_by.username if grant.granted_by is not None else None),
-                "updated_at": grant.updated_at.isoformat(),
-            }
-            for grant in BrokerAccountAccessModel._default_manager.select_related(
-                "user", "granted_by"
-            ).order_by("account_id", "user__username")
-        ]
-
-    def list_reconciliations(
-        self, *, user_id: int, is_admin: bool, limit: int = 100
-    ) -> list[dict[str, Any]]:
-        queryset = self._user_scope(
-            ReconciliationRunModel._default_manager.prefetch_related("differences"),
-            user_id=user_id,
-            is_admin=is_admin,
-        )
-        return [
-            {
-                "id": run.id,
-                "account_id": run.account_id,
-                "status": run.status,
-                "order_difference_count": run.order_difference_count,
-                "fill_difference_count": run.fill_difference_count,
-                "cash_difference_count": run.cash_difference_count,
-                "position_difference_count": run.position_difference_count,
-                "summary": run.summary or {},
-                "differences": [
-                    {
-                        "dimension": item.dimension,
-                        "difference_key": item.difference_key,
-                        "severity": item.severity,
-                        "expected": item.expected or {},
-                        "actual": item.actual or {},
-                        "reason": item.reason,
-                        "status": item.status,
-                    }
-                    for item in run.differences.all()
-                ],
-                "started_at": run.started_at.isoformat(),
-                "completed_at": run.completed_at.isoformat() if run.completed_at else None,
-            }
-            for run in queryset[: max(1, min(int(limit), 200))]
-        ]
-
-    def list_audits(
-        self, *, user_id: int, is_admin: bool, limit: int = 100
-    ) -> list[dict[str, Any]]:
-        queryset = self._user_scope(
-            BrokerExecutionAuditModel._default_manager.select_related("actor"),
-            user_id=user_id,
-            is_admin=is_admin,
-        )
-        return [
-            {
-                "id": event.id,
-                "actor_type": event.actor_type,
-                "actor_id": event.actor_id,
-                "actor_username": event.actor.username if event.actor else "",
-                "action": event.action,
-                "account_id": event.account_id,
-                "resource_type": event.resource_type,
-                "resource_id": event.resource_id,
-                "before": event.before or {},
-                "after": event.after or {},
-                "reason": event.reason,
-                "request_id": event.request_id,
-                "created_at": event.created_at.isoformat(),
-            }
-            for event in queryset[: max(1, min(int(limit), 200))]
-        ]

@@ -6,13 +6,13 @@
       "application_consumer": 157,
       "beat_schedule": 57,
       "capability_runtime": 25,
-      "celery_dispatch_edge": 18,
+      "celery_dispatch_edge": 16,
       "celery_task": 123,
       "compatibility_facade": 90,
       "current_data_surface": 50,
       "dynamic_import_edge": 10,
       "management_command": 25,
-      "management_command_edge": 58,
+      "management_command_edge": 56,
       "mcp_tool": 40,
       "migration_evidence": 14,
       "operational_dispatch_edge": 60,
@@ -30,13 +30,13 @@
       "workflow_step": 9
     },
     "by_status": {
-      "active_public": 701,
-      "adjacent_operational": 287,
-      "candidate-review": 6,
+      "active_public": 700,
+      "adjacent_operational": 290,
+      "candidate-review": 0,
       "compatibility": 133,
       "retired_blocked": 0
     },
-    "total": 1127
+    "total": 1123
   },
   "entries": [
     {
@@ -2642,28 +2642,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:1037",
-      "locator": "line:1037",
-      "path": "apps/alpha/application/tasks.py",
-      "status": "active_public",
-      "symbol": "delay",
-      "target": "apps.alpha.application.tasks.qlib_predict_scores"
-    },
-    {
-      "category": "celery_dispatch_edge",
-      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:757",
-      "locator": "line:757",
-      "path": "apps/alpha/application/tasks.py",
-      "status": "active_public",
-      "symbol": "delay",
-      "target": "apps.alpha.application.tasks.qlib_predict_scores"
-    },
-    {
-      "category": "celery_dispatch_edge",
-      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:841",
-      "locator": "line:841",
+      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:761",
+      "locator": "line:761",
       "path": "apps/alpha/application/tasks.py",
       "status": "active_public",
       "symbol": "delay",
@@ -6301,26 +6281,6 @@
     },
     {
       "category": "management_command_edge",
-      "evidence": "call_command target is external or runtime-selected",
-      "id": "management_command_edge:scripts/record_web_to_tui_candidate_evidence.py:dynamic-command:line:886",
-      "locator": "line:886",
-      "path": "scripts/record_web_to_tui_candidate_evidence.py",
-      "status": "adjacent_operational",
-      "symbol": "dynamic-command",
-      "target": "dynamic-command"
-    },
-    {
-      "category": "management_command_edge",
-      "evidence": "call_command target is external or runtime-selected",
-      "id": "management_command_edge:scripts/record_web_to_tui_candidate_evidence.py:dynamic-command:line:902",
-      "locator": "line:902",
-      "path": "scripts/record_web_to_tui_candidate_evidence.py",
-      "status": "adjacent_operational",
-      "symbol": "dynamic-command",
-      "target": "dynamic-command"
-    },
-    {
-      "category": "management_command_edge",
       "evidence": "execute_from_command_line resolves to apps/alpha/management/commands/train_qlib_model.py",
       "id": "management_command_edge:scripts/train_qlib_model.py:train_qlib_model:line:29",
       "locator": "line:29",
@@ -6851,11 +6811,11 @@
     },
     {
       "category": "migration_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "registered Data Center macro-factor source migration evidence",
       "id": "migration_evidence:tests/migrations/test_data_center_macro_factor_research_source_migration.py:test_data_center_macro_factor_research_source_migration:",
       "locator": "",
       "path": "tests/migrations/test_data_center_macro_factor_research_source_migration.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "test_data_center_macro_factor_research_source_migration",
       "target": ""
     },
@@ -9461,11 +9421,11 @@
     },
     {
       "category": "runbook",
-      "evidence": "operational runbook keyword discovery; governance review required",
+      "evidence": "reviewed VPS deployment evidence retained as adjacent operational documentation",
       "id": "runbook:docs/deployment/vps-deployment-evidence-2026-08-15.md:vps-deployment-evidence-2026-08-15:",
       "locator": "",
       "path": "docs/deployment/vps-deployment-evidence-2026-08-15.md",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "vps-deployment-evidence-2026-08-15",
       "target": ""
     },
@@ -10871,11 +10831,11 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed PostgreSQL concurrency evidence owned by the Audit application",
       "id": "test_evidence:tests/component/audit/test_system_audit_postgres_concurrency.py:test_system_audit_postgres_concurrency:",
       "locator": "",
       "path": "tests/component/audit/test_system_audit_postgres_concurrency.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_system_audit_postgres_concurrency",
       "target": ""
     },
@@ -10921,11 +10881,11 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed PostgreSQL concurrency evidence owned by Research",
       "id": "test_evidence:tests/component/research/test_evidence_scope_source_v1_postgres_concurrency.py:test_evidence_scope_source_v1_postgres_concurrency:",
       "locator": "",
       "path": "tests/component/research/test_evidence_scope_source_v1_postgres_concurrency.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_evidence_scope_source_v1_postgres_concurrency",
       "target": ""
     },
@@ -10961,21 +10921,21 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed PostgreSQL settings audit concurrency evidence",
       "id": "test_evidence:tests/settings_audit_postgres_concurrency.py:settings_audit_postgres_concurrency:",
       "locator": "",
       "path": "tests/settings_audit_postgres_concurrency.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "settings_audit_postgres_concurrency",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed PostgreSQL settings evidence-scope concurrency evidence",
       "id": "test_evidence:tests/settings_evidence_scope_source_v1_postgres.py:settings_evidence_scope_source_v1_postgres:",
       "locator": "",
       "path": "tests/settings_evidence_scope_source_v1_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "settings_evidence_scope_source_v1_postgres",
       "target": ""
     },
@@ -11323,7 +11283,7 @@
     "celery_tasks": 88,
     "current_data_contracts": 50,
     "legacy_entrypoints_and_wrappers": 0,
-    "operational_governance_rules": 12,
+    "operational_governance_rules": 18,
     "runtime_config_keys": 45
   },
   "source_contracts": [

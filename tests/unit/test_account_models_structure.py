@@ -13,9 +13,25 @@ from apps.account.infrastructure import models
 REPO_ROOT = Path(__file__).resolve().parents[2]
 AGGREGATOR_MODULE = "apps.account.infrastructure.models"
 OWNER_MODULES = (
+    "apps.account.infrastructure.account_actor_authority_raw_source_models_v3",
+    "apps.account.infrastructure.account_identity_raw_source_models",
+    "apps.account.infrastructure.account_identity_snapshot_models",
+    "apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_models",
+    "apps.account.infrastructure.account_owner_assignment_evidence_models",
+    "apps.account.infrastructure.account_owner_assignment_evidence_v2_models",
+    "apps.account.infrastructure.account_owner_assignment_evidence_v3_models",
+    "apps.account.infrastructure.account_owner_assignment_provenance_receipt_models",
+    "apps.account.infrastructure.account_owner_assignment_provenance_receipt_v2_models",
+    "apps.account.infrastructure.account_owner_assignment_provenance_receipt_v3_models",
+    "apps.account.infrastructure.account_rbac_authority_mutation_binding_v3_models",
+    "apps.account.infrastructure.allocated_physical_account_row_observation_v3_models",
+    "apps.account.infrastructure.canonical_account_creation_consumption_models",
+    "apps.account.infrastructure.canonical_account_creation_models",
     "apps.account.infrastructure.identity_models",
     "apps.account.infrastructure.classification_models",
     "apps.account.infrastructure.portfolio_models",
+    "apps.account.infrastructure.physical_account_row_observation_models",
+    "apps.account.infrastructure.physical_account_row_observation_v2_models",
     "apps.account.infrastructure.trading_config_models",
     "apps.account.infrastructure.documentation_models",
 )

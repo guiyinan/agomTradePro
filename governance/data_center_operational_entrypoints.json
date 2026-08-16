@@ -179,6 +179,48 @@
         ".agents/skills/vps-hot-update-agomtradepro/SKILL.md"
       ],
       "status": "adjacent_operational"
+    },
+    {
+      "category": "migration_evidence",
+      "evidence": "registered Data Center macro-factor source migration evidence",
+      "path": "tests/migrations/test_data_center_macro_factor_research_source_migration.py",
+      "symbol": "test_data_center_macro_factor_research_source_migration",
+      "status": "active_public"
+    },
+    {
+      "category": "runbook",
+      "evidence": "reviewed VPS deployment evidence retained as adjacent operational documentation",
+      "path": "docs/deployment/vps-deployment-evidence-2026-08-15.md",
+      "symbol": "vps-deployment-evidence-2026-08-15",
+      "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed PostgreSQL concurrency evidence owned by the Audit application",
+      "path": "tests/component/audit/test_system_audit_postgres_concurrency.py",
+      "symbol": "test_system_audit_postgres_concurrency",
+      "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed PostgreSQL concurrency evidence owned by Research",
+      "path": "tests/component/research/test_evidence_scope_source_v1_postgres_concurrency.py",
+      "symbol": "test_evidence_scope_source_v1_postgres_concurrency",
+      "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed PostgreSQL settings audit concurrency evidence",
+      "path": "tests/settings_audit_postgres_concurrency.py",
+      "symbol": "settings_audit_postgres_concurrency",
+      "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed PostgreSQL settings evidence-scope concurrency evidence",
+      "path": "tests/settings_evidence_scope_source_v1_postgres.py",
+      "symbol": "settings_evidence_scope_source_v1_postgres",
+      "status": "adjacent_operational"
     }
   ],
   "owner": "data_center",

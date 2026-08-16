@@ -403,10 +403,10 @@ def test_checked_in_evidence_is_explicitly_denied() -> None:
     assert result.required_tasks == 101
     assert gates["source_consistency"].passed is True
     assert gates["route_task_uat"].passed is False
-    assert "covered=108/108" in gates["route_task_uat"].detail
+    assert "covered=0/108" in gates["route_task_uat"].detail
     assert "binding=false" in gates["route_task_uat"].detail
     assert gates["route_cleanup_readiness"].passed is False
-    assert "covered=108/108" in gates["route_cleanup_readiness"].detail
+    assert "covered=0/108" in gates["route_cleanup_readiness"].detail
     assert "candidate_binding=false" in gates["route_cleanup_readiness"].detail
     assert gates["rollback_drill"].passed is False
     assert "binding=false" in gates["rollback_drill"].detail

@@ -259,7 +259,10 @@ def test_exact_lookup_miss_is_non_enumerating_not_found() -> None:
         response = EvidenceOperatorSpecDetailView.as_view()(request, "operator-1", "v1")
 
     assert response.status_code == 404
-    assert response.data["detail"] == "Exact evidence was not found at the requested cutoff."
+    assert response.data == {
+        "error": "Exact evidence was not found at the requested cutoff.",
+        "code": "API_ERROR",
+    }
 
 
 def test_track_record_api_preserves_decimal_text_and_pit_selector() -> None:

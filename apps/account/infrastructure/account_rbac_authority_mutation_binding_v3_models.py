@@ -574,6 +574,4 @@ __all__ = [
     "AccountRbacAuthorityMutationEpochV3AnchorModel",
     "AccountRbacAuthorityProfileV3AnchorModel",
     "AccountRbacAuthorityProfileV3VersionModel",
-    "_activate_account_rbac_authority_mutation_binding_v3_uow",
-    "_claim_account_rbac_authority_mutation_binding_v3_insert",
 ]

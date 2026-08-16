@@ -15,6 +15,10 @@ from typing import Any, Protocol, cast
 from django.utils import timezone
 
 from apps.alpha.application import task_outcome_contracts as _outcomes
+from apps.alpha.application.daily_inference_orchestration import (
+    run_daily_inference,
+    run_scoped_inference,
+)
 from apps.alpha.application.model_evaluation_service import evaluate_model_artifact
 from apps.alpha.application.ops_services import QlibRuntimeDataRefreshService
 from apps.alpha.application.ops_use_cases import collect_portfolio_refs_for_refresh
@@ -813,63 +817,19 @@ def qlib_daily_inference(
     lookback_days: int = 400,
     trade_date: str | None = None,
 ) -> dict[str, Any]:
-    """
-    每日触发 Qlib 推理任务。
+    """Queue daily Qlib inference after the optional runtime refresh."""
 
-    用于 Celery Beat 无参调度入口，自动使用当天日期，并先刷新本地 Qlib 日线。
-    """
-    trade_date_obj = (
-        date.fromisoformat(trade_date) if trade_date else _resolve_recent_closed_trade_date()
+    return run_daily_inference(
+        universe_id=universe_id,
+        top_n=top_n,
+        refresh_data=refresh_data,
+        refresh_universes=refresh_universes,
+        lookback_days=lookback_days,
+        trade_date=trade_date,
+        resolve_trade_date=_resolve_recent_closed_trade_date,
+        refresh_runtime_data=_refresh_qlib_runtime_data,
+        queue_prediction=qlib_predict_scores.delay,
     )
-    refresh_result: dict[str, Any] = {"status": "skipped", "reason": "refresh_disabled"}
-    if refresh_data:
-        try:
-            refresh_result = _refresh_qlib_runtime_data(
-                target_date=trade_date_obj,
-                universes=refresh_universes or universe_id,
-                lookback_days=lookback_days,
-            )
-        except Exception as exc:
-            logger.error("Qlib 每日数据刷新失败，继续尝试推理: %s", exc, exc_info=True)
-            refresh_result = {
-                "status": "failed",
-                "error": str(exc),
-            }
-
-    trade_date = trade_date_obj.isoformat()
-    try:
-        result = qlib_predict_scores.delay(universe_id, trade_date, top_n)
-    except Exception as exc:
-        logger.error(
-            "Qlib daily inference queue failed: error_type=%s",
-            exc.__class__.__name__,
-        )
-        return {
-            "status": "error",
-            "reason": "prediction_queue_failed",
-            "universe_id": universe_id,
-            "trade_date": trade_date,
-            "top_n": top_n,
-            "refresh_result": refresh_result,
-            **_outcomes.daily_inference_outcome(
-                refresh_data=refresh_data,
-                refresh_status=refresh_result.get("status"),
-                queue_succeeded=False,
-            ),
-        }
-    return {
-        "status": "queued",
-        "task_id": result.id,
-        "universe_id": universe_id,
-        "trade_date": trade_date,
-        "top_n": top_n,
-        "refresh_result": refresh_result,
-        **_outcomes.daily_inference_outcome(
-            refresh_data=refresh_data,
-            refresh_status=refresh_result.get("status"),
-            queue_succeeded=True,
-        ),
-    }
 
 
 @typed_shared_task(name="apps.alpha.application.tasks.qlib_daily_inference")
@@ -910,193 +870,24 @@ def qlib_daily_scoped_inference(
     trade_date: str | None = None,
     only_missing: bool = True,
 ) -> dict[str, Any]:
-    """Queue daily scoped Qlib inference for active portfolios used by the dashboard."""
-    from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
+    """Queue scoped inference for active portfolios used by the dashboard."""
 
-    target_trade_date = (
-        date.fromisoformat(trade_date) if trade_date else _resolve_recent_closed_trade_date()
+    return run_scoped_inference(
+        top_n=top_n,
+        portfolio_limit=portfolio_limit,
+        pool_mode=pool_mode,
+        refresh_data=refresh_data,
+        lookback_days=lookback_days,
+        trade_date=trade_date,
+        only_missing=only_missing,
+        resolve_trade_date=_resolve_recent_closed_trade_date,
+        get_active_model=lambda: get_qlib_model_registry_repository().get_active_model(),
+        get_score_cache_repository=get_alpha_score_cache_repository,
+        get_pool_repository=get_alpha_pool_data_repository,
+        cache_is_fresh=_cache_is_fresh_for_trade_date,
+        refresh_runtime_for_codes=_refresh_qlib_runtime_data_for_codes,
+        queue_prediction=qlib_predict_scores.delay,
     )
-    active_model = get_qlib_model_registry_repository().get_active_model()
-    if active_model is None:
-        return {
-            "status": "skipped",
-            "reason": "no_active_model",
-            "trade_date": target_trade_date.isoformat(),
-            **_outcomes.refresh_summary_outcome(status="blocked", requested=1),
-        }
-
-    cache_repository = get_alpha_score_cache_repository()
-    portfolio_refs = get_alpha_pool_data_repository().list_active_portfolio_refs(
-        limit=portfolio_limit
-    )
-    resolver = PortfolioAlphaPoolResolver()
-
-    resolved_scopes: list[tuple[dict[str, Any], AlphaPoolScope]] = []
-    scoped_codes: set[str] = set()
-    seen_scope_keys: set[tuple[str, str | None]] = set()
-    queued: list[dict[str, Any]] = []
-    skipped: list[dict[str, Any]] = []
-    fresh_cache_count = 0
-    failed_count = 0
-    for ref in portfolio_refs:
-        try:
-            resolved = resolver.resolve(
-                user_id=int(ref["user_id"]),
-                portfolio_id=int(ref["portfolio_id"]),
-                trade_date=target_trade_date,
-                pool_mode=pool_mode,
-            )
-            if resolved.scope.pool_size == 0:
-                skipped.append(
-                    {
-                        "portfolio_id": ref["portfolio_id"],
-                        "reason": "empty_scope",
-                    }
-                )
-                continue
-            scope_key = (resolved.scope.universe_id, resolved.scope.scope_hash)
-            if scope_key in seen_scope_keys:
-                skipped.append(
-                    {
-                        "portfolio_id": ref["portfolio_id"],
-                        "reason": "duplicate_scope",
-                        "scope_hash": resolved.scope.scope_hash,
-                    }
-                )
-                continue
-            seen_scope_keys.add(scope_key)
-            if only_missing:
-                existing_cache = cache_repository.get_qlib_cache_for_trade_date(
-                    universe_id=resolved.scope.universe_id,
-                    trade_date=target_trade_date,
-                    model_artifact_hash=getattr(active_model, "artifact_hash", None),
-                    scope_hash=resolved.scope.scope_hash,
-                )
-                if existing_cache is not None and _cache_is_fresh_for_trade_date(
-                    existing_cache, target_trade_date
-                ):
-                    fresh_cache_count += 1
-                    skipped.append(
-                        {
-                            "portfolio_id": ref["portfolio_id"],
-                            "reason": "fresh_cache_exists",
-                            "scope_hash": resolved.scope.scope_hash,
-                            "asof_date": existing_cache.asof_date.isoformat(),
-                        }
-                    )
-                    continue
-            resolved_scopes.append((ref, resolved.scope))
-            scoped_codes.update(
-                normalized
-                for normalized in (
-                    normalize_stock_code(code)
-                    for code in getattr(resolved.scope, "instrument_codes", ()) or ()
-                )
-                if normalized
-            )
-        except Exception as exc:
-            failed_count += 1
-            logger.error(
-                "Qlib scoped inference resolve failed: portfolio_id=%s, error=%s",
-                ref.get("portfolio_id"),
-                exc,
-                exc_info=True,
-            )
-            skipped.append(
-                {
-                    "portfolio_id": ref.get("portfolio_id"),
-                    "reason": str(exc),
-                }
-            )
-
-    refresh_result: dict[str, Any] = {"status": "skipped", "reason": "refresh_disabled"}
-    refresh_requested = bool(refresh_data and scoped_codes and resolved_scopes)
-    if refresh_data and scoped_codes and resolved_scopes:
-        try:
-            refresh_result = _refresh_qlib_runtime_data_for_codes(
-                target_date=target_trade_date,
-                stock_codes=scoped_codes,
-                universe_id="scoped_portfolios",
-                lookback_days=lookback_days,
-            )
-        except Exception as exc:
-            failed_count += 1
-            logger.error(
-                "Qlib scoped data refresh failed, continue queueing inference: %s",
-                exc,
-                exc_info=True,
-            )
-            refresh_result = {
-                "status": "failed",
-                "error": str(exc),
-                "stock_count": len(scoped_codes),
-            }
-
-    for ref, scope in resolved_scopes:
-        try:
-            task = qlib_predict_scores.delay(
-                scope.universe_id,
-                target_trade_date.isoformat(),
-                top_n,
-                scope_payload=scope.to_dict(),
-            )
-            queued.append(
-                {
-                    "portfolio_id": ref["portfolio_id"],
-                    "user_id": ref["user_id"],
-                    "scope_hash": scope.scope_hash,
-                    "universe_id": scope.universe_id,
-                    "pool_size": scope.pool_size,
-                    "task_id": task.id,
-                }
-            )
-        except Exception as exc:
-            failed_count += 1
-            logger.error(
-                "Qlib scoped inference queue failed: portfolio_id=%s, error=%s",
-                ref.get("portfolio_id"),
-                exc,
-                exc_info=True,
-            )
-            skipped.append(
-                {
-                    "portfolio_id": ref.get("portfolio_id"),
-                    "reason": str(exc),
-                }
-            )
-
-    status = "queued" if queued else "skipped"
-    reason = None
-    if status == "skipped":
-        if fresh_cache_count and not resolved_scopes:
-            reason = "all_scopes_fresh"
-        elif not resolved_scopes:
-            reason = "no_scopes_to_queue"
-
-    requested_count = len(portfolio_refs) + (1 if refresh_requested else 0)
-
-    return {
-        "status": status,
-        "reason": reason,
-        "trade_date": target_trade_date.isoformat(),
-        "top_n": top_n,
-        "portfolio_count": len(portfolio_refs),
-        "scope_count": len(seen_scope_keys),
-        "scoped_stock_count": len(scoped_codes),
-        "refresh_result": refresh_result,
-        "queued_count": len(queued),
-        "fresh_cache_count": fresh_cache_count,
-        "skipped_count": len(skipped),
-        "queued": queued,
-        "skipped": skipped,
-        "failed_count": failed_count,
-        **_outcomes.scoped_work_outcome(
-            requested=requested_count,
-            failed=failed_count,
-            stored=len(queued),
-            no_work=not queued,
-        ),
-    }
 
 
 @typed_shared_task(name="apps.alpha.application.tasks.qlib_daily_scoped_inference")

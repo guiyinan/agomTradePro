@@ -154,7 +154,7 @@ def test_private_test_composition_builds_and_restores_owner_records() -> None:
             policy_version=policy.policy_version,
             expected_policy_hash=policy.content_hash,
             active_decision=policy.active_decision,
-            as_of=policy.recorded_at,
+            as_of=policy.active_from,
         )
         == stored_policy
     )
@@ -163,8 +163,8 @@ def test_private_test_composition_builds_and_restores_owner_records() -> None:
             source_owner=calendar.source_owner,
             calendar_id=calendar.calendar_id,
             calendar_version=calendar.calendar_version,
-            expected_calendar_hash=calendar.content_hash,
-            as_of=calendar.recorded_at,
+            expected_calendar_hash=stored_calendar.content_hash,
+            as_of=calendar.valid_from,
         )
         == stored_calendar
     )

@@ -489,7 +489,13 @@ def test_current_reader_detects_source_to_raw_field_substitution() -> None:
     repository = _Repository()
     raw = _raw()
     source = _capture_once(repository, raw=raw)
-    substituted = replace(source, row_user_id=42, content_hash="")
+    substituted_raw = _raw(row_user_id=42)
+    substituted = replace(
+        source,
+        row_user_id=42,
+        raw_observation_content_hash=substituted_raw.content_hash,
+        content_hash="",
+    )
     record = PersistedSimulatedAccountRowSourceV2(substituted)
     repository.records = [record]
     repository.head = record
@@ -498,7 +504,7 @@ def test_current_reader_detects_source_to_raw_field_substitution() -> None:
         observation_provider=_Provider([raw]),
     )
 
-    with pytest.raises(SimulatedAccountRowSourceV2Corruption, match="does not match"):
+    with pytest.raises(SimulatedAccountRowSourceV2Corruption, match="selector substitution"):
         reader.execute(GetCurrentSimulatedAccountRowSourceV2Command(substituted, _at(5)))
 
 

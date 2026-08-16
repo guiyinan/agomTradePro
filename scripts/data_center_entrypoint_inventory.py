@@ -837,10 +837,9 @@ def _management_dispatch_kind(node: ast.Call, imported: dict[str, str]) -> str:
     """Return the supported Django management dispatch primitive for one call."""
 
     resolved = _resolved_dotted_name(node.func, imported) or ""
-    if resolved.endswith(".call_command") or _call_name(node) in {
-        "call_command",
-        "_run_command",
-    }:
+    if resolved.endswith(".call_command") or _call_name(node) == "call_command":
+        return "call_command"
+    if isinstance(node.func, ast.Attribute) and node.func.attr == "_run_command":
         return "call_command"
     if resolved.endswith(".execute_from_command_line") or _call_name(node) == (
         "execute_from_command_line"

@@ -304,22 +304,17 @@ class SklearnNestedCVLassoRunner:
             final.oos_predictions,
             key=lambda item: rows[item.row_id].observation_date,
         )
-        latest_row = rows[latest_prediction.row_id]
+        inference = dataset.inference_row
+        if inference is None:
+            raise ValueError("one label-free inference row is required")
         dated_output = ExternalDatedFactorOutput(
             output_role=spec.target.output_role,
-            observation_date=latest_row.observation_date,
-            target_period_start=latest_row.target_period_start,
-            target_period_end=latest_row.target_period_end,
+            observation_date=inference.observation_date,
+            target_period_start=inference.target_period.period_start,
+            target_period_end=inference.target_period.period_end,
             horizon_periods=spec.target.horizon_periods,
             horizon_unit=spec.target.horizon_unit,
-            knowledge_as_of=max(
-                latest_row.available_at,
-                next(
-                    item.selection.final_fit_as_of
-                    for item in calculations
-                    if item.selection.fold_id == request.final_fold_id
-                ),
-            ),
+            knowledge_as_of=dataset.manifest_as_of,
             valid_until=validity_policy.valid_until(spec.calculated_at),
             value=latest_prediction.predicted_value,
             unit=spec.target.unit,
@@ -350,6 +345,13 @@ class SklearnNestedCVLassoRunner:
             raise ValueError("alpha family must contain finite positive values")
         if request.alpha_grid != spec.plan.alpha_grid:
             raise ValueError("request alpha family drifted from preregistration")
+        if request.spec_hash != spec.content_hash:
+            raise ValueError("request does not bind the exact runner spec")
+        if (
+            request.target_definition != spec.target
+            or request.candidate_definitions != spec.candidates
+        ):
+            raise ValueError("request does not bind the exact target and candidate definitions")
         if request.dataset_hash != dataset.content_hash:
             raise ValueError("request does not bind the exact PIT dataset")
         if (
@@ -398,6 +400,16 @@ class SklearnNestedCVLassoRunner:
             or request.output_maximum_valid_for_seconds != validity_policy.maximum_valid_for_seconds
         ):
             raise ValueError("request output-validity policy binding mismatch")
+        freshness_policy = spec.input_knowledge_freshness_policy.validated_copy()
+        if (
+            request.input_freshness_policy_version != freshness_policy.policy_version
+            or request.input_freshness_policy_hash != freshness_policy.content_hash
+            or request.max_manifest_age_seconds != freshness_policy.max_manifest_age_seconds
+            or request.max_inference_age_seconds != freshness_policy.max_inference_age_seconds
+            or request.maximum_allowed_input_age_seconds
+            != freshness_policy.maximum_allowed_age_seconds
+        ):
+            raise ValueError("request input-freshness policy binding mismatch")
         return validity_policy
 
     @staticmethod

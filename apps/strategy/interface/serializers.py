@@ -28,6 +28,15 @@ schema_int_field = cast(
     Callable[[SchemaDecorated], SchemaDecorated],
     extend_schema_field(OpenApiTypes.INT),
 )
+
+
+def _validate_finite_float(value: float) -> None:
+    """Reject NaN and infinities at field validation, before object-level validation."""
+
+    if not isfinite(value):
+        raise serializers.ValidationError("必须是有限数值")
+
+
 schema_bool_field = cast(
     Callable[[SchemaDecorated], SchemaDecorated],
     extend_schema_field(OpenApiTypes.BOOL),
@@ -572,22 +581,35 @@ class ExecutionEvaluateInputSerializer(serializers.Serializer[dict[str, Any]]):
     current_price = serializers.FloatField(
         help_text="当前价格",
         min_value=1e-12,
+        validators=[_validate_finite_float],
     )
     signal_strength = serializers.FloatField(
-        help_text="信号强度 (0-1)", min_value=0.0, max_value=1.0
+        help_text="信号强度 (0-1)",
+        min_value=0.0,
+        max_value=1.0,
+        validators=[_validate_finite_float],
     )
     signal_direction = serializers.ChoiceField(
         choices=["bullish", "bearish", "neutral"], help_text="信号方向"
     )
     signal_confidence = serializers.FloatField(
-        help_text="信号置信度 (0-1)", min_value=0.0, max_value=1.0
+        help_text="信号置信度 (0-1)",
+        min_value=0.0,
+        max_value=1.0,
+        validators=[_validate_finite_float],
     )
     stop_loss_price = serializers.FloatField(
         help_text="止损价",
         required=False,
         min_value=1e-12,
+        validators=[_validate_finite_float],
     )
-    atr = serializers.FloatField(help_text="ATR值", required=False, min_value=1e-12)
+    atr = serializers.FloatField(
+        help_text="ATR值",
+        required=False,
+        min_value=1e-12,
+        validators=[_validate_finite_float],
+    )
     target_regime = serializers.CharField(
         help_text="目标Regime",
         required=False,
@@ -601,6 +623,7 @@ class ExecutionEvaluateInputSerializer(serializers.Serializer[dict[str, Any]]):
         help_text="当前Regime置信度",
         min_value=0.0,
         max_value=1.0,
+        validators=[_validate_finite_float],
     )
     market_observed_at = serializers.DateTimeField(help_text="行情源观测时间")
     signal_observed_at = serializers.DateTimeField(help_text="信号源观测时间")
@@ -609,15 +632,18 @@ class ExecutionEvaluateInputSerializer(serializers.Serializer[dict[str, Any]]):
     account_equity = serializers.FloatField(
         help_text="账户权益",
         min_value=1e-12,
+        validators=[_validate_finite_float],
     )
     current_position_value = serializers.FloatField(
         help_text="当前持仓市值",
         min_value=0.0,
+        validators=[_validate_finite_float],
     )
     daily_pnl_pct = serializers.FloatField(
         help_text="当日盈亏比例",
         min_value=-100.0,
         max_value=100.0,
+        validators=[_validate_finite_float],
     )
     daily_trade_count = serializers.IntegerField(
         help_text="当日交易次数",
@@ -629,11 +655,13 @@ class ExecutionEvaluateInputSerializer(serializers.Serializer[dict[str, Any]]):
         required=False,
         min_value=-100.0,
         max_value=100.0,
+        validators=[_validate_finite_float],
     )
     avg_volume = serializers.FloatField(
         help_text="平均成交量",
         required=False,
         min_value=0.0,
+        validators=[_validate_finite_float],
     )
     sizing_method = serializers.ChoiceField(
         choices=["fixed_fraction", "atr_risk"], help_text="仓位计算方法", default="fixed_fraction"
