@@ -127,6 +127,7 @@ def api_root_view(request: HttpRequest) -> JsonResponse:
                 "docs": "/api/docs/",
                 "documentation-portal": "/docs/",
                 "mcp-tools-settings": "/settings/mcp-tools/",
+                "operational-readiness": "/api/operational-readiness/",
                 "schema": "/api/schema/",
             }
         }
@@ -166,6 +167,16 @@ core_patterns = [
     path("api/health/db/", database_health_view, name="health-db"),
     path("api/ready/", readiness_view, name="readiness"),
     path("api/decision-ready/", decision_readiness_view, name="decision-readiness"),
+    path(
+        "api/operational-readiness/",
+        include(
+            (
+                "apps.operational_readiness.interface.api_urls",
+                "operational_readiness",
+            ),
+            namespace="operational_readiness",
+        ),
+    ),
     path("api/chat/web/", web_chat, name="api-chat-web"),
     path(
         "api/system/config-center/",

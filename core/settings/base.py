@@ -42,6 +42,18 @@ TUI_RUNTIME_CACHE_TTL_SECONDS = env.int("TUI_RUNTIME_CACHE_TTL_SECONDS", default
 TUI_OPTIMIZED_BOOTSTRAP_ENABLED = env.bool("TUI_OPTIMIZED_BOOTSTRAP_ENABLED", default=True)
 TUI_ACTION_MAX_CONCURRENCY = env.int("TUI_ACTION_MAX_CONCURRENCY", default=4)
 
+# Immutable deployment identity artifacts. Production mounts the release
+# manifest read-only; the build identity is embedded in the application image.
+AGOM_BUILD_IDENTITY_PATH = Path(
+    env("AGOM_BUILD_IDENTITY_PATH", default=str(BASE_DIR / ".agom-build-identity.json"))
+)
+AGOM_RELEASE_MANIFEST_PATH = Path(
+    env(
+        "AGOM_RELEASE_MANIFEST_PATH",
+        default=str(BASE_DIR / ".agom-release-manifest.json"),
+    )
+)
+
 # Field-level encryption for sensitive data (API keys, etc.)
 # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 # Set via environment variable: AGOMTRADEPRO_ENCRYPTION_KEY
