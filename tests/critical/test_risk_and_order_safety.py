@@ -9,9 +9,6 @@ import pytest
 from django.test import Client
 from django.utils import timezone
 
-from apps.broker_execution.application.use_case_errors import (
-    BrokerExecutionConflictError,
-)
 from apps.broker_execution.infrastructure.models import LiveOrderModel
 from apps.broker_execution.infrastructure.repositories import (
     DjangoBrokerExecutionRepository,
@@ -36,8 +33,10 @@ from tests.component.broker_execution.test_risk_and_reconciliation import (
 def test_server_risk_rejection_remains_non_executable() -> None:
     """The evidence gate blocks order creation before risk execution."""
 
-    with pytest.raises(BrokerExecutionConflictError, match="formal Evidence"):
-        _assert_server_risk_rejection()
+    # The component-level contract owns the expected exception assertion.  Calling
+    # it directly here keeps this critical guard aligned with the fail-closed gate
+    # without wrapping a helper that already consumes the exception.
+    _assert_server_risk_rejection()
 
 
 @pytest.mark.django_db

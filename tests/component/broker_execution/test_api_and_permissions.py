@@ -20,7 +20,6 @@ from apps.broker_execution.application.use_case_errors import (
 from apps.broker_execution.infrastructure.models import (
     BrokerAccountAccessModel,
     BrokerAccountBindingModel,
-    BrokerAccountSnapshotModel,
     BrokerAgentCredentialModel,
     BrokerAgentModel,
     BrokerCommandModel,

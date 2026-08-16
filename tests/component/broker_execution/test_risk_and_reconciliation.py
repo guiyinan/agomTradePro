@@ -11,7 +11,6 @@ from django.utils import timezone
 
 from apps.broker_execution.application.use_case_errors import (
     BrokerExecutionConflictError,
-    BrokerExecutionValidationError,
 )
 from apps.broker_execution.application.use_cases import (
     CreateLiveOrderFromExecutionPlanUseCase,
@@ -418,7 +417,7 @@ def test_live_order_gate_blocks_before_account_lock_revalidation() -> None:
         agent_id="locked-order-limit-agent",
         display_name="Locked Limit Agent",
     )
-    binding = BrokerAccountBindingModel.objects.create(
+    BrokerAccountBindingModel.objects.create(
         user=owner,
         account_id=96,
         agent=agent,
