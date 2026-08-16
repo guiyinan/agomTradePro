@@ -11,7 +11,7 @@
       "candidate_version": "20260816181141",
       "candidate_commit": "5a13125bb84eb1b20e623d7c1388a0d7632294cb",
       "matrix_sha256": "bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded",
-      "graph_sha256": "9a711204ff4c5368934f4701b64a411c5863b9a922e21fc76633a93bac47858a",
+      "graph_sha256": "42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba",
       "schema_version": "tui-metadata.v3",
       "runtime_version": "0.2.0",
       "runtime_build_id": "agomtui-runtime-0.2.0+8e5b1ff43be5",
