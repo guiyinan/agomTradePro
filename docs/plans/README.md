@@ -409,3 +409,5 @@
 - Web → TUI M0–M4 历史证据已归档；M5 readiness、生产 preflight、UAT、回滚与 route closure 继续留在活跃区，直到 cutover 门禁真正解除。
 - AI-Native 主计划因人工 UAT 签字与 release gate 尚未补齐继续保留；首页聊天复用任务书因前端自动化和浏览器验收资产未闭环继续保留。
 - `implementation-progress-summary.md` 暂保留为总体进度入口，不按阶段总结归档。
+
+| 2026-08-16 | 第二期 P0/P1 | Web→TUI 当前候选部署、只读运行复核与观察窗口重绑定 | `dev/next-development@5a13125bb84eb1b20e623d7c1388a0d7632294cb` 发布为 `20260816181141`；health/ready 均 200，迁移/schema、Django check、TUI registry、Qlib、Celery、容器与 preflight 复核通过；preflight SHA `30e7a5a501849ffddca7b372d3c79d5576708e5dbebe459342c3278886fbfdf9` | 仅代码部署与只读证据，须在提交后重绑 `2026-08-16..2026-08-30` 观察窗口；ready freshness warnings、角色化 UAT、写后 receipt/refresh、14 日 telemetry、restore/rollback、registry backup/restore、owner/reviewer 双签与 AUD-01/EVID-01 authority/publisher 仍缺，M5 继续 `DENY` |

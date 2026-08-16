@@ -396,6 +396,40 @@ candidate binding 仍为 `web-to-tui-candidate-binding.v1`：matrix SHA
 runtime `0.2.0`、build `agomtui-runtime-0.2.0+a2553996be22`、manifest SHA
 `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854`。
 
+## 2026-08-16 18:11 当前候选部署与观测
+
+`dev/next-development@5a13125bb84eb1b20e623d7c1388a0d7632294cb` 已以标准 `-Upgrade`、
+code-only、保留数据卷并启用 Celery 发布为 release `20260816181141`。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260816181141` |
+| release dir | `/opt/agomtradepro/releases/source-20260816181141` |
+| source commit | `5a13125bb84eb1b20e623d7c1388a0d7632294cb` |
+| image ID | `sha256:1add6e57714a6ee41e3a3153a46e0c6e578f29a8374ea18e91cb53b65a7e263` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260816181141.json` |
+| migration/schema | `No migrations to apply`；canonical schema missing lists empty；Django check 无问题（1 silenced） |
+| HTTPS | `demo.agomtrade.pro` Caddy/TLS；`/api/health/` 与 `/api/ready/` HTTP `200` |
+| containers | web healthy；Celery worker/beat、PostgreSQL、Redis、Caddy、RSSHub、runtime namespace running；Celery ping `1 node online` |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| runtime observation | health SHA `bacab80cf37e6f8c94189606184a9d3a040ec8e56cf820b1e768cda207522fb3`；ready SHA `a3afe4e633840aadb84d0c730004c9f40ba114531ef8fc4d130db306ae1e5ed4` |
+| backup hook | `/opt/agomtradepro/backups/database/postgres-20260816-121912.dump`；本次未取得尺寸/SHA，不扩大证据范围 |
+
+结构化 preflight 为 `docs/deployment/web-to-tui-deployment-preflight-20260816181141.json`，SHA
+`30e7a5a501849ffddca7b372d3c79d5576708e5dbebe459342c3278886fbfdf9`；运行摘要为
+`docs/deployment/vps-runtime-verification-2026-08-16-1811.json`。候选完整 binding 为：version
+`web-to-tui-candidate-binding.v1`、candidate version `20260816181141`、candidate commit
+`5a13125bb84eb1b20e623d7c1388a0d7632294cb`、matrix `bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、
+graph `42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba`、schema `tui-metadata.v3`、
+runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest
+`98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。
+
+`/api/ready/` 仍报告 Alpha/Qlib、workspace recommendation、Alpha rank source 与 market
+thermometer freshness warnings。本次仅完成代码部署和只读运行复核，没有登录、角色化浏览器
+UAT 或业务写入；写后 receipt/refresh、14 日 telemetry/defect、registry backup/restore、
+rollback、owner/reviewer 双签以及 AUD-01/EVID-01 durable authority/publisher 仍未完成，相关
+门禁继续 fail-closed。
+
 ## 2026-08-16 16:24 当前候选部署与观测
 
 本次部署继续采用标准 `git-clone`、`-Upgrade`、code-only 模式，保留

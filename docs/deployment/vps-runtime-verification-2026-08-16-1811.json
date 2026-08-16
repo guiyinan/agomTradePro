@@ -1,0 +1,61 @@
+{
+  "version": "vps-runtime-verification.v1",
+  "captured_at": "2026-08-16T10:29:06Z",
+  "environment": "production",
+  "read_only": true,
+  "candidate": {
+    "stable_version": "20260816181141",
+    "source_commit": "5a13125bb84eb1b20e623d7c1388a0d7632294cb",
+    "release": "agomtradepro-web:20260816181141",
+    "release_dir": "/opt/agomtradepro/releases/source-20260816181141",
+    "image_id": "sha256:1add6e57714a6ee41e3a3153a46e0c6e578f29a8374ea18e91cb53b65a7e263"
+  },
+  "checks": {
+    "deployment_mode": "code-only upgrade; PostgreSQL/Redis data volumes preserved; Celery enabled",
+    "predeploy_backup": "verified by the successful remote deploy hook; no restore/rebuild was run",
+    "caddy_domain": "demo.agomtrade.pro",
+    "health_http_status": 200,
+    "health_sha256": "bacab80cf37e6f8c94189606184a9d3a040ec8e56cf820b1e768cda207522fb3",
+    "ready_http_status": 200,
+    "ready_status": "ok",
+    "ready_sha256": "a3afe4e633840aadb84d0c730004c9f40ba114531ef8fc4d130db306ae1e5ed4",
+    "tls_certificate": "valid",
+    "containers": "web healthy; celery_worker, celery_beat, PostgreSQL, Redis, Caddy, RSSHub and runtime_ns running",
+    "django_system_check": "0 issues (1 silenced)",
+    "migrations": "No migrations to apply; canonical schema missing_migrations=[] and missing_tables=[]",
+    "tui_metadata_registry": "published and matched; registry_id=25; backend_version=20260816151607",
+    "release_identity": "verified; runtime source commit and OCI image ID matched candidate",
+    "qlib": {
+      "pyqlib": "0.9.7",
+      "wrong_qlib_distribution": "absent",
+      "module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py"
+    },
+    "celery": {
+      "worker": "running",
+      "beat": "running",
+      "ping": "1 node online"
+    },
+    "backup": {
+      "remote_path": "/opt/agomtradepro/backups/database/postgres-20260816-121912.dump",
+      "mode": "custom-format archive created by the successful pre-deploy hook; no restore/rebuild drill"
+    },
+    "freshness_observations": {
+      "decision_data": "ok",
+      "alpha_workspace": "warning",
+      "issues": [
+        "alpha_qlib_provider_degraded",
+        "workspace_recommendations_stale",
+        "workspace_alpha_rank_source_stale",
+        "market_thermometer_partial_stale"
+      ]
+    }
+  },
+  "outcome": "runtime_verified_candidate",
+  "limitations": [
+    "This is a read-only post-deploy verification; no business writes, login, backfill, or destructive migration was performed.",
+    "It does not prove authenticated role-based browser UAT, write-after-refresh receipts, owner/reviewer sign-off, or the 14-day observation window.",
+    "It does not prove immutable authority lifecycle, durable audit publisher, or execution authorization; AUD-01, EVID-01 and TUI M5 gates remain fail-closed.",
+    "The PostgreSQL archive was created by the deploy hook but was not restored or rebuilt; RTO/RPO and rollback drill remain unverified.",
+    "Ready is HTTP 200 but retains explicit freshness warnings for degraded Qlib/workspace/Alpha and market thermometer source data."
+  ]
+}

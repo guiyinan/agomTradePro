@@ -528,3 +528,34 @@ restore/rebuild、RTO/RPO 或 rollback drill。候选 binding 的 matrix/graph/r
 `42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba`、schema `tui-metadata.v3`、
 runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest
 `98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。
+
+### 2026-08-16 18:11 当前候选部署复核
+
+候选 `dev/next-development@5a13125bb84eb1b20e623d7c1388a0d7632294cb` 已以 code-only、保留
+PostgreSQL/Redis 数据卷、Celery enabled 的 `-Upgrade` 发布为 `20260816181141`。release dir
+为 `/opt/agomtradepro/releases/source-20260816181141`，OCI image ID 为
+`sha256:1add6e57714a6ee41e3a3153a46e0c6e578f29a8374ea18e91cb53b65a7e263`；preflight 为
+`docs/deployment/web-to-tui-deployment-preflight-20260816181141.json`，SHA
+`30e7a5a501849ffddca7b372d3c79d5576708e5dbebe459342c3278886fbfdf9`。
+
+只读观测截至 `2026-08-16T10:29:06Z`：HTTPS `/api/health/` 与 `/api/ready/` 均为 `200`；
+health SHA `bacab80cf37e6f8c94189606184a9d3a040ec8e56cf820b1e768cda207522fb3`，ready SHA
+`a3afe4e633840aadb84d0c730004c9f40ba114531ef8fc4d130db306ae1e5ed4`。迁移、canonical schema、
+Django check、TUI registry、Celery ping、Qlib module 与容器健康复核通过；结构化摘要见
+`docs/deployment/vps-runtime-verification-2026-08-16-1811.json`。部署前备份钩子成功创建
+`/opt/agomtradepro/backups/database/postgres-20260816-121912.dump`；本次仅记录远端路径，未把
+未取得的尺寸/SHA 当作证据。
+
+该候选完整 binding 为：version `web-to-tui-candidate-binding.v1`、candidate version
+`20260816181141`、candidate commit `5a13125bb84eb1b20e623d7c1388a0d7632294cb`、matrix
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph
+`42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba`、schema `tui-metadata.v3`、
+runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest
+`98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。观察窗口需随该候选重新
+绑定为 `2026-08-16..2026-08-30`，不跨候选继承 UAT 或 telemetry。
+
+`/api/ready/` 仍保留 `alpha_qlib_provider_degraded`、`workspace_recommendations_stale`、
+`workspace_alpha_rank_source_stale` 与 `market_thermometer_partial_stale`；本次没有登录、
+角色化浏览器 UAT 或业务写入。写后 receipt/refresh、14 日 telemetry、registry backup/restore、
+rollback 与 owner/reviewer 双签仍缺，M5-A 继续 `DENY`；AUD-01/EVID-01 authority/publisher
+门禁不因代码部署解除。
