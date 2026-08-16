@@ -271,7 +271,19 @@ def run_active_a_share_core_data_backfill_batch(
     failed_total = max(len(failed_asset_codes), quote_missing)
     succeeded_total = max(len(batch_codes) - failed_total, 0)
     stored_total = sum(item["stored"] for item in domain_counts.values())
-    if failed_total == len(batch_codes):
+    # ``failed_total`` is an asset-level count: an asset is included when any
+    # one of its domain writes fails.  A one-asset batch can therefore have
+    # both a failure and successful writes (for example, price failed while
+    # valuation/financial stored rows).  Treating ``failed_total ==
+    # len(batch_codes)`` as an all-batch failure would incorrectly report that
+    # partial provider failure as ``failed``.  Quote is a batch-level metadata
+    # feed, so use the asset-specific domains to distinguish a genuine
+    # zero-output failure from a partial batch; a quote-only write is not a
+    # completed core-data asset.
+    asset_domain_stored_total = sum(
+        domain_counts[name]["stored"] for name in ("price", "valuation", "financial")
+    )
+    if asset_domain_stored_total == 0 and failed_total > 0:
         outcome = TaskBusinessOutcome.FAILED
     elif failed_total > 0:
         outcome = TaskBusinessOutcome.PARTIAL
