@@ -329,7 +329,11 @@ def discover_sdk_surfaces(scopes: tuple[str, ...]) -> frozenset[str]:
 
 def _published_tui_actions(inventory: DecisionWriteSurfaceInventory) -> list[dict[str, object]]:
     path = REPO_ROOT / inventory.tui_published_graph
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    # Git checkouts may materialize this JSON with CRLF on Windows and LF on
+    # Linux.  The governance hash is over the canonical LF representation so
+    # the review gate is checkout-stable without weakening content checks.
+    canonical_bytes = path.read_text(encoding="utf-8").replace("\r\n", "\n").encode("utf-8")
+    digest = hashlib.sha256(canonical_bytes).hexdigest()
     if digest != inventory.tui_published_graph_sha256:
         raise ValueError("published TUI graph changed without decision inventory review")
     payload = json.loads(path.read_text(encoding="utf-8"))
