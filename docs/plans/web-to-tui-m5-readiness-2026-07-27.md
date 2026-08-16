@@ -368,4 +368,19 @@ stale、Alpha rank source stale 与 market thermometer partial-stale warnings。
 结构化部署 preflight 为
 `docs/deployment/web-to-tui-deployment-preflight-20260816085250.json`，只绑定代码身份和
 运行启动，不包含角色化浏览器账号、写后 receipt/refresh、14 日 telemetry、registry
-backup/restore、rollback 或 owner/reviewer 双签；M5-A 继续 `DENY`。
+backup/restore、rollback 或 owner/reviewer 双签；M5-A 继续 `DENY`。candidate binding 仍为
+`web-to-tui-candidate-binding.v1`：matrix `bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、
+graph `fc4c19fbb0fc90e931a16223fffd9a4bd782e380afb86893a499874e6b644c84`、schema
+`tui-metadata.v3`、runtime `0.2.0`、build `agomtui-runtime-0.2.0+a2553996be22`、manifest
+`a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854`。
+
+### 2026-08-16 01:09 观察窗口重置
+
+`python scripts/start_web_to_tui_observation.py --write --replace` 已读取并校验已提交的
+`docs/deployment/web-to-tui-deployment-preflight-20260816085250.json`，绑定候选
+`20260816085250/6c4086231a19005c750c856e78613b766bfd3609`，deployment attestation SHA-256 为
+`254b1dabe85181cd90120a1d872ed6668a69583fca9c8f2c3f20fb5859acd486`，新窗口为
+`2026-08-16..2026-08-30`。候选切换按设计清空未在该候选上重新验证的 UAT、cleanup、telemetry、
+defect、rollback 与 registry backup 区块；截至当前机器 readiness 仍 `DENY`（UAT `0/108`、
+telemetry `0/101`、rollback/backup/审批均缺失）。观察起点不等于角色化生产 UAT、写后回执、
+稳定窗口完成或 cutover 授权。

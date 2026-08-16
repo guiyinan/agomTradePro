@@ -357,6 +357,18 @@ source stale 与 market thermometer partial-stale warnings；这些是数据新�
 本次仅做启动/健康/版本/迁移/运行时只读复核，没有登录、角色化浏览器 UAT 或业务写入。角色化
 UAT、写后 receipt/refresh、14 日 telemetry/defect、registry backup/restore、rollback drill、
 owner/reviewer 双签以及 AUD-01/EVID-01 durable authority/publisher 仍未完成，相关 gate 继续 fail-closed。
+candidate binding 仍为 `web-to-tui-candidate-binding.v1`：matrix SHA
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph SHA
+`fc4c19fbb0fc90e931a16223fffd9a4bd782e380afb86893a499874e6b644c84`、schema `tui-metadata.v3`、
+runtime `0.2.0`、build `agomtui-runtime-0.2.0+a2553996be22`、manifest SHA
+`a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854`。
+
+部署完成后，`scripts/start_web_to_tui_observation.py --write --replace` 读取已提交的
+`docs/deployment/web-to-tui-deployment-preflight-20260816085250.json` 并启动新候选窗口；
+attestation SHA-256 为 `254b1dabe85181cd90120a1d872ed6668a69583fca9c8f2c3f20fb5859acd486`，
+窗口为 `2026-08-16..2026-08-30`。该动作只重置候选绑定和未验证区块，机器 readiness 仍为
+`DENY`（UAT `0/108`、telemetry `0/101`、rollback/backup/审批缺失）；没有执行登录、业务写入
+或角色化浏览器 UAT。
 
 ## 2026-08-16 01:09 当前候选部署与观测
 
@@ -383,3 +395,8 @@ source stale 与 market thermometer partial-stale warnings；这些是数据新�
 本次仅做启动/健康/版本/迁移/运行时只读复核，没有登录、角色化浏览器 UAT 或业务写入。角色化
 UAT、写后 receipt/refresh、14 日 telemetry/defect、registry backup/restore、rollback drill、
 owner/reviewer 双签以及 AUD-01/EVID-01 durable authority/publisher 仍未完成，相关 gate 继续 fail-closed。
+candidate binding 仍为 `web-to-tui-candidate-binding.v1`：matrix SHA
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph SHA
+`fc4c19fbb0fc90e931a16223fffd9a4bd782e380afb86893a499874e6b644c84`、schema `tui-metadata.v3`、
+runtime `0.2.0`、build `agomtui-runtime-0.2.0+a2553996be22`、manifest SHA
+`a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854`。
