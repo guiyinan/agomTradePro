@@ -4,7 +4,7 @@
   "status": "p0_semantic_surface_frozen_terminal_bridge_blocked",
   "tui_action_closure": {
     "published_path": "config/tui/published/tui_operation_graph.published.json",
-    "published_sha256": "9a711204ff4c5368934f4701b64a411c5863b9a922e21fc76633a93bac47858a",
+    "published_sha256": "42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba",
     "normalized_action_count": 430,
     "normalized_read_action_count": 408,
     "normalized_read_key_sha256": "b2487aa1219af02b31a7c0faefcbff5a1048aedad56d2f1af139415e7ef34fa8",

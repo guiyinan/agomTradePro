@@ -117,9 +117,11 @@ def _validate_tui_closure(expected: dict[str, object]) -> None:
     path = (REPO_ROOT / path_value).resolve(strict=True)
     if not path.is_relative_to(REPO_ROOT):
         raise ValueError("MCP Evidence TUI closure path escapes repository")
-    raw = path.read_bytes()
-    raw_sha = hashlib.sha256(raw).hexdigest()
-    normalized = validate_tui_metadata(copy.deepcopy(json.loads(raw.decode("utf-8"))))
+    # Hash normalized UTF-8 text so the semantic freeze is stable across Git's
+    # LF/CRLF checkout modes. The candidate-binding guard uses the same rule.
+    raw_text = path.read_text(encoding="utf-8").replace("\r\n", "\n").replace("\r", "\n")
+    raw_sha = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+    normalized = validate_tui_metadata(copy.deepcopy(json.loads(raw_text)))
     actions = normalized["actions"]
     read_keys = sorted(action["key"] for action in actions if action["risk"] == "read")
     actual: dict[str, object] = {
