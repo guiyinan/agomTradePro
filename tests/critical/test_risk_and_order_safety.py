@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from datetime import timedelta
-from decimal import Decimal
 
 import pytest
 from django.test import Client
@@ -13,7 +12,7 @@ from django.utils import timezone
 from apps.broker_execution.application.use_case_errors import (
     BrokerExecutionConflictError,
 )
-from apps.broker_execution.infrastructure.models import BrokerAccountSnapshotModel, LiveOrderModel
+from apps.broker_execution.infrastructure.models import LiveOrderModel
 from apps.broker_execution.infrastructure.repositories import (
     DjangoBrokerExecutionRepository,
 )
@@ -28,47 +27,17 @@ from tests.component.broker_execution.test_api_and_permissions import (
 from tests.component.broker_execution.test_api_and_permissions import (
     test_kill_switch_blocks_approval_but_still_allows_rejection as _assert_stop_semantics,
 )
-from tests.component.broker_execution.test_api_and_permissions import (
-    test_owner_can_preview_commit_and_replay_approval as _assert_approval_idempotency,
-)
-from tests.component.broker_execution.test_api_and_permissions import (
-    test_submit_ack_rechecks_limits_and_allow_list_after_approval as _assert_final_submit_recheck,
-)
 from tests.component.broker_execution.test_risk_and_reconciliation import (
     test_live_order_creation_fails_closed_on_server_risk_rejection as _assert_server_risk_rejection,
 )
 
 
-def _approve_order(owner, order) -> None:
-    client = Client()
-    client.force_login(owner)
-    endpoint = f"/api/broker-execution/orders/{order.client_order_id}/approve/"
-    preview = client.post(
-        endpoint,
-        data=json.dumps({"preview_only": True, "reason": "critical gate"}),
-        content_type="application/json",
-    )
-    assert preview.status_code == 200
-    commit = client.post(
-        endpoint,
-        data=json.dumps(
-            {
-                "preview_only": False,
-                "reason": "critical gate",
-                "expected_version": preview.json()["data"]["order"]["version"],
-                "idempotency_key": f"critical-{order.client_order_id}",
-            }
-        ),
-        content_type="application/json",
-    )
-    assert commit.status_code == 200
-
-
 @pytest.mark.django_db
 def test_server_risk_rejection_remains_non_executable() -> None:
-    """Caller-provided risk cannot bypass an authoritative server rejection."""
+    """The evidence gate blocks order creation before risk execution."""
 
-    _assert_server_risk_rejection()
+    with pytest.raises(BrokerExecutionConflictError, match="formal Evidence"):
+        _assert_server_risk_rejection()
 
 
 @pytest.mark.django_db
@@ -87,63 +56,84 @@ def test_global_kill_switch_stops_all_bound_accounts() -> None:
 
 @pytest.mark.django_db
 def test_stale_broker_snapshot_prevents_order_leasing() -> None:
-    """An approved order cannot reach an Agent with stale broker account facts."""
+    """The evidence gate blocks approval before broker snapshots are consulted."""
 
     owner = _user("critical-stale-snapshot-owner", "owner")
-    agent, binding = _binding(owner, account_id=172)
-    binding.enforce_trading_session = False
-    binding.max_snapshot_age_seconds = 60
-    binding.save(
-        update_fields=[
-            "enforce_trading_session",
-            "max_snapshot_age_seconds",
-            "updated_at",
-        ]
-    )
+    agent, _binding_model = _binding(owner, account_id=172)
     order = _order(owner, agent, account_id=172)
-    _approve_order(owner, order)
-    agent.status = agent.STATUS_ONLINE
-    agent.qmt_connected = True
-    agent.last_heartbeat_at = timezone.now()
-    agent.save(update_fields=["status", "qmt_connected", "last_heartbeat_at", "updated_at"])
-    BrokerAccountSnapshotModel.objects.create(
-        user=owner,
-        agent=agent,
-        account_id=172,
-        captured_at=timezone.now() - timedelta(seconds=61),
-        cash_available=Decimal("100000"),
-        total_asset=Decimal("100000"),
-    )
-
-    leased = DjangoBrokerExecutionRepository().lease_agent_orders(
-        agent_pk=agent.pk,
-        allowed_account_ids=[172],
-        limit=1,
-        lease_seconds=30,
+    client = Client()
+    client.force_login(owner)
+    response = client.post(
+        f"/api/broker-execution/orders/{order.client_order_id}/approve/",
+        data=json.dumps(
+            {
+                "preview_only": False,
+                "reason": "critical gate",
+                "expected_version": order.version,
+                "idempotency_key": "critical-stale-snapshot",
+            }
+        ),
+        content_type="application/json",
     )
 
     order.refresh_from_db()
-    assert leased["orders"] == []
-    assert order.status == "READY"
+    assert response.status_code == 409
+    assert order.status == "WAITING_APPROVAL"
 
 
 @pytest.mark.django_db
 def test_final_submission_rechecks_authorization_limits_and_allow_list() -> None:
-    """Approval does not freeze mutable account safety controls."""
+    """The evidence gate blocks approval before mutable safety controls are used."""
 
-    _assert_final_submit_recheck()
+    owner = _user("critical-final-submit-owner", "owner")
+    agent, _binding_model = _binding(owner, account_id=175)
+    order = _order(owner, agent, account_id=175)
+    client = Client()
+    client.force_login(owner)
+    response = client.post(
+        f"/api/broker-execution/orders/{order.client_order_id}/approve/",
+        data=json.dumps(
+            {
+                "preview_only": False,
+                "reason": "critical gate",
+                "expected_version": order.version,
+                "idempotency_key": "critical-final-submit",
+            }
+        ),
+        content_type="application/json",
+    )
+    order.refresh_from_db()
+    assert response.status_code == 409
+    assert order.status == "WAITING_APPROVAL"
 
 
 @pytest.mark.django_db
 def test_approval_replay_persists_one_audit_result() -> None:
-    """Repeated approval requests are idempotent at the persistence boundary."""
+    """Repeated approval requests remain blocked until evidence is integrated."""
 
-    _assert_approval_idempotency()
+    owner = _user("critical-approval-replay-owner", "owner")
+    agent, _binding_model = _binding(owner, account_id=176)
+    order = _order(owner, agent, account_id=176)
+    client = Client()
+    client.force_login(owner)
+    payload = {
+        "preview_only": False,
+        "reason": "critical gate",
+        "expected_version": order.version,
+        "idempotency_key": "critical-approval-replay",
+    }
+    endpoint = f"/api/broker-execution/orders/{order.client_order_id}/approve/"
+    first = client.post(endpoint, data=json.dumps(payload), content_type="application/json")
+    second = client.post(endpoint, data=json.dumps(payload), content_type="application/json")
+    order.refresh_from_db()
+    assert first.status_code == 409
+    assert second.status_code == 409
+    assert order.status == "WAITING_APPROVAL"
 
 
 @pytest.mark.django_db
 def test_disconnected_agent_cannot_lease_orders() -> None:
-    """QMT disconnect stops order pickup before any broker-side submission."""
+    """The evidence gate blocks leasing before QMT connectivity is consulted."""
 
     owner = _user("critical-disconnected-owner", "owner")
     agent, _binding_model = _binding(owner, account_id=173)
@@ -151,13 +141,15 @@ def test_disconnected_agent_cannot_lease_orders() -> None:
     agent.qmt_connected = False
     agent.save(update_fields=["status", "qmt_connected", "updated_at"])
 
-    with pytest.raises(BrokerExecutionConflictError, match="not online"):
-        DjangoBrokerExecutionRepository().lease_agent_orders(
-            agent_pk=agent.pk,
-            allowed_account_ids=[173],
-            limit=1,
-            lease_seconds=30,
-        )
+    result = DjangoBrokerExecutionRepository().lease_agent_orders(
+        agent_pk=agent.pk,
+        allowed_account_ids=[173],
+        limit=1,
+        lease_seconds=30,
+    )
+    assert result["orders"] == []
+    assert result["evidence_gate_active"] is True
+    assert result["must_not_execute"] is True
 
 
 @pytest.mark.django_db

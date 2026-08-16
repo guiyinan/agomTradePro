@@ -2646,6 +2646,18 @@ scope grant 只绑定 actor/tenant/account 而丢失 owner 维度。scope/source
 production composition，也未读取 mutable User/session/tenant；人工授权、PostgreSQL 并发与
 Evidence hard gate、写入和 execution 继续关闭。
 
+## 2026-08-16：Evidence hard-gate critical test contract alignment
+
+CI 暴露的关键执行测试仍假设订单可以在 Evidence 未接入时审批、租赁或进入 Fake Agent
+流程。现已将 `tests/critical/test_risk_and_order_safety.py` 与
+`tests/critical/test_agent_and_recovery_safety.py` 对齐当前 fail-closed 合同：创建/审批/租赁
+及 Fake Agent 入口稳定返回 Evidence 阻断，订单保持 `WAITING_APPROVAL`，不触发 broker、
+snapshot、lease 或 fill 副作用。critical 回归 `13 passed`。
+
+该 slice 只修正测试合同，没有放宽 `broker_order_evidence_integrated()`、没有创建生产
+Evidence publisher/authority，也没有解除写入或 execution 总闸。全仓 mypy debt ceiling 和
+module-cycle baseline 仍需独立治理，不能用提高基线或扩大 allowlist 冒充修复。
+
 ## 2026-08-16：EVID-01 scope grant nested artifact invariant hardening
 
 `EvidenceScopeGrant` 与 `EvidenceScopeAuthorizer` 现在在 scoped boundary 重新执行嵌套

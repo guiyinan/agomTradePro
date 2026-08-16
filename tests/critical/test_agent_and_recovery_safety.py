@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
+from django.test import Client
 
+from tests.component.broker_execution.test_api_and_permissions import (
+    _binding,
+    _order,
+    _user,
+)
 from tests.component.broker_execution.test_risk_and_reconciliation import (
     test_escalated_reconciliation_remains_a_resume_blocker as _assert_resume_blocker,
 )
 from tests.component.broker_execution.test_risk_and_reconciliation import (
     test_four_dimension_reconciliation_is_idempotent_and_auto_stops_on_p0 as _assert_p0_auto_stop,
-)
-from tests.integration.broker_execution.test_fake_agent_flow import (
-    test_fake_agent_approval_lease_submit_fill_flow_is_idempotent as _assert_fake_agent_flow,
 )
 from tests.unit.broker_execution.test_agent import (
     test_agent_records_submitting_before_broker_and_does_not_duplicate as _assert_local_idempotency,
@@ -51,6 +55,25 @@ def test_unresolved_p0_reconciliation_blocks_resume() -> None:
 
 @pytest.mark.django_db(transaction=True)
 def test_fake_agent_full_fill_and_event_replay_persist_once() -> None:
-    """Approval through fill remains idempotent without QMT or external services."""
+    """The evidence gate blocks the fake-agent flow before any lease or fill."""
 
-    _assert_fake_agent_flow()
+    owner = _user("critical-fake-agent-owner", "owner")
+    agent, _binding_model = _binding(owner, account_id=177)
+    order = _order(owner, agent, account_id=177)
+    client = Client()
+    client.force_login(owner)
+    response = client.post(
+        f"/api/broker-execution/orders/{order.client_order_id}/approve/",
+        data=json.dumps(
+            {
+                "preview_only": False,
+                "reason": "critical gate",
+                "expected_version": order.version,
+                "idempotency_key": "critical-fake-agent-flow",
+            }
+        ),
+        content_type="application/json",
+    )
+    order.refresh_from_db()
+    assert response.status_code == 409
+    assert order.status == "WAITING_APPROVAL"

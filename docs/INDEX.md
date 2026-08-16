@@ -1060,6 +1060,9 @@
 - ✅ **DATA-02 primary-key collision identity guard（2026-08-16）**
   - control-plane upsert 在自然键未命中而 primary key 冲突时按完整 lookup+identity 复核，稳定拒绝 batch/checkpoint 身份替换；`test_control_plane.py` `12 passed`，增量 mypy/Black/isort/diff-check 通过
   - 仅本地幂等合同；未连接生产 PostgreSQL、未执行 restore/backfill/reconciliation/rollback，`DATA-01/02/03` 状态不变
+- ✅ **EVID-01 critical execution-test contract alignment（2026-08-16）**
+  - 关键 broker/agent 测试对齐当前 Evidence hard gate：create/approve/lease/Fake Agent 在 evidence 未接入时稳定阻断、订单保持 `WAITING_APPROVAL`；`tests/critical` 两文件 `13 passed`，Black/isort/py_compile/diff-check 通过
+  - 仅修正过时测试合同；未放宽 execution gate、未接入 publisher/authority；全仓 mypy debt 与 module-cycle baseline 仍需独立治理，`EVID-01` 继续 active
 - ✅ **DATA-01 production PostgreSQL backup evidence refresh（2026-08-15）**
   - `scripts/backup-vps-postgres.ps1` 重新取得并验证 custom-format 归档（`139057048` bytes，SHA-256 `a8f005eb3a461f28d21689ecef6d5aee89b59a353d06944b79e08c82662839cc`）；仅完成备份子步骤，维护态/恢复/回滚/回填仍未通过，DATA-01 继续 awaiting
 - ✅ **DATA-01 latest PostgreSQL backup refresh（2026-08-15）**
