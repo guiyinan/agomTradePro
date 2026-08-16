@@ -2645,3 +2645,17 @@ scope grant 只绑定 actor/tenant/account 而丢失 owner 维度。scope/source
 这只是本地 owner identity/contract 加固，未创建 owner/tenant lifecycle、selector issuer 或
 production composition，也未读取 mutable User/session/tenant；人工授权、PostgreSQL 并发与
 Evidence hard gate、写入和 execution 继续关闭。
+
+## 2026-08-16：EVID-01 scope grant nested artifact invariant hardening
+
+`EvidenceScopeGrant` 与 `EvidenceScopeAuthorizer` 现在在 scoped boundary 重新执行嵌套
+`ArtifactRef` 的完整 value-object invariant。这样 provider 即使原地篡改请求 artifact 并重算
+grant content hash，也不能把非法 artifact identity 伪装成合法 owner-scoped grant；请求在进入
+provider 前也会 fail closed。
+
+新增 nested artifact mutation / provider hash-recompute 回归；scope/source/provider/facade focused
+回归 `71 passed`，Black/isort、增量 mypy regression `0`、architecture/audit `0 violations`。
+`ruff` 当前环境未安装，未将其记为通过。该 slice 仍只收紧本地 Evidence authority boundary，
+不创建 immutable owner/tenant lifecycle、selector issuer、production composition 或 route；
+EVID-01 仍 active，EVID-02/EVID-03、人工授权、PostgreSQL 生产证据、Evidence hard gate、写入和
+execution 继续关闭。

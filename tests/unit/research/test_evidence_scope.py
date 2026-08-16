@@ -150,6 +150,37 @@ def test_scope_hash_tamper_is_corruption() -> None:
         )
 
 
+def test_authorizer_rejects_mutated_nested_artifact_before_provider_call() -> None:
+    artifact = _artifact()
+    object.__setattr__(artifact, "content_hash", "not-a-sha256-digest")
+    provider = _Provider(_grant())
+
+    with pytest.raises(ValueError, match="content_hash must be a sha256 hex digest"):
+        EvidenceScopeAuthorizer(provider).require(artifact=artifact, as_of=AS_OF)
+
+    assert provider.calls == []
+
+
+def test_authorizer_rejects_provider_nested_artifact_tamper_after_hash_recompute() -> None:
+    artifact = _artifact()
+    grant = _grant(artifact=artifact)
+
+    class _MutatingProvider:
+        def get_current_scope(
+            self,
+            *,
+            artifact: ArtifactRef,
+            as_of: datetime,
+        ) -> EvidenceScopeGrant:
+            del as_of
+            object.__setattr__(artifact, "content_hash", "not-a-sha256-digest")
+            object.__setattr__(grant, "content_hash", evidence_scope_grant_hash(grant))
+            return grant
+
+    with pytest.raises(EvidenceScopeCorruption):
+        EvidenceScopeAuthorizer(_MutatingProvider()).require(artifact=artifact, as_of=AS_OF)
+
+
 def test_authorizer_rejects_permission_substitution_even_with_recomputed_hash() -> None:
     grant = _grant()
     object.__setattr__(grant, "permission", "write")

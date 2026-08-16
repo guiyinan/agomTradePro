@@ -59,6 +59,11 @@ class EvidenceScopeGrant:
             _require_token(getattr(self, field_name), field_name)
         if type(self.artifact) is not ArtifactRef:
             raise TypeError("artifact must be an exact ArtifactRef")
+        # Re-run the nested value-object invariant as part of this boundary.
+        # A provider must not be able to mutate an ArtifactRef in place and
+        # then make the altered identity look valid by recomputing the grant
+        # hash.
+        ArtifactRef.__post_init__(self.artifact)
         for field_name in ("recorded_at", "valid_until"):
             value = getattr(self, field_name)
             if type(value) is not datetime or value.tzinfo is None:
@@ -103,6 +108,7 @@ class EvidenceScopeAuthorizer:
 
         if type(artifact) is not ArtifactRef:
             raise TypeError("artifact must be an exact ArtifactRef")
+        ArtifactRef.__post_init__(artifact)
         if type(as_of) is not datetime or as_of.tzinfo is None:
             raise TypeError("as_of must be timezone-aware")
         try:
