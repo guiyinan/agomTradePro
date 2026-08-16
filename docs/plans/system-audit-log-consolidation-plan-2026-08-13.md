@@ -859,3 +859,18 @@ reader boundary 映射为稳定 `authority_unavailable`，不会触碰 outbox cl
 request actor、generic/memory fallback 或生产 writer。真实 immutable authority source、scope
 lifecycle、durable publisher/receipt sink、beat/retry、production PostgreSQL 观察仍未接线，
 因此 `AUD-01` 继续阻断。
+
+## 实施记录（2026-08-16，AUD-01 preflight-to-receipt sink binding）
+
+`inspect_canonical_system_audit_publisher()` 现在只调用一次 durable preflight，并把经校验的
+`sink_id` 返回给 dispatcher；每条 `CanonicalSystemAuditPublishReceipt` 在交付前必须与该次
+preflight 的 sink 完全一致，sink substitution 统一按 `publisher_contract_violation` 失败关闭，
+避免只凭 event identity/hash 将另一个 durable 或泛型 sink 的回执计为 delivered。新增
+composition/dispatcher 负例与单次 preflight contract 测试；composition/dispatcher 定向回归
+`47 passed`，task/authority 定向回归 `10 passed`，增量 mypy、Black/isort、py_compile、
+architecture、audit/celery governance checks 与 diff-check 通过。
+
+该 slice 仍只加固本地 preflight/receipt 绑定：没有创建或接线 durable publisher、authenticated
+authority source、Celery beat/retry/requeue、Data Center 同 UOW、生产 PostgreSQL/VPS 观察或
+delivery receipt sink；runtime 继续返回 `publisher_not_wired`，AUD-01 仍阻断，AUD-02/03
+继续等待依赖。

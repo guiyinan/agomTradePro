@@ -16,6 +16,7 @@ from apps.audit.application.system_audit_composition import (
     SystemAuditCompositionUnavailable,
     SystemAuditPublisherContractViolation,
     get_system_audit_reader_context,
+    inspect_canonical_system_audit_publisher,
     system_audit_authority_content_hash,
     validate_canonical_system_audit_publisher,
 )
@@ -370,3 +371,20 @@ def test_publisher_preflight_accepts_only_explicit_durable_capability() -> None:
 
     publisher = DurablePublisher()
     assert validate_canonical_system_audit_publisher(publisher) is publisher
+
+
+def test_publisher_preflight_is_returned_for_receipt_sink_binding() -> None:
+    class DurablePublisher:
+        def preflight(self) -> CanonicalSystemAuditPublisherPreflight:
+            return CanonicalSystemAuditPublisherPreflight(
+                sink_id="audit-db-primary",
+                sink_kind="durable",
+            )
+
+        def publish(self, event: object) -> None:
+            del event
+
+    publisher, preflight = inspect_canonical_system_audit_publisher(DurablePublisher())
+    assert isinstance(preflight, CanonicalSystemAuditPublisherPreflight)
+    assert preflight.sink_id == "audit-db-primary"
+    assert publisher is not None

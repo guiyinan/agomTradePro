@@ -174,6 +174,34 @@ def test_dispatch_rejects_receipt_without_durable_delivery_proof() -> None:
     assert repository.failed[0]["error_code"] == "publisher_contract_violation"
 
 
+def test_dispatch_rejects_receipt_from_a_sink_other_than_preflight() -> None:
+    class SinkSubstitutingPublisher:
+        def preflight(self) -> CanonicalSystemAuditPublisherPreflight:
+            return CanonicalSystemAuditPublisherPreflight(
+                sink_id="audit-db-primary",
+                sink_kind="durable",
+            )
+
+        def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
+            return CanonicalSystemAuditPublishReceipt.from_event(
+                event,
+                sink_id="audit-db-replica",
+                delivery_id=f"delivery:{event.event_id}",
+                published_at=NOW,
+            )
+
+    repository = Repository(_claim())
+    result = DispatchSystemAuditOutboxUseCase(
+        repository,
+        SinkSubstitutingPublisher(),
+        UnitOfWork(),
+    ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
+
+    assert (result.claimed, result.delivered, result.failed) == (1, 0, 1)
+    assert result.outcome == "failed"
+    assert repository.failed[0]["error_code"] == "publisher_contract_violation"
+
+
 def test_dispatch_classifies_noncanonical_receipt_payload_as_contract_failure() -> None:
     class MalformedPayloadPublisher:
         def preflight(self) -> CanonicalSystemAuditPublisherPreflight:

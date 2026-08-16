@@ -18,7 +18,7 @@ from apps.audit.application.system_audit_composition import (
     CanonicalSystemAuditPublishReceipt,
     SystemAuditCompositionUnavailable,
     SystemAuditPublisherContractViolation,
-    validate_canonical_system_audit_publisher,
+    inspect_canonical_system_audit_publisher,
 )
 from apps.audit.domain.system_audit_event import SystemAuditEvent
 
@@ -174,7 +174,7 @@ class DispatchSystemAuditOutboxUseCase:
 
         self._validate(command)
         try:
-            publisher = validate_canonical_system_audit_publisher(self._publisher)
+            publisher, preflight = inspect_canonical_system_audit_publisher(self._publisher)
         except SystemAuditCompositionUnavailable as error:
             raise SystemAuditOutboxDispatchUnavailable(
                 "system audit publisher preflight is unavailable",
@@ -200,7 +200,7 @@ class DispatchSystemAuditOutboxUseCase:
                     raise SystemAuditPublisherContractViolation(
                         "publisher returned no canonical preservation receipt"
                     )
-                receipt.validate_for(item.event)
+                receipt.validate_for(item.event, expected_sink_id=preflight.sink_id)
             except SystemAuditPublisherContractViolation:
                 failed += 1
                 try:

@@ -276,8 +276,19 @@ class CanonicalSystemAuditPublishReceipt:
                 "publisher publication clock precedes the event clock"
             )
 
-    def validate_for(self, event: SystemAuditEvent) -> None:
-        """Reject any identity, chain, hash, or payload substitution."""
+    def validate_for(
+        self,
+        event: SystemAuditEvent,
+        *,
+        expected_sink_id: str | None = None,
+    ) -> None:
+        """Reject any identity, chain, hash, or payload substitution.
+
+        ``expected_sink_id`` is supplied by the same publisher preflight that
+        ran before the outbox claim.  Keeping it optional preserves direct
+        receipt-contract tests while the dispatcher binds every runtime
+        delivery to the attested durable sink.
+        """
 
         if not isinstance(event, SystemAuditEvent):
             raise SystemAuditPublisherContractViolation("publisher event type was substituted")
@@ -308,6 +319,10 @@ class CanonicalSystemAuditPublishReceipt:
                 "publisher receipt did not preserve the canonical event"
             )
         self._validate_delivery_proof(event)
+        if expected_sink_id is not None and self.sink_id != expected_sink_id:
+            raise SystemAuditPublisherContractViolation(
+                "publisher receipt sink does not match the preflight sink"
+            )
         try:
             event.validate_hashes()
         except (TypeError, ValueError) as exc:
@@ -366,15 +381,15 @@ class CanonicalSystemAuditPublisherPreflight:
                 raise ValueError(f"{bool_name} must be true for a canonical publisher")
 
 
-def validate_canonical_system_audit_publisher(
+def inspect_canonical_system_audit_publisher(
     publisher: object,
-) -> CanonicalSystemAuditPublisher:
-    """Validate explicit publisher capability before any outbox claim.
+) -> tuple[CanonicalSystemAuditPublisher, CanonicalSystemAuditPublisherPreflight]:
+    """Return a publisher and its single validated durable preflight.
 
-    This function deliberately does not discover a publisher, import a
-    generic event bus, or test-connect to an external service.  It only
-    enforces the minimum composition contract so a future runtime root cannot
-    accidentally wire an object that merely has a ``publish`` method.
+    The attestation is returned so a dispatcher can bind delivery receipts to
+    the exact sink that was checked before claiming an outbox row.  Calling
+    ``preflight`` only once also avoids a time-of-check/time-of-use gap for a
+    mutable runtime adapter.
     """
 
     try:
@@ -399,7 +414,16 @@ def validate_canonical_system_audit_publisher(
             "system audit publisher durable preflight failed",
             reason_code="publisher_contract_invalid",
         ) from exc
-    return cast(CanonicalSystemAuditPublisher, publisher)
+    return cast(CanonicalSystemAuditPublisher, publisher), attestation
+
+
+def validate_canonical_system_audit_publisher(
+    publisher: object,
+) -> CanonicalSystemAuditPublisher:
+    """Validate explicit publisher capability before any outbox claim."""
+
+    validated, _ = inspect_canonical_system_audit_publisher(publisher)
+    return validated
 
 
 @dataclass(frozen=True, slots=True)
@@ -557,5 +581,6 @@ __all__ = [
     "SystemAuditPublisherContractViolation",
     "system_audit_authority_content_hash",
     "get_system_audit_reader_context",
+    "inspect_canonical_system_audit_publisher",
     "validate_canonical_system_audit_publisher",
 ]
