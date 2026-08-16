@@ -4,6 +4,35 @@
 
 `dev/next-development` 的提交 `96ce6ee43b06e6eb6ad51528ff8ee783a4bf0952` 已在 `demo.agomtrade.pro` 完成一次带 provenance 校验的后续候选部署。该 release 包含 TUI AI provider failure guidance 修复；当前服务正常运行，M5 观察窗口从本次独立核验时间重新计算。本证据不解除角色化浏览器 UAT、写后回执、14 日观察、恢复演练或数据覆盖门禁。
 
+## 2026-08-17 00:34 当前候选部署与只读观测
+
+候选 `dev/next-development@3ceafaf193e87626be7458531c66e96b11f7df84` 已使用标准
+`git-clone`、`-Upgrade`、code-only 模式发布到 `demo.agomtrade.pro`；PostgreSQL/Redis
+数据卷保留，Celery 启用。本节记录部署脚本返回的可复核身份与只读检查，不把健康检查
+或 CI 通过误写成生产授权、角色化 UAT 或数据恢复演练。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260817002134` |
+| release dir | `/opt/agomtradepro/releases/source-20260817002134` |
+| source commit | `3ceafaf193e87626be7458531c66e96b11f7df84` |
+| image | `agomtradepro-web:20260817002134` |
+| image ID | `sha256:2669efe86996c2e2ca54937fd7abc3064f9b97f6823bbfff40dd12c5891676db` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260817002134.json`（本地忽略产物） |
+| migration/schema | `No migrations to apply`；canonical schema `{"missing_migrations": [], "missing_tables": [], "ok": true}` |
+| HTTPS/health | `demo.agomtrade.pro` Caddy/TLS 校验通过；`/api/health/` HTTP 200，响应 `{"status":"ok"}` |
+| containers | web healthy；Celery worker/beat、PostgreSQL、Redis、Caddy、RSSHub、runtime namespace running |
+| Django/Celery | deploy check 无新增问题；Celery ping `1 node online`；worker/beat running |
+| TUI registry | publish/check 通过；registry `25`、backend `20260816151607`、active source hash 与 expected 一致 |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| backup | 部署前 PostgreSQL/Redis backup hook 成功；本次未执行 restore/rebuild、RTO/RPO 或 rollback drill |
+
+部署日志还记录迁移、catalog 同步、静态文件、AI capability catalog 与冷启动 dry-run 均完成；
+没有执行登录、角色化浏览器 UAT、业务写入或 authority 回填。`/api/ready/` 的 Alpha/Qlib
+与 workspace freshness warnings 仍按原样保留，AUD-01/EVID-01 durable publisher/authority、
+M5 角色化写回执、14 日 telemetry、registry backup/restore、rollback 与 owner/reviewer 双签
+继续 fail-closed。
+
 ## 发布身份
 
 | 项目 | 证据 |

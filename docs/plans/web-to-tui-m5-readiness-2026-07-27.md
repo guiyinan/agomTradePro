@@ -593,3 +593,17 @@ runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest
 角色化浏览器 UAT 或业务写入。写后 receipt/refresh、14 日 telemetry、registry backup/restore、
 rollback 与 owner/reviewer 双签仍缺，M5-A 继续 `DENY`；AUD-01/EVID-01 authority/publisher
 门禁不因代码部署解除。
+
+### 2026-08-17 当前候选运行观测
+
+当前 `dev/next-development@3ceafaf193e87626be7458531c66e96b11f7df84` 已发布为
+`20260817002134`，release manifest/runtime identity 与 source commit 一致，web healthy，
+`/api/health/` HTTP 200，迁移与 canonical schema 检查通过，TUI registry check、Qlib identity、
+Celery worker/beat 与 ping 均通过。结构化部署报告为
+`dist/remote-build-reports/remote-build-report-20260817002134.json`；该产物被忽略，不作为
+源码证据提交。
+
+本次仍是 code-only、保留 PostgreSQL/Redis 数据卷的只读运行观测，没有登录、角色化浏览器 UAT、
+写后 receipt/refresh、14 日 telemetry、registry backup/restore、rollback 或 owner/reviewer
+双签。M5-A、AUD-01/EVID-01 等门禁状态不因部署成功改变；ready 中既有 Alpha/Qlib 与 workspace
+freshness warnings 仍需后续数据/生产证据处理。
