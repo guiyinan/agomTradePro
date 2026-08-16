@@ -465,7 +465,7 @@
 ## 2026-08-16 当前收口状态
 
 - 计划与机器状态的唯一导航入口是 [`docs/plans/README.md`](plans/README.md) 与 [`governance/active_plan_registry.json`](../governance/active_plan_registry.json)；本索引不复制动态 closure 数字。
-- AUD-01 的 durable-publisher preflight contract 与 release identity guard 已合入并部署到候选 `e29e15b09b47e07d9724b9cbc750ae2882310693` / `20260816151607`；远端只读运行证据见 [`vps-runtime-verification-2026-08-16-1534.json`](deployment/vps-runtime-verification-2026-08-16-1534.json)。
+- AUD-01 的 durable-publisher preflight contract 与 release identity guard 已合入并部署到当前候选 `07d5d1d338c70ebc1d347663b48b09b38335fce5` / `20260816160127`；远端只读运行证据见 [`vps-runtime-verification-2026-08-16-1624.json`](deployment/vps-runtime-verification-2026-08-16-1624.json)。
 - 候选部署健康、迁移、schema、TUI registry、Qlib、Celery 与 HTTPS 已复核；角色化浏览器 UAT、写后 receipt/refresh、14 日 telemetry、生产 publisher/authority、数据恢复/回滚与 QMT/AI 外部验收仍按 registry 保持阻断。
 
 ---

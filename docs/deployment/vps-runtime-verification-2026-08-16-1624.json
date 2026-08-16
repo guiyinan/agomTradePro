@@ -1,0 +1,63 @@
+{
+  "version": "vps-runtime-verification.v1",
+  "captured_at": "2026-08-16T08:24:05Z",
+  "environment": "production",
+  "read_only": true,
+  "candidate": {
+    "stable_version": "20260816160127",
+    "source_commit": "07d5d1d338c70ebc1d347663b48b09b38335fce5",
+    "release": "agomtradepro-web:20260816160127",
+    "release_dir": "/opt/agomtradepro/releases/source-20260816160127",
+    "image_id": "sha256:57fbe5504cbec2a2c9c072b3434460aceae5a9b74cd0fc83f5d7be6dba7dab56"
+  },
+  "checks": {
+    "caddy_domain": "demo.agomtrade.pro",
+    "health_http_status": 200,
+    "health_sha256": "513084211e3334448dbfcae2f0af9b1d14b406c51e0eb6e8d539b26e34bae00f",
+    "ready_http_status": 200,
+    "ready_status": "ok",
+    "ready_sha256": "5177675f73c49b6ce76e223d4c0764d0424e0cbf586852c93c1c4eb66398731a",
+    "tls_certificate": "valid",
+    "containers": "web healthy; celery_worker, celery_beat, postgres, redis, caddy, rsshub and runtime_ns running",
+    "django_system_check": "0 issues (1 silenced)",
+    "migrations": "No migrations to apply; migration/schema verification clean",
+    "canonical_schema": "{\"missing_migrations\": [], \"missing_tables\": [], \"ok\": true}",
+    "tui_metadata_registry": "published and matched; registry_id=25; backend_version=20260816151607; source hash matched",
+    "release_identity": "verified; runtime source commit and OCI image ID matched candidate",
+    "qlib": {
+      "pyqlib": "0.9.7",
+      "wrong_qlib_distribution": "absent",
+      "module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py"
+    },
+    "celery": {
+      "worker": "running",
+      "beat": "running",
+      "ping": "1 node online"
+    },
+    "backup": {
+      "remote_path": "/opt/agomtradepro/backups/database/postgres-20260816-100924.dump",
+      "size_bytes": 140804438,
+      "sha256": "06e52b33c637c17cae4c9f0223246e0e09af84254717196d904f67044e7b2cba",
+      "archive_list_entries": 7167,
+      "mode": "custom-format archive readable by pg_restore list; restore/rebuild drill not performed"
+    },
+    "freshness_observations": {
+      "decision_data": "ok",
+      "alpha_workspace": "warning",
+      "issues": [
+        "alpha_qlib_provider_degraded",
+        "workspace_recommendations_stale",
+        "workspace_alpha_rank_source_stale",
+        "market_thermometer_partial_stale"
+      ]
+    }
+  },
+  "outcome": "runtime_verified_candidate",
+  "limitations": [
+    "This is a read-only post-deploy verification; no business writes, login, backfill, or destructive migration were performed.",
+    "It does not prove authenticated role-based browser UAT, write-after-refresh receipts, owner/reviewer sign-off, or the 14-day observation window.",
+    "It does not prove immutable authority lifecycle, durable audit publisher, or execution authorization; AUD-01, EVID-01 and TUI M5 gates remain fail-closed.",
+    "The PostgreSQL archive was only checked with pg_restore --list; no restore, rebuild, RTO/RPO or rollback drill was performed.",
+    "Ready is HTTP 200 but retains explicit freshness warnings for degraded Qlib/workspace/Alpha and market thermometer source data."
+  ]
+}

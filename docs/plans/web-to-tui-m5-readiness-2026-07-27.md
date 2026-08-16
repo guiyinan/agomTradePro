@@ -461,3 +461,33 @@ TUI registry、HTTPS/Caddy、Qlib、Celery worker/beat 与 ping。
 manifest `98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。本次只证明
 当前代码/运行身份与只读健康观测；没有登录或业务写入，角色化浏览器 UAT、写后 receipt/refresh、
 14 日 telemetry、registry backup/restore、rollback 或 owner/reviewer 双签仍缺，M5-A 继续 `DENY`。
+
+### 2026-08-16 16:24 当前候选部署复核
+
+最新候选 `dev/next-development@07d5d1d338c70ebc1d347663b48b09b38335fce5` 已以
+code-only、保留 PostgreSQL/Redis 数据卷、Celery enabled 的 `-Upgrade` 发布为
+`20260816160127`。远端 release manifest 显示 release dir
+`/opt/agomtradepro/releases/source-20260816160127`，OCI image ID 为
+`sha256:57fbe5504cbec2a2c9c072b3434460aceae5a9b74cd0fc83f5d7be6dba7dab56`；
+preflight 见 `docs/deployment/web-to-tui-deployment-preflight-20260816160127.json`。
+
+只读观测时间为 `2026-08-16T08:24:05Z`：HTTPS `/api/health/` 与 `/api/ready/`
+均返回 `200`；health response SHA 为
+`513084211e3334448dbfcae2f0af9b1d14b406c51e0eb6e8d539b26e34bae00f`，ready response SHA 为
+`5177675f73c49b6ce76e223d4c0764d0424e0cbf586852c93c1c4eb66398731a`。迁移、canonical schema、
+Django deploy check、TUI registry、release identity、Celery ping 与 Qlib module 复核通过；
+结构化运行摘要见 `docs/deployment/vps-runtime-verification-2026-08-16-1624.json`。
+
+`/api/ready/` 仍报告 `alpha_qlib_provider_degraded`、`workspace_recommendations_stale`、
+`workspace_alpha_rank_source_stale` 与 `market_thermometer_partial_stale`。本次只证明
+代码/运行身份与只读健康观测；没有登录或业务写入，角色化浏览器 UAT、写后 receipt/refresh、
+14 日 telemetry/defect、registry backup/restore、rollback 或 owner/reviewer 双签仍缺，
+M5-A 继续 `DENY`。PostgreSQL custom-format archive 仅完成 SHA 与 `pg_restore --list` 可读性
+检查，没有 restore/rebuild、RTO/RPO 或 rollback drill。
+
+该候选的 candidate binding 为 `web-to-tui-candidate-binding.v1`：matrix
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、published graph
+`42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba`、schema
+`tui-metadata.v3` / runtime `0.2.0` / build `agomtui-runtime-0.2.0+8e5b1ff43be5`、
+manifest `98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。该候选仅
+重置并开始 `2026-08-16..2026-08-30` 观察窗口，不跨候选继承任何 UAT 或 telemetry 结果。

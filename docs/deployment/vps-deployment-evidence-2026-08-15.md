@@ -396,6 +396,43 @@ candidate binding 仍为 `web-to-tui-candidate-binding.v1`：matrix SHA
 runtime `0.2.0`、build `agomtui-runtime-0.2.0+a2553996be22`、manifest SHA
 `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854`。
 
+## 2026-08-16 16:24 当前候选部署与观测
+
+本次部署继续采用标准 `git-clone`、`-Upgrade`、code-only 模式，保留
+PostgreSQL/Redis 数据卷并启用 Celery。候选身份已绑定到
+`dev/next-development@07d5d1d338c70ebc1d347663b48b09b38335fce5` / release `20260816160127`。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260816160127` |
+| release dir | `/opt/agomtradepro/releases/source-20260816160127` |
+| source commit | `07d5d1d338c70ebc1d347663b48b09b38335fce5` |
+| image | `agomtradepro-web:20260816160127` |
+| image ID | `sha256:57fbe5504cbec2a2c9c072b3434460aceae5a9b74cd0fc83f5d7be6dba7dab56` |
+| preflight | `docs/deployment/web-to-tui-deployment-preflight-20260816160127.json`；SHA `8cd0c8c659fc5a85db782f74180458dd848de7532b6b85dd379a959ebec1d691` |
+| migration/schema | `migrate --check` clean；canonical schema `{"missing_migrations": [], "missing_tables": [], "ok": true}` |
+| HTTPS | `demo.agomtrade.pro` Caddy domain；`/api/health/` 与 `/api/ready/` HTTP `200` |
+| containers | web healthy；celery worker/beat、PostgreSQL、Redis、Caddy、RSSHub、runtime namespace running；Celery ping `1 node online` |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| runtime observation | health SHA `513084211e3334448dbfcae2f0af9b1d14b406c51e0eb6e8d539b26e34bae00f`；ready SHA `5177675f73c49b6ce76e223d4c0764d0424e0cbf586852c93c1c4eb66398731a` |
+| backup | `/opt/agomtradepro/backups/database/postgres-20260816-100924.dump`；size `140804438`；SHA256 `06e52b33c637c17cae4c9f0223246e0e09af84254717196d904f67044e7b2cba`；`pg_restore --list` `7167` entries |
+
+结构化只读摘要见 `docs/deployment/vps-runtime-verification-2026-08-16-1624.json`。
+`/api/ready/` 仍报告 `alpha_qlib_provider_degraded`、`workspace_recommendations_stale`、
+`workspace_alpha_rank_source_stale` 与 `market_thermometer_partial_stale`；这些 freshness
+warnings 没有被部署成功掩盖。本次没有登录、角色化浏览器 UAT 或业务写入；写后
+receipt/refresh、14 日 telemetry/defect、registry backup/restore、rollback drill、
+owner/reviewer 双签以及 AUD-01/EVID-01 durable authority/publisher 仍未完成，相关 gate
+继续 fail-closed。PostgreSQL archive 只完成 SHA 与 `pg_restore --list` 检查，没有 restore/rebuild、
+RTO/RPO 或 rollback drill。
+
+该候选的 candidate binding 为 `web-to-tui-candidate-binding.v1`：matrix SHA
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、published graph
+`42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba`、schema `tui-metadata.v3`、
+runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest SHA
+`98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。观察窗口为
+`2026-08-16..2026-08-30`，不跨候选继承 UAT、telemetry 或 cleanup 证据。
+
 ## 2026-08-16 15:34 当前候选部署与观测
 
 本次部署包含 TUI release identity、reviewed metadata artifacts 与 AUD-01 durable-publisher contract guard，再进入只读观测。`dev/next-development@e29e15b09b47e07d9724b9cbc750ae2882310693`
