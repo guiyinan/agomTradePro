@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import datetime
+from typing import TypeVar
 from uuid import UUID, uuid4
 
-from django.db import transaction
+from django.db import IntegrityError, models, transaction
 from django.db.models import Q
 
 from apps.data_center.application.sync_identity import SyncExecutionIdentity
@@ -46,36 +48,96 @@ def _uuid(value: str) -> UUID:
     return UUID(value)
 
 
+ModelT = TypeVar("ModelT", bound=models.Model)
+
+
+def _identity_checked_update_or_create(
+    model_class: type[ModelT],
+    *,
+    lookup: Mapping[str, object],
+    identity: Mapping[str, object],
+    defaults: Mapping[str, object],
+    label: str,
+) -> tuple[ModelT, bool]:
+    """Upsert mutable state without allowing stable identities to be reused.
+
+    ``update_or_create`` is convenient for retries but, by itself, will also
+    overwrite identity columns when a caller reuses an idempotency key with a
+    different run/batch/checkpoint.  This helper preflights the identity and
+    keeps the check inside a transaction; the integrity-error path repeats the
+    check after a concurrent insert before applying mutable state.
+    """
+
+    manager = model_class._default_manager
+    with transaction.atomic():
+        existing = manager.select_for_update().filter(**lookup).first()
+        if existing is None:
+            try:
+                # Keep the expected uniqueness race in a savepoint so the
+                # outer transaction remains usable for the identity recheck.
+                with transaction.atomic():
+                    return manager.create(**lookup, **defaults), True
+            except IntegrityError:
+                existing = manager.select_for_update().filter(**lookup).first()
+                if existing is None:
+                    raise
+        _assert_identity_matches(existing, identity=identity, label=label)
+        for field_name, value in defaults.items():
+            setattr(existing, field_name, value)
+        existing.save()
+        return existing, False
+
+
+def _assert_identity_matches(
+    model: models.Model,
+    *,
+    identity: Mapping[str, object],
+    label: str,
+) -> None:
+    """Reject a stable-key retry whose immutable identity differs."""
+
+    for field_name, expected in identity.items():
+        if getattr(model, field_name) != expected:
+            raise ValueError(f"{label} identity conflict for {field_name}")
+
+
 class SyncRunRepository:
     """Persist and query business-level sync runs."""
 
     def save(self, run: SyncRun) -> SyncRun:
         """Create or replace one run by its immutable identifier."""
 
-        model, _ = SyncRunModel._default_manager.update_or_create(
-            run_id=_uuid(run.run_id),
-            defaults={
-                "dataset_key": run.dataset_key,
-                "trigger": run.trigger,
-                "status": run.status.value,
-                "outcome": run.outcome,
-                "provider_name": run.provider_name,
-                "contract_version": run.contract_version,
-                "config_snapshot_hash": run.config_snapshot_hash,
-                "requested": run.requested,
-                "fetched": run.fetched,
-                "validated": run.validated,
-                "quarantined": run.quarantined,
-                "succeeded": run.succeeded,
-                "failed": run.failed,
-                "stored": run.stored,
-                "published": run.published,
-                "unchanged": run.unchanged,
-                "started_at": run.started_at,
-                "finished_at": run.finished_at,
-                "error_code": run.error_code,
-                "error_message": run.error_message,
-            },
+        identity = {
+            "dataset_key": run.dataset_key,
+            "trigger": run.trigger,
+            "provider_name": run.provider_name,
+            "contract_version": run.contract_version,
+            "config_snapshot_hash": run.config_snapshot_hash,
+        }
+        defaults = {
+            **identity,
+            "status": run.status.value,
+            "outcome": run.outcome,
+            "requested": run.requested,
+            "fetched": run.fetched,
+            "validated": run.validated,
+            "quarantined": run.quarantined,
+            "succeeded": run.succeeded,
+            "failed": run.failed,
+            "stored": run.stored,
+            "published": run.published,
+            "unchanged": run.unchanged,
+            "started_at": run.started_at,
+            "finished_at": run.finished_at,
+            "error_code": run.error_code,
+            "error_message": run.error_message,
+        }
+        model, _ = _identity_checked_update_or_create(
+            SyncRunModel,
+            lookup={"run_id": _uuid(run.run_id)},
+            identity=identity,
+            defaults=defaults,
+            label="sync run",
         )
         return model.to_domain()
 
@@ -100,29 +162,36 @@ class SyncBatchRepository:
     def save(self, batch: SyncBatch) -> SyncBatch:
         """Upsert a batch by its stable idempotency key."""
 
-        model, _ = SyncBatchModel._default_manager.update_or_create(
-            idempotency_key=batch.idempotency_key,
-            defaults={
-                "batch_id": _uuid(batch.batch_id),
-                "run_id": _uuid(batch.run_id),
-                "dataset_key": batch.dataset_key,
-                "provider_name": batch.provider_name,
-                "state": batch.state.value,
-                "requested": batch.requested,
-                "fetched": batch.fetched,
-                "validated": batch.validated,
-                "quarantined": batch.quarantined,
-                "succeeded": batch.succeeded,
-                "failed": batch.failed,
-                "stored": batch.stored,
-                "published": batch.published,
-                "window_start": batch.window_start,
-                "window_end": batch.window_end,
-                "started_at": batch.started_at,
-                "finished_at": batch.finished_at,
-                "error_code": batch.error_code,
-                "error_message": batch.error_message,
-            },
+        identity = {
+            "batch_id": _uuid(batch.batch_id),
+            "run_id": _uuid(batch.run_id),
+            "dataset_key": batch.dataset_key,
+            "provider_name": batch.provider_name,
+        }
+        defaults = {
+            **identity,
+            "state": batch.state.value,
+            "requested": batch.requested,
+            "fetched": batch.fetched,
+            "validated": batch.validated,
+            "quarantined": batch.quarantined,
+            "succeeded": batch.succeeded,
+            "failed": batch.failed,
+            "stored": batch.stored,
+            "published": batch.published,
+            "window_start": batch.window_start,
+            "window_end": batch.window_end,
+            "started_at": batch.started_at,
+            "finished_at": batch.finished_at,
+            "error_code": batch.error_code,
+            "error_message": batch.error_message,
+        }
+        model, _ = _identity_checked_update_or_create(
+            SyncBatchModel,
+            lookup={"idempotency_key": batch.idempotency_key},
+            identity=identity,
+            defaults=defaults,
+            label="sync batch",
         )
         return model.to_domain()
 
@@ -207,19 +276,28 @@ class SyncCheckpointRepository:
     def save(self, checkpoint: SyncCheckpoint) -> SyncCheckpoint:
         """Upsert a checkpoint by batch/cursor identity."""
 
-        model, _ = SyncCheckpointModel._default_manager.update_or_create(
-            batch_id=_uuid(checkpoint.batch_id),
-            cursor_name=checkpoint.cursor_name,
-            cursor_value=checkpoint.cursor_value,
-            defaults={
-                "checkpoint_id": _uuid(checkpoint.checkpoint_id),
-                "run_id": _uuid(checkpoint.run_id),
-                "state": checkpoint.state.value,
-                "processed": checkpoint.processed,
-                "failed": checkpoint.failed,
-                "recorded_at": checkpoint.recorded_at,
-                "error_code": checkpoint.error_code,
+        identity = {
+            "checkpoint_id": _uuid(checkpoint.checkpoint_id),
+            "run_id": _uuid(checkpoint.run_id),
+        }
+        defaults = {
+            **identity,
+            "state": checkpoint.state.value,
+            "processed": checkpoint.processed,
+            "failed": checkpoint.failed,
+            "recorded_at": checkpoint.recorded_at,
+            "error_code": checkpoint.error_code,
+        }
+        model, _ = _identity_checked_update_or_create(
+            SyncCheckpointModel,
+            lookup={
+                "batch_id": _uuid(checkpoint.batch_id),
+                "cursor_name": checkpoint.cursor_name,
+                "cursor_value": checkpoint.cursor_value,
             },
+            identity=identity,
+            defaults=defaults,
+            label="sync checkpoint",
         )
         return model.to_domain()
 

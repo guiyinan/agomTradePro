@@ -199,6 +199,57 @@ def test_control_plane_repositories_are_idempotent_and_current_is_published_only
 
 
 @pytest.mark.django_db
+def test_control_plane_repositories_reject_identity_reuse() -> None:
+    """Retries may update state, but stable control-plane keys cannot change owner."""
+
+    run_id, batch_id, checkpoint_id = _ids()
+    run = SyncRun(
+        run_id=run_id,
+        dataset_key="equity.daily",
+        trigger="pytest",
+        status=SyncRunStatus.STORED,
+        outcome="success",
+        requested=1,
+        succeeded=1,
+        stored=1,
+        started_at=NOW,
+        finished_at=NOW,
+    )
+    SyncRunRepository().save(run)
+    with pytest.raises(ValueError, match="sync run identity conflict for dataset_key"):
+        SyncRunRepository().save(replace(run, dataset_key="macro.cpi"))
+
+    batch = SyncBatch(
+        batch_id=batch_id,
+        run_id=run_id,
+        dataset_key="equity.daily",
+        provider_name="tushare",
+        idempotency_key="equity.daily:tushare:identity-guard",
+        state=SyncItemState.SUCCEEDED,
+        requested=1,
+        succeeded=1,
+        stored=1,
+        started_at=NOW,
+        finished_at=NOW,
+    )
+    SyncBatchRepository().save(batch)
+    with pytest.raises(ValueError, match="sync batch identity conflict for batch_id"):
+        SyncBatchRepository().save(replace(batch, batch_id=str(uuid4())))
+
+    checkpoint = SyncCheckpoint(
+        checkpoint_id=checkpoint_id,
+        run_id=run_id,
+        batch_id=batch_id,
+        cursor_name="trade_date",
+        cursor_value="20260802",
+        recorded_at=NOW,
+    )
+    SyncCheckpointRepository().save(checkpoint)
+    with pytest.raises(ValueError, match="sync checkpoint identity conflict for checkpoint_id"):
+        SyncCheckpointRepository().save(replace(checkpoint, checkpoint_id=str(uuid4())))
+
+
+@pytest.mark.django_db
 def test_quarantine_repository_keeps_open_record_out_of_publication() -> None:
     record = QuarantineRecord(
         quarantine_id=str(uuid4()),
