@@ -1,0 +1,43 @@
+{
+  "version": "vps-runtime-verification.v1",
+  "captured_at": "2026-08-16T01:09:24Z",
+  "environment": "production",
+  "read_only": true,
+  "candidate": {
+    "stable_version": "20260816085250",
+    "source_commit": "6c4086231a19005c750c856e78613b766bfd3609",
+    "release": "agomtradepro-web:20260816085250",
+    "image_id": "sha256:1d84d3db8d991eee385e4bfcf9160d0271cc8262924555c23346ade28a091c89"
+  },
+  "checks": {
+    "caddy_domain": "demo.agomtrade.pro",
+    "health_http_status": 200,
+    "readiness_http_status": 200,
+    "tls_certificate": "valid",
+    "containers": "web healthy; celery_worker, celery_beat, postgres, redis, caddy and rsshub running",
+    "django_system_check": "0 issues (1 silenced)",
+    "migrations": "account.0035-account.0054 applied; no missing migrations",
+    "canonical_schema": "{\"missing_migrations\": [], \"missing_tables\": [], \"ok\": true}",
+    "tui_metadata_registry": "published and matched",
+    "qlib": {
+      "pyqlib": "0.9.7",
+      "wrong_qlib_distribution": "absent",
+      "module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py"
+    },
+    "celery": {
+      "worker": "running",
+      "beat": "running",
+      "ping": "1 node online"
+    },
+    "response_sha256": {
+      "health": "ea5df20cfd0517f50a2b282f35a41a6fd96490a22667012694c3b5d91b42ff4d",
+      "readiness": "fc610dccc2634c0b493f034f8f1ba7b4fb527466269dcc4ade5ee4b0cbb70de0"
+    }
+  },
+  "outcome": "runtime_verified_candidate",
+  "limitations": [
+    "This is a read-only post-deploy verification; no business data or account authority rows were written.",
+    "The ready response retains Alpha/Qlib provider, workspace recommendation, Alpha rank source and market thermometer freshness warnings.",
+    "It does not prove authenticated role-based browser UAT, write-after-refresh receipts, immutable authority lifecycle, durable audit publisher, 14-day telemetry, registry restore, rollback or owner/reviewer sign-off."
+  ]
+}
