@@ -2634,3 +2634,14 @@ authority、actor source、Evidence scope、subject/evidence/receipt 账本均�
 EVID-01、Evidence hard gate、写入和 execution 继续保持关闭。下一真实交付仍是 owner-issued
 immutable lifecycle、authenticated scoped provider、同 alias exact bundle、人工授权和
 production PostgreSQL 并发/回滚证据。
+
+## 2026-08-16：EVID-01 scope grant owner binding hardening
+
+`EvidenceScopeGrant` 现在显式保存 `owner_id`，并将其纳入 canonical content hash；
+`EvidenceScopeSourceV1Provider` 从 immutable source 到 grant 的投影逐字段保留 owner，避免
+scope grant 只绑定 actor/tenant/account 而丢失 owner 维度。scope/source 单元回归 `37 passed`，
+与 Data Center structure/architecture guard 聚合 `46 passed`，增量 mypy regression 为 `0`。
+
+这只是本地 owner identity/contract 加固，未创建 owner/tenant lifecycle、selector issuer 或
+production composition，也未读取 mutable User/session/tenant；人工授权、PostgreSQL 并发与
+Evidence hard gate、写入和 execution 继续关闭。

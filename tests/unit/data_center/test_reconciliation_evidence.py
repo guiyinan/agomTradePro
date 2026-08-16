@@ -83,8 +83,8 @@ def test_reconciliation_evidence_round_trip_preserves_categories_and_hashes() ->
 
 
 @pytest.mark.django_db
-def test_reconciliation_evidence_save_is_idempotent_for_same_evidence_id() -> None:
-    """Repeating a write updates one evidence record instead of duplicating it."""
+def test_reconciliation_evidence_save_replays_exact_identity_without_mutation() -> None:
+    """An exact retry is idempotent but a conflicting retry cannot rewrite history."""
 
     repository = ReconciliationEvidenceRepository()
     evidence_id = str(uuid4())
@@ -98,15 +98,28 @@ def test_reconciliation_evidence_save_is_idempotent_for_same_evidence_id() -> No
     second = RecordReconciliationEvidenceUseCase(repository).execute(
         _report(),
         evidence_id=evidence_id,
-        legacy_snapshot_hash="legacy-hash-v2",
-        canonical_snapshot_hash="canonical-hash-v2",
-        observed_at=datetime(2026, 8, 1, 13, 0, tzinfo=UTC),
+        legacy_snapshot_hash="legacy-hash",
+        canonical_snapshot_hash="canonical-hash",
+        observed_at=datetime(2026, 8, 1, 12, 0, tzinfo=UTC),
     )
 
     rows = repository.list_recent("equity.price.bar")
     assert first.evidence_id == second.evidence_id == evidence_id
     assert len(rows) == 1
-    assert rows[0].legacy_snapshot_hash == "legacy-hash-v2"
+    assert rows[0].legacy_snapshot_hash == "legacy-hash"
+
+    with pytest.raises(ValueError, match="already contains a different snapshot"):
+        RecordReconciliationEvidenceUseCase(repository).execute(
+            _report(),
+            evidence_id=evidence_id,
+            legacy_snapshot_hash="legacy-hash-v2",
+            canonical_snapshot_hash="canonical-hash-v2",
+            observed_at=datetime(2026, 8, 1, 13, 0, tzinfo=UTC),
+        )
+
+    rows_after_conflict = repository.list_recent("equity.price.bar")
+    assert len(rows_after_conflict) == 1
+    assert rows_after_conflict[0] == first
 
 
 @pytest.mark.django_db

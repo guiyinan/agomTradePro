@@ -121,6 +121,7 @@ def test_provider_maps_exact_current_source_to_scope_grant() -> None:
     assert grant.scope_id == source.source_id
     assert grant.scope_version == source.source_version
     assert grant.actor_id == source.actor_id
+    assert grant.owner_id == source.owner_id
     assert grant.tenant_id == source.tenant_id
     assert grant.account_id == source.account_id
     assert grant.artifact == source.artifact

@@ -37,6 +37,7 @@ def _grant(artifact: ArtifactRef | None = None, **changes: object) -> EvidenceSc
         "scope_id": "scope-1",
         "scope_version": "v1",
         "actor_id": "actor-1",
+        "owner_id": "owner-1",
         "tenant_id": "tenant-1",
         "account_id": "account-1",
         "artifact": artifact or _artifact(),
@@ -113,6 +114,7 @@ def test_authorizer_requires_exact_active_artifact_scope() -> None:
     )
 
     assert result.scope_id == "scope-1"
+    assert result.owner_id == "owner-1"
     assert provider.calls == [(_artifact(), AS_OF)]
 
 
@@ -166,6 +168,7 @@ def test_authorizer_rejects_permission_substitution_even_with_recomputed_hash() 
         ("scope_id", "scope id"),
         ("scope_version", " scope-v1"),
         ("actor_id", "actor\tid"),
+        ("owner_id", "owner\nid"),
         ("tenant_id", "tenant-" + ("x" * 192)),
         ("account_id", "account\nid"),
     ],

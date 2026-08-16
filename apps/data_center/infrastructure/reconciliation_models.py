@@ -14,6 +14,7 @@ from apps.data_center.domain.reconciliation import (
     ReconciliationEvidence,
     ReconciliationReport,
 )
+from apps.data_center.infrastructure.pit_models import ImmutableModelMixin
 
 
 def _json_safe(value: object | None) -> object | None:
@@ -37,8 +38,8 @@ def _difference_payload(difference: ReconciliationDifference) -> dict[str, objec
     }
 
 
-class ReconciliationEvidenceModel(models.Model):
-    """Immutable-ish audit snapshot of one legacy/canonical comparison."""
+class ReconciliationEvidenceModel(ImmutableModelMixin):
+    """Append-only audit snapshot of one legacy/canonical comparison."""
 
     evidence_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     dataset_key = models.CharField(max_length=160, db_index=True)

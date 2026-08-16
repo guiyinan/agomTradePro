@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import uuid
 
+from django.db import IntegrityError, transaction
+
 from apps.data_center.domain.reconciliation import ReconciliationEvidence
 
 from .reconciliation_models import (
@@ -25,14 +27,34 @@ class ReconciliationEvidenceRepository:
     """Persist and query deterministic reconciliation snapshots."""
 
     def save(self, evidence: ReconciliationEvidence) -> ReconciliationEvidence:
-        """Upsert one evidence snapshot idempotently."""
+        """Append one snapshot or replay the exact existing evidence.
 
-        row, _created = ReconciliationEvidenceModel._default_manager.update_or_create(
-            evidence_id=_evidence_uuid(evidence.evidence_id),
-            defaults={
-                **build_reconciliation_defaults(evidence),
-            },
-        )
+        Reconciliation evidence is an audit record, not a mutable cache.  A
+        retry with the same identity is accepted only when every persisted
+        field is identical; a caller attempting to reuse an identity for a
+        different snapshot receives a stable failure instead of overwriting
+        history.
+        """
+
+        evidence_uuid = _evidence_uuid(evidence.evidence_id)
+        defaults = build_reconciliation_defaults(evidence)
+        try:
+            with transaction.atomic():
+                row = ReconciliationEvidenceModel._default_manager.create(
+                    evidence_id=evidence_uuid,
+                    **defaults,
+                )
+        except IntegrityError:
+            existing = ReconciliationEvidenceModel._default_manager.filter(
+                evidence_id=evidence_uuid
+            ).first()
+            if existing is None:
+                raise
+            if not _row_matches_evidence(existing, defaults):
+                raise ValueError(
+                    "reconciliation evidence identity already contains a different snapshot"
+                )
+            row = existing
         return row.to_domain()
 
     def get_latest(self, dataset_key: str) -> ReconciliationEvidence | None:
@@ -59,6 +81,15 @@ class ReconciliationEvidenceRepository:
             dataset_key=dataset_key.strip()
         ).order_by("-observed_at", "-created_at")[:limit]
         return [row.to_domain() for row in rows]
+
+
+def _row_matches_evidence(
+    row: ReconciliationEvidenceModel,
+    defaults: dict[str, object],
+) -> bool:
+    """Compare all immutable evidence fields while excluding ORM timestamps."""
+
+    return all(getattr(row, field) == value for field, value in defaults.items())
 
 
 __all__ = ["ReconciliationEvidenceRepository"]

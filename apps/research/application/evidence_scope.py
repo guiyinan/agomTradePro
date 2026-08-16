@@ -35,6 +35,7 @@ class EvidenceScopeGrant:
     scope_id: str
     scope_version: str
     actor_id: str
+    owner_id: str
     tenant_id: str
     account_id: str
     artifact: ArtifactRef
@@ -49,6 +50,7 @@ class EvidenceScopeGrant:
             "scope_id",
             "scope_version",
             "actor_id",
+            "owner_id",
             "tenant_id",
             "account_id",
             "status",
@@ -139,6 +141,7 @@ def evidence_scope_grant_hash(grant: EvidenceScopeGrant) -> str:
     payload = {
         "account_id": grant.account_id,
         "actor_id": grant.actor_id,
+        "owner_id": grant.owner_id,
         "artifact": grant.artifact.to_payload(),
         "permission": grant.permission,
         "scope_id": grant.scope_id,

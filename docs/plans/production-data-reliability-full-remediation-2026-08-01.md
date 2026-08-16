@@ -484,3 +484,15 @@ SHA-256 `4760a38fdfc7ef8570323cfb5dde92ab01eb933cd60d4f6dd08700fc34772752`）的
 [`vps-runtime-verification-2026-08-16.json`](../deployment/vps-runtime-verification-2026-08-16.json)
 保持同一候选绑定；不等于维护态 rollback、RTO/RPO 或 reconciliation。`DATA-01` 继续
 `awaiting_production`，不解锁 `DATA-02/03`。
+
+## 实施记录（2026-08-16，reconciliation evidence append-only hardening）
+
+Data Center reconciliation evidence 现在使用 append-only immutable model；repository 以
+`create` 写入，并且只接受同一 `evidence_id` 的 exact replay。不同快照不得再通过
+`update_or_create` 覆写既有审计记录，而是稳定 fail closed。模型、repository 与 Data Center
+architecture guard 聚合回归 `46 passed`，增量 mypy regression 为 `0`，`makemigrations --check`
+无漂移。
+
+该条只收紧本地 reconciliation 持久化/重放合同。当前 Django reconciliation DB 用例在本地
+全仓测试运行时未取得稳定完成结果，因此不计为数据库 component 证据；生产 PostgreSQL
+reconciliation、维护态 rollback、RTO/RPO 与 DATA-01 前置仍未完成，`DATA-01/02/03` 状态不变。

@@ -153,6 +153,7 @@ class EvidenceScopeSourceV1Provider(EvidenceScopeProvider):
                 scope_id=source.source_id,
                 scope_version=source.source_version,
                 actor_id=source.actor_id,
+                owner_id=source.owner_id,
                 tenant_id=source.tenant_id,
                 account_id=source.account_id,
                 artifact=source.artifact,
