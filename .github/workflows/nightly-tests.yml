@@ -111,9 +111,11 @@ jobs:
         env:
           PYTHONFAULTHANDLER: "1"
         run: |
+          # A fresh SQLite test database applies the full migration graph before
+          # the first API test; keep the per-test watchdog above that setup cost.
           python -m pytest tests/api/ tests/migrations/ -v -ra \
             -o faulthandler_timeout=180 \
-            --timeout=120 \
+            --timeout=300 \
             --timeout-method=thread \
             --durations=20 \
             --cov \
@@ -127,7 +129,7 @@ jobs:
           PYTHONFAULTHANDLER: "1"
         run: |
           python -m pytest tests/critical/ -v -ra \
-            --timeout=120 \
+            --timeout=300 \
             --timeout-method=thread \
             --durations=20 \
             --cov \

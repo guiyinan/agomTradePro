@@ -3,10 +3,7 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-    dependencies = [
-        ("account", "0051_actor_authority_source_v3_ledgers"),
-    ]
-
+    dependencies = [("account", "0051_actor_authority_source_v3_ledgers")]
     operations = [
         migrations.CreateModel(
             name="AccountAuthenticationContextSourceV3AnchorModel",
@@ -79,12 +76,94 @@ class Migration(migrations.Migration):
                 ("authority_state", models.CharField(max_length=16)),
                 ("authenticated_at", models.DateTimeField()),
                 ("principal_seal", models.CharField(max_length=64)),
+                (
+                    "anchor",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="versions",
+                        to="account.accountauthenticationcontextsourcev3anchormodel",
+                    ),
+                ),
+                (
+                    "predecessor",
+                    models.OneToOneField(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="successor",
+                        to="account.accountauthenticationcontextsourcev3model",
+                    ),
+                ),
             ],
             options={
                 "db_table": "account_auth_context_source_v3_ledger",
                 "abstract": False,
                 "base_manager_name": "objects",
                 "default_manager_name": "objects",
+                "indexes": [
+                    models.Index(fields=["source_id", "recorded_at"], name="acct_auth3_chain_ix")
+                ],
+                "constraints": [
+                    models.UniqueConstraint(
+                        fields=("source_id", "source_version"), name="acct_auth3_source_uq"
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            ("artifact_type", "account_authentication_context_source_v3"),
+                            ("execution_allowed", False),
+                            ("must_not_execute", True),
+                            ("owner", "account"),
+                            ("permission", "attestation_only"),
+                            ("recorded_by_is_automated", True),
+                            ("recorded_by_kind", "service"),
+                            ("recorded_by_role", "account_actor_authority_raw_recorder"),
+                            ("schema", "account.authentication_context_source.v3"),
+                            ("status", "inactive"),
+                        ),
+                        name="acct_auth3_fixed_ck",
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            models.Q(
+                                ("authority_state", "authenticated"), ("is_authenticated", True)
+                            ),
+                            models.Q(("authority_state", "revoked"), ("is_authenticated", False)),
+                            _connector="OR",
+                        ),
+                        name="acct_auth3_state_ck",
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(("authenticated_at__lte", models.F("observed_at"))),
+                        name="acct_auth3_auth_clock_ck",
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(("user_id__gt", 0)), name="acct_auth3_user_ck"
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            models.Q(
+                                ("predecessor__isnull", True),
+                                ("root_claim_hash__isnull", False),
+                                ("supersedes_content_hash__isnull", True),
+                            ),
+                            models.Q(
+                                ("predecessor__isnull", False),
+                                ("root_claim_hash__isnull", True),
+                                ("supersedes_content_hash__isnull", False),
+                            ),
+                            _connector="OR",
+                        ),
+                        name="acct_auth3_root_xor_ck",
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            ("observed_at__lte", models.F("recorded_at")),
+                            ("recorded_at__lt", models.F("valid_until")),
+                            ("persisted_at", models.F("recorded_at")),
+                        ),
+                        name="acct_auth3_clock_ck",
+                    ),
+                ],
             },
         ),
         migrations.CreateModel(
@@ -156,12 +235,101 @@ class Migration(migrations.Migration):
                 ("rbac_role", models.CharField(max_length=32)),
                 ("authority_state", models.CharField(max_length=16)),
                 ("rbac_seal", models.CharField(max_length=64)),
+                (
+                    "anchor",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="versions",
+                        to="account.accountrbacauthoritysourcev3anchormodel",
+                    ),
+                ),
+                (
+                    "predecessor",
+                    models.OneToOneField(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="successor",
+                        to="account.accountrbacauthoritysourcev3model",
+                    ),
+                ),
             ],
             options={
                 "db_table": "account_rbac_authority_source_v3_ledger",
                 "abstract": False,
                 "base_manager_name": "objects",
                 "default_manager_name": "objects",
+                "indexes": [
+                    models.Index(fields=["source_id", "recorded_at"], name="acct_rbac3_chain_ix")
+                ],
+                "constraints": [
+                    models.UniqueConstraint(
+                        fields=("source_id", "source_version"), name="acct_rbac3_source_uq"
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            ("artifact_type", "account_rbac_authority_source_v3"),
+                            ("execution_allowed", False),
+                            ("must_not_execute", True),
+                            ("owner", "account"),
+                            ("permission", "attestation_only"),
+                            ("recorded_by_is_automated", True),
+                            ("recorded_by_kind", "service"),
+                            ("recorded_by_role", "account_actor_authority_raw_recorder"),
+                            ("schema", "account.rbac_authority_source.v3"),
+                            ("status", "inactive"),
+                        ),
+                        name="acct_rbac3_fixed_ck",
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(("authority_state__in", ("current", "revoked"))),
+                        name="acct_rbac3_state_ck",
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            (
+                                "rbac_role__in",
+                                (
+                                    "admin",
+                                    "owner",
+                                    "analyst",
+                                    "investment_manager",
+                                    "trader",
+                                    "risk",
+                                    "read_only",
+                                ),
+                            )
+                        ),
+                        name="acct_rbac3_role_ck",
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(("user_id__gt", 0)), name="acct_rbac3_user_ck"
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            models.Q(
+                                ("predecessor__isnull", True),
+                                ("root_claim_hash__isnull", False),
+                                ("supersedes_content_hash__isnull", True),
+                            ),
+                            models.Q(
+                                ("predecessor__isnull", False),
+                                ("root_claim_hash__isnull", True),
+                                ("supersedes_content_hash__isnull", False),
+                            ),
+                            _connector="OR",
+                        ),
+                        name="acct_rbac3_root_xor_ck",
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            ("observed_at__lte", models.F("recorded_at")),
+                            ("recorded_at__lt", models.F("valid_until")),
+                            ("persisted_at", models.F("recorded_at")),
+                        ),
+                        name="acct_rbac3_clock_ck",
+                    ),
+                ],
             },
         ),
         migrations.CreateModel(
@@ -235,320 +403,88 @@ class Migration(migrations.Migration):
                 ("is_superuser", models.BooleanField()),
                 ("authority_state", models.CharField(max_length=16)),
                 ("user_seal", models.CharField(max_length=64)),
+                (
+                    "anchor",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="versions",
+                        to="account.accountuserauthoritysourcev3anchormodel",
+                    ),
+                ),
+                (
+                    "predecessor",
+                    models.OneToOneField(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="successor",
+                        to="account.accountuserauthoritysourcev3model",
+                    ),
+                ),
             ],
             options={
                 "db_table": "account_user_authority_source_v3_ledger",
                 "abstract": False,
                 "base_manager_name": "objects",
                 "default_manager_name": "objects",
-            },
-        ),
-        migrations.AddField(
-            model_name="accountauthenticationcontextsourcev3model",
-            name="anchor",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name="versions",
-                to="account.accountauthenticationcontextsourcev3anchormodel",
-            ),
-        ),
-        migrations.AddField(
-            model_name="accountauthenticationcontextsourcev3model",
-            name="predecessor",
-            field=models.OneToOneField(
-                blank=True,
-                null=True,
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name="successor",
-                to="account.accountauthenticationcontextsourcev3model",
-            ),
-        ),
-        migrations.AddField(
-            model_name="accountrbacauthoritysourcev3model",
-            name="anchor",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name="versions",
-                to="account.accountrbacauthoritysourcev3anchormodel",
-            ),
-        ),
-        migrations.AddField(
-            model_name="accountrbacauthoritysourcev3model",
-            name="predecessor",
-            field=models.OneToOneField(
-                blank=True,
-                null=True,
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name="successor",
-                to="account.accountrbacauthoritysourcev3model",
-            ),
-        ),
-        migrations.AddField(
-            model_name="accountuserauthoritysourcev3model",
-            name="anchor",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name="versions",
-                to="account.accountuserauthoritysourcev3anchormodel",
-            ),
-        ),
-        migrations.AddField(
-            model_name="accountuserauthoritysourcev3model",
-            name="predecessor",
-            field=models.OneToOneField(
-                blank=True,
-                null=True,
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name="successor",
-                to="account.accountuserauthoritysourcev3model",
-            ),
-        ),
-        migrations.AddIndex(
-            model_name="accountauthenticationcontextsourcev3model",
-            index=models.Index(fields=["source_id", "recorded_at"], name="acct_auth3_chain_ix"),
-        ),
-        migrations.AddConstraint(
-            model_name="accountauthenticationcontextsourcev3model",
-            constraint=models.UniqueConstraint(
-                fields=("source_id", "source_version"), name="acct_auth3_source_uq"
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountauthenticationcontextsourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    ("artifact_type", "account_authentication_context_source_v3"),
-                    ("execution_allowed", False),
-                    ("must_not_execute", True),
-                    ("owner", "account"),
-                    ("permission", "attestation_only"),
-                    ("recorded_by_is_automated", True),
-                    ("recorded_by_kind", "service"),
-                    ("recorded_by_role", "account_actor_authority_raw_recorder"),
-                    ("schema", "account.authentication_context_source.v3"),
-                    ("status", "inactive"),
-                ),
-                name="acct_auth3_fixed_ck",
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountauthenticationcontextsourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    models.Q(("authority_state", "authenticated"), ("is_authenticated", True)),
-                    models.Q(("authority_state", "revoked"), ("is_authenticated", False)),
-                    _connector="OR",
-                ),
-                name="acct_auth3_state_ck",
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountauthenticationcontextsourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(("authenticated_at__lte", models.F("observed_at"))),
-                name="acct_auth3_auth_clock_ck",
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountauthenticationcontextsourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(("user_id__gt", 0)), name="acct_auth3_user_ck"
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountauthenticationcontextsourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    models.Q(
-                        ("predecessor__isnull", True),
-                        ("root_claim_hash__isnull", False),
-                        ("supersedes_content_hash__isnull", True),
+                "indexes": [
+                    models.Index(fields=["source_id", "recorded_at"], name="acct_user3_chain_ix")
+                ],
+                "constraints": [
+                    models.UniqueConstraint(
+                        fields=("source_id", "source_version"), name="acct_user3_source_uq"
                     ),
-                    models.Q(
-                        ("predecessor__isnull", False),
-                        ("root_claim_hash__isnull", True),
-                        ("supersedes_content_hash__isnull", False),
-                    ),
-                    _connector="OR",
-                ),
-                name="acct_auth3_root_xor_ck",
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountauthenticationcontextsourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    ("observed_at__lte", models.F("recorded_at")),
-                    ("recorded_at__lt", models.F("valid_until")),
-                    ("persisted_at", models.F("recorded_at")),
-                ),
-                name="acct_auth3_clock_ck",
-            ),
-        ),
-        migrations.AddIndex(
-            model_name="accountrbacauthoritysourcev3model",
-            index=models.Index(fields=["source_id", "recorded_at"], name="acct_rbac3_chain_ix"),
-        ),
-        migrations.AddConstraint(
-            model_name="accountrbacauthoritysourcev3model",
-            constraint=models.UniqueConstraint(
-                fields=("source_id", "source_version"), name="acct_rbac3_source_uq"
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountrbacauthoritysourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    ("artifact_type", "account_rbac_authority_source_v3"),
-                    ("execution_allowed", False),
-                    ("must_not_execute", True),
-                    ("owner", "account"),
-                    ("permission", "attestation_only"),
-                    ("recorded_by_is_automated", True),
-                    ("recorded_by_kind", "service"),
-                    ("recorded_by_role", "account_actor_authority_raw_recorder"),
-                    ("schema", "account.rbac_authority_source.v3"),
-                    ("status", "inactive"),
-                ),
-                name="acct_rbac3_fixed_ck",
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountrbacauthoritysourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(("authority_state__in", ("current", "revoked"))),
-                name="acct_rbac3_state_ck",
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountrbacauthoritysourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    (
-                        "rbac_role__in",
-                        (
-                            "admin",
-                            "owner",
-                            "analyst",
-                            "investment_manager",
-                            "trader",
-                            "risk",
-                            "read_only",
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            ("artifact_type", "account_user_authority_source_v3"),
+                            ("execution_allowed", False),
+                            ("must_not_execute", True),
+                            ("owner", "account"),
+                            ("permission", "attestation_only"),
+                            ("recorded_by_is_automated", True),
+                            ("recorded_by_kind", "service"),
+                            ("recorded_by_role", "account_actor_authority_raw_recorder"),
+                            ("schema", "account.user_authority_source.v3"),
+                            ("status", "inactive"),
                         ),
-                    )
-                ),
-                name="acct_rbac3_role_ck",
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountrbacauthoritysourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(("user_id__gt", 0)), name="acct_rbac3_user_ck"
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountrbacauthoritysourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    models.Q(
-                        ("predecessor__isnull", True),
-                        ("root_claim_hash__isnull", False),
-                        ("supersedes_content_hash__isnull", True),
+                        name="acct_user3_fixed_ck",
                     ),
-                    models.Q(
-                        ("predecessor__isnull", False),
-                        ("root_claim_hash__isnull", True),
-                        ("supersedes_content_hash__isnull", False),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            models.Q(("authority_state", "current"), ("is_active", True)),
+                            models.Q(("authority_state", "deactivated"), ("is_active", False)),
+                            _connector="OR",
+                        ),
+                        name="acct_user3_state_ck",
                     ),
-                    _connector="OR",
-                ),
-                name="acct_rbac3_root_xor_ck",
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountrbacauthoritysourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    ("observed_at__lte", models.F("recorded_at")),
-                    ("recorded_at__lt", models.F("valid_until")),
-                    ("persisted_at", models.F("recorded_at")),
-                ),
-                name="acct_rbac3_clock_ck",
-            ),
-        ),
-        migrations.AddIndex(
-            model_name="accountuserauthoritysourcev3model",
-            index=models.Index(fields=["source_id", "recorded_at"], name="acct_user3_chain_ix"),
-        ),
-        migrations.AddConstraint(
-            model_name="accountuserauthoritysourcev3model",
-            constraint=models.UniqueConstraint(
-                fields=("source_id", "source_version"), name="acct_user3_source_uq"
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountuserauthoritysourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    ("artifact_type", "account_user_authority_source_v3"),
-                    ("execution_allowed", False),
-                    ("must_not_execute", True),
-                    ("owner", "account"),
-                    ("permission", "attestation_only"),
-                    ("recorded_by_is_automated", True),
-                    ("recorded_by_kind", "service"),
-                    ("recorded_by_role", "account_actor_authority_raw_recorder"),
-                    ("schema", "account.user_authority_source.v3"),
-                    ("status", "inactive"),
-                ),
-                name="acct_user3_fixed_ck",
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountuserauthoritysourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    models.Q(("authority_state", "current"), ("is_active", True)),
-                    models.Q(("authority_state", "deactivated"), ("is_active", False)),
-                    _connector="OR",
-                ),
-                name="acct_user3_state_ck",
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountuserauthoritysourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(("user_id__gt", 0)), name="acct_user3_user_ck"
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountuserauthoritysourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    models.Q(
-                        ("predecessor__isnull", True),
-                        ("root_claim_hash__isnull", False),
-                        ("supersedes_content_hash__isnull", True),
+                    models.CheckConstraint(
+                        condition=models.Q(("user_id__gt", 0)), name="acct_user3_user_ck"
                     ),
-                    models.Q(
-                        ("predecessor__isnull", False),
-                        ("root_claim_hash__isnull", True),
-                        ("supersedes_content_hash__isnull", False),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            models.Q(
+                                ("predecessor__isnull", True),
+                                ("root_claim_hash__isnull", False),
+                                ("supersedes_content_hash__isnull", True),
+                            ),
+                            models.Q(
+                                ("predecessor__isnull", False),
+                                ("root_claim_hash__isnull", True),
+                                ("supersedes_content_hash__isnull", False),
+                            ),
+                            _connector="OR",
+                        ),
+                        name="acct_user3_root_xor_ck",
                     ),
-                    _connector="OR",
-                ),
-                name="acct_user3_root_xor_ck",
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="accountuserauthoritysourcev3model",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    ("observed_at__lte", models.F("recorded_at")),
-                    ("recorded_at__lt", models.F("valid_until")),
-                    ("persisted_at", models.F("recorded_at")),
-                ),
-                name="acct_user3_clock_ck",
-            ),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            ("observed_at__lte", models.F("recorded_at")),
+                            ("recorded_at__lt", models.F("valid_until")),
+                            ("persisted_at", models.F("recorded_at")),
+                        ),
+                        name="acct_user3_clock_ck",
+                    ),
+                ],
+            },
         ),
     ]
