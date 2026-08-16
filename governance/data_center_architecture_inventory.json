@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4268,
+    "current_surface_references": 4274,
     "data_write_task_decorators": 59,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -6583,22 +6583,22 @@
       "text": "\"\"\"User-facing Beta market summary for the Alpha research workflow.\"\"\""
     },
     {
-      "line": 35,
+      "line": 38,
       "path": "apps/dashboard/application/beta_market_summary.py",
-      "text": "def _sentiment_payload(current: CurrentSentimentResult) -> dict[str, object]:"
+      "text": "def _sentiment_payload(current: CurrentSentimentProjection) -> dict[str, object]:"
     },
     {
-      "line": 36,
+      "line": 39,
       "path": "apps/dashboard/application/beta_market_summary.py",
       "text": "\"\"\"Return current or diagnostic sentiment fields without hiding staleness.\"\"\""
     },
     {
-      "line": 38,
+      "line": 41,
       "path": "apps/dashboard/application/beta_market_summary.py",
-      "text": "index = current.index or current.diagnostic_index"
+      "text": "index: SentimentIndexProjection | None = current.index or current.diagnostic_index"
     },
     {
-      "line": 48,
+      "line": 51,
       "path": "apps/dashboard/application/beta_market_summary.py",
       "text": "if current.must_not_use_for_decision:"
     },
@@ -6703,27 +6703,27 @@
       "text": "logger.warning(\"Failed to get regime summary: error_type=%s\", type(exc).__name__)"
     },
     {
-      "line": 232,
+      "line": 233,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "\"\"\"Load valuation-repair config summary for dashboard widgets.\"\"\""
     },
     {
-      "line": 238,
+      "line": 239,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "summary = load_summary(use_cache=use_cache)"
     },
     {
-      "line": 239,
+      "line": 240,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "return _json_object(summary) if summary is not None else None"
     },
     {
-      "line": 241,
+      "line": 242,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "logger.warning(\"Failed to get valuation repair config summary: %s\", exc)"
     },
     {
-      "line": 316,
+      "line": 317,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "\"\"\"Build the current Beta conclusion used before reading Alpha candidates.\"\"\""
     },
@@ -21116,6 +21116,36 @@
       "line": 56,
       "path": "core/integration/runtime_settings.py",
       "text": "Prefer the config-center owned summary service so tests can monkeypatch the public"
+    },
+    {
+      "line": 1,
+      "path": "core/integration/sentiment_readiness.py",
+      "text": "\"\"\"App-neutral registry for the decision-safe current sentiment reader.\"\"\""
+    },
+    {
+      "line": 21,
+      "path": "core/integration/sentiment_readiness.py",
+      "text": "\"\"\"Decision-safe current/diagnostic sentiment result.\"\"\""
+    },
+    {
+      "line": 29,
+      "path": "core/integration/sentiment_readiness.py",
+      "text": "\"\"\"Return the latest diagnostic index, even when stale.\"\"\""
+    },
+    {
+      "line": 49,
+      "path": "core/integration/sentiment_readiness.py",
+      "text": "\"\"\"Resolve one exact current/diagnostic result.\"\"\""
+    },
+    {
+      "line": 60,
+      "path": "core/integration/sentiment_readiness.py",
+      "text": "raise RuntimeError(\"current sentiment resolver is already registered\")"
+    },
+    {
+      "line": 68,
+      "path": "core/integration/sentiment_readiness.py",
+      "text": "raise RuntimeError(\"current sentiment resolver is not wired\")"
     },
     {
       "line": 72,
