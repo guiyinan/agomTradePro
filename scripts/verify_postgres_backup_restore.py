@@ -577,6 +577,8 @@ def main(argv: list[str] | None = None) -> int:
     restore_database = ""
     restore_seconds: float | None = None
     verification_seconds: float | None = None
+    dump_sha256_before = ""
+    dump_sha256_after = ""
     try:
         target = parse_postgres_target(str(args.database_url))
         restore_prefix = f"{target.database[:40]}_restore_verify_"
@@ -591,6 +593,12 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("restore database must use the controlled verification prefix")
         restore_database = restore_candidate
         dump_path = Path(args.dump_path).resolve()
+        # Hash before format validation so the report identifies the exact
+        # artifact that the validator and restore process were expected to
+        # consume.  The archive is an input to a destructive-capable tool;
+        # silently accepting a replacement while it is being read would make
+        # the resulting restore evidence non-reproducible.
+        dump_sha256_before = sha256_file(dump_path)
         restore_container = str(args.pg_restore_container).strip() or None
         if restore_container is None:
             restore_entries = validate_custom_dump(dump_path, target)
@@ -600,6 +608,16 @@ def main(argv: list[str] | None = None) -> int:
                 target,
                 container_image=restore_container,
             )
+        validated_sha256 = sha256_file(dump_path)
+        report.update(
+            {
+                "dump_sha256": validated_sha256,
+                "dump_sha256_before": dump_sha256_before,
+                "dump_sha256_after": validated_sha256,
+            }
+        )
+        if validated_sha256 != dump_sha256_before:
+            raise RuntimeError("postgres_backup_changed_during_validation")
         source_snapshot = snapshot_database(target.url)
         restore_started = time.monotonic()
         recreate_restore_database(target, restore_database)
@@ -613,6 +631,16 @@ def main(argv: list[str] | None = None) -> int:
                 container_image=restore_container,
             )
         restore_seconds = round(time.monotonic() - restore_started, 3)
+        dump_sha256_after = sha256_file(dump_path)
+        report.update(
+            {
+                "dump_sha256": dump_sha256_after,
+                "dump_sha256_before": dump_sha256_before,
+                "dump_sha256_after": dump_sha256_after,
+            }
+        )
+        if dump_sha256_after != dump_sha256_before:
+            raise RuntimeError("postgres_backup_changed_during_restore")
         verification_started = time.monotonic()
         restored_snapshot = snapshot_database(target.url_for_database(restore_database))
         schema_report = build_canonical_schema_report(
@@ -627,7 +655,9 @@ def main(argv: list[str] | None = None) -> int:
                 "restore_database": restore_database,
                 "dump_path": str(dump_path),
                 "dump_size_bytes": dump_path.stat().st_size,
-                "dump_sha256": sha256_file(dump_path),
+                "dump_sha256": dump_sha256_after,
+                "dump_sha256_before": dump_sha256_before,
+                "dump_sha256_after": dump_sha256_after,
                 "pg_restore_client": restore_container or "host",
                 "restore_entries": restore_entries,
                 "source_snapshot": source_snapshot,

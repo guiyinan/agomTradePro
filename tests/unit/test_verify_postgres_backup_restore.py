@@ -224,7 +224,51 @@ def test_main_writes_success_evidence_after_exact_restore_match(
         "schema_sha256": None,
     }
     assert len(evidence["dump_sha256"]) == 64
+    assert evidence["dump_sha256_before"] == evidence["dump_sha256_after"]
     assert not report_path.with_suffix(".json.partial").exists()
+
+
+def test_main_rejects_dump_replacement_during_restore(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Restore evidence must fail if the input archive changes mid-run."""
+
+    module = _load_script()
+    dump = tmp_path / "postgres-current.dump"
+    dump.write_bytes(b"verified-custom-dump")
+    report_path = tmp_path / "changed-evidence.json"
+    snapshot = {
+        "tables": {"sample": {"rows": 1, "content_sha256": "same"}},
+        "data_center_migrations": [],
+        "schema_sha256": "schema-hash",
+        "sequences": {},
+    }
+    monkeypatch.setattr(module, "validate_custom_dump", lambda *_args: 1)
+    monkeypatch.setattr(module, "snapshot_database", lambda _url: snapshot)
+    monkeypatch.setattr(module, "recreate_restore_database", lambda *_args: None)
+
+    def mutate_dump(path: Path, *_args: object) -> None:
+        path.write_bytes(b"replacement-archive")
+
+    monkeypatch.setattr(module, "restore_dump", mutate_dump)
+    monkeypatch.setattr(module, "drop_restore_database", lambda *_args: None)
+
+    exit_code = module.main(
+        [
+            "--database-url",
+            "postgresql://agom:secret@localhost/agom_ci",
+            "--dump-path",
+            str(dump),
+            "--report-path",
+            str(report_path),
+        ]
+    )
+    evidence = json.loads(report_path.read_text(encoding="utf-8"))
+
+    assert exit_code == 1
+    assert evidence["error"] == "RuntimeError: postgres_backup_changed_during_restore"
+    assert evidence["dump_sha256_before"] != evidence["dump_sha256_after"]
+    assert evidence["dump_sha256"] == evidence["dump_sha256_after"]
 
 
 def test_main_rejects_uncontrolled_restore_database_without_dropping_it(
