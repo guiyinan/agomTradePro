@@ -406,7 +406,7 @@ code-only、保留数据卷并启用 Celery 发布为 release `20260816181141`�
 | release tag | `20260816181141` |
 | release dir | `/opt/agomtradepro/releases/source-20260816181141` |
 | source commit | `5a13125bb84eb1b20e623d7c1388a0d7632294cb` |
-| image ID | `sha256:1add6e57714a6ee41e3a3153a46e0c6e578f29a8374ea18e91cb53b65a7e263` |
+| image ID | `sha256:1add6e57714a6ee41e3a3153a46e0c6e578f29a8374ea18e91cb53b65a7e2632` |
 | deployment report | `dist/remote-build-reports/remote-build-report-20260816181141.json` |
 | migration/schema | `No migrations to apply`；canonical schema missing lists empty；Django check 无问题（1 silenced） |
 | HTTPS | `demo.agomtrade.pro` Caddy/TLS；`/api/health/` 与 `/api/ready/` HTTP `200` |

@@ -534,7 +534,7 @@ runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest
 候选 `dev/next-development@5a13125bb84eb1b20e623d7c1388a0d7632294cb` 已以 code-only、保留
 PostgreSQL/Redis 数据卷、Celery enabled 的 `-Upgrade` 发布为 `20260816181141`。release dir
 为 `/opt/agomtradepro/releases/source-20260816181141`，OCI image ID 为
-`sha256:1add6e57714a6ee41e3a3153a46e0c6e578f29a8374ea18e91cb53b65a7e263`；preflight 为
+`sha256:1add6e57714a6ee41e3a3153a46e0c6e578f29a8374ea18e91cb53b65a7e2632`；preflight 为
 `docs/deployment/web-to-tui-deployment-preflight-20260816181141.json`，SHA
 `30e7a5a501849ffddca7b372d3c79d5576708e5dbebe459342c3278886fbfdf9`。
 

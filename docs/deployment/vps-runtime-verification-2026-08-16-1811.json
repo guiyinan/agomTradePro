@@ -8,7 +8,7 @@
     "source_commit": "5a13125bb84eb1b20e623d7c1388a0d7632294cb",
     "release": "agomtradepro-web:20260816181141",
     "release_dir": "/opt/agomtradepro/releases/source-20260816181141",
-    "image_id": "sha256:1add6e57714a6ee41e3a3153a46e0c6e578f29a8374ea18e91cb53b65a7e263"
+    "image_id": "sha256:1add6e57714a6ee41e3a3153a46e0c6e578f29a8374ea18e91cb53b65a7e2632"
   },
   "checks": {
     "deployment_mode": "code-only upgrade; PostgreSQL/Redis data volumes preserved; Celery enabled",

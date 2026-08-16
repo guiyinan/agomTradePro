@@ -8,7 +8,7 @@
     "deployed_at": "2026-08-16T10:25:03Z"
   },
   "oci_image": {
-    "image_id": "sha256:1add6e57714a6ee41e3a3153a46e0c6e578f29a8374ea18e91cb53b65a7e263",
+    "image_id": "sha256:1add6e57714a6ee41e3a3153a46e0c6e578f29a8374ea18e91cb53b65a7e2632",
     "revision": "5a13125bb84eb1b20e623d7c1388a0d7632294cb"
   },
   "production_health": {
