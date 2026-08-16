@@ -1,7 +1,7 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "9a4899337f0ca1a65f5e991066547ca7b702b741",
+  "upstream_commit": "e41792080d76378335b7d408a4fb13d7b60cd442",
   "build_id": "agomtui-runtime-0.2.0+1b3dd9b98ae5",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
