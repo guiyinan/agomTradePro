@@ -2310,6 +2310,7 @@ def main() -> int:
                 "PORT": "" if http_port is None else str(http_port),
                 "TARGET_DIR": args.target_dir,
                 "RELEASE_TAG": tag,
+                "SOURCE_COMMIT": source_commit,
                 "ACTION": action,
                 "DOMAIN": domain,
                 "ALLOWED_HOSTS_INPUT": allowed_hosts,

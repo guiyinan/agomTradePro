@@ -204,6 +204,16 @@ def test_git_clone_include_sqlite_uploads_local_db_before_deploy() -> None:
     assert "_upload_sqlite_to_git_clone_release(" in script
 
 
+def test_remote_deploy_passes_source_commit_to_release_identity_gate() -> None:
+    """The deploy phase must receive the same immutable commit as the image."""
+
+    script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
+
+    assert '"SOURCE_COMMIT": source_commit' in script
+    assert '"RELEASE_TAG": tag' in script
+    assert '--expected-commit "$SOURCE_COMMIT" --json' in script
+
+
 def test_include_sqlite_fails_when_release_db_is_missing() -> None:
     script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
 
