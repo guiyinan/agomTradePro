@@ -12,13 +12,13 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings_audit_system_eve
 django.setup()
 
 from django.core.exceptions import ValidationError
-from django.db import connection
 
 from apps.audit.infrastructure.system_audit_outbox_models import (
     SystemAuditOutboxModel,
     _activate_system_audit_outbox_uow,
     _claim_system_audit_outbox_insert,
 )
+from tests.support.isolated_schema import isolated_schema
 
 NOW = datetime(2026, 8, 14, 15, 0, tzinfo=UTC)
 
@@ -27,15 +27,8 @@ NOW = datetime(2026, 8, 14, 15, 0, tzinfo=UTC)
 def _schema(django_db_blocker: object) -> None:
     blocker = django_db_blocker
     with blocker.unblock():  # type: ignore[attr-defined]
-        table_name = SystemAuditOutboxModel._meta.db_table
-        created = table_name not in connection.introspection.table_names()
-        if created:
-            with connection.schema_editor() as editor:
-                editor.create_model(SystemAuditOutboxModel)
-        yield
-        if created:
-            with connection.schema_editor() as editor:
-                editor.delete_model(SystemAuditOutboxModel)
+        with isolated_schema((SystemAuditOutboxModel,)):
+            yield
 
 
 def _row(*, payload: dict[str, object] | None = None) -> SystemAuditOutboxModel:

@@ -46,6 +46,7 @@ from apps.portfolio.infrastructure.policy_benchmark_methodology_activation_repos
     _activation_values,
     _subject_values,
 )
+from tests.support.isolated_schema import isolated_schema
 
 DEFINITION_AT = datetime(2026, 8, 13, 6, tzinfo=UTC)
 REQUESTED_AT = DEFINITION_AT + timedelta(hours=1)
@@ -62,12 +63,19 @@ class FixedClock:
 
 
 @pytest.fixture(scope="session")
-def django_db_setup(django_db_blocker: object) -> None:
+def django_db_setup(django_db_blocker: object):
     """Create only this component's two tables, avoiding the full migration graph."""
 
-    with django_db_blocker.unblock(), connection.schema_editor() as editor:
-        editor.create_model(PortfolioPolicyBenchmarkMethodologyActivationSubjectModel)
-        editor.create_model(PortfolioPolicyBenchmarkMethodologyActivationModel)
+    with (
+        django_db_blocker.unblock(),
+        isolated_schema(
+            (
+                PortfolioPolicyBenchmarkMethodologyActivationSubjectModel,
+                PortfolioPolicyBenchmarkMethodologyActivationModel,
+            )
+        ),
+    ):
+        yield
 
 
 def _ref(

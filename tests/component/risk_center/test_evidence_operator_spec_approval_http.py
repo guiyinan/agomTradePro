@@ -68,17 +68,16 @@ def _append_canonical_spec() -> EvidenceOperatorSpec:
 
 
 @pytest.mark.django_db
-def test_staff_csrf_two_person_flow_uses_server_identities_and_exact_definition() -> None:
+def test_staff_csrf_write_stays_blocked_without_trusted_definition_provider() -> None:
     spec = _append_canonical_spec()
     register_url = reverse("api_risk_center:evidence-operator-spec-approval-subject-register")
-    approve_url = reverse("api_risk_center:evidence-operator-spec-approve")
     register_payload = {
         "subject_id": "operator-subject:sector-score:v1",
         "subject_version": "1",
         "operator_id": spec.operator_id,
         "operator_version": spec.operator_version,
     }
-    requester_client, requester, requester_csrf = _staff_client(username="requester")
+    requester_client, _, requester_csrf = _staff_client(username="requester")
 
     assert requester_client.post(register_url, register_payload).status_code == 403
     response = requester_client.post(
@@ -87,42 +86,10 @@ def test_staff_csrf_two_person_flow_uses_server_identities_and_exact_definition(
         content_type="application/json",
         HTTP_X_CSRFTOKEN=requester_csrf,
     )
-    assert response.status_code == 201
-    assert response.headers["Content-Type"].startswith("application/json")
-    subject_row = EvidenceOperatorSpecApprovalSubjectModel._default_manager.get()
-    assert subject_row.operator_id == spec.operator_id
-    assert subject_row.requested_actor_id == f"django-user:{requester.pk}"
-    assert subject_row.requested_actor_user_id == requester.pk
-    assert subject_row.definition_hash == response.json()["data"]["definition_hash"]
-
-    approval_payload = {
-        "subject_id": register_payload["subject_id"],
-        "subject_version": register_payload["subject_version"],
-        "approval_id": "operator-approval:sector-score:v1",
-        "approval_version": "1",
-    }
-    self_approval = requester_client.post(
-        approve_url,
-        approval_payload,
-        content_type="application/json",
-        HTTP_X_CSRFTOKEN=requester_csrf,
-    )
-    assert self_approval.status_code == 409
+    assert response.status_code == 409
+    assert response.json()["code"] == "operator_spec_approval_subject_unavailable"
+    assert EvidenceOperatorSpecApprovalSubjectModel._default_manager.count() == 0
     assert EvidenceOperatorSpecApprovalRecordModel._default_manager.count() == 0
-
-    approver_client, approver, approver_csrf = _staff_client(username="approver")
-    approved = approver_client.post(
-        approve_url,
-        approval_payload,
-        content_type="application/json",
-        HTTP_X_CSRFTOKEN=approver_csrf,
-    )
-    assert approved.status_code == 201
-    approval_row = EvidenceOperatorSpecApprovalRecordModel._default_manager.get()
-    assert approval_row.subject_id == subject_row.pk
-    assert approval_row.approved_actor_id == f"django-user:{approver.pk}"
-    assert approval_row.approved_actor_user_id == approver.pk
-    assert approved.json()["data"]["approved_by"] == f"django-user:{approver.pk}"
 
 
 @pytest.mark.django_db

@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import connection
+from django.db import IntegrityError, connection
 from django.db.migrations import RunPython, RunSQL
 
 from apps.broker_execution.application.plan_order_binding import (
@@ -288,6 +288,14 @@ def test_source_row_and_persisted_seal_tamper_fail_closed(column: str, replaceme
     with repository.atomic():
         repository.append(binding, expected_predecessor_hash=None, recorded_at=NOW)
     row = BrokerPlanOrderBindingModel._default_manager.get()
+    if column == "persisted_at":
+        with pytest.raises(IntegrityError):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"UPDATE broker_execution_plan_order_binding SET {column} = %s WHERE id = %s",
+                    [replacement, row.pk],
+                )
+        return
     with connection.cursor() as cursor:
         cursor.execute(
             f"UPDATE broker_execution_plan_order_binding SET {column} = %s WHERE id = %s",

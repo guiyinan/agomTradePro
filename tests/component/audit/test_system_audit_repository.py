@@ -23,6 +23,7 @@ from apps.audit.infrastructure.system_audit_repository import (
     SystemAuditCorruption,
     SystemAuditUnavailable,
 )
+from tests.support.isolated_schema import isolated_schema
 from tests.unit.audit.test_system_audit_event import make_event
 
 NOW = datetime(2026, 8, 14, 12, 0, 0, 123456, tzinfo=UTC)
@@ -39,11 +40,8 @@ class FixedClock:
 @pytest.fixture(scope="module", autouse=True)
 def _audit_event_table(django_db_blocker: object) -> Iterator[None]:
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with connection.schema_editor() as editor:
-            editor.create_model(SystemAuditEventModel)
-        yield
-        with connection.schema_editor() as editor:
-            editor.delete_model(SystemAuditEventModel)
+        with isolated_schema((SystemAuditEventModel,)):
+            yield
 
 
 @pytest.fixture(autouse=True)

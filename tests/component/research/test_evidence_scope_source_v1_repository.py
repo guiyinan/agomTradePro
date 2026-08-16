@@ -31,6 +31,7 @@ from apps.research.infrastructure.evidence_scope_source_v1_repository import (
     EvidenceScopeSourceV1Corruption,
     _build_evidence_scope_source_v1_store,
 )
+from tests.support.isolated_schema import isolated_schema
 
 NOW = datetime(2026, 8, 15, 8, tzinfo=UTC)
 
@@ -48,11 +49,8 @@ def _schema(django_db_blocker: object) -> Iterator[None]:
     """Create only the target table, avoiding the full project migration graph."""
 
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with connection.schema_editor() as editor:
-            editor.create_model(EvidenceScopeSourceV1Model)
-        yield
-        with connection.schema_editor() as editor:
-            editor.delete_model(EvidenceScopeSourceV1Model)
+        with isolated_schema((EvidenceScopeSourceV1Model,)):
+            yield
 
 
 def _artifact(identifier: str = "operator-1") -> ArtifactRef:

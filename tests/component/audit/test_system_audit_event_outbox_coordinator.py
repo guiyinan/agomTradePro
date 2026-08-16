@@ -9,8 +9,6 @@ import pytest
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings_audit_system_event")
 django.setup()
 
-from django.db import connection
-
 from apps.audit.application.system_audit_event_outbox import (
     AppendSystemAuditEventOutboxCommand,
     AppendSystemAuditEventOutboxUseCase,
@@ -24,6 +22,7 @@ from apps.audit.infrastructure.system_audit_outbox_models import SystemAuditOutb
 from apps.audit.infrastructure.system_audit_outbox_repository import (
     DjangoSystemAuditOutboxRepository,
 )
+from tests.support.isolated_schema import isolated_schema
 from tests.unit.audit.test_system_audit_event import make_event
 
 pytestmark = pytest.mark.django_db(transaction=True)
@@ -37,17 +36,8 @@ def _schema(django_db_blocker: object):
 
     blocker = django_db_blocker
     with blocker.unblock():  # type: ignore[attr-defined]
-        created: list[type[object]] = []
-        existing = set(connection.introspection.table_names())
-        for model in (SystemAuditEventModel, SystemAuditOutboxModel):
-            if model._meta.db_table not in existing:
-                with connection.schema_editor() as editor:
-                    editor.create_model(model)
-                created.append(model)
-        yield
-        for model in reversed(created):
-            with connection.schema_editor() as editor:
-                editor.delete_model(model)
+        with isolated_schema((SystemAuditEventModel, SystemAuditOutboxModel)):
+            yield
 
 
 def test_event_and_outbox_commit_as_one_exact_pair() -> None:

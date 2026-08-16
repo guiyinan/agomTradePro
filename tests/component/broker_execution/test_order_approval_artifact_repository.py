@@ -10,7 +10,7 @@ from decimal import Decimal
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import connection
+from django.db import IntegrityError, connection
 from django.db.migrations import RunPython, RunSQL
 
 from apps.broker_execution.domain.entities import (
@@ -248,19 +248,13 @@ def test_database_persisted_clock_tamper_is_detected() -> None:
     with repository.atomic():
         repository.append(artifact, recorded_at=RECORDED_AT)
     row = BrokerOrderApprovalArtifactModel._default_manager.get()
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "UPDATE broker_execution_order_approval_artifact "
-            "SET persisted_at = %s WHERE id = %s",
-            [RECORDED_AT - timedelta(microseconds=1), row.pk],
-        )
-    with pytest.raises(BrokerOrderApprovalArtifactCorruption, match="database persistence clock"):
-        repository.get_exact(
-            artifact_id=artifact.artifact_id,
-            artifact_version=artifact.artifact_version,
-            expected_content_hash=artifact.content_hash,
-            as_of=RECORDED_AT,
-        )
+    with pytest.raises(IntegrityError):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE broker_execution_order_approval_artifact "
+                "SET persisted_at = %s WHERE id = %s",
+                [RECORDED_AT - timedelta(microseconds=1), row.pk],
+            )
 
 
 def test_codec_rejects_unknown_fields_and_migration_is_zero_seed() -> None:

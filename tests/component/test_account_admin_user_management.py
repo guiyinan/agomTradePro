@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from apps.account.infrastructure.models import AccountProfileModel, UserAccessTokenModel
+from tests.support.runtime_config import configure_account_runtime
 
 
 class AccountAdminUserManagementTests(TestCase):
@@ -79,6 +80,7 @@ class AccountAdminUserManagementTests(TestCase):
         )
 
     def test_rotate_token_uses_session_payload_instead_of_plain_message(self):
+        configure_account_runtime(allow_token_plaintext_view=True)
         user = User.objects.create_user(username="token_u", password="x")
         self._create_profile(user, approval_status="approved")
         _, old_token = UserAccessTokenModel.create_token(

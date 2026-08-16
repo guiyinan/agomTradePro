@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import connection
+from django.db import IntegrityError, connection
 from django.db.migrations import RunPython, RunSQL
 
 from apps.broker_execution.application.broker_account_identity_snapshot import (
@@ -322,6 +322,14 @@ def test_actor_source_and_persistence_header_tamper_fail_closed(
     with repository.atomic():
         repository.append(record, expected_predecessor_hash=None, recorded_at=NOW)
     row = BrokerAccountIdentitySnapshotModel._default_manager.get()
+    if column == "persisted_at":
+        with pytest.raises(IntegrityError):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"UPDATE broker_execution_account_identity_snapshot SET {column} = %s WHERE id = %s",
+                    [replacement, row.pk],
+                )
+        return
     with connection.cursor() as cursor:
         cursor.execute(
             f"UPDATE broker_execution_account_identity_snapshot SET {column} = %s WHERE id = %s",
