@@ -384,3 +384,54 @@ graph `fc4c19fbb0fc90e931a16223fffd9a4bd782e380afb86893a499874e6b644c84`、schem
 defect、rollback 与 registry backup 区块；截至当前机器 readiness 仍 `DENY`（UAT `0/108`、
 telemetry `0/101`、rollback/backup/审批均缺失）。观察起点不等于角色化生产 UAT、写后回执、
 稳定窗口完成或 cutover 授权。
+
+### 2026-08-16 03:31 当前候选部署复核
+
+最新候选 `dev/next-development@7fe4b2ef60f9ef838b5ab76e639f3c1c8e42580a` 已以
+code-only、保留数据卷、Celery enabled 的 `-Upgrade` 发布为 `20260816112017`；远端验证
+release manifest/OCI/source 绑定、`account.0054`、Django deploy check、HTTPS
+health/ready、容器健康、TUI registry、Qlib 与 Celery ping 均通过。部署报告为
+`dist/remote-build-reports/remote-build-report-20260816112017.json`，image ID 为
+`sha256:8037ddee4996b9564e5f73f4ca79ea341c7d252fc88ed2bc09612d4947794978`。
+
+本次只读部署观测在 `2026-08-16T03:31:51Z` 复核：HTTPS `/api/health/` 与 `/api/ready/`
+均返回 `200`；health response SHA 为
+`0ff5991805be87e18c7cca2e939c931fcac5b2466d18c5c08184a4c230ea993c`，ready response SHA 为
+`bfb1b7b5ba14495d7ecf637060792cbd916a11f29e8c5c714f68192ff74ca372`。`/api/ready/` 仍报告
+Alpha/Qlib provider degraded、workspace recommendation stale 与 Alpha rank source stale；
+这些数据新鲜度警告没有被部署成功掩盖。结构化运行摘要见
+`docs/deployment/vps-runtime-verification-2026-08-16-1120.json`。
+
+该候选的 candidate binding 为 `web-to-tui-candidate-binding.v1`：matrix
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、published graph
+`c01ccb8096642ca8916eb55d641ee73355832f8a90bce548756a50c865bc466e`、schema
+`tui-metadata.v3` / runtime `0.2.0` / build `agomtui-runtime-0.2.0+972e3f3e689a`、
+manifest `9088808a993a22e0bcd8c0c6c0d78df36ba11784071e8bad7ad52cc2cf0e7039`。该发布只绑定
+代码、图谱和运行启动，不包含角色化浏览器账号、写后 receipt/refresh、14 日 telemetry、
+registry backup/restore、rollback 或 owner/reviewer 双签；M5-A 继续 `DENY`。
+
+### 2026-08-16 13:35 当前候选部署复核
+
+最新候选 `dev/next-development@b051c369e97732ea10f7293d923aa8882a3a691c` 已以
+code-only、保留 PostgreSQL/Redis 数据卷、Celery enabled 的 `-Upgrade` 发布为
+`20260816131435`。部署报告为
+`dist/remote-build-reports/remote-build-report-20260816131435.json`，OCI image ID 为
+`sha256:e65b8ef05fb3cdd3417830dbe7c233fedbab4e7254f45440cc8cd23159cb00cb`。独立
+`deploy_vps_verify.py` 已复核 release/source/image 绑定、Django check、迁移与 canonical schema、
+TUI registry、HTTPS/Caddy、Qlib、Celery worker/beat 与 ping。
+
+只读观测时间为 `2026-08-16T05:35:56Z`：HTTPS `/api/health/` 与 `/api/ready/` 均返回
+`200`；health response SHA 为
+`00ba29755f44ba617967d1f6665543870d80432d61daf5db45f58b53556d9eb0`，ready response SHA 为
+`f7534f8dd768c453aca2bfb28a5ab804809c0cbcc1e77ae7aff1d5ab0831ca20`。Caddy domain 为
+`demo.agomtrade.pro` 且 TLS certificate 有效；ready 仍明确报告
+`alpha_qlib_provider_degraded`、`workspace_recommendations_stale`、`workspace_alpha_rank_source_stale`。
+结构化运行摘要见 `docs/deployment/vps-runtime-verification-2026-08-16-1335.json`。
+
+该候选的 candidate binding 为 `web-to-tui-candidate-binding.v1`：matrix
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、published graph
+`c45ab376e2297ab235ed08621663bfe721b6a5c254fcc2097b7a2201deae0e98`、schema
+`tui-metadata.v3` / runtime `0.2.0` / build `agomtui-runtime-0.2.0+1b3dd9b98ae5`、
+manifest `c8a565dc9580b7bf40b68c9d7f495529df6258e7b78c0f4e0f2b486871991659`。该发布只证明
+当前代码/运行身份与只读健康观测，不包含角色化浏览器账号、写后 receipt/refresh、14 日
+telemetry、registry backup/restore、rollback 或 owner/reviewer 双签；M5-A 继续 `DENY`。

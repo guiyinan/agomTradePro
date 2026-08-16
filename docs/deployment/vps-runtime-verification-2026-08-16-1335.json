@@ -1,0 +1,57 @@
+{
+  "version": "vps-runtime-verification.v1",
+  "captured_at": "2026-08-16T05:35:56Z",
+  "environment": "production",
+  "read_only": true,
+  "candidate": {
+    "stable_version": "20260816131435",
+    "source_commit": "b051c369e97732ea10f7293d923aa8882a3a691c",
+    "release": "agomtradepro-web:20260816131435",
+    "release_dir": "/opt/agomtradepro/releases/source-20260816131435",
+    "image_id": "sha256:e65b8ef05fb3cdd3417830dbe7c233fedbab4e7254f45440cc8cd23159cb00cb"
+  },
+  "checks": {
+    "caddy_domain": "demo.agomtrade.pro",
+    "health_http_status": 200,
+    "health_sha256": "00ba29755f44ba617967d1f6665543870d80432d61daf5db45f58b53556d9eb0",
+    "ready_http_status": 200,
+    "ready_status": "ok",
+    "ready_sha256": "f7534f8dd768c453aca2bfb28a5ab804809c0cbcc1e77ae7aff1d5ab0831ca20",
+    "tls_certificate": "valid",
+    "containers": "web healthy; celery_worker, celery_beat, postgres, redis, caddy and rsshub running",
+    "django_system_check": "0 issues (1 silenced)",
+    "migrations": "No migrations to apply; migration/schema verification clean",
+    "canonical_schema": "{\"missing_migrations\": [], \"missing_tables\": [], \"ok\": true}",
+    "tui_metadata_registry": "published and matched; backend_version=20260816131435",
+    "qlib": {
+      "pyqlib": "0.9.7",
+      "wrong_qlib_distribution": "absent",
+      "module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py"
+    },
+    "celery": {
+      "worker": "running",
+      "beat": "running",
+      "ping": "1 node online"
+    },
+    "backup": {
+      "remote_path": "/opt/agomtradepro/backups/database/postgres-20260816-072224.dump",
+      "mode": "created by pre-deploy verification; restore drill not performed"
+    },
+    "freshness_observations": {
+      "decision_data": "ok",
+      "alpha_workspace": "warning",
+      "issues": [
+        "alpha_qlib_provider_degraded",
+        "workspace_recommendations_stale",
+        "workspace_alpha_rank_source_stale"
+      ]
+    }
+  },
+  "outcome": "runtime_verified_candidate",
+  "limitations": [
+    "This is a read-only post-deploy verification; no business writes, login, backfill, or destructive migration were performed.",
+    "It does not prove authenticated role-based browser UAT, write-after-refresh receipts, owner/reviewer sign-off, or the 14-day observation window.",
+    "It does not prove immutable authority lifecycle, durable audit publisher, or execution authorization; AUD-01, EVID-01 and TUI M5 gates remain fail-closed.",
+    "Ready is HTTP 200 but retains explicit freshness warnings for degraded Qlib/workspace/Alpha source data."
+  ]
+}

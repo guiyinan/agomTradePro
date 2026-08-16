@@ -12,7 +12,7 @@ REGISTRY_PATH = ROOT / "governance" / "active_plan_registry.json"
 READINESS_PATH = ROOT / "docs" / "plans" / "web-to-tui-m5-readiness-2026-07-27.md"
 DEPLOYMENT_PATH = ROOT / "docs" / "deployment" / "vps-deployment-evidence-2026-08-15.md"
 PREFLIGHT_PATH = (
-    ROOT / "docs" / "deployment" / "web-to-tui-deployment-preflight-20260816085250.json"
+    ROOT / "docs" / "deployment" / "web-to-tui-deployment-preflight-20260816131435.json"
 )
 CUTOVER_PATH = ROOT / "config" / "tui" / "migration" / "web_to_tui_cutover_evidence.v1.json"
 MATRIX_PATH = ROOT / "docs" / "plans" / "web-to-tui-migration-matrix-2026-07-25.csv"
@@ -44,8 +44,8 @@ def test_current_candidate_identity_is_consistent_across_registry_and_evidence()
 
     readiness = READINESS_PATH.read_text(encoding="utf-8")
     deployment = DEPLOYMENT_PATH.read_text(encoding="utf-8")
-    readiness_current = readiness.split("### 2026-08-16 01:09 当前候选部署复核", 1)[1]
-    deployment_current = deployment.split("## 2026-08-16 01:09 当前候选部署与观测", 1)[1]
+    readiness_current = readiness.split("### 2026-08-16 13:35 当前候选部署复核", 1)[1]
+    deployment_current = deployment.split("## 2026-08-16 13:35 当前候选部署与观测", 1)[1]
     assert candidate_commit in readiness_current
     assert candidate_version in readiness_current
     assert candidate_commit in deployment_current
