@@ -278,9 +278,14 @@
       "id": "pulse.current",
       "surface": "GET /api/pulse/current/",
       "source_files": [
+        "apps/pulse/application/query_services.py",
         "apps/pulse/interface/api_views.py"
       ],
       "required_markers": {
+        "apps/pulse/application/query_services.py": [
+          "def build_pulse_indicator_display_payloads(",
+          "get_macro_runtime_metadata()"
+        ],
         "apps/pulse/interface/api_views.py": [
           "must_not_use_for_decision = not snapshot.is_reliable",
           "\"market_data_as_of\": market_data_as_of"
@@ -291,6 +296,11 @@
           "case": "stale_snapshot_blocked",
           "test_file": "tests/api/test_pulse_api.py",
           "test_function": "test_pulse_current_api_marks_stale_snapshot_as_diagnostic_only"
+        },
+        {
+          "case": "display_unit_published",
+          "test_file": "tests/unit/pulse/test_query_services.py",
+          "test_function": "test_pulse_indicator_display_uses_governed_unit_and_plain_language"
         }
       ]
     },
@@ -838,7 +848,8 @@
         ],
         "apps/sentiment/interface/tui_views.py": [
           "health.get(\"must_not_use_for_decision\", True)",
-          "health.get(\"blocked_reason\")"
+          "health.get(\"blocked_reason\")",
+          "decision_status = \"仅供诊断\" if must_not_use_for_decision else \"可用于判断\""
         ],
         "apps/pulse/infrastructure/data_provider.py": [
           "code == \"SENTIMENT_DAILY_INDEX\"",
@@ -892,6 +903,11 @@
       "case": "historical_news_mode_is_explicit",
       "test_file": "tests/unit/sentiment/test_news_publication_contract.py",
       "test_function": "test_historical_sentiment_news_requires_explicit_legacy_mode"
+    },
+    {
+      "case": "tui_market_sentiment_not_system_status",
+      "test_file": "tests/api/test_sentiment_api_edges.py",
+      "test_function": "test_sentiment_tui_overview_flattens_recent_indices"
     }
       ]
     },

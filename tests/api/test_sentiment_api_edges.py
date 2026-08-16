@@ -256,6 +256,9 @@ def test_sentiment_tui_overview_flattens_recent_indices(
             "data_sufficient": True,
             "news_count": 18,
             "policy_events_count": 4,
+            "score_range": "-3 至 +3",
+            "freshness_status": "fresh",
+            "decision_status": "可用于判断",
         }
     ]
     recent_mock.assert_called_once_with(days=14)

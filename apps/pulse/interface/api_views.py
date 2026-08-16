@@ -197,6 +197,10 @@ class PulseCalculateView(APIView):
 
 def _serialize_snapshot(snapshot: PulseSnapshot) -> dict[str, Any]:
     """Serialize a pulse snapshot into the public API contract."""
+    from apps.pulse.application.query_services import build_pulse_indicator_display_payloads
+
+    indicator_display = build_pulse_indicator_display_payloads(snapshot.indicator_readings)
+
     indicator_observed_at = {
         str(reading.code): (reading.observed_at.isoformat() if reading.observed_at else None)
         for reading in snapshot.indicator_readings
@@ -269,6 +273,7 @@ def _serialize_snapshot(snapshot: PulseSnapshot) -> dict[str, Any]:
                 "data_age_days": r.data_age_days,
                 "observed_at": r.observed_at.isoformat() if r.observed_at else None,
                 "source_kind": r.source_kind,
+                **indicator_display.get(r.code, {}),
             }
             for r in snapshot.indicator_readings
         ],

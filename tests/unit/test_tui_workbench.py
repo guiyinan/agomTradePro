@@ -8725,7 +8725,19 @@ def test_tui_sentiment_analysis_publishes_typed_text_and_health_contracts():
     awareness_summary = actions["sentiment.awareness-summary"]
     awareness_trend = actions["sentiment.awareness-trend"]
     assert awareness_summary["screen_key"] == "macro-regime.overview"
-    assert awareness_summary["view_model"]["kind"] == "detail"
+    assert awareness_summary["label"] == "A股市场情绪"
+    assert awareness_summary["view_type"] == "datagrid"
+    assert awareness_summary["view_model"]["kind"] == "datagrid"
+    assert awareness_summary["view_model"]["rows_path"] == "indices"
+    assert [column["key"] for column in awareness_summary["view_model"]["columns"]] == [
+        "date",
+        "level",
+        "composite",
+        "news",
+        "policy",
+        "confidence_percent",
+        "decision_status",
+    ]
     assert awareness_trend["screen_key"] == "macro-regime.overview"
     assert awareness_trend["view_model"]["kind"] == "chart"
     assert awareness_trend["view_model"]["rows_path"] == "indices"

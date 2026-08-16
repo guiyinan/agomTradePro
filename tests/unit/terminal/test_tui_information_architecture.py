@@ -180,11 +180,14 @@ def test_macro_overview_publishes_portable_pulse_history_chart() -> None:
     assert current_panel["max_rows"] == 7
     assert [column["key"] for column in current_panel["columns"]] == [
         "name",
-        "signal",
-        "direction",
+        "value_display",
+        "interpretation",
+        "observed_at",
         "is_stale",
     ]
     assert pulse_current["view_model"]["kind"] == current_panel["kind"]
+    assert pulse_current["view_model"]["rows_path"] == "indicators"
+    assert pulse_current["view_model"]["columns"] == current_panel["columns"]
     assert panel["kind"] == "chart"
     assert panel["action_key"] == "pulse.history"
     assert panel["empty_message"] == "暂无脉搏趋势数据。"
@@ -207,9 +210,12 @@ def test_macro_overview_publishes_independent_sentiment_panels() -> None:
     screen = next(item for item in payload["screens"] if item["key"] == "macro-regime.overview")
     panels = {item["key"]: item for item in screen["dashboard_panels"]}
 
-    assert panels["sentiment-status"]["kind"] == "detail"
+    assert panels["sentiment-status"]["title"] == "A股市场情绪（当日）"
+    assert panels["sentiment-status"]["kind"] == "datagrid"
     assert panels["sentiment-status"]["action_key"] == "sentiment.awareness-summary"
     assert panels["sentiment-status"]["user_priority"] == "p1"
+    assert panels["sentiment-status"]["max_rows"] == 1
+    assert "不是系统状态" in panels["sentiment-status"]["note"]
     assert panels["sentiment-trend"]["kind"] == "chart"
     assert panels["sentiment-trend"]["action_key"] == "sentiment.awareness-trend"
     assert panels["sentiment-trend"]["empty_message"] == "暂无可用的情绪趋势数据。"

@@ -356,20 +356,25 @@
               "label": "指标"
             },
             {
-              "key": "signal",
-              "label": "信号"
+              "key": "value_display",
+              "label": "当前值（含单位）"
             },
             {
-              "key": "direction",
-              "label": "方向"
+              "key": "interpretation",
+              "label": "市场解读"
+            },
+            {
+              "key": "observed_at",
+              "label": "数据日期"
             },
             {
               "key": "is_stale",
-              "label": "过期"
+              "label": "是否过期"
             }
           ],
           "user_priority": "p0",
           "presentation_semantic": "primary_list",
+          "note": "当前值是指标的实际观测值；市场解读按各指标自身阈值或历史分布计算，不代表系统运行状态。",
           "empty_message": "暂无脉搏指标。",
           "row_actions": []
         },
@@ -1541,7 +1546,30 @@
       "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "view_model": {
-        "kind": "datagrid"
+        "kind": "datagrid",
+        "rows_path": "indicators",
+        "columns": [
+          {
+            "key": "name",
+            "label": "指标"
+          },
+          {
+            "key": "value_display",
+            "label": "当前值（含单位）"
+          },
+          {
+            "key": "interpretation",
+            "label": "市场解读"
+          },
+          {
+            "key": "observed_at",
+            "label": "数据日期"
+          },
+          {
+            "key": "is_stale",
+            "label": "是否过期"
+          }
+        ]
       },
       "task_group": "01 当前脉搏",
       "sequence": 100

@@ -53,6 +53,9 @@ class SentimentTuiOverviewView(APIView):
 
         recent_payload = get_recent_sentiment_indices_payload(days=days)
         health = get_sentiment_health_payload()
+        freshness_status = str(health.get("freshness_status") or "unknown")
+        must_not_use_for_decision = bool(health.get("must_not_use_for_decision", True))
+        decision_status = "仅供诊断" if must_not_use_for_decision else "可用于判断"
         rows: list[dict[str, Any]] = []
         for raw_row in recent_payload.get("indices") or []:
             if not isinstance(raw_row, dict):
@@ -79,6 +82,9 @@ class SentimentTuiOverviewView(APIView):
                         )
                         or 0
                     ),
+                    "score_range": "-3 至 +3",
+                    "freshness_status": freshness_status,
+                    "decision_status": decision_status,
                 }
             )
         latest = rows[0] if rows else {}
@@ -98,10 +104,8 @@ class SentimentTuiOverviewView(APIView):
                     "latest_level": str(latest.get("level") or ""),
                     "latest_confidence_percent": latest.get("confidence_percent"),
                     "latest_data_sufficient": bool(latest.get("data_sufficient", False)),
-                    "freshness_status": str(health.get("freshness_status") or "unknown"),
-                    "must_not_use_for_decision": bool(
-                        health.get("must_not_use_for_decision", True)
-                    ),
+                    "freshness_status": freshness_status,
+                    "must_not_use_for_decision": must_not_use_for_decision,
                     "blocked_reason": str(health.get("blocked_reason") or ""),
                 },
                 "indices": rows,

@@ -566,6 +566,17 @@ EXACT_VIEW_TYPE_RULES = {
 }
 
 EXACT_VIEW_MODEL_RULES = {
+    "pulse.current": {
+        "kind": "datagrid",
+        "rows_path": "indicators",
+        "columns": [
+            {"key": "name", "label": "指标"},
+            {"key": "value_display", "label": "当前值（含单位）"},
+            {"key": "interpretation", "label": "市场解读"},
+            {"key": "observed_at", "label": "数据日期"},
+            {"key": "is_stale", "label": "是否过期"},
+        ],
+    },
     "pulse.history": {
         "kind": "chart",
         "rows_path": "data",
