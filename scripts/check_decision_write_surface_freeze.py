@@ -391,7 +391,7 @@ def discover_mcp_position_write_capabilities() -> frozenset[str]:
     loader_module = importlib.import_module("agomtradepro_mcp.registry.loader")
     loader_type = cast(
         type[_CapabilityRegistryLoader],
-        getattr(loader_module, "CapabilityRegistryLoader"),
+        loader_module.CapabilityRegistryLoader,
     )
     registry = loader_type().build_registry()
     return frozenset(
