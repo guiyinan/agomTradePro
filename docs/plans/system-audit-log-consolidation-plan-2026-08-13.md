@@ -890,3 +890,7 @@ authority provider 仅公开已绑定 selector，未增加 production writer 或
 `composition contract complete / runtime still blocked`：runtime 继续返回 `publisher_not_wired`，
 没有 durable publisher/receipt sink、authenticated authority lifecycle、Celery beat/retry、
 生产 PostgreSQL 投递观察或 AUD-02 同 UOW 双写；`AUD-01` 状态与 gate 不变。
+
+该提交随后通过四条必需 CI workflow（Security Scan、Architecture Layer Guard、Consistency Check、
+CI Fast Feedback，含 Python 3.11/3.13、增量质量与完整 production mypy debt ceiling）；CI 绿仅证明
+本地合同和仓库门禁一致，不替代 durable publisher、authenticated authority 或生产投递证据。

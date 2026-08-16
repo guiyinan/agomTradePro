@@ -273,7 +273,7 @@
 | [vps-deployment-evidence-2026-08-15.md](deployment/vps-deployment-evidence-2026-08-15.md) | 候选部署、provenance、备份与运行复核证据（最新 `20260816223921`） | ✅ 2026-08-16 |
 | [web-to-tui-deployment-preflight-20260816223921.json](deployment/web-to-tui-deployment-preflight-20260816223921.json) | `443658d33159` / `20260816223921` 候选 deployment preflight、OCI/source/health/ready 绑定 | ✅ 2026-08-16 |
 | [vps-runtime-verification-2026-08-16-2258.json](deployment/vps-runtime-verification-2026-08-16-2258.json) | `443658d33159` / `20260816223921` 候选只读 release/health/container/Qlib/Celery 复核 | ✅ 2026-08-16 |
-| [evid-01-authority-inventory-2026-08-16-2258.json](deployment/evid-01-authority-inventory-2026-08-16-2258.json) | `443658d33159` / `20260816223921` 候选只读 authority migration/zero-seed inventory | ✅ 2026-08-16 |
+| [evid-01-authority-inventory-2026-08-16-2258.json](deployment/evid-01-authority-inventory-2026-08-16-2258.json) | `443658d33159` / `20260816223921` 候选只读 authority migration/zero-seed inventory；EVID-01 guard 动态核对当前 registry/preflight/runtime binding | ✅ 2026-08-17 |
 | [vps-postgres-backup-verification-2026-08-16-2348.json](deployment/vps-postgres-backup-verification-2026-08-16-2348.json) | `443658d33159` / `20260816223921` 候选 PostgreSQL custom-format 备份下载、尺寸与 SHA-256 复核（未恢复） | ✅ 2026-08-16 |
 | [evid-01-authority-inventory-2026-08-16.json](deployment/evid-01-authority-inventory-2026-08-16.json) | e167 候选只读 authority migration/zero-seed inventory | ✅ 2026-08-16 |
 | [vps-runtime-verification-2026-08-16-1811.json](deployment/vps-runtime-verification-2026-08-16-1811.json) | `5a13125bb84e` / `20260816181141` 候选只读 release/health/container/Qlib/Celery 复核 | ✅ 2026-08-16 |
@@ -470,6 +470,7 @@
 
 - 计划与机器状态的唯一导航入口是 [`docs/plans/README.md`](plans/README.md) 与 [`governance/active_plan_registry.json`](../governance/active_plan_registry.json)；本索引不复制动态 closure 数字。
 - AUD-01 的 durable-publisher preflight contract 与 release identity guard 已合入并部署到当前候选 `443658d33159dd80a35b3001ae2c8505113e3fff` / `20260816223921`；远端只读运行证据见 [`vps-runtime-verification-2026-08-16-2258.json`](deployment/vps-runtime-verification-2026-08-16-2258.json)。
+- EVID-01 authority inventory candidate guard 已将当前 registry/cutover/preflight/runtime/inventory 绑定到同一 `443658d33159dd80a35b3001ae2c8505113e3fff` / `20260816223921`；12 个 authority/evidence 表仍为零，结果继续是 `blocked_zero_seed_authority`，不代表 authority lifecycle 已存在。
 - 候选部署健康、迁移、schema、TUI registry、Qlib、Celery 与 HTTPS 已复核；角色化浏览器 UAT、写后 receipt/refresh、14 日 telemetry、生产 publisher/authority、数据恢复/回滚与 QMT/AI 外部验收仍按 registry 保持阻断。
 
 ---

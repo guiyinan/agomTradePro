@@ -2671,3 +2671,18 @@ provider 前也会 fail closed。
 不创建 immutable owner/tenant lifecycle、selector issuer、production composition 或 route；
 EVID-01 仍 active，EVID-02/EVID-03、人工授权、PostgreSQL 生产证据、Evidence hard gate、写入和
 execution 继续关闭。
+
+## 2026-08-17：EVID-01 authority inventory candidate binding guard
+
+当前候选 `443658d33159dd80a35b3001ae2c8505113e3fff` / release `20260816223921` 的
+registry、cutover candidate、deployment preflight、VPS runtime verification 与只读
+authority inventory 已一致。`tests/unit/test_evid_01_authority_inventory_evidence.py`
+不再固定某一个历史文件，而是从当前 cutover candidate 唯一匹配 preflight、runtime 与
+`evid-01-authority-inventory` artifact，并校验 preflight SHA、OCI revision、runtime image
+及 `blocked_zero_seed_authority`/12 表全零状态；focused 回归 `1 passed`。
+
+该 guard 只防止旧 release、旧 runtime 或旧 zero-seed inventory 串入当前候选，不创建或
+回填 authority，不读取 User/Profile/session 现场状态，不接 production writer，也不改变
+Evidence hard gate。immutable owner/tenant lifecycle、authenticated scoped provider、同
+alias exact bundle、人工授权以及 PostgreSQL production race/rollback 证据仍缺，
+`EVID-01` 保持 `active`，`EVID-02`/`EVID-03` 与写入/execution 继续关闭。
