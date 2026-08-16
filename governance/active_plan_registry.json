@@ -365,7 +365,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "production",
-        "status": "planned",
+        "status": "awaiting_production",
         "title": "Prove append-only approval and current-head behavior on PostgreSQL",
         "depends_on": [],
         "exit_gate": "Human approval, first-winner, successor, current-head and rollback behavior have repeatable PostgreSQL concurrency evidence."
@@ -390,7 +390,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Assemble the canonical audit publisher, runtime and authority source",
         "depends_on": [],
         "exit_gate": "The fail-closed dispatcher uses one production publisher and authenticated scoped authority composition with no memory or generic-event fallback."
