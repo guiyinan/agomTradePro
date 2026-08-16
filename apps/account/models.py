@@ -1,5 +1,7 @@
 """Account models re-export."""
 
+from typing import TYPE_CHECKING
+
 from apps.account.infrastructure.account_actor_authority_raw_source_models_v3 import (  # noqa: F401
     AccountAuthenticationContextSourceV3AnchorModel,
     AccountAuthenticationContextSourceV3Model,
@@ -13,3 +15,6 @@ from apps.account.infrastructure.account_owner_assignment_actor_authority_source
     AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel,
 )
 from apps.account.infrastructure.models import *  # noqa: F401,F403
+
+if TYPE_CHECKING:
+    from apps.account.infrastructure.models import *  # noqa: F401,F403
