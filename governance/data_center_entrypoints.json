@@ -3,40 +3,40 @@
     "by_category": {
       "admin_surface": 13,
       "agent_skill": 3,
-      "application_consumer": 156,
+      "application_consumer": 157,
       "beat_schedule": 57,
       "capability_runtime": 25,
       "celery_dispatch_edge": 18,
-      "celery_task": 122,
+      "celery_task": 123,
       "compatibility_facade": 90,
-      "current_data_surface": 46,
-      "dynamic_import_edge": 8,
+      "current_data_surface": 50,
+      "dynamic_import_edge": 10,
       "management_command": 25,
-      "management_command_edge": 56,
+      "management_command_edge": 58,
       "mcp_tool": 40,
       "migration_evidence": 14,
       "operational_dispatch_edge": 60,
       "operational_script": 28,
-      "orchestration_entry": 8,
+      "orchestration_entry": 9,
       "public_port": 91,
       "rest_url": 66,
-      "runbook": 6,
+      "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 16,
       "script": 3,
       "sdk": 46,
       "terminal_tui": 28,
-      "test_evidence": 32,
+      "test_evidence": 36,
       "workflow_step": 9
     },
     "by_status": {
-      "active_public": 695,
-      "adjacent_operational": 282,
-      "candidate-review": 1,
+      "active_public": 701,
+      "adjacent_operational": 287,
+      "candidate-review": 6,
       "compatibility": 133,
       "retired_blocked": 0
     },
-    "total": 1111
+    "total": 1127
   },
   "entries": [
     {
@@ -472,8 +472,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/broker_execution/application/use_cases.py:get_published_latest_quote_payload:line:103",
-      "locator": "line:103",
+      "id": "application_consumer:apps/broker_execution/application/use_cases.py:get_published_latest_quote_payload:line:114",
+      "locator": "line:114",
       "path": "apps/broker_execution/application/use_cases.py",
       "status": "active_public",
       "symbol": "get_published_latest_quote_payload",
@@ -1197,6 +1197,16 @@
       "path": "apps/policy/infrastructure/adapters/news_adapter.py",
       "status": "active_public",
       "symbol": "probe_rss_news_feed",
+      "target": ""
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/pulse/application/query_services.py:get_macro_runtime_metadata:line:5",
+      "locator": "line:5",
+      "path": "apps/pulse/application/query_services.py",
+      "status": "active_public",
+      "symbol": "get_macro_runtime_metadata",
       "target": ""
     },
     {
@@ -3038,6 +3048,16 @@
       "status": "adjacent_operational",
       "symbol": "qlib_train_model",
       "target": "apps.alpha.application.tasks.qlib_train_model"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/audit/application/tasks.py:dispatch_system_audit_outbox_task:apps.audit.application.tasks.dispatch_system_audit_outbox_task",
+      "locator": "apps.audit.application.tasks.dispatch_system_audit_outbox_task",
+      "path": "apps/audit/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "dispatch_system_audit_outbox_task",
+      "target": "apps.audit.application.tasks.dispatch_system_audit_outbox_task"
     },
     {
       "category": "celery_task",
@@ -4901,6 +4921,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=9",
+      "id": "current_data_surface:governance/current_data_contracts.json:broker_execution.connection_status:Agent heartbeat -> GET /api/broker-execution/connections/ -> SDK connection status",
+      "locator": "Agent heartbeat -> GET /api/broker-execution/connections/ -> SDK connection status",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "broker_execution.connection_status",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=3",
       "id": "current_data_surface:governance/current_data_contracts.json:broker_execution.live_order_quote:Live-order pre-trade quote evidence",
       "locator": "Live-order pre-trade quote evidence",
@@ -4911,12 +4941,32 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=5",
+      "id": "current_data_surface:governance/current_data_contracts.json:broker_execution.overview_readiness:GET /api/broker-execution/ overview readiness -> SDK thin projection",
+      "locator": "GET /api/broker-execution/ overview readiness -> SDK thin projection",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "broker_execution.overview_readiness",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=2",
       "id": "current_data_surface:governance/current_data_contracts.json:broker_execution.qmt_onboarding:GET /api/broker-execution/qmt-onboarding/ + TUI QMT 接入与设置",
       "locator": "GET /api/broker-execution/qmt-onboarding/ + TUI QMT 接入与设置",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "broker_execution.qmt_onboarding",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:dashboard.beta_alpha_workbench.current:TUI Beta market conclusion before Alpha stock selection",
+      "locator": "TUI Beta market conclusion before Alpha stock selection",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "dashboard.beta_alpha_workbench.current",
       "target": ""
     },
     {
@@ -4992,8 +5042,8 @@
     {
       "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=4",
-      "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_gated_reads:Data Center API/SDK/MCP publication-gated decision reads",
-      "locator": "Data Center API/SDK/MCP publication-gated decision reads",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_gated_reads:Data Center API/SDK and Equity Application publication-gated decision reads",
+      "locator": "Data Center API/SDK and Equity Application publication-gated decision reads",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.publication_gated_reads",
@@ -5171,9 +5221,9 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=4",
-      "id": "current_data_surface:governance/current_data_contracts.json:mcp.equity_research_snapshot:MCP equity.read.research_snapshot + AI capability route",
-      "locator": "MCP equity.read.research_snapshot + AI capability route",
+      "evidence": "governed current-data contract; source_files=8",
+      "id": "current_data_surface:governance/current_data_contracts.json:mcp.equity_research_snapshot:Equity Application + REST + SDK + MCP research snapshot + AI capability route",
+      "locator": "Equity Application + REST + SDK + MCP research snapshot + AI capability route",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "mcp.equity_research_snapshot",
@@ -5191,7 +5241,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=1",
+      "evidence": "governed current-data contract; source_files=2",
       "id": "current_data_surface:governance/current_data_contracts.json:pulse.current:GET /api/pulse/current/",
       "locator": "GET /api/pulse/current/",
       "path": "governance/current_data_contracts.json",
@@ -5311,6 +5361,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:strategy.execution_preview:POST /api/strategy/execution/evaluate/ display-only preview",
+      "locator": "POST /api/strategy/execution/evaluate/ display-only preview",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "strategy.execution_preview",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=8",
       "id": "current_data_surface:governance/current_data_contracts.json:system.strict_decision_readiness:GET /api/decision-ready/ + persistent decision runtime gate",
       "locator": "GET /api/decision-ready/ + persistent decision runtime gate",
@@ -5382,12 +5442,32 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:25",
-      "locator": "line:25",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:152",
+      "locator": "line:152",
+      "path": "apps/data_center/infrastructure/tushare_client.py",
+      "status": "adjacent_operational",
+      "symbol": "import_module",
+      "target": "requests"
+    },
+    {
+      "category": "dynamic_import_edge",
+      "evidence": "statically resolved dynamic import target",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:24",
+      "locator": "line:24",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
       "target": "pandas"
+    },
+    {
+      "category": "dynamic_import_edge",
+      "evidence": "statically resolved dynamic import target",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:247",
+      "locator": "line:247",
+      "path": "apps/data_center/infrastructure/tushare_client.py",
+      "status": "adjacent_operational",
+      "symbol": "import_module",
+      "target": "tushare"
     },
     {
       "category": "dynamic_import_edge",
@@ -5682,8 +5762,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/alpha/management/commands/bootstrap_alpha_cold_start.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:bootstrap_alpha_cold_start:line:146",
-      "locator": "line:146",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:bootstrap_alpha_cold_start:line:147",
+      "locator": "line:147",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "bootstrap_alpha_cold_start",
@@ -5692,8 +5772,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/account/management/commands/bootstrap_mcp_cold_start.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:bootstrap_mcp_cold_start:line:272",
-      "locator": "line:272",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:bootstrap_mcp_cold_start:line:273",
+      "locator": "line:273",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "bootstrap_mcp_cold_start",
@@ -5702,8 +5782,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/policy/management/commands/init_authoritative_rss_sources.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_authoritative_rss_sources:line:244",
-      "locator": "line:244",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_authoritative_rss_sources:line:245",
+      "locator": "line:245",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_authoritative_rss_sources",
@@ -5712,8 +5792,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/account/management/commands/init_classification.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_classification:line:184",
-      "locator": "line:184",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_classification:line:185",
+      "locator": "line:185",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_classification",
@@ -5722,8 +5802,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/audit/management/commands/init_confidence_config.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_confidence_config:line:213",
-      "locator": "line:213",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_confidence_config:line:214",
+      "locator": "line:214",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_confidence_config",
@@ -5732,8 +5812,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/decision_rhythm/management/commands/init_decision_model_params.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_decision_model_params:line:278",
-      "locator": "line:278",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_decision_model_params:line:279",
+      "locator": "line:279",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_decision_model_params",
@@ -5742,8 +5822,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/account/management/commands/init_docs.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_docs:line:196",
-      "locator": "line:196",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_docs:line:197",
+      "locator": "line:197",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_docs",
@@ -5752,8 +5832,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/account/management/commands/init_enhanced_rules.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_enhanced_rules:line:191",
-      "locator": "line:191",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_enhanced_rules:line:192",
+      "locator": "line:192",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_enhanced_rules",
@@ -5762,8 +5842,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/equity/management/commands/init_equity_config.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_equity_config:line:223",
-      "locator": "line:223",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_equity_config:line:224",
+      "locator": "line:224",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_equity_config",
@@ -5772,8 +5852,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/factor/management/commands/init_factors.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_factors:line:267",
-      "locator": "line:267",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_factors:line:268",
+      "locator": "line:268",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_factors",
@@ -5782,8 +5862,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/hedge/management/commands/init_hedge.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_hedge:line:261",
-      "locator": "line:261",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_hedge:line:262",
+      "locator": "line:262",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_hedge",
@@ -5792,8 +5872,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/audit/management/commands/init_indicator_thresholds.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_indicator_thresholds:line:208",
-      "locator": "line:208",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_indicator_thresholds:line:209",
+      "locator": "line:209",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_indicator_thresholds",
@@ -5802,8 +5882,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/data_center/management/commands/init_macro_indicator_governance.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_macro_indicator_governance:line:249",
-      "locator": "line:249",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_macro_indicator_governance:line:250",
+      "locator": "line:250",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "active_public",
       "symbol": "init_macro_indicator_governance",
@@ -5812,8 +5892,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/data_center/management/commands/init_macro_indicator_governance.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_macro_indicator_governance:line:413",
-      "locator": "line:413",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_macro_indicator_governance:line:414",
+      "locator": "line:414",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "active_public",
       "symbol": "init_macro_indicator_governance",
@@ -5822,8 +5902,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/policy/management/commands/init_policy_sentiment_gate_defaults.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_policy_sentiment_gate_defaults:line:239",
-      "locator": "line:239",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_policy_sentiment_gate_defaults:line:240",
+      "locator": "line:240",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_policy_sentiment_gate_defaults",
@@ -5832,8 +5912,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/strategy/management/commands/init_position_rules.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_position_rules:line:283",
-      "locator": "line:283",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_position_rules:line:284",
+      "locator": "line:284",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_position_rules",
@@ -5842,8 +5922,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/prompt/management/commands/init_prompt_templates.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_prompt_templates:line:229",
-      "locator": "line:229",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_prompt_templates:line:230",
+      "locator": "line:230",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_prompt_templates",
@@ -5852,8 +5932,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/regime/management/commands/init_regime_thresholds.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_regime_thresholds:line:203",
-      "locator": "line:203",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_regime_thresholds:line:204",
+      "locator": "line:204",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_regime_thresholds",
@@ -5862,8 +5942,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/rotation/management/commands/init_rotation.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_rotation:line:256",
-      "locator": "line:256",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_rotation:line:257",
+      "locator": "line:257",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "init_rotation",
@@ -5872,8 +5952,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/task_monitor/management/commands/init_scheduler_defaults.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_scheduler_defaults:line:234",
-      "locator": "line:234",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:init_scheduler_defaults:line:235",
+      "locator": "line:235",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "active_public",
       "symbol": "init_scheduler_defaults",
@@ -5882,8 +5962,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/data_center/management/commands/repair_decision_data_reliability.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:repair_decision_data_reliability:line:167",
-      "locator": "line:167",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:repair_decision_data_reliability:line:168",
+      "locator": "line:168",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "active_public",
       "symbol": "repair_decision_data_reliability",
@@ -5892,8 +5972,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/macro/management/commands/sync_macro_data.py",
-      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:sync_macro_data:line:137",
-      "locator": "line:137",
+      "id": "management_command_edge:apps/account/management/commands/bootstrap_cold_start.py:sync_macro_data:line:138",
+      "locator": "line:138",
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
       "status": "adjacent_operational",
       "symbol": "sync_macro_data",
@@ -6022,8 +6102,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/alpha/management/commands/build_qlib_data.py",
-      "id": "management_command_edge:apps/data_center/management/commands/repair_decision_data_reliability.py:build_qlib_data:line:225",
-      "locator": "line:225",
+      "id": "management_command_edge:apps/data_center/management/commands/repair_decision_data_reliability.py:build_qlib_data:line:252",
+      "locator": "line:252",
       "path": "apps/data_center/management/commands/repair_decision_data_reliability.py",
       "status": "adjacent_operational",
       "symbol": "build_qlib_data",
@@ -6032,8 +6112,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/alpha/management/commands/build_qlib_data.py",
-      "id": "management_command_edge:apps/data_center/management/commands/repair_decision_data_reliability.py:build_qlib_data:line:232",
-      "locator": "line:232",
+      "id": "management_command_edge:apps/data_center/management/commands/repair_decision_data_reliability.py:build_qlib_data:line:259",
+      "locator": "line:259",
       "path": "apps/data_center/management/commands/repair_decision_data_reliability.py",
       "status": "adjacent_operational",
       "symbol": "build_qlib_data",
@@ -6218,6 +6298,26 @@
       "status": "adjacent_operational",
       "symbol": "init_prompt_templates",
       "target": "apps/prompt/management/commands/init_prompt_templates.py"
+    },
+    {
+      "category": "management_command_edge",
+      "evidence": "call_command target is external or runtime-selected",
+      "id": "management_command_edge:scripts/record_web_to_tui_candidate_evidence.py:dynamic-command:line:886",
+      "locator": "line:886",
+      "path": "scripts/record_web_to_tui_candidate_evidence.py",
+      "status": "adjacent_operational",
+      "symbol": "dynamic-command",
+      "target": "dynamic-command"
+    },
+    {
+      "category": "management_command_edge",
+      "evidence": "call_command target is external or runtime-selected",
+      "id": "management_command_edge:scripts/record_web_to_tui_candidate_evidence.py:dynamic-command:line:902",
+      "locator": "line:902",
+      "path": "scripts/record_web_to_tui_candidate_evidence.py",
+      "status": "adjacent_operational",
+      "symbol": "dynamic-command",
+      "target": "dynamic-command"
     },
     {
       "category": "management_command_edge",
@@ -7692,8 +7792,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:1546",
-      "locator": "line:1546",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:1784",
+      "locator": "line:1784",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "init_macro_indicator_governance",
@@ -7702,8 +7802,18 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:1546",
-      "locator": "line:1546",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:1735",
+      "locator": "line:1735",
+      "path": "scripts/remote_build_deploy_vps.py",
+      "status": "active_public",
+      "symbol": "initialize_data_center_catalog",
+      "target": ""
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:1784",
+      "locator": "line:1784",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "normalize_macro_fact_units",
@@ -7712,8 +7822,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:1497",
-      "locator": "line:1497",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:1730",
+      "locator": "line:1730",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "verify_canonical_schema",
@@ -9282,21 +9392,21 @@
     {
       "category": "rest_url",
       "evidence": "project URL mount for Data Center",
-      "id": "rest_url:core/urls.py:mount@548:data-center/",
+      "id": "rest_url:core/urls.py:mount@563:data-center/",
       "locator": "data-center/",
       "path": "core/urls.py",
       "status": "active_public",
-      "symbol": "mount@548",
+      "symbol": "mount@563",
       "target": "include(('apps.data_center.interface.urls', 'data_center'), namespace='data_center')"
     },
     {
       "category": "rest_url",
       "evidence": "project URL mount for Data Center",
-      "id": "rest_url:core/urls.py:mount@555:api/data-center/",
+      "id": "rest_url:core/urls.py:mount@570:api/data-center/",
       "locator": "api/data-center/",
       "path": "core/urls.py",
       "status": "active_public",
-      "symbol": "mount@555",
+      "symbol": "mount@570",
       "target": "include(('apps.data_center.interface.api_urls', 'api_data_center'), namespace='api_data_center')"
     },
     {
@@ -9347,6 +9457,16 @@
       "path": "docs/deployment/postgres_windows_docker.md",
       "status": "adjacent_operational",
       "symbol": "postgres_windows_docker",
+      "target": ""
+    },
+    {
+      "category": "runbook",
+      "evidence": "operational runbook keyword discovery; governance review required",
+      "id": "runbook:docs/deployment/vps-deployment-evidence-2026-08-15.md:vps-deployment-evidence-2026-08-15:",
+      "locator": "",
+      "path": "docs/deployment/vps-deployment-evidence-2026-08-15.md",
+      "status": "candidate-review",
+      "symbol": "vps-deployment-evidence-2026-08-15",
       "target": ""
     },
     {
@@ -10751,6 +10871,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/audit/test_system_audit_postgres_concurrency.py:test_system_audit_postgres_concurrency:",
+      "locator": "",
+      "path": "tests/component/audit/test_system_audit_postgres_concurrency.py",
+      "status": "candidate-review",
+      "symbol": "test_system_audit_postgres_concurrency",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/component/config_center/test_backup_delivery_secret_cutover.py:test_backup_delivery_secret_cutover:",
       "locator": "",
@@ -10791,6 +10921,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/research/test_evidence_scope_source_v1_postgres_concurrency.py:test_evidence_scope_source_v1_postgres_concurrency:",
+      "locator": "",
+      "path": "tests/component/research/test_evidence_scope_source_v1_postgres_concurrency.py",
+      "status": "candidate-review",
+      "symbol": "test_evidence_scope_source_v1_postgres_concurrency",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/component/test_macro_periodic_tasks.py:test_macro_periodic_tasks:",
       "locator": "",
@@ -10817,6 +10957,26 @@
       "path": "tests/integration/test_tui_registry_backup_commands.py",
       "status": "active_public",
       "symbol": "test_tui_registry_backup_commands",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/settings_audit_postgres_concurrency.py:settings_audit_postgres_concurrency:",
+      "locator": "",
+      "path": "tests/settings_audit_postgres_concurrency.py",
+      "status": "candidate-review",
+      "symbol": "settings_audit_postgres_concurrency",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/settings_evidence_scope_source_v1_postgres.py:settings_evidence_scope_source_v1_postgres:",
+      "locator": "",
+      "path": "tests/settings_evidence_scope_source_v1_postgres.py",
+      "status": "candidate-review",
+      "symbol": "settings_evidence_scope_source_v1_postgres",
       "target": ""
     },
     {
@@ -11160,8 +11320,8 @@
     "retired_blocked": "known unsafe or obsolete operational path retained only as blocked evidence"
   },
   "source_contract_counts": {
-    "celery_tasks": 87,
-    "current_data_contracts": 46,
+    "celery_tasks": 88,
+    "current_data_contracts": 50,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 12,
     "runtime_config_keys": 45
