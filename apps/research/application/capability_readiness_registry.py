@@ -140,6 +140,17 @@ class AttestedMechanismOwnerAdapter:
                         reason_suffix="attestation_not_yet_observed",
                     )
                 )
+            elif attestation.valid_until <= evaluated_at:
+                evidence.append(
+                    _non_verified_evidence(
+                        capability=capability,
+                        requirement=requirement,
+                        owner=self.owner,
+                        evaluated_at=evaluated_at,
+                        state=ReadinessState.STALE,
+                        reason_suffix="attestation_expired",
+                    )
+                )
             else:
                 evidence.append(attestation.to_evidence())
         return tuple(evidence)

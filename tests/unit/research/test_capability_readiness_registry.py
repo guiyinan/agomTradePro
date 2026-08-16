@@ -265,3 +265,28 @@ def test_historical_evaluation_does_not_use_a_future_attestation() -> None:
     assert experiment.state is ReadinessState.UNVERIFIED
     assert experiment.blocking_reason is not None
     assert experiment.blocking_reason.endswith(".runtime.attestation_not_yet_observed")
+
+
+def test_expired_mechanism_attestation_is_stale_before_gate_evaluation() -> None:
+    expired = OwnerMechanismAttestation(
+        requirement=ReadinessRequirement.EXPERIMENT_REGISTRY,
+        owner="research",
+        observed_at=NOW - timedelta(days=2),
+        valid_until=NOW - timedelta(days=1),
+        evidence_ref="repo://mechanism/experiment_registry|test://contract",
+    )
+    adapter = AttestedMechanismOwnerAdapter(
+        owner="research",
+        attestations=(expired,),
+    )
+
+    evidence = adapter.collect(
+        capability=ResearchCapability.MACRO_FACTOR_NOWCAST,
+        requirements=(ReadinessRequirement.EXPERIMENT_REGISTRY,),
+        evaluated_at=NOW,
+    )
+
+    assert evidence[0].state is ReadinessState.STALE
+    assert evidence[0].blocking_reason == (
+        "macro_factor_nowcast.experiment_registry.runtime.attestation_expired"
+    )
