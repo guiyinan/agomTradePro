@@ -352,3 +352,20 @@ stale、Alpha rank source stale 与 market thermometer partial-stale warnings。
 `docs/deployment/web-to-tui-deployment-preflight-20260816082603.json`，只绑定代码身份和
 运行启动，不包含角色化浏览器账号、写后 receipt/refresh、14 日 telemetry、registry
 backup/restore、rollback 或 owner/reviewer 双签；M5-A 继续 `DENY`。
+
+### 2026-08-16 01:09 当前候选部署复核
+
+最新候选 `dev/next-development@6c4086231a19005c750c856e78613b766bfd3609` 已以
+code-only、保留数据卷、Celery enabled 的 `-Upgrade` 发布为 `20260816085250`；远端验证
+release manifest/OCI/source 绑定、`account.0054`、Django deploy check、HTTPS
+health/ready、容器健康、TUI registry、Qlib 与 Celery ping 均通过。部署报告为
+`dist/remote-build-reports/remote-build-report-20260816085250.json`，image ID 为
+`sha256:1d84d3db8d991eee385e4bfcf9160d0271cc8262924555c23346ade28a091c89`。
+
+本次只读部署观测在 `2026-08-16T01:09:24Z` 复核：HTTPS `/api/health/` 与 `/api/ready/`
+均返回 `200`；`/api/ready/` 仍报告 Alpha/Qlib provider degraded、workspace recommendation
+stale、Alpha rank source stale 与 market thermometer partial-stale warnings。该候选的
+结构化部署 preflight 为
+`docs/deployment/web-to-tui-deployment-preflight-20260816085250.json`，只绑定代码身份和
+运行启动，不包含角色化浏览器账号、写后 receipt/refresh、14 日 telemetry、registry
+backup/restore、rollback 或 owner/reviewer 双签；M5-A 继续 `DENY`。
