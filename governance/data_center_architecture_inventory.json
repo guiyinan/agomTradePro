@@ -1508,14 +1508,14 @@
       "text": "\"reactivate\": (\"revoked\", \"current\"),"
     },
     {
-      "line": 32,
+      "line": 31,
       "path": "apps/account/domain/account_rbac_authority_source_v3.py",
       "text": "ACCOUNT_RBAC_AUTHORITY_STATES = frozenset({\"current\", \"revoked\"})"
     },
     {
-      "line": 221,
+      "line": 218,
       "path": "apps/account/domain/account_rbac_authority_source_v3.py",
-      "text": "return self.authority_state == \"current\" and recorded_at <= as_of < valid_until"
+      "text": "self.authority_state == \"current\""
     },
     {
       "line": 24,
@@ -5783,12 +5783,12 @@
       "text": "\"\"\"Current Agent/QMT connection projection with source-time preservation.\"\"\""
     },
     {
-      "line": 193,
+      "line": 197,
       "path": "apps/broker_execution/application/order_catalog.py",
       "text": "\"\"\"One bounded order summary with non-authoritative action hints.\"\"\""
     },
     {
-      "line": 230,
+      "line": 234,
       "path": "apps/broker_execution/application/order_catalog.py",
       "text": "\"\"\"Return the safe order summary and governed read markers.\"\"\""
     },
@@ -16518,12 +16518,12 @@
       "text": "return current"
     },
     {
-      "line": 55,
+      "line": 56,
       "path": "apps/research/infrastructure/evidence_repository.py",
       "text": "\"\"\"Return the current timezone-aware server time.\"\"\""
     },
     {
-      "line": 62,
+      "line": 63,
       "path": "apps/research/infrastructure/evidence_repository.py",
       "text": "\"\"\"Return the current server time.\"\"\""
     },
@@ -18628,42 +18628,42 @@
       "text": "current_cash = summary.get(\"current_cash\", 0)"
     },
     {
-      "line": 109,
+      "line": 110,
       "path": "apps/simulated_trading/application/interface_services.py",
       "text": "\"\"\"Whether the current user can mutate the account.\"\"\""
     },
     {
-      "line": 231,
+      "line": 232,
       "path": "apps/simulated_trading/application/interface_services.py",
       "text": "summary = get_simulated_trade_repository().get_trade_model_summary_for_account(account.id)"
     },
     {
-      "line": 236,
+      "line": 237,
       "path": "apps/simulated_trading/application/interface_services.py",
       "text": "\"trades\": summary[\"trades\"],"
     },
     {
-      "line": 237,
+      "line": 238,
       "path": "apps/simulated_trading/application/interface_services.py",
       "text": "\"buy_count\": summary[\"buy_count\"],"
     },
     {
-      "line": 238,
+      "line": 239,
       "path": "apps/simulated_trading/application/interface_services.py",
       "text": "\"sell_count\": summary[\"sell_count\"],"
     },
     {
-      "line": 239,
+      "line": 240,
       "path": "apps/simulated_trading/application/interface_services.py",
       "text": "\"total_realized_pnl\": summary[\"total_realized_pnl\"],"
     },
     {
-      "line": 285,
+      "line": 286,
       "path": "apps/simulated_trading/application/interface_services.py",
       "text": "\"\"\"Delete one account and return cascade summary details.\"\"\""
     },
     {
-      "line": 456,
+      "line": 457,
       "path": "apps/simulated_trading/application/interface_services.py",
       "text": "\"\"\"Build summary stats for the simulated-trading admin dashboard.\"\"\""
     },
@@ -19263,9 +19263,9 @@
       "text": "\"\"\"Return whether an order event is valid for the current status.\"\"\""
     },
     {
-      "line": 612,
+      "line": 586,
       "path": "apps/strategy/domain/services.py",
-      "text": "'current': daily_trade_count,"
+      "text": "\"current\": daily_trade_count,"
     },
     {
       "line": 37,
