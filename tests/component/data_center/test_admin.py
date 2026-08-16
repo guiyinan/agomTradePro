@@ -4,8 +4,9 @@ from unittest.mock import Mock
 
 import pytest
 from django.contrib.admin import AdminSite
-from django.test import RequestFactory
+from django.test import RequestFactory, override_settings
 
+from apps.data_center.infrastructure.provider_credentials import ProviderCredentialStore
 from apps.data_center.interface import admin as data_center_admin
 from apps.data_center.models import (
     ProductionCoverageUniverseConfigModel,
@@ -26,8 +27,6 @@ def test_provider_credentials_are_not_rendered_back_to_browser():
         pk=7,
         name="primary",
         source_type="tushare",
-        api_key="stored-api-key",
-        api_secret="stored-api-secret",
     )
 
     form = data_center_admin.ProviderConfigAdminForm(instance=provider)
@@ -39,13 +38,16 @@ def test_provider_credentials_are_not_rendered_back_to_browser():
 
 
 @pytest.mark.django_db
+@override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="admin-form-test-key")
 def test_blank_masked_credentials_preserve_existing_values():
     """Submitting the masked edit form blank must not erase stored credentials."""
 
-    provider = ProviderConfigModel(
-        pk=7,
+    provider = ProviderConfigModel.objects.create(
         name="primary",
         source_type="tushare",
+    )
+    ProviderCredentialStore().persist(
+        provider,
         api_key="stored-api-key",
         api_secret="stored-api-secret",
     )
@@ -67,9 +69,15 @@ def test_blank_masked_credentials_preserve_existing_values():
     )
 
     assert form.is_valid(), form.errors
-    assert form.cleaned_data["api_key"] == "stored-api-key"
-    assert form.cleaned_data["api_secret"] == "stored-api-secret"
     assert form.cleaned_data["extra_config"]["tushare_request_mode"] == "sdk_path"
+
+    admin = data_center_admin.ProviderConfigAdmin(ProviderConfigModel, AdminSite())
+    obj = form.save(commit=False)
+    admin.save_model(RequestFactory().post("/admin/data-center/providers/"), obj, form, True)
+
+    resolved_key, resolved_secret, _ = ProviderCredentialStore().resolve(provider)
+    assert resolved_key == "stored-api-key"
+    assert resolved_secret == "stored-api-secret"
 
 
 def test_tushare_transport_mode_is_explicit_in_admin_form():
