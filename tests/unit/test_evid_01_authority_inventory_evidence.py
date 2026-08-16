@@ -6,9 +6,11 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-INVENTORY_PATH = ROOT / "docs" / "deployment" / "evid-01-authority-inventory-2026-08-16.json"
+INVENTORY_PATH = (
+    ROOT / "docs" / "deployment" / "evid-01-authority-inventory-2026-08-16-2258.json"
+)
 PREFLIGHT_PATH = (
-    ROOT / "docs" / "deployment" / "web-to-tui-deployment-preflight-20260816004134.json"
+    ROOT / "docs" / "deployment" / "web-to-tui-deployment-preflight-20260816223921.json"
 )
 
 EXPECTED_TABLES = (

@@ -559,3 +559,37 @@ runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest
 角色化浏览器 UAT 或业务写入。写后 receipt/refresh、14 日 telemetry、registry backup/restore、
 rollback 与 owner/reviewer 双签仍缺，M5-A 继续 `DENY`；AUD-01/EVID-01 authority/publisher
 门禁不因代码部署解除。
+
+### 2026-08-16 22:39 当前候选部署复核
+
+候选 `dev/next-development@443658d33159dd80a35b3001ae2c8505113e3fff` 已以 code-only、保留
+PostgreSQL/Redis 数据卷、Celery enabled 的 `-Upgrade` 发布为 `20260816223921`。release dir
+为 `/opt/agomtradepro/releases/source-20260816223921`，OCI image ID 为
+`sha256:c5930a8eb13a8ff4d09880698ceab2d9ee4758b48e8e8cdf1adbb61607b56f73`；preflight 为
+`docs/deployment/web-to-tui-deployment-preflight-20260816223921.json`，SHA
+`f7d03e0184cccfae22b231c9187de8e05a931d9e15b51e061bbc21fbece4aa67`。
+
+只读观测截至 `2026-08-16T14:58:08Z`：HTTPS `/api/health/` 与 `/api/ready/` 均为 `200`；
+health SHA `cd2a7891e4df7b35f9878d245df36f39c567ef36507d2a58928abe076f06da78`，ready SHA
+`59c346cf007900a025101deaf1c6a58a64ecb5963081a8352ee092c00e409b41`。迁移、canonical schema、
+Django check、TUI registry、release identity、Celery ping、Qlib module 与容器健康复核通过；
+结构化摘要见 `docs/deployment/vps-runtime-verification-2026-08-16-2258.json`。部署前
+PostgreSQL custom-format archive 由成功的 pre-deploy hook 创建于
+`/opt/agomtradepro/backups/database/postgres-20260816-164649.dump`；本次未执行 restore/rebuild、
+RTO/RPO 或 rollback drill。当前候选的 EVID-01 authority inventory 仍为
+`blocked_zero_seed_authority`，12 个 authority/evidence 表均为 `0` 行，摘要见
+`docs/deployment/evid-01-authority-inventory-2026-08-16-2258.json`。
+
+该候选完整 binding 为：version `web-to-tui-candidate-binding.v1`、candidate version
+`20260816223921`、candidate commit `443658d33159dd80a35b3001ae2c8505113e3fff`、matrix
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph
+`42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba`、schema `tui-metadata.v3`、
+runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest
+`98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。观察窗口需随该候选
+重新绑定为 `2026-08-16..2026-08-30`，不跨候选继承 UAT 或 telemetry。
+
+`/api/ready/` 仍保留 `alpha_qlib_provider_degraded`、`workspace_recommendations_stale`、
+`workspace_alpha_rank_source_stale` 与 `market_thermometer_partial_stale`；本次没有登录、
+角色化浏览器 UAT 或业务写入。写后 receipt/refresh、14 日 telemetry、registry backup/restore、
+rollback 与 owner/reviewer 双签仍缺，M5-A 继续 `DENY`；AUD-01/EVID-01 authority/publisher
+门禁不因代码部署解除。

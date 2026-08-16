@@ -1,0 +1,57 @@
+{
+  "version": "evid-01-authority-inventory.v1",
+  "environment": "production",
+  "checked_at": "2026-08-16T14:58:08Z",
+  "candidate": {
+    "stable_version": "20260816223921",
+    "source_commit": "443658d33159dd80a35b3001ae2c8505113e3fff",
+    "release": "agomtradepro-web:20260816223921"
+  },
+  "read_only": true,
+  "database": {
+    "backend": "postgresql",
+    "schema": "public",
+    "migrations": [
+      {
+        "app": "account",
+        "name": "0050_account_owner_assignment_evidence_v3_ledgers",
+        "applied_at": "2026-08-15T05:32:57.036668Z"
+      },
+      {
+        "app": "account",
+        "name": "0051_actor_authority_source_v3_ledgers",
+        "applied_at": "2026-08-15T05:32:57.305295Z"
+      },
+      {
+        "app": "account",
+        "name": "0052_account_actor_authority_raw_source_v3_ledgers",
+        "applied_at": "2026-08-15T05:32:58.924617Z"
+      },
+      {
+        "app": "account",
+        "name": "0053_account_rbac_authority_mutation_binding_v3",
+        "applied_at": "2026-08-15T05:33:00.857576Z"
+      }
+    ]
+  },
+  "row_counts": {
+    "account_auth_context_source_v3_anchor": 0,
+    "account_auth_context_source_v3_ledger": 0,
+    "account_user_authority_source_v3_anchor": 0,
+    "account_user_authority_source_v3_ledger": 0,
+    "account_rbac_authority_source_v3_anchor": 0,
+    "account_rbac_authority_source_v3_ledger": 0,
+    "account_actor_authority_source_v3_root_lock": 0,
+    "account_actor_authority_source_v3_ledger": 0,
+    "research_evidence_scope_source_v1": 0,
+    "account_owner_assignment_subject_v3_ledger": 0,
+    "account_owner_assignment_evidence_v3_ledger": 0,
+    "account_owner_assignment_provenance_receipt_v3_ledger": 0
+  },
+  "outcome": "blocked_zero_seed_authority",
+  "limitations": [
+    "This is a read-only row-count and migration-state observation; it does not prove an authority lifecycle exists.",
+    "Zero rows are not permission to derive authority from mutable User/Profile/session/request state or to backfill historical facts.",
+    "Authenticated owner/tenant provider composition, same-alias bundle reads, human approval, PostgreSQL race evidence and production write routes remain unavailable."
+  ]
+}

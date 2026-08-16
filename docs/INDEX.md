@@ -147,9 +147,9 @@
 | [web-to-tui-m2-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m2-consolidated-evidence-2026-07-26.md) | **Web → TUI M2 合并证据（W1-W20，15 份原始 wave 记录与 SHA-256 清单）** | ✅ M2 已完成并归档 |
 | [web-to-tui-m3-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m3-consolidated-evidence-2026-07-26.md) | **Web → TUI M3 合并证据（W21-W42，22 份原始 wave 记录与 SHA-256 清单）** | ✅ M3 已完成并归档 |
 | [web-to-tui-m4-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md) | **Web → TUI M4 合并证据（W43-W51，9 份原始 wave 记录与 SHA-256 清单）** | ✅ M4 已完成并归档 |
-| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；候选 `5a13125bb84eb1b20e623d7c1388a0d7632294cb` / `20260816181141` 已部署并开始只读观察，角色 UAT、写后回执、14 日窗口与回滚/备份证据仍待补 |
+| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；候选 `443658d33159dd80a35b3001ae2c8505113e3fff` / `20260816223921` 已部署并开始只读观察，角色 UAT、写后回执、14 日窗口与回滚/备份证据仍待补 |
 | [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | 历史只读记录；不代表 2026-08-13 当前线上版本，不计入 cutover gate |
-| [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 当前生产 Preflight（公开探针 + release/OCI 核对）** | 当前候选 `20260816181141` / `5a13125bb84e` 已完成标准 git-clone 构建、manifest/OCI/health/ready 复核；M5 仍 DENY，角色化 UAT、观察窗口和写后审计待补 |
+| [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 当前生产 Preflight（公开探针 + release/OCI 核对）** | 当前候选 `20260816223921` / `443658d33159` 已完成标准 git-clone 构建、manifest/OCI/health/ready 复核；M5 仍 DENY，角色化 UAT、观察窗口和写后审计待补 |
 | [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | 历史记录不再算当前闸门；candidate-bound 本地演练已修复，最终候选/生产备份恢复待验 |
 | [web-to-tui-m5-browser-uat-evidence-2026-07-27.md](plans/web-to-tui-m5-browser-uat-evidence-2026-07-27.md) | **Web → TUI M5 浏览器 UAT（角色边界、矩阵深链、直读/参数读取与生命周期）** | 历史自动化 15/15、主任务 108/108；未绑定最终候选，当前 gate FAIL |
 | [web-to-tui-m5-route-closure-evidence-2026-07-27.md](plans/web-to-tui-m5-route-closure-evidence-2026-07-27.md) | **Web → TUI M5 逐 Route 清理证据（认证边界、兼容目标与状态/回滚范围）** | ✅ 六类 scope 均为 108/108；不替代生产门禁 |
@@ -270,7 +270,10 @@
 |------|------|------|
 | [TEST_PACKAGE_RELEASE_WORKFLOW.md](deployment/TEST_PACKAGE_RELEASE_WORKFLOW.md) | 标准流程：测试->打包->发布->回滚（含门禁） | ✅ 新增 |
 | [VPS_BUNDLE_DEPLOYMENT.md](deployment/VPS_BUNDLE_DEPLOYMENT.md) | VPS Bundle 一体化部署与迁移指南（含 Postgres/Redis 迁移） | ✅ 新增 |
-| [vps-deployment-evidence-2026-08-15.md](deployment/vps-deployment-evidence-2026-08-15.md) | 候选部署、provenance、备份与运行复核证据（最新 `20260816181141`） | ✅ 2026-08-16 |
+| [vps-deployment-evidence-2026-08-15.md](deployment/vps-deployment-evidence-2026-08-15.md) | 候选部署、provenance、备份与运行复核证据（最新 `20260816223921`） | ✅ 2026-08-16 |
+| [web-to-tui-deployment-preflight-20260816223921.json](deployment/web-to-tui-deployment-preflight-20260816223921.json) | `443658d33159` / `20260816223921` 候选 deployment preflight、OCI/source/health/ready 绑定 | ✅ 2026-08-16 |
+| [vps-runtime-verification-2026-08-16-2258.json](deployment/vps-runtime-verification-2026-08-16-2258.json) | `443658d33159` / `20260816223921` 候选只读 release/health/container/Qlib/Celery 复核 | ✅ 2026-08-16 |
+| [evid-01-authority-inventory-2026-08-16-2258.json](deployment/evid-01-authority-inventory-2026-08-16-2258.json) | `443658d33159` / `20260816223921` 候选只读 authority migration/zero-seed inventory | ✅ 2026-08-16 |
 | [evid-01-authority-inventory-2026-08-16.json](deployment/evid-01-authority-inventory-2026-08-16.json) | e167 候选只读 authority migration/zero-seed inventory | ✅ 2026-08-16 |
 | [vps-runtime-verification-2026-08-16-1811.json](deployment/vps-runtime-verification-2026-08-16-1811.json) | `5a13125bb84e` / `20260816181141` 候选只读 release/health/container/Qlib/Celery 复核 | ✅ 2026-08-16 |
 | [DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) | Docker 部署指南 | 完整 |
@@ -465,7 +468,7 @@
 ## 2026-08-16 当前收口状态
 
 - 计划与机器状态的唯一导航入口是 [`docs/plans/README.md`](plans/README.md) 与 [`governance/active_plan_registry.json`](../governance/active_plan_registry.json)；本索引不复制动态 closure 数字。
-- AUD-01 的 durable-publisher preflight contract 与 release identity guard 已合入并部署到当前候选 `5a13125bb84eb1b20e623d7c1388a0d7632294cb` / `20260816181141`；远端只读运行证据见 [`vps-runtime-verification-2026-08-16-1811.json`](deployment/vps-runtime-verification-2026-08-16-1811.json)。
+- AUD-01 的 durable-publisher preflight contract 与 release identity guard 已合入并部署到当前候选 `443658d33159dd80a35b3001ae2c8505113e3fff` / `20260816223921`；远端只读运行证据见 [`vps-runtime-verification-2026-08-16-2258.json`](deployment/vps-runtime-verification-2026-08-16-2258.json)。
 - 候选部署健康、迁移、schema、TUI registry、Qlib、Celery 与 HTTPS 已复核；角色化浏览器 UAT、写后 receipt/refresh、14 日 telemetry、生产 publisher/authority、数据恢复/回滚与 QMT/AI 外部验收仍按 registry 保持阻断。
 
 ---

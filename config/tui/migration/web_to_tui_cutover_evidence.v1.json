@@ -2,14 +2,14 @@
   "version": "web-to-tui-cutover-evidence.v1",
   "source_sha256": "bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded",
   "candidate": {
-    "stable_version": "20260816181141",
-    "candidate_commit": "5a13125bb84eb1b20e623d7c1388a0d7632294cb",
+  "stable_version": "20260816223921",
+  "candidate_commit": "443658d33159dd80a35b3001ae2c8505113e3fff",
     "released_at": "2026-08-16",
     "observation_end": "2026-08-30",
     "binding": {
       "version": "web-to-tui-candidate-binding.v1",
-      "candidate_version": "20260816181141",
-      "candidate_commit": "5a13125bb84eb1b20e623d7c1388a0d7632294cb",
+    "candidate_version": "20260816223921",
+    "candidate_commit": "443658d33159dd80a35b3001ae2c8505113e3fff",
       "matrix_sha256": "bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded",
       "graph_sha256": "42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba",
       "schema_version": "tui-metadata.v3",
@@ -19,17 +19,17 @@
     },
     "deployment_preflight": {
       "version": "web-to-tui-production-deployment-preflight.v1",
-      "evidence": "docs/deployment/web-to-tui-deployment-preflight-20260816181141.json",
-      "evidence_sha256": "b449240339413578c0aaea9d2868f4f826e4454d51c9d5dcb607a87aefd343a2",
-      "release_id": "20260816181141",
-      "source_commit": "5a13125bb84eb1b20e623d7c1388a0d7632294cb",
-      "deployed_at": "2026-08-16T10:25:03+00:00",
-      "image_id": "sha256:1add6e57714a6ee41e3a3153a46e0c6e578f29a8374ea18e91cb53b65a7e2632",
-      "oci_revision": "5a13125bb84eb1b20e623d7c1388a0d7632294cb",
-      "health_checked_at": "2026-08-16T10:29:06+00:00",
-      "health_response_sha256": "bacab80cf37e6f8c94189606184a9d3a040ec8e56cf820b1e768cda207522fb3",
-      "readiness_response_sha256": "a3afe4e633840aadb84d0c730004c9f40ba114531ef8fc4d130db306ae1e5ed4",
-      "verified_at": "2026-08-16T10:29:06+00:00"
+      "evidence": "docs/deployment/web-to-tui-deployment-preflight-20260816223921.json",
+      "evidence_sha256": "f7d03e0184cccfae22b231c9187de8e05a931d9e15b51e061bbc21fbece4aa67",
+      "release_id": "20260816223921",
+      "source_commit": "443658d33159dd80a35b3001ae2c8505113e3fff",
+      "deployed_at": "2026-08-16T14:52:44+00:00",
+      "image_id": "sha256:c5930a8eb13a8ff4d09880698ceab2d9ee4758b48e8e8cdf1adbb61607b56f73",
+      "oci_revision": "443658d33159dd80a35b3001ae2c8505113e3fff",
+      "health_checked_at": "2026-08-16T14:58:08+00:00",
+      "health_response_sha256": "cd2a7891e4df7b35f9878d245df36f39c567ef36507d2a58928abe076f06da78",
+      "readiness_response_sha256": "59c346cf007900a025101deaf1c6a58a64ecb5963081a8352ee092c00e409b41",
+      "verified_at": "2026-08-16T14:58:08+00:00"
     }
   },
   "uat": {

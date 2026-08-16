@@ -108,6 +108,24 @@ Alpha rank source stale 与 market thermometer partial-stale；本次只更新�
 不启动角色化浏览器 UAT、写后回执、14 日观察或 cleanup/rollback 双签，也不解除 EVID-01、
 AUD-01、DATA-01 等生产门禁。
 
+### 2026-08-16 22:39 当前候选：`443658d33159` / release `20260816223921`
+
+当前 `dev/next-development` 已以标准 `git-clone`、`-Upgrade`、code-only 模式部署，远端
+PostgreSQL/Redis 数据卷保留且 Celery enabled。release manifest、OCI revision 与 source commit
+`443658d33159dd80a35b3001ae2c8505113e3fff` 完全一致；image ID 为
+`sha256:c5930a8eb13a8ff4d09880698ceab2d9ee4758b48e8e8cdf1adbb61607b56f73`。部署后 HTTPS
+health/ready 均 HTTP 200，容器、迁移、canonical schema、Django check、TUI registry、Qlib
+和 Celery ping 复核通过；部署前 PostgreSQL archive 为
+`/opt/agomtradepro/backups/database/postgres-20260816-164649.dump`。结构化 preflight、runtime
+和 authority inventory 分别见 `docs/deployment/web-to-tui-deployment-preflight-20260816223921.json`、
+`docs/deployment/vps-runtime-verification-2026-08-16-2258.json` 与
+`docs/deployment/evid-01-authority-inventory-2026-08-16-2258.json`。
+
+`/api/ready/` 仍报告 Alpha/Qlib provider degraded、workspace recommendation stale、Alpha rank
+source stale 与 market thermometer partial-stale；本次只更新候选身份与运行证据，不启动角色化
+浏览器 UAT、写后回执、14 日观察或 cleanup/rollback 双签，也不解除 EVID-01、AUD-01、DATA-01
+等生产门禁。当前候选观察窗口需重新绑定，不能继承历史候选证据。
+
 ### 2026-08-16 观察窗口已绑定但仍 DENY
 
 部署 attestation 已提交并通过 `start_web_to_tui_observation.py` 的 dry-run 与 `--write`；

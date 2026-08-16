@@ -396,6 +396,45 @@ candidate binding 仍为 `web-to-tui-candidate-binding.v1`：matrix SHA
 runtime `0.2.0`、build `agomtui-runtime-0.2.0+a2553996be22`、manifest SHA
 `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854`。
 
+## 2026-08-16 22:39 当前候选部署与观测
+
+`dev/next-development@443658d33159dd80a35b3001ae2c8505113e3fff` 使用标准
+`git-clone`、`-Upgrade`、code-only 模式发布为 `20260816223921`，保留 PostgreSQL/Redis
+数据卷并启用 Celery。远端 release dir 为
+`/opt/agomtradepro/releases/source-20260816223921`，OCI image ID 为
+`sha256:c5930a8eb13a8ff4d09880698ceab2d9ee4758b48e8e8cdf1adbb61607b56f73`；部署报告
+`dist/remote-build-reports/remote-build-report-20260816223921.json`，结构化运行摘要为
+`docs/deployment/vps-runtime-verification-2026-08-16-2258.json`，deployment preflight 为
+`docs/deployment/web-to-tui-deployment-preflight-20260816223921.json`。
+
+| 项目 | 证据 |
+|---|---|
+| release/source | `20260816223921` / `443658d33159dd80a35b3001ae2c8505113e3fff` |
+| mode | `ACTION=upgrade`、code-only、PostgreSQL/Redis 数据卷保留、Celery enabled |
+| migration/schema | `No migrations to apply`；canonical schema `missing_migrations=[]`、`missing_tables=[]`、`ok=true` |
+| HTTPS | `demo.agomtrade.pro` Caddy domain；TLS valid；`/api/health/` 与 `/api/ready/` HTTP `200` |
+| runtime observation | health SHA `cd2a7891e4df7b35f9878d245df36f39c567ef36507d2a58928abe076f06da78`；ready SHA `59c346cf007900a025101deaf1c6a58a64ecb5963081a8352ee092c00e409b41` |
+| containers | web healthy；celery worker/beat、PostgreSQL、Redis、Caddy、RSSHub、runtime namespace running；Celery ping `1 node online` |
+| TUI metadata | registry published/matched；registry id `25`；backend version `20260816151607` |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| backup | `/opt/agomtradepro/backups/database/postgres-20260816-164649.dump`；成功 pre-deploy hook 创建；未执行 restore/rebuild |
+| authority inventory | `evid-01-authority-inventory-2026-08-16-2258.json`；0050–0053 已应用，12 个 authority/evidence 表均为 `0` 行，`blocked_zero_seed_authority` |
+
+`/api/ready/` 仍报告 `alpha_qlib_provider_degraded`、`workspace_recommendations_stale`、
+`workspace_alpha_rank_source_stale` 与 `market_thermometer_partial_stale`；这些数据新鲜度
+观察项没有被部署成功掩盖。本次仅做启动、健康、版本、迁移、TUI registry、Qlib、Celery、
+authority row-count 与 HTTPS 只读复核，没有登录或业务写入。角色化浏览器 UAT、写后
+receipt/refresh、14 日 telemetry/defect、registry backup/restore、rollback drill、owner/reviewer
+双签以及 AUD-01/EVID-01 durable authority/publisher 仍未完成，相关 gate 继续 fail-closed。
+
+该候选完整 binding 为 `web-to-tui-candidate-binding.v1`：candidate version
+`20260816223921`、candidate commit `443658d33159dd80a35b3001ae2c8505113e3fff`、matrix SHA
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph SHA
+`42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba`、schema `tui-metadata.v3`、
+runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest SHA
+`98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。观察窗口需随该候选
+重新绑定为 `2026-08-16..2026-08-30`，不跨候选继承 UAT 或 telemetry。
+
 ## 2026-08-16 18:11 当前候选部署与观测
 
 `dev/next-development@5a13125bb84eb1b20e623d7c1388a0d7632294cb` 已以标准 `-Upgrade`、
