@@ -2,8 +2,8 @@
   "version": "tui-workbench.v2",
   "registry_key": "default",
   "source_evidence_counts": {
-    "api_safe_read": 523,
-    "sdk_methods": 497,
+    "api_safe_read": 525,
+    "sdk_methods": 498,
     "mcp_tools": 378,
     "classic_templates": 125
   },
@@ -2296,6 +2296,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.equity.research-snapshot.str:stock_code",
+        "name": "Get Equity Research Snapshot Str:Stock Code",
+        "method": "GET",
+        "endpoint": "/api/equity/research-snapshot/<str:stock_code>/",
+        "category": "equity",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.equity.regime-correlation.stock_code",
         "name": "Get Equity Regime Correlation Stock Code",
         "method": "GET",
@@ -3803,6 +3812,15 @@
         "name": "Get Dashboard Tui Overview",
         "method": "GET",
         "endpoint": "/api/dashboard/tui/overview/",
+        "category": "dashboard",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.dashboard.tui.beta-market-summary",
+        "name": "Get Dashboard Tui Beta Market Summary",
+        "method": "GET",
+        "endpoint": "/api/dashboard/tui/beta-market-summary/",
         "category": "dashboard",
         "risk_level": "safe",
         "visibility": "internal"
@@ -5867,7 +5885,7 @@
         "args": [
           "client_order_id"
         ],
-        "summary": "",
+        "summary": "Preserve the core Evidence, blocker, and actor-authorization markers.",
         "source": "sdk/agomtradepro/modules/broker_execution.py"
       },
       {
@@ -6955,6 +6973,15 @@
           "as_of_date"
         ],
         "summary": "分析股票",
+        "source": "sdk/agomtradepro/modules/equity.py"
+      },
+      {
+        "module": "equity",
+        "method": "get_research_snapshot",
+        "args": [
+          "stock_code"
+        ],
+        "summary": "Return one canonical equity research snapshot without recomposition.",
         "source": "sdk/agomtradepro/modules/equity.py"
       },
       {

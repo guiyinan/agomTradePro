@@ -1,7 +1,7 @@
 {
   "version": "tui-workbench.v2",
   "registry_key": "default",
-  "status": "generated",
+  "status": "published",
   "default_screen": "command-center.overview",
   "interaction_model": "user-task-workbench-to-approved-tools",
   "principles": [
@@ -1080,6 +1080,7 @@
         "objective": "维护投研平台运行准备度和外部数据连接。",
         "decision_output": "系统健康、服务商连接与数据治理结论。",
         "checkpoints": [
+          "当前部署版本",
           "系统健康",
           "服务商连接",
           "数据中心",
@@ -25633,23 +25634,23 @@
     ]
   },
   "coverage_summary": {
-    "safe_read_evidence": 523,
+    "safe_read_evidence": 525,
     "direct_safe_read_candidates": 293,
-    "parameterized_safe_read_candidates": 159,
-    "added_safe_api_actions": 32,
-    "added_parameterized_api_actions": 159,
-    "published_actions": 474,
+    "parameterized_safe_read_candidates": 160,
+    "added_safe_api_actions": 28,
+    "added_parameterized_api_actions": 160,
+    "published_actions": 475,
     "deferred": {
       "path_parameters": 13,
       "write_like_or_heavy": 11,
-      "internal_debug_or_docs": 27
+      "internal_debug_or_docs": 28
     },
-    "business_promoted_actions": 430,
+    "business_promoted_actions": 438,
     "approved_operation_actions": 23,
     "operator_first_default_actions": 1,
     "user_facing_design_annotations": 0,
-    "pruned_redundant_screen_actions": 0,
-    "pruned_runtime_only_dashboard_panels": 43,
+    "pruned_redundant_screen_actions": 8,
+    "pruned_runtime_only_dashboard_panels": 44,
     "pruned_empty_screens": 0
   },
   "publication_note": "Publish-ready TUI metadata generated from reviewed baseline plus direct safe-read tool candidates.",
@@ -25916,13 +25917,5 @@
       "type",
       "name"
     ]
-  },
-  "source_evidence_ref": "config/tui/generated/tui_operation_evidence.generated.json",
-  "source_evidence_counts": {
-    "api_safe_read": 523,
-    "sdk_methods": 497,
-    "mcp_tools": 378,
-    "classic_templates": 125
-  },
-  "generation_note": "Candidate metadata generated at compile time. Review graph and separate evidence before publishing."
+  }
 }

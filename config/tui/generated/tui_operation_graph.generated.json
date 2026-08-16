@@ -45,6 +45,13 @@
       "group": "system",
       "summary": "管理员维护数据、AI 与 MCP 运行面。",
       "audience": "admin"
+    },
+    {
+      "key": "api-library",
+      "label": "编译期工具候选",
+      "group": "system",
+      "summary": "仅用于候选图审核；发布时必须归并到 IA registry 定义的任务屏。",
+      "audience": "admin"
     }
   ],
   "screens": [
@@ -1158,6 +1165,91 @@
         "primary_operation_limit": 5,
         "task_group_limit": 4
       }
+    },
+    {
+      "key": "api-library.workflow",
+      "label": "决策与工作流工具",
+      "module_key": "api-library",
+      "group": "system",
+      "summary": "已发布的决策上下文、仪表盘和日常工作流工具。",
+      "view_type": "datagrid",
+      "user_experience": {
+        "journey": "toolbox",
+        "primary_task": "已发布的决策上下文、仪表盘和日常工作流工具。",
+        "primary_outcome": "已发布的决策上下文、仪表盘和日常工作流工具。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
+      },
+      "default_action_key": "auto.api.get.api.dashboard.auto-advisor-console",
+      "audience": "authenticated"
+    },
+    {
+      "key": "api-library.research",
+      "label": "研究与信号工具",
+      "module_key": "api-library",
+      "group": "system",
+      "summary": "已发布的研究、因子、信号、回测和标的分析工具。",
+      "view_type": "datagrid",
+      "user_experience": {
+        "journey": "toolbox",
+        "primary_task": "已发布的研究、因子、信号、回测和标的分析工具。",
+        "primary_outcome": "已发布的研究、因子、信号、回测和标的分析工具。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
+      },
+      "default_action_key": "auto.api.get.api.factor.portfolio",
+      "audience": "authenticated"
+    },
+    {
+      "key": "api-library.account",
+      "label": "账户与组合工具",
+      "module_key": "api-library",
+      "group": "system",
+      "summary": "已发布的账户、组合、资产和模拟交易工具。",
+      "view_type": "datagrid",
+      "user_experience": {
+        "journey": "toolbox",
+        "primary_task": "已发布的账户、组合、资产和模拟交易工具。",
+        "primary_outcome": "已发布的账户、组合、资产和模拟交易工具。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
+      },
+      "default_action_key": "auto.api.get.api.account.currencies.base",
+      "audience": "authenticated"
+    },
+    {
+      "key": "api-library.system",
+      "label": "系统与 AI 工具",
+      "module_key": "api-library",
+      "group": "system",
+      "summary": "已发布的系统健康、AI 能力、终端和数据中心工具。",
+      "view_type": "datagrid",
+      "user_experience": {
+        "journey": "toolbox",
+        "primary_task": "已发布的系统健康、AI 能力、终端和数据中心工具。",
+        "primary_outcome": "已发布的系统健康、AI 能力、终端和数据中心工具。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
+      },
+      "default_action_key": "auto.api.get.api.broker-execution",
+      "audience": "authenticated"
+    },
+    {
+      "key": "api-library.parameterized",
+      "label": "带条件查询",
+      "module_key": "api-library",
+      "group": "system",
+      "summary": "需要输入对象编号、代码或主键后才能执行的详情工具。",
+      "view_type": "datagrid",
+      "user_experience": {
+        "journey": "toolbox",
+        "primary_task": "需要输入对象编号、代码或主键后才能执行的详情工具。",
+        "primary_outcome": "需要输入对象编号、代码或主键后才能执行的详情工具。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
+      },
+      "default_action_key": "param.api.get.api.ai-capabilities.capabilities.str.capability_key",
+      "audience": "authenticated"
     }
   ],
   "actions": [
@@ -21193,7 +21285,7 @@
       "fields": [
         {
           "key": "id",
-          "label": "模板 ID",
+          "label": "ID",
           "input_type": "number",
           "required": false,
           "value_type": "integer",
@@ -25613,6 +25705,812 @@
       "task_group": "09 条件查询",
       "sequence": 900,
       "task_tier": "advanced"
+    },
+    {
+      "key": "auto.api.get.api.decision.advisor.sheet",
+      "label": "Decision Advisor Sheet",
+      "endpoint": "/api/decision/advisor/sheet/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.workflow",
+      "view_type": "auto",
+      "description": "Handle GET /api/decision/advisor/sheet/?account_id=<id>.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.account.positions",
+      "label": "Account Positions",
+      "endpoint": "/api/account/positions/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.account",
+      "view_type": "auto",
+      "description": "Position API endpoints backed by the unified ledger.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.account.volatility",
+      "label": "Account Volatility",
+      "endpoint": "/api/account/volatility/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.account",
+      "view_type": "auto",
+      "description": "API endpoint: GET api/account/volatility/",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.account.currencies.base",
+      "label": "Account Currencies Base",
+      "endpoint": "/api/account/currencies/base/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.account",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "id",
+          "label": "ID",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入ID",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "code",
+          "label": "代码",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入代码",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "name",
+          "label": "Name",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Name",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "symbol",
+          "label": "代码",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入代码",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "is_base",
+          "label": "Is Base",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Is Base",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "is_active",
+          "label": "Is Active",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Is Active",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "precision",
+          "label": "Precision",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Precision",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "created_at",
+          "label": "Created At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Created At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "updated_at",
+          "label": "Updated At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Updated At",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "币种 API ViewSet (只读)\n\n- GET /api/account/currencies/ - 获取币种列表\n- GET /api/account/currencies/{id}/ - 获取币种详情\n- GET /api/account/currencies/base/ - 获取基准货币",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.factor.portfolio",
+      "label": "Factor Portfolio",
+      "endpoint": "/api/factor/portfolio/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.research",
+      "view_type": "auto",
+      "description": "ViewSet for non-model factor actions.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.risk-center",
+      "label": "Risk Center",
+      "endpoint": "/api/risk-center/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "API endpoint: GET api/risk-center/",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.risk-center.floor",
+      "label": "Risk Center Floor",
+      "endpoint": "/api/risk-center/floor/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "API endpoint: GET api/risk-center/floor/",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.risk-center.templates",
+      "label": "Risk Center Templates",
+      "endpoint": "/api/risk-center/templates/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "API endpoint: GET api/risk-center/templates/",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.risk-center.account-policies",
+      "label": "Risk Center Account Policies",
+      "endpoint": "/api/risk-center/account-policies/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "API endpoint: GET api/risk-center/account-policies/",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.risk-center.exceptions",
+      "label": "Risk Center Exceptions",
+      "endpoint": "/api/risk-center/exceptions/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "API endpoint: GET api/risk-center/exceptions/",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.risk-center.effective-policy",
+      "label": "Risk Center Effective Policy",
+      "endpoint": "/api/risk-center/effective-policy/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "API endpoint: GET api/risk-center/effective-policy/",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.risk-center.daily-report",
+      "label": "Risk Center Daily Report",
+      "endpoint": "/api/risk-center/daily-report/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "API endpoint: GET api/risk-center/daily-report/",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.risk-center.stress-scenarios",
+      "label": "Risk Center Stress Scenarios",
+      "endpoint": "/api/risk-center/stress-scenarios/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "List repository-backed scenario definitions and selected revisions.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.risk-center.stress-scenario-sets.active",
+      "label": "Risk Center Stress Scenario Sets Active",
+      "endpoint": "/api/risk-center/stress-scenario-sets/active/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "Return the sole active set revision for a production scope.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.risk-center.stress-scenario-sets.impact-preview",
+      "label": "Risk Center Stress Scenario Sets Impact Preview",
+      "endpoint": "/api/risk-center/stress-scenario-sets/impact-preview/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "Fail closed until canonical portfolio and research evidence ports are wired.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.risk-center.research.market-state",
+      "label": "Risk Center Research Market State",
+      "endpoint": "/api/risk-center/research/market-state/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "Fail closed until canonical portfolio and research evidence ports are wired.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.risk-center.research.decision-scorecard",
+      "label": "Risk Center Research Decision Scorecard",
+      "endpoint": "/api/risk-center/research/decision-scorecard/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "Fail closed until canonical portfolio and research evidence ports are wired.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.risk-center.research.strategy-brief",
+      "label": "Risk Center Research Strategy Brief",
+      "endpoint": "/api/risk-center/research/strategy-brief/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "Fail closed until canonical portfolio and research evidence ports are wired.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.dashboard.auto-advisor-console",
+      "label": "Dashboard Auto Advisor Console",
+      "endpoint": "/api/dashboard/auto-advisor-console/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.workflow",
+      "view_type": "auto",
+      "description": "Homepage auto-advisor console payload.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.dashboard.auto-advisor-query",
+      "label": "Dashboard Auto Advisor Query",
+      "endpoint": "/api/dashboard/auto-advisor-query/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.workflow",
+      "view_type": "auto",
+      "description": "Deterministic personal auto-advisor Q&A payload.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.dashboard.auto-advisor-weekly-report",
+      "label": "Dashboard Auto Advisor Weekly Report",
+      "endpoint": "/api/dashboard/auto-advisor-weekly-report/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.workflow",
+      "view_type": "auto",
+      "description": "Personal weekly auto-advisor report payload.\n\nGET is read-only and returns a generated report payload.\nPOST generates the report and persists it with diary, notification, and audit outputs.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.broker-execution",
+      "label": "Broker Execution",
+      "endpoint": "/api/broker-execution/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "Return strict persisted-only live execution readiness.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.broker-execution.orders",
+      "label": "Broker Execution Orders",
+      "endpoint": "/api/broker-execution/orders/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "Return a scoped live-order catalog.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.broker-execution.connections",
+      "label": "Broker Execution Connections",
+      "endpoint": "/api/broker-execution/connections/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "Return strict persisted-only Agent/QMT connection snapshots.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.broker-execution.reconciliations",
+      "label": "Broker Execution Reconciliations",
+      "endpoint": "/api/broker-execution/reconciliations/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "Return strict persisted reconciliation runs.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.broker-execution.audit",
+      "label": "Broker Execution Audit",
+      "endpoint": "/api/broker-execution/audit/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "Return scoped append-only audit events.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.broker-execution.account-access",
+      "label": "Broker Execution Account Access",
+      "endpoint": "/api/broker-execution/account-access/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "Admin-only account grant management with preview and audit.",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "auto.api.get.api.metrics",
+      "label": "Metrics",
+      "endpoint": "/api/metrics/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.system",
+      "view_type": "auto",
+      "description": "API endpoint: GET api/metrics/",
+      "source": "api-collector:candidate"
+    },
+    {
+      "key": "param.api.get.api.alpha.factor-exposure.str.stock_code",
+      "label": "Alpha / Factor Exposure / 详情",
+      "endpoint": "/api/alpha/factor-exposure/<str:stock_code>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "stock_code",
+          "label": "Stock Code",
+          "input_type": "text",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Stock Code",
+          "binding": "path",
+          "value_type": "string",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "输入必要条件后只读查看：Alpha / Factor Exposure / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.equity.research-snapshot.str.stock_code",
+      "label": "股票 / Research Snapshot / 详情",
+      "endpoint": "/api/equity/research-snapshot/<str:stock_code>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "stock_code",
+          "label": "Stock Code",
+          "input_type": "text",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Stock Code",
+          "binding": "path",
+          "value_type": "string",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "输入必要条件后只读查看：股票 / Research Snapshot / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.equity.regime-correlation.stock_code",
+      "label": "股票 / Regime Correlation / 详情",
+      "endpoint": "/api/equity/regime-correlation/<stock_code>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "stock_code",
+          "label": "Stock Code",
+          "input_type": "text",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Stock Code",
+          "binding": "path",
+          "value_type": "string",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "输入必要条件后只读查看：股票 / Regime Correlation / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.equity.valuation.stock_code",
+      "label": "股票 / 估值 / 详情",
+      "endpoint": "/api/equity/valuation/<stock_code>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "stock_code",
+          "label": "Stock Code",
+          "input_type": "text",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Stock Code",
+          "binding": "path",
+          "value_type": "string",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "输入必要条件后只读查看：股票 / 估值 / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.equity.financials.stock_code",
+      "label": "股票 / Financials / 详情",
+      "endpoint": "/api/equity/financials/<stock_code>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "stock_code",
+          "label": "Stock Code",
+          "input_type": "text",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Stock Code",
+          "binding": "path",
+          "value_type": "string",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "输入必要条件后只读查看：股票 / Financials / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.equity.valuation-repair.stock_code.....history",
+      "label": "股票 / Valuation Repair / ]+) / History",
+      "endpoint": "/api/equity/valuation-repair/<stock_code>[^/]+)/history/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "stock_code",
+          "label": "Stock Code",
+          "input_type": "text",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Stock Code",
+          "binding": "path",
+          "value_type": "string",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "输入必要条件后只读查看：股票 / Valuation Repair / ]+) / History。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.equity.valuation-repair.stock_code",
+      "label": "股票 / Valuation Repair / ]+)",
+      "endpoint": "/api/equity/valuation-repair/<stock_code>[^/]+)/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "stock_code",
+          "label": "Stock Code",
+          "input_type": "text",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Stock Code",
+          "binding": "path",
+          "value_type": "string",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "输入必要条件后只读查看：股票 / Valuation Repair / ]+)。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.equity.intraday.stock_code",
+      "label": "股票 / Intraday / 详情",
+      "endpoint": "/api/equity/intraday/<stock_code>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "stock_code",
+          "label": "Stock Code",
+          "input_type": "text",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Stock Code",
+          "binding": "path",
+          "value_type": "string",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "输入必要条件后只读查看：股票 / Intraday / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.equity.technical.stock_code",
+      "label": "股票 / Technical / 详情",
+      "endpoint": "/api/equity/technical/<stock_code>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "stock_code",
+          "label": "Stock Code",
+          "input_type": "text",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Stock Code",
+          "binding": "path",
+          "value_type": "string",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "输入必要条件后只读查看：股票 / Technical / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.sector.score.sector_identifier",
+      "label": "板块 / Score / 详情",
+      "endpoint": "/api/sector/score/<sector_identifier>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "sector_identifier",
+          "label": "Sector Identifier",
+          "input_type": "text",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Sector Identifier",
+          "binding": "path",
+          "value_type": "string",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "输入必要条件后只读查看：板块 / Score / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.realtime.alerts.int.alert_id",
+      "label": "Realtime / Alerts / 详情",
+      "endpoint": "/api/realtime/alerts/<int:alert_id>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "alert_id",
+          "label": "Alert Id",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Alert Id",
+          "binding": "path",
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
+        }
+      ],
+      "description": "输入必要条件后只读查看：Realtime / Alerts / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.risk-center.templates.int.template_id",
+      "label": "Risk Center / 模板 / 详情",
+      "endpoint": "/api/risk-center/templates/<int:template_id>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "template_id",
+          "label": "Template Id",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Template Id",
+          "binding": "path",
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
+        }
+      ],
+      "description": "输入必要条件后只读查看：Risk Center / 模板 / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.risk-center.account-policies.by-account.int.account_id",
+      "label": "Risk Center / Account Policies / 按账户 / 详情",
+      "endpoint": "/api/risk-center/account-policies/by-account/<int:account_id>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "account_id",
+          "label": "账户 ID",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入账户 ID",
+          "binding": "path",
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
+        }
+      ],
+      "description": "输入必要条件后只读查看：Risk Center / Account Policies / 按账户 / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.risk-center.stress-scenarios.str.scenario_key",
+      "label": "Risk Center / Stress Scenarios / 详情",
+      "endpoint": "/api/risk-center/stress-scenarios/<str:scenario_key>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "scenario_key",
+          "label": "Scenario Key",
+          "input_type": "text",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Scenario Key",
+          "binding": "path",
+          "value_type": "string",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "输入必要条件后只读查看：Risk Center / Stress Scenarios / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.broker-execution.orders.uuid.client_order_id",
+      "label": "Broker Execution / Orders / 详情",
+      "endpoint": "/api/broker-execution/orders/<uuid:client_order_id>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "client_order_id",
+          "label": "Client Order Id",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Client Order Id",
+          "binding": "path",
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
+        }
+      ],
+      "description": "输入必要条件后只读查看：Broker Execution / Orders / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.ai-capabilities.capabilities.str.capability_key",
+      "label": "Ai Capabilities / Capabilities / 详情",
+      "endpoint": "/api/ai-capabilities/capabilities/<str:capability_key>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "capability_key",
+          "label": "Capability Key",
+          "input_type": "text",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Capability Key",
+          "binding": "path",
+          "value_type": "string",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "输入必要条件后只读查看：Ai Capabilities / Capabilities / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
+    },
+    {
+      "key": "param.api.get.api.portfolio.transition-plans.str.plan_id",
+      "label": "Portfolio / Transition Plans / 详情",
+      "endpoint": "/api/portfolio/transition-plans/<str:plan_id>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "api-library.parameterized",
+      "view_type": "auto",
+      "fields": [
+        {
+          "key": "plan_id",
+          "label": "计划 ID",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入计划 ID",
+          "binding": "path",
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
+        }
+      ],
+      "description": "输入必要条件后只读查看：Portfolio / Transition Plans / 详情。",
+      "source": "api-collector:parameterized-candidate",
+      "task_group": "需要输入",
+      "sequence": 800
     }
   ],
   "promotion_review": {
@@ -25633,24 +26531,17 @@
     ]
   },
   "coverage_summary": {
-    "safe_read_evidence": 523,
+    "safe_read_evidence": 525,
     "direct_safe_read_candidates": 293,
-    "parameterized_safe_read_candidates": 159,
-    "added_safe_api_actions": 32,
-    "added_parameterized_api_actions": 159,
-    "published_actions": 474,
+    "parameterized_safe_read_candidates": 160,
+    "added_safe_api_actions": 28,
+    "added_parameterized_api_actions": 160,
+    "published_actions": 475,
     "deferred": {
       "path_parameters": 13,
       "write_like_or_heavy": 11,
-      "internal_debug_or_docs": 27
-    },
-    "business_promoted_actions": 438,
-    "approved_operation_actions": 23,
-    "operator_first_default_actions": 1,
-    "user_facing_design_annotations": 0,
-    "pruned_redundant_screen_actions": 8,
-    "pruned_runtime_only_dashboard_panels": 43,
-    "pruned_empty_screens": 0
+      "internal_debug_or_docs": 28
+    }
   },
   "publication_note": "Publish-ready TUI metadata generated from reviewed baseline plus direct safe-read tool candidates.",
   "schema_version": "tui-metadata.v3",
@@ -25919,8 +26810,8 @@
   },
   "source_evidence_ref": "config/tui/generated/tui_operation_evidence.generated.json",
   "source_evidence_counts": {
-    "api_safe_read": 523,
-    "sdk_methods": 497,
+    "api_safe_read": 525,
+    "sdk_methods": 498,
     "mcp_tools": 378,
     "classic_templates": 125
   },
