@@ -362,8 +362,8 @@ owner/reviewer 双签以及 AUD-01/EVID-01 durable authority/publisher 仍未完
 该候选的 candidate binding 为 `web-to-tui-candidate-binding.v1`：matrix SHA
 `bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph SHA
 `c45ab376e2297ab235ed08621663bfe721b6a5c254fcc2097b7a2201deae0e98`、schema `tui-metadata.v3`、
-runtime `0.2.0`、build `agomtui-runtime-0.2.0+1b3dd9b98ae5`、manifest SHA
-`c8a565dc9580b7bf40b68c9d7f495529df6258e7b78c0f4e0f2b486871991659`。
+runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest SHA
+`98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。
 
 ## 2026-08-16 00:46 当前候选部署与观测
 
@@ -396,9 +396,42 @@ candidate binding 仍为 `web-to-tui-candidate-binding.v1`：matrix SHA
 runtime `0.2.0`、build `agomtui-runtime-0.2.0+a2553996be22`、manifest SHA
 `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854`。
 
+## 2026-08-16 15:34 当前候选部署与观测
+
+本次部署包含 TUI release identity、reviewed metadata artifacts 与 AUD-01 durable-publisher contract guard，再进入只读观测。`dev/next-development@e29e15b09b47e07d9724b9cbc750ae2882310693`
+使用标准 `git-clone`、`-Upgrade`、code-only 模式发布，保留 PostgreSQL/Redis 数据卷并启用 Celery。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260816151607` |
+| release dir | `/opt/agomtradepro/releases/source-20260816151607` |
+| source commit | `e29e15b09b47e07d9724b9cbc750ae2882310693` |
+| image | `agomtradepro-web:20260816151607` |
+| image ID | `sha256:7663b1a13f0f6ca61b36cc3f8a673b25b08480b6a0c8c5d62c9eed840a7e40ae` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260816151607.json` |
+| mode | `ACTION=upgrade`、code-only、数据卷保留、Celery enabled |
+| migration/schema | `No migrations to apply`；canonical schema `{"missing_migrations": [], "missing_tables": [], "ok": true}` |
+| HTTPS | `demo.agomtrade.pro` Caddy domain；TLS valid；`/api/health/` 与 `/api/ready/` HTTP `200` |
+| containers | web healthy；celery worker/beat、PostgreSQL、Redis、Caddy、RSSHub running；Celery ping `1 node online` |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| runtime observation | health SHA `e09691a05aefead4e9d1b0e17c00e3340ebfe8e8ec32caff35ebd0f4d6e4ba06`；ready SHA `91df358a1f19328ab1087a433941076469454a6270887c6339502a03283e5afc` |
+| backup | `/opt/agomtradepro/backups/database/postgres-20260816-092304.dump`；本次创建，未执行 restore drill |
+
+`/api/ready/` 继续报告 `alpha_qlib_provider_degraded`、`workspace_recommendations_stale`、
+`workspace_alpha_rank_source_stale`；这些数据新鲜度观察项没有被部署成功掩盖。本次仅做启动、
+健康、版本、迁移、TUI registry、Qlib、Celery 与 HTTPS 只读复核，没有登录或业务写入。角色化
+浏览器 UAT、写后 receipt/refresh、14 日 telemetry/defect、registry backup/restore、rollback drill、
+owner/reviewer 双签以及 AUD-01/EVID-01 durable authority/publisher 仍未完成，相关 gate 继续 fail-closed。
+
+该候选的 candidate binding 为 `web-to-tui-candidate-binding.v1`：matrix SHA
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph SHA
+`42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba`、schema `tui-metadata.v3`、
+runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest SHA
+`98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。
+
 部署完成后，`scripts/start_web_to_tui_observation.py --write --replace` 读取已提交的
-`docs/deployment/web-to-tui-deployment-preflight-20260816085250.json` 并启动新候选窗口；
-attestation SHA-256 为 `254b1dabe85181cd90120a1d872ed6668a69583fca9c8f2c3f20fb5859acd486`，
+`docs/deployment/web-to-tui-deployment-preflight-20260816151607.json` 并启动新候选窗口；
+attestation SHA-256 将在该文件提交后生成，
 窗口为 `2026-08-16..2026-08-30`。该动作只重置候选绑定和未验证区块，机器 readiness 仍为
 `DENY`（UAT `0/108`、telemetry `0/101`、rollback/backup/审批缺失）；没有执行登录、业务写入
 或角色化浏览器 UAT。

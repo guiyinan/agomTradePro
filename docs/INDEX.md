@@ -147,7 +147,7 @@
 | [web-to-tui-m2-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m2-consolidated-evidence-2026-07-26.md) | **Web → TUI M2 合并证据（W1-W20，15 份原始 wave 记录与 SHA-256 清单）** | ✅ M2 已完成并归档 |
 | [web-to-tui-m3-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m3-consolidated-evidence-2026-07-26.md) | **Web → TUI M3 合并证据（W21-W42，22 份原始 wave 记录与 SHA-256 清单）** | ✅ M3 已完成并归档 |
 | [web-to-tui-m4-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md) | **Web → TUI M4 合并证据（W43-W51，9 份原始 wave 记录与 SHA-256 清单）** | ✅ M4 已完成并归档 |
-| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；candidate/deployment/M5-B wave recorders 与 guards 已加固；真实候选部署、观察窗口和逐波生产证据待补 |
+| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；候选 `e29e15b09b47e07d9724b9cbc750ae2882310693` / `20260816151607` 已部署并开始只读观察，角色 UAT、写后回执、14 日窗口与回滚/备份证据仍待补 |
 | [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | 历史只读记录；不代表 2026-08-13 当前线上版本，不计入 cutover gate |
 | [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 当前生产 Preflight（公开探针 + release/OCI 核对）** | 2026-08-15 当前候选 `20260815182857` / `cf68dc1e9` 已完成标准 git-clone 构建、manifest/OCI/health/ready 复核；M5 仍 DENY，角色化 UAT、观察窗口和写后审计待补 |
 | [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | 历史记录不再算当前闸门；candidate-bound 本地演练已修复，最终候选/生产备份恢复待验 |
@@ -173,7 +173,7 @@
 | [0.8.0-release-closure-plan-2026-07-05.md](archive/plans/0.8.0-release-closure-plan-2026-07-05.md) | **0.8.0 收口开发计划（发布 / 运维 / 架构减债 Top 10）** | ✅ 2026-07-05 已执行并归档 |
 | [post-0.8.0-stabilization-priority-2026-07-08.md](archive/plans/post-0.8.0-stabilization-priority-2026-07-08.md) | **0.8.0 发布后两周稳定化实施清单（优先级 / 负责人 / 命令 / 验收）** | ✅ 已归档；未完成生产门禁已转入当前 Data / Strategy / Evidence / TUI 工作流 |
 | [evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | **证据治理与决策硬闸改造计划** | 第一期 P0：Portfolio/Risk/Broker inactive owner contracts与ledgers、Risk policy workflow以及Broker pre-Risk ID-only scope已分阶段落盘；pre-Risk仍固定inactive，缺跨账户owner binding、Risk adapter、最终issuer/四节点重验与PG/生产证明，所有执行总闸保持关闭，MCP integrated=0 |
-| [system-audit-log-consolidation-plan-2026-08-13.md](plans/system-audit-log-consolidation-plan-2026-08-13.md) | **系统级统一审计日志收口计划（统一事件账本 / 数据可靠性纵向链 / 指标告警 / TUI 观测）** | M0 registry + M1 Domain/codec/schema-only/repository/query/outbox-claim、health backlog projection、Data Center fetch-event envelope 与 AUD-01 composition preflight contract 已落地；runtime 仍 `publisher_not_wired`，无真实 publisher/业务双写，首批 Data Center fetch→publication→decision gate 仍待实施 |
+| [system-audit-log-consolidation-plan-2026-08-13.md](plans/system-audit-log-consolidation-plan-2026-08-13.md) | **系统级统一审计日志收口计划（统一事件账本 / 数据可靠性纵向链 / 指标告警 / TUI 观测）** | M0 registry + M1 Domain/codec/schema-only/repository/query/outbox-claim、health backlog projection、Data Center fetch-event envelope 与 AUD-01 durable-publisher preflight contract 已落地；runtime 仍 `publisher_not_wired`，无真实 publisher/业务双写，首批 Data Center fetch→publication→decision gate 仍待实施 |
 | [mcp-consolidation-remediation-plan-2026-07-09.md](archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md) | **MCP 收口整改计划（统一能力注册、统一调用、legacy 退役）** | ✅ 完成并归档；持续状态由机器门禁维护 |
 | [system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md](archive/plans/system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md) | **系统级 AI Capability Catalog 与统一路由任务书** | ✅ 代码与自动化验收完成并归档 |
 | [terminal-mcp-governance-outsourcing-task-book-2026-03-19.md](archive/plans/terminal-mcp-governance-outsourcing-task-book-2026-03-19.md) | **Terminal MCP 治理与确认机制任务书** | ✅ 已实现并由 AgentProposal 持久审批架构承接 |
@@ -461,6 +461,12 @@
 - MCP live 治理数据写入 `governance/governance_baseline.json` 的 `mcp_governance` 字段；历史整改过程见[已归档 MCP 收口计划](archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md)，当前完成证据见 [MCP Full Closure Evidence](development/mcp-full-closure-evidence-2026-07-14.md)。
 - 本索引只维护导航、清单和阅读路径，不复制业务模块数、MCP 工具数、静态测试函数数等动态治理数字。
 - 验证命令：`python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text`
+
+## 2026-08-16 当前收口状态
+
+- 计划与机器状态的唯一导航入口是 [`docs/plans/README.md`](plans/README.md) 与 [`governance/active_plan_registry.json`](../governance/active_plan_registry.json)；本索引不复制动态 closure 数字。
+- AUD-01 的 durable-publisher preflight contract 与 release identity guard 已合入并部署到候选 `e29e15b09b47e07d9724b9cbc750ae2882310693` / `20260816151607`；远端只读运行证据见 [`vps-runtime-verification-2026-08-16-1534.json`](deployment/vps-runtime-verification-2026-08-16-1534.json)。
+- 候选部署健康、迁移、schema、TUI registry、Qlib、Celery 与 HTTPS 已复核；角色化浏览器 UAT、写后 receipt/refresh、14 日 telemetry、生产 publisher/authority、数据恢复/回滚与 QMT/AI 外部验收仍按 registry 保持阻断。
 
 ---
 

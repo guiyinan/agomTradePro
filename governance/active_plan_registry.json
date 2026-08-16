@@ -1,6 +1,6 @@
 {
   "version": "2026-08-15.v1",
-  "updated_at": "2026-08-15",
+  "updated_at": "2026-08-16",
   "workstreams": [
     {
       "id": "evidence-hard-gate",
@@ -137,7 +137,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "Against candidate b051c369e97732ea10f7293d923aa8882a3a691c / release 20260816131435, complete role-based browser UAT and the 14-day observation window, then execute signed cleanup waves with rollback evidence.",
+      "next_gate": "Against candidate e29e15b09b47e07d9724b9cbc750ae2882310693 / release 20260816151607, complete role-based browser UAT and the 14-day observation window, then execute signed cleanup waves with rollback evidence.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
