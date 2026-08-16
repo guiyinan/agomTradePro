@@ -497,6 +497,20 @@ architecture guard 聚合回归 `46 passed`，增量 mypy regression 为 `0`，`
 全仓测试运行时未取得稳定完成结果，因此不计为数据库 component 证据；生产 PostgreSQL
 reconciliation、维护态 rollback、RTO/RPO 与 DATA-01 前置仍未完成，`DATA-01/02/03` 状态不变。
 
+## 实施记录（2026-08-16，control-plane identity reuse guard）
+
+Data Center 的 `SyncRunRepository`、`SyncBatchRepository` 与 `SyncCheckpointRepository`
+现在在同一 stable key 重试时先逐字段核对不可变身份，再允许更新状态/计数；若同一
+`run_id`、`idempotency_key` 或 cursor identity 被不同 dataset、provider、run 或 checkpoint
+重用，立即 fail closed，不再让 `update_or_create` 静默改写控制面身份。并发唯一键插入仍在
+savepoint 内处理，只有 exact identity 才允许继续。
+
+- 新增身份重用回归；Data Center control-plane focused `identity_reuse` 通过，增量 mypy
+  `0 regressions`，Black/isort/diff-check 通过。
+- 该切片仅加强本地回填控制面的 idempotency/identity 合同；未连接生产数据库、未执行
+  restore/backfill/reconciliation、未改变 `DATA-01/02/03` 状态，PostgreSQL 锁/并发与生产
+  RTO/RPO 证据仍待取得。
+
 ## 实施记录（2026-08-16，restore evidence input immutability）
 
 恢复工具现在把归档本身视为不可替换的证据输入：`scripts/verify_postgres_backup_restore.py`
