@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
+from typing import Any, cast
 
 from scripts.web_to_tui_candidate_binding import build_candidate_binding
 
@@ -11,22 +13,68 @@ ROOT = Path(__file__).resolve().parents[2]
 REGISTRY_PATH = ROOT / "governance" / "active_plan_registry.json"
 READINESS_PATH = ROOT / "docs" / "plans" / "web-to-tui-m5-readiness-2026-07-27.md"
 DEPLOYMENT_PATH = ROOT / "docs" / "deployment" / "vps-deployment-evidence-2026-08-15.md"
-PREFLIGHT_PATH = (
-    ROOT / "docs" / "deployment" / "web-to-tui-deployment-preflight-20260816170851.json"
-)
+PREFLIGHT_DIR = ROOT / "docs" / "deployment"
 CUTOVER_PATH = ROOT / "config" / "tui" / "migration" / "web_to_tui_cutover_evidence.v1.json"
 MATRIX_PATH = ROOT / "docs" / "plans" / "web-to-tui-migration-matrix-2026-07-25.csv"
 GRAPH_PATH = ROOT / "config" / "tui" / "published" / "tui_operation_graph.published.json"
 RUNTIME_MANIFEST_PATH = ROOT / "config" / "tui" / "agomtui-runtime.manifest.json"
 
 
+def _latest_section(text: str, *, heading_level: int, marker: str) -> str:
+    """Return only the latest candidate section, excluding older evidence."""
+
+    heading = re.compile(
+        rf"^{'#' * heading_level} "
+        rf"(?P<timestamp>\d{{4}}-\d{{2}}-\d{{2}}(?: \d{{2}}:\d{{2}})?) "
+        rf".*{re.escape(marker)}.*$",
+        re.MULTILINE,
+    )
+    matches = list(heading.finditer(text))
+    assert matches, f"missing latest candidate section: {marker}"
+    selected = max(matches, key=lambda match: match.group("timestamp"))
+    following_heading = re.search(r"^#{1,6} .*$", text[selected.end() :], re.MULTILINE)
+    end = selected.end() + following_heading.start() if following_heading else len(text)
+    return text[selected.start() : end]
+
+
+def _find_candidate_preflight(*, candidate_version: str, candidate_commit: str) -> Path:
+    """Find exactly one committed deployment preflight for the current candidate."""
+
+    matches: list[Path] = []
+    for path in sorted(PREFLIGHT_DIR.glob("web-to-tui-deployment-preflight-*.json")):
+        payload = cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
+        release = cast(dict[str, Any], payload.get("release", {}))
+        if (
+            str(release.get("stable_version")) == candidate_version
+            and str(release.get("source_commit")) == candidate_commit
+        ):
+            matches.append(path)
+    assert len(matches) == 1, f"expected one preflight for current candidate, got {matches}"
+    return matches[0]
+
+
 def test_current_candidate_identity_is_consistent_across_registry_and_evidence() -> None:
     """Prevent stale release or runtime identity from reopening the cutover gate."""
 
-    preflight = json.loads(PREFLIGHT_PATH.read_text(encoding="utf-8"))
-    release = preflight["release"]
-    candidate_version = str(release["stable_version"])
-    candidate_commit = str(release["source_commit"])
+    registry = cast(dict[str, Any], json.loads(REGISTRY_PATH.read_text(encoding="utf-8")))
+    workstream = next(item for item in registry["workstreams"] if item["id"] == "web-to-tui-m5")
+    next_gate = str(workstream["next_gate"])
+
+    cutover = cast(dict[str, Any], json.loads(CUTOVER_PATH.read_text(encoding="utf-8")))
+    cutover_candidate = cast(dict[str, Any], cutover["candidate"])
+    candidate_version = str(cutover_candidate["stable_version"])
+    candidate_commit = str(cutover_candidate["candidate_commit"])
+    assert candidate_commit in next_gate
+    assert candidate_version in next_gate
+
+    preflight_path = _find_candidate_preflight(
+        candidate_version=candidate_version,
+        candidate_commit=candidate_commit,
+    )
+    preflight = cast(dict[str, Any], json.loads(preflight_path.read_text(encoding="utf-8")))
+    release = cast(dict[str, Any], preflight["release"])
+    assert str(release["stable_version"]) == candidate_version
+    assert str(release["source_commit"]) == candidate_commit
     assert str(preflight["oci_image"]["revision"]) == candidate_commit
 
     binding = build_candidate_binding(
@@ -36,27 +84,30 @@ def test_current_candidate_identity_is_consistent_across_registry_and_evidence()
         graph_path=GRAPH_PATH,
         runtime_manifest_path=RUNTIME_MANIFEST_PATH,
     )
-    registry = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
-    workstream = next(item for item in registry["workstreams"] if item["id"] == "web-to-tui-m5")
-    next_gate = str(workstream["next_gate"])
-    assert candidate_commit in next_gate
-    assert candidate_version in next_gate
-
     readiness = READINESS_PATH.read_text(encoding="utf-8")
     deployment = DEPLOYMENT_PATH.read_text(encoding="utf-8")
-    readiness_current = readiness.split("### 2026-08-16 16:24 当前候选部署复核", 1)[1]
-    deployment_current = deployment.split("## 2026-08-16 16:24 当前候选部署与观测", 1)[1]
+    readiness_current = _latest_section(
+        readiness,
+        heading_level=3,
+        marker="当前候选部署复核",
+    )
+    deployment_current = _latest_section(
+        deployment,
+        heading_level=2,
+        marker="当前候选部署与观测",
+    )
     assert candidate_commit in readiness_current
     assert candidate_version in readiness_current
     assert candidate_commit in deployment_current
     assert candidate_version in deployment_current
 
-    cutover = json.loads(CUTOVER_PATH.read_text(encoding="utf-8"))
-    cutover_candidate = cutover["candidate"]
     assert cutover_candidate["candidate_commit"] == candidate_commit
     assert cutover_candidate["stable_version"] == candidate_version
     assert cutover_candidate["deployment_preflight"]["source_commit"] == candidate_commit
-    assert cutover_candidate["deployment_preflight"]["release_id"] == candidate_version
+    assert cutover_candidate["deployment_preflight"]["release_id"] == release["release_id"]
+    assert cutover_candidate["deployment_preflight"]["evidence"] == preflight_path.relative_to(
+        ROOT
+    ).as_posix()
     for value in binding.values():
         assert f"`{value}`" in readiness_current or value in readiness_current
         assert f"`{value}`" in deployment_current or value in deployment_current
