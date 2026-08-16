@@ -219,6 +219,7 @@ module = [
     "tushare.*",
     "akshare.*",
     "celery.*",
+    "django_celery_beat.*",
     "rest_framework.*",
     "drf_spectacular.*",
     "RestrictedPython",

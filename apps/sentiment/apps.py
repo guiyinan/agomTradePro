@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import TYPE_CHECKING
+from importlib import import_module
+from typing import TYPE_CHECKING, cast
 
 from django.apps import AppConfig
 
+from core.integration.sentiment_readiness import (
+    CurrentSentimentResolver,
+    register_current_sentiment_resolver,
+)
 from shared.infrastructure.decision_safe_series_registry import (
     register_sentiment_series_loader,
 )
@@ -35,6 +40,10 @@ class SentimentConfig(AppConfig):
 
     def ready(self) -> None:
         """Import tasks module when app is ready"""
-        import apps.sentiment.application.tasks  # noqa: F401 - Import Celery tasks
+        import_module("apps.sentiment.application.tasks")
+        from apps.sentiment.application.current_sentiment import resolve_current_sentiment
 
+        register_current_sentiment_resolver(
+            cast(CurrentSentimentResolver, resolve_current_sentiment)
+        )
         register_sentiment_series_loader(_load_sentiment_series)

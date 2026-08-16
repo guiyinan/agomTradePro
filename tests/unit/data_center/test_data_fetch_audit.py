@@ -2,11 +2,11 @@ from datetime import datetime, timezone
 
 import pytest
 
-from apps.audit.domain.system_audit_event import AuditOutcome, AuditScopeRef
-from apps.data_center.application.data_fetch_audit import (
+from apps.audit.application.data_fetch_audit import (
     DataFetchAuditObservation,
     build_data_fetch_audit_event,
 )
+from apps.audit.domain.system_audit_event import AuditOutcome, AuditScopeRef
 
 NOW = datetime(2026, 8, 15, 12, 0, 0, 123456, tzinfo=timezone.utc)
 RAW_HASH = "a" * 64

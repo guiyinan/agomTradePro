@@ -29,6 +29,7 @@ from apps.dashboard.application.repository_provider import (
 from apps.dashboard.application.use_cases import DashboardData, GetDashboardDataUseCase
 from apps.regime.domain.action_mapper import RegimeActionRecommendation
 from apps.regime.domain.entities import RegimeNavigatorOutput
+from core.integration.sentiment_readiness import get_current_sentiment_resolver
 
 logger = logging.getLogger(__name__)
 _DASHBOARD_INTERFACE_PERF_WARNING_MS = 2500
@@ -315,14 +316,12 @@ def build_beta_market_summary_payload(
 ) -> dict[str, object]:
     """Build the current Beta conclusion used before reading Alpha candidates."""
 
-    from apps.sentiment.application.current_sentiment import resolve_current_sentiment
-
     target_date = as_of_date or date.today()
     components = load_phase1_macro_components(
         as_of_date=target_date,
         refresh_if_stale=False,
     )
-    sentiment = resolve_current_sentiment(as_of_date=target_date)
+    sentiment = get_current_sentiment_resolver()(as_of_date=target_date)
     return build_beta_market_summary_row(
         as_of_date=target_date,
         navigator=cast(RegimeNavigatorOutput | None, components.navigator),

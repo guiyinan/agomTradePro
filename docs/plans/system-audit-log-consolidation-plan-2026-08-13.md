@@ -419,7 +419,7 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 
 ### 2026-08-15：M1 Data Center fetch-event envelope contract
 
-- 新增 `apps/data_center/application/data_fetch_audit.py`：以 typed
+- 新增 `apps/audit/application/data_fetch_audit.py`：以 typed
   `DataFetchAuditObservation` 和 `build_data_fetch_audit_event()` 固定
   `data.fetch.completed/noop/failed` 的 outcome、reason、provider/capability/dataset、
   `run_id/ingested_run_id` 与 RawAudit exact evidence ref；事件 ID/idempotency key

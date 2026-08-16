@@ -6,7 +6,10 @@ from datetime import date
 
 from apps.regime.domain.action_mapper import RegimeActionRecommendation
 from apps.regime.domain.entities import RegimeNavigatorOutput
-from apps.sentiment.application.current_sentiment import CurrentSentimentResult
+from core.integration.sentiment_readiness import (
+    CurrentSentimentProjection,
+    SentimentIndexProjection,
+)
 
 _SENTIMENT_BLOCKED_MESSAGES = {
     "sentiment_index_missing": "暂无A股情绪指数。",
@@ -32,10 +35,10 @@ def _percent(value: float | None) -> float | None:
     return round(float(value) * 100, 2)
 
 
-def _sentiment_payload(current: CurrentSentimentResult) -> dict[str, object]:
+def _sentiment_payload(current: CurrentSentimentProjection) -> dict[str, object]:
     """Return current or diagnostic sentiment fields without hiding staleness."""
 
-    index = current.index or current.diagnostic_index
+    index: SentimentIndexProjection | None = current.index or current.diagnostic_index
     if index is None:
         return {
             "market_sentiment": "暂无数据",
@@ -72,7 +75,7 @@ def build_beta_market_summary_row(
     as_of_date: date,
     navigator: RegimeNavigatorOutput | None,
     action: RegimeActionRecommendation | None,
-    sentiment: CurrentSentimentResult,
+    sentiment: CurrentSentimentProjection,
 ) -> dict[str, object]:
     """Build one readable Beta conclusion while preserving decision blockers."""
 

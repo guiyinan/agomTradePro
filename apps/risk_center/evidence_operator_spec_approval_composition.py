@@ -5,22 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from apps.research.application.evidence_operator_spec_lifecycle import (
-    EvidenceOperatorSpecCorruption,
-    EvidenceOperatorSpecUnavailable,
-    ExactEvidenceOperatorSpecDefinitionProvider,
-)
-from apps.research.domain.evidence_operator_spec_lifecycle import (
-    EvidenceOperatorSpecDefinition,
-)
-from apps.research.infrastructure.evidence_operator_spec_definition_provider import (
-    DjangoEvidenceOperatorSpecDefinitionProvider,
-)
 from apps.risk_center.application.evidence_operator_spec_approval import (
     ApproveEvidenceOperatorSpec,
-    EvidenceOperatorSpecApprovalCorruption,
-    EvidenceOperatorSpecApprovalDefinition,
     EvidenceOperatorSpecApprovalUnavailable,
+    ExactEvidenceOperatorSpecApprovalDefinitionProvider,
     RegisterEvidenceOperatorSpecApprovalSubject,
 )
 from apps.risk_center.domain.evidence_operator_spec_approval import (
@@ -39,42 +27,6 @@ class EvidenceOperatorSpecApprovalWriteRuntime:
 
     register_subject: RegisterEvidenceOperatorSpecApprovalSubject
     approve: ApproveEvidenceOperatorSpec
-
-
-class _RiskCenterDefinitionProvider:
-    """Translate trusted Research definitions at the Risk Center root."""
-
-    __slots__ = ("_provider",)
-
-    def __init__(self, provider: ExactEvidenceOperatorSpecDefinitionProvider) -> None:
-        self._provider = provider
-
-    def get_exact(
-        self,
-        *,
-        operator_id: str,
-        operator_version: str,
-        as_of: datetime,
-    ) -> EvidenceOperatorSpecApprovalDefinition | None:
-        """Return a Risk Center projection without accepting definition payloads."""
-
-        try:
-            definition = self._provider.get_exact(
-                operator_id=operator_id,
-                operator_version=operator_version,
-                as_of=as_of,
-            )
-        except EvidenceOperatorSpecUnavailable as error:
-            raise EvidenceOperatorSpecApprovalUnavailable(
-                "trusted Research operator specification definition is unavailable"
-            ) from error
-        except EvidenceOperatorSpecCorruption as error:
-            raise EvidenceOperatorSpecApprovalCorruption(
-                "trusted Research operator specification definition failed integrity checks"
-            ) from error
-        if definition is None:
-            return None
-        return _definition_projection(definition)
 
 
 class _RegisteredSubjectProvider:
@@ -104,15 +56,22 @@ class _RegisteredSubjectProvider:
 def build_evidence_operator_spec_approval_write_runtime(
     *,
     authenticated_user: object,
+    definition_provider: ExactEvidenceOperatorSpecApprovalDefinitionProvider | None = None,
     using: str = "default",
 ) -> EvidenceOperatorSpecApprovalWriteRuntime:
-    """Build commands with a human staff actor derived only from Django auth state."""
+    """Build commands with injected exact definitions and a human staff actor.
+
+    Research owns the definition ledger, so the provider must be supplied by a
+    higher-level composition root.  Omitting it is a deliberate fail-closed
+    state rather than a hidden Risk Center → Research import.
+    """
 
     actor = _actor_from_authenticated_user(authenticated_user)
+    if definition_provider is None:
+        raise EvidenceOperatorSpecApprovalUnavailable(
+            "trusted operator specification definition provider is not wired"
+        )
     repository = DjangoEvidenceOperatorSpecApprovalRepository(using=using)
-    definition_provider = _RiskCenterDefinitionProvider(
-        DjangoEvidenceOperatorSpecDefinitionProvider(using=using)
-    )
     return EvidenceOperatorSpecApprovalWriteRuntime(
         register_subject=RegisterEvidenceOperatorSpecApprovalSubject(
             definition_provider=definition_provider,
@@ -148,20 +107,6 @@ def _actor_from_authenticated_user(user: object) -> EvidenceOperatorSpecApproval
         kind=EvidenceOperatorSpecApprovalActorKind.HUMAN,
         is_staff=True,
         user_id=user_id,
-    )
-
-
-def _definition_projection(
-    definition: EvidenceOperatorSpecDefinition,
-) -> EvidenceOperatorSpecApprovalDefinition:
-    spec = definition.operator_spec
-    return EvidenceOperatorSpecApprovalDefinition(
-        operator_id=spec.operator_id,
-        operator_version=spec.operator_version,
-        definition_hash=definition.content_hash,
-        supersedes_activation_hash=definition.supersedes_activation_hash,
-        activated_at=spec.activated_at,
-        valid_until=spec.valid_until,
     )
 
 
