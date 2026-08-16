@@ -546,3 +546,19 @@ immutable identity；插入竞争失败后先按自然键、再按模型 primary
 - 本 slice 仅加强本地控制面冲突诊断与幂等合同；未连接生产数据库，未执行 restore/backfill/
   reconciliation、维护态 rollback 或 destructive migration。`DATA-01` 仍为
   `awaiting_production`，`DATA-02/03` 状态不变。
+
+## 实施记录（2026-08-16，当前候选 PostgreSQL 备份下载复核）
+
+针对当前候选 `443658d33159dd80a35b3001ae2c8505113e3fff` / release `20260816223921`，重新运行
+`scripts/backup-vps-postgres.ps1 -DownloadLatest` 并完成远端格式校验、SFTP 完整下载、尺寸和本地
+SHA-256 复核：
+
+- 远端：`/opt/agomtradepro/backups/database/postgres-20260816-164649.dump`。
+- 本地：`backups/vps-postgres/postgres-20260816-164649.dump`，大小 `140977814` bytes。
+- SHA-256：`297d0dc67eb76ff394e2e6e2367a8ba0bc0a0d7ed90af8ce39d3b9f3d86d93b1`。
+- 结构化记录：[`vps-postgres-backup-verification-2026-08-16-2348.json`](../deployment/vps-postgres-backup-verification-2026-08-16-2348.json)。
+- 远端 prune 未启用；本次未执行 restore、回填、切读、destructive migration 或 rollback。
+
+该条只确认 DATA-01 的当前恢复点可下载且可校验，不等于 restore/rebuild、维护态 rollback、
+RTO/RPO、controlled backfill 或 reconciliation 通过证据。`DATA-01` 继续保持 `awaiting_production`，
+不解锁 `DATA-02/03` 或任何破坏性操作。

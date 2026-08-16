@@ -1,0 +1,23 @@
+{
+  "evidence_type": "vps_postgres_custom_format_backup_verification",
+  "observed_at": "2026-08-16T23:48:38.7153162+08:00",
+  "candidate": {
+    "source_commit": "443658d33159dd80a35b3001ae2c8505113e3fff",
+    "release": "20260816223921"
+  },
+  "remote_archive": "/opt/agomtradepro/backups/database/postgres-20260816-164649.dump",
+  "local_archive": "backups/vps-postgres/postgres-20260816-164649.dump",
+  "bytes": 140977814,
+  "sha256": "297d0dc67eb76ff394e2e6e2367a8ba0bc0a0d7ed90af8ce39d3b9f3d86d93b1",
+  "remote_pg_restore_list": "passed",
+  "sftp_download": "passed",
+  "remote_prune": false,
+  "restore_performed": false,
+  "destructive_migration_performed": false,
+  "backfill_performed": false,
+  "rollback_or_rto_rpo_rehearsal": false,
+  "limitations": [
+    "This is a verified backup artifact only; it is not restore/rebuild evidence.",
+    "DATA-01 remains awaiting_production until maintenance, restore, rollback, and reconciliation evidence is complete."
+  ]
+}
