@@ -36,6 +36,7 @@ from apps.account.infrastructure.account_actor_authority_raw_source_models_v3 im
 from apps.account.infrastructure.account_rbac_authority_source_v3_repository import (
     DjangoAccountRbacAuthoritySourceV3Repository,
 )
+from tests.support.isolated_schema import isolated_schema
 
 NOW = datetime(2026, 8, 14, 12, tzinfo=UTC)
 RECORDER = AccountActorAuthorityRawSourceV3Recorder("account-rbac-recorder-v3")
@@ -85,13 +86,10 @@ def _record(source: AccountRbacAuthoritySourceV3) -> PersistedAccountRbacAuthori
 @pytest.fixture(autouse=True)
 def _schema(django_db_blocker: object) -> Iterator[None]:
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with connection.schema_editor() as editor:
-            editor.create_model(AccountRbacAuthoritySourceV3AnchorModel)
-            editor.create_model(AccountRbacAuthoritySourceV3Model)
-        yield
-        with connection.schema_editor() as editor:
-            editor.delete_model(AccountRbacAuthoritySourceV3Model)
-            editor.delete_model(AccountRbacAuthoritySourceV3AnchorModel)
+        with isolated_schema(
+            (AccountRbacAuthoritySourceV3AnchorModel, AccountRbacAuthoritySourceV3Model)
+        ):
+            yield
 
 
 def _repository() -> DjangoAccountRbacAuthoritySourceV3Repository:

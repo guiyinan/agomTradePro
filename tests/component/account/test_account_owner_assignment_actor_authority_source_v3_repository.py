@@ -31,6 +31,7 @@ from apps.account.infrastructure.account_owner_assignment_actor_authority_source
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_repository import (
     DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
 )
+from tests.support.isolated_schema import isolated_schema
 
 NOW = datetime(2026, 8, 14, 10, tzinfo=UTC)
 
@@ -122,13 +123,13 @@ def _record(
 @pytest.fixture(autouse=True)
 def _schema(django_db_blocker: object) -> Iterator[None]:
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with connection.schema_editor() as editor:
-            editor.create_model(AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel)
-            editor.create_model(AccountOwnerAssignmentActorAuthoritySourceV3Model)
-        yield
-        with connection.schema_editor() as editor:
-            editor.delete_model(AccountOwnerAssignmentActorAuthoritySourceV3Model)
-            editor.delete_model(AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel)
+        with isolated_schema(
+            (
+                AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel,
+                AccountOwnerAssignmentActorAuthoritySourceV3Model,
+            )
+        ):
+            yield
 
 
 def _repository() -> DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository:

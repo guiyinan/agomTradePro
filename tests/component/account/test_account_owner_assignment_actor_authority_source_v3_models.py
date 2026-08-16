@@ -11,7 +11,6 @@ os.environ["DJANGO_SETTINGS_MODULE"] = "tests.settings_account_actor_authority_s
 django.setup()
 
 from django.core.exceptions import ValidationError
-from django.db import connection
 
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_models import (
     AccountOwnerAssignmentActorAuthoritySourceV3Model,
@@ -19,18 +18,19 @@ from apps.account.infrastructure.account_owner_assignment_actor_authority_source
     _activate_account_owner_assignment_actor_authority_source_v3_uow,
     _claim_account_owner_assignment_actor_authority_source_v3_insert,
 )
+from tests.support.isolated_schema import isolated_schema
 
 
 @pytest.fixture(autouse=True)
 def _schema(django_db_blocker: object) -> Iterator[None]:
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with connection.schema_editor() as editor:
-            editor.create_model(AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel)
-            editor.create_model(AccountOwnerAssignmentActorAuthoritySourceV3Model)
-        yield
-        with connection.schema_editor() as editor:
-            editor.delete_model(AccountOwnerAssignmentActorAuthoritySourceV3Model)
-            editor.delete_model(AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel)
+        with isolated_schema(
+            (
+                AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel,
+                AccountOwnerAssignmentActorAuthoritySourceV3Model,
+            )
+        ):
+            yield
 
 
 def test_schema_is_zero_seed_and_has_two_append_only_models() -> None:

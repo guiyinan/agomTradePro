@@ -12,7 +12,7 @@ os.environ["DJANGO_SETTINGS_MODULE"] = "tests.settings_account_actor_authority_s
 django.setup()
 
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, connection, models, transaction
+from django.db import IntegrityError, models, transaction
 
 from apps.account.infrastructure.account_actor_authority_raw_source_models_v3 import (
     AccountAuthenticationContextSourceV3AnchorModel,
@@ -24,6 +24,7 @@ from apps.account.infrastructure.account_actor_authority_raw_source_models_v3 im
     _activate_account_actor_authority_raw_source_v3_uow,
     _claim_account_actor_authority_raw_source_v3_insert,
 )
+from tests.support.isolated_schema import isolated_schema
 
 ANCHORS = (
     AccountAuthenticationContextSourceV3AnchorModel,
@@ -155,17 +156,8 @@ def _claimed_insert(row: models.Model) -> None:
 @pytest.fixture(autouse=True)
 def _schema(django_db_blocker: object) -> Iterator[None]:
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with connection.schema_editor() as editor:
-            for model_type in ANCHORS:
-                editor.create_model(model_type)
-            for model_type in LEDGERS:
-                editor.create_model(model_type)
-        yield
-        with connection.schema_editor() as editor:
-            for model_type in reversed(LEDGERS):
-                editor.delete_model(model_type)
-            for model_type in reversed(ANCHORS):
-                editor.delete_model(model_type)
+        with isolated_schema((*ANCHORS, *LEDGERS)):
+            yield
 
 
 def test_schema_has_three_independent_non_json_only_anchor_ledgers() -> None:

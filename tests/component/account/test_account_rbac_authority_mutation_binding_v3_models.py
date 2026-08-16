@@ -12,7 +12,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings_account_actor_au
 django.setup()
 
 from django.core.exceptions import ValidationError
-from django.db import connection, models
+from django.db import models
 
 from apps.account.infrastructure.account_actor_authority_raw_source_models_v3 import (
     AccountRbacAuthoritySourceV3AnchorModel,
@@ -26,6 +26,7 @@ from apps.account.infrastructure.account_rbac_authority_mutation_binding_v3_mode
     _activate_account_rbac_authority_mutation_binding_v3_uow,
     _claim_account_rbac_authority_mutation_binding_v3_insert,
 )
+from tests.support.isolated_schema import isolated_schema
 
 RAW_MODELS = (AccountRbacAuthoritySourceV3AnchorModel, AccountRbacAuthoritySourceV3Model)
 NEW_MODELS = (
@@ -39,13 +40,8 @@ NEW_MODELS = (
 @pytest.fixture(autouse=True)
 def _schema(django_db_blocker: object) -> Iterator[None]:
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with connection.schema_editor() as editor:
-            for model_type in (*RAW_MODELS, *NEW_MODELS):
-                editor.create_model(model_type)
-        yield
-        with connection.schema_editor() as editor:
-            for model_type in reversed((*RAW_MODELS, *NEW_MODELS)):
-                editor.delete_model(model_type)
+        with isolated_schema((*RAW_MODELS, *NEW_MODELS)):
+            yield
 
 
 def _claim_insert(row: models.Model) -> None:

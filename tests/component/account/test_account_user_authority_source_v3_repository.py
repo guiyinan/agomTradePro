@@ -30,6 +30,7 @@ from apps.account.infrastructure.account_actor_authority_raw_source_models_v3 im
 from apps.account.infrastructure.account_user_authority_source_v3_repository import (
     DjangoAccountUserAuthoritySourceV3Repository,
 )
+from tests.support.isolated_schema import isolated_schema
 from tests.unit.account.test_account_user_authority_source_v3 import _source, _successor
 
 NOW = datetime(2026, 8, 14, 10, tzinfo=UTC)
@@ -50,13 +51,10 @@ def _record(source: AccountUserAuthoritySourceV3) -> PersistedAccountUserAuthori
 @pytest.fixture(autouse=True)
 def _schema(django_db_blocker: object) -> Iterator[None]:
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with connection.schema_editor() as editor:
-            editor.create_model(AccountUserAuthoritySourceV3AnchorModel)
-            editor.create_model(AccountUserAuthoritySourceV3Model)
-        yield
-        with connection.schema_editor() as editor:
-            editor.delete_model(AccountUserAuthoritySourceV3Model)
-            editor.delete_model(AccountUserAuthoritySourceV3AnchorModel)
+        with isolated_schema(
+            (AccountUserAuthoritySourceV3AnchorModel, AccountUserAuthoritySourceV3Model)
+        ):
+            yield
 
 
 def _repository() -> DjangoAccountUserAuthoritySourceV3Repository:

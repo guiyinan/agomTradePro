@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import connection
+from django.db import IntegrityError, connection
 from django.db.migrations import RunPython, RunSQL
 
 from apps.account.application.account_identity_snapshot import (
@@ -386,6 +386,17 @@ def test_actor_provenance_header_and_ledger_tamper_fail_closed(
     with repository.atomic():
         repository.append(record, expected_predecessor_hash=None, recorded_at=NOW)
     row = AccountIdentitySnapshotModel._default_manager.get()
+
+    if column == "provenance_kind":
+        # The production CHECK constraint rejects an invalid provenance pair
+        # before the repository can observe it; that is itself fail-closed.
+        with pytest.raises(IntegrityError, match="account_id_snap_prov_ck"):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"UPDATE account_identity_snapshot_ledger SET {column} = %s WHERE id = %s",
+                    [replacement, row.pk],
+                )
+        return
 
     with connection.cursor() as cursor:
         cursor.execute(

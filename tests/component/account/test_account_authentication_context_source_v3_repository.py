@@ -30,6 +30,7 @@ from apps.account.infrastructure.account_actor_authority_raw_source_models_v3 im
 from apps.account.infrastructure.account_authentication_context_source_v3_repository import (
     DjangoAccountAuthenticationContextSourceV3Repository,
 )
+from tests.support.isolated_schema import isolated_schema
 from tests.unit.account.test_account_authentication_context_source_v3 import (
     NOW,
     _source,
@@ -45,13 +46,13 @@ class _Clock:
 @pytest.fixture(autouse=True)
 def _schema(django_db_blocker: object) -> Iterator[None]:
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with connection.schema_editor() as editor:
-            editor.create_model(AccountAuthenticationContextSourceV3AnchorModel)
-            editor.create_model(AccountAuthenticationContextSourceV3Model)
-        yield
-        with connection.schema_editor() as editor:
-            editor.delete_model(AccountAuthenticationContextSourceV3Model)
-            editor.delete_model(AccountAuthenticationContextSourceV3AnchorModel)
+        with isolated_schema(
+            (
+                AccountAuthenticationContextSourceV3AnchorModel,
+                AccountAuthenticationContextSourceV3Model,
+            )
+        ):
+            yield
 
 
 def _repository() -> DjangoAccountAuthenticationContextSourceV3Repository:

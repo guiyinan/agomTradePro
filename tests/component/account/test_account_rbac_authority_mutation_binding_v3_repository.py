@@ -11,7 +11,6 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings_account_actor_au
 django.setup()
 
 from django.core.exceptions import ValidationError
-from django.db import connection
 
 from apps.account.application.account_actor_authority_raw_source_primitives_v3 import (
     AccountActorAuthorityRawSourceV3Conflict,
@@ -31,6 +30,7 @@ from apps.account.infrastructure.account_rbac_authority_mutation_binding_v3_mode
 from apps.account.infrastructure.account_rbac_authority_mutation_binding_v3_repository import (
     DjangoAccountRbacAuthorityMutationBindingV3Repository,
 )
+from tests.support.isolated_schema import isolated_schema
 
 SCHEMA_MODELS = (
     AccountRbacAuthoritySourceV3AnchorModel,
@@ -45,13 +45,8 @@ SCHEMA_MODELS = (
 @pytest.fixture(autouse=True)
 def _schema(django_db_blocker: object) -> Iterator[None]:
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with connection.schema_editor() as editor:
-            for model_type in SCHEMA_MODELS:
-                editor.create_model(model_type)
-        yield
-        with connection.schema_editor() as editor:
-            for model_type in reversed(SCHEMA_MODELS):
-                editor.delete_model(model_type)
+        with isolated_schema(SCHEMA_MODELS):
+            yield
 
 
 def test_empty_world_readers_are_stable_and_do_not_seed() -> None:
