@@ -321,7 +321,8 @@ def build_beta_market_summary_payload(
         as_of_date=target_date,
         refresh_if_stale=False,
     )
-    sentiment = get_current_sentiment_resolver()(as_of_date=target_date)
+    resolve_current_sentiment = get_current_sentiment_resolver()
+    sentiment = resolve_current_sentiment(as_of_date=target_date)
     return build_beta_market_summary_row(
         as_of_date=target_date,
         navigator=cast(RegimeNavigatorOutput | None, components.navigator),
