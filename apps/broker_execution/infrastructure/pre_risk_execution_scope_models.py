@@ -6,7 +6,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import NoReturn, TypeVar
+from typing import NoReturn, Self, TypeVar
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -78,7 +78,7 @@ class PreRiskScopeQuerySet(AppendOnlyQuerySet[_ModelT]):
     def _update(self, values: list[tuple[object, object, object]]) -> NoReturn:
         raise ValidationError("Pre-Risk scopes cannot be updated.")
 
-    def _raw_delete(self, using: str) -> NoReturn:
+    def _raw_delete(self, using: str | None) -> NoReturn:
         raise ValidationError("Pre-Risk scopes cannot be deleted.")
 
 
@@ -103,7 +103,7 @@ class PreRiskScopeManager(AppendOnlyManager[_ModelT]):
 class BrokerPreRiskExecutionScopeModel(models.Model):
     """One immutable inactive pre-Risk scope in a single logical order chain."""
 
-    objects: PreRiskScopeManager[models.Model] = PreRiskScopeManager()
+    objects: PreRiskScopeManager[Self] = PreRiskScopeManager()
 
     owner = models.CharField(max_length=32)
     scope_id = models.CharField(max_length=192)

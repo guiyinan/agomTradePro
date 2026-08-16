@@ -149,7 +149,15 @@ class CanonicalAccountCreationManager(AppendOnlyManager[_T]):
     def get_queryset(self) -> CanonicalAccountCreationQuerySet[_T]:
         return CanonicalAccountCreationQuerySet(self.model, using=self._db)
 
-    def bulk_create(self, objs: Iterable[_T], **kwargs: object) -> NoReturn:
+    def bulk_create(
+        self,
+        objs: Iterable[_T],
+        batch_size: int | None = None,
+        ignore_conflicts: bool = False,
+        update_conflicts: bool = False,
+        update_fields: Collection[str] | None = None,
+        unique_fields: Collection[str] | None = None,
+    ) -> NoReturn:
         raise ValidationError("canonical creation requires exact appends")
 
 

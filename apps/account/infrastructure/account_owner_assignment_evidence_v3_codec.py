@@ -32,7 +32,7 @@ def encode_account_owner_assignment_subject_v3(
     if type(value) is not AccountOwnerAssignmentSubjectV3:
         raise TypeError("value must be an exact AccountOwnerAssignmentSubjectV3")
     value.__post_init__()
-    return cast(dict[str, object], value.to_payload())
+    return value.to_payload()
 
 
 def encode_account_owner_assignment_evidence_v3(
@@ -43,7 +43,7 @@ def encode_account_owner_assignment_evidence_v3(
     if type(value) is not AccountOwnerAssignmentEvidenceV3:
         raise TypeError("value must be an exact AccountOwnerAssignmentEvidenceV3")
     value.__post_init__()
-    return cast(dict[str, object], value.to_payload())
+    return value.to_payload()
 
 
 def decode_account_owner_assignment_evidence_v3(

@@ -6,7 +6,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import NoReturn, TypeVar
+from typing import NoReturn, Self, TypeVar
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -78,7 +78,7 @@ class CostTaxQuerySet(AppendOnlyQuerySet[_ModelT]):
     def _update(self, values: list[tuple[object, object, object]]) -> NoReturn:
         raise ValidationError("Cost/tax methodologies cannot be updated.")
 
-    def _raw_delete(self, using: str) -> NoReturn:
+    def _raw_delete(self, using: str | None) -> NoReturn:
         raise ValidationError("Cost/tax methodologies cannot be deleted.")
 
 
@@ -103,7 +103,7 @@ class CostTaxManager(AppendOnlyManager[_ModelT]):
 class PortfolioPolicyBenchmarkCostTaxModel(models.Model):
     """One immutable benchmark cost/tax methodology first winner."""
 
-    objects: CostTaxManager[models.Model] = CostTaxManager()
+    objects: CostTaxManager[Self] = CostTaxManager()
     owner = models.CharField(max_length=32)
     artifact_type = models.CharField(max_length=64)
     schema = models.CharField(max_length=96)

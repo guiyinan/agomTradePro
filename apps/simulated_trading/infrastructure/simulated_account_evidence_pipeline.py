@@ -9,8 +9,8 @@ from django.db import connections
 
 from apps.account.application.physical_account_row_observation_v2 import (
     CapturePhysicalAccountRowObservationV2Command,
-    PhysicalAccountRowObservationV2,
 )
+from apps.account.domain.physical_account_row_observation_v2 import PhysicalAccountRowObservationV2
 from apps.simulated_trading.application.simulated_account_raw_observation import (
     SimulatedAccountPhysicalRowMutation,
     SimulatedAccountRawObservationConflict,

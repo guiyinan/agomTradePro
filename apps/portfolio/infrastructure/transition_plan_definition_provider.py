@@ -44,6 +44,8 @@ class DjangoExactTransitionPlanDefinitionProvider:
         )
         if row is None:
             return None
+        if row.approved_at is None:
+            return None
         require_canonical_transition_plan_family(row.plan_contract_family)
         plan = PortfolioTransitionPlanRepository._verified_to_domain(row)
         return TransitionPlanDefinition(

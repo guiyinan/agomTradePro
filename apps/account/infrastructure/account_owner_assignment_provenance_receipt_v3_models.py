@@ -74,7 +74,15 @@ class AccountOwnerAssignmentProvenanceReceiptV3Manager(AppendOnlyManager[_T]):
     def get_queryset(self) -> AccountOwnerAssignmentProvenanceReceiptV3QuerySet[_T]:
         return AccountOwnerAssignmentProvenanceReceiptV3QuerySet(self.model, using=self._db)
 
-    def bulk_create(self, objs: Iterable[_T], **kwargs: object) -> NoReturn:
+    def bulk_create(
+        self,
+        objs: Iterable[_T],
+        batch_size: int | None = None,
+        ignore_conflicts: bool = False,
+        update_conflicts: bool = False,
+        update_fields: Collection[str] | None = None,
+        unique_fields: Collection[str] | None = None,
+    ) -> NoReturn:
         raise ValidationError("provenance v3 requires exact appends")
 
 

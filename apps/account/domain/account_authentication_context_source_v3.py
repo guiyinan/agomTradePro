@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import cast
 
 from apps.account.domain.account_actor_authority_raw_source_primitives_v3 import (
     ACCOUNT_AUTHORITY_RAW_SOURCE_EXECUTION_ALLOWED,
@@ -208,7 +207,7 @@ class AccountAuthenticationContextSourceV3:
 
     def is_knowable_at(self, as_of: datetime) -> bool:
         """Return historical PIT knowability by Account recording time."""
-        return cast(bool, self.clock.recorded_at <= _aware(as_of))
+        return self.clock.recorded_at <= _aware(as_of)
 
     def is_temporally_current_at(self, as_of: datetime) -> bool:
         """Return temporal validity only, not ledger-head currentness."""
@@ -257,20 +256,17 @@ def root_claim_hash_for_account_authentication_context_source_v3(
     _token(actor_id, "actor_id")
     if type(user_id) is not int or user_id <= 0:
         raise ValueError("user_id must be an exact positive integer")
-    return cast(
-        str,
-        domain_hash(
-            "authentication-context-v3/root-claim",
-            {
-                "owner": ACCOUNT_AUTHORITY_RAW_SOURCE_OWNER,
-                "artifact_type": ARTIFACT_TYPE,
-                "schema": SCHEMA,
-                "source_id": source_id,
-                "principal_id": principal_id,
-                "user_id": user_id,
-                "actor_id": actor_id,
-            },
-        ),
+    return domain_hash(
+        "authentication-context-v3/root-claim",
+        {
+            "owner": ACCOUNT_AUTHORITY_RAW_SOURCE_OWNER,
+            "artifact_type": ARTIFACT_TYPE,
+            "schema": SCHEMA,
+            "source_id": source_id,
+            "principal_id": principal_id,
+            "user_id": user_id,
+            "actor_id": actor_id,
+        },
     )
 
 

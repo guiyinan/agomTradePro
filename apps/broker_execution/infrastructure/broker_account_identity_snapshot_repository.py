@@ -7,7 +7,7 @@ import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import Protocol, cast
+from typing import Protocol
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -49,7 +49,7 @@ class DjangoBrokerAccountIdentitySnapshotClock:
     def now(self) -> datetime:
         """Return the current timezone-aware server timestamp."""
 
-        return cast(datetime, timezone.now())
+        return timezone.now()
 
 
 class DjangoBrokerAccountIdentitySnapshotRepository:
@@ -304,7 +304,7 @@ class DjangoBrokerAccountIdentitySnapshotRepository:
             raise BrokerAccountIdentitySnapshotConflict(
                 "snapshot uniqueness or logical-chain claim has another first winner"
             )
-        return cast(BrokerAccountIdentitySnapshotModel, matches[0])
+        return matches[0]
 
     def _restore(
         self, model: BrokerAccountIdentitySnapshotModel

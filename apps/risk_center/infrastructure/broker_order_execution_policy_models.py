@@ -6,7 +6,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import NoReturn, TypeVar
+from typing import NoReturn, Self, TypeVar
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -78,7 +78,7 @@ class BrokerExecutionPolicyQuerySet(AppendOnlyQuerySet[_ModelT]):
     def _update(self, values: list[tuple[object, object, object]]) -> NoReturn:
         raise ValidationError("Broker execution policies cannot be updated.")
 
-    def _raw_delete(self, using: str) -> NoReturn:
+    def _raw_delete(self, using: str | None) -> NoReturn:
         raise ValidationError("Broker execution policies cannot be deleted.")
 
 
@@ -103,7 +103,7 @@ class BrokerExecutionPolicyManager(AppendOnlyManager[_ModelT]):
 class BrokerExecutionPolicyAppendOnlyModel(models.Model):
     """Permit only exact inserts claimed by this capability's repository."""
 
-    objects: BrokerExecutionPolicyManager[models.Model] = BrokerExecutionPolicyManager()
+    objects: BrokerExecutionPolicyManager[Self] = BrokerExecutionPolicyManager()
 
     class Meta:
         abstract = True

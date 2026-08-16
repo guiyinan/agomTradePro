@@ -6,7 +6,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import NoReturn, TypeVar
+from typing import NoReturn, Self, TypeVar
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -78,7 +78,7 @@ class PlanningPolicyActivationQuerySet(AppendOnlyQuerySet[_ModelT]):
     def _update(self, values: list[tuple[object, object, object]]) -> NoReturn:
         raise ValidationError("Planning-policy activations cannot be updated.")
 
-    def _raw_delete(self, using: str) -> NoReturn:
+    def _raw_delete(self, using: str | None) -> NoReturn:
         raise ValidationError("Planning-policy activations cannot be deleted.")
 
 
@@ -103,7 +103,7 @@ class PlanningPolicyActivationManager(AppendOnlyManager[_ModelT]):
 class PlanningPolicyActivationAppendOnlyModel(models.Model):
     """Permit only exact inserts claimed by this ledger's repository."""
 
-    objects: PlanningPolicyActivationManager[models.Model] = PlanningPolicyActivationManager()
+    objects: PlanningPolicyActivationManager[Self] = PlanningPolicyActivationManager()
 
     class Meta:
         abstract = True

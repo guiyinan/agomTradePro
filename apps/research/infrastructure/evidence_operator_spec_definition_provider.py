@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Protocol, cast
+from typing import Protocol
 
 from django.utils import timezone
 
@@ -39,7 +39,7 @@ class DjangoEvidenceOperatorSpecDefinitionClock:
     def now(self) -> datetime:
         """Return the current timezone-aware server timestamp."""
 
-        return cast(datetime, timezone.now())
+        return timezone.now()
 
 
 class EvidenceOperatorSpecLifecycleReader(Protocol):

@@ -7,7 +7,7 @@ from typing import Any
 
 from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
-from django_celery_beat.models import (  # type: ignore[import-untyped]
+from django_celery_beat.models import (
     CrontabSchedule,
     PeriodicTask,
     PeriodicTasks,

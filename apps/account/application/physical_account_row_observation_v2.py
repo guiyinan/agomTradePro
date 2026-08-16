@@ -838,6 +838,7 @@ __all__ = [
     "GetExactPhysicalAccountRowObservationV2",
     "GetExactPhysicalAccountRowObservationV2Command",
     "PersistedPhysicalAccountRowObservationV2",
+    "PhysicalAccountRowObservationV2",
     "PhysicalAccountRowObservationV2Recorder",
     "PhysicalAccountRowObservationV2Conflict",
     "PhysicalAccountRowObservationV2Corruption",

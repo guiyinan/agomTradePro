@@ -596,11 +596,21 @@ class DjangoCanonicalAccountCreationRepository:
             tuple[str, str, str, str],
             CanonicalAccountCreationBinding | CanonicalAccountCreationBindingV2,
         ] = {}
-        for _, value in (*bindings_v1, *bindings_v2):
+        for _, value in bindings_v1:
             key = (value.owner, value.artifact_type, value.binding_id, value.binding_version)
             if key in consumers:
                 raise CanonicalAccountCreationCorruption("consumer reference is ambiguous")
             consumers[key] = value
+        for _, v2_value in bindings_v2:
+            key = (
+                v2_value.owner,
+                v2_value.artifact_type,
+                v2_value.binding_id,
+                v2_value.binding_version,
+            )
+            if key in consumers:
+                raise CanonicalAccountCreationCorruption("consumer reference is ambiguous")
+            consumers[key] = v2_value
         claims = tuple(
             (
                 row,
@@ -620,13 +630,13 @@ class DjangoCanonicalAccountCreationRepository:
                 linked = claims_by_pk.get(claim_pk)
                 if linked is None or linked.consumer_generation != "v1" or linked.consumer != value:
                     raise CanonicalAccountCreationCorruption("Binding-v1 claim link differs")
-        for row, value in bindings_v2:
-            linked = claims_by_pk.get(_required_fk_id(row, "consumption_claim_id"))
+        for v2_row, v2_value in bindings_v2:
+            linked = claims_by_pk.get(_required_fk_id(v2_row, "consumption_claim_id"))
             if (
                 linked is None
                 or linked.consumer_generation != "v2"
-                or linked.consumer != value
-                or row.consumption_claim_content_hash != linked.content_hash
+                or linked.consumer != v2_value
+                or v2_row.consumption_claim_content_hash != linked.content_hash
             ):
                 raise CanonicalAccountCreationCorruption("Binding-v2 claim link differs")
         return _ConsumptionWorld(allocations, roots, bindings_v1, bindings_v2, claims)
@@ -1035,8 +1045,8 @@ def _restore_creation_root(
 
 def _restore_binding_v2(
     row: CanonicalAccountCreationBindingV2Model,
-    allocations: dict[int | None, CanonicalAccountCreationAllocation],
-    roots: dict[int | None, AllocatedPhysicalAccountRowObservationV3],
+    allocations: dict[int, CanonicalAccountCreationAllocation],
+    roots: dict[int, AllocatedPhysicalAccountRowObservationV3],
 ) -> CanonicalAccountCreationBindingV2:
     try:
         value = decode_canonical_account_creation_binding_v2(row.canonical_payload)
@@ -1052,7 +1062,7 @@ def _restore_binding_v2(
 
 def _restore_consumption_claim(
     row: CanonicalAccountCreationConsumptionClaimModel,
-    allocations: dict[int | None, CanonicalAccountCreationAllocation],
+    allocations: dict[int, CanonicalAccountCreationAllocation],
     consumers: dict[
         tuple[str, str, str, str],
         CanonicalAccountCreationBinding | CanonicalAccountCreationBindingV2,

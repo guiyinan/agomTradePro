@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import cast
 
 from apps.account.domain.account_actor_authority_raw_source_primitives_v3 import (
     AccountAuthorityRawSourceChainV3,
@@ -208,17 +207,17 @@ class AccountRbacAuthoritySourceV3:
         """Return whether this immutable version was recorded by the PIT cutoff."""
 
         canonical_utc_z(as_of)
-        recorded_at = cast(datetime, self.clock.recorded_at)
-        return recorded_at <= as_of
+        return self.clock.recorded_at <= as_of
 
     def is_temporally_current_at(self, as_of: datetime) -> bool:
         """Return local validity only; this does not prove final-head currentness."""
 
         if type(as_of) is not datetime or as_of.tzinfo is None or as_of.utcoffset() is None:
             raise ValueError("as_of must be an exact timezone-aware datetime")
-        recorded_at = cast(datetime, self.clock.recorded_at)
-        valid_until = cast(datetime, self.clock.valid_until)
-        return self.authority_state == "current" and recorded_at <= as_of < valid_until
+        return (
+            self.authority_state == "current"
+            and self.clock.recorded_at <= as_of < self.clock.valid_until
+        )
 
     def to_payload(self) -> dict[str, object]:
         """Return the complete canonical nested RBAC source payload."""
@@ -255,20 +254,17 @@ def root_claim_hash_for_account_rbac_authority_source_v3(
     if type(user_id) is not int or user_id <= 0:
         raise ValueError("user_id must be an exact positive integer")
     _token(actor_id, "actor_id")
-    return cast(
-        str,
-        domain_hash(
-            "account-rbac-authority-v3/root-claim",
-            {
-                "actor_id": actor_id,
-                "artifact_type": ACCOUNT_RBAC_AUTHORITY_SOURCE_V3_ARTIFACT_TYPE,
-                "authority_namespace": ACCOUNT_RBAC_AUTHORITY_NAMESPACE,
-                "owner": "account",
-                "schema": ACCOUNT_RBAC_AUTHORITY_SOURCE_V3_SCHEMA,
-                "source_id": identity.source_id,
-                "user_id": user_id,
-            },
-        ),
+    return domain_hash(
+        "account-rbac-authority-v3/root-claim",
+        {
+            "actor_id": actor_id,
+            "artifact_type": ACCOUNT_RBAC_AUTHORITY_SOURCE_V3_ARTIFACT_TYPE,
+            "authority_namespace": ACCOUNT_RBAC_AUTHORITY_NAMESPACE,
+            "owner": "account",
+            "schema": ACCOUNT_RBAC_AUTHORITY_SOURCE_V3_SCHEMA,
+            "source_id": identity.source_id,
+            "user_id": user_id,
+        },
     )
 
 

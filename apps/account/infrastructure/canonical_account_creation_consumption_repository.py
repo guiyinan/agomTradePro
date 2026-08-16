@@ -394,7 +394,17 @@ class DjangoCanonicalAccountCreationConsumptionRepository:
         roots = tuple((row, _restore_root(row)) for row in root_query.order_by("pk"))
         root_by_pk = {row.pk: value for row, value in roots}
         bindings_v1 = tuple(
-            (row, _restore_binding_v1(row, allocation_by_pk.get(_fk_id(row, "allocation_id"))))
+            (
+                row,
+                _restore_binding_v1(
+                    row,
+                    (
+                        allocation_by_pk.get(allocation_id)
+                        if (allocation_id := _fk_id(row, "allocation_id")) is not None
+                        else None
+                    ),
+                ),
+            )
             for row in v1_query.order_by("pk")
         )
         bindings_v2 = tuple(
@@ -410,30 +420,39 @@ class DjangoCanonicalAccountCreationConsumptionRepository:
             if key in consumers:
                 raise CanonicalAccountCreationBindingV2Corruption("consumer reference is ambiguous")
             consumers[key] = value
-        for _, value in bindings_v2:
-            key = (value.owner, value.artifact_type, value.binding_id, value.binding_version)
+        for _, v2_value in bindings_v2:
+            key = (
+                v2_value.owner,
+                v2_value.artifact_type,
+                v2_value.binding_id,
+                v2_value.binding_version,
+            )
             if key in consumers:
                 raise CanonicalAccountCreationBindingV2Corruption("consumer reference is ambiguous")
-            consumers[key] = value
+            consumers[key] = v2_value
         claims = tuple(
             (row, _restore_claim_row(row, allocation_by_pk, consumers))
             for row in claim_query.order_by("pk")
         )
         claim_by_pk = {row.pk: value for row, value in claims}
-        for row, value in bindings_v2:
-            linked = claim_by_pk.get(_fk_id(row, "consumption_claim_id"))
+        for v2_row, v2_value in bindings_v2:
+            linked = claim_by_pk.get(_required_fk_id(v2_row, "consumption_claim_id"))
             if (
                 linked is None
-                or linked.consumer != value
+                or linked.consumer != v2_value
                 or linked.consumer_generation != "v2"
-                or row.consumption_claim_content_hash != linked.content_hash
+                or v2_row.consumption_claim_content_hash != linked.content_hash
             ):
                 raise CanonicalAccountCreationBindingV2Corruption("Binding-v2 claim link differs")
-        for row, value in bindings_v1:
-            claim_fk = _fk_id(row, "consumption_claim_id")
+        for v1_row, v1_value in bindings_v1:
+            claim_fk = _fk_id(v1_row, "consumption_claim_id")
             if claim_fk is not None:
                 linked = claim_by_pk.get(claim_fk)
-                if linked is None or linked.consumer != value or linked.consumer_generation != "v1":
+                if (
+                    linked is None
+                    or linked.consumer != v1_value
+                    or linked.consumer_generation != "v1"
+                ):
                     raise CanonicalAccountCreationBindingV2Corruption(
                         "Binding-v1 claim link differs"
                     )
@@ -530,8 +549,8 @@ def _restore_root(
 
 def _restore_binding_v2_row(
     row: CanonicalAccountCreationBindingV2Model,
-    allocations: dict[int | None, CanonicalAccountCreationAllocation],
-    roots: dict[int | None, AllocatedPhysicalAccountRowObservationV3],
+    allocations: dict[int, CanonicalAccountCreationAllocation],
+    roots: dict[int, AllocatedPhysicalAccountRowObservationV3],
 ) -> CanonicalAccountCreationBindingV2:
     try:
         value = decode_canonical_account_creation_binding_v2(row.canonical_payload)
@@ -540,8 +559,8 @@ def _restore_binding_v2_row(
             "Binding-v2 payload cannot be restored"
         ) from error
     if (
-        allocations.get(_fk_id(row, "allocation_id")) != value.allocation
-        or roots.get(_fk_id(row, "creation_root_id")) != value.creation_root
+        allocations.get(_required_fk_id(row, "allocation_id")) != value.allocation
+        or roots.get(_required_fk_id(row, "creation_root_id")) != value.creation_root
     ):
         raise CanonicalAccountCreationBindingV2Corruption("Binding-v2 foreign evidence differs")
     expected = _binding_v2_values(
@@ -557,7 +576,7 @@ def _restore_binding_v2_row(
 
 def _restore_claim_row(
     row: CanonicalAccountCreationConsumptionClaimModel,
-    allocations: dict[int | None, CanonicalAccountCreationAllocation],
+    allocations: dict[int, CanonicalAccountCreationAllocation],
     consumers: dict[
         tuple[str, str, str, str],
         CanonicalAccountCreationBinding | CanonicalAccountCreationBindingV2,
@@ -576,7 +595,7 @@ def _restore_claim_row(
         raise CanonicalAccountCreationBindingV2Corruption(
             "claim payload cannot be restored"
         ) from error
-    allocation_fk = _fk_id(row, "allocation_id")
+    allocation_fk = _required_fk_id(row, "allocation_id")
     if allocations.get(allocation_fk) != value.allocation:
         raise CanonicalAccountCreationBindingV2Corruption("claim allocation differs")
     knowledge_at = _required_knowledge_at(row)
@@ -893,6 +912,13 @@ def _fk_id(row: object, name: str) -> int | None:
         return None
     if type(value) is not int or value <= 0:
         raise CanonicalAccountCreationBindingV2Corruption(f"{name} is invalid")
+    return value
+
+
+def _required_fk_id(row: object, name: str) -> int:
+    value = _fk_id(row, name)
+    if value is None:
+        raise CanonicalAccountCreationBindingV2Corruption(f"{name} is missing")
     return value
 
 

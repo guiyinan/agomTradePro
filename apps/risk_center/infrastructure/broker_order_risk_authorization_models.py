@@ -6,7 +6,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import NoReturn, TypeVar
+from typing import NoReturn, Self, TypeVar
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -78,7 +78,7 @@ class BrokerOrderRiskAuthorizationQuerySet(AppendOnlyQuerySet[_ModelT]):
     def _update(self, values: list[tuple[object, object, object]]) -> NoReturn:
         raise ValidationError("Broker risk authorizations cannot be updated.")
 
-    def _raw_delete(self, using: str) -> NoReturn:
+    def _raw_delete(self, using: str | None) -> NoReturn:
         raise ValidationError("Broker risk authorizations cannot be deleted.")
 
 
@@ -103,9 +103,7 @@ class BrokerOrderRiskAuthorizationManager(AppendOnlyManager[_ModelT]):
 class BrokerOrderRiskAuthorizationAppendOnlyModel(models.Model):
     """Permit only exact, repository-claimed inserts."""
 
-    objects: BrokerOrderRiskAuthorizationManager[models.Model] = (
-        BrokerOrderRiskAuthorizationManager()
-    )
+    objects: BrokerOrderRiskAuthorizationManager[Self] = BrokerOrderRiskAuthorizationManager()
 
     class Meta:
         abstract = True

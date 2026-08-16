@@ -7,7 +7,7 @@ import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import Protocol, cast
+from typing import Protocol
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -61,7 +61,7 @@ class DjangoAccountIdentityRawSourceClock:
     def now(self) -> datetime:
         """Return current Django time."""
 
-        return cast(datetime, timezone.now())
+        return timezone.now()
 
 
 class DjangoAccountIdentityRawSourceRepository:
@@ -306,7 +306,7 @@ class DjangoAccountIdentityRawSourceRepository:
             raise DjangoAccountIdentityRawSourceConflict(
                 "raw-source uniqueness or logical-chain claim has another first winner"
             )
-        return cast(AccountIdentityRawSourceModel, matches[0])
+        return matches[0]
 
     def _restore(
         self,

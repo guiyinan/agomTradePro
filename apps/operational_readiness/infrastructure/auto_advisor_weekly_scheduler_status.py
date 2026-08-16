@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from django_celery_beat.models import PeriodicTask  # type: ignore[import-untyped]
+from django_celery_beat.models import PeriodicTask
 
 AUTO_ADVISOR_WEEKLY_TASK_NAME = "dashboard-auto-advisor-weekly-report"
 AUTO_ADVISOR_WEEKLY_TASK_PATH = "dashboard.generate_auto_advisor_weekly_reports"

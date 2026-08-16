@@ -46,6 +46,7 @@ class EvidenceRepositoryCorruption(RuntimeError):
 
 
 _EvidenceT = TypeVar("_EvidenceT", EvidenceOperatorSpec, TrackRecordSnapshot, EvidenceEnvelope)
+_ModelT = TypeVar("_ModelT", bound=Model)
 
 
 class EvidenceRepositoryClock(Protocol):
@@ -323,10 +324,10 @@ class _DjangoEvidenceStore(DjangoEvidenceRepository):
 
     def _insert(
         self,
-        model_type: type[Model],
+        model_type: type[_ModelT],
         values: dict[str, object],
-        collisions: Callable[[], tuple[Model, ...]],
-        restore: Callable[[Model], _EvidenceT],
+        collisions: Callable[[], tuple[_ModelT, ...]],
+        restore: Callable[[_ModelT], _EvidenceT],
         expected: _EvidenceT,
     ) -> _EvidenceT:
         if _active_token(self._token) is False:
@@ -363,8 +364,8 @@ def _build_evidence_store(*, using: str = "default") -> _DjangoEvidenceStore:
 
 def _exact_read(
     *,
-    rows: tuple[Model, ...],
-    restore: Callable[[Model], _EvidenceT],
+    rows: tuple[_ModelT, ...],
+    restore: Callable[[_ModelT], _EvidenceT],
     identity: Callable[[_EvidenceT], tuple[object, ...]],
     expected: tuple[object, ...],
     as_of: datetime,
@@ -376,12 +377,15 @@ def _exact_read(
     if len(rows) != 1 or len(matches) != 1:
         raise EvidenceRepositoryCorruption("evidence identity is aliased or substituted")
     row = rows[0]
-    return matches[0] if row.recorded_at <= as_of else None
+    recorded_at = getattr(row, "recorded_at", None)
+    if not isinstance(recorded_at, datetime):
+        raise EvidenceRepositoryCorruption("evidence row has no valid recorded_at")
+    return matches[0] if recorded_at <= as_of else None
 
 
 def _match(
-    rows: tuple[Model, ...],
-    restore: Callable[[Model], _EvidenceT],
+    rows: tuple[_ModelT, ...],
+    restore: Callable[[_ModelT], _EvidenceT],
     expected: _EvidenceT,
 ) -> _EvidenceT:
     if len(rows) != 1:

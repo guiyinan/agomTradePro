@@ -6,7 +6,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import NoReturn, TypeVar
+from typing import NoReturn, Self, TypeVar
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -78,7 +78,7 @@ class PortfolioBrokerBindingQuerySet(AppendOnlyQuerySet[_ModelT]):
     def _update(self, values: list[tuple[object, object, object]]) -> NoReturn:
         raise ValidationError("Portfolio/Broker bindings cannot be updated.")
 
-    def _raw_delete(self, using: str) -> NoReturn:
+    def _raw_delete(self, using: str | None) -> NoReturn:
         raise ValidationError("Portfolio/Broker bindings cannot be deleted.")
 
 
@@ -103,7 +103,7 @@ class PortfolioBrokerBindingManager(AppendOnlyManager[_ModelT]):
 class BrokerPortfolioAccountBindingModel(models.Model):
     """One immutable inactive cross-namespace binding assertion."""
 
-    objects: PortfolioBrokerBindingManager[models.Model] = PortfolioBrokerBindingManager()
+    objects: PortfolioBrokerBindingManager[Self] = PortfolioBrokerBindingManager()
 
     owner = models.CharField(max_length=32)
     binding_id = models.CharField(max_length=192)

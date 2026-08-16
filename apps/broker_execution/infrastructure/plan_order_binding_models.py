@@ -6,7 +6,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import NoReturn, TypeVar
+from typing import NoReturn, Self, TypeVar
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -78,7 +78,7 @@ class PlanOrderBindingQuerySet(AppendOnlyQuerySet[_ModelT]):
     def _update(self, values: list[tuple[object, object, object]]) -> NoReturn:
         raise ValidationError("Plan-to-Order bindings cannot be updated.")
 
-    def _raw_delete(self, using: str) -> NoReturn:
+    def _raw_delete(self, using: str | None) -> NoReturn:
         raise ValidationError("Plan-to-Order bindings cannot be deleted.")
 
 
@@ -103,7 +103,7 @@ class PlanOrderBindingManager(AppendOnlyManager[_ModelT]):
 class BrokerPlanOrderBindingModel(models.Model):
     """One immutable inactive exact Plan-to-Order binding seal."""
 
-    objects: PlanOrderBindingManager[models.Model] = PlanOrderBindingManager()
+    objects: PlanOrderBindingManager[Self] = PlanOrderBindingManager()
 
     owner = models.CharField(max_length=32)
     artifact_type = models.CharField(max_length=64)

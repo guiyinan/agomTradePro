@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from django_celery_beat.models import PeriodicTask  # type: ignore[import-untyped]
+from django_celery_beat.models import PeriodicTask
 
 from apps.operational_readiness.infrastructure import scheduler_status_utils
 

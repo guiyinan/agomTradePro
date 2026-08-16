@@ -6,7 +6,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import NoReturn, TypeVar
+from typing import NoReturn, Self, TypeVar
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -83,7 +83,7 @@ class EvidenceOperatorSpecApprovalQuerySet(AppendOnlyQuerySet[_ModelT]):
     def _update(self, values: list[tuple[object, object, object]]) -> NoReturn:
         raise ValidationError("Risk Center approvals cannot be updated.")
 
-    def _raw_delete(self, using: str) -> NoReturn:
+    def _raw_delete(self, using: str | None) -> NoReturn:
         raise ValidationError("Risk Center approvals cannot be deleted.")
 
 
@@ -108,9 +108,7 @@ class EvidenceOperatorSpecApprovalManager(AppendOnlyManager[_ModelT]):
 class EvidenceOperatorSpecApprovalAppendOnlyModel(models.Model):
     """Permit only a repository-claimed insert with a database-assigned key."""
 
-    objects: EvidenceOperatorSpecApprovalManager[models.Model] = (
-        EvidenceOperatorSpecApprovalManager()
-    )
+    objects: EvidenceOperatorSpecApprovalManager[Self] = EvidenceOperatorSpecApprovalManager()
 
     class Meta:
         abstract = True

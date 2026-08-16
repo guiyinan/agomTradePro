@@ -37,10 +37,11 @@ from apps.simulated_trading.application.use_cases import (
     ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
 )
+from core.integration.portfolio_account_access import PortfolioAccountAccessResult
 
 
 @dataclass(frozen=True)
-class AccountAccessResult:
+class AccountAccessResult(PortfolioAccountAccessResult):
     """Result for account ownership checks used by DRF views."""
 
     account: Any | None = None

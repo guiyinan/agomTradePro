@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from django.conf import settings
-from django_celery_beat.models import PeriodicTask  # type: ignore[import-untyped]
+from django_celery_beat.models import PeriodicTask
 
 from apps.task_monitor.infrastructure.models import TaskExecutionModel
 

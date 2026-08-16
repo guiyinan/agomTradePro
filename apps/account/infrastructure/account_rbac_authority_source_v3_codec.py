@@ -28,7 +28,7 @@ def encode_account_rbac_authority_source_v3(
     if type(value) is not AccountRbacAuthoritySourceV3:
         raise TypeError("value must be an exact AccountRbacAuthoritySourceV3")
     value.__post_init__()
-    return cast(dict[str, object], value.to_payload())
+    return value.to_payload()
 
 
 def decode_account_rbac_authority_source_v3(

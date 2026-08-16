@@ -8,7 +8,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Protocol, cast
+from typing import Protocol
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -52,7 +52,7 @@ class DjangoPlanningPolicyDefinitionClock:
     def now(self) -> datetime:
         """Return the current timezone-aware server timestamp."""
 
-        return cast(datetime, timezone.now())
+        return timezone.now()
 
 
 class DjangoPlanningPolicyDefinitionRepository:
@@ -196,7 +196,7 @@ class DjangoPlanningPolicyDefinitionRepository:
             raise PlanningPolicyDefinitionConflict(
                 "planning-policy definition anchor has another first winner"
             )
-        return cast(PortfolioPlanningPolicyDefinitionModel, matches[0])
+        return matches[0]
 
     def _restore(self, model: PortfolioPlanningPolicyDefinitionModel) -> PlanningPolicyDefinition:
         try:

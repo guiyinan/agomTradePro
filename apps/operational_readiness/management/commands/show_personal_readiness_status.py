@@ -7,7 +7,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
-from django_celery_beat.models import PeriodicTask  # type: ignore[import-untyped]
+from django_celery_beat.models import PeriodicTask
 
 from apps.operational_readiness.application import status_services
 from apps.operational_readiness.infrastructure import (

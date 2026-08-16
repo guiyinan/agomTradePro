@@ -6,7 +6,6 @@ import json
 from collections.abc import Mapping
 from datetime import datetime
 from decimal import Decimal
-from typing import cast
 
 from .entities import LiveOrderSide, LiveOrderType, OrderApprovalSnapshot
 from .rules import build_approval_digest
@@ -77,7 +76,7 @@ def approval_snapshot_for_order(order: Mapping[str, object]) -> OrderApprovalSna
 def approval_digest_for_order(order: Mapping[str, object]) -> str:
     """Build the immutable approval digest from the canonical snapshot."""
 
-    return cast(str, build_approval_digest(approval_snapshot_for_order(order)))
+    return build_approval_digest(approval_snapshot_for_order(order))
 
 
 __all__ = ["approval_digest_for_order", "approval_snapshot_for_order"]

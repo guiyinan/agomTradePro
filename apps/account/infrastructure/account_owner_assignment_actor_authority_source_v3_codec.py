@@ -22,7 +22,7 @@ def encode_account_owner_assignment_actor_authority_source_v3(
     if type(value) is not AccountOwnerAssignmentActorAuthoritySourceV3:
         raise TypeError("value must be an exact actor authority source v3")
     value.__post_init__()
-    return cast(dict[str, object], value.to_payload())
+    return value.to_payload()
 
 
 def decode_account_owner_assignment_actor_authority_source_v3(

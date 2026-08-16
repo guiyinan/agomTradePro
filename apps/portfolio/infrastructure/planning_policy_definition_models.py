@@ -6,7 +6,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import NoReturn, TypeVar
+from typing import NoReturn, Self, TypeVar
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -78,7 +78,7 @@ class PlanningPolicyDefinitionQuerySet(AppendOnlyQuerySet[_ModelT]):
     def _update(self, values: list[tuple[object, object, object]]) -> NoReturn:
         raise ValidationError("Planning-policy definitions cannot be updated.")
 
-    def _raw_delete(self, using: str) -> NoReturn:
+    def _raw_delete(self, using: str | None) -> NoReturn:
         raise ValidationError("Planning-policy definitions cannot be deleted.")
 
 
@@ -103,7 +103,7 @@ class PlanningPolicyDefinitionManager(AppendOnlyManager[_ModelT]):
 class PortfolioPlanningPolicyDefinitionModel(models.Model):
     """One immutable Portfolio planning-policy definition first winner."""
 
-    objects: PlanningPolicyDefinitionManager[models.Model] = PlanningPolicyDefinitionManager()
+    objects: PlanningPolicyDefinitionManager[Self] = PlanningPolicyDefinitionManager()
 
     owner = models.CharField(max_length=32)
     artifact_type = models.CharField(max_length=64)

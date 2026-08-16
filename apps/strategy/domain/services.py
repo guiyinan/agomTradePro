@@ -22,21 +22,17 @@ from apps.strategy.domain.entities import (
 _ORDER_TRANSITIONS: dict[tuple[OrderStatus, OrderEvent], OrderStatus] = {
     # DRAFT 状态的转换
     (OrderStatus.DRAFT, OrderEvent.SUBMIT): OrderStatus.PENDING_APPROVAL,
-
     # PENDING_APPROVAL 状态的转换
     (OrderStatus.PENDING_APPROVAL, OrderEvent.APPROVE): OrderStatus.APPROVED,
     (OrderStatus.PENDING_APPROVAL, OrderEvent.REJECT): OrderStatus.REJECTED,
-
     # APPROVED 状态的转换
     (OrderStatus.APPROVED, OrderEvent.SEND): OrderStatus.SENT,
     (OrderStatus.APPROVED, OrderEvent.CANCEL): OrderStatus.CANCELED,
-
     # SENT 状态的转换
     (OrderStatus.SENT, OrderEvent.PARTIAL_FILL): OrderStatus.PARTIAL_FILLED,
     (OrderStatus.SENT, OrderEvent.FILL): OrderStatus.FILLED,
     (OrderStatus.SENT, OrderEvent.CANCEL): OrderStatus.CANCELED,
     (OrderStatus.SENT, OrderEvent.FAIL): OrderStatus.FAILED,
-
     # PARTIAL_FILLED 状态的转换
     (OrderStatus.PARTIAL_FILLED, OrderEvent.FILL): OrderStatus.FILLED,
     (OrderStatus.PARTIAL_FILLED, OrderEvent.CANCEL): OrderStatus.CANCELED,
@@ -55,11 +51,7 @@ class OrderStateMachine:
     }
 
     @classmethod
-    def can_transition(
-        cls,
-        from_status: OrderStatus,
-        event: OrderEvent
-    ) -> bool:
+    def can_transition(cls, from_status: OrderStatus, event: OrderEvent) -> bool:
         """
         检查是否可以从当前状态通过指定事件转换
 
@@ -73,11 +65,7 @@ class OrderStateMachine:
         return (from_status, event) in _ORDER_TRANSITIONS
 
     @classmethod
-    def transition(
-        cls,
-        from_status: OrderStatus,
-        event: OrderEvent
-    ) -> OrderStatus:
+    def transition(cls, from_status: OrderStatus, event: OrderEvent) -> OrderStatus:
         """
         执行状态转换
 
@@ -122,10 +110,7 @@ class OrderStateMachine:
         Returns:
             可触发的事件列表
         """
-        return [
-            event for (s, event) in _ORDER_TRANSITIONS.keys()
-            if s == status
-        ]
+        return [event for (s, event) in _ORDER_TRANSITIONS.keys() if s == status]
 
     @classmethod
     def validate_transition_path(cls, path: list[tuple[OrderStatus, OrderEvent]]) -> bool:
@@ -154,6 +139,7 @@ class OrderStateMachine:
 # 决策策略引擎
 # ========================================================================
 
+
 class DecisionPolicyEngine:
     """
     决策策略引擎 - 决定"何时下单"
@@ -172,22 +158,20 @@ class DecisionPolicyEngine:
     # 决策原因码
     REASON_CODES = {
         # 允许原因
-        'SIGNAL_STRONG': '信号强度足够',
-        'REGIME_ALIGNED': 'Regime 对齐',
-        'LIQUIDITY_OK': '流动性充足',
-
+        "SIGNAL_STRONG": "信号强度足够",
+        "REGIME_ALIGNED": "Regime 对齐",
+        "LIQUIDITY_OK": "流动性充足",
         # 拒绝原因
-        'SIGNAL_WEAK': '信号强度不足',
-        'REGIME_MISMATCH': 'Regime 不匹配',
-        'DAILY_LOSS_LIMIT': '触发日亏损限制',
-        'DAILY_TRADE_LIMIT': '触发日交易次数限制',
-        'POSITION_LIMIT': '持仓比例超限',
-        'LOW_LIQUIDITY': '流动性不足',
-        'VOLATILITY_TOO_HIGH': '波动率过高',
-
+        "SIGNAL_WEAK": "信号强度不足",
+        "REGIME_MISMATCH": "Regime 不匹配",
+        "DAILY_LOSS_LIMIT": "触发日亏损限制",
+        "DAILY_TRADE_LIMIT": "触发日交易次数限制",
+        "POSITION_LIMIT": "持仓比例超限",
+        "LOW_LIQUIDITY": "流动性不足",
+        "VOLATILITY_TOO_HIGH": "波动率过高",
         # 观察原因
-        'LOW_CONFIDENCE': '置信度较低，需人工确认',
-        'UNUSUAL_VOLATILITY': '异常波动，需人工确认',
+        "LOW_CONFIDENCE": "置信度较低，需人工确认",
+        "UNUSUAL_VOLATILITY": "异常波动，需人工确认",
     }
 
     def __init__(
@@ -228,7 +212,7 @@ class DecisionPolicyEngine:
         daily_trade_count: int,
         volatility_z: float | None = None,
         target_regime: str | None = None,
-    ) -> tuple[str, list[str], str, float | None]:
+    ) -> tuple[str, list[str], str, int | None]:
         """
         评估是否应该执行交易
 
@@ -257,94 +241,85 @@ class DecisionPolicyEngine:
 
         # 1. 检查日亏损限制
         if daily_pnl_pct <= -self.max_daily_loss_pct:
-            reason_codes.append('DAILY_LOSS_LIMIT')
+            reason_codes.append("DAILY_LOSS_LIMIT")
             return (
                 DecisionAction.DENY.value,
                 reason_codes,
-                self.REASON_CODES['DAILY_LOSS_LIMIT'],
-                None
+                self.REASON_CODES["DAILY_LOSS_LIMIT"],
+                None,
             )
 
         # 2. 检查日交易次数限制
         if daily_trade_count >= self.max_daily_trades:
-            reason_codes.append('DAILY_TRADE_LIMIT')
+            reason_codes.append("DAILY_TRADE_LIMIT")
             return (
                 DecisionAction.DENY.value,
                 reason_codes,
-                self.REASON_CODES['DAILY_TRADE_LIMIT'],
-                None
+                self.REASON_CODES["DAILY_TRADE_LIMIT"],
+                None,
             )
 
         # 3. 检查波动率
         if volatility_z is not None and volatility_z > self.max_volatility:
-            reason_codes.append('VOLATILITY_TOO_HIGH')
+            reason_codes.append("VOLATILITY_TOO_HIGH")
             return (
                 DecisionAction.DENY.value,
                 reason_codes,
-                self.REASON_CODES['VOLATILITY_TOO_HIGH'],
-                None
+                self.REASON_CODES["VOLATILITY_TOO_HIGH"],
+                None,
             )
 
         # 4. 检查信号强度
         if signal_strength < self.signal_threshold:
-            reason_codes.append('SIGNAL_WEAK')
-            return (
-                DecisionAction.DENY.value,
-                reason_codes,
-                self.REASON_CODES['SIGNAL_WEAK'],
-                None
-            )
+            reason_codes.append("SIGNAL_WEAK")
+            return (DecisionAction.DENY.value, reason_codes, self.REASON_CODES["SIGNAL_WEAK"], None)
 
         # 5. 检查 Regime 对齐（如果要求）
         if self.regime_alignment_required and target_regime:
             if regime != target_regime:
-                reason_codes.append('REGIME_MISMATCH')
+                reason_codes.append("REGIME_MISMATCH")
                 return (
                     DecisionAction.DENY.value,
                     reason_codes,
-                    self.REASON_CODES['REGIME_MISMATCH'],
-                    None
+                    self.REASON_CODES["REGIME_MISMATCH"],
+                    None,
                 )
 
         # 6. 检查置信度 - 决定是 ALLOW 还是 WATCH
         if signal_confidence < self.confidence_threshold:
-            reason_codes.append('LOW_CONFIDENCE')
+            reason_codes.append("LOW_CONFIDENCE")
             return (
                 DecisionAction.WATCH.value,
                 reason_codes,
-                self.REASON_CODES['LOW_CONFIDENCE'],
-                300  # 5分钟有效期
+                self.REASON_CODES["LOW_CONFIDENCE"],
+                300,  # 5分钟有效期
             )
 
         # 7. 检查 Regime 置信度
         if regime_confidence < 0.5:
-            reason_codes.append('LOW_CONFIDENCE')
+            reason_codes.append("LOW_CONFIDENCE")
             return (
                 DecisionAction.WATCH.value,
                 reason_codes,
                 f"{self.REASON_CODES['LOW_CONFIDENCE']} (Regime 置信度: {regime_confidence:.2f})",
-                300
+                300,
             )
 
         # 所有检查通过，允许交易
-        reason_codes.append('SIGNAL_STRONG')
+        reason_codes.append("SIGNAL_STRONG")
         if self.regime_alignment_required:
-            reason_codes.append('REGIME_ALIGNED')
+            reason_codes.append("REGIME_ALIGNED")
 
         reason_text = f"信号强度 {signal_strength:.2f}, 置信度 {signal_confidence:.2f}"
         valid_until = 3600  # 1小时有效期
 
-        return (
-            DecisionAction.ALLOW.value,
-            reason_codes,
-            reason_text,
-            valid_until
-        )
+        return (DecisionAction.ALLOW.value, reason_codes, reason_text, valid_until)
 
 
 # ========================================================================
 # 仓位引擎
 # ========================================================================
+
 
 class SizingEngine:
     """
@@ -357,7 +332,7 @@ class SizingEngine:
 
     def __init__(
         self,
-        default_method: str = 'fixed_fraction',
+        default_method: str = "fixed_fraction",
         risk_per_trade_pct: float = 1.0,
         max_position_pct: float = 20.0,
         min_qty: int = 1,
@@ -401,19 +376,13 @@ class SizingEngine:
         Returns:
             (target_notional, qty, expected_risk_pct, sizing_method, sizing_explain)
         """
-        if method == 'fixed_fraction':
-            return self._fixed_fraction(
-                account_equity, current_price, stop_loss_price
-            )
-        elif method == 'atr_risk':
-            return self._atr_risk(
-                account_equity, current_price, atr, atr_risk_multiplier
-            )
+        if method == "fixed_fraction":
+            return self._fixed_fraction(account_equity, current_price, stop_loss_price)
+        elif method == "atr_risk":
+            return self._atr_risk(account_equity, current_price, atr, atr_risk_multiplier)
         else:
             # 默认使用固定比例
-            return self._fixed_fraction(
-                account_equity, current_price, stop_loss_price
-            )
+            return self._fixed_fraction(account_equity, current_price, stop_loss_price)
 
     def _fixed_fraction(
         self,
@@ -466,7 +435,7 @@ class SizingEngine:
         qty = max(qty, self.min_qty)
         target_notional = qty * current_price
 
-        return target_notional, qty, expected_risk_pct, 'fixed_fraction', sizing_explain
+        return target_notional, qty, expected_risk_pct, "fixed_fraction", sizing_explain
 
     def _atr_risk(
         self,
@@ -513,12 +482,13 @@ class SizingEngine:
             f"(ATR {atr:.2f} × {atr_risk_multiplier}) = {risk_based_qty} 股"
         )
 
-        return target_notional, qty, expected_risk_pct, 'atr_risk', sizing_explain
+        return target_notional, qty, expected_risk_pct, "atr_risk", sizing_explain
 
 
 # ========================================================================
 # 预交易风控门
 # ========================================================================
+
 
 class PreTradeRiskGate:
     """
@@ -593,13 +563,17 @@ class PreTradeRiskGate:
         order_notional = qty * price
 
         # 1. 检查单标的仓位上限
-        new_position_value = current_position_value + (order_notional if side == 'buy' else -order_notional)
+        new_position_value = current_position_value + (
+            order_notional if side == "buy" else -order_notional
+        )
         new_position_pct = (new_position_value / account_equity) * 100 if account_equity > 0 else 0
 
-        details['position_check'] = {
-            'current_position_pct': (current_position_value / account_equity * 100) if account_equity > 0 else 0,
-            'new_position_pct': new_position_pct,
-            'limit': self.max_single_position_pct,
+        details["position_check"] = {
+            "current_position_pct": (
+                (current_position_value / account_equity * 100) if account_equity > 0 else 0
+            ),
+            "new_position_pct": new_position_pct,
+            "limit": self.max_single_position_pct,
         }
 
         if new_position_pct > self.max_single_position_pct:
@@ -608,20 +582,18 @@ class PreTradeRiskGate:
             )
 
         # 2. 检查单日交易次数
-        details['trade_count_check'] = {
-            'current': daily_trade_count,
-            'limit': self.max_daily_trades,
+        details["trade_count_check"] = {
+            "current": daily_trade_count,
+            "limit": self.max_daily_trades,
         }
 
         if daily_trade_count >= self.max_daily_trades:
-            violations.append(
-                f"单日交易次数超限: {daily_trade_count} >= {self.max_daily_trades}"
-            )
+            violations.append(f"单日交易次数超限: {daily_trade_count} >= {self.max_daily_trades}")
 
         # 3. 检查单日亏损
-        details['daily_loss_check'] = {
-            'current_pnl_pct': daily_pnl_pct,
-            'limit': -self.max_daily_loss_pct,
+        details["daily_loss_check"] = {
+            "current_pnl_pct": daily_pnl_pct,
+            "limit": -self.max_daily_loss_pct,
         }
 
         if daily_pnl_pct <= -self.max_daily_loss_pct:
@@ -631,23 +603,19 @@ class PreTradeRiskGate:
 
         # 4. 检查流动性
         if avg_volume is not None:
-            details['liquidity_check'] = {
-                'avg_volume': avg_volume,
-                'min_volume': self.min_volume,
+            details["liquidity_check"] = {
+                "avg_volume": avg_volume,
+                "min_volume": self.min_volume,
             }
 
             if avg_volume < self.min_volume:
-                violations.append(
-                    f"流动性不足: 成交量 {avg_volume:.0f} < {self.min_volume}"
-                )
+                violations.append(f"流动性不足: 成交量 {avg_volume:.0f} < {self.min_volume}")
         else:
             warnings.append("无法获取成交量数据，跳过流动性检查")
 
         # 5. 检查大单警告
         if order_notional > account_equity * 0.1:  # 超过权益 10%
-            warnings.append(
-                f"大单警告: 订单金额 {order_notional:.0f} > 权益 10%"
-            )
+            warnings.append(f"大单警告: 订单金额 {order_notional:.0f} > 权益 10%")
 
         passed = len(violations) == 0
         return passed, violations, warnings, details

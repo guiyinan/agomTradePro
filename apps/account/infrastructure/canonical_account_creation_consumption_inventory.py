@@ -256,7 +256,9 @@ class CanonicalAccountCreationConsumptionInventoryService:
                 descriptions = {column.name: column for column in description}
                 actual_columns = frozenset(descriptions)
                 expected_columns = frozenset(
-                    field.column for field in model_type._meta.local_concrete_fields
+                    field.column
+                    for field in model_type._meta.local_concrete_fields
+                    if field.column is not None
                 )
                 missing_columns = tuple(sorted(expected_columns - actual_columns))
                 if missing_columns:
@@ -267,7 +269,8 @@ class CanonicalAccountCreationConsumptionInventoryService:
                     sorted(
                         field.column
                         for field in model_type._meta.local_concrete_fields
-                        if descriptions[field.column].null_ok is not field.null
+                        if field.column is not None
+                        and descriptions[field.column].null_ok is not field.null
                     )
                 )
                 if nullability_drift:
@@ -355,6 +358,10 @@ def _ledger_inventory(
 ) -> CanonicalAccountCreationLedgerInventory:
     table = model_type._meta.db_table
     pk_column = model_type._meta.pk.column
+    if not isinstance(pk_column, str):
+        raise CanonicalAccountCreationConsumptionInventoryUnavailable(
+            f"ledger primary key column is invalid: {table}"
+        )
     quote = connection.ops.quote_name
     sql = (
         f"SELECT COUNT(*), MIN({quote(pk_column)}), MAX({quote(pk_column)}), "

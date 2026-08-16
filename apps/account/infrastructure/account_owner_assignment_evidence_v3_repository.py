@@ -340,10 +340,10 @@ class DjangoAccountOwnerAssignmentEvidenceV3Repository:
             subject = by_pk.get(evidence_row.subject_id)
             if subject is None or evidence_row.subject_id in used_subjects:
                 raise AccountOwnerAssignmentCorruption("evidence v3 subject orphan or duplicate")
-            value = _restore_evidence(evidence_row, subject)
-            self._validate_subject_upstream(subject, value.recorded_at)
+            evidence_value = _restore_evidence(evidence_row, subject)
+            self._validate_subject_upstream(subject, evidence_value.recorded_at)
             used_subjects.add(evidence_row.subject_id)
-            evidence.append((evidence_row, value))
+            evidence.append((evidence_row, evidence_value))
         return _World(tuple(subjects), tuple(evidence))
 
     def _validate_subject_upstream(

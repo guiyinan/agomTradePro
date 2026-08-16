@@ -149,10 +149,14 @@ def _enum_value(
         blockers.append(f"broker_order_catalog_{field}_invalid")
         return None
     try:
-        return enum_type(value.strip()).value
+        enum_value = enum_type(value.strip()).value
     except ValueError:
         blockers.append(f"broker_order_catalog_{field}_invalid")
         return None
+    if not isinstance(enum_value, str):
+        blockers.append(f"broker_order_catalog_{field}_invalid")
+        return None
+    return enum_value
 
 
 def _canonical_uuid(value: object, *, blockers: list[str]) -> str | None:

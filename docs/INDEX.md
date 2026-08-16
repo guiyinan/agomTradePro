@@ -917,6 +917,9 @@
 - ✅ **CI module-cycle regression repair（2026-08-16）**
   - Data Fetch audit envelope 归回 Audit owner；Research/Risk 通过注入 Protocol 解耦；Dashboard→Sentiment 走 `core.integration` registry；module guard `206 edges / 0 cycles`，架构/治理合同 `0 violations`，聚焦回归 `32 passed`
   - 未扩大 cycle allowlist 或 mypy baseline；全仓 mypy debt ceiling、远端 CI 与生产 authority/publisher/execution 证据仍需独立完成
+- ✅ **CI full-production mypy debt ceiling reduction（2026-08-16）**
+  - Account authority/codec、canonical creation closed-world、append-only model guards、Broker/Portfolio/Risk/Research repositories 与 serializer 类型收口；全量 `mypy --no-incremental` `2881 source files / 0 errors`，CI 同款 debt ceiling `0 errors`
+  - 未修改 baseline/allowlist；新提交仍需等待 GitHub Actions Fast Feedback，生产 authority/publisher、execution/TUI 门禁不因类型检查变绿而解除
 - ✅ **Evidence composition boundary / governance consistency 收口（2026-08-14）**
   - Operator Spec approval/lifecycle concrete Django 组装移入 Risk Center/Research owner composition，`core/integration` 仅保留无 infrastructure import 的兼容导出
   - governance consistency 与 architecture audit 均 0 violations；Data Center catalog、legacy fact、current-data 与 Celery guards 通过。五组 Django component 在 `--no-migrations` 下 `22 passed`；这不替代真实 migration、生产人工审核、PostgreSQL 并发与真实数据

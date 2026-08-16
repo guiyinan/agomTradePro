@@ -7,7 +7,7 @@ import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import Protocol, cast
+from typing import Protocol
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -49,7 +49,7 @@ class DjangoPolicyBenchmarkFxFixingClock:
     """Django production clock."""
 
     def now(self) -> datetime:
-        return cast(datetime, timezone.now())
+        return timezone.now()
 
 
 class DjangoPolicyBenchmarkFxFixingRepository:

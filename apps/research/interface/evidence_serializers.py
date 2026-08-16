@@ -19,6 +19,8 @@ class EvidenceIdentityField(serializers.CharField):
     def to_internal_value(self, data: object) -> str:
         """Reject blank or whitespace-bearing identities."""
 
+        if not isinstance(data, str):
+            raise serializers.ValidationError("A string identity token is required.")
         value = super().to_internal_value(data)
         if not value.strip() or any(character.isspace() for character in value):
             raise serializers.ValidationError("A non-blank token without whitespace is required.")

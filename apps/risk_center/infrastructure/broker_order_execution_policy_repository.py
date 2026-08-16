@@ -7,7 +7,7 @@ import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import Protocol, cast
+from typing import Protocol
 
 from django.db import IntegrityError, transaction
 from django.db.models import Q
@@ -51,7 +51,7 @@ class DjangoBrokerOrderExecutionPolicyClock:
     def now(self) -> datetime:
         """Return the current timezone-aware server timestamp."""
 
-        return cast(datetime, timezone.now())
+        return timezone.now()
 
 
 class DjangoBrokerOrderExecutionPolicyRepository:
