@@ -1358,7 +1358,9 @@ if [ -n "$OLD_ENCRYPTION_KEY" ]; then
 fi
 
 if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
-  rm -f "$TARGET_DIR/.previous-next"
+  # A prior interrupted deploy can leave the staging path as a directory;
+  # remove that exact disposable staging path before recreating the symlink.
+  rm -rf "$TARGET_DIR/.previous-next"
   ln -s "$PREVIOUS_RELEASE" "$TARGET_DIR/.previous-next"
   mv -Tf "$TARGET_DIR/.previous-next" "$TARGET_DIR/previous"
   if [ "$SKIP_PREDEPLOY_BACKUP" = "1" ]; then
@@ -1804,7 +1806,8 @@ fi
 
 compose up -d $SERVICES
 
-rm -f "$TARGET_DIR/.current-next"
+# A failed/terminated deploy may leave the exact staging path behind.
+rm -rf "$TARGET_DIR/.current-next"
 ln -s "$RELEASE_DIR" "$TARGET_DIR/.current-next"
 mv -Tf "$TARGET_DIR/.current-next" "$TARGET_DIR/current"
 
