@@ -319,8 +319,87 @@ class CanonicalSystemAuditPublishReceipt:
 class CanonicalSystemAuditPublisher(Protocol):
     """Future durable publisher port; generic or memory sinks do not qualify."""
 
+    def preflight(self) -> "CanonicalSystemAuditPublisherPreflight":
+        """Return an explicit durable-sink capability attestation."""
+
     def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
         """Persist exactly one event and return an exact preservation receipt."""
+
+
+@dataclass(frozen=True, slots=True)
+class CanonicalSystemAuditPublisherPreflight:
+    """Capability attestation required before an outbox publisher is wired.
+
+    A callable ``publish`` method alone cannot distinguish a durable canonical
+    sink from the generic Celery event bus or an in-memory test helper.  The
+    composition root must therefore obtain this explicit attestation before
+    constructing a dispatcher.  The attestation is a local contract, not
+    proof that an external service is reachable; production composition still
+    has to supply and observe the real sink.
+    """
+
+    sink_id: str
+    sink_kind: str
+    contract_version: str = "system-audit-publisher.v1"
+    preserves_exact_payload: bool = True
+    supports_idempotency: bool = True
+    returns_durable_receipt: bool = True
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("sink_id", self.sink_id),
+            ("sink_kind", self.sink_kind),
+            ("contract_version", self.contract_version),
+        ):
+            _require_token(value, name)
+        if self.contract_version != "system-audit-publisher.v1":
+            raise ValueError("unsupported system-audit publisher contract")
+        if self.sink_kind != "durable":
+            raise ValueError("system-audit publisher sink must be durable")
+        bool_values: tuple[tuple[str, bool], ...] = (
+            ("preserves_exact_payload", self.preserves_exact_payload),
+            ("supports_idempotency", self.supports_idempotency),
+            ("returns_durable_receipt", self.returns_durable_receipt),
+        )
+        for bool_name, bool_value in bool_values:
+            if type(bool_value) is not bool or not bool_value:
+                raise ValueError(f"{bool_name} must be true for a canonical publisher")
+
+
+def validate_canonical_system_audit_publisher(
+    publisher: object,
+) -> CanonicalSystemAuditPublisher:
+    """Validate explicit publisher capability before any outbox claim.
+
+    This function deliberately does not discover a publisher, import a
+    generic event bus, or test-connect to an external service.  It only
+    enforces the minimum composition contract so a future runtime root cannot
+    accidentally wire an object that merely has a ``publish`` method.
+    """
+
+    try:
+        publish = getattr(publisher, "publish", None)
+        preflight = getattr(publisher, "preflight", None)
+    except Exception as exc:
+        raise SystemAuditCompositionUnavailable(
+            "system audit publisher capability inspection failed",
+            reason_code="publisher_contract_invalid",
+        ) from exc
+    if not callable(publish) or not callable(preflight):
+        raise SystemAuditCompositionUnavailable(
+            "system audit publisher lacks a durable preflight contract",
+            reason_code="publisher_contract_unavailable",
+        )
+    try:
+        attestation = preflight()
+        if type(attestation) is not CanonicalSystemAuditPublisherPreflight:
+            raise TypeError("publisher preflight returned an invalid attestation")
+    except Exception as exc:
+        raise SystemAuditCompositionUnavailable(
+            "system audit publisher durable preflight failed",
+            reason_code="publisher_contract_invalid",
+        ) from exc
+    return cast(CanonicalSystemAuditPublisher, publisher)
 
 
 @dataclass(frozen=True, slots=True)
@@ -471,10 +550,12 @@ def get_system_audit_reader_context(
 __all__ = [
     "CanonicalSystemAuditPublishReceipt",
     "CanonicalSystemAuditPublisher",
+    "CanonicalSystemAuditPublisherPreflight",
     "SystemAuditAuthorityProvider",
     "SystemAuditAuthoritySnapshot",
     "SystemAuditCompositionUnavailable",
     "SystemAuditPublisherContractViolation",
     "system_audit_authority_content_hash",
     "get_system_audit_reader_context",
+    "validate_canonical_system_audit_publisher",
 ]

@@ -10,12 +10,14 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from apps.audit.application.system_audit_composition import (
+    CanonicalSystemAuditPublisherPreflight,
     CanonicalSystemAuditPublishReceipt,
     SystemAuditAuthoritySnapshot,
     SystemAuditCompositionUnavailable,
     SystemAuditPublisherContractViolation,
     get_system_audit_reader_context,
     system_audit_authority_content_hash,
+    validate_canonical_system_audit_publisher,
 )
 from tests.unit.audit.test_system_audit_event import make_event
 
@@ -320,3 +322,51 @@ def test_publish_receipt_rejects_bool_for_sequence_number() -> None:
             ),
             sequence_no=True,
         )
+
+
+def test_publisher_preflight_rejects_publish_only_generic_sink() -> None:
+    """A method named publish is not evidence of a durable canonical sink."""
+
+    class GenericEventBus:
+        def publish(self, event: object) -> None:
+            del event
+
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        validate_canonical_system_audit_publisher(GenericEventBus())
+
+    assert exc_info.value.reason_code == "publisher_contract_unavailable"
+
+
+def test_publisher_preflight_rejects_memory_or_noncanonical_attestation() -> None:
+    class MemoryPublisher:
+        def preflight(self) -> object:
+            return object()
+
+        def publish(self, event: object) -> None:
+            del event
+
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        validate_canonical_system_audit_publisher(MemoryPublisher())
+
+    assert exc_info.value.reason_code == "publisher_contract_invalid"
+
+    with pytest.raises(ValueError, match="must be durable"):
+        CanonicalSystemAuditPublisherPreflight(
+            sink_id="memory",
+            sink_kind="memory",
+        )
+
+
+def test_publisher_preflight_accepts_only_explicit_durable_capability() -> None:
+    class DurablePublisher:
+        def preflight(self) -> CanonicalSystemAuditPublisherPreflight:
+            return CanonicalSystemAuditPublisherPreflight(
+                sink_id="audit-db-primary",
+                sink_kind="durable",
+            )
+
+        def publish(self, event: object) -> None:
+            del event
+
+    publisher = DurablePublisher()
+    assert validate_canonical_system_audit_publisher(publisher) is publisher

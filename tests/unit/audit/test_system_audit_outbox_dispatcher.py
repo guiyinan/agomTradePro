@@ -7,6 +7,7 @@ from uuid import UUID
 import pytest
 
 from apps.audit.application.system_audit_composition import (
+    CanonicalSystemAuditPublisherPreflight,
     CanonicalSystemAuditPublishReceipt,
 )
 from apps.audit.application.system_audit_outbox_dispatcher import (
@@ -14,6 +15,7 @@ from apps.audit.application.system_audit_outbox_dispatcher import (
     DispatchSystemAuditOutboxUseCase,
     SystemAuditOutboxClaimDTO,
     SystemAuditOutboxDispatchConflict,
+    SystemAuditOutboxDispatchUnavailable,
 )
 from apps.audit.domain.system_audit_event import SystemAuditEvent
 from tests.unit.audit.test_system_audit_event import make_event
@@ -37,6 +39,12 @@ class Publisher:
         self.events = []
         self.fail = fail
         self.fail_event_ids = fail_event_ids or set()
+
+    def preflight(self) -> CanonicalSystemAuditPublisherPreflight:
+        return CanonicalSystemAuditPublisherPreflight(
+            sink_id="test-sink",
+            sink_kind="durable",
+        )
 
     def publish(self, event: object) -> CanonicalSystemAuditPublishReceipt:
         if self.fail or getattr(event, "event_id", None) in self.fail_event_ids:
@@ -123,7 +131,7 @@ def test_dispatch_publisher_failure_is_bounded_and_marks_failed() -> None:
 
 
 def test_dispatch_rejects_publisher_without_exact_preservation_receipt() -> None:
-    """Generic/memory-style publishers cannot turn a claim into delivered."""
+    """Generic/memory-style publishers are rejected before any claim."""
 
     class NonCanonicalPublisher:
         def publish(self, event: object) -> None:
@@ -131,19 +139,26 @@ def test_dispatch_rejects_publisher_without_exact_preservation_receipt() -> None
             return None
 
     repository = Repository(_claim())
-    result = DispatchSystemAuditOutboxUseCase(
-        repository,
-        NonCanonicalPublisher(),
-        UnitOfWork(),
-    ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
+    with pytest.raises(SystemAuditOutboxDispatchUnavailable) as exc_info:
+        DispatchSystemAuditOutboxUseCase(
+            repository,
+            NonCanonicalPublisher(),
+            UnitOfWork(),
+        ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
 
-    assert (result.claimed, result.delivered, result.failed) == (1, 0, 1)
-    assert result.outcome == "failed"
-    assert repository.failed[0]["error_code"] == "publisher_contract_violation"
+    assert exc_info.value.reason_code == "publisher_contract_unavailable"
+    assert repository.delivered == []
+    assert repository.failed == []
 
 
 def test_dispatch_rejects_receipt_without_durable_delivery_proof() -> None:
     class EventOnlyPublisher:
+        def preflight(self) -> CanonicalSystemAuditPublisherPreflight:
+            return CanonicalSystemAuditPublisherPreflight(
+                sink_id="test-sink",
+                sink_kind="durable",
+            )
+
         def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
             return CanonicalSystemAuditPublishReceipt.from_event(event)
 
@@ -161,6 +176,12 @@ def test_dispatch_rejects_receipt_without_durable_delivery_proof() -> None:
 
 def test_dispatch_classifies_noncanonical_receipt_payload_as_contract_failure() -> None:
     class MalformedPayloadPublisher:
+        def preflight(self) -> CanonicalSystemAuditPublisherPreflight:
+            return CanonicalSystemAuditPublisherPreflight(
+                sink_id="test-sink",
+                sink_kind="durable",
+            )
+
         def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
             receipt = CanonicalSystemAuditPublishReceipt.from_event(
                 event,
@@ -183,6 +204,12 @@ def test_dispatch_classifies_noncanonical_receipt_payload_as_contract_failure() 
 
 def test_dispatch_classifies_type_coerced_receipt_payload_as_contract_failure() -> None:
     class TypeCoercingPublisher:
+        def preflight(self) -> CanonicalSystemAuditPublisherPreflight:
+            return CanonicalSystemAuditPublisherPreflight(
+                sink_id="test-sink",
+                sink_kind="durable",
+            )
+
         def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
             receipt = CanonicalSystemAuditPublishReceipt.from_event(
                 event,

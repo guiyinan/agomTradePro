@@ -14,8 +14,11 @@ from typing import Protocol
 from uuid import UUID
 
 from apps.audit.application.system_audit_composition import (
+    CanonicalSystemAuditPublisherPreflight,
     CanonicalSystemAuditPublishReceipt,
+    SystemAuditCompositionUnavailable,
     SystemAuditPublisherContractViolation,
+    validate_canonical_system_audit_publisher,
 )
 from apps.audit.domain.system_audit_event import SystemAuditEvent
 
@@ -34,6 +37,9 @@ class SystemAuditOutboxDispatchConflict(Exception):
 
 class SystemAuditOutboxPublisher(Protocol):
     """Injected durable side-effect boundary with exact-preservation receipt."""
+
+    def preflight(self) -> CanonicalSystemAuditPublisherPreflight:
+        """Return the explicit durable-sink capability before any claim."""
 
     def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
         """Publish one immutable event and return an exact preservation receipt."""
@@ -167,6 +173,13 @@ class DispatchSystemAuditOutboxUseCase:
         """Claim, publish, and finalize one bounded batch."""
 
         self._validate(command)
+        try:
+            publisher = validate_canonical_system_audit_publisher(self._publisher)
+        except SystemAuditCompositionUnavailable as error:
+            raise SystemAuditOutboxDispatchUnavailable(
+                "system audit publisher preflight is unavailable",
+                reason_code=error.reason_code,
+            ) from None
         claimed: tuple[SystemAuditOutboxClaimDTO, ...]
         try:
             with self._unit_of_work:
@@ -182,7 +195,7 @@ class DispatchSystemAuditOutboxUseCase:
         failed = 0
         for item in claimed:
             try:
-                receipt = self._publisher.publish(item.event)
+                receipt = publisher.publish(item.event)
                 if not isinstance(receipt, CanonicalSystemAuditPublishReceipt):
                     raise SystemAuditPublisherContractViolation(
                         "publisher returned no canonical preservation receipt"
