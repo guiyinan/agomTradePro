@@ -530,3 +530,19 @@ closed，并把 before/after digest 写入 evidence JSON。`tests/unit/test_veri
 该批完成的是恢复工具的输入工件一致性与新的可验证备份恢复点，不是 restore/rebuild、RTO/RPO、
 维护态 rollback 或 reconciliation 通过证据；`DATA-01` 继续 `awaiting_production`，不解锁
 `DATA-02/03`。
+
+## 实施记录（2026-08-16，DATA-02 primary-key collision identity guard）
+
+此前的控制面 identity guard 只在 stable natural key 命中时比较身份；当 caller 复用已有
+`SyncBatch.batch_id` 或 `SyncCheckpoint.checkpoint_id`、但同时替换自然键时，数据库可能先抛出
+原始唯一约束异常，未发布稳定的业务阻断原因。现将 lookup key 与显式 identity 合并为完整的
+immutable identity；插入竞争失败后先按自然键、再按模型 primary key 精确复核，任何替换均以
+`sync batch/checkpoint identity conflict` fail closed，不覆盖已有状态。
+
+- 新增 batch id 与 idempotency key、checkpoint id 与 batch/cursor 自然键的 collision 回归；
+  `tests/unit/data_center/test_control_plane.py`（`--reuse-db --no-migrations`）`12 passed`。
+- 生产文件增量 mypy regression `0`，Black/isort、`py_compile` 和 `git diff --check` 通过；
+  Ruff 模块未安装，未宣称 Ruff 证据。
+- 本 slice 仅加强本地控制面冲突诊断与幂等合同；未连接生产数据库，未执行 restore/backfill/
+  reconciliation、维护态 rollback 或 destructive migration。`DATA-01` 仍为
+  `awaiting_production`，`DATA-02/03` 状态不变。

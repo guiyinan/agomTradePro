@@ -69,6 +69,11 @@ def _identity_checked_update_or_create(
     """
 
     manager = model_class._default_manager
+    # Both the lookup key and the explicit identity fields are immutable.  A
+    # primary-key collision can occur before the natural-key lookup matches
+    # (for example, a checkpoint id reused for another cursor), so retain the
+    # complete stable identity for the post-race conflict check.
+    stable_identity = {**lookup, **identity}
     with transaction.atomic():
         existing = manager.select_for_update().filter(**lookup).first()
         if existing is None:
@@ -80,8 +85,16 @@ def _identity_checked_update_or_create(
             except IntegrityError:
                 existing = manager.select_for_update().filter(**lookup).first()
                 if existing is None:
+                    primary_field = model_class._meta.pk.name
+                    if primary_field in stable_identity:
+                        existing = (
+                            manager.select_for_update()
+                            .filter(**{primary_field: stable_identity[primary_field]})
+                            .first()
+                        )
+                if existing is None:
                     raise
-        _assert_identity_matches(existing, identity=identity, label=label)
+        _assert_identity_matches(existing, identity=stable_identity, label=label)
         for field_name, value in defaults.items():
             setattr(existing, field_name, value)
         existing.save()

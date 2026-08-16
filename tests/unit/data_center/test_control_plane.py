@@ -235,6 +235,10 @@ def test_control_plane_repositories_reject_identity_reuse() -> None:
     SyncBatchRepository().save(batch)
     with pytest.raises(ValueError, match="sync batch identity conflict for batch_id"):
         SyncBatchRepository().save(replace(batch, batch_id=str(uuid4())))
+    with pytest.raises(ValueError, match="sync batch identity conflict for idempotency_key"):
+        SyncBatchRepository().save(
+            replace(batch, idempotency_key="equity.daily:tushare:other-natural-key")
+        )
 
     checkpoint = SyncCheckpoint(
         checkpoint_id=checkpoint_id,
@@ -247,6 +251,14 @@ def test_control_plane_repositories_reject_identity_reuse() -> None:
     SyncCheckpointRepository().save(checkpoint)
     with pytest.raises(ValueError, match="sync checkpoint identity conflict for checkpoint_id"):
         SyncCheckpointRepository().save(replace(checkpoint, checkpoint_id=str(uuid4())))
+    with pytest.raises(ValueError, match="sync checkpoint identity conflict for batch_id"):
+        SyncCheckpointRepository().save(
+            replace(
+                checkpoint,
+                batch_id=str(uuid4()),
+                cursor_value="20260803",
+            )
+        )
 
 
 @pytest.mark.django_db
