@@ -66,9 +66,9 @@
       "pattern": "^decision_runtime_[a-z_]+$"
     },
     {
-      "path": "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py",
-      "symbol": "_read_research_section",
-      "pattern": "^[a-z][a-z0-9_]+$"
+      "path": "apps/equity/application/research_snapshot.py",
+      "symbol": "def to_payload",
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
     },
     {
       "path": "shared/domain/reliability.py",

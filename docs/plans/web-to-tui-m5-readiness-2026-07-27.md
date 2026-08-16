@@ -536,7 +536,7 @@ PostgreSQL/Redis 数据卷、Celery enabled 的 `-Upgrade` 发布为 `2026081618
 为 `/opt/agomtradepro/releases/source-20260816181141`，OCI image ID 为
 `sha256:1add6e57714a6ee41e3a3153a46e0c6e578f29a8374ea18e91cb53b65a7e2632`；preflight 为
 `docs/deployment/web-to-tui-deployment-preflight-20260816181141.json`，SHA
-`30e7a5a501849ffddca7b372d3c79d5576708e5dbebe459342c3278886fbfdf9`。
+`b449240339413578c0aaea9d2868f4f826e4454d51c9d5dcb607a87aefd343a2`。
 
 只读观测截至 `2026-08-16T10:29:06Z`：HTTPS `/api/health/` 与 `/api/ready/` 均为 `200`；
 health SHA `bacab80cf37e6f8c94189606184a9d3a040ec8e56cf820b1e768cda207522fb3`，ready SHA
@@ -549,7 +549,7 @@ Django check、TUI registry、Celery ping、Qlib module 与容器健康复核通
 该候选完整 binding 为：version `web-to-tui-candidate-binding.v1`、candidate version
 `20260816181141`、candidate commit `5a13125bb84eb1b20e623d7c1388a0d7632294cb`、matrix
 `bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph
-`42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba`、schema `tui-metadata.v3`、
+`9a711204ff4c5368934f4701b64a411c5863b9a922e21fc76633a93bac47858a`、schema `tui-metadata.v3`、
 runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest
 `98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。观察窗口需随该候选重新
 绑定为 `2026-08-16..2026-08-30`，不跨候选继承 UAT 或 telemetry。

@@ -416,11 +416,11 @@ code-only、保留数据卷并启用 Celery 发布为 release `20260816181141`�
 | backup hook | `/opt/agomtradepro/backups/database/postgres-20260816-121912.dump`；本次未取得尺寸/SHA，不扩大证据范围 |
 
 结构化 preflight 为 `docs/deployment/web-to-tui-deployment-preflight-20260816181141.json`，SHA
-`30e7a5a501849ffddca7b372d3c79d5576708e5dbebe459342c3278886fbfdf9`；运行摘要为
+`b449240339413578c0aaea9d2868f4f826e4454d51c9d5dcb607a87aefd343a2`；运行摘要为
 `docs/deployment/vps-runtime-verification-2026-08-16-1811.json`。候选完整 binding 为：version
 `web-to-tui-candidate-binding.v1`、candidate version `20260816181141`、candidate commit
 `5a13125bb84eb1b20e623d7c1388a0d7632294cb`、matrix `bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、
-graph `42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba`、schema `tui-metadata.v3`、
+graph `9a711204ff4c5368934f4701b64a411c5863b9a922e21fc76633a93bac47858a`、schema `tui-metadata.v3`、
 runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest
 `98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。
 
