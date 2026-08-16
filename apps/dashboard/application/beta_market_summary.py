@@ -14,6 +14,15 @@ _SENTIMENT_BLOCKED_MESSAGES = {
     "sentiment_data_insufficient": "A股情绪样本不足，仅供诊断。",
 }
 
+_BETA_BLOCKED_MESSAGES = {
+    "navigator_unavailable": "Regime 判断尚未形成。",
+    "regime_context_missing": "Regime 判断所需的市场环境数据尚未就绪。",
+    "regime_context_stale": "Regime 判断所需的市场环境数据已过期。",
+    "pulse_snapshot_missing": "市场脉搏数据尚未就绪。",
+    "pulse_snapshot_stale": "市场脉搏数据已过期。",
+    "pulse_snapshot_unreliable": "市场脉搏数据未通过可靠性校验。",
+}
+
 
 def _percent(value: float | None) -> float | None:
     """Convert one finite fraction to a display percentage."""
@@ -45,6 +54,19 @@ def _sentiment_payload(current: CurrentSentimentResult) -> dict[str, object]:
     }
 
 
+def _user_blocked_reason(reason: str | None) -> str:
+    """Translate stable internal blockers into user-facing decision language."""
+
+    if not reason:
+        return "关键市场数据不可用于决策。"
+    mapped = _BETA_BLOCKED_MESSAGES.get(reason)
+    if mapped is not None:
+        return mapped
+    if "_" in reason and reason.isascii():
+        return "Regime 或市场脉搏数据未通过决策校验。"
+    return reason
+
+
 def build_beta_market_summary_row(
     *,
     as_of_date: date,
@@ -65,7 +87,7 @@ def build_beta_market_summary_row(
         reasoning = "请先刷新环境与脉搏数据。"
     elif action.must_not_use_for_decision:
         beta_conclusion = "暂不判断：关键市场数据未通过新鲜度或可靠性校验。"
-        beta_blocked_reason = action.blocked_reason or "关键市场数据不可用于决策。"
+        beta_blocked_reason = _user_blocked_reason(action.blocked_reason)
         reasoning = action.reasoning
     else:
         weight_text = (

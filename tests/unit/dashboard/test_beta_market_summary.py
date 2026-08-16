@@ -82,5 +82,7 @@ def test_beta_market_summary_blocks_action_but_preserves_stale_sentiment_diagnos
     assert row["market_sentiment"] == "乐观（仅供诊断）"
     assert row["sentiment_decision_status"] == "仅供诊断"
     assert row["sentiment_blocked_reason"] == "A股情绪指数已过期，仅供诊断。"
+    assert row["blocked_reason"] == "市场脉搏数据已过期。"
+    assert "pulse_snapshot_stale" not in str(row)
     assert row["alpha_usage"] == "Alpha 仅供研究，暂不形成可执行建议。"
     assert row["must_not_use_for_decision"] is True

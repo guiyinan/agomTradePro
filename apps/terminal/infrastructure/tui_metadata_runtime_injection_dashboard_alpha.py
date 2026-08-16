@@ -117,6 +117,11 @@ RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
         "view_model": {
             "kind": "datagrid",
             "rows_path": "data.items",
+            "total_path": "data.count",
+            "empty_message": (
+                "当前没有入选的 Alpha 股票；股票池规模不等于选股结果。"
+                "请检查评分日、股票池与数据可靠性。"
+            ),
             "columns": [
                 {"key": "rank", "label": "排名"},
                 {"key": "code", "label": "证券代码"},

@@ -709,8 +709,12 @@ def test_tui_dashboard_alpha_publishes_ranking_and_history_tasks(client, tui_use
     runtime = PublishedTuiMetadataRepository().load_published()
     runtime_actions = {action["key"]: action for action in runtime["actions"]}
     assert runtime_actions["dashboard.beta-market-summary"]["view_model"]["rows_path"] == ("rows")
-    assert runtime_actions["dashboard.alpha-ranking"]["view_model"]["rows_path"] == ("data.items")
-    assert runtime_actions["dashboard.alpha-ranking"]["view_model"]["total_path"] == ("data.count")
+    assert runtime_actions["dashboard.alpha-ranking"]["view_model"]["rows_path"] == (
+        "data.items"
+    )
+    assert runtime_actions["dashboard.alpha-ranking"]["view_model"]["total_path"] == (
+        "data.count"
+    )
     assert (
         "股票池规模不等于选股结果"
         in runtime_actions["dashboard.alpha-ranking"]["view_model"]["empty_message"]
