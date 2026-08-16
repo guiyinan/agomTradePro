@@ -522,3 +522,9 @@ receipt/refresh、14 日 telemetry、registry backup/restore、rollback 或 owne
 restore/rebuild、RTO/RPO 或 rollback drill。候选 binding 的 matrix/graph/runtime manifest
 与上一候选相同，仅 source commit/release/image 更新；观察窗口从该候选重新开始，不跨候选
 继承 UAT 或 telemetry。
+该候选完整 binding 为：version `web-to-tui-candidate-binding.v1`、candidate version
+`20260816170851`、candidate commit `fc145423c4de04cae20c3a6a2e94780505aa5938`、matrix
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph
+`42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba`、schema `tui-metadata.v3`、
+runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest
+`98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。

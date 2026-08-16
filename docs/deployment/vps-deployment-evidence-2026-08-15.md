@@ -465,6 +465,12 @@ receipt/refresh、14 日 telemetry/defect、registry backup/restore、rollback d
 owner/reviewer 双签以及 AUD-01/EVID-01 durable authority/publisher 仍未完成，相关 gate
 继续 fail-closed。PostgreSQL archive 仅完成下载、SHA 与 `pg_restore --list` 检查，没有
 restore/rebuild、RTO/RPO 或 rollback drill。
+该候选完整 binding 为：version `web-to-tui-candidate-binding.v1`、candidate version
+`20260816170851`、candidate commit `fc145423c4de04cae20c3a6a2e94780505aa5938`、matrix
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph
+`42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba`、schema `tui-metadata.v3`、
+runtime `0.2.0`、build `agomtui-runtime-0.2.0+8e5b1ff43be5`、manifest
+`98494ca640c4f4dfb6f1e8b08778d669228d4dc1a85947b582a33e1c8036ee6c`。
 
 ## 2026-08-16 15:34 当前候选部署与观测
 

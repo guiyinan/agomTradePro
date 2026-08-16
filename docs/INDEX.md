@@ -936,9 +936,15 @@
 - ✅ **Web→TUI role-filtered row affordance closure（2026-08-15）**
   - Dashboard 行操作现在按当前用户已通过权限过滤的 action 集合投影；普通用户不再看到无法执行的 Signal/Beta Gate/Rotation 管理员写按钮，管理员行操作保持
   - `tests/unit/test_tui_workbench.py` 覆盖普通用户与管理员双向投影，定向回归 `2 passed`；该项只收紧展示边界，不替代后端权限、角色化浏览器 UAT、写后回执或 M5 生产证据
+- ✅ **Web→TUI candidate consistency guard hardening（2026-08-16）**
+  - guard 从 cutover 当前 candidate 的 version/commit 唯一匹配已提交 preflight，并截取 readiness/deployment 最新候选段，逐项核对 matrix/graph/runtime manifest binding；当前 `fc145423c4de04cae20c3a6a2e94780505aa5938` / `20260816170851`，回归 `1 passed`
+  - 仅防止旧候选章节或旧 preflight 造成一致性误通过，不代表角色化浏览器 UAT、写后 receipt/refresh、14 日 telemetry、rollback、registry restore 或 owner/reviewer 双签完成
 - ✅ **STRAT-01/02 readiness runtime preflight guard（2026-08-15）**
   - `test_capability_readiness_runtime.py` 现在明确锁定 R1 六项生产要求为 `UNVERIFIED`、Forecast specification 为 `MISSING`，以及 R2 五项生产要求为 `UNVERIFIED`，防止机制 manifest 被误报为 production readiness
   - 定向组件回归 `8 passed`；这是本地 fail-closed 防伪证据，不是 owner/definition/policy、PIT/OOS 历史、canonical receipt、对账或 Promotion 证据，`STRAT-01` 与 `STRAT-02` 仍保持阻断
+- ✅ **STRAT-01 mechanism attestation expiry guard（2026-08-16）**
+  - `AttestedMechanismOwnerAdapter` 在直接收集阶段拒绝将 `valid_until <= evaluated_at` 的过期机制 attestation 暴露为 `VERIFIED`，改为 `STALE` 并发布稳定 `*.runtime.attestation_expired` 原因；Research focused `53 passed`、增量 mypy `0 regressions`
+  - 仅收紧本地 readiness 中间层，不登记真实 owner/definition/policy/calendar/scope、PIT/OOS、canonical receipt、Promotion 或生产/UAT 证据；`STRAT-01`/`STRAT-02` 继续阻断
 - ✅ **Evidence owner/tenant scope read contract（2026-08-15）**
   - 纯 Application scope grant/provider/authorizer 在三类 exact read 触碰 repository 前执行 artifact-level gate；缺失、future/stale、revoked、替换和 hash tamper fail closed，`11 passed`
   - 新增强制注入 authorizer 的 `ScopedEvidenceReadFacade`，避免未来 owner-scoped composition 忘记安装 scope gate；旧 staff-only facade 保持兼容
@@ -1063,6 +1069,9 @@
   - `scripts/verify_postgres_backup_restore.py` 现在在格式校验前、恢复前后固定 dump SHA-256，并对归档替换稳定 fail-closed；unit `14 passed`、增量 mypy 0
   - 当前 VPS custom-format backup 已完整下载并校验：`postgres-20260816-100924.dump`，`140804438` bytes，SHA-256 `06e52b33c637c17cae4c9f0223246e0e09af84254717196d904f67044e7b2cba`
   - 仍不等于 restore/rebuild、维护态回滚、RTO/RPO、回填或 reconciliation；DATA-01 继续 awaiting，不解锁 DATA-02/03
+- ✅ **DATA-02 control-plane identity reuse guard（2026-08-16）**
+  - `SyncRun/SyncBatch/SyncCheckpointRepository` 对 stable key 重试逐字段核对不可变身份，拒绝 dataset/provider/run/checkpoint 替换；identity-reuse 回归通过，增量 mypy `0 regressions`、Black/isort/diff-check 通过
+  - 仅本地幂等/身份合同；未连接生产数据库、未执行 restore/backfill/reconciliation，PostgreSQL 锁/并发、RTO/RPO 与 DATA-01 前置仍缺，DATA-01/02/03 状态不变
 - ✅ **VPS candidate deployment with account migration/data-center fixes（2026-08-15）**
   - `ae1e5e532` 以 release `20260815162419` 完成 git-clone/provenance 校验和代码-only upgrade；health/ready HTTP 200，web/worker/beat/PostgreSQL/Redis/RSSHub 正常，迁移步骤无待应用项，canonical schema `missing_migrations=[]`/`missing_tables=[]`，TUI/Qlib/Celery 复核通过
   - `/api/ready/` 仍有 Alpha/Qlib、workspace 与市场温度计 freshness warnings；不解除 decision-data、TUI M5、DATA-01/02/03 或 AUD-01 gate

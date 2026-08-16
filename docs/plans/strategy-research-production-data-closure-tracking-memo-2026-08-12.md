@@ -156,3 +156,11 @@
 - 定向组件回归为 `8 passed`；断言验证的是“机制 manifest 不能升级为 production readiness”，不是能力已经具备。
 - `STRAT-01` 继续等待真实 R1–R8 owner/definition/policy/calendar/scope 登记；`STRAT-02` 继续等待 `STRAT-01` 与 `DATA-02`，不因本地测试变绿而提前解锁 PIT/OOS receipts、对账或 Promotion。
 
+## 12. 2026-08-16：机制 attestation 过期状态收口
+
+本批修复了一个本地 fail-closed 缺口：`AttestedMechanismOwnerAdapter.collect()` 直接被调用时，过去只判断 `observed_at`，可能把已过期的机制 attestation 暴露为 `VERIFIED`。现在在 Application 边界先判断 `valid_until <= evaluated_at`，统一返回 `STALE` 和稳定阻断原因 `*.runtime.attestation_expired`。
+
+- `tests/unit/research/test_capability_readiness_registry.py`：`20 passed`；Research focused 回归 `53 passed`。
+- 增量 mypy：`0 regressions`；Black/isort 通过。
+- 该切片不创建或回填任何 owner、definition、policy、calendar、scope、PIT/OOS、receipt 或生产数据；`STRAT-01`/`STRAT-02` 状态不变，生产 readiness 仍需真实 owner 与数据证据。
+
