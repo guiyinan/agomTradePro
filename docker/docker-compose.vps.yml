@@ -88,6 +88,8 @@ services:
       SECRET_KEY: ${SECRET_KEY:-}
       DEBUG: ${DEBUG:-False}
       TUI_ACTION_MAX_CONCURRENCY: ${TUI_ACTION_MAX_CONCURRENCY:-4}
+      AGOM_BUILD_IDENTITY_PATH: /app/.agom-build-identity.json
+      AGOM_RELEASE_MANIFEST_PATH: /run/agomtradepro/release-manifest.json
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-127.0.0.1,localhost}
       TUSHARE_TOKEN: ${TUSHARE_TOKEN:-}
       FRED_API_KEY: ${FRED_API_KEY:-}
@@ -119,6 +121,7 @@ services:
       - static_data:/app/staticfiles
       - media_data:/app/media
       - ${AGOM_BACKUP_DIR:-/opt/agomtradepro/backups/database}:/app/backups/database
+      - ../.agom-release-manifest.json:/run/agomtradepro/release-manifest.json:ro
     depends_on:
       runtime_ns:
         condition: service_started
@@ -170,6 +173,8 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       AGOMTRADEPRO_ENCRYPTION_KEY: ${AGOMTRADEPRO_ENCRYPTION_KEY:-}
+      AGOM_BUILD_IDENTITY_PATH: /app/.agom-build-identity.json
+      AGOM_RELEASE_MANIFEST_PATH: /run/agomtradepro/release-manifest.json
       AGOMTRADEPRO_AUTO_MIGRATE_ON_START: "0"
       AGOMTRADEPRO_BOOTSTRAP_ON_START: "0"
       SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-True}
@@ -185,6 +190,7 @@ services:
       - static_data:/app/staticfiles
       - media_data:/app/media
       - ${AGOM_BACKUP_DIR:-/opt/agomtradepro/backups/database}:/app/backups/database
+      - ../.agom-release-manifest.json:/run/agomtradepro/release-manifest.json:ro
     depends_on:
       runtime_ns:
         condition: service_started
@@ -230,6 +236,8 @@ services:
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-127.0.0.1,localhost}
       AGOMTRADEPRO_ENCRYPTION_KEY: ${AGOMTRADEPRO_ENCRYPTION_KEY:-}
+      AGOM_BUILD_IDENTITY_PATH: /app/.agom-build-identity.json
+      AGOM_RELEASE_MANIFEST_PATH: /run/agomtradepro/release-manifest.json
       AGOMTRADEPRO_AUTO_MIGRATE_ON_START: "0"
       AGOMTRADEPRO_BOOTSTRAP_ON_START: "0"
       SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-True}
@@ -244,6 +252,7 @@ services:
       - var_data:/app/var
       - static_data:/app/staticfiles
       - media_data:/app/media
+      - ../.agom-release-manifest.json:/run/agomtradepro/release-manifest.json:ro
     depends_on:
       runtime_ns:
         condition: service_started

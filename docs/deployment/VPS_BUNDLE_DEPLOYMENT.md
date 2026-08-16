@@ -277,6 +277,27 @@ If domain is configured:
 curl -f https://your-domain/api/health/
 ```
 
+### 9.1 Verify the running Git release
+
+Every production image embeds `/app/.agom-build-identity.json`. The deployment
+directory owns the immutable `.agom-release-manifest.json`, which Compose mounts
+read-only at `/run/agomtradepro/release-manifest.json`. The application reports a
+release as verified only when both artifacts contain the same exact 40-character
+Git commit and the embedded application version matches the running code.
+
+The deploy transaction runs this check automatically and rolls back on failure:
+
+```bash
+docker compose -f /opt/agomtradepro/current/docker/docker-compose.vps.yml \
+  --env-file /opt/agomtradepro/current/deploy/.env \
+  exec -T web python manage.py show_release_identity --json
+```
+
+Administrators can also open `TUI -> 数据与系统健康 -> 当前部署版本`. The panel
+is backed by the staff-only endpoint
+`/api/operational-readiness/release-identity/`; the public health endpoint does
+not expose the full commit identity.
+
 ---
 
 ## 10. Rollback Strategy

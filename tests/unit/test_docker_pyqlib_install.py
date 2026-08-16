@@ -82,6 +82,21 @@ def test_vps_compose_uses_neutral_pid_namespace_service() -> None:
     assert 'pid: "service:web"' not in compose
 
 
+def test_production_runtime_mounts_and_embeds_release_identity() -> None:
+    compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
+
+    assert (
+        compose.count("../.agom-release-manifest.json:/run/agomtradepro/release-manifest.json:ro")
+        == 3
+    )
+    assert compose.count("AGOM_RELEASE_MANIFEST_PATH: /run/agomtradepro/release-manifest.json") == 3
+    for relative_path in ("docker/Dockerfile.prod", "docker/Dockerfile.prod.mirror"):
+        dockerfile = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+        assert "/app/.agom-build-identity.json" in dockerfile, relative_path
+        assert "'schema_version': 1" in dockerfile, relative_path
+        assert "'source_commit': os.environ['SOURCE_COMMIT']" in dockerfile, relative_path
+
+
 def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
     one_click_script = (REPO_ROOT / "scripts" / "deploy-vps.ps1").read_text(encoding="utf-8")
@@ -118,6 +133,8 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "npm run check:tui" in one_click_script
     assert "--expected-commit" in one_click_script
     assert "org.opencontainers.image.revision=$SOURCE_COMMIT" in dockerfile
+    assert "python manage.py show_release_identity" in script
+    assert '--expected-commit "$SOURCE_COMMIT" --json' in script
     assert '"build_started_at"' in script
     assert '"build_finished_at"' in script
     assert 'release_tag = os.environ["RELEASE_TAG"]' in script

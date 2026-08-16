@@ -72,6 +72,8 @@ COPY --from=builder /usr/local /usr/local
 COPY . /app
 COPY docker/entrypoint.prod.sh /entrypoint.sh
 
+RUN SOURCE_COMMIT="$SOURCE_COMMIT" python -c "import json, os; from pathlib import Path; from core.version import get_version; payload = {'schema_version': 1, 'app_version': get_version(), 'source_commit': os.environ['SOURCE_COMMIT']}; Path('/app/.agom-build-identity.json').write_text(json.dumps(payload, sort_keys=True) + '\\n', encoding='utf-8')"
+
 RUN chmod +x /entrypoint.sh && \
     mkdir -p /app/staticfiles /app/media /app/var && \
     AGOMTRADEPRO_ENCRYPTION_KEY=$BUILD_AGOMTRADEPRO_ENCRYPTION_KEY python manage.py collectstatic --noinput --clear

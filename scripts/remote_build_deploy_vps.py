@@ -1837,6 +1837,16 @@ if ! compose exec -T web python manage.py check_encryption_readiness --json \
 fi
 cat /tmp/agomtradepro-encryption-readiness.json
 
+if ! compose exec -T web python manage.py show_release_identity \
+  --expected-commit "$SOURCE_COMMIT" --json \
+  >/tmp/agomtradepro-release-identity.json 2>/tmp/agomtradepro-release-identity.err; then
+  echo "[ERROR] running application release identity does not match the deployed Git commit" >&2
+  cat /tmp/agomtradepro-release-identity.json >&2 || true
+  cat /tmp/agomtradepro-release-identity.err >&2 || true
+  exit 1
+fi
+cat /tmp/agomtradepro-release-identity.json
+
 if [ "$ENABLE_CELERY" = "1" ]; then
   for service in celery_worker celery_beat; do
     cid="$(compose ps -q "$service" || true)"
@@ -1909,6 +1919,9 @@ report = {
     "release_dir": str(Path(".").resolve()),
     "target_dir": Path(".").resolve().parents[1].as_posix(),
     "health_json": Path("/tmp/agomtradepro-health.json").read_text(encoding="utf-8"),
+    "runtime_release_identity": json.loads(
+        Path("/tmp/agomtradepro-release-identity.json").read_text(encoding="utf-8")
+    ),
     "compose_ps": Path("/tmp/agomtradepro-compose-ps.txt").read_text(encoding="utf-8"),
     "image_tag": release_manifest["image_tag"],
     "image_id": release_manifest["image_id"],
