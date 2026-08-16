@@ -4028,52 +4028,52 @@
       "text": "\"\"\"Map an authoritative refresh summary into the task outcome vocabulary.\"\"\""
     },
     {
-      "line": 1134,
+      "line": 925,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data("
     },
     {
-      "line": 1148,
+      "line": 939,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary_status = str(summary.get(\"status\") or \"failed\")"
     },
     {
-      "line": 1149,
+      "line": 940,
       "path": "apps/alpha/application/tasks.py",
       "text": "raw_count = summary.get(\"universe_count\", 1)"
     },
     {
-      "line": 1154,
+      "line": 945,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": summary,"
     },
     {
-      "line": 1234,
+      "line": 1025,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data_for_codes("
     },
     {
-      "line": 1249,
+      "line": 1040,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1262,
+      "line": 1053,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary_status = str(summary.get(\"status\") or \"failed\")"
     },
     {
-      "line": 1263,
+      "line": 1054,
       "path": "apps/alpha/application/tasks.py",
       "text": "raw_stored_count = summary.get(\"stock_count\", 0)"
     },
     {
-      "line": 1272,
+      "line": 1063,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1273,
+      "line": 1064,
       "path": "apps/alpha/application/tasks.py",
       "text": "**summary,"
     },
@@ -6193,29 +6193,24 @@
       "text": "return current"
     },
     {
-      "line": 388,
+      "line": 389,
       "path": "apps/broker_execution/infrastructure/broker_repository_access.py",
       "text": "\"\"\"Collect scoped source facts; Application owns current-readiness semantics.\"\"\""
     },
     {
-      "line": 459,
+      "line": 460,
       "path": "apps/broker_execution/infrastructure/broker_repository_access.py",
       "text": "reconciliation.summary"
     },
     {
-      "line": 460,
+      "line": 461,
       "path": "apps/broker_execution/infrastructure/broker_repository_access.py",
       "text": "if reconciliation is not None and isinstance(reconciliation.summary, dict)"
     },
     {
-      "line": 572,
+      "line": 573,
       "path": "apps/broker_execution/infrastructure/broker_repository_access.py",
       "text": "\"summary\": row.summary or {},"
-    },
-    {
-      "line": 830,
-      "path": "apps/broker_execution/infrastructure/broker_repository_access.py",
-      "text": "\"summary\": run.summary or {},"
     },
     {
       "line": 407,
@@ -6236,6 +6231,11 @@
       "line": 474,
       "path": "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py",
       "text": "if order.approval_digest != approval_digest_for_order(current):"
+    },
+    {
+      "line": 73,
+      "path": "apps/broker_execution/infrastructure/broker_repository_audit_access.py",
+      "text": "\"summary\": run.summary or {},"
     },
     {
       "line": 107,
@@ -11403,17 +11403,17 @@
       "text": "raise ValueError(\"lifecycle event does not extend the current chain\")"
     },
     {
-      "line": 655,
+      "line": 667,
       "path": "apps/macro_factor/infrastructure/sklearn_nested_cv_runner.py",
       "text": "current = {item.asset_code: item.factor_weight for item in fold.coefficients}"
     },
     {
-      "line": 659,
+      "line": 671,
       "path": "apps/macro_factor/infrastructure/sklearn_nested_cv_runner.py",
       "text": "abs(current.get(code, Decimal(\"0\")) - previous.get(code, Decimal(\"0\")))"
     },
     {
-      "line": 666,
+      "line": 678,
       "path": "apps/macro_factor/infrastructure/sklearn_nested_cv_runner.py",
       "text": "previous = current"
     },
