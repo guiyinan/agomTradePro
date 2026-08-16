@@ -84,6 +84,56 @@ def test_subject_evidence_roundtrip_and_permanent_exact_history() -> None:
 
 
 @pytest.mark.django_db(transaction=True)
+def test_failed_evidence_append_rolls_back_without_orphan_and_can_retry() -> None:
+    """A caller-visible append failure must not consume the subject or root."""
+
+    receipt_record = _record()
+    repository = DjangoAccountOwnerAssignmentEvidenceV3Repository(clock=_Clock())
+    with repository._receipts.atomic():
+        repository._receipts.append(
+            receipt_record,
+            expected_predecessor_hash=None,
+            recorded_at=receipt_record.receipt.recorded_at,
+        )
+    subject = _subject(receipt_record.receipt)
+    evidence = _evidence(subject)
+    with repository.atomic():
+        repository.append_subject(subject, recorded_at=subject.requested_at)
+
+    with pytest.raises(RuntimeError, match="caller rollback"):
+        with repository.atomic():
+            repository.append_root(
+                evidence,
+                expected_account_head_hash=None,
+                expected_underlying_head_hash=None,
+                recorded_at=evidence.recorded_at,
+            )
+            raise RuntimeError("caller rollback")
+
+    assert AccountOwnerAssignmentEvidenceV3Model.objects.count() == 0
+    assert (
+        repository.get_winner(
+            evidence_id=evidence.evidence_id,
+            evidence_version=evidence.evidence_version,
+            as_of=evidence.recorded_at,
+        )
+        is None
+    )
+
+    with repository.atomic():
+        assert (
+            repository.append_root(
+                evidence,
+                expected_account_head_hash=None,
+                expected_underlying_head_hash=None,
+                recorded_at=evidence.recorded_at,
+            )
+            == evidence
+        )
+    assert AccountOwnerAssignmentEvidenceV3Model.objects.count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
 def test_private_guards_future_cutoff_and_unrelated_tamper_fail_closed() -> None:
     receipt_record = _record()
     repository = DjangoAccountOwnerAssignmentEvidenceV3Repository(clock=_Clock())
