@@ -244,6 +244,47 @@ def test_order_detail_is_the_only_enabled_broker_read_in_core_only_mode(
     assert blocked["error"]["code"] == "capability_not_found"
 
 
+def test_disabled_broker_catalogs_are_explicitly_gated_in_core_only_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prove disabled native catalogs are blocked before their handlers run."""
+
+    import agomtradepro_mcp.server as server_module
+
+    monkeypatch.setattr(
+        "agomtradepro.AgomTradeProClient",
+        lambda: SimpleNamespace(broker_execution=object()),
+    )
+    agom_capability_call = server_module.CORE_DISPATCHER.call
+    disabled_catalogs = (
+        (
+            "broker_execution.read.overview",
+            "get_broker_execution_overview",
+        ),
+        (
+            "broker_execution.read.order_catalog",
+            "list_broker_execution_orders",
+        ),
+        (
+            "broker_execution.read.connection_status",
+            "get_broker_execution_connections",
+        ),
+        (
+            "broker_execution.read.reconciliation_catalog",
+            "list_broker_execution_reconciliations",
+        ),
+        (
+            "broker_execution.read.audit_catalog",
+            "list_broker_execution_audit",
+        ),
+    )
+    for capability_key, handler_name in disabled_catalogs:
+        assert handler_name in server_module.INTERNAL_GOVERNED_HANDLERS
+        blocked = agom_capability_call(capability_key=capability_key, arguments={})
+        assert blocked["status"] == "error"
+        assert blocked["error"]["code"] == "capability_not_found"
+
+
 def test_order_detail_handler_projects_a_closed_payload_without_event_json(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

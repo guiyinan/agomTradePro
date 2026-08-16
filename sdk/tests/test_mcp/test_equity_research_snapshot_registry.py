@@ -99,3 +99,28 @@ def test_research_snapshot_executes_through_core_native_handler(monkeypatch) -> 
 
     assert result["status"] == "completed"
     assert result["result"] is snapshot
+
+
+def test_research_snapshot_core_dispatcher_uses_the_governed_native_handler(
+    monkeypatch,
+) -> None:
+    """Keep the native MCP evidence path covered at the server dispatcher boundary."""
+
+    import agomtradepro_mcp.server as server_module
+
+    snapshot = {"status": "blocked", "must_not_use_for_decision": True}
+    monkeypatch.setattr(
+        "agomtradepro.AgomTradeProClient",
+        lambda: SimpleNamespace(
+            equity=SimpleNamespace(get_research_snapshot=lambda *_args, **_kwargs: snapshot)
+        ),
+    )
+    assert "equity_read_research_snapshot" in server_module.INTERNAL_GOVERNED_HANDLERS
+    agom_capability_call = server_module.CORE_DISPATCHER.call
+    result = agom_capability_call(
+        capability_key="equity.read.research_snapshot",
+        arguments={"stock_code": "002156.SZ"},
+    )
+
+    assert result["status"] == "completed"
+    assert result["result"] is snapshot

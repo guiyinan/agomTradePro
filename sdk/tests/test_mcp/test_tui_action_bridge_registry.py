@@ -27,7 +27,6 @@ def test_decision_facing_broker_native_reads_are_not_discoverable() -> None:
     blocked = {
         "broker_execution.read.overview",
         "broker_execution.read.order_catalog",
-        "broker_execution.read.order_detail",
         "broker_execution.read.connection_status",
         "broker_execution.read.reconciliation_catalog",
         "broker_execution.read.audit_catalog",
@@ -66,6 +65,22 @@ def test_terminal_action_handlers_search_schema_and_block_unbound_read(
     assert search["returned_count"] == 1
     assert calls[0][2]["limit"] == 20
     assert all(call[0] != "POST" for call in calls)
+
+
+def test_terminal_read_result_native_handler_is_explicitly_gated_in_core_only_mode() -> None:
+    """Prove the unbound read-result bridge cannot execute through core MCP."""
+
+    import agomtradepro_mcp.server as server_module
+
+    assert "terminal_run_user_read_action" in server_module.INTERNAL_GOVERNED_HANDLERS
+    agom_capability_call = server_module.CORE_DISPATCHER.call
+    blocked = agom_capability_call(
+        capability_key="terminal.read.user_action_result",
+        arguments={"action_key": "account.positions", "params": {"limit": 5}},
+    )
+
+    assert blocked["status"] == "error"
+    assert blocked["error"]["code"] == "capability_not_found"
 
 
 def test_terminal_write_action_handler_previews_and_rejects_read_risk(
