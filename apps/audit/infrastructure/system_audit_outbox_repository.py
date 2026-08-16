@@ -111,6 +111,12 @@ class DjangoSystemAuditOutboxRepository:
         self._lease_duration = lease_duration
         self._uow: object | None = None
 
+    @property
+    def database_alias(self) -> str:
+        """Return the database alias used for claims and state transitions."""
+
+        return self._using
+
     @contextmanager
     def atomic(self) -> Iterator[None]:
         """Open one non-nested outbox unit of work."""

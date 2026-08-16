@@ -219,6 +219,17 @@ class ExactScopedSystemAuditAuthorityProvider(SystemAuditAuthorityProvider):
         self._scope_reader = scope_reader
         self._selector = selector
 
+    @property
+    def authority_bundle_selector(self) -> SystemAuditAuthorityBundleSelector | None:
+        """Return the exact selector bound by the authority composition root.
+
+        The selector is exposed only for composition preflight identity
+        binding.  It is not a request-controlled authority source and does not
+        mint or refresh authority.
+        """
+
+        return self._selector
+
     def get_current(self, *, as_of: datetime) -> SystemAuditAuthoritySnapshot | None:
         """Return one exact scoped snapshot, or ``None`` on any uncertainty."""
 

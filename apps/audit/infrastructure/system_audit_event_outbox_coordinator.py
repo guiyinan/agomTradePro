@@ -34,6 +34,12 @@ class DjangoSystemAuditEventOutboxCoordinator:
         self._outbox_repository = DjangoSystemAuditOutboxRepository(using=using)
         self._active = False
 
+    @property
+    def database_alias(self) -> str:
+        """Return the alias shared by the event and outbox repositories."""
+
+        return self._using
+
     @contextmanager
     def atomic(self) -> Iterator[None]:
         """Open one non-nested transaction shared by both repositories."""

@@ -874,3 +874,19 @@ architecture、audit/celery governance checks 与 diff-check 通过。
 authority source、Celery beat/retry/requeue、Data Center 同 UOW、生产 PostgreSQL/VPS 观察或
 delivery receipt sink；runtime 继续返回 `publisher_not_wired`，AUD-01 仍阻断，AUD-02/03
 继续等待依赖。
+
+## 实施记录（2026-08-16，AUD-01 runtime composition preflight boundary）
+
+新增 `apps/audit/application/system_audit_runtime_composition.py`，把未来的 canonical
+event/outbox coordinator、dispatch repository/UOW、durable publisher 和 server-issued scoped
+authority bundle 绑定到同一 database alias。preflight 只检查注入对象的 exact contract、alias、
+publisher durable preflight 与 authority selector 一致性；缺 publisher、authority、storage、
+generic/memory sink 或 alias drift 均在 claim 之前以稳定 reason code fail closed，不调用 provider、
+不 claim、不 publish、不打开事务。infrastructure coordinator/repository 仅公开只读 alias，
+authority provider 仅公开已绑定 selector，未增加 production writer 或 runtime registry wiring。
+
+审计单元回归 `tests/unit/audit`：`175 passed`；Black/isort、Django check、architecture/governance
+与增量 mypy 通过（当前本地 Python 未安装 `ruff` 模块，未宣称 Ruff 证据）。该 slice 只是
+`composition contract complete / runtime still blocked`：runtime 继续返回 `publisher_not_wired`，
+没有 durable publisher/receipt sink、authenticated authority lifecycle、Celery beat/retry、
+生产 PostgreSQL 投递观察或 AUD-02 同 UOW 双写；`AUD-01` 状态与 gate 不变。
