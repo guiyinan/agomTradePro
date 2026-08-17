@@ -143,7 +143,10 @@ def test_mcp_self_service_task_flow_has_no_panel_overlap(
     grid = authenticated_page.locator(".tui-dashboard-grid.is-content-flow")
     expect(grid).to_be_visible()
     panels = grid.locator(".tui-dash-panel")
-    expect(panels).to_have_count(4)
+    # The self-service task flow includes the terminal token receipt panel as
+    # the fifth step after the token history grid; keep the guard aligned with
+    # the published IA/runtime contract rather than hiding that result panel.
+    expect(panels).to_have_count(5)
     expect(grid.locator(".tui-loading")).to_have_count(0, timeout=10_000)
 
     rectangles = panels.evaluate_all("""elements => elements.map((element) => {
