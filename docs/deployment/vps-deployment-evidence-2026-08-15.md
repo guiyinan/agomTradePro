@@ -425,6 +425,21 @@ candidate binding 仍为 `web-to-tui-candidate-binding.v1`：matrix SHA
 runtime `0.2.0`、build `agomtui-runtime-0.2.0+a2553996be22`、manifest SHA
 `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854`。
 
+## 2026-08-17 13:15 当前候选部署与观测
+
+本节只记录仓库侧 runtime manifest 重新生成后的 source-side binding；**未执行新的 VPS
+部署、登录、业务写入或角色化浏览器 UAT**。已部署 release `20260816223921` 的 OCI、HTTPS
+健康与只读运行证据保持不变，M5-A、AUD-01/EVID-01 继续 fail-closed。
+
+binding version 为 `web-to-tui-candidate-binding.v1`。
+
+| 项目 | 证据 |
+|---|---|
+| candidate version/commit | `20260816223921` / `443658d33159dd80a35b3001ae2c8505113e3fff` |
+| matrix/graph | `bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded` / `42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba` |
+| runtime binding | schema `tui-metadata.v3`; runtime `0.2.0`; build `agomtui-runtime-0.2.0+1462f234b040`; manifest SHA `985e3c89406a2cf687401c38039e1002c5472247cabcaadfe8794d7b84c27fe0` |
+| production scope | source-side rebind only; no new VPS deployment or production write evidence |
+
 ## 2026-08-16 22:39 当前候选部署与观测
 
 `dev/next-development@443658d33159dd80a35b3001ae2c8505113e3fff` 使用标准

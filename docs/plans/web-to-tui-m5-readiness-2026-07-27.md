@@ -607,3 +607,17 @@ Celery worker/beat 与 ping 均通过。结构化部署报告为
 写后 receipt/refresh、14 日 telemetry、registry backup/restore、rollback 或 owner/reviewer
 双签。M5-A、AUD-01/EVID-01 等门禁状态不因部署成功改变；ready 中既有 Alpha/Qlib 与 workspace
 freshness warnings 仍需后续数据/生产证据处理。
+
+### 2026-08-17 13:15 当前候选部署复核
+
+本节仅记录仓库侧 runtime manifest 重新生成后的候选绑定，不代表新增 VPS 部署或生产 UAT。
+现有已部署 release `20260816223921`、OCI 与健康检查证据保持不变；本次只同步 source-side
+TUI IA/actionability 变更产生的 runtime identity，M5-A 继续 `DENY`。
+
+该候选 binding 仍为 `web-to-tui-candidate-binding.v1`：candidate version
+`20260816223921`、candidate commit `443658d33159dd80a35b3001ae2c8505113e3fff`、matrix
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph
+`42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba`、schema `tui-metadata.v3`、
+runtime `0.2.0`、build `agomtui-runtime-0.2.0+1462f234b040`、manifest
+`985e3c89406a2cf687401c38039e1002c5472247cabcaadfe8794d7b84c27fe0`。未新增登录、角色化
+浏览器 UAT、写后 receipt/refresh、14 日 telemetry、backup/restore、rollback 或双签证据。
