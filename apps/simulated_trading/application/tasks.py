@@ -50,6 +50,7 @@ from apps.simulated_trading.application.use_cases import (
 )
 from core.exceptions import DataFetchError
 from core.integration.decision_execution_links import build_decision_execution_link_recorder
+from shared.infrastructure.notification_service import NotificationConfig
 
 logger = logging.getLogger(__name__)
 
