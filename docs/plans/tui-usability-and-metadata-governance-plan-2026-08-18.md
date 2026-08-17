@@ -118,6 +118,12 @@
 - 同一报告显式记录 `RUNTIME_SCREEN_PATCHES` 的边界：对 full IA payload，已存在于 IA published screens 的 patch key 会被 loader 忽略；不在 IA registry 的 legacy patch key 仍单独列出，避免把“未生效”误写成“已删除”。guard 已接入 `.github/workflows/consistency-check.yml`。
 - 本阶段只证明三真源边界和运行时引用闭合，不改变 published/IA 文案，不自动修复数据库，不删除 Python patch。8 处漂移双写、runtime screen 文案迁入 publish/review、legacy patch 清理仍未完成，因此 `TUX-02` 保持 `active`；生产/外部 TUI 证据也不在本阶段宣称范围内。
 
+## 6.3 TUX-04 执行回写（2026-08-18）
+
+- `config/tui/ia/tui_information_architecture.v1.json` 的 12 个 `runtime_screens` 已逐项补齐 `summary`、`view_type`、`user_experience` 与 `default_action_key`；入口 key 均来自真实 `PublishedTuiMetadataRepository._normalize_runtime_payload()` 的 action 集合，不新增虚构 action，也不改变 runtime injection。
+- 新增 `test_runtime_screen_registry_publishes_complete_user_experience_contract`，验证 IA runtime screen 与 normalized runtime 的 summary、UX 和 default action 完全一致；`tests/unit/terminal/test_tui_information_architecture.py` focused 回归为 `9 passed`。
+- 本阶段只完成 metadata contract migration；“研究与工具”分组重排、易混入口消歧、术语统一、普通角色浏览器走查，以及外部 AgomTUI portability/M5 生产证据仍未完成，因此 `TUX-04` 保持 `active`。
+
 ## 6. 风险与回滚
 
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。

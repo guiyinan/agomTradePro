@@ -620,7 +620,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Restructure IA groups, disambiguate entries and complete runtime screen contracts",
         "depends_on": [],
         "exit_gate": "The research-tools catch-all group is reorganized, confusing entry pairs are renamed, terminology is unified, all 12 runtime screens carry full metadata contracts, and ordinary-role walkthrough hits no admin-only target."

@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "324044f0dc432eafc1706393917f2b28305bbcd7",
-  "build_id": "agomtui-runtime-0.2.0+28fab972c33c",
+  "upstream_commit": "af4279b426effa1105b224bfa43a7cb4dba36925",
+  "build_id": "agomtui-runtime-0.2.0+d36b8f9f2d66",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -29,7 +29,7 @@
     "static/js/agomtui-runtime-core.js": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
     "static/js/tui-workbench.js": "8be90096500b34803db96e0cfe8ac0954ba06dd83b02ea43d5074e80b2e0deda",
     "static/css/tui-workbench.css": "581792cdf9eceac1302273ff63639dc39796bc181be3c3f282e89aac36ed8726",
-    "config/tui/ia/tui_information_architecture.v1.json": "0aa3a005b84c4c74497b9788eedfbbad721bfc3d280674116135655d54a81025",
+    "config/tui/ia/tui_information_architecture.v1.json": "38fc02c2cba7c2ea2e6579bf29d0d28dccfd5a1ea9c669023bb26792832d395d",
     "apps/terminal/application/tui_metadata_constants.py": "87b0929e5f7a3ce18479935dd072d7647c8f8c9b5123f4eb06c48fb138ebd696",
     "apps/terminal/application/tui_metadata_field_aliases.py": "117c6a3de5c529d537783399f553efc50d4bf9c0507c0b3d503f56f1c072269a",
     "apps/terminal/application/tui_metadata.py": "5f78c5f156b68432d4ff6209a627c6cdb3bb693deafc43799373c6356884456c",

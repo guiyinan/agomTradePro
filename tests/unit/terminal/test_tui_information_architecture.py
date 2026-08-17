@@ -67,6 +67,32 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
     assert aliases["capability-router.admin-access"] == "capability-router.admin-access"
 
 
+def test_runtime_screen_registry_publishes_complete_user_experience_contract() -> None:
+    registry = load_tui_information_architecture()
+    payload = _runtime_payload()
+    runtime_screens = {screen["key"]: screen for screen in registry["runtime_screens"]}
+    normalized_screens = {screen["key"]: screen for screen in payload["screens"]}
+    action_keys = {action["key"] for action in payload["actions"]}
+
+    assert len(runtime_screens) == 12
+    assert set(runtime_screens) <= set(normalized_screens)
+    for key, screen in runtime_screens.items():
+        assert screen["summary"]
+        assert screen["view_type"] in {"detail", "datagrid", "status", "chart"}
+        assert screen["default_action_key"] in action_keys
+        experience = screen["user_experience"]
+        assert experience["journey"]
+        assert experience["primary_task"]
+        assert experience["primary_outcome"]
+        assert experience["empty_state_hint"]
+        assert experience["next_step_hint"]
+
+        normalized = normalized_screens[key]
+        assert normalized["summary"] == screen["summary"]
+        assert normalized["default_action_key"] == screen["default_action_key"]
+        assert normalized["user_experience"] == experience
+
+
 def test_runtime_catalog_has_15_user_screens_and_24_admin_screens() -> None:
     payload = _runtime_payload()
     service = TuiWorkbenchService(metadata_repository=_StaticMetadataRepository(payload))
