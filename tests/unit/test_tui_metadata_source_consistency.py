@@ -86,6 +86,34 @@ def test_retired_alias_screen_patch_is_not_registered_after_ia_cutover() -> None
     assert "command-center.auto-advisor" not in runtime_screen_keys
 
 
+def test_execution_audit_screen_patch_is_not_registered_after_ia_cutover() -> None:
+    """The canonical audit screen owns its panels in the reviewed IA graph."""
+
+    from apps.terminal.infrastructure.tui_information_architecture import screen_aliases
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        RUNTIME_SCREEN_PATCHES,
+        PublishedTuiMetadataRepository,
+    )
+
+    registry = load_json_payload(IA_PATH)
+    aliases = screen_aliases(registry)
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    audit = next(screen for screen in runtime["screens"] if screen["key"] == "execution.audit")
+
+    assert aliases["execution.events"] == "execution.audit"
+    assert aliases["execution.share"] == "execution.audit"
+    assert "execution.audit" not in RUNTIME_SCREEN_PATCHES
+    assert audit["summary"] == "查看审计健康、事件指标、实盘对账与操作记录。"
+    assert [
+        panel["action_key"] for panel in audit["dashboard_panels"] if panel.get("action_key")
+    ] == [
+        "auto.api.get.api.audit.health",
+        "auto.api.get.api.events.metrics",
+        "broker-execution.reconciliation-list",
+        "broker-execution.audit-list",
+    ]
+
+
 def test_source_guard_rejects_runtime_replacement_of_ia_copy() -> None:
     """A runtime copy override must fail closed instead of being accepted."""
 

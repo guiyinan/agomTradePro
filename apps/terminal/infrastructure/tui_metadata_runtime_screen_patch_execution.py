@@ -70,41 +70,6 @@ RUNTIME_SCREEN_PATCHES_EXECUTION: dict[str, dict[str, Any]] = {
             },
         ],
     },
-    "execution.audit": {
-        "label": "事件、实盘对账与复盘",
-        "summary": "查看事件、实盘对账差异、审计和复盘证据。",
-        "user_experience": {
-            "journey": "dashboard",
-            "primary_task": "先处理未处置对账差异，再检查实盘操作审计。",
-            "primary_outcome": "所有差异都有明确处置状态，关键操作可追溯。",
-            "empty_state_hint": "尚无差异时继续查看最近实盘审计事件。",
-            "next_step_hint": "未知订单不得补单，先接受券商事实或升级复核。",
-        },
-        "dashboard_panels": [
-            {
-                "key": "broker-execution-reconciliation",
-                "title": "实盘对账差异",
-                "kind": "datagrid",
-                "action_key": "broker-execution.reconciliation-list",
-                "max_rows": 8,
-                "layout_area": "broker_reconciliation",
-                "target_screen": "execution.audit",
-                "user_priority": "p0",
-                "presentation_semantic": "primary_list",
-            },
-            {
-                "key": "broker-execution-audit",
-                "title": "实盘操作审计",
-                "kind": "datagrid",
-                "action_key": "broker-execution.audit-list",
-                "max_rows": 8,
-                "layout_area": "broker_audit",
-                "target_screen": "execution.audit",
-                "user_priority": "p1",
-                "presentation_semantic": "supporting_list",
-            },
-        ],
-    },
     "execution.account-settings": {
         "default_action_key": "operator.governance.account_settings_summary",
         "user_experience": {

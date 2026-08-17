@@ -117,6 +117,7 @@
 - 检查输出稳定 JSON；本地实际结果为 `outcome=ok`、`12 published screens`、`24 runtime screens`、`430/889 actions`、`violations=[]`。focused contract `4 passed`；Black/isort、增量 mypy 与 `git diff --check` 通过。
 - 同一报告显式记录 `RUNTIME_SCREEN_PATCHES` 的边界：对 full IA payload，已存在于 IA published screens 的 patch key 会被 loader 忽略；不在 IA registry 的 legacy patch key 仍单独列出，避免把“未生效”误写成“已删除”。guard 已接入 `.github/workflows/consistency-check.yml`。
 - 在该边界证据基础上删除了 `command-center.auto-advisor` 这一只对应 IA alias 的 Python screen patch；完整 runtime 不再注册该 alias patch，alias 请求仍由 IA 映射到 `command-center.decision-flow`。新增 `test_retired_alias_screen_patch_is_not_registered_after_ia_cutover`，source-boundary focused 回归为 `4 passed`，实际检查仍为 `outcome=ok`、`12/24 screens`、`430/889 actions`、`violations=[]`。
+- 随后删除了 `execution.audit` 这一已由 IA canonical screen 完整承载的 Python screen patch；`execution.events` 与 `execution.share` alias 仍解析到该 canonical screen，新增回归确认审计 panels 来自 IA/published graph，source-boundary focused 回归为 `5 passed`，实际检查仍为 `outcome=ok`、`12/24 screens`、`430/889 actions`、`violations=[]`。
 - 本阶段仍不自动修复数据库，也未删除其余 legacy alias patch 或改写 published/IA 文案。其余 legacy patch、8 处漂移双写、runtime screen 文案迁入 publish/review 仍未完成，因此 `TUX-02` 保持 `active`；生产/外部 TUI 证据也不在本阶段宣称范围内。
 
 ## 6.3 TUX-04 执行回写（2026-08-18）
