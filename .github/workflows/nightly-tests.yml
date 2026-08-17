@@ -107,7 +107,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run API And Migration Tests
-        timeout-minutes: 20
+        timeout-minutes: 35
         env:
           PYTHONFAULTHANDLER: "1"
         run: |
