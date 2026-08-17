@@ -231,15 +231,13 @@ def test_system_settings_page_saves_market_color_convention(admin_client):
             # POST contract complete even when a fresh test database has no
             # materialized Alpha runtime value yet.
             "alpha_pool_mode": "strict_valuation",
-            "user_agreement_content": settings["user_agreement_content"],
-            "risk_warning_content": settings["risk_warning_content"],
-            "notes": settings["notes"],
-            "benchmark_code_map": json.dumps(
-                settings["benchmark_code_map"] or {}, ensure_ascii=False
-            ),
-            "asset_proxy_code_map": json.dumps(
-                settings["asset_proxy_code_map"] or {}, ensure_ascii=False
-            ),
+            "user_agreement_content": str(settings.get("user_agreement_content") or ""),
+            "risk_warning_content": str(settings.get("risk_warning_content") or ""),
+            "notes": str(settings.get("notes") or ""),
+            # Empty JSON objects are valid typed runtime values and keep this
+            # visual-preference contract independent of stale legacy maps.
+            "benchmark_code_map": json.dumps({}, ensure_ascii=False),
+            "asset_proxy_code_map": json.dumps({}, ensure_ascii=False),
         },
     )
 
