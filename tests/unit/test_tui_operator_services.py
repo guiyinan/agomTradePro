@@ -175,6 +175,34 @@ def test_operator_governance_queue_sorts_by_severity_then_recent(monkeypatch):
     assert payload["summary"]["warning"] == 2
 
 
+def test_operator_governance_queue_prefers_stale_global_badges(monkeypatch):
+    """Global badge polling must not synchronously rebuild an expensive stale queue."""
+
+    operator_services.cache.clear()
+    user = SimpleNamespace(pk=42)
+    cache_key = operator_services._operator_governance_cache_key(user=user, domain="")
+    stale_payload = {
+        "status": "warning",
+        "items": [{"severity": "warning", "title": "cached warning"}],
+        "total": 1,
+        "summary": {"warning": 1},
+    }
+    operator_services.cache.set(
+        f"{cache_key}:stale",
+        stale_payload,
+        operator_services.OPERATOR_GOVERNANCE_STALE_TTL_SECONDS,
+    )
+    monkeypatch.setattr(
+        operator_services,
+        "_runtime_governance_rows",
+        lambda: (_ for _ in ()).throw(AssertionError("stale badges should be returned")),
+    )
+
+    payload = operator_services.build_operator_governance_queue_payload(user=user)
+
+    assert payload == stale_payload
+
+
 def test_data_center_governance_rows_map_freshness_and_coverage(monkeypatch):
     monkeypatch.setattr(
         operator_services,

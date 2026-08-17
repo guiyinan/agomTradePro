@@ -57,6 +57,8 @@ DATA_TASK_DOMAINS = {"runtime", "data-center", "agent-runtime"}
 AI_CONFIG_DOMAINS = {"ai-provider", "config-center", "ai-capability"}
 OPERATOR_HOME_CACHE_TTL_SECONDS = 15
 OPERATOR_HOME_STALE_TTL_SECONDS = 120
+OPERATOR_GOVERNANCE_CACHE_TTL_SECONDS = 300
+OPERATOR_GOVERNANCE_STALE_TTL_SECONDS = 900
 OPERATOR_HOME_SECTION_KEYS = (
     "decision_queue",
     "market_context",
@@ -222,13 +224,22 @@ def build_operator_governance_queue_payload(
             "summary": dict(Counter(row["severity"] for row in rows)),
         }
 
-    return _cached_operator_payload(cache_key=cache_key, builder=build)
+    return _cached_operator_payload(
+        cache_key=cache_key,
+        builder=build,
+        fresh_ttl_seconds=OPERATOR_GOVERNANCE_CACHE_TTL_SECONDS,
+        stale_ttl_seconds=OPERATOR_GOVERNANCE_STALE_TTL_SECONDS,
+        prefer_stale=not bool(str(domain or "").strip()),
+    )
 
 
 def _cached_operator_payload(
     *,
     cache_key: str,
     builder: Callable[[], dict[str, Any]],
+    fresh_ttl_seconds: int = OPERATOR_HOME_CACHE_TTL_SECONDS,
+    stale_ttl_seconds: int = OPERATOR_HOME_STALE_TTL_SECONDS,
+    prefer_stale: bool = False,
 ) -> dict[str, Any]:
     """Return a fresh payload, or a stale snapshot while another worker rebuilds it."""
 
@@ -237,14 +248,16 @@ def _cached_operator_payload(
         return cached
     stale_key = f"{cache_key}:stale"
     stale = cache.get(stale_key)
+    if prefer_stale and isinstance(stale, dict):
+        return stale
     lock_key = f"{cache_key}:refresh-lock"
     acquired = bool(cache.add(lock_key, 1, timeout=30))
     if not acquired and isinstance(stale, dict):
         return stale
     try:
         payload = builder()
-        cache.set(cache_key, payload, OPERATOR_HOME_CACHE_TTL_SECONDS)
-        cache.set(stale_key, payload, OPERATOR_HOME_STALE_TTL_SECONDS)
+        cache.set(cache_key, payload, fresh_ttl_seconds)
+        cache.set(stale_key, payload, stale_ttl_seconds)
         return payload
     finally:
         if acquired:

@@ -40,7 +40,11 @@ AUTOMATION_DEBUG_API_MAX_LIMIT = env.int("AUTOMATION_DEBUG_API_MAX_LIMIT", defau
 TUI_RUNTIME_CACHE_ENABLED = env.bool("TUI_RUNTIME_CACHE_ENABLED", default=True)
 TUI_RUNTIME_CACHE_TTL_SECONDS = env.int("TUI_RUNTIME_CACHE_TTL_SECONDS", default=300)
 TUI_OPTIMIZED_BOOTSTRAP_ENABLED = env.bool("TUI_OPTIMIZED_BOOTSTRAP_ENABLED", default=True)
-TUI_ACTION_MAX_CONCURRENCY = env.int("TUI_ACTION_MAX_CONCURRENCY", default=4)
+TUI_ACTION_MAX_CONCURRENCY = env.int("TUI_ACTION_MAX_CONCURRENCY", default=6)
+TUI_ACTION_ACQUIRE_TIMEOUT_SECONDS = env.float(
+    "TUI_ACTION_ACQUIRE_TIMEOUT_SECONDS",
+    default=3.0,
+)
 
 # Immutable deployment identity artifacts. Production mounts the release
 # manifest read-only; the build identity is embedded in the application image.

@@ -44,8 +44,8 @@ def test_tui_internal_action_executor_forwards_session(monkeypatch):
     assert payload["payload"] == {"has_session": True, "flag": "yes"}
 
     class SaturatedGate:
-        def acquire(self, *, blocking):
-            assert blocking is False
+        def acquire(self, *, timeout):
+            assert timeout > 0
             return False
 
         def release(self):

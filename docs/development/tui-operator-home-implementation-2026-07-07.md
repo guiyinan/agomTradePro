@@ -61,3 +61,16 @@ This change closes the TUI operator experience around a single unified `/tui/` h
 
 - `pytest tests/unit/test_tui_workbench.py -q`
 - `pytest tests/unit/test_tui_operator_services.py -q`
+
+## Production hardening (2026-08-17)
+
+- TUI internal action admission now supports the six-panel decision dashboard without
+  rejecting cold-start bursts: the default concurrency is six and saturated requests wait
+  for a short bounded admission window before returning `tui_action_busy`.
+- Global governance badges use a five-minute fresh cache and may reuse a fifteen-minute
+  stale snapshot. Detailed domain drilldowns still rebuild their own domain-scoped payload,
+  so navigation polling cannot repeatedly block ordinary task screens on the full governance
+  aggregation.
+- Alpha/Qlib cache fallback remains available to keep the UI inspectable, but Celery now
+  publishes it as `outcome=partial` with one failed fresh operation and one stored fallback.
+  A degraded forward-fill therefore no longer appears as a fully successful refresh.

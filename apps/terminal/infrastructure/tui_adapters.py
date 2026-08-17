@@ -14,7 +14,11 @@ from rest_framework.test import APIRequestFactory
 from apps.terminal.application.tui_errors import TuiActionBusyError
 
 _TUI_ACTION_GATE = BoundedSemaphore(
-    value=max(1, int(getattr(settings, "TUI_ACTION_MAX_CONCURRENCY", 4)))
+    value=max(1, int(getattr(settings, "TUI_ACTION_MAX_CONCURRENCY", 6)))
+)
+_TUI_ACTION_ACQUIRE_TIMEOUT_SECONDS = max(
+    0.1,
+    float(getattr(settings, "TUI_ACTION_ACQUIRE_TIMEOUT_SECONDS", 3.0)),
 )
 
 
@@ -50,7 +54,7 @@ class TuiInternalActionExecutor:
     ) -> dict[str, Any]:
         """Execute an internal API endpoint and normalize its response."""
 
-        if not _TUI_ACTION_GATE.acquire(blocking=False):
+        if not _TUI_ACTION_GATE.acquire(timeout=_TUI_ACTION_ACQUIRE_TIMEOUT_SECONDS):
             raise TuiActionBusyError("TUI action concurrency limit reached")
         try:
             method = method.upper()
