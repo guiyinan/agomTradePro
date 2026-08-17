@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4277,
+    "current_surface_references": 4276,
     "data_write_task_decorators": 59,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20778,12 +20778,7 @@
       "text": "\"summary\": \"集中查看账户、持仓、实盘连接、订单和执行就绪状态。\","
     },
     {
-      "line": 75,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_execution.py",
-      "text": "\"summary\": \"查看事件、实盘对账差异、审计和复盘证据。\","
-    },
-    {
-      "line": 138,
+      "line": 103,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_execution.py",
       "text": "\"key\": \"account-settings-governance-summary\","
     },
