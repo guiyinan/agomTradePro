@@ -4023,7 +4023,7 @@
       "text": "\"\"\"Return True when the cache row is only the delivery channel for the latest Qlib output.\"\"\""
     },
     {
-      "line": 101,
+      "line": 110,
       "path": "apps/alpha/application/task_outcome_contracts.py",
       "text": "\"\"\"Map an authoritative refresh summary into the task outcome vocabulary.\"\"\""
     },
@@ -18748,92 +18748,92 @@
       "text": "raise SimulatedAccountRowSourceV2Unavailable(\"exact current raw observation is unavailable\")"
     },
     {
-      "line": 59,
+      "line": 77,
       "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "summary = result.get(\"summary\", {})"
     },
     {
-      "line": 74,
+      "line": 92,
       "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "\"summary:\","
     },
     {
-      "line": 75,
+      "line": 93,
       "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "f\"- positions_count: {summary.get('positions_count')}\","
     },
     {
-      "line": 76,
+      "line": 94,
       "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "f\"- rebalance_required_count: {summary.get('rebalance_required_count')}\","
     },
     {
-      "line": 77,
+      "line": 95,
       "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "f\"- rebalance_assets: {summary.get('rebalance_assets')}\","
     },
     {
-      "line": 78,
+      "line": 96,
       "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "f\"- total_value: {summary.get('total_value')}\","
     },
     {
-      "line": 79,
+      "line": 97,
       "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "f\"- current_cash: {summary.get('current_cash')}\","
     },
     {
-      "line": 107,
+      "line": 125,
       "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "summary = result.get(\"summary\", {})"
     },
     {
-      "line": 148,
+      "line": 166,
       "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "f\"- 需要调整的资产数: {summary.get('rebalance_required_count', 0)}\","
     },
     {
-      "line": 200,
+      "line": 218,
       "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "body=f\"账户 {context['account_name']} 的日更巡检发现了 {summary.get('rebalance_required_count', 0)} 个需要调整的资产，请审核再平衡建议 #{proposal_id}。\","
     },
     {
-      "line": 21,
+      "line": 22,
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "from apps.realtime.application.price_polling_service import PricePollingUseCase"
     },
     {
-      "line": 110,
+      "line": 111,
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "\"\"\"Execute one realtime polling cycle through the owning realtime app.\"\"\""
     },
     {
-      "line": 321,
+      "line": 322,
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "summary={"
     },
     {
-      "line": 808,
+      "line": 809,
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "raise ValueError(\"performance summary recipients are malformed\")"
     },
     {
-      "line": 1136,
+      "line": 1137,
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "raise ValueError(\"invalidation summary returned malformed evidence\")"
     },
     {
-      "line": 1267,
+      "line": 1268,
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "使用 realtime 模块的价格轮询服务，更新所有持仓资产的最新价格。"
     },
     {
-      "line": 1298,
+      "line": 1299,
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "raise ValueError(\"realtime polling returned malformed evidence\")"
     },
     {
-      "line": 1303,
+      "line": 1304,
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "raise ValueError(\"realtime polling counters are inconsistent\")"
     },
@@ -19653,152 +19653,152 @@
       "text": "\"summary_id\": [\"summary_id\", \"summary.id\"],"
     },
     {
-      "line": 222,
+      "line": 224,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": dict(Counter(row[\"severity\"] for row in rows)),"
     },
     {
-      "line": 384,
+      "line": 397,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "summary = ("
     },
     {
-      "line": 392,
+      "line": 405,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": summary,"
     },
     {
-      "line": 412,
+      "line": 425,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": \"当前存在政策干预\" if intervention else \"政策状态可用\","
     },
     {
-      "line": 428,
+      "line": 441,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": \"当前没有可用脉搏快照。\","
     },
     {
-      "line": 440,
+      "line": 453,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": \"存在转折预警\" if snapshot.transition_warning else \"脉搏层正常\","
     },
     {
-      "line": 458,
+      "line": 471,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": blocked_reasons[0] if blocked_reasons else \"决策数据链路可用\","
     },
     {
-      "line": 485,
+      "line": 498,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": f\"活跃持仓 {open_position_count} 笔\","
     },
     {
-      "line": 494,
+      "line": 507,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": f\"已失效 {invalidated_count} 条\","
     },
     {
-      "line": 503,
+      "line": 516,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "summary = get_personal_readiness_monitor_summary(strict_runtime=False)"
     },
     {
-      "line": 507,
+      "line": 520,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "severity=_monitor_severity(summary),"
     },
     {
-      "line": 509,
+      "line": 522,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "title=str(((summary.get(\"daily_state\") or {}).get(\"title\")) or \"Readiness monitor\"),"
     },
     {
-      "line": 510,
+      "line": 523,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "status=str(summary.get(\"status\") or \"unknown\"),"
     },
     {
-      "line": 512,
+      "line": 525,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "(summary.get(\"blocking_issues\") or []),"
     },
     {
-      "line": 513,
+      "line": 526,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "(summary.get(\"daily_state\") or {}).get(\"message\"),"
     },
     {
-      "line": 514,
+      "line": 527,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "(summary.get(\"monitor_gate\") or {}).get(\"reason\"),"
     },
     {
-      "line": 678,
+      "line": 691,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "summary = get_operator_repository().get_summary()"
     },
     {
-      "line": 679,
+      "line": 692,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "needs_attention = int(summary.get(\"needs_attention_count\") or 0)"
     },
     {
-      "line": 680,
+      "line": 693,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "failed = int((summary.get(\"task_counts\") or {}).get(\"failed\", 0) or 0)"
     },
     {
-      "line": 681,
+      "line": 694,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "active = int(summary.get(\"total_tasks\") or 0)"
     },
     {
-      "line": 708,
+      "line": 721,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "summary = get_account_diagnostic_summary()"
     },
     {
-      "line": 710,
+      "line": 723,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "if int(summary.get(\"active_currency_count\") or 0) == 0:"
     },
     {
-      "line": 712,
+      "line": 725,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "if int(summary.get(\"asset_category_count\") or 0) == 0:"
     },
     {
-      "line": 714,
+      "line": 727,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "if int(summary.get(\"portfolio_count\") or 0) == 0:"
     },
     {
-      "line": 922,
+      "line": 935,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "def _monitor_severity(summary: dict[str, Any]) -> str:"
     },
     {
-      "line": 923,
+      "line": 936,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "daily_state = dict(summary.get(\"daily_state\") or {})"
     },
     {
-      "line": 982,
+      "line": 995,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "latest = None"
     },
     {
-      "line": 987,
+      "line": 1000,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "if latest is None or created_at > latest:"
     },
     {
-      "line": 988,
+      "line": 1001,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "latest = created_at"
     },
     {
-      "line": 989,
+      "line": 1002,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "return _iso(latest or timezone.now())"
     },
@@ -21453,7 +21453,7 @@
       "text": "\"/api/pulse/current/\","
     },
     {
-      "line": 195,
+      "line": 199,
       "path": "core/settings/base.py",
       "text": "\"apps.realtime\",  # 新增：实时价格监控模块"
     },

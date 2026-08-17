@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.test import Client, override_settings
 
 from apps.data_center.infrastructure.models import ProviderConfigModel
+from apps.data_center.infrastructure.provider_credentials import ProviderCredentialStore
 
 
 def _response_text(response) -> str:
@@ -167,11 +168,8 @@ def test_tushare_transport_mode_is_explicit_safe_and_preserves_provider_config(a
     assert updated["tushare_request_mode_label"] == "标准 Tushare"
 
     config = ProviderConfigModel.objects.get(id=provider_id)
-    assert config.api_key == ""
-    from apps.data_center.infrastructure.provider_credential_models import ProviderCredentialModel
-
-    credential = ProviderCredentialModel.objects.get(provider_id=provider_id)
-    assert credential.api_key_encrypted.startswith("encrypted:v1:")
+    resolved_key, _resolved_secret, _credential_ref = ProviderCredentialStore().resolve(config)
+    assert resolved_key == ""
     assert config.http_url == ""
     assert config.extra_config == {
         "health_metrics": {"success_count": 12},
@@ -264,7 +262,6 @@ def test_config_center_snapshot_blocks_provider_summary_without_typed_runtime(ad
         source_type="tushare",
         is_active=True,
         priority=1,
-        api_key="test-token",
         http_url="https://proxy.example.com",
     )
 
@@ -342,7 +339,6 @@ def test_data_center_provider_test_connection_endpoint_returns_probe_logs(admin_
         source_type="tushare",
         is_active=True,
         priority=1,
-        api_key="test-token-123456",
     )
 
     class _Result:

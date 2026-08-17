@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import importlib
 import io
 import json
 import re
@@ -22,21 +23,24 @@ import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Callable, cast
 
-from jsonschema.exceptions import SchemaError
-from jsonschema.validators import validator_for
+if not __package__:
+    # Keep direct ``python scripts/drill_web_to_tui_rollback.py`` execution
+    # equivalent to importing the repository's ``scripts`` package.  An
+    # unconditional package import also prevents mypy from seeing the helper
+    # module under two different names.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-if __package__:
-    from scripts.web_to_tui_candidate_binding import (
-        BINDING_VERSION,
-        CandidateBinding,
-    )
-else:
-    from web_to_tui_candidate_binding import (
-        BINDING_VERSION,
-        CandidateBinding,
-    )
+from scripts.web_to_tui_candidate_binding import BINDING_VERSION, CandidateBinding
+
+_jsonschema_exceptions = importlib.import_module("jsonschema.exceptions")
+_jsonschema_validators = importlib.import_module("jsonschema.validators")
+SchemaError = cast(type[Exception], getattr(_jsonschema_exceptions, "SchemaError"))
+validator_for = cast(
+    Callable[[Any], Any],
+    getattr(_jsonschema_validators, "validator_for"),
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 WAVE = "M4-simulated-accounts-w51"
@@ -142,9 +146,15 @@ def _digest(content: bytes) -> str:
 
 
 def _raw_digest(content: bytes) -> str:
-    """Return a raw-byte SHA-256 used by the runtime manifest."""
+    """Return the line-ending-stable SHA-256 used by the runtime manifest.
 
-    return hashlib.sha256(content).hexdigest()
+    ``scripts/build-tui-runtime.mjs`` normalizes text files before hashing so
+    the manifest is portable across Windows and Linux checkouts.  The rollback
+    drill must verify the same bytes rather than hashing a platform-specific
+    Git checkout representation.
+    """
+
+    return hashlib.sha256(_canonical_bytes(content)).hexdigest()
 
 
 def _resolve_commit(revision: str) -> str:
@@ -305,7 +315,7 @@ def _validate_graph_snapshot(*, revision: str) -> dict[str, Any]:
             key=lambda error: [str(part) for part in error.absolute_path],
         )
     except SchemaError as exc:
-        raise RollbackDrillError(f"invalid graph schema at {revision}: {exc.message}") from exc
+        raise RollbackDrillError(f"invalid graph schema at {revision}: {exc}") from exc
     if errors:
         first = errors[0]
         location = ".".join(str(part) for part in first.absolute_path) or "<root>"

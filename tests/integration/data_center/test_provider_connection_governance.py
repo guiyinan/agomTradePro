@@ -27,7 +27,6 @@ def test_provider_connection_test_rejects_non_staff(authenticated_client: Client
     provider = ProviderConfigModel.objects.create(
         name="staff-only-provider",
         source_type="tushare",
-        api_key="staff-only-token",
     )
 
     response = authenticated_client.post(f"/api/data-center/providers/{provider.id}/test/")
@@ -36,6 +35,7 @@ def test_provider_connection_test_rejects_non_staff(authenticated_client: Client
 
 
 @pytest.mark.django_db
+@override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="provider-api-test-key")
 def test_provider_connection_test_persists_redacted_health_metadata(
     staff_client: Client,
     mocker,
@@ -45,8 +45,6 @@ def test_provider_connection_test_persists_redacted_health_metadata(
     provider = ProviderConfigModel.objects.create(
         name="redaction-provider",
         source_type="tushare",
-        api_key=api_key,
-        api_secret=api_secret,
         extra_config={},
     )
     probe = mocker.patch(

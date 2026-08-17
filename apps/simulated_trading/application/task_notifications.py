@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import send_mail as _django_send_mail
 
 from apps.simulated_trading.application.repository_provider import (
     get_simulated_inspection_repository,
@@ -12,6 +12,24 @@ from apps.simulated_trading.application.repository_provider import (
 from shared.infrastructure.notification_service import NotificationConfig
 
 logger = logging.getLogger(__name__)
+
+
+def send_mail(*args: Any, **kwargs: Any) -> Any:
+    """Send mail through the task-module seam used by task integrations.
+
+    The notification helpers historically exposed ``tasks.send_mail`` as the
+    patch point.  Keep that seam while retaining Django's sender as the
+    fallback for direct helper use; this avoids coupling tests or operators to
+    the helper module's private implementation location.
+    """
+
+    try:
+        from apps.simulated_trading.application import tasks as task_module
+
+        sender = getattr(task_module, "send_mail", _django_send_mail)
+    except (ImportError, AttributeError):
+        sender = _django_send_mail
+    return sender(*args, **kwargs)
 
 
 def _require_int_field(payload: dict[str, Any], field_name: str) -> int:

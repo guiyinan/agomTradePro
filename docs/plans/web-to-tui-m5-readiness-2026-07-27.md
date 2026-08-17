@@ -618,6 +618,6 @@ TUI IA/actionability 变更产生的 runtime identity，M5-A 继续 `DENY`。
 `20260816223921`、candidate commit `443658d33159dd80a35b3001ae2c8505113e3fff`、matrix
 `bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph
 `42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba`、schema `tui-metadata.v3`、
-runtime `0.2.0`、build `agomtui-runtime-0.2.0+1462f234b040`、manifest
-`985e3c89406a2cf687401c38039e1002c5472247cabcaadfe8794d7b84c27fe0`。未新增登录、角色化
+runtime `0.2.0`、build `agomtui-runtime-0.2.0+21ef64c7a7e5`、manifest
+`ade5109f97ee15d78987e1f63fe511f23ad2043f49aa43f1a2051da71687e378`。未新增登录、角色化
 浏览器 UAT、写后 receipt/refresh、14 日 telemetry、backup/restore、rollback 或双签证据。

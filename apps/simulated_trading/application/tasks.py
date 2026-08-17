@@ -15,6 +15,7 @@ from typing import Any, Protocol, TypeVar, cast
 
 from celery import shared_task
 from django.conf import settings
+from django.core.mail import send_mail
 
 from apps.asset_analysis.application.repository_provider import get_asset_pool_query_repository
 from apps.data_center.application.price_service import UnifiedPriceService

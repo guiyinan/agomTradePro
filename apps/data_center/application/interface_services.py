@@ -751,7 +751,12 @@ def _sync_decision_dependencies(target_name: str) -> None:
     for name, value in tuple(globals().items()):
         if name == target_name or name not in split_globals:
             continue
-        if getattr(value, "_decision_sync_target", None) is not None:
+        # ``unittest.mock.Mock`` returns another mock for arbitrary attributes,
+        # so a plain ``is not None`` check incorrectly treats patched
+        # dependencies as one of our facade wrappers and skips rebinding them.
+        # The wrapper marker is always the target name string; require that
+        # exact shape so test/runtime dependency injection keeps working.
+        if isinstance(getattr(value, "_decision_sync_target", None), str):
             continue
         setattr(_decision_sync, name, value)
 
