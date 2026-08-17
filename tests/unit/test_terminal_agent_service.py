@@ -5,9 +5,13 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+import pytest
+
 from apps.agent_runtime.application.terminal_agent import (
+    TerminalAgentBusyError,
     TerminalAgentChatRequestDTO,
     TerminalAgentEventDTO,
+    TerminalAgentTimeoutError,
 )
 from apps.agent_runtime.infrastructure.terminal_agent_service import OpenAIAgentsTerminalService
 
@@ -67,7 +71,12 @@ def test_build_mcp_server_uses_stdio_python_module_entrypoint():
     assert captured["params"]["env"]["AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS"] == "false"
     assert captured["params"]["env"]["AGOMTRADEPRO_MCP_ROLE"] == "admin"
     assert captured["cache_tools_list"] is True
-    assert captured["client_session_timeout_seconds"] == 90.0
+    assert captured["client_session_timeout_seconds"] == 20.0
+    assert captured["params"]["env"]["AGOMTRADEPRO_TIMEOUT"] == "8.0"
+    assert captured["params"]["env"]["AGOMTRADEPRO_MAX_RETRIES"] == "0"
+    assert captured["params"]["env"]["AGOMTRADEPRO_AUDIT_TIMEOUT_SECONDS"] == "2.0"
+    assert captured["params"]["env"]["AGOMTRADEPRO_AUDIT_MAX_ATTEMPTS"] == "1"
+    assert captured["params"]["env"]["AGOMTRADEPRO_AUDIT_RETRY_BACKOFF_SECONDS"] == "0"
     assert captured["name"] == "agomtradepro"
     assert (
         captured["tool_filter"](
@@ -328,8 +337,76 @@ def test_collect_events_returns_unknown_tools_to_model_for_self_correction():
         events = asyncio.run(service._collect_events(_request(), resolved_provider, tool_access))
 
     assert captured["run_config"].tool_not_found_behavior == "return_error_to_model"
+    assert captured["max_turns"] == 4
     assert events[-1].event_type == "final"
     assert events[-1].data["reply"] == "System is healthy"
+
+
+def test_stream_chat_returns_bounded_timeout_event_and_releases_execution_guard():
+    guard = Mock()
+    guard.acquire.return_value.__enter__ = Mock(return_value=None)
+    guard.acquire.return_value.__exit__ = Mock(return_value=False)
+    service = OpenAIAgentsTerminalService(
+        execution_guard=guard,
+        execution_timeout_seconds=0.01,
+    )
+
+    async def slow_collect(*_args):
+        await asyncio.sleep(1)
+        return []
+
+    with (
+        patch.object(service, "_build_tool_access_snapshot", return_value=SimpleNamespace()),
+        patch.object(service, "_resolve_provider", return_value=SimpleNamespace()),
+        patch.object(service, "_collect_events", side_effect=slow_collect),
+        patch.object(service, "_log_terminal_run"),
+    ):
+        events = list(service.stream_chat(_request()))
+
+    assert events == [
+        TerminalAgentEventDTO(
+            event_type="error",
+            data={
+                "session_id": "sess-1",
+                "message": "terminal_agent_timeout",
+            },
+        )
+    ]
+    guard.acquire.return_value.__exit__.assert_called_once()
+
+
+def test_run_chat_maps_bounded_error_events_to_typed_exceptions():
+    service = OpenAIAgentsTerminalService()
+
+    with patch.object(
+        service,
+        "stream_chat",
+        return_value=iter(
+            [
+                TerminalAgentEventDTO(
+                    event_type="error",
+                    data={"message": "terminal_agent_busy"},
+                )
+            ]
+        ),
+    ):
+        with pytest.raises(TerminalAgentBusyError):
+            service.run_chat(_request())
+
+    with patch.object(
+        service,
+        "stream_chat",
+        return_value=iter(
+            [
+                TerminalAgentEventDTO(
+                    event_type="error",
+                    data={"message": "terminal_agent_timeout"},
+                )
+            ]
+        ),
+    ):
+        with pytest.raises(TerminalAgentTimeoutError):
+            service.run_chat(_request())
 
 
 def test_match_gated_tool_returns_high_confidence_match():

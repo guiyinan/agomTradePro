@@ -6,6 +6,10 @@ import pytest
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
+from apps.agent_runtime.application.terminal_agent import (
+    TerminalAgentBusyError,
+    TerminalAgentTimeoutError,
+)
 from apps.agent_runtime.infrastructure.models import (
     AgentExecutionRecordModel,
     AgentProposalModel,
@@ -209,6 +213,38 @@ class TestTerminalChatEndpoint:
             "setup_required": False,
         }
         assert "agent exploded" not in response.content.decode("utf-8")
+
+    @pytest.mark.parametrize(
+        ("exception", "expected_status", "expected_code"),
+        [
+            (TerminalAgentBusyError(), 429, "AI_AGENT_BUSY"),
+            (TerminalAgentTimeoutError(), 504, "AI_AGENT_TIMEOUT"),
+        ],
+    )
+    def test_terminal_chat_returns_bounded_retryable_resilience_errors(
+        self,
+        api_client,
+        staff_user,
+        exception,
+        expected_status,
+        expected_code,
+    ):
+        api_client.force_authenticate(user=staff_user)
+
+        with patch(
+            "apps.terminal.interface.api_views.RunTerminalAgentChatUseCase.execute",
+            side_effect=exception,
+        ):
+            response = api_client.post(
+                "/api/terminal/chat/",
+                {"message": "系统怎么了"},
+                format="json",
+            )
+
+        assert response.status_code == expected_status
+        assert response.json()["code"] == expected_code
+        assert response.json()["retryable"] is True
+        assert "Retry-After" in response
 
     def test_terminal_chat_returns_503_when_provider_is_not_configured(
         self,
