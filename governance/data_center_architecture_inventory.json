@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4276,
+    "current_surface_references": 4277,
     "data_write_task_decorators": 59,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -19808,12 +19808,12 @@
       "text": "\"agent-runtime.operator-summary\","
     },
     {
-      "line": 299,
+      "line": 303,
       "path": "apps/terminal/application/tui_workbench.py",
       "text": "\"body\": self._operator_text(screen[\"summary\"]),"
     },
     {
-      "line": 905,
+      "line": 909,
       "path": "apps/terminal/application/tui_workbench.py",
       "text": "\"\"\"Return whether an action belongs to the current user's role.\"\"\""
     },
@@ -20128,29 +20128,34 @@
       "text": "\"\"\"Return a bounded JSON audit summary with sensitive values redacted.\"\"\""
     },
     {
-      "line": 386,
+      "line": 432,
       "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
       "text": "\"\"\"Return True when the latest published payload already matches the requested publish.\"\"\""
     },
     {
-      "line": 894,
+      "line": 945,
       "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
       "text": "def changed_fields(previous: dict[str, Any], current: dict[str, Any]) -> list[str]:"
     },
     {
-      "line": 900,
+      "line": 951,
       "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
       "text": "for key in sorted(set(previous) | set(current)):"
     },
     {
-      "line": 903,
+      "line": 954,
       "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
       "text": "if previous.get(key) != current.get(key):"
     },
     {
-      "line": 913,
+      "line": 964,
       "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
       "text": "for action in current.get(\"actions\", [])"
+    },
+    {
+      "line": 77,
+      "path": "apps/terminal/infrastructure/tui_metadata_revalidation.py",
+      "text": "\"\"\"Stable dry-run summary for all stored metadata registry rows.\"\"\""
     },
     {
       "line": 63,
