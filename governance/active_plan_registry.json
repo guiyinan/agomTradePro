@@ -1,6 +1,6 @@
 {
-  "version": "2026-08-15.v1",
-  "updated_at": "2026-08-16",
+  "version": "2026-08-18.v1",
+  "updated_at": "2026-08-18",
   "workstreams": [
     {
       "id": "evidence-hard-gate",
@@ -226,11 +226,26 @@
           "role": "primary"
         }
       ]
+    },
+    {
+      "id": "tui-usability-governance",
+      "title": "TUI usability and metadata governance remediation",
+      "category": "product_interface_and_runtime",
+      "priority": "P1",
+      "owner": "terminal",
+      "status": "active",
+      "next_gate": "Ship metadata-load fallback for invalid published payloads, then consolidate the triple copy sources and rewrite auto-promoted action copy back within action-density budgets.",
+      "documents": [
+        {
+          "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
+          "role": "primary"
+        }
+      ]
     }
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-15.v1",
+    "version": "2026-08-18.v1",
     "legacy_unchecked_count": 139,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -239,7 +254,8 @@
       "system-audit-consolidation": 13,
       "web-to-tui-m5": 13,
       "ai-native-release": 0,
-      "qmt-live-bridge": 11
+      "qmt-live-bridge": 11,
+      "tui-usability-governance": 0
     },
     "legacy_sources": [
       {
@@ -334,6 +350,11 @@
         "id": 4,
         "title": "Externally unblocked broker acceptance",
         "rule": "Start only after the broker supplies a working XtQuant environment and permission."
+      },
+      {
+        "id": 5,
+        "title": "TUI usability and metadata governance",
+        "rule": "Repository-only remediation bounded to the published TUI surface; it must not disturb the M5 candidate evidence line or expand into production cutover."
       }
     ],
     "units": [
@@ -557,6 +578,66 @@
           "QMT-01"
         ],
         "exit_gate": "Order, cancel, callback, reconnect, reconciliation, emergency stop and rollback evidence pass before live enablement."
+      },
+      {
+        "id": "TUX-01",
+        "workstream_id": "tui-usability-governance",
+        "wave": 5,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Add fail-safe fallback for invalid published TUI metadata",
+        "depends_on": [],
+        "exit_gate": "A deliberately invalid published payload degrades /tui/ to the file payload with a governance alert instead of a 500, and a batch revalidation command covers all stored registry records."
+      },
+      {
+        "id": "TUX-02",
+        "workstream_id": "tui-usability-governance",
+        "wave": 5,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Consolidate the triple copy sources into the published flow",
+        "depends_on": [],
+        "exit_gate": "Dead Python screen patches are removed, the eight drifted dual-writes are reconciled, runtime screen copy moves under publish/review, and a machine check proves published JSON, IA registry and runtime loading agree."
+      },
+      {
+        "id": "TUX-03",
+        "workstream_id": "tui-usability-governance",
+        "wave": 5,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Split auto-promoted actions and rewrite user-facing action copy",
+        "depends_on": [
+          "TUX-02"
+        ],
+        "exit_gate": "All 430 actions pass the copy machine check with no route keys, machine-translated fragments or boilerplate descriptions, and every screen is back within its action-density budget."
+      },
+      {
+        "id": "TUX-04",
+        "workstream_id": "tui-usability-governance",
+        "wave": 5,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Restructure IA groups, disambiguate entries and complete runtime screen contracts",
+        "depends_on": [],
+        "exit_gate": "The research-tools catch-all group is reorganized, confusing entry pairs are renamed, terminology is unified, all 12 runtime screens carry full metadata contracts, and ordinary-role walkthrough hits no admin-only target."
+      },
+      {
+        "id": "TUX-05",
+        "workstream_id": "tui-usability-governance",
+        "wave": 5,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Close layout, field-name translation and freshness-presentation defects",
+        "depends_on": [
+          "TUX-03",
+          "TUX-04"
+        ],
+        "exit_gate": "Browser evidence shows fixed table layout, translated field names, no internal screen keys, a working or removed status bar, and a recorded resolution of the freshness-presentation contradiction."
       }
     ]
   }

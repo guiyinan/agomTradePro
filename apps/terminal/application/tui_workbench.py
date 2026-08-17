@@ -210,7 +210,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
                     {"key": group["key"], "label": group["label"], "modules": group_modules}
                 )
 
-        return {
+        catalog = {
             "version": metadata["version"],
             "registry_key": metadata.get("registry_key", self.registry_key),
             "interaction_model": metadata.get(
@@ -223,6 +223,10 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             "groups": groups,
             "modules": [self._module_summary(module) for module in metadata["modules"]],
         }
+        metadata_health = metadata.get("metadata_health")
+        if isinstance(metadata_health, dict):
+            catalog["metadata_health"] = dict(metadata_health)
+        return catalog
 
     def get_bootstrap(
         self,

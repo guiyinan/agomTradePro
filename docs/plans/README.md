@@ -1,12 +1,12 @@
 # 活跃计划索引
 
-> 更新日期：2026-08-17
+> 更新日期：2026-08-18
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。
 
 ## 维护规则
 
 - 机器唯一真源是 [`governance/active_plan_registry.json`](../../governance/active_plan_registry.json)；本页是面向人的执行投影，不单独维护另一套状态。
-- 注册表中的 `closure_backlog` 是 review queue 与 7 条工作流的 canonical 分阶段收口单元；本页只解释其执行顺序，不复制机器状态。
+- 注册表中的 `closure_backlog` 是 review queue 与 8 条工作流的 canonical 分阶段收口单元；本页只解释其执行顺序，不复制机器状态。
 - `docs/plans/`：只允许登记在机器注册表中的主计划、支撑文档、证据或限期审查项。新增未登记文件、重复归属、陈旧路径和无截止日审查项由 CI 直接拒绝。
 - `docs/archive/plans/`：仓库范围已实现，或阶段已经验收/被新计划取代；归档文档仅作历史证据，不代表当前运行状态。
 - “代码已完成但生产未验收”仍属于活跃计划，不能仅因本地测试通过而归档。
@@ -21,13 +21,13 @@
 
 | 口径 | 数量 |
 |------|-----:|
-| 独立工作流 | 7 |
-| 主计划 | 16 |
+| 独立工作流 | 8 |
+| 主计划 | 17 |
 | 支撑文档、证据与矩阵 | 21 |
 | 限期审查项 | 0 |
-| 注册表覆盖的活跃文件 | 37 |
+| 注册表覆盖的活跃文件 | 38 |
 | 历史未勾选细项 | 139（非执行口径） |
-| 去重后 canonical closure units | 18 |
+| 去重后 canonical closure units | 23 |
 
 “主计划”是需求和证据入口，不等于独立工程量；同一工作流下的路线图、readiness 和生产跟踪不会再重复计算成多条主线。完整文件归属、owner、状态、依赖和唯一退出门见机器注册表的 `closure_backlog`。
 
@@ -42,6 +42,7 @@
 | `web-to-tui-m5` | P0 | production_validation | Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | manifest 候选部署、角色 UAT、14 日观察和签字 cleanup |
 | `ai-native-release` | P1 | external_validation | Agent Runtime / Terminal | [AI-Native delivery pack](ai-native/README.md) | 同候选 staging/production UAT 与 owner/reviewer 双签 |
 | `qmt-live-bridge` | P2 | blocked_external | Broker Execution / 外部券商 Owner | [QMT 实盘桥](qmt-live-trading-bridge-plan.md) | Windows XtQuant Phase 0、连续仿真和受控小额实盘 |
+| `tui-usability-governance` | P1 | active | Terminal | [TUI 可用性与 metadata 治理](tui-usability-and-metadata-governance-plan-2026-08-18.md) | metadata 加载回退、三真源合一、auto action 文案重写回密度预算 |
 
 ## 限期审查队列
 
@@ -65,7 +66,7 @@
 
 ## 去重后的收口 Backlog
 
-139 个历史未勾选细项按共同产物、共同依赖和共同验收证据折叠为以下 **18 个唯一工作包**。状态只在机器注册表更新；本表不形成第二套待办。
+139 个历史未勾选细项按共同产物、共同依赖和共同验收证据折叠为以下 **23 个唯一工作包**。状态只在机器注册表更新；本表不形成第二套待办。
 
 | 波次 | Canonical unit | 类型 | 状态 | 依赖 | 唯一交付 |
 |------|----------------|------|------|------|----------|
@@ -87,8 +88,13 @@
 | W3 | `AI-01` | external | waiting | TUI-01 | 同候选 staging/production 真实 UAT 与独立双签 |
 | W4 | `QMT-01` | external | blocked | — | 券商 XtQuant 权限和目标机 Phase 0 |
 | W4 | `QMT-02` | external | blocked | QMT-01 | 连续仿真和受控小额实盘验收 |
+| W5 | `TUX-01` | repository | completed | — | 非法 published payload 降级渲染 + 存量记录批量重校验 |
+| W5 | `TUX-02` | repository | planned | — | 三真源合一、死 patch 删除、8 处漂移双写对账 |
+| W5 | `TUX-03` | repository | waiting | TUX-02 | 430 个 action 文案机检通过、全屏回到密度预算 |
+| W5 | `TUX-04` | repository | planned | — | 分组重排、入口消歧、12 个 runtime screen 补齐契约 |
+| W5 | `TUX-05` | repository | waiting | TUX-03/TUX-04 | 布局/字段名翻译/状态栏/freshness 观感收口与截图证据 |
 
-执行纪律：W1 先完成决策安全主线；遵守“一条大主线加一个小收口”，Evidence 为当前大主线，`GOV-01` 可作为小收口，Audit 不与 Evidence 同时扩边。W2 的破坏性生产动作必须从 `DATA-01` 开始；W3 所有证据绑定同一不可变候选；W4 在券商解除阻断前不占用仓库开发排期。
+执行纪律：W1 先完成决策安全主线；遵守“一条大主线加一个小收口”，Evidence 为当前大主线，`GOV-01` 可作为小收口，Audit 不与 Evidence 同时扩边。W2 的破坏性生产动作必须从 `DATA-01` 开始；W3 所有证据绑定同一不可变候选；W4 在券商解除阻断前不占用仓库开发排期。W5 为仓库内小收口线，不与 Evidence 大主线同时扩边，且不触碰 `web-to-tui-m5` 候选证据链。
 
 ## 分阶段执行记录
 
@@ -424,3 +430,7 @@
 | 2026-08-17 | 第一期 P1 | AUD-01/DATA-01 CI 收口复核 | 提交 `1e3dd3cfe` 推送后四条必需 GitHub Actions 全部成功：Security Scan、Architecture Layer Guard、Consistency Check、CI Fast Feedback（含 Python 3.11/3.13、增量质量与完整 production mypy debt ceiling）；此前 inventory stale 由确定性生成脚本修复 | CI 通过只证明仓库合同与门禁一致，不解除 AUD-01 durable publisher/authority、EVID-01 authority lifecycle、DATA-01 restore/rollback 或 TUI 生产 UAT 门禁 |
 | 2026-08-17 | 第一期 P0 | EVID-01 当前候选 authority inventory 一致性 guard | authority inventory guard 从 active registry/cutover candidate 动态匹配唯一 deployment preflight、VPS runtime verification 与 zero-seed inventory，校验 preflight SHA、OCI revision、runtime image、0050–0053 migration 与 12 表全零；focused `1 passed`，Black/isort、增量 mypy、diff-check 通过 | 仅防旧候选/旧 inventory 串入当前 release；不创建或回填 authority、不读取 User/Profile/session、不接 production writer，EVID-01 仍 `active` |
 | 2026-08-17 | 第一期 P1 | 当前候选 VPS 只读部署与 CI 观测 | `3ceafaf193e87626be7458531c66e96b11f7df84` 发布为 `20260817002134`；health、迁移/schema、TUI registry、Qlib、Celery 与容器检查通过；部署报告保留在忽略目录 | 仅证明本候选运行身份与基础服务可用；不解除角色化 UAT、写后回执、14 日 telemetry、restore/rollback、AUD-01/EVID-01 authority/publisher 或 owner/reviewer 双签门禁 |
+| 2026-08-18 | 第一期 P1 | TUX-01 metadata fail-safe fallback + batch revalidation | `PublishedTuiMetadataRepository` 对非法 DB published payload 回退 reviewed file payload，发布 `metadata_health=degraded/file` 与结构化 `tui_metadata_fallback` warning；新增只读 `revalidate_tui_metadata_registry --dry-run`，遍历全部 registry 状态并给出修复/归档建议，实跑 `total=8, valid=1, invalid=7, errors=0, writes=0, outcome=partial`；focused `14 passed`，Black/isort、增量 mypy、diff-check 通过 | TUX-01 已完成仓库 exit gate；命令不自动修改非法行，生产 registry 修复、外部 AgomTUI 与 M5 证据链仍未验收 |
+| 2026-08-18 | 第一期 P0/P1 | Evidence/Audit closure review | Evidence/Audit scope、dispatcher、publisher preflight 与 task/metrics focused 回归 `112 + 8 passed`；EVID-01 owner/tenant authority、EVID-02 生产 PostgreSQL 竞争、AUD-01 durable publisher/authority 仍保持 fail-closed，未提前接线下游 | EVID-03、AUD-02/03 继续等待依赖；本地 fake、SQLite 或只读部署证据不替代生产 authority/publisher/rollback/UAT |
+| 2026-08-18 | 第二期 P0/P1 | DATA/STRAT/TUI production closure audit | DATA-01/02/03、STRAT-01/02/03、TUI-01/02 逐项复核，未发现可在仓库内诚实完成且不冒充生产证据的 bounded slice；保留 `awaiting_production`/`waiting_dependency` 状态和 fail-closed 工具 | 仍需 release owner 在受控生产环境取得 backup/rollback、PIT/OOS/receipt、角色化 HTTPS UAT、写后持久化、观察窗口和签字证据 |
+| 2026-08-18 | 第一期 P1 | CI inventory stale correction | 刷新 `governance/data_center_entrypoints.json` 的确定性生成物，提交 `54caffc4a`；该提交的 Consistency、Fast Feedback、Architecture Layer Guard、Security Scan 全部成功 | 仅证明该提交的仓库门禁；Nightly 既有覆盖率失败尚未重新运行，不能据此解除生产计划门禁 |

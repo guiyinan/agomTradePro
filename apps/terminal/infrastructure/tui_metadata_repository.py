@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import logging
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Protocol, cast
@@ -15,6 +16,7 @@ from django.db import OperationalError, ProgrammingError
 from django.utils import timezone
 
 from apps.terminal.application.tui_metadata import (
+    TuiMetadataValidationError,
     compact_tui_metadata_payload,
     validate_tui_metadata,
 )
@@ -42,6 +44,9 @@ class _PublishNoopMarker(Protocol):
     """Runtime-only marker exposed to the publication command."""
 
     _publish_was_noop: bool
+
+
+logger = logging.getLogger(__name__)
 
 
 class PublishedTuiMetadataRepository:
@@ -85,7 +90,14 @@ class PublishedTuiMetadataRepository:
             )
             if cached is not None:
                 return cached
-            normalized = self._normalize_runtime_payload(validate_tui_metadata(raw_payload))
+            try:
+                normalized = self.validate_and_normalize_runtime_payload(raw_payload)
+            except (TuiMetadataValidationError, TypeError, ValueError) as exc:
+                return self._load_file_fallback(
+                    registry_key=registry_key,
+                    registry_id=model.pk,
+                    error=exc,
+                )
             self._store_runtime_cache(
                 registry_key=registry_key,
                 source_hash=source_hash,
@@ -111,6 +123,40 @@ class PublishedTuiMetadataRepository:
             source_token=source_token,
             payload=normalized,
         )
+        return normalized
+
+    def _load_file_fallback(
+        self,
+        *,
+        registry_key: str,
+        registry_id: Any,
+        error: Exception,
+    ) -> dict[str, Any]:
+        """Load the reviewed file payload when a DB publication is invalid.
+
+        The invalid database record is never repaired or silently accepted. The
+        repository keeps the file payload as the only safe runtime source and
+        exposes a bounded health marker for the TUI to surface as a governance
+        warning.
+        """
+
+        logger.warning(
+            "TUI metadata database payload rejected; using file fallback",
+            extra={
+                "event": "tui_metadata_fallback",
+                "registry_key": registry_key,
+                "registry_id": registry_id,
+                "reason_code": "database_payload_invalid",
+                "exception_type": type(error).__name__,
+            },
+        )
+        normalized = self._load_published_file()
+        normalized["metadata_health"] = {
+            "status": "degraded",
+            "source": "file",
+            "reason_code": "database_payload_invalid",
+            "message": "数据库中的 TUI 配置无法通过校验，当前使用文件版配置；请完成发布记录重校验。",
+        }
         return normalized
 
     def publish_payload(
@@ -395,7 +441,12 @@ class PublishedTuiMetadataRepository:
         if not self.published_path.exists():
             raise FileNotFoundError(f"Published TUI metadata not found: {self.published_path}")
         payload = json.loads(self.published_path.read_text(encoding="utf-8"))
-        return self._normalize_runtime_payload(validate_tui_metadata(payload))
+        return self.validate_and_normalize_runtime_payload(payload)
+
+    def validate_and_normalize_runtime_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Validate and normalize one payload without mutating its caller-owned data."""
+
+        return self._normalize_runtime_payload(validate_tui_metadata(copy.deepcopy(payload)))
 
     def _normalize_runtime_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Prune duplicated actions that are not operator-usable in runtime screens."""
