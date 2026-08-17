@@ -352,8 +352,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/alpha/infrastructure/qlib_builder.py:get_tushare_client:line:18",
-      "locator": "line:18",
+      "id": "application_consumer:apps/alpha/infrastructure/qlib_builder.py:get_tushare_client:line:19",
+      "locator": "line:19",
       "path": "apps/alpha/infrastructure/qlib_builder.py",
       "status": "active_public",
       "symbol": "get_tushare_client",
