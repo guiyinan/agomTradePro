@@ -74,7 +74,7 @@
 | W1 | `EVID-01` | repository | active | — | owner/user/tenant scoped Evidence authority 与生产 composition |
 | W1 | `EVID-02` | production | planned | — | approval/current-head 的 PostgreSQL first-winner、并发和回滚证据 |
 | W1 | `EVID-03` | repository | waiting | EVID-01/02 | Research/Portfolio/Broker adapters 与执行前 exact-current 重验 |
-| W1 | `AUD-01` | repository | planned | — | canonical publisher/runtime/authority composition |
+| W1 | `AUD-01` | repository | active | — | canonical publisher/runtime/authority composition |
 | W1 | `AUD-02` | repository | waiting | AUD-01 | Data Center fetch event 与 event/outbox 同 UOW 双写和重放 |
 | W2 | `AUD-03` | production | waiting | AUD-02 | migration/rollback、backlog 观察、告警、TUI、archive/restore 与签字 |
 | W2 | `DATA-01` | production | awaiting | — | 校验备份、维护态与回滚预演 |
@@ -435,4 +435,4 @@
 | 2026-08-18 | 第二期 P0/P1 | DATA/STRAT/TUI production closure audit | DATA-01/02/03、STRAT-01/02/03、TUI-01/02 逐项复核，未发现可在仓库内诚实完成且不冒充生产证据的 bounded slice；保留 `awaiting_production`/`waiting_dependency` 状态和 fail-closed 工具 | 仍需 release owner 在受控生产环境取得 backup/rollback、PIT/OOS/receipt、角色化 HTTPS UAT、写后持久化、观察窗口和签字证据 |
 | 2026-08-18 | 第一期 P1 | CI inventory stale correction | 刷新 `governance/data_center_entrypoints.json` 的确定性生成物，提交 `54caffc4a`；该提交的 Consistency、Fast Feedback、Architecture Layer Guard、Security Scan 全部成功 | 仅证明该提交的仓库门禁；Nightly 既有覆盖率失败尚未重新运行，不能据此解除生产计划门禁 |
 | 2026-08-18 | 第二期 P1 | TUX-02 metadata source-boundary guard | 新增只读 `scripts/check_tui_metadata_source_consistency.py`，同时读取 published JSON、IA 注册表与真实 runtime loader；校验 IA-owned published screen copy、24 个 runtime screen、action/panel 引用闭合，并显式报告 Python screen patch 在 full-IA payload 上被忽略或未注册的边界；workflow 已接入该 guard，focused `4 passed`，实际检查 `outcome=ok`（12 published screens、24 runtime screens、430/889 actions） | 仅完成三真源的一致性机器校验与 patch 边界取证；尚未删除 legacy Python screen patch、尚未完成 8 处文案双写对账/迁入 publish-review，因此 TUX-02 保持 active，TUX-03 继续等待 TUX-02，TUX-04 已单独进入 runtime contract active 阶段 |
-| 2026-08-18 | 第二期 P1 | TUX-04 runtime screen metadata contract | IA `runtime_screens` 的 12 个 runtime screen 已逐项补齐 `summary`、`view_type`、`user_experience`、`default_action_key`；默认入口均经真实 normalized runtime action 集合核对，新增契约测试 `8 passed`，未改变 runtime injection 或外部 AgomTUI | 仅完成 runtime screen 契约字段迁移；研究与工具分组重排、入口消歧、术语统一、普通角色浏览器走查仍未完成，TUX-04 保持 active |
+| 2026-08-18 | 第二期 P1 | TUX-04 runtime screen metadata contract | IA `runtime_screens` 的 12 个 runtime screen 已逐项补齐 `summary`、`view_type`、`user_experience`、`default_action_key`；默认入口均经真实 normalized runtime action 集合核对，新增契约测试 `9 passed`，未改变 runtime injection 或外部 AgomTUI | 仅完成 runtime screen 契约字段迁移；研究与工具分组重排、入口消歧、术语统一、普通角色浏览器走查仍未完成，TUX-04 保持 active |
