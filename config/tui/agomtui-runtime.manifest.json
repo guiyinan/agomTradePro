@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "af4279b426effa1105b224bfa43a7cb4dba36925",
-  "build_id": "agomtui-runtime-0.2.0+d36b8f9f2d66",
+  "upstream_commit": "865334300cd41cf1daf3980b8b0b90524477e0f4",
+  "build_id": "agomtui-runtime-0.2.0+d7b26b9d51f6",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -29,7 +29,7 @@
     "static/js/agomtui-runtime-core.js": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
     "static/js/tui-workbench.js": "8be90096500b34803db96e0cfe8ac0954ba06dd83b02ea43d5074e80b2e0deda",
     "static/css/tui-workbench.css": "581792cdf9eceac1302273ff63639dc39796bc181be3c3f282e89aac36ed8726",
-    "config/tui/ia/tui_information_architecture.v1.json": "38fc02c2cba7c2ea2e6579bf29d0d28dccfd5a1ea9c669023bb26792832d395d",
+    "config/tui/ia/tui_information_architecture.v1.json": "bd6e8ab2c30941173ac6b66b6927d6a7a9ef57590a61520f019f1cd16e2484cf",
     "apps/terminal/application/tui_metadata_constants.py": "87b0929e5f7a3ce18479935dd072d7647c8f8c9b5123f4eb06c48fb138ebd696",
     "apps/terminal/application/tui_metadata_field_aliases.py": "117c6a3de5c529d537783399f553efc50d4bf9c0507c0b3d503f56f1c072269a",
     "apps/terminal/application/tui_metadata.py": "5f78c5f156b68432d4ff6209a627c6cdb3bb693deafc43799373c6356884456c",
@@ -102,7 +102,7 @@
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_task_monitor.py": "a7229a6ed2cb945a9fae1d23fd572ef62acbc932b25f456660b9ae46bca5b4b7",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_user_access.py": "1a52870552bd50316880db4260711ffd0412cf6107572b9c9cbd15996a48896d",
     "apps/terminal/infrastructure/tui_metadata_runtime_injections.py": "e95ef6abc7f1df2a80557c5e80003d3e18f9fee4b8305b804cb08fc011b0ebf8",
-    "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_command_center.py": "62402f345516a69cdf805e431e643876a6d2868fdf2cbf2960b6491b08dedf92",
+    "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_command_center.py": "09a53099fd79870116ac6303b9b415b74ba79bfcf027696f94ca14f4bd9af4ba",
     "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_execution.py": "1c1ecb793712c8f73e0234307a021f2a768f6aef682d89013eb7ee0c7deb0735",
     "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_macro_data.py": "1ac99d468877b50d9087e2a52c6524d298edcb3b6a274423dfe61e0942ba710f",
     "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_ops.py": "552d0591752abaf425c4ed253f8b3d79433ddc908345ac0850beeea326c4848c",

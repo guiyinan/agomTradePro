@@ -93,6 +93,31 @@ def test_runtime_screen_registry_publishes_complete_user_experience_contract() -
         assert normalized["user_experience"] == experience
 
 
+def test_execution_audit_copy_matches_its_published_dashboard_panels() -> None:
+    registry = load_tui_information_architecture()
+    screen = next(
+        screen for screen in registry["published_screens"] if screen["key"] == "execution.audit"
+    )
+
+    panel_keys = {panel["key"] for panel in screen["dashboard_panels"]}
+    business_context = screen["business_context"]
+
+    assert "分享" not in screen["summary"]
+    assert "复盘证据" not in business_context["decision_output"]
+    assert business_context["checkpoints"] == [
+        "审计健康",
+        "事件指标",
+        "对账差异",
+        "操作审计",
+    ]
+    assert {
+        "audit-health",
+        "event-metrics",
+        "broker-execution-reconciliation",
+        "broker-execution-audit",
+    } <= panel_keys
+
+
 def test_runtime_catalog_has_15_user_screens_and_24_admin_screens() -> None:
     payload = _runtime_payload()
     service = TuiWorkbenchService(metadata_repository=_StaticMetadataRepository(payload))

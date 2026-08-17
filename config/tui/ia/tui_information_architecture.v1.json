@@ -106,9 +106,9 @@
       ]
     },
     {
-      "key": "execution.audit", "label": "事件与复盘", "module_key": "daily-decisions", "group": "daily", "audience": "authenticated", "summary": "查看事件、实时提醒、审计、分享和复盘证据。", "view_type": "status", "status": "online", "default_action_key": "auto.api.get.api.audit.health", "sources": ["execution.audit", "execution.events", "execution.share"], "runtime_sources": ["realtime-monitor.alerts", "broker-execution.audit"],
-      "user_experience": {"journey": "workspace", "primary_task": "检查事件与审计证据并完成今日留痕。", "primary_outcome": "形成可追溯的事件、提醒和复盘记录。", "empty_state_hint": "暂无事件时确认审计健康与订阅状态。", "next_step_hint": "返回今日总览结束或开启下一轮。"},
-      "business_context": {"objective": "完成事件检查和决策留痕。", "decision_output": "审计健康、事件指标与复盘证据。", "checkpoints": ["审计健康", "事件指标", "实时提醒", "决策痕迹"]},
+      "key": "execution.audit", "label": "事件与复盘", "module_key": "daily-decisions", "group": "daily", "audience": "authenticated", "summary": "查看审计健康、事件指标、实盘对账与操作记录。", "view_type": "status", "status": "online", "default_action_key": "auto.api.get.api.audit.health", "sources": ["execution.audit", "execution.events", "execution.share"], "runtime_sources": ["realtime-monitor.alerts", "broker-execution.audit"],
+      "user_experience": {"journey": "workspace", "primary_task": "检查事件与审计结果并完成今日留痕。", "primary_outcome": "形成可追溯的事件、对账与操作记录。", "empty_state_hint": "暂无事件时确认审计健康与订阅状态。", "next_step_hint": "返回今日总览结束或开启下一轮。"},
+      "business_context": {"objective": "完成事件检查和决策留痕。", "decision_output": "审计健康、事件指标、对账差异与操作审计。", "checkpoints": ["审计健康", "事件指标", "对账差异", "操作审计"]},
       "dashboard_panels": [
         {"key": "audit-health", "title": "审计健康", "kind": "detail", "action_key": "auto.api.get.api.audit.health", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无审计健康结果。"},
         {"key": "event-metrics", "title": "事件指标", "kind": "detail", "action_key": "auto.api.get.api.events.metrics", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无事件指标。"},

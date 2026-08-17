@@ -136,29 +136,6 @@ RUNTIME_SCREEN_PATCHES_COMMAND_CENTER: dict[str, dict[str, Any]] = {
             },
         ],
     },
-    "command-center.auto-advisor": {
-        "default_action_key": "advisor.today_sheet",
-        "user_experience": {
-            "journey": "dashboard",
-            "primary_task": "先选账户，再进入当日建议单和因子拆解，不在空屏上停留。",
-            "primary_outcome": "明确今天要处理哪个账户，并进入该账户的默认建议结果。",
-            "empty_state_hint": "先选择一个账户，再进入默认建议结果。",
-            "next_step_hint": "进入建议单后，继续检查阻断项、订单建议和因子明细。",
-        },
-        "dashboard_panels": [
-            {
-                "key": "advisor-account-selector",
-                "title": "一、账户选择",
-                "kind": "datagrid",
-                "action_key": "advisor.account_selector",
-                "max_rows": 8,
-                "layout_area": "accounts",
-                "target_screen": "command-center.auto-advisor",
-                "user_priority": "p0",
-                "presentation_semantic": "primary_list",
-            }
-        ],
-    },
 }
 
 RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS_COMMAND_CENTER: dict[str, set[str]] = {}

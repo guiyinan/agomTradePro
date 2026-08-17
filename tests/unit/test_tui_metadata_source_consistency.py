@@ -67,6 +67,25 @@ def test_real_tui_sources_have_consistent_published_screen_ownership() -> None:
     assert report.runtime_action_count >= report.published_action_count
 
 
+def test_retired_alias_screen_patch_is_not_registered_after_ia_cutover() -> None:
+    """A legacy alias must resolve through IA, not a parallel screen patch."""
+
+    from apps.terminal.infrastructure.tui_information_architecture import screen_aliases
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        RUNTIME_SCREEN_PATCHES,
+        PublishedTuiMetadataRepository,
+    )
+
+    registry = load_json_payload(IA_PATH)
+    aliases = screen_aliases(registry)
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    runtime_screen_keys = {str(screen["key"]) for screen in runtime["screens"]}
+
+    assert aliases["command-center.auto-advisor"] == "command-center.decision-flow"
+    assert "command-center.auto-advisor" not in RUNTIME_SCREEN_PATCHES
+    assert "command-center.auto-advisor" not in runtime_screen_keys
+
+
 def test_source_guard_rejects_runtime_replacement_of_ia_copy() -> None:
     """A runtime copy override must fail closed instead of being accepted."""
 

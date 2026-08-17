@@ -116,12 +116,14 @@
 - 新增只读 `scripts/check_tui_metadata_source_consistency.py`，把 published JSON、IA 注册表和真实 `PublishedTuiMetadataRepository._load_published_file()` runtime 结果放入同一个机器检查。检查内容包括：published screen key/`ia_version`、IA-owned 用户可见 screen semantic fields、12 个 published + 12 个 runtime screen 的完整集合、runtime screen `summary`/`user_experience`/`default_action_key`、action/panel/target-screen 引用闭合，以及 action key 唯一性。
 - 检查输出稳定 JSON；本地实际结果为 `outcome=ok`、`12 published screens`、`24 runtime screens`、`430/889 actions`、`violations=[]`。focused contract `4 passed`；Black/isort、增量 mypy 与 `git diff --check` 通过。
 - 同一报告显式记录 `RUNTIME_SCREEN_PATCHES` 的边界：对 full IA payload，已存在于 IA published screens 的 patch key 会被 loader 忽略；不在 IA registry 的 legacy patch key 仍单独列出，避免把“未生效”误写成“已删除”。guard 已接入 `.github/workflows/consistency-check.yml`。
-- 本阶段只证明三真源边界和运行时引用闭合，不改变 published/IA 文案，不自动修复数据库，不删除 Python patch。8 处漂移双写、runtime screen 文案迁入 publish/review、legacy patch 清理仍未完成，因此 `TUX-02` 保持 `active`；生产/外部 TUI 证据也不在本阶段宣称范围内。
+- 在该边界证据基础上删除了 `command-center.auto-advisor` 这一只对应 IA alias 的 Python screen patch；完整 runtime 不再注册该 alias patch，alias 请求仍由 IA 映射到 `command-center.decision-flow`。新增 `test_retired_alias_screen_patch_is_not_registered_after_ia_cutover`，source-boundary focused 回归为 `4 passed`，实际检查仍为 `outcome=ok`、`12/24 screens`、`430/889 actions`、`violations=[]`。
+- 本阶段仍不自动修复数据库，也未删除其余 legacy alias patch 或改写 published/IA 文案。其余 legacy patch、8 处漂移双写、runtime screen 文案迁入 publish/review 仍未完成，因此 `TUX-02` 保持 `active`；生产/外部 TUI 证据也不在本阶段宣称范围内。
 
 ## 6.3 TUX-04 执行回写（2026-08-18）
 
 - `config/tui/ia/tui_information_architecture.v1.json` 的 12 个 `runtime_screens` 已逐项补齐 `summary`、`view_type`、`user_experience` 与 `default_action_key`；入口 key 均来自真实 `PublishedTuiMetadataRepository._normalize_runtime_payload()` 的 action 集合，不新增虚构 action，也不改变 runtime injection。
 - 新增 `test_runtime_screen_registry_publishes_complete_user_experience_contract`，验证 IA runtime screen 与 normalized runtime 的 summary、UX 和 default action 完全一致；`tests/unit/terminal/test_tui_information_architecture.py` focused 回归为 `9 passed`。
+- `execution.audit` 的 summary、business context 与 checkpoints 已按实际 dashboard panels 对齐为审计健康、事件指标、实盘对账和操作审计；IA 与 published graph 保持同一份用户可见语义，新增对齐回归后该 focused 套件为 `10 passed`。
 - 本阶段只完成 metadata contract migration；“研究与工具”分组重排、易混入口消歧、术语统一、普通角色浏览器走查，以及外部 AgomTUI portability/M5 生产证据仍未完成，因此 `TUX-04` 保持 `active`。
 
 ## 6. 风险与回滚
