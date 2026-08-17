@@ -596,7 +596,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Consolidate the triple copy sources into the published flow",
         "depends_on": [],
         "exit_gate": "Dead Python screen patches are removed, the eight drifted dual-writes are reconciled, runtime screen copy moves under publish/review, and a machine check proves published JSON, IA registry and runtime loading agree."

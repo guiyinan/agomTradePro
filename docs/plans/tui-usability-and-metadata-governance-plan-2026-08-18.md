@@ -111,6 +111,13 @@
 - 新增只读 `python manage.py revalidate_tui_metadata_registry --dry-run`，按主键遍历全部 registry 状态，输出稳定 JSON、状态计数、逐行校验结果与修复/归档建议；实跑结果为 `total=8, valid=1, invalid=7, errors=0, writes_performed=0, outcome=partial`。非法行仍不自动改写，需后续受控 repair/archive 决策。
 - 本地回归：fallback、revalidation 与 actionability contract 合计 `14 passed`；Black/isort、`python scripts/check_mypy_regression.py` 与 `git diff --check` 通过。生产 registry 修复、外部 AgomTUI 与 M5 候选证据链仍未验收。
 
+## 6.2 TUX-02 执行回写（2026-08-18）
+
+- 新增只读 `scripts/check_tui_metadata_source_consistency.py`，把 published JSON、IA 注册表和真实 `PublishedTuiMetadataRepository._load_published_file()` runtime 结果放入同一个机器检查。检查内容包括：published screen key/`ia_version`、IA-owned 用户可见 screen semantic fields、12 个 published + 12 个 runtime screen 的完整集合、runtime screen `summary`/`user_experience`/`default_action_key`、action/panel/target-screen 引用闭合，以及 action key 唯一性。
+- 检查输出稳定 JSON；本地实际结果为 `outcome=ok`、`12 published screens`、`24 runtime screens`、`430/889 actions`、`violations=[]`。focused contract `4 passed`；Black/isort、增量 mypy 与 `git diff --check` 通过。
+- 同一报告显式记录 `RUNTIME_SCREEN_PATCHES` 的边界：对 full IA payload，已存在于 IA published screens 的 patch key 会被 loader 忽略；不在 IA registry 的 legacy patch key 仍单独列出，避免把“未生效”误写成“已删除”。guard 已接入 `.github/workflows/consistency-check.yml`。
+- 本阶段只证明三真源边界和运行时引用闭合，不改变 published/IA 文案，不自动修复数据库，不删除 Python patch。8 处漂移双写、runtime screen 文案迁入 publish/review、legacy patch 清理仍未完成，因此 `TUX-02` 保持 `active`；生产/外部 TUI 证据也不在本阶段宣称范围内。
+
 ## 6. 风险与回滚
 
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。
