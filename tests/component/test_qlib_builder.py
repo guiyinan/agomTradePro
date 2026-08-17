@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+import time
 from datetime import date
 from pathlib import Path
 
@@ -198,6 +200,49 @@ class _UntrustedDailyRowsClient(_MockTushareProClient):
             ],
             ignore_index=True,
         )
+
+
+class _ConcurrentStockClient(_MockTushareProClient):
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._active_calls = 0
+        self.max_active_calls = 0
+
+    def daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame:
+        return self._record_call(
+            pd.DataFrame(
+                [
+                    {
+                        "ts_code": ts_code,
+                        "trade_date": "20260403",
+                        "open": 10.0,
+                        "high": 10.2,
+                        "low": 9.9,
+                        "close": 10.1,
+                        "vol": 100.0,
+                        "pct_chg": 1.0,
+                    }
+                ]
+            )
+        )
+
+    def adj_factor(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame:
+        return self._record_call(
+            pd.DataFrame(
+                [{"ts_code": ts_code, "trade_date": "20260403", "adj_factor": 16.5}]
+            )
+        )
+
+    def _record_call(self, result: pd.DataFrame) -> pd.DataFrame:
+        with self._lock:
+            self._active_calls += 1
+            self.max_active_calls = max(self.max_active_calls, self._active_calls)
+        try:
+            time.sleep(0.02)
+            return result
+        finally:
+            with self._lock:
+                self._active_calls -= 1
 
 
 def test_resolve_effective_trade_date_adjusts_to_latest_available() -> None:
@@ -479,6 +524,46 @@ def test_tushare_qlib_builder_rejects_invalid_retry_policy() -> None:
 
     with pytest.raises(ValueError, match="finite and non-negative"):
         TushareQlibBuilder._call_with_retry(lambda: None, delay_seconds=float("nan"))
+
+
+def test_tushare_qlib_builder_fetches_stocks_with_bounded_concurrency(
+    tmp_path: Path,
+) -> None:
+    client = _ConcurrentStockClient()
+    builder = TushareQlibBuilder(
+        str(tmp_path / "cn_data"),
+        pro_client=client,
+        fetch_workers=4,
+    )
+
+    stock_codes = [f"{code:06d}.SZ" for code in range(1, 13)]
+    daily_frame = builder._fetch_stock_daily(
+        stock_codes,
+        date(2026, 4, 1),
+        date(2026, 4, 3),
+    )
+    adj_factor_frame = builder._fetch_stock_adj_factor(
+        stock_codes,
+        date(2026, 4, 1),
+        date(2026, 4, 3),
+    )
+
+    assert len(daily_frame) == 12
+    assert len(adj_factor_frame) == 12
+    assert 2 <= client.max_active_calls <= 4
+
+
+@pytest.mark.parametrize("fetch_workers", [0, -1, True])
+def test_tushare_qlib_builder_rejects_invalid_fetch_workers(
+    tmp_path: Path,
+    fetch_workers: object,
+) -> None:
+    with pytest.raises(ValueError, match="fetch_workers"):
+        TushareQlibBuilder(
+            str(tmp_path / "cn_data"),
+            pro_client=_MockTushareProClient(),
+            fetch_workers=fetch_workers,  # type: ignore[arg-type]
+        )
 
 
 def test_tushare_qlib_builder_does_not_retry_authorization_failures() -> None:

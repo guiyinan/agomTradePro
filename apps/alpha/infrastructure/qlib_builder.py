@@ -5,6 +5,7 @@ import math
 import re
 import time
 from collections.abc import Callable, Iterable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
@@ -22,6 +23,8 @@ pd = get_pandas()
 _T = TypeVar("_T")
 PandasDataFrame = Any
 PandasSeries = Any
+_DEFAULT_FETCH_WORKERS = 8
+_MAX_FETCH_WORKERS = 32
 
 
 class _TushareProClient(Protocol):
@@ -146,12 +149,28 @@ def resolve_effective_trade_date(
 class TushareQlibBuilder:
     """Build or refresh recent qlib daily data from Tushare."""
 
-    def __init__(self, provider_uri: str, *, pro_client: object | None = None) -> None:
+    def __init__(
+        self,
+        provider_uri: str,
+        *,
+        pro_client: object | None = None,
+        fetch_workers: int = _DEFAULT_FETCH_WORKERS,
+    ) -> None:
+        if (
+            isinstance(fetch_workers, bool)
+            or not isinstance(fetch_workers, int)
+            or fetch_workers <= 0
+            or fetch_workers > _MAX_FETCH_WORKERS
+        ):
+            raise ValueError(
+                f"fetch_workers must be an integer from 1 to {_MAX_FETCH_WORKERS}"
+            )
         self._provider_uri = Path(provider_uri).expanduser()
         self._pro = cast(
             _TushareProClient,
             pro_client if pro_client is not None else get_tushare_client(),
         )
+        self._fetch_workers = fetch_workers
         self._calendar_path = _calendar_path(self._provider_uri)
         self._instrument_dir = self._provider_uri / "instruments"
         self._features_dir = self._provider_uri / "features"
@@ -521,8 +540,7 @@ class TushareQlibBuilder:
         start_date: date,
         end_date: date,
     ) -> PandasDataFrame:
-        rows: list[PandasDataFrame] = []
-        for ts_code in stock_codes:
+        def fetch_one(ts_code: str) -> PandasDataFrame | None:
             try:
                 df = self._call_with_retry(
                     self._pro.daily,
@@ -538,9 +556,9 @@ class TushareQlibBuilder:
                     ts_code,
                     type(exc).__name__,
                 )
-                continue
+                return None
             if df is None or df.empty:
-                continue
+                return None
             normalized = self._normalize_daily_frame(
                 df,
                 requested_code=ts_code,
@@ -548,8 +566,10 @@ class TushareQlibBuilder:
                 end_date=end_date,
             )
             if normalized.empty:
-                continue
-            rows.append(normalized)
+                return None
+            return normalized
+
+        rows = self._fetch_stock_frames(stock_codes, fetch_one)
         if not rows:
             return pd.DataFrame()
         return pd.concat(rows, ignore_index=True, sort=False)
@@ -560,8 +580,7 @@ class TushareQlibBuilder:
         start_date: date,
         end_date: date,
     ) -> PandasDataFrame:
-        rows: list[PandasDataFrame] = []
-        for ts_code in stock_codes:
+        def fetch_one(ts_code: str) -> PandasDataFrame | None:
             try:
                 df = self._call_with_retry(
                     self._pro.adj_factor,
@@ -577,12 +596,12 @@ class TushareQlibBuilder:
                     ts_code,
                     type(exc).__name__,
                 )
-                continue
+                return None
             if df is None or df.empty:
-                continue
+                return None
             if not {"ts_code", "trade_date", "adj_factor"}.issubset(df.columns):
                 logger.warning("Invalid adj_factor schema returned for %s", ts_code)
-                continue
+                return None
             normalized = df.copy()
             normalized["trade_date"] = pd.to_datetime(
                 normalized["trade_date"],
@@ -603,11 +622,32 @@ class TushareQlibBuilder:
                 & (normalized["adj_factor"] > 0)
             ]
             if normalized.empty:
-                continue
-            rows.append(normalized)
+                return None
+            return normalized
+
+        rows = self._fetch_stock_frames(stock_codes, fetch_one)
         if not rows:
             return pd.DataFrame(columns=["ts_code", "trade_date", "adj_factor"])
         return pd.concat(rows, ignore_index=True, sort=False)
+
+    def _fetch_stock_frames(
+        self,
+        stock_codes: list[str],
+        fetch_one: Callable[[str], PandasDataFrame | None],
+    ) -> list[PandasDataFrame]:
+        """Fetch independent per-stock frames with bounded I/O concurrency."""
+        if not stock_codes:
+            return []
+        worker_count = min(self._fetch_workers, len(stock_codes))
+        if worker_count == 1:
+            frames = [fetch_one(ts_code) for ts_code in stock_codes]
+        else:
+            with ThreadPoolExecutor(
+                max_workers=worker_count,
+                thread_name_prefix="qlib-tushare",
+            ) as executor:
+                frames = list(executor.map(fetch_one, stock_codes))
+        return [frame for frame in frames if frame is not None and not frame.empty]
 
     def _fetch_index_daily(
         self,
