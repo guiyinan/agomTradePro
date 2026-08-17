@@ -11,6 +11,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
+from apps.data_center.infrastructure.models import AssetMasterModel
 from apps.decision_rhythm.infrastructure.models import (
     DecisionRequestModel,
     DecisionResponseModel,
@@ -112,6 +113,16 @@ class TestNavigationNo404:
 
     def test_dashboard_url_renders_real_pending_request_contract(self, authenticated_client):
         """Dashboard 应能渲染真实待执行 ORM 请求，而不是只接受 dict fixture。"""
+        # Dashboard name enrichment must remain deterministic in CI.  Seed
+        # the canonical master row used by this real ORM request so the
+        # request path does not fall through to remote market metadata.
+        AssetMasterModel.objects.create(
+            code="000003.SH",
+            name="测试证券",
+            short_name="测试证券",
+            asset_type="stock",
+            exchange="SSE",
+        )
         request = DecisionRequestModel.objects.create(
             request_id=f"req_nav_pending_{uuid.uuid4().hex[:8]}",
             asset_code="000003.SH",

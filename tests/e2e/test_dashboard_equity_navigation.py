@@ -227,6 +227,10 @@ def test_system_settings_page_saves_market_color_convention(admin_client):
                 else {}
             ),
             "market_color_convention": "us_market",
+            # The settings form includes the Alpha pool selector.  Keep the
+            # POST contract complete even when a fresh test database has no
+            # materialized Alpha runtime value yet.
+            "alpha_pool_mode": "strict_valuation",
             "user_agreement_content": settings["user_agreement_content"],
             "risk_warning_content": settings["risk_warning_content"],
             "notes": settings["notes"],
