@@ -64,6 +64,53 @@ def test_qlib_predict_scores_reports_stored_success(monkeypatch) -> None:
     )
 
 
+def test_qlib_predict_scores_reports_partial_when_degraded_cache_is_reused(monkeypatch) -> None:
+    """A stale-cache fallback must not hide the failed fresh-data operation."""
+
+    active_model = SimpleNamespace(artifact_hash="model-hash")
+    stale_date = date(2026, 7, 1)
+    monkeypatch.setattr(tasks, "_get_runtime_qlib_config", lambda: {"enabled": True})
+    monkeypatch.setattr(tasks, "_require_usable_qlib_runtime", lambda _config: None)
+    monkeypatch.setattr(
+        tasks,
+        "get_qlib_model_registry_repository",
+        lambda: SimpleNamespace(get_active_model=lambda: active_model),
+    )
+    monkeypatch.setattr(tasks, "_get_qlib_data_latest_date", lambda: stale_date)
+    monkeypatch.setattr(
+        tasks,
+        "_maybe_refresh_qlib_runtime_data_for_prediction",
+        lambda **_kwargs: (
+            stale_date,
+            {
+                "qlib_runtime_refresh_status": "failed",
+                "qlib_runtime_refresh_error": "provider_authorization_failed",
+            },
+        ),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "_reuse_latest_qlib_cache",
+        lambda **_kwargs: {
+            "status": "success",
+            "cache_status": "degraded",
+            "fallback_used": True,
+            "stock_count": 10,
+        },
+    )
+
+    result = tasks.qlib_predict_scores.run("csi300", TRADE_DATE.isoformat(), 10)
+
+    assert result["outcome"] == "partial"
+    assert result["success"] is True
+    assert (result["requested"], result["succeeded"], result["failed"], result["stored"]) == (
+        2,
+        1,
+        1,
+        1,
+    )
+
+
 def test_qlib_train_model_reports_registry_write(monkeypatch, tmp_path: Path) -> None:
     """Successful training reports its authoritative registry write."""
     registry_calls: list[dict[str, Any]] = []

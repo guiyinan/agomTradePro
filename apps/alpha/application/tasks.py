@@ -350,7 +350,7 @@ def qlib_predict_scores(
                     intended_trade_date,
                     exc,
                 )
-                return _outcomes.completed_task_result(fallback_result)
+                return _outcomes.degraded_task_result(fallback_result)
             raise RuntimeError(runtime_failure_reason) from exc
 
         if latest_qlib_data_date is None or latest_qlib_data_date < trade_date:
@@ -394,7 +394,7 @@ def qlib_predict_scores(
                     intended_trade_date,
                     outdated_reason,
                 )
-                return _outcomes.completed_task_result(fallback_result)
+                return _outcomes.degraded_task_result(fallback_result)
 
         execution_trade_date = trade_date
         execution_metadata: dict[str, object] = {
@@ -443,7 +443,7 @@ def qlib_predict_scores(
                     intended_trade_date,
                     exc,
                 )
-                return _outcomes.completed_task_result(fallback_result)
+                return _outcomes.degraded_task_result(fallback_result)
             raise
 
         if not scores_data:
@@ -467,7 +467,7 @@ def qlib_predict_scores(
                     universe_id,
                     intended_trade_date,
                 )
-                return _outcomes.completed_task_result(fallback_result)
+                return _outcomes.degraded_task_result(fallback_result)
             raise RuntimeError("Qlib 预测未返回任何评分")
 
         # 4. 写入缓存

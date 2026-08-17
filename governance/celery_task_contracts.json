@@ -1392,6 +1392,10 @@
         "all_success": {
           "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
           "test_function": "test_qlib_predict_scores_reports_stored_success"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
+          "test_function": "test_qlib_predict_scores_reports_partial_when_degraded_cache_is_reused"
         }
       }
     },

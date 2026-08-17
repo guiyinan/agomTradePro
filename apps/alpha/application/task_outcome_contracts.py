@@ -38,6 +38,15 @@ def completed_task_result(
     }
 
 
+def degraded_task_result(payload: dict[str, Any]) -> dict[str, Any]:
+    """Publish one failed fresh operation plus one persisted fallback operation."""
+
+    return {
+        **payload,
+        **task_outcome_fields("partial", requested=2, succeeded=1, failed=1, stored=1),
+    }
+
+
 def failed_task_result(*, reason: str, requested: int = 1) -> dict[str, Any]:
     """Return a stable failure without publishing dynamic exception details."""
 
@@ -116,6 +125,7 @@ def refresh_summary_outcome(
 
 __all__ = [
     "completed_task_result",
+    "degraded_task_result",
     "daily_inference_outcome",
     "failed_task_result",
     "refresh_summary_outcome",
