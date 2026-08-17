@@ -95,9 +95,29 @@ RUNTIME_MCP_SELF_SERVICE_SCREEN: dict[str, Any] = {
                 {"key": "preview", "label": "预览"},
                 {"key": "access_level_label", "label": "级别"},
                 {"key": "last_used_at", "label": "最后使用"},
+                {"key": "id", "label": "令牌 ID"},
+            ],
+            "row_actions": [
+                {
+                    "action_key": "capability-router.revoke-my-mcp-token",
+                    "label_template": "撤销 {name}",
+                    "param_map": {"token_id": "id"},
+                    "result_panel_key": "mcp-token-receipt",
+                    "refresh_panel_key": "mcp-self-tokens",
+                }
             ],
             "user_priority": "p2",
             "presentation_semantic": "supporting_list",
+        },
+        {
+            "key": "mcp-token-receipt",
+            "title": "五、令牌操作回执",
+            "kind": "detail",
+            "max_rows": 6,
+            "layout_area": "token-receipt",
+            "empty_message": "从令牌历史选择撤销操作。",
+            "user_priority": "p2",
+            "presentation_semantic": "supporting_detail",
         },
     ],
 }
@@ -364,6 +384,7 @@ RUNTIME_MCP_ACCESS_ACTIONS: tuple[dict[str, Any], ...] = (
         "intent": "revoke_current_user_mcp_token",
         "risk": "write",
         "effect": "delete",
+        "confirmation_required": True,
         "screen_key": "capability-router.self-service",
         "module_key": "capability-router",
         "view_type": "detail",

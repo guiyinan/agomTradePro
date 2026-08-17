@@ -227,7 +227,8 @@ VPS 发布统一调用 `scripts/publish-tui-release.sh <release-version>`。部�
 - `python manage.py govern_ai_capability_catalog --apply`：治理 AI Capability Catalog，清理不在当前 API/MCP 源内的历史自动采集项；安全只读能力自动放行，写入能力保留确认，高风险 MCP 保持待人工复核，unsafe API 标记拒绝。
 - MCP 可执行工具以 `sdk/agomtradepro_mcp/tools/*` 中的 `@server.tool()` 代码注册为真源；数据库中的 `ai_capability_catalog` 是同步快照和治理投影，不作为任意可执行代码入口。
 - `sync_ai_capability_catalog` 默认会在 API/MCP 同步后执行治理；如需只看原始采集结果，可加 `--skip-governance`。
-- TUI 运行时保留 4 个稳定 screen key：普通登录用户可见 `cli.terminal` 与 `capability-router.self-service`；管理员额外可见 `ai-ops.system-providers` 与 `capability-router.mcp-center`。`ai-ops.user-quotas`、`capability-router.gateway`、`capability-router.admin-access` 等旧 key 由 IA alias 归并到对应治理屏；未知或越权 screen 分别返回结构化 404/403。
+- TUI 运行时保留 4 个稳定 screen key：普通登录用户可见 `cli.terminal` 与 `capability-router.self-service`；管理员额外可见 `ai-ops.system-providers` 与 `capability-router.mcp-center`。系统服务商、用户配额、MCP Token、Prompt、实盘订单/对账、智能提案等列表通过行操作进入预填充表单或确认流程，提交后刷新来源列表；`ai-ops.user-quotas`、`capability-router.gateway`、`capability-router.admin-access` 等旧 key 由 IA alias 归并到对应治理屏；未知或越权 screen 分别返回结构化 404/403。
+- Dashboard collection actionability 是发布硬门禁：同一集合的 datagrid 与带路径主键的 `POST/PUT/PATCH/DELETE` 动作必须通过 `row_actions` 连接。`param_map` 只负责行身份或已有行值，必填 body 字段由打开后的表单收集；聚合接口（例如 MCP self-service、QMT onboarding）需增加显式 actionability 合同测试。
 
 ```powershell
 # 同步 MCP 工具到 Capability Catalog

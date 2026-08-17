@@ -380,6 +380,10 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
             raise TuiMetadataValidationError(
                 f"Dashboard screen must expose a p0 panel: {screen['key']}"
             )
+        _validate_dashboard_collection_actionability(
+            screen=screen,
+            action_by_key=action_by_key,
+        )
 
     payload.setdefault("registry_key", "default")
     payload.setdefault("interaction_model", "published-metadata-to-pc-tools")
@@ -511,6 +515,7 @@ def _validate_dashboard_row_actions(
             key
             for key, field in action_fields.items()
             if field.get("required")
+            and str(field.get("binding") or "body") != "body"
             and key not in param_map
             and not ("default" in field and field.get("default") not in (None, ""))
         ]
@@ -530,6 +535,82 @@ def _validate_dashboard_row_actions(
             raise TuiMetadataValidationError(
                 f"Dashboard row action label references unknown row field: " f"{action_key}.{names}"
             )
+
+
+def _validate_dashboard_collection_actionability(
+    *,
+    screen: dict[str, Any],
+    action_by_key: dict[str, dict[str, Any]],
+) -> None:
+    """Reject collection mutations that a user cannot reach from their source row."""
+
+    screen_key = str(screen["key"])
+    screen_actions = [
+        action
+        for action in action_by_key.values()
+        if str(action.get("screen_key") or "") == screen_key
+    ]
+    for panel in screen.get("dashboard_panels", []):
+        if not isinstance(panel, dict) or str(panel.get("kind") or "") != "datagrid":
+            continue
+        source_action = action_by_key.get(str(panel.get("action_key") or ""))
+        if source_action is None:
+            continue
+        source_endpoint = str(source_action.get("endpoint") or "")
+        if not source_endpoint or "<" in source_endpoint:
+            continue
+        collection_endpoint = source_endpoint.rstrip("/")
+        bound_action_keys = {
+            str(descriptor.get("action_key") or "")
+            for descriptor in panel.get("row_actions", [])
+            if isinstance(descriptor, dict)
+        }
+        for action in screen_actions:
+            if str(action.get("method") or "GET").upper() not in {
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+            }:
+                continue
+            action_endpoint = str(action.get("endpoint") or "")
+            if "<" not in action_endpoint:
+                continue
+            mutation_collection = action_endpoint.split("<", 1)[0].rstrip("/")
+            if not _dashboard_collection_endpoints_match(
+                source_endpoint=collection_endpoint,
+                mutation_endpoint=mutation_collection,
+            ):
+                continue
+            required_path_fields = [
+                field
+                for field in action.get("fields", [])
+                if isinstance(field, dict)
+                and field.get("required")
+                and str(field.get("binding") or "body") == "path"
+            ]
+            if not required_path_fields:
+                continue
+            action_key = str(action["key"])
+            if action_key not in bound_action_keys:
+                raise TuiMetadataValidationError(
+                    "Dashboard panel has unreachable collection mutation: "
+                    f"{screen_key}.{panel['key']}.{action_key}"
+                )
+
+
+def _dashboard_collection_endpoints_match(*, source_endpoint: str, mutation_endpoint: str) -> bool:
+    """Match a collection endpoint and its direct or filtered item mutation base."""
+
+    if source_endpoint == mutation_endpoint:
+        return True
+    source_parts = source_endpoint.strip("/").split("/")
+    mutation_parts = mutation_endpoint.strip("/").split("/")
+    if len(source_parts) != len(mutation_parts) + 1:
+        return False
+    if source_parts[: len(mutation_parts)] != mutation_parts:
+        return False
+    return source_parts[-1] in {"active", "actionable", "pending", "routing-off"}
 
 
 def compact_tui_metadata_payload(payload: dict[str, Any]) -> dict[str, Any]:

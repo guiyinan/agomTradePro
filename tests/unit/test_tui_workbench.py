@@ -1989,7 +1989,33 @@ def test_tui_ai_provider_mutations_confirm_and_mask_credentials(
     admin_response = client.get("/api/tui/screens/ai-ops.system-providers/")
 
     assert admin_response.status_code == 200
-    admin_actions = {action["key"]: action for action in admin_response.json()["actions"]}
+    admin_payload = admin_response.json()
+    admin_actions = {action["key"]: action for action in admin_payload["actions"]}
+    system_provider_panel = next(
+        panel
+        for panel in admin_payload["screen"]["dashboard_panels"]
+        if panel["key"] == "system-provider-list"
+    )
+    assert {column["key"] for column in system_provider_panel["columns"]} >= {"id"}
+    system_provider_row_actions = {
+        descriptor["action_key"]: descriptor for descriptor in system_provider_panel["row_actions"]
+    }
+    assert set(system_provider_row_actions) == {
+        "ai-ops.system-provider-detail",
+        "ai-ops.update-system-provider",
+        "ai-ops.toggle-system-provider",
+        "ai-ops.test-system-provider",
+        "ai-ops.system-provider-usage-stats",
+        "ai-ops.delete-system-provider",
+    }
+    assert all(
+        descriptor["param_map"] == {"provider_id": "id"}
+        for descriptor in system_provider_row_actions.values()
+    )
+    assert (
+        system_provider_row_actions["ai-ops.update-system-provider"]["refresh_panel_key"]
+        == "system-provider-list"
+    )
     for action_key in (
         "ai-ops.create-system-provider",
         "ai-ops.update-system-provider",
@@ -2674,6 +2700,7 @@ def test_tui_terminal_screen_defaults_to_interactive_chat(client, tui_user):
     assert [panel["key"] for panel in payload["screen"]["dashboard_panels"]] == [
         "assistant-conversation",
         "agent-attention",
+        "agent-operator-workspace",
     ]
     assert payload["screen"]["dashboard_panels"][0]["user_priority"] == "p0"
     action = next(action for action in payload["actions"] if action["key"] == "terminal.agent_chat")
@@ -2935,6 +2962,7 @@ def test_tui_mcp_self_service_screen_exposes_status_endpoint_and_prompt_panels(c
         "mcp-access-package",
         "mcp-access-verification",
         "mcp-self-tokens",
+        "mcp-token-receipt",
     ]
     actions = {action["key"]: action for action in payload["actions"]}
     assert "capability-router.verify-my-mcp-access" in actions
@@ -2947,6 +2975,7 @@ def test_tui_mcp_self_service_screen_exposes_status_endpoint_and_prompt_panels(c
         "preview",
         "access_level_label",
         "last_used_at",
+        "id",
     ]
 
 
@@ -3115,12 +3144,13 @@ def test_tui_events_screen_returns_overview_panels(client, tui_user):
     payload = response.json()
     assert payload["screen"]["default_action_key"] == "auto.api.get.api.audit.health"
     panels = payload["screen"]["dashboard_panels"]
-    assert [panel["action_key"] for panel in panels] == [
+    assert [panel["action_key"] for panel in panels if panel["action_key"]] == [
         "auto.api.get.api.audit.health",
         "auto.api.get.api.events.metrics",
         "broker-execution.reconciliation-list",
         "broker-execution.audit-list",
     ]
+    assert panels[3]["key"] == "broker-execution-reconciliation-workspace"
     action_keys = [action["key"] for action in payload["actions"]]
     assert "auto.api.get.api.events" in action_keys
 
@@ -3134,12 +3164,13 @@ def test_tui_share_screen_defaults_to_share_links(client, tui_user):
     payload = response.json()
     assert payload["screen"]["default_action_key"] == "auto.api.get.api.audit.health"
     panels = payload["screen"]["dashboard_panels"]
-    assert [panel["action_key"] for panel in panels] == [
+    assert [panel["action_key"] for panel in panels if panel["action_key"]] == [
         "auto.api.get.api.audit.health",
         "auto.api.get.api.events.metrics",
         "broker-execution.reconciliation-list",
         "broker-execution.audit-list",
     ]
+    assert panels[3]["key"] == "broker-execution-reconciliation-workspace"
     action_keys = [action["key"] for action in payload["actions"]]
     assert "auto.api.get.api.share" in action_keys
 
@@ -3412,6 +3443,66 @@ def test_tui_metadata_validator_accepts_valid_dashboard_row_action():
     assert descriptor["param_map"] == {"row_id": "row_id"}
     assert descriptor["result_panel_key"] == "sample-result"
     assert descriptor["refresh_panel_key"] == "sample-rows"
+
+
+def test_tui_metadata_validator_rejects_unreachable_collection_mutation():
+    payload = _row_action_metadata_payload()
+    list_action = next(action for action in payload["actions"] if action["key"] == "sample.list")
+    list_action["endpoint"] = "/api/sample/"
+    payload["actions"].append(
+        {
+            "key": "sample.update",
+            "label": "Update Sample",
+            "method": "PATCH",
+            "endpoint": "/api/sample/<int:row_id>/",
+            "intent": "update_sample",
+            "screen_key": "command-center.overview",
+            "module_key": "command-center",
+            "view_type": "detail",
+            "risk": "write",
+            "effect": "update",
+            "fields": [
+                {
+                    "key": "row_id",
+                    "label": "Row ID",
+                    "required": True,
+                    "binding": "path",
+                },
+                {
+                    "key": "name",
+                    "label": "Name",
+                    "required": True,
+                    "binding": "body",
+                },
+            ],
+            "description": "Update one sample row.",
+            "source": "approved:test",
+        }
+    )
+
+    with pytest.raises(TuiMetadataValidationError, match="unreachable collection mutation"):
+        validate_tui_metadata(payload)
+
+
+def test_tui_metadata_validator_allows_row_form_to_collect_required_body_fields():
+    payload = _row_action_metadata_payload()
+    payload["actions"][-1]["method"] = "PATCH"
+    payload["actions"][-1]["risk"] = "write"
+    payload["actions"][-1]["effect"] = "update"
+    payload["actions"][-1]["endpoint"] = "/api/sample/<int:row_id>/"
+    payload["actions"][-1]["fields"].append(
+        {
+            "key": "name",
+            "label": "Name",
+            "required": True,
+            "binding": "body",
+        }
+    )
+
+    validated = validate_tui_metadata(payload)
+
+    descriptor = validated["screens"][0]["dashboard_panels"][0]["row_actions"][0]
+    assert descriptor["param_map"] == {"row_id": "row_id"}
 
 
 @pytest.mark.parametrize(
@@ -8898,6 +8989,7 @@ def test_tui_runtime_injection_replaces_stale_mcp_screen_and_action_contracts():
         "mcp-access-package",
         "mcp-access-verification",
         "mcp-self-tokens",
+        "mcp-token-receipt",
     ]
     action = next(item for item in actions if item["key"] == "capability-router.mcp-self-status")
     assert action["view_model"]["field_presentations"]["access_token"] == "secret"

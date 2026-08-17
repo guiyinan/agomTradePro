@@ -325,7 +325,7 @@ def test_runtime_mutations_are_submit_ready_or_explicit_no_input_commands() -> N
 
 
 def test_edit_row_actions_map_required_fields_for_form_prefill() -> None:
-    """Update rows must carry their identity into the form before the user edits."""
+    """Update rows carry identity while visible body fields remain user-editable."""
 
     payload = PublishedTuiMetadataRepository()._load_published_file()
     actions = {action["key"]: action for action in payload["actions"]}
@@ -343,12 +343,47 @@ def test_edit_row_actions_map_required_fields_for_form_prefill() -> None:
                 required_fields = {
                     field["key"]
                     for field in action.get("fields", [])
-                    if field.get("required") and field.get("input_type") != "hidden"
+                    if field.get("required")
+                    and field.get("input_type") != "hidden"
+                    and field.get("binding") != "body"
                 }
                 assert required_fields <= set(descriptor.get("param_map", {})), (
-                    f"{descriptor.get('action_key')} row action must map required form fields "
-                    "so the edit form can be opened with the row identity"
+                    f"{descriptor.get('action_key')} row action must map required identity fields "
+                    "so the form can be opened for the selected row"
                 )
+
+
+def test_specialized_runtime_lists_bind_noncanonical_collection_actions() -> None:
+    """Aggregate list endpoints still expose their item-level operations."""
+
+    expected = {
+        ("capability-router.self-service", "mcp-self-tokens"): {
+            "capability-router.revoke-my-mcp-token"
+        },
+        ("broker-execution.qmt-setup", "qmt-connection-status"): {
+            "broker-execution.connection-sync-preview",
+            "broker-execution.connection-sync",
+        },
+        ("broker-execution.qmt-setup", "qmt-current-settings"): {
+            "broker-execution.settings-preview",
+            "broker-execution.settings",
+        },
+        ("ai-ops.terminal", "agent-attention"): {"agent-runtime.operator-task-detail"},
+        ("ai-ops.terminal", "agent-proposals"): {
+            "agent-runtime.operator-proposal-detail",
+            "agent-runtime.operator-submit-proposal",
+            "agent-runtime.operator-approve-proposal",
+            "agent-runtime.operator-reject-proposal",
+            "agent-runtime.operator-execute-proposal",
+        },
+    }
+    for (screen_key, panel_key), expected_actions in expected.items():
+        screen = _runtime_screen(screen_key)
+        panel = _panel(screen, panel_key)
+        row_action_keys = {
+            str(descriptor.get("action_key") or "") for descriptor in panel.get("row_actions", [])
+        }
+        assert expected_actions <= row_action_keys
 
 
 def test_known_row_edit_actions_have_visible_fields_and_row_context() -> None:

@@ -53,10 +53,36 @@ RUNTIME_AI_USER_QUOTAS_SCREEN: dict[str, Any] = {
                 {"key": "daily_spent", "label": "今日已用"},
                 {"key": "monthly_spent", "label": "本月已用"},
                 {"key": "is_active", "label": "启用"},
+                {"key": "user_id", "label": "用户 ID"},
+            ],
+            "row_actions": [
+                {
+                    "action_key": "ai-ops.user-quota-detail",
+                    "label_template": "查看 {username} 的配额",
+                    "param_map": {"user_id": "user_id"},
+                    "result_panel_key": "user-quota-workspace",
+                },
+                {
+                    "action_key": "ai-ops.update-user-quota",
+                    "label_template": "编辑 {username} 的配额",
+                    "param_map": {"user_id": "user_id"},
+                    "result_panel_key": "user-quota-workspace",
+                    "refresh_panel_key": "user-quota-list",
+                },
             ],
             "user_priority": "p0",
             "presentation_semantic": "primary_list",
-        }
+        },
+        {
+            "key": "user-quota-workspace",
+            "title": "二、当前用户配额与操作回执",
+            "kind": "detail",
+            "max_rows": 10,
+            "layout_area": "quota-workspace",
+            "empty_message": "从用户配额列表选择查看或编辑操作。",
+            "user_priority": "p1",
+            "presentation_semantic": "supporting_detail",
+        },
     ],
 }
 
