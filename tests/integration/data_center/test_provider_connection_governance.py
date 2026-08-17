@@ -8,6 +8,7 @@ from django.test import Client, override_settings
 
 from apps.data_center.domain.entities import ConnectionTestResult
 from apps.data_center.infrastructure.models import ProviderConfigModel
+from apps.data_center.infrastructure.provider_credentials import ProviderCredentialStore
 
 
 @pytest.fixture
@@ -46,6 +47,11 @@ def test_provider_connection_test_persists_redacted_health_metadata(
         name="redaction-provider",
         source_type="tushare",
         extra_config={},
+    )
+    ProviderCredentialStore().persist(
+        provider,
+        api_key=api_key,
+        api_secret=api_secret,
     )
     probe = mocker.patch(
         "apps.data_center.application.interface_services.run_data_center_connection_test",

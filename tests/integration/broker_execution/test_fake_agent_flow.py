@@ -13,6 +13,7 @@ from django.test import Client
 from django.utils import timezone
 
 from apps.broker_execution.application.agent_auth import build_agent_signature
+from apps.broker_execution.application.evidence_gate import BROKER_ORDER_EVIDENCE_BLOCK_MESSAGE
 from apps.broker_execution.infrastructure.models import (
     BrokerAccountBindingModel,
     BrokerAgentCredentialModel,
@@ -112,7 +113,7 @@ def test_fake_agent_approval_lease_submit_fill_flow_is_idempotent() -> None:
     # contract focused on that safety boundary instead of exercising a fake
     # broker fill through a path that must not execute.
     assert approval.status_code == 409
-    assert "broker_order_evidence_receipt_not_integrated" in approval.json()["error"]
+    assert BROKER_ORDER_EVIDENCE_BLOCK_MESSAGE in approval.json()["error"]
     order.refresh_from_db()
     assert order.status == "WAITING_APPROVAL"
     return

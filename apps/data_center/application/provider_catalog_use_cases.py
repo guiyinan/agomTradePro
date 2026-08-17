@@ -163,6 +163,18 @@ class ManageProviderConfigUseCase:
             ),
         )
         saved = self._repo.save(updated)
+        # ``ProviderConfigRepository.save`` deliberately treats an empty
+        # credential as "leave the existing secret alone" for metadata-only
+        # callers.  An explicit API clear is different: apply it through the
+        # credential port after the metadata save, then reload the canonical
+        # projection so the response and subsequent probes observe the clear.
+        if saved.id is not None and (request.api_key == "" or request.api_secret == ""):
+            self._repo.persist_credentials(
+                int(saved.id),
+                api_key=("" if request.api_key == "" else None),
+                api_secret=("" if request.api_secret == "" else None),
+            )
+            saved = self._repo.get_by_id(int(saved.id)) or saved
         logger.info("Updated provider config id=%s name=%s", saved.id, saved.name)
         return _config_to_response(saved)
 

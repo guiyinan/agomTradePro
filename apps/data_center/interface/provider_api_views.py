@@ -86,8 +86,14 @@ def _safe_provider_payload(provider: ProviderResponse) -> dict[str, Any]:
     return dict(ProviderConfigListSerializer(provider.to_dict()).data)
 
 
-def _optional_masked_secret(value: object) -> str | None:
-    return value if isinstance(value, str) and value.strip() else None
+def _optional_masked_secret(value: object, *, supplied: bool) -> str | None:
+    """Preserve PATCH omission while retaining an explicit blank clear."""
+
+    if not supplied:
+        return None
+    if not isinstance(value, str):
+        return None
+    return value if value.strip() else ""
 
 
 def _provider_extra_config_with_tushare_mode(
@@ -188,8 +194,10 @@ def provider_detail(request: Request, provider_id: int) -> Response:
             source_type=data.get("source_type"),
             is_active=data.get("is_active"),
             priority=data.get("priority"),
-            api_key=_optional_masked_secret(data.get("api_key")),
-            api_secret=_optional_masked_secret(data.get("api_secret")),
+            api_key=_optional_masked_secret(data.get("api_key"), supplied="api_key" in data),
+            api_secret=_optional_masked_secret(
+                data.get("api_secret"), supplied="api_secret" in data
+            ),
             http_url=http_url if "http_url" in data or data.get("clear_service_address") else None,
             api_endpoint=data.get("api_endpoint"),
             extra_config=_provider_extra_config_with_tushare_mode(
