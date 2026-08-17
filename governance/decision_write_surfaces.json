@@ -221,7 +221,7 @@
     "sdk/agomtradepro/modules/decision_workflow.py::DecisionWorkflowModule.update_transition_plan"
   ],
   "tui_published_graph": "config/tui/published/tui_operation_graph.published.json",
-  "tui_published_graph_sha256": "42a20ddb5bca62cbdb6a9ff1eda2ced91515354662e406428a2a6c40840390ba",
+  "tui_published_graph_sha256": "5a2234c84d4156001a8bde73a7fe9a5c86534b77a6e87da68764043b55d7b597",
   "tui_decision_screen": "command-center.decision-flow",
   "tui_decision_actions": [
     "auto.api.get.api.dashboard.action-recommendation",
