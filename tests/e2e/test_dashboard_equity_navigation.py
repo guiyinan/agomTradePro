@@ -212,6 +212,12 @@ def test_system_settings_page_contains_market_color_switch(admin_client):
 @pytest.mark.django_db
 def test_system_settings_page_saves_market_color_convention(admin_client):
     from apps.config_center.application.public import get_system_governance_settings
+    from tests.support.runtime_config import configure_account_runtime
+
+    # The settings form updates a Config Center runtime profile.  Bootstrap
+    # the required provider group explicitly so this E2E exercises the save
+    # contract rather than failing on an intentionally empty fresh profile.
+    configure_account_runtime()
 
     settings = get_system_governance_settings()
 
