@@ -4123,22 +4123,22 @@
       "text": "return summary"
     },
     {
-      "line": 37,
+      "line": 40,
       "path": "apps/alpha/infrastructure/qlib_builder.py",
       "text": "\"\"\"Summary for a qlib data build run.\"\"\""
     },
     {
-      "line": 52,
+      "line": 55,
       "path": "apps/alpha/infrastructure/qlib_builder.py",
       "text": "\"\"\"Inspect the latest local qlib trade date from the day calendar file.\"\"\""
     },
     {
-      "line": 253,
+      "line": 272,
       "path": "apps/alpha/infrastructure/qlib_builder.py",
       "text": "\"Qlib builder requested %s but latest available stock date is %s\","
     },
     {
-      "line": 427,
+      "line": 446,
       "path": "apps/alpha/infrastructure/qlib_builder.py",
       "text": "\"\"\"Fetch the latest effective constituents for one configured index.\"\"\""
     },
