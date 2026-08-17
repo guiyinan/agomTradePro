@@ -49,7 +49,7 @@ def test_0007_is_schema_only_zero_seed_and_preserves_0006_rows() -> None:
         )
         old_result = OldResult.objects.create(
             result_id="r8:migration0007",
-            result_version="result.v1",
+            result_version="governed-optimization-result.v1",
             run_key="run:migration0007",
             run_version="run.v1",
             assembly_hash="1" * 64,

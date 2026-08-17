@@ -81,7 +81,11 @@ def test_terminal_chat_redacts_internal_service_errors(api_client, regular_user)
         )
 
     assert response.status_code == 502
-    assert response.json() == {"error": "terminal_agent_unavailable"}
+    assert response.json() == {
+        "error": "AI 服务调用失败，请检查服务商连通性、模型和额度后重试。",
+        "code": "AI_PROVIDER_REQUEST_FAILED",
+        "setup_required": False,
+    }
     assert "secret" not in response.content.decode("utf-8")
 
 

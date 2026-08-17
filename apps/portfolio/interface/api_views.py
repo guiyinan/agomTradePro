@@ -1,5 +1,6 @@
 """Portfolio plan preview, approval and execution handoff APIs."""
 
+from datetime import UTC
 from decimal import Decimal
 
 from rest_framework import serializers, status
@@ -26,7 +27,7 @@ class BuildTransitionPlanSerializer(serializers.Serializer[dict[str, object]]):
     idempotency_key = serializers.CharField(max_length=128)
     account_id = serializers.CharField(max_length=64)
     portfolio_snapshot_id = serializers.CharField(max_length=64)
-    as_of_time = serializers.DateTimeField()
+    as_of_time = serializers.DateTimeField(default_timezone=UTC)
     cash = serializers.DecimalField(max_digits=24, decimal_places=4)
     current_positions = serializers.DictField(child=serializers.DictField(), default=dict)
     target_portfolio_id = serializers.CharField(max_length=64)
@@ -37,7 +38,7 @@ class BuildTransitionPlanSerializer(serializers.Serializer[dict[str, object]]):
     explanation = serializers.CharField(required=False, allow_blank=True)
     prices = serializers.DictField(child=serializers.DecimalField(max_digits=24, decimal_places=8))
     market_facts = serializers.DictField(child=serializers.DictField(), default=dict)
-    expires_at = serializers.DateTimeField()
+    expires_at = serializers.DateTimeField(default_timezone=UTC)
 
 
 def _serialize(plan: TransitionPlan) -> dict[str, object]:
