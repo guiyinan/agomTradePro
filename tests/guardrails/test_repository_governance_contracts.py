@@ -10,18 +10,18 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_agents_app_inventory_matches_machine_governance_source() -> None:
-    """Keep the human-facing AGENTS module tree aligned with the machine baseline."""
+def test_agents_routes_app_inventory_to_machine_governance_source() -> None:
+    """Keep AGENTS as a route to the machine baseline, not a second inventory."""
 
     agents_text = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-    apps_tree = agents_text.split("├── apps/", maxsplit=1)[1].split("├── shared/", maxsplit=1)[0]
-    documented_modules = set(re.findall(r"│   [├└]── ([a-z][a-z0-9_]*)/", apps_tree))
     baseline = json.loads(
         (REPO_ROOT / "governance" / "governance_baseline.json").read_text(encoding="utf-8")
     )
-    expected_modules = set(baseline["module_shape_minimums"])
 
-    assert documented_modules == expected_modules
+    assert "governance/governance_baseline.json" in agents_text
+    assert baseline["module_shape_minimums"]
+    assert "├── apps/" not in agents_text
+    assert "├── shared/" not in agents_text
     assert "Market Data 模块" not in agents_text
 
 

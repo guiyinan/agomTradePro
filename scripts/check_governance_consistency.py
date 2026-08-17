@@ -194,7 +194,6 @@ DYNAMIC_GOVERNANCE_COUNT_COPY_PATTERNS = (
 )
 
 VERSION_DOCS = (
-    "AGENTS.md",
     "docs/INDEX.md",
     "docs/VERSION.md",
     "docs/governance/SYSTEM_BASELINE.md",
