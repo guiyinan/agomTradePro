@@ -16,6 +16,7 @@ from apps.agent_runtime.infrastructure.models import (
 )
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.terminal.infrastructure.models import TerminalAuditLogORM
+from apps.terminal.infrastructure.tui_adapters import TuiInternalActionExecutor
 from core.exceptions import MissingConfigError
 
 
@@ -244,7 +245,8 @@ class TestTerminalChatEndpoint:
         assert response.status_code == expected_status
         assert response.json()["code"] == expected_code
         assert response.json()["retryable"] is True
-        assert "Retry-After" in response
+        assert response["Retry-After"] == "5"
+        assert response["Content-Type"].startswith("application/json")
 
     def test_terminal_chat_returns_503_when_provider_is_not_configured(
         self,
@@ -269,6 +271,40 @@ class TestTerminalChatEndpoint:
             "code": "AI_PROVIDER_UNAVAILABLE",
             "setup_required": True,
         }
+
+
+@pytest.mark.django_db
+def test_tui_internal_agent_action_recovers_after_bounded_busy_response(staff_user):
+    executor = TuiInternalActionExecutor()
+    recovered_response = Mock(
+        reply="recovered",
+        session_id="session-recovered",
+        metadata={"provider": "test-provider", "model": "test-model"},
+    )
+
+    with patch(
+        "apps.terminal.interface.api_views.RunTerminalAgentChatUseCase.execute",
+        side_effect=[TerminalAgentBusyError(), recovered_response],
+    ):
+        busy = executor.execute(
+            method="POST",
+            endpoint="/api/terminal/chat/",
+            params={},
+            body={"message": "first"},
+            user=staff_user,
+        )
+        recovered = executor.execute(
+            method="POST",
+            endpoint="/api/terminal/chat/",
+            params={},
+            body={"message": "second"},
+            user=staff_user,
+        )
+
+    assert busy["status_code"] == 429
+    assert busy["payload"]["code"] == "AI_AGENT_BUSY"
+    assert recovered["status_code"] == 200
+    assert recovered["payload"]["reply"] == "recovered"
 
 
 @pytest.mark.django_db

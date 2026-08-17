@@ -373,7 +373,11 @@ class TuiWorkbenchSpecializedResultMixin:
         )
         next_step = self._ai_router_next_step(payload, error_code=error_code)
         status = self._status_label(status_code, payload)
-        if error_code:
+        if error_code == "AI_AGENT_BUSY":
+            status = "系统繁忙"
+        elif error_code == "AI_AGENT_TIMEOUT":
+            status = "执行超时"
+        elif error_code:
             status = "需配置"
         elif 400 <= int(status_code) < 500:
             status = "错误"
@@ -481,6 +485,16 @@ class TuiWorkbenchSpecializedResultMixin:
                 "AI_PROVIDER_REQUEST_FAILED",
                 "AI 服务调用失败，请检查服务商连通性、默认模型和额度后重试。",
             )
+        if code == "AI_AGENT_BUSY":
+            return (
+                "AI_AGENT_BUSY",
+                "已有智能助手任务正在执行，请等待当前任务完成后再重试，不要连续提交。",
+            )
+        if code == "AI_AGENT_TIMEOUT":
+            return (
+                "AI_AGENT_TIMEOUT",
+                "智能助手执行超过时间上限，已安全停止；请缩小问题范围后重试。",
+            )
         return "", ""
 
     def _ai_router_next_step(self, payload: dict[str, Any], *, error_code: str) -> str:
@@ -488,6 +502,10 @@ class TuiWorkbenchSpecializedResultMixin:
             return "先完成默认 AI 服务配置，再回到当前页面重试。"
         if error_code == "AI_PROVIDER_REQUEST_FAILED":
             return "先在 AI 服务商页面测试连通性，再核对默认模型和额度。"
+        if error_code == "AI_AGENT_BUSY":
+            return "等待当前任务完成后再重试，不要连续点击提交。"
+        if error_code == "AI_AGENT_TIMEOUT":
+            return "缩小问题范围、减少一次请求中的任务数量，然后重新提交。"
         missing_params = list(payload.get("missing_params") or [])
         if missing_params:
             return "先补全缺失参数，再重新发起请求。"
@@ -502,7 +520,10 @@ class TuiWorkbenchSpecializedResultMixin:
         steps: list[dict[str, Any]] = [
             {"label": "重试", "action_key": str(action.get("key") or "")}
         ]
-        if error_code:
+        if error_code in {
+            "AI_PROVIDER_NOT_CONFIGURED",
+            "AI_PROVIDER_REQUEST_FAILED",
+        }:
             steps.extend(
                 [
                     {"label": "AI 服务商与用量", "screen_key": "ai-ops.providers"},

@@ -2,10 +2,12 @@
 set -eu
 
 health_url="${WEB_HEALTH_URL:-http://127.0.0.1:8000/api/health/}"
-failure_file="/tmp/agomtradepro-web-health-failures"
+curl_bin="${WEB_HEALTH_CURL_BIN:-curl}"
+failure_file="${WEB_HEALTH_FAILURE_FILE:-/tmp/agomtradepro-web-health-failures}"
 failure_threshold="${WEB_HEALTH_SELF_TERMINATE_AFTER_FAILURES:-3}"
+proc_root="${WEB_HEALTH_PROC_ROOT:-/proc}"
 
-if curl -fsS --connect-timeout 2 --max-time 5 "$health_url" >/dev/null; then
+if "$curl_bin" -fsS --connect-timeout 2 --max-time 5 "$health_url" >/dev/null; then
     rm -f "$failure_file"
     exit 0
 fi
@@ -25,9 +27,9 @@ failure_count=$((failure_count + 1))
 printf '%s\n' "$failure_count" >"$failure_file"
 
 if [ "$failure_threshold" -gt 0 ] && [ "$failure_count" -ge "$failure_threshold" ]; then
-    for proc_path in /proc/[0-9]*; do
+    for proc_path in "$proc_root"/[0-9]*; do
         [ -r "$proc_path/cmdline" ] || continue
-        pid="${proc_path#/proc/}"
+        pid="${proc_path##*/}"
         [ "$pid" = "$$" ] && continue
         command_line="$(tr '\000' ' ' <"$proc_path/cmdline" 2>/dev/null || true)"
         case "$command_line" in
