@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "0037812e9aaec3798b93faea232aa9b46fab2e72",
-  "build_id": "agomtui-runtime-0.2.0+e21a9ecede4d",
+  "upstream_commit": "f4dd724f268a1abe263fe797398708f7f293a508",
+  "build_id": "agomtui-runtime-0.2.0+0e1c0630d45f",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -34,7 +34,7 @@
     "apps/terminal/application/tui_metadata_field_aliases.py": "117c6a3de5c529d537783399f553efc50d4bf9c0507c0b3d503f56f1c072269a",
     "apps/terminal/application/tui_metadata.py": "5f78c5f156b68432d4ff6209a627c6cdb3bb693deafc43799373c6356884456c",
     "apps/terminal/infrastructure/tui_information_architecture.py": "ebc55b6c264fcf6cc817e5d3c808c0ae288a4568d3916e4148c199b08f831e04",
-    "apps/terminal/infrastructure/tui_metadata_repository.py": "7d5c59d2aa3842f38c529ff50441eb3104f4566544038d1beda48ad0cad72c28",
+    "apps/terminal/infrastructure/tui_metadata_repository.py": "919a6dce2279c6b0bbab7c1b09fe180cc94c3b27a8df56da7cd1761be7da9086",
     "apps/terminal/infrastructure/tui_metadata_signals.py": "0c0071c88fcba28eec726cc7891ca9b0592b5b4d5c064b7f104cd85f0288bb5d",
     "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_alpha_policy.py": "958d3d1074b407defbf3b5e2c1b36beaae34ec8cb23bf541a953a0924933d082",
     "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_config_center.py": "f2993951bd8f003e945e19f86fd207275fb54fdbd5616202478260c51075e319",
