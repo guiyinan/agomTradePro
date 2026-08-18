@@ -141,6 +141,33 @@ def test_research_signals_screen_patch_removed_after_ia_cutover() -> None:
     assert runtime_screen["summary"] == research_signals["summary"]
 
 
+def test_research_asset_lab_screen_patch_removed_after_ia_cutover() -> None:
+    """The canonical asset research screen owns its panels after cutover."""
+
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        RUNTIME_SCREEN_PATCHES,
+        PublishedTuiMetadataRepository,
+    )
+
+    ia = load_json_payload(IA_PATH)
+    asset_lab = next(
+        screen for screen in ia["published_screens"] if screen["key"] == "research.asset-lab"
+    )
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    runtime_screen = next(
+        screen for screen in runtime["screens"] if screen["key"] == "research.asset-lab"
+    )
+
+    assert "research.asset-lab" not in RUNTIME_SCREEN_PATCHES
+    for key in ("label", "summary", "view_type", "default_action_key", "user_experience"):
+        assert runtime_screen[key] == asset_lab[key]
+    assert [
+        panel["action_key"]
+        for panel in runtime_screen["dashboard_panels"]
+        if panel.get("action_key")
+    ] == [panel["action_key"] for panel in asset_lab["dashboard_panels"] if panel.get("action_key")]
+
+
 def test_prompt_screen_injection_does_not_repeat_ia_owned_copy() -> None:
     """Prompt runtime injection keeps behavior, while IA owns screen semantics."""
 
