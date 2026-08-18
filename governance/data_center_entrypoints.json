@@ -2652,8 +2652,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/alpha/infrastructure/adapters/qlib_adapter.py:apply_async:line:641",
-      "locator": "line:641",
+      "id": "celery_dispatch_edge:apps/alpha/infrastructure/adapters/qlib_adapter.py:apply_async:line:644",
+      "locator": "line:644",
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "status": "active_public",
       "symbol": "apply_async",
