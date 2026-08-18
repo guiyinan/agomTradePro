@@ -149,6 +149,26 @@ def test_manifest_freezes_complete_baseline_candidate_identity() -> None:
     """Capacity samples cannot be combined across images or snapshots."""
 
     manifest = _manifest()
+    authority = manifest["authority"]
+    assert isinstance(authority, dict)
+    assert (
+        "apps/agent_runtime/application/terminal_runtime_baseline.py"
+        in authority["implementation_sources"]
+    )
+    assert (
+        "apps/agent_runtime/application/terminal_runtime_baseline_collector.py"
+        in authority["implementation_sources"]
+    )
+    acceptance = manifest["acceptance_and_next_gate"]
+    assert isinstance(acceptance, dict)
+    assert (
+        "tests/unit/agent_runtime/test_terminal_runtime_baseline.py"
+        in acceptance["current_evidence"]
+    )
+    assert (
+        "tests/unit/agent_runtime/test_terminal_runtime_baseline_collector.py"
+        in acceptance["current_evidence"]
+    )
     baseline = manifest["baseline_evidence"]
     assert isinstance(baseline, dict)
     assert baseline["candidate_identity_type"] == "TerminalRuntimeBaselineCandidate"

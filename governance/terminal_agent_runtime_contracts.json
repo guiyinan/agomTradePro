@@ -15,6 +15,8 @@
       "apps/agent_runtime/application/terminal_agent_run_ports.py",
       "apps/agent_runtime/application/terminal_agent_run_boundary.py",
       "apps/agent_runtime/application/terminal_agent_run_route_guard.py",
+      "apps/agent_runtime/application/terminal_runtime_baseline.py",
+      "apps/agent_runtime/application/terminal_runtime_baseline_collector.py",
       "apps/agent_runtime/application/terminal_runtime_queue_policy.py",
       "apps/terminal/interface/queued_runtime_views.py",
       "apps/terminal/interface/api_urls.py",
@@ -322,6 +324,8 @@
       "tests/unit/agent_runtime/test_terminal_runtime_queue_policy.py",
       "tests/unit/agent_runtime/test_terminal_agent_run_boundary.py",
       "tests/unit/terminal/test_terminal_queued_route_guard.py",
+      "tests/unit/agent_runtime/test_terminal_runtime_baseline.py",
+      "tests/unit/agent_runtime/test_terminal_runtime_baseline_collector.py",
       "tests/unit/agent_runtime/test_terminal_runtime_contract_manifest.py"
     ],
     "next_gate": "Complete the real inline baseline and capacity evidence on one immutable candidate; this manifest does not authorize TAR-02 or production traffic.",

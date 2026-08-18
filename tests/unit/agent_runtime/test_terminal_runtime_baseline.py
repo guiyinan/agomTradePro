@@ -215,6 +215,20 @@ def test_candidate_identity_rejects_missing_or_forged_artifact_binding(
         TerminalRuntimeBaselineCandidate(**values)
 
 
+def test_sample_rejects_forged_candidate_identity_object() -> None:
+    """A forged frozen dataclass cannot bypass identity validation at intake."""
+
+    forged = object.__new__(TerminalRuntimeBaselineCandidate)
+    object.__setattr__(forged, "candidate_commit", CANDIDATE)
+    object.__setattr__(forged, "candidate_release", RELEASE)
+    object.__setattr__(forged, "oci_revision", "not-a-revision")
+    object.__setattr__(forged, "runtime_manifest_digest", "c" * 64)
+    object.__setattr__(forged, "test_matrix_digest", "d" * 64)
+
+    with pytest.raises(TerminalRuntimeBaselineContractError, match="invalid or forged"):
+        _sample(1, candidate_identity=forged)
+
+
 def test_contract_module_is_stdlib_only_and_does_not_collect_or_call_runtime() -> None:
     source_path = Path("apps/agent_runtime/application/terminal_runtime_baseline.py")
     source = source_path.read_text(encoding="utf-8")

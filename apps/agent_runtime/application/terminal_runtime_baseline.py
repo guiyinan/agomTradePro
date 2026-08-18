@@ -111,7 +111,13 @@ class TerminalRuntimeBaselineCandidate:
     def __post_init__(self) -> None:
         """Validate every part of the immutable candidate binding."""
 
-        _require_candidate_commit(self.candidate_commit)
+        if (
+            type(self.candidate_commit) is not str
+            or _CANDIDATE_COMMIT_RE.fullmatch(self.candidate_commit) is None
+        ):
+            raise TerminalRuntimeBaselineContractError(
+                "candidate_commit must be a lowercase 40-character SHA-1"
+            )
         _require_token(self.candidate_release, "candidate_release")
         if (
             type(self.oci_revision) is not str
@@ -122,6 +128,27 @@ class TerminalRuntimeBaselineCandidate:
             )
         _require_sha256(self.runtime_manifest_digest, "runtime_manifest_digest")
         _require_sha256(self.test_matrix_digest, "test_matrix_digest")
+
+    def validate(self) -> None:
+        """Revalidate an identity before it crosses an untrusted boundary."""
+
+        self.__post_init__()
+
+
+def _validate_candidate_identity(
+    value: object,
+) -> TerminalRuntimeBaselineCandidate:
+    """Reject substituted or forged candidate identities at sample intake."""
+
+    if type(value) is not TerminalRuntimeBaselineCandidate:
+        raise TerminalRuntimeBaselineContractError("candidate identity is invalid or forged")
+    try:
+        value.validate()
+    except (AttributeError, TypeError, ValueError):
+        raise TerminalRuntimeBaselineContractError(
+            "candidate identity is invalid or forged"
+        ) from None
+    return value
 
 
 def _require_non_negative_number(value: object, field_name: str) -> float | int:
@@ -196,13 +223,15 @@ class TerminalRuntimeBaselineSample:
             raise TerminalRuntimeBaselineContractError(
                 "complete candidate identity is required for bound samples"
             )
-        if self.candidate_identity is not None and (
-            self.candidate_commit != self.candidate_identity.candidate_commit
-            or self.candidate_release != self.candidate_identity.candidate_release
-        ):
-            raise TerminalRuntimeBaselineContractError(
-                "candidate identity does not match legacy candidate fields"
-            )
+        if self.candidate_identity is not None:
+            identity = _validate_candidate_identity(self.candidate_identity)
+            if (
+                self.candidate_commit != identity.candidate_commit
+                or self.candidate_release != identity.candidate_release
+            ):
+                raise TerminalRuntimeBaselineContractError(
+                    "candidate identity does not match legacy candidate fields"
+                )
         if isinstance(self.concurrency, bool) or self.concurrency not in _REQUIRED_CONCURRENCY:
             raise TerminalRuntimeBaselineContractError("concurrency must be one of 1, 5, 10, or 20")
         if isinstance(self.sample_count, bool) or not isinstance(self.sample_count, int):
