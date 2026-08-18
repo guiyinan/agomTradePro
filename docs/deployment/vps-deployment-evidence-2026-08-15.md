@@ -4,6 +4,29 @@
 
 `dev/next-development` 的提交 `96ce6ee43b06e6eb6ad51528ff8ee783a4bf0952` 已在 `demo.agomtrade.pro` 完成一次带 provenance 校验的后续候选部署。该 release 包含 TUI AI provider failure guidance 修复；当前服务正常运行，M5 观察窗口从本次独立核验时间重新计算。本证据不解除角色化浏览器 UAT、写后回执、14 日观察、恢复演练或数据覆盖门禁。
 
+## 2026-08-19 02:43 当前 DATA-01 口径修复候选部署与只读观测
+
+提交 `dev/next-development@09e8e5ed11fd56c39b1090f28159a59d1ad4c6a4` 使用标准
+`git-clone`、`fresh`、code-only 模式发布为 release `20260819024316`；保留
+PostgreSQL/Redis 数据卷并启用 Celery。该 release 将 A 股涨跌停指标的“不含 ST”口径
+同时落到 Data Center、Pulse、Tushare/AKShare provider 与可回滚迁移；未改变 TUI
+published graph、角色授权或业务写入门禁。
+
+| 项目 | 证据 |
+|---|---|
+| release/source | `20260819024316` / `09e8e5ed11fd56c39b1090f28159a59d1ad4c6a4` |
+| image | `agomtradepro-web:20260819024316` / `sha256:38f3b7156d3fde8f2c8579578939189206bc9b34452eeb4593dc1089728bf219` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260819024316.json` |
+| mode/volumes | `ACTION=fresh`、code-only、PostgreSQL/Redis 数据卷保留、Celery enabled |
+| migration/schema/checks | `data_center.0072_note_non_st_price_limit_scope` 与 `pulse.0007_note_non_st_price_limit_scope` 均应用成功；canonical schema `missing_migrations=[]`、`missing_tables=[]`、`ok=true`；Django check 无新增问题 |
+| TUI runtime | registry `id=28`、publish 为 `noop`；active/backend version `20260819000530`、source hash `cf064268fa7ee2263bcb2355d12bdd98bedd83076288272a6997ff5af7cacf8c` 匹配；本次未改 published graph |
+| HTTPS/health | `demo.agomtrade.pro` Caddy domain、TLS valid；部署 verifier HTTP `200`；随后 8 次 `https://demo.agomtrade.pro/api/health/` 均 `200`（18:00:01–18:00:22 UTC，约 `1.06–2.57s`） |
+| containers | web healthy；Caddy、PostgreSQL、Redis、RSSHub、Celery worker/beat、runtime namespace running；Celery ping `1 node online` |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| backup | 部署前 PostgreSQL custom-format backup：`/opt/agomtradepro/backups/database/postgres-20260818-204950.dump`；本次未执行 restore/rebuild 或 RTO/RPO drill |
+
+本节是当前 release 的部署、迁移、版本、健康与 Data Center/Pulse 口径只读证据，不是角色化浏览器 UAT、生产业务写入或写后 receipt/refresh 证明。没有执行登录、角色化权限走查、业务写入、14 日 telemetry/defect、registry backup/restore、rollback 双签、owner/reviewer 双签或 AUD-01/EVID-01 durable authority/publisher 验证；相关 gate 继续 fail-closed。
+
 ## 2026-08-19 01:28 当前 TUX-02 dead-patch cleanup 部署与只读观测
 
 提交 `dev/next-development@72061c6857571ab4a3de891d2ae5ad8d5ad19a6c` 使用标准
