@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from apps.agent_runtime.domain.terminal_runtime_baseline import (
+from apps.agent_runtime.application.terminal_runtime_baseline import (
     TerminalRuntimeBaselineContractError,
     TerminalRuntimeBaselineMetric,
     TerminalRuntimeBaselineMetricStatus,
@@ -161,7 +161,7 @@ def test_sample_rejects_backwards_web_percentiles() -> None:
 
 
 def test_contract_module_is_stdlib_only_and_does_not_collect_or_call_runtime() -> None:
-    source_path = Path("apps/agent_runtime/domain/terminal_runtime_baseline.py")
+    source_path = Path("apps/agent_runtime/application/terminal_runtime_baseline.py")
     source = source_path.read_text(encoding="utf-8")
     tree = ast.parse(source)
     imported_names = {
