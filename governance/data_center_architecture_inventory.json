@@ -4113,27 +4113,27 @@
       "text": "\"\"\"Accept legacy 2-tuple mocks and normalize to the current 3-tuple contract.\"\"\""
     },
     {
-      "line": 568,
+      "line": 571,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "\"\"\"Return the latest trading date available in the local qlib dataset.\"\"\""
     },
     {
-      "line": 776,
+      "line": 779,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary: dict[str, object] = {}"
     },
     {
-      "line": 779,
+      "line": 782,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary[\"status\"] = status"
     },
     {
-      "line": 783,
+      "line": 786,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary[key] = value"
     },
     {
-      "line": 784,
+      "line": 787,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "return summary or None"
     },
@@ -21468,7 +21468,7 @@
       "text": "\"/api/pulse/current/\","
     },
     {
-      "line": 199,
+      "line": 204,
       "path": "core/settings/base.py",
       "text": "\"apps.realtime\",  # 新增：实时价格监控模块"
     },
