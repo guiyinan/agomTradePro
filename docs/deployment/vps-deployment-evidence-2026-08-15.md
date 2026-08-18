@@ -4,6 +4,28 @@
 
 `dev/next-development` 的提交 `96ce6ee43b06e6eb6ad51528ff8ee783a4bf0952` 已在 `demo.agomtrade.pro` 完成一次带 provenance 校验的后续候选部署。该 release 包含 TUI AI provider failure guidance 修复；当前服务正常运行，M5 观察窗口从本次独立核验时间重新计算。本证据不解除角色化浏览器 UAT、写后回执、14 日观察、恢复演练或数据覆盖门禁。
 
+## 2026-08-19 00:22 当前 TUX-02 runtime action-copy 部署与只读观测
+
+提交 `dev/next-development@413c67f3ba2cfd1117356d129961e39958979017` 使用标准
+`git-clone`、`fresh`、code-only 模式发布为 release `20260819000530`；保留
+PostgreSQL/Redis 数据卷并启用 Celery。该 release 包含 TUX-02 runtime action-copy
+边界和对应 manifest 刷新；没有改变角色授权、业务写入或 M5 candidate binding。
+
+| 项目 | 证据 |
+|---|---|
+| release/source | `20260819000530` / `413c67f3ba2cfd1117356d129961e39958979017` |
+| image | `agomtradepro-web:20260819000530` / `sha256:e807ca97a61b9b5455d7ae92de64d24df7a3ed9d940aacd7ce313111c15e6152` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260819000530.json` |
+| mode/volumes | `ACTION=fresh`、code-only、PostgreSQL/Redis 数据卷保留、Celery enabled |
+| migration/schema | `No migrations to apply`；canonical schema `missing_migrations=[]`、`missing_tables=[]`、`ok=true`；Django check 无新增问题 |
+| TUI runtime | registry `id=28`、`backend_version=20260819000530`；active/source hash 均为 `cf064268fa7ee2263bcb2355d12bdd98bedd83076288272a6997ff5af7cacf8c`；6 个 action copy replacement 变更已 publish/check 匹配 |
+| HTTPS/health | `demo.agomtrade.pro` Caddy domain；TLS valid；`https://demo.agomtrade.pro/api/health/` HTTP `200` |
+| containers | web healthy；Caddy、PostgreSQL、Redis、RSSHub、Celery worker/beat running；Celery ping `1 node online` |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| backup | 部署前 PostgreSQL custom-format backup：`/opt/agomtradepro/backups/database/postgres-20260818-181338.dump`；本次未执行 restore/rebuild 或 RTO/RPO drill |
+
+本节是当前 release 的部署、版本、健康与 TUI runtime 只读证据，不是角色化浏览器 UAT、生产业务写入或写后 receipt/refresh 证明。没有执行登录、角色化权限走查、业务写入、14 日 telemetry/defect、registry backup/restore、rollback 双签、owner/reviewer 双签或 AUD-01/EVID-01 durable authority/publisher 验证；相关 gate 继续 fail-closed。CI Fast Feedback 的 Python 3.11 浏览器安装任务在本次记录时仍为外部 runner 观测项，不能由 VPS 健康结果替代。
+
 ## 2026-08-18 21:07 当前 TAR-01 boundary guard 候选部署与短窗口只读观测
 
 提交 `dev/next-development@d238091d9e7e3aa1324baf92199100e800122ed7` 使用标准
