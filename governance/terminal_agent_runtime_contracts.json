@@ -14,7 +14,10 @@
       "apps/agent_runtime/application/terminal_agent_run_api_contract.py",
       "apps/agent_runtime/application/terminal_agent_run_ports.py",
       "apps/agent_runtime/application/terminal_agent_run_boundary.py",
+      "apps/agent_runtime/application/terminal_agent_run_route_guard.py",
       "apps/agent_runtime/application/terminal_runtime_queue_policy.py",
+      "apps/terminal/interface/queued_runtime_views.py",
+      "apps/terminal/interface/api_urls.py",
       "core/settings/base.py",
       "core/settings/production.py"
     ]
@@ -26,10 +29,11 @@
       "ID-only broker envelope validation",
       "pure asynchronous API/SSE response shapes",
       "pure queue/deadline/flag relationships",
-      "dormant application composition boundary"
+      "dormant application composition boundary",
+      "reserved queued route names with an explicit fail-closed 503 boundary"
     ],
     "not_implemented": [
-      "Web/TUI queued route",
+      "Web/TUI queued intake/admission route",
       "durable PostgreSQL run or dispatch record",
       "Celery task, broker publisher, or dispatcher",
       "dedicated Agent Worker or event stream",
@@ -191,11 +195,11 @@
       {"code": "AI_PROVIDER_NOT_CONFIGURED", "status": 503, "source": "apps.terminal.application.ui_workbench_result_models_specialized"},
       {"code": "AI_PROVIDER_UNAVAILABLE", "status": 503, "source": "apps.terminal.interface.api_views"},
       {"code": "AI_PROVIDER_REQUEST_FAILED", "status": 502, "source": "apps.terminal.interface.api_views"},
+      {"code": "DISPATCH_UNAVAILABLE", "status": 503, "source": "apps.agent_runtime.application.terminal_agent_run_route_guard"},
       {"code": "TIMEOUT", "status": 504, "source": "core.exceptions.TimeoutError.default_code"}
     ],
     "reserved_for_future_queued_runtime": [
       {"code": "QUEUE_FULL", "status": 429, "retry_after": true, "implementation_status": "not_runtime"},
-      {"code": "DISPATCH_UNAVAILABLE", "status": 503, "retry_after": true, "implementation_status": "not_runtime"},
       {"code": "DISPATCH_PENDING", "status": 503, "retry_after": true, "implementation_status": "not_runtime"},
       {"code": "IDEMPOTENCY_KEY_CONFLICT", "status": 409, "retry_after": false, "implementation_status": "not_runtime"},
       {"code": "RUN_NOT_OWNER", "status": 404, "retry_after": false, "implementation_status": "not_runtime"},
@@ -317,9 +321,10 @@
       "tests/unit/agent_runtime/test_terminal_agent_run_ports.py",
       "tests/unit/agent_runtime/test_terminal_runtime_queue_policy.py",
       "tests/unit/agent_runtime/test_terminal_agent_run_boundary.py",
+      "tests/unit/terminal/test_terminal_queued_route_guard.py",
       "tests/unit/agent_runtime/test_terminal_runtime_contract_manifest.py"
     ],
-    "next_gate": "Complete the real inline baseline and failing-first route guard, then TAR-02 may implement durable admission; this manifest does not authorize TAR-02 or production traffic.",
+    "next_gate": "Complete the real inline baseline and capacity evidence on one immutable candidate; this manifest does not authorize TAR-02 or production traffic.",
     "production_evidence_missing": [
       "controlled 1/5/10/20 user baseline and capacity result",
       "durable PostgreSQL first-winner/idempotency/rollback evidence",

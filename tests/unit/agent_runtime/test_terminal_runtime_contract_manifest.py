@@ -116,6 +116,7 @@ def test_manifest_existing_error_codes_are_not_fabricated() -> None:
     source_paths = (
         Path("core/exceptions.py"),
         Path("apps/agent_runtime/application/terminal_agent.py"),
+        Path("apps/agent_runtime/application/terminal_agent_run_route_guard.py"),
         Path("apps/terminal/application/tui_workbench_result_models_specialized.py"),
         Path("apps/terminal/interface/api_views.py"),
     )
