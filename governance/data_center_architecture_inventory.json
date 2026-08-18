@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4276,
+    "current_surface_references": 4275,
     "data_write_task_decorators": 59,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20838,47 +20838,42 @@
       "text": "\"key\": \"config-center-governance-summary\","
     },
     {
-      "line": 10,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_research.py",
-      "text": "\"summary\": \"先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。\","
-    },
-    {
-      "line": 11,
+      "line": 9,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_research.py",
       "text": "\"default_action_key\": \"dashboard.beta-market-summary\","
     },
     {
-      "line": 30,
+      "line": 28,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_research.py",
       "text": "\"key\": \"beta-market-summary\","
     },
     {
-      "line": 33,
+      "line": 31,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_research.py",
       "text": "\"action_key\": \"dashboard.beta-market-summary\","
     },
     {
-      "line": 178,
+      "line": 176,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_research.py",
       "text": "\"default_action_key\": \"auto.api.get.api.asset-analysis.pool-summary\","
     },
     {
-      "line": 197,
+      "line": 195,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_research.py",
       "text": "\"key\": \"asset-pool-summary\","
     },
     {
-      "line": 200,
+      "line": 198,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_research.py",
       "text": "\"action_key\": \"auto.api.get.api.asset-analysis.pool-summary\","
     },
     {
-      "line": 208,
+      "line": 206,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_research.py",
       "text": "\"key\": \"asset-current-weight\","
     },
     {
-      "line": 211,
+      "line": 209,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_research.py",
       "text": "\"action_key\": \"auto.api.get.api.asset-analysis.current-weight\","
     },
