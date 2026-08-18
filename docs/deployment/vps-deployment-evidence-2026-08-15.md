@@ -936,3 +936,41 @@ candidate binding 仍为 `web-to-tui-candidate-binding.v1`：matrix SHA
 `fc4c19fbb0fc90e931a16223fffd9a4bd782e380afb86893a499874e6b644c84`、schema `tui-metadata.v3`、
 runtime `0.2.0`、build `agomtui-runtime-0.2.0+a2553996be22`、manifest SHA
 `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854`。
+
+## 2026-08-19 07:05 TAR-01 reserved queued route guard candidate
+
+The route-level fail-closed boundary was deployed in code-only upgrade mode from the
+immutable `dev/next-development` candidate. PostgreSQL/Redis data volumes were preserved;
+Celery remained enabled. The queued intake and worker feature flags remain disabled, so this
+deployment does not enable durable runs or Agent execution through the new routes.
+
+| Item | Evidence |
+|---|---|
+| release tag | `20260819064907` |
+| release directory | `/opt/agomtradepro/releases/source-20260819064907` |
+| source commit | `3ba46b2f06bce4cf11cc0293903a54193be7b4ef` |
+| image | `agomtradepro-web:20260819064907` |
+| image ID | `sha256:232faecb1f69c69778085aee69d90f66dcbfd5c54085ed13f27ab181c0c0e12c` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260819064907.json` |
+| mode | `ACTION=upgrade`, code-only, data volumes preserved, Celery enabled |
+| migrations/schema | `No migrations to apply`; canonical schema `{"missing_migrations": [], "missing_tables": [], "ok": true}` |
+| HTTPS/TLS | `demo.agomtrade.pro` Caddy domain; TLS verifier passed |
+| containers | web healthy; Celery worker/beat, PostgreSQL, Redis, Caddy, RSSHub and runtime namespace running; Celery ping `1 node online` |
+| Qlib | `pyqlib=0.9.7`; wrong `qlib` distribution absent; module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| backup | pre-deploy PostgreSQL backup `/opt/agomtradepro/backups/database/postgres-20260819-005522.dump` created and verifier passed |
+
+Short public read-only observation after deployment:
+
+- `https://demo.agomtrade.pro/api/health/`: 8/8 HTTP `200`, approximately `1.09–1.85s`.
+- `https://demo.agomtrade.pro/api/ready/`: 3/3 HTTP `200`, approximately `4.61–11.55s`; database,
+  Redis, Celery and critical-data checks were `ok`. The response still exposed the existing
+  data-freshness degradation (`etf_net_flow` stale / `market_thermometer` data source degraded),
+  which was not hidden by the deployment.
+- Anonymous `POST /api/terminal/runs/` returned HTTP `403` from the authentication boundary. No
+  authenticated role account was provisioned in this observation, so the post-authenticated
+  `503 DISPATCH_UNAVAILABLE / queued_runtime_not_wired` response was not claimed as production
+  UAT evidence. No business write, receipt/refresh, role browser UAT, capacity/chaos, 14-day
+  telemetry, restore/rollback drill, or owner/reviewer sign-off was performed.
+
+This is a short-window runtime identity and read-only health observation only. TAR-01 remains
+active; TAR-02 and production gates remain fail-closed.
