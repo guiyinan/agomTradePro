@@ -42,7 +42,11 @@ def test_akshare_collects_breadth_and_price_limit_counts(monkeypatch) -> None:
             ]
         ),
         stock_zt_pool_em=lambda date: pd.DataFrame(
-            [{"代码": "600001", "名称": "甲公司"}, {"代码": "000002", "名称": "乙公司"}]
+            [
+                {"代码": "600001", "名称": "甲公司"},
+                {"代码": "000002", "名称": "乙公司"},
+                {"代码": "000003"},
+            ]
         ),
         stock_zt_pool_dtgc_em=lambda date: pd.DataFrame([{"代码": "300002", "名称": "戊公司"}]),
     )

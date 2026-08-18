@@ -169,11 +169,13 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 return []
             if frame is None or frame.empty:
                 return []
-            rows = [
-                row
-                for row in frame.to_dict("records")
-                if "ST" not in str(_first_present(row, "名称", "name") or "").upper()
-            ]
+            rows: list[dict[str, Any]] = []
+            for row in frame.to_dict("records"):
+                raw_name = _first_present(row, "名称", "name")
+                name = "" if raw_name is None else str(raw_name).strip()
+                if not name or name.lower() == "nan" or "ST" in name.upper():
+                    continue
+                rows.append(row)
             if not rows:
                 return []
             value = len(rows)
