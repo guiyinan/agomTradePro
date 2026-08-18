@@ -107,6 +107,7 @@
 | 日期 | 期次 | 阶段 | 完成情况 | 后续 |
 |------|------|------|----------|------|
 | 2026-08-18 | P0 优先线 | Terminal Agent 多用户 runtime 立项 | 已完成现状根因、目标架构、服务端队列、专用 Worker、可恢复事件流、本地 CLI、角色分工、16–24 人日工期、SLO/测试/灰度/回滚的专项计划，并登记 TAR-01 至 TAR-05 | 当前原子工作包落盘后优先执行 TAR-01；未完成 TAR-05 前保持 inline 并发 1，不以直接扩容替代隔离整改 |
+| 2026-08-18 | P0 优先线 | TAR-01 queued intake boundary | 新增 dormant `SubmitTerminalQueuedRunUseCase` 与 `TerminalQueuedSubmissionPort`；只接受 `web_queued`，校验 admission adapter 保留 run identity；纯边界回归 `31 passed`、增量 mypy/architecture 通过 | 未接入 Web/TUI 路由、durable queue、Celery/Worker 或生产运行；继续完成 TAR-01 ADR、负载基线和 failing-first/API boundary 证据 |
 | 2026-08-12 | 基线 | 归档与排期 | 已在 `dev/plan-closure-by-priority` 创建基线提交 `919a9cea7` | 按本表期次继续独立提交 |
 | 2026-08-12 | 第一期 P0 | Evidence M1 Domain 首批 | 统一分类、ArtifactRef、Track Record、Envelope、权限交集和 fail-closed 传播已实现；canonical hash、非有限 Decimal 和有效期防线已加固；纯 Domain `19 passed`，standalone strict mypy `0 errors` | 做 M1 persistence、API、审批激活和 adapters |
 | 2026-08-12 | 第一期 P0 | Evidence M0 owner/freeze | ADR-0007 owner/接口矩阵已接受；54 个 HTTP、15 个 SDK、25 个发布态 TUI 决策 action、23 个 TUI mutation/AI/admin action 与 32 个 MCP 仓位相关写能力被机器门禁精确冻结，发布图 SHA 漂移也会阻断；聚合验证 `19 passed` | 补输出、raw/governed MCP 与旧 Transition Plan 语义分类，再推进 M1 持久化 |

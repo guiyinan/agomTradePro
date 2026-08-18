@@ -14,6 +14,7 @@ from apps.agent_runtime.domain.terminal_agent_run_contract import (
     TerminalAgentRunContract,
     TerminalRunContractError,
     TerminalRunSubmission,
+    TerminalRuntimeMode,
 )
 
 
@@ -41,3 +42,46 @@ class TerminalQueuedSubmissionPort(Protocol):
         """Persist and admit a request without running Agent work inline."""
 
         ...
+
+
+class SubmitTerminalQueuedRunUseCase:
+    """Accept a queued web run without composing the legacy inline service.
+
+    This is the TAR-01 application boundary only. The injected port remains
+    unimplemented until TAR-02 supplies durable persistence and dispatch; this
+    use case deliberately contains no ORM, broker, Celery, or Agent SDK call.
+    """
+
+    def __init__(self, admission_port: TerminalQueuedSubmissionPort) -> None:
+        """Create the boundary with a durable-admission port."""
+
+        self._admission_port = admission_port
+
+    def execute(
+        self,
+        request: TerminalQueuedSubmissionRequest,
+    ) -> TerminalAgentRunContract:
+        """Submit one web-queued request and preserve its immutable identity."""
+
+        if request.submission.runtime_mode is not TerminalRuntimeMode.WEB_QUEUED:
+            raise TerminalRunContractError(
+                "queued submission boundary accepts only web_queued mode"
+            )
+
+        run = self._admission_port.submit(request)
+        if not _same_submission_identity(run.submission, request.submission):
+            raise TerminalRunContractError("admission port changed immutable run identity")
+        return run
+
+
+def _same_submission_identity(
+    actual: TerminalRunSubmission,
+    requested: TerminalRunSubmission,
+) -> bool:
+    """Check fields that an admission adapter must preserve unchanged."""
+
+    return (
+        actual.selector == requested.selector
+        and actual.runtime_mode is requested.runtime_mode
+        and actual.request_digest == requested.request_digest
+    )
