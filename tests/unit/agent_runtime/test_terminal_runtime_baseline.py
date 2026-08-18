@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from apps.agent_runtime.application.terminal_runtime_baseline import (
+    TerminalRuntimeBaselineCandidate,
     TerminalRuntimeBaselineContractError,
     TerminalRuntimeBaselineMetric,
     TerminalRuntimeBaselineMetricStatus,
@@ -22,6 +23,13 @@ from apps.agent_runtime.application.terminal_runtime_baseline import (
 NOW = datetime(2026, 8, 18, 12, 0, tzinfo=UTC)
 CANDIDATE = "a" * 40
 RELEASE = "20260818130903"
+CANDIDATE_IDENTITY = TerminalRuntimeBaselineCandidate(
+    candidate_commit=CANDIDATE,
+    candidate_release=RELEASE,
+    oci_revision="b" * 40,
+    runtime_manifest_digest="c" * 64,
+    test_matrix_digest="d" * 64,
+)
 
 
 def _metrics(*, unavailable: str | None = None) -> tuple[TerminalRuntimeBaselineMetric, ...]:
@@ -45,6 +53,7 @@ def _sample(
     *,
     candidate_commit: str | None = CANDIDATE,
     candidate_release: str | None = RELEASE,
+    candidate_identity: TerminalRuntimeBaselineCandidate | None = CANDIDATE_IDENTITY,
     unavailable: str | None = None,
 ) -> TerminalRuntimeBaselineSample:
     return TerminalRuntimeBaselineSample(
@@ -55,6 +64,7 @@ def _sample(
         sample_count=20,
         captured_at=NOW,
         metrics=_metrics(unavailable=unavailable),
+        candidate_identity=candidate_identity,
     )
 
 
@@ -93,6 +103,7 @@ def test_report_rejects_mixed_environment_or_candidate() -> None:
         sample_count=20,
         captured_at=NOW,
         metrics=_metrics(),
+        candidate_identity=CANDIDATE_IDENTITY,
     )
     with pytest.raises(TerminalRuntimeBaselineContractError, match="environment and candidate"):
         TerminalRuntimeBaselineReport(samples=tuple(mixed))
@@ -134,6 +145,7 @@ def test_sample_rejects_naive_clock_and_unbound_candidate_pair() -> None:
             sample_count=20,
             captured_at=NOW.replace(tzinfo=None),
             metrics=_metrics(),
+            candidate_identity=CANDIDATE_IDENTITY,
         )
     with pytest.raises(TerminalRuntimeBaselineContractError, match="supplied together"):
         _sample(1, candidate_commit=CANDIDATE, candidate_release=None)
@@ -157,7 +169,50 @@ def test_sample_rejects_backwards_web_percentiles() -> None:
             sample_count=20,
             captured_at=NOW,
             metrics=tuple(metrics),
+            candidate_identity=CANDIDATE_IDENTITY,
         )
+
+
+def test_report_rejects_incomplete_or_mixed_candidate_identity() -> None:
+    with pytest.raises(TerminalRuntimeBaselineContractError, match="complete candidate identity"):
+        _sample(1, candidate_identity=None)
+
+    mixed = [_sample(level) for level in sorted(required_concurrency_levels())]
+    mixed[-1] = _sample(
+        20,
+        candidate_identity=TerminalRuntimeBaselineCandidate(
+            candidate_commit=CANDIDATE,
+            candidate_release=RELEASE,
+            oci_revision="e" * 40,
+            runtime_manifest_digest="c" * 64,
+            test_matrix_digest="d" * 64,
+        ),
+    )
+    with pytest.raises(TerminalRuntimeBaselineContractError, match="environment and candidate"):
+        TerminalRuntimeBaselineReport(samples=tuple(mixed))
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("oci_revision", "not-a-revision"),
+        ("runtime_manifest_digest", "f" * 63),
+        ("test_matrix_digest", "G" * 64),
+    ],
+)
+def test_candidate_identity_rejects_missing_or_forged_artifact_binding(
+    field: str, value: str
+) -> None:
+    values = {
+        "candidate_commit": CANDIDATE,
+        "candidate_release": RELEASE,
+        "oci_revision": "b" * 40,
+        "runtime_manifest_digest": "c" * 64,
+        "test_matrix_digest": "d" * 64,
+    }
+    values[field] = value
+    with pytest.raises(TerminalRuntimeBaselineContractError):
+        TerminalRuntimeBaselineCandidate(**values)
 
 
 def test_contract_module_is_stdlib_only_and_does_not_collect_or_call_runtime() -> None:

@@ -29,6 +29,8 @@ class TerminalRuntimeBaselineMetricStatus(StrEnum):
 
 
 _CANDIDATE_COMMIT_RE: Final[re.Pattern[str]] = re.compile(r"^[0-9a-f]{40}$")
+_SHA256_RE: Final[re.Pattern[str]] = re.compile(r"^[0-9a-f]{64}$")
+_OCI_REVISION_RE: Final[re.Pattern[str]] = re.compile(r"^(?:[0-9a-f]{40}|sha256:[0-9a-f]{64})$")
 _REQUIRED_CONCURRENCY: Final[frozenset[int]] = frozenset({1, 5, 10, 20})
 _METRIC_UNITS: Final[dict[str, str]] = {
     "web_p50_ms": "milliseconds",
@@ -79,6 +81,47 @@ def _require_candidate_commit(value: str | None) -> str | None:
             "candidate_commit must be a lowercase 40-character SHA-1"
         )
     return value
+
+
+def _require_sha256(value: object, field_name: str) -> str:
+    """Require a lowercase SHA-256 digest for a published artifact."""
+
+    if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
+        raise TerminalRuntimeBaselineContractError(
+            f"{field_name} must be a lowercase 64-character SHA-256 digest"
+        )
+    return value
+
+
+@dataclass(frozen=True, slots=True)
+class TerminalRuntimeBaselineCandidate:
+    """Immutable release identity shared by every capacity sample.
+
+    A commit and release alone are not sufficient to prevent mixing samples
+    collected from different images or runtime/test snapshots.  The extra
+    digests are intentionally typed and exact-equal across the four levels.
+    """
+
+    candidate_commit: str
+    candidate_release: str
+    oci_revision: str
+    runtime_manifest_digest: str
+    test_matrix_digest: str
+
+    def __post_init__(self) -> None:
+        """Validate every part of the immutable candidate binding."""
+
+        _require_candidate_commit(self.candidate_commit)
+        _require_token(self.candidate_release, "candidate_release")
+        if (
+            type(self.oci_revision) is not str
+            or _OCI_REVISION_RE.fullmatch(self.oci_revision) is None
+        ):
+            raise TerminalRuntimeBaselineContractError(
+                "oci_revision must be a lowercase commit or sha256 digest"
+            )
+        _require_sha256(self.runtime_manifest_digest, "runtime_manifest_digest")
+        _require_sha256(self.test_matrix_digest, "test_matrix_digest")
 
 
 def _require_non_negative_number(value: object, field_name: str) -> float | int:
@@ -136,6 +179,7 @@ class TerminalRuntimeBaselineSample:
     sample_count: int
     captured_at: datetime
     metrics: tuple[TerminalRuntimeBaselineMetric, ...]
+    candidate_identity: TerminalRuntimeBaselineCandidate | None = None
 
     def __post_init__(self) -> None:
         """Validate sample identity, clocks, cardinality, and metric keys."""
@@ -148,6 +192,17 @@ class TerminalRuntimeBaselineSample:
             )
         if self.candidate_release is not None:
             _require_token(self.candidate_release, "candidate_release")
+        if self.candidate_commit is not None and self.candidate_identity is None:
+            raise TerminalRuntimeBaselineContractError(
+                "complete candidate identity is required for bound samples"
+            )
+        if self.candidate_identity is not None and (
+            self.candidate_commit != self.candidate_identity.candidate_commit
+            or self.candidate_release != self.candidate_identity.candidate_release
+        ):
+            raise TerminalRuntimeBaselineContractError(
+                "candidate identity does not match legacy candidate fields"
+            )
         if isinstance(self.concurrency, bool) or self.concurrency not in _REQUIRED_CONCURRENCY:
             raise TerminalRuntimeBaselineContractError("concurrency must be one of 1, 5, 10, or 20")
         if isinstance(self.sample_count, bool) or not isinstance(self.sample_count, int):
@@ -203,9 +258,7 @@ class TerminalRuntimeBaselineReport:
                 "baseline report concurrency levels must be exact and unique"
             )
         environments = {sample.environment for sample in self.samples}
-        candidates = {
-            (sample.candidate_commit, sample.candidate_release) for sample in self.samples
-        }
+        candidates = {sample.candidate_identity for sample in self.samples}
         if len(environments) != 1 or len(candidates) != 1:
             raise TerminalRuntimeBaselineContractError(
                 "baseline report samples must share environment and candidate"
@@ -215,7 +268,7 @@ class TerminalRuntimeBaselineReport:
     def candidate_bound(self) -> bool:
         """Return whether this report is bound to an immutable candidate."""
 
-        return self.samples[0].candidate_commit is not None
+        return self.samples[0].candidate_identity is not None
 
     @property
     def ready_for_capacity_gate(self) -> bool:

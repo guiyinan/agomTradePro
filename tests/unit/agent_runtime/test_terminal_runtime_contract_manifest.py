@@ -142,3 +142,23 @@ def test_manifest_mentions_all_runtime_modes_without_enabling_a_new_one() -> Non
     assert manifest["wire_compatibility"]["mcp"]["local_cli_mode"] in mode_values
     assert "legacy service" in manifest["wire_compatibility"]["legacy_http"]["policy"]
     assert modes["future_durable_type"] == "TerminalAgentRun"
+
+
+def test_manifest_freezes_complete_baseline_candidate_identity() -> None:
+    """Capacity samples cannot be combined across images or snapshots."""
+
+    manifest = _manifest()
+    baseline = manifest["baseline_evidence"]
+    assert isinstance(baseline, dict)
+    assert baseline["candidate_identity_type"] == "TerminalRuntimeBaselineCandidate"
+    assert baseline["required_candidate_identity_fields"] == [
+        "candidate_commit",
+        "candidate_release",
+        "oci_revision",
+        "runtime_manifest_digest",
+        "test_matrix_digest",
+    ]
+    assert baseline["required_concurrency_levels"] == [1, 5, 10, 20]
+    assert baseline["samples_must_share_exact_candidate_identity"] is True
+    assert baseline["capacity_ready_requires_complete_observed_metrics"] is True
+    assert baseline["production_evidence_status"] == "not_runtime"

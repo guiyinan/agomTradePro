@@ -326,5 +326,19 @@
       "dedicated Worker and stream recovery evidence",
       "role-based UAT, write receipts, 14-day telemetry, and owner/reviewer sign-off"
     ]
+  },
+  "baseline_evidence": {
+    "candidate_identity_type": "TerminalRuntimeBaselineCandidate",
+    "required_candidate_identity_fields": [
+      "candidate_commit",
+      "candidate_release",
+      "oci_revision",
+      "runtime_manifest_digest",
+      "test_matrix_digest"
+    ],
+    "required_concurrency_levels": [1, 5, 10, 20],
+    "samples_must_share_exact_candidate_identity": true,
+    "capacity_ready_requires_complete_observed_metrics": true,
+    "production_evidence_status": "not_runtime"
   }
 }
