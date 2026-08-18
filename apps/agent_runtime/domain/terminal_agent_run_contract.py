@@ -82,6 +82,12 @@ _CLIENT_REQUEST_ID_RE: Final[re.Pattern[str]] = re.compile(
 _DIGEST_RE: Final[re.Pattern[str]] = re.compile(r"^[0-9a-f]{64}$")
 
 
+def validate_terminal_run_id(run_id: str) -> str:
+    """Validate and return the canonical public run identifier."""
+
+    return _require_identifier(run_id, "run_id", _RUN_ID_RE)
+
+
 def _require_positive_int(value: object, field_name: str) -> int:
     """Require a positive integer while rejecting bool-as-int values."""
 
