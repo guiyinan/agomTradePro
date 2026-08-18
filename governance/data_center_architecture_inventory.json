@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4275,
+    "current_surface_references": 4274,
     "data_write_task_decorators": 59,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20426,11 +20426,6 @@
       "line": 130,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_mcp_access.py",
       "text": "\"summary\": \"管理员在 TUI 内管理用户 MCP 开关、令牌发放与撤销。\","
-    },
-    {
-      "line": 201,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_prompt.py",
-      "text": "\"summary\": \"管理 Prompt 模板、执行链与调用记录，并执行受控测试。\","
     },
     {
       "line": 1,
