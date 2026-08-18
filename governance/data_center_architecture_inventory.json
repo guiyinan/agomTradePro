@@ -2963,12 +2963,12 @@
       "text": "f\"invalid Terminal Agent run transition from {current.value} \""
     },
     {
-      "line": 290,
+      "line": 296,
       "path": "apps/agent_runtime/domain/terminal_agent_run_contract.py",
       "text": "current: TerminalRunStatus | str,"
     },
     {
-      "line": 299,
+      "line": 305,
       "path": "apps/agent_runtime/domain/terminal_agent_run_contract.py",
       "text": "current_status = _coerce_status(current)"
     },
