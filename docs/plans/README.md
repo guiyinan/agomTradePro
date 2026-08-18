@@ -1,6 +1,6 @@
 # 活跃计划索引
 
-> 更新日期：2026-08-18
+> 更新日期：2026-08-19
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。
 
 ## 维护规则
@@ -468,3 +468,4 @@
 | 2026-08-18 | 第二期 P0/P1 | TAR-01 boundary guard 当前候选 VPS 部署与短窗口只读观测 | `d238091d9e7e3aa1324baf92199100e800122ed7` 以 code-only `-Upgrade` 发布为 release `20260818210752`；数据卷保留、Celery 启用，镜像 `sha256:3dd6401b8e8b757087e3d99e1e91dc1ebf539f33bc5148fd7198925717e5cdc3`；迁移/schema、Django check、TUI registry、Qlib、Celery、容器、备份与 TUI JS 预检通过；部署后 HTTPS health 8 次均 `200`（约 `1.17–2.08s`） | 仅当前 boundary guard 候选短窗口只读运行身份/健康证据；queued intake/Worker 仍关闭，未取得角色化 UAT、业务写后 receipt/refresh、14 日 telemetry、restore/rollback drill、owner/reviewer 双签或 AUD-01/EVID-01 authority/publisher 证据；M5/TAR-01/TAR-05 生产门禁继续 `DENY`/`active`，报告见 `dist/remote-build-reports/remote-build-report-20260818210752.json` |
 | 2026-08-18 | 第二期 P1 | Web→TUI candidate evidence-section consistency guard | 一致性测试固定读取 `config/tui/migration/web_to_tui_cutover_evidence.v1.json` 的不可变 candidate binding，并在 readiness/deployment 文档中选择同时包含完整 candidate/matrix/graph/runtime binding 的匹配章节，避免把较新的 TAR/普通 VPS 观测误当 M5 候选；candidate guard `1 passed`，TUI 相关回归合计 `29 passed` | 仅修正本地证据章节选择与候选绑定校验；没有更新 candidate、没有把普通/TAR 部署提升为 M5 preflight，也未取得角色化 UAT、写后 receipt/refresh、14 日 telemetry、restore/rollback 或 owner/reviewer 双签，M5 继续 `DENY` |
 | 2026-08-19 | 第二期 P0/P1 | TUX-02 当前候选 VPS 只读部署与 CI 观测 | `ae332f0390ef67e5ec1386bdfe5307d5cc9bc6e7` 以 code-only 发布为 release `20260819000530`；迁移/schema、TUI registry、Qlib、Celery、容器与 HTTPS health 复核通过；最新 Security Scan、Architecture Layer Guard、Consistency Check、CI Fast Feedback（Python 3.11/3.13）与 Incremental quality gates 全部成功 | 仅记录 TUX-02 runtime copy boundary 的部署身份、短时只读健康与仓库门禁；未取得角色化浏览器 UAT、业务写后 receipt/refresh、14 日 telemetry、restore/rollback、owner/reviewer 双签或 AUD-01/EVID-01 authority/publisher 证据，M5 与相关生产门禁继续 `DENY` |
+| 2026-08-19 | 第二期 P1 | TUX-02 research.signals dead patch cleanup | 删除已由 IA/published graph 完整承载、在 full-IA canonical runtime 中必然被忽略的 `research.signals` Python screen patch；source-boundary focused `8 passed`、TUI metadata/actionability/IA `29 passed`、`npm run check:tui` 与 source guard `outcome=ok` | 仅删除一项已被 full-IA 证据证明无效的 legacy patch；其余非 IA legacy patch、runtime 文案迁入 publish/review、外部 AgomTUI portability 与 M5 角色化生产 UAT仍未完成，TUX-02/TUX-04 继续 active/production_validation |

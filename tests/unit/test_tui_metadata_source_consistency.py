@@ -114,23 +114,31 @@ def test_execution_audit_screen_patch_is_not_registered_after_ia_cutover() -> No
     ]
 
 
-def test_research_signals_patch_does_not_repeat_ia_owned_copy() -> None:
-    """The research screen patch keeps behavior, not IA-owned screen copy."""
+def test_research_signals_screen_patch_removed_after_ia_cutover() -> None:
+    """The canonical IA screen owns research.signals after patch removal."""
 
-    from apps.terminal.infrastructure.tui_metadata_repository import RUNTIME_SCREEN_PATCHES
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        RUNTIME_SCREEN_PATCHES,
+        PublishedTuiMetadataRepository,
+    )
 
-    patch = RUNTIME_SCREEN_PATCHES["research.signals"]
     ia = load_json_payload(IA_PATH)
     research_signals = next(
         screen for screen in ia["published_screens"] if screen["key"] == "research.signals"
     )
 
-    assert "label" not in patch
-    assert "summary" not in patch
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    runtime_screen = next(
+        screen for screen in runtime["screens"] if screen["key"] == "research.signals"
+    )
+
+    assert "research.signals" not in RUNTIME_SCREEN_PATCHES
     assert research_signals["label"] == "Beta 态势与 Alpha 选股"
     assert (
         research_signals["summary"] == "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。"
     )
+    assert runtime_screen["label"] == research_signals["label"]
+    assert runtime_screen["summary"] == research_signals["summary"]
 
 
 def test_prompt_screen_injection_does_not_repeat_ia_owned_copy() -> None:
