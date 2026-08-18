@@ -139,3 +139,6 @@ docs/xiaohongshu-draft-2026-04-24.md
 /.codex-test-deps
 .tmp_black_cache/24.10.0/Grammar3.13.5.final.0.pickle
 /.tmp_black_cache
+/.tmp_*
+/.tmp-*
+/.pytest_*/
