@@ -425,6 +425,40 @@ candidate binding 仍为 `web-to-tui-candidate-binding.v1`：matrix SHA
 runtime `0.2.0`、build `agomtui-runtime-0.2.0+a2553996be22`、manifest SHA
 `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854`。
 
+## 2026-08-18 当前候选部署与恢复观测
+
+提交 `dev/next-development@84293272218725c286aed29db68bd3dae9cb4b16` 以
+`git-clone`、`-Upgrade`、code-only 模式重新部署到 VPS，保留 PostgreSQL/Redis 数据卷并启用
+Celery 与 RSSHub。首轮 release `20260818112302` 的部署后验证未通过，自动回滚在远程命令超时；
+未删除数据卷。随后确认旧 release 已恢复但 web/Caddy/Celery 处于回滚中间态，使用同一 compose
+配置重建服务并验证健康后再次部署为 `20260818115436`。本节只把第二次候选的稳定观测作为当前
+运行证据，首轮失败不会被计入成功门禁。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260818115436` |
+| release dir | `/opt/agomtradepro/releases/source-20260818115436` |
+| source commit | `84293272218725c286aed29db68bd3dae9cb4b16` |
+| image | `agomtradepro-web:20260818115436` |
+| image ID | `sha256:5ddac69a78c7242f0c0bac4ce1a8cc2c7f9c638d7f5088cec139d28648227540` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260818115436.json` |
+| migration/schema | `No migrations to apply`；`missing_migrations=[]`、`missing_tables=[]`、`ok=true`；Django check 无 issues |
+| TUI registry | publish `noop=true`；active source hash 与 expected hash 匹配；backend version 保持 reviewed release `20260818083157` |
+| HTTPS | `demo.agomtrade.pro` Caddy domain；TLS 有效；外部 `/api/health/` 和 `/api/ready/` 均 HTTP `200` |
+| containers | 最终重建后 web `healthy`、`restarts=0`；Caddy、Celery worker/beat、PostgreSQL、Redis、RSSHub、runtime namespace 均运行 |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| backup | 部署前 PostgreSQL 备份成功，manifest `2026-08-18 05:55:10`；数据卷未清理 |
+| observation | 最终重建后连续约 2 分钟 Docker health `healthy/restarts=0`，外部 HTTPS health/ready 仍 200；未执行登录或业务写入 |
+
+部署验证器曾在首轮/切换中报告 migration/schema/TUI/Qlib/resources/healthcheck 失败，原因是共享
+PID namespace 下临时 compose 操作触发 Daphne 退出并导致自动回滚超时；镜像本身启动日志无
+traceback，隔离启动可返回 health 200。最终候选是在所有一次性检查结束后最后重建 web，随后仅用
+外部 HTTPS 与 Docker 状态观测，故本节不把那次验证器失败改写为“全项通过”。
+
+`/api/ready/` 的数据 freshness/degraded warning 原样保留；本次没有角色化浏览器 UAT、登录、
+业务写入、写后 receipt/refresh、14 日 telemetry/defect、registry backup/restore、rollback drill
+或 owner/reviewer 双签。M5、AUD-01、EVID-01、DATA-01 等生产门禁继续 fail-closed。
+
 ## 2026-08-18 10:20 当前候选部署与观测
 
 CI 全部通过的 `dev/next-development@bc91641f737fb34b12afb28b93a6a19a1f934c29` 使用标准
