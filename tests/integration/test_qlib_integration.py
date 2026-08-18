@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
+from django.test import override_settings
 from django.utils import timezone
 
 from apps.alpha.application.services import AlphaProviderRegistry, AlphaService
@@ -121,6 +122,7 @@ class TestQlibAlphaProvider:
 
     @patch("apps.alpha.infrastructure.adapters.qlib_adapter.current_app")
     @patch("apps.alpha.application.tasks.qlib_predict_scores.apply")
+    @override_settings(ALPHA_ALLOW_INLINE_INFERENCE=True)
     def test_get_stock_scores_runs_inline_inference_without_worker(
         self,
         mock_apply,
@@ -165,6 +167,7 @@ class TestQlibAlphaProvider:
 
     @patch("apps.alpha.infrastructure.adapters.qlib_adapter.current_app")
     @patch("apps.alpha.application.tasks.qlib_predict_scores.apply")
+    @override_settings(ALPHA_ALLOW_INLINE_INFERENCE=True)
     def test_get_stock_scores_returns_degraded_when_inline_inference_has_no_cache(
         self,
         mock_apply,

@@ -25,6 +25,9 @@ if not env("REDIS_URL", default=""):
 
 # DEBUG
 DEBUG = True
+
+# Development may opt into the bounded inline Qlib fallback for local work.
+ALPHA_ALLOW_INLINE_INFERENCE = env.bool("ALPHA_ALLOW_INLINE_INFERENCE", default=True)
 # Development only: relax host checks for local debugging/tools.
 ALLOWED_HOSTS = ["*"]
 

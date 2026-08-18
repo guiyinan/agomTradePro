@@ -15,6 +15,7 @@ def test_vps_compose_uses_self_recovering_web_healthcheck():
 
     assert "sh docker/healthcheck-web.sh" in compose
     assert "WEB_HEALTH_SELF_TERMINATE_AFTER_FAILURES" in compose
+    assert "WEB_HEALTH_SELF_TERMINATE_AFTER_FAILURES:-0" in compose
 
 
 def test_healthcheck_only_terminates_daphne_after_repeated_failures():

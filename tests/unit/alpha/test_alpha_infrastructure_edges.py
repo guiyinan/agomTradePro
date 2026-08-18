@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import pandas as pd
 import pytest
+from django.conf import settings
 
 from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult, StockScore
 from apps.alpha.infrastructure.adapters.qlib_adapter import (
@@ -81,6 +82,7 @@ def test_qlib_calendar_normalization_and_artifact_round_trip(tmp_path) -> None:
 def test_qlib_provider_cache_miss_statuses_and_inline_boundaries(monkeypatch) -> None:
     """Cache misses expose queue/inline outcomes without hiding degradation."""
     provider = QlibAlphaProvider(provider_uri=".", model_path=".")
+    monkeypatch.setattr(settings, "ALPHA_ALLOW_INLINE_INFERENCE", True, raising=False)
     trade_date = date(2026, 7, 24)
     monkeypatch.setattr(provider, "_get_from_cache", lambda *args, **kwargs: None)
 
@@ -110,9 +112,32 @@ def test_qlib_provider_cache_miss_statuses_and_inline_boundaries(monkeypatch) ->
     assert provider._build_inline_skip_metadata(_scope(121))["pool_size"] == 121
 
 
+def test_qlib_inline_inference_is_disabled_when_not_explicitly_allowed(monkeypatch) -> None:
+    """A missing worker must not run model inference inside a web request by default."""
+
+    provider = QlibAlphaProvider(provider_uri=".", model_path=".")
+    monkeypatch.setattr(settings, "ALPHA_ALLOW_INLINE_INFERENCE", False, raising=False)
+    monkeypatch.setattr(provider, "_get_from_cache", lambda *args, **kwargs: None)
+    monkeypatch.setattr(provider, "_trigger_infer_task", lambda *args, **kwargs: "no_worker")
+    inline = False
+
+    def fail_if_called(**kwargs):
+        nonlocal inline
+        inline = True
+        raise AssertionError("inline inference must remain disabled")
+
+    monkeypatch.setattr(provider, "_run_inline_infer_task", fail_if_called)
+    result = provider.get_stock_scores("csi300", date(2026, 7, 24), pool_scope=_scope())
+
+    assert result.status == "degraded"
+    assert result.metadata["inline_inference_executed"] is False
+    assert inline is False
+
+
 def test_qlib_provider_returns_inline_cache_and_parses_only_valid_scores(monkeypatch) -> None:
     """Inline inference rechecks cache and malformed cached rows are ignored."""
     provider = QlibAlphaProvider(provider_uri=".", model_path=".")
+    monkeypatch.setattr(settings, "ALPHA_ALLOW_INLINE_INFERENCE", True, raising=False)
     trade_date = date(2026, 7, 24)
     cached = AlphaResult(
         success=True,
@@ -202,6 +227,31 @@ def test_simple_provider_scores_fundamentals_and_falls_back_to_quotes(monkeypatc
     fallback = provider.get_stock_scores("csi300", trade_date, top_n=1)
     assert fallback.success is True
     assert fallback.metadata["factor_basis"] == "quote_momentum"
+
+
+def test_simple_provider_bounds_large_request_pool(monkeypatch) -> None:
+    """Broad web requests must degrade instead of running an N+1 fundamental scan."""
+
+    provider = SimpleAlphaProvider()
+    monkeypatch.setattr(settings, "ALPHA_SIMPLE_MAX_POOL_SIZE", 2, raising=False)
+    monkeypatch.setattr(
+        provider,
+        "_get_universe_stocks",
+        lambda *args, **kwargs: ["000001.SZ", "000002.SZ", "000003.SZ"],
+    )
+    calls = 0
+
+    def unexpected_fundamental_scan(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        raise AssertionError("large request must not start a fundamental scan")
+
+    monkeypatch.setattr(provider, "_get_fundamental_data", unexpected_fundamental_scan)
+    result = provider.get_stock_scores("portfolio-test", date(2026, 7, 24))
+
+    assert result.status == "degraded"
+    assert "请求上限" in (result.error_message or "")
+    assert calls == 0
 
 
 def test_simple_provider_reports_empty_universe_and_unusable_data(monkeypatch) -> None:

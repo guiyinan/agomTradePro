@@ -98,7 +98,14 @@ services:
       TERMINAL_AGENT_INTERNAL_MAX_RETRIES: ${TERMINAL_AGENT_INTERNAL_MAX_RETRIES:-0}
       TERMINAL_AGENT_AUDIT_TIMEOUT_SECONDS: ${TERMINAL_AGENT_AUDIT_TIMEOUT_SECONDS:-2.0}
       TERMINAL_AGENT_AUDIT_MAX_ATTEMPTS: ${TERMINAL_AGENT_AUDIT_MAX_ATTEMPTS:-1}
-      WEB_HEALTH_SELF_TERMINATE_AFTER_FAILURES: ${WEB_HEALTH_SELF_TERMINATE_AFTER_FAILURES:-3}
+      # Keep the synchronous fallback bounded; production settings still
+      # hard-disable inline Qlib inference regardless of environment input.
+      ALPHA_ALLOW_INLINE_INFERENCE: ${ALPHA_ALLOW_INLINE_INFERENCE:-false}
+      ALPHA_SIMPLE_MAX_POOL_SIZE: ${ALPHA_SIMPLE_MAX_POOL_SIZE:-120}
+      # web/celery share runtime_ns; killing Daphne from a healthcheck can
+      # leave the web container alive without an HTTP process. Let Docker
+      # report unhealthy and keep recovery under the deploy supervisor.
+      WEB_HEALTH_SELF_TERMINATE_AFTER_FAILURES: ${WEB_HEALTH_SELF_TERMINATE_AFTER_FAILURES:-0}
       AGOM_BUILD_IDENTITY_PATH: /app/.agom-build-identity.json
       AGOM_RELEASE_MANIFEST_PATH: /run/agomtradepro/release-manifest.json
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-127.0.0.1,localhost}

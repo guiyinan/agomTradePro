@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import TypedDict
 
 from celery import current_app
+from django.conf import settings
 from django.core.cache import cache
 
 from ...domain.entities import AlphaPoolScope, AlphaResult, StockScore, normalize_stock_code
@@ -246,8 +247,10 @@ class QlibAlphaProvider(BaseAlphaProvider):
             pool_scope=pool_scope,
         )
         inline_metadata: dict[str, object] = {}
+        inline_inference_executed = False
 
         if trigger_status == "no_worker" and self._can_run_inline_inference(pool_scope):
+            inline_inference_executed = True
             inline_metadata = self._run_inline_infer_task(
                 universe_id=universe_id,
                 intended_trade_date=intended_trade_date,
@@ -311,7 +314,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 "intended_trade_date": intended_trade_date.isoformat(),
                 "async_task_triggered": trigger_status == "queued",
                 "inference_trigger_status": trigger_status,
-                "inline_inference_executed": trigger_status == "no_worker",
+                "inline_inference_executed": inline_inference_executed,
                 "inline_inference_result": inline_metadata or None,
                 "scope_hash": pool_scope.scope_hash if pool_scope else None,
                 "scope_label": pool_scope.display_label if pool_scope else None,
@@ -784,7 +787,10 @@ class QlibAlphaProvider(BaseAlphaProvider):
         return summary or None
 
     def _can_run_inline_inference(self, pool_scope: AlphaPoolScope | None) -> bool:
-        """Only small scoped pools are safe to run inside the request process."""
+        """Allow bounded inline inference only when explicitly enabled."""
+
+        if getattr(settings, "ALPHA_ALLOW_INLINE_INFERENCE", False) is not True:
+            return False
         if pool_scope is None:
             return False
         return pool_scope.pool_size <= self.INLINE_INFERENCE_MAX_POOL_SIZE

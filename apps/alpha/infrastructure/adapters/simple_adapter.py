@@ -222,6 +222,22 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             return self._create_error_result(
                 f"股票池 {universe_id} 中没有可用的估值数据，请先同步估值数据"
             )
+        max_pool_size = max(
+            1,
+            int(getattr(settings, "ALPHA_SIMPLE_MAX_POOL_SIZE", 120)),
+        )
+        if len(stock_list) > max_pool_size:
+            logger.info(
+                "SimpleAlphaProvider 跳过超大股票池: universe=%s, size=%s, max=%s",
+                universe_id,
+                len(stock_list),
+                max_pool_size,
+            )
+            return self._create_error_result(
+                f"股票池包含 {len(stock_list)} 只股票，超过 simple provider 的请求上限 "
+                f"{max_pool_size}；请等待异步 Alpha 结果或缩小股票池。",
+                status="degraded",
+            )
         score_universe_id = pool_scope.universe_id if pool_scope is not None else universe_id
 
         # 2. 获取基本面数据

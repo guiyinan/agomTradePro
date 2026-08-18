@@ -76,6 +76,8 @@ if not env("REDIS_URL", default=""):
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
+# Never execute Qlib inference in the Daphne request process in production.
+ALPHA_ALLOW_INLINE_INFERENCE = False
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
 # Keep environment-specific mutations isolated from the shared base module.

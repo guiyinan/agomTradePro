@@ -45,6 +45,11 @@ TUI_ACTION_ACQUIRE_TIMEOUT_SECONDS = env.float(
     "TUI_ACTION_ACQUIRE_TIMEOUT_SECONDS",
     default=3.0,
 )
+# Inline Qlib inference is an explicitly bounded development-only fallback.
+# Production settings override this to False so a missing worker can never
+# turn a web request into an unbounded model run.
+ALPHA_ALLOW_INLINE_INFERENCE = env.bool("ALPHA_ALLOW_INLINE_INFERENCE", default=False)
+ALPHA_SIMPLE_MAX_POOL_SIZE = env.int("ALPHA_SIMPLE_MAX_POOL_SIZE", default=120)
 
 # Immutable deployment identity artifacts. Production mounts the release
 # manifest read-only; the build identity is embedded in the application image.
