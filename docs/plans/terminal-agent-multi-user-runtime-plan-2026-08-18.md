@@ -221,7 +221,7 @@ claimed/running -> orphaned -> queued（仅满足安全重放条件）或 failed
 1. 新增异步 v2 run API，不立刻改变旧接口响应结构。
 2. TUI 首先通过 feature flag 切到新 API；staff/canary 先启用。
 3. SDK 增加新类型化模块；旧同步 helper 标记 deprecated，并可在客户端用“提交 + 等待”实现兼容，而不是让服务器同步等待。
-4. 旧 `/chat/` 与 `/chat/stream/` 在观察期继续受并发 1 和 60 秒硬限保护。
+4. 旧 `/api/terminal/chat/` 与 `/api/terminal/chat/stream/` 在观察期继续受并发 1 和 60 秒硬限保护。
 5. 所有正式调用方迁移并通过候选 UAT 后，旧接口返回稳定弃用响应或受控关闭。
 6. 回滚新路径时默认暂停新 AI 提交或恢复到受限 inline，禁止移除保护后回滚。
 
