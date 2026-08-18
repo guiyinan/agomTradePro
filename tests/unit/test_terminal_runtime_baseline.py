@@ -1,0 +1,178 @@
+"""Pure TAR-01 baseline evidence contract tests."""
+
+from __future__ import annotations
+
+import ast
+from datetime import UTC, datetime
+from pathlib import Path
+
+import pytest
+
+from apps.agent_runtime.domain.terminal_runtime_baseline import (
+    TerminalRuntimeBaselineContractError,
+    TerminalRuntimeBaselineMetric,
+    TerminalRuntimeBaselineMetricStatus,
+    TerminalRuntimeBaselineReport,
+    TerminalRuntimeBaselineSample,
+    metrics_from_iterable,
+    required_baseline_metric_keys,
+    required_concurrency_levels,
+)
+
+NOW = datetime(2026, 8, 18, 12, 0, tzinfo=UTC)
+CANDIDATE = "a" * 40
+RELEASE = "20260818130903"
+
+
+def _metrics(*, unavailable: str | None = None) -> tuple[TerminalRuntimeBaselineMetric, ...]:
+    return metrics_from_iterable(
+        TerminalRuntimeBaselineMetric(
+            key=key,
+            status=(
+                TerminalRuntimeBaselineMetricStatus.UNAVAILABLE
+                if key == unavailable
+                else TerminalRuntimeBaselineMetricStatus.OBSERVED
+            ),
+            value=None if key == unavailable else 1.0,
+            reason="not_collected" if key == unavailable else None,
+        )
+        for key in sorted(required_baseline_metric_keys())
+    )
+
+
+def _sample(
+    concurrency: int,
+    *,
+    candidate_commit: str | None = CANDIDATE,
+    candidate_release: str | None = RELEASE,
+    unavailable: str | None = None,
+) -> TerminalRuntimeBaselineSample:
+    return TerminalRuntimeBaselineSample(
+        environment="staging",
+        candidate_commit=candidate_commit,
+        candidate_release=candidate_release,
+        concurrency=concurrency,
+        sample_count=20,
+        captured_at=NOW,
+        metrics=_metrics(unavailable=unavailable),
+    )
+
+
+def test_report_requires_all_four_levels_and_is_ready_only_when_observed() -> None:
+    report = TerminalRuntimeBaselineReport(
+        samples=tuple(_sample(level) for level in sorted(required_concurrency_levels()))
+    )
+
+    assert report.candidate_bound is True
+    assert report.ready_for_capacity_gate is True
+
+    incomplete = TerminalRuntimeBaselineReport(
+        samples=tuple(
+            _sample(level, unavailable="model_latency_ms")
+            for level in sorted(required_concurrency_levels())
+        )
+    )
+    assert incomplete.candidate_bound is True
+    assert incomplete.ready_for_capacity_gate is False
+
+
+def test_report_rejects_missing_or_duplicate_concurrency_level() -> None:
+    with pytest.raises(TerminalRuntimeBaselineContractError, match="requires samples"):
+        TerminalRuntimeBaselineReport(samples=(_sample(1),))
+    with pytest.raises(TerminalRuntimeBaselineContractError, match="exact and unique"):
+        TerminalRuntimeBaselineReport(samples=(_sample(1), _sample(1), _sample(5), _sample(10)))
+
+
+def test_report_rejects_mixed_environment_or_candidate() -> None:
+    mixed = [_sample(level) for level in sorted(required_concurrency_levels())]
+    mixed[-1] = TerminalRuntimeBaselineSample(
+        environment="production",
+        candidate_commit=CANDIDATE,
+        candidate_release=RELEASE,
+        concurrency=20,
+        sample_count=20,
+        captured_at=NOW,
+        metrics=_metrics(),
+    )
+    with pytest.raises(TerminalRuntimeBaselineContractError, match="environment and candidate"):
+        TerminalRuntimeBaselineReport(samples=tuple(mixed))
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        (
+            {"status": TerminalRuntimeBaselineMetricStatus.OBSERVED, "value": None},
+            "must have a value",
+        ),
+        (
+            {"status": TerminalRuntimeBaselineMetricStatus.UNAVAILABLE, "value": 1.0},
+            "cannot carry a value",
+        ),
+        (
+            {"status": TerminalRuntimeBaselineMetricStatus.OBSERVED, "value": True},
+            "must be numeric",
+        ),
+        ({"status": TerminalRuntimeBaselineMetricStatus.OBSERVED, "value": float("nan")}, "finite"),
+    ],
+)
+def test_metric_rejects_ambiguous_or_non_finite_values(
+    kwargs: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(TerminalRuntimeBaselineContractError, match=message):
+        TerminalRuntimeBaselineMetric(key="web_p95_ms", reason="not collected", **kwargs)
+
+
+def test_sample_rejects_naive_clock_and_unbound_candidate_pair() -> None:
+    with pytest.raises(TerminalRuntimeBaselineContractError, match="timezone-aware"):
+        TerminalRuntimeBaselineSample(
+            environment="staging",
+            candidate_commit=CANDIDATE,
+            candidate_release=RELEASE,
+            concurrency=1,
+            sample_count=20,
+            captured_at=NOW.replace(tzinfo=None),
+            metrics=_metrics(),
+        )
+    with pytest.raises(TerminalRuntimeBaselineContractError, match="supplied together"):
+        _sample(1, candidate_commit=CANDIDATE, candidate_release=None)
+
+
+def test_sample_rejects_backwards_web_percentiles() -> None:
+    metrics = list(_metrics())
+    metrics[sorted(required_baseline_metric_keys()).index("web_p95_ms")] = (
+        TerminalRuntimeBaselineMetric(
+            key="web_p95_ms",
+            status=TerminalRuntimeBaselineMetricStatus.OBSERVED,
+            value=0.5,
+        )
+    )
+    with pytest.raises(TerminalRuntimeBaselineContractError, match="non-decreasing"):
+        TerminalRuntimeBaselineSample(
+            environment="staging",
+            candidate_commit=CANDIDATE,
+            candidate_release=RELEASE,
+            concurrency=1,
+            sample_count=20,
+            captured_at=NOW,
+            metrics=tuple(metrics),
+        )
+
+
+def test_contract_module_is_stdlib_only_and_does_not_collect_or_call_runtime() -> None:
+    source_path = Path("apps/agent_runtime/domain/terminal_runtime_baseline.py")
+    source = source_path.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    imported_names = {
+        alias.name
+        for node in tree.body
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for alias in node.names
+    }
+
+    assert all(not name.startswith("django") for name in imported_names)
+    assert all("infrastructure" not in name for name in imported_names)
+    assert ".objects" not in source
+    assert "OpenAIAgentsTerminalService" not in source
+    assert "requests" not in imported_names
