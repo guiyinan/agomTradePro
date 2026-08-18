@@ -21468,7 +21468,7 @@
       "text": "\"/api/pulse/current/\","
     },
     {
-      "line": 204,
+      "line": 222,
       "path": "core/settings/base.py",
       "text": "\"apps.realtime\",  # 新增：实时价格监控模块"
     },
