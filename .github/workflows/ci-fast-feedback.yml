@@ -182,7 +182,9 @@ jobs:
       - name: Verify TUI Runtime bundles
         run: |
           npm ci
-          npx playwright install --with-deps chromium
+          # GitHub-hosted Ubuntu images already carry the Chromium system
+          # libraries; avoid the flaky Azure APT mirror used by --with-deps.
+          npx playwright install chromium
           npm run check:tui
           npm run test:tui-js
 
