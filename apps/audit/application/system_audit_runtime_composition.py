@@ -17,7 +17,6 @@ from apps.audit.application.system_audit_authority_provider import (
     SystemAuditAuthorityBundleSelector,
 )
 from apps.audit.application.system_audit_composition import (
-    CanonicalSystemAuditPublisher,
     CanonicalSystemAuditPublisherPreflight,
     SystemAuditAuthorityProvider,
     SystemAuditCompositionUnavailable,
@@ -140,7 +139,10 @@ def _require_component_alias(
                 reason_code="composition_not_wired",
             )
     try:
-        alias = _require_token(getattr(component, "database_alias"), f"{field} database alias")
+        alias = _require_token(
+            cast(SystemAuditEventOutboxCoordinator, component).database_alias,
+            f"{field} database alias",
+        )
     except (AttributeError, TypeError):
         raise SystemAuditCompositionUnavailable(
             f"system audit {field} database alias is unavailable",
@@ -192,6 +194,24 @@ def inspect_system_audit_runtime_composition(
         required_methods=("__enter__", "__exit__"),
     )
 
+    # Validate the authority bundle before invoking publisher preflight.  A
+    # publisher preflight may perform an external capability check; it must
+    # not be called when the authenticated/scoped authority side is absent or
+    # forged.  This keeps the fail-closed boundary deterministic and avoids a
+    # side effect before all local composition prerequisites are present.
+    if authority_bundle is None:
+        raise SystemAuditCompositionUnavailable(
+            "system audit authority bundle is not wired",
+            reason_code="authority_not_wired",
+        )
+    try:
+        authority_bundle.__post_init__()
+    except (AttributeError, TypeError, ValueError):
+        raise SystemAuditCompositionUnavailable(
+            "system audit authority bundle is unavailable",
+            reason_code="authority_unavailable",
+        ) from None
+
     if publisher is None:
         raise SystemAuditCompositionUnavailable(
             "system audit publisher is not wired",
@@ -207,19 +227,6 @@ def inspect_system_audit_runtime_composition(
         raise SystemAuditCompositionUnavailable(
             "system audit publisher composition is unavailable",
             reason_code="publisher_not_wired",
-        ) from None
-
-    if authority_bundle is None:
-        raise SystemAuditCompositionUnavailable(
-            "system audit authority bundle is not wired",
-            reason_code="authority_not_wired",
-        )
-    try:
-        authority_bundle.__post_init__()
-    except (AttributeError, TypeError, ValueError):
-        raise SystemAuditCompositionUnavailable(
-            "system audit authority bundle is unavailable",
-            reason_code="authority_unavailable",
         ) from None
 
     return SystemAuditRuntimeComposition(

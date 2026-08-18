@@ -894,3 +894,16 @@ authority provider 仅公开已绑定 selector，未增加 production writer 或
 该提交随后通过四条必需 CI workflow（Security Scan、Architecture Layer Guard、Consistency Check、
 CI Fast Feedback，含 Python 3.11/3.13、增量质量与完整 production mypy debt ceiling）；CI 绿仅证明
 本地合同和仓库门禁一致，不替代 durable publisher、authenticated authority 或生产投递证据。
+
+## 实施记录（2026-08-18，AUD-01 authority-before-publisher preflight ordering）
+
+收紧 `inspect_system_audit_runtime_composition()` 的检查顺序：缺失或被篡改的
+server-issued scoped authority bundle 现在先于 publisher capability preflight 被拒绝，因而不会在
+authority 前置条件不满足时触发未来 publisher 的外部能力检查。有效 authority 仍要求通过原有
+selector/provider identity 校验；publisher 缺失继续稳定返回 `publisher_not_wired`，没有改变
+runtime gate 或 claim 前阻断语义。
+
+新增负向回归覆盖缺 authority 与 forged authority 均不调用 publisher preflight；runtime composition
+focused `13 passed`。本切片只强化本地 fail-closed composition ordering，不创建 durable publisher、
+authenticated authority source、Celery beat/retry、Data Center 双写或生产 PostgreSQL/VPS 证据，
+因此 `AUD-01` 状态与 gate 不变，`AUD-02/03` 继续等待依赖。

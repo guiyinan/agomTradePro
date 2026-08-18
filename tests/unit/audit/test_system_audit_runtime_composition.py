@@ -76,7 +76,11 @@ class _DispatchUnitOfWork:
 
 
 class _DurablePublisher:
+    def __init__(self) -> None:
+        self.preflight_calls = 0
+
     def preflight(self) -> CanonicalSystemAuditPublisherPreflight:
+        self.preflight_calls += 1
         return CanonicalSystemAuditPublisherPreflight(
             sink_id="audit-primary",
             sink_kind="durable",
@@ -146,6 +150,7 @@ def test_missing_publisher_is_blocked_before_any_claim() -> None:
 def test_missing_authority_bundle_is_blocked_before_any_claim() -> None:
     values = _kwargs()
     repository = values["dispatch_repository"]
+    publisher = values["publisher"]
     values["authority_bundle"] = None
 
     with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
@@ -153,6 +158,23 @@ def test_missing_authority_bundle_is_blocked_before_any_claim() -> None:
 
     assert exc_info.value.reason_code == "authority_not_wired"
     assert repository.claim_calls == 0  # type: ignore[union-attr]
+    assert publisher.preflight_calls == 0  # type: ignore[union-attr]
+
+
+def test_invalid_authority_bundle_is_rejected_before_publisher_preflight() -> None:
+    values = _kwargs()
+    publisher = values["publisher"]
+    forged = object.__new__(ServerIssuedSystemAuditAuthorityBundle)
+    object.__setattr__(forged, "provider", object())
+    object.__setattr__(forged, "selector", _selector())
+    object.__setattr__(forged, "issuer_id", "authority-issuer")
+    values["authority_bundle"] = forged
+
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        inspect_system_audit_runtime_composition(**values)
+
+    assert exc_info.value.reason_code == "authority_unavailable"
+    assert publisher.preflight_calls == 0  # type: ignore[union-attr]
 
 
 def test_generic_publisher_contract_is_blocked_before_any_claim() -> None:
