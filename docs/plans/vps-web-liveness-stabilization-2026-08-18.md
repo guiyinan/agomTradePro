@@ -31,12 +31,35 @@ production readiness attestation.
 - Incremental mypy, architecture, governance, Black, isort and ruff checks
   passed locally for the changed files.
 
+## Candidate observation
+
+Candidate `56f2f8d4acb4e4510015ee10f6578fb9edc1c698` was deployed code-only as
+release `20260818185114` with image
+`sha256:e62c0347848245773dbaa11d47a2bf397f99c6be3a203582fc4ab76fdc999906`.
+The PostgreSQL/Redis data volumes were preserved and the pre-deploy PostgreSQL
+backup is recorded at
+`/opt/agomtradepro/backups/database/postgres-20260818-125148.dump`.
+
+The first standard verifier returned a fail-closed 30-second remote healthcheck
+timeout even though its preceding HTTPS and container checks were healthy. A
+second read-only verifier run with a 120-second remote command window passed
+all checks: HTTPS health/TLS, migrations/schema, TUI registry, Qlib identity,
+Celery worker/beat, source/image/release binding and backup presence. The
+running release is `source-20260818185114`, Web restart count is `0`, and the
+Web container is `healthy`; the previous release remains available at
+`source-20260818154306` for rollback.
+
+Eight HTTPS `/api/health/` probes all returned `200` during the sample window
+with observed latency between roughly `1.09s` and `1.85s`. Inside the Web
+container `ALPHA_ALLOW_INLINE_INFERENCE=false` and
+`ALPHA_SIMPLE_MAX_POOL_SIZE=120`; no inline-inference or long Alpha request
+appeared in the last ten minutes of Web logs.
+
 ## Remaining gate
 
-The fix must be deployed as a fresh immutable candidate and observed before
-it can be called stable. The next deployment must record the candidate commit,
-release/image binding, Web health/restart state, `/api/health/` latency,
-Alpha request latency, absence of production inline-inference execution, and
-rollback behavior. This does not provide role-based TUI UAT, write receipts,
-14-day telemetry, backup/restore evidence, or AUD-01/EVID-01 authority and
-publisher evidence; those gates remain unchanged.
+This is a short, read-only stabilization sample, not a production closure
+claim. Continue observing the candidate for the planned window and record
+Alpha latency/restart/error telemetry before calling it stable. This does not
+provide role-based TUI UAT, write receipts, 14-day telemetry, backup/restore
+drill evidence, or AUD-01/EVID-01 authority and publisher evidence; those gates
+remain unchanged.
