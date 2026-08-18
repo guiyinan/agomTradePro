@@ -195,21 +195,7 @@ def _path_field(key: str, label: str) -> dict[str, Any]:
 
 RUNTIME_PROMPT_SCREEN: dict[str, Any] = {
     "key": "prompt.workbench",
-    "label": "Prompt 模板与链",
-    "module_key": "research-tools",
-    "group": "research",
-    "summary": "管理 Prompt 模板、执行链与调用记录，并执行受控测试。",
-    "view_type": "datagrid",
-    "audience": "authenticated",
     "dashboard_layout": "task_flow",
-    "default_action_key": "prompt-template.list",
-    "user_experience": {
-        "journey": "workspace",
-        "primary_task": "查找并测试可用 Prompt，管理员同时维护模板和执行链。",
-        "primary_outcome": "得到可复用的 Prompt/链配置和可追溯的执行结果。",
-        "empty_state_hint": "暂无模板时请联系管理员创建；管理员可直接从任务区新建。",
-        "next_step_hint": "测试通过后回到 AI 助手或对应业务工作区使用该能力。",
-    },
     "workflow": {
         "name": "AI 工具配置流程",
         "label": "Prompt 模板与链",

@@ -133,6 +133,48 @@ def test_research_signals_patch_does_not_repeat_ia_owned_copy() -> None:
     )
 
 
+def test_prompt_screen_injection_does_not_repeat_ia_owned_copy() -> None:
+    """Prompt runtime injection keeps behavior, while IA owns screen semantics."""
+
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        PublishedTuiMetadataRepository,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_prompt import (
+        RUNTIME_PROMPT_SCREEN,
+    )
+
+    ia = load_json_payload(IA_PATH)
+    prompt_ia = next(
+        screen
+        for screen in [*ia["published_screens"], *ia["runtime_screens"]]
+        if screen["key"] == "prompt.workbench"
+    )
+    owned_keys = {
+        "label",
+        "module_key",
+        "group",
+        "audience",
+        "summary",
+        "view_type",
+        "default_action_key",
+        "user_experience",
+    }
+
+    assert owned_keys.isdisjoint(RUNTIME_PROMPT_SCREEN)
+
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    prompt_runtime = next(
+        screen for screen in runtime["screens"] if screen["key"] == "prompt.workbench"
+    )
+    for key in owned_keys:
+        assert prompt_runtime[key] == prompt_ia[key]
+    runtime_panels = {panel["key"]: panel for panel in prompt_runtime["dashboard_panels"]}
+    for injected_panel in RUNTIME_PROMPT_SCREEN["dashboard_panels"]:
+        normalized_panel = runtime_panels[injected_panel["key"]]
+        for key, value in injected_panel.items():
+            assert normalized_panel[key] == value
+
+
 def test_source_guard_rejects_runtime_replacement_of_ia_copy() -> None:
     """A runtime copy override must fail closed instead of being accepted."""
 
