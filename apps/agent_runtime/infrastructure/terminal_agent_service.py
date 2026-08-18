@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -15,12 +16,18 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 
 from apps.agent_runtime.application.terminal_agent import (
+    TerminalAgentBusyError,
     TerminalAgentChatRequestDTO,
     TerminalAgentChatResponseDTO,
     TerminalAgentEventDTO,
+    TerminalAgentExecutionGuard,
     TerminalAgentService,
+    TerminalAgentTimeoutError,
     TerminalApprovalGateway,
     TerminalCapabilityGateway,
+)
+from apps.agent_runtime.infrastructure.terminal_agent_execution_guard import (
+    CacheTerminalAgentExecutionGuard,
 )
 from apps.ai_provider.infrastructure.repositories import (
     AIProviderRepository,
@@ -50,8 +57,38 @@ TERMINAL_AGENT_CORE_MCP_TOOLS = frozenset(
 # Some task-monitor tools take ~15-20s on local data and the model may queue
 # several MCP calls in one turn, so keep the stdio client timeout comfortably
 # above the default 5s SDK value.
-TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS = 90.0
+TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS = 20.0
+TERMINAL_AGENT_EXECUTION_TIMEOUT_SECONDS = 60.0
+TERMINAL_AGENT_MAX_TURNS = 4
+TERMINAL_AGENT_INTERNAL_API_TIMEOUT_SECONDS = 8.0
+TERMINAL_AGENT_INTERNAL_MAX_RETRIES = 0
+TERMINAL_AGENT_AUDIT_TIMEOUT_SECONDS = 2.0
+TERMINAL_AGENT_AUDIT_MAX_ATTEMPTS = 1
 TERMINAL_AGENT_EXECUTION_ERROR = "terminal_agent_execution_failed"
+TERMINAL_AGENT_BUSY_ERROR = "terminal_agent_busy"
+TERMINAL_AGENT_TIMEOUT_ERROR = "terminal_agent_timeout"
+
+
+def _configured_float(name: str, default: float, *, minimum: float = 0.1) -> float:
+    """Read a bounded numeric runtime setting without trusting malformed input."""
+
+    raw_value = getattr(settings, name, os.getenv(name, str(default)))
+    try:
+        return max(minimum, float(raw_value))
+    except (TypeError, ValueError):
+        logger.warning("Invalid numeric setting %s; using default", name)
+        return default
+
+
+def _configured_int(name: str, default: int, *, minimum: int = 1) -> int:
+    """Read a bounded integer runtime setting without trusting malformed input."""
+
+    raw_value = getattr(settings, name, os.getenv(name, str(default)))
+    try:
+        return max(minimum, int(raw_value))
+    except (TypeError, ValueError):
+        logger.warning("Invalid integer setting %s; using default", name)
+        return default
 
 
 @dataclass(frozen=True)
@@ -83,12 +120,32 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
         provider_repo: AIProviderRepository | None = None,
         usage_repo: AIUsageRepository | None = None,
         quota_repo: AIUserFallbackQuotaRepository | None = None,
+        execution_guard: TerminalAgentExecutionGuard | None = None,
+        execution_timeout_seconds: float | None = None,
+        max_turns: int | None = None,
     ) -> None:
         self._capability_gateway = capability_gateway
         self._approval_gateway = approval_gateway
         self._provider_repo = provider_repo or AIProviderRepository()
         self._usage_repo = usage_repo or AIUsageRepository()
         self._quota_repo = quota_repo or AIUserFallbackQuotaRepository(usage_repo=self._usage_repo)
+        self._execution_timeout_seconds = execution_timeout_seconds or _configured_float(
+            "TERMINAL_AGENT_EXECUTION_TIMEOUT_SECONDS",
+            TERMINAL_AGENT_EXECUTION_TIMEOUT_SECONDS,
+        )
+        self._max_turns = max_turns or _configured_int(
+            "TERMINAL_AGENT_MAX_TURNS",
+            TERMINAL_AGENT_MAX_TURNS,
+        )
+        self._mcp_client_timeout_seconds = _configured_float(
+            "TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS",
+            TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS,
+        )
+        self._execution_guard = execution_guard or CacheTerminalAgentExecutionGuard(
+            max_concurrency=_configured_int("TERMINAL_AGENT_MAX_CONCURRENCY", 1),
+            lease_timeout_seconds=int(self._execution_timeout_seconds)
+            + _configured_int("TERMINAL_AGENT_LEASE_GRACE_SECONDS", 30),
+        )
 
     def run_chat(self, request: TerminalAgentChatRequestDTO) -> TerminalAgentChatResponseDTO:
         """Execute a non-stream terminal chat request."""
@@ -111,7 +168,12 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
                     metadata=metadata,
                 )
             elif event.event_type == "error":
-                raise RuntimeError(str(event.data.get("message") or "Terminal agent failed"))
+                error_message = str(event.data.get("message") or "")
+                if error_message == TERMINAL_AGENT_BUSY_ERROR:
+                    raise TerminalAgentBusyError()
+                if error_message == TERMINAL_AGENT_TIMEOUT_ERROR:
+                    raise TerminalAgentTimeoutError()
+                raise RuntimeError(error_message or "Terminal agent failed")
             elif event.event_type == "final":
                 metadata = dict(event.data.get("metadata") or {})
                 final_reply = str(event.data.get("reply") or "")
@@ -134,17 +196,46 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
     ) -> Iterator[TerminalAgentEventDTO]:
         """Yield normalized agent events for one request."""
 
-        tool_access = self._build_tool_access_snapshot(request)
-        resolved_provider = self._resolve_provider(request)
-        events = run_awaitable_sync(
-            lambda: self._collect_events(request, resolved_provider, tool_access)
-        )
-        self._log_terminal_run(
-            request=request,
-            resolved_provider=resolved_provider,
-            events=events,
-        )
-        yield from events
+        try:
+            with self._execution_guard.acquire(request):
+                tool_access = self._build_tool_access_snapshot(request)
+                resolved_provider = self._resolve_provider(request)
+                try:
+                    events = run_awaitable_sync(
+                        lambda: asyncio.wait_for(
+                            self._collect_events(request, resolved_provider, tool_access),
+                            timeout=self._execution_timeout_seconds,
+                        )
+                    )
+                except TimeoutError:
+                    logger.warning(
+                        "Terminal agent execution timed out; session_id=%s timeout_seconds=%s",
+                        request.session_id,
+                        self._execution_timeout_seconds,
+                    )
+                    events = [
+                        TerminalAgentEventDTO(
+                            event_type="error",
+                            data={
+                                "session_id": request.session_id,
+                                "message": TERMINAL_AGENT_TIMEOUT_ERROR,
+                            },
+                        )
+                    ]
+                self._log_terminal_run(
+                    request=request,
+                    resolved_provider=resolved_provider,
+                    events=events,
+                )
+                yield from events
+        except TerminalAgentBusyError:
+            yield TerminalAgentEventDTO(
+                event_type="error",
+                data={
+                    "session_id": request.session_id,
+                    "message": TERMINAL_AGENT_BUSY_ERROR,
+                },
+            )
 
     async def _collect_events(
         self,
@@ -172,6 +263,7 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
                     run_config=sdk["RunConfig"](
                         tool_not_found_behavior="return_error_to_model",
                     ),
+                    max_turns=self._max_turns,
                 )
                 async for event in streamed.stream_events():
                     result_events.extend(self._map_stream_event(event))
@@ -325,6 +417,32 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
         existing = env.get("PYTHONPATH", "")
         env["PYTHONPATH"] = sdk_root if not existing else f"{sdk_root}{os.pathsep}{existing}"
         env.setdefault("AGOMTRADEPRO_BASE_URL", "http://127.0.0.1:8000")
+        env["AGOMTRADEPRO_TIMEOUT"] = str(
+            _configured_float(
+                "TERMINAL_AGENT_INTERNAL_API_TIMEOUT_SECONDS",
+                TERMINAL_AGENT_INTERNAL_API_TIMEOUT_SECONDS,
+            )
+        )
+        env["AGOMTRADEPRO_MAX_RETRIES"] = str(
+            _configured_int(
+                "TERMINAL_AGENT_INTERNAL_MAX_RETRIES",
+                TERMINAL_AGENT_INTERNAL_MAX_RETRIES,
+                minimum=0,
+            )
+        )
+        env["AGOMTRADEPRO_AUDIT_TIMEOUT_SECONDS"] = str(
+            _configured_float(
+                "TERMINAL_AGENT_AUDIT_TIMEOUT_SECONDS",
+                TERMINAL_AGENT_AUDIT_TIMEOUT_SECONDS,
+            )
+        )
+        env["AGOMTRADEPRO_AUDIT_MAX_ATTEMPTS"] = str(
+            _configured_int(
+                "TERMINAL_AGENT_AUDIT_MAX_ATTEMPTS",
+                TERMINAL_AGENT_AUDIT_MAX_ATTEMPTS,
+            )
+        )
+        env["AGOMTRADEPRO_AUDIT_RETRY_BACKOFF_SECONDS"] = "0"
         env["AGOMTRADEPRO_INTERNAL_AUTH_SECRET"] = getattr(
             settings,
             "AGOMTRADEPRO_INTERNAL_AUTH_SECRET",
@@ -340,7 +458,7 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
         )
         return sdk["MCPServerStdio"](
             cache_tools_list=True,
-            client_session_timeout_seconds=TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS,
+            client_session_timeout_seconds=self._mcp_client_timeout_seconds,
             name=TERMINAL_AGENT_MCP_SERVER_NAME,
             tool_filter=self._build_tool_filter(tool_access.allowed_tool_names),
             params={

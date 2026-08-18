@@ -42,7 +42,7 @@
     "external_http_imports_for_review": 0,
     "legacy_fact_references": 0,
     "provider_imports_outside_data_center": 0,
-    "runtime_parameter_references": 51
+    "runtime_parameter_references": 52
   },
   "cross_app_orm_imports": [
     {
@@ -2783,7 +2783,7 @@
       "text": "raise InvalidProposalTransitionError(current, target, allowed)"
     },
     {
-      "line": 91,
+      "line": 121,
       "path": "apps/agent_runtime/application/terminal_agent.py",
       "text": "summary: str,"
     },
@@ -3203,52 +3203,52 @@
       "text": "\"\"\"Return the latest context snapshot for a task.\"\"\""
     },
     {
-      "line": 396,
+      "line": 514,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "f\"Current user: {request.username} ({request.user_role}).\\n\""
     },
     {
-      "line": 409,
+      "line": 527,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"value current or today's. If must_not_use_for_decision=true, say so first and do \""
     },
     {
-      "line": 456,
+      "line": 574,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "summary=str(capability.get(\"summary\") or \"\"),"
     },
     {
-      "line": 476,
+      "line": 594,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"summary\": capability.get(\"summary\"),"
     },
     {
-      "line": 548,
+      "line": 666,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"\"\"Resolve the current user's MCP tool visibility and risk gating.\"\"\""
     },
     {
-      "line": 598,
+      "line": 716,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"summary\": str(capability.get(\"summary\") or \"\"),"
     },
     {
-      "line": 990,
+      "line": 1108,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "current = obj"
     },
     {
-      "line": 992,
+      "line": 1110,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "current = getattr(current, attr, None)"
     },
     {
-      "line": 993,
+      "line": 1111,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "if current is None:"
     },
     {
-      "line": 995,
+      "line": 1113,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "return current"
     },
@@ -20873,12 +20873,12 @@
       "text": "\"action_key\": \"auto.api.get.api.asset-analysis.current-weight\","
     },
     {
-      "line": 643,
+      "line": 657,
       "path": "apps/terminal/interface/api_views.py",
       "text": "\"\"\"Expose the unified TUI operator home summary.\"\"\""
     },
     {
-      "line": 702,
+      "line": 716,
       "path": "apps/terminal/interface/api_views.py",
       "text": "\"\"\"Run a published safe action for the current user.\"\"\""
     },
@@ -22004,6 +22004,7 @@
     "os.getenv(\"CELERY_LOG_LEVEL\") or os.getenv(\"DJANGO_LOG_LEVEL\")",
     "password=os.getenv(\"ALERT_SMTP_PASSWORD\", \"\"),",
     "raw_mode = api_mode or os.getenv(\"AGOMTRADEPRO_OPENAI_API_MODE\") or \"dual\"",
+    "raw_value = getattr(settings, name, os.getenv(name, str(default)))",
     "slack_webhook = os.getenv(\"ALERT_SLACK_WEBHOOK\")",
     "smtp_host = os.getenv(\"ALERT_SMTP_HOST\")",
     "smtp_port=int(os.getenv(\"ALERT_SMTP_PORT\", \"587\")),",

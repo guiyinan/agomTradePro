@@ -35,8 +35,10 @@ from apps.agent_runtime.application.repository_provider import (
 from apps.agent_runtime.application.terminal_agent import (
     RunTerminalAgentChatUseCase,
     StreamTerminalAgentChatUseCase,
+    TerminalAgentBusyError,
     TerminalAgentChatRequestDTO,
     TerminalAgentService,
+    TerminalAgentTimeoutError,
 )
 from apps.agent_runtime.application.terminal_approval import (
     TERMINAL_MCP_PROPOSAL_TYPE,
@@ -262,6 +264,18 @@ class TerminalChatView(APIView):
                 "selected_capability_key": response_dto.metadata.get("capability_key"),
                 "proposal_id": response_dto.metadata.get("proposal_id"),
             }
+        except (TerminalAgentBusyError, TerminalAgentTimeoutError) as exc:
+            logger.warning("Terminal agent chat bounded failure; code=%s", exc.code)
+            return Response(
+                {
+                    "error": exc.message,
+                    "code": exc.code,
+                    "setup_required": False,
+                    "retryable": True,
+                },
+                status=exc.status_code,
+                headers={"Retry-After": "5"},
+            )
         except MissingConfigError:
             logger.warning(
                 "Terminal agent chat unavailable because AI providers are not configured"

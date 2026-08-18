@@ -3,8 +3,27 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from typing import Any, Protocol
+
+from core.exceptions import AIServiceError
+from core.exceptions import TimeoutError as AgomTimeoutError
+
+
+class TerminalAgentBusyError(AIServiceError):
+    """Raised when a duplicate or excess Terminal Agent run is rejected."""
+
+    default_message = "已有智能助手任务正在执行，请稍后重试。"
+    default_code = "AI_AGENT_BUSY"
+    default_status_code = 429
+
+
+class TerminalAgentTimeoutError(AgomTimeoutError):
+    """Raised when a Terminal Agent run exceeds its bounded execution time."""
+
+    default_message = "智能助手执行超时，请稍后重试。"
+    default_code = "AI_AGENT_TIMEOUT"
 
 
 @dataclass(frozen=True)
@@ -49,6 +68,17 @@ class TerminalAgentService(Protocol):
 
     def stream_chat(self, request: TerminalAgentChatRequestDTO) -> Iterator[TerminalAgentEventDTO]:
         """Yield normalized events for one streamed terminal chat request."""
+        ...
+
+
+class TerminalAgentExecutionGuard(Protocol):
+    """Lease contract that bounds Terminal Agent execution concurrency."""
+
+    def acquire(
+        self,
+        request: TerminalAgentChatRequestDTO,
+    ) -> AbstractContextManager[None]:
+        """Acquire one execution lease or raise a bounded busy error."""
         ...
 
 

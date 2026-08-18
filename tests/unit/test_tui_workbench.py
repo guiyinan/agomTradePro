@@ -8252,6 +8252,68 @@ def test_tui_ai_result_maps_provider_runtime_failures_to_actionable_guidance(
     assert expected_guidance in next_step
 
 
+@pytest.mark.parametrize(
+    ("status_code", "payload", "expected_status", "expected_guidance"),
+    [
+        (
+            429,
+            {"code": "AI_AGENT_BUSY", "error": "busy", "retryable": True},
+            "系统繁忙",
+            "等待当前任务完成",
+        ),
+        (
+            504,
+            {"code": "AI_AGENT_TIMEOUT", "error": "timeout", "retryable": True},
+            "执行超时",
+            "缩小问题范围",
+        ),
+    ],
+)
+def test_tui_ai_result_preserves_bounded_resilience_errors_without_provider_misdirection(
+    status_code,
+    payload,
+    expected_status,
+    expected_guidance,
+):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {"status_code": status_code, "payload": payload}
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "cli.agent_chat",
+                        "label": "发送 AI 请求",
+                        "method": "POST",
+                        "endpoint": "/api/terminal/chat/",
+                        "intent": "chat",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "ai",
+                        "fields": [],
+                        "description": "Chat.",
+                        "source": "approved:test",
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    result = service.run_action(action_key="cli.agent_chat", params={}, user=None)
+
+    assert result["user_error_code"] == payload["code"]
+    assert result["view_model"]["status"] == expected_status
+    next_step = next(
+        field["value"] for field in result["view_model"]["fields"] if field["key"] == "next_step"
+    )
+    assert expected_guidance in next_step
+    assert not any(step.get("screen_key") == "ai-ops.providers" for step in result["next_steps"])
+
+
 def test_tui_mcp_self_service_status_model_prioritizes_canonical_access_package():
     class FakeExecutor:
         def execute(self, **kwargs):

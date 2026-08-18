@@ -6,12 +6,17 @@ import pytest
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
+from apps.agent_runtime.application.terminal_agent import (
+    TerminalAgentBusyError,
+    TerminalAgentTimeoutError,
+)
 from apps.agent_runtime.infrastructure.models import (
     AgentExecutionRecordModel,
     AgentProposalModel,
 )
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.terminal.infrastructure.models import TerminalAuditLogORM
+from apps.terminal.infrastructure.tui_adapters import TuiInternalActionExecutor
 from core.exceptions import MissingConfigError
 
 
@@ -210,6 +215,39 @@ class TestTerminalChatEndpoint:
         }
         assert "agent exploded" not in response.content.decode("utf-8")
 
+    @pytest.mark.parametrize(
+        ("exception", "expected_status", "expected_code"),
+        [
+            (TerminalAgentBusyError(), 429, "AI_AGENT_BUSY"),
+            (TerminalAgentTimeoutError(), 504, "AI_AGENT_TIMEOUT"),
+        ],
+    )
+    def test_terminal_chat_returns_bounded_retryable_resilience_errors(
+        self,
+        api_client,
+        staff_user,
+        exception,
+        expected_status,
+        expected_code,
+    ):
+        api_client.force_authenticate(user=staff_user)
+
+        with patch(
+            "apps.terminal.interface.api_views.RunTerminalAgentChatUseCase.execute",
+            side_effect=exception,
+        ):
+            response = api_client.post(
+                "/api/terminal/chat/",
+                {"message": "系统怎么了"},
+                format="json",
+            )
+
+        assert response.status_code == expected_status
+        assert response.json()["code"] == expected_code
+        assert response.json()["retryable"] is True
+        assert response["Retry-After"] == "5"
+        assert response["Content-Type"].startswith("application/json")
+
     def test_terminal_chat_returns_503_when_provider_is_not_configured(
         self,
         api_client,
@@ -233,6 +271,40 @@ class TestTerminalChatEndpoint:
             "code": "AI_PROVIDER_UNAVAILABLE",
             "setup_required": True,
         }
+
+
+@pytest.mark.django_db
+def test_tui_internal_agent_action_recovers_after_bounded_busy_response(staff_user):
+    executor = TuiInternalActionExecutor()
+    recovered_response = Mock(
+        reply="recovered",
+        session_id="session-recovered",
+        metadata={"provider": "test-provider", "model": "test-model"},
+    )
+
+    with patch(
+        "apps.terminal.interface.api_views.RunTerminalAgentChatUseCase.execute",
+        side_effect=[TerminalAgentBusyError(), recovered_response],
+    ):
+        busy = executor.execute(
+            method="POST",
+            endpoint="/api/terminal/chat/",
+            params={},
+            body={"message": "first"},
+            user=staff_user,
+        )
+        recovered = executor.execute(
+            method="POST",
+            endpoint="/api/terminal/chat/",
+            params={},
+            body={"message": "second"},
+            user=staff_user,
+        )
+
+    assert busy["status_code"] == 429
+    assert busy["payload"]["code"] == "AI_AGENT_BUSY"
+    assert recovered["status_code"] == 200
+    assert recovered["payload"]["reply"] == "recovered"
 
 
 @pytest.mark.django_db
