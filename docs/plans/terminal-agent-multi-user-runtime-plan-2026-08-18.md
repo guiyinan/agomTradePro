@@ -519,6 +519,7 @@ python scripts/check_mypy_debt_ceiling.py
 | 事故止血 | completed | 并发租约、60 秒超时、最大 turns、下游超时、429/504、健康自恢复已上线并覆盖回归 |
 | 多用户终态架构 | active/planned | 本文与 `TAR-01` 已纳入机器注册表；尚未实现异步 run API、专用 Worker 或队列 |
 | 迁移期 inline 并发闸门 | completed (repository slice) | `OpenAIAgentsTerminalService` 对旧 Web/TUI inline 路径强制将环境并发覆盖限制为 `1`，并在尝试放大时记录 warning；service/lease 回归 `25 passed`，增量 mypy 为 0 | 仅保护迁移期事故半径；不代表 TAR-01 契约冻结、持久化队列、专用 Worker、容量/故障注入或 TAR-05 生产验收完成 |
+| TAR-01 纯契约冻结切片 | completed (pure contract slice) | 新增 `apps/agent_runtime/domain/terminal_agent_run_contract.py` 与 `apps/agent_runtime/application/terminal_agent_run_ports.py`：冻结 owner-scoped selectors、aware deadline/digest、有限状态转移、终态幂等、ID-only broker envelope 与敏感字段拒绝；纯契约回归 `26 passed`，service + execution guard 合计 `45 passed`，增量 mypy `0 regressions`，architecture audit `0 violations` | 仍未接入 Web/TUI 新接单 API、PostgreSQL durable run、Celery/专用 Worker、真实 broker、容量/故障注入或生产观察；当前仅完成 TAR-01 的 pure boundary，不得提前推进 TAR-02 |
 | Local CLI | planned | 已有 SDK/MCP 与三机架构基础；尚无本地 Terminal Agent 正式入口 |
 | 生产容量证据 | not_started | 尚未执行 5/10/20 用户 staging soak/chaos，不允许据此扩大 inline 并发 |
-| 下一动作 | priority_next | 执行 `TAR-01`：冻结 ADR/契约、建立现状基线与“Web 接单不得执行 Agent”的失败测试 |
+| 下一动作 | priority_next | 补齐 `TAR-01` 剩余 ADR/现状负载基线、Web 接单不得执行 Agent 的 failing-first/API boundary 证据与 feature flag；全部 TAR-01 exit gate 通过后，才进入 `TAR-02` durable admission |
