@@ -98,11 +98,16 @@ def test_execution_audit_screen_patch_is_not_registered_after_ia_cutover() -> No
     registry = load_json_payload(IA_PATH)
     aliases = screen_aliases(registry)
     runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    runtime_screen_keys = {str(screen["key"]) for screen in runtime["screens"]}
     audit = next(screen for screen in runtime["screens"] if screen["key"] == "execution.audit")
 
     assert aliases["execution.events"] == "execution.audit"
     assert aliases["execution.share"] == "execution.audit"
     assert "execution.audit" not in RUNTIME_SCREEN_PATCHES
+    assert "execution.events" not in RUNTIME_SCREEN_PATCHES
+    assert "execution.share" not in RUNTIME_SCREEN_PATCHES
+    assert "execution.events" not in runtime_screen_keys
+    assert "execution.share" not in runtime_screen_keys
     assert audit["summary"] == "查看审计健康、事件指标、实盘对账与操作记录。"
     assert [
         panel["action_key"] for panel in audit["dashboard_panels"] if panel.get("action_key")
