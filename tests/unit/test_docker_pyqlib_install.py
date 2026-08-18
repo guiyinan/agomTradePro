@@ -67,10 +67,11 @@ def test_linux_wheelhouse_directory_is_preserved_for_docker_copy() -> None:
 
 def test_vps_compose_worker_consumes_qlib_queues() -> None:
     compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
+    healthcheck = (REPO_ROOT / "docker" / "healthcheck-web.sh").read_text(encoding="utf-8")
 
     assert "CELERY_WORKER_QUEUES:-celery,qlib_infer,qlib_train" in compose
     assert "healthcheck:\n      disable: true" in compose
-    assert "curl -fsS --connect-timeout 2 --max-time 5" in compose
+    assert '"$curl_bin" -fsS --connect-timeout 2 --max-time 5' in healthcheck
     assert "curl -sS -o /dev/null -w '%{http_code}'" not in compose
 
 
@@ -116,7 +117,7 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert 'os.environ.get("AGOM_VPS_TIMEOUT", "3600")' in script
     assert "[int]$BuildTimeoutSeconds = 3600" in one_click_script
     assert "'--timeout', \"$BuildTimeoutSeconds\"" in one_click_script
-    assert "'--timeout', '15'" in one_click_script
+    assert "'--timeout', '120'" in one_click_script
     assert "compose up -d runtime_ns redis postgres" in script
     assert 'SERVICES="runtime_ns redis postgres web caddy"' in script
     assert 'if [ "$ENABLE_CELERY" = "1" ]; then' in script

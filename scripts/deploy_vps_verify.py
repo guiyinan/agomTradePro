@@ -662,7 +662,12 @@ def main() -> int:
     parser.add_argument("--expect-celery", action="store_true", default=False)
     parser.add_argument("--expected-commit")
     parser.add_argument("--auto-rollback", action="store_true", default=False)
-    parser.add_argument("--timeout", type=int, default=15)
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=120,
+        help="SSH and remote-command timeout in seconds (default: 120)",
+    )
     args = parser.parse_args()
 
     password = Path(args.password_file).read_text(encoding="utf-8").strip()

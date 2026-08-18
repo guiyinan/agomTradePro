@@ -171,7 +171,9 @@ try {
             '--port', $VpsPort,
             '--target-dir', $TargetDir,
             '--expected-commit', $expectedCommit,
-            '--timeout', '15'
+            # A freshly restarted stack can need more than the SSH probe
+            # timeout while healthcheck runs migrations/readiness checks.
+            '--timeout', '120'
         )
         if ($null -ne $HttpPort) { $verifyArgs += @('--http-port', $HttpPort) }
         if ($UseCelery) { $verifyArgs += '--expect-celery' }

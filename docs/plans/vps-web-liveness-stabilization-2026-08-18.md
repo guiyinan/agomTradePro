@@ -55,6 +55,10 @@ container `ALPHA_ALLOW_INLINE_INFERENCE=false` and
 `ALPHA_SIMPLE_MAX_POOL_SIZE=120`; no inline-inference or long Alpha request
 appeared in the last ten minutes of Web logs.
 
+The deploy verifier follow-up now uses a `120s` default/one-click remote
+command window, preventing the observed false negative on a freshly restarted
+stack. This is deploy-tooling hardening; it does not change the running image.
+
 ## Remaining gate
 
 This is a short, read-only stabilization sample, not a production closure
