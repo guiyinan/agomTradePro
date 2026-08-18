@@ -3203,52 +3203,52 @@
       "text": "\"\"\"Return the latest context snapshot for a task.\"\"\""
     },
     {
-      "line": 514,
+      "line": 530,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "f\"Current user: {request.username} ({request.user_role}).\\n\""
     },
     {
-      "line": 527,
+      "line": 543,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"value current or today's. If must_not_use_for_decision=true, say so first and do \""
     },
     {
-      "line": 574,
+      "line": 590,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "summary=str(capability.get(\"summary\") or \"\"),"
     },
     {
-      "line": 594,
+      "line": 610,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"summary\": capability.get(\"summary\"),"
     },
     {
-      "line": 666,
+      "line": 682,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"\"\"Resolve the current user's MCP tool visibility and risk gating.\"\"\""
     },
     {
-      "line": 716,
+      "line": 732,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"summary\": str(capability.get(\"summary\") or \"\"),"
     },
     {
-      "line": 1108,
+      "line": 1124,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "current = obj"
     },
     {
-      "line": 1110,
+      "line": 1126,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "current = getattr(current, attr, None)"
     },
     {
-      "line": 1111,
+      "line": 1127,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "if current is None:"
     },
     {
-      "line": 1113,
+      "line": 1129,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "return current"
     },
