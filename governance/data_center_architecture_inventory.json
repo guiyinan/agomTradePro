@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4274,
+    "current_surface_references": 4279,
     "data_write_task_decorators": 59,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -2946,6 +2946,31 @@
       "line": 515,
       "path": "apps/agent_runtime/domain/services.py",
       "text": "f\"Task is not in a resumable state. Current status: {current}. \""
+    },
+    {
+      "line": 36,
+      "path": "apps/agent_runtime/domain/terminal_agent_run_contract.py",
+      "text": "current: TerminalRunStatus,"
+    },
+    {
+      "line": 40,
+      "path": "apps/agent_runtime/domain/terminal_agent_run_contract.py",
+      "text": "self.current = current"
+    },
+    {
+      "line": 45,
+      "path": "apps/agent_runtime/domain/terminal_agent_run_contract.py",
+      "text": "f\"invalid Terminal Agent run transition from {current.value} \""
+    },
+    {
+      "line": 290,
+      "path": "apps/agent_runtime/domain/terminal_agent_run_contract.py",
+      "text": "current: TerminalRunStatus | str,"
+    },
+    {
+      "line": 299,
+      "path": "apps/agent_runtime/domain/terminal_agent_run_contract.py",
+      "text": "current_status = _coerce_status(current)"
     },
     {
       "line": 13,
