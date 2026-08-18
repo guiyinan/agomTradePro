@@ -4,6 +4,29 @@
 
 `dev/next-development` 的提交 `96ce6ee43b06e6eb6ad51528ff8ee783a4bf0952` 已在 `demo.agomtrade.pro` 完成一次带 provenance 校验的后续候选部署。该 release 包含 TUI AI provider failure guidance 修复；当前服务正常运行，M5 观察窗口从本次独立核验时间重新计算。本证据不解除角色化浏览器 UAT、写后回执、14 日观察、恢复演练或数据覆盖门禁。
 
+## 2026-08-18 21:07 当前 TAR-01 boundary guard 候选部署与短窗口只读观测
+
+提交 `dev/next-development@d238091d9e7e3aa1324baf92199100e800122ed7` 使用标准
+`git-clone`、`-Upgrade`、code-only 模式发布为 release `20260818210752`；保留
+PostgreSQL/Redis 数据卷并启用 Celery。该候选包含 TAR-01 queued API composition boundary
+纯合同，仍不启用 queued intake/worker，也没有改变生产 authority 或业务写入门禁。
+
+| 项目 | 证据 |
+|---|---|
+| release/source | `20260818210752` / `d238091d9e7e3aa1324baf92199100e800122ed7` |
+| image | `sha256:3dd6401b8e8b757087e3d99e1e91dc1ebf539f33bc5148fd7198925717e5cdc3` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260818210752.json`（本地忽略产物） |
+| mode/volumes | `ACTION=upgrade`、code-only、PostgreSQL/Redis 数据卷保留、Celery enabled |
+| migration/schema/checks | `No migrations to apply`；missing migrations/tables 为空；Django check、TUI registry、Qlib、Celery、容器与 TUI JS 预检通过；TUI registry source hash 与 active hash 匹配 |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| backup | 部署前 PostgreSQL custom-format backup 已生成：`/opt/agomtradepro/backups/database/postgres-20260818-151515.dump`；本次未执行 restore/rebuild 或 RTO/RPO drill |
+| HTTPS observation | `https://demo.agomtrade.pro/api/health/` 连续 8 次 HTTP `200`；短窗口延迟约 `1.17–2.08s` |
+
+这只是不可变候选的短窗口只读运行证据，不是角色化浏览器 UAT 或生产写入证明。没有执行登录、
+角色化权限走查、业务写入、写后 receipt/refresh、14 日 telemetry/defect、registry backup/restore、
+rollback 双签、owner/reviewer 双签或 AUD-01/EVID-01 durable authority/publisher 验证；TAR-01
+仍 active，TAR-02 继续等待，相关 gate 保持 fail-closed。
+
 ## 2026-08-18 20:14 当前 TAR-01 候选部署与短窗口只读观测
 
 提交 `dev/next-development@6e217afdd7599086f25f7100a92ae34324e5df73` 使用标准
