@@ -4,6 +4,32 @@
 
 `dev/next-development` 的提交 `96ce6ee43b06e6eb6ad51528ff8ee783a4bf0952` 已在 `demo.agomtrade.pro` 完成一次带 provenance 校验的后续候选部署。该 release 包含 TUI AI provider failure guidance 修复；当前服务正常运行，M5 观察窗口从本次独立核验时间重新计算。本证据不解除角色化浏览器 UAT、写后回执、14 日观察、恢复演练或数据覆盖门禁。
 
+## 2026-08-19 04:46 TAR-01 baseline identity guard 候选部署与只读观测
+
+提交 `dev/next-development@a837c728012197c4ce27a31a883048b3233f7460` 使用标准
+`git-clone`、`-Upgrade`、code-only 模式发布为 release `20260819044629`；保留
+PostgreSQL/Redis 数据卷并启用 Celery。该候选只加强 dormant TAR-01 baseline 证据合同：
+1/5/10/20 样本必须绑定同一 commit/release、OCI revision、runtime manifest digest 与
+test-matrix digest；没有启用 queued intake、Worker、容量或业务写入口。
+
+| 项目 | 证据 |
+|---|---|
+| release/source | `20260819044629` / `a837c728012197c4ce27a31a883048b3233f7460` |
+| image | `agomtradepro-web:20260819044629` / `sha256:d4374a18d3a9be797b9c588531fdf85de16c8fa81a2492490ce1158fa449d1e1` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260819044629.json` |
+| mode/volumes | `ACTION=upgrade`、code-only、PostgreSQL/Redis 数据卷保留、Celery enabled |
+| migration/schema/checks | `No migrations to apply`；canonical schema `missing_migrations=[]`、`missing_tables=[]`、`ok=true`；Django check 无新增问题 |
+| TUI runtime | registry `id=28`、publish 为 `noop`；active/backend version `20260819000530`、source hash `cf064268fa7ee2263bcb2355d12bdd98bedd83076288272a6997ff5af7cacf8c` 匹配；本次未改 published graph |
+| HTTPS/health | `demo.agomtrade.pro` Caddy domain、TLS valid；随后 8 次 `https://demo.agomtrade.pro/api/health/` 均 `200`（21:02:46–21:03:08 UTC，约 `1.08–2.25s`） |
+| containers | web healthy；Caddy、PostgreSQL、Redis、RSSHub、Celery worker/beat、runtime namespace running；Celery ping `1 node online` |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| backup | 部署前 PostgreSQL custom-format backup：`/opt/agomtradepro/backups/database/postgres-20260818-225303.dump`；本次未执行 restore/rebuild 或 RTO/RPO drill |
+
+本节是当前候选的 release/source/image、迁移、健康与短窗口只读证据，不是 TAR-01 真实
+1/5/10/20 容量、SLO、chaos、队列/Worker、角色化 UAT、业务写后 receipt/refresh、14 日
+telemetry、restore/rollback、owner/reviewer 双签或 AUD-01/EVID-01 authority/publisher 证明；
+相关生产门禁继续 fail-closed。
+
 ## 2026-08-19 03:41 当前 DATA-01 口径 fail-closed 候选部署与只读观测
 
 提交 `dev/next-development@4040d98916dc2527ba5d60ce8b4433c0bdad10f3` 使用标准
