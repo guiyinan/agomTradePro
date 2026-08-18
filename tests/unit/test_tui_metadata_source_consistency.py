@@ -114,6 +114,25 @@ def test_execution_audit_screen_patch_is_not_registered_after_ia_cutover() -> No
     ]
 
 
+def test_research_signals_patch_does_not_repeat_ia_owned_copy() -> None:
+    """The research screen patch keeps behavior, not IA-owned screen copy."""
+
+    from apps.terminal.infrastructure.tui_metadata_repository import RUNTIME_SCREEN_PATCHES
+
+    patch = RUNTIME_SCREEN_PATCHES["research.signals"]
+    ia = load_json_payload(IA_PATH)
+    research_signals = next(
+        screen for screen in ia["published_screens"] if screen["key"] == "research.signals"
+    )
+
+    assert "label" not in patch
+    assert "summary" not in patch
+    assert research_signals["label"] == "Beta 态势与 Alpha 选股"
+    assert (
+        research_signals["summary"] == "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。"
+    )
+
+
 def test_source_guard_rejects_runtime_replacement_of_ia_copy() -> None:
     """A runtime copy override must fail closed instead of being accepted."""
 

@@ -6,8 +6,6 @@ from typing import Any
 
 RUNTIME_SCREEN_PATCHES_RESEARCH: dict[str, dict[str, Any]] = {
     "research.signals": {
-        "label": "Beta 态势与 Alpha 选股",
-        "summary": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。",
         "default_action_key": "dashboard.beta-market-summary",
         "user_experience": {
             "journey": "dashboard",
