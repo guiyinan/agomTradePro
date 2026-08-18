@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_version": "1.0",
+  "contract_id": "TAR-01",
+  "title": "Terminal Agent run dispatch and hybrid runtime contract",
+  "decision_status": "repository_contract_only",
+  "decision_scope": "This manifest freezes names, ownership, wire semantics, and safety relationships for TAR-01. It is not a runtime configuration, persistence schema, broker declaration, or production readiness attestation.",
+  "authority": {
+    "primary_plan": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
+    "machine_registry": "governance/active_plan_registry.json",
+    "implementation_sources": [
+      "apps/agent_runtime/domain/entities.py",
+      "apps/agent_runtime/domain/terminal_agent_run_contract.py",
+      "apps/agent_runtime/application/terminal_agent_run_api_contract.py",
+      "apps/agent_runtime/application/terminal_agent_run_ports.py",
+      "apps/agent_runtime/application/terminal_agent_run_boundary.py",
+      "apps/agent_runtime/application/terminal_runtime_queue_policy.py",
+      "core/settings/base.py",
+      "core/settings/production.py"
+    ]
+  },
+  "implementation_boundary": {
+    "implemented": [
+      "pure AgentTask and TerminalRun status/name contracts",
+      "owner-scoped run selectors and SHA-256 request digest validation",
+      "ID-only broker envelope validation",
+      "pure asynchronous API/SSE response shapes",
+      "pure queue/deadline/flag relationships",
+      "dormant application composition boundary"
+    ],
+    "not_implemented": [
+      "Web/TUI queued route",
+      "durable PostgreSQL run or dispatch record",
+      "Celery task, broker publisher, or dispatcher",
+      "dedicated Agent Worker or event stream",
+      "SDK/MCP/TUI queued client implementation",
+      "capacity, chaos, staging, or production UAT evidence"
+    ],
+    "fail_closed_rule": "No future adapter may infer that this manifest enables queued execution; TAR-02/TAR-03 must supply the missing ports and evidence before any queued flag is enabled."
+  },
+  "responsibility_split": {
+    "agent_task": {
+      "canonical_type": "apps.agent_runtime.domain.entities.AgentTask",
+      "source_of_truth": "Existing AI-Native task, domain, proposal, approval, and timeline lifecycle.",
+      "owns": [
+        "task_id",
+        "request_id",
+        "task_domain",
+        "task_type",
+        "input_payload under the existing AgentTask contract",
+        "TaskStatus",
+        "proposal/approval linkage",
+        "AgentTimelineEvent and execution evidence linkage"
+      ],
+      "must_not_own": [
+        "queue position",
+        "worker lease or heartbeat",
+        "broker delivery attempt",
+        "cancel request clock",
+        "orphan detection"
+      ]
+    },
+    "run_dispatch": {
+      "canonical_type": "apps.agent_runtime.domain.terminal_agent_run_contract.TerminalAgentRunContract",
+      "future_durable_type": "TerminalAgentRun",
+      "source_of_truth": "The run-specific dispatch lifecycle bound to one canonical AgentTask.",
+      "owns": [
+        "run_id",
+        "actor_user_id ownership selector",
+        "runtime_mode",
+        "client_request_id and request_digest",
+        "dispatch_status",
+        "worker claim/heartbeat and attempt metadata",
+        "deadline_at and cancel_requested_at",
+        "last_event_id and result_ref",
+        "redacted stable last_error"
+      ],
+      "must_not_duplicate": [
+        "AgentTask input_payload",
+        "provider credentials or decrypted tokens",
+        "proposal/approval business state",
+        "canonical timeline event contents"
+      ],
+      "binding": "task_id is a foreign reference/selector to AgentTask; it is not a second task payload."
+    }
+  },
+  "identity_and_idempotency": {
+    "owner_selector": {
+      "required_fields": [
+        "run_id",
+        "task_id",
+        "actor_user_id",
+        "client_request_id"
+      ],
+      "source_type": "TerminalRunSelector",
+      "query_rule": "Every status, event, queue-summary, and cancel read/write is scoped by authenticated actor_user_id; session_id never substitutes for actor identity."
+    },
+    "idempotency": {
+      "header": "Idempotency-Key",
+      "body_alias": "client_request_id",
+      "canonical_field": "TerminalRunSelector.client_request_id",
+      "scope": "actor_user_id",
+      "request_fingerprint": "TerminalRunSubmission.request_digest",
+      "digest_algorithm": "SHA-256 lowercase hexadecimal, exactly 64 characters",
+      "same_key_same_digest": "Return the existing run/status without another Agent, MCP, broker, or external side effect.",
+      "same_key_different_digest": "Fail closed with IDEMPOTENCY_KEY_CONFLICT; never mutate or reuse the existing run.",
+      "delivery_semantics": "At-least-once delivery is expected; database first-winner claim and downstream idempotency are required before TAR-03 execution."
+    }
+  },
+  "dispatch_status_contract": {
+    "enum_source": "TerminalRunStatus",
+    "values": [
+      "accepted",
+      "queued",
+      "claimed",
+      "running",
+      "waiting_approval",
+      "cancel_requested",
+      "cancelled",
+      "completed",
+      "failed",
+      "timed_out",
+      "orphaned"
+    ],
+    "terminal_values": [
+      "cancelled",
+      "completed",
+      "failed",
+      "timed_out"
+    ],
+    "allowed_transitions": {
+      "accepted": ["queued"],
+      "queued": ["claimed", "cancel_requested"],
+      "claimed": ["running", "cancel_requested", "completed", "failed", "timed_out", "orphaned"],
+      "running": ["waiting_approval", "cancel_requested", "completed", "failed", "timed_out", "orphaned"],
+      "waiting_approval": ["queued", "cancel_requested"],
+      "cancel_requested": ["cancelled"],
+      "orphaned": ["queued", "failed"]
+    },
+    "duplicate_transition": "Applying the same state again is a no-op; a late worker/event cannot overwrite a terminal state.",
+    "agent_task_projection": {
+      "rule": "Dispatch status is not a replacement for frozen TaskStatus. A projection may update AgentTask only through TaskStateMachine and only when the existing task transition is valid.",
+      "mapping": {
+        "accepted": {"task_status_effect": "unchanged", "reason": "Run admission state only."},
+        "queued": {"task_status_effect": "unchanged", "reason": "Queue state belongs to Run Dispatch."},
+        "claimed": {"task_status_effect": "unchanged", "reason": "Worker lease state belongs to Run Dispatch."},
+        "running": {"task_status_effect": "executing_when_existing_task_transition_allows", "task_status": "executing"},
+        "waiting_approval": {"task_status_effect": "awaiting_approval_or_needs_human_when_existing_approval_flow_requires", "task_status": ["awaiting_approval", "needs_human"]},
+        "cancel_requested": {"task_status_effect": "unchanged_until_cancel_is_accepted", "reason": "Cooperative signal, not a terminal AgentTask transition."},
+        "cancelled": {"task_status_effect": "cancelled", "task_status": "cancelled"},
+        "completed": {"task_status_effect": "completed", "task_status": "completed"},
+        "failed": {"task_status_effect": "failed", "task_status": "failed"},
+        "timed_out": {"task_status_effect": "failed_with_stable_error_code", "task_status": "failed", "error_code": "AI_AGENT_TIMEOUT"},
+        "orphaned": {"task_status_effect": "unchanged_until_recovery_decision", "reason": "Requeue or fail only after replay-safety evaluation."}
+      }
+    }
+  },
+  "prompt_and_sensitive_data": {
+    "default_decision": "minimize_and_fail_closed",
+    "raw_prompt": {
+      "broker_payload": "forbidden",
+      "Redis_stream_event": "forbidden",
+      "ordinary_log": "forbidden",
+      "run_dispatch_record": "forbidden",
+      "AgentTask_input_payload": "outside_run_dispatch; may only follow the existing AgentTask/AI-Native retention policy, never an implicit TAR-02 default"
+    },
+    "allowed_derivatives": [
+      "request_digest",
+      "bounded redacted error summary",
+      "safe progress metadata with no prompt, token, credential, cookie, authorization, or password fields"
+    ],
+    "retention": {
+      "raw_prompt_default": "zero days in the new run/transport surfaces",
+      "existing_task_retention": "must be supplied by an approved existing AgentTask retention/encryption policy before TAR-02 persists raw input for queued execution",
+      "encryption": "required by the existing storage policy if raw AgentTask input is retained; TAR-01 does not invent a second key store",
+      "redaction": "truncate and redact before timeline, event, metric label, or error serialization"
+    },
+    "broker_allowed_fields": ["run_id", "task_id"],
+    "forbidden_field_fragments": ["prompt", "api_key", "apikey", "authorization", "cookie", "credential", "password", "private_key", "secret", "token"]
+  },
+  "error_codes": {
+    "format": "UPPER_SNAKE_CASE",
+    "response_field": "error_code",
+    "existing_codes": [
+      {"code": "VALIDATION_ERROR", "status": 400, "source": "core.exceptions.ValidationError.default_code"},
+      {"code": "AUTHORIZATION_ERROR", "status": 403, "source": "core.exceptions.AuthorizationError.default_code"},
+      {"code": "NOT_FOUND", "status": 404, "source": "core.exceptions.ResourceNotFoundError.default_code"},
+      {"code": "DUPLICATE_RESOURCE", "status": 409, "source": "core.exceptions.DuplicateResourceError.default_code"},
+      {"code": "AI_AGENT_BUSY", "status": 429, "source": "apps.agent_runtime.application.terminal_agent.TerminalAgentBusyError.default_code"},
+      {"code": "AI_AGENT_TIMEOUT", "status": 504, "source": "apps.agent_runtime.application.terminal_agent.TerminalAgentTimeoutError.default_code"},
+      {"code": "AI_PROVIDER_NOT_CONFIGURED", "status": 503, "source": "apps.terminal.application.ui_workbench_result_models_specialized"},
+      {"code": "AI_PROVIDER_UNAVAILABLE", "status": 503, "source": "apps.terminal.interface.api_views"},
+      {"code": "AI_PROVIDER_REQUEST_FAILED", "status": 502, "source": "apps.terminal.interface.api_views"},
+      {"code": "TIMEOUT", "status": 504, "source": "core.exceptions.TimeoutError.default_code"}
+    ],
+    "reserved_for_future_queued_runtime": [
+      {"code": "QUEUE_FULL", "status": 429, "retry_after": true, "implementation_status": "not_runtime"},
+      {"code": "DISPATCH_UNAVAILABLE", "status": 503, "retry_after": true, "implementation_status": "not_runtime"},
+      {"code": "DISPATCH_PENDING", "status": 503, "retry_after": true, "implementation_status": "not_runtime"},
+      {"code": "IDEMPOTENCY_KEY_CONFLICT", "status": 409, "retry_after": false, "implementation_status": "not_runtime"},
+      {"code": "RUN_NOT_OWNER", "status": 404, "retry_after": false, "implementation_status": "not_runtime"},
+      {"code": "CANCEL_NOT_ALLOWED", "status": 409, "retry_after": false, "implementation_status": "not_runtime"},
+      {"code": "RUN_ORPHANED", "status": 503, "retry_after": true, "implementation_status": "not_runtime"},
+      {"code": "WORKER_TIMEOUT", "status": 504, "retry_after": true, "implementation_status": "not_runtime"},
+      {"code": "MCP_TIMEOUT", "status": 504, "retry_after": true, "implementation_status": "not_runtime"},
+      {"code": "PROMPT_RETENTION_BLOCKED", "status": 422, "retry_after": false, "implementation_status": "not_runtime"}
+    ],
+    "redaction_rule": "Never serialize raw exception text, provider response bodies, prompt, credentials, or tool arguments as the machine error payload."
+  },
+  "wire_compatibility": {
+    "api": {
+      "new_routes_source": "TerminalRunApiRoute",
+      "routes": {
+        "create": {"path": "/api/terminal/runs/", "method": "POST", "success_status": 202},
+        "detail": {"path": "/api/terminal/runs/{run_id}/", "method": "GET", "success_status": 200},
+        "events": {"path": "/api/terminal/runs/{run_id}/events/", "method": "GET", "success_status": 200, "content_type": "text/event-stream"},
+        "cancel": {"path": "/api/terminal/runs/{run_id}/cancel/", "method": "POST", "success_status": [202, 200]},
+        "queue": {"path": "/api/terminal/runs/queue/", "method": "GET", "success_status": 200}
+      },
+      "create_response_fields": ["run_id", "task_id", "status", "submitted_at", "status_url", "events_url", "cancel_url"],
+      "event_fields": ["event_id", "event_type", "run_id", "occurred_at", "data"],
+      "recovery": "Last-Event-ID is optional for the client but required for the eventual stream adapter; expired deltas recover from durable timeline/checkpoint/final result."
+    },
+    "legacy_http": {
+      "paths": ["/api/terminal/chat/", "/api/terminal/chat/stream/"],
+      "policy": "Remain backward compatible during migration, with existing inline concurrency=1 and hard timeout<=60s; no new queued route may call the legacy service."
+    },
+    "sdk": {
+      "future_methods": ["create_run", "get_run", "iter_events", "cancel_run", "wait_for_run"],
+      "compatibility": "The old synchronous helper may implement client-side submit-and-wait after the queued API exists; it must not make the server wait or invoke Agent work in the Web process.",
+      "versioning": "Additive API/SDK contract; version and minimum-client compatibility must be bound in the TAR-05 candidate manifest."
+    },
+    "mcp": {
+      "local_cli_mode": "local_cli",
+      "credential_boundary": "User-owned model keys stay in the local CLI/OS credential store; VPS receives only formal short-lived API/MCP credentials.",
+      "authorization": "Remote capability discovery and calls remain the canonical MCP registry plus server-side ownership, RBAC, proposal, approval, and audit boundaries.",
+      "dispatch_boundary": "MCP payloads never cross the Agent broker envelope; tool side effects require their existing idempotency and approval contracts."
+    },
+    "tui": {
+      "current_state": "No queued client is enabled by TAR-01; current synchronous TUI behavior remains protected by the existing inline guard.",
+      "future_user_states": ["accepted", "queued", "running", "waiting_approval", "completed", "failed", "timed_out", "cancelled", "orphaned"],
+      "copy_rule": "Expose task progress and next action in user language; do not expose Celery, Redis, broker, route placeholders, worker names, or raw exception text.",
+      "future_recovery": ["refresh", "reconnect_events", "poll_fallback", "cancel", "resume_after_approval"]
+    }
+  },
+  "worker_broker_queue_contract": {
+    "queue_name": "terminal_agent",
+    "stream_namespace": "terminal_agent",
+    "broker_envelope": {
+      "source_type": "TerminalAgentBrokerEnvelope",
+      "exact_fields": ["run_id", "task_id"],
+      "delivery": "at_least_once",
+      "claim": "database first-winner claim before Agent execution",
+      "duplicate_delivery": "return noop; do not execute Agent/MCP twice"
+    },
+    "worker_isolation": {
+      "dedicated_queue": true,
+      "must_not_consume": ["celery", "qlib_infer", "qlib_train"],
+      "must_not_share": ["generic worker execution pool", "Daphne request execution slot"],
+      "future_controls": ["concurrency", "prefetch", "soft_timeout", "hard_timeout", "max_tasks_per_child", "memory_limit", "heartbeat"]
+    },
+    "capacity": {
+      "limits_source": "TerminalWorkerQueueLimits + TerminalAdmissionLimits",
+      "required_limits": ["per_user_active", "per_user_queued", "global_active", "global_queued", "queue_max_depth"],
+      "selection": "No hard capacity claim is made by TAR-01; staging measurements must set production values.",
+      "overload": "Bounded rejection or explicit degraded pause; never infinite queue and never silent fallback to unbounded inline execution."
+    },
+    "redis_stream": {
+      "role": "short-lived bounded event transport only",
+      "durable_source": "PostgreSQL timeline/checkpoint/final result",
+      "forbidden_assumption": "Redis Pub/Sub or evictable keys are not the task ledger."
+    }
+  },
+  "deadline_cancel_orphan_contract": {
+    "source_type": "TerminalRunDeadlines",
+    "relationships": {
+      "run_deadline_at": "accepted_at + max_queue_wait_seconds + hard_timeout_seconds",
+      "cancel_deadline_at": "cancel_requested_at + cancel_grace_seconds",
+      "orphan_deadline_at": "heartbeat_at + orphan_after_seconds",
+      "ordering": "soft_timeout < hard_timeout; heartbeat_interval < orphan_after; cancel_grace <= hard_timeout"
+    },
+    "cancel": {
+      "source_of_truth": "cancel_requested_at and cancel_requested dispatch status",
+      "mechanism": "cooperative checks at turn, MCP, and event boundaries plus hard external deadline",
+      "celery_revoke_only": false,
+      "late_events": "cannot overwrite terminal state"
+    },
+    "orphan": {
+      "entry": "claimed/running -> orphaned only after stale heartbeat evidence",
+      "safe_recovery": "Requeue only before any non-idempotent external side effect; otherwise fail or needs_human with completed steps retained.",
+      "stale_owner": "An old worker cannot delete or overwrite a newer claim/lease."
+    }
+  },
+  "feature_flags": {
+    "source": ["core/settings/base.py", "core/settings/production.py"],
+    "fields": {
+      "TERMINAL_QUEUED_INTAKE_ENABLED": false,
+      "TERMINAL_QUEUED_WORKER_ENABLED": false,
+      "TERMINAL_LEGACY_INLINE_ENABLED": true,
+      "TERMINAL_EMERGENCY_STOP": false,
+      "TERMINAL_PER_USER_QUEUED_LIMIT": 4,
+      "TERMINAL_GLOBAL_QUEUED_LIMIT": 40,
+      "TERMINAL_PER_USER_ACTIVE_LIMIT": 1,
+      "TERMINAL_GLOBAL_ACTIVE_LIMIT": 4,
+      "TERMINAL_LEGACY_INLINE_CONCURRENCY": 1,
+      "TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS": 60
+    },
+    "migration_defaults": "queued intake/worker disabled; legacy inline remains enabled only at one slot and <=60 seconds; unavailable queued mode pauses rather than implicitly opening inline.",
+    "production_rule": "Production settings force queued intake and worker disabled until TAR-02/TAR-03/TAR-05 evidence gates are satisfied.",
+    "no_implicit_fallback": true
+  },
+  "acceptance_and_next_gate": {
+    "TAR-01_exit_gate": "The current inline baseline, ownership boundaries, state machine, API/SSE contracts, capacity limits, threat model, SLOs and deterministic test matrix are approved and protected by failing-first contract tests.",
+    "current_evidence": [
+      "tests/unit/agent_runtime/test_terminal_agent_run_contract.py",
+      "tests/unit/agent_runtime/test_terminal_agent_run_api_contract.py",
+      "tests/unit/agent_runtime/test_terminal_agent_run_ports.py",
+      "tests/unit/agent_runtime/test_terminal_runtime_queue_policy.py",
+      "tests/unit/agent_runtime/test_terminal_agent_run_boundary.py",
+      "tests/unit/agent_runtime/test_terminal_runtime_contract_manifest.py"
+    ],
+    "next_gate": "Complete the real inline baseline and failing-first route guard, then TAR-02 may implement durable admission; this manifest does not authorize TAR-02 or production traffic.",
+    "production_evidence_missing": [
+      "controlled 1/5/10/20 user baseline and capacity result",
+      "durable PostgreSQL first-winner/idempotency/rollback evidence",
+      "dedicated Worker and stream recovery evidence",
+      "role-based UAT, write receipts, 14-day telemetry, and owner/reviewer sign-off"
+    ]
+  }
+}
