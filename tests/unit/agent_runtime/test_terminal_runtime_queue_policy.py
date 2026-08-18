@@ -172,6 +172,22 @@ def test_flags_require_worker_for_intake_and_keep_inline_cap_fail_closed() -> No
         _flags(emergency_stop=True, queued_intake_enabled=True)
 
 
+def test_migration_defaults_keep_queued_mode_closed_and_inline_bounded() -> None:
+    flags = TerminalRuntimeFeatureFlags.migration_defaults()
+
+    assert flags.queued_intake_enabled is False
+    assert flags.queued_worker_enabled is False
+    assert flags.legacy_inline_enabled is True
+    assert flags.fallback_mode is TerminalFallbackMode.PAUSE
+    assert flags.emergency_stop is False
+    assert flags.legacy_inline_concurrency == LEGACY_INLINE_CONCURRENCY_CAP
+    assert flags.legacy_inline_timeout_seconds == LEGACY_INLINE_TIMEOUT_CAP_SECONDS
+    assert flags.resolve_mode(
+        TerminalRuntimeMode.WEB_QUEUED,
+        worker_ready=False,
+    ) == (None, TerminalAdmissionReason.QUEUED_UNAVAILABLE)
+
+
 def test_mode_resolution_never_implicitly_falls_back_to_inline() -> None:
     flags = _flags()
     assert flags.resolve_mode(

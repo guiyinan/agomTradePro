@@ -251,6 +251,29 @@ class TerminalRuntimeFeatureFlags:
                 "emergency stop cannot leave a server submission mode enabled"
             )
 
+    @classmethod
+    def migration_defaults(cls) -> TerminalRuntimeFeatureFlags:
+        """Return the fail-closed R0 migration flag contract.
+
+        These values document the only safe default while the durable queued
+        runtime is not yet deployed: queued intake and worker mode remain off,
+        the legacy Web/TUI path remains available only behind its one-slot and
+        60-second caps, and a missing queued worker pauses submissions instead
+        of silently falling back to inline execution.  The method is a pure
+        contract fixture for a future composition root; it does not read
+        environment state or enable any runtime path by itself.
+        """
+
+        return cls(
+            queued_intake_enabled=False,
+            queued_worker_enabled=False,
+            legacy_inline_enabled=True,
+            fallback_mode=TerminalFallbackMode.PAUSE,
+            emergency_stop=False,
+            legacy_inline_concurrency=LEGACY_INLINE_CONCURRENCY_CAP,
+            legacy_inline_timeout_seconds=LEGACY_INLINE_TIMEOUT_CAP_SECONDS,
+        )
+
     def resolve_mode(
         self,
         requested_mode: TerminalRuntimeMode,

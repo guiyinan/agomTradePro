@@ -75,6 +75,36 @@ def test_vps_compose_worker_consumes_qlib_queues() -> None:
     assert "curl -sS -o /dev/null -w '%{http_code}'" not in compose
 
 
+def test_vps_compose_freezes_terminal_queue_migration_flags() -> None:
+    """Queue flags are explicit and remain dormant until TAR-02 is real."""
+
+    compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
+    expected = {
+        "TERMINAL_QUEUED_INTAKE_ENABLED: ${TERMINAL_QUEUED_INTAKE_ENABLED:-false}",
+        "TERMINAL_QUEUED_WORKER_ENABLED: ${TERMINAL_QUEUED_WORKER_ENABLED:-false}",
+        "TERMINAL_LEGACY_INLINE_ENABLED: ${TERMINAL_LEGACY_INLINE_ENABLED:-true}",
+        "TERMINAL_EMERGENCY_STOP: ${TERMINAL_EMERGENCY_STOP:-false}",
+        "TERMINAL_PER_USER_QUEUED_LIMIT: ${TERMINAL_PER_USER_QUEUED_LIMIT:-4}",
+        "TERMINAL_GLOBAL_QUEUED_LIMIT: ${TERMINAL_GLOBAL_QUEUED_LIMIT:-40}",
+        "TERMINAL_PER_USER_ACTIVE_LIMIT: ${TERMINAL_PER_USER_ACTIVE_LIMIT:-1}",
+        "TERMINAL_GLOBAL_ACTIVE_LIMIT: ${TERMINAL_GLOBAL_ACTIVE_LIMIT:-4}",
+        "TERMINAL_LEGACY_INLINE_CONCURRENCY: ${TERMINAL_LEGACY_INLINE_CONCURRENCY:-1}",
+        "TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS: ${TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS:-60}",
+    }
+    assert all(item in compose for item in expected)
+
+
+def test_production_settings_keep_terminal_queue_dormant() -> None:
+    """Production cannot enable queued execution before TAR-02 exists."""
+
+    production = (REPO_ROOT / "core" / "settings" / "production.py").read_text(encoding="utf-8")
+    assert "TERMINAL_QUEUED_INTAKE_ENABLED = False" in production
+    assert "TERMINAL_QUEUED_WORKER_ENABLED = False" in production
+    assert "TERMINAL_LEGACY_INLINE_ENABLED = True" in production
+    assert "TERMINAL_LEGACY_INLINE_CONCURRENCY = 1" in production
+    assert "TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS = 60" in production
+
+
 def test_vps_compose_uses_neutral_pid_namespace_service() -> None:
     compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
 

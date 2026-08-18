@@ -51,6 +51,24 @@ TUI_ACTION_ACQUIRE_TIMEOUT_SECONDS = env.float(
 ALPHA_ALLOW_INLINE_INFERENCE = env.bool("ALPHA_ALLOW_INLINE_INFERENCE", default=False)
 ALPHA_SIMPLE_MAX_POOL_SIZE = env.int("ALPHA_SIMPLE_MAX_POOL_SIZE", default=120)
 
+# Terminal Agent migration flags.  The queued path remains dormant until TAR-02
+# supplies durable admission/dispatch; keeping the defaults explicit prevents a
+# deployment environment from accidentally treating the contract as a runtime
+# implementation.  The legacy path remains bounded by the service's hard cap.
+TERMINAL_QUEUED_INTAKE_ENABLED = env.bool("TERMINAL_QUEUED_INTAKE_ENABLED", default=False)
+TERMINAL_QUEUED_WORKER_ENABLED = env.bool("TERMINAL_QUEUED_WORKER_ENABLED", default=False)
+TERMINAL_LEGACY_INLINE_ENABLED = env.bool("TERMINAL_LEGACY_INLINE_ENABLED", default=True)
+TERMINAL_EMERGENCY_STOP = env.bool("TERMINAL_EMERGENCY_STOP", default=False)
+TERMINAL_PER_USER_QUEUED_LIMIT = env.int("TERMINAL_PER_USER_QUEUED_LIMIT", default=4)
+TERMINAL_GLOBAL_QUEUED_LIMIT = env.int("TERMINAL_GLOBAL_QUEUED_LIMIT", default=40)
+TERMINAL_PER_USER_ACTIVE_LIMIT = env.int("TERMINAL_PER_USER_ACTIVE_LIMIT", default=1)
+TERMINAL_GLOBAL_ACTIVE_LIMIT = env.int("TERMINAL_GLOBAL_ACTIVE_LIMIT", default=4)
+TERMINAL_LEGACY_INLINE_CONCURRENCY = env.int("TERMINAL_LEGACY_INLINE_CONCURRENCY", default=1)
+TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS = env.int(
+    "TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS",
+    default=60,
+)
+
 # Immutable deployment identity artifacts. Production mounts the release
 # manifest read-only; the build identity is embedded in the application image.
 AGOM_BUILD_IDENTITY_PATH = Path(

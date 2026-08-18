@@ -78,6 +78,13 @@ if not env("REDIS_URL", default=""):
 DEBUG = False
 # Never execute Qlib inference in the Daphne request process in production.
 ALPHA_ALLOW_INLINE_INFERENCE = False
+# TAR-02 has not supplied durable admission/dispatch yet.  Production must
+# remain fail-closed even if a stale environment file contains queue flags.
+TERMINAL_QUEUED_INTAKE_ENABLED = False
+TERMINAL_QUEUED_WORKER_ENABLED = False
+TERMINAL_LEGACY_INLINE_ENABLED = True
+TERMINAL_LEGACY_INLINE_CONCURRENCY = 1
+TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS = 60
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
 # Keep environment-specific mutations isolated from the shared base module.
