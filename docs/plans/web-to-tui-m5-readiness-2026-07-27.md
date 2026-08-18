@@ -621,3 +621,13 @@ TUI IA/actionability 变更产生的 runtime identity，M5-A 继续 `DENY`。
 runtime `0.2.0`、build `agomtui-runtime-0.2.0+21ef64c7a7e5`、manifest
 `ade5109f97ee15d78987e1f63fe511f23ad2043f49aa43f1a2051da71687e378`。未新增登录、角色化
 浏览器 UAT、写后 receipt/refresh、14 日 telemetry、backup/restore、rollback 或双签证据。
+
+### 2026-08-18 本地候选证据章节一致性守卫
+
+本地一致性测试现在以 `config/tui/migration/web_to_tui_cutover_evidence.v1.json` 中的
+不可变 candidate binding 为准，并在 readiness/deployment 文档中选择同时包含完整
+candidate、matrix、graph 与 runtime binding 的匹配章节；较新的 TAR 或普通 VPS 观测不会
+被误当作 M5 当前候选。`tests/unit/test_web_to_tui_candidate_consistency.py` 为 `1 passed`，
+TUI focused 回归合计 `29 passed`。这只是证据章节选择与静态绑定守卫，不更新候选、不新增
+VPS preflight，也不改变 M5 的生产 gate；角色化浏览器 UAT、写后 receipt/refresh、14 日
+telemetry、backup/restore、rollback 与 owner/reviewer 双签仍缺，readiness 继续 `DENY`。
