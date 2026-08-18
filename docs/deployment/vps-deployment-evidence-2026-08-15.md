@@ -425,6 +425,32 @@ candidate binding 仍为 `web-to-tui-candidate-binding.v1`：matrix SHA
 runtime `0.2.0`、build `agomtui-runtime-0.2.0+a2553996be22`、manifest SHA
 `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854`。
 
+## 2026-08-18 10:20 当前候选部署与观测
+
+CI 全部通过的 `dev/next-development@bc91641f737fb34b12afb28b93a6a19a1f934c29` 使用标准
+`git-clone`、`-Upgrade`、code-only 模式发布为 release `20260818102057`；PostgreSQL/Redis
+数据卷保留，Celery worker/beat 启用，部署前 PostgreSQL/Redis/metadata 备份成功。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260818102057` |
+| release dir | `/opt/agomtradepro/releases/source-20260818102057` |
+| source commit | `bc91641f737fb34b12afb28b93a6a19a1f934c29` |
+| image | `agomtradepro-web:20260818102057` |
+| image ID | `sha256:96b3dac7efc8d378573f1e52eeec3eda13880824f5271e825ca6d70945546ce8` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260818102057.json` |
+| migration/schema | `No migrations to apply`；canonical schema `missing_migrations=[]`、`missing_tables=[]`、`ok=true` |
+| HTTPS | `https://demo.agomtrade.pro/api/health/` 与 `/api/ready/` HTTP `200`；Caddy/TLS 证书校验通过，HTTP 入口 `308` 重定向 HTTPS |
+| health/readiness | health `{"status":"ok"}`；readiness database/redis/celery/critical_data/decision_data 均 `ok`，Celery `1` worker；quotes age 约 `21` 分钟且 `fresh` |
+| containers | web healthy；celery worker/beat、PostgreSQL、Redis、Caddy、RSSHub、runtime namespace running |
+| TUI runtime | publish `noop=true`，active registry hash 与 expected hash 匹配；backend version 保持 reviewed release `20260818083157` |
+| unauthenticated boundary | API root HTTP `200`；未认证 `GET /api/tui/` HTTP `403`（不泄露 TUI payload） |
+
+`/api/ready/` 同时暴露了 market thermometer 的 `etf_net_flow` stale/fallback proxy 观察项；该数据新鲜度
+告警没有被部署成功掩盖。本次没有登录、角色化浏览器 UAT、业务写入或写后 receipt/refresh。
+M5 的角色化 UAT、14 日 telemetry/defect、registry backup/restore、rollback drill、owner/reviewer
+双签，以及 AUD-01/EVID-01 durable authority/publisher 仍未完成，相关 gate 继续 fail-closed。
+
 ## 2026-08-17 13:15 当前候选部署与观测
 
 本节只记录仓库侧 runtime manifest 重新生成后的 source-side binding；**未执行新的 VPS
