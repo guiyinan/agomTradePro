@@ -60,6 +60,10 @@ TERMINAL_AGENT_CORE_MCP_TOOLS = frozenset(
 TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS = 20.0
 TERMINAL_AGENT_EXECUTION_TIMEOUT_SECONDS = 60.0
 TERMINAL_AGENT_MAX_TURNS = 4
+# The legacy Web/TUI path remains inline until TAR-05 proves the durable
+# queued worker path.  Keep this guard in code so an environment override
+# cannot silently widen request-process concurrency before that gate passes.
+TERMINAL_AGENT_LEGACY_MAX_CONCURRENCY = 1
 TERMINAL_AGENT_INTERNAL_API_TIMEOUT_SECONDS = 8.0
 TERMINAL_AGENT_INTERNAL_MAX_RETRIES = 0
 TERMINAL_AGENT_AUDIT_TIMEOUT_SECONDS = 2.0
@@ -141,8 +145,20 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
             "TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS",
             TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS,
         )
+        configured_concurrency = _configured_int("TERMINAL_AGENT_MAX_CONCURRENCY", 1)
+        legacy_concurrency = min(
+            configured_concurrency,
+            TERMINAL_AGENT_LEGACY_MAX_CONCURRENCY,
+        )
+        if configured_concurrency > legacy_concurrency:
+            logger.warning(
+                "Ignoring TERMINAL_AGENT_MAX_CONCURRENCY=%s while legacy inline "
+                "execution is active; keeping concurrency=%s",
+                configured_concurrency,
+                legacy_concurrency,
+            )
         self._execution_guard = execution_guard or CacheTerminalAgentExecutionGuard(
-            max_concurrency=_configured_int("TERMINAL_AGENT_MAX_CONCURRENCY", 1),
+            max_concurrency=legacy_concurrency,
             lease_timeout_seconds=int(self._execution_timeout_seconds)
             + _configured_int("TERMINAL_AGENT_LEASE_GRACE_SECONDS", 30),
         )

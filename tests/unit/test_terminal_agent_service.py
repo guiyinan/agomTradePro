@@ -402,6 +402,17 @@ def test_malformed_runtime_settings_fall_back_to_safe_bounds(settings):
     assert service._mcp_client_timeout_seconds == 20.0
 
 
+def test_legacy_inline_execution_caps_environment_concurrency_override(settings, caplog):
+    """The pre-queue Web/TUI path must not widen beyond one request process slot."""
+
+    settings.TERMINAL_AGENT_MAX_CONCURRENCY = "20"
+
+    service = OpenAIAgentsTerminalService()
+
+    assert service._execution_guard._max_concurrency == 1
+    assert "legacy inline execution is active" in caplog.text
+
+
 def test_duplicate_request_is_rejected_before_capability_or_provider_work():
     cache = LocMemCache("terminal-agent-fast-reject-test", {})
     request = _request(user_id=71)
