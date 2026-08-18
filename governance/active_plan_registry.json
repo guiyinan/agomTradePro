@@ -188,7 +188,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "active",
-      "next_gate": "Complete TAR-01 contract and baseline freeze, then move Web/TUI Agent execution behind a durable bounded queue and dedicated worker before increasing concurrency.",
+      "next_gate": "With the TAR-01 contracts, ADR and failing-first API boundary frozen, obtain controlled 1/5/10/20-user baseline and capacity evidence for one immutable candidate; keep Web/TUI Agent execution behind the existing inline cap and queued intake/worker disabled until TAR-02/TAR-03 production evidence is complete.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
