@@ -19,7 +19,6 @@ from apps.agent_runtime.domain.terminal_agent_run_contract import (
     TerminalRuntimeMode,
 )
 
-
 MANIFEST_PATH = Path("governance/terminal_agent_runtime_contracts.json")
 
 
@@ -67,9 +66,12 @@ def test_manifest_reuses_the_pure_runtime_names_and_routes() -> None:
         "cancel",
         "queue",
     }
-    assert set(
-        manifest["identity_and_idempotency"]["owner_selector"]["required_fields"]
-    ) == {"run_id", "task_id", "actor_user_id", "client_request_id"}
+    assert set(manifest["identity_and_idempotency"]["owner_selector"]["required_fields"]) == {
+        "run_id",
+        "task_id",
+        "actor_user_id",
+        "client_request_id",
+    }
     assert set(manifest["implementation_boundary"]["not_implemented"]) >= {
         "durable PostgreSQL run or dispatch record",
         "Celery task, broker publisher, or dispatcher",
@@ -100,10 +102,7 @@ def test_manifest_freezes_migration_flags_and_sensitive_transport_boundary() -> 
         "task_id",
     }
     assert "prompt" in manifest["prompt_and_sensitive_data"]["forbidden_field_fragments"]
-    assert (
-        manifest["prompt_and_sensitive_data"]["raw_prompt"]["run_dispatch_record"]
-        == "forbidden"
-    )
+    assert manifest["prompt_and_sensitive_data"]["raw_prompt"]["run_dispatch_record"] == "forbidden"
     assert set(manifest["implementation_boundary"]["not_implemented"]) >= {
         "SDK/MCP/TUI queued client implementation",
         "capacity, chaos, staging, or production UAT evidence",
