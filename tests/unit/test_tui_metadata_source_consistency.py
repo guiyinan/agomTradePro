@@ -175,6 +175,40 @@ def test_prompt_screen_injection_does_not_repeat_ia_owned_copy() -> None:
             assert normalized_panel[key] == value
 
 
+def test_runtime_action_replacements_keep_published_copy() -> None:
+    """Runtime action behavior may be richer, but IA-owned copy stays canonical."""
+
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        PublishedTuiMetadataRepository,
+    )
+
+    published = load_json_payload(PUBLISHED_PATH)
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    action_keys = {
+        "auto.api.get.api.dashboard.allocation",
+        "auto.api.get.api.dashboard.performance",
+        "auto.api.get.api.data-center.providers",
+        "auto.api.get.api.data-center.publishers",
+        "regime.current",
+        "regime.navigator_history",
+    }
+    published_actions = {
+        str(action["key"]): action
+        for action in published["actions"]
+        if str(action.get("key") or "") in action_keys
+    }
+    runtime_actions = {
+        str(action["key"]): action
+        for action in runtime["actions"]
+        if str(action.get("key") or "") in action_keys
+    }
+
+    assert set(runtime_actions) == action_keys
+    for action_key in action_keys:
+        for copy_key in ("label", "description"):
+            assert runtime_actions[action_key][copy_key] == published_actions[action_key][copy_key]
+
+
 def test_source_guard_rejects_runtime_replacement_of_ia_copy() -> None:
     """A runtime copy override must fail closed instead of being accepted."""
 

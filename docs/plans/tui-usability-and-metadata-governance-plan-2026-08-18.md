@@ -53,7 +53,7 @@
 ### 2.5 三真源架构性腐化
 
 - 文案生效顺序为：action patch > replace_existing injection > IA JSON > published JSON/DB。12 个 runtime screen 的全部文案只存在于 Python injection，绕过 publish/review 流程。
-- published JSON 中大量 action 文案是永不展示的副本，且已漂移：脚本比对发现 8 处与 runtime 不一致（如 `operator.home.market_context`：JSON "环境、政策、脉搏" vs Python "环境、Policy、Pulse"）。
+- published JSON 中大量 action 文案是永不展示的副本，且已漂移：初始脚本比对发现 8 处与 runtime 不一致（如 `operator.home.market_context`：JSON "环境、政策、脉搏" vs Python "环境、Policy、Pulse"）。
 - Python screen patch 对生产加载路径基本是死代码（`tui_metadata_repository.py:410-414` 丢弃 IA payload 的 patch），其中残留"统一操作者首页"等旧文案。
 
 ### 2.6 界面布局与接线问题（真机走查）
@@ -120,7 +120,8 @@
 - 随后删除了 `execution.audit` 这一已由 IA canonical screen 完整承载的 Python screen patch；`execution.events` 与 `execution.share` alias 仍解析到该 canonical screen，新增回归确认审计 panels 来自 IA/published graph，source-boundary focused 回归为 `5 passed`，实际检查仍为 `outcome=ok`、`12/24 screens`、`430/889 actions`、`violations=[]`。
 - 在同一 source-boundary 内继续收窄 `research.signals` patch：删除与 IA/published graph 完全相同的 `label`、`summary` 双写，仅保留默认动作、用户体验补充、业务上下文和 dashboard panels 等运行行为；新增回归确认该 patch 不再重复 IA-owned copy。该项 focused guard 为 `6 passed`，不改变 runtime screen/action 结果。
 - 继续收窄 `prompt.workbench` runtime injection：删除与 IA 完全相同的 `label`、`module_key`、`group`、`audience`、`summary`、`view_type`、`default_action_key`、`user_experience` 双写，保留 workflow、business context 与 dashboard panels 等运行行为；新增回归确认注入不再拥有 IA screen copy，normalized runtime 仍保留同一语义与 panels。IA/runtime source focused 回归 `17 passed`，actionability contract `11 passed`，source guard 仍为 `outcome=ok`（12/24 screens、430/889 actions、0 violations）。
-- 本阶段仍不自动修复数据库，也未删除其余 legacy alias patch 或改写 published/IA 文案。其余 legacy patch、8 处漂移双写、runtime screen 文案迁入 publish/review 仍未完成，因此 `TUX-02` 保持 `active`；生产/外部 TUI 证据也不在本阶段宣称范围内。
+- 对 6 个 `replace_existing` runtime action 完成 copy boundary：`dashboard.allocation`、`dashboard.performance`、`data-center.providers`、`data-center.publishers`、`regime.current`、`regime.navigator_history` 的 `label`/`description` 由 published action 保持，runtime injection 仍提供 endpoint、fields、view_model、task_group 等行为契约；新增一致性回归 `8 passed`，TUI focused 回归 `29 passed`，mypy/Black/isort/diff-check 通过，source guard 仍为 `outcome=ok`（12/24 screens、430/889 actions、0 violations）。
+- 本阶段仍不自动修复数据库，也未删除其余 legacy alias patch 或改写 published/IA 文案；已核实的 8 处 copy drift 已完成对账，但 runtime screen/action 文案迁入 publish/review 及 legacy patch 清理仍未完成，因此 `TUX-02` 保持 `active`；生产/外部 TUI 证据也不在本阶段宣称范围内。
 
 ## 6.3 TUX-04 执行回写（2026-08-18）
 

@@ -469,6 +469,19 @@ class PublishedTuiMetadataRepository:
         normalized = (
             self._apply_information_architecture(payload) if is_ia_payload else dict(payload)
         )
+        ia_owned_action_copy: dict[str, dict[str, Any]] = {}
+        if is_ia_payload:
+            for source_action in payload.get("actions", []):
+                if not isinstance(source_action, dict):
+                    continue
+                action_key = str(source_action.get("key") or "")
+                owned_copy = {
+                    key: source_action[key]
+                    for key in ("label", "description")
+                    if key in source_action
+                }
+                if action_key and owned_copy:
+                    ia_owned_action_copy[action_key] = owned_copy
         groups = list(normalized.get("groups") or [])
         modules = list(normalized.get("modules") or [])
         screens = list(normalized.get("screens") or [])
@@ -478,6 +491,7 @@ class PublishedTuiMetadataRepository:
             modules=modules,
             screens=screens,
             actions=actions,
+            ia_owned_action_copy=ia_owned_action_copy,
         )
         injected = sum(injected_counts.values())
         normalized["groups"] = groups
@@ -812,6 +826,7 @@ class PublishedTuiMetadataRepository:
         modules: list[dict[str, Any]],
         screens: list[dict[str, Any]],
         actions: list[dict[str, Any]],
+        ia_owned_action_copy: dict[str, dict[str, Any]] | None = None,
     ) -> dict[str, int]:
         """Inject all runtime bundles and return per-bundle injected counts."""
 
@@ -822,6 +837,7 @@ class PublishedTuiMetadataRepository:
                 modules=modules,
                 screens=screens,
                 actions=actions,
+                ia_owned_action_copy=ia_owned_action_copy or {},
             )
             for bundle in RUNTIME_METADATA_INJECTIONS
         }
@@ -834,9 +850,11 @@ class PublishedTuiMetadataRepository:
         modules: list[dict[str, Any]],
         screens: list[dict[str, Any]],
         actions: list[dict[str, Any]],
+        ia_owned_action_copy: dict[str, dict[str, Any]] | None = None,
     ) -> int:
         """Inject one runtime bundle and report inserted or replaced item count."""
 
+        owned_action_copy = ia_owned_action_copy or {}
         injected = 0
         injected += PublishedTuiMetadataRepository._append_unique_payloads(
             payloads=groups,
@@ -861,8 +879,10 @@ class PublishedTuiMetadataRepository:
             screen_key = str(action.get("screen_key") or "")
             existing_index = action_index.get(action_key)
             if existing_index is not None:
-                if bundle.replace_existing and actions[existing_index] != action:
-                    actions[existing_index] = dict(action)
+                replacement = dict(action)
+                replacement.update(owned_action_copy.get(action_key, {}))
+                if bundle.replace_existing and actions[existing_index] != replacement:
+                    actions[existing_index] = replacement
                     injected += 1
                 elif not bundle.replace_existing:
                     runtime_contract = {
@@ -878,7 +898,9 @@ class PublishedTuiMetadataRepository:
                 continue
             if screen_key and screen_key not in screen_keys:
                 continue
-            actions.append(dict(action))
+            runtime_action = dict(action)
+            runtime_action.update(owned_action_copy.get(action_key, {}))
+            actions.append(runtime_action)
             action_index[action_key] = len(actions) - 1
             injected += 1
         return injected
