@@ -20158,22 +20158,22 @@
       "text": "\"\"\"Return True when the latest published payload already matches the requested publish.\"\"\""
     },
     {
-      "line": 945,
+      "line": 967,
       "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
       "text": "def changed_fields(previous: dict[str, Any], current: dict[str, Any]) -> list[str]:"
     },
     {
-      "line": 951,
+      "line": 973,
       "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
       "text": "for key in sorted(set(previous) | set(current)):"
     },
     {
-      "line": 954,
+      "line": 976,
       "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
       "text": "if previous.get(key) != current.get(key):"
     },
     {
-      "line": 964,
+      "line": 986,
       "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
       "text": "for action in current.get(\"actions\", [])"
     },
