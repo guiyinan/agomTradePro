@@ -48,12 +48,12 @@ MARKET_BEHAVIOR_COLLECTION_SPECS: dict[str, dict[str, Any]] = {
         "frequency": "D",
     },
     "limit_up_count": {
-        "label": "涨停家数",
+        "label": "涨停家数（不含 ST）",
         "indicator_code": "CN_A_LIMIT_UP_COUNT",
         "frequency": "D",
     },
     "limit_down_count": {
-        "label": "跌停家数",
+        "label": "跌停家数（不含 ST）",
         "indicator_code": "CN_A_LIMIT_DOWN_COUNT",
         "frequency": "D",
     },

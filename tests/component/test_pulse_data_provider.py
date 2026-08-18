@@ -454,6 +454,8 @@ def test_default_pulse_sentiment_portfolio_has_governed_signal_config():
     assert sentiment_defs["CN_A_DECLINE_COUNT"].signal_multiplier < 0
     assert sentiment_defs["CN_A_LIMIT_UP_COUNT"].signal_multiplier > 0
     assert sentiment_defs["CN_A_LIMIT_DOWN_COUNT"].signal_multiplier < 0
+    assert sentiment_defs["CN_A_LIMIT_UP_COUNT"].name == "A股涨停家数（不含 ST）"
+    assert sentiment_defs["CN_A_LIMIT_DOWN_COUNT"].name == "A股跌停家数（不含 ST）"
     assert sentiment_defs["CN_A_MARKET_NEWS_SENTIMENT"].bullish_threshold == 0.2
     assert sentiment_defs["CN_A_MARKET_NEWS_SENTIMENT"].bearish_threshold == -0.2
 

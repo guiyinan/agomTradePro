@@ -300,7 +300,12 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 frame = pro.limit_list_d(trade_date=trade_date, limit_type=limit_type)
                 if frame is None or frame.empty:
                     return []
-                rows = frame.to_dict("records")
+                rows = [
+                    row
+                    for row in frame.to_dict("records")
+                    if (name := str(_first_present(row, "name", "名称", "ts_name") or "").strip())
+                    and "ST" not in name.upper()
+                ]
                 if not rows:
                     return []
                 value = len(rows)

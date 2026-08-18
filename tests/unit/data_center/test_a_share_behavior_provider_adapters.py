@@ -90,7 +90,11 @@ def test_tushare_collects_breadth_and_limit_counts(monkeypatch) -> None:
 
         def limit_list_d(self, *, trade_date: str, limit_type: str):
             assert trade_date == "20260730"
-            return pd.DataFrame([{"ts_code": "600001.SH"}] * (2 if limit_type == "U" else 1))
+            rows = [
+                {"ts_code": "600001.SH", "name": "甲公司"},
+                {"ts_code": "000001.SZ", "name": "ST乙公司"},
+            ]
+            return pd.DataFrame(rows[: 2 if limit_type == "U" else 1])
 
     monkeypatch.setattr(
         "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
@@ -100,7 +104,7 @@ def test_tushare_collects_breadth_and_limit_counts(monkeypatch) -> None:
 
     assert adapter.fetch_macro_series("CN_A_ADVANCE_COUNT", observed_at, observed_at)[0].value == 1
     assert adapter.fetch_macro_series("CN_A_DECLINE_COUNT", observed_at, observed_at)[0].value == 1
-    assert adapter.fetch_macro_series("CN_A_LIMIT_UP_COUNT", observed_at, observed_at)[0].value == 2
+    assert adapter.fetch_macro_series("CN_A_LIMIT_UP_COUNT", observed_at, observed_at)[0].value == 1
     assert (
         adapter.fetch_macro_series("CN_A_LIMIT_DOWN_COUNT", observed_at, observed_at)[0].value == 1
     )

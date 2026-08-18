@@ -488,14 +488,20 @@ INDICATOR_METADATA_UPDATES.update(
             extra={"trading_behavior_component": True},
         ),
         "CN_A_LIMIT_UP_COUNT": _row(
-            name_cn="A股涨停家数",
-            description="日度涨停股票家数，用于观察A股交易热度；缺数时不得补零。",
+            name_cn="A股涨停家数（不含 ST）",
+            description=(
+                "日度非 ST 股票涨停家数，用于观察A股交易热度；"
+                "统计口径剔除名称含 ST（含 *ST）的股票，缺数时不得补零。"
+            ),
             semantics="level",
             extra={"trading_behavior_component": True},
         ),
         "CN_A_LIMIT_DOWN_COUNT": _row(
-            name_cn="A股跌停家数",
-            description="日度跌停股票家数，用于观察A股交易压力；缺数时不得补零。",
+            name_cn="A股跌停家数（不含 ST）",
+            description=(
+                "日度非 ST 股票跌停家数，用于观察A股交易压力；"
+                "统计口径剔除名称含 ST（含 *ST）的股票，缺数时不得补零。"
+            ),
             semantics="level",
             extra={"trading_behavior_component": True},
         ),

@@ -215,7 +215,7 @@ DEFAULT_PULSE_INDICATORS: list[PulseIndicatorDef] = [
     ),
     PulseIndicatorDef(
         code="CN_A_LIMIT_UP_COUNT",
-        name="A股涨停家数",
+        name="A股涨停家数（不含 ST）",
         dimension="sentiment",
         frequency="daily",
         signal_type="zscore",
@@ -225,7 +225,7 @@ DEFAULT_PULSE_INDICATORS: list[PulseIndicatorDef] = [
     ),
     PulseIndicatorDef(
         code="CN_A_LIMIT_DOWN_COUNT",
-        name="A股跌停家数",
+        name="A股跌停家数（不含 ST）",
         dimension="sentiment",
         frequency="daily",
         signal_type="zscore",
