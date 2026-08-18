@@ -1362,7 +1362,15 @@ if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
   # remove that exact disposable staging path before recreating the symlink.
   rm -rf "$TARGET_DIR/.previous-next"
   ln -s "$PREVIOUS_RELEASE" "$TARGET_DIR/.previous-next"
-  mv -Tf "$TARGET_DIR/.previous-next" "$TARGET_DIR/previous"
+  # GNU mv may follow an existing destination symlink instead of replacing
+  # the link itself.  Replace only a symlink (including a broken one); never
+  # recursively remove an unexpected real directory at this control path.
+  if [ -e "$TARGET_DIR/previous" ] && [ ! -L "$TARGET_DIR/previous" ]; then
+    echo "[ERROR] refusing to replace non-symlink previous path: $TARGET_DIR/previous" >&2
+    exit 1
+  fi
+  rm -f "$TARGET_DIR/previous"
+  mv -T "$TARGET_DIR/.previous-next" "$TARGET_DIR/previous"
   if [ "$SKIP_PREDEPLOY_BACKUP" = "1" ]; then
     echo "[WARN] Pre-deploy backup skipped by explicit emergency option" >&2
   else
