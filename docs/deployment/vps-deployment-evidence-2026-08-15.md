@@ -4,6 +4,28 @@
 
 `dev/next-development` 的提交 `96ce6ee43b06e6eb6ad51528ff8ee783a4bf0952` 已在 `demo.agomtrade.pro` 完成一次带 provenance 校验的后续候选部署。该 release 包含 TUI AI provider failure guidance 修复；当前服务正常运行，M5 观察窗口从本次独立核验时间重新计算。本证据不解除角色化浏览器 UAT、写后回执、14 日观察、恢复演练或数据覆盖门禁。
 
+## 2026-08-19 01:28 当前 TUX-02 dead-patch cleanup 部署与只读观测
+
+提交 `dev/next-development@72061c6857571ab4a3de891d2ae5ad8d5ad19a6c` 使用标准
+`git-clone`、`fresh`、code-only 模式发布为 release `20260819012839`；保留
+PostgreSQL/Redis 数据卷并启用 Celery。该 release 删除了已被 full-IA canonical runtime
+证明无效的 `research.signals` Python screen patch；未改变 M5 candidate binding、角色授权或业务写入。
+
+| 项目 | 证据 |
+|---|---|
+| release/source | `20260819012839` / `72061c6857571ab4a3de891d2ae5ad8d5ad19a6c` |
+| image | `agomtradepro-web:20260819012839` / `sha256:6d3ae5463d93f1788f5271bae75a337b1125d061113bb9986efb5ba514ef2261` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260819012839.json` |
+| mode/volumes | `ACTION=fresh`、code-only、PostgreSQL/Redis 数据卷保留、Celery enabled |
+| migration/schema/checks | `No migrations to apply`；canonical schema `missing_migrations=[]`、`missing_tables=[]`、`ok=true`；Django check 无新增问题；部署前 TUI JS `34 passed` |
+| TUI runtime | registry `id=28`、publish 为 `noop`（active/backend version 仍为 `20260819000530`，source hash 匹配）；本次只变更 Python runtime patch，不改 published graph |
+| HTTPS/health | `demo.agomtrade.pro` Caddy domain、TLS valid；部署 verifier HTTP `200`；随后连续 8 次 `https://demo.agomtrade.pro/api/health/` 均 `200`（17:45:48–17:46:00 UTC） |
+| containers | web healthy；Caddy、PostgreSQL、Redis、RSSHub、Celery worker/beat、runtime namespace running；Celery ping `1 node online` |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| backup | 部署前 PostgreSQL custom-format backup：`/opt/agomtradepro/backups/database/postgres-20260818-193539.dump`；本次未执行 restore/rebuild 或 RTO/RPO drill |
+
+本节是当前 release 的部署、版本、健康与 TUI runtime 只读证据，不是角色化浏览器 UAT、生产业务写入或写后 receipt/refresh 证明。没有执行登录、角色化权限走查、业务写入、14 日 telemetry/defect、registry backup/restore、rollback 双签、owner/reviewer 双签或 AUD-01/EVID-01 durable authority/publisher 验证；相关 gate 继续 fail-closed。
+
 ## 2026-08-19 00:22 当前 TUX-02 runtime action-copy 部署与只读观测
 
 提交 `dev/next-development@413c67f3ba2cfd1117356d129961e39958979017` 使用标准
