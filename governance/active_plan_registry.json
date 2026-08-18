@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-18.v1",
+  "version": "2026-08-18.v2",
   "updated_at": "2026-08-18",
   "workstreams": [
     {
@@ -178,6 +178,21 @@
       ]
     },
     {
+      "id": "terminal-agent-multi-user-runtime",
+      "title": "Terminal Agent multi-user queue and hybrid runtime remediation",
+      "category": "product_interface_and_runtime",
+      "priority": "P0",
+      "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
+      "status": "active",
+      "next_gate": "Complete TAR-01 contract and baseline freeze, then move Web/TUI Agent execution behind a durable bounded queue and dedicated worker before increasing concurrency.",
+      "documents": [
+        {
+          "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
+          "role": "primary"
+        }
+      ]
+    },
+    {
       "id": "ai-native-release",
       "title": "AI-Native release acceptance",
       "category": "product_interface_and_runtime",
@@ -245,7 +260,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-18.v1",
+    "version": "2026-08-18.v2",
     "legacy_unchecked_count": 139,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -253,6 +268,7 @@
       "data-production-reliability": 65,
       "system-audit-consolidation": 13,
       "web-to-tui-m5": 13,
+      "terminal-agent-multi-user-runtime": 0,
       "ai-native-release": 0,
       "qmt-live-bridge": 11,
       "tui-usability-governance": 0
@@ -333,8 +349,8 @@
       },
       {
         "id": 1,
-        "title": "Decision safety and audit foundation",
-        "rule": "Run one major repository line at a time; Evidence is the primary line and Audit is the next bounded line."
+        "title": "Decision safety, audit and urgent runtime isolation",
+        "rule": "Run one major repository line at a time; after the currently in-flight atomic unit, TAR-01 through TAR-03 are the next bounded P0 repository priority without weakening Evidence or Audit gates."
       },
       {
         "id": 2,
@@ -443,6 +459,43 @@
         "exit_gate": "Migration and rollback, backlog recovery observation, bounded metrics, alerts, admin TUI, archive/restore and production sign-off are evidenced."
       },
       {
+        "id": "TAR-01",
+        "workstream_id": "terminal-agent-multi-user-runtime",
+        "wave": 1,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "active",
+        "title": "Freeze the multi-user runtime, queue and local-client contracts",
+        "depends_on": [],
+        "exit_gate": "The current inline baseline, ownership boundaries, state machine, API/SSE contracts, capacity limits, threat model, SLOs and deterministic test matrix are approved and protected by failing-first contract tests."
+      },
+      {
+        "id": "TAR-02",
+        "workstream_id": "terminal-agent-multi-user-runtime",
+        "wave": 1,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Build durable asynchronous admission and dispatch",
+        "depends_on": [
+          "TAR-01"
+        ],
+        "exit_gate": "Authenticated submissions atomically create idempotent PostgreSQL run records, enforce bounded per-user and global admission, publish only after commit, and return stable task, queue and retry semantics without invoking Agent work in the Web process."
+      },
+      {
+        "id": "TAR-03",
+        "workstream_id": "terminal-agent-multi-user-runtime",
+        "wave": 1,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Isolate Agent execution and deliver recoverable user events",
+        "depends_on": [
+          "TAR-02"
+        ],
+        "exit_gate": "A dedicated Agent worker claims runs idempotently, renews leases, reconciles crashes, supports cancellation, persists ordered events and serves resumable TUI/SDK status without sharing Web or Qlib execution capacity."
+      },
+      {
         "id": "DATA-01",
         "workstream_id": "data-production-reliability",
         "wave": 2,
@@ -519,6 +572,19 @@
         "exit_gate": "Promotion, permission, consumer behavior and rollback UAT pass against the same canonical receipts and Evidence contracts."
       },
       {
+        "id": "TAR-04",
+        "workstream_id": "terminal-agent-multi-user-runtime",
+        "wave": 2,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Deliver the user-owned-key local CLI and governed remote MCP path",
+        "depends_on": [
+          "TAR-03"
+        ],
+        "exit_gate": "The local CLI keeps provider credentials on the user host, runs Agent orchestration locally, uses scoped remote MCP tokens, preserves approval and audit controls, and passes Windows/Linux packaging plus disconnect and secret-leakage tests."
+      },
+      {
         "id": "TUI-01",
         "workstream_id": "web-to-tui-m5",
         "wave": 3,
@@ -551,9 +617,23 @@
         "status": "waiting_dependency",
         "title": "Complete AI-Native staging and production acceptance",
         "depends_on": [
-          "TUI-01"
+          "TUI-01",
+          "TAR-05"
         ],
         "exit_gate": "Real staging and production browser evidence plus independent owner/reviewer approval bind to the same candidate commit."
+      },
+      {
+        "id": "TAR-05",
+        "workstream_id": "terminal-agent-multi-user-runtime",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "production",
+        "status": "waiting_dependency",
+        "title": "Prove capacity, chaos recovery and production cutover",
+        "depends_on": [
+          "TAR-03"
+        ],
+        "exit_gate": "The immutable candidate passes 1/5/10/20-user load, fairness, duplicate, worker-crash, Redis outage, model-timeout, Web SLO, rollback and observation gates before inline retirement or any capacity increase."
       },
       {
         "id": "QMT-01",

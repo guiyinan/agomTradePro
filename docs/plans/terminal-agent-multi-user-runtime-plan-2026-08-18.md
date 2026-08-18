@@ -1,0 +1,523 @@
+# Terminal Agent 多用户队列、Worker 隔离与本地 CLI 混合运行整改计划
+
+> 创建日期：2026-08-18
+> 工作流：`terminal-agent-multi-user-runtime`（category: `product_interface_and_runtime`，priority: P0）
+> Owner：`agent_runtime + terminal + task_monitor + operational_readiness + sdk + mcp`
+> 机器进度真源：`governance/active_plan_registry.json`
+> Canonical closure units：`TAR-01` 至 `TAR-05`
+> 执行优先级：完成当前正在落盘的原子工作包后，本线作为下一条 P0 repository 主线优先实施；在 `TAR-05` 生产验收前不得直接放大全局 inline 并发。
+
+本文只维护问题、目标架构、分期交付、验收门和回滚边界。`active / waiting_dependency / production_validation` 等执行状态只在机器注册表维护，不在本文形成第二套进度。
+
+## 1. 决策摘要
+
+本计划确认以下架构决策：
+
+1. 当前 `TERMINAL_AGENT_MAX_CONCURRENCY=1` 是生产事故后的临时熔断器，只用于限制故障半径，不是多用户终态。
+2. Web/TUI 聊天不得继续在 Django/Daphne 请求进程中运行完整 Agent SDK、MCP 和模型调用；HTTP 入口必须快速接单并返回持久任务标识。
+3. Web/TUI 默认采用“PostgreSQL 任务账本 + 有界队列 + 专用 Agent Worker + 可恢复事件流”模式。
+4. 本地安装的真实 CLI 可采用“本地 Agent SDK + 用户自有模型密钥 + 远程受控 MCP”模式，把模型连接和编排负载移出 VPS。
+5. 浏览器不得持有平台模型密钥，也不得绕过服务器侧身份、额度、审计、MCP 权限、审批和交易风控。
+6. PostgreSQL 是任务状态、幂等和最终结果的真源；Redis/Celery 只承担调度和短期事件传输，不能成为唯一任务账本。
+7. Agent Worker 必须使用独立队列、独立进程池和独立健康/容量指标，不能与 Web、Qlib 训练/推理或数据新鲜度任务争抢同一执行池。
+8. 超额请求进入有上限的公平队列；只有队列达到硬上限、依赖不可用或用户额度耗尽时才拒绝，禁止无限排队。
+9. 现有 inline 路径在迁移期继续保持并发 1、60 秒超时和 fail-closed；新路径生产验收后再受控退役，回滚不得重新开放无界 inline 执行。
+
+## 2. 背景、现状证据与根因
+
+### 2.1 当前调用链
+
+现有 Web/TUI 路径为：
+
+```text
+POST /api/terminal/chat/ 或 /api/terminal/chat/stream/
+  -> TerminalChatView / TerminalChatStreamView
+  -> RunTerminalAgentChatUseCase / StreamTerminalAgentChatUseCase
+  -> OpenAIAgentsTerminalService
+  -> Agents SDK + MCP + 外部模型服务
+  -> 请求结束后才释放 Django/Daphne 执行上下文
+```
+
+代码证据：
+
+- `apps/terminal/interface/api_views.py` 的同步接口直接调用 `RunTerminalAgentChatUseCase(...).execute()`；SSE 接口的生成器也直接迭代 `StreamTerminalAgentChatUseCase`。
+- `apps/agent_runtime/infrastructure/terminal_agent_service.py` 使用 `run_awaitable_sync(asyncio.wait_for(...))` 在请求链内执行 Agent，默认上限 60 秒、最大 4 turns。
+- `apps/agent_runtime/infrastructure/terminal_agent_execution_guard.py` 通过 Redis cache lease 实现同用户去重和全局 slot。
+- `docker/docker-compose.vps.yml` 当前默认 `TERMINAL_AGENT_MAX_CONCURRENCY=1`，因此第二个用户不会排队，而是返回 `429 AI_AGENT_BUSY`。
+- 当前通用 `celery_worker` 同时消费 `celery,qlib_infer,qlib_train`，默认并发 1；若直接加入聊天任务，会让 AI 长任务与数据/训练任务相互饥饿。
+- 当前 Redis 使用 AOF，但 `maxmemory-policy=allkeys-lru`；未消费的调度消息或事件不得只依赖可被逐出的 Redis key。
+
+### 2.2 已发生的故障模式
+
+此前生产故障由重复聊天请求、长 MCP/内部调用、重试和 Agent turn 叠加触发，Daphne 资源被持续占用。`restart: unless-stopped` 不会因为进程“仍存活但无法服务”自动重启，最终表现为整站不可访问。
+
+已经上线的止血措施包括：
+
+- 同用户与全局缓存租约；
+- 60 秒总体超时、4 turns、MCP 20 秒、内部 API 8 秒且不重试；
+- 429/504 稳定错误语义；
+- Web 连续健康检查失败后自终止并交给 Docker 重启；
+- 并发、超时、缓存异常和健康检查状态机测试。
+
+这些措施控制了故障半径，但没有提供队列、公平调度、任务恢复、取消、队列位置或 Web/Worker 隔离。
+
+### 2.3 根因结论
+
+根因不是“模型推理跑在 VPS”。模型推理主要发生在外部服务商；真正的问题是 VPS Web 进程承担了长连接、Agent 编排、MCP 调用、工具访问、审计和等待过程。全局并发 1 只能在“保护网站”和“多人可用”之间选择前者，无法同时满足二者。
+
+## 3. 目标与非目标
+
+### 3.1 目标
+
+- Web API 在完成鉴权、校验、幂等接单和持久化后快速返回，不执行模型或 MCP 长任务。
+- 不同用户可同时提交；容量内并行执行，容量外进入有界队列并获得稳定任务状态。
+- 同一用户重复提交不会重复调用模型、MCP 或产生重复副作用。
+- Worker 崩溃、Redis 短暂不可用、模型超时或客户端断线后，任务状态可解释、可重试或可终止，不拖垮网站。
+- TUI 能展示排队、执行、等待审批、完成、失败、超时、取消状态，并支持恢复连接和取消。
+- SDK 提供类型化的创建、查询、事件消费和取消接口。
+- 本地 CLI 支持用户自有模型密钥在本机运行 Agent，只通过正式 Token 调用远程 MCP/API。
+- 建立多用户容量、队列老化、Worker 心跳、失败率、模型/MCP 延迟和 Web SLO 监控。
+- 通过 1/5/10/20 用户并发、重复提交、Worker crash、Redis 故障、模型超时和部署回滚验证。
+
+### 3.2 非目标
+
+- 不允许浏览器直接持有平台 OpenAI、DashScope 或其他服务商密钥。
+- 不用无限队列掩盖容量不足；队列必须有用户级和全局上限。
+- 不在本线重写 Agents SDK、MCP 能力注册表或高风险审批业务规则。
+- 不把 Celery result backend 当作任务真源，不把完整 Prompt、模型密钥或解密后的 Token放进 broker payload。
+- 不为追求“实时”而允许 SSE 事件绕过任务 ownership 校验。
+- 不直接扩大现有 Daphne inline 并发来替代架构整改。
+- 不把 Local CLI 误解为浏览器 JavaScript 直连模型；本地模式只适用于受控安装的 CLI/桌面 Agent。
+
+## 4. 目标架构
+
+### 4.1 Web/TUI 服务器排队模式
+
+```mermaid
+flowchart LR
+    U["浏览器 / TUI"] --> A["Django 接单 API"]
+    A --> D["PostgreSQL AgentTask + Run Dispatch"]
+    D --> Q["专用 terminal_agent 队列"]
+    Q --> W["独立 Agent Worker 池"]
+    W --> P["外部 AI 服务商"]
+    W --> M["受控 MCP / Application Facade"]
+    W --> E["Redis Stream 短期事件"]
+    W --> R["PostgreSQL 最终结果 / Timeline"]
+    E --> S["轻量 SSE / 轮询"]
+    R --> S
+    S --> U
+```
+
+请求创建成功后返回 `202 Accepted` 和 `run_id/task_id`。Django Web 不等待模型完成。Worker 并发和 Web 并发相互独立；Worker 停止只使 AI 能力降级，不影响普通页面和健康检查。
+
+### 4.2 本地 CLI 混合模式
+
+```mermaid
+flowchart LR
+    C["本地 CLI / Desktop Agent"] --> L["本地 Agents SDK"]
+    L --> K["用户自有模型密钥 / 本地凭据库"]
+    L --> P["外部 AI 服务商"]
+    L --> G["HTTPS + 正式短期 Token"]
+    G --> M["VPS MCP Gateway"]
+    M --> B["Application UseCase / 权限 / 审批 / 审计"]
+```
+
+本地模式把模型调用、turn 循环和大部分上下文编排放到用户机器；VPS 仍负责业务数据、工具授权、额度、审批、审计和所有高风险写操作。该模式与现有“三机架构：C 端 Agent 经 VPS/FRP 调后端”的边界一致。
+
+### 4.3 三个运行模式
+
+| 模式 | 适用入口 | 模型/Agent 编排位置 | VPS 责任 | 生命周期 |
+|------|----------|--------------------|----------|----------|
+| `web_queued` | 浏览器、TUI、服务端 SDK | 专用 Agent Worker | 接单、队列、工具、权限、审计、事件 | 目标默认 |
+| `local_cli` | 安装式 CLI/桌面 Agent | 用户本机 | 远程 MCP、权限、审批、审计 | 目标可选 |
+| `legacy_inline` | 旧 `/chat/`、旧 SSE | Daphne 请求链 | 全部 | 迁移期受限，最终退役 |
+
+## 5. 领域、持久化与状态契约
+
+### 5.1 复用现有 Agent Runtime，而不是再建第二套任务系统
+
+现有 `AgentTask`、`AgentTimelineEvent`、`AgentExecutionRecord`、Proposal/Approval 已是 AI-Native 冻结契约。整改必须复用它们作为用户任务、时间线和最终执行证据，不得在 `terminal` App 复制一套通用 Agent 任务模型。
+
+由于现有 `TaskStatus` 已冻结且没有 `queued / claimed / cancel_requested / timed_out` 等调度态，本计划新增 agent-runtime 所有的专用调度实体（暂定 `TerminalAgentRun`，最终名称在 `TAR-01` ADR 冻结），以一对一或多对一关系绑定 `AgentTask`：
+
+| 字段语义 | 硬要求 |
+|----------|--------|
+| `run_id` | 对外不可猜 UUID，所有事件和取消操作使用该 ID |
+| `task_id` | 绑定 canonical `AgentTask`，不复制通用任务数据 |
+| `actor_user_id` | ownership 与配额真源；查询和事件订阅必须按 actor 过滤 |
+| `session_id` | 会话关联，不代替用户身份 |
+| `client_request_id` | 用户范围幂等键；重复请求返回原 run，不再入队 |
+| `runtime_mode` | `web_queued / local_cli / legacy_inline` |
+| `dispatch_status` | 调度状态机；与冻结的 `TaskStatus` 有明确映射 |
+| `provider_ref` | 只保存服务商引用，不保存解密后的密钥 |
+| `deadline_at` | 服务器计算的绝对截止时间，timezone-aware |
+| `claimed_by / claimed_at / heartbeat_at` | Worker claim、失联检测和恢复证据 |
+| `cancel_requested_at` | 协作式取消真源；不能只依赖 Celery revoke |
+| `attempt_count` | 仅记录受控调度尝试，不等同模型内部重试 |
+| `last_event_id / result_ref` | 事件恢复和持久最终结果引用 |
+| `last_error` | 稳定机器码和安全摘要，不存 raw exception/secret |
+
+Broker task 参数只允许携带 `run_id` 或 `task_id`。Prompt、API Key、用户 Token、审批 payload 和数据库对象不得进入 Celery 消息；Worker claim 后按 ID 从可信 Repository 重新读取并校验。
+
+### 5.2 调度状态机
+
+```text
+accepted -> queued -> claimed -> running
+running  -> waiting_approval -> queued/resumed -> running
+queued/claimed/running/waiting_approval -> cancel_requested -> cancelled
+claimed/running -> completed | failed | timed_out
+claimed/running -> orphaned -> queued（仅满足安全重放条件）或 failed
+```
+
+硬规则：
+
+- 所有转移由 Application 状态机校验并记录 timeline；Interface 和 Celery task 不直接写 ORM。
+- claim 使用数据库 first-winner 语义，重复 delivery 只能有一个 Worker 执行。
+- 已发生非幂等工具副作用后不得自动重跑整个 Agent；应进入 `needs_human/failed` 并暴露已完成步骤。
+- `cancel_requested` 是协作式信号。Worker 在 turn、MCP 调用和事件循环边界检查；外部调用仍受硬超时约束。
+- 终态不可被晚到的 Worker 或事件覆盖；stale owner 不能删除新 owner 的 lease。
+- orphan reaper 只重排尚未发生不可重放副作用的任务。
+
+### 5.3 敏感数据与保留策略
+
+- 模型服务密钥继续由服务器 secrets/provider repository 或本地 OS 凭据库持有；不得写入任务表、事件流或日志。
+- Prompt 是否持久化、保留多久、是否加密必须在 `TAR-01` 固化；默认最小化保存并对日志做截断/脱敏。
+- MCP 工具参数按现有风险、审批和审计契约处理；Token、密码、密钥字段不得进入普通 timeline payload。
+- SSE/轮询响应不得包含其他用户的队列位置明细、Prompt、provider credential scope 或内部异常。
+
+## 6. API、事件与兼容契约
+
+### 6.1 新的异步 API
+
+最终路径名称在 `TAR-01` 依据现有 `/api/terminal/` 命名冻结；最低能力必须包含：
+
+| 操作 | 语义 | 成功状态 | 关键响应字段 |
+|------|------|----------|--------------|
+| 创建 Agent run | 鉴权、校验、幂等接单 | `202` | `run_id`, `task_id`, `status`, `submitted_at`, `status_url`, `events_url`, `cancel_url` |
+| 查询 run | 返回 owner-scoped 当前状态 | `200` | 状态、排队摘要、时间、稳定错误码、最终结果引用 |
+| 消费事件 | SSE，支持恢复；轮询为兼容回退 | `200 text/event-stream` | `event_id`, `event_type`, `run_id`, `occurred_at`, `data` |
+| 取消 run | 设置 cancel request，幂等 | `202/200` | `run_id`, `status`, `cancel_requested_at` |
+| 查询本人队列摘要 | 只返回本人任务和全局容量摘要 | `200` | 本人 running/queued、估算等待、系统 degraded 状态 |
+
+接口规则：
+
+- 创建请求必须支持 `Idempotency-Key` 或等价 `client_request_id`，唯一范围至少包含 actor。
+- 所有端点有 Content-Type、状态码、ownership、404/403、重复提交、队列满、依赖不可用契约测试。
+- `queue_position` 只能是近似值并标明估算，不承诺精确开始时间。
+- `Retry-After` 只用于队列满/依赖恢复等明确可重试状态，不要求客户端高频轮询。
+- API 只调用 Application UseCase；Interface 不导入 Infrastructure，不直接 ORM。
+
+### 6.2 事件传输
+
+- PostgreSQL timeline 和最终结果是可审计真源。
+- Redis Streams 可承载短期 token delta、tool progress 和状态事件，使用有界 `MAXLEN`、TTL 和 key namespace。
+- 客户端使用 `Last-Event-ID` 恢复；若 Stream 事件已过期，从 PostgreSQL checkpoint/最终结果恢复，不返回空白会话。
+- 禁止只用 Redis Pub/Sub：断线期间事件会丢失且无法重放。
+- SSE endpoint 必须使用真正的异步迭代或 Channels/ASGI 方案，不能把同步生成器换个路径继续阻塞线程。
+- Nginx 对 SSE 关闭代理缓冲并设置单独超时；普通 Web 超时不随聊天任务无限放大。
+
+### 6.3 旧接口迁移
+
+1. 新增异步 v2 run API，不立刻改变旧接口响应结构。
+2. TUI 首先通过 feature flag 切到新 API；staff/canary 先启用。
+3. SDK 增加新类型化模块；旧同步 helper 标记 deprecated，并可在客户端用“提交 + 等待”实现兼容，而不是让服务器同步等待。
+4. 旧 `/chat/` 与 `/chat/stream/` 在观察期继续受并发 1 和 60 秒硬限保护。
+5. 所有正式调用方迁移并通过候选 UAT 后，旧接口返回稳定弃用响应或受控关闭。
+6. 回滚新路径时默认暂停新 AI 提交或恢复到受限 inline，禁止移除保护后回滚。
+
+## 7. 队列、Worker 与背压设计
+
+### 7.1 专用执行池
+
+新增独立 `terminal_agent` queue 和 `celery_agent_worker`（最终服务名在部署实现时冻结）：
+
+- 不消费 `celery / qlib_infer / qlib_train`；通用 Worker 也不消费 `terminal_agent`。
+- 独立 concurrency、prefetch、soft/hard time limit、max-tasks-per-child、memory limit 和 health probe。
+- Worker 并发是实际全局执行容量；Application guard 只作为迁移期二次保险，不再长期固定为 1。
+- Worker 关闭使用 drain/graceful stop；部署时先停止接单、等待可完成任务，再终止超时任务。
+- Agent Worker 不得通过扩大 Daphne worker 数量伪装隔离。
+
+### 7.2 有界接单与公平性
+
+接单策略必须同时满足：
+
+- 每用户 active 上限；
+- 每用户 queued 上限；
+- 全局 queued 上限；
+- provider/user quota；
+- Worker heartbeat/readiness；
+- Prompt/请求体大小上限；
+- 幂等键去重。
+
+上限值不在代码中硬编码，由 Config Center/环境配置并有安全默认值。具体容量必须由 staging 压测确定。一个用户不能通过大量 pending run 占满全局队列；最低公平性由“每用户小队列 + oldest accepted 调度”保证，后续有多租户时扩展 tenant weight。
+
+### 7.3 Celery 交付语义
+
+- Celery 是 at-least-once transport，不假设 exactly-once。
+- API 在数据库事务内创建 task/run，使用 `transaction.on_commit` 派发。
+- 派发失败必须留下 `dispatch_pending` 证据，由 dispatcher/reconciler 重发；不能出现“数据库显示 queued 但永远没有消息”。
+- Worker 开始前以数据库原子 claim 去重；晚到的重复消息返回 `noop`。
+- `acks_late / reject_on_worker_lost` 只与原子 claim、幂等副作用和 orphan recovery 一起启用。
+- unsafe write 或已触发模型/tool side effect 的任务不做盲目自动重试。
+- 新关键 Celery task 必须登记 `governance/celery_task_contracts.json`，返回 `outcome=success/partial/noop/blocked/failed` 及明确的 requested/succeeded/failed/stored 统计。
+
+### 7.4 Redis 边界
+
+生产 broker 不能依赖会静默逐出未消费消息的 `allkeys-lru`。`TAR-02` 必须在以下方案中冻结一个：
+
+- 独立 Agent Redis/broker，AOF + `noeviction` + 内存告警；或
+- 共享 broker 但改为不会静默删除队列消息的策略，并证明不会影响现有缓存；或
+- 以 PostgreSQL dispatcher 为可靠源，Redis 仅作为可重建 transport，并有丢消息 reconciliation 指标和演练。
+
+无论选哪种，Redis 故障不得拖垮普通网站；AI 接单可以进入明确 degraded/dispatch_pending，或在无法保证恢复时返回 bounded `503`。
+
+## 8. Local CLI 目标契约
+
+本地 CLI 是独立交付面，不等于把 Web JavaScript 改成直连模型。
+
+最低能力：
+
+- 提供 `agomtradepro agent` 或等价 SDK CLI 入口，Agents SDK 作为可选依赖组安装。
+- 服务商密钥从本地环境或 OS 凭据库读取，不上传到 VPS，不写仓库配置。
+- 使用正式 AgomTradePro API Token/短期 access package 连接远程 MCP；不得复用浏览器 session cookie。
+- 远程 MCP 能力发现、schema、调用、确认恢复遵循现有 canonical registry，不在 CLI 复制业务逻辑。
+- 本地 Agent 的 tool allowlist 由服务器能力目录和用户权限交集决定；Prompt 不能扩大权限。
+- 所有中高风险写操作仍由服务器生成 proposal/confirmation，CLI 只展示并提交明确确认。
+- CLI 对网络中断、Token 过期、MCP 429/503、审批等待和重连给出稳定错误与恢复提示。
+- SDK、MCP、CLI 版本兼容矩阵和最小支持版本进入发布清单。
+
+## 9. 分期、工期与交付包
+
+工期是工程量估算，不是跳过验收门的日期承诺。按 1 名后端主责、1 名 Terminal/SDK 主责、运维和 QA 分时参与估算，总计约 16–24 人日；允许测试、TUI 和部署资产在依赖冻结后并行，预计 3–4 个日历周完成仓库实现和 staging 验收，生产观察另计。
+
+| 阶段 | Canonical unit | 估算 | 主责 | 交付重点 | 退出门 |
+|------|----------------|------|------|----------|--------|
+| M0 契约与基线 | `TAR-01` | 2–3 人日 | Agent Runtime / Architecture / QA | ADR、现状负载基线、状态机、API/事件/幂等/敏感数据契约、feature flag | 冻结目标边界；测试先失败证明现有 Web 会直接执行 Agent；容量和回滚指标可机器采集 |
+| M1 持久任务与接单 | `TAR-02` | 3–4 人日 | Agent Runtime / Terminal | `AgentTask` 复用、Run Dispatch、Repository、202 API、ownership、幂等、有界 admission、on-commit dispatch/reconciler | 创建接口不调用 Agent/provider/MCP；重复请求只产生一个 run；broker 失败可恢复或明确失败 |
+| M2 Worker 与事件隔离 | `TAR-03` | 5–7 人日 | Agent Runtime / DevOps / Task Monitor | 专用 queue/worker、原子 claim、timeout/cancel/orphan、Redis Stream + durable checkpoint、指标与健康 | 杀死 Worker 不影响 Web；重复 delivery 不重复执行；断线恢复事件；数据/QLib Worker 不被 Agent 饥饿 |
+| M3 TUI/SDK 用户闭环 | `TAR-03` | 3–4 人日 | Terminal / SDK / QA | 排队/执行/审批/完成/失败/取消 UI，SSE reconnect + polling fallback，SDK 类型化接口，旧接口迁移 | 普通用户可完成提交、等待、恢复、取消；无内部路由/异常泄露；API/SDK/TUI 契约一致 |
+| M4 本地 CLI 混合模式 | `TAR-04` | 3–5 人日 | SDK / MCP / Security | 本地 Agent、用户自有 provider key、远程 MCP Token、确认恢复、安装/升级/卸载文档 | 模型密钥不离开本机；远程工具继续按用户授权与审批；断网/过期 Token 有可恢复行为 |
+| M5 容量与生产验收 | `TAR-05` | 3–4 人日 + 观察期 | Operational Readiness / QA / Owners | 1/5/10/20 用户压测、故障注入、资源预算、canary、候选绑定、回滚演练、旧 inline 退役决策 | 达成第 11 节 SLO；生产 Web 无重启/拥塞；同候选 UAT 和观察通过后才解除全局并发 1 |
+
+### 9.1 `TAR-01`：契约冻结与基线
+
+交付顺序：
+
+1. 记录单用户与 5/10/20 并发时 Web p50/p95/p99、CPU、RSS、Daphne 活跃请求、Redis、DB 连接、MCP/模型延迟基线。
+2. 增加架构回归测试，证明新接单 API 不得构造或调用 `OpenAIAgentsTerminalService`。
+3. 冻结 `AgentTask` 与 Run Dispatch 的职责、状态映射、幂等键、Prompt 保留和错误码。
+4. 冻结新 API/SDK/MCP/TUI 命名和兼容策略。
+5. 冻结 Worker、broker/stream、队列上限、取消、超时、orphan 判定和 feature flag。
+
+### 9.2 `TAR-02`：持久接单和可靠派发
+
+交付顺序：
+
+1. 以 Domain entity/Protocol 定义状态和 port；Application 编排状态机；Infrastructure 实现 ORM/Redis/Celery。
+2. 创建 schema-only migration 和索引，验证 PostgreSQL 并发 first-winner、幂等唯一约束和 rollback。
+3. 建立创建、查询、取消和 queue summary API，补 Content-Type/状态码/权限契约。
+4. 使用 `transaction.on_commit` 派发，仅传 `run_id`；实现 dispatch reconciliation。
+5. 实现每用户与全局 admission、稳定 queue-full/degraded 错误和 `Retry-After`。
+6. 登记 Celery task contract 和失败矩阵。
+
+### 9.3 `TAR-03`：专用 Worker、事件与 TUI/SDK
+
+交付顺序：
+
+1. 新增专用 Agent Worker compose/service、queue route、resource limit、graceful drain 和 heartbeat。
+2. 把现有 `OpenAIAgentsTerminalService` 从 Web composition root 移到 Worker composition root。
+3. 实现 claim、heartbeat、cooperative cancel、soft/hard timeout、orphan reconciliation、max-tasks-per-child。
+4. 事件写入 Redis Stream，关键状态和最终结果同步到 timeline/execution record；支持 Last-Event-ID 恢复。
+5. 更新 TUI metadata/runtime：主任务仍是“与智能助手协作”，P0 显示当前任务和下一步；用户文案不得暴露 Celery、Redis、route 或 worker 实现。
+6. SDK 增加 create/get/events/cancel；旧同步 helper 仅在客户端等待，服务器不恢复同步执行。
+7. Task Monitor 增加 queue depth、oldest age、running、orphan、timeout、cancel latency、provider/MCP latency 和 Worker heartbeat。
+
+### 9.4 `TAR-04`：本地 CLI
+
+交付顺序：
+
+1. 建立 CLI optional dependency、配置目录、凭据读取和版本诊断。
+2. 复用 SDK/MCP registry 实现 capability discovery、schema、call、confirmation resume。
+3. 本地 Agent 直接调用用户配置的服务商；服务器只看到 MCP/API 请求和审计，不接收模型密钥。
+4. 建立本地会话、取消、重连、Token 轮换和最小日志脱敏。
+5. 完成 Windows/WSL/Linux 安装、升级、卸载、故障排查和端到端测试。
+
+### 9.5 `TAR-05`：容量、发布与退役
+
+交付顺序：
+
+1. 在隔离/staging 运行容量阶梯和 soak test，确定 Worker concurrency、prefetch、queue limits、Redis/DB 内存与连接预算。
+2. 注入 Redis 不可用、broker message 丢失、Worker SIGKILL、模型 429/5xx/timeout、MCP timeout、SSE 断线和部署 drain。
+3. staff canary 切换到 queued path；核对费用、工具调用、审批、timeline 和结果一致性。
+4. 扩到普通用户并观察 Web SLO、队列老化和 Worker 资源；任何硬门失败立即回滚 feature flag。
+5. 把候选 commit、OCI revision、migration、TUI manifest、SDK/MCP version、压测报告和回滚证据绑定为同一发布包。
+6. 观察通过后才移除/关闭 legacy inline；保留 emergency disable，不保留无界旁路。
+
+## 10. 分工与交付责任
+
+| 角色/Owner | 主责任 | 必交证据 | 不得越界 |
+|------------|--------|----------|----------|
+| Agent Runtime | 状态机、Run Dispatch、Worker execution、claim/cancel/recovery | Domain 单测、PostgreSQL 并发、Worker crash/replay | 不把 ORM 放进 Application，不复制 Terminal UI 逻辑 |
+| Terminal/TUI | 接单 API、owner-scoped 查询、SSE/polling、用户状态与恢复动作 | API 契约、TUI metadata、浏览器主任务证据 | 不在 Interface 直接查询 ORM，不向用户泄露实现细节 |
+| SDK | run client、事件迭代、取消、兼容 helper、Local CLI 外壳 | SDK contract、断线/重连、版本矩阵 | 不复制服务端权限和业务规则 |
+| MCP | 远程工具认证、能力目录、确认恢复、Local CLI 接入 | registry/handler/permission tests、审计 trace | 不单独实现另一套 Agent Runtime |
+| Task Monitor / Audit | 队列、Worker、延迟、失败、orphan、费用与 timeline 观测 | metrics contract、告警、dashboard/TUI evidence | 不把 Celery `SUCCESS` 当业务成功 |
+| Operational Readiness | Compose、Redis/broker、资源限制、canary、drain、回滚 | staging/prod manifest、容量报告、故障演练 | 不在未压测前放大并发，不破坏 DB volume |
+| QA / Security | 多用户、隔离、幂等、secret、负载和攻击面验证 | 测试矩阵、跨用户泄漏=0、secret scan、UAT | 不用 mock/fixture 代替生产容量与权限证据 |
+
+实施允许在接口冻结后并行：Terminal 可并行做状态 UI，SDK 可并行做类型与本地配置，运维可并行准备专用 Worker；但数据库状态机、幂等和 ownership 未完成前不得接真实模型流量。
+
+## 11. 验收指标与测试矩阵
+
+### 11.1 硬 SLO
+
+| 指标 | 门槛 |
+|------|------|
+| 新建 run API 延迟 | staging 负载下 p95 ≤ 500 ms，且 provider/MCP mock 断言为 0 次调用 |
+| 普通 Web 可用性 | 20 个并发聊天用户压测期间，普通健康/只读页面 5xx = 0；p95 相对空载基线劣化不超过 10% |
+| Web 进程稳定性 | 15 分钟容量测试与故障注入期间 Daphne 因聊天负载重启次数 = 0 |
+| 幂等 | 同用户同幂等键 20 次并发提交，只创建 1 个 run，只执行 1 次模型调用 |
+| 用户隔离 | 跨用户查询、SSE、取消、队列摘要泄漏 = 0；所有越权请求为稳定 403/404 |
+| 任务恢复 | Worker crash 后任务进入可解释终态或安全重排；无永久 `running`，无重复非幂等副作用 |
+| 队列边界 | 每用户和全局上限可验证；超过上限 bounded 拒绝，Redis/DB 无无界增长 |
+| 超时 | 单 run 总时限、MCP、内部 API、审计时限继续有硬上限；晚到事件不能覆盖终态 |
+| 取消 | 非外部阻塞阶段的取消请求在下一个安全检查点生效；外部阻塞不超过硬 deadline |
+| 事件恢复 | SSE 断开重连不丢关键状态；短期 delta 过期后仍可读取最终结果和 durable timeline |
+| 队列隔离 | Agent soak test 不增加 Qlib/data Celery queue oldest-age，不抢占通用 Worker |
+| 密钥 | 浏览器、broker payload、数据库任务字段、timeline、日志中平台/用户模型密钥出现次数 = 0 |
+
+### 11.2 必测场景
+
+| 层级 | 场景 |
+|------|------|
+| Domain | 状态合法/非法转移、终态不可覆盖、取消、orphan、安全重排判断 |
+| Application | ownership、幂等、quota、queue full、dispatch pending、duplicate delivery、unsafe retry 阻断 |
+| Repository | PostgreSQL first-winner、唯一约束、select-for-update、rollback、stale heartbeat、分页/索引 |
+| Celery | invalid input、success、noop duplicate、blocked、provider failure、zero output、worker lost |
+| API | 202/200/403/404/409/429/503、Content-Type、Location/Retry-After、未知字段、请求体上限 |
+| Events | 单调 event ID、Last-Event-ID、stream trim、断线恢复、final checkpoint、跨用户隔离 |
+| TUI | 排队、执行、审批、完成、失败、取消、重试、刷新/返回后恢复；无裸错误和路由术语 |
+| SDK | create/get/events/cancel、同步兼容 helper、本地超时、网络重连、版本不兼容 |
+| Local CLI/MCP | 本地 key 不上传、Token 过期、capability allowlist、确认恢复、write 审批 |
+| Load | 1/5/10/20 用户、同用户连点、单用户洪泛、慢 provider、慢 MCP、长输出、队列满 |
+| Chaos | Redis down/restart、broker 消息丢失、Worker SIGTERM/SIGKILL、Web 重启、部署 drain |
+
+### 11.3 最低回归命令族
+
+实施阶段应按改动补充精确文件，最低包含：
+
+```bash
+pytest tests/unit/test_terminal_agent_execution_guard.py -q
+pytest tests/unit/test_terminal_agent_service.py -q
+pytest tests/component/test_terminal_api.py -q
+pytest tests/unit/test_tui_workbench.py -q
+pytest sdk/tests/test_sdk/test_client.py -q
+pytest tests/unit/test_internal_ssl_redirect.py -q
+python scripts/check_celery_task_contracts.py
+pytest tests/guardrails/test_celery_task_contracts.py -q
+python scripts/check_tui_metadata_source_consistency.py
+python scripts/check_mypy_regression.py <changed-production-python-files>
+python scripts/check_mypy_debt_ceiling.py
+```
+
+另需新增专用的 PostgreSQL integration、multi-process Worker、SSE reconnect、load/chaos 测试；不能用 LocMemCache、eager Celery 或 mock provider 代替最终生产证据。
+
+## 12. 监控、告警与运行手册
+
+必须发布以下稳定指标：
+
+- `terminal_agent_runs_total{outcome,mode,provider}`；
+- `terminal_agent_queue_depth`、`terminal_agent_queue_oldest_age_seconds`；
+- `terminal_agent_running`、`terminal_agent_worker_heartbeat_age_seconds`；
+- `terminal_agent_run_duration_seconds`、`queue_wait_seconds`；
+- `terminal_agent_orphan_total`、`duplicate_delivery_total`、`dispatch_pending_total`；
+- `terminal_agent_cancel_latency_seconds`、`timeout_total`；
+- `terminal_agent_provider_latency_seconds`、`mcp_latency_seconds`；
+- 费用/Token 指标继续使用现有用户额度和审计口径，禁止高基数 Prompt label。
+
+最低告警：
+
+- Worker heartbeat 超阈值；
+- oldest queue age 持续升高；
+- queue depth 达到软/硬阈值；
+- orphan/dispatch_pending/timeout 突增；
+- provider 429/5xx 或 MCP timeout 突增；
+- Web p95/5xx 与聊天负载相关劣化；
+- Redis memory/eviction/broker reconciliation 异常；
+- 费用或用户配额异常增长。
+
+运行手册必须覆盖：暂停接单、drain Worker、取消单 run、恢复 dispatch_pending、处理 orphan、扩缩 Worker、Redis 恢复、provider 熔断、回滚 feature flag、验证无重复副作用。
+
+## 13. 发布、迁移与回滚
+
+### 13.1 发布波次
+
+| 波次 | 动作 | 前置门 | 失败处理 |
+|------|------|--------|----------|
+| R0 | 向后兼容 migration、代码和指标上线，queued mode 关闭 | schema/rollback/备份验证 | 回滚代码；旧 inline 继续受限 |
+| R1 | 启动专用 Worker，合成任务/只读任务验证 | Worker/Redis/DB readiness | 停 Worker，不影响 Web |
+| R2 | staff canary 切 queued path | API/TUI/SDK contract、费用与审计一致 | feature flag 回受限 inline 或暂停 AI |
+| R3 | 小比例普通用户 | capacity/chaos、owner UAT | 停新接单并 drain，不丢 durable run |
+| R4 | 全量 web_queued + Local CLI beta | Web/queue SLO、候选 manifest 绑定 | 保留 queued ledger，降低 Worker 并发或暂停 |
+| R5 | 退役 legacy inline | 观察期、调用方清单=0、回滚演练 | 恢复兼容 adapter，不解除保护 |
+
+### 13.2 回滚原则
+
+- 数据库 migration 必须向后兼容；首轮不删除旧字段/接口。
+- 回滚不能删除已接单 run、timeline、proposal、approval 或执行记录。
+- Worker 发布失败时 Web 仍可用；AI 入口显示“服务暂不可用/已暂停接单”，而不是转入无界同步路径。
+- 已经产生外部副作用的 run 不自动重放；进入人工处理并展示已完成步骤。
+- TUI metadata、SDK/MCP 版本和后端 API 必须按同一候选兼容矩阵回滚。
+- 正式部署遵循 VPS 部署规范，保留 PostgreSQL/Redis volumes，部署前完成数据库备份和 migration rollback 预演。
+
+## 14. 与现有计划的关系
+
+| 工作流/文档 | 关系与边界 |
+|-------------|------------|
+| `ai-native-release` / `AI-01` | 本线复用已冻结 `AgentTask/Timeline/Proposal`，不重做 AI-Native；`AI-01` 的真实 staging/production 验收必须等待 `TAR-05`，不能继续把 inline chat 当作可发布终态 |
+| `web-to-tui-m5` | `TAR-03` 若改变 published TUI graph/manifest，M5 候选必须重新绑定；旧候选证据不能冒充新 runtime 验收 |
+| `tui-usability-governance` | TUI 状态、错误和恢复动作遵循用户面对标准；不在本线顺手重写无关 screen 文案，避免与 `TUX-02/04` 冲突 |
+| `system-audit-consolidation` | run/timeline 先通过 Agent Runtime canonical port 留证；统一 audit publisher 可用后接入，不在本线复制 audit ledger |
+| Celery task contract | 新 Agent task 属关键长任务，必须登记 outcome/失败矩阵并让 Task Monitor 读取业务结果而非 Celery 状态 |
+| MCP hosted transport / 三机架构 | Local CLI 复用 C 端 Agent 经 HTTPS/MCP 调 VPS 的既有边界；不让客户端直连数据库或绕过服务端权限 |
+| Evidence hard gate | Agent 给出的建议和工具结果不改变 Evidence/执行硬闸；模型文本永远不能直接授权交易写入 |
+
+## 15. 风险与对策
+
+| 风险 | 对策 |
+|------|------|
+| Celery 重复 delivery 导致重复模型费用或写副作用 | DB 原子 claim、用户幂等键、工具幂等/审批、unsafe 阶段禁止自动重试 |
+| Redis eviction 丢 broker/stream | durable DB ledger、专用/noeviction broker 方案、dispatch reconciliation、Stream checkpoint |
+| SSE 连接仍耗尽 Web | 真异步 iterator/Channels、单独代理配置、连接上限、polling fallback、压测文件描述符 |
+| 队列无限增长 | 用户/全局硬上限、oldest-age 告警、provider 熔断、bounded 429/503 |
+| Worker 与数据任务争抢 | 独立 queue/service/resource limits，不共享通用消费列表 |
+| 取消时工具正在产生副作用 | 协作式安全点、硬 deadline、proposal/approval、已完成步骤留证，不承诺事务外部回滚 |
+| Local CLI 泄露 key/token | OS 凭据库、日志脱敏、短期 Token、权限最小化、secret scan、安装文档 |
+| 双路径产生行为漂移 | 同一 Application service/DTO/error code，契约测试和 canary diff；禁止复制 Agent 业务逻辑 |
+| 迁移影响 M5/AI 候选 | manifest/candidate 重绑，旧证据明确失效，不跨候选拼接 UAT |
+| 容量参数凭感觉配置 | staging 阶梯压测和 soak 结果决定，配置进入 Config Center/环境，不硬编码 |
+
+## 16. 完成定义
+
+本计划只有同时满足以下条件才可转入完成/归档：
+
+1. Web/TUI 正式路径的接单请求不执行 provider、Agent SDK 或 MCP 长调用。
+2. PostgreSQL 中存在 owner-scoped、幂等、可恢复的 run/task 状态和 durable 最终结果。
+3. 专用 Agent Worker 与数据/QLib/Web 进程完成队列和资源隔离。
+4. 多用户有界排队、取消、超时、orphan、事件恢复和 bounded overload 行为通过自动化与真实进程测试。
+5. TUI 与 SDK 能完成提交、排队、执行、审批、恢复、取消和结果读取主任务。
+6. Local CLI 使用用户自有模型密钥，本地编排并通过正式 Token 调远程 MCP；浏览器无平台密钥。
+7. 1/5/10/20 用户容量和 chaos 验收达到第 11 节硬 SLO，普通网站未因 AI 负载重启或失去响应。
+8. Celery、TUI metadata、API/SDK/MCP、mypy、治理和高风险回归全部通过。
+9. staging/production UAT、候选 manifest、观察、回滚和 owner/reviewer 证据绑定同一不可变版本。
+10. legacy inline 调用方清单为零并受控退役；紧急关闭路径仍 fail-closed。
+
+## 17. 初始进度记录（2026-08-18）
+
+| 项目 | 状态 | 证据/说明 |
+|------|------|-----------|
+| 事故止血 | completed | 并发租约、60 秒超时、最大 turns、下游超时、429/504、健康自恢复已上线并覆盖回归 |
+| 多用户终态架构 | active/planned | 本文与 `TAR-01` 已纳入机器注册表；尚未实现异步 run API、专用 Worker 或队列 |
+| Local CLI | planned | 已有 SDK/MCP 与三机架构基础；尚无本地 Terminal Agent 正式入口 |
+| 生产容量证据 | not_started | 尚未执行 5/10/20 用户 staging soak/chaos，不允许据此扩大 inline 并发 |
+| 下一动作 | priority_next | 执行 `TAR-01`：冻结 ADR/契约、建立现状基线与“Web 接单不得执行 Agent”的失败测试 |

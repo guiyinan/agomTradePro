@@ -6,7 +6,7 @@
 ## 维护规则
 
 - 机器唯一真源是 [`governance/active_plan_registry.json`](../../governance/active_plan_registry.json)；本页是面向人的执行投影，不单独维护另一套状态。
-- 注册表中的 `closure_backlog` 是 review queue 与 8 条工作流的 canonical 分阶段收口单元；本页只解释其执行顺序，不复制机器状态。
+- 注册表中的 `closure_backlog` 是 review queue 与 9 条工作流的 canonical 分阶段收口单元；本页只解释其执行顺序，不复制机器状态。
 - `docs/plans/`：只允许登记在机器注册表中的主计划、支撑文档、证据或限期审查项。新增未登记文件、重复归属、陈旧路径和无截止日审查项由 CI 直接拒绝。
 - `docs/archive/plans/`：仓库范围已实现，或阶段已经验收/被新计划取代；归档文档仅作历史证据，不代表当前运行状态。
 - “代码已完成但生产未验收”仍属于活跃计划，不能仅因本地测试通过而归档。
@@ -21,13 +21,13 @@
 
 | 口径 | 数量 |
 |------|-----:|
-| 独立工作流 | 8 |
-| 主计划 | 17 |
+| 独立工作流 | 9 |
+| 主计划 | 18 |
 | 支撑文档、证据与矩阵 | 21 |
 | 限期审查项 | 0 |
-| 注册表覆盖的活跃文件 | 38 |
+| 注册表覆盖的活跃文件 | 39 |
 | 历史未勾选细项 | 139（非执行口径） |
-| 去重后 canonical closure units | 23 |
+| 去重后 canonical closure units | 28 |
 
 “主计划”是需求和证据入口，不等于独立工程量；同一工作流下的路线图、readiness 和生产跟踪不会再重复计算成多条主线。完整文件归属、owner、状态、依赖和唯一退出门见机器注册表的 `closure_backlog`。
 
@@ -40,6 +40,7 @@
 | `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | 生产备份、回填、reconciliation、M9/M10 和观察证据 |
 | `system-audit-consolidation` | P0/P1 | active | Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | 本机 PostgreSQL race/rollback、health backlog projection、atomic event/outbox、Data Center fetch-event envelope、bounded metric contract 与 lazy `/metrics/` projection 已取证；仍需生产 migration/rollback、backlog/recovery 观察、publisher/runtime wiring、Data Center 同 UOW 双写 |
 | `web-to-tui-m5` | P0 | production_validation | Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | manifest 候选部署、角色 UAT、14 日观察和签字 cleanup |
+| `terminal-agent-multi-user-runtime` | P0 | active | Agent Runtime / Terminal / Task Monitor / Operational Readiness / SDK / MCP | [多用户队列与本地 CLI 混合运行](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | 先完成 TAR-01 契约与基线冻结，再将 Web/TUI Agent 执行迁入持久化有界队列和专用 Worker |
 | `ai-native-release` | P1 | external_validation | Agent Runtime / Terminal | [AI-Native delivery pack](ai-native/README.md) | 同候选 staging/production UAT 与 owner/reviewer 双签 |
 | `qmt-live-bridge` | P2 | blocked_external | Broker Execution / 外部券商 Owner | [QMT 实盘桥](qmt-live-trading-bridge-plan.md) | Windows XtQuant Phase 0、连续仿真和受控小额实盘 |
 | `tui-usability-governance` | P1 | active | Terminal | [TUI 可用性与 metadata 治理](tui-usability-and-metadata-governance-plan-2026-08-18.md) | metadata 加载回退、三真源合一、auto action 文案重写回密度预算 |
@@ -66,7 +67,7 @@
 
 ## 去重后的收口 Backlog
 
-139 个历史未勾选细项按共同产物、共同依赖和共同验收证据折叠为以下 **23 个唯一工作包**。状态只在机器注册表更新；本表不形成第二套待办。
+139 个历史未勾选细项按共同产物、共同依赖和共同验收证据折叠为以下 **28 个唯一工作包**。状态只在机器注册表更新；本表不形成第二套待办。
 
 | 波次 | Canonical unit | 类型 | 状态 | 依赖 | 唯一交付 |
 |------|----------------|------|------|------|----------|
@@ -76,6 +77,9 @@
 | W1 | `EVID-03` | repository | waiting | EVID-01/02 | Research/Portfolio/Broker adapters 与执行前 exact-current 重验 |
 | W1 | `AUD-01` | repository | active | — | canonical publisher/runtime/authority composition |
 | W1 | `AUD-02` | repository | waiting | AUD-01 | Data Center fetch event 与 event/outbox 同 UOW 双写和重放 |
+| W1 | `TAR-01` | repository | active | — | 冻结多用户 runtime、队列、本地客户端、安全、SLO 与测试合同 |
+| W1 | `TAR-02` | repository | waiting | TAR-01 | PostgreSQL 持久接单、幂等、有界准入和 commit 后派发 |
+| W1 | `TAR-03` | repository | waiting | TAR-02 | 专用 Agent Worker、租约/取消/崩溃恢复和可续传事件流 |
 | W2 | `AUD-03` | production | waiting | AUD-02 | migration/rollback、backlog 观察、告警、TUI、archive/restore 与签字 |
 | W2 | `DATA-01` | production | awaiting | — | 校验备份、维护态与回滚预演 |
 | W2 | `DATA-02` | production | waiting | DATA-01 | 受控回填与 canonical reconciliation |
@@ -83,9 +87,11 @@
 | W2 | `STRAT-01` | production | awaiting | — | R1–R8 真实 owner/definition/policy/calendar/scope 登记 |
 | W2 | `STRAT-02` | production | waiting | STRAT-01/DATA-02 | PIT/OOS 历史、canonical receipts 与对账证据 |
 | W2 | `STRAT-03` | production | waiting | STRAT-02/EVID-03 | Promotion、权限、consumer 与回滚 UAT |
+| W2 | `TAR-04` | repository | waiting | TAR-03 | 用户自有模型密钥的本地 CLI 与受控远程 MCP 路径 |
 | W3 | `TUI-01` | production | awaiting | — | manifest 绑定候选部署和角色化浏览器 UAT |
 | W3 | `TUI-02` | production | waiting | TUI-01 | 14 日 telemetry、registry backup、cleanup waves、回滚与双签 |
-| W3 | `AI-01` | external | waiting | TUI-01 | 同候选 staging/production 真实 UAT 与独立双签 |
+| W3 | `TAR-05` | production | waiting | TAR-03 | 1/5/10/20 用户容量、故障恢复、回滚、观察与生产切换验收 |
+| W3 | `AI-01` | external | waiting | TUI-01/TAR-05 | 同候选 staging/production 真实 UAT 与独立双签 |
 | W4 | `QMT-01` | external | blocked | — | 券商 XtQuant 权限和目标机 Phase 0 |
 | W4 | `QMT-02` | external | blocked | QMT-01 | 连续仿真和受控小额实盘验收 |
 | W5 | `TUX-01` | repository | completed | — | 非法 published payload 降级渲染 + 存量记录批量重校验 |
@@ -94,12 +100,13 @@
 | W5 | `TUX-04` | repository | active | — | 分组重排、入口消歧、12 个 runtime screen 补齐契约 |
 | W5 | `TUX-05` | repository | waiting | TUX-03/TUX-04 | 布局/字段名翻译/状态栏/freshness 观感收口与截图证据 |
 
-执行纪律：W1 先完成决策安全主线；遵守“一条大主线加一个小收口”，Evidence 为当前大主线，`GOV-01` 可作为小收口，Audit 不与 Evidence 同时扩边。W2 的破坏性生产动作必须从 `DATA-01` 开始；W3 所有证据绑定同一不可变候选；W4 在券商解除阻断前不占用仓库开发排期。W5 为仓库内小收口线，不与 Evidence 大主线同时扩边，且不触碰 `web-to-tui-m5` 候选证据链。
+执行纪律：继续遵守“一条大主线加一个小收口”。当前已经开始的原子工作包先完整落盘，随后 `TAR-01 → TAR-02 → TAR-03` 作为下一条 P0 repository 大主线优先实施；期间不并行扩展 Evidence、Audit 或 TUX 边界，但不得削弱它们现有的 fail-closed 安全门，事故修复和合同守卫仍可按有界小包处理。`TAR-04` 在 `TAR-03` 后作为 P1 本地客户端线，`TAR-05` 绑定不可变候选做生产验收；在 TAR-05 通过前不得放大 inline 并发。W2 的破坏性生产动作仍必须从 `DATA-01` 开始；W3 所有证据绑定同一不可变候选；W4 在券商解除阻断前不占用仓库开发排期；W5 暂停扩边且不触碰 `web-to-tui-m5` 候选证据链。
 
 ## 分阶段执行记录
 
 | 日期 | 期次 | 阶段 | 完成情况 | 后续 |
 |------|------|------|----------|------|
+| 2026-08-18 | P0 优先线 | Terminal Agent 多用户 runtime 立项 | 已完成现状根因、目标架构、服务端队列、专用 Worker、可恢复事件流、本地 CLI、角色分工、16–24 人日工期、SLO/测试/灰度/回滚的专项计划，并登记 TAR-01 至 TAR-05 | 当前原子工作包落盘后优先执行 TAR-01；未完成 TAR-05 前保持 inline 并发 1，不以直接扩容替代隔离整改 |
 | 2026-08-12 | 基线 | 归档与排期 | 已在 `dev/plan-closure-by-priority` 创建基线提交 `919a9cea7` | 按本表期次继续独立提交 |
 | 2026-08-12 | 第一期 P0 | Evidence M1 Domain 首批 | 统一分类、ArtifactRef、Track Record、Envelope、权限交集和 fail-closed 传播已实现；canonical hash、非有限 Decimal 和有效期防线已加固；纯 Domain `19 passed`，standalone strict mypy `0 errors` | 做 M1 persistence、API、审批激活和 adapters |
 | 2026-08-12 | 第一期 P0 | Evidence M0 owner/freeze | ADR-0007 owner/接口矩阵已接受；54 个 HTTP、15 个 SDK、25 个发布态 TUI 决策 action、23 个 TUI mutation/AI/admin action 与 32 个 MCP 仓位相关写能力被机器门禁精确冻结，发布图 SHA 漂移也会阻断；聚合验证 `19 passed` | 补输出、raw/governed MCP 与旧 Transition Plan 语义分类，再推进 M1 持久化 |
