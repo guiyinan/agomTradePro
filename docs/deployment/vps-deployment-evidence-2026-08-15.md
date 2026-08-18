@@ -618,6 +618,30 @@ candidate binding 仍为 `web-to-tui-candidate-binding.v1`：matrix SHA
 runtime `0.2.0`、build `agomtui-runtime-0.2.0+a2553996be22`、manifest SHA
 `a3c59ed3453610fc708355bbf7d290eb92e23f699333cf36cbdf19a6769ec854`。
 
+## 2026-08-19 06:00 TUX-02 dead-patch cleanup deployment and observation
+
+提交 `0c50dfafc24fe47ee68ac93933d6c48a81e8c3fd` 在 Security、Architecture、Consistency 与 Fast Feedback 四条 CI 全部成功后，使用标准 `git-clone`、`-Upgrade`、code-only 模式发布；PostgreSQL/Redis 数据卷保留，Celery 保持启用。本次是普通 TUX-02 运行身份/健康观测，不重绑 `web-to-tui-m5` 候选，也不构成角色化 UAT 或业务写入证据。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260819054217` |
+| release dir | `/opt/agomtradepro/releases/source-20260819054217` |
+| source commit | `0c50dfafc24fe47ee68ac93933d6c48a81e8c3fd` |
+| image | `agomtradepro-web:20260819054217` |
+| image ID | `sha256:316b92f03a03b9bc328680ec8fa05c8e8e77ce2abce8d68be3b337f43810379a` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260819054217.json` |
+| mode | `ACTION=upgrade`、code-only、数据卷保留、Celery enabled |
+| migration/schema | `No migrations to apply`；canonical schema `missing_migrations=[]`、`missing_tables=[]`；Django deploy check 无 issues（1 silenced） |
+| TUI registry | publish/check 通过；registry `28`、active source hash 与 expected 一致；backend version 保持 reviewed release `20260819000530` |
+| HTTPS/TLS | Caddy 使用 `demo.agomtrade.pro`；证书 expiry check 通过；`/api/health/` 8 次均 HTTP `200`（约 `1.10–1.77s`）；`/api/ready/` 3 次均 HTTP `200`（约 `5.02–5.69s`） |
+| containers | web healthy；celery worker/beat、PostgreSQL、Redis、Caddy、RSSHub、runtime namespace running；Celery ping `1 node online` |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| runtime identity | release manifest `runtime_match=true`；`source_mode=git-clone`；`short_commit=0c50dfafc24f` |
+| readiness observation | `/api/ready/` body 保留现有数据 freshness/degraded 提示；本次未用部署成功掩盖数据状态 |
+| backup | `/opt/agomtradepro/backups/database/postgres-20260818-234905.dump`；部署前备份已创建并通过 verifier |
+
+本次仅做启动、版本、迁移、TUI registry、Qlib、Celery、HTTPS 与短时只读健康复核，没有登录、角色化浏览器 UAT 或业务写入。写后 receipt/refresh、14 日 telemetry/defect、registry backup/restore、rollback drill、owner/reviewer 双签以及 AUD-01/EVID-01 durable authority/publisher 仍未完成，相关 gate 继续 fail-closed。
+
 ## 2026-08-18 当前候选部署与恢复观测
 
 提交 `dev/next-development@84293272218725c286aed29db68bd3dae9cb4b16` 以
