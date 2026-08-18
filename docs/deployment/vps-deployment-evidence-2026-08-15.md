@@ -4,6 +4,36 @@
 
 `dev/next-development` 的提交 `96ce6ee43b06e6eb6ad51528ff8ee783a4bf0952` 已在 `demo.agomtrade.pro` 完成一次带 provenance 校验的后续候选部署。该 release 包含 TUI AI provider failure guidance 修复；当前服务正常运行，M5 观察窗口从本次独立核验时间重新计算。本证据不解除角色化浏览器 UAT、写后回执、14 日观察、恢复演练或数据覆盖门禁。
 
+## 2026-08-18 13:25 当前 TAR-01 候选部署与恢复后只读观测
+
+提交 `dev/next-development@1b80034dc8cde602274e88265169b826c7962271` 已使用标准
+`git-clone`、`-Upgrade`、code-only 模式构建；PostgreSQL/Redis 数据卷保留，Celery 启用。
+远端构建预检、迁移、Django check、Data Center catalog、TUI publish/check 与部署前备份均执行。
+首轮 verifier 因 web 重启窗口把迁移/schema/TUI/Qlib 等检查判为失败，自动回滚尝试又在
+180 秒内超时；随后确认旧 release 健康，再把已生成且 provenance 完整的新 release 手动切回
+`current`，以同一 compose 和保留数据卷重建服务。本节把 verifier 失败与人工恢复都如实记录，
+不把它写成标准部署 verifier 全绿。
+
+| 项目 | 证据 |
+|---|---|
+| release tag | `20260818130903` |
+| release dir/current | `/opt/agomtradepro/releases/source-20260818130903`（最终只读观测时 `current` 指向该目录） |
+| source commit | `1b80034dc8cde602274e88265169b826c7962271` |
+| image | `agomtradepro-web:20260818130903` |
+| image ID | `sha256:90294d9b85fdf237fc84dbe1b0f46eea651a1bc80ba9b92a0e4afc61bcb6e803` |
+| deployment report/manifest | `dist/remote-build-reports/remote-build-report-20260818130903.json`；远端 `.agom-release-manifest.json` `0444`、OCI revision 与 source 完全一致 |
+| migration/schema/preflight | `No migrations to apply`；`missing_migrations=[]`、`missing_tables=[]`、`ok=true`；Django system check 无新增问题；catalog sync 与 TUI publish/check 均成功 |
+| HTTPS/health | 手动切换后稳定观测 `https://demo.agomtrade.pro/api/health/` 与 `/api/ready/` 均 HTTP 200（2026-08-18 13:25 左右） |
+| containers | web `healthy`、`restarts=0`；Caddy、Celery worker/beat、PostgreSQL、Redis、RSSHub、runtime namespace 均 running/healthy |
+| Qlib | `pyqlib=0.9.7`；错误 `qlib` distribution absent；module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| backup | 部署前 PostgreSQL 备份已生成：`/opt/agomtradepro/backups/database/postgres-20260818-070934.dump`；本次未执行 restore/rebuild 或 RTO/RPO drill |
+
+本次纯契约代码没有接入新 Web/TUI queued intake，也没有登录、角色化浏览器 UAT、业务写入、写后
+receipt/refresh、authority 回填或生产 publisher。`/api/ready/` 的 freshness warnings 仍需按原样
+处理；M5 的角色化写回执、14 日 telemetry、registry backup/restore、rollback 双签以及
+AUD-01/EVID-01 authority/publisher 继续 fail-closed。旧 release
+`20260818115436` 仍保留，可作为回滚目标；本节的手动切换不是生产 rollback drill 证据。
+
 ## 2026-08-17 00:34 当前候选部署与只读观测
 
 候选 `dev/next-development@3ceafaf193e87626be7458531c66e96b11f7df84` 已使用标准
