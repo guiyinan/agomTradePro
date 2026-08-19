@@ -2747,3 +2747,23 @@ Qlib、Celery ping 与部署前 PostgreSQL backup 全部通过；报告为
 lifecycle、authenticated owner/tenant provider、同 alias bundle、人工授权、生产 writer 或
 PostgreSQL race/rollback。严禁从 mutable User/Profile/session/request 现场 hash 或回填历史；
 `EVID-01` 继续 `active`，Evidence hard gate、写入与 execution 继续 fail-closed。
+
+## 2026-08-19：M5 candidate `20260819195103` / EVID-01 inventory 重绑验收
+
+共享 candidate binding 已切换到 `dev/next-development@0ad5df129fbc5d0d6c3030287a0a88c83b6ae871`
+、release `20260819195103`，并在 `governance/active_plan_registry.json` 的 M5 `next_gate`
+中同步该 candidate。当前 VPS `current` 与 web/celery image 均为该 release；最新只读 verifier
+确认 Caddy/TLS、HTTPS health、容器、Django check、迁移/schema、TUI registry、Qlib、Celery
+ping、备份和 healthcheck 通过。
+
+对同一 candidate 重新执行 PostgreSQL 只读盘点，account 0050–0053 均已应用，EVID-01 约定的
+12 张 authority/evidence ledger/root-lock 表仍全部为 `0`。对应 runtime 与 inventory 工件为
+[`vps-runtime-verification-2026-08-19-1210.json`](../deployment/vps-runtime-verification-2026-08-19-1210.json)
+和 [`evid-01-authority-inventory-2026-08-19-1210.json`](../deployment/evid-01-authority-inventory-2026-08-19-1210.json)，
+静态 candidate-binding 回归 `1 passed`。
+
+这只是 candidate binding 与 zero-seed 只读验收；不代表 M5 角色化浏览器 UAT、写后 receipt/
+refresh、14 日观察、restore/rollback 或 owner/reviewer 已完成，也不代表 EVID-01 的
+authenticated owner/tenant lifecycle、同 alias bundle、人工授权、production writer 或
+PostgreSQL race/rollback 已存在。`EVID-01`、M5、Evidence hard gate、写入和 execution 继续
+fail-closed。

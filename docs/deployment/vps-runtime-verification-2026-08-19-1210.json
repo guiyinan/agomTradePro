@@ -1,0 +1,54 @@
+{
+  "version": "vps-runtime-verification.v1",
+  "captured_at": "2026-08-19T12:10:43Z",
+  "environment": "production",
+  "read_only": true,
+  "candidate": {
+    "stable_version": "20260819195103",
+    "source_commit": "0ad5df129fbc5d0d6c3030287a0a88c83b6ae871",
+    "release": "agomtradepro-web:20260819195103",
+    "release_dir": "/opt/agomtradepro/releases/source-20260819195103",
+    "image_id": "sha256:5580a17c333b5c444b786e5bc56c6189219150f30fbc83af0a224ce998162846"
+  },
+  "checks": {
+    "deployment_mode": "code-only upgrade; PostgreSQL/Redis data volumes preserved; Celery enabled",
+    "caddy_domain": "demo.agomtrade.pro",
+    "health_http_status": 200,
+    "health_sha256": "c4173d22700441fb4da4fe0a4b2f60f97f37351b8213a12f9dab0472d53912d6",
+    "ready_http_status": 200,
+    "ready_status": "ok",
+    "ready_sha256": "95b78c76b4ba05b5c0cdf7fbe66617283bd0671aa67ceeaad855384c976fa741",
+    "tls_certificate": "valid",
+    "containers": "web healthy; celery_worker, celery_beat, PostgreSQL, Redis, Caddy, RSSHub and runtime_ns running",
+    "django_system_check": "0 issues (1 silenced)",
+    "migrations": "No migrations to apply; canonical schema missing_migrations=[] and missing_tables=[]",
+    "tui_metadata_registry": "published and matched; registry_id=28; backend_version=20260819000530",
+    "release_identity": "verified; runtime source commit and OCI image revision matched candidate",
+    "qlib": {
+      "pyqlib": "0.9.7",
+      "wrong_qlib_distribution": "absent",
+      "module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py"
+    },
+    "celery": {
+      "worker": "running",
+      "beat": "running",
+      "ping": "1 node online"
+    },
+    "backup": {
+      "remote_path": "/opt/agomtradepro/backups/database/postgres-20260819-135139.dump",
+      "mode": "custom-format archive created by the successful pre-deploy hook; restore/rebuild was not run"
+    },
+    "authority_inventory": {
+      "outcome": "blocked_zero_seed_authority",
+      "all_expected_rows": 0,
+      "migrations": "0050 through 0053 present"
+    }
+  },
+  "outcome": "runtime_verified_candidate",
+  "limitations": [
+    "This is a read-only post-deploy verification; no business writes, login, backfill, or destructive migration was performed.",
+    "It does not prove authenticated role-based browser UAT, write-after-refresh receipts, owner/reviewer sign-off, or the 14-day observation window.",
+    "It does not prove immutable authority lifecycle, durable audit publisher, or execution authorization; AUD-01, EVID-01 and TUI M5 gates remain fail-closed.",
+    "The PostgreSQL archive was created by the deploy hook but was not restored or rebuilt; RTO/RPO and rollback drill remain unverified."
+  ]
+}
