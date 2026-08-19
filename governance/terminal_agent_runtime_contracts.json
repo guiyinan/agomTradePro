@@ -17,8 +17,11 @@
       "apps/agent_runtime/application/terminal_agent_run_route_guard.py",
       "apps/agent_runtime/application/terminal_runtime_baseline.py",
       "apps/agent_runtime/application/terminal_runtime_baseline_collector.py",
+      "apps/agent_runtime/application/terminal_runtime_baseline_evidence.py",
       "apps/agent_runtime/application/terminal_runtime_slo.py",
       "apps/agent_runtime/application/terminal_runtime_test_matrix.py",
+      "apps/agent_runtime/infrastructure/terminal_runtime_baseline_snapshot_observer.py",
+      "scripts/record_terminal_runtime_baseline_evidence.py",
       "apps/agent_runtime/application/terminal_runtime_queue_policy.py",
       "apps/terminal/interface/queued_runtime_views.py",
       "apps/terminal/interface/api_urls.py",
@@ -34,7 +37,8 @@
       "pure asynchronous API/SSE response shapes",
       "pure queue/deadline/flag relationships",
       "dormant application composition boundary",
-      "reserved queued route names with an explicit fail-closed 503 boundary"
+      "reserved queued route names with an explicit fail-closed 503 boundary",
+      "strict offline snapshot parsing and content-addressed baseline evidence serialization"
     ],
     "not_implemented": [
       "Web/TUI queued intake/admission route",
@@ -328,6 +332,7 @@
       "tests/unit/terminal/test_terminal_queued_route_guard.py",
       "tests/unit/agent_runtime/test_terminal_runtime_baseline.py",
       "tests/unit/agent_runtime/test_terminal_runtime_baseline_collector.py",
+      "tests/unit/agent_runtime/test_terminal_runtime_baseline_snapshot_observer.py",
       "tests/unit/agent_runtime/test_terminal_runtime_slo.py",
       "tests/unit/agent_runtime/test_terminal_runtime_test_matrix.py",
       "tests/unit/agent_runtime/test_terminal_runtime_contract_manifest.py"
@@ -354,6 +359,9 @@
     "capacity_ready_requires_complete_observed_metrics": true,
     "capacity_ready_requires_all_hard_slos": true,
     "canonical_test_matrix_digest": "9490e06211b1e02a5fd664bb72f8f4bf6de29e355b0ca49fb1e23fb263699842",
+    "offline_snapshot_format": "terminal-runtime-baseline-snapshot.v1",
+    "offline_evidence_format": "terminal-runtime-baseline-evidence.v1",
+    "runtime_enablement": "not_authorized",
     "production_evidence_status": "not_runtime"
   },
   "slo_contract": {
