@@ -1282,7 +1282,7 @@ MCP/chaos metric, business write receipt, role UAT, restore/rollback or owner/re
 evidence was collected; TAR-01/TAR-02/TAR-05 and the M5 production gates remain
 fail-closed.
 
-## 2026-08-20 22:39 UTC `80ea441e2` deployment and independent HTTPS observation
+## 2026-08-19 22:39 UTC `80ea441e2` deployment and independent HTTPS observation
 
 The pushed `dev/next-development` HEAD `80ea441e2fc83059415c46124b0676fd1705b3d0` was
 deployed in code-only `-Upgrade` mode as release `20260820062052`; PostgreSQL and Redis
