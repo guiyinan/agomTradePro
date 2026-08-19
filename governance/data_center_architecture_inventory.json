@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4273,
+    "current_surface_references": 4275,
     "data_write_task_decorators": 59,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -15281,6 +15281,16 @@
       "line": 57,
       "path": "apps/research/application/advanced_state_model.py",
       "text": "\"\"\"Return current artifact attestation or ``None``.\"\"\""
+    },
+    {
+      "line": 159,
+      "path": "apps/research/application/evid_02_postgres_evidence.py",
+      "text": "\"\"\"Explicitly record whether read-only current-head audit was collected.\"\"\""
+    },
+    {
+      "line": 167,
+      "path": "apps/research/application/evid_02_postgres_evidence.py",
+      "text": "\"this offline contract cannot invent current-head audit evidence\""
     },
     {
       "line": 212,
