@@ -46,6 +46,9 @@ def test_matrix_is_deterministic_and_covers_required_layers_and_threats() -> Non
     assert canonical_terminal_runtime_test_matrix_digest() == (
         canonical_terminal_runtime_test_matrix_digest()
     )
+    for scenario in matrix:
+        exists = Path(scenario.required_test_path).exists()
+        assert exists is (scenario.implementation_status == "implemented")
 
 
 def test_matrix_module_is_stdlib_only_and_has_no_runtime_side_effects() -> None:

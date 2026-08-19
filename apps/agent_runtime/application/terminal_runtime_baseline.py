@@ -237,23 +237,43 @@ class TerminalRuntimeBaselineSample:
                 raise TerminalRuntimeBaselineContractError(
                     "candidate identity does not match legacy candidate fields"
                 )
-        if isinstance(self.concurrency, bool) or self.concurrency not in _REQUIRED_CONCURRENCY:
+        if type(self.concurrency) is not int or self.concurrency not in _REQUIRED_CONCURRENCY:
             raise TerminalRuntimeBaselineContractError("concurrency must be one of 1, 5, 10, or 20")
         if isinstance(self.sample_count, bool) or not isinstance(self.sample_count, int):
             raise TerminalRuntimeBaselineContractError("sample_count must be an integer")
         if self.sample_count <= 0:
             raise TerminalRuntimeBaselineContractError("sample_count must be positive")
         _require_aware(self.captured_at, "captured_at")
-        if len(self.metrics) != len(_REQUIRED_METRICS):
+        if type(self.metrics) is not tuple or len(self.metrics) != len(_REQUIRED_METRICS):
             raise TerminalRuntimeBaselineContractError(
                 "one sample must include every required runtime metric"
             )
-        keys = tuple(metric.key for metric in self.metrics)
+        validated_metrics = []
+        for metric in self.metrics:
+            if type(metric) is not TerminalRuntimeBaselineMetric:
+                raise TerminalRuntimeBaselineContractError("baseline metric type was substituted")
+            try:
+                validated = TerminalRuntimeBaselineMetric(
+                    key=metric.key,
+                    status=metric.status,
+                    value=metric.value,
+                    reason=metric.reason,
+                )
+            except (AttributeError, TypeError, ValueError) as exc:
+                raise TerminalRuntimeBaselineContractError(
+                    "baseline metric failed canonical validation"
+                ) from exc
+            if validated != metric:
+                raise TerminalRuntimeBaselineContractError(
+                    "baseline metric failed canonical validation"
+                )
+            validated_metrics.append(validated)
+        keys = tuple(metric.key for metric in validated_metrics)
         if len(set(keys)) != len(keys) or set(keys) != _REQUIRED_METRICS:
             raise TerminalRuntimeBaselineContractError(
                 "baseline metric keys must be exact and unique"
             )
-        by_key = {metric.key: metric for metric in self.metrics}
+        by_key = {metric.key: metric for metric in validated_metrics}
         percentile_values = tuple(
             by_key[key].value for key in ("web_p50_ms", "web_p95_ms", "web_p99_ms")
         )
@@ -283,10 +303,12 @@ class TerminalRuntimeBaselineReport:
     def __post_init__(self) -> None:
         """Require exactly one sample for each planned concurrency level."""
 
-        if len(self.samples) != len(_REQUIRED_CONCURRENCY):
+        if type(self.samples) is not tuple or len(self.samples) != len(_REQUIRED_CONCURRENCY):
             raise TerminalRuntimeBaselineContractError(
                 "baseline report requires samples for 1, 5, 10, and 20 users"
             )
+        if any(type(sample) is not TerminalRuntimeBaselineSample for sample in self.samples):
+            raise TerminalRuntimeBaselineContractError("baseline sample type was substituted")
         levels = tuple(sample.concurrency for sample in self.samples)
         if set(levels) != _REQUIRED_CONCURRENCY or len(set(levels)) != len(levels):
             raise TerminalRuntimeBaselineContractError(

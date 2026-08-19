@@ -14,6 +14,10 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Final
 
+from apps.agent_runtime.application.terminal_runtime_test_matrix import (
+    canonical_terminal_runtime_test_matrix_digest,
+)
+
 
 class TerminalRuntimeSloContractError(ValueError):
     """Raised when hard-SLO evidence is malformed or substituted."""
@@ -208,8 +212,12 @@ class TerminalRuntimeSloReport:
             if type(value) is not str or _DIGEST_RE.fullmatch(value) is None:
                 raise TerminalRuntimeSloContractError(f"{field_name} is invalid")
         _require_aware(self.captured_at, "captured_at")
-        if len(self.measurements) != len(_CRITERIA):
+        if type(self.measurements) is not tuple or len(self.measurements) != len(_CRITERIA):
             raise TerminalRuntimeSloContractError("hard SLO report must include every criterion")
+        if self.test_matrix_digest != canonical_terminal_runtime_test_matrix_digest():
+            raise TerminalRuntimeSloContractError(
+                "test_matrix_digest does not match the canonical matrix"
+            )
         validated_measurements = []
         for measurement in self.measurements:
             if type(measurement) is not TerminalRuntimeSloMeasurement:

@@ -276,6 +276,39 @@ def test_sample_rejects_forged_candidate_identity_object() -> None:
         _sample(1, candidate_identity=forged)
 
 
+def test_sample_rejects_forged_metric_and_float_concurrency() -> None:
+    forged = object.__new__(TerminalRuntimeBaselineMetric)
+    object.__setattr__(forged, "key", "web_p50_ms")
+    object.__setattr__(forged, "status", TerminalRuntimeBaselineMetricStatus.OBSERVED)
+    object.__setattr__(forged, "value", float("nan"))
+    object.__setattr__(forged, "reason", None)
+    metrics = list(_metrics())
+    metrics[sorted(required_baseline_metric_keys()).index("web_p50_ms")] = forged
+
+    with pytest.raises(TerminalRuntimeBaselineContractError, match="canonical validation"):
+        TerminalRuntimeBaselineSample(
+            environment="staging",
+            candidate_commit=CANDIDATE,
+            candidate_release=RELEASE,
+            concurrency=1,
+            sample_count=20,
+            captured_at=NOW,
+            metrics=tuple(metrics),
+            candidate_identity=CANDIDATE_IDENTITY,
+        )
+    with pytest.raises(TerminalRuntimeBaselineContractError, match="concurrency"):
+        TerminalRuntimeBaselineSample(
+            environment="staging",
+            candidate_commit=CANDIDATE,
+            candidate_release=RELEASE,
+            concurrency=1.0,  # type: ignore[arg-type]
+            sample_count=20,
+            captured_at=NOW,
+            metrics=_metrics(),
+            candidate_identity=CANDIDATE_IDENTITY,
+        )
+
+
 def test_contract_module_is_stdlib_only_and_does_not_collect_or_call_runtime() -> None:
     source_path = Path("apps/agent_runtime/application/terminal_runtime_baseline.py")
     source = source_path.read_text(encoding="utf-8")

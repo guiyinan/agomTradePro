@@ -206,6 +206,15 @@ def test_manifest_binds_hard_slos_threats_and_deterministic_matrix() -> None:
     assert set(slo_contract["required_measurements"]) == {
         criterion.key for criterion in terminal_runtime_slo_criteria()
     }
+    assert slo_contract["criteria"] == [
+        {
+            "key": criterion.key,
+            "unit": criterion.unit,
+            "comparator": criterion.comparator.value,
+            "threshold": criterion.threshold,
+        }
+        for criterion in terminal_runtime_slo_criteria()
+    ]
     assert slo_contract["unavailable_or_threshold_breach"] == "capacity_gate_blocked"
 
     threat_model = manifest["threat_model"]
@@ -218,3 +227,13 @@ def test_manifest_binds_hard_slos_threats_and_deterministic_matrix() -> None:
         scenario.layer for scenario in canonical_terminal_runtime_test_matrix()
     }
     assert matrix["canonical_digest"] == canonical_terminal_runtime_test_matrix_digest()
+    assert matrix["scenarios"] == [
+        {
+            "scenario_id": scenario.scenario_id,
+            "layer": scenario.layer,
+            "required_test_path": scenario.required_test_path,
+            "threat_ids": list(scenario.threat_ids),
+            "implementation_status": scenario.implementation_status,
+        }
+        for scenario in canonical_terminal_runtime_test_matrix()
+    ]

@@ -353,7 +353,7 @@
     "samples_must_share_exact_candidate_identity": true,
     "capacity_ready_requires_complete_observed_metrics": true,
     "capacity_ready_requires_all_hard_slos": true,
-    "canonical_test_matrix_digest": "ebfcb35353bec8456d48d66ff554cefd98981a82eeb1413f821c35a8ed3b3a96",
+    "canonical_test_matrix_digest": "9490e06211b1e02a5fd664bb72f8f4bf6de29e355b0ca49fb1e23fb263699842",
     "production_evidence_status": "not_runtime"
   },
   "slo_contract": {
@@ -379,6 +379,27 @@
       "event_recovery_violations",
       "queue_isolation_violations",
       "secret_occurrences"
+    ],
+    "criteria": [
+      {"key": "run_api_p95_ms", "unit": "milliseconds", "comparator": "maximum", "threshold": 500},
+      {"key": "run_api_provider_calls", "unit": "count", "comparator": "exact", "threshold": 0},
+      {"key": "run_api_mcp_calls", "unit": "count", "comparator": "exact", "threshold": 0},
+      {"key": "ordinary_web_5xx", "unit": "count", "comparator": "exact", "threshold": 0},
+      {"key": "ordinary_web_p95_degradation_percent", "unit": "percent", "comparator": "maximum", "threshold": 10},
+      {"key": "daphne_chat_load_restarts", "unit": "count", "comparator": "exact", "threshold": 0},
+      {"key": "idempotent_created_runs", "unit": "count", "comparator": "exact", "threshold": 1},
+      {"key": "idempotent_model_calls", "unit": "count", "comparator": "exact", "threshold": 1},
+      {"key": "cross_user_leaks", "unit": "count", "comparator": "exact", "threshold": 0},
+      {"key": "unrecoverable_running_tasks", "unit": "count", "comparator": "exact", "threshold": 0},
+      {"key": "duplicate_non_idempotent_side_effects", "unit": "count", "comparator": "exact", "threshold": 0},
+      {"key": "queue_boundary_violations", "unit": "count", "comparator": "exact", "threshold": 0},
+      {"key": "unbounded_queue_growth_events", "unit": "count", "comparator": "exact", "threshold": 0},
+      {"key": "timeout_boundary_violations", "unit": "count", "comparator": "exact", "threshold": 0},
+      {"key": "late_terminal_overwrites", "unit": "count", "comparator": "exact", "threshold": 0},
+      {"key": "cancel_checkpoint_violations", "unit": "count", "comparator": "exact", "threshold": 0},
+      {"key": "event_recovery_violations", "unit": "count", "comparator": "exact", "threshold": 0},
+      {"key": "queue_isolation_violations", "unit": "count", "comparator": "exact", "threshold": 0},
+      {"key": "secret_occurrences", "unit": "count", "comparator": "exact", "threshold": 0}
     ],
     "unavailable_or_threshold_breach": "capacity_gate_blocked"
   },
@@ -413,7 +434,20 @@
       "chaos"
     ],
     "digest_algorithm": "SHA-256 over canonical ordered JSON",
-    "canonical_digest": "ebfcb35353bec8456d48d66ff554cefd98981a82eeb1413f821c35a8ed3b3a96",
+    "canonical_digest": "9490e06211b1e02a5fd664bb72f8f4bf6de29e355b0ca49fb1e23fb263699842",
+    "scenarios": [
+      {"scenario_id": "domain-state-machine", "layer": "domain", "required_test_path": "tests/unit/agent_runtime/test_terminal_agent_run_contract.py", "threat_ids": ["stale-worker-aba", "late-terminal-overwrite"], "implementation_status": "implemented"},
+      {"scenario_id": "application-owner-idempotency-quota", "layer": "application", "required_test_path": "tests/unit/agent_runtime/test_terminal_agent_run_boundary.py", "threat_ids": ["idor", "replay-idempotency", "queue-flood"], "implementation_status": "implemented"},
+      {"scenario_id": "repository-postgres-first-winner", "layer": "repository", "required_test_path": "tests/component/agent_runtime/test_terminal_agent_run_repository.py", "threat_ids": ["replay-idempotency", "stale-worker-aba"], "implementation_status": "planned"},
+      {"scenario_id": "celery-delivery-outcomes", "layer": "celery", "required_test_path": "tests/unit/agent_runtime/test_terminal_agent_run_tasks.py", "threat_ids": ["replay-idempotency", "fallback-bypass"], "implementation_status": "planned"},
+      {"scenario_id": "api-wire-and-request-bounds", "layer": "api", "required_test_path": "tests/component/test_terminal_api.py", "threat_ids": ["idor", "request-size", "fallback-bypass"], "implementation_status": "implemented"},
+      {"scenario_id": "events-reconnect-and-owner-scope", "layer": "events", "required_test_path": "tests/component/agent_runtime/test_terminal_agent_run_events.py", "threat_ids": ["sse-leak-replay", "sse-resource-exhaustion", "idor"], "implementation_status": "planned"},
+      {"scenario_id": "tui-run-lifecycle", "layer": "tui", "required_test_path": "tests/unit/test_tui_workbench.py", "threat_ids": ["fallback-bypass"], "implementation_status": "implemented"},
+      {"scenario_id": "sdk-reconnect-and-versioning", "layer": "sdk", "required_test_path": "sdk/tests/test_sdk/test_client.py", "threat_ids": ["sse-leak-replay", "fallback-bypass"], "implementation_status": "implemented"},
+      {"scenario_id": "local-cli-mcp-secret-boundary", "layer": "local-cli-mcp", "required_test_path": "tests/unit/agent_runtime/test_terminal_agent_local_cli.py", "threat_ids": ["secret-prompt-transport", "fallback-bypass"], "implementation_status": "planned"},
+      {"scenario_id": "load-1-5-10-20", "layer": "load", "required_test_path": "tests/load/agent_runtime/test_terminal_agent_capacity.py", "threat_ids": ["queue-flood", "request-size", "sse-resource-exhaustion"], "implementation_status": "planned"},
+      {"scenario_id": "chaos-worker-stream-recovery", "layer": "chaos", "required_test_path": "tests/chaos/agent_runtime/test_terminal_agent_recovery.py", "threat_ids": ["stale-worker-aba", "sse-leak-replay"], "implementation_status": "planned"}
+    ],
     "candidate_binding": "candidate.test_matrix_digest must exact-match canonical_digest before collection"
   }
 }

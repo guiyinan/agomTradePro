@@ -146,6 +146,20 @@ def test_report_rejects_object_new_forged_measurement() -> None:
         )
 
 
+def test_report_rejects_noncanonical_test_matrix_digest() -> None:
+    with pytest.raises(TerminalRuntimeSloContractError, match="canonical matrix"):
+        TerminalRuntimeSloReport(
+            environment="staging",
+            candidate_commit="a" * 40,
+            candidate_release="20260819140000",
+            oci_revision="b" * 40,
+            runtime_manifest_digest="c" * 64,
+            test_matrix_digest="d" * 64,
+            captured_at=NOW,
+            measurements=_measurements(),
+        )
+
+
 def test_slo_module_is_stdlib_only_and_does_not_observe_runtime() -> None:
     source = Path("apps/agent_runtime/application/terminal_runtime_slo.py").read_text(
         encoding="utf-8"
