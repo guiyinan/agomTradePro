@@ -1265,3 +1265,19 @@ The candidate binding is `web-to-tui-candidate-binding.v1`: candidate version
 runtime `0.2.0`, build `agomtui-runtime-0.2.0+b00df1fa9186`, and manifest
 `7d2d059828553fec11b83df19e09698a1025fd818c103c630d2f432d6550000f`. The M5 observation
 window is reset to this candidate and no prior UAT or telemetry is inherited.
+
+## 2026-08-19 22:07 UTC TAR-01/M5 read-only follow-up
+
+The same manifest-bound candidate `f3881a04cf0b5d5bff5d2b7e5a6bf25d523667e2` / release
+`20260820043710` remained reachable over public HTTPS. Independent samples returned
+`/api/health/` `5/5=200` (approximately `1.20–2.18s`), `/api/ready/` `3/3=200`
+(approximately `4.92–5.17s`), and `/api/` `3/3=200` (approximately `1.11–1.61s`).
+The unauthenticated `/api/terminal/runs/` route returned `403` with the expected missing
+authentication error. `/api/regime/current/` returned the existing `503`
+`decision_runtime_blocked` response with `must_not_use_for_decision=true`.
+
+This is a short-window, read-only observation only. No authenticated reserved-route
+`503`, 1/5/10/20 admission or capacity run, queue/worker/SSE/idempotency/cancel/provider-
+MCP/chaos metric, business write receipt, role UAT, restore/rollback or owner/reviewer
+evidence was collected; TAR-01/TAR-02/TAR-05 and the M5 production gates remain
+fail-closed.
