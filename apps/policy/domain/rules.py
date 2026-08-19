@@ -87,6 +87,21 @@ POLICY_RESPONSE_RULES: dict[PolicyLevel, PolicyResponse] = {
     ),
 }
 
+# ``PENDING`` is a valid persisted level for events that have not yet been
+# classified.  It must still have a safe, non-crashing response contract for
+# status and operator surfaces, while keeping the intervention rules limited
+# to the actionable P0-P3 levels above.
+PENDING_POLICY_RESPONSE = PolicyResponse(
+    level=PolicyLevel.PENDING,
+    name="待分类",
+    description="政策事件尚未完成分类，暂不改变交易政策，等待人工复核。",
+    market_action=MarketAction.NORMAL_OPERATION,
+    cash_adjustment=0.0,
+    signal_pause_hours=None,
+    requires_manual_approval=True,
+    alert_triggered=True,
+)
+
 
 def get_policy_response(level: PolicyLevel) -> PolicyResponse:
     """
@@ -101,6 +116,8 @@ def get_policy_response(level: PolicyLevel) -> PolicyResponse:
     Raises:
         ValueError: 未知的政策档位
     """
+    if level is PolicyLevel.PENDING:
+        return PENDING_POLICY_RESPONSE
     if level not in POLICY_RESPONSE_RULES:
         raise ValueError(f"Unknown policy level: {level}")
     return POLICY_RESPONSE_RULES[level]
@@ -297,6 +314,9 @@ def get_recommendations_for_level(level: PolicyLevel) -> list[str]:
         recommendations.append("危机模式！启动人工接管程序")
         recommendations.append("全仓转现金或对冲")
         recommendations.append("等待进一步指示")
+    elif level == PolicyLevel.PENDING:
+        recommendations.append("政策事件尚未完成分类，暂不改变交易政策")
+        recommendations.append("请完成人工复核后再决定是否调整政策档位")
 
     return recommendations
 
