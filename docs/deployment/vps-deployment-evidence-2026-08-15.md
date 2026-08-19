@@ -1177,3 +1177,20 @@ authenticated role browser UAT, business write/receipt-refresh, 14-day telemetry
 restore/RTO/RPO, live rollback, backfill/reconciliation, capacity/chaos run, or owner/reviewer
 sign-off was performed; TUX-02/TUX-04, STRAT, DATA-01, TAR, AUD and EVID production gates remain
 fail-closed where previously recorded.
+
+### Independent verifier rerun (2026-08-20, read-only)
+
+The repository verifier was rerun against the active release directory with
+`--expected-commit 41005ea223621689033ab38b8d9a77353dcf26ed` and Celery checks enabled. It
+returned exit code `0`: Caddy/domain, HTTPS health `200`, TLS expiry, container state, Django
+deploy check, migrations, canonical Data Center schema, TUI registry, Qlib identity, release
+identity, secrets/backup, resources, healthcheck, both Celery containers, and Celery ping all
+passed. The release identity remained `git_sha=41005ea223621689033ab38b8d9a77353dcf26ed` with
+image `sha256:0834950788c4575ae702f701505697d77c43933a48ca445496a714934b95213e`.
+
+Fresh public HTTPS samples at the same observation window returned `/api/health/`, `/api/ready/`
+and `/api/` as `200`; unauthenticated `/api/tui/`, `/api/terminal/`, `/api/terminal/runs/`,
+`/api/policy/status/`, `/api/signal/active/` and `/api/data-center/` returned `403`. The
+unauthenticated `/api/regime/current/` response remained `503` with
+`block_reason_code=decision_runtime_blocked` and `must_not_use_for_decision=true`. This confirms
+the deployed read-only and fail-closed boundary only; it is not role/browser/write acceptance.
