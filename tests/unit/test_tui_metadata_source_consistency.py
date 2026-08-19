@@ -362,6 +362,102 @@ def test_macro_aliases_use_canonical_ia_without_screen_patches(alias: str, canon
     ]
 
 
+def test_risk_center_alias_uses_canonical_ia_without_screen_patch() -> None:
+    """Risk-center source semantics stay on the canonical strategy screen."""
+
+    from apps.terminal.infrastructure.tui_information_architecture import screen_aliases
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        RUNTIME_SCREEN_PATCHES,
+        PublishedTuiMetadataRepository,
+    )
+
+    registry = load_json_payload(IA_PATH)
+    aliases = screen_aliases(registry)
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    runtime_screens = {str(screen["key"]): screen for screen in runtime["screens"]}
+    ia_screens = {
+        str(screen["key"]): screen
+        for screen in [*registry["published_screens"], *registry["runtime_screens"]]
+    }
+
+    assert aliases["risk-center.overview"] == "macro-regime.strategy"
+    assert "risk-center.overview" not in RUNTIME_SCREEN_PATCHES
+    assert "risk-center.overview" not in runtime_screens
+    assert [
+        panel.get("action_key")
+        for panel in runtime_screens["macro-regime.strategy"]["dashboard_panels"]
+        if panel.get("action_key")
+    ] == [
+        panel.get("action_key")
+        for panel in ia_screens["macro-regime.strategy"]["dashboard_panels"]
+        if panel.get("action_key")
+    ]
+    assert [
+        panel["key"] for panel in runtime_screens["macro-regime.strategy"]["dashboard_panels"]
+    ] == [panel["key"] for panel in ia_screens["macro-regime.strategy"]["dashboard_panels"]]
+
+
+def _legacy_risk_center_payload() -> dict[str, Any]:
+    """Return a minimal legacy payload for the retired risk patch boundary."""
+
+    return {
+        "version": "legacy-risk-center",
+        "default_screen": "risk-center.overview",
+        "groups": [{"key": "daily", "label": "Daily"}],
+        "modules": [
+            {
+                "key": "daily-decisions",
+                "label": "Daily Decisions",
+                "group": "daily",
+                "summary": "Legacy daily decisions.",
+            }
+        ],
+        "screens": [
+            {
+                "key": "risk-center.overview",
+                "label": "Legacy Risk Center",
+                "module_key": "daily-decisions",
+                "group": "daily",
+                "summary": "Legacy risk summary.",
+                "view_type": "status",
+                "default_action_key": "legacy.risk.list",
+            }
+        ],
+        "actions": [
+            {
+                "key": "legacy.risk.list",
+                "label": "Legacy risk list",
+                "endpoint": "/api/legacy/risk/",
+                "intent": "legacy_risk_list",
+                "screen_key": "risk-center.overview",
+                "module_key": "daily-decisions",
+                "view_type": "status",
+            }
+        ],
+    }
+
+
+def test_legacy_risk_center_payload_remains_loadable_without_screen_patch() -> None:
+    """Legacy risk payloads retain their own contract after patch removal."""
+
+    from apps.terminal.application.tui_metadata import validate_tui_metadata
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        PublishedTuiMetadataRepository,
+    )
+
+    normalized = PublishedTuiMetadataRepository().validate_and_normalize_runtime_payload(
+        _legacy_risk_center_payload()
+    )
+    screen = next(
+        screen for screen in normalized["screens"] if screen["key"] == "risk-center.overview"
+    )
+    assert screen["label"] == "Legacy Risk Center"
+    assert screen["dashboard_panels"] == []
+    assert not normalized.get("coverage_summary", {}).get("runtime_patched_screens")
+    assert "legacy.risk.list" in {action["key"] for action in normalized["actions"]}
+    validate_tui_metadata(normalized)
+
+
 def _legacy_macro_payload(screen_key: str) -> dict[str, Any]:
     """Return a minimal legacy payload for macro screen-patch compatibility checks."""
 

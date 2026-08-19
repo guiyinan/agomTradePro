@@ -141,50 +141,6 @@ RUNTIME_SCREEN_PATCHES_EXECUTION: dict[str, dict[str, Any]] = {
             },
         ],
     },
-    "risk-center.overview": {
-        "default_action_key": "risk-center.effective-policy",
-        "user_experience": {
-            "journey": "dashboard",
-            "primary_task": "先确认账户的有效风控底线，再决定是否继续查看策略与模板。",
-            "primary_outcome": "明确当前账户适用的风控底线、策略覆盖情况，以及是否需要调整模板。",
-            "empty_state_hint": "先选择账户，再查看全局底线、账户策略和风险模板。",
-            "next_step_hint": "确认有效底线后，再继续执行预检、例外申请或日常报告动作。",
-        },
-        "dashboard_panels": [
-            {
-                "key": "risk-center-floor",
-                "title": "一、全局底线",
-                "kind": "detail",
-                "action_key": "risk-center.floor",
-                "layout_area": "floor",
-                "target_screen": "risk-center.overview",
-                "user_priority": "p0",
-                "presentation_semantic": "primary_status",
-            },
-            {
-                "key": "risk-center-account-policies",
-                "title": "二、账户策略",
-                "kind": "datagrid",
-                "action_key": "risk-center.account-policies",
-                "max_rows": 8,
-                "layout_area": "policies",
-                "target_screen": "risk-center.overview",
-                "user_priority": "p1",
-                "presentation_semantic": "supporting_list",
-            },
-            {
-                "key": "risk-center-templates",
-                "title": "三、风险模板",
-                "kind": "datagrid",
-                "action_key": "risk-center.templates",
-                "max_rows": 6,
-                "layout_area": "templates",
-                "target_screen": "risk-center.overview",
-                "user_priority": "p2",
-                "presentation_semantic": "supporting_list",
-            },
-        ],
-    },
 }
 
 RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS_EXECUTION: dict[str, set[str]] = {
