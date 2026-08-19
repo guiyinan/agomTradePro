@@ -2767,3 +2767,29 @@ refresh、14 日观察、restore/rollback 或 owner/reviewer 已完成，也不�
 authenticated owner/tenant lifecycle、同 alias bundle、人工授权、production writer 或
 PostgreSQL race/rollback 已存在。`EVID-01`、M5、Evidence hard gate、写入和 execution 继续
 fail-closed。
+
+## 2026-08-19：EVID-01 offline authority-inventory report contract
+
+新增纯 Application 合同
+`apps/research/application/evid_01_authority_inventory.py` 与显式
+`scripts/record_evid_01_authority_inventory.py`。输入仅是外部受控的
+`evid-01-authority-inventory-snapshot.v1` JSON；解析器固定 production/PostgreSQL/public、
+0050–0053 account migrations、12 张 authority/evidence/root-lock 表和 read-only 语义，
+并对候选 commit/release、UTC-Z 微秒时间、非负严格整数、未知键及递归 secret 字段
+fail-closed。报告由逐表 row count 确定性推导：全零为 `blocked_zero_seed_authority`，
+任一非零为 `blocked_unverified_authority`；报告永远固定
+`production_claim=false`、`production_ready=false`、`authority_ready=false`、
+`runtime_enablement=not_authorized`。
+
+命令默认只输出 canonical summary；仅显式 `--write --output-root` 才在本地内容寻址目录
+追加 JSON 与 SHA-256 sidecar，重复写入 exact replay，不覆盖既有工件。新增
+`tests/unit/test_evid_01_authority_inventory.py`，覆盖 zero/nonzero outcome、schema/type/
+candidate/backend/time/secret tamper、无 ORM/网络边界、dry-run、append-only collision 与
+重复写入；EVID-01 focused 回归为 `16 passed`，Ruff/Black/isort、增量 mypy、全量 debt
+ceiling、governance consistency 均通过。
+
+该 slice 只完成“外部快照→fail-closed 本地报告”合同，不连接 PostgreSQL/VPS，不读取或
+回填 User/Profile/session，不创建 owner/tenant lifecycle、authenticated provider、人工
+授权、production writer，也不提供 PostgreSQL 双连接 race/rollback 证据；因此不改变
+registry 状态，`EVID-01` 继续 `active`，Evidence hard gate、写入与 execution 继续
+保持 fail-closed。
