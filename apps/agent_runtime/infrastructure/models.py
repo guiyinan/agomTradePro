@@ -22,6 +22,13 @@ from apps.agent_runtime.domain.entities import (
     TaskStatus,
     TimelineEventType,
 )
+from apps.agent_runtime.domain.terminal_agent_run_contract import (
+    TerminalAgentRunContract,
+    TerminalRunSelector,
+    TerminalRunStatus,
+    TerminalRunSubmission,
+    TerminalRuntimeMode,
+)
 
 
 class AgentTaskModel(models.Model):
@@ -111,6 +118,87 @@ class AgentTaskModel(models.Model):
             created_by=self.created_by_id,
             created_at=self.created_at,
             updated_at=self.updated_at,
+        )
+
+
+class TerminalAgentRunModel(models.Model):
+    """Durable owner-scoped dispatch ledger for a queued Terminal Agent run.
+
+    The run record stores only dispatch metadata and references the canonical
+    ``AgentTaskModel``.  Raw user messages and task payloads deliberately do
+    not belong in this table.
+    """
+
+    run_id = models.CharField(max_length=128, unique=True)
+    task = models.ForeignKey(
+        AgentTaskModel,
+        on_delete=models.PROTECT,
+        related_name="terminal_agent_runs",
+    )
+    actor_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="terminal_agent_runs",
+    )
+    client_request_id = models.CharField(max_length=128)
+    request_digest = models.CharField(max_length=64)
+    runtime_mode = models.CharField(
+        max_length=32,
+        choices=[(mode.value, mode.name) for mode in TerminalRuntimeMode],
+    )
+    dispatch_status = models.CharField(
+        max_length=32,
+        choices=[(status.value, status.name) for status in TerminalRunStatus],
+        default=TerminalRunStatus.QUEUED.value,
+    )
+    accepted_at = models.DateTimeField()
+    deadline_at = models.DateTimeField()
+    claimed_by = models.CharField(max_length=128, null=True, blank=True)
+    claimed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "agent_terminal_run"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["actor_user", "client_request_id"],
+                name="agent_terminal_run_actor_client_uniq",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["actor_user", "created_at"],
+                name="agent_term_actor_created_idx",
+            ),
+            models.Index(
+                fields=["dispatch_status", "created_at"],
+                name="agent_term_status_created_idx",
+            ),
+            models.Index(fields=["deadline_at"], name="agent_term_deadline_idx"),
+        ]
+        ordering = ["created_at"]
+
+    def to_domain_contract(self) -> TerminalAgentRunContract:
+        """Convert dispatch metadata to the pure Terminal Agent contract."""
+
+        selector = TerminalRunSelector(
+            run_id=self.run_id,
+            task_id=self.task_id,
+            actor_user_id=self.actor_user_id,
+            client_request_id=self.client_request_id,
+        )
+        submission = TerminalRunSubmission(
+            selector=selector,
+            runtime_mode=TerminalRuntimeMode(self.runtime_mode),
+            request_digest=self.request_digest,
+            accepted_at=self.accepted_at,
+            deadline_at=self.deadline_at,
+        )
+        return TerminalAgentRunContract(
+            submission=submission,
+            dispatch_status=TerminalRunStatus(self.dispatch_status),
+            claimed_by=self.claimed_by,
         )
 
 

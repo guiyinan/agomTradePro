@@ -1,0 +1,235 @@
+"""Repository-contract tests for the dormant Terminal Agent run ledger."""
+
+from __future__ import annotations
+
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
+from threading import Barrier
+from uuid import uuid4
+
+import pytest
+from django.contrib.auth import get_user_model
+from django.db import close_old_connections, connection, connections, transaction
+
+from apps.agent_runtime.application.terminal_agent_run_ports import (
+    TerminalQueuedSubmissionRequest,
+)
+from apps.agent_runtime.domain.entities import TaskDomain, TaskStatus
+from apps.agent_runtime.domain.terminal_agent_run_contract import (
+    TerminalOwnershipError,
+    TerminalRunSelector,
+    TerminalRunStatus,
+    TerminalRunSubmission,
+    TerminalRuntimeMode,
+)
+from apps.agent_runtime.infrastructure.models import (
+    AgentTaskModel,
+    TerminalAgentRunModel,
+)
+from apps.agent_runtime.infrastructure.terminal_agent_run_repository import (
+    TerminalAgentRunRepository,
+    TerminalRunIdempotencyConflict,
+)
+
+pytestmark = pytest.mark.django_db(transaction=True)
+
+_NOW = datetime(2026, 8, 19, 12, 0, tzinfo=UTC)
+
+
+@pytest.fixture
+def owner(db):
+    """Create one authenticated owner for a disposable run record."""
+
+    user_model = get_user_model()
+    return user_model.objects.create_user(username=f"tar-owner-{uuid4().hex[:8]}")
+
+
+@pytest.fixture
+def task(owner):
+    """Create a canonical AgentTask owned by the test actor."""
+
+    return AgentTaskModel.objects.create(
+        request_id=f"tar-task-{uuid4().hex[:20]}",
+        task_domain=TaskDomain.RESEARCH.value,
+        task_type="terminal_contract_test",
+        status=TaskStatus.DRAFT.value,
+        input_payload={"task_ref": "existing-agent-task-payload"},
+        created_by=owner,
+    )
+
+
+@pytest.fixture
+def repository() -> TerminalAgentRunRepository:
+    """Build the infrastructure adapter under test."""
+
+    return TerminalAgentRunRepository()
+
+
+def _request(
+    *,
+    owner_id: int,
+    task_id: int,
+    suffix: str = "0001",
+    digest: str = "a" * 64,
+    message: str = "do not persist this prompt",
+) -> TerminalQueuedSubmissionRequest:
+    """Build a valid web-queued request with deterministic identity."""
+
+    accepted_at = _NOW
+    submission = TerminalRunSubmission(
+        selector=TerminalRunSelector(
+            run_id=f"run-{suffix}",
+            task_id=task_id,
+            actor_user_id=owner_id,
+            client_request_id=f"request-{suffix}",
+        ),
+        runtime_mode=TerminalRuntimeMode.WEB_QUEUED,
+        request_digest=digest,
+        accepted_at=accepted_at,
+        deadline_at=accepted_at + timedelta(minutes=1),
+    )
+    return TerminalQueuedSubmissionRequest(submission=submission, message=message)
+
+
+def test_submit_stores_owner_identity_and_no_raw_message(repository, owner, task):
+    """Admission persists only dispatch metadata and returns a queued run."""
+
+    result = repository.submit(_request(owner_id=owner.id, task_id=task.id))
+
+    assert result.dispatch_status is TerminalRunStatus.QUEUED
+    row = TerminalAgentRunModel.objects.get(run_id=result.submission.selector.run_id)
+    assert row.actor_user_id == owner.id
+    assert row.task_id == task.id
+    assert row.request_digest == "a" * 64
+    field_names = {field.name for field in TerminalAgentRunModel._meta.get_fields()}
+    assert not {"message", "prompt", "input_payload"}.intersection(field_names)
+
+
+def test_same_actor_client_key_and_digest_is_idempotent(repository, owner, task):
+    """A replay returns one exact durable run without creating a second row."""
+
+    request = _request(owner_id=owner.id, task_id=task.id)
+    first = repository.submit(request)
+    replay = repository.submit(replace(request, message="same identity, new transport text"))
+
+    assert replay == first
+    assert TerminalAgentRunModel.objects.count() == 1
+
+
+def test_same_actor_client_key_with_different_digest_fails_closed(repository, owner, task):
+    """A client key cannot be reused for a different request fingerprint."""
+
+    repository.submit(_request(owner_id=owner.id, task_id=task.id))
+    conflicting = _request(owner_id=owner.id, task_id=task.id, digest="b" * 64)
+
+    with pytest.raises(TerminalRunIdempotencyConflict) as error:
+        repository.submit(conflicting)
+
+    assert error.value.reason_code == "IDEMPOTENCY_KEY_CONFLICT"
+    assert TerminalAgentRunModel.objects.count() == 1
+
+
+def test_owner_scope_hides_other_actor_and_rejects_foreign_task(repository, owner, task):
+    """Status reads and admission cannot cross the canonical AgentTask owner."""
+
+    result = repository.submit(_request(owner_id=owner.id, task_id=task.id))
+    other_user = get_user_model().objects.create_user(username=f"tar-other-{uuid4().hex[:8]}")
+
+    assert (
+        repository.get_for_owner(
+            run_id=result.submission.selector.run_id,
+            actor_user_id=other_user.id,
+        )
+        is None
+    )
+
+    foreign_request = _request(owner_id=other_user.id, task_id=task.id, suffix="0002")
+    with pytest.raises(TerminalOwnershipError, match="RUN_NOT_OWNER"):
+        repository.submit(foreign_request)
+
+
+def test_outer_transaction_rollback_removes_admitted_run(repository, owner, task):
+    """The repository's nested atomic block remains rollback-safe for callers."""
+
+    request = _request(owner_id=owner.id, task_id=task.id)
+    with pytest.raises(RuntimeError, match="rollback sentinel"):
+        with transaction.atomic():
+            repository.submit(request)
+            raise RuntimeError("rollback sentinel")
+
+    assert not TerminalAgentRunModel.objects.filter(
+        run_id=request.submission.selector.run_id
+    ).exists()
+
+
+def test_claim_is_first_winner_and_replay_is_noop(repository, owner, task):
+    """One worker transitions queued to claimed; a later worker cannot reclaim it."""
+
+    request = _request(owner_id=owner.id, task_id=task.id)
+    repository.submit(request)
+
+    first = repository.claim(
+        run_id=request.submission.selector.run_id,
+        worker_id="worker-a",
+        claimed_at=_NOW,
+    )
+    second = repository.claim(
+        run_id=request.submission.selector.run_id,
+        worker_id="worker-b",
+        claimed_at=_NOW + timedelta(seconds=1),
+    )
+
+    assert first is not None
+    assert first.dispatch_status is TerminalRunStatus.CLAIMED
+    assert first.claimed_by == "worker-a"
+    assert second is None
+
+
+def test_repository_source_has_no_runtime_dispatch_dependency():
+    """The repository foundation cannot silently enable the worker runtime."""
+
+    from pathlib import Path
+
+    source = Path("apps/agent_runtime/infrastructure/terminal_agent_run_repository.py").read_text(
+        encoding="utf-8"
+    )
+    assert "celery" not in source.casefold()
+    assert "OpenAIAgentsTerminalService" not in source
+    assert "redis" not in source.casefold()
+
+
+@pytest.mark.skipif(
+    connection.vendor != "postgresql",
+    reason="PostgreSQL first-winner evidence requires explicit disposable test settings",
+)
+def test_postgresql_concurrent_claim_has_one_winner(repository, owner, task):
+    """PostgreSQL row locking permits exactly one concurrent claimant."""
+
+    request = _request(owner_id=owner.id, task_id=task.id)
+    repository.submit(request)
+    barrier = Barrier(2)
+
+    def _claim_in_worker(worker_id: str):
+        close_old_connections()
+        try:
+            barrier.wait(timeout=10)
+            result = TerminalAgentRunRepository().claim(
+                run_id=request.submission.selector.run_id,
+                worker_id=worker_id,
+                claimed_at=_NOW,
+            )
+            return result.claimed_by if result is not None else None
+        finally:
+            connections["default"].close()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = tuple(
+            future.result(timeout=15)
+            for future in (
+                executor.submit(_claim_in_worker, "worker-a"),
+                executor.submit(_claim_in_worker, "worker-b"),
+            )
+        )
+
+    assert sorted(value is not None for value in results) == [False, True]

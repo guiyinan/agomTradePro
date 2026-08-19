@@ -12,6 +12,10 @@ from apps.agent_runtime.application.terminal_runtime_test_matrix import (
     canonical_terminal_runtime_threat_ids,
 )
 
+_DORMANT_CONTRACT_PATHS = frozenset(
+    {"tests/component/agent_runtime/test_terminal_agent_run_repository.py"}
+)
+
 
 def test_matrix_is_deterministic_and_covers_required_layers_and_threats() -> None:
     matrix = canonical_terminal_runtime_test_matrix()
@@ -48,7 +52,12 @@ def test_matrix_is_deterministic_and_covers_required_layers_and_threats() -> Non
     )
     for scenario in matrix:
         exists = Path(scenario.required_test_path).exists()
-        assert exists is (scenario.implementation_status == "implemented")
+        expected_exists = scenario.implementation_status == "implemented" or (
+            scenario.required_test_path in _DORMANT_CONTRACT_PATHS
+        )
+        assert exists is expected_exists
+        if scenario.required_test_path in _DORMANT_CONTRACT_PATHS:
+            assert scenario.implementation_status == "planned"
 
 
 def test_matrix_module_is_stdlib_only_and_has_no_runtime_side_effects() -> None:
