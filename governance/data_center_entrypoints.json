@@ -26,17 +26,17 @@
       "script": 3,
       "sdk": 46,
       "terminal_tui": 28,
-      "test_evidence": 36,
+      "test_evidence": 37,
       "workflow_step": 9
     },
     "by_status": {
       "active_public": 700,
       "adjacent_operational": 290,
-      "candidate-review": 0,
+      "candidate-review": 1,
       "compatibility": 133,
       "retired_blocked": 0
     },
-    "total": 1123
+    "total": 1124
   },
   "entries": [
     {
@@ -11157,6 +11157,16 @@
       "path": "tests/unit/test_docker_pyqlib_install.py",
       "status": "active_public",
       "symbol": "test_docker_pyqlib_install",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/unit/test_evid_02_postgres_evidence.py:test_evid_02_postgres_evidence:",
+      "locator": "",
+      "path": "tests/unit/test_evid_02_postgres_evidence.py",
+      "status": "candidate-review",
+      "symbol": "test_evid_02_postgres_evidence",
       "target": ""
     },
     {
