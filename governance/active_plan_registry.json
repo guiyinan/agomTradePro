@@ -265,11 +265,11 @@
   "review_queue": [],
   "closure_backlog": {
     "version": "2026-08-19.v1",
-    "legacy_unchecked_count": 139,
+    "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
       "strategy-research-production": 37,
-      "data-production-reliability": 65,
+      "data-production-reliability": 62,
       "system-audit-consolidation": 13,
       "web-to-tui-m5": 13,
       "terminal-agent-multi-user-runtime": 0,
@@ -296,7 +296,7 @@
       },
       {
         "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
-        "unchecked_count": 60,
+        "unchecked_count": 58,
         "closure_unit_ids": [
           "DATA-01",
           "DATA-02",
@@ -309,13 +309,6 @@
         "closure_unit_ids": [
           "DATA-01",
           "DATA-02",
-          "DATA-03"
-        ]
-      },
-      {
-        "path": "docs/plans/critical-reliability-test-closure-2026-07-22.md",
-        "unchecked_count": 1,
-        "closure_unit_ids": [
           "DATA-03"
         ]
       },

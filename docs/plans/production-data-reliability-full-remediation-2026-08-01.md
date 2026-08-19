@@ -615,3 +615,22 @@ Celery worker/beat、Caddy 与 RSSHub 均运行，Web 容器 healthy，Celery pi
 披露。该步骤没有进入维护态、没有执行生产 restore/DDL、live rollback、回填或 reconciliation；
 新备份也没有被清理。它补充的是当前候选的恢复点与短窗口运行证据，不是生产 RTO/RPO 或
 恢复验收。因此 `DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-20，DATA-01 最新已有归档下载与格式复核）
+
+按 `DATA-01` 的 `auto_collect` 范围重新盘点并下载 VPS 上已有的最新 custom-format
+归档；没有创建新备份、没有 prune、没有进入维护态，也没有连接生产数据库执行 DDL、恢复、
+回填或 rollback。
+
+- 远端归档：`/opt/agomtradepro/backups/database/postgres-20260819-164435.dump`。
+- 本地归档：`backups/vps-postgres/postgres-20260819-164435.dump`，大小
+  `142059273` bytes。
+- 远端脚本先执行 `pg_restore --list`，随后完成 SFTP 下载、尺寸比对和本地 SHA-256
+  校验；远端与本地 SHA-256 均为
+  `3269f238b1e141de49e723a1f84388c538572d503cd856e0791b735aab8e82a3`。
+- 本机 PostgreSQL 18.4 容器再次执行 `pg_restore --list`，exit `0`；远端 prune
+  保持关闭。
+
+这条记录刷新了 DATA-01 的可复核恢复点，但不等于生产规模 restore、RTO/RPO、维护态
+rollback、回填或 reconciliation。既有 2026-08-19 隔离 restore 证据仍绑定另一份
+2026-08-16 归档；`DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。

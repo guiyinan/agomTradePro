@@ -1,7 +1,7 @@
 # 关键可靠性测试补齐计划
 
 > 日期：2026-07-22
-> 状态：代码实施完成，本地 SQLite 已验证；等待 PostgreSQL Nightly，真实 QMT 因券商外部 XtQuant 权限阻断
+> 状态：代码实施完成，本地 SQLite 与 GitHub PostgreSQL Nightly 已验证；真实 QMT 因券商外部 XtQuant 权限阻断
 > 主线：测试与可靠性治理收口
 
 ## 目标
@@ -116,7 +116,7 @@
 - [x] 新增关键链路测试。
 - [x] 补齐关键迁移验证并配置 PostgreSQL Nightly 入口。
 - [x] 接入 PR、Nightly 和 RC 门禁。
-- [ ] 在 GitHub Nightly 完成 PostgreSQL 实际运行取证。
+- [x] 在 GitHub Nightly 完成 PostgreSQL 实际运行取证（当前候选 `578064409b8269e440ba7edbf9c480aa7d9917ff`，run `32276242287` 的 `Critical Reliability (PostgreSQL)` job 成功；SQLite fallback concurrency 的 1 个预期 skip 保留）。
 - [x] 记录真实 QMT 发布前验证证据；当前结论为 `QMT_SERVER_NOT_ALLOWED`，保持实盘禁用。
 
 ## 2026-07-22 实施记录
@@ -154,6 +154,26 @@
 
 ### 未完成项与未验证风险
 
-- PostgreSQL Job 已配置，但本地没有使用生产或共享 PostgreSQL 实例执行；必须保存下一次 GitHub Nightly 的成功运行证据。
+- GitHub PostgreSQL Job 已在当前候选上实际成功；这只证明 CI 空库迁移、关键链路和隔离恢复合同，不替代生产 PostgreSQL、维护态 rollback 或真实数据覆盖证据。
 - 真实 QMT 不进入普通 CI。本阶段引用 `docs/operations/qmt-agent-runbook.md` 中 2026-07-22 的目标机证据：国金 QMT `2.1.19.0`、Python 3.11、`xtquant 250807.1.2` 隔离导入成功，但真实只读探针返回 `QMT_SERVER_NOT_ALLOWED`。本次收口不重复连接、不提交或撤销真实订单。
 - 实盘激活前仍必须按 `docs/operations/qmt-agent-runbook.md` 运行 preflight 和只读探针；券商权限未开通或版本矩阵未记录时必须保持实盘禁用。
+
+## 2026-08-20 实施记录：当前候选 PostgreSQL Nightly 实际取证
+
+当前分支候选 `dev/next-development@578064409b8269e440ba7edbf9c480aa7d9917ff` 的
+[GitHub Actions Nightly run 32276242287](https://github.com/guiyinan/agomTradePro/actions/runs/32276242287)
+中，独立 `Critical Reliability (PostgreSQL)` job 已成功完成。它不是只运行 SQLite 的
+普通 job，而是在 PostgreSQL 16.15 空库上完成全量迁移和分层回归：
+
+- 迁移图、Data Center catalog、storage capacity profile 与 applied migration plan 均通过；
+- 应用自有 custom-format backup → 隔离库 restore → 逐表/sequence/schema 对比通过，artifact
+  `outcome=success`，`7,167` 个 restore entries，dump `3,600,046` bytes，SHA-256
+  `2b4c7e57e33aa797abfac49d7935d0f0276a0d9616cb123d131c180605a75a75`，restore `3.208s`，
+  verification `0.802s`，total `5.248s`；
+- JUnit artifact 计数：critical `18 passed`、research migration `8 passed`、publication/runtime
+  `41 passed`、current-data `349 passed`、Celery contracts `220 passed`、backfill/retention
+  `61 passed`、retention concurrency `3 passed + 1 expected SQLite fallback skip`，合计 `700 passed + 1 skipped`。
+
+这条证据完成的是 CI PostgreSQL 迁移/关键可靠性测试与隔离恢复子门，不是生产数据库恢复或
+RTO/RPO、维护态 rollback、全市场回填、生产 reconciliation、M9/M10 或真实 QMT 探针；这些
+仍保持未完成和 fail-closed。

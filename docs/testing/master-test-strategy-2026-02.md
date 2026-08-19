@@ -165,7 +165,7 @@ pytest -q tests/uat/test_api_naming_compliance.py tests/uat/test_route_baseline_
 
 P0（立即修）：
 
-1. PostgreSQL 关键可靠性 Job 尚待首次成功 Nightly 证据，候选版本不得跳过该证据。
+1. PostgreSQL 关键可靠性 Job 已在候选 `578064409b8269e440ba7edbf9c480aa7d9917ff` 的 Nightly run `32276242287` 成功；后续候选仍不得跳过最近一次成功证据。该 Job 不等于生产 restore/RTO/RPO 或 live rollback。
 2. 真实 QMT 只读探针被券商外部 XtQuant 权限阻断，权限开通前保持实盘禁用。
 
 P1（本迭代修）：
@@ -231,7 +231,7 @@ P2（持续优化）：
 | 相关模块单元/API/集成 | 133 passed | 163.76s |
 | 架构工具与边界护栏 | 18 passed | 31.21s |
 
-PostgreSQL Job 已配置但尚待 GitHub Nightly 实际取证。真实 QMT 只读探针因券商外部 XtQuant 权限返回 `QMT_SERVER_NOT_ALLOWED`，因此继续保持实盘禁用。
+PostgreSQL Job 已在当前候选上完成 GitHub Nightly 实际取证（Critical Reliability job success，custom backup/隔离 restore、迁移和关键回归 artifact 可复核）。这不替代生产 restore/RTO/RPO、维护态 rollback 或全市场数据验收。真实 QMT 只读探针因券商外部 XtQuant 权限返回 `QMT_SERVER_NOT_ALLOWED`，因此继续保持实盘禁用。
 
 ### 2026-03-30 测试基线收口
 

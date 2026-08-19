@@ -42,7 +42,7 @@
 | R-REL-DATA-001 | 缺失、过期、未来数据失败关闭；PIT 冻结结果不可被新增版本或篡改改变 | P0 | Unit+Integration | `tests/critical/test_decision_and_data_safety.py` | 核对阻断原因与无持久化副作用 | PR+Nightly+RC | Codex | 2026-07-22 | **Passed** | - |
 | R-REL-RISK-001 | 风险拒绝、kill switch、过期 Broker 快照和最终提交重检阻止不安全执行 | P0 | API+Integration | `tests/critical/test_risk_and_order_safety.py` | 核对停止时仍可拒绝/撤单/对账 | PR+Nightly+RC | Codex | 2026-07-22 | **Passed** | - |
 | R-REL-AGENT-001 | 断线、未知报单结果、重复事件和 P0 对账差异保守处理 | P0 | Integration | `tests/critical/test_agent_and_recovery_safety.py` | Fake Agent 回放与恢复状态核验 | PR+Nightly+RC | Codex | 2026-07-22 | **Passed** | - |
-| R-REL-MIG-001 | 研究完整性迁移保留历史数据、约束、外键和关键索引 | P0 | Migration | `tests/migrations/test_research_integrity_migrations.py` | PostgreSQL Nightly 空库迁移证据 | Nightly+RC | Codex | 2026-07-22 | **SQLite Passed；PostgreSQL Pending** | 等待 Nightly |
+| R-REL-MIG-001 | 研究完整性迁移保留历史数据、约束、外键和关键索引 | P0 | Migration | `tests/migrations/test_research_integrity_migrations.py` | PostgreSQL Nightly 空库迁移证据 | Nightly+RC | Codex | 2026-07-22 | **SQLite + PostgreSQL Nightly Passed** | run `32276242287` 的 PostgreSQL job：research migrations `8 passed`；生产迁移/回滚仍未证明 |
 | R-REL-QMT-001 | 真实 QMT 启用前 preflight 与只读探针通过且不报单/不撤单 | P0 | Manual+PostDeploy | `docs/operations/qmt-agent-runbook.md` | 目标机只读探针证据 | PreRelease | Operator | 2026-07-22 | **InProgress: QMT_SERVER_NOT_ALLOWED** | 券商外部 XtQuant 权限未开通，实盘禁用 |
 | R-TST-LAYER-001 | Unit 不初始化数据库，数据库型测试进入 Component/Integration | P0 | Guardrail+Unit | `tests/unit/test_testing_quality_tools.py`、`scripts/test_tier_inventory.py`、`tests/support/fast_suite_guard.py` | 抽查迁移映射与测试目录 | PR+Nightly | Codex | 2026-07-24 | **Passed：1.37% DB file ratio** | - |
 | R-TST-FAST-001 | 纯 Domain/Application 快速反馈环 ≤120 秒 | P0 | Unit | `scripts/run_fast_tests.py` | 核对无测试数据库初始化输出 | PR | Codex | 2026-07-24 | **Passed：3500 / 40.06s** | - |
@@ -98,7 +98,7 @@
 - 新增 `tests/critical/` 三个发布阻断测试组，覆盖数据与决策安全、风险与订单安全、Agent 与恢复安全。
 - 新增 `tests/migrations/test_research_integrity_migrations.py`，覆盖关键迁移节点、物理约束/索引/外键，以及 `decision_rhythm` → `portfolio` 所有权转移时的历史数据保留。
 - PR Fast Feedback 固定运行 SQLite + Fake Agent 关键集合；RTM 文件存在性检查保护关键测试文件不被误删。
-- Nightly 新增独立 PostgreSQL 16 空库迁移与关键可靠性 Job；实际成功证据仍等待 GitHub Nightly。
+- Nightly 新增独立 PostgreSQL 16 空库迁移与关键可靠性 Job；当前候选 run `32276242287` 的 PostgreSQL job 已成功，artifact 已保留 custom backup/隔离 restore 与 JUnit 证据。
 - RC Gate 新增独立 `Critical Reliability` 阻断步骤。
 - 本地证据：选择器 `49 passed`、关键集合 `18 passed`、迁移 `3 passed`、相关模块回归 `133 passed`、架构护栏 `18 passed`。
 - 真实 QMT 当天只读探针归一为 `QMT_SERVER_NOT_ALLOWED`；按门禁保持自动执行关闭，不以降低 Python 版本或绕过权限处理。

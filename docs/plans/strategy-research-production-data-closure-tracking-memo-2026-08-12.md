@@ -164,3 +164,11 @@
 - 增量 mypy：`0 regressions`；Black/isort 通过。
 - 该切片不创建或回填任何 owner、definition、policy、calendar、scope、PIT/OOS、receipt 或生产数据；`STRAT-01`/`STRAT-02` 状态不变，生产 readiness 仍需真实 owner 与数据证据。
 
+## 13. 2026-08-20：STRAT-01 全能力 readiness inventory contract
+
+本批新增只读 `EvaluateAllCapabilityReadinessUseCase`，按 `ResearchCapability` 的 canonical R1–R8 顺序收集完整 `CapabilityReadinessReport`。每个报告仍由原 owner-scoped provider 独立生成，保留完整 requirement evidence 与 blocker，不把一个能力的机制证据合并到另一个能力，也不把静态机制 evidence 推导为 live-data readiness。
+
+- `tests/component/research/test_capability_readiness_runtime.py` 新增全能力盘点回归；Research readiness/runtime 与既有 registry focused 合计 `29 passed`。
+- 该 slice 只证明本地自动盘点和 fail-closed 聚合边界，不读取或写入生产数据库，也不创建 owner、definition、policy、calendar、scope、PIT/OOS、canonical receipt、Promotion 或 consumer UAT 记录。
+- `STRAT-01` 仍等待真实 R1–R8 owner/definition/policy/calendar/scope 登记；`STRAT-02` 继续等待 `STRAT-01`/`DATA-02`，`STRAT-03` 继续等待真实 receipts、Promotion 和 consumer UAT。
+
