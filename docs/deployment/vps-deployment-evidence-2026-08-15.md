@@ -1204,3 +1204,38 @@ current candidate remain zero-seed (all twelve governed tables returned `0` rows
 snapshot returned `audit_system_outbox=0` and `audit_system_event=0`; this is an empty-backlog
 observation, not evidence that a durable publisher or authenticated authority is wired. No rows
 were inserted, updated, deleted, or backfilled.
+
+## 2026-08-20 `9341789db` latest-candidate deployment and HTTPS acceptance
+
+After the four push workflows completed successfully for
+`dev/next-development@9341789dbaf1f4e0239ee6c7aa63b42e0136286f`, the candidate was
+deployed in code-only `-Upgrade` mode. PostgreSQL/Redis data volumes were preserved and the
+standard pre-deploy backup and rollback guard remained enabled.
+
+| Item | Evidence |
+|---|---|
+| release tag | `20260820025103` |
+| release directory | `/opt/agomtradepro/releases/source-20260820025103` |
+| source commit | `9341789dbaf1f4e0239ee6c7aa63b42e0136286f` |
+| image | `agomtradepro-web:20260820025103` |
+| image ID | `sha256:02a4a5b7098aec6ba3c152d05442a6316e1428bc3feee652e8f82ff672b4a200` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260820025103.json` |
+| deployment verifier | built-in post-deploy verifier exited `0`; release/image identity, Caddy/TLS, health, containers, Django deploy check, migrations/schema, TUI registry, Qlib, backup, resources, Celery and ping all passed |
+| TUI preflight | `npm run check:tui` and 34 JavaScript tests passed before deployment; runtime manifest/source identity matched |
+| runtime | web healthy; PostgreSQL, Redis, Caddy, RSSHub, runtime namespace and Celery worker/beat running; Celery ping `1 node online` |
+
+Public HTTPS sampling after deployment returned `200` for `/api/health/`, `/api/ready/`, and
+`/api/`. Protected `/api/tui/`, `/api/terminal/`, `/api/terminal/runs/`,
+`/api/policy/status/`, `/api/signal/active/`, and `/api/data-center/` returned the expected
+unauthenticated `403`. `/api/regime/current/` remained the existing fail-closed `503
+decision_runtime_blocked` response with `must_not_use_for_decision=true`; no decision output was
+used. The ready payload reported database, Redis, Celery and critical-data checks as healthy,
+while existing freshness/degraded-source disclosures remain visible.
+
+This is immutable deployment identity plus a short-window, read-only HTTPS acceptance only. No
+authenticated role browser UAT, business write/receipt-refresh proof, 14-day telemetry,
+production restore/RTO/RPO, live rollback, capacity/chaos run, backfill/reconciliation, or
+owner/reviewer sign-off was performed. TUX-02/TUX-04, M5, TAR, AUD and EVID production gates
+therefore remain fail-closed where previously recorded. A second standalone verifier invocation
+was not used as evidence because the local shell safety policy blocked its credential bootstrap;
+the deployment-integrated verifier above is the accepted verification record.
