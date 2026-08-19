@@ -26,17 +26,17 @@
       "script": 3,
       "sdk": 46,
       "terminal_tui": 28,
-      "test_evidence": 37,
+      "test_evidence": 38,
       "workflow_step": 9
     },
     "by_status": {
       "active_public": 700,
       "adjacent_operational": 290,
-      "candidate-review": 1,
+      "candidate-review": 2,
       "compatibility": 133,
       "retired_blocked": 0
     },
-    "total": 1124
+    "total": 1125
   },
   "entries": [
     {
@@ -10937,6 +10937,16 @@
       "path": "tests/settings_evidence_scope_source_v1_postgres.py",
       "status": "adjacent_operational",
       "symbol": "settings_evidence_scope_source_v1_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/settings_terminal_agent_run_postgres.py:settings_terminal_agent_run_postgres:",
+      "locator": "",
+      "path": "tests/settings_terminal_agent_run_postgres.py",
+      "status": "candidate-review",
+      "symbol": "settings_terminal_agent_run_postgres",
       "target": ""
     },
     {
