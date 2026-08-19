@@ -3208,22 +3208,22 @@
       "text": "_log_source_failure(\"Failed to fetch signal invalidation summary\", exc)"
     },
     {
-      "line": 55,
+      "line": 62,
       "path": "apps/agent_runtime/infrastructure/models.py",
       "text": "help_text=\"Current task status\","
     },
     {
-      "line": 61,
+      "line": 68,
       "path": "apps/agent_runtime/infrastructure/models.py",
       "text": "max_length=100, null=True, blank=True, help_text=\"Current step key\""
     },
     {
-      "line": 225,
+      "line": 313,
       "path": "apps/agent_runtime/infrastructure/models.py",
       "text": "help_text=\"Current approval status\","
     },
     {
-      "line": 485,
+      "line": 573,
       "path": "apps/agent_runtime/infrastructure/models.py",
       "text": "message = models.TextField(help_text=\"Human-readable summary\")"
     },
