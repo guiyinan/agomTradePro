@@ -226,6 +226,113 @@ def test_legacy_data_center_payload_remains_loadable_without_screen_patch() -> N
     validate_tui_metadata(normalized)
 
 
+@pytest.mark.parametrize(
+    ("alias", "canonical"),
+    (
+        ("macro-regime.beta-gate", "macro-regime.strategy"),
+        ("macro-regime.hedge", "macro-regime.strategy"),
+        ("macro-regime.pulse", "macro-regime.overview"),
+    ),
+)
+def test_macro_aliases_use_canonical_ia_without_screen_patches(alias: str, canonical: str) -> None:
+    """Macro aliases retain canonical IA panels after dead-patch removal."""
+
+    from apps.terminal.infrastructure.tui_information_architecture import screen_aliases
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        RUNTIME_SCREEN_PATCHES,
+        PublishedTuiMetadataRepository,
+    )
+
+    registry = load_json_payload(IA_PATH)
+    aliases = screen_aliases(registry)
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    runtime_screens = {str(screen["key"]): screen for screen in runtime["screens"]}
+    ia_screens = {
+        str(screen["key"]): screen
+        for screen in [*registry["published_screens"], *registry["runtime_screens"]]
+    }
+
+    assert aliases[alias] == canonical
+    assert alias not in RUNTIME_SCREEN_PATCHES
+    assert alias not in runtime_screens
+    assert [
+        panel.get("action_key")
+        for panel in runtime_screens[canonical]["dashboard_panels"]
+        if panel.get("action_key")
+    ] == [
+        panel.get("action_key")
+        for panel in ia_screens[canonical]["dashboard_panels"]
+        if panel.get("action_key")
+    ]
+    assert [panel["key"] for panel in runtime_screens[canonical]["dashboard_panels"]] == [
+        panel["key"] for panel in ia_screens[canonical]["dashboard_panels"]
+    ]
+
+
+def _legacy_macro_payload(screen_key: str) -> dict[str, Any]:
+    """Return a minimal legacy payload for macro screen-patch compatibility checks."""
+
+    return {
+        "version": "legacy-macro",
+        "default_screen": screen_key,
+        "groups": [{"key": "daily", "label": "Daily"}],
+        "modules": [
+            {
+                "key": "daily-decisions",
+                "label": "Daily",
+                "group": "daily",
+                "summary": "Legacy daily decisions.",
+            }
+        ],
+        "screens": [
+            {
+                "key": screen_key,
+                "label": f"Legacy {screen_key}",
+                "module_key": "daily-decisions",
+                "group": "daily",
+                "summary": "Legacy macro summary.",
+                "view_type": "status",
+                "default_action_key": "legacy.macro.list",
+                "dashboard_panels": [],
+            }
+        ],
+        "actions": [
+            {
+                "key": "legacy.macro.list",
+                "label": "Legacy macro list",
+                "endpoint": "/api/legacy/macro/",
+                "intent": "legacy_macro",
+                "screen_key": screen_key,
+                "module_key": "daily-decisions",
+                "view_type": "status",
+            }
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    "screen_key",
+    ("macro-regime.beta-gate", "macro-regime.hedge", "macro-regime.pulse"),
+)
+def test_legacy_macro_payload_remains_loadable_without_screen_patch(screen_key: str) -> None:
+    """Legacy macro payloads keep their own contract after dead-patch removal."""
+
+    from apps.terminal.application.tui_metadata import validate_tui_metadata
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        PublishedTuiMetadataRepository,
+    )
+
+    normalized = PublishedTuiMetadataRepository().validate_and_normalize_runtime_payload(
+        _legacy_macro_payload(screen_key)
+    )
+    screen = next(item for item in normalized["screens"] if item["key"] == screen_key)
+    assert screen["label"] == f"Legacy {screen_key}"
+    assert screen["dashboard_panels"] == []
+    assert not normalized.get("coverage_summary", {}).get("runtime_patched_screens")
+    assert "legacy.macro.list" in {action["key"] for action in normalized["actions"]}
+    validate_tui_metadata(normalized)
+
+
 def test_research_signals_screen_patch_removed_after_ia_cutover() -> None:
     """The canonical IA screen owns research.signals after patch removal."""
 
