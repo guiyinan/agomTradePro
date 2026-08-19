@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4275,
+    "current_surface_references": 4269,
     "data_write_task_decorators": 59,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20826,36 +20826,6 @@
       "line": 103,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_execution.py",
       "text": "\"key\": \"account-settings-governance-summary\","
-    },
-    {
-      "line": 112,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_macro_data.py",
-      "text": "\"key\": \"hedge-latest-snapshots\","
-    },
-    {
-      "line": 115,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_macro_data.py",
-      "text": "\"action_key\": \"auto.api.get.api.hedge.snapshots.latest\","
-    },
-    {
-      "line": 147,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_macro_data.py",
-      "text": "\"default_action_key\": \"pulse.current\","
-    },
-    {
-      "line": 157,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_macro_data.py",
-      "text": "\"key\": \"pulse-current\","
-    },
-    {
-      "line": 160,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_macro_data.py",
-      "text": "\"action_key\": \"pulse.current\","
-    },
-    {
-      "line": 162,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_macro_data.py",
-      "text": "\"layout_area\": \"current\","
     },
     {
       "line": 38,
