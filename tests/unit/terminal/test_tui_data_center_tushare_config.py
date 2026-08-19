@@ -1,10 +1,20 @@
 """TUI contract coverage for explicit Tushare connection configuration."""
 
+from pathlib import Path
+
+from apps.terminal.infrastructure.tui_metadata_repository import (
+    PublishedTuiMetadataRepository,
+)
 from apps.terminal.infrastructure.tui_metadata_runtime_injection_data_center import (
     RUNTIME_DATA_CENTER_ACTIONS,
 )
-from apps.terminal.infrastructure.tui_metadata_runtime_screen_patch_macro_data import (
-    RUNTIME_SCREEN_PATCHES_MACRO_DATA,
+
+PUBLISHED_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "config"
+    / "tui"
+    / "published"
+    / "tui_operation_graph.published.json"
 )
 
 
@@ -51,7 +61,12 @@ def test_tui_exposes_typed_tushare_create_and_provider_update_actions() -> None:
 
 
 def test_data_center_dashboard_surfaces_connection_mode_and_row_operations() -> None:
-    screen = RUNTIME_SCREEN_PATCHES_MACRO_DATA["api-library.data-center"]
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    screen = next(
+        screen for screen in runtime["screens"] if screen["key"] == "api-library.data-center"
+    )
+    assert screen["label"] == "数据与系统健康"
+    assert screen["default_action_key"] == "auto.api.get.api.health"
     panels = {
         str(panel["key"]): panel for panel in screen["dashboard_panels"] if isinstance(panel, dict)
     }

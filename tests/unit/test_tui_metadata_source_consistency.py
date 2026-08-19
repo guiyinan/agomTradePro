@@ -119,6 +119,113 @@ def test_execution_audit_screen_patch_is_not_registered_after_ia_cutover() -> No
     ]
 
 
+def test_data_center_screen_patch_is_not_registered_after_ia_cutover() -> None:
+    """The canonical IA screen owns data-center panels and row actions."""
+
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        RUNTIME_SCREEN_PATCHES,
+        PublishedTuiMetadataRepository,
+    )
+
+    ia = load_json_payload(IA_PATH)
+    ia_screen = next(
+        screen for screen in ia["published_screens"] if screen["key"] == "api-library.data-center"
+    )
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    runtime_screen = next(
+        screen for screen in runtime["screens"] if screen["key"] == "api-library.data-center"
+    )
+    assert "api-library.data-center" not in RUNTIME_SCREEN_PATCHES
+    for key in ("label", "summary", "view_type", "default_action_key", "user_experience"):
+        assert runtime_screen[key] == ia_screen[key]
+
+    ia_panels = {
+        str(panel["key"]): panel
+        for panel in ia_screen["dashboard_panels"]
+        if isinstance(panel, dict)
+    }
+    runtime_panels = {
+        str(panel["key"]): panel
+        for panel in runtime_screen["dashboard_panels"]
+        if isinstance(panel, dict)
+    }
+    assert set(ia_panels) <= set(runtime_panels)
+    ia_provider = ia_panels["data-center-providers"]
+    runtime_provider = runtime_panels["data-center-providers"]
+    assert [
+        column["key"] for column in runtime_provider["columns"] if isinstance(column, dict)
+    ] == [column["key"] for column in ia_provider["columns"] if isinstance(column, dict)]
+    assert {
+        action["action_key"]
+        for action in runtime_provider["row_actions"]
+        if isinstance(action, dict)
+    } == {action["action_key"] for action in ia_provider["row_actions"] if isinstance(action, dict)}
+    assert "data-center-provider-receipt" in runtime_panels
+
+
+def _legacy_data_center_payload() -> dict[str, Any]:
+    """Return a minimal legacy payload for screen-patch compatibility checks."""
+
+    return {
+        "version": "legacy-data-center",
+        "default_screen": "api-library.data-center",
+        "groups": [{"key": "system", "label": "System"}],
+        "modules": [
+            {
+                "key": "system-governance",
+                "label": "System Governance",
+                "group": "system",
+                "summary": "Legacy system governance.",
+            }
+        ],
+        "screens": [
+            {
+                "key": "api-library.data-center",
+                "label": "Legacy Data Center",
+                "module_key": "system-governance",
+                "group": "system",
+                "summary": "Legacy data center summary.",
+                "view_type": "status",
+                "default_action_key": "legacy.data-center.list",
+            }
+        ],
+        "actions": [
+            {
+                "key": "legacy.data-center.list",
+                "label": "Legacy data center list",
+                "endpoint": "/api/legacy/data-center/",
+                "intent": "legacy_data_center",
+                "screen_key": "api-library.data-center",
+                "module_key": "system-governance",
+                "view_type": "status",
+            }
+        ],
+    }
+
+
+def test_legacy_data_center_payload_remains_loadable_without_screen_patch() -> None:
+    """Legacy payloads keep their own screen contract after dead-patch removal."""
+
+    from apps.terminal.application.tui_metadata import validate_tui_metadata
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        PublishedTuiMetadataRepository,
+    )
+
+    normalized = PublishedTuiMetadataRepository().validate_and_normalize_runtime_payload(
+        _legacy_data_center_payload()
+    )
+    screen = next(
+        screen for screen in normalized["screens"] if screen["key"] == "api-library.data-center"
+    )
+    assert screen["label"] == "Legacy Data Center"
+    assert screen["dashboard_panels"] == []
+    assert not normalized.get("coverage_summary", {}).get("runtime_patched_screens")
+    action_keys = {action["key"] for action in normalized["actions"]}
+    assert "legacy.data-center.list" in action_keys
+    assert "data-center.provider-update" in action_keys
+    validate_tui_metadata(normalized)
+
+
 def test_research_signals_screen_patch_removed_after_ia_cutover() -> None:
     """The canonical IA screen owns research.signals after patch removal."""
 

@@ -7501,7 +7501,8 @@ def test_tui_metadata_repository_db_reload_keeps_runtime_coverage_stable():
     assert loaded["coverage_summary"]["runtime_pruned_redundant_screen_actions"] == 0
 
 
-def test_tui_metadata_repository_keeps_valid_dashboard_panels_when_one_action_is_missing():
+def test_tui_metadata_repository_does_not_invent_legacy_dashboard_panels():
+    """Legacy payloads keep their own screen contract after dead-patch removal."""
     payload = _metadata_payload(
         actions=[
             {
@@ -7537,10 +7538,7 @@ def test_tui_metadata_repository_keeps_valid_dashboard_panels_when_one_action_is
     panels = screen["dashboard_panels"]
 
     assert screen["default_action_key"] == "auto.api.get.api.asset-analysis.pool-summary"
-    assert [panel["action_key"] for panel in panels] == [
-        "auto.api.get.api.asset-analysis.pool-summary"
-    ]
-    assert [panel["title"] for panel in panels] == ["一、资产池概览"]
+    assert panels == []
 
 
 def test_tui_metadata_repository_skips_dashboard_patch_when_panel_actions_are_absent():
