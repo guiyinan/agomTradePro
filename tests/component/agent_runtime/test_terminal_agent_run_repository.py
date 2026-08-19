@@ -1,11 +1,17 @@
-"""Repository-contract tests for the dormant Terminal Agent run ledger."""
+"""Database-backed contract tests for the dormant Terminal Agent run ledger.
+
+The default SQLite run covers repository behavior quickly.  The PostgreSQL
+cases are opt-in through ``tests.settings_terminal_agent_run_postgres`` and a
+disposable database URL; they are the only evidence for cross-connection row
+locking and rollback visibility.
+"""
 
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
-from threading import Barrier
+from threading import Barrier, Event
 from uuid import uuid4
 
 import pytest
@@ -233,3 +239,62 @@ def test_postgresql_concurrent_claim_has_one_winner(repository, owner, task):
         )
 
     assert sorted(value is not None for value in results) == [False, True]
+
+
+@pytest.mark.skipif(
+    connection.vendor != "postgresql",
+    reason="PostgreSQL rollback visibility evidence requires an explicit PostgreSQL backend",
+)
+def test_postgresql_outer_rollback_is_not_visible_to_second_connection(repository, owner, task):
+    """A second connection never observes a run whose admitting transaction rolls back."""
+
+    request = _request(owner_id=owner.id, task_id=task.id, suffix="rollback-pg")
+    inserted = Event()
+    inspected = Event()
+    release_rollback = Event()
+    observations: list[bool] = []
+
+    def _admit_then_rollback() -> None:
+        """Insert inside an outer transaction and roll it back after inspection."""
+
+        close_old_connections()
+        try:
+            with transaction.atomic():
+                repository.submit(request)
+                inserted.set()
+                assert inspected.wait(timeout=10)
+                assert release_rollback.wait(timeout=10)
+                raise RuntimeError("TAR-02 PostgreSQL rollback evidence sentinel")
+        except RuntimeError as error:
+            assert str(error) == "TAR-02 PostgreSQL rollback evidence sentinel"
+        finally:
+            connections["default"].close()
+
+    def _observe_from_second_connection() -> None:
+        """Observe uncommitted and post-rollback visibility from another connection."""
+
+        close_old_connections()
+        try:
+            assert inserted.wait(timeout=10)
+            observations.append(
+                TerminalAgentRunModel.objects.filter(
+                    run_id=request.submission.selector.run_id
+                ).exists()
+            )
+            inspected.set()
+            # Release the admitting transaction only after this connection has
+            # observed the uncommitted row as invisible.
+            release_rollback.set()
+        finally:
+            connections["default"].close()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        admission = executor.submit(_admit_then_rollback)
+        observer = executor.submit(_observe_from_second_connection)
+        observer.result(timeout=20)
+        admission.result(timeout=20)
+
+    observations.append(
+        TerminalAgentRunModel.objects.filter(run_id=request.submission.selector.run_id).exists()
+    )
+    assert observations == [False, False]
