@@ -14,6 +14,14 @@ from apps.agent_runtime.application.terminal_runtime_queue_policy import (
     TERMINAL_AGENT_QUEUE_NAME,
     TERMINAL_AGENT_STREAM_NAMESPACE,
 )
+from apps.agent_runtime.application.terminal_runtime_slo import (
+    terminal_runtime_slo_criteria,
+)
+from apps.agent_runtime.application.terminal_runtime_test_matrix import (
+    canonical_terminal_runtime_test_matrix,
+    canonical_terminal_runtime_test_matrix_digest,
+    canonical_terminal_runtime_threat_ids,
+)
 from apps.agent_runtime.domain.terminal_agent_run_contract import (
     TerminalRunStatus,
     TerminalRuntimeMode,
@@ -182,4 +190,31 @@ def test_manifest_freezes_complete_baseline_candidate_identity() -> None:
     assert baseline["required_concurrency_levels"] == [1, 5, 10, 20]
     assert baseline["samples_must_share_exact_candidate_identity"] is True
     assert baseline["capacity_ready_requires_complete_observed_metrics"] is True
+    assert baseline["capacity_ready_requires_all_hard_slos"] is True
+    assert baseline["canonical_test_matrix_digest"] == (
+        canonical_terminal_runtime_test_matrix_digest()
+    )
     assert baseline["production_evidence_status"] == "not_runtime"
+
+
+def test_manifest_binds_hard_slos_threats_and_deterministic_matrix() -> None:
+    """The machine ADR cannot claim protections absent from the pure contracts."""
+
+    manifest = _manifest()
+    slo_contract = manifest["slo_contract"]
+    assert isinstance(slo_contract, dict)
+    assert set(slo_contract["required_measurements"]) == {
+        criterion.key for criterion in terminal_runtime_slo_criteria()
+    }
+    assert slo_contract["unavailable_or_threshold_breach"] == "capacity_gate_blocked"
+
+    threat_model = manifest["threat_model"]
+    assert isinstance(threat_model, dict)
+    assert set(threat_model["required_ids"]) == canonical_terminal_runtime_threat_ids()
+
+    matrix = manifest["test_matrix"]
+    assert isinstance(matrix, dict)
+    assert set(matrix["required_layers"]) == {
+        scenario.layer for scenario in canonical_terminal_runtime_test_matrix()
+    }
+    assert matrix["canonical_digest"] == canonical_terminal_runtime_test_matrix_digest()

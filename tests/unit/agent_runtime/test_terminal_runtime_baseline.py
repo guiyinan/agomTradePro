@@ -19,6 +19,15 @@ from apps.agent_runtime.application.terminal_runtime_baseline import (
     required_baseline_metric_keys,
     required_concurrency_levels,
 )
+from apps.agent_runtime.application.terminal_runtime_slo import (
+    TerminalRuntimeSloMeasurement,
+    TerminalRuntimeSloReport,
+    TerminalRuntimeSloStatus,
+    terminal_runtime_slo_criteria,
+)
+from apps.agent_runtime.application.terminal_runtime_test_matrix import (
+    canonical_terminal_runtime_test_matrix_digest,
+)
 
 NOW = datetime(2026, 8, 18, 12, 0, tzinfo=UTC)
 CANDIDATE = "a" * 40
@@ -28,7 +37,7 @@ CANDIDATE_IDENTITY = TerminalRuntimeBaselineCandidate(
     candidate_release=RELEASE,
     oci_revision="b" * 40,
     runtime_manifest_digest="c" * 64,
-    test_matrix_digest="d" * 64,
+    test_matrix_digest=canonical_terminal_runtime_test_matrix_digest(),
 )
 
 
@@ -68,9 +77,35 @@ def _sample(
     )
 
 
+def _slo_report(*, violation: str | None = None) -> TerminalRuntimeSloReport:
+    measurements = []
+    for criterion in terminal_runtime_slo_criteria():
+        value = criterion.threshold
+        if criterion.key == violation:
+            value = criterion.threshold + 1
+        measurements.append(
+            TerminalRuntimeSloMeasurement(
+                key=criterion.key,
+                status=TerminalRuntimeSloStatus.OBSERVED,
+                value=value,
+            )
+        )
+    return TerminalRuntimeSloReport(
+        environment="staging",
+        candidate_commit=CANDIDATE_IDENTITY.candidate_commit,
+        candidate_release=CANDIDATE_IDENTITY.candidate_release,
+        oci_revision=CANDIDATE_IDENTITY.oci_revision,
+        runtime_manifest_digest=CANDIDATE_IDENTITY.runtime_manifest_digest,
+        test_matrix_digest=CANDIDATE_IDENTITY.test_matrix_digest,
+        captured_at=NOW,
+        measurements=tuple(measurements),
+    )
+
+
 def test_report_requires_all_four_levels_and_is_ready_only_when_observed() -> None:
     report = TerminalRuntimeBaselineReport(
-        samples=tuple(_sample(level) for level in sorted(required_concurrency_levels()))
+        samples=tuple(_sample(level) for level in sorted(required_concurrency_levels())),
+        slo_report=_slo_report(),
     )
 
     assert report.candidate_bound is True
@@ -80,10 +115,22 @@ def test_report_requires_all_four_levels_and_is_ready_only_when_observed() -> No
         samples=tuple(
             _sample(level, unavailable="model_latency_ms")
             for level in sorted(required_concurrency_levels())
-        )
+        ),
+        slo_report=_slo_report(),
     )
     assert incomplete.candidate_bound is True
     assert incomplete.ready_for_capacity_gate is False
+
+    no_slo = TerminalRuntimeBaselineReport(
+        samples=tuple(_sample(level) for level in sorted(required_concurrency_levels()))
+    )
+    assert no_slo.ready_for_capacity_gate is False
+
+    breached = TerminalRuntimeBaselineReport(
+        samples=tuple(_sample(level) for level in sorted(required_concurrency_levels())),
+        slo_report=_slo_report(violation="run_api_p95_ms"),
+    )
+    assert breached.ready_for_capacity_gate is False
 
 
 def test_report_rejects_missing_or_duplicate_concurrency_level() -> None:

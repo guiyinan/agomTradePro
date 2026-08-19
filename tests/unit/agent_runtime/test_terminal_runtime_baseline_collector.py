@@ -23,13 +23,22 @@ from apps.agent_runtime.application.terminal_runtime_baseline_collector import (
     TerminalRuntimeBaselineObservationError,
     TerminalRuntimeBaselineObservationRequest,
 )
+from apps.agent_runtime.application.terminal_runtime_slo import (
+    TerminalRuntimeSloMeasurement,
+    TerminalRuntimeSloReport,
+    TerminalRuntimeSloStatus,
+    terminal_runtime_slo_criteria,
+)
+from apps.agent_runtime.application.terminal_runtime_test_matrix import (
+    canonical_terminal_runtime_test_matrix_digest,
+)
 
 CANDIDATE = TerminalRuntimeBaselineCandidate(
     candidate_commit="a" * 40,
     candidate_release="20260819090000",
     oci_revision="b" * 40,
     runtime_manifest_digest="c" * 64,
-    test_matrix_digest="d" * 64,
+    test_matrix_digest=canonical_terminal_runtime_test_matrix_digest(),
 )
 NOW = datetime(2026, 8, 19, 9, 0, tzinfo=UTC)
 
@@ -72,7 +81,9 @@ class _FakeObserver:
     unavailable: str | None = None
     wrong_candidate: TerminalRuntimeBaselineCandidate | None = None
     wrong_concurrency: int | None = None
+    slo_violation: str | None = None
     calls: list[TerminalRuntimeBaselineObservationRequest] = field(default_factory=list)
+    slo_calls: list[TerminalRuntimeBaselineCollectionRequest] = field(default_factory=list)
 
     def observe(
         self,
@@ -86,6 +97,37 @@ class _FakeObserver:
             unavailable=self.unavailable,
             candidate=self.wrong_candidate or request.candidate_identity,
             concurrency=self.wrong_concurrency,
+        )
+
+    def observe_slo(
+        self,
+        request: TerminalRuntimeBaselineCollectionRequest,
+    ) -> TerminalRuntimeSloReport:
+        """Return deterministic hard-SLO evidence for the requested candidate."""
+
+        self.slo_calls.append(request)
+        measurements = []
+        for criterion in terminal_runtime_slo_criteria():
+            value = criterion.threshold
+            if criterion.key == self.slo_violation:
+                value = criterion.threshold + 1
+            measurements.append(
+                TerminalRuntimeSloMeasurement(
+                    key=criterion.key,
+                    status=TerminalRuntimeSloStatus.OBSERVED,
+                    value=value,
+                )
+            )
+        candidate = request.candidate_identity
+        return TerminalRuntimeSloReport(
+            environment=request.environment,
+            candidate_commit=candidate.candidate_commit,
+            candidate_release=candidate.candidate_release,
+            oci_revision=candidate.oci_revision,
+            runtime_manifest_digest=candidate.runtime_manifest_digest,
+            test_matrix_digest=candidate.test_matrix_digest,
+            captured_at=NOW,
+            measurements=tuple(measurements),
         )
 
 
@@ -102,6 +144,7 @@ def test_collector_requests_each_level_once_and_returns_complete_report() -> Non
     report = TerminalRuntimeBaselineCollector(observer).collect(_request())
 
     assert [call.concurrency for call in observer.calls] == [1, 5, 10, 20]
+    assert observer.slo_calls == [_request()]
     assert report.candidate_bound is True
     assert report.ready_for_capacity_gate is True
 
@@ -113,6 +156,17 @@ def test_collector_rejects_unavailable_metrics_before_returning_capacity_evidenc
         TerminalRuntimeBaselineCollector(observer).collect(_request())
 
     assert len(observer.calls) == 1
+    assert observer.slo_calls == []
+
+
+def test_collector_rejects_observed_metrics_when_a_hard_slo_is_breached() -> None:
+    observer = _FakeObserver(slo_violation="run_api_p95_ms")
+
+    with pytest.raises(TerminalRuntimeBaselineObservationError, match="does not satisfy"):
+        TerminalRuntimeBaselineCollector(observer).collect(_request())
+
+    assert len(observer.calls) == 4
+    assert len(observer.slo_calls) == 1
 
 
 def test_collector_rejects_candidate_or_level_substitution() -> None:
@@ -121,7 +175,7 @@ def test_collector_rejects_candidate_or_level_substitution() -> None:
         candidate_release="20260819090000",
         oci_revision="b" * 40,
         runtime_manifest_digest="c" * 64,
-        test_matrix_digest="d" * 64,
+        test_matrix_digest=canonical_terminal_runtime_test_matrix_digest(),
     )
     with pytest.raises(TerminalRuntimeBaselineObservationError, match="candidate"):
         TerminalRuntimeBaselineCollector(_FakeObserver(wrong_candidate=wrong_candidate)).collect(

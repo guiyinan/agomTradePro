@@ -16,6 +16,11 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Final
 
+from apps.agent_runtime.application.terminal_runtime_slo import TerminalRuntimeSloReport
+from apps.agent_runtime.application.terminal_runtime_test_matrix import (
+    canonical_terminal_runtime_test_matrix_digest,
+)
+
 
 class TerminalRuntimeBaselineContractError(ValueError):
     """Raised when a runtime baseline observation is malformed or incomplete."""
@@ -273,6 +278,7 @@ class TerminalRuntimeBaselineReport:
     """Complete four-level baseline evidence for one environment/candidate."""
 
     samples: tuple[TerminalRuntimeBaselineSample, ...]
+    slo_report: TerminalRuntimeSloReport | None = None
 
     def __post_init__(self) -> None:
         """Require exactly one sample for each planned concurrency level."""
@@ -292,6 +298,27 @@ class TerminalRuntimeBaselineReport:
             raise TerminalRuntimeBaselineContractError(
                 "baseline report samples must share environment and candidate"
             )
+        if self.slo_report is not None:
+            if type(self.slo_report) is not TerminalRuntimeSloReport:
+                raise TerminalRuntimeBaselineContractError("hard SLO report type was substituted")
+            try:
+                self.slo_report.validate()
+            except (AttributeError, TypeError, ValueError) as exc:
+                raise TerminalRuntimeBaselineContractError(
+                    "hard SLO report failed canonical validation"
+                ) from exc
+            candidate = self.samples[0].candidate_identity
+            if candidate is None or (
+                self.slo_report.environment != self.samples[0].environment
+                or self.slo_report.candidate_commit != candidate.candidate_commit
+                or self.slo_report.candidate_release != candidate.candidate_release
+                or self.slo_report.oci_revision != candidate.oci_revision
+                or self.slo_report.runtime_manifest_digest != candidate.runtime_manifest_digest
+                or self.slo_report.test_matrix_digest != candidate.test_matrix_digest
+            ):
+                raise TerminalRuntimeBaselineContractError(
+                    "hard SLO report must share environment and candidate"
+                )
 
     @property
     def candidate_bound(self) -> bool:
@@ -301,9 +328,16 @@ class TerminalRuntimeBaselineReport:
 
     @property
     def ready_for_capacity_gate(self) -> bool:
-        """Return whether all planned levels have complete observed metrics."""
+        """Return whether metrics, matrix binding, and all hard SLOs pass."""
 
-        return self.candidate_bound and all(sample.all_metrics_observed for sample in self.samples)
+        candidate = self.samples[0].candidate_identity
+        return (
+            candidate is not None
+            and candidate.test_matrix_digest == canonical_terminal_runtime_test_matrix_digest()
+            and all(sample.all_metrics_observed for sample in self.samples)
+            and self.slo_report is not None
+            and self.slo_report.ready_for_capacity_gate
+        )
 
 
 def required_baseline_metric_keys() -> frozenset[str]:

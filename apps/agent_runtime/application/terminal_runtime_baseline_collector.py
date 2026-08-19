@@ -19,6 +19,10 @@ from apps.agent_runtime.application.terminal_runtime_baseline import (
     TerminalRuntimeBaselineSample,
     required_concurrency_levels,
 )
+from apps.agent_runtime.application.terminal_runtime_slo import TerminalRuntimeSloReport
+from apps.agent_runtime.application.terminal_runtime_test_matrix import (
+    canonical_terminal_runtime_test_matrix_digest,
+)
 
 
 class TerminalRuntimeBaselineObservationError(TerminalRuntimeBaselineContractError):
@@ -79,7 +83,11 @@ class TerminalRuntimeBaselineCollectionRequest:
         """Validate the collection identity before any observation is requested."""
 
         _require_environment(self.environment)
-        _validated_candidate(self.candidate_identity)
+        candidate = _validated_candidate(self.candidate_identity)
+        if candidate.test_matrix_digest != canonical_terminal_runtime_test_matrix_digest():
+            raise TerminalRuntimeBaselineObservationError(
+                "candidate test matrix digest does not match the canonical matrix"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +120,14 @@ class TerminalRuntimeBaselineObservationPort(Protocol):
         request: TerminalRuntimeBaselineObservationRequest,
     ) -> TerminalRuntimeBaselineSample:
         """Return one real observation without changing its requested identity."""
+
+        ...
+
+    def observe_slo(
+        self,
+        request: TerminalRuntimeBaselineCollectionRequest,
+    ) -> TerminalRuntimeSloReport:
+        """Return hard-SLO evidence for the same immutable candidate."""
 
         ...
 
@@ -186,9 +202,22 @@ class TerminalRuntimeBaselineCollector:
                 )
             samples.append(sample)
 
-        report = TerminalRuntimeBaselineReport(samples=tuple(samples))
+        slo_report = self._observer.observe_slo(request)
+        if type(slo_report) is not TerminalRuntimeSloReport:
+            raise TerminalRuntimeBaselineObservationError(
+                "observation port returned an invalid hard SLO report"
+            )
+        try:
+            report = TerminalRuntimeBaselineReport(
+                samples=tuple(samples),
+                slo_report=slo_report,
+            )
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise TerminalRuntimeBaselineObservationError(
+                "observation port returned invalid hard SLO evidence"
+            ) from exc
         if not report.ready_for_capacity_gate:
             raise TerminalRuntimeBaselineObservationError(
-                "baseline report is not ready for a capacity gate"
+                "baseline report does not satisfy the capacity gate"
             )
         return report
