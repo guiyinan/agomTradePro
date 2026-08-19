@@ -119,6 +119,11 @@ def dispatch_system_audit_outbox_task(
             "Audit outbox dispatch unavailable (error_type=%s)",
             type(exc).__name__,
         )
+        if exc.reason_code in {"authority_not_wired", "authority_unavailable"}:
+            return BlockedSystemAuditOutboxDispatchResult(
+                requested=command.limit,
+                reason_code=exc.reason_code,
+            ).as_task_result()
         return _failure_result(reason_code=exc.reason_code, requested=command.limit)
     except Exception as exc:
         logger.warning(

@@ -923,3 +923,18 @@ actor/user 与 tenant/owner scope、有效窗口，并拒绝 snapshot 的 source
 接入 dispatcher/runtime registry，也没有 authenticated production authority lifecycle、durable
 publisher/receipt sink、beat/retry/requeue、Data Center 同 UOW 双写或生产 PostgreSQL/VPS 投递证据。
 `AUD-01` gate 保持阻断，`AUD-02/03` 继续等待依赖。
+
+## 实施记录（2026-08-19，AUD-01 authority-before-claim dispatcher wiring）
+
+`DispatchSystemAuditOutboxUseCase` 现在要求注入 server-issued authority preflight，并以 dispatch
+command 的同一 `as_of` 严格执行 `authority preflight → durable publisher preflight → claim_due`。
+authority 未接线、provider 异常、返回值类型替换或在该 PIT 已不可读时，dispatcher 分别以稳定
+`authority_not_wired` / `authority_unavailable` 失败关闭；task 投影为 `outcome=blocked`，且
+`claimed=delivered=failed=0`，不会先探测 publisher、不会 claim outbox。publisher 缺失仍保持既有
+`publisher_not_wired`，没有引入 memory 或 generic-events fallback。
+
+dispatcher/runtime/task 定向回归 `37 passed`，完整 `tests/unit/audit` 回归 `186 passed`；Ruff、
+Black、isort 与增量 mypy 均通过。该切片只完成本地调用顺序和 fail-closed wiring：生产 runtime
+仍没有 authenticated authority provider、durable publisher/receipt sink、beat/retry/requeue、
+Data Center 同 UOW 双写或 PostgreSQL/VPS 投递证据。因此 `AUD-01` 继续保持 `active`，
+`AUD-02/03` 继续等待依赖。

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -15,7 +15,7 @@ from apps.audit.infrastructure.system_audit_outbox_runtime import (
     get_system_audit_outbox_dispatcher,
 )
 
-NOW = datetime(2026, 8, 15, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 8, 15, 12, 0, tzinfo=UTC)
 
 
 def test_dispatch_task_rejects_invalid_limit_before_composition(
@@ -71,6 +71,44 @@ def test_dispatch_task_returns_blocked_before_any_claim_when_sink_is_unavailable
     assert result["claimed"] == 0
     assert result["delivered"] == 0
     assert result["failed"] == 0
+
+
+@pytest.mark.parametrize("reason_code", ["authority_not_wired", "authority_unavailable"])
+def test_dispatch_task_returns_blocked_for_authority_preflight_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    reason_code: str,
+) -> None:
+    """Authority failure is blocked with zero claim/delivery/failure counters."""
+
+    class AuthorityBlockedDispatcher:
+        def execute(self, command: object) -> object:
+            del command
+            raise SystemAuditOutboxDispatchUnavailable(
+                "authority is unavailable",
+                reason_code=reason_code,
+            )
+
+    monkeypatch.setattr(
+        tasks,
+        "get_system_audit_outbox_dispatcher",
+        lambda: AuthorityBlockedDispatcher(),
+    )
+
+    result = tasks.dispatch_system_audit_outbox_task.run(
+        limit=20,
+        worker_id="audit-worker",
+        as_of=NOW.isoformat(),
+    )
+
+    assert result == {
+        "outcome": "blocked",
+        "success": False,
+        "reason_code": reason_code,
+        "requested": 20,
+        "claimed": 0,
+        "delivered": 0,
+        "failed": 0,
+    }
 
 
 def test_dispatch_task_redacts_unexpected_composition_failure(

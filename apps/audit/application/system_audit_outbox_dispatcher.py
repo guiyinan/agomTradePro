@@ -20,6 +20,7 @@ from apps.audit.application.system_audit_composition import (
     SystemAuditPublisherContractViolation,
     inspect_canonical_system_audit_publisher,
 )
+from apps.audit.application.system_audit_query import SystemAuditReaderContext
 from apps.audit.domain.system_audit_event import SystemAuditEvent
 
 
@@ -43,6 +44,13 @@ class SystemAuditOutboxPublisher(Protocol):
 
     def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
         """Publish one immutable event and return an exact preservation receipt."""
+
+
+class SystemAuditOutboxAuthorityPreflight(Protocol):
+    """Injected server-issued authority check required before an outbox claim."""
+
+    def __call__(self, *, as_of: datetime) -> SystemAuditReaderContext:
+        """Return the scoped authority valid at the exact dispatch cutoff."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -155,24 +163,28 @@ class BlockedSystemAuditOutboxDispatchResult:
 
 
 class DispatchSystemAuditOutboxUseCase:
-    """Claim and publish a bounded batch without wiring a real publisher."""
+    """Claim and publish a bounded batch after authority and sink preflight."""
 
-    __slots__ = ("_repository", "_publisher", "_unit_of_work")
+    __slots__ = ("_repository", "_publisher", "_unit_of_work", "_authority_preflight")
 
     def __init__(
         self,
         repository: SystemAuditOutboxDispatchRepository,
         publisher: SystemAuditOutboxPublisher,
         unit_of_work: SystemAuditOutboxDispatchUnitOfWork,
+        *,
+        authority_preflight: SystemAuditOutboxAuthorityPreflight | None = None,
     ) -> None:
         self._repository = repository
         self._publisher = publisher
         self._unit_of_work = unit_of_work
+        self._authority_preflight = authority_preflight
 
     def execute(self, command: DispatchSystemAuditOutboxCommand) -> DispatchSystemAuditOutboxResult:
         """Claim, publish, and finalize one bounded batch."""
 
         self._validate(command)
+        self._preflight_authority(command)
         try:
             publisher, preflight = inspect_canonical_system_audit_publisher(self._publisher)
         except SystemAuditCompositionUnavailable as error:
@@ -253,6 +265,32 @@ class DispatchSystemAuditOutboxUseCase:
             failed=failed,
         )
 
+    def _preflight_authority(self, command: DispatchSystemAuditOutboxCommand) -> None:
+        """Require provider-issued authority before publisher or repository access."""
+
+        if self._authority_preflight is None:
+            raise SystemAuditOutboxDispatchUnavailable(
+                "system audit authority preflight is not wired",
+                reason_code="authority_not_wired",
+            )
+        try:
+            context = self._authority_preflight(as_of=command.as_of)
+        except SystemAuditCompositionUnavailable:
+            raise SystemAuditOutboxDispatchUnavailable(
+                "system audit authority is unavailable",
+                reason_code="authority_unavailable",
+            ) from None
+        except Exception:
+            raise SystemAuditOutboxDispatchUnavailable(
+                "system audit authority is unavailable",
+                reason_code="authority_unavailable",
+            ) from None
+        if type(context) is not SystemAuditReaderContext or not context.can_read_at(command.as_of):
+            raise SystemAuditOutboxDispatchUnavailable(
+                "system audit authority is unavailable",
+                reason_code="authority_unavailable",
+            )
+
     @staticmethod
     def _validate(command: DispatchSystemAuditOutboxCommand) -> None:
         if not isinstance(command.worker_id, str) or not command.worker_id:
@@ -277,4 +315,5 @@ __all__ = [
     "SystemAuditOutboxDispatchRepository",
     "SystemAuditOutboxDispatchUnavailable",
     "SystemAuditOutboxPublisher",
+    "SystemAuditOutboxAuthorityPreflight",
 ]

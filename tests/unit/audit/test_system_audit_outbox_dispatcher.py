@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -9,6 +10,7 @@ import pytest
 from apps.audit.application.system_audit_composition import (
     CanonicalSystemAuditPublisherPreflight,
     CanonicalSystemAuditPublishReceipt,
+    system_audit_authority_content_hash,
 )
 from apps.audit.application.system_audit_outbox_dispatcher import (
     DispatchSystemAuditOutboxCommand,
@@ -17,6 +19,7 @@ from apps.audit.application.system_audit_outbox_dispatcher import (
     SystemAuditOutboxDispatchConflict,
     SystemAuditOutboxDispatchUnavailable,
 )
+from apps.audit.application.system_audit_query import SystemAuditReaderContext
 from apps.audit.domain.system_audit_event import SystemAuditEvent
 from tests.unit.audit.test_system_audit_event import make_event
 
@@ -34,13 +37,44 @@ class UnitOfWork:
         self.depth -= 1
 
 
+class AuthorityPreflight:
+    def __init__(
+        self,
+        context: SystemAuditReaderContext | object,
+        *,
+        calls: list[str] | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        self.context = context
+        self.calls = calls if calls is not None else []
+        self.error = error
+        self.as_of_values: list[datetime] = []
+
+    def __call__(self, *, as_of: datetime) -> SystemAuditReaderContext:
+        self.calls.append("authority_preflight")
+        self.as_of_values.append(as_of)
+        if self.error is not None:
+            raise self.error
+        return cast(SystemAuditReaderContext, self.context)
+
+
 class Publisher:
-    def __init__(self, *, fail: bool = False, fail_event_ids: set[str] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        fail: bool = False,
+        fail_event_ids: set[str] | None = None,
+        calls: list[str] | None = None,
+    ) -> None:
         self.events = []
         self.fail = fail
         self.fail_event_ids = fail_event_ids or set()
+        self.calls = calls if calls is not None else []
+        self.preflight_calls = 0
 
     def preflight(self) -> CanonicalSystemAuditPublisherPreflight:
+        self.calls.append("publisher_preflight")
+        self.preflight_calls += 1
         return CanonicalSystemAuditPublisherPreflight(
             sink_id="test-sink",
             sink_kind="durable",
@@ -60,15 +94,22 @@ class Publisher:
 
 class Repository:
     def __init__(
-        self, claim: SystemAuditOutboxClaimDTO | tuple[SystemAuditOutboxClaimDTO, ...]
+        self,
+        claim: SystemAuditOutboxClaimDTO | tuple[SystemAuditOutboxClaimDTO, ...],
+        *,
+        calls: list[str] | None = None,
     ) -> None:
         self.claims = (claim,) if isinstance(claim, SystemAuditOutboxClaimDTO) else claim
         self.delivered = []
         self.failed = []
+        self.calls = calls if calls is not None else []
+        self.claim_calls = 0
 
     def claim_due(
         self, *, worker_id: str, as_of: datetime, limit: int
     ) -> tuple[SystemAuditOutboxClaimDTO, ...]:
+        self.calls.append("claim_due")
+        self.claim_calls += 1
         del as_of
         if limit < 1:
             return ()
@@ -108,10 +149,57 @@ def _claim(
     )
 
 
+def _authority_context() -> SystemAuditReaderContext:
+    recorded_at = NOW - timedelta(minutes=5)
+    valid_until = NOW + timedelta(minutes=5)
+    return SystemAuditReaderContext._from_authority(
+        authority_source_id="audit-authority-bundle:test",
+        authority_source_version="v1-test",
+        actor_id="django-user:7",
+        user_id=7,
+        tenant_id="tenant:primary",
+        owner_id="owner:research",
+        authority_content_hash=system_audit_authority_content_hash(
+            source_id="audit-authority-bundle:test",
+            source_version="v1-test",
+            actor_id="django-user:7",
+            user_id=7,
+            tenant_id="tenant:primary",
+            owner_id="owner:research",
+            is_authenticated=True,
+            is_staff=True,
+            role="audit_reader",
+            authority_state="active",
+            recorded_at=recorded_at,
+            valid_until=valid_until,
+        ),
+        is_authenticated=True,
+        is_staff=True,
+        role="audit_reader",
+        authority_state="active",
+        authority_recorded_at=recorded_at,
+        authority_valid_until=valid_until,
+    )
+
+
+def _use_case(
+    repository: Repository,
+    publisher: Publisher,
+    *,
+    authority_preflight: AuthorityPreflight | None = None,
+) -> DispatchSystemAuditOutboxUseCase:
+    return DispatchSystemAuditOutboxUseCase(
+        repository,
+        publisher,
+        UnitOfWork(),
+        authority_preflight=authority_preflight or AuthorityPreflight(_authority_context()),
+    )
+
+
 def test_dispatch_success_returns_stable_counters_and_outcome() -> None:
     repository = Repository(_claim())
     publisher = Publisher()
-    result = DispatchSystemAuditOutboxUseCase(repository, publisher, UnitOfWork()).execute(
+    result = _use_case(repository, publisher).execute(
         DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW)
     )
     assert (result.requested, result.claimed, result.delivered, result.failed) == (20, 1, 1, 0)
@@ -120,11 +208,76 @@ def test_dispatch_success_returns_stable_counters_and_outcome() -> None:
     assert len(repository.delivered) == 1
 
 
+def test_dispatch_authority_preflight_runs_before_publisher_and_claim() -> None:
+    calls: list[str] = []
+    repository = Repository(_claim(), calls=calls)
+    publisher = Publisher(calls=calls)
+    authority = AuthorityPreflight(_authority_context(), calls=calls)
+
+    result = DispatchSystemAuditOutboxUseCase(
+        repository,
+        publisher,
+        UnitOfWork(),
+        authority_preflight=authority,
+    ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
+
+    assert result.outcome == "success"
+    assert calls == ["authority_preflight", "publisher_preflight", "claim_due"]
+    assert authority.as_of_values == [NOW]
+
+
+@pytest.mark.parametrize(
+    "authority",
+    [
+        AuthorityPreflight(
+            _authority_context(),
+            error=RuntimeError("provider failure"),
+        ),
+        AuthorityPreflight(object()),
+    ],
+)
+def test_dispatch_authority_failure_or_substitution_blocks_before_sink_or_claim(
+    authority: AuthorityPreflight,
+) -> None:
+    repository = Repository(_claim())
+    publisher = Publisher()
+
+    with pytest.raises(SystemAuditOutboxDispatchUnavailable) as exc_info:
+        DispatchSystemAuditOutboxUseCase(
+            repository,
+            publisher,
+            UnitOfWork(),
+            authority_preflight=authority,
+        ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
+
+    assert exc_info.value.reason_code == "authority_unavailable"
+    assert publisher.preflight_calls == 0
+    assert repository.claim_calls == 0
+    assert repository.delivered == []
+    assert repository.failed == []
+
+
+def test_dispatch_missing_authority_preflight_blocks_before_sink_or_claim() -> None:
+    repository = Repository(_claim())
+    publisher = Publisher()
+
+    with pytest.raises(SystemAuditOutboxDispatchUnavailable) as exc_info:
+        DispatchSystemAuditOutboxUseCase(
+            repository,
+            publisher,
+            UnitOfWork(),
+        ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
+
+    assert exc_info.value.reason_code == "authority_not_wired"
+    assert publisher.preflight_calls == 0
+    assert repository.claim_calls == 0
+
+
 def test_dispatch_publisher_failure_is_bounded_and_marks_failed() -> None:
     repository = Repository(_claim())
-    result = DispatchSystemAuditOutboxUseCase(
-        repository, Publisher(fail=True), UnitOfWork()
-    ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
+    result = _use_case(repository, Publisher(fail=True)).execute(
+        DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW)
+    )
     assert (result.claimed, result.delivered, result.failed) == (1, 0, 1)
     assert result.outcome == "failed"
     assert repository.failed[0]["error_code"] == "publisher_error"
@@ -144,6 +297,7 @@ def test_dispatch_rejects_publisher_without_exact_preservation_receipt() -> None
             repository,
             NonCanonicalPublisher(),
             UnitOfWork(),
+            authority_preflight=AuthorityPreflight(_authority_context()),
         ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
 
     assert exc_info.value.reason_code == "publisher_contract_unavailable"
@@ -167,6 +321,7 @@ def test_dispatch_rejects_receipt_without_durable_delivery_proof() -> None:
         repository,
         EventOnlyPublisher(),
         UnitOfWork(),
+        authority_preflight=AuthorityPreflight(_authority_context()),
     ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
 
     assert (result.claimed, result.delivered, result.failed) == (1, 0, 1)
@@ -195,6 +350,7 @@ def test_dispatch_rejects_receipt_from_a_sink_other_than_preflight() -> None:
         repository,
         SinkSubstitutingPublisher(),
         UnitOfWork(),
+        authority_preflight=AuthorityPreflight(_authority_context()),
     ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
 
     assert (result.claimed, result.delivered, result.failed) == (1, 0, 1)
@@ -224,6 +380,7 @@ def test_dispatch_classifies_noncanonical_receipt_payload_as_contract_failure() 
         repository,
         MalformedPayloadPublisher(),
         UnitOfWork(),
+        authority_preflight=AuthorityPreflight(_authority_context()),
     ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
 
     assert (result.claimed, result.delivered, result.failed) == (1, 0, 1)
@@ -254,6 +411,7 @@ def test_dispatch_classifies_type_coerced_receipt_payload_as_contract_failure() 
         repository,
         TypeCoercingPublisher(),
         UnitOfWork(),
+        authority_preflight=AuthorityPreflight(_authority_context()),
     ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW))
 
     assert (result.claimed, result.delivered, result.failed) == (1, 0, 1)
@@ -267,10 +425,9 @@ def test_dispatch_mixed_batch_reports_partial_and_keeps_each_transition() -> Non
         event=make_event(event_id="evt-2", idempotency_key="fetch:run-2"),
     )
     repository = Repository((first, second))
-    result = DispatchSystemAuditOutboxUseCase(
+    result = _use_case(
         repository,
         Publisher(fail_event_ids={"evt-2"}),
-        UnitOfWork(),
     ).execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW, limit=2))
 
     assert (result.requested, result.claimed, result.delivered, result.failed) == (2, 2, 1, 1)
@@ -281,7 +438,7 @@ def test_dispatch_mixed_batch_reports_partial_and_keeps_each_transition() -> Non
 
 def test_dispatch_empty_batch_is_noop() -> None:
     repository = Repository(())
-    result = DispatchSystemAuditOutboxUseCase(repository, Publisher(), UnitOfWork()).execute(
+    result = _use_case(repository, Publisher()).execute(
         DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW)
     )
     assert (result.claimed, result.delivered, result.failed) == (0, 0, 0)
@@ -290,7 +447,7 @@ def test_dispatch_empty_batch_is_noop() -> None:
 
 def test_dispatch_rejects_invalid_command_and_transition_failure() -> None:
     repository = Repository(_claim())
-    use_case = DispatchSystemAuditOutboxUseCase(repository, Publisher(), UnitOfWork())
+    use_case = _use_case(repository, Publisher())
     with pytest.raises(Exception, match="limit"):
         use_case.execute(DispatchSystemAuditOutboxCommand(worker_id="worker-1", as_of=NOW, limit=0))
 
