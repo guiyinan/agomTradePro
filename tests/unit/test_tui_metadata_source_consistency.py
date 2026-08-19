@@ -226,6 +226,99 @@ def test_legacy_data_center_payload_remains_loadable_without_screen_patch() -> N
     validate_tui_metadata(normalized)
 
 
+def test_ai_provider_screen_patch_is_not_registered_after_ia_cutover() -> None:
+    """The canonical IA screen owns AI provider governance copy and panels."""
+
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        RUNTIME_SCREEN_PATCHES,
+        PublishedTuiMetadataRepository,
+    )
+
+    ia = load_json_payload(IA_PATH)
+    ia_screen = next(
+        screen for screen in ia["published_screens"] if screen["key"] == "ai-ops.providers"
+    )
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    runtime_screen = next(
+        screen for screen in runtime["screens"] if screen["key"] == "ai-ops.providers"
+    )
+
+    assert "ai-ops.providers" not in RUNTIME_SCREEN_PATCHES
+    for key in ("label", "summary", "view_type", "default_action_key", "user_experience"):
+        assert runtime_screen[key] == ia_screen[key]
+    assert [panel["key"] for panel in runtime_screen["dashboard_panels"]] == [
+        panel["key"] for panel in ia_screen["dashboard_panels"]
+    ]
+    assert [
+        panel.get("action_key")
+        for panel in runtime_screen["dashboard_panels"]
+        if panel.get("action_key")
+    ] == [
+        panel.get("action_key")
+        for panel in ia_screen["dashboard_panels"]
+        if panel.get("action_key")
+    ]
+
+
+def _legacy_ai_provider_payload() -> dict[str, Any]:
+    """Return a minimal non-IA payload for the retired patch boundary."""
+
+    return {
+        "version": "legacy-ai-provider",
+        "default_screen": "ai-ops.providers",
+        "groups": [{"key": "research", "label": "Research"}],
+        "modules": [
+            {
+                "key": "research-tools",
+                "label": "Research Tools",
+                "group": "research",
+                "summary": "Legacy research tools.",
+            }
+        ],
+        "screens": [
+            {
+                "key": "ai-ops.providers",
+                "label": "Legacy AI Providers",
+                "module_key": "research-tools",
+                "group": "research",
+                "summary": "Legacy AI provider summary.",
+                "view_type": "datagrid",
+                "default_action_key": "legacy.ai.providers",
+            }
+        ],
+        "actions": [
+            {
+                "key": "legacy.ai.providers",
+                "label": "Legacy AI provider list",
+                "endpoint": "/api/legacy/ai/providers/",
+                "intent": "legacy_ai_provider_list",
+                "screen_key": "ai-ops.providers",
+                "module_key": "research-tools",
+                "view_type": "datagrid",
+            }
+        ],
+    }
+
+
+def test_legacy_ai_provider_payload_remains_loadable_without_screen_patch() -> None:
+    """Legacy payloads keep their own contract after AI patch removal."""
+
+    from apps.terminal.application.tui_metadata import validate_tui_metadata
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        PublishedTuiMetadataRepository,
+    )
+
+    normalized = PublishedTuiMetadataRepository().validate_and_normalize_runtime_payload(
+        _legacy_ai_provider_payload()
+    )
+    screen = next(screen for screen in normalized["screens"] if screen["key"] == "ai-ops.providers")
+    assert screen["label"] == "Legacy AI Providers"
+    assert screen["dashboard_panels"] == []
+    assert not normalized.get("coverage_summary", {}).get("runtime_patched_screens")
+    assert "legacy.ai.providers" in {action["key"] for action in normalized["actions"]}
+    validate_tui_metadata(normalized)
+
+
 @pytest.mark.parametrize(
     ("alias", "canonical"),
     (

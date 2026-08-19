@@ -5,7 +5,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
-from apps.research.composition import make_evaluate_capability_readiness
+from apps.research.composition import (
+    make_evaluate_all_capability_readiness,
+    make_evaluate_capability_readiness,
+)
 from apps.research.domain.capability_readiness import (
     R1_REQUIREMENTS,
     R2_REQUIREMENTS,
@@ -13,6 +16,8 @@ from apps.research.domain.capability_readiness import (
     ReadinessRequirement,
     ReadinessState,
     ResearchCapability,
+    is_mechanism_attestable_requirement,
+    requirements_for,
 )
 
 NOW = datetime(2026, 8, 5, 12, tzinfo=UTC)
@@ -103,6 +108,24 @@ def test_r8_runtime_attests_optimizer_mechanisms_without_inventing_live_evidence
     assert states[ReadinessRequirement.OPTIMIZER_BASELINE_FAIL_CLOSED_POLICY] is (
         ReadinessState.VERIFIED
     )
+
+
+def test_all_capabilities_inventory_is_complete_and_live_requirements_remain_blocked() -> None:
+    """The STRAT-01 inventory cannot turn static mechanisms into live readiness."""
+
+    reports = make_evaluate_all_capability_readiness().execute(evaluated_at=NOW)
+
+    assert tuple(report.capability for report in reports) == tuple(ResearchCapability)
+    for report in reports:
+        requirements = requirements_for(report.capability)
+        assert tuple(item.requirement for item in report.evidence) == requirements
+        assert report.decision is ReadinessDecision.BLOCKED
+        assert report.blockers
+        for item in report.evidence:
+            if item.state is ReadinessState.VERIFIED:
+                assert is_mechanism_attestable_requirement(item.requirement)
+            else:
+                assert item.blocking_reason
 
 
 def test_runtime_verified_evidence_is_time_bounded_and_auditable() -> None:

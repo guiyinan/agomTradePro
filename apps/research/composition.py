@@ -1,6 +1,7 @@
 """Composition root for the Research registry and capability-readiness gates."""
 
 from apps.research.application.capability_readiness import (
+    EvaluateAllCapabilityReadinessUseCase,
     EvaluateCapabilityReadinessUseCase,
 )
 from apps.research.application.capability_readiness_registry import (
@@ -36,3 +37,9 @@ def make_evaluate_capability_readiness() -> EvaluateCapabilityReadinessUseCase:
     """Compose the fail-closed research-capability readiness use case."""
 
     return EvaluateCapabilityReadinessUseCase(make_capability_readiness_evidence_provider())
+
+
+def make_evaluate_all_capability_readiness() -> EvaluateAllCapabilityReadinessUseCase:
+    """Compose the read-only R1--R8 readiness inventory use case."""
+
+    return EvaluateAllCapabilityReadinessUseCase(make_capability_readiness_evidence_provider())

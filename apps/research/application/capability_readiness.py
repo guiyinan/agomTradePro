@@ -53,3 +53,32 @@ class EvaluateCapabilityReadinessUseCase:
             evaluated_at=evaluated_at,
             evidence=evidence,
         )
+
+
+class EvaluateAllCapabilityReadinessUseCase:
+    """Collect one complete, ordered readiness inventory for R1--R8.
+
+    This is a read-only aggregation over the same owner-scoped provider used
+    by the single-capability gate.  It deliberately does not merge evidence
+    between capabilities or infer a readiness decision from another report.
+    """
+
+    def __init__(self, evidence_provider: CapabilityReadinessEvidenceProvider) -> None:
+        """Retain only the single-capability evaluator used for each report."""
+
+        self._evaluate_one = EvaluateCapabilityReadinessUseCase(evidence_provider)
+
+    def execute(
+        self,
+        *,
+        evaluated_at: datetime,
+    ) -> tuple[CapabilityReadinessReport, ...]:
+        """Return one complete report per canonical R1--R8 capability."""
+
+        return tuple(
+            self._evaluate_one.execute(
+                capability=capability,
+                evaluated_at=evaluated_at,
+            )
+            for capability in ResearchCapability
+        )
