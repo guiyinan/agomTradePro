@@ -68,6 +68,8 @@
 | `qmt-live-bridge` | P2 | blocked_external | Broker Execution / 外部券商 Owner | [QMT 实盘桥](qmt-live-trading-bridge-plan.md) | Windows XtQuant Phase 0、连续仿真和受控小额实盘 |
 | `tui-usability-governance` | P1 | active | Terminal | [TUI 可用性与 metadata 治理](tui-usability-and-metadata-governance-plan-2026-08-18.md) | metadata 加载回退、三真源合一、auto action 文案重写回密度预算 |
 
+| 2026-08-20 | 第二期 P0 | TAR-01 当前 HEAD code-only upgrade 与部署后只读观测 | `80ea441e2fc83059415c46124b0676fd1705b3d0` / release `20260820062052`；verifier `0`，HTTPS health/ready/API 及未认证边界通过；无容量、角色写入、恢复演练或签字，生产 gate 保持 fail-closed |
+
 ## 限期审查队列
 
 **2026-08-15 已清空。** 剩余 7 项均已逐项对账、在原文写入收口说明并移入 [`../archive/plans/`](../archive/plans/)，未新开实现线：

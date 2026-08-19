@@ -1281,3 +1281,30 @@ This is a short-window, read-only observation only. No authenticated reserved-ro
 MCP/chaos metric, business write receipt, role UAT, restore/rollback or owner/reviewer
 evidence was collected; TAR-01/TAR-02/TAR-05 and the M5 production gates remain
 fail-closed.
+
+## 2026-08-20 22:39 UTC `80ea441e2` deployment and independent HTTPS observation
+
+The pushed `dev/next-development` HEAD `80ea441e2fc83059415c46124b0676fd1705b3d0` was
+deployed in code-only `-Upgrade` mode as release `20260820062052`; PostgreSQL and Redis
+volumes were preserved and Celery remained enabled. The local deployment report is
+`dist/remote-build-reports/remote-build-report-20260820062052.json`; the deployed image is
+`sha256:7c6c96a7e771641a011b6521d0c2901131e0dbc2c478cbeaa27cb716e8107720`.
+
+The built-in verifier exited `0`: release/image identity, Caddy/TLS, health, containers,
+Django deploy check, migrations/schema, TUI registry, Qlib (`pyqlib=0.9.7`, wrong `qlib`
+distribution absent), PostgreSQL backup, resources, Celery worker/beat and Celery ping all
+passed. Independent public HTTPS probes after the switch returned:
+
+| probe | result |
+|---|---|
+| `/api/health/` | `5/5` HTTP `200`, approximately `1.26–2.42s` |
+| `/api/ready/` | `3/3` HTTP `200`, approximately `4.91–10.16s`; database/Redis/Celery/critical-data checks reported healthy |
+| `/api/` | `3/3` HTTP `200`, approximately `1.08–1.11s` |
+| protected `/api/tui/`, `/api/terminal/runs/`, `/api/policy/status/`, `/api/signal/active/`, `/api/data-center/` | HTTP `403` with the unauthenticated boundary |
+| `/api/regime/current/` | HTTP `503`, `decision_runtime_blocked`, `must_not_use_for_decision=true` |
+
+This is deployment identity plus a short-window read-only observation. No authenticated role
+browser UAT, business write/receipt-refresh proof, 1/5/10/20 capacity or chaos run, queue/
+worker/SSE/idempotency/cancel/provider-MCP metrics, 14-day telemetry, restore/rollback drill,
+backfill/reconciliation, or owner/reviewer sign-off was performed; TAR-01/TAR-02/TAR-05 and
+the M5 production gates remain fail-closed.
