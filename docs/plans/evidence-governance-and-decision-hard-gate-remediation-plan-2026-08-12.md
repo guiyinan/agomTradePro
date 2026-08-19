@@ -2727,3 +2727,23 @@ approval proof。`EVID-02` 仍为 `awaiting_production`，registry exit gate、E
 不接 Risk Center approval/activation writer、不生成真实并发/回滚或人工审批证据。`EVID-02`
 仍为 `awaiting_production`，EVID-01 authority、生产双连接 first-winner/rollback、真实
 approval owner/reviewer 与 Evidence hard gate 继续保持 fail-closed。
+
+## 2026-08-19：EVID-01 当前 HEAD VPS authority inventory 只读验收
+
+当前 `dev/next-development@0ad5df129fbc5d0d6c3030287a0a88c83b6ae871` 已按 code-only、保留
+PostgreSQL/Redis 数据卷、Celery enabled 的 `-Upgrade` 流程发布为 release `20260819193755`，
+镜像为 `sha256:571940d6198ebe4c2c6b1774d8c51b4893d708d9e7d5e057c3890525d045898c`。部署
+verifier 对 Caddy domain/TLS、HTTPS health、容器、Django check、迁移/schema、TUI registry、
+Qlib、Celery ping 与部署前 PostgreSQL backup 全部通过；报告为
+`dist/remote-build-reports/remote-build-report-20260819193755.json`。
+
+在同一 release/web 容器内以 PostgreSQL 只读查询复核 account 0050–0053 migration，并逐表
+读取 EVID-01 约定的 12 张 authority/evidence ledger/root-lock 表；12 张表的 row count 均为
+`0`。机器证据落盘于
+[`docs/deployment/evid-01-authority-inventory-2026-08-19-1156.json`](../deployment/evid-01-authority-inventory-2026-08-19-1156.json)，
+结果固定为 `blocked_zero_seed_authority`。
+
+这一步只证明当前候选的运行身份、schema/migration 和 zero-seed 状态，不证明 authority
+lifecycle、authenticated owner/tenant provider、同 alias bundle、人工授权、生产 writer 或
+PostgreSQL race/rollback。严禁从 mutable User/Profile/session/request 现场 hash 或回填历史；
+`EVID-01` 继续 `active`，Evidence hard gate、写入与 execution 继续 fail-closed。
