@@ -608,6 +608,8 @@ M0 必须先完成全量 inventory；未登记事件不能被宣称已纳入统�
 
 退出条件：观察窗口无 P0 丢事件、重复、秘密泄漏、链路断裂或性能回退；回滚演练和负责人签字完成。
 
+M6 中 migration state、outbox backlog/oldest age、bounded metrics、alert/recovery、双写 count/hash/ref 差异、archive manifest/hash 与候选观察时长均应由代理从生产只读接口或快照自动采集。生产 migration/rollback、故障注入、archive/restore 和兼容链切换必须先取得精确授权；负责人签字不得自动生成。若 read model 或 collector 缺失，先在 `AUD-03` 内补 fail-closed collector，再继续观察，不把采集能力缺口当成外部阻塞。
+
 ## 12. 配置、保留与回滚
 
 ### 12.1 配置真源

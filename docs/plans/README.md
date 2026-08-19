@@ -14,8 +14,31 @@
 - `review_required` 不是长期状态，只允许出现在限期审查队列；到期必须合并、归档或转入明确工作流。
 - 唯一可执行待办是注册表内的 `closure_backlog.units`。主计划里的历史 `- [ ]` 仅作需求与验收来源，不再直接计数、排期或领取；新增细项必须归入既有 closure unit，或先通过注册表评审新增唯一 unit。
 - 同一 closure unit 的测试、文档、生产证据和回滚要求是一个验收包，不能拆成多份 plan 重复计算；依赖未完成的 unit 不得抢跑。
+- `production` / `awaiting_production` 描述证据来源和当前阶段，**不是代理停止状态**。在当前任务允许推进该 unit 时，代理必须先完成全部安全的只读采集、候选绑定、报告派生和 collector 缺口实现；只有剩余动作会改变生产状态、产生真实交易/外部费用，或必须由人/外部机构作出决定时，才请求授权或等待。
 - 归档时必须同步修正注册表、`docs/INDEX.md` 和活跃计划中的引用，不复制第二份文档。
 - 提交前运行 `python scripts/check_active_plan_registry.py`。
+
+## 生产证据自动采集纪律
+
+生产证据要求“来自真实生产源且可复核”，不要求人工抄录。机器真源中所有 `production` / `external` closure unit 都必须登记 `evidence_collection`，并分成三类：
+
+- `auto_collect`：默认主动执行。包括只读 API/数据库/指标/CI 查询、候选身份与 manifest 对账、下载已有备份、哈希校验、观察天数计算、缺陷/telemetry 快照派生、隔离恢复或回滚演练、浏览器确定性断言。原始响应、来源时间、候选身份和 hash 必须保留；collector 不接受调用方自报 `passed`。
+- `authorization_required`：代理先完成 preflight、dry-run、影响范围和回滚点，只对具体的生产写入、部署/切换、故障注入、备份创建/清理、付费调用或真实交易请求授权。授权动作完成后，后续只读取证继续自动执行。
+- `human_or_external_required`：真实审批、业务 UAT 判断、owner/reviewer 双签、券商权限和策略参数由相应主体完成；代理自动准备证据包、校验身份与完整性，但不得代签、补造或把“未回应”当通过。
+
+若某个退出门可机械验证但尚无 collector，缺口归入当前 closure unit 的 repository 工作：先实现幂等、fail-closed、候选绑定的采集器及测试，不能把“缺少采集器”误报成外部阻塞。只读监控任务仍遵守其自身的禁止写入范围，只报告采集结果。
+
+| Units | 默认自动采集 | 只在这里等待授权/人工 |
+|---|---|---|
+| `EVID-02` | PostgreSQL 并发 harness、current-head/rollback 查询与报告 hash | 生产审批记录写入；真实审批人决定 |
+| `AUD-03` | migration 状态、outbox backlog/age、metrics/alert、恢复与 archive 完整性 | 生产 migration/rollback/fault/archive/restore；生产签字 |
+| `DATA-01/02/03` | 已有备份下载与 SHA、隔离 restore/RTO、覆盖/freshness/reconciliation、双 readiness、观察计时 | 新建/清理备份、回填/删改、维护态、切换和 live rollback；数据 owner 例外 |
+| `STRAT-01/02/03` | owner/policy 缺口盘点、PIT/OOS 时长、receipt/lineage/reconciliation、权限与 consumer 测试 | 生产登记/Promotion/回填；策略 owner 参数与业务 UAT |
+| `TUI-01/02` | commit/version/OCI/matrix/graph/runtime 对账、health/ready、角色只读旅程、108 UAT 派生、14 日计时、缺陷、101 telemetry、隔离 rollback | 候选部署、生产写回执、registry backup 创建、cleanup/live rollback；双签 |
+| `TAR-05` / `AI-01` | 已批准环境中的 load/soak/browser、metrics、event timeline、候选绑定与报告 | 生产 load/chaos/canary/cutover、付费模型调用；容量与业务验收 |
+| `QMT-01/02` | 获权后的 Phase 0 只读探针、仿真 timeline、callback/reconciliation 报告 | 券商权限、任何真实订单/撤单/live enable；券商与业务 owner 签字 |
+
+当前已有的直接 collector 包括：`check_web_to_tui_cutover_readiness.py --json`、`record_web_to_tui_candidate_evidence.py`、`build_web_to_tui_defect_evidence.py`、`build_web_to_tui_production_telemetry.py`、`drill_web_to_tui_rollback.py`、`backup-vps-postgres.py --download-latest` 和 `verify_postgres_backup_restore.py`。执行具体命令时仍以 `--help`、专项计划和当前任务授权范围为准。
 
 ## 当前治理快照
 
@@ -23,9 +46,9 @@
 |------|-----:|
 | 独立工作流 | 9 |
 | 主计划 | 18 |
-| 支撑文档、证据与矩阵 | 21 |
+| 支撑文档、证据与矩阵 | 22 |
 | 限期审查项 | 0 |
-| 注册表覆盖的活跃文件 | 39 |
+| 注册表覆盖的活跃文件 | 40 |
 | 历史未勾选细项 | 139（非执行口径） |
 | 去重后 canonical closure units | 28 |
 
@@ -479,3 +502,4 @@
 | 2026-08-19 | 第二期 P0 | TAR-01 reserved queued route fail-closed guard | 新增 `TerminalQueuedRuntimeUnavailable` Application guard 与 `/api/terminal/runs/`、`queue/`、`{run_id}`、`events/`、`cancel/` dormant 503 boundary；认证通过后统一返回 `DISPATCH_UNAVAILABLE`/`queued_runtime_not_wired`，不触碰 legacy inline Agent、ORM、Celery 或 broker；route/application/AST focused `8 passed` | 仅显式保持冻结的异步路径不可用，未实现 durable PostgreSQL admission、Celery/专用 Worker、真实 SSE、容量/chaos、生产观察或 TAR-02；queued intake/worker 仍关闭，TAR-01 与生产门禁不变 |
 | 2026-08-19 | 第二期 P0 | TAR-01 route guard 当前候选 VPS 部署与短窗口只读观测 | `3ba46b2f06bce4cf11cc0293903a54193be7b4ef` 发布为 release `20260819064907`；镜像 `sha256:232faecb1f69c69778085aee69d90f66dcbfd5c54085ed13f27ab181c0c0e12c`，迁移/schema、Django check、TUI registry、Qlib、Celery、容器、备份与 TLS verifier 通过；HTTPS `/api/health/` 8/8 为 `200`（约 `1.09–1.85s`），`/api/ready/` 3/3 为 `200`（约 `4.61–11.55s`） | 仅证明该候选的短窗口只读运行身份与基础服务稳定；匿名 reserved route 受认证边界返回 `403`，未取得认证后 `503` 的生产 UAT；未做业务写入、角色浏览器 UAT、1/5/10/20 容量/chaos、14 日 telemetry、restore/rollback 或 owner/reviewer 双签，TAR-01/TAR-02 与生产门禁保持 fail-closed |
 | 2026-08-19 | 第二期 P1 | TUX-02 execution.events/share legacy alias patch cleanup | 删除已由 IA canonical `execution.audit` 承载、且在 full-IA normalized runtime 中不再注册的两个 legacy screen patch；alias 仍解析到 canonical screen，新增 source-boundary 回归确认旧 key 不进入 runtime；focused metadata/actionability/IA `30 passed`，source guard `outcome=ok`（12/24 screens、430/889 actions、0 violations；patch 配置 15→13） | 仅收口两个已证实 dead screen patch，不改变 canonical audit/actions，不接数据库修复、外部 AgomTUI 或生产 UAT；其余 non-IA patch、publish/review 迁入、M5 角色化浏览器 UAT、写后 receipt/refresh、14 日 telemetry、restore/rollback 与双签仍未完成，TUX-02/TUX-04 继续 active/production_validation |
+| 2026-08-19 | 第二期 P0/P1 | 当前 `f9f31700a` 候选 VPS 部署与短窗口只读观测 | 四条 GitHub CI 全部成功后，以 code-only `-Upgrade` 发布 release `20260819080800`；source/image runtime match，迁移/schema、Django check、TUI registry、Qlib、Celery、容器、TLS 与部署前 PostgreSQL backup 复核通过；VPS 独立 HTTPS `/api/health/` `8/8` 为 `200`（约 `0.013–0.200s`），`/api/ready/` `3/3` 为 `200`（约 `3.48–8.17s`）；报告见 `dist/remote-build-reports/remote-build-report-20260819080800.json` | 仅证明该不可变候选的部署身份、短窗口只读健康与运行依赖；ready 仍保留既有 decision-data freshness/degraded-source 观察；未取得角色化浏览器 UAT、业务写后 receipt/refresh、1/5/10/20 容量/chaos、14 日 telemetry、restore/rollback、owner/reviewer 双签或 AUD-01/EVID-01 authority/publisher 证据，相关生产门禁继续 fail-closed |

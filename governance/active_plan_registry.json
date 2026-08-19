@@ -1,6 +1,6 @@
 {
-  "version": "2026-08-18.v2",
-  "updated_at": "2026-08-18",
+  "version": "2026-08-19.v1",
+  "updated_at": "2026-08-19",
   "workstreams": [
     {
       "id": "evidence-hard-gate",
@@ -264,7 +264,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-18.v2",
+    "version": "2026-08-19.v1",
     "legacy_unchecked_count": 139,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -409,7 +409,19 @@
         "status": "awaiting_production",
         "title": "Prove append-only approval and current-head behavior on PostgreSQL",
         "depends_on": [],
-        "exit_gate": "Human approval, first-winner, successor, current-head and rollback behavior have repeatable PostgreSQL concurrency evidence."
+        "exit_gate": "Human approval, first-winner, successor, current-head and rollback behavior have repeatable PostgreSQL concurrency evidence.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Run the PostgreSQL concurrency harness, capture first-winner/current-head results and hash the immutable report.",
+            "Query existing approval and successor ledgers read-only and report missing, duplicate or drifted heads."
+          ],
+          "authorization_required": [
+            "Create or mutate production approval subjects, approvals or rollback records."
+          ],
+          "human_or_external_required": [
+            "A real authorized reviewer makes the approval decision; automation may package but never invent that decision."
+          ]
+        }
       },
       {
         "id": "EVID-03",
@@ -460,7 +472,19 @@
         "depends_on": [
           "AUD-02"
         ],
-        "exit_gate": "Migration and rollback, backlog recovery observation, bounded metrics, alerts, admin TUI, archive/restore and production sign-off are evidenced."
+        "exit_gate": "Migration and rollback, backlog recovery observation, bounded metrics, alerts, admin TUI, archive/restore and production sign-off are evidenced.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Read migration state, outbox backlog/age, bounded metrics, alerts and admin TUI health from the deployed candidate.",
+            "Continuously derive recovery duration, duplicate/loss counts and archive integrity from raw production snapshots."
+          ],
+          "authorization_required": [
+            "Run production migration, rollback, fault injection, archive or restore actions."
+          ],
+          "human_or_external_required": [
+            "The production owner and reviewer sign the operational acceptance."
+          ]
+        }
       },
       {
         "id": "TAR-01",
@@ -508,7 +532,19 @@
         "status": "awaiting_production",
         "title": "Create verified backup and rehearse maintenance rollback",
         "depends_on": [],
-        "exit_gate": "A production custom-format backup is downloaded and hash-verified, and maintenance plus rollback procedures are rehearsed before destructive work."
+        "exit_gate": "A production custom-format backup is downloaded and hash-verified, and maintenance plus rollback procedures are rehearsed before destructive work.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Discover and download the latest existing production custom-format backup without changing remote state, verify remote/local SHA-256 and record age and manifest.",
+            "Restore a downloaded immutable dump into an isolated disposable database and derive schema/data comparison plus RTO evidence."
+          ],
+          "authorization_required": [
+            "Create a new backup on the production host, prune remote backups, enter maintenance or exercise a live rollback."
+          ],
+          "human_or_external_required": [
+            "The production owner selects the maintenance window and authorizes any live-state operation."
+          ]
+        }
       },
       {
         "id": "DATA-02",
@@ -521,7 +557,19 @@
         "depends_on": [
           "DATA-01"
         ],
-        "exit_gate": "The production universe is backfilled with observation-time preservation and reconciled against canonical sources within governed tolerances."
+        "exit_gate": "The production universe is backfilled with observation-time preservation and reconciled against canonical sources within governed tolerances.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Run read-only preflight, coverage, freshness, timestamp-preservation and cross-source reconciliation reports before and after each authorized batch.",
+            "Collect checkpoint progress, failed symbols, retry outcomes and canonical tolerance breaches from production telemetry."
+          ],
+          "authorization_required": [
+            "Start, retry or alter a production backfill, delete/correct production rows or change governed tolerances."
+          ],
+          "human_or_external_required": [
+            "A data owner approves any tolerance exception or source-quality waiver."
+          ]
+        }
       },
       {
         "id": "DATA-03",
@@ -534,7 +582,19 @@
         "depends_on": [
           "DATA-02"
         ],
-        "exit_gate": "Canonical reads, readiness, smoke checks and the observation window pass before maintenance mode is removed."
+        "exit_gate": "Canonical reads, readiness, smoke checks and the observation window pass before maintenance mode is removed.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Probe service and decision readiness separately, run read-only canonical smoke checks and track the immutable candidate throughout the observation window.",
+            "Derive freshness, reliability, must-not-use blockers, defect counts and observation duration from raw production responses."
+          ],
+          "authorization_required": [
+            "Perform M9/M10 cutover, change maintenance mode, replace the production candidate or execute rollback."
+          ],
+          "human_or_external_required": [
+            "The production and data owners approve removal of maintenance mode."
+          ]
+        }
       },
       {
         "id": "STRAT-01",
@@ -545,7 +605,19 @@
         "status": "awaiting_production",
         "title": "Register real R1-R8 owner definitions and policies",
         "depends_on": [],
-        "exit_gate": "Canonical owner, definition, policy, calendar, scope, sample-window and qualification bindings exist for every promoted capability."
+        "exit_gate": "Canonical owner, definition, policy, calendar, scope, sample-window and qualification bindings exist for every promoted capability.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Inventory existing production owner/definition/policy/calendar/scope bindings and report exact missing or inconsistent fields.",
+            "Validate hashes, current-head identity and capability coverage without creating records."
+          ],
+          "authorization_required": [
+            "Create or modify production definitions, policies, calendars, scopes or promotion bindings."
+          ],
+          "human_or_external_required": [
+            "Named business owners supply and approve the authoritative policy and qualification values."
+          ]
+        }
       },
       {
         "id": "STRAT-02",
@@ -559,7 +631,19 @@
           "STRAT-01",
           "DATA-02"
         ],
-        "exit_gate": "Required PIT/OOS windows, receipts, lineage and reconciliation evidence are complete without fixture or synthetic substitution."
+        "exit_gate": "Required PIT/OOS windows, receipts, lineage and reconciliation evidence are complete without fixture or synthetic substitution.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Continuously measure real PIT/OOS window coverage, receipt completeness, lineage continuity and reconciliation from production records.",
+            "Report elapsed sample history and the exact earliest eligible completion date without substituting fixtures or synthetic observations."
+          ],
+          "authorization_required": [
+            "Run historical production backfill/rebuild or mutate canonical receipts."
+          ],
+          "human_or_external_required": [
+            "A strategy owner approves any documented sample-window exception."
+          ]
+        }
       },
       {
         "id": "STRAT-03",
@@ -573,7 +657,19 @@
           "STRAT-02",
           "EVID-03"
         ],
-        "exit_gate": "Promotion, permission, consumer behavior and rollback UAT pass against the same canonical receipts and Evidence contracts."
+        "exit_gate": "Promotion, permission, consumer behavior and rollback UAT pass against the same canonical receipts and Evidence contracts.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Run candidate-bound permission, consumer, browser and rollback test journeys and bind reports to canonical receipt hashes.",
+            "Collect read-only promotion state, consumer outcomes and authorization blockers from production."
+          ],
+          "authorization_required": [
+            "Promote or roll back a production capability or execute a UAT step that writes production state."
+          ],
+          "human_or_external_required": [
+            "Business owners judge the real consumer outcome and sign UAT acceptance."
+          ]
+        }
       },
       {
         "id": "TAR-04",
@@ -597,7 +693,19 @@
         "status": "awaiting_production",
         "title": "Deploy one manifest-bound candidate and run role UAT",
         "depends_on": [],
-        "exit_gate": "One immutable commit, version, OCI revision and matrix SHA is deployed and completes role-based browser UAT with write receipts."
+        "exit_gate": "One immutable commit, version, OCI revision and matrix SHA is deployed and completes role-based browser UAT with write receipts.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Read and cross-check deployed commit, version, OCI revision, matrix, graph and runtime manifest identities.",
+            "Run candidate-bound read-only health/readiness probes and role browser journeys, then derive UAT coverage from raw reports."
+          ],
+          "authorization_required": [
+            "Deploy or replace the production candidate and execute UAT mutations that create production write receipts."
+          ],
+          "human_or_external_required": [
+            "Role owners confirm business outcomes that cannot be decided from deterministic assertions."
+          ]
+        }
       },
       {
         "id": "TUI-02",
@@ -610,7 +718,19 @@
         "depends_on": [
           "TUI-01"
         ],
-        "exit_gate": "The 14-day telemetry window, registry backup, wave observation, rollback drill and owner/reviewer sign-off all bind to the candidate."
+        "exit_gate": "The 14-day telemetry window, registry backup, wave observation, rollback drill and owner/reviewer sign-off all bind to the candidate.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Calculate observation day, candidate drift and reset conditions; collect blocking-defect and 101-item telemetry snapshots and derive gate status.",
+            "Verify existing registry backup artifacts and run the candidate-bound isolated rollback drill without touching live state."
+          ],
+          "authorization_required": [
+            "Create a production registry backup, execute cleanup waves, alter routes/assets or perform live rollback."
+          ],
+          "human_or_external_required": [
+            "The owner and independent reviewer provide the two real sign-offs."
+          ]
+        }
       },
       {
         "id": "AI-01",
@@ -624,7 +744,19 @@
           "TUI-01",
           "TAR-05"
         ],
-        "exit_gate": "Real staging and production browser evidence plus independent owner/reviewer approval bind to the same candidate commit."
+        "exit_gate": "Real staging and production browser evidence plus independent owner/reviewer approval bind to the same candidate commit.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Run browser journeys, capture raw results and screenshots, and verify candidate/manifest binding and result consistency.",
+            "Collect existing provider, runtime and audit outcomes without inventing model responses or acceptance."
+          ],
+          "authorization_required": [
+            "Trigger billable external model calls or staging/production mutations outside an already authorized test run."
+          ],
+          "human_or_external_required": [
+            "The owner and independent reviewer approve the real AI-Native task outcome."
+          ]
+        }
       },
       {
         "id": "TAR-05",
@@ -637,7 +769,19 @@
         "depends_on": [
           "TAR-03"
         ],
-        "exit_gate": "The immutable candidate passes 1/5/10/20-user load, fairness, duplicate, worker-crash, Redis outage, model-timeout, Web SLO, rollback and observation gates before inline retirement or any capacity increase."
+        "exit_gate": "The immutable candidate passes 1/5/10/20-user load, fairness, duplicate, worker-crash, Redis outage, model-timeout, Web SLO, rollback and observation gates before inline retirement or any capacity increase.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Run approved staging load/soak suites and continuously collect latency, fairness, duplicate, queue, Web, Redis, DB, worker and model metrics into candidate-bound reports.",
+            "Derive observation and recovery outcomes from raw event timelines; unavailable metrics remain unavailable rather than becoming zero."
+          ],
+          "authorization_required": [
+            "Generate production load, inject production faults, enable canary/queued intake, retire inline mode or increase capacity."
+          ],
+          "human_or_external_required": [
+            "Operations and product owners approve the capacity envelope and production cutover."
+          ]
+        }
       },
       {
         "id": "QMT-01",
@@ -648,7 +792,16 @@
         "status": "blocked_external",
         "title": "Obtain XtQuant permission and pass Phase 0 on the target host",
         "depends_on": [],
-        "exit_gate": "The broker supplies an approved XtQuant environment where the read probe and compatibility matrix pass."
+        "exit_gate": "The broker supplies an approved XtQuant environment where the read probe and compatibility matrix pass.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Once an approved target environment is reachable, run the read-only XtQuant Phase 0 probe and build the compatibility report automatically."
+          ],
+          "authorization_required": [],
+          "human_or_external_required": [
+            "The broker supplies XtQuant permission, target-host access and authoritative environment approval."
+          ]
+        }
       },
       {
         "id": "QMT-02",
@@ -661,7 +814,19 @@
         "depends_on": [
           "QMT-01"
         ],
-        "exit_gate": "Order, cancel, callback, reconnect, reconciliation, emergency stop and rollback evidence pass before live enablement."
+        "exit_gate": "Order, cancel, callback, reconnect, reconciliation, emergency stop and rollback evidence pass before live enablement.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Collect simulation order/cancel/callback/reconnect timelines, reconciliation diffs and emergency-stop state from the approved environment.",
+            "Build candidate-bound reports from broker receipts without treating simulated or missing receipts as live evidence."
+          ],
+          "authorization_required": [
+            "Submit or cancel any real order, enable live trading, change emergency-stop state or execute a live rollback."
+          ],
+          "human_or_external_required": [
+            "The broker and business owner approve the controlled small-value live test and final enablement."
+          ]
+        }
       },
       {
         "id": "TUX-01",

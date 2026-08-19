@@ -974,3 +974,39 @@ Short public read-only observation after deployment:
 
 This is a short-window runtime identity and read-only health observation only. TAR-01 remains
 active; TAR-02 and production gates remain fail-closed.
+
+## 2026-08-19 08:22 current f9f31700a candidate deployment and read-only observation
+
+After all four GitHub checks for the immutable candidate succeeded, `dev/next-development`
+was deployed in code-only upgrade mode. PostgreSQL/Redis data volumes were preserved and
+Celery remained enabled. The deployment did not restore local SQLite or enable the queued
+Agent runtime.
+
+| Item | Evidence |
+|---|---|
+| release tag | `20260819080800` |
+| release directory | `/opt/agomtradepro/releases/source-20260819080800` |
+| source commit | `f9f31700accf1c1dd1786631823898fec50e4ec3` |
+| image | `agomtradepro-web:20260819080800` |
+| image ID | `sha256:1c462f1456477f83b4cf5bdcf54ecb6ef5ca14bd363b8de250472e5cd842e03a` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260819080800.json` |
+| mode | `ACTION=upgrade`, code-only, data volumes preserved, Celery enabled |
+| migration/schema | `No migrations to apply`; canonical schema `{"missing_migrations": [], "missing_tables": [], "ok": true}`; Django system check reported no issues (one silenced) |
+| TUI registry | registry `28`, published, active source hash matched expected; TUI preflight/JS suite passed before deploy |
+| HTTPS/TLS | `demo.agomtrade.pro` Caddy domain; TLS verifier passed |
+| containers | web healthy; Celery worker/beat, PostgreSQL, Redis, Caddy, RSSHub and runtime namespace running; Celery ping `1 node online` |
+| Qlib | `pyqlib=0.9.7`; wrong `qlib` distribution absent; module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| backup | pre-deploy PostgreSQL custom-format backup `/opt/agomtradepro/backups/database/postgres-20260819-021459.dump` created and verifier passed |
+
+Independent post-deploy HTTPS samples from the VPS all returned HTTP `200`: `/api/health/`
+was `8/8` (about `0.013–0.200s`) and `/api/ready/` was `3/3` (about `3.48–8.17s`). The
+ready payload reported database, Redis, Celery and critical-data checks as `ok`; it also
+retained the existing decision-data freshness/degraded-source observations (including stale
+`etf_net_flow` and a degraded market-thermometer source) rather than hiding them.
+
+This is a candidate identity, deployment and short-window read-only observation only. No
+login, role-specific browser UAT, business write, post-write receipt/refresh, 1/5/10/20
+capacity or chaos run, 14-day telemetry, registry backup/restore, rollback drill,
+owner/reviewer sign-off, or AUD-01/EVID-01 durable authority/publisher verification was
+performed. TAR-01/TAR-02, TUX-02/TUX-04, M5 and the related production gates remain
+fail-closed.

@@ -515,6 +515,11 @@ def evaluate_registry(
         "depends_on",
         "exit_gate",
     }
+    expected_evidence_collection_keys = {
+        "auto_collect",
+        "authorization_required",
+        "human_or_external_required",
+    }
     unit_ids: list[str] = []
     unit_workstreams: list[str] = []
     unit_workstream_by_id: dict[str, str] = {}
@@ -527,12 +532,16 @@ def evaluate_registry(
             violations.append(Violation("closure_unit_type", location, "unit must be an object"))
             continue
         unit = cast(dict[str, object], raw_unit)
-        if set(unit) != expected_unit_keys:
+        execution_mode = unit.get("execution_mode")
+        unit_keys = expected_unit_keys | (
+            {"evidence_collection"} if execution_mode in {"production", "external"} else set()
+        )
+        if set(unit) != unit_keys:
             violations.append(
                 Violation(
                     "closure_unit_keys",
                     location,
-                    f"expected exact keys {sorted(expected_unit_keys)}",
+                    f"expected exact keys {sorted(unit_keys)}",
                 )
             )
         unit_id = unit.get("id")
@@ -569,7 +578,7 @@ def evaluate_registry(
             violations.append(
                 Violation("closure_unit_priority", unit_id, "priority is outside the contract")
             )
-        if unit.get("execution_mode") not in ALLOWED_EXECUTION_MODES:
+        if execution_mode not in ALLOWED_EXECUTION_MODES:
             violations.append(
                 Violation(
                     "closure_unit_execution_mode",
@@ -577,6 +586,51 @@ def evaluate_registry(
                     "execution_mode is outside the contract",
                 )
             )
+        evidence_collection_value = unit.get("evidence_collection")
+        if execution_mode in {"production", "external"}:
+            evidence_collection = (
+                cast(dict[str, object], evidence_collection_value)
+                if isinstance(evidence_collection_value, dict)
+                else {}
+            )
+            if not isinstance(evidence_collection_value, dict):
+                violations.append(
+                    Violation(
+                        "closure_unit_evidence_collection",
+                        unit_id,
+                        "production and external units require an evidence_collection object",
+                    )
+                )
+            elif set(evidence_collection) != expected_evidence_collection_keys:
+                violations.append(
+                    Violation(
+                        "closure_unit_evidence_collection_keys",
+                        unit_id,
+                        "evidence_collection keys must be auto_collect, "
+                        "authorization_required and human_or_external_required",
+                    )
+                )
+            for evidence_key in expected_evidence_collection_keys:
+                raw_evidence_items = evidence_collection.get(evidence_key)
+                if not isinstance(raw_evidence_items, list) or any(
+                    not isinstance(item, str) or not item.strip() for item in raw_evidence_items
+                ):
+                    violations.append(
+                        Violation(
+                            "closure_unit_evidence_collection_items",
+                            unit_id,
+                            f"evidence_collection.{evidence_key} must be a list of non-empty strings",
+                        )
+                    )
+            auto_collect = evidence_collection.get("auto_collect")
+            if isinstance(auto_collect, list) and not auto_collect:
+                violations.append(
+                    Violation(
+                        "closure_unit_auto_collection_empty",
+                        unit_id,
+                        "production and external units must identify evidence the agent can collect automatically",
+                    )
+                )
         status = unit.get("status")
         if status not in ALLOWED_UNIT_STATUSES:
             violations.append(

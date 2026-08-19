@@ -84,11 +84,16 @@ def _write_fixture_repository(root: Path) -> tuple[Path, Path]:
                             "workstream_id": "example",
                             "wave": 1,
                             "priority": "P0",
-                            "execution_mode": "repository",
+                            "execution_mode": "production",
                             "status": "active",
                             "title": "Deliver example",
                             "depends_on": [],
                             "exit_gate": "Example is complete.",
+                            "evidence_collection": {
+                                "auto_collect": ["Collect the read-only report."],
+                                "authorization_required": ["Change production state."],
+                                "human_or_external_required": ["Approve the outcome."],
+                            },
                         },
                     ],
                 },
@@ -108,12 +113,12 @@ def test_repository_active_plan_registry_is_closed_world():
     )
 
     assert report.violation_count == 0, report.violations
-    assert report.workstream_count == 7
-    assert report.primary_plan_count == 16
-    assert report.supporting_document_count == 21
+    assert report.workstream_count == 9
+    assert report.primary_plan_count == 18
+    assert report.supporting_document_count == 22
     assert report.review_queue_count == 0
-    assert report.closure_unit_count == 18
-    assert report.registered_path_count == report.active_path_count == 37
+    assert report.closure_unit_count == 28
+    assert report.registered_path_count == report.active_path_count == 40
 
 
 def test_registry_rejects_unregistered_active_plan(tmp_path: Path):
@@ -173,3 +178,17 @@ def test_registry_rejects_legacy_checkbox_and_dependency_drift(tmp_path: Path):
     assert "legacy_total_drift" in codes
     assert "legacy_source_coverage" in codes
     assert "unknown_closure_dependency" in codes
+
+
+def test_registry_requires_automatic_evidence_plan_for_production_unit(tmp_path: Path):
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    del payload["closure_backlog"]["units"][1]["evidence_collection"]
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    codes = {violation.code for violation in report.violations}
+    assert "closure_unit_keys" in codes
+    assert "closure_unit_evidence_collection" in codes

@@ -29,6 +29,12 @@
 6. 数据重建、部分失败、零产出和阻断都具备规范化 Celery outcome、断点和可审计证据。
 7. CI 能阻止时间戳洗白、虚假 current、缺失可靠性字段、不可执行测试证据和未登记关键任务再次进入主线。
 
+### 2.1 生产证据采集与授权边界
+
+`DATA-01/02/03` 不因进入 production 阶段而停止代理推进。代理应自动下载并校验已有生产备份、执行隔离 restore/rebuild、计算 RTO、盘点 schema/row/freshness/coverage、运行只读 reconciliation、分别探测 service readiness 与 decision readiness、跟踪 observation/candidate drift，并把原始来源时间、hash、候选身份和失败原因写入可复核报告。任何字段未知都保持 unknown/blocked，不得补造成功。
+
+只有创建或清理远端备份、生产回填/删除/纠正、修改维护态、部署/切换和 live rollback 需要精确授权；容差例外、数据源取舍和解除维护由 owner 决定。授权动作完成后，其后置核验继续自动运行。若缺少机械 collector，应在对应 DATA unit 内补 collector 和回归，而不是把计划标成外部等待。
+
 ## 3. 统一可靠性契约
 
 建立跨 API、SDK、MCP、Terminal 和内部服务共用的 `ReliabilityContract`。所有面向决策的数据面至少发布：

@@ -117,6 +117,14 @@ M1/M4 如修改通用 schema、runtime 或 renderer，必须同步满足可移�
 - 浏览器 108/108 deep-link smoke 只证明入口可解析和目标可定位，**不计入主任务 UAT**；只有按计划角色真实执行主路径并验证业务结果的用例才能计入 108 个 route page 的 UAT 分子。
 - M5-B 将 A/B route 标为 `deleted` 后，该 route 仍保留在历史 UAT、逐 route 清理与 telemetry catalog 的必需集合中；删除 Classic 工件不能通过缩小分母抹掉既有证据责任。
 
+#### 2.7.1 M5 证据自动采集边界
+
+M5 的 production evidence 默认由代理从真实源自动采集和派生，不以人工抄表为前提。候选 commit/version/OCI/matrix/graph/runtime identity、公开 health/ready、角色只读浏览器旅程、观察日数与候选漂移、缺陷 tracker、101 项 telemetry、已有 registry backup 的 hash/age、隔离 rollback drill 和最终 readiness 都属于安全自动采集；原始快照、source time、candidate identity 与 hash 必须保留，未知或不可用不得改写成通过。
+
+候选部署/替换、生产写回执、创建生产 registry backup、cleanup wave、live rollback 会改变生产状态，必须先完成 dry-run/preflight 后对精确动作取得授权。owner/reviewer 双签和非确定性的业务 UAT 判断必须由真人完成。真实部署 attestation 已存在且当前任务允许更新仓库证据时，启动/更新候选观察记录本身不改变生产，代理应继续执行，不应再以“需要生产证据”为由停住；候选替换仍按既有规则清空绑定证据并重新计时。
+
+若某项可机械验证但 collector 尚不存在，先在 `TUI-01/TUI-02` 内补幂等、fail-closed、candidate-bound collector 与测试，再采集证据；缺 collector 不是人工阻塞。统一分类以 `governance/active_plan_registry.json` 的 `evidence_collection` 为机器真源。
+
 ## 3. 迁移总原则
 
 1. **按任务重组，不按页面翻译**。每个目标 screen 必须满足 `docs/development/tui-user-facing-design-standard.md`：一个 screen 一个主任务、`user_experience` 五元组齐全、P0 首屏可见。不允许把某个 HTML 页面机械映射成同名 screen。
