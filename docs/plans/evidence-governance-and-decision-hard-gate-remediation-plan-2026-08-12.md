@@ -2707,3 +2707,23 @@ content-addressed append-only writer collision；focused 回归 `15 passed`。
 writer、VPS/production database 或真实审核人；不把 `EvidenceScopeSourceV1` harness 误称为
 approval proof。`EVID-02` 仍为 `awaiting_production`，registry exit gate、EVID-01 authority
 要求、Evidence hard gate、写入和 execution 继续保持 fail-closed。
+
+## 2026-08-19：EVID-02 current-head/approval link audit contract
+
+在离线采集报告之上新增纯 Application `apps/research/application/evid_02_head_audit.py`
+与显式 dry-run/append-only CLI `scripts/record_evid_02_head_audit.py`。输入只接受外部捕获
+的 `evid-02-head-audit-snapshot.v1`：严格校验 UTC-Z、PIT 截止、全链 root/predecessor/head、
+分叉/孤儿/循环/未来行、approval→activation 的 exact operator/version/definition 绑定，
+并拒绝未知键与秘密字段。报告固定为 `production_claim=false`、`production_ready=false`、
+`runtime_enablement=not_authorized`、`human_approval_status=not_collected`；写入仅使用
+内容寻址本地工件，默认不写且不触碰数据库或 approval writer。
+
+新增 `tests/unit/test_evid_02_head_audit.py`，覆盖空账本、线性 head、缺失/漂移引用、分叉、
+孤儿、断根、时钟回退、未来 PIT、未知/秘密字段、非 canonical 时间、稳定序列化与报告
+内容哈希；EVID-02 离线报告与 head audit 合计 `29 passed`，增量 mypy、Ruff、Black、isort
+通过，债务门禁需以命令最终输出为准。
+
+该 slice 只完成“外部快照→fail-closed current-head 报告”的本地合同，不读取生产 PostgreSQL、
+不接 Risk Center approval/activation writer、不生成真实并发/回滚或人工审批证据。`EVID-02`
+仍为 `awaiting_production`，EVID-01 authority、生产双连接 first-winner/rollback、真实
+approval owner/reviewer 与 Evidence hard gate 继续保持 fail-closed。
