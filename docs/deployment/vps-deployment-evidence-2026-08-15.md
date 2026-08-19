@@ -1239,3 +1239,29 @@ owner/reviewer sign-off was performed. TUX-02/TUX-04, M5, TAR, AUD and EVID prod
 therefore remain fail-closed where previously recorded. A second standalone verifier invocation
 was not used as evidence because the local shell safety policy blocked its credential bootstrap;
 the deployment-integrated verifier above is the accepted verification record.
+
+## 2026-08-19 20:58 当前候选部署与观测
+
+`dev/next-development@f3881a04cf0b5d5bff5d2b7e5a6bf25d523667e2` was deployed in code-only
+`-Upgrade` mode as release `20260820043710`; PostgreSQL/Redis volumes were preserved and
+Celery remained enabled. The release report is
+`dist/remote-build-reports/remote-build-report-20260820043710.json`; the immutable OCI image
+is `sha256:ac621fb9cd594045e211e5a4e7cc16c11fea10ca8c34fb5bea148572b4347dc5`, and the
+runtime source/image identity matched the expected commit. Deployment verification passed for
+migrations/schema, Django checks, TUI registry, Qlib (`pyqlib=0.9.7`, wrong distribution absent),
+Celery worker/beat/ping, containers, TLS, resources and backup.
+
+Independent HTTPS read-only probes returned `/api/health/` `5/5=200`, `/api/ready/` `5/5=200`
+and `/api/` `5/5=200`. The unauthenticated reserved route `/api/terminal/runs/` returned the
+expected `403`; `/api/regime/current/` remained `503 decision_runtime_blocked`, so execution
+and decision fail-closed boundaries remained intact. No authenticated role browser UAT,
+business write receipt/refresh, capacity/chaos, 14-day telemetry, restore/rollback or
+owner/reviewer sign-off was performed.
+
+The candidate binding is `web-to-tui-candidate-binding.v1`: candidate version
+`20260820043710`, candidate commit `f3881a04cf0b5d5bff5d2b7e5a6bf25d523667e2`, matrix
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`, published graph
+`5a2234c84d4156001a8bde73a7fe9a5c86534b77a6e87da68764043b55d7b597`, schema `tui-metadata.v3`,
+runtime `0.2.0`, build `agomtui-runtime-0.2.0+b00df1fa9186`, and manifest
+`7d2d059828553fec11b83df19e09698a1025fd818c103c630d2f432d6550000f`. The M5 observation
+window is reset to this candidate and no prior UAT or telemetry is inherited.

@@ -631,3 +631,26 @@ candidate、matrix、graph 与 runtime binding 的匹配章节；较新的 TAR �
 TUI focused 回归合计 `29 passed`。这只是证据章节选择与静态绑定守卫，不更新候选、不新增
 VPS preflight，也不改变 M5 的生产 gate；角色化浏览器 UAT、写后 receipt/refresh、14 日
 telemetry、backup/restore、rollback 与 owner/reviewer 双签仍缺，readiness 继续 `DENY`。
+
+### 2026-08-19 20:58 当前候选部署复核
+
+候选 `dev/next-development@f3881a04cf0b5d5bff5d2b7e5a6bf25d523667e2` 已以 code-only、保留
+PostgreSQL/Redis 数据卷、Celery enabled 的 `-Upgrade` 发布为 `20260820043710`。部署 preflight
+为 `docs/deployment/web-to-tui-deployment-preflight-20260820043710.json`，其 SHA-256 为
+`3e61aebc84527501a7f2154c9288d48353e51e39280a1cb5f6c6fff264978f4f`；OCI image 为
+`sha256:ac621fb9cd594045e211e5a4e7cc16c11fea10ca8c34fb5bea148572b4347dc5`，source/image
+identity 与 verifier 一致。公网只读探测 `/api/health/`、`/api/ready/`、`/api/` 均 `5/5` 返回
+`200`；未认证 `/api/terminal/runs/` 返回 `403`，`/api/regime/current/` 仍为
+`503 decision_runtime_blocked`，fail-closed 保持。
+
+该候选完整 binding 为：version `web-to-tui-candidate-binding.v1`、candidate version
+`20260820043710`、candidate commit `f3881a04cf0b5d5bff5d2b7e5a6bf25d523667e2`、matrix
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph
+`5a2234c84d4156001a8bde73a7fe9a5c86534b77a6e87da68764043b55d7b597`、schema `tui-metadata.v3`、
+runtime `0.2.0`、build `agomtui-runtime-0.2.0+b00df1fa9186`、manifest
+`7d2d059828553fec11b83df19e09698a1025fd818c103c630d2f432d6550000f`。候选替换后观察窗口
+重新从 `2026-08-19` 起算，不跨候选继承 UAT 或 telemetry。
+
+本次只完成候选身份、部署、短窗口只读健康与认证边界复核；没有登录、角色化浏览器 UAT、
+业务写后 receipt/refresh、14 日 telemetry、registry backup/restore、rollback 或
+owner/reviewer 双签，M5-A/TUI-01 继续 `DENY`。
