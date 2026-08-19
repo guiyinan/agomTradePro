@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4269,
+    "current_surface_references": 4292,
     "data_write_task_decorators": 59,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -15281,6 +15281,121 @@
       "line": 57,
       "path": "apps/research/application/advanced_state_model.py",
       "text": "\"\"\"Return current artifact attestation or ``None``.\"\"\""
+    },
+    {
+      "line": 1,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "\"\"\"Read-only EVID-02 approval/current-head audit contract."
+    },
+    {
+      "line": 106,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "raise Evid02HeadAuditError(\"summary ledger kind is not canonical\")"
+    },
+    {
+      "line": 108,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "raise Evid02HeadAuditError(\"summary status is invalid\")"
+    },
+    {
+      "line": 118,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "raise Evid02HeadAuditError(\"ok summary cannot contain issues\")"
+    },
+    {
+      "line": 120,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "raise Evid02HeadAuditError(\"empty summary must contain no rows\")"
+    },
+    {
+      "line": 122,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "raise Evid02HeadAuditError(\"corrupt summary must explain an issue\")"
+    },
+    {
+      "line": 148,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "raise Evid02HeadAuditError(\"summary order is not canonical\")"
+    },
+    {
+      "line": 150,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "raise Evid02HeadAuditError(\"summary type is invalid\")"
+    },
+    {
+      "line": 307,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "current = roots[0] if len(roots) == 1 else None"
+    },
+    {
+      "line": 310,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "while current is not None:"
+    },
+    {
+      "line": 311,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "if current.content_hash in visited:"
+    },
+    {
+      "line": 314,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "visited.add(current.content_hash)"
+    },
+    {
+      "line": 315,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "candidates = children.get(current.content_hash, [])"
+    },
+    {
+      "line": 320,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "terminal = current"
+    },
+    {
+      "line": 321,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "current = None"
+    },
+    {
+      "line": 323,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "current = candidates[0]"
+    },
+    {
+      "line": 385,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "def _summary_payload(summary: Evid02HeadAuditSummary) -> dict[str, object]:"
+    },
+    {
+      "line": 387,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "\"head_hash\": summary.head_hash,"
+    },
+    {
+      "line": 388,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "\"issues\": list(summary.issues),"
+    },
+    {
+      "line": 389,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "\"ledger_kind\": summary.ledger_kind,"
+    },
+    {
+      "line": 390,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "\"root_count\": summary.root_count,"
+    },
+    {
+      "line": 391,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "\"row_count\": summary.row_count,"
+    },
+    {
+      "line": 392,
+      "path": "apps/research/application/evid_02_head_audit.py",
+      "text": "\"status\": summary.status.value,"
     },
     {
       "line": 159,
