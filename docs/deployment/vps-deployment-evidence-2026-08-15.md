@@ -1140,3 +1140,40 @@ depth/age, worker lease/orphan recovery, SSE replay, cancellation, idempotency, 
 call-count or chaos evidence exists; six canonical matrix scenarios remain `planned`. TAR-01
 stays active, TAR-02 remains waiting, queued intake/worker flags stay off, and no inline
 concurrency limit is raised.
+
+## 2026-08-20 `41005ea22` current-candidate deployment and read-only observation
+
+After the four push workflows succeeded for `dev/next-development@41005ea223621689033ab38b8d9a77353dcf26ed`,
+the current candidate was deployed in code-only `-Upgrade` mode. PostgreSQL and Redis data
+volumes were preserved, Celery remained enabled, and the standard pre-deploy backup plus
+automatic rollback guard remained active.
+
+| Item | Evidence |
+|---|---|
+| release tag | `20260820012016` |
+| release directory | `/opt/agomtradepro/releases/source-20260820012016` |
+| source commit | `41005ea223621689033ab38b8d9a77353dcf26ed` |
+| image | `agomtradepro-web:20260820012016` |
+| image ID | `sha256:0834950788c4575ae702f701505697d77c43933a48ca445496a714934b95213e` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260820012016.json` |
+| mode | `ACTION=upgrade`, code-only, data volumes preserved, Celery enabled |
+| CI | Fast Feedback `32280081761`, Security `32280081728`, Architecture `32280081676`, Consistency `32280081708`: all `success` |
+| migrations/schema | no migrations to apply; canonical schema had no missing migrations/tables; Django check passed |
+| TUI | local preflight and 34 JavaScript tests passed; registry `28` published and active source hash matched expected |
+| Qlib | `pyqlib=0.9.7`; wrong `qlib` distribution absent; module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| runtime | web healthy; PostgreSQL, Redis, Caddy, RSSHub, runtime namespace and Celery worker/beat running; Celery ping `1 node online` |
+| TLS/backup | `demo.agomtrade.pro` Caddy/TLS verifier passed; pre-deploy PostgreSQL backup and manifest created on VPS |
+
+Independent post-deploy HTTPS sampling (without a production API token) returned HTTP `200` for
+`/api/health/`, `/api/ready/`, and `/api/`. Protected `/api/tui/`, `/api/terminal/`,
+`/api/terminal/runs/`, `/api/policy/status/`, `/api/signal/active/`, and `/api/data-center/`
+returned the expected unauthenticated `403`. `/api/regime/current/` returned the existing
+fail-closed `503 decision_runtime_blocked` payload, so no decision output was used. The ready
+payload reported database, Redis, Celery (one worker), critical data and decision-data checks;
+existing freshness/degraded-source disclosures remain visible.
+
+This is immutable deployment identity and short-window read-only observation only. No
+authenticated role browser UAT, business write/receipt-refresh, 14-day telemetry, production
+restore/RTO/RPO, live rollback, backfill/reconciliation, capacity/chaos run, or owner/reviewer
+sign-off was performed; TUX-02/TUX-04, STRAT, DATA-01, TAR, AUD and EVID production gates remain
+fail-closed where previously recorded.
