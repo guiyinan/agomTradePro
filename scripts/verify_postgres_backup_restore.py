@@ -11,12 +11,13 @@ import re
 import subprocess
 import sys
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Iterator, TypedDict
+from typing import TypedDict
 from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit
 from uuid import uuid4
 
@@ -201,6 +202,7 @@ def _pg_restore_invocation(
     with TemporaryDirectory(prefix="agom-pg-restore-") as temporary:
         passfile = Path(temporary) / "pgpass"
         container_dump = "/tmp/agom-postgres-restore.dump"
+        mounted_passfile = "/run/secrets/agom-postgres-restore.pgpass"
         container_passfile = "/tmp/agom-postgres-restore.pgpass"
         passfile_user = _pgpass_value(target.user)
         passfile_password = _pgpass_value(target.password)
@@ -221,10 +223,15 @@ def _pg_restore_invocation(
             "--volume",
             f"{dump_path}:{container_dump}:ro",
             "--volume",
-            f"{passfile}:{container_passfile}:ro",
-            "--env",
-            f"PGPASSFILE={container_passfile}",
+            f"{passfile}:{mounted_passfile}:ro",
             image,
+            "sh",
+            "-c",
+            (
+                f"cp {mounted_passfile} {container_passfile} && "
+                f"chmod 600 {container_passfile} && "
+                f'PGPASSFILE={container_passfile} exec pg_restore "$@"'
+            ),
             "pg_restore",
         ]
         environment = os.environ.copy()
@@ -510,23 +517,32 @@ def restore_dump(
             if container_image
             else target.client_connection_args()
         )
-        subprocess.run(
-            [
-                *command_prefix,
-                *connection_args,
-                "--dbname",
-                restore_database,
-                "--no-owner",
-                "--no-acl",
-                "--jobs=4",
-                "--exit-on-error",
-                dump_argument,
-            ],
-            env=environment,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+        try:
+            subprocess.run(
+                [
+                    *command_prefix,
+                    *connection_args,
+                    "--dbname",
+                    restore_database,
+                    "--no-owner",
+                    "--no-acl",
+                    "--jobs=4",
+                    "--exit-on-error",
+                    dump_argument,
+                ],
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as error:
+            stderr = str(error.stderr or "").strip()
+            if target.password:
+                stderr = stderr.replace(target.password, "[redacted]")
+            bounded_stderr = stderr[-4000:] or "unavailable"
+            raise RuntimeError(
+                f"pg_restore_failed(returncode={error.returncode}, " f"stderr={bounded_stderr})"
+            ) from None
 
 
 def write_report(path: Path, report: dict[str, object]) -> None:

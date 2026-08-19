@@ -568,3 +568,34 @@ SHA-256 复核：
 该条只确认 DATA-01 的当前恢复点可下载且可校验，不等于 restore/rebuild、维护态 rollback、
 RTO/RPO、controlled backfill 或 reconciliation 通过证据。`DATA-01` 继续保持 `awaiting_production`，
 不解锁 `DATA-02/03` 或任何破坏性操作。
+
+## 实施记录（2026-08-19，DATA-01 最新恢复点下载与本机隔离 restore）
+
+本批严格停在注册表允许自动收集的只读/隔离证据范围，没有创建或清理远端备份、没有进入
+维护态，也没有连接生产数据库执行 DDL、恢复、回填或 rollback。
+
+- `scripts/backup-vps-postgres.ps1 -DownloadLatest` 下载了 VPS 上已有的最新 custom-format
+  归档 `/opt/agomtradepro/backups/database/postgres-20260819-044335.dump`；本地文件大小
+  `141990139` bytes，SHA-256
+  `b9177563a534fbc98951b6f9009814c78b8ebd5534b07509a6a97f80ed9cef0c` 与远端盘点值一致，
+  本地 `pg_restore --list` exit `0`，remote prune 仍关闭。
+- Windows Docker bind mount 会把临时 `.pgpass` 暴露为 group/world-readable，PostgreSQL 客户端
+  因而拒绝密码文件并返回 `fe_sendauth: no password supplied`。恢复工具现把只读 secret mount
+  复制到容器内临时路径、`chmod 0600` 后再 `exec pg_restore`；密码仍不进入 argv、日志或报告。
+  `pg_restore` 失败报告同时新增 bounded、password-redacted stderr，保持 fail closed；专项回归
+  `15 passed`，Ruff、Black、isort 通过。
+- 在独立、最终已删除的本机 `postgres:16-alpine` disposable 容器中，使用已下载且重新校验的
+  `postgres-20260816-164649.dump` 先建立同归档 source，再运行 canonical verifier 做第二次受控
+  restore。证据文件为
+  [`data01-local-isolated-restore-2026-08-19.json`](../deployment/data01-local-isolated-restore-2026-08-19.json)：
+  `outcome=success`，archive entries `7152`，restore `595.930s`，verification `533.391s`，
+  total `1693.029s`；536 张 public 表、71 项 Data Center migration 与 schema SHA
+  `4390158a547a52f9c4cefa327b67d65680469b06c18491da65a10cb08a9934ce` 一致，table、migration、
+  sequence 的 missing/extra/changed 均为 `0`，归档 restore 前后 SHA 保持
+  `297d0dc67eb76ff394e2e6e2367a8ba0bc0a0d7ed90af8ce39d3b9f3d86d93b1`，验证库和容器均已清理。
+
+上述 `595.930s` 只能称为本机 disposable `pg_restore` elapsed，不能冒充生产端到端 RTO/RPO；
+最新 2026-08-19 恢复点与本机隔离演练使用的 2026-08-16 归档也分别记录，未伪装为同一候选。
+VPS maintenance/writer quiescence、生产规模 restore、`vps-restore.sh` live rollback、受控回填与
+reconciliation 仍需精确授权和 owner 验收。因此 `DATA-01` 继续 `awaiting_production`，
+`DATA-02/03` 不解锁。

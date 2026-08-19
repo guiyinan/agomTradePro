@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -121,8 +122,39 @@ def test_container_restore_client_keeps_password_out_of_docker_arguments(
     assert observed[:4] == ["docker", "run", "--rm", "--volume"]
     assert "postgres:18.4" in observed
     assert "host.docker.internal" in observed
-    assert "PGPASSFILE=/tmp/agom-postgres-restore.pgpass" in observed
+    joined = " ".join(observed)
+    assert "chmod 600 /tmp/agom-postgres-restore.pgpass" in joined
+    assert "PGPASSFILE=/tmp/agom-postgres-restore.pgpass" in joined
+    assert "/run/secrets/agom-postgres-restore.pgpass" in joined
     assert "secret" not in observed
+
+
+def test_restore_failure_reports_bounded_redacted_stderr(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_script()
+    dump = tmp_path / "postgres-current.dump"
+    target = module.parse_postgres_target("postgresql://agom:secret@localhost/agom_ci")
+
+    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
+        del kwargs
+        raise subprocess.CalledProcessError(
+            returncode=7,
+            cmd=command,
+            stderr=f"{'x' * 5000} secret final database error",
+        )
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        module.restore_dump(dump, target, "agom_ci_restore_verify_deadbeef")
+
+    message = str(exc_info.value)
+    assert "pg_restore_failed(returncode=7" in message
+    assert "final database error" in message
+    assert "secret" not in message
+    assert "[redacted]" in message
+    assert len(message) < 4100
 
 
 def test_container_dump_validation_preserves_exact_list_contract(
