@@ -2686,3 +2686,24 @@ authority inventory 已一致。`tests/unit/test_evid_01_authority_inventory_evi
 Evidence hard gate。immutable owner/tenant lifecycle、authenticated scoped provider、同
 alias exact bundle、人工授权以及 PostgreSQL production race/rollback 证据仍缺，
 `EVID-01` 保持 `active`，`EVID-02`/`EVID-03` 与写入/execution 继续关闭。
+
+## 2026-08-19：EVID-02 offline PostgreSQL evidence collector/report contract
+
+新增纯 Application `apps/research/application/evid_02_postgres_evidence.py`，以及
+`scripts/record_evid_02_postgres_evidence.py`。collector 只接受固定
+`tests/component/research/test_evidence_scope_source_v1_postgres_concurrency.py` 的机器结果，
+严格校验本地/测试 PostgreSQL、disposable/empty-before、三项 root/successor/rollback
+case 的逐项 facts、UTC 时间、完整 case 集和 secret 字段边界；报告由逐项结果推导，不能由
+caller 自报 aggregate `passed`。报告明确标记 `offline_disposable_postgresql_software`、
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`，
+并把 current-head read-only audit 与 human approval 缺口记录为 `not_collected`。
+
+新增 `tests/unit/test_evid_02_postgres_evidence.py`，覆盖 deterministic canonical bytes/hash、
+缺失/重复/未知 case、skip/inconsistent facts、SQLite/远程/production host、非 disposable
+数据库、UTC/secret/unknown-field、不可伪造 human approval/head audit，以及 dry-run、
+content-addressed append-only writer collision；focused 回归 `15 passed`。
+
+该 slice 只完成 EVID-02 自动采集的离线报告合同，不连接 PostgreSQL、Risk Center approval
+writer、VPS/production database 或真实审核人；不把 `EvidenceScopeSourceV1` harness 误称为
+approval proof。`EVID-02` 仍为 `awaiting_production`，registry exit gate、EVID-01 authority
+要求、Evidence hard gate、写入和 execution 继续保持 fail-closed。
