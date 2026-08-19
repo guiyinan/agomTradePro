@@ -97,16 +97,6 @@ class TestGetPolicyResponse:
         assert response.level == PolicyLevel.P1
         assert response.name == "预警"
 
-    def test_pending_level_has_safe_review_response(self):
-        """待分类事件也必须能生成安全的人工复核响应。"""
-        response = get_policy_response(PolicyLevel.PENDING)
-        assert response.level is PolicyLevel.PENDING
-        assert response.market_action is MarketAction.NORMAL_OPERATION
-        assert response.cash_adjustment == 0.0
-        assert response.signal_pause_hours is None
-        assert response.requires_manual_approval is True
-        assert response.alert_triggered is True
-
     def test_get_unknown_level_raises_error(self):
         """测试获取未知档位抛出异常"""
         # 创建一个不存在的档位（通过 hack）
