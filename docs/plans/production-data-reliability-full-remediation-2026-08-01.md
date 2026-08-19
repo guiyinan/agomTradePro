@@ -599,3 +599,19 @@ RTO/RPO、controlled backfill 或 reconciliation 通过证据。`DATA-01` 继续
 VPS maintenance/writer quiescence、生产规模 restore、`vps-restore.sh` live rollback、受控回填与
 reconciliation 仍需精确授权和 owner 验收。因此 `DATA-01` 继续 `awaiting_production`，
 `DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-19，DATA-01 当前候选部署前备份与只读观测）
+
+不可变候选 `29cdf14206239c4b36b0d31f07980ef8b5a26855` 的标准 code-only
+`-Upgrade` 发布在切换前创建并验证 PostgreSQL/Redis 备份；PostgreSQL custom-format 恢复点为
+`/opt/agomtradepro/backups/database/postgres-20260819-073827.dump`，manifest 为
+`/opt/agomtradepro/backups/meta/manifest-20260819-073827.txt`。发布为 release
+`20260819133110` 后，迁移报告 `No migrations to apply`，canonical schema 返回
+`{"missing_migrations": [], "missing_tables": [], "ok": true}`，Web、PostgreSQL、Redis、
+Celery worker/beat、Caddy 与 RSSHub 均运行，Web 容器 healthy，Celery ping 为一节点在线。
+
+部署后独立 HTTPS 观测为 health 8/8、ready 3/3 HTTP `200`；readiness 保留行情超过
+4 小时阈值的 `must_not_use_for_decision=true` 阻断，以及 `etf_net_flow` stale/degraded
+披露。该步骤没有进入维护态、没有执行生产 restore/DDL、live rollback、回填或 reconciliation；
+新备份也没有被清理。它补充的是当前候选的恢复点与短窗口运行证据，不是生产 RTO/RPO 或
+恢复验收。因此 `DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。

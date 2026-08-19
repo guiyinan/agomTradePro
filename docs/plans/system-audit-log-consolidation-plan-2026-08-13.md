@@ -938,3 +938,25 @@ Black、isort 与增量 mypy 均通过。该切片只完成本地调用顺序和
 仍没有 authenticated authority provider、durable publisher/receipt sink、beat/retry/requeue、
 Data Center 同 UOW 双写或 PostgreSQL/VPS 投递证据。因此 `AUD-01` 继续保持 `active`，
 `AUD-02/03` 继续等待依赖。
+
+## 实施记录（2026-08-19，AUD-01 dispatcher 候选部署与只读观测）
+
+包含 authority-before-claim dispatcher wiring 的不可变候选
+`29cdf14206239c4b36b0d31f07980ef8b5a26855` 在四条 push CI 全部成功后，以
+code-only `-Upgrade` 模式发布为 release `20260819133110`，镜像
+`sha256:3748a5aa68dd919e2225894a851c41db88a49cd8b16396974bd64d77ff80a88c`。
+发布前 PostgreSQL/Redis 备份完成；迁移无新增、canonical Data Center schema 无缺项、
+Django deploy check、TUI registry、Qlib、Celery、容器与 TLS verifier 均通过，运行时
+release manifest 与 Git commit/image 精确匹配。部署报告为
+`dist/remote-build-reports/remote-build-report-20260819133110.json`。
+
+独立公网短窗口观测中，`/api/health/` 8/8 为 HTTP `200`（约 `1.09–3.46s`），
+`/api/ready/` 3/3 为 HTTP `200`（约 `4.62–9.94s`）；database、Redis、Celery、
+critical data 与 Alpha/workspace consistency 为 `ok`。readiness 同时如实发布两只决策行情
+超过 4 小时阈值、`must_not_use_for_decision=true`，以及 `etf_net_flow` stale / market
+thermometer degraded，不把部署成功误写成决策数据新鲜。
+
+该记录只证明 dispatcher fail-closed 代码已部署且基础运行面健康；生产 runtime 仍没有
+authenticated authority provider、durable publisher/receipt sink、beat/retry/requeue、真实 outbox
+claim/delivery 或 Data Center 同 UOW 双写。因此 `AUD-01` 继续 `active`，`AUD-02/03`
+继续等待依赖。

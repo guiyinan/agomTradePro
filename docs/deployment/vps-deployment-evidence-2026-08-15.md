@@ -1011,6 +1011,42 @@ owner/reviewer sign-off, or AUD-01/EVID-01 durable authority/publisher verificat
 performed. TAR-01/TAR-02, TUX-02/TUX-04, M5 and the related production gates remain
 fail-closed.
 
+## 2026-08-19 13:31 AUD-01/DATA-01 current candidate deployment
+
+After all four GitHub push workflows succeeded for the immutable candidate,
+`dev/next-development@29cdf14206239c4b36b0d31f07980ef8b5a26855` was deployed in
+code-only upgrade mode. PostgreSQL and Redis data volumes were preserved, Celery remained
+enabled, and the standard deployment rollback guard remained active.
+
+| Item | Evidence |
+|---|---|
+| release tag | `20260819133110` |
+| release directory | `/opt/agomtradepro/releases/source-20260819133110` |
+| source commit | `29cdf14206239c4b36b0d31f07980ef8b5a26855` |
+| image | `agomtradepro-web:20260819133110` |
+| image ID | `sha256:3748a5aa68dd919e2225894a851c41db88a49cd8b16396974bd64d77ff80a88c` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260819133110.json` |
+| CI | Architecture `32219241014`, Security `32219241060`, Consistency `32219241034`, Fast Feedback `32219241038`: all `success` |
+| migrations/schema | `No migrations to apply`; canonical schema had no missing migrations or tables; Django deploy check passed |
+| TUI | local preflight and 34 JS tests passed; registry `28` remained published and active source hash matched expected |
+| Qlib | `pyqlib=0.9.7`; wrong `qlib` distribution absent |
+| runtime | Web healthy; PostgreSQL, Redis, Caddy, RSSHub, runtime namespace and Celery worker/beat running; Celery ping `1 node online` |
+| TLS | `demo.agomtrade.pro` certificate verifier passed |
+| backup | PostgreSQL `/opt/agomtradepro/backups/database/postgres-20260819-073827.dump`; metadata manifest `/opt/agomtradepro/backups/meta/manifest-20260819-073827.txt` |
+
+Independent post-deploy HTTPS sampling returned HTTP `200` for `/api/health/` 8/8
+(`1.09–3.46s`) and `/api/ready/` 3/3 (`4.62–9.94s`). Database, Redis, Celery,
+critical data and Alpha/workspace consistency were `ok`. Decision readiness remained
+fail-closed: the two configured quotes were about 243 minutes old against a four-hour
+threshold and published `must_not_use_for_decision=true`; `etf_net_flow` also remained stale
+and the market-thermometer source degraded.
+
+This is immutable release identity plus short-window read-only health evidence. It does not
+prove authenticated audit authority, durable audit delivery, production restore/RTO/RPO,
+live rollback, backfill/reconciliation, role browser UAT, post-write receipt/refresh, 14-day
+telemetry, or owner/reviewer sign-off. AUD-01 stays active, DATA-01 stays
+`awaiting_production`, and dependent gates remain fail-closed.
+
 ## 2026-08-19 09:12 AUD-01 authority preflight candidate deployment
 
 The AUD-01 runtime authority snapshot preflight contract was deployed from the immutable
