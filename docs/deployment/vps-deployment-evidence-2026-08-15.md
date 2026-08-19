@@ -1010,3 +1010,40 @@ capacity or chaos run, 14-day telemetry, registry backup/restore, rollback drill
 owner/reviewer sign-off, or AUD-01/EVID-01 durable authority/publisher verification was
 performed. TAR-01/TAR-02, TUX-02/TUX-04, M5 and the related production gates remain
 fail-closed.
+
+## 2026-08-19 09:12 AUD-01 authority preflight candidate deployment
+
+The AUD-01 runtime authority snapshot preflight contract was deployed from the immutable
+`dev/next-development` candidate in code-only upgrade mode. PostgreSQL/Redis data volumes
+were preserved and Celery remained enabled. The preflight remains dormant: it does not wire
+the dispatcher, claim events, publish to a durable sink, or create production authority.
+
+| Item | Evidence |
+|---|---|
+| release tag | `20260819091201` |
+| release directory | `/opt/agomtradepro/releases/source-20260819091201` |
+| source commit | `fbf0901522f6310cb66b2571f5400fede1d2e646` |
+| image | `agomtradepro-web:20260819091201` |
+| image ID | `sha256:24987a71875c1156ced5d796eeb0cda0dec011439d382c7c511e360f409b5272` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260819091201.json` |
+| mode | `ACTION=upgrade`, code-only, data volumes preserved, Celery enabled |
+| migrations/schema | `No migrations to apply`; canonical schema `{"missing_migrations": [], "missing_tables": [], "ok": true}`; Django system check reported no issues (one silenced) |
+| TUI registry | registry `28`, published, active source hash matched expected |
+| HTTPS/TLS | `demo.agomtrade.pro` Caddy domain; TLS verifier passed |
+| containers | web healthy; Celery worker/beat, PostgreSQL, Redis, Caddy, RSSHub and runtime namespace running; Celery ping `1 node online` |
+| Qlib | `pyqlib=0.9.7`; wrong `qlib` distribution absent; module `/usr/local/lib/python3.11/site-packages/qlib/__init__.py` |
+| backup | pre-deploy PostgreSQL custom-format backup `/opt/agomtradepro/backups/database/postgres-20260819-031937.dump` created and verifier passed |
+| CI | Fast Feedback `32203625294`, Security `32203625328`, Architecture `32203625280`, Consistency `32203625295` all `success` |
+
+Independent post-deploy HTTPS samples all returned HTTP `200`: `/api/health/` was `8/8`
+with approximately `1.118–1.896s` response times, and `/api/ready/` was `3/3` with
+approximately `4.526–9.824s` response times. Database, Redis, Celery and critical-data
+checks were `ok`. The ready payload retained the existing decision-data freshness
+disclosures, including stale `etf_net_flow` and a degraded market-thermometer source.
+
+This is deployment identity and short-window read-only observation only. No authenticated
+authority lifecycle, durable publisher/receipt sink, dispatcher claim, beat/retry/requeue,
+Data Center same-UOW dual-write, role browser UAT, business write/receipt refresh, capacity
+or chaos run, 14-day telemetry, registry backup/restore, rollback drill, or owner/reviewer
+sign-off was performed. AUD-01 remains fail-closed; AUD-02/03, TAR/TUX production gates,
+M5 and EVID-01 authority gates remain unchanged.
