@@ -372,7 +372,9 @@ jobs:
 
       - name: Install TUI browser runtime
         if: needs.detect-tests.outputs.tui-changed == 'true'
-        run: python -m playwright install --with-deps chromium
+        # GitHub-hosted Ubuntu runners already provide Chromium system libraries;
+        # avoid --with-deps, whose Azure APT mirror can hang the whole matrix.
+        run: python -m playwright install chromium
 
       - name: Run TUI metadata projection guard
         if: needs.detect-tests.outputs.tui-changed == 'true'
