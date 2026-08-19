@@ -1194,3 +1194,13 @@ and `/api/` as `200`; unauthenticated `/api/tui/`, `/api/terminal/`, `/api/termi
 unauthenticated `/api/regime/current/` response remained `503` with
 `block_reason_code=decision_runtime_blocked` and `must_not_use_for_decision=true`. This confirms
 the deployed read-only and fail-closed boundary only; it is not role/browser/write acceptance.
+
+### Current-candidate PostgreSQL read-only inventory (2026-08-20)
+
+Inside the running web container, a read-only Django/PostgreSQL query confirmed account
+migrations `0050` through `0054`, `agent_runtime.0004_terminal_agent_run`, and audit migration
+`0012_systemauditevent_scope` are applied. The authority/evidence/root-lock ledgers for the
+current candidate remain zero-seed (all twelve governed tables returned `0` rows). The same
+snapshot returned `audit_system_outbox=0` and `audit_system_event=0`; this is an empty-backlog
+observation, not evidence that a durable publisher or authenticated authority is wired. No rows
+were inserted, updated, deleted, or backfilled.

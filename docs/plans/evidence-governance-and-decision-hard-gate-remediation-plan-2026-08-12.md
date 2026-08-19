@@ -2819,3 +2819,16 @@ cutover candidate 仍绑定此前的 TUI 候选，本非-TUI slice 不自动重�
 `etf_net_flow` degraded/stale 观察。authenticated owner/tenant lifecycle、同 alias bundle、
 人工授权、production writer、角色化浏览器 UAT、14 日 telemetry、PostgreSQL race/rollback
 和 Evidence hard gate 继续 fail-closed。
+
+## 2026-08-20：当前候选 EVID-01/AUD-03 PostgreSQL 只读盘点
+
+在当前 VPS release `20260820012016` 的 web 容器内，以只读 Django/PostgreSQL 查询复核了
+account `0050`–`0054`、agent_runtime `0004` 与 audit `0012` migration；均已应用。EVID-01
+约定的 authority/evidence/root-lock 表仍全部为 `0` 行，另观测到
+`audit_system_outbox=0` 与 `audit_system_event=0`。本次没有创建、更新、删除、回填或触发
+任何业务写入。
+
+该证据只确认当前候选的 schema、zero-seed authority 状态和“当前没有 outbox backlog”；空
+outbox 不能证明 durable publisher、dispatcher claim/delivery、authenticated owner/tenant
+authority 或同 UOW 双写已接通。`EVID-01` 与 `AUD-01/AUD-03` 的生产 writer/authority、
+PostgreSQL race/rollback、migration/restore/owner sign-off 仍保持 fail-closed。
