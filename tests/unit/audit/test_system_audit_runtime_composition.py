@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -13,11 +13,14 @@ from apps.audit.application.system_audit_authority_provider import (
 )
 from apps.audit.application.system_audit_composition import (
     CanonicalSystemAuditPublisherPreflight,
+    SystemAuditAuthoritySnapshot,
     SystemAuditCompositionUnavailable,
+    system_audit_authority_content_hash,
 )
 from apps.audit.application.system_audit_runtime_composition import (
     ServerIssuedSystemAuditAuthorityBundle,
     inspect_system_audit_runtime_composition,
+    preflight_system_audit_runtime_authority,
 )
 
 NOW = datetime(2026, 8, 16, 12, 0, tzinfo=UTC)
@@ -102,6 +105,62 @@ class _AuthorityProvider:
         return None
 
 
+class _SnapshotProvider:
+    def __init__(
+        self,
+        selector: SystemAuditAuthorityBundleSelector,
+        snapshot: SystemAuditAuthoritySnapshot | None,
+    ) -> None:
+        self.authority_bundle_selector = selector
+        self.snapshot = snapshot
+        self.calls = 0
+
+    def get_current(self, *, as_of: datetime) -> SystemAuditAuthoritySnapshot | None:
+        assert as_of == NOW
+        self.calls += 1
+        return self.snapshot
+
+
+def _authority_snapshot(
+    selector: SystemAuditAuthorityBundleSelector,
+    *,
+    source_id: str | None = None,
+    source_version: str | None = None,
+) -> SystemAuditAuthoritySnapshot:
+    checked_source_id = source_id or selector.authority_source_id()
+    checked_source_version = source_version or selector.authority_source_version()
+    recorded_at = NOW - timedelta(minutes=5)
+    valid_until = NOW + timedelta(minutes=5)
+    return SystemAuditAuthoritySnapshot(
+        source_id=checked_source_id,
+        source_version=checked_source_version,
+        actor_id="django-user:7",
+        user_id=7,
+        tenant_id="tenant:primary",
+        owner_id="owner:research",
+        authority_content_hash=system_audit_authority_content_hash(
+            source_id=checked_source_id,
+            source_version=checked_source_version,
+            actor_id="django-user:7",
+            user_id=7,
+            tenant_id="tenant:primary",
+            owner_id="owner:research",
+            is_authenticated=True,
+            is_staff=True,
+            role="audit_reader",
+            authority_state="active",
+            recorded_at=recorded_at,
+            valid_until=valid_until,
+        ),
+        is_authenticated=True,
+        is_staff=True,
+        role="audit_reader",
+        authority_state="active",
+        recorded_at=recorded_at,
+        valid_until=valid_until,
+    )
+
+
 def _authority_bundle(
     selector: SystemAuditAuthorityBundleSelector | None = None,
 ) -> ServerIssuedSystemAuditAuthorityBundle:
@@ -110,6 +169,21 @@ def _authority_bundle(
         provider=_AuthorityProvider(checked),
         selector=checked,
         issuer_id="authority-issuer",
+    )
+
+
+def _snapshot_authority_bundle(
+    selector: SystemAuditAuthorityBundleSelector,
+    snapshot: SystemAuditAuthoritySnapshot | None,
+) -> tuple[ServerIssuedSystemAuditAuthorityBundle, _SnapshotProvider]:
+    provider = _SnapshotProvider(selector, snapshot)
+    return (
+        ServerIssuedSystemAuditAuthorityBundle(
+            provider=provider,
+            selector=selector,
+            issuer_id="authority-issuer",
+        ),
+        provider,
     )
 
 
@@ -251,3 +325,58 @@ def test_authority_bundle_requires_a_nonempty_issuer_reference() -> None:
             selector=_selector(),
             issuer_id="",
         )
+
+
+def test_runtime_authority_preflight_reads_provider_snapshot_at_cutoff() -> None:
+    selector = _selector()
+    bundle, provider = _snapshot_authority_bundle(selector, _authority_snapshot(selector))
+
+    context = preflight_system_audit_runtime_authority(bundle, as_of=NOW)
+
+    assert context.can_read_at(NOW)
+    assert context.authority_source_id == selector.authority_source_id()
+    assert context.authority_source_version == selector.authority_source_version()
+    assert provider.calls == 1
+
+
+def test_runtime_authority_preflight_rejects_selector_source_substitution() -> None:
+    selector = _selector()
+    bundle, provider = _snapshot_authority_bundle(
+        selector,
+        _authority_snapshot(
+            selector,
+            source_id="audit-authority-bundle:other",
+            source_version="v1-other",
+        ),
+    )
+
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        preflight_system_audit_runtime_authority(bundle, as_of=NOW)
+
+    assert exc_info.value.reason_code == "authority_unavailable"
+    assert provider.calls == 1
+
+
+def test_runtime_authority_preflight_rejects_missing_snapshot() -> None:
+    selector = _selector()
+    bundle, provider = _snapshot_authority_bundle(selector, None)
+
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        preflight_system_audit_runtime_authority(bundle, as_of=NOW)
+
+    assert exc_info.value.reason_code == "authority_unavailable"
+    assert provider.calls == 1
+
+
+def test_runtime_authority_preflight_rejects_invalid_cutoff_before_provider_read() -> None:
+    selector = _selector()
+    bundle, provider = _snapshot_authority_bundle(selector, _authority_snapshot(selector))
+
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        preflight_system_audit_runtime_authority(
+            bundle,
+            as_of=datetime(2026, 8, 16, 12, 0),
+        )
+
+    assert exc_info.value.reason_code == "authority_cutoff_invalid"
+    assert provider.calls == 0

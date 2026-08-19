@@ -93,6 +93,16 @@ class SystemAuditAuthorityBundleSelector:
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return hashlib.sha256(b"audit.system-authority-bundle.v1\0" + encoded).hexdigest()
 
+    def authority_source_id(self) -> str:
+        """Return the provider-issued authority source identity for this bundle."""
+
+        return f"audit-authority-bundle:{self.canonical_key()}"
+
+    def authority_source_version(self) -> str:
+        """Return the provider-issued authority source version for this bundle."""
+
+        return f"v1-{self.canonical_key()[:32]}"
+
 
 @dataclass(frozen=True, slots=True)
 class SystemAuditActorAuthorityFacts:
@@ -275,17 +285,18 @@ class ExactScopedSystemAuditAuthorityProvider(SystemAuditAuthorityProvider):
             valid_until = min(actor.valid_until, scope.valid_until)
             if recorded_at >= valid_until:
                 return None
-            bundle_key = selector.canonical_key()
+            authority_source_id = selector.authority_source_id()
+            authority_source_version = selector.authority_source_version()
             return SystemAuditAuthoritySnapshot(
-                source_id=f"audit-authority-bundle:{bundle_key}",
-                source_version=f"v1-{bundle_key[:32]}",
+                source_id=authority_source_id,
+                source_version=authority_source_version,
                 actor_id=actor.actor_id,
                 user_id=actor.user_id,
                 tenant_id=scope.tenant_id,
                 owner_id=scope.owner_id,
                 authority_content_hash=system_audit_authority_content_hash(
-                    source_id=f"audit-authority-bundle:{bundle_key}",
-                    source_version=f"v1-{bundle_key[:32]}",
+                    source_id=authority_source_id,
+                    source_version=authority_source_version,
                     actor_id=actor.actor_id,
                     user_id=actor.user_id,
                     tenant_id=scope.tenant_id,

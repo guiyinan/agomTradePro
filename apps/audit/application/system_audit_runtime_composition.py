@@ -11,6 +11,7 @@ composition root supplies real implementations.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol, cast
 
 from apps.audit.application.system_audit_authority_provider import (
@@ -20,6 +21,7 @@ from apps.audit.application.system_audit_composition import (
     CanonicalSystemAuditPublisherPreflight,
     SystemAuditAuthorityProvider,
     SystemAuditCompositionUnavailable,
+    get_system_audit_reader_context,
     inspect_canonical_system_audit_publisher,
 )
 from apps.audit.application.system_audit_event_outbox import (
@@ -30,6 +32,7 @@ from apps.audit.application.system_audit_outbox_dispatcher import (
     SystemAuditOutboxDispatchUnitOfWork,
     SystemAuditOutboxPublisher,
 )
+from apps.audit.application.system_audit_query import SystemAuditReaderContext
 
 
 def _require_token(value: object, field: str) -> str:
@@ -116,6 +119,55 @@ class SystemAuditRuntimeComposition:
     publisher: SystemAuditOutboxPublisher
     publisher_preflight: CanonicalSystemAuditPublisherPreflight
     authority_bundle: ServerIssuedSystemAuditAuthorityBundle
+
+
+def preflight_system_audit_runtime_authority(
+    authority_bundle: ServerIssuedSystemAuditAuthorityBundle | None,
+    *,
+    as_of: datetime,
+) -> SystemAuditReaderContext:
+    """Read and validate current authority before a future outbox claim.
+
+    Structural composition alone cannot prove that the authority provider's
+    current snapshot is still authenticated, staff-bound, in scope, and valid
+    at the dispatch cutoff.  This preflight performs that provider read and
+    additionally binds the returned source identity/version to the exact
+    server-issued selector.  It performs no claim, publish, transaction, or
+    request/ORM work; a production composition root must call it before using
+    the runtime composition.
+    """
+
+    if authority_bundle is None:
+        raise SystemAuditCompositionUnavailable(
+            "system audit authority bundle is not wired",
+            reason_code="authority_not_wired",
+        )
+    try:
+        authority_bundle.__post_init__()
+    except (AttributeError, TypeError, ValueError):
+        raise SystemAuditCompositionUnavailable(
+            "system audit authority bundle is unavailable",
+            reason_code="authority_unavailable",
+        ) from None
+
+    try:
+        context = get_system_audit_reader_context(authority_bundle.provider, as_of=as_of)
+    except SystemAuditCompositionUnavailable:
+        raise
+    except Exception:
+        raise SystemAuditCompositionUnavailable(
+            "system audit authority preflight is unavailable",
+            reason_code="authority_unavailable",
+        ) from None
+    if (
+        context.authority_source_id != authority_bundle.selector.authority_source_id()
+        or context.authority_source_version != authority_bundle.selector.authority_source_version()
+    ):
+        raise SystemAuditCompositionUnavailable(
+            "system audit authority source does not match issued selector",
+            reason_code="authority_unavailable",
+        )
+    return context
 
 
 def _require_component_alias(
@@ -247,4 +299,5 @@ __all__ = [
     "SystemAuditEventOutboxCoordinator",
     "SystemAuditRuntimeComposition",
     "inspect_system_audit_runtime_composition",
+    "preflight_system_audit_runtime_authority",
 ]

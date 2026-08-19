@@ -909,3 +909,17 @@ runtime gate 或 claim 前阻断语义。
 focused `13 passed`。本切片只强化本地 fail-closed composition ordering，不创建 durable publisher、
 authenticated authority source、Celery beat/retry、Data Center 双写或生产 PostgreSQL/VPS 证据，
 因此 `AUD-01` 状态与 gate 不变，`AUD-02/03` 继续等待依赖。
+
+## 实施记录（2026-08-19，AUD-01 runtime authority snapshot preflight）
+
+`SystemAuditAuthorityBundleSelector` 现在集中产生 authority source identity/version；新增纯
+Application `preflight_system_audit_runtime_authority()` 在未来 outbox claim 前按同一 dispatch
+cutoff 读取 provider-issued snapshot，重验 canonical authority hash、active/staff/authenticated、
+actor/user 与 tenant/owner scope、有效窗口，并拒绝 snapshot 的 source identity/version 替换。
+该 preflight 不 claim、publish、开事务或读取 request/ORM；focused runtime/authority/composition
+回归 `60 passed`，增量 mypy、Black、isort、Ruff 通过。
+
+这只是把 authority 的当前快照与 server-issued selector 绑定到一个可调用的本地合同；尚未把它
+接入 dispatcher/runtime registry，也没有 authenticated production authority lifecycle、durable
+publisher/receipt sink、beat/retry/requeue、Data Center 同 UOW 双写或生产 PostgreSQL/VPS 投递证据。
+`AUD-01` gate 保持阻断，`AUD-02/03` 继续等待依赖。
