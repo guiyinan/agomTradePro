@@ -1083,3 +1083,60 @@ Data Center same-UOW dual-write, role browser UAT, business write/receipt refres
 or chaos run, 14-day telemetry, registry backup/restore, rollback drill, or owner/reviewer
 sign-off was performed. AUD-01 remains fail-closed; AUD-02/03, TAR/TUX production gates,
 M5 and EVID-01 authority gates remain unchanged.
+
+## 2026-08-19 15:44 TAR-01 immutable candidate authenticated boundary acceptance
+
+After the four push workflows succeeded for `dev/next-development@da04c053aa16bd940a45896a531ee567a8a2a892`,
+the immutable candidate was deployed in code-only `-Upgrade` mode. PostgreSQL and Redis
+volumes were preserved, Celery remained enabled, and the standard pre-deploy backup and
+automatic rollback guard remained active.
+
+| Item | Evidence |
+|---|---|
+| release tag | `20260819145227` |
+| release directory | `/opt/agomtradepro/releases/source-20260819145227` |
+| source commit | `da04c053aa16bd940a45896a531ee567a8a2a892` |
+| image | `agomtradepro-web:20260819145227` |
+| image ID | `sha256:cc6fe35e4e14643223cbb9f97953ef5499ce47f844bdd97eb6e4d319ba952b3b` |
+| deployment report | `dist/remote-build-reports/remote-build-report-20260819145227.json` |
+| CI | Architecture `32224685464`, Security `32224685486`, Consistency `32224685553`, Fast Feedback `32224685685`: all `success` |
+| migrations/schema | no pending migrations; canonical schema, Django deploy check and TUI registry verification passed |
+| backup | PostgreSQL `/opt/agomtradepro/backups/database/postgres-20260819-085915.dump`; manifest `/opt/agomtradepro/backups/meta/manifest-20260819-085915.txt` |
+| runtime | Web/PostgreSQL/Redis/RSSHub healthy; Caddy/runtime namespace/Celery worker and beat running; Celery ping found one node; Qlib `0.9.7`; TLS verifier passed |
+
+An existing authenticated production test account was used without printing credentials,
+cookies or tokens. The reserved route was exercised at concurrency `1/5/10/20` with exactly
+`1/5/10/20` requests. All `36/36` calls returned the expected dormant response: HTTP `503`,
+`code=DISPATCH_UNAVAILABLE`, `reason_code=queued_runtime_not_wired`, and `Retry-After=60`.
+The diagnostic external-HTTPS latency was:
+
+| concurrency | responses | p50 | p95 | p99 | max |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 1/1 expected 503 | 1331.92 ms | 1331.92 ms | 1331.92 ms | 1331.92 ms |
+| 5 | 5/5 expected 503 | 1632.41 ms | 1700.88 ms | 1700.88 ms | 1700.88 ms |
+| 10 | 10/10 expected 503 | 1995.00 ms | 2108.57 ms | 2108.57 ms | 2108.57 ms |
+| 20 | 20/20 expected 503 | 2651.99 ms | 3116.70 ms | 3236.60 ms | 3236.60 ms |
+
+Five health samples before and after this staircase were `200`; their external-HTTPS p95 was
+`1317.05 ms` and `1300.87 ms`. A second mixed observation issued 20 dormant route requests and
+20 health requests concurrently. It returned `20/20` expected `503` and `20/20` health `200`,
+but route p95 was `4786.71 ms` and health p95 was `4026.08 ms`. This diagnostic result is not
+promoted into `run_api_p95_ms`: the route is deliberately dormant and did not admit or execute
+a run. It also exceeds the future hard latency/degradation criteria, so it cannot be used to
+issue a capacity-ready report.
+
+The mixed observation was bracketed by read-only Docker/resource snapshots. Web memory was
+`331.1 -> 331.7 MiB` of `1 GiB`; Redis was `12.48 -> 12.70 MiB` of `300 MiB`; PostgreSQL was
+`179.5 -> 181.3 MiB` of `768 MiB`. Web, Celery worker, Redis and PostgreSQL all remained
+running with restart count `0` and `OOMKilled=false`; Redis reported `blocked_clients=0`.
+However, a pre-existing Qlib prediction task held the Celery worker near `100%` CPU and its
+memory rose from `1.153 GiB` (`78.69%`) to `1.284 GiB` (`87.64%`) of `1.465 GiB`. That
+background load is preserved as a confounder and resource-pressure observation, not hidden or
+attributed to the dormant Terminal requests.
+
+Acceptance outcome: the authenticated fail-closed and no-restart/OOM boundary is verified for
+this immutable candidate, but queued capacity is **not accepted**. No durable admission, queue
+depth/age, worker lease/orphan recovery, SSE replay, cancellation, idempotency, provider/MCP
+call-count or chaos evidence exists; six canonical matrix scenarios remain `planned`. TAR-01
+stays active, TAR-02 remains waiting, queued intake/worker flags stay off, and no inline
+concurrency limit is raised.
