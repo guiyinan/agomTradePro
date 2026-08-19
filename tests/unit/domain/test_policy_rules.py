@@ -230,10 +230,7 @@ class TestValidatePolicyEvent:
     def test_valid_p0_event(self):
         """测试有效的 P0 事件"""
         is_valid, errors = validate_policy_event(
-            PolicyLevel.P0,
-            "正常市场状态",
-            "无重大政策干预",
-            "https://example.com/news"
+            PolicyLevel.P0, "正常市场状态", "无重大政策干预", "https://example.com/news"
         )
         assert is_valid is True
         assert len(errors) == 0
@@ -244,7 +241,7 @@ class TestValidatePolicyEvent:
             PolicyLevel.P2,
             "央行宣布降准",
             "中国人民银行宣布下调存款准备金率0.5个百分点，释放长期资金",
-            "https://pbc.gov.cn/news/12345"
+            "https://pbc.gov.cn/news/12345",
         )
         assert is_valid is True
         assert len(errors) == 0
@@ -252,32 +249,21 @@ class TestValidatePolicyEvent:
     def test_empty_title(self):
         """测试空标题"""
         is_valid, errors = validate_policy_event(
-            PolicyLevel.P1,
-            "",
-            "描述内容",
-            "https://example.com"
+            PolicyLevel.P1, "", "描述内容", "https://example.com"
         )
         assert is_valid is False
         assert "标题不能为空" in errors
 
     def test_empty_description(self):
         """测试空描述"""
-        is_valid, errors = validate_policy_event(
-            PolicyLevel.P1,
-            "标题",
-            "",
-            "https://example.com"
-        )
+        is_valid, errors = validate_policy_event(PolicyLevel.P1, "标题", "", "https://example.com")
         assert is_valid is False
         assert "描述不能为空" in errors
 
     def test_p2_short_description(self):
         """测试 P2 描述过短"""
         is_valid, errors = validate_policy_event(
-            PolicyLevel.P2,
-            "降息",
-            "降了",  # 少于 20 字符
-            "https://example.com"
+            PolicyLevel.P2, "降息", "降了", "https://example.com"  # 少于 20 字符
         )
         assert is_valid is False
         assert any("至少 20 个字符" in e for e in errors)
@@ -285,44 +271,28 @@ class TestValidatePolicyEvent:
     def test_p3_short_description(self):
         """测试 P3 描述过短"""
         is_valid, errors = validate_policy_event(
-            PolicyLevel.P3,
-            "熔断",
-            "市场熔断了",  # 少于 20 字符
-            "https://example.com"
+            PolicyLevel.P3, "熔断", "市场熔断了", "https://example.com"  # 少于 20 字符
         )
         assert is_valid is False
         assert any("至少 20 个字符" in e for e in errors)
 
     def test_empty_evidence_url(self):
         """测试缺少证据 URL"""
-        is_valid, errors = validate_policy_event(
-            PolicyLevel.P1,
-            "标题",
-            "描述内容",
-            ""
-        )
+        is_valid, errors = validate_policy_event(PolicyLevel.P1, "标题", "描述内容", "")
         assert is_valid is False
         assert "证据 URL" in errors[0]
 
     def test_invalid_evidence_url_format(self):
         """测试无效的 URL 格式"""
         is_valid, errors = validate_policy_event(
-            PolicyLevel.P1,
-            "标题",
-            "描述内容",
-            "ftp://example.com"
+            PolicyLevel.P1, "标题", "描述内容", "ftp://example.com"
         )
         assert is_valid is False
         assert "http:// 或 https://" in errors[0]
 
     def test_multiple_errors(self):
         """测试多个错误同时存在"""
-        is_valid, errors = validate_policy_event(
-            PolicyLevel.P2,
-            "",
-            "短",
-            ""
-        )
+        is_valid, errors = validate_policy_event(PolicyLevel.P2, "", "短", "")
         assert is_valid is False
         assert len(errors) >= 3
 
@@ -452,11 +422,7 @@ class TestPolicyLevelKeywordRule:
 
     def test_keyword_rule_is_immutable(self):
         """测试关键词规则是不可变的"""
-        rule = PolicyLevelKeywordRule(
-            level=PolicyLevel.P2,
-            keywords=["降息"],
-            weight=1
-        )
+        rule = PolicyLevelKeywordRule(level=PolicyLevel.P2, keywords=["降息"], weight=1)
         with pytest.raises(FrozenInstanceError):
             rule.keywords = ["加息"]
 
