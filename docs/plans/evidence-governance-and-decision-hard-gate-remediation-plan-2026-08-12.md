@@ -2793,3 +2793,29 @@ ceiling、governance consistency 均通过。
 授权、production writer，也不提供 PostgreSQL 双连接 race/rollback 证据；因此不改变
 registry 状态，`EVID-01` 继续 `active`，Evidence hard gate、写入与 execution 继续
 保持 fail-closed。
+
+## 2026-08-19：EVID-01 offline contract candidate deployment and observation
+
+提交 `0c92cf6357ea2e33877319342745fb4eadde103f` 的四条必需 CI 已全部成功（Security、
+Architecture、Consistency、Fast Feedback；Python 3.11/3.13 与完整 production mypy debt
+ceiling 均通过）。随后按 code-only `-Upgrade`、保留 PostgreSQL/Redis 数据卷、启用 Celery
+发布到 VPS，release `20260819210655`，镜像
+`sha256:af5bb7953e42d7842151109edce1d6add7a9e12236c0a54e57273e6eaa493c2e`。部署 verifier
+确认 Caddy/TLS、HTTPS health/ready `200`、web healthy、Celery worker/beat/ping、Django
+check、迁移/schema、TUI registry、Qlib 与备份均通过；只读运行摘要见
+[`vps-runtime-verification-2026-08-19-1334.json`](../deployment/vps-runtime-verification-2026-08-19-1334.json)。
+
+在同一 release/web 容器中执行只读 PostgreSQL 查询，0050–0053 均已应用，EVID-01 约定
+12 张 authority/evidence/root-lock 表全部为 `0` 行；原始快照见
+[`evid-01-authority-inventory-snapshot-2026-08-19-1332.json`](../deployment/evid-01-authority-inventory-snapshot-2026-08-19-1332.json)，
+旧版兼容验收工件见
+[`evid-01-authority-inventory-2026-08-19-1332.json`](../deployment/evid-01-authority-inventory-2026-08-19-1332.json)，
+新的 canonical report 内容寻址工件见
+[`evid-01-authority-inventory/9d/9dc07b28dd278133a1f2dab078a0c2c3c06862fa9094a9e2e78c3143bcd5162d.json`](../deployment/evid-01-authority-inventory/9d/9dc07b28dd278133a1f2dab078a0c2c3c06862fa9094a9e2e78c3143bcd5162d.json)。
+
+这次部署只验证该代码候选的运行身份、短时只读健康与 zero-seed；没有执行业务登录/写入、
+authority backfill、destructive migration、restore/rollback 或人工审批。M5 的 registry/
+cutover candidate 仍绑定此前的 TUI 候选，本非-TUI slice 不自动重绑观察窗口；ready 仍含既有
+`etf_net_flow` degraded/stale 观察。authenticated owner/tenant lifecycle、同 alias bundle、
+人工授权、production writer、角色化浏览器 UAT、14 日 telemetry、PostgreSQL race/rollback
+和 Evidence hard gate 继续 fail-closed。

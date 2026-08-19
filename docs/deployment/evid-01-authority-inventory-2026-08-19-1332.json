@@ -1,0 +1,64 @@
+{
+  "version": "evid-01-authority-inventory.v1",
+  "environment": "production",
+  "checked_at": "2026-08-19T13:32:04.509739Z",
+  "candidate": {
+    "stable_version": "20260819210655",
+    "source_commit": "0c92cf6357ea2e33877319342745fb4eadde103f",
+    "release": "agomtradepro-web:20260819210655"
+  },
+  "deployment": {
+    "image_id": "sha256:af5bb7953e42d7842151109edce1d6add7a9e12236c0a54e57273e6eaa493c2e",
+    "source_mode": "git-clone",
+    "runtime_match": true,
+    "health_checked_at": "2026-08-19T13:34:06Z",
+    "backup": "/opt/agomtradepro/backups/database/postgres-20260819-151421.dump"
+  },
+  "read_only": true,
+  "database": {
+    "backend": "postgresql",
+    "schema": "public",
+    "migrations": [
+      {
+        "app": "account",
+        "name": "0050_account_owner_assignment_evidence_v3_ledgers",
+        "applied_at": "2026-08-15T05:32:57.036668Z"
+      },
+      {
+        "app": "account",
+        "name": "0051_actor_authority_source_v3_ledgers",
+        "applied_at": "2026-08-15T05:32:57.305295Z"
+      },
+      {
+        "app": "account",
+        "name": "0052_account_actor_authority_raw_source_v3_ledgers",
+        "applied_at": "2026-08-15T05:32:58.924617Z"
+      },
+      {
+        "app": "account",
+        "name": "0053_account_rbac_authority_mutation_binding_v3",
+        "applied_at": "2026-08-15T05:33:00.857576Z"
+      }
+    ]
+  },
+  "row_counts": {
+    "account_auth_context_source_v3_anchor": 0,
+    "account_auth_context_source_v3_ledger": 0,
+    "account_user_authority_source_v3_anchor": 0,
+    "account_user_authority_source_v3_ledger": 0,
+    "account_rbac_authority_source_v3_anchor": 0,
+    "account_rbac_authority_source_v3_ledger": 0,
+    "account_actor_authority_source_v3_root_lock": 0,
+    "account_actor_authority_source_v3_ledger": 0,
+    "research_evidence_scope_source_v1": 0,
+    "account_owner_assignment_subject_v3_ledger": 0,
+    "account_owner_assignment_evidence_v3_ledger": 0,
+    "account_owner_assignment_provenance_receipt_v3_ledger": 0
+  },
+  "outcome": "blocked_zero_seed_authority",
+  "limitations": [
+    "This is a read-only PostgreSQL migration and row-count observation for the deployed candidate; it does not prove an authority lifecycle exists.",
+    "Zero rows are not permission to derive authority from mutable User/Profile/session/request state or to backfill historical facts.",
+    "Authenticated owner/tenant provider composition, same-alias bundle reads, human approval, PostgreSQL race evidence and production write routes remain unavailable."
+  ]
+}
