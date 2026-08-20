@@ -598,6 +598,13 @@ test("action deep links reveal, focus, and prefill the requested task", async ()
         await input.waitFor();
         await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "code");
         assert.equal(await input.inputValue(), "deep-link-code");
+        assert.equal(
+            await input.evaluate((element) => {
+                const fieldRect = element.getBoundingClientRect();
+                return fieldRect.top >= 0 && fieldRect.bottom <= window.innerHeight;
+            }),
+            true,
+        );
         assert.match(await page.locator("[data-workbench-status]").innerText(), /编辑记录/);
     } finally {
         await browser.close();

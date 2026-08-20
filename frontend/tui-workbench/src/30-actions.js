@@ -587,12 +587,33 @@
             runAction(normalizedKey, null, { params: runnableParams });
             return;
         }
-        form.scrollIntoView({ block: "nearest" });
-        const primaryInput = form.querySelector(
-            "textarea, input:not([type='hidden']), select",
-        );
-        (primaryInput || form.querySelector("button"))?.focus();
+        focusActionFormInPanel(form);
         setStatus(`已定位到 ${action.label}`);
+    }
+
+    function focusActionFormInPanel(form) {
+        if (!form) {
+            return;
+        }
+        const focus = () => {
+            form.scrollIntoView({ block: "nearest", inline: "nearest" });
+            const primaryInput = form.querySelector(
+                "textarea, input:not([type='hidden']), select",
+            );
+            (primaryInput || form.querySelector("button"))?.focus({ preventScroll: true });
+        };
+        focus();
+        const schedule = () => {
+            focus();
+            window.setTimeout(() => {
+                form.scrollIntoView({ block: "nearest", inline: "nearest" });
+            }, 0);
+        };
+        if (typeof window.requestAnimationFrame === "function") {
+            window.requestAnimationFrame(schedule);
+        } else {
+            window.setTimeout(schedule, 0);
+        }
     }
 
     function selectedRowForActions() {
