@@ -649,3 +649,20 @@ while queued runtime is disabled. It is not queued admission, Worker, SSE, idemp
 provider/MCP, chaos, or capacity acceptance, and it does not rebind the formal
 `f3881a04…/20260820043710` candidate. TAR-01 remains active, TAR-02/TAR-03 remain waiting, and
 the inline single-slot and queued feature gates remain unchanged.
+
+### TAR-02 bounded admission decision contract (2026-08-20)
+
+Added the pure Application contract
+`apps/agent_runtime/application/terminal_runtime_admission.py`. It validates an
+explicit owner/global counter snapshot (including worker readiness), rejects
+ambiguous or impossible counts, and evaluates exact per-user/global caps with
+stable fail-closed reasons. Emergency stop, disabled queued flags, unavailable
+worker, and restricted-inline fallback never become queued acceptance. Focused
+tests: `24 passed`; Ruff, Black, isort, incremental mypy, and diff-check pass.
+
+This is a decision contract only: it does not query PostgreSQL, lock capacity,
+create runs, publish after commit, call a route, Celery, broker, worker, or
+Agent. The existing reserved route remains `queued_runtime_not_wired`, and the
+TAR-02 dependency/status and all production gates remain unchanged until TAR-01
+exit evidence and a concurrency-safe durable admission composition are
+approved.
