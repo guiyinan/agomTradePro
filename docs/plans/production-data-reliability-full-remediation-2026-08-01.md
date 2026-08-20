@@ -654,3 +654,26 @@ rollback、回填或 reconciliation。既有 2026-08-19 隔离 restore 证据仍
 这只是 DATA-01 的本地证据格式与校验合同，不是生产备份新鲜度、restore/rebuild、RTO/RPO、
 维护态 rollback、回填或 reconciliation 验收；`DATA-01` 继续 `awaiting_production`，
 `DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-20，DATA-01 VPS 最新归档证据）
+
+本批按 `DATA-01` 的自动收集范围，只读取并复核 VPS 上已有归档，没有创建新备份、没有
+prune、没有进入维护态，也没有连接生产数据库执行 DDL、恢复、回填或 rollback。
+
+- 远端归档：`/opt/agomtradepro/backups/database/postgres-20260820-110946.dump`；远端
+  `pg_restore --list` exit `0`，manifest 为 `7182` entries，manifest SHA-256
+  `170ca2cd663bd2f1e0f035807c03282e3f4b6e55a2d92dce93978e93973bc394`。
+- 完整 SFTP 下载到 `backups/vps-postgres/postgres-20260820-110946.dump`，远端与本地
+  大小均为 `142313231` bytes；远端与本地 SHA-256 均为
+  `b3f5893f45b0f8aa316307e709450cace3b5c7798bdbe3976b1920f2670c6773`，partial 被拒绝。
+- 结构化 envelope 为
+  [`data-backup-evidence-2026-08-20.json`](../deployment/data-backup-evidence-2026-08-20.json)，
+  schema=`data-backup-evidence.v1`，content hash
+  `a7543e05229dc49cb24c44990f59d62200b8fbdd289f969852c1ef570996a518`；远端采集时间为
+  `2026-08-20T10:05:39Z`，归档 mtime 为 `2026-08-20T09:10:50Z`。
+
+这条记录只证明一个新的、可复核的 PostgreSQL custom-format 恢复点及其传输完整性；本机
+没有可直接调用的 `pg_restore` 客户端，因此本次本地侧使用脚本完成 SHA/尺寸校验，格式列表
+校验以 VPS 容器内 exit `0` 为准。它不等于生产规模 restore/rebuild、RTO/RPO、维护态 rollback、
+controlled backfill 或 reconciliation；`DATA-01` 继续 `awaiting_production`，`DATA-02/03`
+不解锁。
