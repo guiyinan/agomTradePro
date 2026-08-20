@@ -42,7 +42,7 @@
     "external_http_imports_for_review": 0,
     "legacy_fact_references": 0,
     "provider_imports_outside_data_center": 0,
-    "runtime_parameter_references": 52
+    "runtime_parameter_references": 54
   },
   "cross_app_orm_imports": [
     {
@@ -3233,52 +3233,52 @@
       "text": "\"\"\"Return the latest context snapshot for a task.\"\"\""
     },
     {
-      "line": 530,
+      "line": 540,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "f\"Current user: {request.username} ({request.user_role}).\\n\""
     },
     {
-      "line": 543,
+      "line": 553,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"value current or today's. If must_not_use_for_decision=true, say so first and do \""
     },
     {
-      "line": 590,
+      "line": 600,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "summary=str(capability.get(\"summary\") or \"\"),"
     },
     {
-      "line": 610,
+      "line": 620,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"summary\": capability.get(\"summary\"),"
     },
     {
-      "line": 682,
+      "line": 692,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"\"\"Resolve the current user's MCP tool visibility and risk gating.\"\"\""
     },
     {
-      "line": 732,
+      "line": 742,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"summary\": str(capability.get(\"summary\") or \"\"),"
     },
     {
-      "line": 1124,
+      "line": 1134,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "current = obj"
     },
     {
-      "line": 1126,
+      "line": 1136,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "current = getattr(current, attr, None)"
     },
     {
-      "line": 1127,
+      "line": 1137,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "if current is None:"
     },
     {
-      "line": 1129,
+      "line": 1139,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "return current"
     },
@@ -22076,6 +22076,7 @@
     "current_test = os.getenv(\"PYTEST_CURRENT_TEST\")",
     "database_url = env(\"DATABASE_URL\", default=\"\").strip()",
     "dingtalk_webhook = os.getenv(\"ALERT_DINGTALK_WEBHOOK\")",
+    "django_settings_module = os.getenv(\"DJANGO_SETTINGS_MODULE\", \"\").strip()",
     "env(",
     "env(\"AGOM_BUILD_IDENTITY_PATH\", default=str(BASE_DIR / \".agom-build-identity.json\"))",
     "env_fallback = os.getenv(\"AGOMTRADEPRO_OPENAI_FALLBACK_ENABLED\")",
@@ -22086,6 +22087,7 @@
     "if env(\"REDIS_URL\", default=None):",
     "if not env(\"REDIS_URL\", default=\"\"):",
     "is_pytest_env = bool(os.getenv(\"PYTEST_CURRENT_TEST\"))",
+    "os.getenv(\"AGOMTRADEPRO_BASE_URL\", \"\").strip() or \"http://127.0.0.1:8000\"",
     "os.getenv(\"CELERY_LOG_LEVEL\") or os.getenv(\"DJANGO_LOG_LEVEL\")",
     "password=os.getenv(\"ALERT_SMTP_PASSWORD\", \"\"),",
     "raw_mode = api_mode or os.getenv(\"AGOMTRADEPRO_OPENAI_API_MODE\") or \"dual\"",
