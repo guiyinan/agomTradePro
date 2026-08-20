@@ -746,3 +746,22 @@ authenticated and fail-closed. It is not queued admission, Worker, SSE, idempote
 provider/MCP, chaos, capacity, 14-day telemetry, restore/rollback, role-browser UAT, or
 owner/reviewer evidence. TAR-01 remains active and TAR-02/TAR-03 remain waiting; queued
 intake/worker and the inline single-slot gate are unchanged.
+
+### TAR-01 reserved-route evidence contract validation (2026-08-21)
+
+The committed authenticated observation
+[`tar01-current-production-acceptance-2026-08-21-head-78966107d.json`](../deployment/tar01-current-production-acceptance-2026-08-21-head-78966107d.json)
+now has a repeatable offline validator:
+`python scripts/validate_terminal_runtime_reserved_route_evidence.py <evidence.json>`.
+The validator binds source commit/release/image identity, requires the exact `1/5/10/20`
+staircase and `503 / queued_runtime_not_wired / Retry-After=60` response counts, recomputes
+health and audit before/after stability, and rejects any self-reported capacity enablement.
+The artifact validates with four levels, stable health, no observed side effects, and
+`runtime_enablement=not_authorized` / `capacity_ready=false`.
+
+This is an evidence-integrity improvement only. It does not convert reserved-route rejection
+into a TAR-01 capacity baseline and does not provide queued admission, PostgreSQL run
+records, `on_commit` dispatch, Worker/SSE, idempotency/cancel, provider/MCP, chaos, 14-day
+telemetry, restore/rollback, role-browser UAT, or owner/reviewer evidence. TAR-01 remains
+active and TAR-02/TAR-03 remain waiting; queued intake/worker and the inline single-slot gate
+are unchanged.
