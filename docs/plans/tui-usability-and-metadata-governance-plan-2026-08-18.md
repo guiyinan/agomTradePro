@@ -189,6 +189,26 @@
   rollback, capacity/chaos and owner/reviewer sign-off remain outside this slice, so `TUX-02`,
   `TUX-04` and M5 remain active/fail-closed.
 
+## 6.2.4 2026-08-20 current candidate deployment and read-only acceptance
+
+- After all four push CI workflows passed for `7cf7e984373af71b6f96b234cefb78b5f319d770`,
+  the branch was deployed code-only as release `20260820145119` with remote data volumes
+  preserved. The deployment report is
+  `dist/remote-build-reports/remote-build-report-20260820145119.json`; source/image
+  identity matched (`sha256:6af515cee168cb4a406c158078f73eeab7e7931f331fbbff98b892f9ff701dca`).
+  Built-in and independent verifiers passed migrations/schema, Django checks, TUI metadata
+  registry, Qlib (`pyqlib=0.9.7`, wrong `qlib` distribution absent), PostgreSQL backup,
+  Caddy/TLS, web health, Celery worker/beat and Celery ping.
+- Independent HTTPS probes returned `/api/health/` `200`, `/api/ready/` `200`, `/api/` `200`,
+  `/api/audit/health/` `200`, and `/api/audit/metrics/` `200`; unauthenticated
+  `/api/terminal/runs/` and `/api/tui/` screen probes returned the expected `403`, while
+  `/api/regime/current/` remained `503 decision_runtime_blocked` with
+  `must_not_use_for_decision=true`. No business write or database restore was performed.
+- This is an immutable-candidate, short-window read-only deployment observation. It does not
+  provide role browser UAT, write receipts/refresh, 14-day telemetry, backup/restore, live
+  rollback, capacity/chaos, external portability or owner/reviewer sign-off; `TUX-02`/`TUX-04`
+  and the related production gates remain active/fail-closed.
+
 ## 6. 风险与回滚
 
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。
