@@ -2832,3 +2832,30 @@ account `0050`–`0054`、agent_runtime `0004` 与 audit `0012` migration；均�
 outbox 不能证明 durable publisher、dispatcher claim/delivery、authenticated owner/tenant
 authority 或同 UOW 双写已接通。`EVID-01` 与 `AUD-01/AUD-03` 的生产 writer/authority、
 PostgreSQL race/rollback、migration/restore/owner sign-off 仍保持 fail-closed。
+
+## 2026-08-20：EVID-01 formal candidate VPS acceptance recheck
+
+按当前 active registry 的正式候选
+`f3881a04cf0b5d5bff5d2b7e5a6bf25d523667e2` / release `20260820043710` 直接运行
+`scripts/deploy_vps_verify.py --expected-commit ...`，验证器明确拒绝候选绑定：远端当前实际
+运行的是 `7cf7e984373af71b6f96b234cefb78b5f319d770` / release `20260820145119`，镜像
+`sha256:6af515cee168cb4a406c158078f73eeab7e7931f331fbbff98b892f9ff701dca`。因此本轮没有
+把当前运行版本的健康结果拼接到 `f388...`，也没有生成或写入伪造的
+`vps-runtime-verification-*` / `evid-01-authority-inventory-*` 候选工件。
+
+对远端当前实际版本（`7cf...`）另行完成只读复核：expected-commit verifier exit `0`；
+Caddy/TLS、Django check、0050–0053 migration/schema、TUI registry、Qlib、备份、资源、
+Celery worker/beat/ping 均通过；HTTPS `/api/health/`、`/api/ready/`、`/api/`、
+认证后的 `/api/tui/`、`/api/policy/status/`、`/api/audit/health/`、
+`/api/audit/metrics/` 均为 `200`。认证后的 `/api/terminal/runs/` 保持预期
+`503 queued_runtime_not_wired`，`/api/regime/current/` 保持
+`503 decision_runtime_blocked` 与 `must_not_use_for_decision=true`。同一远端 PostgreSQL
+只读盘点（2026-08-20 08:42:33Z）确认 0050–0053 均已应用，EVID-01 约定的 12 张
+authority/evidence/root-lock 表全部为 `0` 行。
+
+这证明当前实际运行版本健康且 authority 仍 zero-seed，但不满足 formal `f388...` candidate
+binding；`tests/unit/test_evid_01_authority_inventory_evidence.py` 仍诚实地失败（缺同
+候选 runtime/inventory 工件）。在 release owner 明确重绑候选并重新取得同一 commit/release/
+image/matrix 证据前，`EVID-01`、M5、AUD-01、写入与 execution 继续 fail-closed；本轮未做
+业务写入、authority 回填、生产 restore/rollback、角色化 UAT、容量/chaos 或 owner/reviewer
+签字。
