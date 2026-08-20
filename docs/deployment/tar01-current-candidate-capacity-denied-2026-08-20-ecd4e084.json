@@ -1,0 +1,80 @@
+{
+  "acceptance": {
+    "capacity_ready": false,
+    "health_stable": true,
+    "outcome": "capacity_denied",
+    "queued_runtime_enabled": false,
+    "reason": "queued_runtime_not_wired",
+    "reserved_route_fail_closed": true,
+    "side_effects_observed": false
+  },
+  "artifact_type": "terminal_runtime_reserved_route_observation",
+  "base_url": "https://demo.agomtrade.pro",
+  "candidate": {
+    "image_id": "sha256:8c8a078e5bfa5b0737ca82816e66b671ddde362f438be7f8ea965bf052704ff9",
+    "image_tag": "agomtradepro-web:20260820195102",
+    "release_tag": "20260820195102",
+    "runtime_match": true,
+    "source_commit": "ecd4e084c3925e1b12228b36c5a504e5fdd895d3",
+    "deployment_report": "dist/remote-build-reports/remote-build-report-20260820195102.json",
+    "source_mode": "git-clone",
+    "status": "verified"
+  },
+  "collected_at": "2026-08-20T12:13:25.921911Z",
+  "environment": "production-vps",
+  "authentication": {
+    "method": "authenticated_session",
+    "credentials_recorded": false
+  },
+  "health_before": [
+    {"elapsed_ms": 1207.033, "status": 200},
+    {"elapsed_ms": 1300.382, "status": 200},
+    {"elapsed_ms": 1304.326, "status": 200},
+    {"elapsed_ms": 1302.670, "status": 200},
+    {"elapsed_ms": 1333.978, "status": 200}
+  ],
+  "health_after": [
+    {"elapsed_ms": 1255.880, "status": 200},
+    {"elapsed_ms": 1204.750, "status": 200},
+    {"elapsed_ms": 1271.146, "status": 200},
+    {"elapsed_ms": 1186.252, "status": 200},
+    {"elapsed_ms": 1257.467, "status": 200}
+  ],
+  "levels": [
+    {
+      "all_expected": true,
+      "concurrency": 1,
+      "expected_blocked_responses": 1,
+      "latency_ms": {"max": 1448.065, "p50": 1448.065, "p95": 1448.065, "p99": 1448.065},
+      "requests": 1,
+      "status_counts": {"503": 1}
+    },
+    {
+      "all_expected": true,
+      "concurrency": 5,
+      "expected_blocked_responses": 5,
+      "latency_ms": {"max": 1742.107, "p50": 1723.828, "p95": 1740.755, "p99": 1741.837},
+      "requests": 5,
+      "status_counts": {"503": 5}
+    },
+    {
+      "all_expected": true,
+      "concurrency": 10,
+      "expected_blocked_responses": 10,
+      "latency_ms": {"max": 2140.791, "p50": 1969.182, "p95": 2122.314, "p99": 2137.096},
+      "requests": 10,
+      "status_counts": {"503": 10}
+    },
+    {
+      "all_expected": true,
+      "concurrency": 20,
+      "expected_blocked_responses": 20,
+      "latency_ms": {"max": 3397.544, "p50": 2244.731, "p95": 2840.753, "p99": 3286.186},
+      "requests": 20,
+      "status_counts": {"503": 20}
+    }
+  ],
+  "method": "POST",
+  "route": "/api/terminal/runs/",
+  "schema": "terminal-runtime-reserved-route-observation.v1"
+}

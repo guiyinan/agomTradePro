@@ -666,3 +666,32 @@ Agent. The existing reserved route remains `queued_runtime_not_wired`, and the
 TAR-02 dependency/status and all production gates remain unchanged until TAR-01
 exit evidence and a concurrency-safe durable admission composition are
 approved.
+
+### TAR-01 current HEAD VPS deployment and authenticated staircase acceptance (2026-08-20)
+
+After all four push workflows were green, the current
+`dev/next-development@ecd4e084c3925e1b12228b36c5a504e5fdd895d3` was deployed
+code-only with `-Upgrade` as release `20260820195102`. PostgreSQL/Redis data
+volumes were preserved. The deployment verifier passed release/image identity,
+backup, migrations/schema, Django checks, TUI registry, Qlib
+(`pyqlib=0.9.7`, wrong distribution absent), Caddy/TLS, resources, containers,
+Celery worker/beat and ping. The runtime image was
+`agomtradepro-web:20260820195102` with image
+`sha256:8c8a078e5bfa5b0737ca82816e66b671ddde362f438be7f8ea965bf052704ff9`.
+
+Using an authenticated controlled test account, the reserved
+`POST /api/terminal/runs/` route was exercised at concurrency `1/5/10/20`
+for exactly `1/5/10/20` requests. All `36/36` responses were the expected
+HTTP `503`, `DISPATCH_UNAVAILABLE`, `reason_code=queued_runtime_not_wired`,
+with `Retry-After=60`; p95 latency by level was
+`1448.065/1740.755/2122.314/2840.753 ms`. Five health probes before and five
+after the staircase were all HTTP `200`. No run was admitted and no queue,
+provider, or MCP side effect was observed. The structured evidence is
+[`tar01-current-candidate-capacity-denied-2026-08-20-ecd4e084.json`](../deployment/tar01-current-candidate-capacity-denied-2026-08-20-ecd4e084.json).
+
+This is direct evidence that the current deployed version remains authenticated
+and fail-closed while queued runtime is disabled. It is not queued admission,
+Worker, SSE, idempotency/cancel, provider/MCP, chaos, or capacity acceptance;
+the formal M5 candidate remains unchanged. TAR-01 remains active, TAR-02/TAR-03
+remain waiting, and inline single-slot plus queued feature gates remain
+unchanged.
